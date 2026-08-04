@@ -111,6 +111,11 @@ test('a built list is priced, played and tracked', async ({ browser }) => {
   // A pasted list names nothing, so Bob has no units to track.
   await expect(bob.locator('section', { hasText: 'Ultramarines' }).locator('[data-stat="standing"]')).toHaveCount(0)
 
+  // Models come off one at a time; the unit is lost when the last one goes.
+  const shed = alice.getByRole('button', { name: /^Lose a model from Plague Marines/ })
+  await shed.click()
+  await expect(alice.getByText('9/10')).toBeVisible()
+
   await alice
     .getByRole('button', { name: /^Lose Plague Marines/ })
     .first()

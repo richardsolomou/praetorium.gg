@@ -74,6 +74,7 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
     secondaryMode: z.enum(SECONDARY_MODES),
   }),
   z.object({ kind: z.literal('deploy-unit'), unitKey: id, deployed: z.boolean() }),
+  z.object({ kind: z.literal('wound-unit'), unitKey: id, delta: z.number().int() }),
   z.object({ kind: z.literal('set-deployment'), patternId: id.nullable() }),
   z.object({ kind: z.literal('use-stratagem'), key: id }),
   z.object({ kind: z.literal('score-secondary'), key: id, delta: z.number().int() }),

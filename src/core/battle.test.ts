@@ -420,3 +420,63 @@ describe('the account of the battle', () => {
     expect(battleReport(NAMES, history).at(-1)).toMatchObject({ round: 2, text: 'Bob scores 3 primary' })
   })
 })
+
+describe('models within a unit', () => {
+  const inPlay = (): [string, Command][] => [
+    [ALICE, builtRoster('Ultramarines', ['Intercessors'])],
+    [BOB, roster('Death Guard')],
+    [ALICE, { kind: 'begin-battle', firstPlayerId: ALICE }],
+  ]
+
+  const intercessors = (state: ReturnType<typeof reduceBattle>) =>
+    state.players.find((player) => player.id === ALICE)?.units.find((unit) => unit.key === 'u0')
+
+  it('start out whole', () => {
+    expect(intercessors(reduceBattle(PLAYERS, log(...inPlay())))?.alive).toBe(5)
+  })
+
+  it('come off one at a time', () => {
+    const state = reduceBattle(PLAYERS, log(...inPlay(), [ALICE, { kind: 'wound-unit', unitKey: 'u0', delta: -2 }]))
+    expect(intercessors(state)?.alive).toBe(3)
+  })
+
+  it('cannot go below none', () => {
+    const state = reduceBattle(PLAYERS, log(...inPlay()))
+    expect(validate(state, ALICE, { kind: 'wound-unit', unitKey: 'u0', delta: -6 })).toBe('there are not that many models left')
+  })
+
+  it('cannot exceed what the unit was fielded with', () => {
+    const state = reduceBattle(PLAYERS, log(...inPlay()))
+    expect(validate(state, ALICE, { kind: 'wound-unit', unitKey: 'u0', delta: 1 })).toBe('that is more models than the unit has')
+  })
+
+  it('destroy the unit when the last one goes', () => {
+    // Losing the last model and losing the unit are one event, not two states.
+    const state = reduceBattle(PLAYERS, log(...inPlay(), [ALICE, { kind: 'wound-unit', unitKey: 'u0', delta: -5 }]))
+    expect(intercessors(state)?.destroyed).toBe(true)
+  })
+
+  it('are emptied when the unit is marked lost outright', () => {
+    const state = reduceBattle(PLAYERS, log(...inPlay(), [ALICE, { kind: 'set-unit', unitKey: 'u0', destroyed: true }]))
+    expect(intercessors(state)?.alive).toBe(0)
+  })
+
+  it('come back whole when the unit is brought back', () => {
+    const history = log(
+      ...inPlay(),
+      [ALICE, { kind: 'set-unit', unitKey: 'u0', destroyed: true }],
+      [ALICE, { kind: 'set-unit', unitKey: 'u0', destroyed: false }],
+    )
+    expect(intercessors(reduceBattle(PLAYERS, history))?.alive).toBe(5)
+  })
+
+  it('read as a loss in the account when the last model goes', () => {
+    const history = log(...inPlay(), [ALICE, { kind: 'wound-unit', unitKey: 'u0', delta: -5 }])
+    expect(text(battleReport(NAMES, history))).toContain('Alice loses Intercessors')
+  })
+
+  it('read as models in the account otherwise', () => {
+    const history = log(...inPlay(), [ALICE, { kind: 'wound-unit', unitKey: 'u0', delta: -1 }])
+    expect(text(battleReport(NAMES, history))).toContain('Alice loses 1 model from Intercessors')
+  })
+})

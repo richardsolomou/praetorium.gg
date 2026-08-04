@@ -227,8 +227,13 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
                 <ul className="mt-1 divide-y divide-edge">
                   {player.units.map((unit) => (
                     <li key={unit.key} className="flex items-center justify-between gap-2 py-1 text-sm">
-                      <span className={`truncate ${unit.destroyed ? 'text-dim line-through' : ''}`}>
+                      <span className={`min-w-0 flex-1 truncate ${unit.destroyed ? 'text-dim line-through' : ''}`}>
                         {unit.name}
+                        {unit.models > 1 && !unit.destroyed ? (
+                          <span className="readout ml-1.5 text-xs text-dim">
+                            {unit.alive}/{unit.models}
+                          </span>
+                        ) : null}
                         {!unit.deployed && !unit.destroyed ? <span className="ml-1.5 text-xs text-dim">in reserve</span> : null}
                       </span>
                       {player.isViewer && !finished ? (
@@ -242,6 +247,17 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
                               onClick={() => send({ kind: 'deploy-unit', unitKey: unit.key, deployed: true })}
                             >
                               <ArrowDownToLine />
+                            </Button>
+                          ) : null}
+                          {unit.models > 1 && !unit.destroyed ? (
+                            <Button
+                              variant="outline"
+                              size="icon-sm"
+                              aria-label={`Lose a model from ${unit.name}`}
+                              disabled={pending}
+                              onClick={() => send({ kind: 'wound-unit', unitKey: unit.key, delta: -1 })}
+                            >
+                              −1
                             </Button>
                           ) : null}
                           <Button

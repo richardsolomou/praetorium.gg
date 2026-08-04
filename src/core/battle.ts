@@ -68,7 +68,16 @@ export type SubmittedUnit = { key: string; name: string; points: number; models:
  * A unit's standing in the battle. Deployed means on the table: everything starts
  * off it, which is what makes a deployment step mean anything.
  */
-export type UnitState = SubmittedUnit & { destroyed: boolean; deployed: boolean }
+export type UnitState = SubmittedUnit & {
+  destroyed: boolean
+  deployed: boolean
+  /**
+   * Models still standing in the unit. A unit is destroyed when this reaches zero,
+   * so losing the last model and losing the unit are the same event rather than two
+   * things that can disagree.
+   */
+  alive: number
+}
 
 /**
  * A stratagem as the player transcribes it from their own book.
@@ -122,6 +131,7 @@ export const GAME_SIZES = [
 export type Command =
   | { kind: 'attach-roster'; roster: Roster }
   | { kind: 'set-unit'; unitKey: string; destroyed: boolean }
+  | { kind: 'wound-unit'; unitKey: string; delta: number }
   | { kind: 'deploy-unit'; unitKey: string; deployed: boolean }
   | { kind: 'set-deployment'; patternId: string | null }
   | { kind: 'set-prep'; stratagems: Stratagem[]; secondaries: Secondary[]; primary: Secondary | null; secondaryMode: SecondaryMode }
@@ -286,6 +296,15 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
       if (!player.units.some((unit) => unit.key === command.unitKey)) return 'that is not one of your units'
       return null
     }
+    case 'wound-unit': {
+      if (state.status !== 'playing') return 'the battle is not running'
+      const unit = player.units.find((candidate) => candidate.key === command.unitKey)
+      if (!unit) return 'that is not one of your units'
+      if (!Number.isInteger(command.delta) || command.delta === 0) return 'models come off in whole numbers'
+      if (unit.alive + command.delta < 0) return 'there are not that many models left'
+      if (unit.alive + command.delta > unit.models) return 'that is more models than the unit has'
+      return null
+    }
     case 'set-deployment': {
       // The battlefield is shared, so either player may set it, and only before the
       // first turn — moving the deployment zones mid-battle is not a thing.
@@ -341,17 +360,31 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
     case 'attach-roster': {
       player.roster = { ...command.roster, name: command.roster.name.trim() }
       // A replaced list is a different army, so nothing about the old one survives.
-      player.units = (command.roster.built?.units ?? []).map((unit) => Object.assign({ destroyed: false, deployed: false }, unit))
+      player.units = (command.roster.built?.units ?? []).map((unit) =>
+        Object.assign({ destroyed: false, deployed: false, alive: unit.models }, unit),
+      )
       return
     }
     case 'set-unit': {
       const unit = player.units.find((candidate) => candidate.key === command.unitKey)
-      if (unit) unit.destroyed = command.destroyed
+      if (!unit) return
+      unit.destroyed = command.destroyed
+      // The two stay in step in both directions: a unit brought back is whole again.
+      unit.alive = command.destroyed ? 0 : unit.models
       return
     }
     case 'deploy-unit': {
       const unit = player.units.find((candidate) => candidate.key === command.unitKey)
       if (unit) unit.deployed = command.deployed
+      return
+    }
+    case 'wound-unit': {
+      const unit = player.units.find((candidate) => candidate.key === command.unitKey)
+      if (!unit) return
+      unit.alive += command.delta
+      // Losing the last model is losing the unit: one event, not two states that
+      // could contradict each other.
+      unit.destroyed = unit.alive === 0
       return
     }
     case 'set-deployment': {
@@ -542,6 +575,14 @@ function describe(
     case 'set-unit': {
       const unit = player?.units.find((candidate) => candidate.key === command.unitKey)?.name ?? 'a unit'
       return command.destroyed ? `${who} loses ${unit}` : `${who} brings ${unit} back`
+    }
+    case 'wound-unit': {
+      const unit = player?.units.find((candidate) => candidate.key === command.unitKey)
+      const name = unit?.name ?? 'a unit'
+      if (unit && unit.alive === 0) return `${who} loses ${name}`
+      const count = Math.abs(command.delta)
+      const models = count === 1 ? 'model' : 'models'
+      return command.delta < 0 ? `${who} loses ${count} ${models} from ${name}` : `${who} returns ${count} ${models} to ${name}`
     }
     case 'end-battle':
       return `${who} called the battle`
