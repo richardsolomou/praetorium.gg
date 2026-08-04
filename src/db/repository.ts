@@ -1,8 +1,8 @@
-import { asc, eq } from 'drizzle-orm'
+import { and, asc, desc, eq } from 'drizzle-orm'
 import { type Command, type LoggedCommand, PLAYERS_PER_BATTLE, reduceBattle, validate } from '../core/battle'
 import { commandSchema } from '../core/commands'
 import type { MusterDatabase } from './connection'
-import { battlePlayers, battles, commands, players } from './schema'
+import { battlePlayers, battles, commands, players, rosters } from './schema'
 
 export type BattleRecord = { id: string; token: string; createdAt: number }
 export type BattlePlayer = { id: string; name: string; side: number }
@@ -85,6 +85,44 @@ export class Repository {
         .run()
       return { outcome: 'appended', seq }
     })
+  }
+
+  saveRoster(input: {
+    id: string
+    playerId: string
+    name: string
+    catalogueId: string
+    detachmentId: string | null
+    limit: number
+    picks: string
+    now: number
+  }) {
+    this.database
+      .insert(rosters)
+      .values({ ...input, updatedAt: input.now })
+      .onConflictDoUpdate({
+        target: rosters.id,
+        set: {
+          name: input.name,
+          catalogueId: input.catalogueId,
+          detachmentId: input.detachmentId,
+          limit: input.limit,
+          picks: input.picks,
+          updatedAt: input.now,
+        },
+      })
+      .run()
+  }
+
+  rostersOf(playerId: string) {
+    return this.database.select().from(rosters).where(eq(rosters.playerId, playerId)).orderBy(desc(rosters.updatedAt)).all()
+  }
+
+  deleteRoster(id: string, playerId: string) {
+    this.database
+      .delete(rosters)
+      .where(and(eq(rosters.id, id), eq(rosters.playerId, playerId)))
+      .run()
   }
 
   private logQuery(battleId: string, tx: Transaction | MusterDatabase = this.database): LoggedCommand[] {

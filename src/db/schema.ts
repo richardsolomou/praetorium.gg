@@ -62,4 +62,29 @@ export const commands = sqliteTable(
   (table) => [primaryKey({ columns: [table.battleId, table.seq] })],
 )
 
-export const schema = { players, battles, battlePlayers, commands }
+/**
+ * A list a player keeps between battles.
+ *
+ * The picks are stored, not the expanded selections: re-pricing them against the
+ * catalogue the instance currently holds is the honest answer when Games Workshop
+ * changes points, and it is what a player expects a saved list to do.
+ */
+export const rosters = sqliteTable(
+  'rosters',
+  {
+    id: text('id').primaryKey(),
+    playerId: text('player_id')
+      .notNull()
+      .references(() => players.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    catalogueId: text('catalogue_id').notNull(),
+    detachmentId: text('detachment_id'),
+    limit: integer('limit').notNull(),
+    /** The picked units as JSON: entry ids, model counts and chosen options. */
+    picks: text('picks').notNull(),
+    updatedAt: integer('updated_at').notNull(),
+  },
+  (table) => [index('rosters_player_id_index').on(table.playerId)],
+)
+
+export const schema = { players, battles, battlePlayers, commands, rosters }

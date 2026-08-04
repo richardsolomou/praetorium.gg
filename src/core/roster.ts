@@ -20,6 +20,15 @@ const MAX_DEPTH = 4
 export type DefaultOptions = { maxDepth?: number }
 
 /**
+ * What a player picked, in the form a saved list keeps.
+ *
+ * Deliberately the picks rather than the expanded selections: re-pricing them
+ * against the catalogue an instance currently holds is the honest answer when
+ * Games Workshop changes points.
+ */
+export type RosterPick = { entryId: string; models?: number; choices?: Record<string, string> }
+
+/**
  * The smallest legal selection of an entry, or null when the id is unknown.
  *
  * Only what the data insists on is included. An optional upgrade is a choice for

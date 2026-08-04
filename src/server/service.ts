@@ -2,12 +2,15 @@ import type { BattleEvents } from '../adapters/events'
 import { type BattleView, battleView, type Command, PLAYERS_PER_BATTLE, reduceBattle } from '../core/battle'
 import type { BattleSeats, JoinResult, Repository, SubmitResult } from '../db/repository'
 import { createId, createToken } from './crypto'
+import { picksSchema } from './schemas'
 
 /**
  * What someone holding the link gets: the battle itself once they have a seat,
  * or the invitation until they take one. Reading a battle never seats anyone —
  * a link preview must not be able to take the second chair.
  */
+export type Pick = { entryId: string; models?: number; choices?: Record<string, string> }
+
 export type BattleScreen = { kind: 'battle'; view: BattleView } | { kind: 'invitation'; free: boolean }
 
 export class MusterService {
@@ -24,6 +27,31 @@ export class MusterService {
 
   player(playerId: string) {
     return this.repository.player(playerId)
+  }
+
+  saveRoster(
+    playerId: string,
+    roster: { id?: string; name: string; catalogueId: string; detachmentId: string | null; limit: number; picks: readonly Pick[] },
+  ) {
+    const id = roster.id ?? createId()
+    this.repository.saveRoster({ ...roster, id, playerId, picks: JSON.stringify(roster.picks), now: this.clock() })
+    return { id }
+  }
+
+  /** A player's own saved lists, newest first. Their picks come back parsed. */
+  savedRosters(playerId: string) {
+    return this.repository.rostersOf(playerId).map((row) => ({
+      id: row.id,
+      name: row.name,
+      catalogueId: row.catalogueId,
+      detachmentId: row.detachmentId,
+      limit: row.limit,
+      picks: picksSchema.parse(JSON.parse(row.picks)),
+    }))
+  }
+
+  deleteRoster(playerId: string, id: string) {
+    this.repository.deleteRoster(id, playerId)
   }
 
   createBattle(playerId: string) {

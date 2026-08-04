@@ -25,6 +25,26 @@ export const unitsSchema = z.object({ catalogueId, query: z.string().max(80).def
  * A list is sent as the entries the player picked and how many models they want
  * in each; the server expands every one to a legal selection.
  */
+const pickSchema = z.object({
+  entryId: z.string().min(1).max(64),
+  models: z.number().int().min(1).max(60).optional(),
+  choices: z.record(z.string().max(400), z.string().min(1).max(64)).optional(),
+})
+
+export const saveRosterSchema = z.object({
+  id: z.string().min(1).max(64).optional(),
+  name: z.string().trim().min(1, 'name the list').max(80),
+  catalogueId,
+  detachmentId: z.string().min(1).max(64).nullable(),
+  limit: z.number().int().min(0).max(10_000),
+  picks: z.array(pickSchema).max(100),
+})
+
+export const rosterIdSchema = z.object({ id: z.string().min(1).max(64) })
+
+/** Saved picks are read back through this, so a hand-edited row fails loudly. */
+export const picksSchema = z.array(pickSchema).max(100)
+
 export const priceSchema = z.object({
   catalogueId,
   detachmentId: z.string().min(1).max(64).optional(),

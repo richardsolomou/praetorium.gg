@@ -1,5 +1,5 @@
-import { useQuery } from '@tanstack/react-query'
-import { Minus, Plus, X } from 'lucide-react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Minus, Plus, Save, Trash2, X } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -7,7 +7,8 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import type { Roster } from '../../core/battle'
 import { GAME_SIZES, ROSTER_NAME_MAX_LENGTH } from '../../core/battle'
-import { factionsQuery, priceQuery, unitsQuery } from '../queries'
+import { deleteRoster, saveRoster } from '../../server/fns'
+import { factionsQuery, priceQuery, savedRostersQuery, unitsQuery } from '../queries'
 
 type Props = { onAttach: (roster: Roster) => void; pending: boolean; attached: boolean }
 
@@ -34,6 +35,37 @@ export function ListBuilder({ onAttach, pending, attached }: Props) {
   const [detachmentId, setDetachmentId] = useState<string | undefined>()
   const [name, setName] = useState('')
 
+  const [savedId, setSavedId] = useState<string | undefined>()
+  const queryClient = useQueryClient()
+  const { data: saved } = useQuery(savedRostersQuery())
+  const refreshSaved = () => queryClient.invalidateQueries({ queryKey: savedRostersQuery().queryKey })
+
+  const save = useMutation({
+    mutationFn: () =>
+      saveRoster({
+        data: {
+          id: savedId,
+          name: name.trim() || 'Untitled list',
+          catalogueId,
+          detachmentId: detachmentId ?? null,
+          limit,
+          picks: picked.map(({ entryId, models, choices }) => ({ entryId, models, choices })),
+        },
+      }),
+    onSuccess: ({ id }) => {
+      setSavedId(id)
+      void refreshSaved()
+    },
+  })
+
+  const remove = useMutation({
+    mutationFn: (id: string) => deleteRoster({ data: { id } }),
+    onSuccess: () => {
+      setSavedId(undefined)
+      void refreshSaved()
+    },
+  })
+
   const { data: found } = useQuery(unitsQuery(catalogueId, query))
   const { data: priced } = useQuery(
     priceQuery(
@@ -58,6 +90,42 @@ export function ListBuilder({ onAttach, pending, attached }: Props) {
 
   return (
     <div className="space-y-4 rounded-lg border border-edge bg-panel p-4">
+      {saved?.length ? (
+        <div className="space-y-1.5">
+          <p className="eyebrow">Your lists</p>
+          <ul className="divide-y divide-edge rounded-md border border-edge">
+            {saved.map((list) => (
+              <li key={list.id} className="flex items-center justify-between gap-2 px-3 py-1.5 text-sm">
+                <button
+                  type="button"
+                  className="min-w-0 flex-1 truncate text-left hover:text-amber"
+                  onClick={() => {
+                    setSavedId(list.id)
+                    setName(list.name)
+                    setCatalogueId(list.catalogueId)
+                    setDetachmentId(list.detachmentId ?? undefined)
+                    setLimit(list.limit)
+                    setPicked(list.picks.map((pick, at) => ({ key: at, ...pick })))
+                    setNextKey(list.picks.length)
+                  }}
+                >
+                  {list.name}
+                </button>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={`Delete ${list.name}`}
+                  disabled={remove.isPending}
+                  onClick={() => remove.mutate(list.id)}
+                >
+                  <Trash2 />
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
       <div className="space-y-2">
         <Label htmlFor="faction">Army</Label>
         <Select
@@ -259,46 +327,58 @@ export function ListBuilder({ onAttach, pending, attached }: Props) {
             />
           </div>
 
-          <Button
-            className="h-11 w-full text-base"
-            disabled={pending || !name.trim() || !priced?.units.length || over || needsDetachment}
-            onClick={() => {
-              if (!priced) return
-              onAttach({
-                name,
-                // The readable form travels with the list so an opponent can see it
-                // whatever the other instance has synced.
-                text: [
-                  `${priced.points} / ${limit} pts`,
-                  ...(priced.detachment ? [priced.detachment] : []),
-                  '',
-                  ...priced.units.map((unit) => `${unit.name}${unit.size.resizable ? ` (${unit.size.models})` : ''} — ${unit.points}`),
-                ].join('\n'),
-                built: {
-                  catalogueId,
-                  revision: priced.revision,
-                  limit,
-                  detachment: priced.detachment,
-                  selections: priced.selections,
-                  // Keys are fixed here because the battle log points at them.
-                  units: priced.units.map((unit, index) => ({
-                    key: `${index}-${unit.entryId}`,
-                    name: unit.name,
-                    points: unit.points,
-                    models: unit.size.models,
-                  })),
-                },
-              })
-            }}
-          >
-            {over && priced
-              ? `${priced.points - limit} pts over`
-              : needsDetachment
-                ? 'Pick a detachment first'
-                : attached
-                  ? 'Replace my list'
-                  : 'Attach this list'}
-          </Button>
+          <div className="flex gap-2">
+            {/* No aria-label: it would override the text and never announce the change. */}
+            <Button
+              variant="outline"
+              className="h-11"
+              disabled={save.isPending || !name.trim() || !priced?.units.length}
+              onClick={() => save.mutate()}
+            >
+              <Save />
+              {savedId ? 'Saved' : 'Save list'}
+            </Button>
+            <Button
+              className="h-11 flex-1 text-base"
+              disabled={pending || !name.trim() || !priced?.units.length || over || needsDetachment}
+              onClick={() => {
+                if (!priced) return
+                onAttach({
+                  name,
+                  // The readable form travels with the list so an opponent can see it
+                  // whatever the other instance has synced.
+                  text: [
+                    `${priced.points} / ${limit} pts`,
+                    ...(priced.detachment ? [priced.detachment] : []),
+                    '',
+                    ...priced.units.map((unit) => `${unit.name}${unit.size.resizable ? ` (${unit.size.models})` : ''} — ${unit.points}`),
+                  ].join('\n'),
+                  built: {
+                    catalogueId,
+                    revision: priced.revision,
+                    limit,
+                    detachment: priced.detachment,
+                    selections: priced.selections,
+                    // Keys are fixed here because the battle log points at them.
+                    units: priced.units.map((unit, index) => ({
+                      key: `${index}-${unit.entryId}`,
+                      name: unit.name,
+                      points: unit.points,
+                      models: unit.size.models,
+                    })),
+                  },
+                })
+              }}
+            >
+              {over && priced
+                ? `${priced.points - limit} pts over`
+                : needsDetachment
+                  ? 'Pick a detachment first'
+                  : attached
+                    ? 'Replace my list'
+                    : 'Attach this list'}
+            </Button>
+          </div>
         </>
       ) : null}
     </div>

@@ -7,7 +7,16 @@ import { evaluate, type Selection } from '../core/evaluate'
 import { buildUnit } from '../core/roster'
 import { unitsIn } from './catalogue'
 import { mutationRpc, rpc } from './rpc'
-import { createBattleSchema, joinBattleSchema, priceSchema, submitSchema, tokenSchema, unitsSchema } from './schemas'
+import {
+  createBattleSchema,
+  joinBattleSchema,
+  priceSchema,
+  rosterIdSchema,
+  saveRosterSchema,
+  submitSchema,
+  tokenSchema,
+  unitsSchema,
+} from './schemas'
 
 /** Reads answer null for a link that points at nothing, so the route can render a real 404. */
 function orNull<T>(work: () => T) {
@@ -154,5 +163,26 @@ export const priceRoster = createServerFn({ method: 'POST' })
           choices: unit.choices,
         })),
       }
+    }),
+  )
+
+/** Lists a player keeps between battles. Their own only — there is nothing to share here. */
+export const savedRosters = createServerFn({ method: 'GET' }).handler(() =>
+  rpc(() => {
+    const id = currentPlayerId()
+    return id ? app().service.savedRosters(id) : []
+  }),
+)
+
+export const saveRoster = createServerFn({ method: 'POST' })
+  .validator(saveRosterSchema)
+  .handler(({ data }) => mutationRpc(() => app().service.saveRoster(requirePlayerId(), data)))
+
+export const deleteRoster = createServerFn({ method: 'POST' })
+  .validator(rosterIdSchema)
+  .handler(({ data }) =>
+    mutationRpc(() => {
+      app().service.deleteRoster(requirePlayerId(), data.id)
+      return null
     }),
   )

@@ -1,5 +1,5 @@
 import { queryOptions } from '@tanstack/react-query'
-import { factions, me, openBattle, priceRoster, units } from '../server/fns'
+import { factions, me, openBattle, priceRoster, savedRosters, units } from '../server/fns'
 
 export const meQuery = () => queryOptions({ queryKey: ['me'], queryFn: () => me() })
 
@@ -24,3 +24,5 @@ export const priceQuery = (catalogueId: string, detachmentId: string | undefined
     queryFn: () => priceRoster({ data: { catalogueId, detachmentId, units: [...picked] } }),
     enabled: Boolean(catalogueId),
   })
+
+export const savedRostersQuery = () => queryOptions({ queryKey: ['saved-rosters'], queryFn: () => savedRosters() })
