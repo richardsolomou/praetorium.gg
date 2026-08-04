@@ -43,6 +43,8 @@ const ENTRY_TYPES = new Set(['model', 'unit', 'upgrade', 'model-or-unit'])
 type Node = {
   /** The entry or group the selection resolves to, after following any link. */
   target: Definition
+  /** Only the root carries this: the catalogue the roster is being built from. */
+  catalogueId?: string
   /** The link that brought it in, when one did — it carries its own costs and constraints. */
   link: EntryLink | null
   id: string
@@ -63,9 +65,26 @@ class Census {
   }
 }
 
-export function evaluate(selections: readonly Selection[], index: CatalogueIndex): Evaluation {
+export type EvaluateOptions = {
+  /**
+   * The catalogue the list is being built from. Chapter-specific pricing asks for
+   * it directly — a Blood Angels captain costs five points more than the same
+   * entry in another book — so without it those surcharges cannot be applied.
+   */
+  primaryCatalogueId?: string
+}
+
+export function evaluate(selections: readonly Selection[], index: CatalogueIndex, options: EvaluateOptions = {}): Evaluation {
   const census = new Census()
-  const root: Node = { target: { id: 'roster' }, link: null, id: 'roster', count: 1, parent: null, children: [] }
+  const root: Node = {
+    target: { id: 'roster' },
+    catalogueId: options.primaryCatalogueId,
+    link: null,
+    id: 'roster',
+    count: 1,
+    parent: null,
+    children: [],
+  }
   root.children = selections.map((selection) => build(selection, root, index, census)).filter((node): node is Node => node !== null)
 
   const totals = new Map<string, number>()
@@ -323,6 +342,15 @@ type Measurable = {
 
 /** Counts selections, or sums a cost, within a scope. The heart of every condition and constraint. */
 function measure(spec: Measurable, node: Node, root: Node, index: CatalogueIndex, census: Census): number {
+  // Not a place in the roster but a question about it: which book is this list from.
+  if (spec.scope === 'primary-catalogue') {
+    if (!root.catalogueId) {
+      census.note('scope primary-catalogue without a catalogue to compare')
+      return 0
+    }
+    return spec.childId === root.catalogueId ? 1 : 0
+  }
+
   const origins = resolveScope(spec.scope, node, root, census)
   if (!origins.length) return 0
 

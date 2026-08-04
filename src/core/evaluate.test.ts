@@ -279,6 +279,42 @@ describe('legality', () => {
   })
 })
 
+describe('a surcharge that depends on the book the list is from', () => {
+  const chapterSurcharge = (): Partial<Catalogue> => ({
+    sharedSelectionEntries: [
+      {
+        id: 'captain',
+        name: 'Captain',
+        type: 'model',
+        costs: points(75),
+        modifiers: [
+          {
+            type: 'increment',
+            field: PTS,
+            value: 5,
+            conditions: [{ type: 'instanceOf', value: 1, field: 'selections', scope: 'primary-catalogue', childId: 'cat' }],
+          },
+        ],
+      },
+    ],
+  })
+
+  it('applies in its own book', () => {
+    const result = evaluate([{ id: 'captain' }], indexOf(chapterSurcharge()), { primaryCatalogueId: 'cat' })
+    expect(result.points).toBe(80)
+  })
+
+  it('does not apply in another book', () => {
+    const result = evaluate([{ id: 'captain' }], indexOf(chapterSurcharge()), { primaryCatalogueId: 'other' })
+    expect(result.points).toBe(75)
+  })
+
+  it('says so when no book was named, rather than charging either way silently', () => {
+    const result = evaluate([{ id: 'captain' }], indexOf(chapterSurcharge()))
+    expect(result.unhandled).toContain('scope primary-catalogue without a catalogue to compare')
+  })
+})
+
 describe('an unknown selection', () => {
   it('is named in the census rather than ignored', () => {
     expect(evaluateOne({ id: 'nonsense' }, {}).unhandled).toContain('unknown selection id nonsense')

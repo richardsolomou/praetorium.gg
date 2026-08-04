@@ -39,7 +39,7 @@ docker compose up -d
 
 There is an evaluator over the community [BSData](https://github.com/BSData/wh40k-11e) catalogues in `src/core/evaluate.ts`: give it what a player picked and it returns the points and what is illegal about it. It understands the parts of the format that legality and cost depend on — constraints, modifiers, conditions, repeats, and the per-copy and per-model pricing 11th edition uses.
 
-It is checked against Games Workshop's own numbers rather than against itself. `pnpm catalogue:points` builds real units at the model counts the Munitorum Field Manual prices and compares: **it agrees on 96.5% of 1,555 checks**. Everything it does not understand it reports instead of guessing, because a confidently wrong points total is worse than an honest gap.
+It is checked against Games Workshop's own numbers rather than against itself. `pnpm catalogue:points` builds real units at the model counts the Munitorum Field Manual prices and compares: **it agrees on 97.1% of 1,555 checks**. Everything it does not understand it reports instead of guessing, because a confidently wrong points total is worse than an honest gap.
 
 See [catalogue/README.md](catalogue/README.md) for where the data comes from and why none of it is in this repository.
 

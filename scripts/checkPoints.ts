@@ -46,13 +46,28 @@ type MfmUnit = { name: string; pricing?: { range?: string; costs?: { models: num
 const firstCopyRange = (unit: MfmUnit) =>
   (unit.pricing ?? []).find((pricing) => !pricing.range || /^\[1[,\]]/.test(pricing.range)) ?? (unit.pricing ?? [])[0]
 
-const units: MfmUnit[] = fs
+type MfmFaction = { slug?: string; units?: MfmUnit[] }
+
+const factions = fs
   .readdirSync(pointsDirectory)
   .filter((name) => name.endsWith('.yaml'))
-  .flatMap((name) => {
-    const faction: { units?: MfmUnit[] } = parse(fs.readFileSync(path.join(pointsDirectory, name), 'utf8'))
-    return faction.units ?? []
+  .map((name) => {
+    const faction: MfmFaction = parse(fs.readFileSync(path.join(pointsDirectory, name), 'utf8'))
+    return { slug: faction.slug ?? name.replace('.yaml', ''), units: faction.units ?? [] }
   })
+
+/** "Imperium - Blood Angels" is the same book the manual calls `blood-angels`. */
+const slugOf = (catalogueName: string) =>
+  catalogueName
+    .split(' - ')
+    .at(-1)!
+    .toLowerCase()
+    .replaceAll(/['’]/g, '')
+    .replaceAll(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+
+const catalogueBySlug = new Map<string, string>()
+for (const catalogue of index.catalogues.values()) catalogueBySlug.set(slugOf(catalogue.name), catalogue.id)
 
 const isEntry = (definition: Definition) => definition.type !== undefined
 
@@ -132,49 +147,56 @@ function toSelection(unitId: string, slots: Slot[], wanted: { path: string[]; co
 const tally = { matched: 0, mismatched: 0, ambiguous: 0, missing: 0, unsupportedShape: 0 }
 const mismatches: string[] = []
 const census = new Set<string>()
+let withoutCatalogue = 0
 
-for (const unit of units) {
-  const candidates = resolve(unit.name)
-  const tiers = firstCopyRange(unit)?.costs ?? []
-  if (!tiers.length) continue
-  if (!candidates.length) {
-    tally.missing += tiers.length
-    continue
-  }
-  if (candidates.length > 1) {
-    tally.ambiguous += tiers.length
-    continue
-  }
-
-  const [entry] = candidates
-  if (!entry) continue
-  const slots = modelSlots(entry, index)
-  const [first, second] = slots
-
-  for (const tier of tiers) {
-    let assignments: { path: string[]; count: number }[]
-    if (!first) {
-      if (tier.models !== 1) {
-        tally.unsupportedShape++
-        continue
-      }
-      assignments = []
-    } else if (slots.length === 1 || !second || sameGroup(first, second)) {
-      // Slots sharing a parent are alternative loadouts of one squad, not a
-      // leader and a squad, so the whole unit goes in the first of them.
-      assignments = [{ path: first.path, count: tier.models }]
-    } else {
-      assignments = [{ path: first.path, count: 1 }]
-      if (tier.models > 1) assignments.push({ path: second.path, count: tier.models - 1 })
+for (const faction of factions) {
+  // Chapter-specific surcharges ask which book the list is from, so the manual's
+  // own faction file is what answers it.
+  const primaryCatalogueId = catalogueBySlug.get(faction.slug)
+  if (!primaryCatalogueId) withoutCatalogue++
+  for (const unit of faction.units) {
+    const candidates = resolve(unit.name)
+    const tiers = firstCopyRange(unit)?.costs ?? []
+    if (!tiers.length) continue
+    if (!candidates.length) {
+      tally.missing += tiers.length
+      continue
+    }
+    if (candidates.length > 1) {
+      tally.ambiguous += tiers.length
+      continue
     }
 
-    const result = evaluate([toSelection(entry.id, slots, assignments)], index)
-    for (const note of result.unhandled) census.add(note)
-    if (result.points === tier.points) tally.matched++
-    else {
-      tally.mismatched++
-      if (mismatches.length < 25)
-        mismatches.push(`${unit.name} @ ${tier.models} models: got ${result.points}, Munitorum says ${tier.points}`)
+    const [entry] = candidates
+    if (!entry) continue
+    const slots = modelSlots(entry, index)
+    const [first, second] = slots
+
+    for (const tier of tiers) {
+      let assignments: { path: string[]; count: number }[]
+      if (!first) {
+        if (tier.models !== 1) {
+          tally.unsupportedShape++
+          continue
+        }
+        assignments = []
+      } else if (slots.length === 1 || !second || sameGroup(first, second)) {
+        // Slots sharing a parent are alternative loadouts of one squad, not a
+        // leader and a squad, so the whole unit goes in the first of them.
+        assignments = [{ path: first.path, count: tier.models }]
+      } else {
+        assignments = [{ path: first.path, count: 1 }]
+        if (tier.models > 1) assignments.push({ path: second.path, count: tier.models - 1 })
+      }
+
+      const result = evaluate([toSelection(entry.id, slots, assignments)], index, { primaryCatalogueId })
+      for (const note of result.unhandled) census.add(note)
+      if (result.points === tier.points) tally.matched++
+      else {
+        tally.mismatched++
+        if (mismatches.length < 25)
+          mismatches.push(`${unit.name} @ ${tier.models} models: got ${result.points}, Munitorum says ${tier.points}`)
+      }
     }
   }
 }
@@ -186,6 +208,9 @@ console.log(`matched:    ${tally.matched} (${checked ? ((tally.matched / checked
 console.log(`mismatched: ${tally.mismatched}`)
 console.log(
   `\nskipped: ${tally.missing} not in the catalogue by that name, ${tally.ambiguous} ambiguous names, ${tally.unsupportedShape} unsupported shapes`,
+)
+console.log(
+  `${withoutCatalogue} of ${factions.length} faction files could not be matched to a catalogue, so their surcharges are unapplied`,
 )
 
 if (mismatches.length) {
