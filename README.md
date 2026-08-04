@@ -50,9 +50,11 @@ Lists are built from the catalogue with a detachment, squad sizes, weapon loadou
 
 ## Stratagems and missions
 
-Neither is in the community data — a detachment there carries its rule and its objective, and the deck of secondaries is absent entirely — and neither is in this repository. Transcribing Games Workshop's rules text is exactly what keeping game data out is meant to avoid.
+The BSData catalogues carry neither, so these come from [40kdc-data](https://github.com/tabletop-developer-consortium/40kdc-data), whose dataset is CC BY 4.0. That licence is why it can be used at all, and attribution is one of its conditions rather than a courtesy — it appears wherever the data does.
 
-So the words come from your own book, typed once and saved with your list. What the app owns is the part worth automating: a stratagem's cost comes off the right pool, a once-per-turn stratagem cannot go twice in a turn and comes back in the next one, and each named secondary is scored on its own rather than into one pile. The conventional ceilings are shown beside the totals and never enforced — refusing a score on a number this code is unsure of would stop a real game at a real table.
+Pick a detachment and its stratagems arrive already chosen, with the cost and the usage limit the dataset states. The core stratagems are offered alongside them, and the secondary mission cards are picked from the deck by name. During the game a stratagem's cost comes off its owner's pool, a once-per-phase one greys out until the phase turns over, and each secondary is scored on its own rather than into one pile.
+
+An unrecognised usage limit becomes "any number of times" rather than a guess: inventing a restriction would stop a player using something they are entitled to. The 11th edition entries are currently flagged provisional by the dataset, which is shown on screen. The conventional scoring ceilings are displayed beside the totals and never enforced.
 
 ## Not here yet
 

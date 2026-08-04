@@ -1,11 +1,13 @@
+import { useQuery } from '@tanstack/react-query'
 import { Plus, X } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import type { BattleView, Command, Secondary, Stratagem, StratagemLimit } from '../../core/battle'
 import { ROSTER_NAME_MAX_LENGTH, SECONDARIES_MAX, STRATAGEM_CP_MAX, STRATAGEM_LIMITS, STRATAGEMS_MAX } from '../../core/battle'
+import { detachmentRulesQuery } from '../queries'
 
 type Props = { view: BattleView; send: (command: Command) => void; pending: boolean }
 
@@ -32,6 +34,8 @@ const asLimit = (value: unknown): StratagemLimit => STRATAGEM_LIMITS.find((limit
  */
 export function Prep({ view, send, pending }: Props) {
   const you = view.players.find((player) => player.isViewer)
+  const built = you?.roster?.built
+  const { data: rules } = useQuery(detachmentRulesQuery(built?.catalogueId ?? '', built?.detachment ?? ''))
   const [stratagems, setStratagems] = useState<Stratagem[]>(
     () => you?.stratagems.map(({ key, name, cp, limit }) => ({ key, name, cp, limit })) ?? [],
   )
@@ -39,6 +43,84 @@ export function Prep({ view, send, pending }: Props) {
 
   const change = (index: number, patch: Partial<Stratagem>) =>
     setStratagems((current) => current.map((entry, at) => (at === index ? { ...entry, ...patch } : entry)))
+
+  // A detachment's own stratagems are the answer often enough to be the default;
+  // nothing is overwritten once the player has a list of their own.
+  useEffect(() => {
+    if (!rules?.stratagems.length) return
+    setStratagems((current) => (current.length ? current : rules.stratagems))
+  }, [rules])
+
+  const offered = rules ? [...rules.stratagems, ...rules.core] : []
+  const toggle = (stratagem: Stratagem) =>
+    setStratagems((current) =>
+      current.some((held) => held.key === stratagem.key)
+        ? current.filter((held) => held.key !== stratagem.key)
+        : [...current, stratagem].slice(0, STRATAGEMS_MAX),
+    )
+  const toggleSecondary = (secondary: Secondary) =>
+    setSecondaries((current) =>
+      current.some((held) => held.key === secondary.key)
+        ? current.filter((held) => held.key !== secondary.key)
+        : [...current, secondary].slice(0, SECONDARIES_MAX),
+    )
+
+  if (rules && (offered.length || rules.secondaries.length)) {
+    return (
+      <div className="space-y-5">
+        <section className="space-y-2">
+          <Label>Stratagems</Label>
+          <div className="flex flex-wrap gap-1.5">
+            {offered.map((stratagem) => {
+              const taken = stratagems.some((held) => held.key === stratagem.key)
+              return (
+                <Button
+                  key={stratagem.key}
+                  variant={taken ? 'default' : 'outline'}
+                  size="sm"
+                  aria-pressed={taken}
+                  onClick={() => toggle(stratagem)}
+                >
+                  {stratagem.name}
+                  <span className="readout ml-1 text-xs opacity-70">{stratagem.cp}</span>
+                </Button>
+              )
+            })}
+          </div>
+        </section>
+
+        <section className="space-y-2">
+          <Label>Secondaries</Label>
+          <div className="flex flex-wrap gap-1.5">
+            {rules.secondaries.map((secondary) => {
+              const taken = secondaries.some((held) => held.key === secondary.key)
+              return (
+                <Button
+                  key={secondary.key}
+                  variant={taken ? 'default' : 'outline'}
+                  size="sm"
+                  aria-pressed={taken}
+                  onClick={() => toggleSecondary(secondary)}
+                >
+                  {secondary.name}
+                </Button>
+              )
+            })}
+          </div>
+        </section>
+
+        <div className="flex flex-wrap items-center gap-3">
+          <Button variant="secondary" size="sm" disabled={pending} onClick={() => send({ kind: 'set-prep', stratagems, secondaries })}>
+            Save these
+          </Button>
+          <p className="text-[0.6875rem] text-dim">
+            {rules.attribution}
+            {rules.dataslate ? ` · ${rules.dataslate.replaceAll('-', ' ')}` : ''}
+          </p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-5">

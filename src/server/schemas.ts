@@ -55,6 +55,8 @@ export const saveRosterSchema = z.object({
   prep: prepSchema.nullable(),
 })
 
+export const detachmentRulesSchema = z.object({ catalogueId, detachmentName: z.string().min(1).max(120) })
+
 export const rosterIdSchema = z.object({ id: z.string().min(1).max(64) })
 
 /** Saved rows are read back through these, so a hand-edited one fails loudly. */

@@ -16,10 +16,11 @@ const sourceSchema = z.object({
   branch: z.string().min(1),
   revision: z.string().regex(/^[0-9a-f]{40}$/, 'expected a full commit sha, so the data cannot move underneath us'),
   path: z.string().optional(),
+  attribution: z.string().optional(),
   description: z.string().optional(),
 })
 
-const sourcesSchema = z.object({ definitions: sourceSchema, points: sourceSchema })
+const sourcesSchema = z.object({ definitions: sourceSchema, points: sourceSchema, rules: sourceSchema })
 
 type Sources = z.infer<typeof sourcesSchema>
 
@@ -52,7 +53,7 @@ if (argument === '--check') {
   console.log('catalogue sources are pinned and well formed')
 } else if (argument === '--update') {
   const sources = readSources()
-  for (const name of ['definitions', 'points'] satisfies (keyof Sources)[]) {
+  for (const name of ['definitions', 'points', 'rules'] satisfies (keyof Sources)[]) {
     const source = sources[name]
     const latest = head(source.repository, source.branch)
     if (latest === source.revision) {
@@ -72,7 +73,7 @@ if (argument === '--check') {
   }
   fs.writeFileSync(
     path.join(dataDirectory, 'revision.json'),
-    `${JSON.stringify({ definitions: sources.definitions.revision, points: sources.points.revision }, null, 2)}\n`,
+    `${JSON.stringify({ definitions: sources.definitions.revision, points: sources.points.revision, rules: sources.rules.revision }, null, 2)}\n`,
   )
   console.log(`fetched into ${dataDirectory}`)
 }

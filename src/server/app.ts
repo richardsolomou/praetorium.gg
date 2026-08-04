@@ -1,6 +1,7 @@
 import path from 'node:path'
 import { type BattleEvents, createBattleEvents } from '../adapters/events'
 import { type LoadedCatalogue, loadCatalogue } from './catalogue'
+import { type LoadedRules, loadRules } from './rules'
 import { databasePath, type MusterDatabase, openDatabase } from '../db/connection'
 import { Repository } from '../db/repository'
 import { sessionSecret } from './identity'
@@ -15,6 +16,8 @@ type App = {
   secret: string
   /** Loaded on first use, and null on an instance with no catalogue data synced. */
   catalogue: () => LoadedCatalogue | null
+  /** Stratagems and mission cards, null when that source has not been synced. */
+  rules: () => LoadedRules | null
 }
 
 /** Parsing the whole catalogue takes seconds, so it happens once and only if asked for. */
@@ -45,6 +48,7 @@ export function app(): App {
       presence: new Presence(),
       secret: sessionSecret(path.dirname(file)),
       catalogue: memoize(loadCatalogue),
+      rules: memoize(loadRules),
     }
   }
   return globalApp.musterApp

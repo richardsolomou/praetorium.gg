@@ -6,9 +6,11 @@ import { cookieOptions, PLAYER_COOKIE, playerIdFrom, signPlayerId } from './iden
 import { evaluate, type Selection } from '../core/evaluate'
 import { buildUnit } from '../core/roster'
 import { unitsIn } from './catalogue'
+import { ATTRIBUTION, slug } from './rules'
 import { mutationRpc, rpc } from './rpc'
 import {
   createBattleSchema,
+  detachmentRulesSchema,
   joinBattleSchema,
   priceSchema,
   rosterIdSchema,
@@ -184,5 +186,31 @@ export const deleteRoster = createServerFn({ method: 'POST' })
     mutationRpc(() => {
       app().service.deleteRoster(requirePlayerId(), data.id)
       return null
+    }),
+  )
+
+/**
+ * The stratagems a detachment brings and the secondary cards on offer.
+ *
+ * Null when the rules source has not been synced, so the interface falls back to
+ * letting a player write their own down rather than offering nothing.
+ */
+export const detachmentRules = createServerFn({ method: 'GET' })
+  .validator(detachmentRulesSchema)
+  .handler(({ data }) =>
+    rpc(() => {
+      const rules = app().rules()
+      const catalogue = app().catalogue()
+      if (!rules || !catalogue) return null
+
+      const faction = catalogue.index.catalogues.get(data.catalogueId)
+      const detachments = faction ? rules.byDetachment.get(slug(faction.name)) : undefined
+      return {
+        attribution: ATTRIBUTION,
+        dataslate: rules.dataslate,
+        stratagems: detachments?.get(slug(data.detachmentName)) ?? [],
+        core: rules.core,
+        secondaries: rules.secondaries,
+      }
     }),
   )

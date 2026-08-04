@@ -76,6 +76,12 @@ test('a built list is priced, played and tracked', async ({ browser }) => {
   await alice.getByRole('button', { name: 'Attach this list' }).click()
   await expect(alice.getByRole('button', { name: 'Replace my list' })).toBeVisible()
 
+  // The detachment's own stratagems arrive from the rules data, already chosen.
+  await expect(alice.getByRole('button', { name: /Mortarion’s Teachings/ })).toHaveAttribute('aria-pressed', 'true')
+  await expect(alice.getByText(/Tabletop Developer Consortium/)).toBeVisible()
+  await alice.getByRole('button', { name: /^Behind Enemy Lines/ }).click()
+  await alice.getByRole('button', { name: 'Save these' }).click()
+
   await bob.goto(link)
   await bob.getByLabel('Your name').fill('Bob')
   await bob.getByRole('button', { name: 'Join the battle' }).click()

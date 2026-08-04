@@ -11,5 +11,13 @@
     "revision": "88352b269cca0d3b3933a65c196834c085b67a07",
     "path": "data",
     "description": "Points scraped from Games Workshop's Munitorum Field Manual. Used to check the evaluator, never shipped as data."
+  },
+  "rules": {
+    "repository": "tabletop-developer-consortium/40kdc-data",
+    "branch": "main",
+    "revision": "06b98c03e55dee5bf162cb2e721c49f53d7c5bf0",
+    "path": "data/core",
+    "attribution": "Data by the Tabletop Developer Consortium, CC BY 4.0",
+    "description": "Stratagems by detachment and the secondary mission cards. Licensed CC BY 4.0, which is why this one may be redistributed at all \u2014 attribution is a condition, not a courtesy."
   }
 }

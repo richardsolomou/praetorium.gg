@@ -1,5 +1,5 @@
 import { queryOptions } from '@tanstack/react-query'
-import { factions, me, openBattle, priceRoster, savedRosters, units } from '../server/fns'
+import { detachmentRules, factions, me, openBattle, priceRoster, savedRosters, units } from '../server/fns'
 
 export const meQuery = () => queryOptions({ queryKey: ['me'], queryFn: () => me() })
 
@@ -26,3 +26,12 @@ export const priceQuery = (catalogueId: string, detachmentId: string | undefined
   })
 
 export const savedRostersQuery = () => queryOptions({ queryKey: ['saved-rosters'], queryFn: () => savedRosters() })
+
+/** Null when the rules source has not been synced, so the interface can offer typing instead. */
+export const detachmentRulesQuery = (catalogueId: string, detachmentName: string) =>
+  queryOptions({
+    queryKey: ['detachment-rules', catalogueId, detachmentName],
+    queryFn: () => detachmentRules({ data: { catalogueId, detachmentName } }),
+    enabled: Boolean(catalogueId && detachmentName),
+    staleTime: Infinity,
+  })

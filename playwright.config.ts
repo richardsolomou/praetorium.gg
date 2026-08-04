@@ -7,6 +7,7 @@ const baseURL = `http://127.0.0.1:${port}`
 const root = process.env.PLAYWRIGHT_DATA_ROOT ?? path.join(os.tmpdir(), `muster-playwright-${port}`)
 // The synced catalogue, so list building is exercised against the real data.
 const catalogue = process.env.CATALOGUE_DIR ?? path.join(import.meta.dirname, 'catalogue-data')
+const rules = process.env.RULES_DIR ?? path.join(import.meta.dirname, 'catalogue-data', 'rules')
 
 export default defineConfig({
   testDir: './e2e',
@@ -23,7 +24,7 @@ export default defineConfig({
   // Tests run against the production server: the stream, the migrations and the
   // cookie all behave differently under `vite dev`.
   webServer: {
-    command: `rm -rf ${root} && mkdir -p ${root} && DATA_DIR=${root} CATALOGUE_DIR=${catalogue} PORT=${port} node .output/server/index.mjs`,
+    command: `rm -rf ${root} && mkdir -p ${root} && DATA_DIR=${root} CATALOGUE_DIR=${catalogue} RULES_DIR=${rules} PORT=${port} node .output/server/index.mjs`,
     url: `${baseURL}/api/health`,
     reuseExistingServer: false,
     timeout: 120_000,
