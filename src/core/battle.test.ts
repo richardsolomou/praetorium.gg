@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { BATTLE_ROUNDS, battleView, type Command, type LoggedCommand, reduceBattle, validate } from './battle'
+import { BATTLE_ROUNDS, battleReport, battleView, type Command, type LoggedCommand, reduceBattle, validate } from './battle'
 
 const ALICE = 'alice'
 const BOB = 'bob'
@@ -365,5 +365,58 @@ describe('deployment', () => {
       [ALICE, { kind: 'set-unit', unitKey: 'u0', destroyed: true }],
     )
     expect(battleView({ token: 'abc' }, NAMES, reduceBattle(PLAYERS, history), ALICE).players[0]?.deployed).toBe(0)
+  })
+})
+
+const text = (entries: ReturnType<typeof battleReport>) => entries.map((entry) => entry.text)
+
+describe('the account of the battle', () => {
+  it('says who brought what', () => {
+    expect(text(battleReport(NAMES, log(...started())))[0]).toBe('Alice brought Ultramarines')
+  })
+
+  it('names the detachment when the list does not', () => {
+    const history = log([ALICE, builtRoster('Ultramarines', ['Intercessors'])])
+    expect(text(battleReport(NAMES, history))[0]).toBe('Alice brought Ultramarines (Flyblown Host)')
+  })
+
+  it('marks the turn passing over', () => {
+    const history = log(...started(), ...turns(6, ALICE))
+    expect(text(battleReport(NAMES, history))).toContain('The turn passes to Bob')
+  })
+
+  it('marks a new round', () => {
+    const history = log(...started(), ...turns(6, ALICE), ...turns(6, BOB))
+    expect(text(battleReport(NAMES, history))).toContain('Round 2 begins')
+  })
+
+  it('reports a stratagem by name and cost', () => {
+    const history = log(
+      ...started(),
+      [
+        ALICE,
+        {
+          kind: 'set-prep',
+          stratagems: [{ key: 's1', name: 'Grenade', cp: 1, limit: 'turn' }],
+          secondaries: [],
+          primary: null,
+          secondaryMode: 'fixed',
+        },
+      ],
+      [ALICE, { kind: 'adjust-cp', delta: 2 }],
+      [ALICE, { kind: 'use-stratagem', key: 's1' }],
+    )
+    expect(text(battleReport(NAMES, history))).toContain('Alice uses Grenade for 1 CP')
+  })
+
+  it('leaves out what was undone, because it did not happen', () => {
+    const history = log(...started(), [ALICE, { kind: 'score', category: 'primary', delta: 5 }])
+    const withUndo = [...history, { seq: history.length + 1, by: ALICE, at: 9, command: { kind: 'undo' as const, target: history.length } }]
+    expect(text(battleReport(NAMES, withUndo))).not.toContain('Alice scores 5 primary')
+  })
+
+  it('records the round a thing happened in', () => {
+    const history = log(...started(), ...turns(6, ALICE), ...turns(6, BOB), [BOB, { kind: 'score', category: 'primary', delta: 3 }])
+    expect(battleReport(NAMES, history).at(-1)).toMatchObject({ round: 2, text: 'Bob scores 3 primary' })
   })
 })

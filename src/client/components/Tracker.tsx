@@ -1,10 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
+import { useState } from 'react'
 import { ArrowDownToLine, RotateCcw, Skull, Undo2, Zap } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { detachmentRulesQuery } from '../queries'
 import type { BattleView, Command } from '../../core/battle'
 import type { PresentPlayer } from '../../server/presence'
 import { Prep } from './Prep'
+import { Report } from './Report'
 
 type Props = {
   view: BattleView
@@ -294,6 +296,8 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
         </footer>
       )}
 
+      <ReportDetails token={view.token} />
+
       <details className="text-sm text-dim">
         <summary className="cursor-pointer">Stratagems and secondaries</summary>
         <div className="mt-3 rounded-lg border border-edge bg-panel p-4">
@@ -383,6 +387,17 @@ const pick = (awards: Award[]) => (awards.length ? awards : FALLBACK_AWARDS)
 const awardTitle = (award: Award) =>
   [award.mode, award.when?.replaceAll('-', ' '), award.per ? `per ${award.per.replaceAll('-', ' ')}` : null].filter(Boolean).join(' · ') ||
   undefined
+
+/** Opened on demand, so the account is not fetched on every change to the battle. */
+function ReportDetails({ token }: { token: string }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <details className="text-sm text-dim" onToggle={(event) => setOpen(event.currentTarget.open)}>
+      <summary className="cursor-pointer">How the battle went</summary>
+      <Report token={token} open={open} />
+    </details>
+  )
+}
 
 function rosterLine(roster: BattleView['players'][number]['roster']) {
   if (!roster) return 'No list'

@@ -1,5 +1,14 @@
 import type { BattleEvents } from '../adapters/events'
-import { type BattleView, battleView, type Command, PLAYERS_PER_BATTLE, reduceBattle, type Secondary, type Stratagem } from '../core/battle'
+import {
+  type BattleView,
+  battleReport,
+  battleView,
+  type Command,
+  PLAYERS_PER_BATTLE,
+  reduceBattle,
+  type Secondary,
+  type Stratagem,
+} from '../core/battle'
 import type { BattleSeats, JoinResult, Repository, SubmitResult } from '../db/repository'
 import { createId, createToken } from './crypto'
 import { type Mission, missionFor } from './rules'
@@ -104,6 +113,17 @@ export class MusterService {
     // than from either player, so it is derived and never stored.
     const [one, two] = view.players.map((player) => player.roster?.built?.disposition ?? null)
     return { kind: 'battle', view, mission: rules ? missionFor(rules, one ?? null, two ?? null) : null }
+  }
+
+  /** A readable account of the battle. Derived from the log, so nothing is stored for it. */
+  report(token: string, playerId: string) {
+    const seats = this.mustFind(token)
+    if (!this.seated(seats, playerId)) throw new Response('you are not in this battle', { status: 403 })
+    return battleReport(
+      seats.players,
+      this.repository.log(seats.battle.id),
+      seats.players.map((player) => player.id),
+    )
   }
 
   submit(token: string, playerId: string, expectedSeq: number, command: Command): SubmitResult {

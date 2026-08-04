@@ -445,11 +445,109 @@ function limitReached(player: PlayerState, stratagem: Stratagem, state: BattleSt
   return stratagem.limit === 'turn' ? thisTurn.length > 0 : thisTurn.some((use) => use.phase === state.phase)
 }
 
+const titled = (slug: string) =>
+  slug
+    .split('-')
+    .map((word) => word.charAt(0).toLocaleUpperCase() + word.slice(1))
+    .join(' ')
+
 function enterTurn(state: BattleState, playerId: PlayerId) {
   state.activePlayerId = playerId
   state.phase = 'command'
   const player = state.players.find((candidate) => candidate.id === playerId)
   if (player) player.cp += COMMAND_PHASE_CP
+}
+
+/** One thing that happened, in the words a player would use about it. */
+export type ReportEntry = { seq: number; round: number; phase: Phase; by: string; text: string }
+
+/**
+ * A readable account of the battle, derived from the log.
+ *
+ * The log is already a complete record of the game, so this is a rendering of it
+ * rather than anything new: nothing is stored to make a report possible. Undone
+ * commands are absent, because they did not happen.
+ */
+export function battleReport(
+  players: readonly { id: PlayerId; name: string }[],
+  log: readonly LoggedCommand[],
+  playerIds: readonly PlayerId[] = players.map((player) => player.id),
+): ReportEntry[] {
+  const named = new Map(players.map((player) => [player.id, player.name]))
+  const state = reduceBattle(playerIds, [])
+  const undone = new Set(log.flatMap((entry) => (entry.command.kind === 'undo' ? [entry.command.target] : [])))
+  const entries: ReportEntry[] = []
+
+  for (const entry of log) {
+    if (entry.command.kind === 'undo' || undone.has(entry.seq)) continue
+    const before = { round: state.round, phase: state.phase, active: state.activePlayerId }
+    apply(state, entry.by, entry.command)
+    const text = describe(entry.command, state, before, entry.by, named)
+    if (text) entries.push({ seq: entry.seq, round: before.round || state.round, phase: before.phase, by: entry.by, text })
+  }
+
+  return entries
+}
+
+function describe(
+  command: Command,
+  after: BattleState,
+  before: { round: number; phase: Phase; active: PlayerId | null },
+  by: PlayerId,
+  named: Map<PlayerId, string>,
+): string | null {
+  const who = named.get(by) ?? 'Someone'
+  const player = after.players.find((candidate) => candidate.id === by)
+
+  switch (command.kind) {
+    case 'attach-roster': {
+      const detachment = command.roster.built?.detachment
+      return `${who} brought ${command.roster.name}${detachment && !command.roster.name.includes(detachment) ? ` (${detachment})` : ''}`
+    }
+    case 'set-prep': {
+      const parts = [
+        command.primary ? `${command.primary.name} as the primary` : null,
+        command.secondaries.length ? `${command.secondaries.map((secondary) => secondary.name).join(' and ')} as secondaries` : null,
+        command.stratagems.length ? `${command.stratagems.length} stratagems` : null,
+      ].filter(Boolean)
+      return parts.length ? `${who} took ${parts.join(', ')}` : null
+    }
+    case 'set-deployment':
+      // Only the id reaches here, so it is titled rather than left as a slug.
+      return command.patternId ? `The battlefield is ${titled(command.patternId)}` : null
+    case 'deploy-unit': {
+      const unit = player?.units.find((candidate) => candidate.key === command.unitKey)?.name ?? 'a unit'
+      return command.deployed ? `${who} put ${unit} on the table` : `${who} held ${unit} in reserve`
+    }
+    case 'begin-battle':
+      return `The battle begins, ${named.get(command.firstPlayerId) ?? 'someone'} taking the first turn`
+    case 'advance': {
+      if (after.status === 'finished') return 'The last round ends'
+      if (after.round !== before.round) return `Round ${after.round} begins`
+      if (after.activePlayerId !== before.active) return `The turn passes to ${named.get(after.activePlayerId ?? '') ?? 'the other player'}`
+      return `${who} ends the ${before.phase} phase`
+    }
+    case 'adjust-cp':
+      return command.delta > 0 ? `${who} gains ${command.delta} CP` : `${who} spends ${Math.abs(command.delta)} CP`
+    case 'use-stratagem': {
+      const stratagem = player?.stratagems.find((candidate) => candidate.key === command.key)
+      return stratagem ? `${who} uses ${stratagem.name} for ${stratagem.cp} CP` : `${who} uses a stratagem`
+    }
+    case 'score':
+      return `${who} scores ${command.delta} ${command.category}`
+    case 'score-secondary': {
+      const secondary = player?.secondaries.find((candidate) => candidate.key === command.key)
+      return `${who} scores ${command.delta} on ${secondary?.name ?? 'a secondary'}`
+    }
+    case 'set-unit': {
+      const unit = player?.units.find((candidate) => candidate.key === command.unitKey)?.name ?? 'a unit'
+      return command.destroyed ? `${who} loses ${unit}` : `${who} brings ${unit} back`
+    }
+    case 'end-battle':
+      return `${who} called the battle`
+    default:
+      return null
+  }
 }
 
 export type BattleView = {

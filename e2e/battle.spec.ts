@@ -80,5 +80,11 @@ test('stratagems and mission cards are tracked through a turn', async ({ browser
   // And the opponent's device follows without being touched.
   await expect(bob.locator('section', { hasText: panel }).locator('[data-stat="secondary"]')).not.toHaveText('0')
 
+  // The account of the battle is read back out of the log, on demand.
+  await alice.getByText('How the battle went').click()
+  await expect(alice.getByText(/Alice brought Death Guard/)).toBeVisible()
+  await expect(alice.getByText(/uses .* for 1 CP/)).toBeVisible()
+  await expect(alice.getByText('The battlefield is Tipping Point')).toBeVisible()
+
   await alice.screenshot({ path: 'test-results/battle.png', fullPage: true })
 })

@@ -224,3 +224,8 @@ export const deployments = createServerFn({ method: 'GET' }).handler(() =>
     return rules?.deployments ?? []
   }),
 )
+
+/** Fetched only when someone opens the account of the battle, not on every nudge. */
+export const battleReport = createServerFn({ method: 'GET' })
+  .validator(tokenSchema)
+  .handler(({ data }) => rpc(() => app().service.report(data.token, requirePlayerId())))

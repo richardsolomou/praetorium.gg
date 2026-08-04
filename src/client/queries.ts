@@ -1,5 +1,5 @@
 import { queryOptions } from '@tanstack/react-query'
-import { deployments, detachmentRules, factions, me, openBattle, priceRoster, savedRosters, units } from '../server/fns'
+import { battleReport, deployments, detachmentRules, factions, me, openBattle, priceRoster, savedRosters, units } from '../server/fns'
 
 export const meQuery = () => queryOptions({ queryKey: ['me'], queryFn: () => me() })
 
@@ -37,3 +37,6 @@ export const detachmentRulesQuery = (catalogueId: string, detachmentName: string
   })
 
 export const deploymentsQuery = () => queryOptions({ queryKey: ['deployments'], queryFn: () => deployments(), staleTime: Infinity })
+
+export const reportQuery = (token: string, enabled: boolean) =>
+  queryOptions({ queryKey: ['report', token], queryFn: () => battleReport({ data: { token } }), enabled })
