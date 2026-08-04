@@ -41,6 +41,25 @@ export class MusterService {
     return this.repository.player(playerId)
   }
 
+  /**
+   * The player an account is, claiming the guest in hand when it has none yet.
+   *
+   * Signing in must not cost someone their saved lists, so an account adopts the
+   * guest identity it arrives with rather than starting a fresh one.
+   */
+  playerForUser(userId: string, guestId: string | null, name: string) {
+    const claimed = this.repository.playerOfUser(userId)
+    if (claimed) return claimed.id
+    if (guestId && this.repository.player(guestId)) {
+      this.repository.claimPlayer(guestId, userId)
+      return guestId
+    }
+    const id = createId()
+    this.repository.upsertPlayer({ id, name, now: this.clock() })
+    this.repository.claimPlayer(id, userId)
+    return id
+  }
+
   saveRoster(
     playerId: string,
     roster: {

@@ -31,6 +31,20 @@ export class Repository {
     return this.database.select().from(players).where(eq(players.id, id)).get()
   }
 
+  playerOfUser(userId: string) {
+    return this.database.select().from(players).where(eq(players.userId, userId)).orderBy(desc(players.createdAt)).get()
+  }
+
+  /**
+   * Ties a guest identity to an account.
+   *
+   * The guest row is kept rather than replaced: the command log points at its id, so
+   * replacing it would erase the player from every battle they have played.
+   */
+  claimPlayer(playerId: string, userId: string) {
+    this.database.update(players).set({ userId }).where(eq(players.id, playerId)).run()
+  }
+
   createBattle(input: { id: string; token: string; playerId: string; now: number }) {
     this.database.transaction((tx) => {
       tx.insert(battles).values({ id: input.id, token: input.token, createdAt: input.now }).run()

@@ -53,6 +53,22 @@ export function playerIdFrom(headers: Headers, secret: string): string | null {
   return verifyPlayerCookie(cookie && decodeURIComponent(cookie.slice(PLAYER_COOKIE.length + 1)), secret)
 }
 
+/**
+ * Who the request is, account first.
+ *
+ * An account that has claimed a guest identity *is* that identity, so everything
+ * downstream — battles, saved lists, the command log — keeps working unchanged.
+ */
+export function playerFor(
+  headers: Headers,
+  secret: string,
+  session: { userId: string; name: string } | null,
+  claim: (userId: string, guestId: string | null, name: string) => string,
+): string | null {
+  const guest = playerIdFrom(headers, secret)
+  return session ? claim(session.userId, guest, session.name) : guest
+}
+
 export function cookieOptions(headers: Headers) {
   const forwarded = headers.get('x-forwarded-proto')?.split(',')[0]?.trim()
   const secure = forwarded === 'https' || process.env.APP_URL?.startsWith('https://') === true

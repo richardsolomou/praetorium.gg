@@ -44,6 +44,12 @@ It is checked against Games Workshop's own numbers rather than against itself. `
 
 See [catalogue/README.md](catalogue/README.md) for where the data comes from and why none of it is in this repository.
 
+## Accounts
+
+Playing needs no account: a signed cookie is a real, durable identity and the command log points at it. An account exists so that identity survives a new device or a cleared cookie — signing up _claims_ the guest you are already using, so the lists and battles from before come with it.
+
+Email and password works with no configuration. Google and Discord appear only when both halves of their credentials are set.
+
 ## Bringing lists in and out
 
 A `.ros` or `.rosz` from New Recruit or BattleScribe imports straight into the builder, and any list exports as `.ros` — the format tournament organisers read. This works because both sides read the same community catalogues, so an entry id in their file is the same id here. Anything that cannot be placed is named rather than dropped quietly.
@@ -69,6 +75,12 @@ Setup runs in the order the game does: army, game size, detachment, list, battle
 The mission is not chosen — eleventh edition takes it from the two armies' force dispositions, and the dataset states which mission each pairing plays, along with its caps of 15 victory points a round and 45 a game. The deployment is drawn from the pattern's own polygons, objectives included, rather than named for you to look up.
 
 Everything starts off the table. Units are deployed at muster or held in reserve to arrive later, and during the game each one is on the table, in reserve, or lost. Scoring is offered only when a card allows it: a payout that applies in your command phase from round two is disabled until then, and says so.
+
+## Accounts
+
+Playing needs no account: a signed cookie is a real, durable identity and the command log points at it. An account exists so that identity survives a new device or a cleared cookie — signing up _claims_ the guest you are already using, so the lists and battles from before come with it.
+
+Email and password works with no configuration. Google and Discord appear only when both halves of their credentials are set.
 
 ## Bringing lists in and out
 

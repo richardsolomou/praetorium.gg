@@ -9,6 +9,7 @@ import {
   openBattle,
   priceRoster,
   savedRosters,
+  signInOptions,
   units,
 } from '../server/fns'
 
@@ -59,3 +60,5 @@ export const catalogueStatusQuery = () =>
     queryFn: () => catalogueStatus(),
     refetchInterval: (query) => (query.state.data?.status === 'working' ? 3000 : false),
   })
+
+export const signInOptionsQuery = () => queryOptions({ queryKey: ['sign-in-options'], queryFn: () => signInOptions(), staleTime: Infinity })

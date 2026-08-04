@@ -1,5 +1,8 @@
 import type { QueryClient } from '@tanstack/react-query'
-import { createRootRouteWithContext, HeadContent, Link, Outlet, Scripts } from '@tanstack/react-router'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { createRootRouteWithContext, HeadContent, Link, Outlet, Scripts, useNavigate } from '@tanstack/react-router'
+import { authClient } from '../client/authClient'
+import { meQuery } from '../client/queries'
 import appCss from '../styles.css?url'
 
 const TITLE = 'Muster'
@@ -31,6 +34,36 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   ),
 })
 
+/** Who you are, and the way to stop being a guest. Playing needs neither. */
+function Account() {
+  const { data: me } = useQuery(meQuery())
+  const queryClient = useQueryClient()
+  const navigate = useNavigate()
+
+  if (me?.signedIn) {
+    return (
+      <button
+        type="button"
+        className="eyebrow normal-case hover:text-amber"
+        onClick={async () => {
+          await authClient.signOut()
+          await queryClient.invalidateQueries()
+          await navigate({ to: '/' })
+        }}
+      >
+        {me.name} · sign out
+      </button>
+    )
+  }
+
+  // One label whatever is cached: the page itself explains what an account is for.
+  return (
+    <Link to="/signin" className="eyebrow hover:text-amber">
+      Sign in
+    </Link>
+  )
+}
+
 function RootComponent() {
   return (
     <html lang="en">
@@ -43,7 +76,7 @@ function RootComponent() {
             <Link to="/" className="eyebrow text-bone transition-colors hover:text-amber">
               Muster
             </Link>
-            <span className="eyebrow">Warhammer 40,000</span>
+            <Account />
           </header>
           <div className="flex-1 py-8">
             <Outlet />

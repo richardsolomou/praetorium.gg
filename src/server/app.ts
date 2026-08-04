@@ -5,6 +5,7 @@ import { type LoadedRules, loadRules } from './rules'
 import { isCurrent, type SyncState, syncSources } from './sync'
 import { databasePath, type MusterDatabase, openDatabase } from '../db/connection'
 import { Repository } from '../db/repository'
+import { authSecret, createAuth } from './auth'
 import { sessionSecret } from './identity'
 import { Presence } from './presence'
 import { MusterService } from './service'
@@ -21,6 +22,7 @@ type App = {
   rules: () => LoadedRules | null
   /** How the community data is doing, so the interface can say rather than guess. */
   sync: () => SyncState
+  auth: ReturnType<typeof createAuth>
 }
 
 /** Parsing the whole catalogue takes seconds, so it happens once and only if asked for. */
@@ -82,6 +84,7 @@ export function app(): App {
       events,
       presence: new Presence(),
       secret: sessionSecret(path.dirname(file)),
+      auth: createAuth(database, authSecret(path.dirname(file))),
       catalogue: memoize(loadCatalogue),
       rules: memoize(loadRules),
       sync: () => sync.state,

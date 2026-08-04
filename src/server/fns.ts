@@ -2,7 +2,8 @@ import { createServerFn } from '@tanstack/react-start'
 import { getRequest, setCookie } from '@tanstack/react-start/server'
 import { app } from './app'
 import { createId } from './crypto'
-import { cookieOptions, PLAYER_COOKIE, playerIdFrom, signPlayerId } from './identity'
+import { cookieOptions, PLAYER_COOKIE, playerFor, playerIdFrom, signPlayerId } from './identity'
+import { configuredProviders } from './auth'
 import { evaluate, type Selection } from '../core/evaluate'
 import { buildUnit } from '../core/roster'
 import { unitsIn } from './catalogue'
@@ -34,12 +35,23 @@ function orNull<T>(work: () => T) {
   }
 }
 
-function currentPlayerId() {
-  return playerIdFrom(getRequest().headers, app().secret)
+/**
+ * Who is asking. An account that has claimed a guest identity is that identity, so
+ * nothing downstream needs to know which of the two it is talking to.
+ */
+async function currentPlayerId() {
+  const request = getRequest()
+  const session = await app().auth.api.getSession({ headers: request.headers })
+  return playerFor(
+    request.headers,
+    app().secret,
+    session ? { userId: session.user.id, name: session.user.name } : null,
+    (userId, guest, name) => app().service.playerForUser(userId, guest, name),
+  )
 }
 
-function requirePlayerId() {
-  const id = currentPlayerId()
+async function requirePlayerId() {
+  const id = await currentPlayerId()
   if (!id) throw new Response('say who you are first', { status: 401 })
   return id
 }
@@ -49,34 +61,41 @@ function requirePlayerId() {
  * durable record from here on — the command log points at it — so this is the
  * only place an id comes into existence.
  */
-function identify(name: string) {
+async function identify(name: string) {
   const request = getRequest()
-  const existing = playerIdFrom(request.headers, app().secret)
+  const existing = await currentPlayerId()
   const id = existing ?? createId()
-  if (!existing) setCookie(PLAYER_COOKIE, signPlayerId(id, app().secret), cookieOptions(request.headers))
+  // The cookie is issued whether or not there is an account: it is what a guest is,
+  // and an account simply claims one.
+  if (!playerIdFrom(request.headers, app().secret)) setCookie(PLAYER_COOKIE, signPlayerId(id, app().secret), cookieOptions(request.headers))
   app().service.identify(id, name)
   return id
 }
 
 export const me = createServerFn({ method: 'GET' }).handler(() =>
-  rpc(() => {
-    const id = currentPlayerId()
+  rpc(async () => {
+    const id = await currentPlayerId()
     const player = id ? app().service.player(id) : undefined
-    return player ? { id: player.id, name: player.name } : null
+    return player ? { id: player.id, name: player.name, signedIn: Boolean(player.userId) } : null
   }),
 )
 
 export const openBattle = createServerFn({ method: 'GET' })
   .validator(tokenSchema)
-  .handler(({ data }) => rpc(() => orNull(() => app().service.screen(data.token, currentPlayerId(), app().rules()))))
+  .handler(({ data }) =>
+    rpc(async () => {
+      const player = await currentPlayerId()
+      return orNull(() => app().service.screen(data.token, player, app().rules()))
+    }),
+  )
 
 export const createBattle = createServerFn({ method: 'POST' })
   .validator(createBattleSchema)
-  .handler(({ data }) => mutationRpc(() => app().service.createBattle(identify(data.name))))
+  .handler(({ data }) => mutationRpc(async () => app().service.createBattle(await identify(data.name))))
 
 export const joinBattle = createServerFn({ method: 'POST' })
   .validator(joinBattleSchema)
-  .handler(({ data }) => mutationRpc(() => app().service.join(data.token, identify(data.name))))
+  .handler(({ data }) => mutationRpc(async () => app().service.join(data.token, await identify(data.name))))
 
 /**
  * Every change to a battle comes through here. The result is the domain's answer,
@@ -85,7 +104,7 @@ export const joinBattle = createServerFn({ method: 'POST' })
  */
 export const submit = createServerFn({ method: 'POST' })
   .validator(submitSchema)
-  .handler(({ data }) => mutationRpc(() => app().service.submit(data.token, requirePlayerId(), data.expectedSeq, data.command)))
+  .handler(({ data }) => mutationRpc(async () => app().service.submit(data.token, await requirePlayerId(), data.expectedSeq, data.command)))
 
 /** How the community data is doing, so a fresh instance can say so rather than look broken. */
 export const catalogueStatus = createServerFn({ method: 'GET' }).handler(() => rpc(() => app().sync()))
@@ -178,21 +197,21 @@ export const priceRoster = createServerFn({ method: 'POST' })
 
 /** Lists a player keeps between battles. Their own only — there is nothing to share here. */
 export const savedRosters = createServerFn({ method: 'GET' }).handler(() =>
-  rpc(() => {
-    const id = currentPlayerId()
+  rpc(async () => {
+    const id = await currentPlayerId()
     return id ? app().service.savedRosters(id) : []
   }),
 )
 
 export const saveRoster = createServerFn({ method: 'POST' })
   .validator(saveRosterSchema)
-  .handler(({ data }) => mutationRpc(() => app().service.saveRoster(requirePlayerId(), data)))
+  .handler(({ data }) => mutationRpc(async () => app().service.saveRoster(await requirePlayerId(), data)))
 
 export const deleteRoster = createServerFn({ method: 'POST' })
   .validator(rosterIdSchema)
   .handler(({ data }) =>
-    mutationRpc(() => {
-      app().service.deleteRoster(requirePlayerId(), data.id)
+    mutationRpc(async () => {
+      app().service.deleteRoster(await requirePlayerId(), data.id)
       return null
     }),
   )
@@ -235,7 +254,7 @@ export const deployments = createServerFn({ method: 'GET' }).handler(() =>
 /** Fetched only when someone opens the account of the battle, not on every nudge. */
 export const battleReport = createServerFn({ method: 'GET' })
   .validator(tokenSchema)
-  .handler(({ data }) => rpc(() => app().service.report(data.token, requirePlayerId())))
+  .handler(({ data }) => rpc(async () => app().service.report(data.token, await requirePlayerId())))
 
 /**
  * Reads a `.ros` or `.rosz` into picks this instance can price.
@@ -286,3 +305,6 @@ export const exportRoster = createServerFn({ method: 'POST' })
       }
     }),
   )
+
+/** What this instance can actually offer at sign-in, so the page shows only that. */
+export const signInOptions = createServerFn({ method: 'GET' }).handler(() => rpc(() => ({ providers: configuredProviders() })))
