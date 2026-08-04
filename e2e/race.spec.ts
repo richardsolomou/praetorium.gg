@@ -19,8 +19,9 @@ test('a player tapping twice in a row does not lose the race to themselves', asy
   await alice.getByRole('button', { name: 'Open a battle' }).click()
   const invite = alice.getByLabel('Send this link to your opponent')
   await expect(invite).toHaveValue(/\/b\//)
+  const link = await invite.inputValue()
 
-  await bob.goto(await invite.inputValue())
+  await bob.goto(link)
   await bob.getByLabel('Your name').fill('Bob')
   await bob.getByRole('button', { name: 'Join the battle' }).click()
 
@@ -29,20 +30,35 @@ test('a player tapping twice in a row does not lose the race to themselves', asy
   await alice.getByRole('button', { name: 'Alice goes first' }).click()
   await expect(alice.getByRole('heading', { name: 'command phase' })).toBeVisible()
 
-  await slowReads(alice)
+  await slowRefetch(alice, token(link))
 
   const score = alice.getByRole('button', { name: 'Primary plus 5' })
   await score.click()
   await score.click()
 
+  const primary = alice.locator('section').filter({ hasText: 'Ultramarines' }).locator('[data-stat="primary"]')
   await expect(alice.getByText('Your opponent got there first. Try that again.')).toBeHidden()
-  await expect(alice.locator('section').filter({ hasText: 'Ultramarines' }).locator('[data-stat="primary"]')).toHaveText('10')
+  await expect(primary).toHaveText('10')
+
+  // Undo names a command out of the view, so the view has to be the one the last
+  // command produced: naming the one before it is refused, not silently wrong.
+  await alice.getByRole('button', { name: 'Undo' }).click()
+  await expect(alice.getByText('only the last action can be undone')).toBeHidden()
+  await expect(primary).toHaveText('5')
 })
 
-/** Holds every read back, leaving commands as fast as they were. */
-async function slowReads(page: Page) {
+function token(link: string) {
+  return link.slice(link.lastIndexOf('/') + 1)
+}
+
+/**
+ * Holds this battle's read back, and nothing else: commands stay as fast as they
+ * were, which is what leaves a page's own last command ahead of what it can see.
+ */
+async function slowRefetch(page: Page, battleToken: string) {
   await page.route('**/_serverFn/**', async (route) => {
-    if (route.request().method() === 'GET') await new Promise((resolve) => setTimeout(resolve, 2000))
+    const reading = route.request().method() === 'GET' && decodeURIComponent(route.request().url()).includes(battleToken)
+    if (reading) await new Promise((resolve) => setTimeout(resolve, 2000))
     await route.continue()
   })
 }

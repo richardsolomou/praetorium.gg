@@ -25,7 +25,7 @@ function started() {
   service.join(token, 'bob')
   let seq = 0
   const send = (by: string, command: Parameters<MusterService['submit']>[3]) => {
-    const result = service.submit(token, by, seq, command)
+    const { result } = service.submit(token, by, seq, command)
     if (result.outcome === 'appended') seq = result.seq
     return result
   }
@@ -88,8 +88,8 @@ describe('seats', () => {
 describe('the command log', () => {
   it('numbers commands from one', () => {
     const { token } = service.createBattle('alice')
-    const result = service.submit(token, 'alice', 0, { kind: 'attach-roster', roster: { name: 'Ultramarines', text: '10 Intercessors' } })
-    expect(result).toEqual({ outcome: 'appended', seq: 1 })
+    const answer = service.submit(token, 'alice', 0, { kind: 'attach-roster', roster: { name: 'Ultramarines', text: '10 Intercessors' } })
+    expect(answer.result).toEqual({ outcome: 'appended', seq: 1 })
   })
 
   it('derives the score from the log alone', () => {
@@ -105,18 +105,45 @@ describe('the command log', () => {
   })
 })
 
+/**
+ * A command's answer has to describe the battle the command produced, because it
+ * is what the sender's next command is conditional on. A page left to learn that
+ * from a refetch acts on a view older than its own last command.
+ */
+describe('the answer to a command', () => {
+  it('carries the state that command produced', () => {
+    const { token, seq } = started()
+    const answer = service.submit(token, 'alice', seq(), { kind: 'score', category: 'primary', delta: 5 })
+    expect(answer.screen.view.seq).toBe(seq() + 1)
+  })
+
+  it('names the command just sent as the one to undo', () => {
+    const { token, seq } = started()
+    const answer = service.submit(token, 'alice', seq(), { kind: 'score', category: 'primary', delta: 5 })
+    expect(answer.screen.view.undoable).toBe(answer.screen.view.seq)
+  })
+
+  it('corrects a sender that had fallen behind', () => {
+    const { token, send, seq } = started()
+    const shared = seq()
+    send('alice', { kind: 'advance' })
+    const answer = service.submit(token, 'bob', shared, { kind: 'score', category: 'primary', delta: 5 })
+    expect(answer.screen.view.seq).toBe(shared + 1)
+  })
+})
+
 describe('two players acting at once', () => {
   it('appends the command that arrived first', () => {
     const { token, seq } = started()
     const shared = seq()
-    expect(service.submit(token, 'alice', shared, { kind: 'advance' })).toEqual({ outcome: 'appended', seq: shared + 1 })
+    expect(service.submit(token, 'alice', shared, { kind: 'advance' }).result).toEqual({ outcome: 'appended', seq: shared + 1 })
   })
 
   it('refuses the one that was built on history it had already lost', () => {
     const { token, seq } = started()
     const shared = seq()
     service.submit(token, 'alice', shared, { kind: 'advance' })
-    expect(service.submit(token, 'bob', shared, { kind: 'score', category: 'primary', delta: 5 })).toEqual({
+    expect(service.submit(token, 'bob', shared, { kind: 'score', category: 'primary', delta: 5 }).result).toEqual({
       outcome: 'stale',
       seq: shared + 1,
     })
@@ -133,14 +160,14 @@ describe('two players acting at once', () => {
   it('accepts the loser’s command once it has caught up', () => {
     const { token, send, seq } = started()
     send('alice', { kind: 'advance' })
-    expect(service.submit(token, 'bob', seq(), { kind: 'score', category: 'primary', delta: 5 }).outcome).toBe('appended')
+    expect(service.submit(token, 'bob', seq(), { kind: 'score', category: 'primary', delta: 5 }).result.outcome).toBe('appended')
   })
 })
 
 describe('refusals', () => {
   it('explain themselves in the domain’s words', () => {
     const { token, seq } = started()
-    expect(service.submit(token, 'bob', seq(), { kind: 'advance' })).toEqual({ outcome: 'refused', reason: 'it is not your turn' })
+    expect(service.submit(token, 'bob', seq(), { kind: 'advance' }).result).toEqual({ outcome: 'refused', reason: 'it is not your turn' })
   })
 
   it('write nothing, so the seq does not move', () => {

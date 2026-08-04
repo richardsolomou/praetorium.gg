@@ -100,11 +100,13 @@ export const joinBattle = createServerFn({ method: 'POST' })
 /**
  * Every change to a battle comes through here. The result is the domain's answer,
  * not an exception: a refusal is something to show the player, and a stale seq is
- * something to refetch from.
+ * something the answer's own screen already corrects.
  */
 export const submit = createServerFn({ method: 'POST' })
   .validator(submitSchema)
-  .handler(({ data }) => mutationRpc(async () => app().service.submit(data.token, await requirePlayerId(), data.expectedSeq, data.command)))
+  .handler(({ data }) =>
+    mutationRpc(async () => app().service.submit(data.token, await requirePlayerId(), data.expectedSeq, data.command, app().rules())),
+  )
 
 /** How the community data is doing, so a fresh instance can say so rather than look broken. */
 export const catalogueStatus = createServerFn({ method: 'GET' }).handler(() => rpc(() => app().sync()))

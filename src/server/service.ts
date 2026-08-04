@@ -23,7 +23,19 @@ export type Pick = { entryId: string; models?: number; choices?: Record<string, 
 
 export type SavedPrep = { stratagems: Stratagem[]; secondaries: Secondary[] }
 
-export type BattleScreen = { kind: 'battle'; view: BattleView; mission: Mission | null } | { kind: 'invitation'; free: boolean }
+export type SeatedScreen = { kind: 'battle'; view: BattleView; mission: Mission | null }
+
+export type BattleScreen = SeatedScreen | { kind: 'invitation'; free: boolean }
+
+/**
+ * What a command answers: what happened to it, and what the battle now is.
+ *
+ * The screen comes back with the answer because the client's next command is
+ * conditional on this one having landed. Left to learn that from the refetch a
+ * round trip later, a page acts on a view it has already changed — sending a seq
+ * from before its own command, or naming the wrong command to undo.
+ */
+export type SubmitAnswer = { result: SubmitResult; screen: SeatedScreen }
 
 export class MusterService {
   constructor(
@@ -123,15 +135,7 @@ export class MusterService {
     if (!playerId || !this.seated(seats, playerId)) {
       return { kind: 'invitation', free: seats.players.length < PLAYERS_PER_BATTLE }
     }
-    const state = reduceBattle(
-      seats.players.map((player) => player.id),
-      this.repository.log(seats.battle.id),
-    )
-    const view = battleView(seats.battle, seats.players, state, playerId)
-    // Eleventh edition takes the mission from the two armies' dispositions rather
-    // than from either player, so it is derived and never stored.
-    const [one, two] = view.players.map((player) => player.roster?.built?.disposition ?? null)
-    return { kind: 'battle', view, mission: rules ? missionFor(rules, one ?? null, two ?? null) : null }
+    return this.seatedScreen(seats, playerId, rules)
   }
 
   /** A readable account of the battle. Derived from the log, so nothing is stored for it. */
@@ -145,12 +149,20 @@ export class MusterService {
     )
   }
 
-  submit(token: string, playerId: string, expectedSeq: number, command: Command): SubmitResult {
+  submit(
+    token: string,
+    playerId: string,
+    expectedSeq: number,
+    command: Command,
+    rules?: Parameters<typeof missionFor>[0] | null,
+  ): SubmitAnswer {
     const seats = this.mustFind(token)
     if (!this.seated(seats, playerId)) throw new Response('you are not in this battle', { status: 403 })
     const result = this.repository.submit({ battleId: seats.battle.id, playerId, expectedSeq, command, now: this.clock() })
     if (result.outcome === 'appended') this.events.publish(seats.battle.id)
-    return result
+    // Read after the write, so a refusal and a lost race answer with the state
+    // that refused them rather than the one the caller was already holding.
+    return { result, screen: this.seatedScreen(seats, playerId, rules) }
   }
 
   /** The stream is for players, so opening one is an authorization decision. */
@@ -158,6 +170,19 @@ export class MusterService {
     const seats = this.mustFind(token)
     if (!this.seated(seats, playerId)) throw new Response('you are not in this battle', { status: 403 })
     return seats.battle.id
+  }
+
+  /** One battle as one player may see it. The only place a seated view is built. */
+  private seatedScreen(seats: BattleSeats, playerId: string, rules?: Parameters<typeof missionFor>[0] | null): SeatedScreen {
+    const state = reduceBattle(
+      seats.players.map((player) => player.id),
+      this.repository.log(seats.battle.id),
+    )
+    const view = battleView(seats.battle, seats.players, state, playerId)
+    // Eleventh edition takes the mission from the two armies' dispositions rather
+    // than from either player, so it is derived and never stored.
+    const [one, two] = view.players.map((player) => player.roster?.built?.disposition ?? null)
+    return { kind: 'battle', view, mission: rules ? missionFor(rules, one ?? null, two ?? null) : null }
   }
 
   private seated(seats: BattleSeats, playerId: string) {
