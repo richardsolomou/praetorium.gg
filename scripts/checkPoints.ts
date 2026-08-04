@@ -125,7 +125,7 @@ for (const faction of factions) {
     for (const tier of tiers) {
       // The app builds a unit the same way, through the same function, so this
       // number is about the evaluator rather than about this script's guesswork.
-      const built = buildUnit(entry.id, index, tier.models)
+      const built = buildUnit(entry.id, index, tier.models, undefined, { primaryCatalogueId })
       if (!built || built.size.models !== tier.models) {
         tally.unsupportedShape++
         continue

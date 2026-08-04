@@ -164,7 +164,7 @@ export type Catalogue = {
   library?: boolean
   gameSystemId?: string
   costTypes?: CostType[]
-  forceEntries?: unknown[]
+  forceEntries?: { id: string; name?: string }[]
   selectionEntries?: SelectionEntry[]
   sharedSelectionEntries?: SelectionEntry[]
   selectionEntryGroups?: SelectionEntryGroup[]
@@ -199,6 +199,11 @@ export type CatalogueIndex = {
    * and the difference is that one sits at the top of its catalogue.
    */
   datasheets: Set<string>
+  /**
+   * The kinds of force a roster can be — Army Roster, Boarding Actions, Crusade.
+   * Conditions count and scope to these, so a roster needs one to answer them.
+   */
+  forces: { id: string; name: string }[]
   /** The data revision every roster and battle must pin, so two clients agree on legality. */
   revision: string
 }
@@ -216,6 +221,7 @@ export function buildIndex(files: readonly CatalogueFile[], revision: string): C
   const unitsByName = new Map<string, SelectionEntry[]>()
   const catalogues = new Map<string, { id: string; name: string; revision?: number }>()
   const catalogueOf = new Map<string, string>()
+  const forces: { id: string; name: string }[] = []
   const datasheets = new Set<string>()
 
   let owner = ''
@@ -238,6 +244,7 @@ export function buildIndex(files: readonly CatalogueFile[], revision: string): C
     const root = file.gameSystem ?? file.catalogue
     if (!root) continue
     catalogues.set(root.id, { id: root.id, name: root.name, revision: root.revision })
+    for (const force of root.forceEntries ?? []) forces.push({ id: force.id, name: force.name ?? force.id })
     owner = root.id
     for (const costType of root.costTypes ?? []) costTypes.set(costType.id, costType)
     for (const child of [...(root.selectionEntries ?? []), ...(root.sharedSelectionEntries ?? [])]) {
@@ -252,5 +259,5 @@ export function buildIndex(files: readonly CatalogueFile[], revision: string): C
   const points = [...costTypes.values()].find((costType) => costType.name === POINTS_COST_NAME)
   if (!points) throw new Error(`no "${POINTS_COST_NAME}" cost type in this data`)
 
-  return { definitions, costTypes, pointsTypeId: points.id, unitsByName, catalogues, catalogueOf, datasheets, revision }
+  return { definitions, costTypes, pointsTypeId: points.id, unitsByName, catalogues, catalogueOf, datasheets, forces, revision }
 }

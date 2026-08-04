@@ -43,8 +43,12 @@ const ENTRY_TYPES = new Set(['model', 'unit', 'upgrade', 'model-or-unit'])
 type Node = {
   /** The entry or group the selection resolves to, after following any link. */
   target: Definition
+  /** Position in the list, in the order it was written. `before` and `after` need it. */
+  order: number
   /** Only the root carries this: the catalogue the roster is being built from. */
   catalogueId?: string
+  /** Set on the node standing for the roster's force, which conditions scope to. */
+  force?: boolean
   /** The link that brought it in, when one did — it carries its own costs and constraints. */
   link: EntryLink | null
   id: string
@@ -84,8 +88,10 @@ export type EvaluateOptions = {
 
 export function evaluate(selections: readonly Selection[], index: CatalogueIndex, options: EvaluateOptions = {}): Evaluation {
   const census = new Census()
+  const counter = { next: 0 }
   const root: Node = {
     target: { id: 'roster' },
+    order: counter.next++,
     catalogueId: options.primaryCatalogueId,
     link: null,
     id: 'roster',
@@ -93,7 +99,28 @@ export function evaluate(selections: readonly Selection[], index: CatalogueIndex
     parent: null,
     children: [],
   }
-  root.children = selections.map((selection) => build(selection, root, index, census)).filter((node): node is Node => node !== null)
+  /**
+   * The roster's force sits between the roster and its selections.
+   *
+   * Conditions count forces and scope to them — a per-detachment limit is written
+   * against the force, not the roster — so there has to be one. It is transparent
+   * when counting selections, exactly as a group is, so nothing that already worked
+   * sees a new layer.
+   */
+  const force: Node = {
+    target: { id: index.forces[0]?.id ?? 'force', name: index.forces[0]?.name ?? 'Army Roster' },
+    order: counter.next++,
+    force: true,
+    link: null,
+    id: 'force',
+    count: 1,
+    parent: root,
+    children: [],
+  }
+  root.children = [force]
+  force.children = selections
+    .map((selection) => build(selection, force, index, census, counter))
+    .filter((node): node is Node => node !== null)
 
   const totals = new Map<string, number>()
   const errors: EvaluationError[] = []
@@ -129,8 +156,10 @@ export function evaluate(selections: readonly Selection[], index: CatalogueIndex
  */
 export function hiddenByRules(definition: Definition, index: CatalogueIndex, options: EvaluateOptions = {}): boolean {
   const census = new Census()
+  const counter = { next: 0 }
   const root: Node = {
     target: { id: 'roster' },
+    order: counter.next++,
     catalogueId: options.primaryCatalogueId,
     link: null,
     id: 'roster',
@@ -140,12 +169,13 @@ export function hiddenByRules(definition: Definition, index: CatalogueIndex, opt
   }
   const link = isLink(definition) ? definition : null
   const target = link ? (index.definitions.get(link.targetId) ?? definition) : definition
-  const node: Node = { target, link, id: definition.id, count: 1, parent: root, children: [] }
-  // The rest of the list sits alongside, so roster-scoped gates can see it.
-  const rest = (options.roster ?? [])
-    .map((selection) => build(selection, root, index, census))
+  // The rest of the list is built first, so roster-scoped gates can see it and the
+  // candidate takes its place after what is already there.
+  root.children = (options.roster ?? [])
+    .map((selection) => build(selection, root, index, census, counter))
     .filter((each): each is Node => each !== null)
-  root.children = [...rest, node]
+  const node: Node = { target, order: counter.next++, link, id: definition.id, count: 1, parent: root, children: [] }
+  root.children = [...root.children, node]
 
   let hidden = Boolean(definition.hidden || target.hidden)
   for (const modifier of modifiersOf(node)) {
@@ -156,7 +186,7 @@ export function hiddenByRules(definition: Definition, index: CatalogueIndex, opt
   return hidden
 }
 
-function build(selection: Selection, parent: Node, index: CatalogueIndex, census: Census): Node | null {
+function build(selection: Selection, parent: Node, index: CatalogueIndex, census: Census, counter: { next: number }): Node | null {
   const definition = index.definitions.get(selection.id)
   if (!definition) {
     census.note(`unknown selection id ${selection.id}`)
@@ -169,9 +199,9 @@ function build(selection: Selection, parent: Node, index: CatalogueIndex, census
     return null
   }
 
-  const node: Node = { target, link, id: selection.id, count: selection.count ?? 1, parent, children: [] }
+  const node: Node = { target, order: counter.next++, link, id: selection.id, count: selection.count ?? 1, parent, children: [] }
   node.children = (selection.selections ?? [])
-    .map((child) => build(child, node, index, census))
+    .map((child) => build(child, node, index, census, counter))
     .filter((child): child is Node => child !== null)
   return node
 }
@@ -207,6 +237,13 @@ function selectionsUnder(node: Node, deep: boolean): Node[] {
     }
   }
   walk(node)
+  return found
+}
+
+/** The forces at or under a node. A roster has one; the shape allows more. */
+function forcesUnder(node: Node): Node[] {
+  const found = node.force ? [node] : []
+  for (const child of node.children) found.push(...forcesUnder(child))
   return found
 }
 
@@ -293,26 +330,32 @@ function repeatTimes(repeat: Repeat, node: Node, root: Node, index: CatalogueInd
   return Math.max(0, times) * (repeat.repeats ?? 1)
 }
 
+/**
+ * `subject` is the selection a question is being asked *about*, which is not always
+ * the node being examined: a local condition group judges every candidate in a scope
+ * against the one being priced, and `before` means nothing without both.
+ */
 function passes(
   gated: { conditions?: Condition[]; conditionGroups?: ConditionGroup[] },
   node: Node,
   root: Node,
   index: CatalogueIndex,
   census: Census,
+  subject: Node = node,
 ) {
   const conditions = gated.conditions ?? []
   const groups = gated.conditionGroups ?? []
   if (!conditions.length && !groups.length) return true
   return (
-    conditions.every((condition) => holds(condition, node, root, index, census)) &&
-    groups.every((group) => groupHolds(group, node, root, index, census))
+    conditions.every((condition) => holds(condition, node, root, index, census, subject)) &&
+    groups.every((group) => groupHolds(group, node, root, index, census, subject))
   )
 }
 
-function groupHolds(group: ConditionGroup, node: Node, root: Node, index: CatalogueIndex, census: Census): boolean {
+function groupHolds(group: ConditionGroup, node: Node, root: Node, index: CatalogueIndex, census: Census, subject: Node = node): boolean {
   const results = [
-    ...(group.conditions ?? []).map((condition) => holds(condition, node, root, index, census)),
-    ...(group.conditionGroups ?? []).map((nested) => groupHolds(nested, node, root, index, census)),
+    ...(group.conditions ?? []).map((condition) => holds(condition, node, root, index, census, subject)),
+    ...(group.conditionGroups ?? []).map((nested) => groupHolds(nested, node, root, index, census, subject)),
     ...(group.localConditionGroups ?? []).map((local) => localHolds(local, node, root, index, census)),
   ]
   // An empty group means its contents were not understood, not that it is
@@ -347,7 +390,9 @@ function localHolds(group: LocalConditionGroup, node: Node, root: Node, index: C
     }
   }
 
-  const met = [...candidates].filter((candidate) => passes(group, candidate, root, index, census)).length
+  // Each candidate is judged against the node being priced, which is what lets
+  // "is there one of these before me" be answered at all.
+  const met = [...candidates].filter((candidate) => passes(group, candidate, root, index, census, node)).length
   if (group.type === 'atLeast') return met >= (group.value ?? 1)
   if (group.type === 'atMost') return met <= (group.value ?? 0)
   if (group.type === 'equalTo') return met === (group.value ?? 0)
@@ -357,9 +402,21 @@ function localHolds(group: LocalConditionGroup, node: Node, root: Node, index: C
   return false
 }
 
-function holds(condition: Condition, node: Node, root: Node, index: CatalogueIndex, census: Census): boolean {
-  const measured = measure(condition, node, root, index, census)
+function holds(condition: Condition, node: Node, root: Node, index: CatalogueIndex, census: Census, subject: Node = node): boolean {
+  // Ordering is about position rather than about counting anything.
+  if (condition.type === 'before') return node.order < subject.order
+  if (condition.type === 'after') return node.order > subject.order
+
+  // `instanceOf` reads both ways depending on the scope: "am I one of these" with a
+  // scope of self, "is there one of these in here" with a scope of the roster. Both
+  // are satisfied by counting the scope alongside its contents.
+  const asks = condition.type === 'instanceOf' || condition.type === 'notInstanceOf'
+  const measured = measure(asks ? { ...condition, includeSelf: true } : condition, node, root, index, census)
   switch (condition.type) {
+    case 'instanceOf':
+      return measured > 0
+    case 'notInstanceOf':
+      return measured === 0
     case 'atLeast':
       return measured >= condition.value
     case 'atMost':
@@ -370,16 +427,12 @@ function holds(condition: Condition, node: Node, root: Node, index: CatalogueInd
       return measured > condition.value
     case 'lessThan':
       return measured < condition.value
-    case 'instanceOf':
-      return measured > 0
-    case 'notInstanceOf':
-      return measured === 0
-    default:
-      // `before` and `after` compare where two selections sit in roster order,
-      // which is how "a second copy of this costs more" is written. Unproven means
-      // false: a gate the evaluator cannot read must never be able to add points.
-      census.note(`condition type ${condition.type}`)
+    // A new condition type breaks this rather than being quietly treated as met.
+    default: {
+      const unhandled: never = condition.type
+      census.note(`condition type ${String(unhandled)}`)
       return false
+    }
   }
 }
 
@@ -388,6 +441,8 @@ type Measurable = {
   scope: string
   childId?: string
   includeChildSelections?: boolean
+  /** Counts the scope itself, not only what is in it. What `instanceOf` needs. */
+  includeSelf?: boolean
 }
 
 /** Counts selections, or sums a cost, within a scope. The heart of every condition and constraint. */
@@ -406,6 +461,7 @@ function measure(spec: Measurable, node: Node, root: Node, index: CatalogueIndex
 
   const seen = new Set<Node>()
   for (const origin of origins) {
+    if (spec.includeSelf && matches(origin, spec.childId)) seen.add(origin)
     for (const candidate of selectionsUnder(origin, spec.includeChildSelections === true)) {
       if (matches(candidate, spec.childId)) seen.add(candidate)
     }
@@ -417,10 +473,9 @@ function measure(spec: Measurable, node: Node, root: Node, index: CatalogueIndex
     return matching.reduce((total, each) => total + (costOf(each, spec.field) ?? 0) * each.count, 0)
   }
   if (spec.field === 'forces') {
-    // A force is the detachment a unit sits in. The tracker has no detachments yet,
-    // so a force count cannot be answered rather than being answered wrongly.
-    census.note('field forces')
-    return 0
+    // A roster has exactly one force today, so this counts whether it is the kind
+    // being asked about — which is how Crusade-only content is gated.
+    return origins.flatMap((origin) => forcesUnder(origin)).filter((force) => matches(force, spec.childId)).length
   }
   census.note(`measured field ${spec.field}`)
   return 0
@@ -463,11 +518,12 @@ function resolveScope(scope: string, node: Node, root: Node, census: Census): No
       return node.parent ? [node.parent] : []
     case 'roster':
       return [root]
-    case 'force':
-      // Without detachments a force is the whole roster. Recorded, because it
-      // makes a per-detachment limit read as a per-roster one.
-      census.note('scope force treated as roster')
+    case 'force': {
+      for (let current: Node | null = node; current; current = current.parent) {
+        if (current.force) return [current]
+      }
       return [root]
+    }
     case 'ancestor':
       return ancestors(node)
     case 'root-entry':

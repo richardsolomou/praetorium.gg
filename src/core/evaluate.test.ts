@@ -4,8 +4,18 @@ import { evaluate, type Selection } from './evaluate'
 
 const PTS = 'cost-pts'
 
-/** A game system carrying only what a points question needs. */
-const system: CatalogueFile = { gameSystem: { id: 'gs', name: 'Test', costTypes: [{ id: PTS, name: 'pts' }] } }
+/** A game system carrying only what a points question needs, plus its kinds of force. */
+const system: CatalogueFile = {
+  gameSystem: {
+    id: 'gs',
+    name: 'Test',
+    costTypes: [{ id: PTS, name: 'pts' }],
+    forceEntries: [
+      { id: 'army-roster', name: 'Army Roster' },
+      { id: 'crusade-force', name: 'Crusade Force' },
+    ],
+  },
+}
 
 const points = (value: number) => [{ name: 'pts', typeId: PTS, value }]
 
@@ -351,5 +361,103 @@ describe('keywords', () => {
 
   it('do not match a selection that lacks them', () => {
     expect(evaluateOne({ id: 'grunt' }, catalogue()).points).toBe(20)
+  })
+})
+
+describe('a second copy of the same unit', () => {
+  /**
+   * The real shape of eleventh edition's escalating unit costs: a surcharge gated on
+   * there being one of these already in the list, expressed as a local condition
+   * group counting selections that come *before* this one.
+   */
+  const catalogue = (): Partial<Catalogue> => ({
+    sharedSelectionEntries: [
+      {
+        id: 'tank',
+        name: 'Tank',
+        type: 'unit',
+        costs: points(220),
+        modifiers: [
+          {
+            type: 'increment',
+            field: PTS,
+            value: 20,
+            conditionGroups: [
+              {
+                type: 'and',
+                localConditionGroups: [
+                  {
+                    type: 'atLeast',
+                    value: 1,
+                    field: 'selections',
+                    scope: 'roster',
+                    includeChildSelections: true,
+                    conditions: [
+                      { type: 'before', value: 1, field: 'selections', scope: 'self', childId: 'any' },
+                      { type: 'instanceOf', value: 1, field: 'selections', scope: 'self', childId: 'tank' },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+        categoryLinks: [{ id: 'link', targetId: 'tank' }],
+      },
+    ],
+  })
+
+  it('leaves the first at its base price', () => {
+    expect(evaluate([{ id: 'tank' }], indexOf(catalogue())).points).toBe(220)
+  })
+
+  it('charges the surcharge on the second and not the first', () => {
+    // 220 + 240: the second copy is dearer because one came before it.
+    expect(evaluate([{ id: 'tank' }, { id: 'tank' }], indexOf(catalogue())).points).toBe(460)
+  })
+
+  it('charges it on every copy after the first', () => {
+    expect(evaluate([{ id: 'tank' }, { id: 'tank' }, { id: 'tank' }], indexOf(catalogue())).points).toBe(700)
+  })
+})
+
+describe("the roster's force", () => {
+  /** Campaign content is gated on the roster being a Crusade force, and it is not. */
+  const catalogue = (): Partial<Catalogue> => ({
+    sharedSelectionEntries: [
+      {
+        id: 'tank',
+        name: 'Tank',
+        type: 'unit',
+        costs: points(100),
+        constraints: [{ id: 'per-force', type: 'max', value: 1, field: 'selections', scope: 'force', includeChildSelections: true }],
+        modifiers: [
+          {
+            type: 'increment',
+            field: PTS,
+            value: 25,
+            conditions: [{ type: 'atLeast', value: 1, field: 'forces', scope: 'roster', childId: 'crusade-force' }],
+          },
+        ],
+      },
+    ],
+  })
+
+  it('is the Army Roster, so campaign-only cost does not apply', () => {
+    expect(evaluate([{ id: 'tank' }], indexOf(catalogue())).points).toBe(100)
+  })
+
+  it('answers a count of forces rather than shrugging', () => {
+    expect(evaluate([{ id: 'tank' }], indexOf(catalogue())).unhandled).not.toContain('field forces')
+  })
+
+  it('is what a force-scoped limit counts within', () => {
+    const result = evaluate([{ id: 'tank' }, { id: 'tank' }], indexOf(catalogue()))
+    expect(result.errors[0]?.message).toBe('allows at most 1, has 2')
+  })
+
+  it('is transparent when counting selections, so nothing else sees a new layer', () => {
+    const squadded = evaluateOne(withTroopers(6), squadCountingModels())
+    expect(squadded.points).toBe(150)
   })
 })
