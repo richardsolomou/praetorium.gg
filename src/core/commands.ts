@@ -1,7 +1,17 @@
 import { z } from 'zod'
 import { type Command, ROSTER_MAX_LENGTH, ROSTER_NAME_MAX_LENGTH } from './battle'
+import type { Selection } from './evaluate'
 
 const id = z.string().min(1).max(64)
+
+/** A chosen entry and what sits under it. Recursive, and bounded so a command cannot be enormous. */
+const selectionSchema: z.ZodType<Selection> = z.lazy(() =>
+  z.object({
+    id,
+    count: z.number().int().min(0).max(1000).optional(),
+    selections: z.array(selectionSchema).max(200).optional(),
+  }),
+)
 
 /**
  * The wire and storage contract for a command, in both directions: what a client
@@ -12,7 +22,11 @@ const id = z.string().min(1).max(64)
 export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
   z.object({
     kind: z.literal('attach-roster'),
-    roster: z.object({ name: z.string().max(ROSTER_NAME_MAX_LENGTH), text: z.string().max(ROSTER_MAX_LENGTH) }),
+    roster: z.object({
+      name: z.string().max(ROSTER_NAME_MAX_LENGTH),
+      text: z.string().max(ROSTER_MAX_LENGTH),
+      built: z.object({ catalogueId: id, revision: z.string().min(1).max(64), selections: z.array(selectionSchema).max(200) }).optional(),
+    }),
   }),
   z.object({ kind: z.literal('begin-battle'), firstPlayerId: id }),
   z.object({ kind: z.literal('adjust-cp'), delta: z.number().int() }),

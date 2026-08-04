@@ -3,8 +3,11 @@ import { getRequest, setCookie } from '@tanstack/react-start/server'
 import { app } from './app'
 import { createId } from './crypto'
 import { cookieOptions, PLAYER_COOKIE, playerIdFrom, signPlayerId } from './identity'
+import { evaluate } from '../core/evaluate'
+import { defaultSelection } from '../core/roster'
+import { unitsIn } from './catalogue'
 import { mutationRpc, rpc } from './rpc'
-import { createBattleSchema, joinBattleSchema, submitSchema, tokenSchema } from './schemas'
+import { createBattleSchema, joinBattleSchema, priceSchema, submitSchema, tokenSchema, unitsSchema } from './schemas'
 
 /** Reads answer null for a link that points at nothing, so the route can render a real 404. */
 function orNull<T>(work: () => T) {
@@ -68,3 +71,63 @@ export const joinBattle = createServerFn({ method: 'POST' })
 export const submit = createServerFn({ method: 'POST' })
   .validator(submitSchema)
   .handler(({ data }) => mutationRpc(() => app().service.submit(data.token, requirePlayerId(), data.expectedSeq, data.command)))
+
+/** Null on an instance with no catalogue data, so the interface can simply not offer list building. */
+export const factions = createServerFn({ method: 'GET' }).handler(() =>
+  rpc(() => {
+    const loaded = app().catalogue()
+    return loaded ? { revision: loaded.index.revision, factions: loaded.factions } : null
+  }),
+)
+
+export const units = createServerFn({ method: 'GET' })
+  .validator(unitsSchema)
+  .handler(({ data }) =>
+    rpc(() => {
+      const loaded = app().catalogue()
+      return loaded ? unitsIn(loaded, data.catalogueId, data.query) : []
+    }),
+  )
+
+/**
+ * Prices a list in progress and says what is wrong with it.
+ *
+ * A POST because a list is too big for a query string, and it goes through
+ * `mutationRpc` for the origin check even though it changes nothing. Each entry is
+ * expanded to the smallest selection the data accepts, and the expansion is
+ * returned so the roster that gets attached is exactly the one that was priced.
+ */
+export const priceRoster = createServerFn({ method: 'POST' })
+  .validator(priceSchema)
+  .handler(({ data }) =>
+    mutationRpc(() => {
+      const loaded = app().catalogue()
+      if (!loaded) return null
+
+      const picked = data.entryIds.flatMap((entryId) => {
+        const selection = defaultSelection(entryId, loaded.index)
+        const entry = loaded.index.definitions.get(entryId)
+        return selection ? [{ entryId, name: entry?.name ?? entryId, selection }] : []
+      })
+
+      const options = { primaryCatalogueId: data.catalogueId }
+      const whole = evaluate(
+        picked.map((unit) => unit.selection),
+        loaded.index,
+        options,
+      )
+
+      return {
+        revision: loaded.index.revision,
+        points: whole.points,
+        errors: whole.errors,
+        unhandled: whole.unhandled,
+        selections: picked.map((unit) => unit.selection),
+        units: picked.map((unit) => ({
+          entryId: unit.entryId,
+          name: unit.name,
+          points: evaluate([unit.selection], loaded.index, options).points,
+        })),
+      }
+    }),
+  )

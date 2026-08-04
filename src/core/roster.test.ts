@@ -94,6 +94,75 @@ describe('the default selection for a unit', () => {
   })
 })
 
+describe('a group that requires selections', () => {
+  const group = (requirement: number, options: { id: string; name: string; max?: number; points?: number }[]): Partial<Catalogue> => ({
+    sharedSelectionEntries: [
+      {
+        id: 'squad',
+        name: 'Squad',
+        type: 'unit',
+        selectionEntryGroups: [
+          {
+            id: 'wargear',
+            name: 'Wargear',
+            constraints: [{ id: 'group-min', type: 'min', value: requirement, field: 'selections', scope: 'parent' }],
+            selectionEntries: options.map((option) => ({
+              id: option.id,
+              name: option.name,
+              type: 'upgrade' as const,
+              costs: option.points === undefined ? undefined : [{ name: 'pts', typeId: PTS, value: option.points }],
+              constraints:
+                option.max === undefined
+                  ? []
+                  : [{ id: `${option.id}-max`, type: 'max' as const, value: option.max, field: 'selections', scope: 'parent' }],
+            })),
+          },
+        ],
+      },
+    ],
+  })
+
+  const chosen = (catalogue: Partial<Catalogue>) =>
+    defaultSelection('squad', indexOf(catalogue))?.selections?.[0]?.selections?.map((child) => ({ id: child.id, count: child.count }))
+
+  it('fills the group rather than leaving it empty', () => {
+    // The requirement belongs to what goes inside a group, never to the group
+    // itself: putting the number on the group left squads with no models in them.
+    expect(chosen(group(4, [{ id: 'knife', name: 'Knife' }]))).toEqual([{ id: 'knife', count: 4 }])
+  })
+
+  it('spreads the requirement across options that each allow only one', () => {
+    const options = [
+      { id: 'knife', name: 'Knife', max: 1 },
+      { id: 'pistol', name: 'Pistol', max: 1 },
+    ]
+    expect(chosen(group(2, options))).toEqual([
+      { id: 'knife', count: 1 },
+      { id: 'pistol', count: 1 },
+    ])
+  })
+
+  it('takes the cheapest option rather than putting points on a list nobody asked for', () => {
+    const options = [
+      { id: 'lance', name: 'Lance', points: 5 },
+      { id: 'blade', name: 'Blade', points: 0 },
+    ]
+    expect(chosen(group(1, options))).toEqual([{ id: 'blade', count: 1 }])
+  })
+
+  it('prefers what the group names as its default over the cheapest', () => {
+    const catalogue = group(1, [
+      { id: 'lance', name: 'Lance', points: 5 },
+      { id: 'blade', name: 'Blade', points: 0 },
+    ])
+    const squad = catalogue.sharedSelectionEntries?.[0]
+    const wargear = squad?.selectionEntryGroups?.[0]
+    if (!squad || !wargear) throw new Error('fixture lost its wargear group')
+    squad.selectionEntryGroups = [{ ...wargear, defaultSelectionEntryId: 'lance' }]
+    expect(chosen(catalogue)).toEqual([{ id: 'lance', count: 1 }])
+  })
+})
+
 describe('laying counts over a selection', () => {
   const tree = { id: 'squad', count: 1, selections: [{ id: 'troopers', count: 1, selections: [{ id: 'trooper', count: 1 }] }] }
 

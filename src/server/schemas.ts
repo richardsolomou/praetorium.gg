@@ -16,3 +16,10 @@ export const joinBattleSchema = z.object({ token, name })
  * Sending it is what makes a command conditional on nothing having happened since.
  */
 export const submitSchema = z.object({ token, expectedSeq: z.number().int().min(0), command: commandSchema })
+
+const catalogueId = z.string().min(1).max(64)
+
+export const unitsSchema = z.object({ catalogueId, query: z.string().max(80).default('') })
+
+/** A list is sent as the entries the player picked; the server expands each to its legal minimum. */
+export const priceSchema = z.object({ catalogueId, entryIds: z.array(z.string().min(1).max(64)).max(100) })

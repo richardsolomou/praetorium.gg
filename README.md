@@ -19,7 +19,8 @@ Live updates carry nothing. The event stream says only "this battle changed"; th
 ```sh
 pnpm install
 mkdir -p data-dev
-DATA_DIR=./data-dev pnpm dev
+pnpm catalogue:sync                      # optional: enables list building
+CATALOGUE_DIR=./catalogue-data DATA_DIR=./data-dev pnpm dev
 ```
 
 Then `pnpm check` before pushing, and `pnpm test:e2e` to drive two real browsers against a production build.
@@ -39,12 +40,12 @@ docker compose up -d
 
 There is an evaluator over the community [BSData](https://github.com/BSData/wh40k-11e) catalogues in `src/core/evaluate.ts`: give it what a player picked and it returns the points and what is illegal about it. It understands the parts of the format that legality and cost depend on — constraints, modifiers, conditions, repeats, and the per-copy and per-model pricing 11th edition uses.
 
-It is checked against Games Workshop's own numbers rather than against itself. `pnpm catalogue:points` builds real units at the model counts the Munitorum Field Manual prices and compares: **it agrees on 97.1% of 1,555 checks**. Everything it does not understand it reports instead of guessing, because a confidently wrong points total is worse than an honest gap.
+It is checked against Games Workshop's own numbers rather than against itself. `pnpm catalogue:points` builds real units at the model counts the Munitorum Field Manual prices and compares: **it agrees on 96.3% of 1,555 checks**. Everything it does not understand it reports instead of guessing, because a confidently wrong points total is worse than an honest gap.
 
 See [catalogue/README.md](catalogue/README.md) for where the data comes from and why none of it is in this repository.
 
 ## Not here yet
 
-The evaluator is not wired into the app: rosters in a battle are still opaque text you paste in. Choosing units through the catalogue is the next piece of work.
+Lists are built from the catalogue, but each unit arrives as the smallest legal version of itself — choosing loadouts and squad sizes is not here yet. An instance with no catalogue synced simply offers pasting instead and says nothing about it.
 
 No mission or stratagem logic, no detachments, no deployment tracking, no unit-level state. Points during a game are entered by the players.

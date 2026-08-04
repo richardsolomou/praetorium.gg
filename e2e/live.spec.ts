@@ -60,6 +60,9 @@ function panel(page: Page, army: string) {
 }
 
 async function attach(page: Page, army: string, list: string) {
+  // This spec is about the stream, not list building, so it takes the paste path.
+  const paste = page.getByRole('button', { name: 'Paste a list' })
+  if (await paste.isVisible()) await paste.click()
   await page.getByLabel('Your army').fill(army)
   await page.getByLabel('Your list').fill(list)
   await page.getByRole('button', { name: /my list/ }).click()

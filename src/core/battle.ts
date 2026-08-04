@@ -1,3 +1,5 @@
+import type { Selection } from './evaluate'
+
 /**
  * The whole domain: what a battle is, what may happen to it, and who may see what.
  *
@@ -26,8 +28,24 @@ export const ROSTER_MAX_LENGTH = 20_000
 
 export type PlayerId = string
 
-/** A roster is opaque text here. Nothing in this file parses or validates its contents. */
-export type Roster = { name: string; text: string }
+/**
+ * What a player is fielding.
+ *
+ * `text` is the submitted artefact and is always present — it is what an opponent
+ * reads, and it works whether the list was pasted or built. `built` is added when
+ * it came from catalogue data, and carries the revision it was validated against
+ * so both players can be shown the same legality. Nothing derived is stored here:
+ * the points follow from the selections and the revision, and are worked out on
+ * read.
+ */
+export type Roster = { name: string; text: string; built?: BuiltRoster }
+
+export type BuiltRoster = {
+  catalogueId: string
+  /** The catalogue revision this list was priced and validated against. */
+  revision: string
+  selections: Selection[]
+}
 
 export type Command =
   | { kind: 'attach-roster'; roster: Roster }
@@ -166,7 +184,7 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
 
   switch (command.kind) {
     case 'attach-roster': {
-      player.roster = { name: command.roster.name.trim(), text: command.roster.text }
+      player.roster = { ...command.roster, name: command.roster.name.trim() }
       return
     }
     case 'begin-battle': {

@@ -1,5 +1,6 @@
 import path from 'node:path'
 import { type BattleEvents, createBattleEvents } from '../adapters/events'
+import { type LoadedCatalogue, loadCatalogue } from './catalogue'
 import { databasePath, type MusterDatabase, openDatabase } from '../db/connection'
 import { Repository } from '../db/repository'
 import { sessionSecret } from './identity'
@@ -12,6 +13,21 @@ type App = {
   events: BattleEvents
   presence: Presence
   secret: string
+  /** Loaded on first use, and null on an instance with no catalogue data synced. */
+  catalogue: () => LoadedCatalogue | null
+}
+
+/** Parsing the whole catalogue takes seconds, so it happens once and only if asked for. */
+function memoize<T>(work: () => T): () => T {
+  let done = false
+  let value: T
+  return () => {
+    if (!done) {
+      value = work()
+      done = true
+    }
+    return value
+  }
 }
 
 // Dev keeps the instance on globalThis so HMR reloads reuse one SQLite handle.
@@ -28,6 +44,7 @@ export function app(): App {
       events,
       presence: new Presence(),
       secret: sessionSecret(path.dirname(file)),
+      catalogue: memoize(loadCatalogue),
     }
   }
   return globalApp.musterApp

@@ -140,8 +140,24 @@ function modelSlots(unit: Definition, catalogue: CatalogueIndex): Slot[] {
  */
 function toSelection(unitId: string, slots: Slot[], wanted: { path: string[]; count: number }[]): Selection {
   const base = defaultSelection(unitId, index) ?? { id: unitId, count: 1 }
-  const emptied = slots.map((slot) => ({ path: slot.path, count: 0 }))
+  // Every model the defaults placed is emptied, not just the slots this script
+  // found: the two disagree about where a model lives, and anything left behind
+  // makes the unit oversized.
+  const emptied = [...slots.map((slot) => slot.path), ...modelPaths(base)].map((trail) => ({ path: trail, count: 0 }))
   return withCounts(base, [...emptied, ...wanted])
+}
+
+/** The paths of every model-typed selection in a built tree. */
+function modelPaths(selection: Selection, trail: string[] = []): string[][] {
+  const paths: string[][] = []
+  for (const child of selection.selections ?? []) {
+    const definition = index.definitions.get(child.id)
+    const target = definition && 'targetId' in definition ? index.definitions.get(definition.targetId) : definition
+    const here = [...trail, child.id]
+    if (target?.type === 'model') paths.push(here)
+    paths.push(...modelPaths(child, here))
+  }
+  return paths
 }
 
 const tally = { matched: 0, mismatched: 0, ambiguous: 0, missing: 0, unsupportedShape: 0 }
