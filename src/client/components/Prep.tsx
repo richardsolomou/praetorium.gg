@@ -2,8 +2,8 @@ import { useQuery } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
-import type { BattleView, Command, Secondary, Stratagem } from '../../core/battle'
-import { SECONDARIES_MAX, STRATAGEMS_MAX } from '../../core/battle'
+import type { BattleView, Command, Secondary, SecondaryMode, Stratagem } from '../../core/battle'
+import { SECONDARIES_MAX, SECONDARY_MODES, STRATAGEMS_MAX } from '../../core/battle'
 import { detachmentRulesQuery } from '../queries'
 
 type Props = { view: BattleView; send: (command: Command) => void; pending: boolean }
@@ -25,6 +25,7 @@ export function Prep({ view, send, pending }: Props) {
   )
   const [secondaries, setSecondaries] = useState<Secondary[]>(() => you?.secondaries.map(({ key, name }) => ({ key, name })) ?? [])
   const [primary, setPrimary] = useState<Secondary | null>(() => you?.primaryCard ?? null)
+  const [mode, setMode] = useState<SecondaryMode>(() => you?.secondaryMode ?? 'fixed')
 
   // A detachment's own stratagems are the answer often enough to be the default;
   // nothing is overwritten once the player has a set of their own.
@@ -65,6 +66,23 @@ export function Prep({ view, send, pending }: Props) {
         }}
       />
 
+      <section className="space-y-2">
+        <Label>Secondary play</Label>
+        <div className="flex gap-1.5">
+          {SECONDARY_MODES.map((entry) => (
+            <Button
+              key={entry}
+              variant={mode === entry ? 'default' : 'outline'}
+              size="sm"
+              aria-pressed={mode === entry}
+              onClick={() => setMode(entry)}
+            >
+              {entry === 'fixed' ? 'Fixed' : 'Tactical'}
+            </Button>
+          ))}
+        </div>
+      </section>
+
       <Pills
         label="Secondaries"
         entries={rules.secondaries.map((card) => ({ key: card.key, name: card.name }))}
@@ -81,7 +99,7 @@ export function Prep({ view, send, pending }: Props) {
           variant="secondary"
           size="sm"
           disabled={pending}
-          onClick={() => send({ kind: 'set-prep', stratagems, secondaries, primary })}
+          onClick={() => send({ kind: 'set-prep', stratagems, secondaries, primary, secondaryMode: mode })}
         >
           Save these
         </Button>

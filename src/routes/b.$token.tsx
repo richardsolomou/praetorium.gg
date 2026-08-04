@@ -25,5 +25,5 @@ function BattlePage() {
   if (!screen) return null
   if (screen.kind === 'invitation') return <Invitation token={token} free={screen.free} />
   if (screen.view.status === 'setup') return <Muster view={screen.view} send={send} pending={pending} problem={problem} />
-  return <Tracker view={screen.view} present={present} send={send} pending={pending} problem={problem} />
+  return <Tracker view={screen.view} mission={screen.mission} present={present} send={send} pending={pending} problem={problem} />
 }

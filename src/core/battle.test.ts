@@ -27,6 +27,7 @@ const builtRoster = (name: string, units: string[]): Command => ({
       revision: 'rev',
       limit: 2000,
       detachment: 'Flyblown Host',
+      disposition: 'reconnaissance',
       selections: [],
       units: units.map((unit, index) => ({ key: `u${index}`, name: unit, points: 100, models: 5 })),
     },
@@ -216,7 +217,7 @@ describe('stratagems', () => {
 
   const armed = (): [string, Command][] => [
     ...started(),
-    [ALICE, { kind: 'set-prep', stratagems: [STRAT], secondaries: [], primary: null }],
+    [ALICE, { kind: 'set-prep', stratagems: [STRAT], secondaries: [], primary: null, secondaryMode: 'fixed' }],
     [ALICE, { kind: 'adjust-cp', delta: 3 }],
   ]
 
@@ -240,7 +241,10 @@ describe('stratagems', () => {
   it('are refused without the command points to pay for them', () => {
     const state = reduceBattle(
       PLAYERS,
-      log(...started(), [ALICE, { kind: 'set-prep', stratagems: [{ ...STRAT, cp: 4 }], secondaries: [], primary: null }]),
+      log(...started(), [
+        ALICE,
+        { kind: 'set-prep', stratagems: [{ ...STRAT, cp: 4 }], secondaries: [], primary: null, secondaryMode: 'fixed' },
+      ]),
     )
     expect(validate(state, ALICE, { kind: 'use-stratagem', key: 's1' })).toBe('not enough command points')
   })
@@ -266,6 +270,7 @@ describe('secondaries', () => {
         kind: 'set-prep',
         stratagems: [],
         primary: null,
+        secondaryMode: 'fixed',
         secondaries: [
           { key: 'a', name: 'Behind Enemy Lines' },
           { key: 'b', name: 'Bring It Down' },
@@ -300,7 +305,10 @@ describe('secondaries', () => {
     const history = log(
       ...named(),
       [ALICE, { kind: 'score-secondary', key: 'a', delta: 4 }],
-      [ALICE, { kind: 'set-prep', stratagems: [], secondaries: [{ key: 'b', name: 'Bring It Down' }], primary: null }],
+      [
+        ALICE,
+        { kind: 'set-prep', stratagems: [], secondaries: [{ key: 'b', name: 'Bring It Down' }], primary: null, secondaryMode: 'fixed' },
+      ],
     )
     expect(alice(reduceBattle(PLAYERS, history))?.secondary).toBe(0)
   })

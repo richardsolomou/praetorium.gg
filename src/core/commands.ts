@@ -4,6 +4,7 @@ import {
   ROSTER_MAX_LENGTH,
   ROSTER_NAME_MAX_LENGTH,
   SECONDARIES_MAX,
+  SECONDARY_MODES,
   STRATAGEM_CP_MAX,
   STRATAGEM_LIMITS,
   STRATAGEMS_MAX,
@@ -39,6 +40,7 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
           revision: z.string().min(1).max(64),
           limit: z.number().int().min(0).max(10_000),
           detachment: z.string().max(ROSTER_NAME_MAX_LENGTH).nullable(),
+          disposition: z.string().max(64).nullable(),
           selections: z.array(selectionSchema).max(200),
           units: z
             .array(
@@ -69,6 +71,7 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
       .max(STRATAGEMS_MAX),
     secondaries: z.array(z.object({ key: id, name: z.string().min(1).max(ROSTER_NAME_MAX_LENGTH) })).max(SECONDARIES_MAX),
     primary: z.object({ key: id, name: z.string().min(1).max(ROSTER_NAME_MAX_LENGTH) }).nullable(),
+    secondaryMode: z.enum(SECONDARY_MODES),
   }),
   z.object({ kind: z.literal('use-stratagem'), key: id }),
   z.object({ kind: z.literal('score-secondary'), key: id, delta: z.number().int() }),

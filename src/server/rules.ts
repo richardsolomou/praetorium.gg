@@ -46,15 +46,36 @@ type RawAward = {
   mode?: string
   cumulative?: boolean
   when?: { type?: string }
-  trigger?: { timing?: string; player_turn?: string }
+  trigger?: RawTrigger
 }
+
+type RawTrigger = {
+  timing?: string
+  phase?: string
+  player_turn?: string
+  battle_round?: { min?: number; max?: number }
+}
+
+type RawMission = { id: string; name: string; vp_per_round_cap?: number; vp_per_game_cap?: number }
+
+type RawMatchup = { disposition: string; opponent_disposition: string; mission_id: string }
+
+type RawDisposition = { id: string; name: string }
 
 /**
  * One way a card pays out: a flat number of points, or a number per something
  * counted. Enough for the interface to offer the real figure instead of asking a
  * player to work it out and type it in.
  */
-export type Award = { vp: number; per: string | null; mode: string | null; when: string | null }
+export type Award = { vp: number; per: string | null; mode: string | null; when: string | null; trigger: Trigger }
+
+/**
+ * When a payout may be taken. Anything absent is unrestricted, so a card that says
+ * nothing about timing can always be scored.
+ */
+export type Trigger = { phase: string | null; playerTurn: string | null; roundMin: number | null; roundMax: number | null }
+
+export type Mission = { id: string; name: string; roundCap: number | null; gameCap: number | null }
 
 export type MissionCard = { key: string; name: string; text: string | null; awards: Award[] }
 
@@ -65,6 +86,10 @@ export type LoadedRules = {
   core: Stratagem[]
   secondaries: MissionCard[]
   primaries: MissionCard[]
+  /** Which mission a pair of force dispositions plays, keyed `a|b`. */
+  missions: Map<string, Mission>
+  /** The five dispositions a detachment can have, by slug. */
+  dispositions: Map<string, string>
   /** Whatever the dataset says about how settled these numbers are. */
   dataslate: string | null
 }
@@ -107,13 +132,55 @@ export function loadRules(directory = rulesDirectory()): LoadedRules | null {
     .map(toCard)
     .toSorted(byName)
 
+  const missions = new Map<string, Mission>()
+  const byId = new Map(readMissions(path.join(core, 'missions.json')).map((mission) => [mission.id, mission]))
+  for (const matchup of readMatchups(path.join(core, 'mission-matchups.json'))) {
+    const mission = byId.get(matchup.mission_id)
+    if (!mission) continue
+    missions.set(`${matchup.disposition}|${matchup.opponent_disposition}`, {
+      id: mission.id,
+      name: mission.name,
+      roundCap: mission.vp_per_round_cap ?? null,
+      gameCap: mission.vp_per_game_cap ?? null,
+    })
+  }
+
+  const dispositions = new Map(readDispositions(path.join(core, 'force-dispositions.json')).map((entry) => [entry.id, entry.name]))
+
   if (!byDetachment.size && !secondaries.length) return null
-  return { byDetachment, core: coreStratagems, secondaries, primaries, dataslate }
+  return { byDetachment, core: coreStratagems, secondaries, primaries, missions, dispositions, dataslate }
+}
+
+/**
+ * The mission two armies play, which 11th edition takes from their force
+ * dispositions rather than from either player's choice. Order is not significant.
+ */
+export function missionFor(rules: LoadedRules, one: string | null, two: string | null): Mission | null {
+  if (!one || !two) return null
+  return rules.missions.get(`${one}|${two}`) ?? rules.missions.get(`${two}|${one}`) ?? null
 }
 
 function readStratagems(file: string): RawStratagem[] {
   if (!fs.existsSync(file)) return []
   const parsed: RawStratagem[] = JSON.parse(fs.readFileSync(file, 'utf8'))
+  return parsed
+}
+
+function readMissions(file: string): RawMission[] {
+  if (!fs.existsSync(file)) return []
+  const parsed: RawMission[] = JSON.parse(fs.readFileSync(file, 'utf8'))
+  return parsed
+}
+
+function readMatchups(file: string): RawMatchup[] {
+  if (!fs.existsSync(file)) return []
+  const parsed: RawMatchup[] = JSON.parse(fs.readFileSync(file, 'utf8'))
+  return parsed
+}
+
+function readDispositions(file: string): RawDisposition[] {
+  if (!fs.existsSync(file)) return []
+  const parsed: RawDisposition[] = JSON.parse(fs.readFileSync(file, 'utf8'))
   return parsed
 }
 
@@ -139,6 +206,12 @@ function toCard(raw: RawCard): MissionCard {
       per: award.vp_per ? (award.per ?? 'each') : null,
       mode: award.mode ?? null,
       when: award.when?.type ?? null,
+      trigger: {
+        phase: award.trigger?.phase ?? null,
+        playerTurn: award.trigger?.player_turn ?? null,
+        roundMin: award.trigger?.battle_round?.min ?? null,
+        roundMax: award.trigger?.battle_round?.max ?? null,
+      },
     }))
     .filter((award) => award.vp > 0)
   return { key: raw.id, name: raw.name, text: raw.text ?? null, awards: dedupe(awards) }
@@ -147,7 +220,10 @@ function toCard(raw: RawCard): MissionCard {
 /** The same payout written twice is one button, not two. */
 function dedupe(awards: Award[]): Award[] {
   const seen = new Map<string, Award>()
-  for (const award of awards) seen.set(`${award.vp}/${award.per}/${award.mode}`, award)
+  for (const award of awards) {
+    const trigger = award.trigger
+    seen.set(`${award.vp}/${award.per}/${award.mode}/${trigger.phase}/${trigger.playerTurn}/${trigger.roundMin}/${trigger.roundMax}`, award)
+  }
   return [...seen.values()]
 }
 

@@ -2,6 +2,7 @@ import type { BattleEvents } from '../adapters/events'
 import { type BattleView, battleView, type Command, PLAYERS_PER_BATTLE, reduceBattle, type Secondary, type Stratagem } from '../core/battle'
 import type { BattleSeats, JoinResult, Repository, SubmitResult } from '../db/repository'
 import { createId, createToken } from './crypto'
+import { type Mission, missionFor } from './rules'
 import { picksSchema, savedPrepSchema } from './schemas'
 
 /**
@@ -13,7 +14,7 @@ export type Pick = { entryId: string; models?: number; choices?: Record<string, 
 
 export type SavedPrep = { stratagems: Stratagem[]; secondaries: Secondary[] }
 
-export type BattleScreen = { kind: 'battle'; view: BattleView } | { kind: 'invitation'; free: boolean }
+export type BattleScreen = { kind: 'battle'; view: BattleView; mission: Mission | null } | { kind: 'invitation'; free: boolean }
 
 export class MusterService {
   constructor(
@@ -85,7 +86,11 @@ export class MusterService {
     return result
   }
 
-  screen(token: string, playerId: string | null): BattleScreen {
+  /**
+   * `rules` is passed in rather than reached for, so the service stays testable
+   * without a synced dataset.
+   */
+  screen(token: string, playerId: string | null, rules?: Parameters<typeof missionFor>[0] | null): BattleScreen {
     const seats = this.mustFind(token)
     if (!playerId || !this.seated(seats, playerId)) {
       return { kind: 'invitation', free: seats.players.length < PLAYERS_PER_BATTLE }
@@ -94,7 +99,11 @@ export class MusterService {
       seats.players.map((player) => player.id),
       this.repository.log(seats.battle.id),
     )
-    return { kind: 'battle', view: battleView(seats.battle, seats.players, state, playerId) }
+    const view = battleView(seats.battle, seats.players, state, playerId)
+    // Eleventh edition takes the mission from the two armies' dispositions rather
+    // than from either player, so it is derived and never stored.
+    const [one, two] = view.players.map((player) => player.roster?.built?.disposition ?? null)
+    return { kind: 'battle', view, mission: rules ? missionFor(rules, one ?? null, two ?? null) : null }
   }
 
   submit(token: string, playerId: string, expectedSeq: number, command: Command): SubmitResult {

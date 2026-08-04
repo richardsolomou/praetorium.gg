@@ -48,6 +48,8 @@ export type BuiltRoster = {
   limit: number
   /** Named for display, since an opponent's device may have no catalogue loaded. */
   detachment: string | null
+  /** The force disposition the detachment plays under; the pair decides the mission. */
+  disposition: string | null
   selections: Selection[]
   /**
    * The units as submitted, fixed at the moment the list was attached.
@@ -88,6 +90,15 @@ export type Secondary = { key: string; name: string }
 export const SECONDARIES_MAX = 6
 
 /**
+ * Fixed secondaries are chosen once and scored all game; tactical ones are drawn as
+ * play goes on. A card's payouts differ between the two, so the battle records which
+ * is being played.
+ */
+export type SecondaryMode = 'fixed' | 'tactical'
+
+export const SECONDARY_MODES: SecondaryMode[] = ['fixed', 'tactical']
+
+/**
  * The conventional matched-play ceilings, shown as guidance and never enforced.
  *
  * Refusing a score on a number this file is not certain of would stop a real game
@@ -107,7 +118,7 @@ export const GAME_SIZES = [
 export type Command =
   | { kind: 'attach-roster'; roster: Roster }
   | { kind: 'set-unit'; unitKey: string; destroyed: boolean }
-  | { kind: 'set-prep'; stratagems: Stratagem[]; secondaries: Secondary[]; primary: Secondary | null }
+  | { kind: 'set-prep'; stratagems: Stratagem[]; secondaries: Secondary[]; primary: Secondary | null; secondaryMode: SecondaryMode }
   | { kind: 'use-stratagem'; key: string }
   | { kind: 'score-secondary'; key: string; delta: number }
   | { kind: 'begin-battle'; firstPlayerId: PlayerId }
@@ -133,6 +144,7 @@ export type PlayerState = {
   secondaries: Secondary[]
   /** The primary mission being played, so both devices score against the same one. */
   primaryCard: Secondary | null
+  secondaryMode: SecondaryMode
   /** What each named secondary has scored, keyed the same way. */
   scored: Record<string, number>
 }
@@ -178,6 +190,7 @@ export function reduceBattle(playerIds: readonly PlayerId[], log: readonly Logge
       uses: [],
       secondaries: [],
       primaryCard: null,
+      secondaryMode: 'fixed',
       scored: {},
     })),
     undoable: null,
@@ -320,6 +333,7 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
       player.stratagems = command.stratagems.map((stratagem) => ({ ...stratagem, name: stratagem.name.trim() }))
       player.secondaries = command.secondaries.map((secondary) => ({ ...secondary, name: secondary.name.trim() }))
       player.primaryCard = command.primary ? { ...command.primary, name: command.primary.name.trim() } : null
+      player.secondaryMode = command.secondaryMode
       // A secondary nobody can see must not keep contributing to the total.
       const kept = Object.fromEntries(
         Object.entries(player.scored).filter(([key]) => player.secondaries.some((secondary) => secondary.key === key)),
@@ -436,6 +450,7 @@ export type BattleView = {
     stratagems: { key: string; name: string; cp: number; limit: StratagemLimit; refusal: string | null }[]
     secondaries: { key: string; name: string; points: number }[]
     primaryCard: Secondary | null
+    secondaryMode: SecondaryMode
   }[]
   /** The conventional ceilings, for display beside a total. */
   guides: { primary: number; secondary: number }
@@ -488,6 +503,7 @@ export function battleView(
         refusal: validate(state, player.id, { kind: 'use-stratagem', key: stratagem.key }),
       })),
       primaryCard: player.primaryCard,
+      secondaryMode: player.secondaryMode,
       secondaries: player.secondaries.map((secondary) => ({
         key: secondary.key,
         name: secondary.name,

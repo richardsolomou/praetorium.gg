@@ -25,7 +25,24 @@ export type LoadedCatalogue = {
  * How a book presents its detachments: one wrapper entry the roster must hold
  * exactly one of, a group inside it, and the choices in that group.
  */
-export type DetachmentOptions = { wrapperId: string; groupId: string; options: { id: string; name: string }[] }
+export type DetachmentOptions = { wrapperId: string; groupId: string; options: DetachmentOption[] }
+
+/**
+ * A detachment and the force disposition it plays under.
+ *
+ * The disposition decides the mission, and the catalogues state it as one of the
+ * detachment's keywords — "Reconnaissance", "Take and Hold" — alongside unrelated
+ * ones, so it is recognised by name rather than by position.
+ */
+export type DetachmentOption = { id: string; name: string; disposition: string | null }
+
+const DISPOSITIONS = new Set(['take-and-hold', 'disruption', 'purge-the-foe', 'priority-assets', 'reconnaissance'])
+
+const asDisposition = (name: string) =>
+  name
+    .toLowerCase()
+    .replaceAll(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
 
 const DETACHMENT_ENTRY = 'Detachment'
 
@@ -66,7 +83,12 @@ function detachmentsOf(files: readonly CatalogueFile[]): Map<string, DetachmentO
     const group = wrapper?.selectionEntryGroups?.[0]
     const options = (group?.selectionEntries ?? [])
       .filter((entry) => !entry.hidden && entry.name)
-      .map((entry) => ({ id: entry.id, name: entry.name ?? entry.id }))
+      .map((entry) => ({
+        id: entry.id,
+        name: entry.name ?? entry.id,
+        disposition:
+          (entry.categoryLinks ?? []).map((link) => asDisposition(link.name ?? '')).find((slug) => DISPOSITIONS.has(slug)) ?? null,
+      }))
       .toSorted((left, right) => left.name.localeCompare(right.name))
     if (wrapper && group && options.length) found.set(root.id, { wrapperId: wrapper.id, groupId: group.id, options })
   }

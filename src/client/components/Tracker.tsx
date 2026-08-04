@@ -6,7 +6,15 @@ import type { BattleView, Command } from '../../core/battle'
 import type { PresentPlayer } from '../../server/presence'
 import { Prep } from './Prep'
 
-type Props = { view: BattleView; present: PresentPlayer[]; send: (command: Command) => void; pending: boolean; problem: string | null }
+type Props = {
+  view: BattleView
+  /** Derived from both armies' dispositions, so it is the same on both devices. */
+  mission: { id: string; name: string; roundCap: number | null; gameCap: number | null } | null
+  present: PresentPlayer[]
+  send: (command: Command) => void
+  pending: boolean
+  problem: string | null
+}
 
 /** Side 0 is the player who opened the battle. The tint is how you tell whose number you are reading. */
 const SIDES = [
@@ -14,14 +22,26 @@ const SIDES = [
   { accent: 'border-l-rust', value: 'text-rust' },
 ]
 
-export function Tracker({ view, present, send, pending, problem }: Props) {
+export function Tracker({ view, mission, present, send, pending, problem }: Props) {
   const you = view.players.find((player) => player.isViewer)
   const built = you?.roster?.built
   // The cards say what they pay out, so the interface can offer the figure instead
   // of asking a player to work it out.
   const { data: rules } = useQuery(detachmentRulesQuery(built?.catalogueId ?? '', built?.detachment ?? ''))
-  const awardsFor = (key: string) =>
-    [...(rules?.secondaries ?? []), ...(rules?.primaries ?? [])].find((card) => card.key === key)?.awards ?? []
+  const awardsFor = (key: string, mode?: string) =>
+    ([...(rules?.secondaries ?? []), ...(rules?.primaries ?? [])].find((card) => card.key === key)?.awards ?? []).filter(
+      (award) => !award.mode || !mode || award.mode === mode,
+    )
+
+  /** Why this payout is not available right now, or null when it is. */
+  const blocked = (award: Award): string | null => {
+    const trigger = award.trigger
+    if (trigger.playerTurn === 'your-turn' && view.activePlayerId !== view.viewerId) return 'on your own turn'
+    if (trigger.phase && trigger.phase !== view.phase) return `in the ${trigger.phase} phase`
+    if (trigger.roundMin !== null && view.round < trigger.roundMin) return `from round ${trigger.roundMin}`
+    if (trigger.roundMax !== null && view.round > trigger.roundMax) return `up to round ${trigger.roundMax}`
+    return null
+  }
   const yourTurn = view.activePlayerId === view.viewerId
   const active = view.players.find((player) => player.isActive)
   const finished = view.status === 'finished'
@@ -30,7 +50,10 @@ export function Tracker({ view, present, send, pending, problem }: Props) {
     <main className="space-y-4">
       <header className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 border-b border-edge pb-3">
         <div>
-          <p className="eyebrow">{finished ? 'Battle over' : `Round ${view.round} of ${view.rounds}`}</p>
+          <p className="eyebrow">
+            {finished ? 'Battle over' : `Round ${view.round} of ${view.rounds}`}
+            {mission ? ` · ${mission.name}` : ''}
+          </p>
           <h1 className="mt-1 text-2xl capitalize">{finished ? outcome(view) : `${view.phase} phase`}</h1>
         </div>
         {finished ? null : (
@@ -75,8 +98,8 @@ export function Tracker({ view, present, send, pending, problem }: Props) {
                 onStep={player.isViewer && !finished ? (delta) => send({ kind: 'adjust-cp', delta }) : undefined}
               />
               <Stat
-                label={`Primary`}
-                guide={view.guides.primary}
+                label="Primary"
+                guide={mission?.gameCap ?? view.guides.primary}
                 value={player.primary}
                 tint={SIDES[index]?.value}
                 pending={pending}
@@ -116,14 +139,14 @@ export function Tracker({ view, present, send, pending, problem }: Props) {
                 <p className="eyebrow">Primary — {player.primaryCard.name}</p>
                 {player.isViewer && !finished ? (
                   <div className="flex flex-wrap gap-1">
-                    {(awardsFor(player.primaryCard.key).length ? awardsFor(player.primaryCard.key) : FALLBACK_AWARDS).map((award) => (
+                    {pick(awardsFor(player.primaryCard.key)).map((award) => (
                       <Button
                         key={`${award.vp}-${award.per ?? ''}-${award.mode ?? ''}`}
                         variant="outline"
                         size="icon-sm"
                         className="w-auto px-1.5"
-                        disabled={pending}
-                        title={awardTitle(award)}
+                        disabled={pending || blocked(award) !== null}
+                        title={blocked(award) ? `Only ${blocked(award)}` : awardTitle(award)}
                         aria-label={`Primary plus ${award.vp}${award.per ? ` per ${award.per.replaceAll('-', ' ')}` : ''}`}
                         onClick={() => send({ kind: 'score', category: 'primary', delta: award.vp })}
                       >
@@ -145,14 +168,14 @@ export function Tracker({ view, present, send, pending, problem }: Props) {
                     <span className="readout w-6 text-right text-dim">{secondary.points}</span>
                     {player.isViewer && !finished ? (
                       <span className="flex shrink-0 flex-wrap gap-1">
-                        {(awardsFor(secondary.key).length ? awardsFor(secondary.key) : FALLBACK_AWARDS).map((award) => (
+                        {pick(awardsFor(secondary.key, player.secondaryMode)).map((award) => (
                           <Button
                             key={`${award.vp}-${award.per ?? ''}-${award.mode ?? ''}`}
                             variant="outline"
                             size="icon-sm"
                             className="w-auto px-1.5"
-                            disabled={pending}
-                            title={awardTitle(award)}
+                            disabled={pending || blocked(award) !== null}
+                            title={blocked(award) ? `Only ${blocked(award)}` : awardTitle(award)}
                             aria-label={`${secondary.name} plus ${award.vp}${award.per ? ` per ${award.per.replaceAll('-', ' ')}` : ''}`}
                             onClick={() => send({ kind: 'score-secondary', key: secondary.key, delta: award.vp })}
                           >
@@ -323,13 +346,23 @@ function Stat({ label, guide, value, tint, pending, onStep, fives }: StatProps) 
   )
 }
 
-type Award = { vp: number; per: string | null; mode: string | null; when: string | null }
+type Award = {
+  vp: number
+  per: string | null
+  mode: string | null
+  when: string | null
+  trigger: { phase: string | null; playerTurn: string | null; roundMin: number | null; roundMax: number | null }
+}
+
+const ANY: Award['trigger'] = { phase: null, playerTurn: null, roundMin: null, roundMax: null }
 
 /** When a card's payouts are not known, plain steps are better than no way to score. */
 const FALLBACK_AWARDS: Award[] = [
-  { vp: 1, per: null, mode: null, when: null },
-  { vp: 5, per: null, mode: null, when: null },
+  { vp: 1, per: null, mode: null, when: null, trigger: ANY },
+  { vp: 5, per: null, mode: null, when: null, trigger: ANY },
 ]
+
+const pick = (awards: Award[]) => (awards.length ? awards : FALLBACK_AWARDS)
 
 const awardTitle = (award: Award) =>
   [award.mode, award.when?.replaceAll('-', ' '), award.per ? `per ${award.per.replaceAll('-', ' ')}` : null].filter(Boolean).join(' · ') ||

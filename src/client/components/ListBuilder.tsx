@@ -371,6 +371,7 @@ export function ListBuilder({ onAttach, pending, attached, prep, onRestorePrep }
                     revision: priced.revision,
                     limit,
                     detachment: priced.detachment,
+                    disposition: priced.disposition,
                     selections: priced.selections,
                     // Keys are fixed here because the battle log points at them.
                     units: priced.units.map((unit, index) => ({

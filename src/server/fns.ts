@@ -64,7 +64,7 @@ export const me = createServerFn({ method: 'GET' }).handler(() =>
 
 export const openBattle = createServerFn({ method: 'GET' })
   .validator(tokenSchema)
-  .handler(({ data }) => rpc(() => orNull(() => app().service.screen(data.token, currentPlayerId()))))
+  .handler(({ data }) => rpc(() => orNull(() => app().service.screen(data.token, currentPlayerId(), app().rules()))))
 
 export const createBattle = createServerFn({ method: 'POST' })
   .validator(createBattleSchema)
@@ -153,6 +153,7 @@ export const priceRoster = createServerFn({ method: 'POST' })
       return {
         revision: loaded.index.revision,
         detachment: chosen?.name ?? null,
+        disposition: chosen?.disposition ?? null,
         points: whole.points,
         errors: whole.errors,
         unhandled: whole.unhandled,
