@@ -52,7 +52,7 @@ export function ListBuilder({ onAttach, pending, attached, prep, onRestorePrep }
       saveRoster({
         data: {
           id: savedId,
-          name: name.trim() || 'Untitled list',
+          name: listName || 'Untitled list',
           catalogueId,
           detachmentId: detachmentId ?? null,
           limit,
@@ -87,6 +87,9 @@ export function ListBuilder({ onAttach, pending, attached, prep, onRestorePrep }
 
   const faction = available.factions.find((entry) => entry.id === catalogueId)
   const over = Boolean(priced && priced.points > limit)
+  // Named for you from what you picked. Editable, but never something you must type.
+  const suggested = faction ? [faction.name.split(' - ').at(-1), priced?.detachment].filter(Boolean).join(' — ') : ''
+  const listName = name.trim() || suggested
   // A list without one is not a legal army, so it cannot be attached.
   const needsDetachment = Boolean(faction?.detachments.length) && !detachmentId
 
@@ -327,13 +330,13 @@ export function ListBuilder({ onAttach, pending, attached, prep, onRestorePrep }
           ) : null}
 
           <div className="space-y-2">
-            <Label htmlFor="listname">Name this army</Label>
+            <Label htmlFor="listname">List name</Label>
             <Input
               id="listname"
               value={name}
               onChange={(event) => setName(event.target.value)}
               maxLength={ROSTER_NAME_MAX_LENGTH}
-              placeholder={`${faction.name} strike force`}
+              placeholder={suggested}
             />
           </div>
 
@@ -342,7 +345,7 @@ export function ListBuilder({ onAttach, pending, attached, prep, onRestorePrep }
             <Button
               variant="outline"
               className="h-11"
-              disabled={save.isPending || !name.trim() || !priced?.units.length}
+              disabled={save.isPending || !listName || !priced?.units.length}
               onClick={() => save.mutate()}
             >
               <Save />
@@ -350,11 +353,11 @@ export function ListBuilder({ onAttach, pending, attached, prep, onRestorePrep }
             </Button>
             <Button
               className="h-11 flex-1 text-base"
-              disabled={pending || !name.trim() || !priced?.units.length || over || needsDetachment}
+              disabled={pending || !listName || !priced?.units.length || over || needsDetachment}
               onClick={() => {
                 if (!priced) return
                 onAttach({
-                  name,
+                  name: listName,
                   // The readable form travels with the list so an opponent can see it
                   // whatever the other instance has synced.
                   text: [

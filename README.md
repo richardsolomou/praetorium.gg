@@ -52,7 +52,9 @@ Lists are built from the catalogue with a detachment, squad sizes, weapon loadou
 
 The BSData catalogues carry neither, so these come from [40kdc-data](https://github.com/tabletop-developer-consortium/40kdc-data), whose dataset is CC BY 4.0. That licence is why it can be used at all, and attribution is one of its conditions rather than a courtesy — it appears wherever the data does.
 
-Pick a detachment and its stratagems arrive already chosen, with the cost and the usage limit the dataset states. The core stratagems are offered alongside them, and the secondary mission cards are picked from the deck by name. During the game a stratagem's cost comes off its owner's pool, a once-per-phase one greys out until the phase turns over, and each secondary is scored on its own rather than into one pile.
+Pick a detachment and its stratagems arrive already chosen, with the cost and the usage limit the dataset states. The core stratagems are offered alongside them, and the primary mission and secondaries are picked from the deck. During the game a stratagem's cost comes off its owner's pool, a once-per-phase one greys out until the phase turns over, and each secondary is scored on its own rather than into one pile.
+
+Nothing is typed that can be picked. Scoring offers the figure the card actually pays — `+3 ea` for Behind Enemy Lines rather than a blank stepper — and a list names itself after its faction and detachment. The only free text is your own name. Stratagems and mission cards need a list built from the catalogue: knowing your stratagems means knowing your detachment, so a pasted list gets neither.
 
 An unrecognised usage limit becomes "any number of times" rather than a guess: inventing a restriction would stop a player using something they are entitled to. The 11th edition entries are currently flagged provisional by the dataset, which is shown on screen. The conventional scoring ceilings are displayed beside the totals and never enforced.
 

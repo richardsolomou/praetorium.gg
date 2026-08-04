@@ -107,7 +107,7 @@ export const GAME_SIZES = [
 export type Command =
   | { kind: 'attach-roster'; roster: Roster }
   | { kind: 'set-unit'; unitKey: string; destroyed: boolean }
-  | { kind: 'set-prep'; stratagems: Stratagem[]; secondaries: Secondary[] }
+  | { kind: 'set-prep'; stratagems: Stratagem[]; secondaries: Secondary[]; primary: Secondary | null }
   | { kind: 'use-stratagem'; key: string }
   | { kind: 'score-secondary'; key: string; delta: number }
   | { kind: 'begin-battle'; firstPlayerId: PlayerId }
@@ -131,6 +131,8 @@ export type PlayerState = {
   /** Every use, with when it happened, so a limit can be judged against the log. */
   uses: StratagemUse[]
   secondaries: Secondary[]
+  /** The primary mission being played, so both devices score against the same one. */
+  primaryCard: Secondary | null
   /** What each named secondary has scored, keyed the same way. */
   scored: Record<string, number>
 }
@@ -175,6 +177,7 @@ export function reduceBattle(playerIds: readonly PlayerId[], log: readonly Logge
       stratagems: [],
       uses: [],
       secondaries: [],
+      primaryCard: null,
       scored: {},
     })),
     undoable: null,
@@ -265,6 +268,7 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
       }
       if (command.secondaries.length > SECONDARIES_MAX) return `that is more than ${SECONDARIES_MAX} secondaries`
       if (command.secondaries.some((secondary) => !secondary.name.trim())) return 'name every secondary'
+      if (command.primary && !command.primary.name.trim()) return 'name the primary mission'
       return null
     }
     case 'use-stratagem': {
@@ -315,6 +319,7 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
     case 'set-prep': {
       player.stratagems = command.stratagems.map((stratagem) => ({ ...stratagem, name: stratagem.name.trim() }))
       player.secondaries = command.secondaries.map((secondary) => ({ ...secondary, name: secondary.name.trim() }))
+      player.primaryCard = command.primary ? { ...command.primary, name: command.primary.name.trim() } : null
       // A secondary nobody can see must not keep contributing to the total.
       const kept = Object.fromEntries(
         Object.entries(player.scored).filter(([key]) => player.secondaries.some((secondary) => secondary.key === key)),
@@ -430,6 +435,7 @@ export type BattleView = {
     /** Each stratagem with whether it can be used right now, and why not when it cannot. */
     stratagems: { key: string; name: string; cp: number; limit: StratagemLimit; refusal: string | null }[]
     secondaries: { key: string; name: string; points: number }[]
+    primaryCard: Secondary | null
   }[]
   /** The conventional ceilings, for display beside a total. */
   guides: { primary: number; secondary: number }
@@ -481,6 +487,7 @@ export function battleView(
         // would be refused.
         refusal: validate(state, player.id, { kind: 'use-stratagem', key: stratagem.key }),
       })),
+      primaryCard: player.primaryCard,
       secondaries: player.secondaries.map((secondary) => ({
         key: secondary.key,
         name: secondary.name,

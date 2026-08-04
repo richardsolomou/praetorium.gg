@@ -28,7 +28,8 @@ test('a list is saved and loaded into another battle', async ({ browser }) => {
   const total = page.locator('[data-stat="points"]')
   const priced = await total.innerText()
 
-  await page.getByLabel('Name this army').fill('Nurgle 2k')
+  // The name is offered, not demanded; this one is overridden on purpose.
+  await page.getByLabel('List name').fill('Nurgle 2k')
   await page.getByRole('button', { name: 'Save list' }).click()
   await expect(page.getByRole('button', { name: 'Saved' })).toBeVisible()
 

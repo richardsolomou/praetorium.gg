@@ -63,7 +63,7 @@ export function Muster({ view, send, pending, problem }: Props) {
             stratagems: you.stratagems.map(({ key, name, cp, limit }) => ({ key, name, cp, limit })),
             secondaries: you.secondaries.map(({ key, name }) => ({ key, name })),
           }}
-          onRestorePrep={(restored) => send({ kind: 'set-prep', ...restored })}
+          onRestorePrep={(restored) => send({ kind: 'set-prep', ...restored, primary: you.primaryCard })}
         />
       ) : (
         <form

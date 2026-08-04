@@ -68,6 +68,7 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
       )
       .max(STRATAGEMS_MAX),
     secondaries: z.array(z.object({ key: id, name: z.string().min(1).max(ROSTER_NAME_MAX_LENGTH) })).max(SECONDARIES_MAX),
+    primary: z.object({ key: id, name: z.string().min(1).max(ROSTER_NAME_MAX_LENGTH) }).nullable(),
   }),
   z.object({ kind: z.literal('use-stratagem'), key: id }),
   z.object({ kind: z.literal('score-secondary'), key: id, delta: z.number().int() }),

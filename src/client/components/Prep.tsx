@@ -1,245 +1,135 @@
 import { useQuery } from '@tanstack/react-query'
-import { Plus, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import type { BattleView, Command, Secondary, Stratagem, StratagemLimit } from '../../core/battle'
-import { ROSTER_NAME_MAX_LENGTH, SECONDARIES_MAX, STRATAGEM_CP_MAX, STRATAGEM_LIMITS, STRATAGEMS_MAX } from '../../core/battle'
+import type { BattleView, Command, Secondary, Stratagem } from '../../core/battle'
+import { SECONDARIES_MAX, STRATAGEMS_MAX } from '../../core/battle'
 import { detachmentRulesQuery } from '../queries'
 
 type Props = { view: BattleView; send: (command: Command) => void; pending: boolean }
 
-const LIMIT_WORDS: Record<StratagemLimit, string> = {
-  phase: 'Once per phase',
-  turn: 'Once per turn',
-  battle: 'Once per battle',
-  unlimited: 'Any number of times',
-}
-
-let counter = 0
-const nextKey = () => `k${Date.now().toString(36)}${counter++}`
-
-/** The select hands back an arbitrary string, so narrow it rather than assert it. */
-const asLimit = (value: unknown): StratagemLimit => STRATAGEM_LIMITS.find((limit) => limit === value) ?? 'turn'
-
 /**
- * Where a player writes down the stratagems and secondaries they are playing with.
+ * Choosing what you are playing with: stratagems, a primary mission, secondaries.
  *
- * The community catalogue data carries neither — a detachment there has its rule
- * and its objective and nothing else — so the words come from the player's own
- * book. What the app does with them is the part worth having: the cost comes off
- * the right pool, and a once-per-turn stratagem cannot be used twice.
+ * Everything here is picked, never typed. The community catalogues carry none of
+ * it, so it comes from the Tabletop Developer Consortium's dataset — which is also
+ * why the attribution is on screen: its licence asks for it.
  */
 export function Prep({ view, send, pending }: Props) {
   const you = view.players.find((player) => player.isViewer)
   const built = you?.roster?.built
   const { data: rules } = useQuery(detachmentRulesQuery(built?.catalogueId ?? '', built?.detachment ?? ''))
+
   const [stratagems, setStratagems] = useState<Stratagem[]>(
     () => you?.stratagems.map(({ key, name, cp, limit }) => ({ key, name, cp, limit })) ?? [],
   )
   const [secondaries, setSecondaries] = useState<Secondary[]>(() => you?.secondaries.map(({ key, name }) => ({ key, name })) ?? [])
-
-  const change = (index: number, patch: Partial<Stratagem>) =>
-    setStratagems((current) => current.map((entry, at) => (at === index ? { ...entry, ...patch } : entry)))
+  const [primary, setPrimary] = useState<Secondary | null>(() => you?.primaryCard ?? null)
 
   // A detachment's own stratagems are the answer often enough to be the default;
-  // nothing is overwritten once the player has a list of their own.
+  // nothing is overwritten once the player has a set of their own.
   useEffect(() => {
     if (!rules?.stratagems.length) return
     setStratagems((current) => (current.length ? current : rules.stratagems))
   }, [rules])
 
-  const offered = rules ? [...rules.stratagems, ...rules.core] : []
-  const toggle = (stratagem: Stratagem) =>
-    setStratagems((current) =>
-      current.some((held) => held.key === stratagem.key)
-        ? current.filter((held) => held.key !== stratagem.key)
-        : [...current, stratagem].slice(0, STRATAGEMS_MAX),
-    )
-  const toggleSecondary = (secondary: Secondary) =>
-    setSecondaries((current) =>
-      current.some((held) => held.key === secondary.key)
-        ? current.filter((held) => held.key !== secondary.key)
-        : [...current, secondary].slice(0, SECONDARIES_MAX),
-    )
-
-  if (rules && (offered.length || rules.secondaries.length)) {
+  if (!rules) {
     return (
-      <div className="space-y-5">
-        <section className="space-y-2">
-          <Label>Stratagems</Label>
-          <div className="flex flex-wrap gap-1.5">
-            {offered.map((stratagem) => {
-              const taken = stratagems.some((held) => held.key === stratagem.key)
-              return (
-                <Button
-                  key={stratagem.key}
-                  variant={taken ? 'default' : 'outline'}
-                  size="sm"
-                  aria-pressed={taken}
-                  onClick={() => toggle(stratagem)}
-                >
-                  {stratagem.name}
-                  <span className="readout ml-1 text-xs opacity-70">{stratagem.cp}</span>
-                </Button>
-              )
-            })}
-          </div>
-        </section>
-
-        <section className="space-y-2">
-          <Label>Secondaries</Label>
-          <div className="flex flex-wrap gap-1.5">
-            {rules.secondaries.map((secondary) => {
-              const taken = secondaries.some((held) => held.key === secondary.key)
-              return (
-                <Button
-                  key={secondary.key}
-                  variant={taken ? 'default' : 'outline'}
-                  size="sm"
-                  aria-pressed={taken}
-                  onClick={() => toggleSecondary(secondary)}
-                >
-                  {secondary.name}
-                </Button>
-              )
-            })}
-          </div>
-        </section>
-
-        <div className="flex flex-wrap items-center gap-3">
-          <Button variant="secondary" size="sm" disabled={pending} onClick={() => send({ kind: 'set-prep', stratagems, secondaries })}>
-            Save these
-          </Button>
-          <p className="text-[0.6875rem] text-dim">
-            {rules.attribution}
-            {rules.dataslate ? ` · ${rules.dataslate.replaceAll('-', ' ')}` : ''}
-          </p>
-        </div>
-      </div>
+      <p className="text-sm text-dim">
+        No stratagem or mission data on this instance. Run <span className="readout">pnpm catalogue:sync</span> and reload.
+      </p>
     )
   }
 
+  const offered = [...rules.stratagems, ...rules.core]
+
   return (
     <div className="space-y-5">
-      <section className="space-y-2">
-        <div className="flex items-center justify-between gap-2">
-          <Label>Your stratagems</Label>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={stratagems.length >= STRATAGEMS_MAX}
-            onClick={() => setStratagems((current) => [...current, { key: nextKey(), name: '', cp: 1, limit: 'turn' }])}
-          >
-            <Plus />
-            Add
-          </Button>
-        </div>
-        {stratagems.length ? (
-          <ul className="space-y-2">
-            {stratagems.map((stratagem, index) => (
-              <li key={stratagem.key} className="flex flex-wrap items-center gap-1.5">
-                <Input
-                  value={stratagem.name}
-                  onChange={(event) => change(index, { name: event.target.value })}
-                  maxLength={ROSTER_NAME_MAX_LENGTH}
-                  placeholder="Grenade"
-                  aria-label={`Stratagem ${index + 1} name`}
-                  className="min-w-40 flex-1"
-                />
-                <Input
-                  type="number"
-                  min={0}
-                  max={STRATAGEM_CP_MAX}
-                  value={stratagem.cp}
-                  onChange={(event) => change(index, { cp: Number(event.target.value) })}
-                  aria-label={`Stratagem ${index + 1} command points`}
-                  className="readout w-16"
-                />
-                <Select value={stratagem.limit} onValueChange={(value: string | null) => change(index, { limit: asLimit(value) })}>
-                  <SelectTrigger aria-label={`Stratagem ${index + 1} limit`} className="w-44">
-                    <SelectValue>{(value: unknown) => LIMIT_WORDS[asLimit(value)]}</SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {STRATAGEM_LIMITS.map((limit) => (
-                      <SelectItem key={limit} value={limit}>
-                        {LIMIT_WORDS[limit]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label={`Remove stratagem ${index + 1}`}
-                  onClick={() => setStratagems((current) => current.filter((_, at) => at !== index))}
-                >
-                  <X />
-                </Button>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="text-xs text-dim">None yet. Copy the six from your detachment and they will be tracked for you.</p>
-        )}
-      </section>
+      <Pills
+        label="Stratagems"
+        entries={offered.map((stratagem) => ({ key: stratagem.key, name: stratagem.name, note: String(stratagem.cp) }))}
+        taken={stratagems.map((stratagem) => stratagem.key)}
+        onToggle={(key) => {
+          const found = offered.find((stratagem) => stratagem.key === key)
+          if (found) setStratagems((current) => toggle(current, found, STRATAGEMS_MAX))
+        }}
+      />
 
-      <section className="space-y-2">
-        <div className="flex items-center justify-between gap-2">
-          <Label>Your secondaries</Label>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={secondaries.length >= SECONDARIES_MAX}
-            onClick={() => setSecondaries((current) => [...current, { key: nextKey(), name: '' }])}
-          >
-            <Plus />
-            Add
-          </Button>
-        </div>
-        {secondaries.length ? (
-          <ul className="space-y-2">
-            {secondaries.map((secondary, index) => (
-              <li key={secondary.key} className="flex items-center gap-1.5">
-                <Input
-                  value={secondary.name}
-                  onChange={(event) =>
-                    setSecondaries((current) => current.map((entry, at) => (at === index ? { ...entry, name: event.target.value } : entry)))
-                  }
-                  maxLength={ROSTER_NAME_MAX_LENGTH}
-                  placeholder="Behind Enemy Lines"
-                  aria-label={`Secondary ${index + 1} name`}
-                  className="flex-1"
-                />
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label={`Remove secondary ${index + 1}`}
-                  onClick={() => setSecondaries((current) => current.filter((_, at) => at !== index))}
-                >
-                  <X />
-                </Button>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="text-xs text-dim">Name them and each one is scored on its own, rather than into one pile.</p>
-        )}
-      </section>
+      <Pills
+        label="Primary mission"
+        entries={rules.primaries.map((card) => ({ key: card.key, name: card.name }))}
+        taken={primary ? [primary.key] : []}
+        onToggle={(key) => {
+          const found = rules.primaries.find((card) => card.key === key)
+          setPrimary((current) => (current?.key === key || !found ? null : { key: found.key, name: found.name }))
+        }}
+      />
 
-      {/* One act, one command: two would make the second stale against the first. */}
-      <Button
-        variant="secondary"
-        size="sm"
-        disabled={
-          pending || stratagems.some((stratagem) => !stratagem.name.trim()) || secondaries.some((secondary) => !secondary.name.trim())
-        }
-        onClick={() => send({ kind: 'set-prep', stratagems, secondaries })}
-      >
-        Save these
-      </Button>
+      <Pills
+        label="Secondaries"
+        entries={rules.secondaries.map((card) => ({ key: card.key, name: card.name }))}
+        taken={secondaries.map((secondary) => secondary.key)}
+        onToggle={(key) => {
+          const found = rules.secondaries.find((card) => card.key === key)
+          if (found) setSecondaries((current) => toggle(current, { key: found.key, name: found.name }, SECONDARIES_MAX))
+        }}
+      />
+
+      <div className="flex flex-wrap items-center gap-3">
+        {/* One act, one command: two would make the second stale against the first. */}
+        <Button
+          variant="secondary"
+          size="sm"
+          disabled={pending}
+          onClick={() => send({ kind: 'set-prep', stratagems, secondaries, primary })}
+        >
+          Save these
+        </Button>
+        <p className="text-[0.6875rem] text-dim">
+          {rules.attribution}
+          {rules.dataslate ? ` · ${rules.dataslate.replaceAll('-', ' ')}` : ''}
+        </p>
+      </div>
     </div>
+  )
+}
+
+/** In or out, up to a limit. */
+function toggle<T extends { key: string }>(current: T[], entry: T, max: number): T[] {
+  return current.some((held) => held.key === entry.key)
+    ? current.filter((held) => held.key !== entry.key)
+    : [...current, entry].slice(0, max)
+}
+
+type PillsProps = {
+  label: string
+  entries: { key: string; name: string; note?: string }[]
+  taken: string[]
+  onToggle: (key: string) => void
+}
+
+function Pills({ label, entries, taken, onToggle }: PillsProps) {
+  if (!entries.length) return null
+  return (
+    <section className="space-y-2">
+      <Label>{label}</Label>
+      <div className="flex flex-wrap gap-1.5">
+        {entries.map((entry) => {
+          const chosen = taken.includes(entry.key)
+          return (
+            <Button
+              key={entry.key}
+              variant={chosen ? 'default' : 'outline'}
+              size="sm"
+              aria-pressed={chosen}
+              onClick={() => onToggle(entry.key)}
+            >
+              {entry.name}
+              {entry.note ? <span className="readout ml-1 text-xs opacity-70">{entry.note}</span> : null}
+            </Button>
+          )
+        })}
+      </div>
+    </section>
   )
 }

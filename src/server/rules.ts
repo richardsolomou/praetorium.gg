@@ -1,6 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import type { Secondary, Stratagem, StratagemLimit } from '../core/battle'
+import type { Stratagem, StratagemLimit } from '../core/battle'
 
 /**
  * Stratagems and secondary mission cards, from the Tabletop Developer Consortium's
@@ -31,14 +31,40 @@ type RawStratagem = {
   game_version?: { edition?: string; dataslate?: string }
 }
 
-type RawCard = { id: string; name: string; card_type?: string }
+type RawCard = {
+  id: string
+  name: string
+  card_type?: string
+  text?: string
+  awards?: RawAward[]
+}
+
+type RawAward = {
+  vp?: number
+  vp_per?: number
+  per?: string
+  mode?: string
+  cumulative?: boolean
+  when?: { type?: string }
+  trigger?: { timing?: string; player_turn?: string }
+}
+
+/**
+ * One way a card pays out: a flat number of points, or a number per something
+ * counted. Enough for the interface to offer the real figure instead of asking a
+ * player to work it out and type it in.
+ */
+export type Award = { vp: number; per: string | null; mode: string | null; when: string | null }
+
+export type MissionCard = { key: string; name: string; text: string | null; awards: Award[] }
 
 export type LoadedRules = {
   /** Faction slug then detachment slug, so a chosen detachment maps straight to its six. */
   byDetachment: Map<string, Map<string, Stratagem[]>>
   /** Stratagems every army has, offered alongside whatever the detachment brings. */
   core: Stratagem[]
-  secondaries: Secondary[]
+  secondaries: MissionCard[]
+  primaries: MissionCard[]
   /** Whatever the dataset says about how settled these numbers are. */
   dataslate: string | null
 }
@@ -71,13 +97,18 @@ export function loadRules(directory = rulesDirectory()): LoadedRules | null {
   }
 
   const coreStratagems = readStratagems(path.join(core, 'stratagems.json')).map(toStratagem)
-  const secondaries = readCards(path.join(core, 'secondary-cards.json'))
+  const cards = readCards(path.join(core, 'secondary-cards.json'))
+  const secondaries = cards
     .filter((card) => card.card_type !== 'primary')
-    .map((card) => ({ key: card.id, name: card.name }))
-    .toSorted((left, right) => left.name.localeCompare(right.name))
+    .map(toCard)
+    .toSorted(byName)
+  const primaries = cards
+    .filter((card) => card.card_type === 'primary')
+    .map(toCard)
+    .toSorted(byName)
 
   if (!byDetachment.size && !secondaries.length) return null
-  return { byDetachment, core: coreStratagems, secondaries, dataslate }
+  return { byDetachment, core: coreStratagems, secondaries, primaries, dataslate }
 }
 
 function readStratagems(file: string): RawStratagem[] {
@@ -90,6 +121,34 @@ function readCards(file: string): RawCard[] {
   if (!fs.existsSync(file)) return []
   const parsed: RawCard[] = JSON.parse(fs.readFileSync(file, 'utf8'))
   return parsed
+}
+
+const byName = (left: MissionCard, right: MissionCard) => left.name.localeCompare(right.name)
+
+/**
+ * A card with its payouts flattened.
+ *
+ * An award that pays per something keeps `per` so the interface can say what it is
+ * counting; one that pays a flat amount does not. Anything with no number at all is
+ * dropped: a button that scores nothing is worse than no button.
+ */
+function toCard(raw: RawCard): MissionCard {
+  const awards = (raw.awards ?? [])
+    .map((award) => ({
+      vp: award.vp ?? award.vp_per ?? 0,
+      per: award.vp_per ? (award.per ?? 'each') : null,
+      mode: award.mode ?? null,
+      when: award.when?.type ?? null,
+    }))
+    .filter((award) => award.vp > 0)
+  return { key: raw.id, name: raw.name, text: raw.text ?? null, awards: dedupe(awards) }
+}
+
+/** The same payout written twice is one button, not two. */
+function dedupe(awards: Award[]): Award[] {
+  const seen = new Map<string, Award>()
+  for (const award of awards) seen.set(`${award.vp}/${award.per}/${award.mode}`, award)
+  return [...seen.values()]
 }
 
 /** Titled rather than shouted: the dataset stores names in capitals. */

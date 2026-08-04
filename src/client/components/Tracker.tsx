@@ -1,5 +1,7 @@
+import { useQuery } from '@tanstack/react-query'
 import { RotateCcw, Skull, Undo2, Zap } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { detachmentRulesQuery } from '../queries'
 import type { BattleView, Command } from '../../core/battle'
 import type { PresentPlayer } from '../../server/presence'
 import { Prep } from './Prep'
@@ -13,6 +15,13 @@ const SIDES = [
 ]
 
 export function Tracker({ view, present, send, pending, problem }: Props) {
+  const you = view.players.find((player) => player.isViewer)
+  const built = you?.roster?.built
+  // The cards say what they pay out, so the interface can offer the figure instead
+  // of asking a player to work it out.
+  const { data: rules } = useQuery(detachmentRulesQuery(built?.catalogueId ?? '', built?.detachment ?? ''))
+  const awardsFor = (key: string) =>
+    [...(rules?.secondaries ?? []), ...(rules?.primaries ?? [])].find((card) => card.key === key)?.awards ?? []
   const yourTurn = view.activePlayerId === view.viewerId
   const active = view.players.find((player) => player.isActive)
   const finished = view.status === 'finished'
@@ -45,10 +54,8 @@ export function Tracker({ view, present, send, pending, problem }: Props) {
                   {player.name}
                   {player.isViewer ? <span className="ml-1.5 text-xs text-dim">you</span> : null}
                 </p>
-                <p className="truncate text-xs text-dim">
-                  {player.roster?.name ?? 'No list'}
-                  {player.roster?.built?.detachment ? ` · ${player.roster.built.detachment}` : ''}
-                </p>
+                {/* The list names itself after its detachment, so appending it would say it twice. */}
+                <p className="truncate text-xs text-dim">{rosterLine(player.roster)}</p>
               </div>
               <span
                 className={`size-2 shrink-0 rounded-full ${
@@ -74,7 +81,12 @@ export function Tracker({ view, present, send, pending, problem }: Props) {
                 tint={SIDES[index]?.value}
                 pending={pending}
                 fives
-                onStep={player.isViewer && !finished ? (delta) => send({ kind: 'score', category: 'primary', delta }) : undefined}
+                // A chosen primary card is scored by its own payouts below.
+                onStep={
+                  player.isViewer && !finished && !player.primaryCard
+                    ? (delta) => send({ kind: 'score', category: 'primary', delta })
+                    : undefined
+                }
               />
               <Stat
                 label="Secondary"
@@ -99,6 +111,31 @@ export function Tracker({ view, present, send, pending, problem }: Props) {
               </span>
             </p>
 
+            {player.primaryCard ? (
+              <div className="space-y-1 border-t border-edge pt-3">
+                <p className="eyebrow">Primary — {player.primaryCard.name}</p>
+                {player.isViewer && !finished ? (
+                  <div className="flex flex-wrap gap-1">
+                    {(awardsFor(player.primaryCard.key).length ? awardsFor(player.primaryCard.key) : FALLBACK_AWARDS).map((award) => (
+                      <Button
+                        key={`${award.vp}-${award.per ?? ''}-${award.mode ?? ''}`}
+                        variant="outline"
+                        size="icon-sm"
+                        className="w-auto px-1.5"
+                        disabled={pending}
+                        title={awardTitle(award)}
+                        aria-label={`Primary plus ${award.vp}${award.per ? ` per ${award.per.replaceAll('-', ' ')}` : ''}`}
+                        onClick={() => send({ kind: 'score', category: 'primary', delta: award.vp })}
+                      >
+                        +{award.vp}
+                        {award.per ? <span className="ml-0.5 text-[0.625rem] opacity-70">ea</span> : null}
+                      </Button>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+
             {player.secondaries.length ? (
               <div className="space-y-1 border-t border-edge pt-3">
                 <p className="eyebrow">Secondaries</p>
@@ -107,18 +144,20 @@ export function Tracker({ view, present, send, pending, problem }: Props) {
                     <span className="min-w-0 flex-1 truncate">{secondary.name}</span>
                     <span className="readout w-6 text-right text-dim">{secondary.points}</span>
                     {player.isViewer && !finished ? (
-                      <span className="flex shrink-0 gap-1">
-                        {[-1, 1, 5].map((step) => (
+                      <span className="flex shrink-0 flex-wrap gap-1">
+                        {(awardsFor(secondary.key).length ? awardsFor(secondary.key) : FALLBACK_AWARDS).map((award) => (
                           <Button
-                            key={step}
+                            key={`${award.vp}-${award.per ?? ''}-${award.mode ?? ''}`}
                             variant="outline"
                             size="icon-sm"
+                            className="w-auto px-1.5"
                             disabled={pending}
-                            aria-label={`${secondary.name} ${step < 0 ? 'minus' : 'plus'} ${Math.abs(step)}`}
-                            onClick={() => send({ kind: 'score-secondary', key: secondary.key, delta: step })}
+                            title={awardTitle(award)}
+                            aria-label={`${secondary.name} plus ${award.vp}${award.per ? ` per ${award.per.replaceAll('-', ' ')}` : ''}`}
+                            onClick={() => send({ kind: 'score-secondary', key: secondary.key, delta: award.vp })}
                           >
-                            {step < 0 ? '−' : '+'}
-                            {Math.abs(step)}
+                            +{award.vp}
+                            {award.per ? <span className="ml-0.5 text-[0.625rem] opacity-70">ea</span> : null}
                           </Button>
                         ))}
                       </span>
@@ -282,6 +321,24 @@ function Stat({ label, guide, value, tint, pending, onStep, fives }: StatProps) 
       ) : null}
     </div>
   )
+}
+
+type Award = { vp: number; per: string | null; mode: string | null; when: string | null }
+
+/** When a card's payouts are not known, plain steps are better than no way to score. */
+const FALLBACK_AWARDS: Award[] = [
+  { vp: 1, per: null, mode: null, when: null },
+  { vp: 5, per: null, mode: null, when: null },
+]
+
+const awardTitle = (award: Award) =>
+  [award.mode, award.when?.replaceAll('-', ' '), award.per ? `per ${award.per.replaceAll('-', ' ')}` : null].filter(Boolean).join(' · ') ||
+  undefined
+
+function rosterLine(roster: BattleView['players'][number]['roster']) {
+  if (!roster) return 'No list'
+  const detachment = roster.built?.detachment
+  return detachment && !roster.name.includes(detachment) ? `${roster.name} · ${detachment}` : roster.name
 }
 
 function outcome(view: BattleView) {

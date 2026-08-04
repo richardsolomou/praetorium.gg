@@ -211,6 +211,7 @@ export const detachmentRules = createServerFn({ method: 'GET' })
         stratagems: detachments?.get(slug(data.detachmentName)) ?? [],
         core: rules.core,
         secondaries: rules.secondaries,
+        primaries: rules.primaries,
       }
     }),
   )

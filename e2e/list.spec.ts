@@ -71,7 +71,6 @@ test('a built list is priced, played and tracked', async ({ browser }) => {
   await alice.getByRole('option', { name: /Face of Death/ }).click()
   await expect(total).not.toHaveText(`${beforeEnhancement} / 2000 pts`)
 
-  await alice.getByLabel('Name this army').fill('Death Guard strike force')
   await alice.screenshot({ path: 'test-results/builder.png', fullPage: true })
   await alice.getByRole('button', { name: 'Attach this list' }).click()
   await expect(alice.getByRole('button', { name: 'Replace my list' })).toBeVisible()
@@ -79,7 +78,9 @@ test('a built list is priced, played and tracked', async ({ browser }) => {
   // The detachment's own stratagems arrive from the rules data, already chosen.
   await expect(alice.getByRole('button', { name: /Mortarion’s Teachings/ })).toHaveAttribute('aria-pressed', 'true')
   await expect(alice.getByText(/Tabletop Developer Consortium/)).toBeVisible()
+  // Picked, never typed: a primary mission and a secondary from the deck.
   await alice.getByRole('button', { name: /^Behind Enemy Lines/ }).click()
+  await alice.getByRole('button', { name: /^Battlefield Dominance/ }).click()
   await alice.getByRole('button', { name: 'Save these' }).click()
 
   await bob.goto(link)
@@ -94,12 +95,14 @@ test('a built list is priced, played and tracked', async ({ browser }) => {
   await expect(alice.getByRole('heading', { name: 'command phase' })).toBeVisible()
 
   // Both of Alice's units are on the table, and Bob's device says so too.
-  const aliceStanding = alice.locator('section', { hasText: 'Death Guard strike force' }).locator('[data-stat="standing"]')
+  // The list named itself from the faction and the detachment.
+  const panel = /Death Guard — Death Lord/
+  const aliceStanding = alice.locator('section', { hasText: panel }).locator('[data-stat="standing"]')
   await expect(aliceStanding).toHaveText('2/2')
-  await expect(bob.locator('section', { hasText: 'Death Guard strike force' }).locator('[data-stat="standing"]')).toHaveText('2/2')
+  await expect(bob.locator('section', { hasText: panel }).locator('[data-stat="standing"]')).toHaveText('2/2')
 
   // The detachment travels with the list, so the opponent can see what they face.
-  await expect(bob.locator('section', { hasText: 'Death Guard strike force' }).getByText(/Death Lord/)).toBeVisible()
+  await expect(bob.locator('section', { hasText: panel }).getByText(/Death Lord/)).toBeVisible()
 
   // A pasted list names nothing, so Bob has no units to track.
   await expect(bob.locator('section', { hasText: 'Ultramarines' }).locator('[data-stat="standing"]')).toHaveCount(0)
@@ -111,10 +114,16 @@ test('a built list is priced, played and tracked', async ({ browser }) => {
   await expect(aliceStanding).toHaveText('1/2')
 
   // Bob is not touched: his page learns the casualty from the stream.
-  await expect(bob.locator('section', { hasText: 'Death Guard strike force' }).locator('[data-stat="standing"]')).toHaveText('1/2')
+  await expect(bob.locator('section', { hasText: panel }).locator('[data-stat="standing"]')).toHaveText('1/2')
 
   // A unit is its owner's to report lost, so Bob is offered no such button.
   await expect(bob.getByRole('button', { name: /^Lose Plague Marines/ })).toHaveCount(0)
+
+  // Scoring is one tap of the figure the card actually pays, not a typed number.
+  const behind = alice.getByRole('button', { name: /Behind Enemy Lines plus/ }).first()
+  await expect(behind).toBeVisible()
+  await behind.click()
+  await expect(alice.locator('section', { hasText: panel }).locator('[data-stat="secondary"]')).not.toHaveText('0')
 
   await alice.screenshot({ path: 'test-results/tracked.png', fullPage: true })
 })
