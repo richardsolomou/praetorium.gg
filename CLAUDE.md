@@ -32,6 +32,7 @@ Live state for one game of Warhammer 40,000 between two players. Rosters are opa
 - **`validate` is the only authority on legality.** The server calls it to accept a command; the interface calls it (through `battleView`) to decide what to offer. Two implementations of "may this player do this" is the bug this design exists to prevent.
 - **Reading history, judging a command and appending it happen in one transaction** (`Repository.submit`). Doing any part outside lets a command that was legal when it was checked land after one that made it illegal — exactly what two players tapping at once produces.
 - **`expectedSeq` is the client's claim about what it has already seen.** A mismatch is `stale`, which is an answer and not an error: the client refetches and the player taps again. Never "fix" a stale result by re-sending with the fresh seq — that discards the condition the whole mechanism exists to enforce.
+- **A page counts its own accepted commands, because the refetch behind them arrives a round trip late.** `useCommand` sends the later of the seq it is showing and the seq the server reported for its own last append. Without it a player acting twice in a row raced nobody but themselves and was told their opponent got there first — invisible on localhost, the ordinary case deployed behind a CDN, and mustering is several commands in a row. Adopting the seq of a command the server _accepted_ is not the forbidden thing above: a lost race is still never re-sent.
 - **Undo is a command, not a rewrite.** It names the newest command still standing, and only its own author may send it; the fold skips what an undo names. History is only ever appended to, so an undone command still counts towards `seq` and a stale client is still caught.
 - **A new `Command` kind must be handled in `validate` and `apply`.** Both end in a `never` assignment, so adding one breaks the build rather than being silently permitted.
 - **`battleView` is the only place visibility is decided.** Nothing in a battle is secret today, but hidden information — a secondary still in hand, an undeployed reserve — arrives as a field held back there and nowhere else. Route components must not reassemble a view by hand.
@@ -81,7 +82,7 @@ Live state for one game of Warhammer 40,000 between two players. Rosters are opa
 
 ## Known sharp edge
 
-Every command is conditional on the whole battle's history, so an action that could not possibly conflict — scoring your own victory points while your opponent ends a phase — can still lose a race and need a second tap. The fix, when it starts annoying people, is per-command conditionality: order-dependent commands keep `expectedSeq`, order-independent ones state what they actually depend on. Removing `expectedSeq` is not the fix.
+Every command is conditional on the whole battle's history, so an action that could not possibly conflict — scoring your own victory points while your opponent ends a phase — can still lose a race and need a second tap. Only genuine cross-player races do: a page no longer loses to itself. The fix, when the remaining case starts annoying people, is per-command conditionality: order-dependent commands keep `expectedSeq`, order-independent ones state what they actually depend on. Removing `expectedSeq` is not the fix.
 
 ## Tests
 
