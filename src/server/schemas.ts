@@ -21,5 +21,11 @@ const catalogueId = z.string().min(1).max(64)
 
 export const unitsSchema = z.object({ catalogueId, query: z.string().max(80).default('') })
 
-/** A list is sent as the entries the player picked; the server expands each to its legal minimum. */
-export const priceSchema = z.object({ catalogueId, entryIds: z.array(z.string().min(1).max(64)).max(100) })
+/**
+ * A list is sent as the entries the player picked and how many models they want
+ * in each; the server expands every one to a legal selection.
+ */
+export const priceSchema = z.object({
+  catalogueId,
+  units: z.array(z.object({ entryId: z.string().min(1).max(64), models: z.number().int().min(1).max(60).optional() })).max(100),
+})

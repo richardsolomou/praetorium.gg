@@ -4,7 +4,7 @@ import { app } from './app'
 import { createId } from './crypto'
 import { cookieOptions, PLAYER_COOKIE, playerIdFrom, signPlayerId } from './identity'
 import { evaluate } from '../core/evaluate'
-import { defaultSelection } from '../core/roster'
+import { buildUnit } from '../core/roster'
 import { unitsIn } from './catalogue'
 import { mutationRpc, rpc } from './rpc'
 import { createBattleSchema, joinBattleSchema, priceSchema, submitSchema, tokenSchema, unitsSchema } from './schemas'
@@ -104,10 +104,10 @@ export const priceRoster = createServerFn({ method: 'POST' })
       const loaded = app().catalogue()
       if (!loaded) return null
 
-      const picked = data.entryIds.flatMap((entryId) => {
-        const selection = defaultSelection(entryId, loaded.index)
-        const entry = loaded.index.definitions.get(entryId)
-        return selection ? [{ entryId, name: entry?.name ?? entryId, selection }] : []
+      const picked = data.units.flatMap((wanted) => {
+        const built = buildUnit(wanted.entryId, loaded.index, wanted.models)
+        const entry = loaded.index.definitions.get(wanted.entryId)
+        return built ? [{ entryId: wanted.entryId, name: entry?.name ?? wanted.entryId, ...built }] : []
       })
 
       const options = { primaryCatalogueId: data.catalogueId }
@@ -127,6 +127,7 @@ export const priceRoster = createServerFn({ method: 'POST' })
           entryId: unit.entryId,
           name: unit.name,
           points: evaluate([unit.selection], loaded.index, options).points,
+          size: { min: unit.size.min, max: unit.size.max, models: unit.size.models, resizable: unit.size.max > unit.size.min },
         })),
       }
     }),

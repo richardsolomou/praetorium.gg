@@ -15,10 +15,12 @@ export const unitsQuery = (catalogueId: string, query: string) =>
     enabled: Boolean(catalogueId),
   })
 
+export type PickedUnit = { entryId: string; models?: number }
+
 /** Keyed on the picks, so the price follows the list without anything having to remember to ask. */
-export const priceQuery = (catalogueId: string, entryIds: readonly string[]) =>
+export const priceQuery = (catalogueId: string, picked: readonly PickedUnit[]) =>
   queryOptions({
-    queryKey: ['price', catalogueId, entryIds],
-    queryFn: () => priceRoster({ data: { catalogueId, entryIds: [...entryIds] } }),
+    queryKey: ['price', catalogueId, picked],
+    queryFn: () => priceRoster({ data: { catalogueId, units: [...picked] } }),
     enabled: Boolean(catalogueId),
   })

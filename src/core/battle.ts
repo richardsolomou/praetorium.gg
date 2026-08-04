@@ -44,8 +44,17 @@ export type BuiltRoster = {
   catalogueId: string
   /** The catalogue revision this list was priced and validated against. */
   revision: string
+  /** The game size agreed for the battle, so both players see the same ceiling. */
+  limit: number
   selections: Selection[]
 }
+
+/** The matched-play game sizes, smallest first. */
+export const GAME_SIZES = [
+  { name: 'Incursion', limit: 1000 },
+  { name: 'Strike Force', limit: 2000 },
+  { name: 'Onslaught', limit: 3000 },
+] as const
 
 export type Command =
   | { kind: 'attach-roster'; roster: Roster }

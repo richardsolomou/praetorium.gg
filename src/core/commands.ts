@@ -25,7 +25,14 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
     roster: z.object({
       name: z.string().max(ROSTER_NAME_MAX_LENGTH),
       text: z.string().max(ROSTER_MAX_LENGTH),
-      built: z.object({ catalogueId: id, revision: z.string().min(1).max(64), selections: z.array(selectionSchema).max(200) }).optional(),
+      built: z
+        .object({
+          catalogueId: id,
+          revision: z.string().min(1).max(64),
+          limit: z.number().int().min(0).max(10_000),
+          selections: z.array(selectionSchema).max(200),
+        })
+        .optional(),
     }),
   }),
   z.object({ kind: z.literal('begin-battle'), firstPlayerId: id }),

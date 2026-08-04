@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { buildIndex, type Catalogue, type CatalogueFile } from './catalogue'
-import { defaultSelection, withCounts } from './roster'
+import { buildUnit, defaultSelection, unitSize, withCounts } from './roster'
 
 const PTS = 'cost-pts'
 const system: CatalogueFile = { gameSystem: { id: 'gs', name: 'Test', costTypes: [{ id: PTS, name: 'pts' }] } }
@@ -180,5 +180,80 @@ describe('laying counts over a selection', () => {
     const withSergeant = { ...tree, selections: [...tree.selections, { id: 'sergeant', count: 1 }] }
     const result = withCounts(withSergeant, [{ path: ['troopers', 'trooper'], count: 9 }])
     expect(result.selections?.find((child) => child.id === 'sergeant')?.count).toBe(1)
+  })
+})
+
+/** The common shape: a fixed leader, plus a group of bodies the player sizes. */
+const sizedSquad = (): Partial<Catalogue> => ({
+  sharedSelectionEntries: [
+    {
+      id: 'squad',
+      name: 'Squad',
+      type: 'unit',
+      selectionEntries: [
+        {
+          id: 'sergeant',
+          name: 'Sergeant',
+          type: 'model',
+          constraints: [
+            { id: 'sgt-min', type: 'min', value: 1, field: 'selections', scope: 'parent' },
+            { id: 'sgt-max', type: 'max', value: 1, field: 'selections', scope: 'parent' },
+          ],
+        },
+      ],
+      selectionEntryGroups: [
+        {
+          id: 'bodies',
+          name: 'Bodies',
+          selectionEntries: [
+            {
+              id: 'trooper',
+              name: 'Trooper',
+              type: 'model',
+              constraints: [
+                { id: 'trooper-min', type: 'min', value: 4, field: 'selections', scope: 'parent' },
+                { id: 'trooper-max', type: 'max', value: 9, field: 'selections', scope: 'parent' },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+  ],
+})
+
+describe('how many models a unit may field', () => {
+  const squad = sizedSquad
+
+  it('counts the leader and the bodies together', () => {
+    expect(unitSize('squad', indexOf(squad()))?.models).toBe(5)
+  })
+
+  it('takes its bounds from the occupants when the group states none', () => {
+    // A group written as "3-9 Prosecutors" often carries no constraints itself.
+    expect(unitSize('squad', indexOf(squad()))).toMatchObject({ min: 5, max: 10 })
+  })
+
+  it('never reports a minimum above what it built', () => {
+    const size = unitSize('squad', indexOf(squad()))!
+    expect(size.min).toBeLessThanOrEqual(size.models)
+  })
+
+  it('resizes by changing the bodies, not the leader', () => {
+    const built = buildUnit('squad', indexOf(squad()), 8)
+    expect(built?.selection.selections?.find((child) => child.id === 'sergeant')?.count).toBe(1)
+  })
+
+  it('reaches the size asked for', () => {
+    expect(buildUnit('squad', indexOf(squad()), 8)?.size.models).toBe(8)
+  })
+
+  it('clamps a size the data does not allow', () => {
+    expect(buildUnit('squad', indexOf(squad()), 99)?.size.models).toBe(10)
+  })
+
+  it('treats a lone character as one model', () => {
+    const index = indexOf({ sharedSelectionEntries: [{ id: 'captain', name: 'Captain', type: 'model' }] })
+    expect(unitSize('captain', index)).toMatchObject({ min: 1, max: 1, models: 1 })
   })
 })

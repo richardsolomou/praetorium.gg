@@ -13,9 +13,9 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { parse } from 'yaml'
-import { buildIndex, type CatalogueFile, type CatalogueIndex, type Definition, type SelectionEntry } from '../src/core/catalogue'
-import { evaluate, type Selection } from '../src/core/evaluate'
-import { defaultSelection, withCounts } from '../src/core/roster'
+import { buildIndex, type CatalogueFile, type SelectionEntry } from '../src/core/catalogue'
+import { evaluate } from '../src/core/evaluate'
+import { buildUnit } from '../src/core/roster'
 
 const dataDirectory = process.env.CATALOGUE_DIR ?? path.join(import.meta.dirname, '..', 'catalogue-data')
 const definitionsDirectory = path.join(dataDirectory, 'definitions')
@@ -69,8 +69,6 @@ const slugOf = (catalogueName: string) =>
 const catalogueBySlug = new Map<string, string>()
 for (const catalogue of index.catalogues.values()) catalogueBySlug.set(slugOf(catalogue.name), catalogue.id)
 
-const isEntry = (definition: Definition) => definition.type !== undefined
-
 /** The Munitorum Title-Cases every name and uses curly apostrophes; the catalogues do neither. */
 const normalise = (name: string) =>
   name
@@ -98,68 +96,6 @@ function resolve(name: string) {
   return datasheets.length ? datasheets : all.filter((entry) => entry.type === 'model')
 }
 
-/** Every child of a definition, with links followed to what they point at. */
-function children(definition: Definition, catalogue: CatalogueIndex) {
-  const found: { id: string; target: Definition }[] = []
-  for (const child of definition.selectionEntries ?? []) found.push({ id: child.id, target: child })
-  for (const group of definition.selectionEntryGroups ?? []) found.push({ id: group.id, target: group })
-  for (const link of definition.entryLinks ?? []) {
-    const target = catalogue.definitions.get(link.targetId)
-    if (target) found.push({ id: link.id, target })
-  }
-  return found
-}
-
-type Slot = { path: string[] }
-
-const sameGroup = (left: Slot, right: Slot) =>
-  left.path.length === right.path.length && left.path.slice(0, -1).join('/') === right.path.slice(0, -1).join('/')
-
-/** Where models can be placed under a unit, as a path of selection ids from the unit down. */
-function modelSlots(unit: Definition, catalogue: CatalogueIndex): Slot[] {
-  const slots: Slot[] = []
-  const visit = (definition: Definition, trail: string[], depth: number) => {
-    if (depth > 4) return
-    for (const child of children(definition, catalogue)) {
-      const next = [...trail, child.id]
-      if (child.target.type === 'model') slots.push({ path: next })
-      else if (!isEntry(child.target)) visit(child.target, next, depth + 1)
-    }
-  }
-  visit(unit, [], 0)
-  return slots
-}
-
-/**
- * The unit as the data would hand it over — mandatory wargear included — carrying
- * exactly the models the Munitorum is pricing.
- *
- * Every model slot is zeroed before the wanted counts go on. `defaultSelection`
- * has already put the squad's minimum bodies in, so overriding only the slots we
- * want leaves those in place as well and the unit comes out oversized.
- */
-function toSelection(unitId: string, slots: Slot[], wanted: { path: string[]; count: number }[]): Selection {
-  const base = defaultSelection(unitId, index) ?? { id: unitId, count: 1 }
-  // Every model the defaults placed is emptied, not just the slots this script
-  // found: the two disagree about where a model lives, and anything left behind
-  // makes the unit oversized.
-  const emptied = [...slots.map((slot) => slot.path), ...modelPaths(base)].map((trail) => ({ path: trail, count: 0 }))
-  return withCounts(base, [...emptied, ...wanted])
-}
-
-/** The paths of every model-typed selection in a built tree. */
-function modelPaths(selection: Selection, trail: string[] = []): string[][] {
-  const paths: string[][] = []
-  for (const child of selection.selections ?? []) {
-    const definition = index.definitions.get(child.id)
-    const target = definition && 'targetId' in definition ? index.definitions.get(definition.targetId) : definition
-    const here = [...trail, child.id]
-    if (target?.type === 'model') paths.push(here)
-    paths.push(...modelPaths(child, here))
-  }
-  return paths
-}
-
 const tally = { matched: 0, mismatched: 0, ambiguous: 0, missing: 0, unsupportedShape: 0 }
 const mismatches: string[] = []
 const census = new Set<string>()
@@ -185,27 +121,17 @@ for (const faction of factions) {
 
     const [entry] = candidates
     if (!entry) continue
-    const slots = modelSlots(entry, index)
-    const [first, second] = slots
 
     for (const tier of tiers) {
-      let assignments: { path: string[]; count: number }[]
-      if (!first) {
-        if (tier.models !== 1) {
-          tally.unsupportedShape++
-          continue
-        }
-        assignments = []
-      } else if (slots.length === 1 || !second || sameGroup(first, second)) {
-        // Slots sharing a parent are alternative loadouts of one squad, not a
-        // leader and a squad, so the whole unit goes in the first of them.
-        assignments = [{ path: first.path, count: tier.models }]
-      } else {
-        assignments = [{ path: first.path, count: 1 }]
-        if (tier.models > 1) assignments.push({ path: second.path, count: tier.models - 1 })
+      // The app builds a unit the same way, through the same function, so this
+      // number is about the evaluator rather than about this script's guesswork.
+      const built = buildUnit(entry.id, index, tier.models)
+      if (!built || built.size.models !== tier.models) {
+        tally.unsupportedShape++
+        continue
       }
 
-      const result = evaluate([toSelection(entry.id, slots, assignments)], index, { primaryCatalogueId })
+      const result = evaluate([built.selection], index, { primaryCatalogueId })
       for (const note of result.unhandled) census.add(note)
       if (result.points === tier.points) tally.matched++
       else {

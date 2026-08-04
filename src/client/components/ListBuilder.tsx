@@ -1,12 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
-import { Plus, X } from 'lucide-react'
+import { Minus, Plus, X } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import type { Roster } from '../../core/battle'
-import { ROSTER_NAME_MAX_LENGTH } from '../../core/battle'
+import { GAME_SIZES, ROSTER_NAME_MAX_LENGTH } from '../../core/battle'
 import { factionsQuery, priceQuery, unitsQuery } from '../queries'
 
 type Props = { onAttach: (roster: Roster) => void; pending: boolean; attached: boolean }
@@ -25,21 +25,26 @@ export function ListBuilder({ onAttach, pending, attached }: Props) {
   const [query, setQuery] = useState('')
   // Picks carry their own key: the same datasheet may legitimately appear twice,
   // so position is the only thing that tells two of them apart.
-  const [picked, setPicked] = useState<{ key: number; entryId: string }[]>([])
+  const [picked, setPicked] = useState<{ key: number; entryId: string; models?: number }[]>([])
   const [nextKey, setNextKey] = useState(0)
+  const [limit, setLimit] = useState<number>(GAME_SIZES[1].limit)
   const [name, setName] = useState('')
 
   const { data: found } = useQuery(unitsQuery(catalogueId, query))
   const { data: priced } = useQuery(
     priceQuery(
       catalogueId,
-      picked.map((pick) => pick.entryId),
+      picked.map(({ entryId, models }) => ({ entryId, models })),
     ),
   )
 
   if (!available) return null
 
   const faction = available.factions.find((entry) => entry.id === catalogueId)
+  const over = Boolean(priced && priced.points > limit)
+
+  const resize = (index: number, models: number) =>
+    setPicked((current) => current.map((pick, at) => (at === index ? { ...pick, models } : pick)))
 
   return (
     <div className="space-y-4 rounded-lg border border-edge bg-panel p-4">
@@ -62,6 +67,27 @@ export function ListBuilder({ onAttach, pending, attached }: Props) {
             {available.factions.map((entry) => (
               <SelectItem key={entry.id} value={entry.id}>
                 {entry.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="size">Game size</Label>
+        <Select value={String(limit)} onValueChange={(value: string | null) => setLimit(Number(value ?? GAME_SIZES[1].limit))}>
+          <SelectTrigger id="size" className="w-full">
+            <SelectValue>
+              {(value: unknown) => {
+                const chosen = GAME_SIZES.find((entry) => String(entry.limit) === value)
+                return chosen ? `${chosen.name} — ${chosen.limit} pts` : 'Pick a size'
+              }}
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            {GAME_SIZES.map((entry) => (
+              <SelectItem key={entry.limit} value={String(entry.limit)}>
+                {entry.name} — {entry.limit} pts
               </SelectItem>
             ))}
           </SelectContent>
@@ -100,16 +126,41 @@ export function ListBuilder({ onAttach, pending, attached }: Props) {
             <div className="space-y-2">
               <div className="flex items-baseline justify-between">
                 <p className="eyebrow">Your list</p>
-                <p data-stat="points" className="readout text-lg">
-                  {priced.points} pts
+                <p data-stat="points" className={`readout text-lg ${priced.points > limit ? 'text-destructive' : ''}`}>
+                  {priced.points} / {limit} pts
                 </p>
               </div>
               <ul className="divide-y divide-edge rounded-md border border-edge">
                 {priced.units.map((unit, index) => (
                   <li key={picked[index]?.key ?? unit.entryId} className="flex items-center justify-between gap-2 px-3 py-2 text-sm">
                     <span className="truncate">{unit.name}</span>
-                    <span className="flex shrink-0 items-center gap-2">
-                      <span className="readout text-dim">{unit.points}</span>
+                    <span className="flex shrink-0 items-center gap-1.5">
+                      {unit.size.resizable ? (
+                        <span className="flex items-center gap-1">
+                          <Button
+                            variant="outline"
+                            size="icon-sm"
+                            aria-label={`Fewer models in ${unit.name}`}
+                            disabled={unit.size.models <= unit.size.min}
+                            onClick={() => resize(index, unit.size.models - 1)}
+                          >
+                            <Minus />
+                          </Button>
+                          <span className="readout w-10 text-center text-xs" aria-label={`${unit.name} models`}>
+                            {unit.size.models}
+                          </span>
+                          <Button
+                            variant="outline"
+                            size="icon-sm"
+                            aria-label={`More models in ${unit.name}`}
+                            disabled={unit.size.models >= unit.size.max}
+                            onClick={() => resize(index, unit.size.models + 1)}
+                          >
+                            <Plus />
+                          </Button>
+                        </span>
+                      ) : null}
+                      <span className="readout w-10 text-right text-dim">{unit.points}</span>
                       <Button
                         variant="ghost"
                         size="icon-sm"
@@ -149,19 +200,23 @@ export function ListBuilder({ onAttach, pending, attached }: Props) {
 
           <Button
             className="h-11 w-full text-base"
-            disabled={pending || !name.trim() || !priced?.units.length}
+            disabled={pending || !name.trim() || !priced?.units.length || over}
             onClick={() => {
               if (!priced) return
               onAttach({
                 name,
                 // The readable form travels with the list so an opponent can see it
                 // whatever the other instance has synced.
-                text: [`${priced.points} pts`, '', ...priced.units.map((unit) => `${unit.name} — ${unit.points}`)].join('\n'),
-                built: { catalogueId, revision: priced.revision, selections: priced.selections },
+                text: [
+                  `${priced.points} / ${limit} pts`,
+                  '',
+                  ...priced.units.map((unit) => `${unit.name}${unit.size.resizable ? ` (${unit.size.models})` : ''} — ${unit.points}`),
+                ].join('\n'),
+                built: { catalogueId, revision: priced.revision, limit, selections: priced.selections },
               })
             }}
           >
-            {attached ? 'Replace my list' : 'Attach this list'}
+            {over && priced ? `${priced.points - limit} pts over` : attached ? 'Replace my list' : 'Attach this list'}
           </Button>
         </>
       ) : null}

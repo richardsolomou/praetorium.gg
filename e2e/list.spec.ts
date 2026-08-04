@@ -29,6 +29,17 @@ test('a list is built from the catalogue and priced', async ({ page }) => {
   // wrong with a freshly added unit.
   await expect(page.getByText('Nothing illegal about it.')).toBeVisible()
 
+  // Sizing: a Plague Marines squad is 5 or 10, so growing it must change the price.
+  const before = Number.parseInt(await total.innerText(), 10)
+  await page.getByRole('button', { name: /More models in Plague Marines/ }).click()
+  await expect(page.getByLabel('Plague Marines models')).toHaveText('6')
+  await page.getByRole('button', { name: /More models in Plague Marines/ }).click()
+  await page.getByRole('button', { name: /More models in Plague Marines/ }).click()
+  await page.getByRole('button', { name: /More models in Plague Marines/ }).click()
+  await page.getByRole('button', { name: /More models in Plague Marines/ }).click()
+  await expect(page.getByLabel('Plague Marines models')).toHaveText('10')
+  expect(Number.parseInt(await total.innerText(), 10)).toBeGreaterThan(before)
+
   await page.getByLabel('Name this army').fill('Death Guard strike force')
   await page.screenshot({ path: 'test-results/builder.png', fullPage: true })
 
