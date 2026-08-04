@@ -212,7 +212,19 @@ export function ListBuilder({ onAttach, pending, attached }: Props) {
                   '',
                   ...priced.units.map((unit) => `${unit.name}${unit.size.resizable ? ` (${unit.size.models})` : ''} — ${unit.points}`),
                 ].join('\n'),
-                built: { catalogueId, revision: priced.revision, limit, selections: priced.selections },
+                built: {
+                  catalogueId,
+                  revision: priced.revision,
+                  limit,
+                  selections: priced.selections,
+                  // Keys are fixed here because the battle log points at them.
+                  units: priced.units.map((unit, index) => ({
+                    key: `${index}-${unit.entryId}`,
+                    name: unit.name,
+                    points: unit.points,
+                    models: unit.size.models,
+                  })),
+                },
               })
             }}
           >

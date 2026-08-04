@@ -48,4 +48,4 @@ See [catalogue/README.md](catalogue/README.md) for where the data comes from and
 
 Lists are built from the catalogue with squad sizes and a game-size points ceiling. Choosing weapon loadouts, detachments and enhancements is not here yet. An instance with no catalogue synced simply offers pasting instead and says nothing about it.
 
-No mission or stratagem logic, no detachments, no deployment tracking, no unit-level state. Points during a game are entered by the players.
+No mission or stratagem logic, no detachments or enhancements, no deployment tracking. Victory points during a game are entered by the players; units are tracked only as standing or lost.

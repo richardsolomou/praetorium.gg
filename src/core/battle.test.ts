@@ -15,6 +15,22 @@ function log(...entries: [PlayerId: string, command: Command][]): LoggedCommand[
 }
 
 const roster = (name: string): Command => ({ kind: 'attach-roster', roster: { name, text: '10 Intercessors' } })
+
+/** A list built from the catalogue, whose units the battle can then track. */
+const builtRoster = (name: string, units: string[]): Command => ({
+  kind: 'attach-roster',
+  roster: {
+    name,
+    text: units.join('\n'),
+    built: {
+      catalogueId: 'cat',
+      revision: 'rev',
+      limit: 2000,
+      selections: [],
+      units: units.map((unit, index) => ({ key: `u${index}`, name: unit, points: 100, models: 5 })),
+    },
+  },
+})
 const advance = (): Command => ({ kind: 'advance' })
 
 /** Both lists in, Alice going first. */
@@ -148,5 +164,48 @@ describe('the view', () => {
       ),
     )
     expect(battleView({ token: 'abc' }, NAMES, state, ALICE).players.find((player) => player.isViewer)?.total).toBe(8)
+  })
+})
+
+describe('units on the table', () => {
+  const withUnits = (): [string, Command][] => [
+    [ALICE, builtRoster('Ultramarines', ['Intercessors', 'Captain'])],
+    [BOB, roster('Death Guard')],
+    [ALICE, { kind: 'begin-battle', firstPlayerId: ALICE }],
+  ]
+
+  it('start out standing', () => {
+    const state = reduceBattle(PLAYERS, log(...withUnits()))
+    expect(state.players.find((player) => player.id === ALICE)?.units.every((unit) => !unit.destroyed)).toBe(true)
+  })
+
+  it('can be lost', () => {
+    const state = reduceBattle(PLAYERS, log(...withUnits(), [ALICE, { kind: 'set-unit', unitKey: 'u0', destroyed: true }]))
+    expect(state.players.find((player) => player.id === ALICE)?.units.find((unit) => unit.key === 'u0')?.destroyed).toBe(true)
+  })
+
+  it('are counted in the view', () => {
+    const state = reduceBattle(PLAYERS, log(...withUnits(), [ALICE, { kind: 'set-unit', unitKey: 'u0', destroyed: true }]))
+    expect(battleView({ token: 'abc' }, NAMES, state, ALICE).players.find((player) => player.isViewer)?.standing).toBe(1)
+  })
+
+  it('belong to their own player', () => {
+    const state = reduceBattle(PLAYERS, log(...withUnits()))
+    expect(validate(state, BOB, { kind: 'set-unit', unitKey: 'u0', destroyed: true })).toBe('that is not one of your units')
+  })
+
+  it('are replaced wholesale when a list is', () => {
+    // A different army is a different set of units, so nothing about the old one
+    // may survive into it.
+    const history = log(
+      [ALICE, builtRoster('Ultramarines', ['Intercessors', 'Captain'])],
+      [ALICE, builtRoster('Salamanders', ['Aggressors'])],
+    )
+    expect(reduceBattle(PLAYERS, history).players.find((player) => player.id === ALICE)?.units).toHaveLength(1)
+  })
+
+  it('are absent for a pasted list, which names nothing', () => {
+    const state = reduceBattle(PLAYERS, log([ALICE, roster('Ultramarines')]))
+    expect(state.players.find((player) => player.id === ALICE)?.units).toEqual([])
   })
 })

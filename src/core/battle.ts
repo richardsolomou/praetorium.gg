@@ -47,7 +47,20 @@ export type BuiltRoster = {
   /** The game size agreed for the battle, so both players see the same ceiling. */
   limit: number
   selections: Selection[]
+  /**
+   * The units as submitted, fixed at the moment the list was attached.
+   *
+   * This is the one place a derived thing is kept, and deliberately: the command
+   * log points at these keys when a unit is marked destroyed, so they cannot be
+   * re-derived later without the log meaning something different. It also lets an
+   * opponent read the list on an instance that has no catalogue loaded.
+   */
+  units: SubmittedUnit[]
 }
+
+export type SubmittedUnit = { key: string; name: string; points: number; models: number }
+
+export type UnitState = SubmittedUnit & { destroyed: boolean }
 
 /** The matched-play game sizes, smallest first. */
 export const GAME_SIZES = [
@@ -58,6 +71,7 @@ export const GAME_SIZES = [
 
 export type Command =
   | { kind: 'attach-roster'; roster: Roster }
+  | { kind: 'set-unit'; unitKey: string; destroyed: boolean }
   | { kind: 'begin-battle'; firstPlayerId: PlayerId }
   | { kind: 'adjust-cp'; delta: number }
   | { kind: 'score'; category: 'primary' | 'secondary'; delta: number }
@@ -73,6 +87,8 @@ export type PlayerState = {
   primary: number
   secondary: number
   roster: Roster | null
+  /** Empty for a pasted list: nothing there names the units. */
+  units: UnitState[]
 }
 
 export type BattleState = {
@@ -103,7 +119,7 @@ export function reduceBattle(playerIds: readonly PlayerId[], log: readonly Logge
     phase: 'command',
     activePlayerId: null,
     firstPlayerId: null,
-    players: playerIds.map((id) => ({ id, cp: 0, primary: 0, secondary: 0, roster: null })),
+    players: playerIds.map((id) => ({ id, cp: 0, primary: 0, secondary: 0, roster: null, units: [] })),
     undoable: null,
     seq: 0,
   }
@@ -173,6 +189,13 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
       if (state.status !== 'playing') return 'the battle is not running'
       return null
     }
+    case 'set-unit': {
+      if (state.status !== 'playing') return 'the battle is not running'
+      // Your own casualties are yours to report, the same as your own command
+      // points are yours to spend.
+      if (!player.units.some((unit) => unit.key === command.unitKey)) return 'that is not one of your units'
+      return null
+    }
     case 'undo': {
       if (!state.undoable) return 'there is nothing to undo'
       if (state.undoable.seq !== command.target) return 'only the last action can be undone'
@@ -194,6 +217,13 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
   switch (command.kind) {
     case 'attach-roster': {
       player.roster = { ...command.roster, name: command.roster.name.trim() }
+      // A replaced list is a different army, so nothing about the old one survives.
+      player.units = (command.roster.built?.units ?? []).map((unit) => Object.assign({ destroyed: false }, unit))
+      return
+    }
+    case 'set-unit': {
+      const unit = player.units.find((candidate) => candidate.key === command.unitKey)
+      if (unit) unit.destroyed = command.destroyed
       return
     }
     case 'begin-battle': {
@@ -275,6 +305,9 @@ export type BattleView = {
     secondary: number
     total: number
     roster: Roster | null
+    units: UnitState[]
+    /** What is still on the table, for the line a player actually glances at. */
+    standing: number
   }[]
   /** Present only when the viewer is the one who may take it back. */
   undoable: number | null
@@ -316,6 +349,8 @@ export function battleView(
       secondary: player.secondary,
       total: player.primary + player.secondary,
       roster: player.roster,
+      units: player.units,
+      standing: player.units.filter((unit) => !unit.destroyed).length,
     })),
     undoable: state.undoable?.by === viewerId ? state.undoable.seq : null,
   }

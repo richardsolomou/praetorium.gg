@@ -44,10 +44,8 @@ export function loadCatalogue(directory = catalogueDirectory()): LoadedCatalogue
 
 function unitCount(index: CatalogueIndex, catalogueId: string) {
   let found = 0
-  for (const entries of index.unitsByName.values()) {
-    for (const entry of entries) {
-      if (index.catalogueOf.get(entry.id) === catalogueId) found++
-    }
+  for (const id of index.datasheets) {
+    if (index.catalogueOf.get(id) === catalogueId) found++
   }
   return found
 }
@@ -66,7 +64,9 @@ export function unitsIn(loaded: LoadedCatalogue, catalogueId: string, query: str
   for (const entries of loaded.index.unitsByName.values()) {
     for (const entry of entries) {
       if (loaded.index.catalogueOf.get(entry.id) !== catalogueId) continue
-      if (entry.hidden || entry.type !== 'unit') continue
+      // A character is a model entry, not a unit entry, so filtering on `unit`
+      // hid most of the game. Depth is what says "pickable".
+      if (entry.hidden || !loaded.index.datasheets.has(entry.id)) continue
       if (!entry.name || (wanted && !entry.name.toLowerCase().includes(wanted))) continue
       found.push({ id: entry.id, name: entry.name, points: null })
     }

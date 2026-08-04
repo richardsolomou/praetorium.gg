@@ -1,4 +1,4 @@
-import { Undo2 } from 'lucide-react'
+import { RotateCcw, Skull, Undo2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { BattleView, Command } from '../../core/battle'
 import type { PresentPlayer } from '../../server/presence'
@@ -87,6 +87,37 @@ export function Tracker({ view, present, send, pending, problem }: Props) {
                 {player.total}
               </span>
             </p>
+
+            {player.units.length ? (
+              <div className="border-t border-edge pt-3">
+                <p className="flex items-baseline justify-between">
+                  <span className="eyebrow">On the table</span>
+                  <span data-stat="standing" className="readout text-xs text-dim">
+                    {player.standing}/{player.units.length}
+                  </span>
+                </p>
+                <ul className="mt-1 divide-y divide-edge">
+                  {player.units.map((unit) => (
+                    <li key={unit.key} className="flex items-center justify-between gap-2 py-1 text-sm">
+                      <span className={`truncate ${unit.destroyed ? 'text-dim line-through' : ''}`}>{unit.name}</span>
+                      {player.isViewer && !finished ? (
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label={`${unit.destroyed ? 'Bring back' : 'Lose'} ${unit.name}`}
+                          disabled={pending}
+                          onClick={() => send({ kind: 'set-unit', unitKey: unit.key, destroyed: !unit.destroyed })}
+                        >
+                          {unit.destroyed ? <RotateCcw /> : <Skull />}
+                        </Button>
+                      ) : (
+                        <span className="readout shrink-0 text-xs text-dim">{unit.points}</span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
           </section>
         ))}
       </div>

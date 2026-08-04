@@ -31,10 +31,21 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
           revision: z.string().min(1).max(64),
           limit: z.number().int().min(0).max(10_000),
           selections: z.array(selectionSchema).max(200),
+          units: z
+            .array(
+              z.object({
+                key: id,
+                name: z.string().min(1).max(ROSTER_NAME_MAX_LENGTH),
+                points: z.number().int().min(0).max(10_000),
+                models: z.number().int().min(0).max(100),
+              }),
+            )
+            .max(200),
         })
         .optional(),
     }),
   }),
+  z.object({ kind: z.literal('set-unit'), unitKey: id, destroyed: z.boolean() }),
   z.object({ kind: z.literal('begin-battle'), firstPlayerId: id }),
   z.object({ kind: z.literal('adjust-cp'), delta: z.number().int() }),
   z.object({ kind: z.literal('score'), category: z.enum(['primary', 'secondary']), delta: z.number().int() }),

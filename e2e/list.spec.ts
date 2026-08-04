@@ -1,48 +1,87 @@
 import { expect, test } from '@playwright/test'
 
 /**
- * Building a list from the real catalogue data, in a browser, and getting a price
- * for it. Nothing about this can be proved by a unit test: the catalogue is loaded
- * by the server on first use and the price comes back over the wire.
+ * A list built from the real catalogue, priced, resized, taken into a battle, and
+ * then tracked unit by unit — with the opponent's device following along without
+ * being touched. Nothing here can be proved by a unit test: the catalogue is
+ * loaded by the server on first use and every number crosses the wire.
  */
-test('a list is built from the catalogue and priced', async ({ page }) => {
-  await page.goto('/')
-  await page.getByLabel('Your name').fill('Alice')
-  await page.getByRole('button', { name: 'Open a battle' }).click()
+test('a built list is priced, played and tracked', async ({ browser }) => {
+  const alice = await (await browser.newContext()).newPage()
+  const bob = await (await browser.newContext()).newPage()
 
-  await page.getByRole('button', { name: 'Build from the catalogue' }).click()
+  await alice.goto('/')
+  await alice.getByLabel('Your name').fill('Alice')
+  await alice.getByRole('button', { name: 'Open a battle' }).click()
+  const link = await alice.getByLabel('Send this link to your opponent').inputValue()
 
-  await page.getByRole('combobox', { name: 'Army' }).click()
-  await page.getByRole('option', { name: 'Chaos - Death Guard' }).click()
+  await alice.getByRole('button', { name: 'Build from the catalogue' }).click()
+  await alice.getByRole('combobox', { name: 'Army' }).click()
+  await alice.getByRole('option', { name: 'Chaos - Death Guard' }).click()
 
-  await page.getByLabel('Add a unit').fill('Plague Marines')
-  await page
+  await alice.getByLabel('Add a unit').fill('Plague Marines')
+  await alice
     .getByRole('button', { name: /^Plague Marines/ })
     .first()
     .click()
 
-  const total = page.locator('[data-stat="points"]')
+  const total = alice.locator('[data-stat="points"]')
   await expect(total).toBeVisible()
-  expect(Number.parseInt(await total.innerText(), 10)).toBeGreaterThan(0)
+  const atFive = Number.parseInt(await total.innerText(), 10)
+  await expect(alice.getByText('Nothing illegal about it.')).toBeVisible()
 
-  // The default version of a datasheet is the legal minimum, so nothing should be
-  // wrong with a freshly added unit.
-  await expect(page.getByText('Nothing illegal about it.')).toBeVisible()
+  // A Plague Marines squad is five or ten, so growing it must cost more. The
+  // clicks are sequential on purpose: each one re-prices the list.
+  const grow = alice.getByRole('button', { name: /More models in Plague Marines/ })
+  await grow.click()
+  await grow.click()
+  await grow.click()
+  await grow.click()
+  await grow.click()
+  await expect(alice.getByLabel('Plague Marines models')).toHaveText('10')
+  expect(Number.parseInt(await total.innerText(), 10)).toBeGreaterThan(atFive)
 
-  // Sizing: a Plague Marines squad is 5 or 10, so growing it must change the price.
-  const before = Number.parseInt(await total.innerText(), 10)
-  await page.getByRole('button', { name: /More models in Plague Marines/ }).click()
-  await expect(page.getByLabel('Plague Marines models')).toHaveText('6')
-  await page.getByRole('button', { name: /More models in Plague Marines/ }).click()
-  await page.getByRole('button', { name: /More models in Plague Marines/ }).click()
-  await page.getByRole('button', { name: /More models in Plague Marines/ }).click()
-  await page.getByRole('button', { name: /More models in Plague Marines/ }).click()
-  await expect(page.getByLabel('Plague Marines models')).toHaveText('10')
-  expect(Number.parseInt(await total.innerText(), 10)).toBeGreaterThan(before)
+  await alice.getByLabel('Add a unit').fill('Lord of Virulence')
+  await alice
+    .getByRole('button', { name: /^Lord of Virulence/ })
+    .first()
+    .click()
 
-  await page.getByLabel('Name this army').fill('Death Guard strike force')
-  await page.screenshot({ path: 'test-results/builder.png', fullPage: true })
+  await alice.getByLabel('Name this army').fill('Death Guard strike force')
+  await alice.screenshot({ path: 'test-results/builder.png', fullPage: true })
+  await alice.getByRole('button', { name: 'Attach this list' }).click()
+  await expect(alice.getByRole('button', { name: 'Replace my list' })).toBeVisible()
 
-  await page.getByRole('button', { name: 'Attach this list' }).click()
-  await expect(page.getByRole('button', { name: 'Replace my list' })).toBeVisible()
+  await bob.goto(link)
+  await bob.getByLabel('Your name').fill('Bob')
+  await bob.getByRole('button', { name: 'Join the battle' }).click()
+  await bob.getByRole('button', { name: 'Paste a list' }).click()
+  await bob.getByLabel('Your army').fill('Ultramarines')
+  await bob.getByLabel('Your list').fill('10 Intercessors')
+  await bob.getByRole('button', { name: /my list/ }).click()
+
+  await alice.getByRole('button', { name: 'Alice goes first' }).click()
+  await expect(alice.getByRole('heading', { name: 'command phase' })).toBeVisible()
+
+  // Both of Alice's units are on the table, and Bob's device says so too.
+  const aliceStanding = alice.locator('section', { hasText: 'Death Guard strike force' }).locator('[data-stat="standing"]')
+  await expect(aliceStanding).toHaveText('2/2')
+  await expect(bob.locator('section', { hasText: 'Death Guard strike force' }).locator('[data-stat="standing"]')).toHaveText('2/2')
+
+  // A pasted list names nothing, so Bob has no units to track.
+  await expect(bob.locator('section', { hasText: 'Ultramarines' }).locator('[data-stat="standing"]')).toHaveCount(0)
+
+  await alice
+    .getByRole('button', { name: /^Lose Plague Marines/ })
+    .first()
+    .click()
+  await expect(aliceStanding).toHaveText('1/2')
+
+  // Bob is not touched: his page learns the casualty from the stream.
+  await expect(bob.locator('section', { hasText: 'Death Guard strike force' }).locator('[data-stat="standing"]')).toHaveText('1/2')
+
+  // A unit is its owner's to report lost, so Bob is offered no such button.
+  await expect(bob.getByRole('button', { name: /^Lose Plague Marines/ })).toHaveCount(0)
+
+  await alice.screenshot({ path: 'test-results/tracked.png', fullPage: true })
 })

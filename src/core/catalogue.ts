@@ -181,6 +181,14 @@ export type CatalogueIndex = {
   catalogues: Map<string, { id: string; name: string; revision?: number }>
   /** Which catalogue each definition came from, for the chapter-specific pricing that asks. */
   catalogueOf: Map<string, string>
+  /**
+   * The entries a player can pick directly — the datasheets.
+   *
+   * Depth is the only thing that separates a datasheet from a body inside one: an
+   * "Intercessor Sergeant" is a model entry just like a "Lord of Virulence" is,
+   * and the difference is that one sits at the top of its catalogue.
+   */
+  datasheets: Set<string>
   /** The data revision every roster and battle must pin, so two clients agree on legality. */
   revision: string
 }
@@ -198,6 +206,7 @@ export function buildIndex(files: readonly CatalogueFile[], revision: string): C
   const unitsByName = new Map<string, SelectionEntry[]>()
   const catalogues = new Map<string, { id: string; name: string; revision?: number }>()
   const catalogueOf = new Map<string, string>()
+  const datasheets = new Set<string>()
 
   let owner = ''
   const collect = (node: Definition) => {
@@ -221,8 +230,10 @@ export function buildIndex(files: readonly CatalogueFile[], revision: string): C
     catalogues.set(root.id, { id: root.id, name: root.name, revision: root.revision })
     owner = root.id
     for (const costType of root.costTypes ?? []) costTypes.set(costType.id, costType)
-    for (const child of root.selectionEntries ?? []) collect(child)
-    for (const child of root.sharedSelectionEntries ?? []) collect(child)
+    for (const child of [...(root.selectionEntries ?? []), ...(root.sharedSelectionEntries ?? [])]) {
+      if (child.type === 'unit' || child.type === 'model') datasheets.add(child.id)
+      collect(child)
+    }
     for (const child of root.selectionEntryGroups ?? []) collect(child)
     for (const child of root.sharedSelectionEntryGroups ?? []) collect(child)
     for (const child of root.entryLinks ?? []) collect(child)
@@ -231,5 +242,5 @@ export function buildIndex(files: readonly CatalogueFile[], revision: string): C
   const points = [...costTypes.values()].find((costType) => costType.name === POINTS_COST_NAME)
   if (!points) throw new Error(`no "${POINTS_COST_NAME}" cost type in this data`)
 
-  return { definitions, costTypes, pointsTypeId: points.id, unitsByName, catalogues, catalogueOf, revision }
+  return { definitions, costTypes, pointsTypeId: points.id, unitsByName, catalogues, catalogueOf, datasheets, revision }
 }
