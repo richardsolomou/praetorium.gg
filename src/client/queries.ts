@@ -1,5 +1,16 @@
 import { queryOptions } from '@tanstack/react-query'
-import { battleReport, deployments, detachmentRules, factions, me, openBattle, priceRoster, savedRosters, units } from '../server/fns'
+import {
+  battleReport,
+  catalogueStatus,
+  deployments,
+  detachmentRules,
+  factions,
+  me,
+  openBattle,
+  priceRoster,
+  savedRosters,
+  units,
+} from '../server/fns'
 
 export const meQuery = () => queryOptions({ queryKey: ['me'], queryFn: () => me() })
 
@@ -40,3 +51,11 @@ export const deploymentsQuery = () => queryOptions({ queryKey: ['deployments'], 
 
 export const reportQuery = (token: string, enabled: boolean) =>
   queryOptions({ queryKey: ['report', token], queryFn: () => battleReport({ data: { token } }), enabled })
+
+/** Polled only while the data is on its way, so a settled instance asks once. */
+export const catalogueStatusQuery = () =>
+  queryOptions({
+    queryKey: ['catalogue-status'],
+    queryFn: () => catalogueStatus(),
+    refetchInterval: (query) => (query.state.data?.status === 'working' ? 3000 : false),
+  })

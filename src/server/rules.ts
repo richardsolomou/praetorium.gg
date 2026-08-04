@@ -115,8 +115,9 @@ export type LoadedRules = {
   dataslate: string | null
 }
 
+/** Sits inside the catalogue directory, so one sync brings every source. */
 export function rulesDirectory(dataDirectory = process.env.DATA_DIR ?? '/data') {
-  return process.env.RULES_DIR ?? path.join(path.resolve(dataDirectory), 'rules')
+  return process.env.RULES_DIR ?? path.join(path.resolve(dataDirectory), 'catalogue', 'rules')
 }
 
 export function loadRules(directory = rulesDirectory()): LoadedRules | null {

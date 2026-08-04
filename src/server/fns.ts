@@ -87,6 +87,9 @@ export const submit = createServerFn({ method: 'POST' })
   .validator(submitSchema)
   .handler(({ data }) => mutationRpc(() => app().service.submit(data.token, requirePlayerId(), data.expectedSeq, data.command)))
 
+/** How the community data is doing, so a fresh instance can say so rather than look broken. */
+export const catalogueStatus = createServerFn({ method: 'GET' }).handler(() => rpc(() => app().sync()))
+
 /** Null on an instance with no catalogue data, so the interface can simply not offer list building. */
 export const factions = createServerFn({ method: 'GET' }).handler(() =>
   rpc(() => {

@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import type { BattleView, Command } from '../../core/battle'
 import { ROSTER_MAX_LENGTH, ROSTER_NAME_MAX_LENGTH } from '../../core/battle'
-import { factionsQuery } from '../queries'
+import { catalogueStatusQuery, factionsQuery } from '../queries'
 import { useOrigin } from '../useOrigin'
 import { Battlefield } from './Battlefield'
 import { ListBuilder } from './ListBuilder'
@@ -26,6 +26,7 @@ export function Muster({ view, send, pending, problem }: Props) {
   const [text, setText] = useState(you.roster?.text ?? '')
   const origin = useOrigin()
   const { data: available } = useQuery(factionsQuery())
+  const { data: sync } = useQuery(catalogueStatusQuery())
   // An instance with no catalogue synced offers pasting and says nothing about it.
   const [mode, setMode] = useState<'build' | 'paste'>('build')
   const building = Boolean(available) && mode === 'build'
@@ -43,6 +44,14 @@ export function Muster({ view, send, pending, problem }: Props) {
           </div>
         )}
       </section>
+
+      {!available && sync && sync.status !== 'ready' ? (
+        <p className="rounded-lg border border-edge bg-panel p-3 text-sm text-dim">
+          {sync.status === 'failed'
+            ? `The community data could not be fetched: ${sync.detail ?? 'unknown reason'}. Pasting a list still works.`
+            : 'Fetching the community data. List building will appear when it lands; pasting works meanwhile.'}
+        </p>
+      ) : null}
 
       {available ? (
         <div className="flex gap-2">

@@ -27,14 +27,14 @@ Then `pnpm check` before pushing, and `pnpm test:e2e` to drive two real browsers
 
 ## Deploying
 
-One container, one `/data` volume, one instance. Live updates fan out inside the process, so a second replica would serve battles that never hear about each other's commands — scaling out means moving the fan-out to the database first.
+One container, one `/data` volume, one instance. The instance fetches its own community data on boot — nothing to run by hand — and serves battles while it does.
 
 ```sh
 cp .env.example .env
 docker compose up -d
 ```
 
-`/data` holds the SQLite database and the generated `auth.secret` that signs guest cookies. Back them up together.
+See [docs/deployment.md](docs/deployment.md) for what lands in the volume, what to back up, and why it stays at one replica.
 
 ## Reading army lists
 

@@ -9,6 +9,7 @@ RUN pnpm install --offline --frozen-lockfile
 COPY src ./src
 COPY public ./public
 COPY drizzle ./drizzle
+COPY catalogue ./catalogue
 COPY tsconfig.json vite.config.ts ./
 RUN pnpm build
 
