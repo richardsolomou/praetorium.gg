@@ -44,6 +44,10 @@ It is checked against Games Workshop's own numbers rather than against itself. `
 
 See [catalogue/README.md](catalogue/README.md) for where the data comes from and why none of it is in this repository.
 
+## Bringing lists in and out
+
+A `.ros` or `.rosz` from New Recruit or BattleScribe imports straight into the builder, and any list exports as `.ros` — the format tournament organisers read. This works because both sides read the same community catalogues, so an entry id in their file is the same id here. Anything that cannot be placed is named rather than dropped quietly.
+
 ## Not here yet
 
 Lists are built from the catalogue with a detachment, squad sizes, weapon loadouts, enhancements and a game-size points ceiling. An enhancement is offered only where the data allows it — the right detachment, and a character of the right faction — and it is priced the way Games Workshop prices it. Lists can be saved and reused between battles. An instance with no catalogue synced simply offers pasting instead and says nothing about it.
@@ -65,6 +69,10 @@ Setup runs in the order the game does: army, game size, detachment, list, battle
 The mission is not chosen — eleventh edition takes it from the two armies' force dispositions, and the dataset states which mission each pairing plays, along with its caps of 15 victory points a round and 45 a game. The deployment is drawn from the pattern's own polygons, objectives included, rather than named for you to look up.
 
 Everything starts off the table. Units are deployed at muster or held in reserve to arrive later, and during the game each one is on the table, in reserve, or lost. Scoring is offered only when a card allows it: a payout that applies in your command phase from round two is disabled until then, and says so.
+
+## Bringing lists in and out
+
+A `.ros` or `.rosz` from New Recruit or BattleScribe imports straight into the builder, and any list exports as `.ros` — the format tournament organisers read. This works because both sides read the same community catalogues, so an entry id in their file is the same id here. Anything that cannot be placed is named rather than dropped quietly.
 
 ## Not here yet
 

@@ -66,6 +66,10 @@ Live state for one game of Warhammer 40,000 between two players. Rosters are opa
 - **The side tint is information, not decoration.** Every number on screen belongs to one player, and across a table the tint is what tells you whose it is before you have read the name. Controls appear only on the viewer's own panel, which is the ownership rule made visible.
 - Migrations are generated (`pnpm db:generate`), never hand-edited once applied. `drizzle/` is copied into `.output/server/drizzle` by the build so the production server can run them.
 
+- **Roster interop works because both sides read the same catalogues.** An entry id in a New Recruit or BattleScribe export is the same id this instance holds, so matching is exact; the `::`-joined link path they sometimes write is resolved from its tail, and a name match is the last resort. Anything unplaceable is named back to the player — an import that quietly loses half a list is worse than one that admits what it dropped.
+- **`fast-xml-parser` and `fflate` earn their place.** XML and zip are not one-liners, both are well travelled, and nothing else in the app needs either.
+- **Export works on what the builder is showing**, not on an attached roster: exporting a list is a list-building act, and requiring a battle to do it was the wrong shape.
+
 ## Known sharp edge
 
 Every command is conditional on the whole battle's history, so an action that could not possibly conflict — scoring your own victory points while your opponent ends a phase — can still lose a race and need a second tap. The fix, when it starts annoying people, is per-command conditionality: order-dependent commands keep `expectedSeq`, order-independent ones state what they actually depend on. Removing `expectedSeq` is not the fix.

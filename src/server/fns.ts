@@ -6,11 +6,15 @@ import { cookieOptions, PLAYER_COOKIE, playerIdFrom, signPlayerId } from './iden
 import { evaluate, type Selection } from '../core/evaluate'
 import { buildUnit } from '../core/roster'
 import { unitsIn } from './catalogue'
+import { fromRosterXml, toRosterXml } from '../core/rosz'
+import { parseXml, rosterXml } from './rosz'
 import { ATTRIBUTION, slug } from './rules'
 import { mutationRpc, rpc } from './rpc'
 import {
   createBattleSchema,
   detachmentRulesSchema,
+  exportRosterSchema,
+  importRosterSchema,
   joinBattleSchema,
   priceSchema,
   rosterIdSchema,
@@ -229,3 +233,53 @@ export const deployments = createServerFn({ method: 'GET' }).handler(() =>
 export const battleReport = createServerFn({ method: 'GET' })
   .validator(tokenSchema)
   .handler(({ data }) => rpc(() => app().service.report(data.token, requirePlayerId())))
+
+/**
+ * Reads a `.ros` or `.rosz` into picks this instance can price.
+ *
+ * Both sides read the same community catalogues, so an entry id from another tool
+ * is the same id here. Anything that cannot be placed is named in the answer rather
+ * than dropped quietly.
+ */
+export const importRoster = createServerFn({ method: 'POST' })
+  .validator(importRosterSchema)
+  .handler(({ data }) =>
+    mutationRpc(() => {
+      const loaded = app().catalogue()
+      if (!loaded) throw new Response('this instance has no catalogue', { status: 409 })
+
+      const parsed = fromRosterXml(rosterXml(data.file), loaded.index, parseXml)
+      const catalogueId = parsed.catalogueId && loaded.index.catalogues.has(parsed.catalogueId) ? parsed.catalogueId : null
+
+      return {
+        name: data.name ?? parsed.name,
+        catalogueId,
+        catalogueName: parsed.catalogueName,
+        // Top-level selections become the picks; their own children are kept.
+        units: parsed.selections.map((selection) => ({ entryId: selection.id, models: selection.count })),
+        unknown: parsed.unknown,
+      }
+    }),
+  )
+
+/** A `.ros` document for the list the builder is showing, ready for another tool. */
+export const exportRoster = createServerFn({ method: 'POST' })
+  .validator(exportRosterSchema)
+  .handler(({ data }) =>
+    mutationRpc(() => {
+      const loaded = app().catalogue()
+      if (!loaded) throw new Response('this instance has no catalogue', { status: 409 })
+
+      const selections = data.units.flatMap((wanted) => {
+        const built = buildUnit(wanted.entryId, loaded.index, wanted.models, wanted.choices, { primaryCatalogueId: data.catalogueId })
+        return built ? [built.selection] : []
+      })
+      // The list's cost, worked out from its selections.
+      const points = evaluate(selections, loaded.index, { primaryCatalogueId: data.catalogueId }).points
+
+      return {
+        filename: `${data.name.replaceAll(/[^\w -]/g, '')}.ros`,
+        xml: toRosterXml({ name: data.name, catalogueId: data.catalogueId, selections }, loaded.index, points),
+      }
+    }),
+  )

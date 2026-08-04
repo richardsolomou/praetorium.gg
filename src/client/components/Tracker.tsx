@@ -323,6 +323,7 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
 
       <details className="text-sm text-dim">
         <summary className="cursor-pointer">Lists</summary>
+
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
           {view.players.map((player) => (
             <div key={player.id} className="rounded-lg border border-edge bg-panel p-3">

@@ -55,6 +55,9 @@ export const saveRosterSchema = z.object({
   prep: prepSchema.nullable(),
 })
 
+/** A roster file as text: `.ros` directly, or the XML lifted out of a `.rosz`. */
+export const importRosterSchema = z.object({ file: z.string().min(1).max(4_000_000), name: z.string().max(120).optional() })
+
 export const detachmentRulesSchema = z.object({ catalogueId, detachmentName: z.string().min(1).max(120) })
 
 export const rosterIdSchema = z.object({ id: z.string().min(1).max(64) })
@@ -77,3 +80,6 @@ export const priceSchema = z.object({
     )
     .max(100),
 })
+
+/** Exports whatever the builder is showing, so it works before a list is attached. */
+export const exportRosterSchema = priceSchema.extend({ name: z.string().trim().min(1).max(120) })

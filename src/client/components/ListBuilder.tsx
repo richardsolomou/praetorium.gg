@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Minus, Plus, Save, Trash2, X } from 'lucide-react'
+import { Download, Minus, Plus, Save, Trash2, Upload, X } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -7,8 +7,9 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import type { Roster, Secondary, Stratagem } from '../../core/battle'
 import { GAME_SIZES, ROSTER_NAME_MAX_LENGTH } from '../../core/battle'
-import { deleteRoster, saveRoster } from '../../server/fns'
+import { deleteRoster, exportRoster, importRoster, saveRoster } from '../../server/fns'
 import { factionsQuery, priceQuery, savedRostersQuery, unitsQuery } from '../queries'
+import { errorMessage } from '../queryClient'
 
 type Props = {
   onAttach: (roster: Roster) => void
@@ -63,6 +64,46 @@ export function ListBuilder({ onAttach, pending, attached, prep, onRestorePrep }
     onSuccess: ({ id }) => {
       setSavedId(id)
       void refreshSaved()
+    },
+  })
+
+  /**
+   * Reading a roster file. `.ros` is text; `.rosz` is a zip, so it travels as base64
+   * and the server takes the XML out of it.
+   */
+  const bring = useMutation({
+    mutationFn: async (file: File) => {
+      const zipped = file.name.toLowerCase().endsWith('.rosz')
+      const body = zipped ? btoa(String.fromCodePoint(...new Uint8Array(await file.arrayBuffer()))) : await file.text()
+      return importRoster({ data: { file: body } })
+    },
+    onSuccess: (imported) => {
+      if (imported.catalogueId) setCatalogueId(imported.catalogueId)
+      setName(imported.name)
+      setPicked(imported.units.map((unit, at) => ({ key: at, entryId: unit.entryId, models: unit.models })))
+      setNextKey(imported.units.length)
+      setSavedId(undefined)
+    },
+  })
+
+  /** Hands the list to another tool, in the format every one of them reads. */
+  const take = useMutation({
+    mutationFn: () =>
+      exportRoster({
+        data: {
+          catalogueId,
+          detachmentId,
+          name: listName || 'Roster',
+          units: picked.map(({ entryId, models, choices }) => ({ entryId, models, choices })),
+        },
+      }),
+    onSuccess: ({ filename, xml }) => {
+      const url = URL.createObjectURL(new Blob([xml], { type: 'application/xml' }))
+      const anchor = document.createElement('a')
+      anchor.href = url
+      anchor.download = filename
+      anchor.click()
+      URL.revokeObjectURL(url)
     },
   })
 
@@ -138,6 +179,27 @@ export function ListBuilder({ onAttach, pending, attached, prep, onRestorePrep }
           </ul>
         </div>
       ) : null}
+
+      <div className="space-y-1.5">
+        <Label htmlFor="bring">Bring a list from another tool</Label>
+        <div className="flex items-center gap-2">
+          <input
+            id="bring"
+            type="file"
+            accept=".ros,.rosz"
+            disabled={bring.isPending}
+            onChange={(event) => {
+              const file = event.target.files?.[0]
+              if (file) bring.mutate(file)
+              event.target.value = ''
+            }}
+            className="min-w-0 flex-1 text-xs text-dim file:mr-2 file:rounded-md file:border file:border-edge file:bg-raised file:px-2 file:py-1 file:text-bone"
+          />
+          <Upload className="size-4 shrink-0 text-dim" />
+        </div>
+        {bring.error ? <p className="text-xs text-destructive">{errorMessage(bring.error)}</p> : null}
+        {bring.data?.unknown.length ? <p className="text-xs text-destructive">Could not place: {bring.data.unknown.join(', ')}</p> : null}
+      </div>
 
       <div className="space-y-2">
         <Label htmlFor="faction">Army</Label>
@@ -350,6 +412,10 @@ export function ListBuilder({ onAttach, pending, attached, prep, onRestorePrep }
             >
               <Save />
               {savedId ? 'Saved' : 'Save list'}
+            </Button>
+            <Button variant="outline" className="h-11" disabled={take.isPending || !priced?.units.length} onClick={() => take.mutate()}>
+              <Download />
+              Export
             </Button>
             <Button
               className="h-11 flex-1 text-base"
