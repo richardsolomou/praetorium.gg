@@ -26,6 +26,7 @@ const builtRoster = (name: string, units: string[]): Command => ({
       catalogueId: 'cat',
       revision: 'rev',
       limit: 2000,
+      detachment: 'Flyblown Host',
       selections: [],
       units: units.map((unit, index) => ({ key: `u${index}`, name: unit, points: 100, models: 5 })),
     },

@@ -28,12 +28,14 @@ export function ListBuilder({ onAttach, pending, attached }: Props) {
   const [picked, setPicked] = useState<{ key: number; entryId: string; models?: number }[]>([])
   const [nextKey, setNextKey] = useState(0)
   const [limit, setLimit] = useState<number>(GAME_SIZES[1].limit)
+  const [detachmentId, setDetachmentId] = useState<string | undefined>()
   const [name, setName] = useState('')
 
   const { data: found } = useQuery(unitsQuery(catalogueId, query))
   const { data: priced } = useQuery(
     priceQuery(
       catalogueId,
+      detachmentId,
       picked.map(({ entryId, models }) => ({ entryId, models })),
     ),
   )
@@ -42,6 +44,8 @@ export function ListBuilder({ onAttach, pending, attached }: Props) {
 
   const faction = available.factions.find((entry) => entry.id === catalogueId)
   const over = Boolean(priced && priced.points > limit)
+  // A list without one is not a legal army, so it cannot be attached.
+  const needsDetachment = Boolean(faction?.detachments.length) && !detachmentId
 
   const resize = (index: number, models: number) =>
     setPicked((current) => current.map((pick, at) => (at === index ? { ...pick, models } : pick)))
@@ -55,6 +59,7 @@ export function ListBuilder({ onAttach, pending, attached }: Props) {
           onValueChange={(value: string | null) => {
             setCatalogueId(value ?? '')
             setPicked([])
+            setDetachmentId(undefined)
           }}
         >
           <SelectTrigger id="faction" className="w-full">
@@ -93,6 +98,26 @@ export function ListBuilder({ onAttach, pending, attached }: Props) {
           </SelectContent>
         </Select>
       </div>
+
+      {faction?.detachments.length ? (
+        <div className="space-y-2">
+          <Label htmlFor="detachment">Detachment</Label>
+          <Select value={detachmentId ?? ''} onValueChange={(value: string | null) => setDetachmentId(value ?? undefined)}>
+            <SelectTrigger id="detachment" className="w-full">
+              <SelectValue placeholder="Pick a detachment">
+                {(value: unknown) => faction.detachments.find((entry) => entry.id === value)?.name ?? 'Pick a detachment'}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {faction.detachments.map((entry) => (
+                <SelectItem key={entry.id} value={entry.id}>
+                  {entry.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      ) : null}
 
       {faction ? (
         <>
@@ -200,7 +225,7 @@ export function ListBuilder({ onAttach, pending, attached }: Props) {
 
           <Button
             className="h-11 w-full text-base"
-            disabled={pending || !name.trim() || !priced?.units.length || over}
+            disabled={pending || !name.trim() || !priced?.units.length || over || needsDetachment}
             onClick={() => {
               if (!priced) return
               onAttach({
@@ -209,6 +234,7 @@ export function ListBuilder({ onAttach, pending, attached }: Props) {
                 // whatever the other instance has synced.
                 text: [
                   `${priced.points} / ${limit} pts`,
+                  ...(priced.detachment ? [priced.detachment] : []),
                   '',
                   ...priced.units.map((unit) => `${unit.name}${unit.size.resizable ? ` (${unit.size.models})` : ''} — ${unit.points}`),
                 ].join('\n'),
@@ -216,6 +242,7 @@ export function ListBuilder({ onAttach, pending, attached }: Props) {
                   catalogueId,
                   revision: priced.revision,
                   limit,
+                  detachment: priced.detachment,
                   selections: priced.selections,
                   // Keys are fixed here because the battle log points at them.
                   units: priced.units.map((unit, index) => ({
@@ -228,7 +255,13 @@ export function ListBuilder({ onAttach, pending, attached }: Props) {
               })
             }}
           >
-            {over && priced ? `${priced.points - limit} pts over` : attached ? 'Replace my list' : 'Attach this list'}
+            {over && priced
+              ? `${priced.points - limit} pts over`
+              : needsDetachment
+                ? 'Pick a detachment first'
+                : attached
+                  ? 'Replace my list'
+                  : 'Attach this list'}
           </Button>
         </>
       ) : null}

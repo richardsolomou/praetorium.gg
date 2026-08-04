@@ -14,7 +14,20 @@ export function catalogueDirectory(dataDirectory = process.env.DATA_DIR ?? '/dat
   return process.env.CATALOGUE_DIR ?? path.join(path.resolve(dataDirectory), 'catalogue')
 }
 
-export type LoadedCatalogue = { index: CatalogueIndex; factions: { id: string; name: string }[] }
+export type LoadedCatalogue = {
+  index: CatalogueIndex
+  factions: { id: string; name: string }[]
+  /** The detachment options each book offers, keyed by catalogue id. */
+  detachments: Map<string, DetachmentOptions>
+}
+
+/**
+ * How a book presents its detachments: one wrapper entry the roster must hold
+ * exactly one of, a group inside it, and the choices in that group.
+ */
+export type DetachmentOptions = { wrapperId: string; groupId: string; options: { id: string; name: string }[] }
+
+const DETACHMENT_ENTRY = 'Detachment'
 
 /** Libraries hold shared entries for other books and are never picked directly. */
 const LIBRARY_SUFFIX = ' Library'
@@ -39,7 +52,25 @@ export function loadCatalogue(directory = catalogueDirectory()): LoadedCatalogue
     .map((catalogue) => ({ id: catalogue.id, name: catalogue.name }))
     .toSorted((left, right) => left.name.localeCompare(right.name))
 
-  return { index, factions }
+  return { index, factions, detachments: detachmentsOf(files) }
+}
+
+function detachmentsOf(files: readonly CatalogueFile[]): Map<string, DetachmentOptions> {
+  const found = new Map<string, DetachmentOptions>()
+  for (const file of files) {
+    const root = file.catalogue
+    if (!root) continue
+    const wrapper = [...(root.selectionEntries ?? []), ...(root.sharedSelectionEntries ?? [])].find(
+      (entry) => entry.name === DETACHMENT_ENTRY && entry.type === 'upgrade',
+    )
+    const group = wrapper?.selectionEntryGroups?.[0]
+    const options = (group?.selectionEntries ?? [])
+      .filter((entry) => !entry.hidden && entry.name)
+      .map((entry) => ({ id: entry.id, name: entry.name ?? entry.id }))
+      .toSorted((left, right) => left.name.localeCompare(right.name))
+    if (wrapper && group && options.length) found.set(root.id, { wrapperId: wrapper.id, groupId: group.id, options })
+  }
+  return found
 }
 
 function unitCount(index: CatalogueIndex, catalogueId: string) {

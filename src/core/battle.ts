@@ -46,6 +46,8 @@ export type BuiltRoster = {
   revision: string
   /** The game size agreed for the battle, so both players see the same ceiling. */
   limit: number
+  /** Named for display, since an opponent's device may have no catalogue loaded. */
+  detachment: string | null
   selections: Selection[]
   /**
    * The units as submitted, fixed at the moment the list was attached.

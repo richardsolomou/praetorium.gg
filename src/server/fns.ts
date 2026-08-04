@@ -3,7 +3,7 @@ import { getRequest, setCookie } from '@tanstack/react-start/server'
 import { app } from './app'
 import { createId } from './crypto'
 import { cookieOptions, PLAYER_COOKIE, playerIdFrom, signPlayerId } from './identity'
-import { evaluate } from '../core/evaluate'
+import { evaluate, type Selection } from '../core/evaluate'
 import { buildUnit } from '../core/roster'
 import { unitsIn } from './catalogue'
 import { mutationRpc, rpc } from './rpc'
@@ -76,7 +76,15 @@ export const submit = createServerFn({ method: 'POST' })
 export const factions = createServerFn({ method: 'GET' }).handler(() =>
   rpc(() => {
     const loaded = app().catalogue()
-    return loaded ? { revision: loaded.index.revision, factions: loaded.factions } : null
+    if (!loaded) return null
+    return {
+      revision: loaded.index.revision,
+      factions: loaded.factions.map((faction) => ({
+        id: faction.id,
+        name: faction.name,
+        detachments: loaded.detachments.get(faction.id)?.options ?? [],
+      })),
+    }
   }),
 )
 
@@ -104,6 +112,20 @@ export const priceRoster = createServerFn({ method: 'POST' })
       const loaded = app().catalogue()
       if (!loaded) return null
 
+      // The detachment goes in first: enhancements and some unit limits are
+      // written as conditions on which one the roster holds.
+      const detachment = loaded.detachments.get(data.catalogueId)
+      const chosen = detachment?.options.find((option) => option.id === data.detachmentId)
+      const detachmentSelection: Selection[] = chosen
+        ? [
+            {
+              id: detachment!.wrapperId,
+              count: 1,
+              selections: [{ id: detachment!.groupId, count: 1, selections: [{ id: chosen.id, count: 1 }] }],
+            },
+          ]
+        : []
+
       const picked = data.units.flatMap((wanted) => {
         const built = buildUnit(wanted.entryId, loaded.index, wanted.models)
         const entry = loaded.index.definitions.get(wanted.entryId)
@@ -111,18 +133,16 @@ export const priceRoster = createServerFn({ method: 'POST' })
       })
 
       const options = { primaryCatalogueId: data.catalogueId }
-      const whole = evaluate(
-        picked.map((unit) => unit.selection),
-        loaded.index,
-        options,
-      )
+      const selections = [...detachmentSelection, ...picked.map((unit) => unit.selection)]
+      const whole = evaluate(selections, loaded.index, options)
 
       return {
         revision: loaded.index.revision,
+        detachment: chosen?.name ?? null,
         points: whole.points,
         errors: whole.errors,
         unhandled: whole.unhandled,
-        selections: picked.map((unit) => unit.selection),
+        selections,
         units: picked.map((unit) => ({
           entryId: unit.entryId,
           name: unit.name,

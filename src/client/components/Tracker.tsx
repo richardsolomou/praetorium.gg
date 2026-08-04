@@ -44,7 +44,10 @@ export function Tracker({ view, present, send, pending, problem }: Props) {
                   {player.name}
                   {player.isViewer ? <span className="ml-1.5 text-xs text-dim">you</span> : null}
                 </p>
-                <p className="truncate text-xs text-dim">{player.roster?.name ?? 'No list'}</p>
+                <p className="truncate text-xs text-dim">
+                  {player.roster?.name ?? 'No list'}
+                  {player.roster?.built?.detachment ? ` · ${player.roster.built.detachment}` : ''}
+                </p>
               </div>
               <span
                 className={`size-2 shrink-0 rounded-full ${

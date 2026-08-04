@@ -30,6 +30,7 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
           catalogueId: id,
           revision: z.string().min(1).max(64),
           limit: z.number().int().min(0).max(10_000),
+          detachment: z.string().max(ROSTER_NAME_MAX_LENGTH).nullable(),
           selections: z.array(selectionSchema).max(200),
           units: z
             .array(
