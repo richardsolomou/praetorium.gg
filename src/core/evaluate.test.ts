@@ -91,6 +91,43 @@ describe('a squad priced by its size', () => {
   })
 })
 
+/**
+ * The same squad, priced by a condition that counts `model` selections directly
+ * under the unit — no group named, and no `includeChildSelections`. Most of the
+ * real data is written this way.
+ */
+const squadCountingModels = (): Partial<Catalogue> => ({
+  sharedSelectionEntries: [
+    {
+      id: 'squad',
+      name: 'Squad',
+      type: 'unit',
+      costs: points(80),
+      modifiers: [
+        {
+          type: 'set',
+          field: PTS,
+          value: 150,
+          conditions: [{ type: 'atLeast', value: 6, field: 'selections', scope: 'squad', childId: 'model' }],
+        },
+      ],
+      selectionEntryGroups: [{ id: 'troopers', name: 'Troopers', selectionEntries: [{ id: 'trooper', name: 'Trooper', type: 'model' }] }],
+    },
+  ],
+})
+
+describe('a group between a unit and its models', () => {
+  it('does not hide them from a condition counting what is under the unit', () => {
+    // A group organises the catalogue; it is not a level of nesting in a roster.
+    // Treating it as one made every unit written this way look empty.
+    expect(evaluateOne(withTroopers(6), squadCountingModels()).points).toBe(150)
+  })
+
+  it('still leaves a small squad at the base price', () => {
+    expect(evaluateOne(withTroopers(3), squadCountingModels()).points).toBe(80)
+  })
+})
+
 describe('per-model costs', () => {
   it('apply once per repeat of what they count', () => {
     const result = evaluateOne(withTroopers(6), {

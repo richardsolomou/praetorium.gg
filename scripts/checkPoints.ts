@@ -15,7 +15,7 @@ import path from 'node:path'
 import { parse } from 'yaml'
 import { buildIndex, type CatalogueFile, type CatalogueIndex, type Definition, type SelectionEntry } from '../src/core/catalogue'
 import { evaluate, type Selection } from '../src/core/evaluate'
-import { withCounts } from '../src/core/roster'
+import { defaultSelection, withCounts } from '../src/core/roster'
 
 const dataDirectory = process.env.CATALOGUE_DIR ?? path.join(import.meta.dirname, '..', 'catalogue-data')
 const definitionsDirectory = path.join(dataDirectory, 'definitions')
@@ -116,15 +116,17 @@ function modelSlots(unit: Definition, catalogue: CatalogueIndex): Slot[] {
 }
 
 /**
- * The unit with just the models the Munitorum is pricing.
+ * The unit as the data would hand it over — mandatory wargear included — carrying
+ * exactly the models the Munitorum is pricing.
  *
- * Deliberately *not* built through `defaultSelection`: adding the mandatory
- * wargear takes agreement from 95.0% down to 89.2%, so something in it
- * over-counts. Until that is understood, the bare construction is the one whose
- * numbers can be trusted, and the discrepancy is the next thing to chase.
+ * Every model slot is zeroed before the wanted counts go on. `defaultSelection`
+ * has already put the squad's minimum bodies in, so overriding only the slots we
+ * want leaves those in place as well and the unit comes out oversized.
  */
-function toSelection(unitId: string, assignments: { path: string[]; count: number }[]): Selection {
-  return withCounts({ id: unitId, count: 1 }, assignments)
+function toSelection(unitId: string, slots: Slot[], wanted: { path: string[]; count: number }[]): Selection {
+  const base = defaultSelection(unitId, index) ?? { id: unitId, count: 1 }
+  const emptied = slots.map((slot) => ({ path: slot.path, count: 0 }))
+  return withCounts(base, [...emptied, ...wanted])
 }
 
 const tally = { matched: 0, mismatched: 0, ambiguous: 0, missing: 0, unsupportedShape: 0 }
@@ -166,7 +168,7 @@ for (const unit of units) {
       if (tier.models > 1) assignments.push({ path: second.path, count: tier.models - 1 })
     }
 
-    const result = evaluate([toSelection(entry.id, assignments)], index)
+    const result = evaluate([toSelection(entry.id, slots, assignments)], index)
     for (const note of result.unhandled) census.add(note)
     if (result.points === tier.points) tally.matched++
     else {

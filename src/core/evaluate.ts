@@ -113,16 +113,40 @@ const isLink = (definition: Definition): definition is EntryLink => 'targetId' i
 const isGroup = (node: Node) => node.target.type === undefined
 
 /**
- * How much this node counts for.
+ * The selections under a node, with group layers promoted away.
  *
- * A group is not itself a selection with a multiplicity — counting selections of
- * a group means counting what is inside it, which is how a squad's size is asked
- * for ("at least 6 selections of the Intercessors group"). Treating a group as
- * one selection prices every large squad as a small one.
+ * A group organises a catalogue; it is not a selection in a roster. A condition
+ * counting `model` selections directly under a unit must see the models even
+ * though the data nests them in a group, and a condition naming a group counts
+ * the selections that came from it — which is what `matches` uses the group chain
+ * for. Treating a group as a level of nesting priced every one of these units as
+ * if the unit were empty.
+ *
+ * `deep` follows the data's own `includeChildSelections`: without it, only what
+ * sits immediately under the node, groups notwithstanding.
  */
-function countOf(node: Node): number {
-  if (!isGroup(node)) return node.count
-  return node.children.reduce((total, child) => total + countOf(child), 0)
+function selectionsUnder(node: Node, deep: boolean): Node[] {
+  const found: Node[] = []
+  const walk = (current: Node) => {
+    for (const child of current.children) {
+      if (isGroup(child)) {
+        walk(child)
+        continue
+      }
+      found.push(child)
+      if (deep) walk(child)
+    }
+  }
+  walk(node)
+  return found
+}
+
+/** Whether a selection was chosen from a group with this id, however deeply nested the groups are. */
+function inGroup(node: Node, groupId: string): boolean {
+  for (let parent = node.parent; parent && isGroup(parent); parent = parent.parent) {
+    if (parent.target.id === groupId || parent.id === groupId) return true
+  }
+  return false
 }
 
 /** The node's own definitions, target first: a link's constraints and modifiers add to its target's. */
@@ -249,7 +273,7 @@ function localHolds(group: LocalConditionGroup, node: Node, root: Node, index: C
 
   const candidates = new Set<Node>()
   for (const origin of origins) {
-    for (const candidate of group.includeChildSelections ? descendants(origin) : origin.children) {
+    for (const candidate of selectionsUnder(origin, group.includeChildSelections === true)) {
       if (matches(candidate, group.childId)) candidates.add(candidate)
     }
   }
@@ -304,14 +328,13 @@ function measure(spec: Measurable, node: Node, root: Node, index: CatalogueIndex
 
   const seen = new Set<Node>()
   for (const origin of origins) {
-    const candidates = spec.includeChildSelections ? descendants(origin).filter((each) => each !== origin) : origin.children
-    for (const candidate of candidates) {
+    for (const candidate of selectionsUnder(origin, spec.includeChildSelections === true)) {
       if (matches(candidate, spec.childId)) seen.add(candidate)
     }
   }
   const matching = [...seen]
 
-  if (spec.field === 'selections') return matching.reduce((total, each) => total + countOf(each), 0)
+  if (spec.field === 'selections') return matching.reduce((total, each) => total + each.count, 0)
   if (index.costTypes.has(spec.field)) {
     return matching.reduce((total, each) => total + (costOf(each, spec.field) ?? 0) * each.count, 0)
   }
@@ -336,7 +359,7 @@ function matches(node: Node, childId: string | undefined): boolean {
     const type = node.target.type
     return childId === 'model-or-unit' ? type === 'model' || type === 'unit' : type === childId
   }
-  return node.target.id === childId || node.id === childId
+  return node.target.id === childId || node.id === childId || inGroup(node, childId)
 }
 
 /**
