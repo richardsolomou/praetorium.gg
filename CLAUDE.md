@@ -1,6 +1,6 @@
 # Muster — Agent Guide
 
-Read [README.md](README.md) first for what the product does and why it cannot go out of step. This file covers what is easy to break.
+Read [README.md](README.md) first for what the product does and why it cannot go out of step. This file covers what is easy to break, and [docs/parity.md](docs/parity.md) covers what the interface is being matched against, what is done and what is left.
 
 ## Product boundary
 
