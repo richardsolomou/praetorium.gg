@@ -1,7 +1,8 @@
-import { RotateCcw, Skull, Undo2 } from 'lucide-react'
+import { RotateCcw, Skull, Undo2, Zap } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { BattleView, Command } from '../../core/battle'
 import type { PresentPlayer } from '../../server/presence'
+import { Prep } from './Prep'
 
 type Props = { view: BattleView; present: PresentPlayer[]; send: (command: Command) => void; pending: boolean; problem: string | null }
 
@@ -67,7 +68,8 @@ export function Tracker({ view, present, send, pending, problem }: Props) {
                 onStep={player.isViewer && !finished ? (delta) => send({ kind: 'adjust-cp', delta }) : undefined}
               />
               <Stat
-                label="Primary"
+                label={`Primary`}
+                guide={view.guides.primary}
                 value={player.primary}
                 tint={SIDES[index]?.value}
                 pending={pending}
@@ -76,11 +78,17 @@ export function Tracker({ view, present, send, pending, problem }: Props) {
               />
               <Stat
                 label="Secondary"
+                guide={view.guides.secondary}
                 value={player.secondary}
                 tint={SIDES[index]?.value}
                 pending={pending}
                 fives
-                onStep={player.isViewer && !finished ? (delta) => send({ kind: 'score', category: 'secondary', delta }) : undefined}
+                // Named secondaries are scored by name, so the pile control goes away.
+                onStep={
+                  player.isViewer && !finished && !player.secondaries.length
+                    ? (delta) => send({ kind: 'score', category: 'secondary', delta })
+                    : undefined
+                }
               />
             </div>
 
@@ -90,6 +98,59 @@ export function Tracker({ view, present, send, pending, problem }: Props) {
                 {player.total}
               </span>
             </p>
+
+            {player.secondaries.length ? (
+              <div className="space-y-1 border-t border-edge pt-3">
+                <p className="eyebrow">Secondaries</p>
+                {player.secondaries.map((secondary) => (
+                  <div key={secondary.key} className="flex items-center justify-between gap-2 text-sm">
+                    <span className="min-w-0 flex-1 truncate">{secondary.name}</span>
+                    <span className="readout w-6 text-right text-dim">{secondary.points}</span>
+                    {player.isViewer && !finished ? (
+                      <span className="flex shrink-0 gap-1">
+                        {[-1, 1, 5].map((step) => (
+                          <Button
+                            key={step}
+                            variant="outline"
+                            size="icon-sm"
+                            disabled={pending}
+                            aria-label={`${secondary.name} ${step < 0 ? 'minus' : 'plus'} ${Math.abs(step)}`}
+                            onClick={() => send({ kind: 'score-secondary', key: secondary.key, delta: step })}
+                          >
+                            {step < 0 ? '−' : '+'}
+                            {Math.abs(step)}
+                          </Button>
+                        ))}
+                      </span>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            ) : null}
+
+            {player.stratagems.length ? (
+              <div className="space-y-1 border-t border-edge pt-3">
+                <p className="eyebrow">Stratagems</p>
+                {player.stratagems.map((stratagem) => (
+                  <div key={stratagem.key} className="flex items-center justify-between gap-2 text-sm">
+                    <span className={`min-w-0 flex-1 truncate ${stratagem.refusal ? 'text-dim' : ''}`}>{stratagem.name}</span>
+                    <span className="readout shrink-0 text-xs text-dim">{stratagem.cp} CP</span>
+                    {player.isViewer && !finished ? (
+                      <Button
+                        variant="outline"
+                        size="icon-sm"
+                        disabled={pending || stratagem.refusal !== null}
+                        title={stratagem.refusal ?? undefined}
+                        aria-label={`Use ${stratagem.name}`}
+                        onClick={() => send({ kind: 'use-stratagem', key: stratagem.key })}
+                      >
+                        <Zap />
+                      </Button>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            ) : null}
 
             {player.units.length ? (
               <div className="border-t border-edge pt-3">
@@ -156,6 +217,13 @@ export function Tracker({ view, present, send, pending, problem }: Props) {
       )}
 
       <details className="text-sm text-dim">
+        <summary className="cursor-pointer">Stratagems and secondaries</summary>
+        <div className="mt-3 rounded-lg border border-edge bg-panel p-4">
+          <Prep view={view} send={send} pending={pending} />
+        </div>
+      </details>
+
+      <details className="text-sm text-dim">
         <summary className="cursor-pointer">Lists</summary>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
           {view.players.map((player) => (
@@ -172,6 +240,8 @@ export function Tracker({ view, present, send, pending, problem }: Props) {
 
 type StatProps = {
   label: string
+  /** The conventional ceiling, shown quietly beside the number and never enforced. */
+  guide?: number
   value: number
   tint?: string
   pending: boolean
@@ -181,7 +251,7 @@ type StatProps = {
   fives?: boolean
 }
 
-function Stat({ label, value, tint, pending, onStep, fives }: StatProps) {
+function Stat({ label, guide, value, tint, pending, onStep, fives }: StatProps) {
   const steps = fives ? [-1, 1, 5] : [-1, 1]
   return (
     <div>
@@ -190,6 +260,7 @@ function Stat({ label, value, tint, pending, onStep, fives }: StatProps) {
       <p data-stat={label.toLowerCase()} className={`readout mt-0.5 text-3xl leading-none ${tint ?? ''}`}>
         {value}
       </p>
+      {guide ? <p className="readout mt-0.5 text-[0.625rem] text-dim">of {guide}</p> : null}
       {onStep ? (
         // A keypad rather than a row: a column is only ever a third of the panel,
         // and three buttons abreast in it are too narrow for a thumb.

@@ -1,8 +1,8 @@
 import type { BattleEvents } from '../adapters/events'
-import { type BattleView, battleView, type Command, PLAYERS_PER_BATTLE, reduceBattle } from '../core/battle'
+import { type BattleView, battleView, type Command, PLAYERS_PER_BATTLE, reduceBattle, type Secondary, type Stratagem } from '../core/battle'
 import type { BattleSeats, JoinResult, Repository, SubmitResult } from '../db/repository'
 import { createId, createToken } from './crypto'
-import { picksSchema } from './schemas'
+import { picksSchema, savedPrepSchema } from './schemas'
 
 /**
  * What someone holding the link gets: the battle itself once they have a seat,
@@ -10,6 +10,8 @@ import { picksSchema } from './schemas'
  * a link preview must not be able to take the second chair.
  */
 export type Pick = { entryId: string; models?: number; choices?: Record<string, string> }
+
+export type SavedPrep = { stratagems: Stratagem[]; secondaries: Secondary[] }
 
 export type BattleScreen = { kind: 'battle'; view: BattleView } | { kind: 'invitation'; free: boolean }
 
@@ -31,10 +33,25 @@ export class MusterService {
 
   saveRoster(
     playerId: string,
-    roster: { id?: string; name: string; catalogueId: string; detachmentId: string | null; limit: number; picks: readonly Pick[] },
+    roster: {
+      id?: string
+      name: string
+      catalogueId: string
+      detachmentId: string | null
+      limit: number
+      picks: readonly Pick[]
+      prep: SavedPrep | null
+    },
   ) {
     const id = roster.id ?? createId()
-    this.repository.saveRoster({ ...roster, id, playerId, picks: JSON.stringify(roster.picks), now: this.clock() })
+    this.repository.saveRoster({
+      ...roster,
+      id,
+      playerId,
+      picks: JSON.stringify(roster.picks),
+      prep: roster.prep ? JSON.stringify(roster.prep) : null,
+      now: this.clock(),
+    })
     return { id }
   }
 
@@ -47,6 +64,7 @@ export class MusterService {
       detachmentId: row.detachmentId,
       limit: row.limit,
       picks: picksSchema.parse(JSON.parse(row.picks)),
+      prep: row.prep ? savedPrepSchema.parse(JSON.parse(row.prep)) : null,
     }))
   }
 

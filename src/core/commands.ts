@@ -1,5 +1,13 @@
 import { z } from 'zod'
-import { type Command, ROSTER_MAX_LENGTH, ROSTER_NAME_MAX_LENGTH } from './battle'
+import {
+  type Command,
+  ROSTER_MAX_LENGTH,
+  ROSTER_NAME_MAX_LENGTH,
+  SECONDARIES_MAX,
+  STRATAGEM_CP_MAX,
+  STRATAGEM_LIMITS,
+  STRATAGEMS_MAX,
+} from './battle'
 import type { Selection } from './evaluate'
 
 const id = z.string().min(1).max(64)
@@ -47,6 +55,22 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
     }),
   }),
   z.object({ kind: z.literal('set-unit'), unitKey: id, destroyed: z.boolean() }),
+  z.object({
+    kind: z.literal('set-prep'),
+    stratagems: z
+      .array(
+        z.object({
+          key: id,
+          name: z.string().min(1).max(ROSTER_NAME_MAX_LENGTH),
+          cp: z.number().int().min(0).max(STRATAGEM_CP_MAX),
+          limit: z.enum(STRATAGEM_LIMITS),
+        }),
+      )
+      .max(STRATAGEMS_MAX),
+    secondaries: z.array(z.object({ key: id, name: z.string().min(1).max(ROSTER_NAME_MAX_LENGTH) })).max(SECONDARIES_MAX),
+  }),
+  z.object({ kind: z.literal('use-stratagem'), key: id }),
+  z.object({ kind: z.literal('score-secondary'), key: id, delta: z.number().int() }),
   z.object({ kind: z.literal('begin-battle'), firstPlayerId: id }),
   z.object({ kind: z.literal('adjust-cp'), delta: z.number().int() }),
   z.object({ kind: z.literal('score'), category: z.enum(['primary', 'secondary']), delta: z.number().int() }),

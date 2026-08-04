@@ -5,12 +5,19 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import type { Roster } from '../../core/battle'
+import type { Roster, Secondary, Stratagem } from '../../core/battle'
 import { GAME_SIZES, ROSTER_NAME_MAX_LENGTH } from '../../core/battle'
 import { deleteRoster, saveRoster } from '../../server/fns'
 import { factionsQuery, priceQuery, savedRostersQuery, unitsQuery } from '../queries'
 
-type Props = { onAttach: (roster: Roster) => void; pending: boolean; attached: boolean }
+type Props = {
+  onAttach: (roster: Roster) => void
+  pending: boolean
+  attached: boolean
+  /** What the player has written down, so a saved list carries it and restores it. */
+  prep: { stratagems: Stratagem[]; secondaries: Secondary[] }
+  onRestorePrep: (prep: { stratagems: Stratagem[]; secondaries: Secondary[] }) => void
+}
 
 /** Base UI selects cannot hold an empty value, so declining a choice needs a token. */
 const NONE = '__none__'
@@ -23,7 +30,7 @@ const NONE = '__none__'
  * floor. The price and the legality both come from the server, because the
  * catalogue is 90MB and the browser has no business holding it.
  */
-export function ListBuilder({ onAttach, pending, attached }: Props) {
+export function ListBuilder({ onAttach, pending, attached, prep, onRestorePrep }: Props) {
   const { data: available } = useQuery(factionsQuery())
   const [catalogueId, setCatalogueId] = useState('')
   const [query, setQuery] = useState('')
@@ -50,6 +57,7 @@ export function ListBuilder({ onAttach, pending, attached }: Props) {
           detachmentId: detachmentId ?? null,
           limit,
           picks: picked.map(({ entryId, models, choices }) => ({ entryId, models, choices })),
+          prep,
         },
       }),
     onSuccess: ({ id }) => {
@@ -107,6 +115,8 @@ export function ListBuilder({ onAttach, pending, attached }: Props) {
                     setLimit(list.limit)
                     setPicked(list.picks.map((pick, at) => ({ key: at, ...pick })))
                     setNextKey(list.picks.length)
+                    // Stratagems are typed once and travel with the list.
+                    if (list.prep) onRestorePrep(list.prep)
                   }}
                 >
                   {list.name}

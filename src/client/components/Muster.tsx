@@ -9,6 +9,7 @@ import { ROSTER_MAX_LENGTH, ROSTER_NAME_MAX_LENGTH } from '../../core/battle'
 import { factionsQuery } from '../queries'
 import { useOrigin } from '../useOrigin'
 import { ListBuilder } from './ListBuilder'
+import { Prep } from './Prep'
 
 type Props = { view: BattleView; send: (command: Command) => void; pending: boolean; problem: string | null }
 
@@ -54,7 +55,16 @@ export function Muster({ view, send, pending, problem }: Props) {
       ) : null}
 
       {building ? (
-        <ListBuilder pending={pending} attached={Boolean(you.roster)} onAttach={(roster) => send({ kind: 'attach-roster', roster })} />
+        <ListBuilder
+          pending={pending}
+          attached={Boolean(you.roster)}
+          onAttach={(roster) => send({ kind: 'attach-roster', roster })}
+          prep={{
+            stratagems: you.stratagems.map(({ key, name, cp, limit }) => ({ key, name, cp, limit })),
+            secondaries: you.secondaries.map(({ key, name }) => ({ key, name })),
+          }}
+          onRestorePrep={(restored) => send({ kind: 'set-prep', ...restored })}
+        />
       ) : (
         <form
           className="space-y-4 rounded-lg border border-edge bg-panel p-4"
@@ -96,6 +106,14 @@ export function Muster({ view, send, pending, problem }: Props) {
           {opponent.roster ? `${opponent.name} has attached ${opponent.roster.name}.` : `Waiting for ${opponent.name}’s list.`}
         </p>
       ) : null}
+
+      <details className="rounded-lg border border-edge bg-panel p-4" open={Boolean(you.roster)}>
+        <summary className="cursor-pointer text-sm">Stratagems and secondaries</summary>
+        <p className="mt-2 mb-4 text-xs text-dim">
+          Neither is in the community data, so copy them from your own book once. The app takes it from there.
+        </p>
+        <Prep view={view} send={send} pending={pending} />
+      </details>
 
       {problem ? <p className="text-sm text-destructive">{problem}</p> : null}
 

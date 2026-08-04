@@ -15,6 +15,13 @@
       "when": 1785873006109,
       "tag": "0001_loose_unus",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1785873630843,
+      "tag": "0002_dapper_roxanne_simpson",
+      "breakpoints": true
     }
   ]
 }

@@ -82,6 +82,8 @@ export const rosters = sqliteTable(
     limit: integer('limit').notNull(),
     /** The picked units as JSON: entry ids, model counts and chosen options. */
     picks: text('picks').notNull(),
+    /** The player's own stratagems and secondaries as JSON, so they are typed once. */
+    prep: text('prep'),
     updatedAt: integer('updated_at').notNull(),
   },
   (table) => [index('rosters_player_id_index').on(table.playerId)],

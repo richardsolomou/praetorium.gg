@@ -210,3 +210,102 @@ describe('units on the table', () => {
     expect(state.players.find((player) => player.id === ALICE)?.units).toEqual([])
   })
 })
+
+describe('stratagems', () => {
+  const STRAT = { key: 's1', name: 'Grenade', cp: 1, limit: 'turn' as const }
+
+  const armed = (): [string, Command][] => [
+    ...started(),
+    [ALICE, { kind: 'set-prep', stratagems: [STRAT], secondaries: [] }],
+    [ALICE, { kind: 'adjust-cp', delta: 3 }],
+  ]
+
+  const alice = (state: ReturnType<typeof reduceBattle>) => state.players.find((player) => player.id === ALICE)
+
+  it('cost command points when used', () => {
+    const state = reduceBattle(PLAYERS, log(...armed(), [ALICE, { kind: 'use-stratagem', key: 's1' }]))
+    expect(alice(state)?.cp).toBe(3)
+  })
+
+  it('cannot be used twice in the same turn when that is the limit', () => {
+    const state = reduceBattle(PLAYERS, log(...armed(), [ALICE, { kind: 'use-stratagem', key: 's1' }]))
+    expect(validate(state, ALICE, { kind: 'use-stratagem', key: 's1' })).toBe('Grenade has been used this turn')
+  })
+
+  it('come back round in the next turn', () => {
+    const history = log(...armed(), [ALICE, { kind: 'use-stratagem', key: 's1' }], ...turns(6, ALICE))
+    expect(validate(reduceBattle(PLAYERS, history), BOB, { kind: 'use-stratagem', key: 's1' })).toBe('that is not one of your stratagems')
+  })
+
+  it('are refused without the command points to pay for them', () => {
+    const state = reduceBattle(
+      PLAYERS,
+      log(...started(), [ALICE, { kind: 'set-prep', stratagems: [{ ...STRAT, cp: 4 }], secondaries: [] }]),
+    )
+    expect(validate(state, ALICE, { kind: 'use-stratagem', key: 's1' })).toBe('not enough command points')
+  })
+
+  it('belong to the player who wrote them down', () => {
+    const state = reduceBattle(PLAYERS, log(...armed()))
+    expect(validate(state, BOB, { kind: 'use-stratagem', key: 's1' })).toBe('that is not one of your stratagems')
+  })
+
+  it('are offered to the interface with the reason they cannot be used', () => {
+    const state = reduceBattle(PLAYERS, log(...armed(), [ALICE, { kind: 'use-stratagem', key: 's1' }]))
+    const view = battleView({ token: 'abc' }, NAMES, state, ALICE)
+    expect(view.players.find((player) => player.isViewer)?.stratagems[0]?.refusal).toBe('Grenade has been used this turn')
+  })
+})
+
+describe('secondaries', () => {
+  const named = (): [string, Command][] => [
+    ...started(),
+    [
+      ALICE,
+      {
+        kind: 'set-prep',
+        stratagems: [],
+        secondaries: [
+          { key: 'a', name: 'Behind Enemy Lines' },
+          { key: 'b', name: 'Bring It Down' },
+        ],
+      },
+    ],
+  ]
+
+  const alice = (state: ReturnType<typeof reduceBattle>) => state.players.find((player) => player.id === ALICE)
+
+  it('are scored one at a time', () => {
+    const state = reduceBattle(PLAYERS, log(...named(), [ALICE, { kind: 'score-secondary', key: 'a', delta: 4 }]))
+    expect(alice(state)?.scored.a).toBe(4)
+  })
+
+  it('add up to the secondary total', () => {
+    const history = log(
+      ...named(),
+      [ALICE, { kind: 'score-secondary', key: 'a', delta: 4 }],
+      [ALICE, { kind: 'score-secondary', key: 'b', delta: 3 }],
+    )
+    expect(alice(reduceBattle(PLAYERS, history))?.secondary).toBe(7)
+  })
+
+  it('take over from the undifferentiated pile once named', () => {
+    // Two ways of adding to one total is how a breakdown stops adding up.
+    const state = reduceBattle(PLAYERS, log(...named()))
+    expect(validate(state, ALICE, { kind: 'score', category: 'secondary', delta: 3 })).toBe('score the secondary by name')
+  })
+
+  it('stop contributing when they are taken off the list', () => {
+    const history = log(
+      ...named(),
+      [ALICE, { kind: 'score-secondary', key: 'a', delta: 4 }],
+      [ALICE, { kind: 'set-prep', stratagems: [], secondaries: [{ key: 'b', name: 'Bring It Down' }] }],
+    )
+    expect(alice(reduceBattle(PLAYERS, history))?.secondary).toBe(0)
+  })
+
+  it('are refused a score they do not have', () => {
+    const state = reduceBattle(PLAYERS, log(...named()))
+    expect(validate(state, ALICE, { kind: 'score-secondary', key: 'a', delta: -1 })).toBe('that would go below zero')
+  })
+})

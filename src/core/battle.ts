@@ -64,6 +64,39 @@ export type SubmittedUnit = { key: string; name: string; points: number; models:
 
 export type UnitState = SubmittedUnit & { destroyed: boolean }
 
+/**
+ * A stratagem as the player transcribes it from their own book.
+ *
+ * None of this is in the community catalogue data — a detachment there carries its
+ * rule and its objective, and nothing about stratagems — so the content comes from
+ * the player and is saved with their list. What this file owns is the part worth
+ * automating: what it costs, and how often it may be used.
+ */
+export type Stratagem = { key: string; name: string; cp: number; limit: StratagemLimit }
+
+/** How often a stratagem may be used. `phase` and `turn` reset; `battle` does not. */
+export type StratagemLimit = 'phase' | 'turn' | 'battle' | 'unlimited'
+
+export const STRATAGEM_LIMITS: StratagemLimit[] = ['phase', 'turn', 'battle', 'unlimited']
+
+export const STRATAGEMS_MAX = 12
+export const STRATAGEM_CP_MAX = 6
+
+/** A secondary mission, named by the player because the deck is not in the data either. */
+export type Secondary = { key: string; name: string }
+
+export const SECONDARIES_MAX = 6
+
+/**
+ * The conventional matched-play ceilings, shown as guidance and never enforced.
+ *
+ * Refusing a score on a number this file is not certain of would stop a real game
+ * at a real table, which is far worse than displaying a total that has gone past
+ * what the mission allows.
+ */
+export const PRIMARY_GUIDE = 50
+export const SECONDARY_GUIDE = 40
+
 /** The matched-play game sizes, smallest first. */
 export const GAME_SIZES = [
   { name: 'Incursion', limit: 1000 },
@@ -74,6 +107,9 @@ export const GAME_SIZES = [
 export type Command =
   | { kind: 'attach-roster'; roster: Roster }
   | { kind: 'set-unit'; unitKey: string; destroyed: boolean }
+  | { kind: 'set-prep'; stratagems: Stratagem[]; secondaries: Secondary[] }
+  | { kind: 'use-stratagem'; key: string }
+  | { kind: 'score-secondary'; key: string; delta: number }
   | { kind: 'begin-battle'; firstPlayerId: PlayerId }
   | { kind: 'adjust-cp'; delta: number }
   | { kind: 'score'; category: 'primary' | 'secondary'; delta: number }
@@ -91,7 +127,15 @@ export type PlayerState = {
   roster: Roster | null
   /** Empty for a pasted list: nothing there names the units. */
   units: UnitState[]
+  stratagems: Stratagem[]
+  /** Every use, with when it happened, so a limit can be judged against the log. */
+  uses: StratagemUse[]
+  secondaries: Secondary[]
+  /** What each named secondary has scored, keyed the same way. */
+  scored: Record<string, number>
 }
+
+export type StratagemUse = { key: string; round: number; phase: Phase; turn: PlayerId | null }
 
 export type BattleState = {
   status: 'setup' | 'playing' | 'finished'
@@ -121,7 +165,18 @@ export function reduceBattle(playerIds: readonly PlayerId[], log: readonly Logge
     phase: 'command',
     activePlayerId: null,
     firstPlayerId: null,
-    players: playerIds.map((id) => ({ id, cp: 0, primary: 0, secondary: 0, roster: null, units: [] })),
+    players: playerIds.map((id) => ({
+      id,
+      cp: 0,
+      primary: 0,
+      secondary: 0,
+      roster: null,
+      units: [],
+      stratagems: [],
+      uses: [],
+      secondaries: [],
+      scored: {},
+    })),
     undoable: null,
     seq: 0,
   }
@@ -178,6 +233,9 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
       if (state.status !== 'playing') return 'the battle is not running'
       if (!Number.isInteger(command.delta) || command.delta === 0) return 'victory points move in whole steps'
       if (player[command.category] + command.delta < 0) return 'that would go below zero'
+      // Once secondaries are named, they are scored by name: two ways of adding to
+      // the same total is how a breakdown stops adding up.
+      if (command.category === 'secondary' && player.secondaries.length) return 'score the secondary by name'
       return null
     }
     case 'advance': {
@@ -196,6 +254,32 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
       // Your own casualties are yours to report, the same as your own command
       // points are yours to spend.
       if (!player.units.some((unit) => unit.key === command.unitKey)) return 'that is not one of your units'
+      return null
+    }
+    case 'set-prep': {
+      if (state.status === 'finished') return 'the battle is over'
+      if (command.stratagems.length > STRATAGEMS_MAX) return `that is more than ${STRATAGEMS_MAX} stratagems`
+      if (command.stratagems.some((stratagem) => !stratagem.name.trim())) return 'name every stratagem'
+      if (command.stratagems.some((stratagem) => stratagem.cp < 0 || stratagem.cp > STRATAGEM_CP_MAX)) {
+        return `a stratagem costs between 0 and ${STRATAGEM_CP_MAX} command points`
+      }
+      if (command.secondaries.length > SECONDARIES_MAX) return `that is more than ${SECONDARIES_MAX} secondaries`
+      if (command.secondaries.some((secondary) => !secondary.name.trim())) return 'name every secondary'
+      return null
+    }
+    case 'use-stratagem': {
+      if (state.status !== 'playing') return 'the battle is not running'
+      const stratagem = player.stratagems.find((candidate) => candidate.key === command.key)
+      if (!stratagem) return 'that is not one of your stratagems'
+      if (player.cp < stratagem.cp) return 'not enough command points'
+      if (limitReached(player, stratagem, state)) return `${stratagem.name} has been used this ${stratagem.limit}`
+      return null
+    }
+    case 'score-secondary': {
+      if (state.status !== 'playing') return 'the battle is not running'
+      if (!player.secondaries.some((secondary) => secondary.key === command.key)) return 'that is not one of your secondaries'
+      if (!Number.isInteger(command.delta) || command.delta === 0) return 'victory points move in whole steps'
+      if ((player.scored[command.key] ?? 0) + command.delta < 0) return 'that would go below zero'
       return null
     }
     case 'undo': {
@@ -226,6 +310,30 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
     case 'set-unit': {
       const unit = player.units.find((candidate) => candidate.key === command.unitKey)
       if (unit) unit.destroyed = command.destroyed
+      return
+    }
+    case 'set-prep': {
+      player.stratagems = command.stratagems.map((stratagem) => ({ ...stratagem, name: stratagem.name.trim() }))
+      player.secondaries = command.secondaries.map((secondary) => ({ ...secondary, name: secondary.name.trim() }))
+      // A secondary nobody can see must not keep contributing to the total.
+      const kept = Object.fromEntries(
+        Object.entries(player.scored).filter(([key]) => player.secondaries.some((secondary) => secondary.key === key)),
+      )
+      player.scored = kept
+      player.secondary = Object.values(kept).reduce((total, points) => total + points, 0)
+      return
+    }
+    case 'use-stratagem': {
+      const stratagem = player.stratagems.find((candidate) => candidate.key === command.key)
+      if (!stratagem) return
+      player.cp -= stratagem.cp
+      player.uses.push({ key: stratagem.key, round: state.round, phase: state.phase, turn: state.activePlayerId })
+      return
+    }
+    case 'score-secondary': {
+      const scored = (player.scored[command.key] ?? 0) + command.delta
+      player.scored = { ...player.scored, [command.key]: scored }
+      player.secondary = Object.values(player.scored).reduce((total, points) => total + points, 0)
       return
     }
     case 'begin-battle': {
@@ -280,6 +388,15 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
   }
 }
 
+/** Whether a stratagem's allowance is spent for now. `turn` and `phase` reset as play moves on. */
+function limitReached(player: PlayerState, stratagem: Stratagem, state: BattleState): boolean {
+  if (stratagem.limit === 'unlimited') return false
+  const uses = player.uses.filter((use) => use.key === stratagem.key)
+  if (stratagem.limit === 'battle') return uses.length > 0
+  const thisTurn = uses.filter((use) => use.round === state.round && use.turn === state.activePlayerId)
+  return stratagem.limit === 'turn' ? thisTurn.length > 0 : thisTurn.some((use) => use.phase === state.phase)
+}
+
 function enterTurn(state: BattleState, playerId: PlayerId) {
   state.activePlayerId = playerId
   state.phase = 'command'
@@ -310,7 +427,12 @@ export type BattleView = {
     units: UnitState[]
     /** What is still on the table, for the line a player actually glances at. */
     standing: number
+    /** Each stratagem with whether it can be used right now, and why not when it cannot. */
+    stratagems: { key: string; name: string; cp: number; limit: StratagemLimit; refusal: string | null }[]
+    secondaries: { key: string; name: string; points: number }[]
   }[]
+  /** The conventional ceilings, for display beside a total. */
+  guides: { primary: number; secondary: number }
   /** Present only when the viewer is the one who may take it back. */
   undoable: number | null
 }
@@ -353,7 +475,19 @@ export function battleView(
       roster: player.roster,
       units: player.units,
       standing: player.units.filter((unit) => !unit.destroyed).length,
+      stratagems: player.stratagems.map((stratagem) => ({
+        ...stratagem,
+        // The same rule the server enforces, so the interface never offers what
+        // would be refused.
+        refusal: validate(state, player.id, { kind: 'use-stratagem', key: stratagem.key }),
+      })),
+      secondaries: player.secondaries.map((secondary) => ({
+        key: secondary.key,
+        name: secondary.name,
+        points: player.scored[secondary.key] ?? 0,
+      })),
     })),
+    guides: { primary: PRIMARY_GUIDE, secondary: SECONDARY_GUIDE },
     undoable: state.undoable?.by === viewerId ? state.undoable.seq : null,
   }
 }

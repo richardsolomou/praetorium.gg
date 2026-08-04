@@ -95,6 +95,7 @@ export class Repository {
     detachmentId: string | null
     limit: number
     picks: string
+    prep: string | null
     now: number
   }) {
     this.database

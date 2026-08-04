@@ -31,6 +31,20 @@ const pickSchema = z.object({
   choices: z.record(z.string().max(400), z.string().min(1).max(64)).optional(),
 })
 
+const prepSchema = z.object({
+  stratagems: z
+    .array(
+      z.object({
+        key: z.string().min(1).max(64),
+        name: z.string().min(1).max(80),
+        cp: z.number().int().min(0).max(6),
+        limit: z.enum(['phase', 'turn', 'battle', 'unlimited']),
+      }),
+    )
+    .max(12),
+  secondaries: z.array(z.object({ key: z.string().min(1).max(64), name: z.string().min(1).max(80) })).max(6),
+})
+
 export const saveRosterSchema = z.object({
   id: z.string().min(1).max(64).optional(),
   name: z.string().trim().min(1, 'name the list').max(80),
@@ -38,12 +52,14 @@ export const saveRosterSchema = z.object({
   detachmentId: z.string().min(1).max(64).nullable(),
   limit: z.number().int().min(0).max(10_000),
   picks: z.array(pickSchema).max(100),
+  prep: prepSchema.nullable(),
 })
 
 export const rosterIdSchema = z.object({ id: z.string().min(1).max(64) })
 
-/** Saved picks are read back through this, so a hand-edited row fails loudly. */
+/** Saved rows are read back through these, so a hand-edited one fails loudly. */
 export const picksSchema = z.array(pickSchema).max(100)
+export const savedPrepSchema = prepSchema
 
 export const priceSchema = z.object({
   catalogueId,
