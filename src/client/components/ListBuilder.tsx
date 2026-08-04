@@ -11,6 +11,9 @@ import { factionsQuery, priceQuery, unitsQuery } from '../queries'
 
 type Props = { onAttach: (roster: Roster) => void; pending: boolean; attached: boolean }
 
+/** Base UI selects cannot hold an empty value, so declining a choice needs a token. */
+const NONE = '__none__'
+
 /**
  * Building a list from the catalogue rather than pasting one.
  *
@@ -25,7 +28,7 @@ export function ListBuilder({ onAttach, pending, attached }: Props) {
   const [query, setQuery] = useState('')
   // Picks carry their own key: the same datasheet may legitimately appear twice,
   // so position is the only thing that tells two of them apart.
-  const [picked, setPicked] = useState<{ key: number; entryId: string; models?: number }[]>([])
+  const [picked, setPicked] = useState<{ key: number; entryId: string; models?: number; choices?: Record<string, string> }[]>([])
   const [nextKey, setNextKey] = useState(0)
   const [limit, setLimit] = useState<number>(GAME_SIZES[1].limit)
   const [detachmentId, setDetachmentId] = useState<string | undefined>()
@@ -36,7 +39,7 @@ export function ListBuilder({ onAttach, pending, attached }: Props) {
     priceQuery(
       catalogueId,
       detachmentId,
-      picked.map(({ entryId, models }) => ({ entryId, models })),
+      picked.map(({ entryId, models, choices }) => ({ entryId, models, choices })),
     ),
   )
 
@@ -49,6 +52,9 @@ export function ListBuilder({ onAttach, pending, attached }: Props) {
 
   const resize = (index: number, models: number) =>
     setPicked((current) => current.map((pick, at) => (at === index ? { ...pick, models } : pick)))
+
+  const choose = (index: number, key: string, optionId: string) =>
+    setPicked((current) => current.map((pick, at) => (at === index ? { ...pick, choices: { ...pick.choices, [key]: optionId } } : pick)))
 
   return (
     <div className="space-y-4 rounded-lg border border-edge bg-panel p-4">
@@ -157,44 +163,74 @@ export function ListBuilder({ onAttach, pending, attached }: Props) {
               </div>
               <ul className="divide-y divide-edge rounded-md border border-edge">
                 {priced.units.map((unit, index) => (
-                  <li key={picked[index]?.key ?? unit.entryId} className="flex items-center justify-between gap-2 px-3 py-2 text-sm">
-                    <span className="truncate">{unit.name}</span>
-                    <span className="flex shrink-0 items-center gap-1.5">
-                      {unit.size.resizable ? (
-                        <span className="flex items-center gap-1">
-                          <Button
-                            variant="outline"
-                            size="icon-sm"
-                            aria-label={`Fewer models in ${unit.name}`}
-                            disabled={unit.size.models <= unit.size.min}
-                            onClick={() => resize(index, unit.size.models - 1)}
-                          >
-                            <Minus />
-                          </Button>
-                          <span className="readout w-10 text-center text-xs" aria-label={`${unit.name} models`}>
-                            {unit.size.models}
+                  <li key={picked[index]?.key ?? unit.entryId} className="px-3 py-2 text-sm">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="truncate">{unit.name}</span>
+                      <span className="flex shrink-0 items-center gap-1.5">
+                        {unit.size.resizable ? (
+                          <span className="flex items-center gap-1">
+                            <Button
+                              variant="outline"
+                              size="icon-sm"
+                              aria-label={`Fewer models in ${unit.name}`}
+                              disabled={unit.size.models <= unit.size.min}
+                              onClick={() => resize(index, unit.size.models - 1)}
+                            >
+                              <Minus />
+                            </Button>
+                            <span className="readout w-10 text-center text-xs" aria-label={`${unit.name} models`}>
+                              {unit.size.models}
+                            </span>
+                            <Button
+                              variant="outline"
+                              size="icon-sm"
+                              aria-label={`More models in ${unit.name}`}
+                              disabled={unit.size.models >= unit.size.max}
+                              onClick={() => resize(index, unit.size.models + 1)}
+                            >
+                              <Plus />
+                            </Button>
                           </span>
-                          <Button
-                            variant="outline"
-                            size="icon-sm"
-                            aria-label={`More models in ${unit.name}`}
-                            disabled={unit.size.models >= unit.size.max}
-                            onClick={() => resize(index, unit.size.models + 1)}
-                          >
-                            <Plus />
-                          </Button>
-                        </span>
-                      ) : null}
-                      <span className="readout w-10 text-right text-dim">{unit.points}</span>
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        aria-label={`Remove ${unit.name}`}
-                        onClick={() => setPicked((current) => current.filter((_, at) => at !== index))}
-                      >
-                        <X />
-                      </Button>
-                    </span>
+                        ) : null}
+                        <span className="readout w-10 text-right text-dim">{unit.points}</span>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label={`Remove ${unit.name}`}
+                          onClick={() => setPicked((current) => current.filter((_, at) => at !== index))}
+                        >
+                          <X />
+                        </Button>
+                      </span>
+                    </div>
+
+                    {unit.choices.length ? (
+                      <div className="mt-2 space-y-1.5 border-l border-edge pl-3">
+                        {unit.choices.map((choice) => (
+                          <div key={choice.key} className="flex items-center gap-2">
+                            <span className="w-28 shrink-0 truncate text-xs text-dim">{choice.name}</span>
+                            <Select
+                              value={choice.chosen || NONE}
+                              onValueChange={(value: string | null) => choose(index, choice.key, value === NONE ? '' : (value ?? ''))}
+                            >
+                              <SelectTrigger className="h-8 flex-1 text-xs" aria-label={`${unit.name} ${choice.name}`}>
+                                <SelectValue>
+                                  {(value: unknown) => choice.options.find((option) => option.id === value)?.name ?? 'Choose'}
+                                </SelectValue>
+                              </SelectTrigger>
+                              <SelectContent>
+                                {choice.options.map((option) => (
+                                  <SelectItem key={option.id} value={option.id}>
+                                    {option.name}
+                                    {option.points ? ` (+${option.points})` : ''}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
                   </li>
                 ))}
               </ul>

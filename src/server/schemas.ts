@@ -28,5 +28,14 @@ export const unitsSchema = z.object({ catalogueId, query: z.string().max(80).def
 export const priceSchema = z.object({
   catalogueId,
   detachmentId: z.string().min(1).max(64).optional(),
-  units: z.array(z.object({ entryId: z.string().min(1).max(64), models: z.number().int().min(1).max(60).optional() })).max(100),
+  units: z
+    .array(
+      z.object({
+        entryId: z.string().min(1).max(64),
+        models: z.number().int().min(1).max(60).optional(),
+        /** Group path to chosen option, as `unitChoices` reports it. */
+        choices: z.record(z.string().max(400), z.string().min(1).max(64)).optional(),
+      }),
+    )
+    .max(100),
 })

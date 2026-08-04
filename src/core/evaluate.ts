@@ -72,6 +72,14 @@ export type EvaluateOptions = {
    * entry in another book — so without it those surcharges cannot be applied.
    */
   primaryCatalogueId?: string
+  /**
+   * The rest of the list, when asking whether something is available.
+   *
+   * Visibility is a property of the roster, not of an entry: an enhancement is
+   * hidden unless the detachment it belongs to has been taken. Asking without the
+   * roster present hides every one of them.
+   */
+  roster?: readonly Selection[]
 }
 
 export function evaluate(selections: readonly Selection[], index: CatalogueIndex, options: EvaluateOptions = {}): Evaluation {
@@ -104,6 +112,43 @@ export function evaluate(selections: readonly Selection[], index: CatalogueIndex
   }
 
   return { costs, points: totals.get(index.pointsTypeId) ?? 0, errors, unhandled: census.list }
+}
+
+/**
+ * Whether the data hides this entry from a roster of this kind.
+ *
+ * Campaign-only content — Crusade honours, relics, battle traits — is marked
+ * hidden unless the roster is a Crusade force, and there is a great deal of it
+ * hanging off every datasheet. Without asking, a list builder offers a player
+ * fourteen choices that have nothing to do with the game they are playing.
+ */
+export function hiddenByRules(definition: Definition, index: CatalogueIndex, options: EvaluateOptions = {}): boolean {
+  const census = new Census()
+  const root: Node = {
+    target: { id: 'roster' },
+    catalogueId: options.primaryCatalogueId,
+    link: null,
+    id: 'roster',
+    count: 1,
+    parent: null,
+    children: [],
+  }
+  const link = isLink(definition) ? definition : null
+  const target = link ? (index.definitions.get(link.targetId) ?? definition) : definition
+  const node: Node = { target, link, id: definition.id, count: 1, parent: root, children: [] }
+  // The rest of the list sits alongside, so roster-scoped gates can see it.
+  const rest = (options.roster ?? [])
+    .map((selection) => build(selection, root, index, census))
+    .filter((each): each is Node => each !== null)
+  root.children = [...rest, node]
+
+  let hidden = Boolean(definition.hidden || target.hidden)
+  for (const modifier of modifiersOf(node)) {
+    if (modifier.field !== 'hidden') continue
+    if (repeatCount(modifier, node, root, index, census) === 0) continue
+    if (modifier.type === 'set') hidden = modifier.value === true
+  }
+  return hidden
 }
 
 function build(selection: Selection, parent: Node, index: CatalogueIndex, census: Census): Node | null {

@@ -46,6 +46,8 @@ See [catalogue/README.md](catalogue/README.md) for where the data comes from and
 
 ## Not here yet
 
-Lists are built from the catalogue with a detachment, squad sizes and a game-size points ceiling. Choosing weapon loadouts and enhancements is not here yet, and neither is anything about missions or stratagems. An instance with no catalogue synced simply offers pasting instead and says nothing about it.
+Lists are built from the catalogue with a detachment, squad sizes, weapon loadouts and a game-size points ceiling.
 
-No mission or stratagem logic, no enhancements, no weapon loadouts, no deployment tracking. Victory points during a game are entered by the players; units are tracked only as standing or lost.
+Enhancements are the known gap. The machinery is there — options are read from the datasheet, and campaign-only content is correctly hidden — but a detachment's own enhancements do not yet surface, so a list cannot take one. Nothing about missions or stratagems is here either. An instance with no catalogue synced simply offers pasting instead and says nothing about it.
+
+No mission or stratagem logic, no enhancements, no deployment tracking, no saved lists to reuse between battles. Victory points during a game are entered by the players; units are tracked only as standing or lost.

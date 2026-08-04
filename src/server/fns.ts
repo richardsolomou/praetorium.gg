@@ -127,7 +127,10 @@ export const priceRoster = createServerFn({ method: 'POST' })
         : []
 
       const picked = data.units.flatMap((wanted) => {
-        const built = buildUnit(wanted.entryId, loaded.index, wanted.models)
+        const built = buildUnit(wanted.entryId, loaded.index, wanted.models, wanted.choices, {
+          primaryCatalogueId: data.catalogueId,
+          roster: detachmentSelection,
+        })
         const entry = loaded.index.definitions.get(wanted.entryId)
         return built ? [{ entryId: wanted.entryId, name: entry?.name ?? wanted.entryId, ...built }] : []
       })
@@ -148,6 +151,7 @@ export const priceRoster = createServerFn({ method: 'POST' })
           name: unit.name,
           points: evaluate([unit.selection], loaded.index, options).points,
           size: { min: unit.size.min, max: unit.size.max, models: unit.size.models, resizable: unit.size.max > unit.size.min },
+          choices: unit.choices,
         })),
       }
     }),

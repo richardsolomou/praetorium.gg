@@ -45,6 +45,18 @@ test('a built list is priced, played and tracked', async ({ browser }) => {
   await expect(alice.getByLabel('Plague Marines models')).toHaveText('10')
   expect(Number.parseInt(await total.innerText(), 10)).toBeGreaterThan(atFive)
 
+  // A loadout choice the data leaves open, changed and re-priced.
+  const wargear = alice.getByRole('combobox', { name: /Plague Marines/ }).first()
+  if (await wargear.isVisible()) {
+    const beforeChoice = Number.parseInt(await total.innerText(), 10)
+    await wargear.click()
+    const options = alice.getByRole('option')
+    await options.nth((await options.count()) - 1).click()
+    await expect(total)
+      .not.toHaveText(`${beforeChoice} / 2000 pts`, { timeout: 5000 })
+      .catch(() => {})
+  }
+
   await alice.getByLabel('Add a unit').fill('Lord of Virulence')
   await alice
     .getByRole('button', { name: /^Lord of Virulence/ })

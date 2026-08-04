@@ -11,6 +11,7 @@
  */
 
 import type { CatalogueIndex, Constraint, Definition } from './catalogue'
+import { hiddenByRules } from './evaluate'
 import type { Selection } from './evaluate'
 
 /** Crusade and campaign subtrees run deep and none of it is mandatory. */
@@ -156,10 +157,10 @@ function applyCount(selection: Selection, path: readonly string[], count: number
   if (next === undefined) return { ...selection, count }
 
   const children = [...(selection.selections ?? [])]
-  const at = children.findIndex((child) => child.id === next)
-  const existing = children[at] ?? { id: next, count: 1 }
+  const index = children.findIndex((child) => child.id === next)
+  const existing = children[index] ?? { id: next, count: 1 }
   const replaced = applyCount(existing, rest, count)
-  if (at >= 0) children[at] = replaced
+  if (index >= 0) children[index] = replaced
   else children.push(replaced)
 
   return { ...selection, selections: children }
@@ -188,19 +189,31 @@ export function unitSize(entryId: string, index: CatalogueIndex): UnitSize | nul
 /** Whether the data lets a player change how many models this unit fields. */
 export const isResizable = (size: UnitSize) => size.path.length > 0 && size.max > size.min
 
-/** The unit as the data hands it over, resized to `models` when the data allows it. */
-export function buildUnit(entryId: string, index: CatalogueIndex, models?: number): { selection: Selection; size: UnitSize } | null {
+export type BuiltUnit = { selection: Selection; size: UnitSize; choices: UnitChoice[] }
+
+/** The unit as the data hands it over, with the player's choices taken and resized to `models`. */
+export function buildUnit(
+  entryId: string,
+  index: CatalogueIndex,
+  models?: number,
+  choices?: Readonly<Record<string, string>>,
+  context?: { primaryCatalogueId?: string; roster?: readonly Selection[] },
+): BuiltUnit | null {
   const base = defaultSelection(entryId, index)
   if (!base) return null
-  const size = sizeOf(base, index)
-  if (models === undefined || !size.path.length) return { selection: base, size }
+
+  // Choices first: an option can bring its own bodies, so sizing has to see them.
+  const chosen = Object.entries(choices ?? {}).reduce((tree, [key, optionId]) => withChoice(tree, key, optionId, index), base)
+
+  const size = sizeOf(chosen, index)
+  if (models === undefined || !size.path.length || models === size.models) {
+    return { selection: chosen, size, choices: unitChoices(entryId, chosen, index, context) }
+  }
 
   const wanted = Math.min(Math.max(models, size.min), size.max)
-  if (wanted === size.models) return { selection: base, size }
-
-  const current = countAt(base, size.path)
-  const selection = withCounts(base, [{ path: size.path, count: Math.max(0, current + (wanted - size.models)) }])
-  return { selection, size: { ...size, models: wanted } }
+  const current = countAt(chosen, size.path)
+  const selection = withCounts(chosen, [{ path: size.path, count: Math.max(0, current + (wanted - size.models)) }])
+  return { selection, size: { ...size, models: wanted }, choices: unitChoices(entryId, selection, index, context) }
 }
 
 function sizeOf(base: Selection, index: CatalogueIndex): UnitSize {
@@ -292,4 +305,105 @@ function countAt(selection: Selection, path: readonly string[]): number {
   if (next === undefined) return selection.count ?? 1
   const child = (selection.selections ?? []).find((candidate) => candidate.id === next)
   return child ? countAt(child, rest) : 0
+}
+
+/** A decision the data leaves to the player: one of these, in this slot. */
+export type UnitChoice = {
+  /** Path to the group holding the options, as a `/`-joined key the caller can round-trip. */
+  key: string
+  name: string
+  /** Empty when nothing is taken, which an optional group starts out as. */
+  chosen: string
+  /** An enhancement is a choice a list may simply decline, so it needs a way to say no. */
+  optional: boolean
+  options: { id: string; name: string; points: number }[]
+}
+
+/**
+ * The choices a unit offers, and what is currently taken in each.
+ *
+ * Read from the datasheet rather than from the built selection, because what a
+ * unit *may* take is a property of the data: an enhancement group is optional and
+ * therefore absent from a default list, and walking only what was built would
+ * never offer it.
+ */
+export function unitChoices(
+  entryId: string,
+  selection: Selection,
+  index: CatalogueIndex,
+  options: { primaryCatalogueId?: string; depth?: number; roster?: readonly Selection[] } = {},
+): UnitChoice[] {
+  const depth = options.depth ?? MAX_DEPTH
+  const visible = (definition: Definition) => !hiddenByRules(definition, index, options)
+  const entry = index.definitions.get(entryId)
+  if (!entry) return []
+
+  const choices: UnitChoice[] = []
+  const walk = (definition: Definition, trail: string[], left: number, seen: Set<string>) => {
+    const target = resolve(definition, index)
+    if (left <= 0 || seen.has(target.id)) return
+    const visited = new Set(seen).add(target.id)
+
+    for (const child of childrenOf(target, index)) {
+      if (!visible(child.definition)) continue
+      const inner = resolve(child.definition, index)
+      const here = [...trail, child.id]
+
+      if (inner.type === undefined) {
+        const choosable = childrenOf(inner, index).filter(
+          (option) => visible(option.definition) && resolve(option.definition, index).type !== undefined,
+        )
+        const room = maximumCount(child.definition, index) ?? occupantRoom(choosable, index)
+        if (choosable.length > 1 && room === 1) {
+          const group = at(selection, here)
+          const taken = (group?.selections ?? []).find((held) => (held.count ?? 1) > 0 && choosable.some((option) => option.id === held.id))
+          choices.push({
+            key: here.join('/'),
+            name: inner.name ?? 'Choice',
+            chosen: taken?.id ?? '',
+            optional: requiredCount(child.definition, index) === 0,
+            options: choosable.map((option) => ({
+              id: option.id,
+              name: resolve(option.definition, index).name ?? option.id,
+              points: pointsOf(option, index),
+            })),
+          })
+        }
+      }
+
+      walk(child.definition, here, left - 1, visited)
+    }
+  }
+
+  walk(entry, [], depth, new Set())
+  return choices
+}
+
+const occupantRoom = (choosable: Option[], index: CatalogueIndex) =>
+  choosable.length ? Math.min(...choosable.map((option) => maximumCount(option.definition, index) ?? UNBOUNDED)) : UNBOUNDED
+
+/**
+ * Swaps a choice: whatever was taken is emptied and the new option takes its
+ * place, so the group holds exactly what it is allowed to. The group need not be
+ * in the tree yet — an optional one is not until something is put in it.
+ */
+export function withChoice(selection: Selection, key: string, optionId: string, index: CatalogueIndex): Selection {
+  const path = key.split('/')
+  const groupId = path.at(-1)
+  const group = groupId ? index.definitions.get(groupId) : undefined
+  if (!group) return selection
+
+  const held = at(selection, path)?.selections ?? []
+  const emptied = held.filter((child) => child.id !== optionId).map((child) => ({ path: [...path, child.id], count: 0 }))
+  if (!optionId) return withCounts(selection, emptied)
+
+  const required = Math.max(1, requiredCount(index.definitions.get(optionId) ?? { id: optionId }, index))
+  return withCounts(selection, [...emptied, { path: [...path, optionId], count: required }])
+}
+
+function at(selection: Selection, path: readonly string[]): Selection | null {
+  const [next, ...rest] = path
+  if (next === undefined) return selection
+  const child = (selection.selections ?? []).find((candidate) => candidate.id === next)
+  return child ? at(child, rest) : null
 }
