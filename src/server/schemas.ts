@@ -30,6 +30,11 @@ const pickSchema = z.object({
   models: z.number().int().min(1).max(60).optional(),
   choices: z.record(z.string().max(400), z.string().min(1).max(64)).optional(),
   /**
+   * Group path to how many of each option it holds, for groups holding more than
+   * one — a squad splitting its weapons between two.
+   */
+  spreads: z.record(z.string().max(400), z.record(z.string().max(64), z.number().int().min(0).max(60))).optional(),
+  /**
    * The position of the unit this one is attached to, when it is.
    *
    * A position rather than an id, because the same datasheet may be in the list
@@ -86,6 +91,11 @@ export const priceSchema = z.object({
         models: z.number().int().min(1).max(60).optional(),
         /** Group path to chosen option, as `unitChoices` reports it. */
         choices: z.record(z.string().max(400), z.string().min(1).max(64)).optional(),
+        /**
+         * Group path to how many of each option it holds, for groups holding more than
+         * one — a squad splitting its weapons between two.
+         */
+        spreads: z.record(z.string().max(400), z.record(z.string().max(64), z.number().int().min(0).max(60))).optional(),
       }),
     )
     .max(100),

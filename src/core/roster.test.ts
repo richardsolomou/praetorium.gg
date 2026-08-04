@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { buildIndex, type Catalogue, type CatalogueFile } from './catalogue'
-import { buildUnit, defaultSelection, unitChoices, unitSize, wargearOf, withChoice, withCounts } from './roster'
+import { evaluate, type Selection } from './evaluate'
+import { buildUnit, defaultSelection, unitChoices, unitSize, wargearOf, withChoice, withCounts, withSpread } from './roster'
 
 const PTS = 'cost-pts'
 const system: CatalogueFile = { gameSystem: { id: 'gs', name: 'Test', costTypes: [{ id: PTS, name: 'pts' }] } }
@@ -443,5 +444,174 @@ describe('the wargear a unit is carrying', () => {
   it('says nothing for a unit carrying nothing', () => {
     const index = indexOf({ sharedSelectionEntries: [{ id: 'blob', name: 'Blob', type: 'unit' }] })
     expect(wargearOf({ id: 'blob' }, index)).toEqual([])
+  })
+})
+
+/** The weapon counts under the first model of the first unit, as ids and numbers. */
+const weaponCounts = (selection: Selection) =>
+  (selection.selections?.[0]?.selections?.[0]?.selections ?? []).map((held) => [held.id, held.count])
+
+describe('a group a squad divides between options', () => {
+  const squad = {
+    sharedSelectionEntries: [
+      {
+        id: 'squad',
+        name: 'Immortals',
+        type: 'unit' as const,
+        selectionEntries: [
+          {
+            id: 'body',
+            name: 'Immortal',
+            type: 'model' as const,
+            constraints: [{ id: 'body-min', type: 'min' as const, value: 5, field: 'selections', scope: 'parent' }],
+            selectionEntryGroups: [
+              {
+                id: 'guns',
+                name: 'Weapons',
+                defaultSelectionEntryId: 'blaster',
+                constraints: [{ id: 'guns-max', type: 'max' as const, value: 5, field: 'selections', scope: 'parent' }],
+                selectionEntries: [
+                  { id: 'blaster', name: 'Gauss blaster', type: 'upgrade' as const },
+                  { id: 'carbine', name: 'Tesla carbine', type: 'upgrade' as const },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  }
+
+  it('is reported with the room it has, not as a single choice', () => {
+    const index = indexOf(squad)
+    const built = buildUnit('squad', index)!
+    const guns = built.choices.find((choice) => choice.name === 'Weapons')
+    expect(guns?.room).toBe(5)
+  })
+
+  it('reports how many of each option is held', () => {
+    const index = indexOf(squad)
+    const built = buildUnit('squad', index, undefined, undefined, { spreads: { 'body/guns': { blaster: 3, carbine: 2 } } })!
+    const guns = built.choices.find((choice) => choice.name === 'Weapons')
+    expect(guns?.options.map((option) => [option.name, option.count])).toEqual([
+      ['Gauss blaster', 3],
+      ['Tesla carbine', 2],
+    ])
+  })
+
+  it('keeps both options standing, where choosing one empties the other', () => {
+    const index = indexOf(squad)
+    const spread = withSpread(defaultSelection('squad', index)!, 'body/guns', { blaster: 3, carbine: 2 })
+    const chosen = withChoice(defaultSelection('squad', index)!, 'body/guns', 'carbine', index)
+    const counts = weaponCounts
+    expect(counts(spread)).toEqual([
+      ['blaster', 3],
+      ['carbine', 2],
+    ])
+    expect(counts(chosen)).toEqual([['carbine', 1]])
+  })
+
+  it('prices what the spread actually holds', () => {
+    const index = indexOf({
+      sharedSelectionEntries: [
+        {
+          id: 'squad',
+          name: 'Squad',
+          type: 'unit',
+          selectionEntries: [
+            {
+              id: 'body',
+              name: 'Body',
+              type: 'model',
+              constraints: [{ id: 'body-min', type: 'min', value: 2, field: 'selections', scope: 'parent' }],
+              selectionEntryGroups: [
+                {
+                  id: 'guns',
+                  name: 'Weapons',
+                  constraints: [{ id: 'guns-max', type: 'max', value: 2, field: 'selections', scope: 'parent' }],
+                  selectionEntries: [
+                    { id: 'cheap', name: 'Cheap gun', type: 'upgrade', costs: [{ name: 'pts', typeId: PTS, value: 5 }] },
+                    { id: 'dear', name: 'Dear gun', type: 'upgrade', costs: [{ name: 'pts', typeId: PTS, value: 20 }] },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    })
+    const built = buildUnit('squad', index, undefined, undefined, { spreads: { 'body/guns': { cheap: 1, dear: 1 } } })!
+    expect(evaluate([built.selection], index).points).toBe(25)
+  })
+})
+
+describe('per-model wargear when a squad changes size', () => {
+  const squad = (weaponCost: number | null) => ({
+    sharedSelectionEntries: [
+      {
+        id: 'squad',
+        name: 'Squad',
+        type: 'unit' as const,
+        selectionEntries: [
+          {
+            id: 'body',
+            name: 'Trooper',
+            type: 'model' as const,
+            constraints: [
+              { id: 'body-min', type: 'min' as const, value: 5, field: 'selections', scope: 'parent' },
+              { id: 'body-max', type: 'max' as const, value: 10, field: 'selections', scope: 'parent' },
+            ],
+            selectionEntryGroups: [
+              {
+                id: 'guns',
+                name: 'Weapons',
+                defaultSelectionEntryId: 'blaster',
+                constraints: [
+                  { id: 'guns-min', type: 'min' as const, value: 1, field: 'selections', scope: 'parent' },
+                  { id: 'guns-max', type: 'max' as const, value: 1, field: 'selections', scope: 'parent' },
+                ],
+                selectionEntries: [
+                  { id: 'blaster', name: 'Blaster', type: 'upgrade' as const, collective: true },
+                  {
+                    id: 'carbine',
+                    name: 'Carbine',
+                    type: 'upgrade' as const,
+                    collective: true,
+                    ...(weaponCost === null ? {} : { costs: [{ name: 'pts', typeId: PTS, value: weaponCost }] }),
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  })
+
+  it('gives every model one, however many there are', () => {
+    const index = indexOf(squad(null))
+    const built = buildUnit('squad', index, 8)!
+    expect(wargearOf(built.selection, index)).toEqual([{ name: 'Blaster', count: 8 }])
+  })
+
+  it('leaves a split alone and tops it up to the models present', () => {
+    const index = indexOf(squad(null))
+    const built = buildUnit('squad', index, 10, undefined, { spreads: { 'body/guns': { carbine: 2 } } })!
+    expect(wargearOf(built.selection, index)).toEqual([
+      { name: 'Blaster', count: 8 },
+      { name: 'Carbine', count: 2 },
+    ])
+  })
+
+  it('tops up with the option the data names, not the dearest', () => {
+    const index = indexOf(squad(15))
+    const built = buildUnit('squad', index, 6)!
+    expect(evaluate([built.selection], index).points).toBe(0)
+  })
+
+  it('reports the group capacity as the models holding it', () => {
+    const index = indexOf(squad(null))
+    const built = buildUnit('squad', index, 7)!
+    expect(built.choices.find((choice) => choice.name === 'Weapons')?.room).toBe(7)
   })
 })

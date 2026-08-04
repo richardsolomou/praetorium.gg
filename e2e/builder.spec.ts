@@ -114,3 +114,31 @@ test('a unit that leads nothing is offered no one to lead', async ({ page }) => 
   await expect(page.getByText('Leading')).toBeHidden()
   await expect(page.getByText('Support', { exact: true })).toBeHidden()
 })
+
+test('a squad divides its weapons between two options', async ({ page }) => {
+  await openBuilder(page)
+  await add(page, 'Immortals')
+
+  // Ten bodies, so there are ten guns to divide.
+  // eslint-disable-next-line no-await-in-loop
+  for (let grown = 0; grown < 5; grown++) await page.getByRole('button', { name: 'More models in Immortals' }).click()
+  await expect(page.getByText('10x Gauss blaster')).toBeVisible()
+
+  await page
+    .locator('[data-unit="Immortals"]')
+    .getByRole('button', { name: /^Immortals/ })
+    .click()
+  const pane = page.locator('aside[aria-label="Loadout"]')
+  await expect(pane.getByText('10/10')).toBeVisible()
+
+  // The group is always full, so taking a carbine takes a blaster off a model.
+  // eslint-disable-next-line no-await-in-loop
+  for (let swapped = 0; swapped < 3; swapped++) await pane.getByRole('button', { name: 'More Tesla carbine' }).click()
+  await expect(page.getByLabel('Tesla carbine count')).toHaveText('3')
+  await expect(page.getByLabel('Gauss blaster count')).toHaveText('7')
+
+  // The card reads as the datasheet would print it, and the squad is still legal.
+  await expect(page.getByText('7x Gauss blaster')).toBeVisible()
+  await expect(page.getByText('3x Tesla carbine')).toBeVisible()
+  await expect(page.getByText('Within the points limit')).toBeAttached()
+})

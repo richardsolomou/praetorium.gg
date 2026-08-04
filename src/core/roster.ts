@@ -26,7 +26,18 @@ export type DefaultOptions = { maxDepth?: number }
  * against the catalogue an instance currently holds is the honest answer when
  * Games Workshop changes points.
  */
-export type RosterPick = { entryId: string; models?: number; choices?: Record<string, string> }
+export type RosterPick = {
+  entryId: string
+  models?: number
+  choices?: Record<string, string>
+  /**
+   * How many of each option a group holds, for groups that hold more than one.
+   *
+   * "Eight keep the gauss blaster, two take tesla carbines" is a squad splitting
+   * one group between two options, which a single chosen id cannot say.
+   */
+  spreads?: Record<string, Record<string, number>>
+}
 
 /**
  * The smallest legal selection of an entry, or null when the id is unknown.
@@ -37,10 +48,18 @@ export type RosterPick = { entryId: string; models?: number; choices?: Record<st
 export function defaultSelection(entryId: string, index: CatalogueIndex, options: DefaultOptions = {}): Selection | null {
   const definition = index.definitions.get(entryId)
   if (!definition) return null
-  return expand(entryId, definition, index, options.maxDepth ?? MAX_DEPTH, 1, new Set())
+  return expand(entryId, definition, index, options.maxDepth ?? MAX_DEPTH, 1, new Set(), 1)
 }
 
-function expand(id: string, definition: Definition, index: CatalogueIndex, depth: number, count: number, seen: Set<string>): Selection {
+function expand(
+  id: string,
+  definition: Definition,
+  index: CatalogueIndex,
+  depth: number,
+  count: number,
+  seen: Set<string>,
+  carriers: number,
+): Selection {
   const target = resolve(definition, index)
   if (depth <= 0 || seen.has(target.id)) return { id, count }
 
@@ -58,31 +77,36 @@ function expand(id: string, definition: Definition, index: CatalogueIndex, depth
     const inside: Selection[] = []
     let remaining = count
     for (const child of ordered(target, options, index)) {
+      const scale = scaleOf(child.definition, index, carriers)
       const cap = maximumCount(child.definition, index)
-      const share = remaining > 0 ? (cap === null ? remaining : Math.min(remaining, cap)) : 0
+      const room = cap === null ? null : cap * scale
+      const share = remaining > 0 ? (room === null ? remaining : Math.min(remaining, room)) : 0
       // A child's own minimum applies whatever the group asks for, so a group with
       // no requirement still yields what its contents demand.
-      const take = Math.max(share, requiredCount(child.definition, index))
+      const take = Math.max(share, requiredCount(child.definition, index) * scale)
       if (take <= 0) continue
-      inside.push(expand(child.id, child.definition, index, depth - 1, take, visited))
+      inside.push(expand(child.id, child.definition, index, depth - 1, take, visited, carriers))
       remaining -= Math.min(remaining, take)
     }
     return inside.length ? { id, count: 1, selections: inside } : { id, count: 1 }
   }
 
   const children: Selection[] = []
+  // What this entry holds is held by `count` of it, which is what a per-model
+  // requirement inside is counted against.
+  const held = Math.max(1, count)
   for (const child of options) {
-    const required = requiredCount(child.definition, index)
+    const required = requiredCount(child.definition, index) * scaleOf(child.definition, index, held)
     if (resolve(child.definition, index).type === undefined) {
       // Always look inside a group. One with no minimum of its own can still hold
       // entries that insist on themselves — which is how most squads are written —
       // and skipping it leaves the unit with a sergeant and nobody to lead.
-      const built = expand(child.id, child.definition, index, depth - 1, required, visited)
+      const built = expand(child.id, child.definition, index, depth - 1, required, visited, held)
       if (built.selections?.length) children.push(built)
       continue
     }
     if (required <= 0) continue
-    children.push(expand(child.id, child.definition, index, depth - 1, required, visited))
+    children.push(expand(child.id, child.definition, index, depth - 1, required, visited, held))
   }
 
   return children.length ? { id, count, selections: children } : { id, count }
@@ -115,6 +139,32 @@ function pointsOf(option: Option, index: CatalogueIndex) {
 }
 
 const kindOf = (option: Option, index: CatalogueIndex) => (resolve(option.definition, index).type === undefined ? 1 : 0)
+
+/**
+ * Whether this entry's count is a total for the whole unit rather than one model's.
+ *
+ * A `collective` weapon under a squad of ten is ten weapons stored as one number,
+ * and its `@parent` constraints are per model — "each model may take one" reads as
+ * `max=1`, so a ten-model squad may hold ten. Everything about splitting a squad
+ * between two weapons follows from that: the counts are absolute and they share
+ * one capacity.
+ */
+function isCollective(definition: Definition, index: CatalogueIndex): boolean {
+  const target = resolve(definition, index)
+  return Boolean(('collective' in definition && definition.collective) || ('collective' in target && target.collective))
+}
+
+/**
+ * How many carriers a child's `@parent` constraint is counted against: the models
+ * holding it when it is collective, one otherwise. A group takes the factor of what
+ * it holds, because the constraint is written on the group and meant per model.
+ */
+function scaleOf(definition: Definition, index: CatalogueIndex, carriers: number): number {
+  if (isCollective(definition, index)) return carriers
+  const target = resolve(definition, index)
+  if (target.type !== undefined) return 1
+  return childrenOf(target, index).some((child) => isCollective(child.definition, index)) ? carriers : 1
+}
 
 /** The binding cap on how many of this may be taken, or null when nothing limits it. */
 function maximumCount(definition: Definition, index: CatalogueIndex): number | null {
@@ -206,22 +256,26 @@ export function buildUnit(
   index: CatalogueIndex,
   models?: number,
   choices?: Readonly<Record<string, string>>,
-  context?: { primaryCatalogueId?: string; roster?: readonly Selection[] },
+  context?: { primaryCatalogueId?: string; roster?: readonly Selection[]; spreads?: Readonly<Record<string, Record<string, number>>> },
 ): BuiltUnit | null {
   const base = defaultSelection(entryId, index)
   if (!base) return null
 
   // Choices first: an option can bring its own bodies, so sizing has to see them.
   const chosen = Object.entries(choices ?? {}).reduce((tree, [key, optionId]) => withChoice(tree, key, optionId, index), base)
+  // Then the spreads, which say how many of each option rather than which one.
+  const spread = Object.entries(context?.spreads ?? {}).reduce((tree, [key, counts]) => withSpread(tree, key, counts), chosen)
 
-  const size = sizeOf(chosen, index)
+  const size = sizeOf(spread, index)
   if (models === undefined || !size.path.length || models === size.models) {
-    return { selection: chosen, size, choices: unitChoices(entryId, chosen, index, context) }
+    const fitted = refit(spread, index, 1)
+    return { selection: fitted, size, choices: unitChoices(entryId, fitted, index, context) }
   }
 
   const wanted = Math.min(Math.max(models, size.min), size.max)
-  const current = countAt(chosen, size.path)
-  const selection = withCounts(chosen, [{ path: size.path, count: Math.max(0, current + (wanted - size.models)) }])
+  const current = countAt(spread, size.path)
+  const resized = withCounts(spread, [{ path: size.path, count: Math.max(0, current + (wanted - size.models)) }])
+  const selection = refit(resized, index, 1)
   return { selection, size: { ...size, models: wanted }, choices: unitChoices(entryId, selection, index, context) }
 }
 
@@ -325,7 +379,15 @@ export type UnitChoice = {
   chosen: string
   /** An enhancement is a choice a list may simply decline, so it needs a way to say no. */
   optional: boolean
-  options: { id: string; name: string; points: number }[]
+  /**
+   * How many selections the group may hold at once.
+   *
+   * One is an either-or: a captain's relic blade or his power sword. More than one
+   * is a squad dividing itself, and the two want different controls — a choice of
+   * one, against a count against each option.
+   */
+  room: number
+  options: { id: string; name: string; points: number; count: number }[]
 }
 
 /**
@@ -351,7 +413,7 @@ export function unitChoices(
   if (!entry) return []
 
   const choices: UnitChoice[] = []
-  const walk = (definition: Definition, trail: string[], left: number, seen: Set<string>) => {
+  const walk = (definition: Definition, trail: string[], left: number, seen: Set<string>, carriers: number) => {
     const target = resolve(definition, index)
     if (left <= 0 || seen.has(target.id)) return
     const visited = new Set(seen).add(target.id)
@@ -365,29 +427,35 @@ export function unitChoices(
         const choosable = childrenOf(inner, index).filter(
           (option) => visible(option.definition) && resolve(option.definition, index).type !== undefined,
         )
-        const room = maximumCount(child.definition, index) ?? occupantRoom(choosable, index)
-        if (choosable.length > 1 && room === 1) {
+        const scale = scaleOf(child.definition, index, carriers)
+        const capacity = maximumCount(child.definition, index)
+        const room = capacity === null ? occupantRoom(choosable, index) : capacity * scale
+        if (choosable.length > 1 && room >= 1 && room !== UNBOUNDED) {
           const group = at(selection, here)
-          const taken = (group?.selections ?? []).find((held) => (held.count ?? 1) > 0 && choosable.some((option) => option.id === held.id))
+          const held = group?.selections ?? []
+          const taken = held.find((present) => (present.count ?? 1) > 0 && choosable.some((option) => option.id === present.id))
           choices.push({
             key: here.join('/'),
             name: inner.name ?? 'Choice',
             chosen: taken?.id ?? '',
             optional: requiredCount(child.definition, index) === 0,
+            room,
             options: choosable.map((option) => ({
               id: option.id,
               name: resolve(option.definition, index).name ?? option.id,
               points: pointsOf(option, index),
+              count: held.find((present) => present.id === option.id)?.count ?? 0,
             })),
           })
         }
       }
 
-      walk(child.definition, here, left - 1, visited)
+      // What is inside an entry is held by however many of it the selection holds.
+      walk(child.definition, here, left - 1, visited, inner.type === undefined ? carriers : (at(selection, here)?.count ?? 1))
     }
   }
 
-  walk(entry, [], depth, new Set())
+  walk(entry, [], depth, new Set(), 1)
   return choices
 }
 
@@ -413,11 +481,100 @@ export function withChoice(selection: Selection, key: string, optionId: string, 
   return withCounts(selection, [...emptied, { path: [...path, optionId], count: required }])
 }
 
+/**
+ * Sets how many of one option a group holds, leaving its siblings alone.
+ *
+ * This is the difference from `withChoice`, which empties the group first: a squad
+ * splitting itself between two weapons wants both counts standing at once.
+ */
+export function withSpread(selection: Selection, key: string, counts: Readonly<Record<string, number>>): Selection {
+  const path = key.split('/')
+  return withCounts(
+    selection,
+    Object.entries(counts).map(([optionId, count]) => ({ path: [...path, optionId], count })),
+  )
+}
+
 function at(selection: Selection, path: readonly string[]): Selection | null {
   const [next, ...rest] = path
   if (next === undefined) return selection
   const child = (selection.selections ?? []).find((candidate) => candidate.id === next)
   return child ? at(child, rest) : null
+}
+
+/**
+ * Fills every per-model group to the number of models holding it.
+ *
+ * A squad's weapons are collective — one number for the whole unit — so growing the
+ * squad leaves them behind, and a ten-model squad ends up carrying five guns. The
+ * group is always full: reducing one option means increasing another, which is what
+ * "eight blasters and two carbines" means and what the data's per-model minimum
+ * insists on. Anything a player has deliberately put in the group stays; only the
+ * shortfall moves, and it goes to the option the data names as the default.
+ */
+function refit(selection: Selection, index: CatalogueIndex, carriers: number): Selection {
+  const definition = index.definitions.get(selection.id)
+  const target = definition ? resolve(definition, index) : undefined
+  const held = target?.type === undefined ? carriers : Math.max(1, selection.count ?? 1)
+
+  const children = (selection.selections ?? []).map((child) => {
+    const childDefinition = index.definitions.get(child.id)
+    const inner = childDefinition ? resolve(childDefinition, index) : undefined
+    // A group of collective wargear: fill it, without disturbing what is chosen.
+    // Only wargear — a group of models is what the squad's own size means, and
+    // filling that would overrule the number of models asked for.
+    if (inner?.type === undefined && (child.selections ?? []).length) {
+      const options = childDefinition ? childrenOf(inner ?? { id: child.id }, index) : []
+      const wargear = options.filter(
+        (option) => isCollective(option.definition, index) && resolve(option.definition, index).type === 'upgrade',
+      )
+      // Only what the data insists every model carries. An optional group is a
+      // choice for the player, and filling it puts points on a list nobody asked
+      // for — the same reason `defaultSelection` leaves optional upgrades out.
+      const need = childDefinition && wargear.length ? requiredCount(childDefinition, index) * held : 0
+      const named = inner && 'defaultSelectionEntryId' in inner ? inner.defaultSelectionEntryId : undefined
+      const filled = need > 0 ? fill(child, need, named, options, index) : child
+      return refit(filled, index, held)
+    }
+    // A mandatory collective upgrade: one per model, as the data asks. Models are
+    // excluded for the same reason groups of them are — how many bodies a squad
+    // fields is the squad's size, and refitting it would overrule the size asked for.
+    if (childDefinition && isCollective(childDefinition, index) && inner?.type === 'upgrade') {
+      const need = requiredCount(childDefinition, index) * held
+      return refit(need > 0 ? { ...child, count: need } : child, index, held)
+    }
+    return refit(child, index, held)
+  })
+
+  return children.length ? { ...selection, selections: children } : selection
+}
+
+/**
+ * Moves a group's shortfall onto its default option, or its excess off the largest.
+ *
+ * The default is the one the data names, and failing that the cheapest — the same
+ * order `defaultSelection` fills a group in, and for the same reason: filling with
+ * the priciest option puts points on a list nobody asked for.
+ */
+function fill(group: Selection, room: number, defaultId: string | undefined, options: readonly Option[], index: CatalogueIndex): Selection {
+  const held = group.selections ?? []
+  const total = held.reduce((sum, option) => sum + (option.count ?? 0), 0)
+  // Never trims: holding more than the minimum is the player's business, and only
+  // the shortfall is this function's.
+  if (total >= room || !held.length) return group
+
+  const price = (selection: Selection) => {
+    const option = options.find((candidate) => candidate.id === selection.id)
+    return option ? pointsOf(option, index) : 0
+  }
+  const cheapest = held.toSorted((left, right) => price(left) - price(right))[0]
+  const moving = held.find((option) => option.id === defaultId) ?? cheapest
+  if (!moving) return group
+
+  const adjusted = Math.max(0, (moving.count ?? 0) + (room - total))
+  const filled: Selection[] = []
+  for (const option of held) filled.push(option === moving ? { ...option, count: adjusted } : option)
+  return { ...group, selections: filled }
 }
 
 export type Wargear = { name: string; count: number }
@@ -435,15 +592,16 @@ export function wargearOf(selection: Selection, index: CatalogueIndex): Wargear[
   const found = new Map<string, number>()
 
   /**
-   * `carried` is the number of things holding this one. A squad of five models
-   * each with one blaster stores the five on the model and a one on the weapon —
-   * so five blasters is the product down the tree, not the number on the leaf.
+   * `carried` is the number of things holding this one, which is what a per-model
+   * count has to be multiplied by. A collective entry is already a total for the
+   * whole unit — five blasters stored as five — so it is taken as it stands.
    */
   const walk = (node: Selection, depth: number, carried: number) => {
     for (const child of node.selections ?? []) {
       const definition = index.definitions.get(child.id)
       const kind = definition ? resolve(definition, index).type : undefined
-      const count = carried * (child.count ?? 1)
+      const own = child.count ?? 1
+      const count = definition && isCollective(definition, index) ? own : carried * own
       const grandchildren = child.selections ?? []
       if (kind === 'upgrade' && !grandchildren.length) {
         const name = (definition && resolve(definition, index).name) ?? definition?.name

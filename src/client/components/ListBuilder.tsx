@@ -30,6 +30,8 @@ type Pick = {
   entryId: string
   models?: number
   choices?: Record<string, string>
+  /** How many of each option a group holds, where a group holds more than one. */
+  spreads?: Record<string, Record<string, number>>
   /** The key of the unit this one is attached to, when it is. */
   attachedTo?: number
 }
@@ -72,10 +74,11 @@ export function ListBuilder({ onAttach, pending, attached, prep, onRestorePrep }
           catalogueId,
           detachmentId: detachmentId ?? null,
           limit,
-          picks: picked.map(({ entryId, models, choices, attachedTo }) => ({
+          picks: picked.map(({ entryId, models, choices, spreads, attachedTo }) => ({
             entryId,
             models,
             choices,
+            spreads,
             // Saved by position, because the keys are this session's own numbering.
             attachedTo: attachedTo === undefined ? undefined : picked.findIndex((pick) => pick.key === attachedTo),
           })),
@@ -115,7 +118,7 @@ export function ListBuilder({ onAttach, pending, attached, prep, onRestorePrep }
           catalogueId,
           detachmentId,
           name: listName || 'Roster',
-          units: picked.map(({ entryId, models, choices }) => ({ entryId, models, choices })),
+          units: picked.map(({ entryId, models, choices, spreads }) => ({ entryId, models, choices, spreads })),
         },
       }),
     onSuccess: ({ filename, xml }) => {
@@ -140,7 +143,7 @@ export function ListBuilder({ onAttach, pending, attached, prep, onRestorePrep }
     priceQuery(
       catalogueId,
       detachmentId,
-      picked.map(({ entryId, models, choices }) => ({ entryId, models, choices })),
+      picked.map(({ entryId, models, choices, spreads }) => ({ entryId, models, choices, spreads })),
     ),
   )
 
@@ -169,6 +172,14 @@ export function ListBuilder({ onAttach, pending, attached, prep, onRestorePrep }
 
   const choose = (index: number, key: string, optionId: string) =>
     setPicked((current) => current.map((pick, at) => (at === index ? { ...pick, choices: { ...pick.choices, [key]: optionId } } : pick)))
+
+  /** How many of each option a group holds, leaving the unit's other groups alone. */
+  const spread = (index: number, key: string, counts: Record<string, number>) =>
+    setPicked((current) =>
+      current.map((pick, at) =>
+        at === index ? { ...pick, spreads: { ...pick.spreads, [key]: { ...pick.spreads?.[key], ...counts } } } : pick,
+      ),
+    )
 
   const drop = (index: number) => {
     setPicked((current) => {
@@ -276,7 +287,13 @@ export function ListBuilder({ onAttach, pending, attached, prep, onRestorePrep }
     <p className="p-2.5 text-xs text-faint">Pick a book first.</p>
   )
 
-  const loadout = <Loadout unit={selectedUnit} onChoose={(key, optionId) => selected !== null && choose(selected, key, optionId)} />
+  const loadout = (
+    <Loadout
+      unit={selectedUnit}
+      onChoose={(key, optionId) => selected !== null && choose(selected, key, optionId)}
+      onSpread={(key, counts) => selected !== null && spread(selected, key, counts)}
+    />
+  )
 
   return (
     <div className="flex min-h-0 flex-1 flex-col border border-edge bg-sunken">

@@ -635,7 +635,7 @@ function violations(node: Node, root: Node, index: CatalogueIndex, census: Censu
   const name = node.target.name ?? node.target.id
 
   for (const constraint of sourcesOf(node).flatMap((source) => source.constraints ?? [])) {
-    const limit = constraintValue(constraint, node, root, index, census)
+    const limit = constraintValue(constraint, node, root, index, census) * carriers(constraint, node)
     if (limit < 0) continue
     if (constraint.percentValue) {
       census.note('constraint percentValue')
@@ -652,6 +652,26 @@ function violations(node: Node, root: Node, index: CatalogueIndex, census: Censu
     }
   }
   return errors
+}
+
+/**
+ * How many times over a per-parent limit applies.
+ *
+ * A collective entry holds a total for the whole unit rather than one model's share,
+ * and its `@parent` constraints are written per model — "each model may take one
+ * gauss blaster" is `max=1`. So the limit for a squad of ten is ten. Reading the
+ * one literally called every squad in the game illegal.
+ */
+function carriers(constraint: Constraint, node: Node): number {
+  if (constraint.scope !== 'parent') return 1
+  const collective = Boolean(node.target.type !== undefined && 'collective' in node.target && node.target.collective)
+  const holdsCollective = isGroup(node) && node.children.some((child) => 'collective' in child.target && child.target.collective === true)
+  if (!collective && !holdsCollective) return 1
+  // Groups hold no count of their own, so the models holding this are the nearest
+  // entry above it.
+  let holder = node.parent
+  while (holder && isGroup(holder)) holder = holder.parent
+  return Math.max(1, holder?.count ?? 1)
 }
 
 /** A constraint's limit after any modifier aimed at it by id — how points limits change per game size. */

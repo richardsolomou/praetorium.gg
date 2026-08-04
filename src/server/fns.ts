@@ -183,6 +183,7 @@ export const priceRoster = createServerFn({ method: 'POST' })
         const built = buildUnit(wanted.entryId, loaded.index, wanted.models, wanted.choices, {
           primaryCatalogueId: data.catalogueId,
           roster: detachmentSelection,
+          spreads: wanted.spreads,
         })
         const entry = loaded.index.definitions.get(wanted.entryId)
         return built ? [{ entryId: wanted.entryId, name: entry?.name ?? wanted.entryId, ...built }] : []

@@ -31,7 +31,12 @@ export const unitsQuery = (catalogueId: string, query: string) =>
     enabled: Boolean(catalogueId),
   })
 
-export type PickedUnit = { entryId: string; models?: number; choices?: Record<string, string> }
+export type PickedUnit = {
+  entryId: string
+  models?: number
+  choices?: Record<string, string>
+  spreads?: Record<string, Record<string, number>>
+}
 
 /** Keyed on the picks, so the price follows the list without anything having to remember to ask. */
 export const priceQuery = (catalogueId: string, detachmentId: string | undefined, picked: readonly PickedUnit[]) =>
