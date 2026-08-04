@@ -58,6 +58,14 @@ Nothing is typed that can be picked. Scoring offers the figure the card actually
 
 An unrecognised usage limit becomes "any number of times" rather than a guess: inventing a restriction would stop a player using something they are entitled to. The 11th edition entries are currently flagged provisional by the dataset, which is shown on screen. The conventional scoring ceilings are displayed beside the totals and never enforced.
 
+## The battle
+
+Setup runs in the order the game does: army, game size, detachment, list, battlefield, deployment, stratagems and mission cards, then who takes the first turn.
+
+The mission is not chosen — eleventh edition takes it from the two armies' force dispositions, and the dataset states which mission each pairing plays, along with its caps of 15 victory points a round and 45 a game. The deployment is drawn from the pattern's own polygons, objectives included, rather than named for you to look up.
+
+Everything starts off the table. Units are deployed at muster or held in reserve to arrive later, and during the game each one is on the table, in reserve, or lost. Scoring is offered only when a card allows it: a payout that applies in your command phase from round two is disabled until then, and says so.
+
 ## Not here yet
 
-No deployment tracking, no wound tracking within a unit — a unit is either standing or lost — and no automatic primary scoring from objectives held. Victory points during a game are entered by the players; units are tracked only as standing or lost.
+No wound tracking within a unit — a unit is standing or lost. No automatic primary scoring from objectives held: the app offers the figure the card pays, and you say which payout applied. Finding opponents nearby, chat and anything else social is deliberately out of scope. Victory points during a game are entered by the players; units are tracked only as standing or lost.

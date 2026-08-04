@@ -8,6 +8,7 @@ import type { BattleView, Command } from '../../core/battle'
 import { ROSTER_MAX_LENGTH, ROSTER_NAME_MAX_LENGTH } from '../../core/battle'
 import { factionsQuery } from '../queries'
 import { useOrigin } from '../useOrigin'
+import { Battlefield } from './Battlefield'
 import { ListBuilder } from './ListBuilder'
 import { Prep } from './Prep'
 
@@ -105,6 +106,38 @@ export function Muster({ view, send, pending, problem }: Props) {
         <p className="text-sm text-dim">
           {opponent.roster ? `${opponent.name} has attached ${opponent.roster.name}.` : `Waiting for ${opponent.name}’s list.`}
         </p>
+      ) : null}
+
+      {you.roster ? (
+        <div className="space-y-5 rounded-lg border border-edge bg-panel p-4">
+          <Battlefield view={view} send={send} pending={pending} />
+
+          {you.units.length ? (
+            <section className="space-y-2">
+              <Label>
+                Deploy your army{' '}
+                <span className="readout text-xs text-dim">
+                  {you.deployed}/{you.units.length}
+                </span>
+              </Label>
+              <div className="flex flex-wrap gap-1.5">
+                {you.units.map((unit) => (
+                  <Button
+                    key={unit.key}
+                    variant={unit.deployed ? 'default' : 'outline'}
+                    size="sm"
+                    aria-pressed={unit.deployed}
+                    disabled={pending}
+                    onClick={() => send({ kind: 'deploy-unit', unitKey: unit.key, deployed: !unit.deployed })}
+                  >
+                    {unit.name}
+                  </Button>
+                ))}
+              </div>
+              <p className="text-xs text-dim">Anything left off the table is in reserve, and can arrive later.</p>
+            </section>
+          ) : null}
+        </div>
       ) : null}
 
       <details className="rounded-lg border border-edge bg-panel p-4" open={Boolean(you.roster)}>

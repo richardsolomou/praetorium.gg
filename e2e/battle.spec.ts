@@ -15,7 +15,11 @@ test('stratagems and mission cards are tracked through a turn', async ({ browser
   await alice.goto('/')
   await alice.getByLabel('Your name').fill('Alice')
   await alice.getByRole('button', { name: 'Open a battle' }).click()
-  const link = await alice.getByLabel('Send this link to your opponent').inputValue()
+  // The origin is only known once mounted, so the field starts empty: waiting for
+  // the value rather than the element is what stops this reading nothing.
+  const invite = alice.getByLabel('Send this link to your opponent')
+  await expect(invite).toHaveValue(/\/b\//)
+  const link = await invite.inputValue()
 
   await alice.getByRole('button', { name: 'Build from the catalogue' }).click()
   await alice.getByRole('combobox', { name: 'Army' }).click()
@@ -35,6 +39,13 @@ test('stratagems and mission cards are tracked through a turn', async ({ browser
   await alice.getByRole('button', { name: /^Behind Enemy Lines/ }).click()
   await alice.getByRole('button', { name: 'Save these' }).click()
 
+  // The battlefield is drawn, not described, and the army goes onto it.
+  await alice.getByRole('button', { name: 'Tipping Point' }).click()
+  await expect(alice.getByLabel(/Tipping Point deployment zones/)).toBeVisible()
+  const deployment = alice.locator('section').filter({ hasText: /Deploy your army/ })
+  await deployment.getByRole('button', { name: 'Lord of Virulence' }).click()
+  await alice.screenshot({ path: 'test-results/muster.png', fullPage: true })
+
   await bob.goto(link)
   await bob.getByLabel('Your name').fill('Bob')
   await bob.getByRole('button', { name: 'Join the battle' }).click()
@@ -47,6 +58,8 @@ test('stratagems and mission cards are tracked through a turn', async ({ browser
   await expect(alice.getByRole('heading', { name: 'command phase' })).toBeVisible()
 
   const panel = /Death Guard — Death Lord/
+  // Deployed at muster, so it is on the table rather than in reserve.
+  await expect(alice.locator('section', { hasText: panel }).locator('[data-stat="standing"]')).toHaveText('1/1')
   const cp = alice.locator('section', { hasText: panel }).locator('[data-stat="cp"]')
   await expect(cp).toHaveText('1')
 

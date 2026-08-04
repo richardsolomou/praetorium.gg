@@ -62,6 +62,26 @@ type RawMatchup = { disposition: string; opponent_disposition: string; mission_i
 
 type RawDisposition = { id: string; name: string }
 
+type Point = { x: number; y: number }
+
+type RawPattern = {
+  id: string
+  name: string
+  description?: string
+  zones?: { player?: string; name?: string; color?: string; position?: Point; shape?: { points?: Point[] } }[]
+  objectives?: Point[]
+}
+
+/** A battlefield, as polygons the interface can draw rather than words it must describe. */
+export type Deployment = {
+  id: string
+  name: string
+  description: string | null
+  /** Points are absolute: each zone's own offset is already applied. */
+  zones: { player: string; name: string; colour: string; points: Point[] }[]
+  objectives: Point[]
+}
+
 /**
  * One way a card pays out: a flat number of points, or a number per something
  * counted. Enough for the interface to offer the real figure instead of asking a
@@ -90,6 +110,7 @@ export type LoadedRules = {
   missions: Map<string, Mission>
   /** The five dispositions a detachment can have, by slug. */
   dispositions: Map<string, string>
+  deployments: Deployment[]
   /** Whatever the dataset says about how settled these numbers are. */
   dataslate: string | null
 }
@@ -146,9 +167,31 @@ export function loadRules(directory = rulesDirectory()): LoadedRules | null {
   }
 
   const dispositions = new Map(readDispositions(path.join(core, 'force-dispositions.json')).map((entry) => [entry.id, entry.name]))
+  const deployments = readPatterns(path.join(core, 'deployment-patterns.json'))
+    .map((pattern) => ({
+      id: pattern.id,
+      name: pattern.name,
+      description: pattern.description ?? null,
+      zones: (pattern.zones ?? [])
+        .filter((zone) => (zone.shape?.points ?? []).length > 2)
+        .map((zone) => ({
+          player: zone.player ?? 'either',
+          name: zone.name ?? 'Deployment',
+          colour: zone.color ?? '#8c9199',
+          // A zone's points are relative to its own position, so the offset is
+          // applied here: without it every zone piles up in one corner.
+          points: (zone.shape?.points ?? []).map((point) => ({
+            x: point.x + (zone.position?.x ?? 0),
+            y: point.y + (zone.position?.y ?? 0),
+          })),
+        })),
+      objectives: pattern.objectives ?? [],
+    }))
+    .filter((pattern) => pattern.zones.length)
+    .toSorted((left, right) => left.name.localeCompare(right.name))
 
   if (!byDetachment.size && !secondaries.length) return null
-  return { byDetachment, core: coreStratagems, secondaries, primaries, missions, dispositions, dataslate }
+  return { byDetachment, core: coreStratagems, secondaries, primaries, missions, dispositions, deployments, dataslate }
 }
 
 /**
@@ -175,6 +218,12 @@ function readMissions(file: string): RawMission[] {
 function readMatchups(file: string): RawMatchup[] {
   if (!fs.existsSync(file)) return []
   const parsed: RawMatchup[] = JSON.parse(fs.readFileSync(file, 'utf8'))
+  return parsed
+}
+
+function readPatterns(file: string): RawPattern[] {
+  if (!fs.existsSync(file)) return []
+  const parsed: RawPattern[] = JSON.parse(fs.readFileSync(file, 'utf8'))
   return parsed
 }
 

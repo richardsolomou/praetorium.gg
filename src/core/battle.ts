@@ -64,7 +64,11 @@ export type BuiltRoster = {
 
 export type SubmittedUnit = { key: string; name: string; points: number; models: number }
 
-export type UnitState = SubmittedUnit & { destroyed: boolean }
+/**
+ * A unit's standing in the battle. Deployed means on the table: everything starts
+ * off it, which is what makes a deployment step mean anything.
+ */
+export type UnitState = SubmittedUnit & { destroyed: boolean; deployed: boolean }
 
 /**
  * A stratagem as the player transcribes it from their own book.
@@ -118,6 +122,8 @@ export const GAME_SIZES = [
 export type Command =
   | { kind: 'attach-roster'; roster: Roster }
   | { kind: 'set-unit'; unitKey: string; destroyed: boolean }
+  | { kind: 'deploy-unit'; unitKey: string; deployed: boolean }
+  | { kind: 'set-deployment'; patternId: string | null }
   | { kind: 'set-prep'; stratagems: Stratagem[]; secondaries: Secondary[]; primary: Secondary | null; secondaryMode: SecondaryMode }
   | { kind: 'use-stratagem'; key: string }
   | { kind: 'score-secondary'; key: string; delta: number }
@@ -158,6 +164,8 @@ export type BattleState = {
   phase: Phase
   activePlayerId: PlayerId | null
   firstPlayerId: PlayerId | null
+  /** The battlefield both players are using. Shared, so either may set it. */
+  deploymentId: string | null
   players: PlayerState[]
   /**
    * The newest command still standing. Undo reaches only this one, which keeps
@@ -179,6 +187,7 @@ export function reduceBattle(playerIds: readonly PlayerId[], log: readonly Logge
     phase: 'command',
     activePlayerId: null,
     firstPlayerId: null,
+    deploymentId: null,
     players: playerIds.map((id) => ({
       id,
       cp: 0,
@@ -272,6 +281,17 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
       if (!player.units.some((unit) => unit.key === command.unitKey)) return 'that is not one of your units'
       return null
     }
+    case 'deploy-unit': {
+      if (state.status === 'finished') return 'the battle is over'
+      if (!player.units.some((unit) => unit.key === command.unitKey)) return 'that is not one of your units'
+      return null
+    }
+    case 'set-deployment': {
+      // The battlefield is shared, so either player may set it, and only before the
+      // first turn — moving the deployment zones mid-battle is not a thing.
+      if (state.status !== 'setup') return 'the battle has started'
+      return null
+    }
     case 'set-prep': {
       if (state.status === 'finished') return 'the battle is over'
       if (command.stratagems.length > STRATAGEMS_MAX) return `that is more than ${STRATAGEMS_MAX} stratagems`
@@ -321,12 +341,21 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
     case 'attach-roster': {
       player.roster = { ...command.roster, name: command.roster.name.trim() }
       // A replaced list is a different army, so nothing about the old one survives.
-      player.units = (command.roster.built?.units ?? []).map((unit) => Object.assign({ destroyed: false }, unit))
+      player.units = (command.roster.built?.units ?? []).map((unit) => Object.assign({ destroyed: false, deployed: false }, unit))
       return
     }
     case 'set-unit': {
       const unit = player.units.find((candidate) => candidate.key === command.unitKey)
       if (unit) unit.destroyed = command.destroyed
+      return
+    }
+    case 'deploy-unit': {
+      const unit = player.units.find((candidate) => candidate.key === command.unitKey)
+      if (unit) unit.deployed = command.deployed
+      return
+    }
+    case 'set-deployment': {
+      state.deploymentId = command.patternId
       return
     }
     case 'set-prep': {
@@ -446,6 +475,7 @@ export type BattleView = {
     units: UnitState[]
     /** What is still on the table, for the line a player actually glances at. */
     standing: number
+    deployed: number
     /** Each stratagem with whether it can be used right now, and why not when it cannot. */
     stratagems: { key: string; name: string; cp: number; limit: StratagemLimit; refusal: string | null }[]
     secondaries: { key: string; name: string; points: number }[]
@@ -454,6 +484,7 @@ export type BattleView = {
   }[]
   /** The conventional ceilings, for display beside a total. */
   guides: { primary: number; secondary: number }
+  deploymentId: string | null
   /** Present only when the viewer is the one who may take it back. */
   undoable: number | null
 }
@@ -496,6 +527,7 @@ export function battleView(
       roster: player.roster,
       units: player.units,
       standing: player.units.filter((unit) => !unit.destroyed).length,
+      deployed: player.units.filter((unit) => unit.deployed && !unit.destroyed).length,
       stratagems: player.stratagems.map((stratagem) => ({
         ...stratagem,
         // The same rule the server enforces, so the interface never offers what
@@ -511,6 +543,7 @@ export function battleView(
       })),
     })),
     guides: { primary: PRIMARY_GUIDE, secondary: SECONDARY_GUIDE },
+    deploymentId: state.deploymentId,
     undoable: state.undoable?.by === viewerId ? state.undoable.seq : null,
   }
 }

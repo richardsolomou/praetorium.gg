@@ -13,7 +13,11 @@ test('a built list is priced, played and tracked', async ({ browser }) => {
   await alice.goto('/')
   await alice.getByLabel('Your name').fill('Alice')
   await alice.getByRole('button', { name: 'Open a battle' }).click()
-  const link = await alice.getByLabel('Send this link to your opponent').inputValue()
+  // The origin is only known once mounted, so the field starts empty: waiting for
+  // the value rather than the element is what stops this reading nothing.
+  const invite = alice.getByLabel('Send this link to your opponent')
+  await expect(invite).toHaveValue(/\/b\//)
+  const link = await invite.inputValue()
 
   await alice.getByRole('button', { name: 'Build from the catalogue' }).click()
   await alice.getByRole('combobox', { name: 'Army' }).click()

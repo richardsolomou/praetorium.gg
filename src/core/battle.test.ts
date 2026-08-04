@@ -318,3 +318,52 @@ describe('secondaries', () => {
     expect(validate(state, ALICE, { kind: 'score-secondary', key: 'a', delta: -1 })).toBe('that would go below zero')
   })
 })
+
+describe('deployment', () => {
+  const withUnits = (): [string, Command][] => [
+    [ALICE, builtRoster('Ultramarines', ['Intercessors', 'Captain'])],
+    [BOB, roster('Death Guard')],
+  ]
+
+  const alice = (state: ReturnType<typeof reduceBattle>) => state.players.find((player) => player.id === ALICE)
+
+  it('starts every unit off the table', () => {
+    const state = reduceBattle(PLAYERS, log(...withUnits()))
+    expect(alice(state)?.units.every((unit) => !unit.deployed)).toBe(true)
+  })
+
+  it('puts a unit on the table when its owner says so', () => {
+    const state = reduceBattle(PLAYERS, log(...withUnits(), [ALICE, { kind: 'deploy-unit', unitKey: 'u0', deployed: true }]))
+    expect(battleView({ token: 'abc' }, NAMES, state, ALICE).players.find((player) => player.isViewer)?.deployed).toBe(1)
+  })
+
+  it('leaves a unit its owner did not deploy in reserve', () => {
+    const state = reduceBattle(PLAYERS, log(...withUnits(), [ALICE, { kind: 'deploy-unit', unitKey: 'u0', deployed: true }]))
+    expect(alice(state)?.units.find((unit) => unit.key === 'u1')?.deployed).toBe(false)
+  })
+
+  it('belongs to the player whose unit it is', () => {
+    const state = reduceBattle(PLAYERS, log(...withUnits()))
+    expect(validate(state, BOB, { kind: 'deploy-unit', unitKey: 'u0', deployed: true })).toBe('that is not one of your units')
+  })
+
+  it('shares the battlefield: either player may set it', () => {
+    const state = reduceBattle(PLAYERS, log(...withUnits(), [BOB, { kind: 'set-deployment', patternId: 'tipping-point' }]))
+    expect(state.deploymentId).toBe('tipping-point')
+  })
+
+  it('refuses to move the zones once the battle has started', () => {
+    const state = reduceBattle(PLAYERS, log(...started()))
+    expect(validate(state, ALICE, { kind: 'set-deployment', patternId: 'tipping-point' })).toBe('the battle has started')
+  })
+
+  it('counts a destroyed unit as no longer on the table', () => {
+    const history = log(
+      ...withUnits(),
+      [ALICE, { kind: 'deploy-unit', unitKey: 'u0', deployed: true }],
+      [ALICE, { kind: 'begin-battle', firstPlayerId: ALICE }],
+      [ALICE, { kind: 'set-unit', unitKey: 'u0', destroyed: true }],
+    )
+    expect(battleView({ token: 'abc' }, NAMES, reduceBattle(PLAYERS, history), ALICE).players[0]?.deployed).toBe(0)
+  })
+})

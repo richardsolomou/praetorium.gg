@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { RotateCcw, Skull, Undo2, Zap } from 'lucide-react'
+import { ArrowDownToLine, RotateCcw, Skull, Undo2, Zap } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { detachmentRulesQuery } from '../queries'
 import type { BattleView, Command } from '../../core/battle'
@@ -225,17 +225,33 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
                 <ul className="mt-1 divide-y divide-edge">
                   {player.units.map((unit) => (
                     <li key={unit.key} className="flex items-center justify-between gap-2 py-1 text-sm">
-                      <span className={`truncate ${unit.destroyed ? 'text-dim line-through' : ''}`}>{unit.name}</span>
+                      <span className={`truncate ${unit.destroyed ? 'text-dim line-through' : ''}`}>
+                        {unit.name}
+                        {!unit.deployed && !unit.destroyed ? <span className="ml-1.5 text-xs text-dim">in reserve</span> : null}
+                      </span>
                       {player.isViewer && !finished ? (
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          aria-label={`${unit.destroyed ? 'Bring back' : 'Lose'} ${unit.name}`}
-                          disabled={pending}
-                          onClick={() => send({ kind: 'set-unit', unitKey: unit.key, destroyed: !unit.destroyed })}
-                        >
-                          {unit.destroyed ? <RotateCcw /> : <Skull />}
-                        </Button>
+                        <span className="flex shrink-0 gap-1">
+                          {!unit.deployed && !unit.destroyed ? (
+                            <Button
+                              variant="outline"
+                              size="icon-sm"
+                              aria-label={`Bring on ${unit.name}`}
+                              disabled={pending}
+                              onClick={() => send({ kind: 'deploy-unit', unitKey: unit.key, deployed: true })}
+                            >
+                              <ArrowDownToLine />
+                            </Button>
+                          ) : null}
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            aria-label={`${unit.destroyed ? 'Bring back' : 'Lose'} ${unit.name}`}
+                            disabled={pending}
+                            onClick={() => send({ kind: 'set-unit', unitKey: unit.key, destroyed: !unit.destroyed })}
+                          >
+                            {unit.destroyed ? <RotateCcw /> : <Skull />}
+                          </Button>
+                        </span>
                       ) : (
                         <span className="readout shrink-0 text-xs text-dim">{unit.points}</span>
                       )}

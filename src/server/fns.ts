@@ -216,3 +216,11 @@ export const detachmentRules = createServerFn({ method: 'GET' })
       }
     }),
   )
+
+/** The battlefields on offer, as polygons, so the interface can draw one. */
+export const deployments = createServerFn({ method: 'GET' }).handler(() =>
+  rpc(() => {
+    const rules = app().rules()
+    return rules?.deployments ?? []
+  }),
+)
