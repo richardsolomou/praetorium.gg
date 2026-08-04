@@ -41,7 +41,7 @@ function SignIn() {
   })
 
   return (
-    <main className="mx-auto max-w-md">
+    <main className="mx-auto w-full max-w-md px-4 py-12">
       <h1 className="text-2xl">{joining ? 'Keep your lists' : 'Welcome back'}</h1>
       <p className="mt-3 text-sm text-dim">
         Playing needs no account. One keeps your saved lists and your battles when you change device or lose a cookie — and it takes over

@@ -184,4 +184,37 @@ export const rosters = sqliteTable(
   (table) => [index('rosters_player_id_index').on(table.playerId)],
 )
 
-export const schema = { user, session, account, verification, rateLimit, players, battles, battlePlayers, commands, rosters }
+/**
+ * The datasheets a player owns models for.
+ *
+ * Membership is the whole fact: a row means "I have these", and the picker can
+ * offer to show nothing else. How many are owned is deliberately not stored —
+ * the question the filter asks is whether a datasheet is in the collection at
+ * all, and a count nobody reads would be a number to keep correct for nothing.
+ */
+export const collection = sqliteTable(
+  'collection',
+  {
+    playerId: text('player_id')
+      .notNull()
+      .references(() => players.id, { onDelete: 'cascade' }),
+    /** The catalogue entry id, so a datasheet is owned per book it appears in. */
+    entryId: text('entry_id').notNull(),
+    at: integer('at').notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.playerId, table.entryId] })],
+)
+
+export const schema = {
+  user,
+  session,
+  account,
+  verification,
+  rateLimit,
+  players,
+  battles,
+  battlePlayers,
+  commands,
+  rosters,
+  collection,
+}

@@ -16,15 +16,12 @@ test('an account keeps the lists a guest saved', async ({ browser }) => {
   await page.getByRole('button', { name: 'Open a battle' }).click()
   await page.getByRole('button', { name: 'Build from the catalogue' }).click()
 
-  await page.getByRole('combobox', { name: 'Army' }).click()
+  await page.getByRole('combobox', { name: 'Faction' }).click()
   await page.getByRole('option', { name: 'Chaos - Death Guard' }).click()
   await page.getByRole('combobox', { name: 'Detachment' }).click()
   await page.getByRole('option', { name: /Death Lord/ }).click()
   await page.getByLabel('Add a unit').fill('Plague Marines')
-  await page
-    .getByRole('button', { name: /^Plague Marines/ })
-    .first()
-    .click()
+  await page.getByRole('button', { name: 'Add Plague Marines', exact: true }).first().click()
   await page.getByLabel('List name').fill('Guest list')
   await page.getByRole('button', { name: 'Save list' }).click()
   await expect(page.getByRole('button', { name: 'Saved' })).toBeVisible()

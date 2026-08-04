@@ -15,15 +15,12 @@ test('a list leaves as .ros and comes back', async ({ browser }) => {
   await page.getByRole('button', { name: 'Open a battle' }).click()
   await page.getByRole('button', { name: 'Build from the catalogue' }).click()
 
-  await page.getByRole('combobox', { name: 'Army' }).click()
+  await page.getByRole('combobox', { name: 'Faction' }).click()
   await page.getByRole('option', { name: 'Chaos - Death Guard' }).click()
   await page.getByRole('combobox', { name: 'Detachment' }).click()
   await page.getByRole('option', { name: /Death Lord/ }).click()
   await page.getByLabel('Add a unit').fill('Plague Marines')
-  await page
-    .getByRole('button', { name: /^Plague Marines/ })
-    .first()
-    .click()
+  await page.getByRole('button', { name: 'Add Plague Marines', exact: true }).first().click()
 
   const total = page.locator('[data-stat="points"]')
   const priced = await total.innerText()
@@ -40,5 +37,9 @@ test('a list leaves as .ros and comes back', async ({ browser }) => {
   await page.getByLabel('Bring a list from another tool').setInputFiles(saved)
 
   await expect(total).toHaveText(priced)
+  await page
+    .getByRole('button', { name: /^Plague Marines/ })
+    .first()
+    .click()
   await expect(page.getByLabel('Plague Marines models')).toBeVisible()
 })

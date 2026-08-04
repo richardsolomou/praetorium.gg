@@ -113,6 +113,16 @@ export class MusterService {
     this.repository.deleteRoster(id, playerId)
   }
 
+  /** The datasheets a player owns, as a set the picker can ask about directly. */
+  collection(playerId: string) {
+    return this.repository.collectionOf(playerId).map((row) => row.entryId)
+  }
+
+  setOwned(playerId: string, entryId: string, owned: boolean) {
+    if (owned) this.repository.addToCollection({ playerId, entryId, now: this.clock() })
+    else this.repository.removeFromCollection(playerId, entryId)
+  }
+
   createBattle(playerId: string) {
     const token = createToken()
     this.repository.createBattle({ id: createId(), token, playerId, now: this.clock() })

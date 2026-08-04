@@ -22,15 +22,12 @@ test('stratagems and mission cards are tracked through a turn', async ({ browser
   const link = await invite.inputValue()
 
   await alice.getByRole('button', { name: 'Build from the catalogue' }).click()
-  await alice.getByRole('combobox', { name: 'Army' }).click()
+  await alice.getByRole('combobox', { name: 'Faction' }).click()
   await alice.getByRole('option', { name: 'Chaos - Death Guard' }).click()
   await alice.getByRole('combobox', { name: 'Detachment' }).click()
   await alice.getByRole('option', { name: /Death Lord/ }).click()
   await alice.getByLabel('Add a unit').fill('Lord of Virulence')
-  await alice
-    .getByRole('button', { name: /^Lord of Virulence/ })
-    .first()
-    .click()
+  await alice.getByRole('button', { name: 'Add Lord of Virulence', exact: true }).first().click()
   await alice.getByRole('button', { name: 'Attach this list' }).click()
   await expect(alice.getByRole('button', { name: 'Replace my list' })).toBeVisible()
 

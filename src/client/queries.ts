@@ -2,6 +2,7 @@ import { queryOptions } from '@tanstack/react-query'
 import {
   battleReport,
   catalogueStatus,
+  collection,
   deployments,
   detachmentRules,
   factions,
@@ -19,6 +20,9 @@ export const meQuery = () => queryOptions({ queryKey: ['me'], queryFn: () => me(
 export const battleQuery = (token: string) => queryOptions({ queryKey: ['battle', token], queryFn: () => openBattle({ data: { token } }) })
 
 export const factionsQuery = () => queryOptions({ queryKey: ['factions'], queryFn: () => factions(), staleTime: Infinity })
+
+/** The datasheets the player owns models for, so the picker can filter on it. */
+export const collectionQuery = () => queryOptions({ queryKey: ['collection'], queryFn: () => collection() })
 
 export const unitsQuery = (catalogueId: string, query: string) =>
   queryOptions({

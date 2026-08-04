@@ -2,7 +2,7 @@ import { and, asc, desc, eq } from 'drizzle-orm'
 import { type Command, type LoggedCommand, PLAYERS_PER_BATTLE, reduceBattle, validate } from '../core/battle'
 import { commandSchema } from '../core/commands'
 import type { MusterDatabase } from './connection'
-import { battlePlayers, battles, commands, players, rosters } from './schema'
+import { battlePlayers, battles, collection, commands, players, rosters } from './schema'
 
 export type BattleRecord = { id: string; token: string; createdAt: number }
 export type BattlePlayer = { id: string; name: string; side: number }
@@ -131,6 +131,23 @@ export class Repository {
 
   rostersOf(playerId: string) {
     return this.database.select().from(rosters).where(eq(rosters.playerId, playerId)).orderBy(desc(rosters.updatedAt)).all()
+  }
+
+  /** The datasheets this player owns models for. */
+  collectionOf(playerId: string) {
+    return this.database.select().from(collection).where(eq(collection.playerId, playerId)).all()
+  }
+
+  /** Owning something twice is owning it once, so a repeat is not an error. */
+  addToCollection(input: { playerId: string; entryId: string; now: number }) {
+    this.database.insert(collection).values({ playerId: input.playerId, entryId: input.entryId, at: input.now }).onConflictDoNothing().run()
+  }
+
+  removeFromCollection(playerId: string, entryId: string) {
+    this.database
+      .delete(collection)
+      .where(and(eq(collection.playerId, playerId), eq(collection.entryId, entryId)))
+      .run()
   }
 
   deleteRoster(id: string, playerId: string) {

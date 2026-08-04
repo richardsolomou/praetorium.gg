@@ -186,6 +186,67 @@ export function hiddenByRules(definition: Definition, index: CatalogueIndex, opt
   return hidden
 }
 
+/**
+ * How many of one datasheet a roster may hold, or null when nothing limits it.
+ *
+ * The number is in the data but not as a number: a roster-scoped `max` constraint
+ * carries the Strike Force figure, and a modifier aimed at that constraint's id
+ * lowers it for a smaller game. So it is read the same way legality reads it —
+ * through `constraintValue`, with the rest of the list present, because the
+ * modifier's condition is usually about the roster.
+ *
+ * Nothing here refuses anything. It is what lets the picker say "3 in roster" and
+ * offer to hide what is already full; `violations` remains the only authority on
+ * whether a list is legal.
+ */
+export function rosterLimit(definition: Definition, index: CatalogueIndex, options: EvaluateOptions = {}): number | null {
+  const census = new Census()
+  const counter = { next: 0 }
+  const root: Node = {
+    target: { id: 'roster' },
+    order: counter.next++,
+    catalogueId: options.primaryCatalogueId,
+    link: null,
+    id: 'roster',
+    count: 1,
+    parent: null,
+    children: [],
+  }
+  const link = isLink(definition) ? definition : null
+  const target = link ? (index.definitions.get(link.targetId) ?? definition) : definition
+  root.children = (options.roster ?? [])
+    .map((selection) => build(selection, root, index, census, counter))
+    .filter((each): each is Node => each !== null)
+  const node: Node = { target, order: counter.next++, link, id: definition.id, count: 1, parent: root, children: [] }
+  root.children = [...root.children, node]
+
+  let limit: number | null = null
+  const consider = (constraint: Constraint, extra: readonly Modifier[] = []) => {
+    if (constraint.type !== 'max') return
+    if (constraint.scope !== 'roster' && constraint.scope !== 'force') return
+    if (constraint.field !== 'selections') return
+    const value = constraintValue(constraint, node, root, index, census, extra)
+    // A negative maximum is how the data says "no cap".
+    if (value < 0) return
+    limit = limit === null ? value : Math.min(limit, value)
+  }
+
+  for (const constraint of sourcesOf(node).flatMap((source) => source.constraints ?? [])) consider(constraint)
+  /*
+   * Most of the caps are here rather than on the datasheet: every unit carries a
+   * category named after itself, and the number sits on that. Without reading them
+   * the answer for a battleline squad is "no limit stated", which is wrong and
+   * useless in the same breath.
+   */
+  for (const categoryLink of [...(target.categoryLinks ?? []), ...(definition.categoryLinks ?? [])]) {
+    const category = index.categories.get(categoryLink.targetId)
+    if (!category) continue
+    const extra = [...(category.modifiers ?? []), ...(category.modifierGroups ?? []).flatMap((group) => group.modifiers ?? [])]
+    for (const constraint of category.constraints ?? []) consider(constraint, extra)
+  }
+  return limit
+}
+
 function build(selection: Selection, parent: Node, index: CatalogueIndex, census: Census, counter: { next: number }): Node | null {
   const definition = index.definitions.get(selection.id)
   if (!definition) {
@@ -594,9 +655,16 @@ function violations(node: Node, root: Node, index: CatalogueIndex, census: Censu
 }
 
 /** A constraint's limit after any modifier aimed at it by id — how points limits change per game size. */
-function constraintValue(constraint: Constraint, node: Node, root: Node, index: CatalogueIndex, census: Census): number {
+function constraintValue(
+  constraint: Constraint,
+  node: Node,
+  root: Node,
+  index: CatalogueIndex,
+  census: Census,
+  extra: readonly Modifier[] = [],
+): number {
   let value = constraint.value
-  for (const modifier of modifiersOf(node)) {
+  for (const modifier of [...modifiersOf(node), ...extra]) {
     if (modifier.field !== constraint.id) continue
     const times = repeatCount(modifier, node, root, index, census)
     if (times === 0) continue

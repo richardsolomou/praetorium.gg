@@ -20,7 +20,7 @@ test('a built list is priced, played and tracked', async ({ browser }) => {
   const link = await invite.inputValue()
 
   await alice.getByRole('button', { name: 'Build from the catalogue' }).click()
-  await alice.getByRole('combobox', { name: 'Army' }).click()
+  await alice.getByRole('combobox', { name: 'Faction' }).click()
   await alice.getByRole('option', { name: 'Chaos - Death Guard' }).click()
 
   // A list without a detachment is not a legal army, so it cannot be attached.
@@ -28,15 +28,20 @@ test('a built list is priced, played and tracked', async ({ browser }) => {
   await alice.getByRole('option', { name: /Death Lord/ }).click()
 
   await alice.getByLabel('Add a unit').fill('Plague Marines')
-  await alice
-    .getByRole('button', { name: /^Plague Marines/ })
-    .first()
-    .click()
+  await alice.getByRole('button', { name: 'Add Plague Marines', exact: true }).first().click()
 
   const total = alice.locator('[data-stat="points"]')
   await expect(total).toBeVisible()
   const atFive = Number.parseInt(await total.innerText(), 10)
-  await expect(alice.getByText('Nothing illegal about it.')).toBeVisible()
+  // The points bar states the legality: a tick within the limit, a warning over it.
+  await expect(alice.getByText('Within the points limit')).toBeAttached()
+
+  // The loadout belongs to whichever unit is selected, so selecting it is the first
+  // half of editing it.
+  await alice
+    .getByRole('button', { name: /^Plague Marines/ })
+    .first()
+    .click()
 
   // A Plague Marines squad is five or ten, so growing it must cost more. The
   // clicks are sequential on purpose: each one re-prices the list.
@@ -57,11 +62,12 @@ test('a built list is priced, played and tracked', async ({ browser }) => {
     const options = alice.getByRole('option')
     await options.nth((await options.count()) - 1).click()
     await expect(total)
-      .not.toHaveText(`${beforeChoice} / 2000 pts`, { timeout: 5000 })
+      .not.toHaveText(`${beforeChoice}/2000`, { timeout: 5000 })
       .catch(() => {})
   }
 
   await alice.getByLabel('Add a unit').fill('Lord of Virulence')
+  await alice.getByRole('button', { name: 'Add Lord of Virulence', exact: true }).first().click()
   await alice
     .getByRole('button', { name: /^Lord of Virulence/ })
     .first()
@@ -73,7 +79,7 @@ test('a built list is priced, played and tracked', async ({ browser }) => {
   const beforeEnhancement = Number.parseInt(await total.innerText(), 10)
   await enhancement.click()
   await alice.getByRole('option', { name: /Face of Death/ }).click()
-  await expect(total).not.toHaveText(`${beforeEnhancement} / 2000 pts`)
+  await expect(total).not.toHaveText(`${beforeEnhancement}/2000`)
 
   await alice.screenshot({ path: 'test-results/builder.png', fullPage: true })
   await alice.getByRole('button', { name: 'Attach this list' }).click()

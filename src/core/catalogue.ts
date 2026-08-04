@@ -3,9 +3,13 @@
  *
  * These are BattleScribe's shapes serialized as JSON rather than XML. The types
  * here cover the vocabulary present in the real files — two constraint types,
- * eight condition types, seven modifier types — and deliberately stop short of
- * the display-only parts (profiles, rules, characteristics), which no legality
- * or points question depends on.
+ * eight condition types, seven modifier types — and stop short of the display-only
+ * parts, which no legality or points question depends on.
+ *
+ * With one exception, and it is not decoration: which units a character may be
+ * attached to exists nowhere in the structure. It is a sentence inside an ability's
+ * description, so `profiles` and `infoGroups` are carried for that alone. See
+ * `attachmentOf`.
  *
  * Nothing in this file reads the filesystem or the network.
  */
@@ -135,6 +139,32 @@ export type EntryType = 'model' | 'unit' | 'upgrade' | 'model-or-unit'
  */
 export type CategoryLink = { id: string; targetId: string; name?: string; primary?: boolean }
 
+/**
+ * A keyword, and what it limits.
+ *
+ * Eleventh edition's cap on how many of a datasheet a roster may hold is written
+ * here rather than on the datasheet: every unit has a category named after itself,
+ * and that category carries the number.
+ */
+export type CategoryEntry = {
+  id: string
+  name?: string
+  constraints?: Constraint[]
+  modifiers?: Modifier[]
+  modifierGroups?: ModifierGroup[]
+}
+
+/** `$text` is where the JSON puts a characteristic's words. */
+export type Characteristic = { name?: string; $text?: string }
+
+export type Profile = { id: string; name?: string; typeName?: string; characteristics?: Characteristic[] }
+
+/** A named bundle of profiles hanging off an entry — "Leader" is one. */
+export type InfoGroup = { id: string; name?: string; profiles?: Profile[] }
+
+/** A reference to a profile or info group defined once at the catalogue's top level. */
+export type InfoLink = { id: string; targetId: string; name?: string }
+
 type Common = {
   id: string
   name?: string
@@ -147,6 +177,9 @@ type Common = {
   selectionEntryGroups?: SelectionEntryGroup[]
   entryLinks?: EntryLink[]
   categoryLinks?: CategoryLink[]
+  profiles?: Profile[]
+  infoGroups?: InfoGroup[]
+  infoLinks?: InfoLink[]
 }
 
 export type SelectionEntry = Common & { type?: EntryType; collective?: boolean }
@@ -171,6 +204,9 @@ export type Catalogue = {
   sharedSelectionEntryGroups?: SelectionEntryGroup[]
   entryLinks?: EntryLink[]
   catalogueLinks?: { targetId: string }[]
+  sharedProfiles?: Profile[]
+  sharedInfoGroups?: InfoGroup[]
+  categoryEntries?: CategoryEntry[]
 }
 
 /** A parsed file: the game system and every catalogue arrive in the same envelope. */
@@ -204,6 +240,15 @@ export type CatalogueIndex = {
    * Conditions count and scope to these, so a roster needs one to answer them.
    */
   forces: { id: string; name: string }[]
+  /**
+   * Profiles and info groups defined once at a catalogue's top level, by id.
+   *
+   * Only `attachmentOf` reads these, and only because which units a character may
+   * join is a sentence rather than a structure.
+   */
+  shared: Map<string, Profile | InfoGroup>
+  /** Categories by id, because that is where a datasheet's roster cap is written. */
+  categories: Map<string, CategoryEntry>
   /** The data revision every roster and battle must pin, so two clients agree on legality. */
   revision: string
 }
@@ -223,6 +268,8 @@ export function buildIndex(files: readonly CatalogueFile[], revision: string): C
   const catalogueOf = new Map<string, string>()
   const forces: { id: string; name: string }[] = []
   const datasheets = new Set<string>()
+  const shared = new Map<string, Profile | InfoGroup>()
+  const categories = new Map<string, CategoryEntry>()
 
   let owner = ''
   const collect = (node: Definition) => {
@@ -245,6 +292,9 @@ export function buildIndex(files: readonly CatalogueFile[], revision: string): C
     if (!root) continue
     catalogues.set(root.id, { id: root.id, name: root.name, revision: root.revision })
     for (const force of root.forceEntries ?? []) forces.push({ id: force.id, name: force.name ?? force.id })
+    for (const profile of root.sharedProfiles ?? []) shared.set(profile.id, profile)
+    for (const group of root.sharedInfoGroups ?? []) shared.set(group.id, group)
+    for (const category of root.categoryEntries ?? []) categories.set(category.id, category)
     owner = root.id
     for (const costType of root.costTypes ?? []) costTypes.set(costType.id, costType)
     for (const child of [...(root.selectionEntries ?? []), ...(root.sharedSelectionEntries ?? [])]) {
@@ -259,5 +309,17 @@ export function buildIndex(files: readonly CatalogueFile[], revision: string): C
   const points = [...costTypes.values()].find((costType) => costType.name === POINTS_COST_NAME)
   if (!points) throw new Error(`no "${POINTS_COST_NAME}" cost type in this data`)
 
-  return { definitions, costTypes, pointsTypeId: points.id, unitsByName, catalogues, catalogueOf, datasheets, forces, revision }
+  return {
+    definitions,
+    costTypes,
+    pointsTypeId: points.id,
+    unitsByName,
+    catalogues,
+    catalogueOf,
+    datasheets,
+    forces,
+    shared,
+    categories,
+    revision,
+  }
 }

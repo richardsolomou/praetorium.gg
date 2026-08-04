@@ -25,7 +25,7 @@ function Home() {
   })
 
   return (
-    <main className="mx-auto max-w-md">
+    <main className="mx-auto w-full max-w-md px-4 py-12">
       <h1 className="text-2xl">Track a battle together</h1>
       <p className="mt-3 text-sm text-dim">
         Open a battle, send the link to your opponent, and you both watch the same round, phase and score. Whoever the rules say owns a move

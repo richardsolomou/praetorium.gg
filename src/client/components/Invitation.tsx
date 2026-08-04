@@ -18,7 +18,7 @@ export function Invitation({ token, free }: { token: string; free: boolean }) {
 
   if (!free) {
     return (
-      <main className="mx-auto max-w-md text-center">
+      <main className="mx-auto w-full max-w-md px-4 py-12 text-center">
         <h1 className="text-2xl">This battle is full</h1>
         <p className="mt-2 text-sm text-dim">Two players are already in it.</p>
       </main>
@@ -26,7 +26,7 @@ export function Invitation({ token, free }: { token: string; free: boolean }) {
   }
 
   return (
-    <main className="mx-auto max-w-md">
+    <main className="mx-auto w-full max-w-md px-4 py-12">
       <h1 className="text-2xl">You have been invited to a battle</h1>
       <p className="mt-3 text-sm text-dim">Take the second seat. No account needed.</p>
       <form

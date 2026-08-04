@@ -1,50 +1,101 @@
 @import 'tailwindcss' source('./');
 
 /*
+ * BattleBase's typeface is ITC Conduit, which is Monotype's to license and cannot
+ * ship here. Barlow Semi Condensed is the closest open face: same squared
+ * grotesque with a tall x-height, and it takes uppercase tracking the same way.
+ * Swapping in a licensed Conduit means changing `--font-sans` and nothing else.
+ */
+@font-face {
+  font-family: 'Barlow Semi Condensed';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/barlow-semi-condensed-400.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Barlow Semi Condensed';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/fonts/barlow-semi-condensed-500.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Barlow Semi Condensed';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/barlow-semi-condensed-600.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Barlow Semi Condensed';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fonts/barlow-semi-condensed-700.woff2') format('woff2');
+}
+
+/*
  * One palette, two vocabularies: the named colours the app writes by hand, and
  * the shadcn tokens its components read. Both point at the same values.
+ *
+ * The layout, density and vocabulary are BattleBase's; the surfaces are dark.
+ * Their #2196f3 and #00aa00 are lifted a little because a hue that reads as
+ * confident on white goes muddy on near-black.
  *
  * The two side colours are not decoration. Every number on screen belongs to one
  * player or the other, and at arm's length across a table the tint is what tells
  * you whose it is before you have read the name.
  */
 @theme {
-  --font-sans: ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-sans: 'Barlow Semi Condensed', ui-sans-serif, system-ui, -apple-system, sans-serif;
   --font-mono: ui-monospace, 'SF Mono', Menlo, monospace;
 
-  --color-void: #0d0f11;
-  --color-panel: #15181c;
-  --color-raised: #1e2228;
-  --color-edge: #2b3138;
-  --color-bone: #e8e6e1;
-  --color-dim: #8c9199;
-  --color-amber: #e0a340;
-  --color-steel: #5b8cb8;
+  --color-void: #0a0b0d;
+  --color-panel: #121417;
+  --color-raised: #191c21;
+  --color-sunken: #0e1013;
+  --color-edge: #24282e;
+  --color-edge-strong: #333941;
+  --color-bone: #eceef1;
+  --color-dim: #8b929c;
+  --color-faint: #5f666f;
+
+  --color-azure: #3d9bf5;
+  --color-azure-ink: #06121f;
+  --color-side-a: #f2564b;
+  --color-side-b: #6f74ff;
+  --color-achieved: #35c759;
+  --color-discarded: #f5a524;
   --color-rust: #c05c44;
 }
 
 :root {
-  --radius: 0.5rem;
+  /* BattleBase rounds almost nothing: 3px on buttons, 4px on cards. */
+  --radius: 0.25rem;
 
-  --background: #0d0f11;
-  --foreground: #e8e6e1;
-  --card: #15181c;
-  --card-foreground: #e8e6e1;
-  --popover: #15181c;
-  --popover-foreground: #e8e6e1;
-  --primary: #e0a340;
-  --primary-foreground: #16120a;
-  --secondary: #1e2228;
-  --secondary-foreground: #e8e6e1;
-  --muted: #1e2228;
-  --muted-foreground: #8c9199;
-  --accent: #2b3138;
-  --accent-foreground: #e8e6e1;
-  --destructive: #c05c44;
-  --destructive-foreground: #fdf6f3;
-  --border: #2b3138;
-  --input: #2b3138;
-  --ring: #e0a340;
+  --background: #0a0b0d;
+  --foreground: #eceef1;
+  --card: #121417;
+  --card-foreground: #eceef1;
+  --popover: #191c21;
+  --popover-foreground: #eceef1;
+  --primary: #3d9bf5;
+  --primary-foreground: #06121f;
+  --secondary: #191c21;
+  --secondary-foreground: #eceef1;
+  --muted: #191c21;
+  --muted-foreground: #8b929c;
+  --accent: #24282e;
+  --accent-foreground: #eceef1;
+  --destructive: #f2564b;
+  --destructive-foreground: #160707;
+  --border: #24282e;
+  --input: #333941;
+  --ring: #3d9bf5;
 }
 
 /*
@@ -90,24 +141,41 @@
     -webkit-text-size-adjust: 100%;
   }
 
+  /*
+   * Every heading in this interface is uppercase and tracked, which is most of
+   * what makes the thing recognisable across a table.
+   */
   h1,
   h2,
   h3 {
+    font-weight: 700;
     letter-spacing: 0.01em;
+    text-transform: uppercase;
     text-wrap: balance;
   }
 
   :focus-visible {
-    outline: 2px solid var(--color-amber);
+    outline: 2px solid var(--color-azure);
     outline-offset: 2px;
   }
 }
 
+/** A small tracked label above the thing it names. */
 @utility eyebrow {
-  @apply text-[0.6875rem] font-medium tracking-[0.18em] text-dim uppercase;
+  @apply text-[0.6875rem] font-semibold tracking-[0.14em] text-dim uppercase;
+}
+
+/** A section heading with a count beside it, as every list on screen carries. */
+@utility rubric {
+  @apply text-[0.9375rem] font-bold tracking-[0.06em] text-dim uppercase;
 }
 
 /** Any number that changes during a game: fixed width, so it does not jitter. */
 @utility readout {
-  @apply font-mono tabular-nums;
+  @apply tabular-nums;
+}
+
+/** The bordered points chip that follows every datasheet name around. */
+@utility chip {
+  @apply rounded-sm border border-edge-strong px-1.5 py-px text-[0.6875rem] font-semibold tracking-[0.06em] text-dim uppercase tabular-nums;
 }

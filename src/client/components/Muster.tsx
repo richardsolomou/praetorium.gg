@@ -33,8 +33,10 @@ export function Muster({ view, send, pending, problem }: Props) {
   const ready = view.players.length > 1 && view.players.every((player) => player.roster)
 
   return (
-    <main className="space-y-8">
-      <section>
+    // Wide enough for the builder's three panes, and the rest of the screen simply
+    // does not use the room.
+    <main className="mx-auto w-full max-w-[1600px] space-y-6 px-4 py-6">
+      <section className="max-w-2xl">
         <p className="eyebrow">Mustering</p>
         <h1 className="mt-1 text-2xl">{opponent ? `${you.name} versus ${opponent.name}` : 'Waiting for an opponent'}</h1>
         {opponent ? null : (
@@ -65,19 +67,25 @@ export function Muster({ view, send, pending, problem }: Props) {
       ) : null}
 
       {building ? (
-        <ListBuilder
-          pending={pending}
-          attached={Boolean(you.roster)}
-          onAttach={(roster) => send({ kind: 'attach-roster', roster })}
-          prep={{
-            stratagems: you.stratagems.map(({ key, name, cp, limit }) => ({ key, name, cp, limit })),
-            secondaries: you.secondaries.map(({ key, name }) => ({ key, name })),
-          }}
-          onRestorePrep={(restored) => send({ kind: 'set-prep', ...restored, primary: you.primaryCard, secondaryMode: you.secondaryMode })}
-        />
+        // The builder is the page while it is open, so it gets the height rather
+        // than growing a second scrollbar inside the one the page already has.
+        <section className="flex h-[calc(100dvh-11rem)] min-h-120 flex-col">
+          <ListBuilder
+            pending={pending}
+            attached={Boolean(you.roster)}
+            onAttach={(roster) => send({ kind: 'attach-roster', roster })}
+            prep={{
+              stratagems: you.stratagems.map(({ key, name, cp, limit }) => ({ key, name, cp, limit })),
+              secondaries: you.secondaries.map(({ key, name }) => ({ key, name })),
+            }}
+            onRestorePrep={(restored) =>
+              send({ kind: 'set-prep', ...restored, primary: you.primaryCard, secondaryMode: you.secondaryMode })
+            }
+          />
+        </section>
       ) : (
         <form
-          className="space-y-4 rounded-lg border border-edge bg-panel p-4"
+          className="max-w-2xl space-y-4 border border-edge bg-panel p-4"
           onSubmit={(event) => {
             event.preventDefault()
             send({ kind: 'attach-roster', roster: { name: armyName, text } })

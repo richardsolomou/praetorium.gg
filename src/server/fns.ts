@@ -5,8 +5,9 @@ import { createId } from './crypto'
 import { cookieOptions, PLAYER_COOKIE, playerFor, playerIdFrom, signPlayerId } from './identity'
 import { configuredProviders } from './auth'
 import { evaluate, type Selection } from '../core/evaluate'
-import { buildUnit } from '../core/roster'
-import { unitsIn } from './catalogue'
+import { attachmentOf } from '../core/attach'
+import { buildUnit, wargearOf } from '../core/roster'
+import { groupOfEntry, unitsIn } from './catalogue'
 import { fromRosterXml, toRosterXml } from '../core/rosz'
 import { parseXml, rosterXml } from './rosz'
 import { ATTRIBUTION, slug } from './rules'
@@ -18,6 +19,7 @@ import {
   importRosterSchema,
   joinBattleSchema,
   priceSchema,
+  ownedSchema,
   rosterIdSchema,
   saveRosterSchema,
   submitSchema,
@@ -108,6 +110,18 @@ export const submit = createServerFn({ method: 'POST' })
     mutationRpc(async () => app().service.submit(data.token, await requirePlayerId(), data.expectedSeq, data.command, app().rules())),
   )
 
+/** The datasheets this player owns, so the picker can be asked to show only those. */
+export const collection = createServerFn({ method: 'GET' }).handler(() =>
+  rpc(async () => {
+    const id = await currentPlayerId()
+    return id ? app().service.collection(id) : []
+  }),
+)
+
+export const setOwned = createServerFn({ method: 'POST' })
+  .validator(ownedSchema)
+  .handler(({ data }) => mutationRpc(async () => app().service.setOwned(await requirePlayerId(), data.entryId, data.owned)))
+
 /** How the community data is doing, so a fresh instance can say so rather than look broken. */
 export const catalogueStatus = createServerFn({ method: 'GET' }).handler(() => rpc(() => app().sync()))
 
@@ -192,6 +206,12 @@ export const priceRoster = createServerFn({ method: 'POST' })
           points: evaluate([unit.selection], loaded.index, options).points,
           size: { min: unit.size.min, max: unit.size.max, models: unit.size.models, resizable: unit.size.max > unit.size.min },
           choices: unit.choices,
+          // What the datasheet would print under the name, so a card can show the
+          // list rather than make the player open the loadout to see it.
+          wargear: wargearOf(unit.selection, loaded.index),
+          group: groupOfEntry(loaded.index, unit.entryId),
+          // Which units this one may join, when its own rules say it may join any.
+          attachment: attachmentOf(loaded.index.definitions.get(unit.entryId) ?? { id: unit.entryId }, loaded.index),
         })),
       }
     }),

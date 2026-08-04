@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { buildIndex, type Catalogue, type CatalogueFile } from './catalogue'
-import { evaluate, type Selection } from './evaluate'
+import { evaluate, rosterLimit, type Selection } from './evaluate'
 
 const PTS = 'cost-pts'
 
@@ -459,5 +459,109 @@ describe("the roster's force", () => {
   it('is transparent when counting selections, so nothing else sees a new layer', () => {
     const squadded = evaluateOne(withTroopers(6), squadCountingModels())
     expect(squadded.points).toBe(150)
+  })
+})
+
+describe('the limit on how many of a datasheet a roster may hold', () => {
+  it('is the roster-scoped maximum the data states', () => {
+    const index = indexOf({
+      sharedSelectionEntries: [
+        {
+          id: 'lord',
+          name: 'Lord',
+          type: 'model',
+          constraints: [{ id: 'lord-max', type: 'max', value: 3, field: 'selections', scope: 'roster', includeChildSelections: true }],
+        },
+      ],
+    })
+    expect(rosterLimit(index.definitions.get('lord')!, index)).toBe(3)
+  })
+
+  it('is null when nothing in the data limits it', () => {
+    const index = indexOf({ sharedSelectionEntries: [{ id: 'grunt', name: 'Grunt', type: 'unit' }] })
+    expect(rosterLimit(index.definitions.get('grunt')!, index)).toBeNull()
+  })
+
+  it('follows a modifier that lowers it for a smaller game', () => {
+    const index = indexOf({
+      sharedSelectionEntries: [
+        {
+          id: 'lord',
+          name: 'Lord',
+          type: 'model',
+          constraints: [{ id: 'lord-max', type: 'max', value: 3, field: 'selections', scope: 'roster', includeChildSelections: true }],
+          modifiers: [
+            {
+              type: 'set',
+              field: 'lord-max',
+              value: 2,
+              conditions: [{ type: 'atLeast', value: 1, field: 'selections', scope: 'roster', childId: 'small-game', shared: true }],
+            },
+          ],
+        },
+        { id: 'small-game', name: 'Incursion', type: 'upgrade' },
+      ],
+    })
+    expect(rosterLimit(index.definitions.get('lord')!, index, { roster: [{ id: 'small-game' }] })).toBe(2)
+  })
+
+  it('ignores a maximum about something other than how many are taken', () => {
+    const index = indexOf({
+      sharedSelectionEntries: [
+        {
+          id: 'lord',
+          name: 'Lord',
+          type: 'model',
+          constraints: [{ id: 'lord-pts', type: 'max', value: 500, field: 'cost-pts', scope: 'roster' }],
+        },
+      ],
+    })
+    expect(rosterLimit(index.definitions.get('lord')!, index)).toBeNull()
+  })
+})
+
+const cappedBook = (max: number) => ({
+  categoryEntries: [
+    {
+      id: 'cat-immortals',
+      name: 'Immortals',
+      constraints: [{ id: 'imm-max', type: 'max' as const, value: max, field: 'selections', scope: 'force' }],
+    },
+  ],
+  sharedSelectionEntries: [
+    {
+      id: 'immortals',
+      name: 'Immortals',
+      type: 'unit' as const,
+      categoryLinks: [{ id: 'l', targetId: 'cat-immortals', name: 'Immortals' }],
+    },
+  ],
+})
+
+describe('a limit written on the datasheet’s own category', () => {
+  it('is the limit, because that is where the data puts it', () => {
+    const index = indexOf(cappedBook(6))
+    expect(rosterLimit(index.definitions.get('immortals')!, index)).toBe(6)
+  })
+
+  it('is ignored when it says there is no cap', () => {
+    const index = indexOf(cappedBook(-1))
+    expect(rosterLimit(index.definitions.get('immortals')!, index)).toBeNull()
+  })
+
+  it('yields to a stricter limit on the entry itself', () => {
+    const index = indexOf({
+      ...cappedBook(6),
+      sharedSelectionEntries: [
+        {
+          id: 'immortals',
+          name: 'Immortals',
+          type: 'unit',
+          categoryLinks: [{ id: 'l', targetId: 'cat-immortals', name: 'Immortals' }],
+          constraints: [{ id: 'own-max', type: 'max', value: 2, field: 'selections', scope: 'roster' }],
+        },
+      ],
+    })
+    expect(rosterLimit(index.definitions.get('immortals')!, index)).toBe(2)
   })
 })

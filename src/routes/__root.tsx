@@ -44,7 +44,7 @@ function Account() {
     return (
       <button
         type="button"
-        className="eyebrow normal-case hover:text-amber"
+        className="eyebrow ml-auto hover:text-azure"
         onClick={async () => {
           await authClient.signOut()
           await queryClient.invalidateQueries()
@@ -58,7 +58,7 @@ function Account() {
 
   // One label whatever is cached: the page itself explains what an account is for.
   return (
-    <Link to="/signin" className="eyebrow hover:text-amber">
+    <Link to="/signin" className="eyebrow ml-auto hover:text-azure">
       Sign in
     </Link>
   )
@@ -71,14 +71,21 @@ function RootComponent() {
         <HeadContent />
       </head>
       <body className="min-h-dvh">
-        <div className="mx-auto flex min-h-dvh w-full max-w-3xl flex-col px-4">
-          <header className="flex items-center justify-between border-b border-edge py-4">
-            <Link to="/" className="eyebrow text-bone transition-colors hover:text-amber">
-              Muster
-            </Link>
-            <Account />
+        {/*
+         * The bar spans the window and the page inside it decides its own width,
+         * because a three-column builder and a sign-in form do not want the same
+         * measure. Nothing here is centred on the page's behalf.
+         */}
+        <div className="flex min-h-dvh flex-col">
+          <header className="sticky top-0 z-30 border-b border-edge bg-panel/95 backdrop-blur">
+            <div className="flex h-12 items-center gap-5 px-4">
+              <Link to="/" className="text-lg leading-none font-bold tracking-[0.02em] text-bone uppercase hover:text-azure">
+                Muster
+              </Link>
+              <Account />
+            </div>
           </header>
-          <div className="flex-1 py-8">
+          <div className="flex-1">
             <Outlet />
           </div>
         </div>

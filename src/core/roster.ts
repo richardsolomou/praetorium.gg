@@ -419,3 +419,40 @@ function at(selection: Selection, path: readonly string[]): Selection | null {
   const child = (selection.selections ?? []).find((candidate) => candidate.id === next)
   return child ? at(child, rest) : null
 }
+
+export type Wargear = { name: string; count: number }
+
+/**
+ * What a unit is carrying, as a datasheet would list it: leaf upgrades with how
+ * many of each, in the order the data holds them.
+ *
+ * Only leaves count. An upgrade holding other upgrades is a container the data
+ * uses for grouping, and naming it alongside its contents would say the same
+ * thing twice — "1x Bolt rifle" under "Ranged weapons" reads as two pieces of
+ * wargear when the model has one.
+ */
+export function wargearOf(selection: Selection, index: CatalogueIndex): Wargear[] {
+  const found = new Map<string, number>()
+
+  /**
+   * `carried` is the number of things holding this one. A squad of five models
+   * each with one blaster stores the five on the model and a one on the weapon —
+   * so five blasters is the product down the tree, not the number on the leaf.
+   */
+  const walk = (node: Selection, depth: number, carried: number) => {
+    for (const child of node.selections ?? []) {
+      const definition = index.definitions.get(child.id)
+      const kind = definition ? resolve(definition, index).type : undefined
+      const count = carried * (child.count ?? 1)
+      const grandchildren = child.selections ?? []
+      if (kind === 'upgrade' && !grandchildren.length) {
+        const name = (definition && resolve(definition, index).name) ?? definition?.name
+        if (name) found.set(name, (found.get(name) ?? 0) + count)
+      }
+      if (depth < MAX_DEPTH) walk(child, depth + 1, count)
+    }
+  }
+
+  walk(selection, 0, 1)
+  return [...found].map(([name, count]) => ({ name, count }))
+}

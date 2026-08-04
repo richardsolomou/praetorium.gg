@@ -14,11 +14,12 @@ test('a list is saved and loaded into another battle', async ({ browser }) => {
   await page.getByRole('button', { name: 'Open a battle' }).click()
   await page.getByRole('button', { name: 'Build from the catalogue' }).click()
 
-  await page.getByRole('combobox', { name: 'Army' }).click()
+  await page.getByRole('combobox', { name: 'Faction' }).click()
   await page.getByRole('option', { name: 'Chaos - Death Guard' }).click()
   await page.getByRole('combobox', { name: 'Detachment' }).click()
   await page.getByRole('option', { name: /Death Lord/ }).click()
   await page.getByLabel('Add a unit').fill('Plague Marines')
+  await page.getByRole('button', { name: 'Add Plague Marines', exact: true }).first().click()
   await page
     .getByRole('button', { name: /^Plague Marines/ })
     .first()
@@ -26,6 +27,9 @@ test('a list is saved and loaded into another battle', async ({ browser }) => {
   await page.getByRole('button', { name: /More models in Plague Marines/ }).click()
 
   const total = page.locator('[data-stat="points"]')
+  // The bar reads 0/2000 before the first price lands, so capturing without waiting
+  // compares a saved list against a total that had not been worked out yet.
+  await expect(total).not.toHaveText('0/2000')
   const priced = await total.innerText()
 
   // The name is offered, not demanded; this one is overridden on purpose.
@@ -40,6 +44,10 @@ test('a list is saved and loaded into another battle', async ({ browser }) => {
   await page.getByRole('button', { name: 'Nurgle 2k', exact: true }).click()
 
   await expect(total).toHaveText(priced)
+  await page
+    .getByRole('button', { name: /^Plague Marines/ })
+    .first()
+    .click()
   await expect(page.getByLabel('Plague Marines models')).toHaveText('6')
   await expect(page.getByRole('combobox', { name: 'Detachment' })).toContainText(/Death Lord/)
 })

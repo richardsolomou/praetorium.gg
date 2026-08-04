@@ -49,7 +49,7 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
   const finished = view.status === 'finished'
 
   return (
-    <main className="space-y-4">
+    <main className="mx-auto w-full max-w-3xl space-y-4 px-4 py-6">
       <header className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 border-b border-edge pb-3">
         <div>
           <p className="eyebrow">
@@ -60,7 +60,7 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
         </div>
         {finished ? null : (
           <p className="text-sm text-dim">
-            {yourTurn ? <span className="text-amber">Your turn</span> : `${active?.name ?? 'Nobody'}’s turn`}
+            {yourTurn ? <span className="text-azure">Your turn</span> : `${active?.name ?? 'Nobody'}’s turn`}
           </p>
         )}
       </header>
@@ -70,7 +70,7 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
           <section
             key={player.id}
             className={`space-y-3 rounded-lg border border-edge border-l-2 bg-panel p-4 ${SIDES[index]?.accent ?? ''} ${
-              player.isActive ? 'ring-2 ring-amber/50' : ''
+              player.isActive ? 'ring-2 ring-azure/50' : ''
             }`}
           >
             <div className="flex items-center justify-between gap-2">
@@ -84,7 +84,7 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
               </div>
               <span
                 className={`size-2 shrink-0 rounded-full ${
-                  present.some((watcher) => watcher.playerId === player.id) ? 'bg-amber' : 'border border-dim/60'
+                  present.some((watcher) => watcher.playerId === player.id) ? 'bg-azure' : 'border border-dim/60'
                 }`}
                 title={present.some((watcher) => watcher.playerId === player.id) ? 'Watching now' : 'Not on the page'}
               />
@@ -287,7 +287,7 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
       {finished ? null : (
         <footer className="flex flex-wrap items-center gap-2 border-t border-edge pt-4">
           <Button
-            // Not the primary action when it is not yours to take: a dimmed amber
+            // Not the primary action when it is not yours to take: a dimmed accent
             // button still reads as the thing to press.
             variant={yourTurn ? 'default' : 'outline'}
             className="h-11 flex-1 text-base"

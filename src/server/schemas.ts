@@ -29,6 +29,14 @@ const pickSchema = z.object({
   entryId: z.string().min(1).max(64),
   models: z.number().int().min(1).max(60).optional(),
   choices: z.record(z.string().max(400), z.string().min(1).max(64)).optional(),
+  /**
+   * The position of the unit this one is attached to, when it is.
+   *
+   * A position rather than an id, because the same datasheet may be in the list
+   * twice and a character joins one of them, not both. It is only ever read back
+   * beside the picks it was saved with.
+   */
+  attachedTo: z.number().int().min(0).max(99).optional(),
 })
 
 const prepSchema = z.object({
@@ -61,6 +69,8 @@ export const importRosterSchema = z.object({ file: z.string().min(1).max(4_000_0
 export const detachmentRulesSchema = z.object({ catalogueId, detachmentName: z.string().min(1).max(120) })
 
 export const rosterIdSchema = z.object({ id: z.string().min(1).max(64) })
+
+export const ownedSchema = z.object({ entryId: z.string().min(1).max(64), owned: z.boolean() })
 
 /** Saved rows are read back through these, so a hand-edited one fails loudly. */
 export const picksSchema = z.array(pickSchema).max(100)
