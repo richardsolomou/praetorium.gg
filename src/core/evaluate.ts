@@ -282,9 +282,11 @@ function holds(condition: Condition, node: Node, root: Node, index: CatalogueInd
     case 'notInstanceOf':
       return measured === 0
     default:
-      // `before` and `after` order publications, which nothing about points depends on.
+      // `before` and `after` compare where two selections sit in roster order,
+      // which is how "a second copy of this costs more" is written. Unproven means
+      // false: a gate the evaluator cannot read must never be able to add points.
       census.note(`condition type ${condition.type}`)
-      return true
+      return false
   }
 }
 

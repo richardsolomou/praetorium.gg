@@ -13,8 +13,9 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { parse } from 'yaml'
-import { buildIndex, type CatalogueFile, type CatalogueIndex, type Definition } from '../src/core/catalogue'
+import { buildIndex, type CatalogueFile, type CatalogueIndex, type Definition, type SelectionEntry } from '../src/core/catalogue'
 import { evaluate, type Selection } from '../src/core/evaluate'
+import { withCounts } from '../src/core/roster'
 
 const dataDirectory = process.env.CATALOGUE_DIR ?? path.join(import.meta.dirname, '..', 'catalogue-data')
 const definitionsDirectory = path.join(dataDirectory, 'definitions')
@@ -55,6 +56,33 @@ const units: MfmUnit[] = fs
 
 const isEntry = (definition: Definition) => definition.type !== undefined
 
+/** The Munitorum Title-Cases every name and uses curly apostrophes; the catalogues do neither. */
+const normalise = (name: string) =>
+  name
+    .toLowerCase()
+    .replaceAll(/['’]/g, "'")
+    .replaceAll(/\s+/g, ' ')
+    .trim()
+
+const byName = new Map<string, SelectionEntry[]>()
+for (const [name, entries] of index.unitsByName) {
+  const key = normalise(name)
+  byName.set(key, [...(byName.get(key) ?? []), ...entries])
+}
+
+/**
+ * The entries a Munitorum name could mean, preferring units over models.
+ *
+ * Most of the manual's entries are single-model characters and vehicles, which
+ * the catalogues model as `model` rather than `unit`. Looking only for units
+ * skipped two thirds of the game.
+ */
+function resolve(name: string) {
+  const all = byName.get(normalise(name)) ?? []
+  const datasheets = all.filter((entry) => entry.type === 'unit')
+  return datasheets.length ? datasheets : all.filter((entry) => entry.type === 'model')
+}
+
 /** Every child of a definition, with links followed to what they point at. */
 function children(definition: Definition, catalogue: CatalogueIndex) {
   const found: { id: string; target: Definition }[] = []
@@ -87,22 +115,16 @@ function modelSlots(unit: Definition, catalogue: CatalogueIndex): Slot[] {
   return slots
 }
 
-/** Merges assigned paths into one selection tree, so groups stay in the chain. */
+/**
+ * The unit with just the models the Munitorum is pricing.
+ *
+ * Deliberately *not* built through `defaultSelection`: adding the mandatory
+ * wargear takes agreement from 95.0% down to 89.2%, so something in it
+ * over-counts. Until that is understood, the bare construction is the one whose
+ * numbers can be trusted, and the discrepancy is the next thing to chase.
+ */
 function toSelection(unitId: string, assignments: { path: string[]; count: number }[]): Selection {
-  const root: Selection & { selections: Selection[] } = { id: unitId, count: 1, selections: [] }
-  for (const assignment of assignments) {
-    let node = root
-    assignment.path.forEach((id, depth) => {
-      const last = depth === assignment.path.length - 1
-      const existing = node.selections.find((child) => child.id === id)
-      const child: Selection & { selections: Selection[] } = existing?.selections
-        ? { ...existing, selections: existing.selections }
-        : { id, count: last ? assignment.count : 1, selections: [] }
-      if (!existing) node.selections.push(child)
-      node = child
-    })
-  }
-  return root
+  return withCounts({ id: unitId, count: 1 }, assignments)
 }
 
 const tally = { matched: 0, mismatched: 0, ambiguous: 0, missing: 0, unsupportedShape: 0 }
@@ -110,7 +132,7 @@ const mismatches: string[] = []
 const census = new Set<string>()
 
 for (const unit of units) {
-  const candidates = index.unitsByName.get(unit.name)?.filter((entry) => entry.type === 'unit') ?? []
+  const candidates = resolve(unit.name)
   const tiers = firstCopyRange(unit)?.costs ?? []
   if (!tiers.length) continue
   if (!candidates.length) {
