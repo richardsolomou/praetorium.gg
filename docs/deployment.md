@@ -39,12 +39,13 @@ The proxy must forward `X-Forwarded-Host` and `X-Forwarded-Proto`. Set `APP_URL`
 
 ## Dokploy
 
-The pieces that need credentials this repository does not hold:
+Deployed at `dokploy.ras.sh` as project **muster**, application **app**:
 
-1. In Dokploy, create an application from `ghcr.io/richardsolomou/muster` (or from this repository with its Dockerfile).
-2. Add a volume mounted at `/data`.
-3. Set `APP_URL` to the public origin, and `AUTH_SECRET` if secrets are managed centrally rather than generated into the volume.
-4. Point DNS at the host and let Dokploy issue the certificate.
-5. Keep `replicas` at 1.
+- Source: this repository, `main`, built from the Dockerfile, auto-deploying on push.
+- Volume `muster-data` mounted at `/data`.
+- `APP_URL=https://muster.ras.sh`, one replica.
+- Domain `muster.ras.sh` on port 3000 with a Let's Encrypt certificate.
 
-First boot spends a minute or two fetching the catalogue. The app is usable throughout.
+First boot spends a minute or two fetching the catalogue, and the app is usable throughout. A push to `main` redeploys; the volume and its catalogue survive.
+
+The one thing Dokploy cannot do from here is DNS. `ras.sh` is on Cloudflare, so `muster.ras.sh` needs a proxied record pointing at the same origin as the other subdomains before the certificate can be issued and the host will serve.
