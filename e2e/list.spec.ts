@@ -21,7 +21,7 @@ test('a built list is priced, played and tracked', async ({ browser }) => {
 
   // A list without a detachment is not a legal army, so it cannot be attached.
   await alice.getByRole('combobox', { name: 'Detachment' }).click()
-  await alice.getByRole('option', { name: 'Flyblown Host' }).click()
+  await alice.getByRole('option', { name: /Death Lord/ }).click()
 
   await alice.getByLabel('Add a unit').fill('Plague Marines')
   await alice
@@ -63,6 +63,14 @@ test('a built list is priced, played and tracked', async ({ browser }) => {
     .first()
     .click()
 
+  // An enhancement is offered only for the detachment it belongs to, and costs points.
+  const enhancement = alice.getByRole('combobox', { name: /Lord of Virulence Enhancements/ })
+  await expect(enhancement).toBeVisible()
+  const beforeEnhancement = Number.parseInt(await total.innerText(), 10)
+  await enhancement.click()
+  await alice.getByRole('option', { name: /Face of Death/ }).click()
+  await expect(total).not.toHaveText(`${beforeEnhancement} / 2000 pts`)
+
   await alice.getByLabel('Name this army').fill('Death Guard strike force')
   await alice.screenshot({ path: 'test-results/builder.png', fullPage: true })
   await alice.getByRole('button', { name: 'Attach this list' }).click()
@@ -85,7 +93,7 @@ test('a built list is priced, played and tracked', async ({ browser }) => {
   await expect(bob.locator('section', { hasText: 'Death Guard strike force' }).locator('[data-stat="standing"]')).toHaveText('2/2')
 
   // The detachment travels with the list, so the opponent can see what they face.
-  await expect(bob.locator('section', { hasText: 'Death Guard strike force' }).getByText(/Flyblown Host/)).toBeVisible()
+  await expect(bob.locator('section', { hasText: 'Death Guard strike force' }).getByText(/Death Lord/)).toBeVisible()
 
   // A pasted list names nothing, so Bob has no units to track.
   await expect(bob.locator('section', { hasText: 'Ultramarines' }).locator('[data-stat="standing"]')).toHaveCount(0)

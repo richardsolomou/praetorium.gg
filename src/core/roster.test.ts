@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { buildIndex, type Catalogue, type CatalogueFile } from './catalogue'
-import { buildUnit, defaultSelection, unitSize, withCounts } from './roster'
+import { buildUnit, defaultSelection, unitChoices, unitSize, withChoice, withCounts } from './roster'
 
 const PTS = 'cost-pts'
 const system: CatalogueFile = { gameSystem: { id: 'gs', name: 'Test', costTypes: [{ id: PTS, name: 'pts' }] } }
@@ -255,5 +255,95 @@ describe('how many models a unit may field', () => {
   it('treats a lone character as one model', () => {
     const index = indexOf({ sharedSelectionEntries: [{ id: 'captain', name: 'Captain', type: 'model' }] })
     expect(unitSize('captain', index)).toMatchObject({ min: 1, max: 1, models: 1 })
+  })
+})
+
+/** An enhancement group: optional, one at most, and only inside its own faction. */
+const keyworded = (): Partial<Catalogue> => ({
+  sharedSelectionEntries: [
+    {
+      id: 'captain',
+      name: 'Captain',
+      type: 'model',
+      categoryLinks: [{ id: 'cat-link', targetId: 'faction' }],
+      selectionEntryGroups: [
+        {
+          id: 'enhancements',
+          name: 'Enhancements',
+          constraints: [{ id: 'enh-max', type: 'max', value: 1, field: 'selections', scope: 'parent' }],
+          selectionEntries: [
+            { id: 'relic', name: 'Relic', type: 'upgrade' },
+            { id: 'banner', name: 'Banner', type: 'upgrade' },
+          ],
+        },
+      ],
+    },
+    {
+      id: 'grunt',
+      name: 'Grunt',
+      type: 'model',
+      selectionEntryGroups: [
+        {
+          id: 'enhancements-2',
+          name: 'Enhancements',
+          constraints: [{ id: 'enh-max-2', type: 'max', value: 1, field: 'selections', scope: 'parent' }],
+          selectionEntries: [
+            {
+              id: 'relic-2',
+              name: 'Relic',
+              type: 'upgrade',
+              // Hidden unless the holder carries the faction keyword.
+              modifiers: [
+                {
+                  type: 'set',
+                  field: 'hidden',
+                  value: true,
+                  conditions: [{ type: 'notInstanceOf', value: 1, field: 'selections', scope: 'ancestor', childId: 'faction' }],
+                },
+              ],
+            },
+            { id: 'banner-2', name: 'Banner', type: 'upgrade' },
+          ],
+        },
+      ],
+    },
+  ],
+})
+
+describe('options the data restricts by keyword', () => {
+  const catalogue = keyworded
+
+  it('offers an optional group as a choice nothing is taken in yet', () => {
+    const index = indexOf(catalogue())
+    const built = buildUnit('captain', index)!
+    expect(built.choices.map((choice) => ({ name: choice.name, chosen: choice.chosen, optional: choice.optional }))).toEqual([
+      { name: 'Enhancements', chosen: '', optional: true },
+    ])
+  })
+
+  it('withholds an option from a holder that lacks the keyword', () => {
+    const index = indexOf(catalogue())
+    const built = buildUnit('grunt', index)!
+    // Only one option survives, so there is no longer a choice to offer.
+    expect(built.choices).toEqual([])
+  })
+
+  it('takes an option and can put it back', () => {
+    const index = indexOf(catalogue())
+    const built = buildUnit('captain', index)!
+    const [choice] = built.choices
+    if (!choice) throw new Error('the captain should be offered an enhancement')
+    const taken = withChoice(built.selection, choice.key, 'relic', index)
+    expect(unitChoices('captain', taken, index)[0]?.chosen).toBe('relic')
+  })
+
+  it('declines an optional choice by emptying it', () => {
+    const index = indexOf(catalogue())
+    const built = buildUnit('captain', index)!
+    const [choice] = built.choices
+    if (!choice) throw new Error('the captain should be offered an enhancement')
+    const taken = withChoice(built.selection, choice.key, 'relic', index)
+    const declined = withChoice(taken, choice.key, '', index)
+    expect(unitChoices('captain', declined, index)[0]?.chosen).toBe('')
   })
 })

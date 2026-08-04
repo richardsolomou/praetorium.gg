@@ -126,6 +126,15 @@ export type Constraint = {
 
 export type EntryType = 'model' | 'unit' | 'upgrade' | 'model-or-unit'
 
+/**
+ * Membership of a keyword group — CHARACTER, INFANTRY, "Faction: Death Guard".
+ *
+ * Conditions ask about these constantly: an enhancement is available only inside a
+ * model of its own faction, and that is written as a category test rather than a
+ * name test.
+ */
+export type CategoryLink = { id: string; targetId: string; name?: string; primary?: boolean }
+
 type Common = {
   id: string
   name?: string
@@ -137,6 +146,7 @@ type Common = {
   selectionEntries?: SelectionEntry[]
   selectionEntryGroups?: SelectionEntryGroup[]
   entryLinks?: EntryLink[]
+  categoryLinks?: CategoryLink[]
 }
 
 export type SelectionEntry = Common & { type?: EntryType; collective?: boolean }

@@ -320,3 +320,36 @@ describe('an unknown selection', () => {
     expect(evaluateOne({ id: 'nonsense' }, {}).unhandled).toContain('unknown selection id nonsense')
   })
 })
+
+describe('keywords', () => {
+  /** A cost that only applies inside a model carrying a category. */
+  const catalogue = (): Partial<Catalogue> => ({
+    sharedSelectionEntries: [
+      {
+        id: 'captain',
+        name: 'Captain',
+        type: 'model',
+        costs: points(75),
+        categoryLinks: [{ id: 'link', targetId: 'character' }],
+        modifiers: [
+          {
+            type: 'increment',
+            field: PTS,
+            value: 10,
+            conditions: [{ type: 'instanceOf', value: 1, field: 'selections', scope: 'roster', childId: 'character' }],
+          },
+        ],
+      },
+      { id: 'grunt', name: 'Grunt', type: 'model', costs: points(20) },
+    ],
+  })
+
+  it('are matched through category links', () => {
+    // "Is this a character" is written as a category test, not a name test.
+    expect(evaluateOne({ id: 'captain' }, catalogue()).points).toBe(85)
+  })
+
+  it('do not match a selection that lacks them', () => {
+    expect(evaluateOne({ id: 'grunt' }, catalogue()).points).toBe(20)
+  })
+})

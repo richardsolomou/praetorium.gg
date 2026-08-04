@@ -121,6 +121,11 @@ export function evaluate(selections: readonly Selection[], index: CatalogueIndex
  * hidden unless the roster is a Crusade force, and there is a great deal of it
  * hanging off every datasheet. Without asking, a list builder offers a player
  * fourteen choices that have nothing to do with the game they are playing.
+ *
+ * The candidate is judged beside the roster rather than inside its own unit, which
+ * is enough for the gates that matter — they ask about the roster and about the
+ * keywords of what holds them, and the holder is in the roster. A gate written
+ * against `parent` or `self` would need the candidate placed properly first.
  */
 export function hiddenByRules(definition: Definition, index: CatalogueIndex, options: EvaluateOptions = {}): boolean {
   const census = new Census()
@@ -432,7 +437,16 @@ function matches(node: Node, childId: string | undefined): boolean {
     const type = node.target.type
     return childId === 'model-or-unit' ? type === 'model' || type === 'unit' : type === childId
   }
-  return node.target.id === childId || node.id === childId || inGroup(node, childId)
+  return node.target.id === childId || node.id === childId || inGroup(node, childId) || inCategory(node, childId)
+}
+
+/**
+ * Whether this selection carries a keyword. Conditions test membership far more
+ * often than identity — "is this inside a model of my own faction" is a category
+ * test — so ignoring category links makes every such test answer no.
+ */
+function inCategory(node: Node, categoryId: string): boolean {
+  return sourcesOf(node).some((source) => (source.categoryLinks ?? []).some((link) => link.targetId === categoryId))
 }
 
 /**

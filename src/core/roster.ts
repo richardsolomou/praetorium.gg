@@ -334,7 +334,10 @@ export function unitChoices(
   options: { primaryCatalogueId?: string; depth?: number; roster?: readonly Selection[] } = {},
 ): UnitChoice[] {
   const depth = options.depth ?? MAX_DEPTH
-  const visible = (definition: Definition) => !hiddenByRules(definition, index, options)
+  // The unit's own selection has to be in the roster it is judged against, or a
+  // question about its surroundings has nothing to look at.
+  const roster = [...(options.roster ?? []), selection]
+  const visible = (definition: Definition) => !hiddenByRules(definition, index, { ...options, roster })
   const entry = index.definitions.get(entryId)
   if (!entry) return []
 
