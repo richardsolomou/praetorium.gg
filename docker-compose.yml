@@ -1,0 +1,21 @@
+services:
+  muster:
+    build:
+      context: .
+    restart: unless-stopped
+    # One instance, always. Live updates fan out inside the process, so a second
+    # replica would serve battles that never hear about each other's commands.
+    deploy:
+      replicas: 1
+    ports:
+      - '3030:3000'
+    environment:
+      # Public origin of the deployment. Only needed when proxy headers cannot
+      # represent it; mutations are rejected from any other origin.
+      APP_URL: ${APP_URL:-}
+      # Signs the guest cookies. Generated into /data when unset; changing it
+      # signs every player out of their battles.
+      AUTH_SECRET: ${AUTH_SECRET:-}
+    volumes:
+      # The SQLite database holding every battle and its command log.
+      - ${DATA_HOST_DIR:-./muster-data}:/data

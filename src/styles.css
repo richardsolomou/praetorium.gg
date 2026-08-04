@@ -1,0 +1,113 @@
+@import 'tailwindcss' source('./');
+
+/*
+ * One palette, two vocabularies: the named colours the app writes by hand, and
+ * the shadcn tokens its components read. Both point at the same values.
+ *
+ * The two side colours are not decoration. Every number on screen belongs to one
+ * player or the other, and at arm's length across a table the tint is what tells
+ * you whose it is before you have read the name.
+ */
+@theme {
+  --font-sans: ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', Menlo, monospace;
+
+  --color-void: #0d0f11;
+  --color-panel: #15181c;
+  --color-raised: #1e2228;
+  --color-edge: #2b3138;
+  --color-bone: #e8e6e1;
+  --color-dim: #8c9199;
+  --color-amber: #e0a340;
+  --color-steel: #5b8cb8;
+  --color-rust: #c05c44;
+}
+
+:root {
+  --radius: 0.5rem;
+
+  --background: #0d0f11;
+  --foreground: #e8e6e1;
+  --card: #15181c;
+  --card-foreground: #e8e6e1;
+  --popover: #15181c;
+  --popover-foreground: #e8e6e1;
+  --primary: #e0a340;
+  --primary-foreground: #16120a;
+  --secondary: #1e2228;
+  --secondary-foreground: #e8e6e1;
+  --muted: #1e2228;
+  --muted-foreground: #8c9199;
+  --accent: #2b3138;
+  --accent-foreground: #e8e6e1;
+  --destructive: #c05c44;
+  --destructive-foreground: #fdf6f3;
+  --border: #2b3138;
+  --input: #2b3138;
+  --ring: #e0a340;
+}
+
+/*
+ * Without this block every `bg-card`, `border-border` and `text-muted-foreground`
+ * inside the generated components resolves to nothing and the whole UI renders
+ * flat and colourless. shadcn ships no stylesheet that does it.
+ */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    background-color: var(--color-void);
+    color: var(--color-bone);
+    font-family: var(--font-sans);
+    -webkit-text-size-adjust: 100%;
+  }
+
+  h1,
+  h2,
+  h3 {
+    letter-spacing: 0.01em;
+    text-wrap: balance;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-amber);
+    outline-offset: 2px;
+  }
+}
+
+@utility eyebrow {
+  @apply text-[0.6875rem] font-medium tracking-[0.18em] text-dim uppercase;
+}
+
+/** Any number that changes during a game: fixed width, so it does not jitter. */
+@utility readout {
+  @apply font-mono tabular-nums;
+}

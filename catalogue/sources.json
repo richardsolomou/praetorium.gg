@@ -1,0 +1,15 @@
+{
+  "definitions": {
+    "repository": "BSData/wh40k-11e",
+    "branch": "main",
+    "revision": "fa11e0c84237a85c4748c55d92f361a04f54daf9",
+    "description": "Community catalogues for Warhammer 40,000 11th edition. JSON, one file per faction."
+  },
+  "points": {
+    "repository": "BSData/wh40k-11e-mfm",
+    "branch": "main",
+    "revision": "88352b269cca0d3b3933a65c196834c085b67a07",
+    "path": "data",
+    "description": "Points scraped from Games Workshop's Munitorum Field Manual. Used to check the evaluator, never shipped as data."
+  }
+}

@@ -1,0 +1,14 @@
+node_modules/
+.output/
+.nitro/
+.tanstack/
+dist/
+.env
+.env.local
+data-dev/
+src/routeTree.gen.ts
+.pnpm-store/
+.DS_Store
+.claude/settings.local.json
+test-results/
+catalogue-data/
