@@ -14,8 +14,8 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { parse } from 'yaml'
 import { buildIndex, type CatalogueFile, type SelectionEntry } from '../src/core/catalogue'
-import { evaluate } from '../src/core/evaluate'
-import { buildUnit, wargearOf } from '../src/core/roster'
+import { evaluate, type Selection } from '../src/core/evaluate'
+import { buildUnit } from '../src/core/roster'
 
 const dataDirectory = process.env.CATALOGUE_DIR ?? path.join(import.meta.dirname, '..', 'catalogue-data')
 const definitionsDirectory = path.join(dataDirectory, 'definitions')
@@ -113,6 +113,24 @@ function resolve(name: string) {
   return datasheets.length ? datasheets : all.filter((entry) => entry.type === 'model')
 }
 
+/** Separately priced wargear uses the quantities selected for the whole unit. */
+function pricedWargearOf(selection: Selection) {
+  const found = new Map<string, number>()
+  const walk = (node: Selection) => {
+    for (const child of node.selections ?? []) {
+      const definition = index.definitions.get(child.id)
+      const target = definition && 'targetId' in definition ? index.definitions.get(definition.targetId) : definition
+      const grandchildren = child.selections ?? []
+      if (target?.type === 'upgrade' && !grandchildren.length && target.name) {
+        found.set(target.name, (found.get(target.name) ?? 0) + (child.count ?? 1))
+      }
+      walk(child)
+    }
+  }
+  walk(selection)
+  return found
+}
+
 const tally = { matched: 0, mismatched: 0, ambiguous: 0, missing: 0, unsupportedShape: 0 }
 const mismatches: string[] = []
 const census = new Set<string>()
@@ -160,9 +178,9 @@ for (const faction of factions) {
 
       const result = evaluate([built.selection], index, { primaryCatalogueId: unitCatalogueId })
       const wargearPrices = new Map((unit.wargear ?? []).map((item) => [normalise(item.item), item.points]))
+      const equipped = pricedWargearOf(built.selection)
       const expected =
-        tier.points +
-        wargearOf(built.selection, index).reduce((total, item) => total + (wargearPrices.get(normalise(item.name)) ?? 0) * item.count, 0)
+        tier.points + [...equipped].reduce((total, [name, count]) => total + (wargearPrices.get(normalise(name)) ?? 0) * count, 0)
       for (const note of result.unhandled) census.add(note)
       if (result.points === expected) tally.matched++
       else {
