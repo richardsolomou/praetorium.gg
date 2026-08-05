@@ -17,23 +17,27 @@ import {
   units,
 } from '../server/fns'
 
-export const meQuery = () => queryOptions({ queryKey: ['me'], queryFn: () => me() })
+const SSR_STALE_TIME = 30_000
 
-export const battlesQuery = () => queryOptions({ queryKey: ['battles'], queryFn: () => myBattles() })
+export const meQuery = () => queryOptions({ queryKey: ['me'], queryFn: () => me(), staleTime: SSR_STALE_TIME })
+
+export const battlesQuery = () => queryOptions({ queryKey: ['battles'], queryFn: () => myBattles(), staleTime: SSR_STALE_TIME })
 
 // No polling: `useLiveBattle` refetches this when the server says the battle changed.
-export const battleQuery = (token: string) => queryOptions({ queryKey: ['battle', token], queryFn: () => openBattle({ data: { token } }) })
+export const battleQuery = (token: string) =>
+  queryOptions({ queryKey: ['battle', token], queryFn: () => openBattle({ data: { token } }), staleTime: SSR_STALE_TIME })
 
 export const factionsQuery = () => queryOptions({ queryKey: ['factions'], queryFn: () => factions(), staleTime: Infinity })
 
 /** The datasheets the player owns models for, so the picker can filter on it. */
-export const collectionQuery = () => queryOptions({ queryKey: ['collection'], queryFn: () => collection() })
+export const collectionQuery = () => queryOptions({ queryKey: ['collection'], queryFn: () => collection(), staleTime: SSR_STALE_TIME })
 
 export const unitsQuery = (catalogueId: string, query: string) =>
   queryOptions({
     queryKey: ['units', catalogueId, query],
     queryFn: () => units({ data: { catalogueId, query } }),
     enabled: Boolean(catalogueId),
+    staleTime: SSR_STALE_TIME,
   })
 
 export const datasheetQuery = (catalogueId: string, entryId: string) =>
@@ -59,12 +63,14 @@ export const priceQuery = (catalogueId: string, detachmentIds: readonly string[]
     queryKey: ['price', catalogueId, detachmentIds, limit, picked],
     queryFn: () => priceRoster({ data: { catalogueId, detachmentIds: [...detachmentIds], limit, units: [...picked] } }),
     enabled: Boolean(catalogueId),
+    staleTime: SSR_STALE_TIME,
   })
 
-export const savedRostersQuery = () => queryOptions({ queryKey: ['saved-rosters'], queryFn: () => savedRosters() })
+export const savedRostersQuery = () =>
+  queryOptions({ queryKey: ['saved-rosters'], queryFn: () => savedRosters(), staleTime: SSR_STALE_TIME })
 
 export const sharedRosterQuery = (id: string) =>
-  queryOptions({ queryKey: ['shared-roster', id], queryFn: () => sharedRoster({ data: { id } }) })
+  queryOptions({ queryKey: ['shared-roster', id], queryFn: () => sharedRoster({ data: { id } }), staleTime: SSR_STALE_TIME })
 
 /** Null when the rules source has not been synced, so the interface can offer typing instead. */
 export const detachmentRulesQuery = (catalogueId: string, detachmentNames: readonly string[]) =>

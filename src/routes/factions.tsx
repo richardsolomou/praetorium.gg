@@ -1,4 +1,4 @@
-import { useSuspenseQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, Outlet, useRouterState } from '@tanstack/react-router'
 import { ChevronRight, Heart } from 'lucide-react'
 import { useEffect, useState } from 'react'
@@ -15,7 +15,7 @@ const FAVOURITES = 'praetorium:favourite-factions'
 
 function Factions() {
   const path = useRouterState({ select: (state) => state.location.pathname })
-  const { data } = useSuspenseQuery(factionsQuery())
+  const { data } = useQuery(factionsQuery())
   const [factionQueryText, setFactionQueryText] = useState('')
   const [favourites, setFavourites] = useState<Set<string>>(new Set())
 

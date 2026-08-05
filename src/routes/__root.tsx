@@ -1,6 +1,6 @@
 import type { QueryClient } from '@tanstack/react-query'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { createRootRouteWithContext, HeadContent, Link, Outlet, Scripts, useNavigate } from '@tanstack/react-router'
+import { createRootRouteWithContext, HeadContent, Link, Outlet, Scripts, useLocation, useNavigate } from '@tanstack/react-router'
 import { Button } from '@/components/ui/button'
 import { authClient } from '../client/authClient'
 import { meQuery } from '../client/queries'
@@ -10,6 +10,7 @@ const TITLE = 'Praetorium'
 const DESCRIPTION = 'Track a Warhammer 40,000 game with your opponent, live on both phones.'
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
+  loader: ({ context }) => context.queryClient.ensureQueryData(meQuery()),
   head: () => ({
     meta: [
       { charSet: 'utf-8' },
@@ -67,18 +68,20 @@ function Account() {
 }
 
 function RootComponent() {
+  const path = useLocation({ select: (location) => location.pathname })
+  const immersive = /^\/rosters\/(?:new|import|[^/]+\/edit)$/.test(path)
   return (
     <html lang="en">
       <head>
         <HeadContent />
       </head>
-      <body className="min-h-dvh">
+      <body className={immersive ? 'h-dvh overflow-hidden' : 'min-h-dvh'}>
         {/*
          * The bar spans the window and the page inside it decides its own width,
          * because a three-column builder and a sign-in form do not want the same
          * measure. Nothing here is centred on the page's behalf.
          */}
-        <div className="flex min-h-dvh flex-col">
+        <div className={`flex flex-col ${immersive ? 'h-dvh' : 'min-h-dvh'}`}>
           <header className="sticky top-0 z-30 border-b border-edge bg-panel/95 backdrop-blur">
             <div className="flex h-12 items-center gap-2 px-2 sm:gap-5 sm:px-4">
               <Link to="/" className="text-base leading-none font-bold tracking-[0.02em] text-bone uppercase hover:text-azure sm:text-lg">
@@ -98,7 +101,7 @@ function RootComponent() {
               <Account />
             </div>
           </header>
-          <div className="flex-1">
+          <div className={immersive ? 'h-[calc(100dvh-3rem)] min-h-0' : 'min-h-0 flex-1'}>
             <Outlet />
           </div>
           {/*
@@ -107,9 +110,11 @@ function RootComponent() {
            * The community data has its own attribution, which appears where that
            * data does — see `ATTRIBUTION` in `src/server/rules.ts`.
            */}
-          <footer className="border-t border-edge px-4 py-4 text-center text-xs text-faint">
-            Praetorium is an unofficial product, and is not in any way affiliated with or endorsed by Games Workshop.
-          </footer>
+          {immersive ? null : (
+            <footer className="border-t border-edge px-4 py-4 text-center text-xs text-faint">
+              Praetorium is an unofficial product, and is not in any way affiliated with or endorsed by Games Workshop.
+            </footer>
+          )}
         </div>
         <Scripts />
       </body>

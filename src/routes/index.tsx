@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient, useSuspenseQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
@@ -15,14 +15,17 @@ export const Route = createFileRoute('/')({
 })
 
 function Home() {
-  const { data: me } = useSuspenseQuery(meQuery())
+  const { data: me } = useQuery(meQuery())
   const [name, setName] = useState(me?.name ?? '')
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const open = useMutation({
     mutationFn: () => createBattle({ data: { name } }),
     onSuccess: async ({ token }) => {
-      await queryClient.invalidateQueries({ queryKey: battlesQuery().queryKey })
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: meQuery().queryKey }),
+        queryClient.invalidateQueries({ queryKey: battlesQuery().queryKey }),
+      ])
       return navigate({ to: '/b/$token', params: { token } })
     },
   })

@@ -1,4 +1,4 @@
-import { useSuspenseQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, notFound, Outlet, useRouterState } from '@tanstack/react-router'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { factionsQuery } from '../client/queries'
@@ -14,7 +14,7 @@ export const Route = createFileRoute('/factions/$catalogueId/reference')({
 function ReferencePage() {
   const path = useRouterState({ select: (state) => state.location.pathname })
   const { catalogueId } = Route.useParams()
-  const { data } = useSuspenseQuery(factionsQuery())
+  const { data } = useQuery(factionsQuery())
   if (path !== `/factions/${catalogueId}/reference`) return <Outlet />
   const faction = data?.factions.find((entry) => entry.id === catalogueId)
   if (!faction) return null

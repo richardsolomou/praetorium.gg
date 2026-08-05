@@ -1,4 +1,4 @@
-import { useSuspenseQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, notFound } from '@tanstack/react-router'
 import { ChevronRight } from 'lucide-react'
 import { datasheetQuery, factionsQuery } from '../client/queries'
@@ -13,8 +13,8 @@ export const Route = createFileRoute('/factions/$catalogueId/$entryId')({
 
 function DatasheetPage() {
   const params = Route.useParams()
-  const { data: sheet } = useSuspenseQuery(datasheetQuery(params.catalogueId, params.entryId))
-  const { data } = useSuspenseQuery(factionsQuery())
+  const { data: sheet } = useQuery(datasheetQuery(params.catalogueId, params.entryId))
+  const { data } = useQuery(factionsQuery())
   if (!sheet) return null
   const faction = data?.factions.find((entry) => entry.id === params.catalogueId)
   const profiles = (type: string) => sheet.profiles.filter((profile) => profile.type === type)

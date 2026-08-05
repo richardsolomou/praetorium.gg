@@ -1,4 +1,4 @@
-import { useSuspenseQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { Button } from '@/components/ui/button'
 import { IdentityGate } from '../client/components/IdentityGate'
@@ -13,8 +13,8 @@ export const Route = createFileRoute('/battles')({
 })
 
 function Battles() {
-  const { data: me } = useSuspenseQuery(meQuery())
-  const { data: battles } = useSuspenseQuery(battlesQuery())
+  const { data: me } = useQuery(meQuery())
+  const { data: battles = [] } = useQuery(battlesQuery())
   if (!me) return <IdentityGate />
 
   return (
