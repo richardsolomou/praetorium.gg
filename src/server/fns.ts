@@ -4,7 +4,7 @@ import { app } from './app'
 import { createId } from './crypto'
 import { cookieOptions, PLAYER_COOKIE, playerFor, playerIdFrom, signPlayerId } from './identity'
 import { configuredProviders } from './auth'
-import { evaluate, type Selection } from '../core/evaluate'
+import { evaluate, evaluateForces, type Selection } from '../core/evaluate'
 import { attachmentOf } from '../core/attach'
 import { detachmentPointBudget, detachmentPointsError } from '../core/battle'
 import { buildUnit, modelCountOf, unitChoices, unitToggles, wargearOf } from '../core/roster'
@@ -252,8 +252,15 @@ export const priceRoster = createServerFn({ method: 'POST' })
       })
 
       const options = { primaryCatalogueId: data.catalogueId }
-      const selections = [...detachmentSelection, ...picked.map((unit) => unit.selection)]
-      const whole = evaluate(selections, loaded.index, options)
+      const forceSelections = new Map<string, Selection[]>([[data.catalogueId, [...detachmentSelection]]])
+      picked.forEach((unit) => {
+        const owner = data.units[unit.key]?.catalogueId ?? loaded.index.catalogueOf.get(unit.entryId) ?? data.catalogueId
+        const force = forceSelections.get(owner) ?? []
+        force.push(unit.selection)
+        forceSelections.set(owner, force)
+      })
+      const selections = [...forceSelections.values()].flat()
+      const whole = evaluateForces([...forceSelections.values()], loaded.index, options)
       // BSData's 10e wrapper still caps the roster at one; the 11e rules source
       // replaces only that constraint with the DP budget checked above.
       const errors = whole.errors.filter(

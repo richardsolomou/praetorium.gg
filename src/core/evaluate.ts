@@ -87,6 +87,15 @@ export type EvaluateOptions = {
 }
 
 export function evaluate(selections: readonly Selection[], index: CatalogueIndex, options: EvaluateOptions = {}): Evaluation {
+  return evaluateForces([selections], index, options)
+}
+
+/** Evaluate each force independently while retaining roster-scoped conditions across all of them. */
+export function evaluateForces(
+  forces: readonly (readonly Selection[])[],
+  index: CatalogueIndex,
+  options: EvaluateOptions = {},
+): Evaluation {
   const census = new Census()
   const counter = { next: 0 }
   const root: Node = {
@@ -107,20 +116,22 @@ export function evaluate(selections: readonly Selection[], index: CatalogueIndex
    * when counting selections, exactly as a group is, so nothing that already worked
    * sees a new layer.
    */
-  const force: Node = {
-    target: { id: index.forces[0]?.id ?? 'force', name: index.forces[0]?.name ?? 'Army Roster' },
-    order: counter.next++,
-    force: true,
-    link: null,
-    id: 'force',
-    count: 1,
-    parent: root,
-    children: [],
-  }
-  root.children = [force]
-  force.children = selections
-    .map((selection) => build(selection, force, index, census, counter))
-    .filter((node): node is Node => node !== null)
+  root.children = forces.map((selections, forceIndex) => {
+    const force: Node = {
+      target: { id: index.forces[0]?.id ?? 'force', name: index.forces[0]?.name ?? 'Army Roster' },
+      order: counter.next++,
+      force: true,
+      link: null,
+      id: `force-${forceIndex}`,
+      count: 1,
+      parent: root,
+      children: [],
+    }
+    force.children = selections
+      .map((selection) => build(selection, force, index, census, counter))
+      .filter((node): node is Node => node !== null)
+    return force
+  })
 
   const totals = new Map<string, number>()
   const errors: EvaluationError[] = []

@@ -210,7 +210,14 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
       catalogueId,
       detachmentIds,
       limit,
-      picked.map(({ entryId, models, choices, spreads, toggles }) => ({ entryId, models, choices, spreads, toggles })),
+      picked.map(({ entryId, catalogueId: unitCatalogueId, models, choices, spreads, toggles }) => ({
+        entryId,
+        catalogueId: unitCatalogueId,
+        models,
+        choices,
+        spreads,
+        toggles,
+      })),
     ),
   )
 

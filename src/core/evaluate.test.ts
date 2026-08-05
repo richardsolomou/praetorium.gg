@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { buildIndex, type Catalogue, type CatalogueFile } from './catalogue'
-import { evaluate, rosterLimit, type Selection } from './evaluate'
+import { evaluate, evaluateForces, rosterLimit, type Selection } from './evaluate'
 
 const PTS = 'cost-pts'
 
@@ -542,6 +542,11 @@ describe('a limit written on the datasheet’s own category', () => {
   it('is the limit, because that is where the data puts it', () => {
     const index = indexOf(cappedBook(6))
     expect(rosterLimit(index.definitions.get('immortals')!, index)).toBe(6)
+  })
+
+  it('applies independently to each force', () => {
+    const index = indexOf(cappedBook(1))
+    expect(evaluateForces([[{ id: 'immortals' }], [{ id: 'immortals' }]], index).errors).toEqual([])
   })
 
   it('is ignored when it says there is no cap', () => {
