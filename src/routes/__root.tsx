@@ -80,18 +80,18 @@ function RootComponent() {
          */}
         <div className="flex min-h-dvh flex-col">
           <header className="sticky top-0 z-30 border-b border-edge bg-panel/95 backdrop-blur">
-            <div className="flex h-12 items-center gap-5 px-4">
-              <Link to="/" className="text-lg leading-none font-bold tracking-[0.02em] text-bone uppercase hover:text-azure">
+            <div className="flex h-12 items-center gap-2 px-2 sm:gap-5 sm:px-4">
+              <Link to="/" className="text-base leading-none font-bold tracking-[0.02em] text-bone uppercase hover:text-azure sm:text-lg">
                 Praetorium
               </Link>
-              <nav className="flex items-center gap-4" aria-label="Primary">
+              <nav className="flex items-center gap-2 sm:gap-4" aria-label="Primary">
                 <Link to="/battles" className="eyebrow hover:text-azure" activeProps={{ className: 'text-azure' }}>
                   Battles
                 </Link>
                 <Link to="/rosters" className="eyebrow hover:text-azure" activeProps={{ className: 'text-azure' }}>
                   Rosters
                 </Link>
-                <Link to="/factions" className="eyebrow hidden hover:text-azure sm:block" activeProps={{ className: 'text-azure' }}>
+                <Link to="/factions" className="eyebrow hover:text-azure" activeProps={{ className: 'text-azure' }}>
                   Factions
                 </Link>
               </nav>
