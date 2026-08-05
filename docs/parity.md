@@ -151,8 +151,8 @@ It does not include BattleBase's rankings, events, leagues, locations, friends o
 | Builder detail         | Partial                          | Cards and choice controls match the density, but the loadout pane lacks datasheet stats, weapon profiles, rules, keywords and BattleBase's utility actions.                                                       |
 | Application shell      | Done for the scoped destinations | Persistent navigation exposes first-class battle history, roster building and faction browsing. Social and competitive BattleBase destinations remain out of scope.                                               |
 | Setup flow             | Partial                          | The order follows the game and all game facts are picked from data, but it is presented as stacked forms rather than BattleBase's compact destination-based workflow.                                             |
-| Battle tracker         | Early                            | The dark palette and side ownership are present. The current narrow two-card layout does not match BattleBase's three-column desktop tracker or its per-round mission ledger.                                     |
-| Phone tracker          | Early                            | Controls are usable on a phone, but there is no fixed bottom scoreboard, five-segment round display, `NOW` step, `INFO`/`EVENTS` tabs or guided primary action.                                                   |
+| Battle tracker         | Substantial                      | Desktop uses player/shared/player columns with ownership tints, shared phase controls and a five-turn primary/secondary ledger folded from the command log. Card state, charts and timing remain.                 |
+| Phone tracker          | Partial                          | The shared action leads a readable single-column surface with both five-turn ledgers. A fixed bottom scoreboard, `INFO`/`EVENTS` tabs and the fuller guided step machine remain.                                  |
 
 Deployed at `praetorium.ras.sh`, auto-deploying from `main`. See [deployment.md](deployment.md).
 
@@ -176,7 +176,7 @@ Finish this slice with roster copy/rename actions, richer saved-roster metadata,
 
 ### 2. Rebuild the battle tracker in BattleBase's information architecture
 
-On desktop, use three columns: player one, shared battle information, player two. Each player side needs primary and secondary cards with `T1`–`T5` scoring, achieved/discarded state, CP gained/used/remaining, stratagem usage counts and army status. The centre needs mission and deployment, current turn/phase, chronological events, undo and end-battle actions.
+Desktop now uses three columns: player one, shared battle information, player two. Each side has `T1`–`T5` primary/secondary scoring, while the centre owns the mission, current turn/phase, chronological events, undo and end-battle actions. Complete it with achieved/discarded card state, explicit CP gained/used/remaining, stratagem usage counts, army status and deployment detail.
 
 Charts and timing come after the ledger is correct. A VP chart and CP chart require report-derived series; minutes per turn requires timestamps to be grouped by turn without storing a second clock state. None of these should bypass `battleView` or put state in the event stream.
 

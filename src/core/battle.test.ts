@@ -167,6 +167,20 @@ describe('the view', () => {
     )
     expect(battleView({ token: 'abc' }, NAMES, state, ALICE).players.find((player) => player.isViewer)?.total).toBe(8)
   })
+
+  it('attributes scores to the round they were made', () => {
+    const state = reduceBattle(
+      PLAYERS,
+      log(...started(), [ALICE, { kind: 'score', category: 'primary', delta: 5 }], ...turns(6, ALICE), ...turns(6, BOB), [
+        ALICE,
+        { kind: 'score', category: 'primary', delta: 3 },
+      ]),
+    )
+    expect(battleView({ token: 'abc' }, NAMES, state, ALICE).players[0]?.rounds.slice(0, 2)).toMatchObject([
+      { primary: 5, total: 5 },
+      { primary: 3, total: 3 },
+    ])
+  })
 })
 
 describe('units on the table', () => {

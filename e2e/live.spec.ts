@@ -56,6 +56,8 @@ test('a battle stays in step across two devices', async ({ browser }) => {
 
   await alice.screenshot({ path: 'test-results/tracker-alice.png', fullPage: true })
   await bob.screenshot({ path: 'test-results/tracker-bob.png', fullPage: true })
+  await alice.setViewportSize({ width: 390, height: 844 })
+  await alice.screenshot({ path: 'test-results/tracker-phone.png', fullPage: true })
 })
 
 /** One player's card, found by the army on it rather than by which side it is on. */
