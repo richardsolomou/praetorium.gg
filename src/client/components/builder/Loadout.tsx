@@ -136,7 +136,13 @@ function DatasheetSummary({ catalogueId, sheet }: { catalogueId: string; sheet: 
           ))}
         </div>
       ) : null}
-      <Link to="/factions/$catalogueId/$entryId" params={{ catalogueId, entryId: sheet.id }} className="eyebrow text-azure hover:text-bone">
+      <Link
+        to="/factions/$catalogueId/$entryId"
+        params={{ catalogueId, entryId: sheet.id }}
+        target="_blank"
+        rel="noreferrer"
+        className="eyebrow text-azure hover:text-bone"
+      >
         View full datasheet
       </Link>
     </div>
