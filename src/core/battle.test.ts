@@ -309,6 +309,29 @@ describe('secondaries', () => {
     expect(alice(reduceBattle(PLAYERS, history))?.secondary).toBe(7)
   })
 
+  it('carry achieved and discarded lifecycle state into the view', () => {
+    const state = reduceBattle(PLAYERS, log(...named(), [ALICE, { kind: 'set-secondary-status', key: 'a', status: 'achieved' }]))
+    expect(battleView({ token: 'abc' }, NAMES, state, ALICE).players[0]?.secondaries[0]?.status).toBe('achieved')
+  })
+
+  it('draw replacements only for tactical missions', () => {
+    const tactical: [string, Command] = [
+      ALICE,
+      {
+        kind: 'set-prep',
+        stratagems: [],
+        primary: null,
+        secondaryMode: 'tactical',
+        secondaries: [{ key: 'a', name: 'Behind Enemy Lines' }],
+      },
+    ]
+    const state = reduceBattle(
+      PLAYERS,
+      log(...started(), tactical, [ALICE, { kind: 'draw-secondary', secondary: { key: 'b', name: 'Bring It Down' } }]),
+    )
+    expect(alice(state)?.secondaries.map((secondary) => secondary.name)).toEqual(['Behind Enemy Lines', 'Bring It Down'])
+  })
+
   it('take over from the undifferentiated pile once named', () => {
     // Two ways of adding to one total is how a breakdown stops adding up.
     const state = reduceBattle(PLAYERS, log(...named()))

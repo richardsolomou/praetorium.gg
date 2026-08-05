@@ -138,7 +138,7 @@ It does not include BattleBase's rankings, events, leagues, locations, friends o
 | Collection                 | Partial               | Per-datasheet owned membership drives the picker filter. There are no quantities, collection browser or favourites view.                                                                                                                               |
 | Mission setup              | Done for current data | Force dispositions derive the mission; deployment zones and objectives are drawn from data; fixed/tactical secondaries, primary cards and detachment/core stratagems are picked rather than typed.                                                     |
 | At-table army state        | Partial               | Units start in reserve, can deploy, lose models, be destroyed and return through undo. There is no unit-level damage, position, transport or objective-control model by design.                                                                        |
-| Guided scoring             | Partial               | Card payout values and known phase/round/turn triggers enable contextual scoring buttons. The app does not enforce scoring ceilings or prove that an objective was achieved.                                                                           |
+| Guided scoring             | Substantial           | Card payouts and known phase/round/turn triggers enable contextual scoring; cards can be achieved or discarded and tactical replacements drawn, all through the log. Secret visibility remains.                                                        |
 | Battle review              | Partial               | A chronological report survives undo correctly. There is no battle library, per-round card grid, charting, turn duration or export.                                                                                                                    |
 
 ## Current design coverage
@@ -202,7 +202,7 @@ On phones, make an explicit choice rather than shrinking the desktop grid. Match
 
 ### 5. Finish battle setup and tactical card lifecycle
 
-The current tactical mode chooses a static set. Full behavior needs draw, reveal, discard, replace and secret-mission lifecycle commands, with visibility withheld only in `battleView`. Per-round score attribution should name the card and preserve achieved/discarded state in the append-only report. Deployment should distinguish deployed units from reserves cleanly during setup and retain the same ownership rules in play.
+Tactical cards now carry active, achieved and discarded lifecycle state, and replacements are drawn from the data through append-only commands. Per-round score attribution names the card and the report preserves every transition. Finish secret-mission selection and reveal with visibility withheld only in `battleView`. Deployment already distinguishes deployed units from reserves during setup and retains the same ownership rules in play.
 
 Mission scoring remains player-confirmed. Automating objective control or interpreting rules text is outside the boundary.
 
