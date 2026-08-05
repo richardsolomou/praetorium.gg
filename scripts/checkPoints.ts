@@ -115,17 +115,17 @@ for (const id of index.datasheets) {
 function resolve(name: string, catalogueId?: string) {
   const key = normalise(name)
   const all = byName.get(key) ?? bySingularName.get(key.endsWith('s') ? key.slice(0, -1) : key) ?? []
-  const accessible = new Set<string>()
-  const visit = (id: string) => {
-    if (accessible.has(id)) return
-    accessible.add(id)
-    for (const linked of catalogueLinks.get(id) ?? []) visit(linked)
+  const distance = new Map<string, number>()
+  const visit = (id: string, depth: number) => {
+    if ((distance.get(id) ?? Number.POSITIVE_INFINITY) <= depth) return
+    distance.set(id, depth)
+    for (const linked of catalogueLinks.get(id) ?? []) visit(linked, depth + 1)
   }
-  if (catalogueId) visit(catalogueId)
+  if (catalogueId) visit(catalogueId, 0)
 
-  const direct = catalogueId ? all.filter((entry) => index.catalogueOf.get(entry.id) === catalogueId) : []
-  const imported = catalogueId ? all.filter((entry) => accessible.has(index.catalogueOf.get(entry.id) ?? '')) : []
-  const candidates = direct.length ? direct : imported.length ? imported : all
+  const nearest = Math.min(...all.map((entry) => distance.get(index.catalogueOf.get(entry.id) ?? '') ?? Number.POSITIVE_INFINITY))
+  const scoped = Number.isFinite(nearest) ? all.filter((entry) => distance.get(index.catalogueOf.get(entry.id) ?? '') === nearest) : all
+  const candidates = scoped.length ? scoped : all
   const datasheets = candidates.filter((entry) => entry.type === 'unit')
   return datasheets.length ? datasheets : candidates.filter((entry) => entry.type === 'model')
 }
@@ -171,7 +171,7 @@ for (const faction of factions) {
       faction.slug === 'imperial-agents' && unit.groupTitle?.toLowerCase().includes('every model has the imperium keyword')
         ? catalogueBySlug.get('adeptus-astartes')
         : primaryCatalogueId
-    const candidates = resolve(unit.name, unitCatalogueId)
+    const candidates = resolve(unit.name, primaryCatalogueId)
     const tiers = (firstCopyRange(unit)?.costs ?? []).filter((cost) => !cost.addon)
     if (!tiers.length) continue
     if (!candidates.length) {
@@ -181,7 +181,8 @@ for (const faction of factions) {
     }
     if (candidates.length > 1) {
       tally.ambiguous += tiers.length
-      skipped.ambiguous.push(`${faction.slug}: ${unit.name} (${candidates.length} candidates, ${tiers.length} tiers)`)
+      const owners = candidates.map((entry) => index.catalogues.get(index.catalogueOf.get(entry.id) ?? '')?.name ?? 'unknown')
+      skipped.ambiguous.push(`${faction.slug}: ${unit.name} (${owners.join(', ')}, ${tiers.length} tiers)`)
       continue
     }
 
