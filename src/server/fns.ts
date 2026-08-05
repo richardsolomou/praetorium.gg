@@ -6,7 +6,7 @@ import { cookieOptions, PLAYER_COOKIE, playerFor, playerIdFrom, signPlayerId } f
 import { configuredProviders } from './auth'
 import { evaluate, type Selection } from '../core/evaluate'
 import { attachmentOf } from '../core/attach'
-import { detachmentPointBudget } from '../core/battle'
+import { detachmentPointBudget, detachmentPointsError } from '../core/battle'
 import { buildUnit, modelCountOf, unitChoices, unitToggles, wargearOf } from '../core/roster'
 import { datasheetIn, groupOfEntry, unitsIn } from './catalogue'
 import { fromRosterXml, toRosterXml } from '../core/rosz'
@@ -238,6 +238,7 @@ export const priceRoster = createServerFn({ method: 'POST' })
       }))
       const budget = detachmentPointBudget(data.limit)
       const spent = purchased.reduce((total, option) => total + (option.points ?? 0), 0)
+      const detachmentError = detachmentPointsError(purchased, budget)
 
       const picked = data.units.flatMap((wanted, key) => {
         const built = buildUnit(wanted.entryId, loaded.index, wanted.models, wanted.choices, {
@@ -266,7 +267,8 @@ export const priceRoster = createServerFn({ method: 'POST' })
         detachments: purchased,
         detachmentPointBudget: budget,
         detachmentPointsSpent: spent,
-        detachmentPointsOver: budget === null ? false : spent > budget,
+        detachmentPointsOver: Boolean(detachmentError),
+        detachmentError,
         disposition: chosen[0]?.disposition ?? null,
         points: whole.points,
         errors,

@@ -59,7 +59,7 @@ describe('setup', () => {
     expect(validate(state, BOB, roster('Death Guard'))).toBe('the battle has started')
   })
 
-  it('refuses a built list over its detachment point budget', () => {
+  it('refuses multiple detachments over the battle-size allowance', () => {
     const command = builtRoster('Necrons', ['Immortals'])
     if (command.kind !== 'attach-roster' || !command.roster.built) throw new Error('expected a built roster')
     command.roster.built.detachments = [
@@ -68,7 +68,16 @@ describe('setup', () => {
     ]
     command.roster.built.detachmentPointBudget = 2
 
-    expect(validate(reduceBattle(PLAYERS, log()), ALICE, command)).toBe('detachments exceed the DP budget')
+    expect(validate(reduceBattle(PLAYERS, log()), ALICE, command)).toBe('invalid detachment combination')
+  })
+
+  it('allows one detachment above the multi-detachment allowance', () => {
+    const command = builtRoster('Necrons', ['Immortals'])
+    if (command.kind !== 'attach-roster' || !command.roster.built) throw new Error('expected a built roster')
+    command.roster.built.detachments = [{ name: 'Hand of the Dynasty', points: 3 }]
+    command.roster.built.detachmentPointBudget = 2
+
+    expect(validate(reduceBattle(PLAYERS, log()), ALICE, command)).toBeNull()
   })
 })
 
