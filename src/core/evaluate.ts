@@ -542,6 +542,9 @@ function measure(spec: Measurable, node: Node, root: Node, index: CatalogueIndex
   const matching = [...seen]
 
   if (spec.field === 'selections') return matching.reduce((total, each) => total + each.count, 0)
+  // External roster associations are validated beside the saved picks. A bare
+  // selection tree carries none, so its measured association count is zero.
+  if (spec.field === 'associations') return 0
   if (index.costTypes.has(spec.field)) {
     return matching.reduce((total, each) => total + (costOf(each, spec.field) ?? 0) * each.count, 0)
   }

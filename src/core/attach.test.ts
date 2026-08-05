@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { attachmentOf } from './attach'
+import { attachmentErrors, attachmentOf } from './attach'
 import { buildIndex, type Catalogue, type CatalogueFile } from './catalogue'
 
 const system: CatalogueFile = { gameSystem: { id: 'gs', name: 'Test', costTypes: [{ id: 'pts', name: 'pts' }] } }
@@ -102,5 +102,43 @@ describe('a character that can join a unit', () => {
       ],
     })
     expect(attachmentOf(index.definitions.get('vague')!, index)).toBeNull()
+  })
+})
+
+describe('attachment legality', () => {
+  it('rejects an incompatible host', () => {
+    const index = indexOf({
+      sharedSelectionEntries: [
+        {
+          id: 'leader',
+          name: 'Leader',
+          type: 'model',
+          infoGroups: [
+            { id: 'g', name: 'Leader', profiles: [ability('Leader', 'This model can be attached to the following units:\n■ SQUAD')] },
+          ],
+        },
+        { id: 'tank', name: 'Tank', type: 'unit' },
+      ],
+    })
+    expect(attachmentErrors([{ entryId: 'leader', attachedTo: 1 }, { entryId: 'tank' }], index)[0]?.message).toBe(
+      'cannot be attached to Tank',
+    )
+  })
+
+  it('accepts a named host', () => {
+    const index = indexOf({
+      sharedSelectionEntries: [
+        {
+          id: 'leader',
+          name: 'Leader',
+          type: 'model',
+          infoGroups: [
+            { id: 'g', name: 'Leader', profiles: [ability('Leader', 'This model can be attached to the following units:\n■ SQUAD')] },
+          ],
+        },
+        { id: 'squad', name: 'SQUAD', type: 'unit' },
+      ],
+    })
+    expect(attachmentErrors([{ entryId: 'leader', attachedTo: 1 }, { entryId: 'squad' }], index)).toEqual([])
   })
 })

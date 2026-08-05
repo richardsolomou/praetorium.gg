@@ -1,4 +1,5 @@
 import type { CatalogueIndex, Definition, InfoGroup, Profile } from './catalogue'
+import type { EvaluationError } from './evaluate'
 
 /**
  * A character joining a unit, as eleventh edition writes it.
@@ -38,6 +39,39 @@ export function attachmentOf(definition: Definition, index: CatalogueIndex): Att
     return { kind: title.trim().toLowerCase() === 'leader' ? 'leader' : 'support', targets: named }
   }
   return null
+}
+
+export function attachmentErrors(units: readonly { entryId: string; attachedTo?: number }[], index: CatalogueIndex): EvaluationError[] {
+  const errors: EvaluationError[] = []
+  units.forEach((unit, position) => {
+    if (unit.attachedTo === undefined) return
+    const definition = index.definitions.get(unit.entryId)
+    const name = definition?.name ?? unit.entryId
+    const error = (message: string) => errors.push({ entryId: unit.entryId, entryName: name, message })
+    if (unit.attachedTo === position) {
+      error('cannot be attached to itself')
+      return
+    }
+    const host = units[unit.attachedTo]
+    if (!host) {
+      error('names a missing attachment target')
+      return
+    }
+    const attachment = definition && attachmentOf(definition, index)
+    if (!attachment) {
+      error('cannot be attached to another unit')
+      return
+    }
+    const hostName = index.definitions.get(host.entryId)?.name ?? host.entryId
+    if (!attachment.targets.some((target) => target.localeCompare(hostName, undefined, { sensitivity: 'accent' }) === 0)) {
+      error(`cannot be attached to ${hostName}`)
+    }
+    const associationMax = definition?.constraints
+      ?.filter((constraint) => constraint.type === 'max' && constraint.field === 'associations')
+      .map((constraint) => constraint.value)
+    if (associationMax?.length && Math.min(...associationMax) < 1) error('allows no attachments')
+  })
+  return errors
 }
 
 /** Every ability on the entry, as title and words. */

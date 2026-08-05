@@ -5,7 +5,7 @@ import { createId } from './crypto'
 import { cookieOptions, PLAYER_COOKIE, playerFor, playerIdFrom, signPlayerId } from './identity'
 import { configuredProviders } from './auth'
 import { evaluate, evaluateForces, type Selection } from '../core/evaluate'
-import { attachmentOf } from '../core/attach'
+import { attachmentErrors, attachmentOf } from '../core/attach'
 import { detachmentPointBudget, detachmentPointsError } from '../core/battle'
 import { buildUnit, modelCountOf, unitChoices, unitToggles, wargearOf } from '../core/roster'
 import { datasheetIn, groupOfEntry, unitsIn } from './catalogue'
@@ -263,10 +263,17 @@ export const priceRoster = createServerFn({ method: 'POST' })
       const whole = evaluateForces([...forceSelections.values()], loaded.index, options)
       // BSData's 10e wrapper still caps the roster at one; the 11e rules source
       // replaces only that constraint with the DP budget checked above.
-      const errors = whole.errors.filter(
-        (error) =>
-          !(chosen.length > 1 && error.entryName.toLowerCase().includes('detachment') && error.message.includes('allows at most 1, has ')),
-      )
+      const errors = [
+        ...whole.errors.filter(
+          (error) =>
+            !(
+              chosen.length > 1 &&
+              error.entryName.toLowerCase().includes('detachment') &&
+              error.message.includes('allows at most 1, has ')
+            ),
+        ),
+        ...attachmentErrors(data.units, loaded.index),
+      ]
 
       return {
         revision: loaded.index.revision,
