@@ -133,7 +133,7 @@ It does not include BattleBase's rankings, events, leagues, locations, friends o
 | Catalogue acquisition      | Done                  | The instance fetches pinned BSData and 40kdc-data revisions in the background and swaps staged data atomically. No game data is committed.                                                                                                             |
 | Roster construction        | Substantial           | Faction, game size, detachment, top-level datasheets, squad size, choices, split collective wargear, enhancements, attachments and points limits.                                                                                                      |
 | Roster validation          | Substantial           | Constraints, modifiers, conditions, force scope, ordering, category keywords and catalogue-sensitive costs. The Munitorum ratchet is 97.4% of 1,548 checks. Unknown semantics are reported rather than guessed.                                        |
-| Roster library             | Partial               | Lists can be named, saved, loaded and deleted inside battle setup. There is no standalone roster index, copy flow, metadata view or shareable read-only roster.                                                                                        |
+| Roster library             | Partial               | A standalone roster destination can build, import, name, save, load and delete lists. There is no copy flow, metadata view or shareable read-only roster.                                                                                              |
 | Interchange                | Partial               | `.ros` and `.rosz` import and `.ros` export work. Unplaceable units are reported. Import restores units and model counts, but does not yet promise lossless import of every nested force, selection, choice or attachment another builder can express. |
 | Collection                 | Partial               | Per-datasheet owned membership drives the picker filter. There are no quantities, collection browser or favourites view.                                                                                                                               |
 | Mission setup              | Done for current data | Force dispositions derive the mission; deployment zones and objectives are drawn from data; fixed/tactical secondaries, primary cards and detachment/core stratagems are picked rather than typed.                                                     |
@@ -143,16 +143,16 @@ It does not include BattleBase's rankings, events, leagues, locations, friends o
 
 ## Current design coverage
 
-| Surface                | State   | Assessment                                                                                                                                                                                                        |
-| ---------------------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Visual system          | Done    | Near-black surfaces, compact radii, tracked uppercase headings, tabular numbers, bordered points chips, red/blue ownership tints and an openly licensed condensed typeface.                                       |
-| Builder desktop layout | Close   | Three panes for picker, roster and loadout; category shelves, counts and a persistent points total follow BattleBase's information architecture.                                                                  |
-| Builder mobile layout  | Close   | One roster plus one movable picker/loadout pane avoids duplicate controls and keeps squad size on the card. It follows Praetorium's chosen responsive interpretation rather than BattleBase's separate phone app. |
-| Builder detail         | Partial | Cards and choice controls match the density, but the loadout pane lacks datasheet stats, weapon profiles, rules, keywords and BattleBase's utility actions.                                                       |
-| Application shell      | Missing | The live site has only a brand bar and account action. BattleBase has persistent navigation and first-class roster, battle and faction destinations.                                                              |
-| Setup flow             | Partial | The order follows the game and all game facts are picked from data, but it is presented as stacked forms rather than BattleBase's compact destination-based workflow.                                             |
-| Battle tracker         | Early   | The dark palette and side ownership are present. The current narrow two-card layout does not match BattleBase's three-column desktop tracker or its per-round mission ledger.                                     |
-| Phone tracker          | Early   | Controls are usable on a phone, but there is no fixed bottom scoreboard, five-segment round display, `NOW` step, `INFO`/`EVENTS` tabs or guided primary action.                                                   |
+| Surface                | State                            | Assessment                                                                                                                                                                                                        |
+| ---------------------- | -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Visual system          | Done                             | Near-black surfaces, compact radii, tracked uppercase headings, tabular numbers, bordered points chips, red/blue ownership tints and an openly licensed condensed typeface.                                       |
+| Builder desktop layout | Close                            | Three panes for picker, roster and loadout; category shelves, counts and a persistent points total follow BattleBase's information architecture.                                                                  |
+| Builder mobile layout  | Close                            | One roster plus one movable picker/loadout pane avoids duplicate controls and keeps squad size on the card. It follows Praetorium's chosen responsive interpretation rather than BattleBase's separate phone app. |
+| Builder detail         | Partial                          | Cards and choice controls match the density, but the loadout pane lacks datasheet stats, weapon profiles, rules, keywords and BattleBase's utility actions.                                                       |
+| Application shell      | Done for the scoped destinations | Persistent navigation exposes first-class battle history, roster building and faction browsing. Social and competitive BattleBase destinations remain out of scope.                                               |
+| Setup flow             | Partial                          | The order follows the game and all game facts are picked from data, but it is presented as stacked forms rather than BattleBase's compact destination-based workflow.                                             |
+| Battle tracker         | Early                            | The dark palette and side ownership are present. The current narrow two-card layout does not match BattleBase's three-column desktop tracker or its per-round mission ledger.                                     |
+| Phone tracker          | Early                            | Controls are usable on a phone, but there is no fixed bottom scoreboard, five-segment round display, `NOW` step, `INFO`/`EVENTS` tabs or guided primary action.                                                   |
 
 Deployed at `praetorium.ras.sh`, auto-deploying from `main`. See [deployment.md](deployment.md).
 
@@ -168,11 +168,11 @@ Deployed at `praetorium.ras.sh`, auto-deploying from `main`. See [deployment.md]
 
 This is the implementation order that closes the largest user-visible gaps without weakening the evaluator or battle log.
 
-### 1. Give the product first-class destinations
+### 1. Deepen the first-class destinations
 
-Add a responsive application shell and routes for **Battles**, **Rosters** and **Factions**. The roster route should create, import, copy, rename, delete and open lists without starting a battle. The battle route should show setup, active and finished battles owned by the current player. The faction route should browse the synced books and open a datasheet without creating a roster. Keep social and competitive BattleBase destinations out of scope.
+The responsive application shell now has **Battles**, **Rosters** and **Factions** routes. Rosters can be built, imported, saved, loaded and deleted without starting a battle; battle history shows setup, active and finished battles; factions and their datasheets can be browsed independently. Keep social and competitive BattleBase destinations out of scope.
 
-This also requires repository queries for a player's battles and better saved-roster metadata. Today both capabilities are buried inside the setup flow, which makes the app look much smaller than it is.
+Finish this slice with roster copy/rename actions, richer saved-roster metadata, a read-only datasheet route and direct links from faction results. Battle summaries should add army names and last activity without storing derived battle state.
 
 ### 2. Rebuild the battle tracker in BattleBase's information architecture
 
