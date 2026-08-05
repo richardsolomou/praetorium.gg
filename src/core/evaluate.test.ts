@@ -45,6 +45,33 @@ describe('costs', () => {
     const result = evaluateOne({ id: 'tank' }, { sharedSelectionEntries: [{ id: 'tank', name: 'Tank', type: 'unit', costs: points(150) }] })
     expect(result.costs.pts).toBe(150)
   })
+
+  it('applies a conditional base price before multiplying it', () => {
+    const result = evaluateOne(
+      { id: 'agents', selections: [{ id: 'body', count: 12 }] },
+      {
+        sharedSelectionEntries: [
+          {
+            id: 'agents',
+            name: 'Agents',
+            type: 'unit',
+            costs: points(50),
+            modifiers: [
+              {
+                type: 'multiply',
+                field: PTS,
+                value: 2,
+                conditions: [{ type: 'atLeast', value: 7, field: 'selections', scope: 'agents', childId: 'model' }],
+              },
+              { type: 'set', field: PTS, value: 60 },
+            ],
+            selectionEntries: [{ id: 'body', name: 'Body', type: 'model' }],
+          },
+        ],
+      },
+    )
+    expect(result.points).toBe(120)
+  })
 })
 
 /**

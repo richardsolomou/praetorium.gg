@@ -339,7 +339,8 @@ function costsOf(node: Node, root: Node, index: CatalogueIndex, census: Census):
     for (const cost of source.costs ?? []) base.set(cost.typeId, cost.value)
   }
 
-  for (const modifier of modifiersOf(node)) {
+  const modifiers = modifiersOf(node).toSorted((left, right) => Number(right.type === 'set') - Number(left.type === 'set'))
+  for (const modifier of modifiers) {
     if (!index.costTypes.has(modifier.field)) continue
     const times = repeatCount(modifier, node, root, index, census)
     if (times === 0) continue
