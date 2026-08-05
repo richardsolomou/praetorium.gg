@@ -37,7 +37,10 @@ function Factions() {
       return next
     })
   }
-  const matching = data.factions.filter((entry) => entry.name.toLowerCase().includes(factionQueryText.trim().toLowerCase()))
+  const wanted = factionQueryText.trim().toLowerCase()
+  const matching = data.factions.filter(
+    (entry) => entry.displayName.toLowerCase().includes(wanted) || entry.name.toLowerCase().includes(wanted),
+  )
   const favouriteFactions = matching.filter((entry) => favourites.has(entry.id))
 
   return (
@@ -57,6 +60,7 @@ function Factions() {
 type Faction = {
   id: string
   name: string
+  displayName: string
   references: { id: string; name: string; datasheets: number; detachments: number }[]
   detachments: {
     id: string
@@ -85,15 +89,15 @@ function FactionShelf({
       {entries.length ? (
         <div className="mt-2 divide-y divide-edge border border-edge bg-panel">
           {entries.map((entry) => (
-            <div key={entry.id} data-faction={entry.name} className="flex items-center">
+            <div key={entry.id} data-faction={entry.displayName} className="flex items-center">
               <Link to="/factions/$catalogueId" params={{ catalogueId: entry.id }} className="min-w-0 flex-1 px-3 py-2 text-left">
-                <span className="block truncate font-bold uppercase">{entry.name}</span>
+                <span className="block truncate font-bold uppercase">{entry.displayName}</span>
                 <span className="text-xs text-dim">{entry.detachments.length} detachments</span>
               </Link>
               <button
                 type="button"
                 className="p-2"
-                aria-label={`${favourites.has(entry.id) ? 'Remove' : 'Add'} ${entry.name} ${favourites.has(entry.id) ? 'from' : 'to'} favourites`}
+                aria-label={`${favourites.has(entry.id) ? 'Remove' : 'Add'} ${entry.displayName} ${favourites.has(entry.id) ? 'from' : 'to'} favourites`}
                 aria-pressed={favourites.has(entry.id)}
                 onClick={() => onFavourite(entry.id)}
               >

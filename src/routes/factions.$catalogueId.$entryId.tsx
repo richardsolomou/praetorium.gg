@@ -29,7 +29,7 @@ function DatasheetPage() {
         <Link to="/factions">Factions</Link>
         <ChevronRight className="size-3 text-dim" aria-hidden />
         <Link to="/factions/$catalogueId" params={{ catalogueId: params.catalogueId }}>
-          {faction?.name ?? 'Faction'}
+          {faction?.displayName ?? 'Faction'}
         </Link>
         <ChevronRight className="size-3 text-dim" aria-hidden />
         <Link to="/factions/$catalogueId/reference" params={{ catalogueId: params.catalogueId }}>

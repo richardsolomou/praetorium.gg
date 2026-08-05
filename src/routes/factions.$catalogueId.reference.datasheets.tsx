@@ -28,7 +28,7 @@ function DatasheetsPage() {
         params={{ catalogueId }}
         className="eyebrow flex items-center gap-1 text-azure hover:text-bone"
       >
-        <ChevronLeft className="size-3.5" /> {faction.references[0]?.name ?? faction.name}
+        <ChevronLeft className="size-3.5" /> {faction.references[0]?.name ?? faction.displayName}
       </Link>
       <header className="mt-4 border-b border-edge pb-4">
         <p className="eyebrow">Reference</p>

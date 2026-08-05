@@ -23,7 +23,7 @@ function ReferencePage() {
   return (
     <main className="mx-auto w-full max-w-5xl px-4 py-8">
       <Link to="/factions/$catalogueId" params={{ catalogueId }} className="eyebrow flex items-center gap-1 text-azure hover:text-bone">
-        <ChevronLeft className="size-3.5" /> {faction.name}
+        <ChevronLeft className="size-3.5" /> {faction.displayName}
       </Link>
       <header className="mt-4 border-b border-edge pb-4">
         <p className="eyebrow">Reference</p>
