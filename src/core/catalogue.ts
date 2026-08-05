@@ -162,12 +162,16 @@ export type Profile = { id: string; name?: string; typeName?: string; hidden?: b
 /** A named bundle of profiles hanging off an entry — "Leader" is one. */
 export type InfoGroup = { id: string; name?: string; profiles?: Profile[] }
 
+/** Display text defined once and referenced by a detachment or datasheet. */
+export type Rule = { id: string; name?: string; description?: string; hidden?: boolean }
+
 /** A reference to a profile or info group defined once at the catalogue's top level. */
 export type InfoLink = { id: string; targetId: string; name?: string }
 
 type Common = {
   id: string
   name?: string
+  comment?: string
   hidden?: boolean
   costs?: Cost[]
   constraints?: Constraint[]
@@ -206,6 +210,7 @@ export type Catalogue = {
   catalogueLinks?: { targetId: string }[]
   sharedProfiles?: Profile[]
   sharedInfoGroups?: InfoGroup[]
+  sharedRules?: Rule[]
   categoryEntries?: CategoryEntry[]
 }
 
@@ -247,6 +252,8 @@ export type CatalogueIndex = {
    * join is a sentence rather than a structure.
    */
   shared: Map<string, Profile | InfoGroup>
+  /** Rules are display text, kept separately from profiles so links remain typed. */
+  rules: Map<string, Rule>
   /** Categories by id, because that is where a datasheet's roster cap is written. */
   categories: Map<string, CategoryEntry>
   /** The data revision every roster and battle must pin, so two clients agree on legality. */
@@ -269,6 +276,7 @@ export function buildIndex(files: readonly CatalogueFile[], revision: string): C
   const forces: { id: string; name: string }[] = []
   const datasheets = new Set<string>()
   const shared = new Map<string, Profile | InfoGroup>()
+  const rules = new Map<string, Rule>()
   const categories = new Map<string, CategoryEntry>()
 
   let owner = ''
@@ -300,6 +308,7 @@ export function buildIndex(files: readonly CatalogueFile[], revision: string): C
     for (const force of root.forceEntries ?? []) forces.push({ id: force.id, name: force.name ?? force.id })
     for (const profile of root.sharedProfiles ?? []) shared.set(profile.id, profile)
     for (const group of root.sharedInfoGroups ?? []) shared.set(group.id, group)
+    for (const rule of root.sharedRules ?? []) rules.set(rule.id, rule)
     for (const category of root.categoryEntries ?? []) categories.set(category.id, category)
     owner = root.id
     for (const costType of root.costTypes ?? []) costTypes.set(costType.id, costType)
@@ -325,6 +334,7 @@ export function buildIndex(files: readonly CatalogueFile[], revision: string): C
     datasheets,
     forces,
     shared,
+    rules,
     categories,
     revision,
   }

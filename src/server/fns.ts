@@ -9,7 +9,7 @@ import { attachmentErrors, attachmentOf } from '../core/attach'
 import { detachmentPointBudget, detachmentPointsError } from '../core/battle'
 import { buildUnit, modelCountOf, unitChoices, unitToggles, wargearOf } from '../core/roster'
 import { routeSlug } from '../core/slug'
-import { datasheetIn, datasheetInBySlug, groupOfEntry, unitsIn } from './catalogue'
+import { datasheetIn, datasheetInBySlug, detachmentCatalogueDetail, groupOfEntry, unitsIn } from './catalogue'
 import { fromRosterXml, toRosterXml } from '../core/rosz'
 import { parseXml, rosterXml } from './rosz'
 import { ATTRIBUTION, slug } from './rules'
@@ -19,6 +19,7 @@ import {
   datasheetSchema,
   datasheetSlugSchema,
   detachmentRulesSchema,
+  detachmentDetailSchema,
   exportRosterSchema,
   importRosterSchema,
   joinBattleSchema,
@@ -169,6 +170,7 @@ export const factions = createServerFn({ method: 'GET' }).handler(() =>
             const reference = rules?.detachmentReferences.get(slug(faction.name))?.get(slug(detachment.name))
             return {
               id: detachment.id,
+              slug: slug(detachment.name),
               name: detachment.name,
               disposition: detachment.disposition,
               reference: reference
@@ -390,6 +392,35 @@ export const detachmentRules = createServerFn({ method: 'GET' })
         core: rules.core,
         secondaries: rules.secondaries,
         primaries: rules.primaries,
+      }
+    }),
+  )
+
+export const detachmentDetail = createServerFn({ method: 'GET' })
+  .validator(detachmentDetailSchema)
+  .handler(({ data }) =>
+    rpc(() => {
+      const rules = app().rules()
+      const catalogue = app().catalogue()
+      const faction = catalogue?.index.catalogues.get(data.catalogueId)
+      if (!rules || !catalogue || !faction) return null
+      const detail = rules.detachmentDetails.get(slug(faction.name))?.get(data.slug)
+      const option = catalogue.detachments.get(data.catalogueId)?.options.find((candidate) => slug(candidate.name) === data.slug)
+      if (!detail || !option) return null
+      const catalogueDetail = detachmentCatalogueDetail(catalogue, data.catalogueId, option.id, detail.enhancementNames)
+      return {
+        ...detail,
+        dispositions: detail.dispositions.map((disposition) => rules.dispositions.get(disposition) ?? disposition),
+        rule: catalogueDetail?.rule ?? null,
+        enhancements: detail.enhancementNames.map(
+          (name) =>
+            catalogueDetail?.enhancements.find((enhancement) => enhancement.name.toLocaleLowerCase() === name.toLocaleLowerCase()) ?? {
+              name,
+              points: null,
+              description: null,
+            },
+        ),
+        attribution: ATTRIBUTION,
       }
     }),
   )

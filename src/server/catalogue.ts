@@ -49,6 +49,11 @@ export type DetachmentOptions = { wrapperId: string; groupId: string; options: D
  */
 export type DetachmentOption = { id: string; name: string; disposition: string | null }
 
+export type DetachmentCatalogueDetail = {
+  rule: { name: string; description: string | null } | null
+  enhancements: { name: string; points: number | null; description: string | null }[]
+}
+
 const DISPOSITIONS = new Set(['take-and-hold', 'disruption', 'purge-the-foe', 'priority-assets', 'reconnaissance'])
 
 const asDisposition = (name: string) =>
@@ -136,6 +141,41 @@ export function detachmentsOf(files: readonly CatalogueFile[], index: CatalogueI
     if (best) found.set(root.id, best)
   }
   return found
+}
+
+/** Full catalogue-authored text for one detachment and its enhancements. */
+export function detachmentCatalogueDetail(
+  loaded: LoadedCatalogue,
+  catalogueId: string,
+  detachmentId: string,
+  enhancementNames: readonly string[],
+): DetachmentCatalogueDetail | null {
+  const option = loaded.detachments.get(catalogueId)?.options.find((candidate) => candidate.id === detachmentId)
+  if (!option) return null
+  const definition = loaded.index.definitions.get(option.id)
+  const rule = definition?.infoLinks
+    ?.map((link) => loaded.index.rules.get(link.targetId))
+    .find((candidate) => candidate && !candidate.hidden)
+
+  const wanted = new Set(enhancementNames.map((name) => name.toLocaleLowerCase()))
+  const enhancements = [...loaded.index.definitions.values()]
+    .filter(
+      (entry): entry is SelectionEntry =>
+        entry.type === 'upgrade' && entry.comment === option.name && Boolean(entry.name && wanted.has(entry.name.toLocaleLowerCase())),
+    )
+    .map((entry) => ({
+      name: entry.name!,
+      points: entry.costs?.find((cost) => cost.typeId === loaded.index.pointsTypeId)?.value ?? null,
+      description:
+        entry.profiles?.flatMap((profile) => profile.characteristics ?? []).find((characteristic) => characteristic.name === 'Description')
+          ?.$text ?? null,
+    }))
+    .toSorted((left, right) => left.name.localeCompare(right.name))
+
+  return {
+    rule: rule?.name ? { name: rule.name, description: rule.description ?? null } : null,
+    enhancements,
+  }
 }
 
 function unitCount(index: CatalogueIndex, catalogueId: string) {

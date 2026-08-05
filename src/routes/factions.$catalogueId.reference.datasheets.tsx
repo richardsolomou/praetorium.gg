@@ -1,5 +1,5 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import { createFileRoute, Link, notFound } from '@tanstack/react-router'
+import { createFileRoute, Link, notFound, Outlet, useParams, useRouterState } from '@tanstack/react-router'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useState } from 'react'
 import { Input } from '@/components/ui/input'
@@ -16,18 +16,20 @@ export const Route = createFileRoute('/factions/$catalogueId/reference/datasheet
   component: DatasheetsPage,
 })
 
-function DatasheetsPage() {
-  const { catalogueId } = Route.useParams()
+export function DatasheetsPage() {
+  const { catalogueId } = useParams({ strict: false })
+  const path = useRouterState({ select: (state) => state.location.pathname })
   const { data } = useQuery(factionsQuery())
-  const faction = factionFor(data, catalogueId)
+  const faction = factionFor(data, catalogueId ?? '')
   const [query, setQuery] = useState('')
   const { data: units = [] } = useQuery({ ...unitsQuery(faction?.id ?? '', query), placeholderData: keepPreviousData })
+  if (path !== `/factions/${catalogueId}/datasheets`) return <Outlet />
   if (!faction) return null
 
   return (
     <main className="mx-auto w-full max-w-5xl px-4 py-8">
       <Link
-        to="/factions/$catalogueId/reference"
+        to="/factions/$catalogueId"
         params={{ catalogueId: faction.slug }}
         className="eyebrow flex items-center gap-1 text-azure hover:text-bone"
       >
@@ -52,7 +54,7 @@ function DatasheetsPage() {
         {units.map((unit) => (
           <Link
             key={unit.id}
-            to="/factions/$catalogueId/$entryId"
+            to="/factions/$catalogueId/datasheets/$entryId"
             params={{ catalogueId: faction.slug, entryId: unit.slug }}
             className="flex items-center justify-between border border-edge bg-panel px-3 py-2 hover:border-azure"
           >

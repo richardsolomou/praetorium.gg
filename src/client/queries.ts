@@ -7,6 +7,7 @@ import {
   datasheet,
   datasheetBySlug,
   detachmentRules,
+  detachmentDetail,
   factions,
   me,
   myBattles,
@@ -101,6 +102,14 @@ export const detachmentRulesQuery = (catalogueId: string, detachmentNames: reado
     queryKey: ['detachment-rules', catalogueId, detachmentNames],
     queryFn: () => detachmentRules({ data: { catalogueId, detachmentNames: [...detachmentNames] } }),
     enabled: Boolean(catalogueId && detachmentNames.length),
+    staleTime: Infinity,
+  })
+
+export const detachmentDetailQuery = (catalogueId: string, slug: string) =>
+  queryOptions({
+    queryKey: ['detachment-detail', catalogueId, slug],
+    queryFn: () => detachmentDetail({ data: { catalogueId, slug } }),
+    enabled: Boolean(catalogueId && slug),
     staleTime: Infinity,
   })
 
