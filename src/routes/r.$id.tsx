@@ -1,5 +1,7 @@
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
 import { createFileRoute, notFound } from '@tanstack/react-router'
+import { Printer } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import { priceQuery, sharedRosterQuery } from '../client/queries'
 
 export const Route = createFileRoute('/r/$id')({
@@ -31,9 +33,14 @@ function SharedRoster() {
             {priced?.detachment ?? 'No detachment'} · {roster.picks.length} units
           </p>
         </div>
-        <span className="readout text-2xl font-bold">
-          {priced?.points ?? '—'}/{roster.limit}
-        </span>
+        <div className="flex items-center gap-3">
+          <span className="readout text-2xl font-bold">
+            {priced?.points ?? '—'}/{roster.limit}
+          </span>
+          <Button variant="outline" size="sm" data-print-hide onClick={() => window.print()}>
+            <Printer /> Print
+          </Button>
+        </div>
       </header>
 
       {priced?.errors.length ? (

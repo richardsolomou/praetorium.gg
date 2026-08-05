@@ -64,4 +64,11 @@ test('a list is saved and loaded into another battle', async ({ browser }) => {
   await page.getByRole('link', { name: 'View Copy of Nurgle 2k' }).click()
   await expect(page.getByRole('heading', { name: 'Copy of Nurgle 2k' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Immortals' })).toBeVisible()
+  await page.evaluate(() => {
+    window.print = () => document.documentElement.setAttribute('data-print-called', 'true')
+  })
+  await page.getByRole('button', { name: 'Print' }).click()
+  await expect(page.locator('html')).toHaveAttribute('data-print-called', 'true')
+  await page.emulateMedia({ media: 'print' })
+  await page.screenshot({ path: 'test-results/shared-roster-print.png', fullPage: true })
 })

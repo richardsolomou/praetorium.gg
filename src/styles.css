@@ -84,6 +84,26 @@
   }
 }
 
+@media print {
+  [data-print-hide],
+  body > div > header,
+  footer {
+    display: none !important;
+  }
+
+  html,
+  body {
+    background: white !important;
+    color: black !important;
+  }
+
+  article {
+    break-inside: avoid;
+    background: white !important;
+    border-color: #999 !important;
+  }
+}
+
 :root {
   /* BattleBase rounds almost nothing: 3px on buttons, 4px on cards. */
   --radius: 0.25rem;
