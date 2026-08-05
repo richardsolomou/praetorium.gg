@@ -125,9 +125,36 @@ function resolve(name: string, catalogueId?: string) {
 
   const nearest = Math.min(...all.map((entry) => distance.get(index.catalogueOf.get(entry.id) ?? '') ?? Number.POSITIVE_INFINITY))
   const scoped = Number.isFinite(nearest) ? all.filter((entry) => distance.get(index.catalogueOf.get(entry.id) ?? '') === nearest) : all
-  const candidates = scoped.length ? scoped : all
+  let candidates = scoped.length ? scoped : all
+  const primaryName = catalogueId ? index.catalogues.get(catalogueId)?.name : undefined
+  if (primaryName && candidates.length > 1) {
+    const affiliated = candidates.filter((entry) => {
+      const owner = index.catalogues.get(index.catalogueOf.get(entry.id) ?? '')?.name
+      return owner === primaryName || owner?.startsWith(`${primaryName} - `)
+    })
+    if (affiliated.length) candidates = affiliated
+    else return []
+  }
+  if (candidates.length > 1) {
+    const matchedPlay = candidates.filter((entry) => !hiddenOutsideCrusade(entry))
+    if (matchedPlay.length) candidates = matchedPlay
+  }
   const datasheets = candidates.filter((entry) => entry.type === 'unit')
   return datasheets.length ? datasheets : candidates.filter((entry) => entry.type === 'model')
+}
+
+/** A variant explicitly hidden when no Crusade force is present. */
+function hiddenOutsideCrusade(entry: SelectionEntry) {
+  return (entry.modifiers ?? []).some(
+    (modifier) =>
+      modifier.type === 'set' &&
+      modifier.field === 'hidden' &&
+      modifier.value === true &&
+      (modifier.conditions ?? []).some(
+        (condition) =>
+          condition.type === 'lessThan' && condition.value === 1 && condition.field === 'forces' && condition.scope === 'roster',
+      ),
+  )
 }
 
 /** Separately priced wargear uses the quantities selected for the whole unit. */
@@ -210,7 +237,18 @@ for (const faction of factions) {
         tier.points + [...equipped].reduce((total, [name, count]) => total + (wargearPrices.get(normalise(name)) ?? 0) * count, 0)
       for (const note of result.unhandled) census.add(note)
       if (result.points === expected) tally.matched++
-      else {
+      else if (
+        tiers.some(
+          (other) =>
+            other !== tier &&
+            other.models === tier.models &&
+            other.points + [...equipped].reduce((total, [name, count]) => total + (wargearPrices.get(normalise(name)) ?? 0) * count, 0) ===
+              result.points,
+        )
+      ) {
+        tally.unsupportedShape++
+        skipped.unsupported.push(`${faction.slug}: ${unit.name} @ ${tier.models} models (alternate composition not built)`)
+      } else {
         tally.mismatched++
         mismatches.push(`${faction.slug}: ${unit.name} @ ${tier.models} models: got ${result.points}, Munitorum says ${expected}`)
         if (wantedUnit) console.log(JSON.stringify(built.selection, null, 2))
