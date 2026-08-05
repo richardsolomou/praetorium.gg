@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { Check, Copy, Download, Eye, Save, Trash2, TriangleAlert, Upload } from 'lucide-react'
+import { Check, Copy, Download, Eye, LoaderCircle, Trash2, TriangleAlert, Upload } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -100,11 +100,17 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
     if (list.prep) onRestorePrep(list.prep)
   }
 
+  const faction = available?.factions.find((entry) => entry.id === catalogueId)
+  const suggested = faction
+    ? [faction.name.split(' - ').at(-1), faction.detachments.find((entry) => entry.id === detachmentId)?.name].filter(Boolean).join(' — ')
+    : ''
+  const listName = name.trim() || suggested
   const save = useMutation({
-    mutationFn: () =>
+    scope: { id: 'roster-autosave' },
+    mutationFn: (id: string) =>
       saveRoster({
         data: {
-          id: savedId,
+          id,
           name: listName || 'Untitled list',
           catalogueId,
           detachmentId: detachmentId ?? null,
@@ -127,6 +133,16 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
       void refreshSaved()
     },
   })
+
+  useEffect(() => {
+    if (!catalogueId || !picked.length || !listName) return
+    const id = savedId ?? crypto.randomUUID()
+    if (!savedId) setSavedId(id)
+    save.mutate(id)
+    // The mutation reads the complete rendered draft. A later render queues behind
+    // this one, so the final request always contains the newest state.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [catalogueId, detachmentId, limit, listName, picked, prep, savedId])
 
   /**
    * Reading a roster file. `.ros` is text; `.rosz` is a zip, so it travels as base64
@@ -195,11 +211,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
 
   if (!available) return null
 
-  const faction = available.factions.find((entry) => entry.id === catalogueId)
   const over = Boolean(priced && priced.points > limit)
-  // Named for you from what you picked. Editable, but never something you must type.
-  const suggested = faction ? [faction.name.split(' - ').at(-1), priced?.detachment].filter(Boolean).join(' — ') : ''
-  const listName = name.trim() || suggested
   // A list without one is not a legal army, so it cannot be attached.
   const needsDetachment = Boolean(faction?.detachments.length) && !detachmentId
   const units = priced?.units ?? []
@@ -610,11 +622,14 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
         </Button>
 
         <span className="ml-auto flex flex-wrap items-center gap-2">
-          {/* No aria-label: it would override the text and never announce the change. */}
-          <Button variant="outline" size="sm" disabled={save.isPending || !listName || !units.length} onClick={() => save.mutate()}>
-            <Save />
-            {savedId ? 'Saved' : 'Save list'}
-          </Button>
+          <output className="inline-flex items-center gap-1 text-xs text-dim" aria-live="polite">
+            {save.isPending ? (
+              <LoaderCircle className="size-3 animate-spin" aria-hidden />
+            ) : (
+              <Check className="size-3 text-achieved" aria-hidden />
+            )}
+            {save.isPending ? 'Saving' : savedId ? 'Saved automatically' : 'Autosaves after the first unit'}
+          </output>
           <Button variant="outline" size="sm" disabled={take.isPending || !units.length} onClick={() => take.mutate()}>
             <Download />
             Export

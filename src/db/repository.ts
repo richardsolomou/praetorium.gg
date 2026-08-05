@@ -135,6 +135,7 @@ export class Repository {
           detachmentId: input.detachmentId,
           limit: input.limit,
           picks: input.picks,
+          prep: input.prep,
           updatedAt: input.now,
         },
       })
