@@ -39,6 +39,7 @@ console.log(`indexed ${index.definitions.size} definitions from ${files.length} 
 type MfmUnit = {
   name: string
   groupTitle?: string
+  legends?: boolean
   pricing?: { range?: string; costs?: { models: number; points: number; addon?: boolean }[] }[]
   wargear?: { item: string; points: number }[]
 }
@@ -90,6 +91,7 @@ const catalogueAliases: Record<string, string> = {
 const normalise = (name: string) =>
   name
     .toLowerCase()
+    .replaceAll('armour', 'armor')
     .replaceAll(/['’]/g, "'")
     .replaceAll(/\s+/g, ' ')
     .trim()
@@ -114,7 +116,14 @@ for (const id of index.datasheets) {
  */
 function resolve(name: string, catalogueId?: string) {
   const key = normalise(name)
-  const all = byName.get(key) ?? bySingularName.get(key.endsWith('s') ? key.slice(0, -1) : key) ?? []
+  const stripChaos = catalogueId && index.catalogues.get(catalogueId)?.name.includes('Titanicus Traitoris')
+  const unprefixed = stripChaos && key.startsWith('chaos ') ? key.slice('chaos '.length) : key
+  const all =
+    byName.get(key) ??
+    bySingularName.get(key.endsWith('s') ? key.slice(0, -1) : key) ??
+    byName.get(unprefixed) ??
+    bySingularName.get(unprefixed.endsWith('s') ? unprefixed.slice(0, -1) : unprefixed) ??
+    []
   const distance = new Map<string, number>()
   const visit = (id: string, depth: number) => {
     if ((distance.get(id) ?? Number.POSITIVE_INFINITY) <= depth) return
@@ -176,6 +185,7 @@ function pricedWargearOf(selection: Selection) {
 }
 
 const tally = { matched: 0, mismatched: 0, ambiguous: 0, missing: 0, unsupportedShape: 0 }
+const missingSource = { legends: 0, active: 0 }
 const mismatches: string[] = []
 const skipped = { ambiguous: [] as string[], missing: [] as string[], unsupported: [] as string[] }
 const census = new Set<string>()
@@ -203,7 +213,8 @@ for (const faction of factions) {
     if (!tiers.length) continue
     if (!candidates.length) {
       tally.missing += tiers.length
-      skipped.missing.push(`${faction.slug}: ${unit.name} (${tiers.length} tiers)`)
+      missingSource[unit.legends ? 'legends' : 'active'] += tiers.length
+      skipped.missing.push(`${faction.slug}: ${unit.name} (${tiers.length} tiers, ${unit.legends ? 'Legends' : 'active'})`)
       continue
     }
     if (candidates.length > 1) {
@@ -265,6 +276,7 @@ console.log(`mismatched: ${tally.mismatched}`)
 console.log(
   `\nskipped: ${tally.missing} not in the catalogue by that name, ${tally.ambiguous} ambiguous names, ${tally.unsupportedShape} unsupported shapes`,
 )
+console.log(`source-absent: ${missingSource.legends} Legends tiers, ${missingSource.active} active tiers`)
 console.log(
   `${withoutCatalogue} of ${factions.length} faction files could not be matched to a catalogue, so their surcharges are unapplied`,
 )
