@@ -7,6 +7,7 @@ import {
   detachmentRules,
   factions,
   me,
+  myBattles,
   openBattle,
   priceRoster,
   savedRosters,
@@ -15,6 +16,8 @@ import {
 } from '../server/fns'
 
 export const meQuery = () => queryOptions({ queryKey: ['me'], queryFn: () => me() })
+
+export const battlesQuery = () => queryOptions({ queryKey: ['battles'], queryFn: () => myBattles() })
 
 // No polling: `useLiveBattle` refetches this when the server says the battle changed.
 export const battleQuery = (token: string) => queryOptions({ queryKey: ['battle', token], queryFn: () => openBattle({ data: { token } }) })

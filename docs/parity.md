@@ -113,16 +113,46 @@ Their **picker**: a search field, then `POINTS FIT` / `UNIT LIMIT` / `OWNED` chi
 
 Their **phone tracker**, for whenever the tracker gets attention: a scrolling content area over a fixed bottom bar that carries both players' VP and CP, their names in side colours with faction beneath, a five-segment round bar each, `BATTLE ROUND n` in the centre, and `INFO` / `EVENTS` tabs. Below that, `NOW` and the current step — "SCORING SELECTED SECRET MISSIONS" — with the scorable cards and explicit `SCORE 0` / `SCORE 20` buttons, then `UNDO`, a primary action that states why it is disabled ("PLEASE ENTER MISSION SCORES"), and a camera. The whole thing is a guided step machine, which is a real difference from Praetorium's phase model and a decision to make rather than copy.
 
-## Done
+## What parity means here
 
-- **Builder rebuilt in their shape.** Three panes (book, roster, loadout) collapsing to one column on a phone with the book behind **Add units**. Category shelves with counts and collapse, bordered points chips, wargear bullet lines, a sticky tick-and-total bar. `src/client/components/builder/`.
-- **Tokens and typeface.** `src/styles.css`. Their ITC Conduit is Monotype's to license, so Barlow Semi Condensed is vendored under `public/fonts` with its OFL text; `--font-sans` is the only thing to change if a licence is ever bought.
-- **Picker points and shelves.** `unitsIn` prices through the same `buildUnit` the roster uses, and reads each datasheet's role from its categories.
-- **Unit limits.** `rosterLimit` in `src/core/evaluate.ts`. 290 of 303 rows across eight books carry a correct cap.
-- **The three filter chips** — points fit, unit limit, owned — and a `collection` table behind the last of them.
-- **Leading and supporting rows**, both directions on both cards, parsed out of the ability text by `src/core/attach.ts`.
-- **Squad size on the card**, not behind the loadout pane.
-- **Split squads.** Per-option counts, which needed `collective` semantics implementing from scratch across expansion, wargear, capacity and violations.
+The target is the useful union of the two products inside Praetorium's boundary:
+
+- New Recruit's catalogue-backed roster construction, validation and interchange.
+- BattleBase's dense roster presentation and at-table battle management.
+- Praetorium's two-player, guest-first, conflict-safe live state remains the foundation rather than something to copy from either product.
+
+It does not include BattleBase's rankings, events, leagues, locations, friends or public-battle discovery. It does not include a rules encyclopedia, automatic mission adjudication, model positions or damage allocation. Those are explicit product exclusions, not parity bugs.
+
+## Current functional coverage
+
+| Area                       | State                 | What exists                                                                                                                                                                                                                                            |
+| -------------------------- | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Guest and account identity | Done                  | A durable guest can open and join a battle; an optional email, Google or Discord account claims that guest and keeps its lists.                                                                                                                        |
+| Live battle state          | Done                  | Two seats, transactional command submission, stale-client rejection, server-side legality, append-only undo, presence and cross-browser live updates.                                                                                                  |
+| Core turn tracker          | Done                  | Five rounds, six phases, first-player order, command-point income, primary and secondary VP, named stratagem use and battle ending.                                                                                                                    |
+| Catalogue acquisition      | Done                  | The instance fetches pinned BSData and 40kdc-data revisions in the background and swaps staged data atomically. No game data is committed.                                                                                                             |
+| Roster construction        | Substantial           | Faction, game size, detachment, top-level datasheets, squad size, choices, split collective wargear, enhancements, attachments and points limits.                                                                                                      |
+| Roster validation          | Substantial           | Constraints, modifiers, conditions, force scope, ordering, category keywords and catalogue-sensitive costs. The Munitorum ratchet is 97.4% of 1,548 checks. Unknown semantics are reported rather than guessed.                                        |
+| Roster library             | Partial               | A standalone roster destination can build, import, name, save, load and delete lists. There is no copy flow, metadata view or shareable read-only roster.                                                                                              |
+| Interchange                | Partial               | `.ros` and `.rosz` import and `.ros` export work. Unplaceable units are reported. Import restores units and model counts, but does not yet promise lossless import of every nested force, selection, choice or attachment another builder can express. |
+| Collection                 | Partial               | Per-datasheet owned membership drives the picker filter. There are no quantities, collection browser or favourites view.                                                                                                                               |
+| Mission setup              | Done for current data | Force dispositions derive the mission; deployment zones and objectives are drawn from data; fixed/tactical secondaries, primary cards and detachment/core stratagems are picked rather than typed.                                                     |
+| At-table army state        | Partial               | Units start in reserve, can deploy, lose models, be destroyed and return through undo. There is no unit-level damage, position, transport or objective-control model by design.                                                                        |
+| Guided scoring             | Partial               | Card payout values and known phase/round/turn triggers enable contextual scoring buttons. The app does not enforce scoring ceilings or prove that an objective was achieved.                                                                           |
+| Battle review              | Partial               | A chronological report survives undo correctly. There is no battle library, per-round card grid, charting, turn duration or export.                                                                                                                    |
+
+## Current design coverage
+
+| Surface                | State                            | Assessment                                                                                                                                                                                                        |
+| ---------------------- | -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Visual system          | Done                             | Near-black surfaces, compact radii, tracked uppercase headings, tabular numbers, bordered points chips, red/blue ownership tints and an openly licensed condensed typeface.                                       |
+| Builder desktop layout | Close                            | Three panes for picker, roster and loadout; category shelves, counts and a persistent points total follow BattleBase's information architecture.                                                                  |
+| Builder mobile layout  | Close                            | One roster plus one movable picker/loadout pane avoids duplicate controls and keeps squad size on the card. It follows Praetorium's chosen responsive interpretation rather than BattleBase's separate phone app. |
+| Builder detail         | Partial                          | Cards and choice controls match the density, but the loadout pane lacks datasheet stats, weapon profiles, rules, keywords and BattleBase's utility actions.                                                       |
+| Application shell      | Done for the scoped destinations | Persistent navigation exposes first-class battle history, roster building and faction browsing. Social and competitive BattleBase destinations remain out of scope.                                               |
+| Setup flow             | Partial                          | The order follows the game and all game facts are picked from data, but it is presented as stacked forms rather than BattleBase's compact destination-based workflow.                                             |
+| Battle tracker         | Early                            | The dark palette and side ownership are present. The current narrow two-card layout does not match BattleBase's three-column desktop tracker or its per-round mission ledger.                                     |
+| Phone tracker          | Early                            | Controls are usable on a phone, but there is no fixed bottom scoreboard, five-segment round display, `NOW` step, `INFO`/`EVENTS` tabs or guided primary action.                                                   |
 
 Deployed at `praetorium.ras.sh`, auto-deploying from `main`. See [deployment.md](deployment.md).
 
@@ -134,16 +164,61 @@ Deployed at `praetorium.ras.sh`, auto-deploying from `main`. See [deployment.md]
 - **The catalogue is ~90MB of heap held in the process** and loaded on first use. `catalogue-data/` is gitignored; run `pnpm catalogue:sync` before anything that needs real data, including the e2e suite.
 - Every price cross-checked against BattleBase agreed exactly — Immortals 70, Overlord 90, Chronomancer 70, Catacomb Command Barge 120, Lokhust Lord 70, Skorpekh Lord 90, Lychguard 80. If a number disagrees with theirs, suspect ours.
 
-## What is left
+## Work remaining
 
-Roughly in the order Richard is likely to want it.
+This is the implementation order that closes the largest user-visible gaps without weakening the evaluator or battle log.
 
-1. **The battle tracker.** This is the big one and it has not been touched — it still has the old layout with the accent colour repointed. Theirs is three columns: each player's side (red versus blue) with per-round `T1 T2 T3 T4 T5` breakdowns under every mission card, `ACHIEVED`/`DISCARDED` badges, CP used/gained/remaining, and stratagems used with counts; the centre column holds the mission, a battle events log, a victory-points chart, a command-points chart and minutes-per-turn. Reference captures are worth taking fresh.
-2. **Datasheet detail.** They show the stat line (`M T SV W LD OC`), a weapons table with `A BS S AP D`, abilities as pills, and keywords. Our loadout pane shows options only. The index now carries `profiles` (added for attachment parsing), so the stats are already in reach — but note they gate rules _text_ behind picking a data source, and we should think about whether we want to display GW's wording at all.
-3. **Enhancements on the card.** They badge a `WARLORD` and show enhancement rows on the unit card; ours are a select in the loadout pane.
-4. **What the picker hides.** Theirs says "Epic Heroes and units with toughness 10 or higher are hidden" — it filters by the mission pack's own restrictions, which we do not model.
-5. **The unit menu.** Their kebab offers Duplicate unit, favourites, and delete. Duplicate is genuinely useful; favourites overlaps with the collection we already store.
-6. **A test for the saved attachment round trip.** `attachedTo` is saved by position and restored by index — correct, but only because loading assigns `key = index`. It works and is untested.
+### 1. Deepen the first-class destinations
+
+The responsive application shell now has **Battles**, **Rosters** and **Factions** routes. Rosters can be built, imported, saved, loaded and deleted without starting a battle; battle history shows setup, active and finished battles; factions and their datasheets can be browsed independently. Keep social and competitive BattleBase destinations out of scope.
+
+Finish this slice with roster copy/rename actions, richer saved-roster metadata, a read-only datasheet route and direct links from faction results. Battle summaries should add army names and last activity without storing derived battle state.
+
+### 2. Rebuild the battle tracker in BattleBase's information architecture
+
+On desktop, use three columns: player one, shared battle information, player two. Each player side needs primary and secondary cards with `T1`–`T5` scoring, achieved/discarded state, CP gained/used/remaining, stratagem usage counts and army status. The centre needs mission and deployment, current turn/phase, chronological events, undo and end-battle actions.
+
+Charts and timing come after the ledger is correct. A VP chart and CP chart require report-derived series; minutes per turn requires timestamps to be grouped by turn without storing a second clock state. None of these should bypass `battleView` or put state in the event stream.
+
+On phones, make an explicit choice rather than shrinking the desktop grid. Matching BattleBase's phone tracker means a fixed bottom scoreboard, round segments, `INFO`/`EVENTS`, a `NOW <step>` section, contextual scoring actions, undo and one primary advance action that explains why it is disabled. Praetorium already has enough phase and award-trigger data for a first version, but not BattleBase's full guided step machine.
+
+### 3. Complete roster editing and datasheet presentation
+
+- Add a unit menu with duplicate, favourite/owned and delete. Duplicate must preserve model count, choices, spreads and attachment behavior.
+- Put enhancements and a warlord marker on the unit card, while keeping one accessible control for each value.
+- Add datasheet detail: model stats, ranged and melee weapon profiles, abilities and keywords. Decide the legal/product policy for displaying full rules text before implementing it; the catalogue index carrying text does not by itself settle that decision.
+- Show the datasheet's replacement sentence beside wargear controls so the counts have context.
+- Model mission-pack picker restrictions only from fetched data. Do not hard-code BattleBase's current “Epic Heroes and toughness 10” sentence.
+- Add the missing saved-attachment round-trip test.
+
+### 4. Raise New Recruit-style roster fidelity
+
+- Make import lossless for supported constructs: detachments/forces, nested selections, wargear choices, split counts, enhancements and attachments. Add corpus tests using exports produced by New Recruit and BattleScribe, with game data supplied at test time rather than committed.
+- Support multiple forces and allied catalogues where the roster format and 40K rules allow them. The current builder assumes one primary catalogue and one force.
+- Surface evaluator `unhandled` output in the builder as a clear “cannot validate this rule” state, distinct from an illegal list.
+- Close or explicitly census the remaining evaluator gaps (`measured field associations` and primary-catalogue scope without comparison context) and keep the Munitorum percentage plus mismatch set as a ratchet.
+- Expand legality fixtures beyond points: legal and illegal real rosters, roster caps, enhancements, attachments, collective choices and cross-catalogue rules.
+- Add printable and shareable read-only roster views before considering collaborative editing or revision history.
+
+### 5. Finish battle setup and tactical card lifecycle
+
+The current tactical mode chooses a static set. Full behavior needs draw, reveal, discard, replace and secret-mission lifecycle commands, with visibility withheld only in `battleView`. Per-round score attribution should name the card and preserve achieved/discarded state in the append-only report. Deployment should distinguish deployed units from reserves cleanly during setup and retain the same ownership rules in play.
+
+Mission scoring remains player-confirmed. Automating objective control or interpreting rules text is outside the boundary.
+
+### 6. Product hardening and parity verification
+
+- Add browser coverage for standalone roster CRUD, imported choice fidelity, saved attachments, battle history, tactical card lifecycle and the rebuilt desktop/mobile tracker.
+- Keep the two-browser live test for every new opponent-visible command and test visibility with two different players, not one page.
+- Add visual snapshots at desktop and phone widths only after the layouts settle; compare fresh captures of the live BattleBase surface rather than old screenshots or memory.
+- Audit keyboard order, labels, focus restoration for moving panes, colour contrast and reduced motion.
+- Measure whole-book search/filter latency, list pricing under large rosters and long battle-log folding before adding caches or derived columns.
+
+## Definition of parity
+
+The scoped parity milestone is reached when a player can arrive at the home page, find or create a roster without opening a battle, import a representative New Recruit roster without losing supported choices, build and validate the same roster manually, start or resume a battle, and complete all five rounds from either phone while both devices show the same BattleBase-shaped ledger. A finished battle must remain browsable with its per-round scoring, cards, CP, stratagems, unit outcomes and event history derived from the log.
+
+It is not reached by matching colours or adding nav labels while those workflows remain hidden, lossy or split across incompatible state models.
 
 ## Traps
 

@@ -82,6 +82,23 @@ export const me = createServerFn({ method: 'GET' }).handler(() =>
   }),
 )
 
+/** Establishes a durable guest without making opening a battle the onboarding flow. */
+export const identifyPlayer = createServerFn({ method: 'POST' })
+  .validator(createBattleSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const id = await identify(data.name)
+      return app().service.player(id)!
+    }),
+  )
+
+export const myBattles = createServerFn({ method: 'GET' }).handler(() =>
+  rpc(async () => {
+    const id = await currentPlayerId()
+    return id ? app().service.battles(id) : []
+  }),
+)
+
 export const openBattle = createServerFn({ method: 'GET' })
   .validator(tokenSchema)
   .handler(({ data }) =>

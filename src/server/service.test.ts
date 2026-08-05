@@ -85,6 +85,20 @@ describe('seats', () => {
   })
 })
 
+describe('battle history', () => {
+  it('lists only battles the player is seated in', () => {
+    service.createBattle('bob')
+    started()
+    expect(service.battles('alice')).toHaveLength(1)
+  })
+
+  it('folds the current status and scores from the log', () => {
+    const { send } = started()
+    send('alice', { kind: 'score', category: 'primary', delta: 5 })
+    expect(service.battles('alice')[0]).toMatchObject({ status: 'playing', round: 1, phase: 'command', scores: [5, 0] })
+  })
+})
+
 describe('the command log', () => {
   it('numbers commands from one', () => {
     const { token } = service.createBattle('alice')
