@@ -62,6 +62,8 @@ type RawMatchup = { disposition: string; opponent_disposition: string; mission_i
 
 type RawDisposition = { id: string; name: string }
 
+type RawFaction = { id: string; name: string }
+
 type RawDetachment = {
   id: string
   name: string
@@ -120,6 +122,8 @@ export type LoadedRules = {
   byDetachment: Map<string, Map<string, Stratagem[]>>
   /** Display metadata for each detachment, from the same licensed source as its stratagems. */
   detachmentReferences: Map<string, Map<string, DetachmentReference>>
+  /** Player-facing faction names, separate from BSData's technical catalogue labels. */
+  factionNames: Map<string, string>
   /** Stratagems every army has, offered alongside whatever the detachment brings. */
   core: Stratagem[]
   secondaries: MissionCard[]
@@ -144,11 +148,16 @@ export function loadRules(directory = rulesDirectory()): LoadedRules | null {
 
   const byDetachment = new Map<string, Map<string, Stratagem[]>>()
   const detachmentReferences = new Map<string, Map<string, DetachmentReference>>()
+  const factionNames = new Map<string, string>()
   let dataslate: string | null = null
 
   for (const faction of fs.readdirSync(core, { withFileTypes: true })) {
     if (!faction.isDirectory() || faction.name.startsWith('_')) continue
     const file = path.join(core, faction.name, 'stratagems.json')
+    const factionFile = path.join(core, faction.name, 'factions.json')
+    if (fs.existsSync(factionFile)) {
+      for (const found of readFactions(factionFile)) factionNames.set(found.id, found.name)
+    }
     const referenceFile = path.join(core, faction.name, 'detachments.json')
     if (fs.existsSync(referenceFile)) {
       detachmentReferences.set(
@@ -231,6 +240,7 @@ export function loadRules(directory = rulesDirectory()): LoadedRules | null {
   return {
     byDetachment,
     detachmentReferences,
+    factionNames,
     core: coreStratagems,
     secondaries,
     primaries,
@@ -282,6 +292,11 @@ function readDispositions(file: string): RawDisposition[] {
 
 function readDetachments(file: string): RawDetachment[] {
   const parsed: RawDetachment[] = JSON.parse(fs.readFileSync(file, 'utf8'))
+  return parsed
+}
+
+function readFactions(file: string): RawFaction[] {
+  const parsed: RawFaction[] = JSON.parse(fs.readFileSync(file, 'utf8'))
   return parsed
 }
 

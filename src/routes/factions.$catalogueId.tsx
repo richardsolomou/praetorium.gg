@@ -26,7 +26,7 @@ function FactionPage() {
       </Link>
       <header className="mt-4 border-b border-edge pb-4">
         <p className="eyebrow">11th edition · {faction.detachments.length} detachments</p>
-        <h1 className="text-3xl">{faction.name}</h1>
+        <h1 className="text-3xl">{faction.displayName}</h1>
       </header>
       <section className="mt-5">
         <p className="rubric flex items-baseline justify-between border-b border-edge pb-2">

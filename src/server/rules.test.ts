@@ -34,6 +34,7 @@ beforeEach(() => {
       force_dispositions: ['disruption'],
     },
   ])
+  write(path.join(core, 'factions.json'), [{ id: 'death-guard', name: 'Death Guard' }])
   write(path.join(root, 'stratagems.json'), [{ id: 'command-re-roll', name: 'COMMAND RE-ROLL', cp_cost: 1, timing: 'once-per-battle' }])
   write(path.join(root, 'secondary-cards.json'), [
     {
@@ -78,6 +79,10 @@ const box = (width: number, height: number) => [
 const load = () => loadRules(directory)!
 
 describe('stratagems', () => {
+  it('keeps the player-facing faction name', () => {
+    expect(load().factionNames.get('death-guard')).toBe('Death Guard')
+  })
+
   it('keeps the reference metadata for each detachment', () => {
     expect(load().detachmentReferences.get('death-guard')?.get('flyblown-host')).toEqual({
       enhancements: 2,
