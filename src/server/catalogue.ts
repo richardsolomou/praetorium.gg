@@ -1,7 +1,15 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import { buildIndex, type CatalogueFile, type CatalogueIndex, type Definition, type InfoGroup, type Profile } from '../core/catalogue'
-import { evaluate, rosterLimit } from '../core/evaluate'
+import {
+  buildIndex,
+  type CatalogueFile,
+  type CatalogueIndex,
+  type Definition,
+  type InfoGroup,
+  type Profile,
+  type SelectionEntry,
+} from '../core/catalogue'
+import { evaluate, hiddenByRules, rosterLimit } from '../core/evaluate'
 import { buildUnit } from '../core/roster'
 
 /**
@@ -68,7 +76,7 @@ export function loadCatalogue(directory = catalogueDirectory()): LoadedCatalogue
   if (!files.length) return null
 
   const index = buildIndex(files, revision.definitions)
-  const detachments = detachmentsOf(files)
+  const detachments = detachmentsOf(files, index)
   const factions = [...index.catalogues.values()]
     .filter(
       (catalogue) =>
@@ -91,17 +99,30 @@ export function loadCatalogue(directory = catalogueDirectory()): LoadedCatalogue
   return { index, factions, detachments }
 }
 
-function detachmentsOf(files: readonly CatalogueFile[]): Map<string, DetachmentOptions> {
+export function detachmentsOf(files: readonly CatalogueFile[], index: CatalogueIndex): Map<string, DetachmentOptions> {
   const found = new Map<string, DetachmentOptions>()
+  const catalogues = new Map(files.flatMap((file) => (file.catalogue ? [[file.catalogue.id, file.catalogue] as const] : [])))
   for (const file of files) {
     const root = file.catalogue
     if (!root) continue
-    const wrapper = [...(root.selectionEntries ?? []), ...(root.sharedSelectionEntries ?? [])].find(
-      (entry) => entry.name === DETACHMENT_ENTRY && entry.type === 'upgrade',
-    )
-    const group = wrapper?.selectionEntryGroups?.[0]
+    const sources = [root]
+    for (const link of root.catalogueLinks ?? []) {
+      const linked = catalogues.get(link.targetId)
+      if (linked) sources.push(linked)
+    }
+    let wrapper: SelectionEntry | undefined
+    for (const source of sources) {
+      wrapper = [...(source.selectionEntries ?? []), ...(source.sharedSelectionEntries ?? [])].find(
+        (entry) => entry.name === DETACHMENT_ENTRY && entry.type === 'upgrade',
+      )
+      if (wrapper) break
+    }
+    const linkedGroup = wrapper?.entryLinks
+      ?.map((link) => index.definitions.get(link.targetId))
+      .find((definition) => definition && 'selectionEntries' in definition)
+    const group = wrapper?.selectionEntryGroups?.[0] ?? linkedGroup
     const options = (group?.selectionEntries ?? [])
-      .filter((entry) => !entry.hidden && entry.name)
+      .filter((entry) => !entry.hidden && entry.name && !hiddenByRules(entry, index, { primaryCatalogueId: root.id }))
       .map((entry) => ({
         id: entry.id,
         name: entry.name ?? entry.id,

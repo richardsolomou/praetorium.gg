@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { buildIndex, type Catalogue, type CatalogueFile } from '../core/catalogue'
-import { datasheetIn, type LoadedCatalogue, unitsIn } from './catalogue'
+import { datasheetIn, detachmentsOf, type LoadedCatalogue, unitsIn } from './catalogue'
 
 const PTS = 'cost-pts'
 
@@ -71,6 +71,75 @@ describe('the picker', () => {
     // The index knows the name but the entry is not in it, so nothing can be built.
     book.index.definitions.delete('ghost')
     expect(unitsIn(book, 'cat', '')[0]?.points).toBeNull()
+  })
+})
+
+describe('detachments', () => {
+  it('resolve a linked group used by newer catalogues', () => {
+    const file: CatalogueFile = {
+      catalogue: {
+        id: 'cat',
+        name: 'Test catalogue',
+        sharedSelectionEntries: [
+          {
+            id: 'wrapper',
+            name: 'Detachment',
+            type: 'upgrade',
+            entryLinks: [{ id: 'link', name: 'Detachment', type: 'selectionEntryGroup', targetId: 'choices' }],
+          },
+        ],
+        sharedSelectionEntryGroups: [
+          {
+            id: 'choices',
+            name: 'Detachment',
+            selectionEntries: [{ id: 'speed', name: 'Kult of Speed', type: 'upgrade' }],
+          },
+        ],
+      },
+    }
+    const index = buildIndex([system, file], 'test-revision')
+    expect(
+      detachmentsOf([system, file], index)
+        .get('cat')
+        ?.options.map((option) => option.name),
+    ).toEqual(['Kult of Speed'])
+  })
+
+  it('imports the group from a linked primary catalogue', () => {
+    const base: CatalogueFile = {
+      catalogue: {
+        id: 'base',
+        name: 'Base catalogue',
+        sharedSelectionEntries: [
+          {
+            id: 'wrapper',
+            name: 'Detachment',
+            type: 'upgrade',
+            selectionEntryGroups: [
+              {
+                id: 'choices',
+                name: 'Detachment',
+                selectionEntries: [{ id: 'gladius', name: 'Gladius Task Force', type: 'upgrade' }],
+              },
+            ],
+          },
+        ],
+      },
+    }
+    const supplement: CatalogueFile = {
+      catalogue: {
+        id: 'supplement',
+        name: 'Supplement',
+        catalogueLinks: [{ targetId: 'base' }],
+      },
+    }
+    const files = [system, base, supplement]
+    const index = buildIndex(files, 'test-revision')
+    expect(
+      detachmentsOf(files, index)
+        .get('supplement')
+        ?.options.map((option) => option.name),
+    ).toEqual(['Gladius Task Force'])
   })
 })
 
