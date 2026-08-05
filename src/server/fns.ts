@@ -158,7 +158,7 @@ export const factions = createServerFn({ method: 'GET' }).handler(() =>
     return {
       revision: loaded.index.revision,
       factions: loaded.factions.map((faction) => {
-        const displayName = rules?.factionNames.get(slug(faction.name)) ?? faction.name
+        const displayName = rules?.factionNames.get(slug(faction.name)) ?? faction.name.split(' - ').at(-1)!
         return {
           id: faction.id,
           slug: routeSlug(displayName),
