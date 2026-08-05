@@ -151,6 +151,7 @@ test('a squad divides its weapons between two options', async ({ page }) => {
     .getByRole('button', { name: /^Immortals/ })
     .click()
   const pane = page.locator('aside[aria-label="Loadout"]')
+  await expect(pane.getByText('Wargear options')).toBeVisible()
   await expect(pane.getByText('10/10')).toBeVisible()
 
   // The group is always full, so taking a carbine takes a blaster off a model.

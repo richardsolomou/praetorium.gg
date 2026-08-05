@@ -62,11 +62,19 @@ export function Loadout({ catalogueId, unit, onChoose, onSpread }: Props) {
       </div>
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-2.5">
         {sheet ? <DatasheetSummary catalogueId={catalogueId} sheet={sheet} /> : null}
-        {unit.choices.length ? (
-          unit.choices.map((choice) => (choice.room > 1 ? spread(choice, onSpread) : either(choice, onChoose, unit.name)))
-        ) : (
-          <p className="text-xs text-faint">Nothing on this datasheet is optional.</p>
-        )}
+        <section>
+          <p className="rubric flex items-baseline justify-between border-b border-edge pb-1.5">
+            <span>Wargear options</span>
+            <span className="readout">{unit.choices.length}</span>
+          </p>
+          <div className="mt-3 space-y-4">
+            {unit.choices.length ? (
+              unit.choices.map((choice) => (choice.room > 1 ? spread(choice, onSpread) : either(choice, onChoose, unit.name)))
+            ) : (
+              <p className="text-xs text-faint">Nothing on this datasheet is optional.</p>
+            )}
+          </div>
+        </section>
       </div>
     </div>
   )
