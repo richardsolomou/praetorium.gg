@@ -110,27 +110,29 @@ export function detachmentsOf(files: readonly CatalogueFile[], index: CatalogueI
       const linked = catalogues.get(link.targetId)
       if (linked) sources.push(linked)
     }
-    let wrapper: SelectionEntry | undefined
+    let best: DetachmentOptions | undefined
     for (const source of sources) {
-      wrapper = [...(source.selectionEntries ?? []), ...(source.sharedSelectionEntries ?? [])].find(
+      const wrapper: SelectionEntry | undefined = [...(source.selectionEntries ?? []), ...(source.sharedSelectionEntries ?? [])].find(
         (entry) => entry.name === DETACHMENT_ENTRY && entry.type === 'upgrade',
       )
-      if (wrapper) break
+      const linkedGroup = wrapper?.entryLinks
+        ?.map((link) => index.definitions.get(link.targetId))
+        .find((definition) => definition && 'selectionEntries' in definition)
+      const group = wrapper?.selectionEntryGroups?.[0] ?? linkedGroup
+      const options = (group?.selectionEntries ?? [])
+        .filter((entry) => !entry.hidden && entry.name && !hiddenByRules(entry, index, { primaryCatalogueId: root.id }))
+        .map((entry) => ({
+          id: entry.id,
+          name: entry.name ?? entry.id,
+          disposition:
+            (entry.categoryLinks ?? []).map((link) => asDisposition(link.name ?? '')).find((slug) => DISPOSITIONS.has(slug)) ?? null,
+        }))
+        .toSorted((left, right) => left.name.localeCompare(right.name))
+      if (wrapper && group && options.length > (best?.options.length ?? 0)) {
+        best = { wrapperId: wrapper.id, groupId: group.id, options }
+      }
     }
-    const linkedGroup = wrapper?.entryLinks
-      ?.map((link) => index.definitions.get(link.targetId))
-      .find((definition) => definition && 'selectionEntries' in definition)
-    const group = wrapper?.selectionEntryGroups?.[0] ?? linkedGroup
-    const options = (group?.selectionEntries ?? [])
-      .filter((entry) => !entry.hidden && entry.name && !hiddenByRules(entry, index, { primaryCatalogueId: root.id }))
-      .map((entry) => ({
-        id: entry.id,
-        name: entry.name ?? entry.id,
-        disposition:
-          (entry.categoryLinks ?? []).map((link) => asDisposition(link.name ?? '')).find((slug) => DISPOSITIONS.has(slug)) ?? null,
-      }))
-      .toSorted((left, right) => left.name.localeCompare(right.name))
-    if (wrapper && group && options.length) found.set(root.id, { wrapperId: wrapper.id, groupId: group.id, options })
+    if (best) found.set(root.id, best)
   }
   return found
 }

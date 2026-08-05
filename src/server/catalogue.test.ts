@@ -106,6 +106,26 @@ describe('detachments', () => {
   })
 
   it('imports the group from a linked primary catalogue', () => {
+    const auxiliary: CatalogueFile = {
+      catalogue: {
+        id: 'auxiliary',
+        name: 'Auxiliary catalogue',
+        sharedSelectionEntries: [
+          {
+            id: 'aux-wrapper',
+            name: 'Detachment',
+            type: 'upgrade',
+            selectionEntryGroups: [
+              {
+                id: 'aux-choices',
+                name: 'Detachment',
+                selectionEntries: [{ id: 'auxiliary-force', name: 'Auxiliary Force', type: 'upgrade' }],
+              },
+            ],
+          },
+        ],
+      },
+    }
     const base: CatalogueFile = {
       catalogue: {
         id: 'base',
@@ -119,7 +139,10 @@ describe('detachments', () => {
               {
                 id: 'choices',
                 name: 'Detachment',
-                selectionEntries: [{ id: 'gladius', name: 'Gladius Task Force', type: 'upgrade' }],
+                selectionEntries: [
+                  { id: 'gladius', name: 'Gladius Task Force', type: 'upgrade' },
+                  { id: 'anvil', name: 'Anvil Siege Force', type: 'upgrade' },
+                ],
               },
             ],
           },
@@ -130,16 +153,16 @@ describe('detachments', () => {
       catalogue: {
         id: 'supplement',
         name: 'Supplement',
-        catalogueLinks: [{ targetId: 'base' }],
+        catalogueLinks: [{ targetId: 'auxiliary' }, { targetId: 'base' }],
       },
     }
-    const files = [system, base, supplement]
+    const files = [system, auxiliary, base, supplement]
     const index = buildIndex(files, 'test-revision')
     expect(
       detachmentsOf(files, index)
         .get('supplement')
         ?.options.map((option) => option.name),
-    ).toEqual(['Gladius Task Force'])
+    ).toEqual(['Anvil Siege Force', 'Gladius Task Force'])
   })
 })
 

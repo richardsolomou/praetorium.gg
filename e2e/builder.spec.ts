@@ -37,6 +37,12 @@ test('a supplement imports its shared detachment group', async ({ page }) => {
   await page.getByRole('option', { name: 'Companions of Vehemence' }).click()
   await add(page, 'Crusader Squad')
   await expect(page.locator('[data-unit="Crusader Squad"]')).toBeVisible()
+
+  await page.getByRole('combobox', { name: 'Faction' }).click()
+  await page.getByRole('option', { name: 'Imperium - Adeptus Astartes - Imperial Fists' }).click()
+  await page.getByRole('combobox', { name: 'Detachment' }).click()
+  await expect(page.getByRole('option', { name: "Emperor's Shield" })).toBeVisible()
+  await expect(page.getByRole('option', { name: 'Imperialis Fleet' })).toHaveCount(0)
 })
 
 test('a squad grows from the roster itself', async ({ page }) => {
