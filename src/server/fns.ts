@@ -279,7 +279,10 @@ export const priceRoster = createServerFn({ method: 'POST' })
         disposition: chosen[0]?.disposition ?? null,
         points: whole.points,
         errors,
-        unhandled: whole.unhandled,
+        unhandled: [
+          ...whole.unhandled,
+          ...(forceSelections.size > 1 ? ['allied-force eligibility is not present in the synced catalogue data'] : []),
+        ],
         selections,
         units: picked.map((unit) => ({
           key: unit.key,

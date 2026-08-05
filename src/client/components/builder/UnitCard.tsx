@@ -19,6 +19,7 @@ export type Joined = { label: string; name: string; action: string; onAct: () =>
 
 type Props = {
   unit: BuiltUnit
+  force?: string
   selected: boolean
   onSelect: () => void
   onRemove: () => void
@@ -44,6 +45,7 @@ type Props = {
  */
 export function UnitCard({
   unit,
+  force,
   selected,
   onSelect,
   onRemove,
@@ -68,7 +70,10 @@ export function UnitCard({
           onClick={onSelect}
           aria-pressed={selected}
         >
-          <span className="block truncate text-[0.9375rem] leading-tight font-bold tracking-[0.02em] uppercase">{unit.name}</span>
+          <span className="min-w-0">
+            <span className="block truncate text-[0.9375rem] leading-tight font-bold tracking-[0.02em] uppercase">{unit.name}</span>
+            {force ? <span className="eyebrow mt-0.5 block truncate text-azure">Allied force · {force}</span> : null}
+          </span>
           {unit.wargear.length ? (
             <ul className="mt-1 space-y-px">
               {unit.wargear.map((piece) => (

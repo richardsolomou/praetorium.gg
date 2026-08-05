@@ -63,6 +63,7 @@ type Pick = {
 export function ListBuilder({ onAttach, pending = false, attached = false, prep, onRestorePrep, initial, openImport = false }: Props) {
   const { data: available } = useQuery(factionsQuery())
   const [catalogueId, setCatalogueId] = useState(initial?.catalogueId ?? '')
+  const [pickerCatalogueId, setPickerCatalogueId] = useState(initial?.catalogueId ?? '')
   // Picks carry their own key: the same datasheet may legitimately appear twice,
   // so position is the only thing that tells two of them apart.
   const [picked, setPicked] = useState<Pick[]>(() => initial?.picks.map((pick, key) => ({ ...pick, key })) ?? [])
@@ -93,6 +94,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
     setSavedId(copy ? undefined : list.id)
     setName(copy ? `Copy of ${list.name}` : list.name)
     setCatalogueId(list.catalogueId)
+    setPickerCatalogueId(list.catalogueId)
     setDetachmentIds(list.detachmentIds)
     setLimit(list.limit)
     setPicked(list.picks.map((pick, at) => ({ ...pick, key: at })))
@@ -159,6 +161,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
     },
     onSuccess: (imported) => {
       if (imported.catalogueId) setCatalogueId(imported.catalogueId)
+      if (imported.catalogueId) setPickerCatalogueId(imported.catalogueId)
       setDetachmentIds(imported.detachmentIds)
       setName(imported.name)
       setPicked(imported.units.map((unit, at) => ({ key: at, ...unit })))
@@ -234,7 +237,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
   for (const pick of picked) held[pick.entryId] = (held[pick.entryId] ?? 0) + 1
 
   const add = (entryId: string) => {
-    setPicked((current) => [...current, { key: nextKey, entryId }])
+    setPicked((current) => [...current, { key: nextKey, entryId, catalogueId: pickerCatalogueId || catalogueId }])
     setNextKey((current) => current + 1)
   }
 
@@ -372,14 +375,39 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
   }
 
   const picker = faction ? (
-    <Picker catalogueId={catalogueId} onAdd={add} inRoster={held} room={priced ? limit - priced.points : null} />
+    <div className="flex h-full flex-col">
+      <div className="border-b border-edge p-2.5">
+        <label className="eyebrow block" htmlFor="force">
+          Force
+        </label>
+        <Select
+          value={pickerCatalogueId || catalogueId}
+          onValueChange={(value: string | null) => setPickerCatalogueId(value ?? catalogueId)}
+        >
+          <SelectTrigger id="force" className="mt-1 w-full">
+            <SelectValue>{(value: unknown) => available.factions.find((entry) => entry.id === value)?.name ?? 'Pick a force'}</SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            {available.factions.map((entry) => (
+              <SelectItem key={entry.id} value={entry.id}>
+                {entry.name}
+                {entry.id === catalogueId ? ' (primary)' : ''}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="min-h-0 flex-1">
+        <Picker catalogueId={pickerCatalogueId || catalogueId} onAdd={add} inRoster={held} room={priced ? limit - priced.points : null} />
+      </div>
+    </div>
   ) : (
     <p className="p-2.5 text-xs text-faint">Pick a book first.</p>
   )
 
   const loadout = (
     <Loadout
-      catalogueId={catalogueId}
+      catalogueId={selected === null ? catalogueId : (picked[selected]?.catalogueId ?? catalogueId)}
       unit={selectedUnit}
       onChoose={(key, optionId) => selected !== null && choose(selected, key, optionId)}
       onSpread={(key, counts) => selected !== null && spread(selected, key, counts)}
@@ -413,6 +441,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
               value={catalogueId}
               onValueChange={(value: string | null) => {
                 setCatalogueId(value ?? '')
+                setPickerCatalogueId(value ?? '')
                 setPicked([])
                 setDetachmentIds([])
                 setSelected(null)
@@ -610,6 +639,11 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
                     <UnitCard
                       key={picked[index]?.key ?? unit.entryId}
                       unit={unit}
+                      force={
+                        picked[index]?.catalogueId === catalogueId
+                          ? undefined
+                          : available.factions.find((entry) => entry.id === picked[index]?.catalogueId)?.name
+                      }
                       selected={selected === index}
                       onSelect={() => {
                         setSelected(index)
