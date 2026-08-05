@@ -132,6 +132,39 @@ describe('a group that requires selections', () => {
     expect(chosen(group(4, [{ id: 'knife', name: 'Knife' }]))).toEqual([{ id: 'knife', count: 4 }])
   })
 
+  it('finds required models inside a nested group', () => {
+    const index = indexOf({
+      sharedSelectionEntries: [
+        {
+          id: 'squad',
+          name: 'Squad',
+          type: 'unit',
+          selectionEntryGroups: [
+            {
+              id: 'composition',
+              name: 'Composition',
+              selectionEntryGroups: [
+                {
+                  id: 'models',
+                  name: 'Models',
+                  selectionEntries: [
+                    {
+                      id: 'trooper',
+                      name: 'Trooper',
+                      type: 'model',
+                      constraints: [{ id: 'trooper-min', type: 'min', value: 3, field: 'selections', scope: 'parent' }],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    })
+    expect(modelCountOf(defaultSelection('squad', index)!, index)).toBe(3)
+  })
+
   it('spreads the requirement across options that each allow only one', () => {
     const options = [
       { id: 'knife', name: 'Knife', max: 1 },

@@ -86,6 +86,11 @@ function expand(
       // A child's own minimum applies whatever the group asks for, so a group with
       // no requirement still yields what its contents demand.
       const take = Math.max(share, requiredCount(child.definition, index) * scale)
+      if (take <= 0 && resolve(child.definition, index).type === undefined) {
+        const built = expand(child.id, child.definition, index, depth - 1, 0, visited, carriers)
+        if (built.selections?.length) inside.push(built)
+        continue
+      }
       if (take <= 0) continue
       inside.push(expand(child.id, child.definition, index, depth - 1, take, visited, carriers))
       remaining -= Math.min(remaining, take)
