@@ -69,4 +69,5 @@ async function paste(page: Page, army: string, list: string) {
   await page.getByLabel('Your army').fill(army)
   await page.getByLabel('Your list').fill(list)
   await page.getByRole('button', { name: /my list/ }).click()
+  await page.getByRole('button', { name: /Step 4 Ready/ }).click()
 }
