@@ -20,11 +20,12 @@ type Props = {
 
 /** Side 0 is the player who opened the battle. The tint is how you tell whose number you are reading. */
 const SIDES = [
-  { accent: 'border-l-steel', value: 'text-steel' },
-  { accent: 'border-l-rust', value: 'text-rust' },
+  { accent: 'border-l-side-a', value: 'text-side-a' },
+  { accent: 'border-l-side-b', value: 'text-side-b' },
 ]
 
 export function Tracker({ view, mission, present, send, pending, problem }: Props) {
+  const [mobileTab, setMobileTab] = useState<'info' | 'events'>('info')
   const you = view.players.find((player) => player.isViewer)
   const built = you?.roster?.built
   // The cards say what they pay out, so the interface can offer the figure instead
@@ -49,7 +50,7 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
   const finished = view.status === 'finished'
 
   return (
-    <main className="mx-auto w-full max-w-[1500px] space-y-4 px-4 py-6">
+    <main className="mx-auto w-full max-w-[1500px] space-y-4 px-4 pt-6 pb-36 lg:pb-6">
       <header className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 border-b border-edge pb-3">
         <div>
           <p className="eyebrow">
@@ -69,7 +70,7 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
         {view.players.map((player, index) => (
           <section
             key={player.id}
-            className={`space-y-3 rounded-lg border border-edge border-l-2 bg-panel p-4 lg:row-start-1 ${index === 0 ? 'lg:col-start-1' : 'lg:col-start-3'} ${SIDES[index]?.accent ?? ''} ${
+            className={`${mobileTab === 'events' ? 'hidden lg:block' : ''} space-y-3 rounded-lg border border-edge border-l-2 bg-panel p-4 lg:row-start-1 ${index === 0 ? 'lg:col-start-1' : 'lg:col-start-3'} ${SIDES[index]?.accent ?? ''} ${
               player.isActive ? 'ring-2 ring-azure/50' : ''
             }`}
           >
@@ -89,6 +90,10 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
                 title={present.some((watcher) => watcher.playerId === player.id) ? 'Watching now' : 'Not on the page'}
               />
             </div>
+
+            <p className="readout text-[0.6875rem] text-faint">
+              CP {player.cpGained} gained · {player.cpSpent} used · {player.cp} remaining
+            </p>
 
             {/* Each stat's controls sit under the number they change, so nothing is labelled twice. */}
             <div className="grid grid-cols-3 gap-2 border-t border-edge pt-3">
@@ -344,13 +349,31 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
         ))}
 
         <section className="order-first space-y-3 border border-edge bg-panel p-4 sm:col-span-2 lg:col-span-1 lg:col-start-2 lg:row-start-1">
-          <div className="text-center">
-            <p className="eyebrow">{finished ? 'Final result' : `Battle round ${view.round}`}</p>
-            <p className="mt-1 text-xl font-bold uppercase">{finished ? outcome(view) : `${view.phase} phase`}</p>
-            <p className="mt-1 text-xs text-dim">{mission?.name ?? 'Matched play'}</p>
+          <div className="grid grid-cols-2 border-b border-edge lg:hidden">
+            {(['info', 'events'] as const).map((tab) => (
+              <button
+                key={tab}
+                type="button"
+                className={`eyebrow border-b-2 py-2 ${mobileTab === tab ? 'border-azure text-azure' : 'border-transparent'}`}
+                aria-pressed={mobileTab === tab}
+                onClick={() => setMobileTab(tab)}
+              >
+                {tab}
+              </button>
+            ))}
+          </div>
+          <div className={mobileTab === 'events' ? 'hidden lg:block' : ''}>
+            <div className="text-center">
+              <p className="eyebrow">{finished ? 'Final result' : 'Now'}</p>
+              <p className="mt-1 text-xl font-bold uppercase">{finished ? outcome(view) : `${view.phase} phase`}</p>
+              <p className="mt-1 text-xs text-dim">
+                Round {view.round} · {mission?.name ?? 'Matched play'}
+              </p>
+            </div>
+            <ScoreChart players={view.players} />
           </div>
           {finished ? null : (
-            <div className="space-y-2 border-t border-edge pt-3">
+            <div className={`${mobileTab === 'events' ? 'hidden lg:block' : ''} space-y-2 border-t border-edge pt-3`}>
               <Button
                 variant={yourTurn ? 'default' : 'outline'}
                 className="h-11 w-full text-base"
@@ -375,7 +398,7 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
             </div>
           )}
           {problem ? <p className="text-sm text-destructive">{problem}</p> : null}
-          <ReportDetails token={view.token} />
+          <ReportDetails token={view.token} forceOpen={mobileTab === 'events'} />
         </section>
       </div>
 
@@ -398,7 +421,60 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
           ))}
         </div>
       </details>
+      <MobileScoreboard view={view} />
     </main>
+  )
+}
+
+function ScoreChart({ players }: { players: BattleView['players'] }) {
+  const cumulative = players.map((player) => {
+    let total = 0
+    return player.rounds.map((round) => (total += round.total))
+  })
+  const max = Math.max(1, ...cumulative.flat())
+  const points = (scores: number[]) => scores.map((score, at) => `${at * 55 + 10},${60 - (score / max) * 50}`).join(' ')
+  return (
+    <div className="border-y border-edge py-2">
+      <p className="eyebrow mb-1">Victory points</p>
+      <svg viewBox="0 0 240 66" className="w-full">
+        <title>Cumulative victory points by round</title>
+        <path d="M10 60H230" className="stroke-edge" />
+        {cumulative[0] ? <polyline points={points(cumulative[0])} fill="none" className="stroke-side-a" strokeWidth="2" /> : null}
+        {cumulative[1] ? <polyline points={points(cumulative[1])} fill="none" className="stroke-side-b" strokeWidth="2" /> : null}
+      </svg>
+    </div>
+  )
+}
+
+function MobileScoreboard({ view }: { view: BattleView }) {
+  return (
+    <aside
+      className="fixed inset-x-0 bottom-0 z-40 border-t border-edge bg-panel/98 px-3 py-2 backdrop-blur lg:hidden"
+      aria-label="Battle scoreboard"
+    >
+      <div className="mx-auto grid max-w-xl grid-cols-[1fr_auto_1fr] items-center gap-3">
+        {view.players.map((player, index) => (
+          <div key={player.id} className={index ? 'order-3 text-right' : 'order-1'}>
+            <p className={`truncate text-xs font-bold uppercase ${SIDES[index]?.value}`}>{player.name}</p>
+            <p className="readout text-xl">
+              {player.total} <span className="text-xs text-dim">VP · {player.cp} CP</span>
+            </p>
+            <div className="mt-1 flex gap-0.5" aria-label={`${player.name} rounds`}>
+              {player.rounds.map((round) => (
+                <span
+                  key={round.round}
+                  className={`h-1 flex-1 ${round.round <= view.round ? (index ? 'bg-side-b' : 'bg-side-a') : 'bg-edge-strong'}`}
+                />
+              ))}
+            </div>
+          </div>
+        ))}
+        <div className="order-2 text-center">
+          <p className="eyebrow">Round</p>
+          <p className="readout text-xl">{view.round}</p>
+        </div>
+      </div>
+    </aside>
   )
 }
 
@@ -471,12 +547,12 @@ const awardTitle = (award: Award) =>
   undefined
 
 /** Opened on demand, so the account is not fetched on every change to the battle. */
-function ReportDetails({ token }: { token: string }) {
+function ReportDetails({ token, forceOpen = false }: { token: string; forceOpen?: boolean }) {
   const [open, setOpen] = useState(false)
   return (
-    <details className="text-sm text-dim" onToggle={(event) => setOpen(event.currentTarget.open)}>
-      <summary className="cursor-pointer">How the battle went</summary>
-      <Report token={token} open={open} />
+    <details className="text-sm text-dim" open={forceOpen || undefined} onToggle={(event) => setOpen(event.currentTarget.open)}>
+      <summary className={`cursor-pointer ${forceOpen ? 'hidden lg:list-item' : ''}`}>How the battle went</summary>
+      <Report token={token} open={forceOpen || open} />
     </details>
   )
 }

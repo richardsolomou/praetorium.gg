@@ -118,6 +118,12 @@ describe('command points', () => {
     const state = reduceBattle(PLAYERS, log(...started(), [ALICE, { kind: 'adjust-cp', delta: -1 }]))
     expect(state.players.find((player) => player.id === ALICE)?.cp).toBe(0)
   })
+
+  it('report gained, used and remaining separately', () => {
+    const state = reduceBattle(PLAYERS, log(...started(), [ALICE, { kind: 'adjust-cp', delta: -1 }]))
+    const player = battleView({ token: 'abc' }, NAMES, state, ALICE).players[0]
+    expect(player).toMatchObject({ cpGained: 1, cpSpent: 1, cp: 0 })
+  })
 })
 
 describe('undo', () => {

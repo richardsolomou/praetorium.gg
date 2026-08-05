@@ -33,6 +33,7 @@ export function useCommand(token: string, seq: number) {
     onSuccess: ({ result, screen }) => {
       setProblem(explain(result))
       queryClient.setQueryData(battleQuery(token).queryKey, screen)
+      void queryClient.invalidateQueries({ queryKey: ['report', token] })
     },
     onError: (error) => setProblem(errorMessage(error)),
   })

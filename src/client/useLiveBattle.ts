@@ -18,7 +18,10 @@ export function useLiveBattle(token: string, enabled: boolean) {
   useEffect(() => {
     if (!enabled) return undefined
     const events = new EventSource(`/api/events?battle=${encodeURIComponent(token)}`)
-    const refresh = () => void queryClient.invalidateQueries({ queryKey: battleQuery(token).queryKey })
+    const refresh = () => {
+      void queryClient.invalidateQueries({ queryKey: battleQuery(token).queryKey })
+      void queryClient.invalidateQueries({ queryKey: ['report', token] })
+    }
     events.addEventListener('open', refresh)
     events.addEventListener('change', refresh)
     events.addEventListener('presence', (message: MessageEvent<string>) => {
