@@ -86,6 +86,19 @@ test('detachment combinations follow the 11th edition allowance', async ({ page 
   await expect(page.getByRole('alert')).toContainText('This combination costs 3 DP')
 })
 
+test('an allied force can be added from its own catalogue', async ({ page }) => {
+  await openBuilder(page)
+  await page.getByRole('combobox', { name: 'Force' }).click()
+  await page.getByRole('option', { name: 'Chaos - Death Guard' }).click()
+  await add(page, 'Plague Marines')
+
+  const allied = page.locator('[data-unit="Plague Marines"]')
+  await expect(allied).toContainText('Allied force · Chaos - Death Guard')
+  await expect(page.getByText('allied-force eligibility is not present in the synced catalogue data')).toBeVisible()
+  await expect(page.getByRole('status')).toContainText('Saved automatically')
+  await page.screenshot({ path: 'test-results/allied-force.png', fullPage: true })
+})
+
 test('a squad grows from the roster itself', async ({ page }) => {
   await openBuilder(page)
   await add(page, 'Immortals')
