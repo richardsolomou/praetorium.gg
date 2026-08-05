@@ -182,9 +182,14 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
               <div className="space-y-1 border-t border-edge pt-3">
                 <p className="eyebrow">Secondaries</p>
                 {player.secondaries.map((secondary) => (
-                  <div key={secondary.key} className="flex items-center justify-between gap-2 text-sm">
+                  <div key={secondary.key} data-secondary={secondary.key} className="flex items-center justify-between gap-2 text-sm">
                     <span className="min-w-0 flex-1 truncate">
                       {secondary.name}
+                      {secondary.secret ? (
+                        <span className="ml-1.5 text-[0.625rem] font-semibold uppercase text-azure">
+                          {secondary.revealed ? 'revealed' : 'secret'}
+                        </span>
+                      ) : null}
                       {secondary.status === 'active' ? null : (
                         <span
                           className={`ml-1.5 text-[0.625rem] font-semibold uppercase ${secondary.status === 'achieved' ? 'text-achieved' : 'text-discarded'}`}
@@ -229,6 +234,16 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
                             Discard
                           </Button>
                         ) : null}
+                        {secondary.secret && !secondary.revealed ? (
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            className="w-auto px-1 text-[0.625rem] text-azure"
+                            onClick={() => send({ kind: 'reveal-secret' })}
+                          >
+                            Reveal
+                          </Button>
+                        ) : null}
                       </span>
                     ) : null}
                   </div>
@@ -249,6 +264,26 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
                             size="sm"
                             className="h-7 text-[0.625rem]"
                             onClick={() => send({ kind: 'draw-secondary', secondary: { key: card.key, name: card.name } })}
+                          >
+                            {card.name}
+                          </Button>
+                        ))}
+                    </div>
+                  </details>
+                ) : null}
+                {player.isViewer && !finished && !player.secondaries.some((card) => card.secret) ? (
+                  <details className="pt-1">
+                    <summary className="eyebrow cursor-pointer text-azure">Select secret mission</summary>
+                    <div className="mt-1 flex max-h-32 flex-wrap gap-1 overflow-y-auto">
+                      {(rules?.secondaries ?? [])
+                        .filter((card) => !player.secondaries.some((held) => held.key === card.key))
+                        .map((card) => (
+                          <Button
+                            key={card.key}
+                            variant="outline"
+                            size="sm"
+                            className="h-7 text-[0.625rem]"
+                            onClick={() => send({ kind: 'select-secret', secondary: { key: card.key, name: card.name } })}
                           >
                             {card.name}
                           </Button>
@@ -371,6 +406,8 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
               </p>
             </div>
             <ScoreChart players={view.players} />
+            <CpChart players={view.players} />
+            <TurnTiming turns={view.turns} />
           </div>
           {finished ? null : (
             <div className={`${mobileTab === 'events' ? 'hidden lg:block' : ''} space-y-2 border-t border-edge pt-3`}>
@@ -442,6 +479,42 @@ function ScoreChart({ players }: { players: BattleView['players'] }) {
         {cumulative[0] ? <polyline points={points(cumulative[0])} fill="none" className="stroke-side-a" strokeWidth="2" /> : null}
         {cumulative[1] ? <polyline points={points(cumulative[1])} fill="none" className="stroke-side-b" strokeWidth="2" /> : null}
       </svg>
+    </div>
+  )
+}
+
+function CpChart({ players }: { players: BattleView['players'] }) {
+  const max = Math.max(1, ...players.flatMap((player) => player.cpByRound))
+  const points = (scores: number[]) => scores.map((score, at) => `${at * 55 + 10},${44 - (score / max) * 34}`).join(' ')
+  return (
+    <div className="border-b border-edge py-2">
+      <p className="eyebrow mb-1">Command points by round</p>
+      <svg viewBox="0 0 240 50" className="w-full">
+        <title>Command points remaining by round</title>
+        <path d="M10 44H230" className="stroke-edge" />
+        {players[0] ? <polyline points={points(players[0].cpByRound)} fill="none" className="stroke-side-a" strokeWidth="2" /> : null}
+        {players[1] ? <polyline points={points(players[1].cpByRound)} fill="none" className="stroke-side-b" strokeWidth="2" /> : null}
+      </svg>
+    </div>
+  )
+}
+
+function TurnTiming({ turns }: { turns: BattleView['turns'] }) {
+  const completed = turns.filter((turn) => turn.minutes !== null)
+  if (!completed.length) return null
+  return (
+    <div className="border-b border-edge py-2">
+      <p className="eyebrow mb-1">Minutes per turn</p>
+      <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+        {completed.map((turn) => (
+          <p key={`${turn.round}-${turn.playerId}`} className="flex justify-between gap-2">
+            <span className="truncate text-dim">
+              R{turn.round} · {turn.playerName}
+            </span>
+            <span className="readout">{turn.minutes}m</span>
+          </p>
+        ))}
+      </div>
     </div>
   )
 }

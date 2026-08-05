@@ -71,6 +71,17 @@ describe('the turn sequence', () => {
     expect(state.phase).toBe('shooting')
   })
 
+  it('derives completed turn duration from command timestamps', () => {
+    const history = log(...started(), ...turns(6, ALICE))
+    history.forEach((entry) => (entry.at *= 60_000))
+
+    expect(battleView({ token: 'abc' }, NAMES, reduceBattle(PLAYERS, history), ALICE).turns[0]).toMatchObject({
+      playerName: 'Alice',
+      round: 1,
+      minutes: 6,
+    })
+  })
+
   it('passes the turn to the opponent after the end phase', () => {
     const state = reduceBattle(PLAYERS, log(...started(), ...turns(6, ALICE)))
     expect(state.activePlayerId).toBe(BOB)
@@ -318,6 +329,31 @@ describe('secondaries', () => {
   it('carry achieved and discarded lifecycle state into the view', () => {
     const state = reduceBattle(PLAYERS, log(...named(), [ALICE, { kind: 'set-secondary-status', key: 'a', status: 'achieved' }]))
     expect(battleView({ token: 'abc' }, NAMES, state, ALICE).players[0]?.secondaries[0]?.status).toBe('achieved')
+  })
+
+  it('withhold a secret mission from the opponent until it is revealed', () => {
+    const history = log(...started(), [ALICE, { kind: 'select-secret', secondary: { key: 'secret-a', name: 'Hold the Line' } }])
+    const state = reduceBattle(PLAYERS, history)
+
+    expect(battleView({ token: 'abc' }, NAMES, state, BOB).players[0]?.secondaries[0]?.name).toBe('Secret mission')
+    expect(battleView({ token: 'abc' }, NAMES, state, ALICE).players[0]?.secondaries[0]?.name).toBe('Hold the Line')
+  })
+
+  it('reveal a secret mission when it is achieved', () => {
+    const history = log(
+      ...started(),
+      [ALICE, { kind: 'select-secret', secondary: { key: 'secret-a', name: 'Hold the Line' } }],
+      [ALICE, { kind: 'set-secondary-status', key: 'secret-a', status: 'achieved' }],
+    )
+
+    expect(battleView({ token: 'abc' }, NAMES, reduceBattle(PLAYERS, history), BOB).players[0]?.secondaries[0]?.name).toBe('Hold the Line')
+  })
+
+  it('redact a secret mission from the opponent report', () => {
+    const history = log(...started(), [ALICE, { kind: 'select-secret', secondary: { key: 'secret-a', name: 'Hold the Line' } }])
+
+    expect(text(battleReport(NAMES, history, PLAYERS, BOB))).toContain('Alice selects a secret mission')
+    expect(text(battleReport(NAMES, history, PLAYERS, BOB)).join(' ')).not.toContain('Hold the Line')
   })
 
   it('draw replacements only for tactical missions', () => {
