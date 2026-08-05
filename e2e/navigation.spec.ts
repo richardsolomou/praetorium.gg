@@ -19,8 +19,14 @@ test('a guest can enter through the roster library and browse the product', asyn
   await expect(page.getByRole('heading', { name: 'Create editable roster' })).toBeVisible()
 
   await page.getByRole('link', { name: 'Battles' }).click()
-  await expect(page.getByRole('heading', { name: 'Battle history' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'My battles' })).toBeVisible()
   await expect(page.getByText('No battles yet.')).toBeVisible()
+  await page.getByRole('link', { name: 'Open a battle' }).click()
+  await page.getByRole('button', { name: 'Open a battle' }).click()
+  await page.getByRole('link', { name: 'Battles' }).click()
+  await expect(page.locator('[data-battle-shelf="Setup"]')).toBeVisible()
+  await expect(page.getByText('Waiting for an opponent')).toBeVisible()
+  await page.screenshot({ path: 'test-results/battle-library.png', fullPage: true })
 
   await page.getByRole('link', { name: 'Factions' }).click()
   await expect(page.getByText('All factions')).toBeVisible()
