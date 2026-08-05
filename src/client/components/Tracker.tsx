@@ -541,6 +541,7 @@ function MobileScoreboard({ view }: { view: BattleView }) {
         {view.players.map((player, index) => (
           <div key={player.id} className={index ? 'order-3 text-right' : 'order-1'}>
             <p className={`truncate text-xs font-bold uppercase ${SIDES[index]?.value}`}>{player.name}</p>
+            <p className="truncate text-[0.625rem] text-dim">{player.roster?.name ?? 'List not attached'}</p>
             <p className="readout text-xl">
               {player.total} <span className="text-xs text-dim">VP · {player.cp} CP</span>
             </p>
