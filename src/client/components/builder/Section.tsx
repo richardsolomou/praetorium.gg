@@ -1,6 +1,7 @@
 import { ChevronDown, ChevronUp } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { useState } from 'react'
+import { Button } from '@/components/ui/button'
 
 type Props = { title: string; count: number; children: ReactNode; empty?: string }
 
@@ -16,9 +17,9 @@ export function Section({ title, count, children, empty }: Props) {
 
   return (
     <section>
-      <button
-        type="button"
-        className="flex w-full items-center justify-between gap-2 py-1.5"
+      <Button
+        variant="ghost"
+        className="h-auto w-full justify-between rounded-none px-0 py-1.5 hover:bg-transparent"
         onClick={() => setOpen((current) => !current)}
         aria-expanded={open}
       >
@@ -27,7 +28,7 @@ export function Section({ title, count, children, empty }: Props) {
           <span className="readout text-sm text-dim">{count}</span>
           {open ? <ChevronUp className="size-4 text-faint" aria-hidden /> : <ChevronDown className="size-4 text-faint" aria-hidden />}
         </span>
-      </button>
+      </Button>
       {open ? count ? <div className="space-y-1.5 pb-3">{children}</div> : <p className="pb-3 text-xs text-faint">{empty}</p> : null}
     </section>
   )

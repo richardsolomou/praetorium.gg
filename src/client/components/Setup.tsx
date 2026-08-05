@@ -59,17 +59,17 @@ export function Setup({ view, send, pending, problem }: Props) {
             ['ready', '4', 'Ready'],
           ] as const
         ).map(([id, number, label]) => (
-          <button
+          <Button
             key={id}
-            type="button"
-            className={`border-b-2 px-2 py-3 text-left ${stage === id ? 'border-azure bg-raised' : 'border-transparent'} ${id !== 'roster' && !you.roster ? 'text-faint' : ''}`}
+            variant="ghost"
+            className={`rounded-none border-x-transparent border-t-transparent border-b-2 px-2 py-3 text-left focus-visible:border-x-transparent focus-visible:border-t-transparent focus-visible:ring-0 ${stage === id ? 'border-b-azure bg-raised' : 'border-b-transparent'} ${id !== 'roster' && !you.roster ? 'text-faint' : ''}`}
             disabled={id !== 'roster' && !you.roster}
             aria-current={stage === id ? 'step' : undefined}
             onClick={() => setStage(id)}
           >
             <span className="eyebrow block">Step {number}</span>
             <span className="text-sm font-bold uppercase">{label}</span>
-          </button>
+          </Button>
         ))}
       </nav>
 

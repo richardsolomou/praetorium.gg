@@ -66,9 +66,10 @@ export function Picker({ catalogueId, onAdd, inRoster, room }: Props) {
         <div className="flex flex-wrap items-center gap-1.5">
           <ListFilter className="size-3.5 shrink-0 text-faint" aria-hidden />
           {FILTERS.map((filter) => (
-            <button
+            <Button
               key={filter.id}
-              type="button"
+              variant="outline"
+              size="xs"
               title={filter.hint}
               aria-pressed={active.has(filter.id)}
               onClick={() => toggle(filter.id)}
@@ -79,7 +80,7 @@ export function Picker({ catalogueId, onAdd, inRoster, room }: Props) {
               }`}
             >
               {filter.label}
-            </button>
+            </Button>
           ))}
         </div>
       </div>
@@ -103,16 +104,17 @@ export function Picker({ catalogueId, onAdd, inRoster, room }: Props) {
                           </span>
                         ) : null}
                       </span>
-                      <button
-                        type="button"
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
                         aria-label={`${collection.has(unit.id) ? 'Remove' : 'Add'} ${unit.name} ${collection.has(unit.id) ? 'from' : 'to'} your collection`}
                         aria-pressed={collection.has(unit.id)}
                         disabled={own.isPending}
                         onClick={() => own.mutate({ entryId: unit.id, owned: !collection.has(unit.id) })}
-                        className="shrink-0 p-1"
+                        className="shrink-0"
                       >
                         <Heart className={`size-3.5 ${collection.has(unit.id) ? 'fill-azure text-azure' : 'text-faint hover:text-dim'}`} />
-                      </button>
+                      </Button>
                       {unit.points === null ? null : <span className="chip shrink-0">{unit.points} pts</span>}
                       <Button
                         size="sm"

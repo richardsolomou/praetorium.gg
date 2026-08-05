@@ -468,7 +468,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
             <Upload className="mr-1 inline size-3" />
             Bring a list from another tool
           </label>
-          <input
+          <Input
             ref={importInput}
             id="bring"
             type="file"
@@ -486,14 +486,15 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
               <span className="eyebrow">Your lists</span>
               {saved.map((list) => (
                 <span key={list.id} className="flex items-center border border-edge bg-card">
-                  <button
-                    type="button"
-                    className="max-w-40 truncate px-2 py-0.5 text-xs hover:text-azure"
+                  <Button
+                    variant="ghost"
+                    size="xs"
+                    className="max-w-40 truncate rounded-none px-2 py-0.5 text-xs hover:bg-transparent hover:text-azure"
                     title={`${list.picks.length} units · ${list.limit} points · updated ${new Date(list.updatedAt).toLocaleDateString()}`}
                     onClick={() => loadSaved(list)}
                   >
                     {list.name}
-                  </button>
+                  </Button>
                   <Button
                     render={<Link to="/r/$id" params={{ id: list.id }} />}
                     variant="ghost"

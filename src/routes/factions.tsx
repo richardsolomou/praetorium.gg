@@ -2,6 +2,7 @@ import { useSuspenseQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, Outlet, useRouterState } from '@tanstack/react-router'
 import { ChevronRight, Heart } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { factionsQuery } from '../client/queries'
 
@@ -94,15 +95,16 @@ function FactionShelf({
                 <span className="block truncate font-bold uppercase">{entry.displayName}</span>
                 <span className="text-xs text-dim">{entry.detachments.length} detachments</span>
               </Link>
-              <button
-                type="button"
-                className="p-2"
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                className="m-1"
                 aria-label={`${favourites.has(entry.id) ? 'Remove' : 'Add'} ${entry.displayName} ${favourites.has(entry.id) ? 'from' : 'to'} favourites`}
                 aria-pressed={favourites.has(entry.id)}
                 onClick={() => onFavourite(entry.id)}
               >
                 <Heart className={`size-4 ${favourites.has(entry.id) ? 'fill-azure text-azure' : 'text-dim'}`} />
-              </button>
+              </Button>
               <ChevronRight className="mr-2 size-4 text-dim" aria-hidden />
             </div>
           ))}

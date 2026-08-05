@@ -23,8 +23,7 @@ test('an account keeps the lists a guest saved', async ({ browser }) => {
   await page.getByLabel('Add a unit').fill('Plague Marines')
   await page.getByRole('button', { name: 'Add Plague Marines', exact: true }).first().click()
   await page.getByLabel('List name').fill('Guest list')
-  await page.getByRole('button', { name: 'Save list' }).click()
-  await expect(page.getByRole('button', { name: 'Saved' })).toBeVisible()
+  await expect(page.getByRole('status')).toContainText('Saved automatically')
 
   await page.getByRole('link', { name: 'Sign in' }).click()
   await page.getByRole('button', { name: 'I need an account' }).click()

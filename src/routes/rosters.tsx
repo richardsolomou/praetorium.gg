@@ -61,18 +61,24 @@ function Rosters() {
 
       <div className="mt-4 flex flex-wrap items-center gap-1.5" aria-label="Battle size filter">
         <span className="eyebrow mr-1">Battle size</span>
-        <button type="button" className={`chip ${limit === null ? 'border-azure text-azure' : ''}`} onClick={() => setLimit(null)}>
+        <Button
+          variant="outline"
+          size="xs"
+          className={`chip ${limit === null ? 'border-azure text-azure' : ''}`}
+          onClick={() => setLimit(null)}
+        >
           All
-        </button>
+        </Button>
         {GAME_SIZES.map((size) => (
-          <button
+          <Button
             key={size.limit}
-            type="button"
+            variant="outline"
+            size="xs"
             className={`chip ${limit === size.limit ? 'border-azure text-azure' : ''}`}
             onClick={() => setLimit(size.limit)}
           >
             {size.name} · {size.limit}
-          </button>
+          </Button>
         ))}
       </div>
 
@@ -84,9 +90,9 @@ function Rosters() {
         <div className="mt-2 space-y-2">
           {shown.length ? (
             shown.map((roster) => (
-              <button
+              <Button
                 key={roster.id}
-                type="button"
+                variant="outline"
                 className="grid w-full grid-cols-[1fr_auto] items-center gap-4 border border-edge bg-panel p-3 text-left hover:border-azure"
                 onClick={() => {
                   setPrep(roster.prep ?? { stratagems: [], secondaries: [] })
@@ -100,7 +106,7 @@ function Rosters() {
                   </span>
                 </span>
                 <span className="chip">{roster.limit} pts</span>
-              </button>
+              </Button>
             ))
           ) : (
             <p className="border border-edge bg-panel p-8 text-center text-sm text-dim">
