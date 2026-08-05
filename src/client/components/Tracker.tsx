@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { ArrowDownToLine, RotateCcw, Skull, Undo2, Zap } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { detachmentRulesQuery } from '../queries'
+import { deploymentsQuery, detachmentRulesQuery } from '../queries'
 import type { BattleView, Command } from '../../core/battle'
 import type { PresentPlayer } from '../../server/presence'
 import { Prep } from './Prep'
@@ -31,6 +31,8 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
   // The cards say what they pay out, so the interface can offer the figure instead
   // of asking a player to work it out.
   const { data: rules } = useQuery(detachmentRulesQuery(built?.catalogueId ?? '', built?.detachment ?? ''))
+  const { data: deployments } = useQuery(deploymentsQuery())
+  const deployment = deployments?.find((entry) => entry.id === view.deploymentId)
   const awardsFor = (key: string, mode?: string) =>
     ([...(rules?.secondaries ?? []), ...(rules?.primaries ?? [])].find((card) => card.key === key)?.awards ?? []).filter(
       (award) => !award.mode || !mode || award.mode === mode,
@@ -197,6 +199,9 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
                           {secondary.status}
                         </span>
                       )}
+                      <span className="readout mt-0.5 block text-[0.625rem] text-faint">
+                        {secondary.rounds.map((points, round) => `T${round + 1} ${points}`).join(' · ')}
+                      </span>
                     </span>
                     <span className="readout w-6 text-right text-dim">{secondary.points}</span>
                     {player.isViewer && !finished && secondary.status === 'active' ? (
@@ -404,6 +409,11 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
               <p className="mt-1 text-xs text-dim">
                 Round {view.round} · {mission?.name ?? 'Matched play'}
               </p>
+              {deployment ? (
+                <p className="mt-1 text-xs text-dim" title={deployment.description ?? undefined}>
+                  {deployment.name} · {deployment.objectives.length} objectives
+                </p>
+              ) : null}
             </div>
             <ScoreChart players={view.players} />
             <CpChart players={view.players} />
