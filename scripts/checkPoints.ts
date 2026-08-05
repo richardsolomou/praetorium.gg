@@ -15,7 +15,7 @@ import path from 'node:path'
 import { parse } from 'yaml'
 import { buildIndex, type CatalogueFile, type SelectionEntry } from '../src/core/catalogue'
 import { evaluate } from '../src/core/evaluate'
-import { buildUnit } from '../src/core/roster'
+import { buildUnit, wargearOf } from '../src/core/roster'
 
 const dataDirectory = process.env.CATALOGUE_DIR ?? path.join(import.meta.dirname, '..', 'catalogue-data')
 const definitionsDirectory = path.join(dataDirectory, 'definitions')
@@ -36,7 +36,12 @@ const files: CatalogueFile[] = fs
 const index = buildIndex(files, revision.definitions)
 console.log(`indexed ${index.definitions.size} definitions from ${files.length} files at ${revision.definitions.slice(0, 10)}\n`)
 
-type MfmUnit = { name: string; groupTitle?: string; pricing?: { range?: string; costs?: { models: number; points: number }[] }[] }
+type MfmUnit = {
+  name: string
+  groupTitle?: string
+  pricing?: { range?: string; costs?: { models: number; points: number; addon?: boolean }[] }[]
+  wargear?: { item: string; points: number }[]
+}
 
 /**
  * The Munitorum prices a unit by which copy of it you are buying — "your 1st to
@@ -126,7 +131,7 @@ for (const faction of factions) {
   for (const unit of faction.units) {
     if (wantedUnit && !unit.name.toLowerCase().includes(wantedUnit)) continue
     const candidates = resolve(unit.name)
-    const tiers = firstCopyRange(unit)?.costs ?? []
+    const tiers = (firstCopyRange(unit)?.costs ?? []).filter((cost) => !cost.addon)
     if (!tiers.length) continue
     if (!candidates.length) {
       tally.missing += tiers.length
@@ -154,11 +159,15 @@ for (const faction of factions) {
       }
 
       const result = evaluate([built.selection], index, { primaryCatalogueId: unitCatalogueId })
+      const wargearPrices = new Map((unit.wargear ?? []).map((item) => [normalise(item.item), item.points]))
+      const expected =
+        tier.points +
+        wargearOf(built.selection, index).reduce((total, item) => total + (wargearPrices.get(normalise(item.name)) ?? 0) * item.count, 0)
       for (const note of result.unhandled) census.add(note)
-      if (result.points === tier.points) tally.matched++
+      if (result.points === expected) tally.matched++
       else {
         tally.mismatched++
-        mismatches.push(`${faction.slug}: ${unit.name} @ ${tier.models} models: got ${result.points}, Munitorum says ${tier.points}`)
+        mismatches.push(`${faction.slug}: ${unit.name} @ ${tier.models} models: got ${result.points}, Munitorum says ${expected}`)
         if (wantedUnit) console.log(JSON.stringify(built.selection, null, 2))
       }
     }
