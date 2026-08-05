@@ -1,5 +1,20 @@
 import { expect, test } from '@playwright/test'
 
+test('primary navigation keeps every scoped destination on phones', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/')
+
+  const primary = page.getByRole('navigation', { name: 'Primary' })
+  await expect(primary.getByRole('link', { name: 'Battles' })).toBeVisible()
+  await expect(primary.getByRole('link', { name: 'Rosters' })).toBeVisible()
+  await expect(primary.getByRole('link', { name: 'Factions' })).toBeVisible()
+  await expect(page.locator('header')).toHaveJSProperty(
+    'scrollWidth',
+    await page.locator('header').evaluate((header) => header.clientWidth),
+  )
+  await page.screenshot({ path: 'test-results/navigation-phone.png', fullPage: true })
+})
+
 test('a guest can enter through the roster library and browse the product', async ({ page }) => {
   await page.goto('/rosters')
   await page.getByLabel('Your name').fill('Alice')
