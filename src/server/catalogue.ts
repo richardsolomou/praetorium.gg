@@ -11,6 +11,7 @@ import {
 } from '../core/catalogue'
 import { evaluate, hiddenByRules, rosterLimit } from '../core/evaluate'
 import { buildUnit } from '../core/roster'
+import { routeSlug } from '../core/slug'
 
 /**
  * The community catalogue data, if this instance has any.
@@ -154,10 +155,11 @@ function unitCount(index: CatalogueIndex, catalogueId: string) {
  */
 export type UnitGroup = 'character' | 'battleline' | 'transport' | 'other'
 
-export type UnitSummary = { id: string; name: string; points: number | null; group: UnitGroup; limit: number | null }
+export type UnitSummary = { id: string; slug: string; name: string; points: number | null; group: UnitGroup; limit: number | null }
 
 export type Datasheet = {
   id: string
+  slug: string
   name: string
   points: number | null
   keywords: string[]
@@ -201,6 +203,7 @@ export function datasheetIn(loaded: LoadedCatalogue, catalogueId: string, entryI
 
   return {
     id: root.id,
+    slug: datasheetSlug(loaded, catalogueId, root.id),
     name: root.name ?? root.id,
     points: priceOf(loaded, catalogueId, entryId),
     keywords: [...new Set((root.categoryLinks ?? []).map((link) => link.name).filter((name): name is string => Boolean(name)))].toSorted(),
@@ -266,11 +269,30 @@ export function unitsIn(loaded: LoadedCatalogue, catalogueId: string, query: str
     .slice(0, limit)
     .map((unit) => ({
       id: unit.id,
+      slug: datasheetSlug(loaded, catalogueId, unit.id),
       name: unit.name,
       group: unit.group,
       points: priceOf(loaded, catalogueId, unit.id),
       limit: limitOf(loaded, catalogueId, unit.id),
     }))
+}
+
+/** Name slugs stay clean unless a book genuinely contains two same-named sheets. */
+export function datasheetSlug(loaded: LoadedCatalogue, catalogueId: string, entryId: string) {
+  const entry = loaded.index.definitions.get(entryId)
+  const base = routeSlug(entry?.name ?? entryId)
+  const collisions = [...loaded.index.datasheets].filter((id) => {
+    if (loaded.index.catalogueOf.get(id) !== catalogueId) return false
+    return routeSlug(loaded.index.definitions.get(id)?.name ?? id) === base
+  })
+  return collisions.length > 1 ? `${base}-${entryId.slice(0, 8)}` : base
+}
+
+export function datasheetInBySlug(loaded: LoadedCatalogue, catalogueId: string, slug: string) {
+  const entryId = [...loaded.index.datasheets].find(
+    (id) => loaded.index.catalogueOf.get(id) === catalogueId && (id === slug || datasheetSlug(loaded, catalogueId, id) === slug),
+  )
+  return entryId ? datasheetIn(loaded, catalogueId, entryId) : null
 }
 
 /** How many of one datasheet the roster may hold, or null when nothing limits it. */

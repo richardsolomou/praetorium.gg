@@ -5,6 +5,7 @@ import {
   collection,
   deployments,
   datasheet,
+  datasheetBySlug,
   detachmentRules,
   factions,
   me,
@@ -12,6 +13,7 @@ import {
   openBattle,
   priceRoster,
   savedRosters,
+  savedRosterPrice,
   sharedRoster,
   signInOptions,
   units,
@@ -48,6 +50,14 @@ export const datasheetQuery = (catalogueId: string, entryId: string) =>
     staleTime: Infinity,
   })
 
+export const datasheetSlugQuery = (catalogueId: string, slug: string) =>
+  queryOptions({
+    queryKey: ['datasheet-slug', catalogueId, slug],
+    queryFn: () => datasheetBySlug({ data: { catalogueId, slug } }),
+    enabled: Boolean(catalogueId && slug),
+    staleTime: Infinity,
+  })
+
 export type PickedUnit = {
   entryId: string
   catalogueId?: string
@@ -64,6 +74,19 @@ export const priceQuery = (catalogueId: string, detachmentIds: readonly string[]
     queryFn: () => priceRoster({ data: { catalogueId, detachmentIds: [...detachmentIds], limit, units: [...picked] } }),
     enabled: Boolean(catalogueId),
     staleTime: SSR_STALE_TIME,
+  })
+
+/** Hydrates the same pricing cache entry through a refresh-safe GET keyed by saved id. */
+export const savedRosterPriceQuery = (
+  id: string,
+  catalogueId: string,
+  detachmentIds: readonly string[],
+  limit: number,
+  picked: readonly PickedUnit[],
+) =>
+  queryOptions({
+    ...priceQuery(catalogueId, detachmentIds, limit, picked),
+    queryFn: () => savedRosterPrice({ data: { id } }),
   })
 
 export const savedRostersQuery = () =>

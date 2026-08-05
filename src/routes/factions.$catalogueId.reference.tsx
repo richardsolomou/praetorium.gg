@@ -1,12 +1,13 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, notFound, Outlet, useRouterState } from '@tanstack/react-router'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { factionFor } from '../client/factions'
 import { factionsQuery } from '../client/queries'
 
 export const Route = createFileRoute('/factions/$catalogueId/reference')({
   loader: async ({ context, params }) => {
     const data = await context.queryClient.ensureQueryData(factionsQuery())
-    if (!data?.factions.some((faction) => faction.id === params.catalogueId)) throw notFound()
+    if (!factionFor(data, params.catalogueId)) throw notFound()
   },
   component: ReferencePage,
 })
@@ -16,13 +17,17 @@ function ReferencePage() {
   const { catalogueId } = Route.useParams()
   const { data } = useQuery(factionsQuery())
   if (path !== `/factions/${catalogueId}/reference`) return <Outlet />
-  const faction = data?.factions.find((entry) => entry.id === catalogueId)
+  const faction = factionFor(data, catalogueId)
   if (!faction) return null
   const reference = faction.references[0]
 
   return (
     <main className="mx-auto w-full max-w-5xl px-4 py-8">
-      <Link to="/factions/$catalogueId" params={{ catalogueId }} className="eyebrow flex items-center gap-1 text-azure hover:text-bone">
+      <Link
+        to="/factions/$catalogueId"
+        params={{ catalogueId: faction.slug }}
+        className="eyebrow flex items-center gap-1 text-azure hover:text-bone"
+      >
         <ChevronLeft className="size-3.5" /> {faction.displayName}
       </Link>
       <header className="mt-4 border-b border-edge pb-4">
@@ -32,7 +37,7 @@ function ReferencePage() {
       <section className="mt-5">
         <Link
           to="/factions/$catalogueId/reference/datasheets"
-          params={{ catalogueId }}
+          params={{ catalogueId: faction.slug }}
           className="flex items-center justify-between border border-edge bg-panel px-3 py-3 hover:bg-raised"
         >
           <span className="font-bold uppercase">Datasheets</span>

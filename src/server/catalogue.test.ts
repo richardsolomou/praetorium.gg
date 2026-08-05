@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { buildIndex, type Catalogue, type CatalogueFile } from '../core/catalogue'
-import { datasheetIn, detachmentsOf, type LoadedCatalogue, unitsIn } from './catalogue'
+import { datasheetIn, datasheetInBySlug, detachmentsOf, type LoadedCatalogue, unitsIn } from './catalogue'
 
 const PTS = 'cost-pts'
 
@@ -21,6 +21,19 @@ function bookOf(catalogue: Partial<Catalogue>): LoadedCatalogue {
 const categories = (...names: string[]) => names.map((name, at) => ({ id: `link-${at}`, targetId: `cat-${at}`, name }))
 
 describe('the picker', () => {
+  it('gives datasheets readable unambiguous route slugs', () => {
+    const book = bookOf({
+      selectionEntries: [
+        { id: 'first-sheet', name: 'Royal Warden', type: 'unit', costs: points(40) },
+        { id: 'second-sheet', name: 'Royal Warden', type: 'unit', costs: points(45) },
+      ],
+    })
+
+    const units = unitsIn(book, 'cat', '')
+    expect(units.map((unit) => unit.slug)).toEqual(['royal-warden-first-sh', 'royal-warden-second-s'])
+    expect(datasheetInBySlug(book, 'cat', units[0]?.slug ?? '')?.id).toBe('first-sheet')
+  })
+
   it('shelves a datasheet by the role its keywords claim', () => {
     const book = bookOf({
       selectionEntries: [

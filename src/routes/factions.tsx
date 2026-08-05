@@ -43,6 +43,11 @@ function Factions() {
     (entry) => entry.displayName.toLowerCase().includes(wanted) || entry.name.toLowerCase().includes(wanted),
   )
   const favouriteFactions = matching.filter((entry) => favourites.has(entry.id))
+  const groups = matching.reduce((grouped, entry) => {
+    const title = entry.name.split(' - ')[0] || 'Other'
+    grouped.set(title, [...(grouped.get(title) ?? []), entry])
+    return grouped
+  }, new Map<string, Faction[]>())
 
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-8">
@@ -53,13 +58,22 @@ function Factions() {
         aria-label="Find a faction"
       />
       <FactionShelf title="Favourites" entries={favouriteFactions} favourites={favourites} onFavourite={toggleFavourite} />
-      <FactionShelf title="All factions" entries={matching} favourites={favourites} onFavourite={toggleFavourite} />
+      {matching.length ? (
+        [...groups.entries()]
+          .toSorted(([left], [right]) => left.localeCompare(right))
+          .map(([title, entries]) => (
+            <FactionShelf key={title} title={title} entries={entries} favourites={favourites} onFavourite={toggleFavourite} />
+          ))
+      ) : (
+        <p className="mt-6 border border-edge bg-panel p-6 text-center text-sm text-dim">No factions match.</p>
+      )}
     </main>
   )
 }
 
 type Faction = {
   id: string
+  slug: string
   name: string
   displayName: string
   references: { id: string; name: string; datasheets: number; detachments: number }[]
@@ -91,7 +105,11 @@ function FactionShelf({
         <div className="mt-2 divide-y divide-edge border border-edge bg-panel">
           {entries.map((entry) => (
             <div key={entry.id} data-faction={entry.displayName} className="flex items-center">
-              <Link to="/factions/$catalogueId" params={{ catalogueId: entry.id }} className="min-w-0 flex-1 px-3 py-2 text-left">
+              <Link
+                to="/factions/$catalogueId/reference"
+                params={{ catalogueId: entry.slug }}
+                className="min-w-0 flex-1 px-3 py-2 text-left"
+              >
                 <span className="block truncate font-bold uppercase">{entry.displayName}</span>
                 <span className="text-xs text-dim">{entry.detachments.length} detachments</span>
               </Link>

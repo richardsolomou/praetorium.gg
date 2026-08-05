@@ -1,6 +1,6 @@
 import { createFileRoute, notFound } from '@tanstack/react-router'
 import { RosterEditor } from '../client/components/RosterEditor'
-import { collectionQuery, factionsQuery, priceQuery, savedRostersQuery, unitsQuery } from '../client/queries'
+import { collectionQuery, factionsQuery, savedRosterPriceQuery, savedRostersQuery, unitsQuery } from '../client/queries'
 
 export const Route = createFileRoute('/rosters/$id/edit')({
   loader: async ({ context, params }) => {
@@ -14,7 +14,8 @@ export const Route = createFileRoute('/rosters/$id/edit')({
     await Promise.all([
       context.queryClient.ensureQueryData(unitsQuery(roster.catalogueId, '')),
       context.queryClient.ensureQueryData(
-        priceQuery(
+        savedRosterPriceQuery(
+          roster.id,
           roster.catalogueId,
           roster.detachmentIds,
           roster.limit,

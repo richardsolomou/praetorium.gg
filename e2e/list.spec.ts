@@ -66,8 +66,17 @@ test('a built list is priced, played and tracked', async ({ browser }) => {
       .catch(() => {})
   }
 
+  await alice.evaluate(() => {
+    const existing = document.querySelector('[data-unit="Plague Marines"]')
+    if (!existing) throw new Error('Plague Marines card is missing')
+    new MutationObserver(() => {
+      if (!document.contains(existing)) document.documentElement.dataset.rosterReloaded = 'true'
+    }).observe(document.body, { childList: true, subtree: true })
+  })
   await alice.getByLabel('Add a unit').fill('Lord of Virulence')
   await alice.getByRole('button', { name: 'Add Lord of Virulence', exact: true }).first().click()
+  await expect(alice.locator('[data-unit="Lord of Virulence"]')).toBeVisible()
+  await expect(alice.locator('html')).not.toHaveAttribute('data-roster-reloaded', 'true')
   await alice
     .getByRole('button', { name: /^Lord of Virulence/ })
     .first()

@@ -27,6 +27,7 @@ export type LoadoutUnit = {
 
 type Props = {
   catalogueId: string
+  catalogueSlug: string
   unit: LoadoutUnit | null
   onChoose: (key: string, optionId: string) => void
   onSpread: (key: string, counts: Record<string, number>) => void
@@ -44,7 +45,7 @@ type Props = {
  * carbines, which a single answer cannot say; that one gets a count against each
  * option. Nothing is typed either way: every option and every price is the data's.
  */
-export function Loadout({ catalogueId, unit, onChoose, onSpread }: Props) {
+export function Loadout({ catalogueId, catalogueSlug, unit, onChoose, onSpread }: Props) {
   const { data: sheet } = useQuery(datasheetQuery(catalogueId, unit?.entryId ?? ''))
   if (!unit) {
     return (
@@ -61,7 +62,7 @@ export function Loadout({ catalogueId, unit, onChoose, onSpread }: Props) {
         <span className="chip shrink-0">{unit.points} pts</span>
       </div>
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-2.5">
-        {sheet ? <DatasheetSummary catalogueId={catalogueId} sheet={sheet} /> : null}
+        {sheet ? <DatasheetSummary catalogueSlug={catalogueSlug} sheet={sheet} /> : null}
         <section>
           <p className="rubric flex items-baseline justify-between border-b border-edge pb-1.5">
             <span>Wargear options</span>
@@ -80,7 +81,7 @@ export function Loadout({ catalogueId, unit, onChoose, onSpread }: Props) {
   )
 }
 
-function DatasheetSummary({ catalogueId, sheet }: { catalogueId: string; sheet: Datasheet }) {
+function DatasheetSummary({ catalogueSlug, sheet }: { catalogueSlug: string; sheet: Datasheet }) {
   const model = sheet.profiles.find((profile) => profile.type === 'Unit')
   const weapons = sheet.profiles.filter((profile) => profile.type === 'Ranged Weapons' || profile.type === 'Melee Weapons')
   const abilities = sheet.profiles.filter((profile) => profile.type === 'Abilities')
@@ -138,7 +139,7 @@ function DatasheetSummary({ catalogueId, sheet }: { catalogueId: string; sheet: 
       ) : null}
       <Link
         to="/factions/$catalogueId/$entryId"
-        params={{ catalogueId, entryId: sheet.id }}
+        params={{ catalogueId: catalogueSlug, entryId: sheet.slug }}
         target="_blank"
         rel="noreferrer"
         className="eyebrow text-azure hover:text-bone"
