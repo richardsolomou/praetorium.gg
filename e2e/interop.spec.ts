@@ -21,6 +21,9 @@ test('a list leaves as .ros and comes back', async ({ browser }) => {
   await page.getByRole('option', { name: /Awakened Dynasty/ }).click()
   await page.getByLabel('Add a unit').fill('Immortals')
   await page.getByRole('button', { name: 'Add Immortals', exact: true }).first().click()
+  await page.getByLabel('Add a unit').fill('Overlord')
+  await page.getByRole('button', { name: 'Add Overlord', exact: true }).first().click()
+  await page.locator('[data-unit="Overlord"]').getByRole('button', { name: 'Immortals', exact: true }).click()
   // eslint-disable-next-line no-await-in-loop
   for (let grown = 0; grown < 5; grown++) await page.getByRole('button', { name: 'More models in Immortals' }).click()
   await page
@@ -54,4 +57,5 @@ test('a list leaves as .ros and comes back', async ({ browser }) => {
   await expect(page.getByRole('combobox', { name: 'Detachment' })).toContainText(/Awakened Dynasty/)
   await expect(page.getByText('7x Gauss blaster')).toBeVisible()
   await expect(page.getByText('3x Tesla carbine')).toBeVisible()
+  await expect(page.getByText('Leading')).toBeVisible()
 })

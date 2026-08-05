@@ -337,32 +337,40 @@ export const importRoster = createServerFn({ method: 'POST' })
       const detachment = catalogueId ? loaded.detachments.get(catalogueId) : undefined
       const flattened = parsed.selections.flatMap(allSelections)
       const detachmentId = detachment?.options.find((option) => flattened.some((selection) => selection.id === option.id))?.id ?? null
+      const importedUnits: { selection: Selection; parent: number | null }[] = []
+      const collectUnits = (selection: Selection, parent: number | null) => {
+        const isDatasheet = loaded.index.datasheets.has(selection.id)
+        const at = isDatasheet ? importedUnits.push({ selection, parent }) - 1 : parent
+        for (const child of selection.selections ?? []) collectUnits(child, at)
+      }
+      for (const selection of parsed.selections) collectUnits(selection, null)
 
       return {
         name: data.name ?? parsed.name,
         catalogueId,
         catalogueName: parsed.catalogueName,
         detachmentId,
-        units: parsed.selections
-          .filter((selection) => loaded.index.datasheets.has(selection.id))
-          .map((selection) => {
-            const decisions = unitChoices(selection.id, selection, loaded.index, { primaryCatalogueId: catalogueId ?? undefined })
-            return {
-              entryId: selection.id,
-              models: Math.max(1, modelCountOf(selection, loaded.index)),
-              choices: Object.fromEntries(
-                decisions.filter((choice) => choice.room === 1 && choice.chosen).map((choice) => [choice.key, choice.chosen]),
-              ),
-              spreads: Object.fromEntries(
-                decisions
-                  .filter((choice) => choice.room > 1)
-                  .map((choice) => [choice.key, Object.fromEntries(choice.options.map((option) => [option.id, option.count]))]),
-              ),
-              toggles: Object.fromEntries(
-                unitToggles(selection.id, selection, loaded.index).map((toggle) => [toggle.key, toggle.selected ? 1 : 0]),
-              ),
-            }
-          }),
+        units: importedUnits.map(({ selection, parent }) => {
+          const decisions = unitChoices(selection.id, selection, loaded.index, { primaryCatalogueId: catalogueId ?? undefined })
+          const entry = loaded.index.definitions.get(selection.id)
+          const attachedTo = parent !== null && entry && attachmentOf(entry, loaded.index) ? parent : undefined
+          return {
+            entryId: selection.id,
+            models: Math.max(1, modelCountOf(selection, loaded.index)),
+            choices: Object.fromEntries(
+              decisions.filter((choice) => choice.room === 1 && choice.chosen).map((choice) => [choice.key, choice.chosen]),
+            ),
+            spreads: Object.fromEntries(
+              decisions
+                .filter((choice) => choice.room > 1)
+                .map((choice) => [choice.key, Object.fromEntries(choice.options.map((option) => [option.id, option.count]))]),
+            ),
+            toggles: Object.fromEntries(
+              unitToggles(selection.id, selection, loaded.index).map((toggle) => [toggle.key, toggle.selected ? 1 : 0]),
+            ),
+            attachedTo,
+          }
+        }),
         unknown: parsed.unknown,
       }
     }),
@@ -376,20 +384,36 @@ export const exportRoster = createServerFn({ method: 'POST' })
       const loaded = app().catalogue()
       if (!loaded) throw new Response('this instance has no catalogue', { status: 409 })
 
-      const selections = data.units.flatMap((wanted) => {
-        const built = buildUnit(wanted.entryId, loaded.index, wanted.models, wanted.choices, {
+      const built = data.units.map((wanted) => {
+        const result = buildUnit(wanted.entryId, loaded.index, wanted.models, wanted.choices, {
           primaryCatalogueId: data.catalogueId,
           spreads: wanted.spreads,
           toggles: wanted.toggles,
         })
-        return built ? [built.selection] : []
+        return result?.selection ?? null
       })
+      const selections = built.filter((selection): selection is Selection => selection !== null)
+      const detachmentSelection: Selection[] = data.detachmentId ? [{ id: data.detachmentId, count: 1 }] : []
       // The list's cost, worked out from its selections.
-      const points = evaluate(selections, loaded.index, { primaryCatalogueId: data.catalogueId }).points
+      const points = evaluate([...detachmentSelection, ...selections], loaded.index, { primaryCatalogueId: data.catalogueId }).points
+      const exported: Selection[] = []
+      for (const selection of selections) exported.push({ ...selection, selections: [...(selection.selections ?? [])] })
+      data.units.forEach((unit, index) => {
+        if (unit.attachedTo === undefined || unit.attachedTo === index) return
+        const child = exported[index]
+        const parent = exported[unit.attachedTo]
+        if (!child || !parent) return
+        parent.selections = [...(parent.selections ?? []), child]
+      })
+      const nested = exported.filter((_, index) => !data.units.some((unit, child) => child === index && unit.attachedTo !== undefined))
 
       return {
         filename: `${data.name.replaceAll(/[^\w -]/g, '')}.ros`,
-        xml: toRosterXml({ name: data.name, catalogueId: data.catalogueId, selections }, loaded.index, points),
+        xml: toRosterXml(
+          { name: data.name, catalogueId: data.catalogueId, selections: [...detachmentSelection, ...nested] },
+          loaded.index,
+          points,
+        ),
       }
     }),
   )
