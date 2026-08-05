@@ -21,6 +21,7 @@ import { picksSchema, savedPrepSchema } from './schemas'
  */
 export type Pick = {
   entryId: string
+  catalogueId?: string
   models?: number
   choices?: Record<string, string>
   spreads?: Record<string, Record<string, number>>

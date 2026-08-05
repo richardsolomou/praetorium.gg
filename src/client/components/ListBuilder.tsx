@@ -29,6 +29,7 @@ type Props = {
 type Pick = {
   key: number
   entryId: string
+  catalogueId?: string
   models?: number
   choices?: Record<string, string>
   /** How many of each option a group holds, where a group holds more than one. */
@@ -94,8 +95,9 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
           catalogueId,
           detachmentId: detachmentId ?? null,
           limit,
-          picks: picked.map(({ entryId, models, choices, spreads, toggles, attachedTo }) => ({
+          picks: picked.map(({ entryId, catalogueId: unitCatalogueId, models, choices, spreads, toggles, attachedTo }) => ({
             entryId,
+            catalogueId: unitCatalogueId,
             models,
             choices,
             spreads,
@@ -140,8 +142,9 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
           catalogueId,
           detachmentId,
           name: listName || 'Roster',
-          units: picked.map(({ entryId, models, choices, spreads, toggles, attachedTo }) => ({
+          units: picked.map(({ entryId, catalogueId: unitCatalogueId, models, choices, spreads, toggles, attachedTo }) => ({
             entryId,
+            catalogueId: unitCatalogueId,
             models,
             choices,
             spreads,

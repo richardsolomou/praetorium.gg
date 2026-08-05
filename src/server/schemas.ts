@@ -28,6 +28,7 @@ export const datasheetSchema = z.object({ catalogueId, entryId: z.string().min(1
  */
 const pickSchema = z.object({
   entryId: z.string().min(1).max(64),
+  catalogueId: z.string().min(1).max(64).optional(),
   models: z.number().int().min(1).max(60).optional(),
   choices: z.record(z.string().max(400), z.string().min(1).max(64)).optional(),
   /**
@@ -90,6 +91,7 @@ export const priceSchema = z.object({
     .array(
       z.object({
         entryId: z.string().min(1).max(64),
+        catalogueId: z.string().min(1).max(64).optional(),
         models: z.number().int().min(1).max(60).optional(),
         /** Group path to chosen option, as `unitChoices` reports it. */
         choices: z.record(z.string().max(400), z.string().min(1).max(64)).optional(),

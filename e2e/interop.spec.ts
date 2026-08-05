@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { readFile } from 'node:fs/promises'
 
 /**
  * Taking a list out and bringing it back in, in the format New Recruit,
@@ -58,4 +59,27 @@ test('a list leaves as .ros and comes back', async ({ browser }) => {
   await expect(page.getByText('7x Gauss blaster')).toBeVisible()
   await expect(page.getByText('3x Tesla carbine')).toBeVisible()
   await expect(page.getByText('Leading')).toBeVisible()
+
+  // External tools can write more than one force. Build that corpus at test time
+  // from the real export so no game data or private roster is committed here.
+  const xml = await readFile(saved, 'utf8')
+  const force = xml.match(/<force\b[\s\S]*?<\/force>/)?.[0]
+  expect(force).toBeTruthy()
+  const alliedForce = force!.replace('catalogueId="', 'catalogueId="allied-').replace('id="', 'id="allied-')
+  const alliedXml = xml.replace('</forces>', `${alliedForce}</forces>`)
+
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Open a battle' }).click()
+  await page.getByRole('button', { name: 'Build from the catalogue' }).click()
+  await page
+    .getByLabel('Bring a list from another tool')
+    .setInputFiles({ name: 'allies.ros', mimeType: 'application/xml', buffer: Buffer.from(alliedXml) })
+  await expect(page.locator('[data-unit="Immortals"]')).toHaveCount(2)
+  await expect(page.locator('[data-unit="Overlord"]')).toHaveCount(2)
+
+  const [alliedDownload] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Export' }).click()])
+  const alliedSaved = await alliedDownload.path()
+  const roundTripped = await readFile(alliedSaved, 'utf8')
+  expect(roundTripped.match(/<force /g)).toHaveLength(2)
+  expect(roundTripped).toContain('catalogueId="allied-')
 })
