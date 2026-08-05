@@ -150,13 +150,27 @@ export const factions = createServerFn({ method: 'GET' }).handler(() =>
   rpc(() => {
     const loaded = app().catalogue()
     if (!loaded) return null
+    const rules = app().rules()
     return {
       revision: loaded.index.revision,
       factions: loaded.factions.map((faction) => ({
         id: faction.id,
         name: faction.name,
         references: faction.references,
-        detachments: loaded.detachments.get(faction.id)?.options ?? [],
+        detachments: (loaded.detachments.get(faction.id)?.options ?? []).map((detachment) => {
+          const reference = rules?.detachmentReferences.get(slug(faction.name))?.get(slug(detachment.name))
+          return {
+            id: detachment.id,
+            name: detachment.name,
+            disposition: detachment.disposition,
+            reference: reference
+              ? {
+                  ...reference,
+                  dispositions: reference.dispositions.map((disposition) => rules?.dispositions.get(disposition) ?? disposition),
+                }
+              : null,
+          }
+        }),
       })),
     }
   }),

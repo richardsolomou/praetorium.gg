@@ -62,6 +62,15 @@ type RawMatchup = { disposition: string; opponent_disposition: string; mission_i
 
 type RawDisposition = { id: string; name: string }
 
+type RawDetachment = {
+  id: string
+  name: string
+  enhancement_ids?: string[]
+  stratagem_ids?: string[]
+  detachment_points?: number
+  force_dispositions?: string[]
+}
+
 type Point = { x: number; y: number }
 
 type RawPattern = {
@@ -99,9 +108,18 @@ export type Mission = { id: string; name: string; roundCap: number | null; gameC
 
 export type MissionCard = { key: string; name: string; text: string | null; awards: Award[] }
 
+export type DetachmentReference = {
+  enhancements: number
+  stratagems: number
+  points: number | null
+  dispositions: string[]
+}
+
 export type LoadedRules = {
   /** Faction slug then detachment slug, so a chosen detachment maps straight to its six. */
   byDetachment: Map<string, Map<string, Stratagem[]>>
+  /** Display metadata for each detachment, from the same licensed source as its stratagems. */
+  detachmentReferences: Map<string, Map<string, DetachmentReference>>
   /** Stratagems every army has, offered alongside whatever the detachment brings. */
   core: Stratagem[]
   secondaries: MissionCard[]
@@ -125,11 +143,29 @@ export function loadRules(directory = rulesDirectory()): LoadedRules | null {
   if (!fs.existsSync(core)) return null
 
   const byDetachment = new Map<string, Map<string, Stratagem[]>>()
+  const detachmentReferences = new Map<string, Map<string, DetachmentReference>>()
   let dataslate: string | null = null
 
   for (const faction of fs.readdirSync(core, { withFileTypes: true })) {
     if (!faction.isDirectory() || faction.name.startsWith('_')) continue
     const file = path.join(core, faction.name, 'stratagems.json')
+    const referenceFile = path.join(core, faction.name, 'detachments.json')
+    if (fs.existsSync(referenceFile)) {
+      detachmentReferences.set(
+        faction.name,
+        new Map(
+          readDetachments(referenceFile).map((detachment) => [
+            detachment.id,
+            {
+              enhancements: detachment.enhancement_ids?.length ?? 0,
+              stratagems: detachment.stratagem_ids?.length ?? 0,
+              points: detachment.detachment_points ?? null,
+              dispositions: detachment.force_dispositions ?? [],
+            },
+          ]),
+        ),
+      )
+    }
     if (!fs.existsSync(file)) continue
 
     const detachments = new Map<string, Stratagem[]>()
@@ -192,7 +228,17 @@ export function loadRules(directory = rulesDirectory()): LoadedRules | null {
     .toSorted((left, right) => left.name.localeCompare(right.name))
 
   if (!byDetachment.size && !secondaries.length) return null
-  return { byDetachment, core: coreStratagems, secondaries, primaries, missions, dispositions, deployments, dataslate }
+  return {
+    byDetachment,
+    detachmentReferences,
+    core: coreStratagems,
+    secondaries,
+    primaries,
+    missions,
+    dispositions,
+    deployments,
+    dataslate,
+  }
 }
 
 /**
@@ -231,6 +277,11 @@ function readPatterns(file: string): RawPattern[] {
 function readDispositions(file: string): RawDisposition[] {
   if (!fs.existsSync(file)) return []
   const parsed: RawDisposition[] = JSON.parse(fs.readFileSync(file, 'utf8'))
+  return parsed
+}
+
+function readDetachments(file: string): RawDetachment[] {
+  const parsed: RawDetachment[] = JSON.parse(fs.readFileSync(file, 'utf8'))
   return parsed
 }
 
