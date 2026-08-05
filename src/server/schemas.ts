@@ -111,5 +111,7 @@ export const priceSchema = z.object({
     .max(100),
 })
 
+export type PriceInput = z.infer<typeof priceSchema>
+
 /** Exports whatever the builder is showing, so it works before a list is attached. */
 export const exportRosterSchema = priceSchema.extend({ name: z.string().trim().min(1).max(120) })

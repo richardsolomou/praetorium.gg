@@ -12,6 +12,7 @@ import {
   openBattle,
   priceRoster,
   savedRosters,
+  savedRosterPrice,
   sharedRoster,
   signInOptions,
   units,
@@ -64,6 +65,19 @@ export const priceQuery = (catalogueId: string, detachmentIds: readonly string[]
     queryFn: () => priceRoster({ data: { catalogueId, detachmentIds: [...detachmentIds], limit, units: [...picked] } }),
     enabled: Boolean(catalogueId),
     staleTime: SSR_STALE_TIME,
+  })
+
+/** Hydrates the same pricing cache entry through a refresh-safe GET keyed by saved id. */
+export const savedRosterPriceQuery = (
+  id: string,
+  catalogueId: string,
+  detachmentIds: readonly string[],
+  limit: number,
+  picked: readonly PickedUnit[],
+) =>
+  queryOptions({
+    ...priceQuery(catalogueId, detachmentIds, limit, picked),
+    queryFn: () => savedRosterPrice({ data: { id } }),
   })
 
 export const savedRostersQuery = () =>
