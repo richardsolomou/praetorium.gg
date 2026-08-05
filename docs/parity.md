@@ -133,7 +133,7 @@ It does not include BattleBase's rankings, events, leagues, locations, friends o
 | Catalogue acquisition      | Done                  | The instance fetches pinned BSData and 40kdc-data revisions in the background and swaps staged data atomically. No game data is committed.                                                                                                             |
 | Roster construction        | Substantial           | Faction, game size, detachment, top-level datasheets, squad size, choices, split collective wargear, enhancements, attachments and points limits.                                                                                                      |
 | Roster validation          | Substantial           | Constraints, modifiers, conditions, force scope, ordering, category keywords and catalogue-sensitive costs. The Munitorum ratchet is 97.4% of 1,548 checks. Unknown semantics are reported rather than guessed.                                        |
-| Roster library             | Partial               | A standalone roster destination can build, import, name, save, load and delete lists. There is no copy flow, metadata view or shareable read-only roster.                                                                                              |
+| Roster library             | Substantial           | The standalone destination builds, imports, names, saves, loads, renames, copies and deletes lists. Saved entries expose unit count, points limit and last update; a shareable read-only roster remains.                                               |
 | Interchange                | Partial               | `.ros` and `.rosz` import and `.ros` export work. Unplaceable units are reported. Import restores units and model counts, but does not yet promise lossless import of every nested force, selection, choice or attachment another builder can express. |
 | Collection                 | Partial               | Per-datasheet owned membership drives the picker filter. There are no quantities, collection browser or favourites view.                                                                                                                               |
 | Mission setup              | Done for current data | Force dispositions derive the mission; deployment zones and objectives are drawn from data; fixed/tactical secondaries, primary cards and detachment/core stratagems are picked rather than typed.                                                     |
@@ -148,7 +148,7 @@ It does not include BattleBase's rankings, events, leagues, locations, friends o
 | Visual system          | Done                             | Near-black surfaces, compact radii, tracked uppercase headings, tabular numbers, bordered points chips, red/blue ownership tints and an openly licensed condensed typeface.                                       |
 | Builder desktop layout | Close                            | Three panes for picker, roster and loadout; category shelves, counts and a persistent points total follow BattleBase's information architecture.                                                                  |
 | Builder mobile layout  | Close                            | One roster plus one movable picker/loadout pane avoids duplicate controls and keeps squad size on the card. It follows Praetorium's chosen responsive interpretation rather than BattleBase's separate phone app. |
-| Builder detail         | Partial                          | Cards and choice controls match the density, but the loadout pane lacks datasheet stats, weapon profiles, rules, keywords and BattleBase's utility actions.                                                       |
+| Builder detail         | Substantial                      | The loadout pane shows model stats, weapon profiles, ability pills and a link to the full datasheet alongside choice controls. Enhancement card treatment and remaining utility actions remain.                   |
 | Application shell      | Done for the scoped destinations | Persistent navigation exposes first-class battle history, roster building and faction browsing. Social and competitive BattleBase destinations remain out of scope.                                               |
 | Setup flow             | Partial                          | The order follows the game and all game facts are picked from data, but it is presented as stacked forms rather than BattleBase's compact destination-based workflow.                                             |
 | Battle tracker         | Substantial                      | Desktop uses player/shared/player columns with ownership tints, shared phase controls and a five-turn primary/secondary ledger folded from the command log. Card state, charts and timing remain.                 |
@@ -172,7 +172,7 @@ This is the implementation order that closes the largest user-visible gaps witho
 
 The responsive application shell now has **Battles**, **Rosters** and **Factions** routes. Rosters can be built, imported, saved, loaded and deleted without starting a battle; battle history shows setup, active and finished battles; factions and their datasheets can be browsed independently. Keep social and competitive BattleBase destinations out of scope.
 
-Finish this slice with roster copy/rename actions, richer saved-roster metadata, a read-only datasheet route and direct links from faction results. Battle summaries should add army names and last activity without storing derived battle state.
+Finish this slice with a shareable read-only roster. Saved lists now copy and rename while exposing unit count, points limit and last update; faction results link to read-only datasheets. Battle summaries should add army names and last activity without storing derived battle state.
 
 ### 2. Rebuild the battle tracker in BattleBase's information architecture
 
@@ -184,9 +184,9 @@ On phones, make an explicit choice rather than shrinking the desktop grid. Match
 
 ### 3. Complete roster editing and datasheet presentation
 
-- Add a unit menu with duplicate, favourite/owned and delete. Duplicate must preserve model count, choices, spreads and attachment behavior.
+- Expand the unit actions beyond the implemented duplicate and delete controls with favourite/owned. Duplication preserves the complete configured pick, including its attachment target.
 - Put enhancements and a warlord marker on the unit card, while keeping one accessible control for each value.
-- Add datasheet detail: model stats, ranged and melee weapon profiles, abilities and keywords. Decide the legal/product policy for displaying full rules text before implementing it; the catalogue index carrying text does not by itself settle that decision.
+- Refine the implemented datasheet detail against more books and complex profile shapes. It presents model stats, ranged and melee weapon profiles, abilities and keywords from fetched catalogues without committing their text to this repository.
 - Show the datasheet's replacement sentence beside wargear controls so the counts have context.
 - Model mission-pack picker restrictions only from fetched data. Do not hard-code BattleBase's current “Epic Heroes and toughness 10” sentence.
 - Add the missing saved-attachment round-trip test.
@@ -195,7 +195,7 @@ On phones, make an explicit choice rather than shrinking the desktop grid. Match
 
 - Make import lossless for supported constructs: detachments/forces, nested selections, wargear choices, split counts, enhancements and attachments. Add corpus tests using exports produced by New Recruit and BattleScribe, with game data supplied at test time rather than committed.
 - Support multiple forces and allied catalogues where the roster format and 40K rules allow them. The current builder assumes one primary catalogue and one force.
-- Surface evaluator `unhandled` output in the builder as a clear “cannot validate this rule” state, distinct from an illegal list.
+- Continue reducing evaluator `unhandled` output. The builder now presents it as a clear “cannot validate this rule” state, distinct from an illegal list.
 - Close or explicitly census the remaining evaluator gaps (`measured field associations` and primary-catalogue scope without comparison context) and keep the Munitorum percentage plus mismatch set as a ratchet.
 - Expand legality fixtures beyond points: legal and illegal real rosters, roster caps, enhancements, attachments, collective choices and cross-catalogue rules.
 - Add printable and shareable read-only roster views before considering collaborative editing or revision history.

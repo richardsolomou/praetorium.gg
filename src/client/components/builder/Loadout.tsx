@@ -1,6 +1,10 @@
 import { Minus, Plus } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
+import { Link } from '@tanstack/react-router'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { datasheetQuery } from '../../queries'
+import type { Datasheet } from '../../../server/catalogue'
 
 /** Base UI selects cannot hold an empty value, so declining a choice needs a token. */
 const NONE = '__none__'
@@ -14,6 +18,7 @@ export type LoadoutChoice = {
 }
 
 export type LoadoutUnit = {
+  entryId: string
   name: string
   points: number
   size: { min: number; max: number; models: number; resizable: boolean }
@@ -21,6 +26,7 @@ export type LoadoutUnit = {
 }
 
 type Props = {
+  catalogueId: string
   unit: LoadoutUnit | null
   onChoose: (key: string, optionId: string) => void
   onSpread: (key: string, counts: Record<string, number>) => void
@@ -38,7 +44,8 @@ type Props = {
  * carbines, which a single answer cannot say; that one gets a count against each
  * option. Nothing is typed either way: every option and every price is the data's.
  */
-export function Loadout({ unit, onChoose, onSpread }: Props) {
+export function Loadout({ catalogueId, unit, onChoose, onSpread }: Props) {
+  const { data: sheet } = useQuery(datasheetQuery(catalogueId, unit?.entryId ?? ''))
   if (!unit) {
     return (
       <div className="flex h-full items-center justify-center p-6">
@@ -54,12 +61,65 @@ export function Loadout({ unit, onChoose, onSpread }: Props) {
         <span className="chip shrink-0">{unit.points} pts</span>
       </div>
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-2.5">
+        {sheet ? <DatasheetSummary catalogueId={catalogueId} sheet={sheet} /> : null}
         {unit.choices.length ? (
           unit.choices.map((choice) => (choice.room > 1 ? spread(choice, onSpread) : either(choice, onChoose, unit.name)))
         ) : (
           <p className="text-xs text-faint">Nothing on this datasheet is optional.</p>
         )}
       </div>
+    </div>
+  )
+}
+
+function DatasheetSummary({ catalogueId, sheet }: { catalogueId: string; sheet: Datasheet }) {
+  const model = sheet.profiles.find((profile) => profile.type === 'Unit')
+  const weapons = sheet.profiles.filter((profile) => profile.type === 'Ranged Weapons' || profile.type === 'Melee Weapons')
+  const abilities = sheet.profiles.filter((profile) => profile.type === 'Abilities')
+  return (
+    <div className="space-y-3 border-b border-edge pb-4">
+      {model ? (
+        <div className="grid grid-cols-6 gap-1">
+          {model.values
+            .filter((value) => value.name !== 'InSv')
+            .map((value) => (
+              <div key={value.name} className="text-center">
+                <p className="eyebrow">{value.name}</p>
+                <p className="readout text-sm">{value.value}</p>
+              </div>
+            ))}
+        </div>
+      ) : null}
+      {weapons.length ? (
+        <div>
+          <p className="eyebrow">Weapons</p>
+          <ul className="mt-1 space-y-1">
+            {weapons.map((weapon) => (
+              <li key={weapon.id} className="flex items-center justify-between gap-2 text-xs">
+                <span className="truncate">{weapon.name}</span>
+                <span className="readout shrink-0 text-faint">
+                  {weapon.values
+                    .filter((value) => ['A', 'BS', 'WS', 'S', 'AP', 'D'].includes(value.name))
+                    .map((value) => value.value)
+                    .join(' · ')}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+      {abilities.length ? (
+        <div className="flex flex-wrap gap-1">
+          {abilities.map((ability) => (
+            <span key={ability.id} className="chip">
+              {ability.name}
+            </span>
+          ))}
+        </div>
+      ) : null}
+      <Link to="/factions/$catalogueId/$entryId" params={{ catalogueId, entryId: sheet.id }} className="eyebrow text-azure hover:text-bone">
+        View full datasheet
+      </Link>
     </div>
   )
 }

@@ -39,6 +39,16 @@ test('a squad grows from the roster itself', async ({ page }) => {
   await expect(page.getByText('6x Gauss blaster')).toBeVisible()
 })
 
+test('a unit duplicates with its configured model count', async ({ page }) => {
+  await openBuilder(page)
+  await add(page, 'Immortals')
+  await page.getByRole('button', { name: 'More models in Immortals' }).click()
+  await page.getByRole('button', { name: 'Duplicate Immortals' }).click()
+
+  await expect(page.locator('[data-unit="Immortals"]')).toHaveCount(2)
+  await expect(page.getByLabel('Immortals models')).toHaveText(['6', '6'])
+})
+
 test('the filters narrow the book to what is worth taking', async ({ page }) => {
   await openBuilder(page)
 
@@ -141,4 +151,5 @@ test('a squad divides its weapons between two options', async ({ page }) => {
   await expect(page.getByText('7x Gauss blaster')).toBeVisible()
   await expect(page.getByText('3x Tesla carbine')).toBeVisible()
   await expect(page.getByText('Within the points limit')).toBeAttached()
+  await page.screenshot({ path: 'test-results/loadout.png', fullPage: true })
 })

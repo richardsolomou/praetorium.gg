@@ -20,6 +20,7 @@ export const submitSchema = z.object({ token, expectedSeq: z.number().int().min(
 const catalogueId = z.string().min(1).max(64)
 
 export const unitsSchema = z.object({ catalogueId, query: z.string().max(80).default('') })
+export const datasheetSchema = z.object({ catalogueId, entryId: z.string().min(1).max(64) })
 
 /**
  * A list is sent as the entries the player picked and how many models they want

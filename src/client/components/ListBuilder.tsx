@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Check, Download, Save, Trash2, TriangleAlert, Upload } from 'lucide-react'
+import { Check, Copy, Download, Save, Trash2, TriangleAlert, Upload } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -64,6 +64,18 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
   const queryClient = useQueryClient()
   const { data: saved } = useQuery(savedRostersQuery())
   const refreshSaved = () => queryClient.invalidateQueries({ queryKey: savedRostersQuery().queryKey })
+
+  const loadSaved = (list: NonNullable<typeof saved>[number], copy = false) => {
+    setSavedId(copy ? undefined : list.id)
+    setName(copy ? `Copy of ${list.name}` : list.name)
+    setCatalogueId(list.catalogueId)
+    setDetachmentId(list.detachmentId ?? undefined)
+    setLimit(list.limit)
+    setPicked(list.picks.map((pick, at) => ({ ...pick, key: at })))
+    setNextKey(list.picks.length)
+    setSelected(null)
+    if (list.prep) onRestorePrep(list.prep)
+  }
 
   const save = useMutation({
     mutationFn: () =>
@@ -196,6 +208,13 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
     setSelected(null)
   }
 
+  const duplicate = (index: number) => {
+    const source = picked[index]
+    if (!source) return
+    setPicked((current) => [...current.slice(0, index + 1), { ...source, key: nextKey }, ...current.slice(index + 1)])
+    setNextKey((current) => current + 1)
+  }
+
   const join = (index: number, targetKey: number | undefined) =>
     setPicked((current) => current.map((pick, at) => (at === index ? { ...pick, attachedTo: targetKey } : pick)))
 
@@ -289,6 +308,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
 
   const loadout = (
     <Loadout
+      catalogueId={catalogueId}
       unit={selectedUnit}
       onChoose={(key, optionId) => selected !== null && choose(selected, key, optionId)}
       onSpread={(key, counts) => selected !== null && spread(selected, key, counts)}
@@ -417,21 +437,20 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
                   <button
                     type="button"
                     className="max-w-40 truncate px-2 py-0.5 text-xs hover:text-azure"
-                    onClick={() => {
-                      setSavedId(list.id)
-                      setName(list.name)
-                      setCatalogueId(list.catalogueId)
-                      setDetachmentId(list.detachmentId ?? undefined)
-                      setLimit(list.limit)
-                      setPicked(list.picks.map((pick, at) => ({ ...pick, key: at })))
-                      setNextKey(list.picks.length)
-                      setSelected(null)
-                      // Stratagems are chosen once and travel with the list.
-                      if (list.prep) onRestorePrep(list.prep)
-                    }}
+                    title={`${list.picks.length} units · ${list.limit} points · updated ${new Date(list.updatedAt).toLocaleDateString()}`}
+                    onClick={() => loadSaved(list)}
                   >
                     {list.name}
                   </button>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    className="size-6"
+                    aria-label={`Copy ${list.name}`}
+                    onClick={() => loadSaved(list, true)}
+                  >
+                    <Copy />
+                  </Button>
                   <Button
                     variant="ghost"
                     size="icon-sm"
@@ -475,6 +494,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
                         setShowing('loadout')
                       }}
                       onRemove={() => drop(index)}
+                      onDuplicate={() => duplicate(index)}
                       onResize={(models) => resize(index, models)}
                       joined={joinedRows(index)}
                       canJoin={joinable(index)}
@@ -496,6 +516,17 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
                 </li>
               ))}
             </ul>
+          ) : null}
+
+          {priced?.unhandled.length ? (
+            <div className="mb-4 border border-discarded/40 bg-discarded/5 p-2.5 text-xs text-discarded">
+              <p className="font-semibold uppercase">Could not validate every catalogue rule</p>
+              <ul className="mt-1 list-inside list-disc">
+                {priced.unhandled.slice(0, 8).map((message) => (
+                  <li key={message}>{message}</li>
+                ))}
+              </ul>
+            </div>
           ) : null}
         </div>
 

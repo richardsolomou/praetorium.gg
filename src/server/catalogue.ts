@@ -1,6 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import { buildIndex, type CatalogueFile, type CatalogueIndex, type Definition } from '../core/catalogue'
+import { buildIndex, type CatalogueFile, type CatalogueIndex, type Definition, type InfoGroup, type Profile } from '../core/catalogue'
 import { evaluate, rosterLimit } from '../core/evaluate'
 import { buildUnit } from '../core/roster'
 
@@ -115,6 +115,65 @@ function unitCount(index: CatalogueIndex, catalogueId: string) {
 export type UnitGroup = 'character' | 'battleline' | 'transport' | 'other'
 
 export type UnitSummary = { id: string; name: string; points: number | null; group: UnitGroup; limit: number | null }
+
+export type Datasheet = {
+  id: string
+  name: string
+  keywords: string[]
+  profiles: { id: string; name: string; type: string; values: { name: string; value: string }[] }[]
+}
+
+/** Structured display data for one top-level datasheet, including linked shared profiles. */
+export function datasheetIn(loaded: LoadedCatalogue, catalogueId: string, entryId: string): Datasheet | null {
+  if (!loaded.index.datasheets.has(entryId) || loaded.index.catalogueOf.get(entryId) !== catalogueId) return null
+  const root = loaded.index.definitions.get(entryId)
+  if (!root) return null
+
+  const profiles = new Map<string, Profile>()
+  const visited = new Set<string>()
+  const addGroup = (group: InfoGroup) => group.profiles?.forEach((profile) => profiles.set(profile.id, profile))
+  const addProfiles = (definition: Definition) => {
+    definition.profiles?.forEach((profile) => profiles.set(profile.id, profile))
+    definition.infoGroups?.forEach(addGroup)
+    for (const link of definition.infoLinks ?? []) {
+      const shared = loaded.index.shared.get(link.targetId)
+      if (!shared) continue
+      if ('characteristics' in shared) profiles.set(shared.id, { ...shared, name: link.name ?? shared.name })
+      else addGroup(shared)
+    }
+  }
+  const visit = (definition: Definition) => {
+    if (visited.has(definition.id)) return
+    visited.add(definition.id)
+    addProfiles(definition)
+    definition.selectionEntries?.forEach(visit)
+    definition.selectionEntryGroups?.forEach(visit)
+    for (const link of definition.entryLinks ?? []) {
+      visit(link)
+      const target = loaded.index.definitions.get(link.targetId)
+      // A linked group may be a catalogue-wide library. Its own profile belongs
+      // here; recursively importing all its children does not.
+      if (target) addProfiles(target)
+    }
+  }
+  visit(root)
+
+  return {
+    id: root.id,
+    name: root.name ?? root.id,
+    keywords: [...new Set((root.categoryLinks ?? []).map((link) => link.name).filter((name): name is string => Boolean(name)))].toSorted(),
+    profiles: [...profiles.values()]
+      .filter((profile) => !profile.hidden && profile.name && profile.typeName)
+      .map((profile) => ({
+        id: profile.id,
+        name: profile.name!,
+        type: profile.typeName!,
+        values: (profile.characteristics ?? []).flatMap((value) =>
+          value.name && value.$text ? [{ name: value.name, value: value.$text }] : [],
+        ),
+      })),
+  }
+}
 
 const GROUP_BY_CATEGORY = new Map<string, UnitGroup>([
   ['character', 'character'],

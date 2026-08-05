@@ -1,5 +1,5 @@
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, Link, Outlet, useRouterState } from '@tanstack/react-router'
 import { useState } from 'react'
 import { Input } from '@/components/ui/input'
 import { factionsQuery, unitsQuery } from '../client/queries'
@@ -10,10 +10,13 @@ export const Route = createFileRoute('/factions')({
 })
 
 function Factions() {
+  const path = useRouterState({ select: (state) => state.location.pathname })
   const { data } = useSuspenseQuery(factionsQuery())
   const [selected, setSelected] = useState('')
   const [query, setQuery] = useState('')
   const { data: units = [] } = useQuery(unitsQuery(selected, query))
+
+  if (path !== '/factions') return <Outlet />
 
   if (!data) return <main className="mx-auto max-w-4xl px-4 py-8 text-sm text-dim">Catalogue data is still syncing.</main>
   const faction = data.factions.find((entry) => entry.id === selected)
@@ -50,10 +53,15 @@ function Factions() {
             />
             <div className="mt-3 grid gap-2 sm:grid-cols-2">
               {units.map((unit) => (
-                <div key={unit.id} className="flex items-center justify-between border border-edge bg-panel px-3 py-2">
+                <Link
+                  key={unit.id}
+                  to="/factions/$catalogueId/$entryId"
+                  params={{ catalogueId: selected, entryId: unit.id }}
+                  className="flex items-center justify-between border border-edge bg-panel px-3 py-2 hover:border-azure"
+                >
                   <span className="truncate text-sm font-bold uppercase">{unit.name}</span>
                   {unit.points === null ? null : <span className="chip shrink-0">{unit.points} pts</span>}
-                </div>
+                </Link>
               ))}
             </div>
           </>
