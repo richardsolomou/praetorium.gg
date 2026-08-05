@@ -406,6 +406,8 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
               </p>
             </div>
             <ScoreChart players={view.players} />
+            <CpChart players={view.players} />
+            <TurnTiming turns={view.turns} />
           </div>
           {finished ? null : (
             <div className={`${mobileTab === 'events' ? 'hidden lg:block' : ''} space-y-2 border-t border-edge pt-3`}>
@@ -477,6 +479,42 @@ function ScoreChart({ players }: { players: BattleView['players'] }) {
         {cumulative[0] ? <polyline points={points(cumulative[0])} fill="none" className="stroke-side-a" strokeWidth="2" /> : null}
         {cumulative[1] ? <polyline points={points(cumulative[1])} fill="none" className="stroke-side-b" strokeWidth="2" /> : null}
       </svg>
+    </div>
+  )
+}
+
+function CpChart({ players }: { players: BattleView['players'] }) {
+  const max = Math.max(1, ...players.flatMap((player) => player.cpByRound))
+  const points = (scores: number[]) => scores.map((score, at) => `${at * 55 + 10},${44 - (score / max) * 34}`).join(' ')
+  return (
+    <div className="border-b border-edge py-2">
+      <p className="eyebrow mb-1">Command points by round</p>
+      <svg viewBox="0 0 240 50" className="w-full">
+        <title>Command points remaining by round</title>
+        <path d="M10 44H230" className="stroke-edge" />
+        {players[0] ? <polyline points={points(players[0].cpByRound)} fill="none" className="stroke-side-a" strokeWidth="2" /> : null}
+        {players[1] ? <polyline points={points(players[1].cpByRound)} fill="none" className="stroke-side-b" strokeWidth="2" /> : null}
+      </svg>
+    </div>
+  )
+}
+
+function TurnTiming({ turns }: { turns: BattleView['turns'] }) {
+  const completed = turns.filter((turn) => turn.minutes !== null)
+  if (!completed.length) return null
+  return (
+    <div className="border-b border-edge py-2">
+      <p className="eyebrow mb-1">Minutes per turn</p>
+      <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+        {completed.map((turn) => (
+          <p key={`${turn.round}-${turn.playerId}`} className="flex justify-between gap-2">
+            <span className="truncate text-dim">
+              R{turn.round} · {turn.playerName}
+            </span>
+            <span className="readout">{turn.minutes}m</span>
+          </p>
+        ))}
+      </div>
     </div>
   )
 }

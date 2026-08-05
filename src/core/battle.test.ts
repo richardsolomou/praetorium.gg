@@ -71,6 +71,17 @@ describe('the turn sequence', () => {
     expect(state.phase).toBe('shooting')
   })
 
+  it('derives completed turn duration from command timestamps', () => {
+    const history = log(...started(), ...turns(6, ALICE))
+    history.forEach((entry) => (entry.at *= 60_000))
+
+    expect(battleView({ token: 'abc' }, NAMES, reduceBattle(PLAYERS, history), ALICE).turns[0]).toMatchObject({
+      playerName: 'Alice',
+      round: 1,
+      minutes: 6,
+    })
+  })
+
   it('passes the turn to the opponent after the end phase', () => {
     const state = reduceBattle(PLAYERS, log(...started(), ...turns(6, ALICE)))
     expect(state.activePlayerId).toBe(BOB)

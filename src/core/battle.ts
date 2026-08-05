@@ -157,6 +157,7 @@ export type PlayerState = {
   cp: number
   cpGained: number
   cpSpent: number
+  cpByRound: number[]
   primary: number
   secondary: number
   roster: Roster | null
@@ -192,6 +193,7 @@ export type BattleState = {
   /** The battlefield both players are using. Shared, so either may set it. */
   deploymentId: string | null
   players: PlayerState[]
+  turns: { playerId: PlayerId; round: number; startedAt: number; endedAt: number | null }[]
   /**
    * The newest command still standing. Undo reaches only this one, which keeps
    * the log linear: there is never a hole in the middle to reason about.
@@ -218,6 +220,7 @@ export function reduceBattle(playerIds: readonly PlayerId[], log: readonly Logge
       cp: 0,
       cpGained: 0,
       cpSpent: 0,
+      cpByRound: Array(BATTLE_ROUNDS).fill(0),
       primary: 0,
       secondary: 0,
       roster: null,
@@ -237,6 +240,7 @@ export function reduceBattle(playerIds: readonly PlayerId[], log: readonly Logge
     })),
     undoable: null,
     seq: 0,
+    turns: [],
   }
 
   const undone = new Set<number>()
@@ -247,7 +251,18 @@ export function reduceBattle(playerIds: readonly PlayerId[], log: readonly Logge
 
   for (const entry of log) {
     if (entry.command.kind === 'undo' || undone.has(entry.seq)) continue
+    const activeBefore = state.activePlayerId
     apply(state, entry.by, entry.command)
+    if (entry.command.kind === 'begin-battle') {
+      if (state.activePlayerId) state.turns.push({ playerId: state.activePlayerId, round: state.round, startedAt: entry.at, endedAt: null })
+    } else if (entry.command.kind === 'advance' && state.activePlayerId !== activeBefore) {
+      const current = state.turns.at(-1)
+      if (current) current.endedAt = entry.at
+      if (state.activePlayerId) state.turns.push({ playerId: state.activePlayerId, round: state.round, startedAt: entry.at, endedAt: null })
+    } else if (entry.command.kind === 'end-battle') {
+      const current = state.turns.at(-1)
+      if (current) current.endedAt = entry.at
+    }
     state.undoable = { seq: entry.seq, by: entry.by }
   }
 
@@ -467,6 +482,7 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
       if (!stratagem) return
       player.cp -= stratagem.cp
       player.cpSpent += stratagem.cp
+      player.cpByRound[state.round - 1] = player.cp
       player.uses.push({ key: stratagem.key, round: state.round, phase: state.phase, turn: state.activePlayerId })
       return
     }
@@ -514,6 +530,7 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
       player.cp += command.delta
       if (command.delta > 0) player.cpGained += command.delta
       else player.cpSpent += Math.abs(command.delta)
+      player.cpByRound[state.round - 1] = player.cp
       return
     }
     case 'score': {
@@ -581,6 +598,7 @@ function enterTurn(state: BattleState, playerId: PlayerId) {
   if (player) {
     player.cp += COMMAND_PHASE_CP
     player.cpGained += COMMAND_PHASE_CP
+    player.cpByRound[state.round - 1] = player.cp
   }
 }
 
@@ -718,6 +736,7 @@ export type BattleView = {
     cp: number
     cpGained: number
     cpSpent: number
+    cpByRound: number[]
     primary: number
     secondary: number
     total: number
@@ -744,6 +763,7 @@ export type BattleView = {
   /** The conventional ceilings, for display beside a total. */
   guides: { primary: number; secondary: number }
   deploymentId: string | null
+  turns: { playerId: PlayerId; playerName: string; round: number; minutes: number | null }[]
   /** Present only when the viewer is the one who may take it back. */
   undoable: number | null
 }
@@ -782,6 +802,7 @@ export function battleView(
       cp: player.cp,
       cpGained: player.cpGained,
       cpSpent: player.cpSpent,
+      cpByRound: player.cpByRound,
       primary: player.primary,
       secondary: player.secondary,
       total: player.primary + player.secondary,
@@ -816,6 +837,12 @@ export function battleView(
     })),
     guides: { primary: PRIMARY_GUIDE, secondary: SECONDARY_GUIDE },
     deploymentId: state.deploymentId,
+    turns: state.turns.map((turn) => ({
+      playerId: turn.playerId,
+      playerName: named.get(turn.playerId) ?? 'Unknown',
+      round: turn.round,
+      minutes: turn.endedAt === null ? null : Math.max(0, Math.round((turn.endedAt - turn.startedAt) / 60_000)),
+    })),
     undoable: state.undoable?.by === viewerId ? state.undoable.seq : null,
   }
 }
