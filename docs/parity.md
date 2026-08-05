@@ -184,7 +184,7 @@ On phones, make an explicit choice rather than shrinking the desktop grid. Match
 
 ### 3. Complete roster editing and datasheet presentation
 
-- Add a unit menu with duplicate, favourite/owned and delete. Duplicate must preserve model count, choices, spreads and attachment behavior.
+- Expand the unit actions beyond the implemented duplicate and delete controls with favourite/owned. Duplication preserves the complete configured pick, including its attachment target.
 - Put enhancements and a warlord marker on the unit card, while keeping one accessible control for each value.
 - Add datasheet detail: model stats, ranged and melee weapon profiles, abilities and keywords. Decide the legal/product policy for displaying full rules text before implementing it; the catalogue index carrying text does not by itself settle that decision.
 - Show the datasheet's replacement sentence beside wargear controls so the counts have context.
@@ -195,7 +195,7 @@ On phones, make an explicit choice rather than shrinking the desktop grid. Match
 
 - Make import lossless for supported constructs: detachments/forces, nested selections, wargear choices, split counts, enhancements and attachments. Add corpus tests using exports produced by New Recruit and BattleScribe, with game data supplied at test time rather than committed.
 - Support multiple forces and allied catalogues where the roster format and 40K rules allow them. The current builder assumes one primary catalogue and one force.
-- Surface evaluator `unhandled` output in the builder as a clear “cannot validate this rule” state, distinct from an illegal list.
+- Continue reducing evaluator `unhandled` output. The builder now presents it as a clear “cannot validate this rule” state, distinct from an illegal list.
 - Close or explicitly census the remaining evaluator gaps (`measured field associations` and primary-catalogue scope without comparison context) and keep the Munitorum percentage plus mismatch set as a ratchet.
 - Expand legality fixtures beyond points: legal and illegal real rosters, roster caps, enhancements, attachments, collective choices and cross-catalogue rules.
 - Add printable and shareable read-only roster views before considering collaborative editing or revision history.

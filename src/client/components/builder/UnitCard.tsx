@@ -1,4 +1,4 @@
-import { ChevronRight, Minus, Plus, X } from 'lucide-react'
+import { ChevronRight, Copy, Minus, Plus, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { Attachment } from '../../../core/attach'
 
@@ -19,6 +19,7 @@ type Props = {
   selected: boolean
   onSelect: () => void
   onRemove: () => void
+  onDuplicate: () => void
   onResize: (models: number) => void
   /** Rows stating what this unit is attached to, or what is attached to it. */
   joined: Joined[]
@@ -35,7 +36,7 @@ type Props = {
  * is the most common edit in list building and the least deserving of a trip to
  * another pane — on a phone that pane is a whole screen away.
  */
-export function UnitCard({ unit, selected, onSelect, onRemove, onResize, joined, canJoin, onJoin }: Props) {
+export function UnitCard({ unit, selected, onSelect, onRemove, onDuplicate, onResize, joined, canJoin, onJoin }: Props) {
   return (
     <div
       data-unit={unit.name}
@@ -84,6 +85,9 @@ export function UnitCard({ unit, selected, onSelect, onRemove, onResize, joined,
             </span>
           ) : null}
           <span className="chip">{unit.points} pts</span>
+          <Button variant="ghost" size="icon-sm" aria-label={`Duplicate ${unit.name}`} onClick={onDuplicate}>
+            <Copy />
+          </Button>
           <Button variant="ghost" size="icon-sm" aria-label={`Remove ${unit.name}`} onClick={onRemove}>
             <X />
           </Button>

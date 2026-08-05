@@ -196,6 +196,13 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
     setSelected(null)
   }
 
+  const duplicate = (index: number) => {
+    const source = picked[index]
+    if (!source) return
+    setPicked((current) => [...current.slice(0, index + 1), { ...source, key: nextKey }, ...current.slice(index + 1)])
+    setNextKey((current) => current + 1)
+  }
+
   const join = (index: number, targetKey: number | undefined) =>
     setPicked((current) => current.map((pick, at) => (at === index ? { ...pick, attachedTo: targetKey } : pick)))
 
@@ -475,6 +482,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
                         setShowing('loadout')
                       }}
                       onRemove={() => drop(index)}
+                      onDuplicate={() => duplicate(index)}
                       onResize={(models) => resize(index, models)}
                       joined={joinedRows(index)}
                       canJoin={joinable(index)}
@@ -496,6 +504,17 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
                 </li>
               ))}
             </ul>
+          ) : null}
+
+          {priced?.unhandled.length ? (
+            <div className="mb-4 border border-discarded/40 bg-discarded/5 p-2.5 text-xs text-discarded">
+              <p className="font-semibold uppercase">Could not validate every catalogue rule</p>
+              <ul className="mt-1 list-inside list-disc">
+                {priced.unhandled.slice(0, 8).map((message) => (
+                  <li key={message}>{message}</li>
+                ))}
+              </ul>
+            </div>
           ) : null}
         </div>
 
