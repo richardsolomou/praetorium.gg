@@ -62,6 +62,13 @@ test('detachment combinations follow the 11th edition allowance', async ({ page 
   await expect(page.getByRole('button', { name: 'Invalid detachments' })).toBeDisabled()
   await expect(page.getByText(/Detachment: allows at most 1/)).toBeHidden()
   await page.screenshot({ path: 'test-results/detachment-points.png', fullPage: true })
+  await page.setViewportSize({ width: 390, height: 844 })
+  const firstDetachment = page.getByRole('button', { name: 'Remove Cryptek Conclave' })
+  await expect(firstDetachment).toBeVisible()
+  await expect(page.getByRole('alert')).toBeVisible()
+  const bounds = await firstDetachment.boundingBox()
+  expect(bounds && bounds.x + bounds.width).toBeLessThanOrEqual(390)
+  await page.screenshot({ path: 'test-results/detachment-points-phone.png', fullPage: true })
   await expect(page.getByRole('status')).toContainText('Saved automatically')
 
   await page.goto('/')

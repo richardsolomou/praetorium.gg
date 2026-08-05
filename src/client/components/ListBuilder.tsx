@@ -398,7 +398,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
          * the roster for the screen and the roster is what is being read.
          */}
         <div className="grid grid-cols-2 gap-x-5 gap-y-1 sm:flex sm:flex-wrap sm:gap-x-7">
-          <div className="min-w-0">
+          <div className="order-1 min-w-0">
             <label className="eyebrow block" htmlFor="faction">
               Faction
             </label>
@@ -428,7 +428,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
           </div>
 
           {faction?.detachments.length ? (
-            <div className="min-w-64">
+            <div className="order-3 col-span-2 min-w-0 sm:order-2 sm:min-w-64">
               <span className="eyebrow block">Detachments</span>
               <div className="mt-1 space-y-1">
                 {detachmentIds.map((id, index) => {
@@ -480,7 +480,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
             </div>
           ) : null}
 
-          <div className="min-w-0">
+          <div className="order-2 min-w-0 sm:order-3">
             <label className="eyebrow block" htmlFor="size">
               Battle size
             </label>
