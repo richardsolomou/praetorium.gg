@@ -13,8 +13,8 @@ async function openBuilder(page: Page) {
   await page.getByRole('button', { name: 'Build from the catalogue' }).click()
   await page.getByRole('combobox', { name: 'Faction' }).click()
   await page.getByRole('option', { name: 'Xenos - Necrons' }).click()
-  await page.getByRole('combobox', { name: 'Detachment' }).click()
-  await page.getByRole('option', { name: /Awakened Dynasty/ }).click()
+  await page.getByRole('button', { name: 'Detachments' }).click()
+  await page.getByRole('menuitemcheckbox', { name: /Awakened Dynasty/ }).click()
 }
 
 async function add(page: Page, name: string) {
@@ -33,16 +33,43 @@ test('a supplement imports its shared detachment group', async ({ page }) => {
   await page.getByRole('button', { name: 'Build from the catalogue' }).click()
   await page.getByRole('combobox', { name: 'Faction' }).click()
   await page.getByRole('option', { name: 'Imperium - Adeptus Astartes - Black Templars' }).click()
-  await page.getByRole('combobox', { name: 'Detachment' }).click()
-  await page.getByRole('option', { name: 'Companions of Vehemence' }).click()
+  await page.getByRole('button', { name: 'Detachments' }).click()
+  await page.getByRole('menuitemcheckbox', { name: /Companions of Vehemence/ }).click()
   await add(page, 'Crusader Squad')
   await expect(page.locator('[data-unit="Crusader Squad"]')).toBeVisible()
 
   await page.getByRole('combobox', { name: 'Faction' }).click()
   await page.getByRole('option', { name: 'Imperium - Adeptus Astartes - Imperial Fists' }).click()
-  await page.getByRole('combobox', { name: 'Detachment' }).click()
-  await expect(page.getByRole('option', { name: "Emperor's Shield" })).toBeVisible()
-  await expect(page.getByRole('option', { name: 'Imperialis Fleet' })).toHaveCount(0)
+  await page.getByRole('button', { name: 'Detachments' }).click()
+  await expect(page.getByRole('menuitemcheckbox', { name: /Emperor's Shield/ })).toBeVisible()
+  await expect(page.getByRole('menuitemcheckbox', { name: /Imperialis Fleet/ })).toHaveCount(0)
+})
+
+test('detachments spend the 11th edition DP budget', async ({ page }) => {
+  await openBuilder(page)
+  await page.getByRole('button', { name: 'Detachments' }).click()
+  await page.getByRole('menuitemcheckbox', { name: /Awakened Dynasty/ }).click()
+  await page.getByRole('button', { name: 'Detachments' }).click()
+  await page.getByRole('menuitemcheckbox', { name: /Cryptek Conclave/ }).click()
+  await page.getByRole('button', { name: 'Detachments' }).click()
+  await page.getByRole('menuitemcheckbox', { name: /Hand of the Dynasty/ }).click()
+  await add(page, 'Immortals')
+
+  await expect(page.getByText(/3\/3 DP/)).toBeVisible()
+  await page.getByRole('combobox', { name: 'Battle size' }).click()
+  await page.getByRole('option', { name: /Incursion/ }).click()
+  await expect(page.getByText(/3\/2 DP/)).toBeVisible()
+  await expect(page.getByRole('button', { name: '1 DP over' })).toBeDisabled()
+  await expect(page.getByText(/Detachment: allows at most 1/)).toBeHidden()
+  await page.screenshot({ path: 'test-results/detachment-points.png', fullPage: true })
+  await expect(page.getByRole('status')).toContainText('Saved automatically')
+
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Open a battle' }).click()
+  await page.getByRole('button', { name: 'Build from the catalogue' }).click()
+  await page.getByRole('button', { name: 'Necrons — Cryptek Conclave', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Detachments' })).toContainText('Cryptek Conclave +1')
+  await expect(page.getByText(/3\/2 DP/)).toBeVisible()
 })
 
 test('a squad grows from the roster itself', async ({ page }) => {
@@ -137,7 +164,12 @@ test('a character joins the unit it leads, and both cards say so', async ({ page
   await expect(page.getByText('Supporting')).toBeVisible()
 
   // Detaching from the unit's side leaves the character in the list, alone.
-  await page.getByRole('button', { name: 'Detach' }).first().click()
+  await page
+    .locator('[data-unit="Immortals"]')
+    .getByText('Leader', { exact: true })
+    .locator('..')
+    .getByRole('button', { name: 'Detach' })
+    .click()
   await expect(page.getByText('Leading')).toBeHidden()
   await expect(page.locator('[data-unit="Overlord"]')).toBeVisible()
 })

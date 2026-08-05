@@ -18,8 +18,8 @@ test('an account keeps the lists a guest saved', async ({ browser }) => {
 
   await page.getByRole('combobox', { name: 'Faction' }).click()
   await page.getByRole('option', { name: 'Chaos - Death Guard' }).click()
-  await page.getByRole('combobox', { name: 'Detachment' }).click()
-  await page.getByRole('option', { name: /Death Lord/ }).click()
+  await page.getByRole('button', { name: 'Detachments' }).click()
+  await page.getByRole('menuitemcheckbox', { name: /Death Lord/ }).click()
   await page.getByLabel('Add a unit').fill('Plague Marines')
   await page.getByRole('button', { name: 'Add Plague Marines', exact: true }).first().click()
   await page.getByLabel('List name').fill('Guest list')

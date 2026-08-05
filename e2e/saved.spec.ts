@@ -16,8 +16,8 @@ test('a list is saved and loaded into another battle', async ({ browser }) => {
 
   await page.getByRole('combobox', { name: 'Faction' }).click()
   await page.getByRole('option', { name: 'Xenos - Necrons' }).click()
-  await page.getByRole('combobox', { name: 'Detachment' }).click()
-  await page.getByRole('option', { name: /Awakened Dynasty/ }).click()
+  await page.getByRole('button', { name: 'Detachments' }).click()
+  await page.getByRole('menuitemcheckbox', { name: /Awakened Dynasty/ }).click()
   await page.getByLabel('Add a unit').fill('Immortals')
   await page.getByRole('button', { name: 'Add Immortals', exact: true }).first().click()
   await page.getByLabel('Add a unit').fill('Overlord')
@@ -60,7 +60,7 @@ test('a list is saved and loaded into another battle', async ({ browser }) => {
     .click()
   await expect(page.getByLabel('Immortals models')).toHaveText('6')
   await expect(page.getByText('Leading')).toBeVisible()
-  await expect(page.getByRole('combobox', { name: 'Detachment' })).toContainText(/Awakened Dynasty/)
+  await expect(page.getByRole('button', { name: 'Detachments' })).toContainText(/Awakened Dynasty/)
 
   await page.getByRole('button', { name: 'Copy Nurgle 2k' }).click()
   await expect(page.getByLabel('List name')).toHaveValue('Copy of Nurgle 2k')

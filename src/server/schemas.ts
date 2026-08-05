@@ -57,7 +57,7 @@ const prepSchema = z.object({
         limit: z.enum(['phase', 'turn', 'battle', 'unlimited']),
       }),
     )
-    .max(12),
+    .max(24),
   secondaries: z.array(z.object({ key: z.string().min(1).max(64), name: z.string().min(1).max(80) })).max(6),
 })
 
@@ -65,7 +65,7 @@ export const saveRosterSchema = z.object({
   id: z.string().min(1).max(64).optional(),
   name: z.string().trim().min(1, 'name the list').max(80),
   catalogueId,
-  detachmentId: z.string().min(1).max(64).nullable(),
+  detachmentIds: z.array(z.string().min(1).max(64)).max(3),
   limit: z.number().int().min(0).max(10_000),
   picks: z.array(pickSchema).max(100),
   prep: prepSchema.nullable(),
@@ -74,7 +74,10 @@ export const saveRosterSchema = z.object({
 /** A roster file as text: `.ros` directly, or the XML lifted out of a `.rosz`. */
 export const importRosterSchema = z.object({ file: z.string().min(1).max(4_000_000), name: z.string().max(120).optional() })
 
-export const detachmentRulesSchema = z.object({ catalogueId, detachmentName: z.string().min(1).max(120) })
+export const detachmentRulesSchema = z.object({
+  catalogueId,
+  detachmentNames: z.array(z.string().min(1).max(120)).min(1).max(3),
+})
 
 export const rosterIdSchema = z.object({ id: z.string().min(1).max(64) })
 
@@ -86,7 +89,8 @@ export const savedPrepSchema = prepSchema
 
 export const priceSchema = z.object({
   catalogueId,
-  detachmentId: z.string().min(1).max(64).optional(),
+  detachmentIds: z.array(z.string().min(1).max(64)).max(3),
+  limit: z.number().int().min(0).max(10_000),
   units: z
     .array(
       z.object({

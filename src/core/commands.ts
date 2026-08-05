@@ -40,6 +40,11 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
           revision: z.string().min(1).max(64),
           limit: z.number().int().min(0).max(10_000),
           detachment: z.string().max(ROSTER_NAME_MAX_LENGTH).nullable(),
+          detachments: z
+            .array(z.object({ name: z.string().max(ROSTER_NAME_MAX_LENGTH), points: z.number().int().min(1).max(3).nullable() }))
+            .max(3)
+            .optional(),
+          detachmentPointBudget: z.number().int().min(0).max(3).nullable().optional(),
           disposition: z.string().max(64).nullable(),
           selections: z.array(selectionSchema).max(200),
           units: z

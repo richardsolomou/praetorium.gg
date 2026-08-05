@@ -58,6 +58,18 @@ describe('setup', () => {
     const state = reduceBattle(PLAYERS, log(...started()))
     expect(validate(state, BOB, roster('Death Guard'))).toBe('the battle has started')
   })
+
+  it('refuses a built list over its detachment point budget', () => {
+    const command = builtRoster('Necrons', ['Immortals'])
+    if (command.kind !== 'attach-roster' || !command.roster.built) throw new Error('expected a built roster')
+    command.roster.built.detachments = [
+      { name: 'Cryptek Conclave', points: 2 },
+      { name: 'Hand of the Dynasty', points: 1 },
+    ]
+    command.roster.built.detachmentPointBudget = 2
+
+    expect(validate(reduceBattle(PLAYERS, log()), ALICE, command)).toBe('detachments exceed the DP budget')
+  })
 })
 
 describe('the turn sequence', () => {

@@ -53,10 +53,10 @@ export type PickedUnit = {
 }
 
 /** Keyed on the picks, so the price follows the list without anything having to remember to ask. */
-export const priceQuery = (catalogueId: string, detachmentId: string | undefined, picked: readonly PickedUnit[]) =>
+export const priceQuery = (catalogueId: string, detachmentIds: readonly string[], limit: number, picked: readonly PickedUnit[]) =>
   queryOptions({
-    queryKey: ['price', catalogueId, detachmentId, picked],
-    queryFn: () => priceRoster({ data: { catalogueId, detachmentId, units: [...picked] } }),
+    queryKey: ['price', catalogueId, detachmentIds, limit, picked],
+    queryFn: () => priceRoster({ data: { catalogueId, detachmentIds: [...detachmentIds], limit, units: [...picked] } }),
     enabled: Boolean(catalogueId),
   })
 
@@ -66,11 +66,11 @@ export const sharedRosterQuery = (id: string) =>
   queryOptions({ queryKey: ['shared-roster', id], queryFn: () => sharedRoster({ data: { id } }) })
 
 /** Null when the rules source has not been synced, so the interface can offer typing instead. */
-export const detachmentRulesQuery = (catalogueId: string, detachmentName: string) =>
+export const detachmentRulesQuery = (catalogueId: string, detachmentNames: readonly string[]) =>
   queryOptions({
-    queryKey: ['detachment-rules', catalogueId, detachmentName],
-    queryFn: () => detachmentRules({ data: { catalogueId, detachmentName } }),
-    enabled: Boolean(catalogueId && detachmentName),
+    queryKey: ['detachment-rules', catalogueId, detachmentNames],
+    queryFn: () => detachmentRules({ data: { catalogueId, detachmentNames: [...detachmentNames] } }),
+    enabled: Boolean(catalogueId && detachmentNames.length),
     staleTime: Infinity,
   })
 

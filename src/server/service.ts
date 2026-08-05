@@ -108,7 +108,7 @@ export class PraetoriumService {
       id?: string
       name: string
       catalogueId: string
-      detachmentId: string | null
+      detachmentIds: readonly string[]
       limit: number
       picks: readonly Pick[]
       prep: SavedPrep | null
@@ -117,6 +117,7 @@ export class PraetoriumService {
     const id = roster.id ?? createId()
     this.repository.saveRoster({
       ...roster,
+      detachmentId: JSON.stringify(roster.detachmentIds),
       id,
       playerId,
       picks: JSON.stringify(roster.picks),
@@ -132,7 +133,7 @@ export class PraetoriumService {
       id: row.id,
       name: row.name,
       catalogueId: row.catalogueId,
-      detachmentId: row.detachmentId,
+      detachmentIds: detachmentIds(row.detachmentId),
       limit: row.limit,
       updatedAt: row.updatedAt,
       picks: picksSchema.parse(JSON.parse(row.picks)),
@@ -148,7 +149,7 @@ export class PraetoriumService {
           id: row.id,
           name: row.name,
           catalogueId: row.catalogueId,
-          detachmentId: row.detachmentId,
+          detachmentIds: detachmentIds(row.detachmentId),
           limit: row.limit,
           updatedAt: row.updatedAt,
           picks: picksSchema.parse(JSON.parse(row.picks)),
@@ -252,4 +253,12 @@ export class PraetoriumService {
     if (!seats) throw new Response('no such battle', { status: 404 })
     return seats
   }
+}
+
+/** The legacy column held one id; new rows hold the ordered 11e purchase list. */
+function detachmentIds(value: string | null): string[] {
+  if (!value) return []
+  if (!value.startsWith('[')) return [value]
+  const parsed: unknown = JSON.parse(value)
+  return Array.isArray(parsed) ? parsed.filter((id): id is string => typeof id === 'string') : []
 }
