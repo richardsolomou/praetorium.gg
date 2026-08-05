@@ -68,6 +68,13 @@ test('detachment combinations follow the 11th edition allowance', async ({ page 
   await expect(page.getByRole('alert')).toBeVisible()
   const bounds = await firstDetachment.boundingBox()
   expect(bounds && bounds.x + bounds.width).toBeLessThanOrEqual(390)
+  const steps = await page.getByRole('navigation', { name: 'Battle setup steps' }).getByRole('button').all()
+  const stepBounds = await Promise.all(steps.map((step) => step.boundingBox()))
+  for (let index = 0; index < stepBounds.length - 1; index += 1) {
+    const current = stepBounds[index]
+    const next = stepBounds[index + 1]
+    expect(current && next && current.x + current.width <= next.x).toBe(true)
+  }
   await page.screenshot({ path: 'test-results/detachment-points-phone.png', fullPage: true })
   await expect(page.getByRole('status')).toContainText('Saved automatically')
 
