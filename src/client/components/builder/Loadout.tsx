@@ -87,33 +87,44 @@ function DatasheetSummary({ catalogueId, sheet }: { catalogueId: string; sheet: 
   return (
     <div className="space-y-3 border-b border-edge pb-4">
       {model ? (
-        <div className="grid grid-cols-6 gap-1">
-          {model.values
-            .filter((value) => value.name !== 'InSv')
-            .map((value) => (
-              <div key={value.name} className="text-center">
-                <p className="eyebrow">{value.name}</p>
-                <p className="readout text-sm">{value.value}</p>
-              </div>
-            ))}
+        <div className="grid grid-cols-7 gap-1">
+          {model.values.map((value) => (
+            <div key={value.name} className="text-center">
+              <p className="eyebrow">{value.name}</p>
+              <p className="readout text-sm">{value.value}</p>
+            </div>
+          ))}
         </div>
       ) : null}
       {weapons.length ? (
         <div>
-          <p className="eyebrow">Weapons</p>
-          <ul className="mt-1 space-y-1">
+          <p className="eyebrow flex items-baseline justify-between border-b border-edge pb-1">
+            <span>Weapons</span>
+            <span className="readout">{weapons.length}</span>
+          </p>
+          <div className="mt-1.5 space-y-1.5">
             {weapons.map((weapon) => (
-              <li key={weapon.id} className="flex items-center justify-between gap-2 text-xs">
-                <span className="truncate">{weapon.name}</span>
-                <span className="readout shrink-0 text-faint">
+              <article key={weapon.id} className="border border-edge bg-card px-2 py-1.5">
+                <div className="flex items-baseline justify-between gap-2">
+                  <h3 className="truncate text-xs">{weapon.name}</h3>
+                  <span className="eyebrow shrink-0">{weapon.type.replace(' Weapons', '')}</span>
+                </div>
+                <div className="mt-1 grid grid-cols-6 gap-1">
                   {weapon.values
-                    .filter((value) => ['A', 'BS', 'WS', 'S', 'AP', 'D'].includes(value.name))
-                    .map((value) => value.value)
-                    .join(' · ')}
-                </span>
-              </li>
+                    .filter((value) => value.name !== 'Keywords')
+                    .map((value) => (
+                      <div key={value.name} className="min-w-0 text-center">
+                        <p className="eyebrow text-[0.625rem]">{value.name}</p>
+                        <p className="readout text-xs text-faint">{value.value}</p>
+                      </div>
+                    ))}
+                </div>
+                {weapon.values.find((value) => value.name === 'Keywords')?.value ? (
+                  <p className="mt-1 text-[0.6875rem] text-faint">{weapon.values.find((value) => value.name === 'Keywords')?.value}</p>
+                ) : null}
+              </article>
             ))}
-          </ul>
+          </div>
         </div>
       ) : null}
       {abilities.length ? (
