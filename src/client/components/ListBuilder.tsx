@@ -1,9 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { Check, Copy, Download, Eye, LoaderCircle, Trash2, TriangleAlert, Upload } from 'lucide-react'
+import { Check, Copy, Download, Eye, Layers3, LoaderCircle, Trash2, TriangleAlert, Upload } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import type { Roster, Secondary, Stratagem } from '../../core/battle'
 import { GAME_SIZES, ROSTER_NAME_MAX_LENGTH } from '../../core/battle'
@@ -28,7 +29,7 @@ type Props = {
     id: string
     name: string
     catalogueId: string
-    detachmentId: string | null
+    detachmentIds: string[]
     limit: number
     picks: Omit<Pick, 'key'>[]
   }
@@ -67,7 +68,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
   const [picked, setPicked] = useState<Pick[]>(() => initial?.picks.map((pick, key) => ({ ...pick, key })) ?? [])
   const [nextKey, setNextKey] = useState(initial?.picks.length ?? 0)
   const [limit, setLimit] = useState<number>(initial?.limit ?? GAME_SIZES[1].limit)
-  const [detachmentId, setDetachmentId] = useState<string | undefined>(initial?.detachmentId ?? undefined)
+  const [detachmentIds, setDetachmentIds] = useState<string[]>(initial?.detachmentIds ?? [])
   const [name, setName] = useState(initial?.name ?? '')
   const [selected, setSelected] = useState<number | null>(null)
   const [showing, setShowing] = useState<'picker' | 'loadout' | null>(null)
@@ -92,7 +93,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
     setSavedId(copy ? undefined : list.id)
     setName(copy ? `Copy of ${list.name}` : list.name)
     setCatalogueId(list.catalogueId)
-    setDetachmentId(list.detachmentId ?? undefined)
+    setDetachmentIds(list.detachmentIds)
     setLimit(list.limit)
     setPicked(list.picks.map((pick, at) => ({ ...pick, key: at })))
     setNextKey(list.picks.length)
@@ -102,7 +103,9 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
 
   const faction = available?.factions.find((entry) => entry.id === catalogueId)
   const suggested = faction
-    ? [faction.name.split(' - ').at(-1), faction.detachments.find((entry) => entry.id === detachmentId)?.name].filter(Boolean).join(' — ')
+    ? [faction.name.split(' - ').at(-1), faction.detachments.find((entry) => entry.id === detachmentIds[0])?.name]
+        .filter(Boolean)
+        .join(' — ')
     : ''
   const listName = name.trim() || suggested
   const save = useMutation({
@@ -113,7 +116,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
           id,
           name: listName || 'Untitled list',
           catalogueId,
-          detachmentId: detachmentId ?? null,
+          detachmentIds,
           limit,
           picks: picked.map(({ entryId, catalogueId: unitCatalogueId, models, choices, spreads, toggles, attachedTo }) => ({
             entryId,
@@ -142,7 +145,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
     // The mutation reads the complete rendered draft. A later render queues behind
     // this one, so the final request always contains the newest state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [catalogueId, detachmentId, limit, listName, picked, prep, savedId])
+  }, [catalogueId, detachmentIds, limit, listName, picked, prep, savedId])
 
   /**
    * Reading a roster file. `.ros` is text; `.rosz` is a zip, so it travels as base64
@@ -156,7 +159,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
     },
     onSuccess: (imported) => {
       if (imported.catalogueId) setCatalogueId(imported.catalogueId)
-      setDetachmentId(imported.detachmentId ?? undefined)
+      setDetachmentIds(imported.detachmentIds)
       setName(imported.name)
       setPicked(imported.units.map((unit, at) => ({ key: at, ...unit })))
       setNextKey(imported.units.length)
@@ -170,7 +173,8 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
       exportRoster({
         data: {
           catalogueId,
-          detachmentId,
+          detachmentIds,
+          limit,
           name: listName || 'Roster',
           units: picked.map(({ entryId, catalogueId: unitCatalogueId, models, choices, spreads, toggles, attachedTo }) => ({
             entryId,
@@ -204,7 +208,8 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
   const { data: priced } = useQuery(
     priceQuery(
       catalogueId,
-      detachmentId,
+      detachmentIds,
+      limit,
       picked.map(({ entryId, models, choices, spreads, toggles }) => ({ entryId, models, choices, spreads, toggles })),
     ),
   )
@@ -213,7 +218,8 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
 
   const over = Boolean(priced && priced.points > limit)
   // A list without one is not a legal army, so it cannot be attached.
-  const needsDetachment = Boolean(faction?.detachments.length) && !detachmentId
+  const needsDetachment = Boolean(faction?.detachments.length) && !detachmentIds.length
+  const overDetachmentPoints = Boolean(priced?.detachmentPointsOver)
   const units = priced?.units ?? []
   const selectedUnit = selected === null ? null : (units[selected] ?? null)
 
@@ -224,6 +230,9 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
     setPicked((current) => [...current, { key: nextKey, entryId }])
     setNextKey((current) => current + 1)
   }
+
+  const toggleDetachment = (id: string, checked: boolean) =>
+    setDetachmentIds((current) => (checked ? (current.includes(id) ? current : [...current, id]) : current.filter((entry) => entry !== id)))
 
   const resize = (index: number, models: number) =>
     setPicked((current) => current.map((pick, at) => (at === index ? { ...pick, models } : pick)))
@@ -329,7 +338,9 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
       // the other instance has synced.
       text: [
         `${priced.points} / ${limit} pts`,
-        ...(priced.detachment ? [priced.detachment] : []),
+        ...priced.detachments.map(
+          (detachment, index) => `${index ? 'Detachment' : 'Primary detachment'}: ${detachment.name} (${detachment.points ?? '?'} DP)`,
+        ),
         '',
         ...units.map((unit) => `${unit.name}${unit.size.resizable ? ` (${unit.size.models})` : ''} — ${unit.points}`),
       ].join('\n'),
@@ -338,6 +349,8 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
         revision: priced.revision,
         limit,
         detachment: priced.detachment,
+        detachments: priced.detachments,
+        detachmentPointBudget: priced.detachmentPointBudget,
         disposition: priced.disposition,
         selections: priced.selections,
         // Keys are fixed here because the battle log points at them.
@@ -394,7 +407,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
               onValueChange={(value: string | null) => {
                 setCatalogueId(value ?? '')
                 setPicked([])
-                setDetachmentId(undefined)
+                setDetachmentIds([])
                 setSelected(null)
               }}
             >
@@ -416,23 +429,38 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
 
           {faction?.detachments.length ? (
             <div className="min-w-0">
-              <label className="eyebrow block" htmlFor="detachment">
-                Detachment
-              </label>
-              <Select value={detachmentId ?? ''} onValueChange={(value: string | null) => setDetachmentId(value ?? undefined)}>
-                <SelectTrigger id="detachment" className="h-6 w-full border-0 bg-transparent px-0 font-semibold text-azure uppercase">
-                  <SelectValue placeholder="Pick one">
-                    {(value: unknown) => faction.detachments.find((entry) => entry.id === value)?.name ?? 'Pick one'}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {faction.detachments.map((entry) => (
-                    <SelectItem key={entry.id} value={entry.id}>
-                      {entry.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <span className="eyebrow block">Detachments</span>
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  aria-label="Detachments"
+                  className="flex h-6 max-w-72 items-center gap-1 truncate font-semibold text-azure uppercase"
+                >
+                  <Layers3 className="size-3" aria-hidden />
+                  {detachmentIds.length
+                    ? `${faction.detachments.find((entry) => entry.id === detachmentIds[0])?.name ?? 'Primary'}${detachmentIds.length > 1 ? ` +${detachmentIds.length - 1}` : ''}`
+                    : 'Buy detachments'}
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-80 rounded-none border border-edge-strong bg-raised ring-0">
+                  {faction.detachments.map((entry) => {
+                    const checked = detachmentIds.includes(entry.id)
+                    const cost = entry.reference?.points
+                    return (
+                      <DropdownMenuCheckboxItem
+                        key={entry.id}
+                        checked={checked}
+                        closeOnClick
+                        disabled={!checked && detachmentIds.length >= 3}
+                        onCheckedChange={(next) => toggleDetachment(entry.id, next)}
+                        className="rounded-none text-xs uppercase focus:bg-edge"
+                      >
+                        <span className="min-w-0 flex-1 truncate">{entry.name}</span>
+                        {checked && detachmentIds[0] === entry.id ? <span className="eyebrow text-azure">Primary</span> : null}
+                        {cost === null || cost === undefined ? null : <span className="chip">{cost} DP</span>}
+                      </DropdownMenuCheckboxItem>
+                    )
+                  })}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           ) : null}
 
@@ -458,9 +486,16 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
         </div>
 
         <p className="mt-1 text-xs text-faint">
-          {['11th edition', `${priced?.points ?? 0}/${limit} points`, `${units.length} ${units.length === 1 ? 'unit' : 'units'}`].join(
-            ' • ',
-          )}
+          {[
+            '11th edition',
+            `${priced?.points ?? 0}/${limit} points`,
+            priced?.detachmentPointBudget === null || priced?.detachmentPointBudget === undefined
+              ? null
+              : `${priced.detachmentPointsSpent}/${priced.detachmentPointBudget} DP`,
+            `${units.length} ${units.length === 1 ? 'unit' : 'units'}`,
+          ]
+            .filter(Boolean)
+            .join(' • ')}
         </p>
 
         <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5">
@@ -639,16 +674,18 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
             <Button
               size="sm"
               className="h-9 px-4"
-              disabled={pending || !listName || !units.length || over || needsDetachment}
+              disabled={pending || !listName || !units.length || over || needsDetachment || overDetachmentPoints}
               onClick={attach}
             >
               {over && priced
                 ? `${priced.points - limit} pts over`
-                : needsDetachment
-                  ? 'Pick a detachment first'
-                  : attached
-                    ? 'Replace my list'
-                    : 'Attach this list'}
+                : overDetachmentPoints && priced && priced.detachmentPointBudget !== null
+                  ? `${priced.detachmentPointsSpent - priced.detachmentPointBudget} DP over`
+                  : needsDetachment
+                    ? 'Pick a detachment first'
+                    : attached
+                      ? 'Replace my list'
+                      : 'Attach this list'}
             </Button>
           ) : null}
         </span>

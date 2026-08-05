@@ -6,6 +6,7 @@ import { cookieOptions, PLAYER_COOKIE, playerFor, playerIdFrom, signPlayerId } f
 import { configuredProviders } from './auth'
 import { evaluate, type Selection } from '../core/evaluate'
 import { attachmentOf } from '../core/attach'
+import { detachmentPointBudget } from '../core/battle'
 import { buildUnit, modelCountOf, unitChoices, unitToggles, wargearOf } from '../core/roster'
 import { datasheetIn, groupOfEntry, unitsIn } from './catalogue'
 import { fromRosterXml, toRosterXml } from '../core/rosz'
@@ -213,16 +214,30 @@ export const priceRoster = createServerFn({ method: 'POST' })
       // The detachment goes in first: enhancements and some unit limits are
       // written as conditions on which one the roster holds.
       const detachment = loaded.detachments.get(data.catalogueId)
-      const chosen = detachment?.options.find((option) => option.id === data.detachmentId)
-      const detachmentSelection: Selection[] = chosen
-        ? [
-            {
-              id: detachment!.wrapperId,
-              count: 1,
-              selections: [{ id: detachment!.groupId, count: 1, selections: [{ id: chosen.id, count: 1 }] }],
-            },
-          ]
-        : []
+      const chosen = data.detachmentIds.flatMap((id) => {
+        const option = detachment?.options.find((candidate) => candidate.id === id)
+        return option ? [option] : []
+      })
+      const detachmentSelection: Selection[] = chosen.flatMap((option, index) =>
+        index
+          ? [{ id: option.id, count: 1 }]
+          : [
+              {
+                id: detachment!.wrapperId,
+                count: 1,
+                selections: [{ id: detachment!.groupId, count: 1, selections: [{ id: option.id, count: 1 }] }],
+              },
+            ],
+      )
+      const references = app()
+        .rules()
+        ?.detachmentReferences.get(slug(loaded.index.catalogues.get(data.catalogueId)?.name ?? ''))
+      const purchased = chosen.map((option) => ({
+        name: option.name,
+        points: references?.get(slug(option.name))?.points ?? null,
+      }))
+      const budget = detachmentPointBudget(data.limit)
+      const spent = purchased.reduce((total, option) => total + (option.points ?? 0), 0)
 
       const picked = data.units.flatMap((wanted, key) => {
         const built = buildUnit(wanted.entryId, loaded.index, wanted.models, wanted.choices, {
@@ -238,13 +253,23 @@ export const priceRoster = createServerFn({ method: 'POST' })
       const options = { primaryCatalogueId: data.catalogueId }
       const selections = [...detachmentSelection, ...picked.map((unit) => unit.selection)]
       const whole = evaluate(selections, loaded.index, options)
+      // BSData's 10e wrapper still caps the roster at one; the 11e rules source
+      // replaces only that constraint with the DP budget checked above.
+      const errors = whole.errors.filter(
+        (error) =>
+          !(chosen.length > 1 && error.entryName.toLowerCase().includes('detachment') && error.message.includes('allows at most 1, has ')),
+      )
 
       return {
         revision: loaded.index.revision,
-        detachment: chosen?.name ?? null,
-        disposition: chosen?.disposition ?? null,
+        detachment: chosen[0]?.name ?? null,
+        detachments: purchased,
+        detachmentPointBudget: budget,
+        detachmentPointsSpent: spent,
+        detachmentPointsOver: budget === null ? false : spent > budget,
+        disposition: chosen[0]?.disposition ?? null,
         points: whole.points,
-        errors: whole.errors,
+        errors,
         unhandled: whole.unhandled,
         selections,
         units: picked.map((unit) => ({
@@ -313,7 +338,7 @@ export const detachmentRules = createServerFn({ method: 'GET' })
       return {
         attribution: ATTRIBUTION,
         dataslate: rules.dataslate,
-        stratagems: detachments?.get(slug(data.detachmentName)) ?? [],
+        stratagems: data.detachmentNames.flatMap((name) => detachments?.get(slug(name)) ?? []),
         core: rules.core,
         secondaries: rules.secondaries,
         primaries: rules.primaries,
@@ -352,7 +377,14 @@ export const importRoster = createServerFn({ method: 'POST' })
       const catalogueId = parsed.catalogueId && loaded.index.catalogues.has(parsed.catalogueId) ? parsed.catalogueId : null
       const detachment = catalogueId ? loaded.detachments.get(catalogueId) : undefined
       const flattened = parsed.selections.flatMap(allSelections)
-      const detachmentId = detachment?.options.find((option) => flattened.some((selection) => selection.id === option.id))?.id ?? null
+      const detachmentIds =
+        detachment?.options
+          .flatMap((option) => {
+            const at = flattened.findIndex((selection) => selection.id === option.id)
+            return at < 0 ? [] : [{ id: option.id, at }]
+          })
+          .toSorted((left, right) => left.at - right.at)
+          .map(({ id }) => id) ?? []
       const importedUnits: { selection: Selection; parent: number | null; catalogueId: string | null }[] = []
       const collectUnits = (selection: Selection, parent: number | null, forceCatalogueId: string | null) => {
         const isDatasheet = loaded.index.datasheets.has(selection.id)
@@ -367,7 +399,7 @@ export const importRoster = createServerFn({ method: 'POST' })
         name: data.name ?? parsed.name,
         catalogueId,
         catalogueName: parsed.catalogueName,
-        detachmentId,
+        detachmentIds,
         units: importedUnits.map(({ selection, parent, catalogueId: forceCatalogueId }) => {
           const decisions = unitChoices(selection.id, selection, loaded.index, { primaryCatalogueId: catalogueId ?? undefined })
           const entry = loaded.index.definitions.get(selection.id)
@@ -412,7 +444,7 @@ export const exportRoster = createServerFn({ method: 'POST' })
         return result?.selection ?? null
       })
       const selections = built.filter((selection): selection is Selection => selection !== null)
-      const detachmentSelection: Selection[] = data.detachmentId ? [{ id: data.detachmentId, count: 1 }] : []
+      const detachmentSelection = data.detachmentIds.map((id): Selection => ({ id, count: 1 }))
       // The list's cost, worked out from its selections.
       const points = evaluate([...detachmentSelection, ...selections], loaded.index, { primaryCatalogueId: data.catalogueId }).points
       const exported: Selection[] = []

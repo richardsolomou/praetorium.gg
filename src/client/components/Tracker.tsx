@@ -31,7 +31,8 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
   const built = you?.roster?.built
   // The cards say what they pay out, so the interface can offer the figure instead
   // of asking a player to work it out.
-  const { data: rules } = useQuery(detachmentRulesQuery(built?.catalogueId ?? '', built?.detachment ?? ''))
+  const detachmentNames = built?.detachments?.map((detachment) => detachment.name) ?? (built?.detachment ? [built.detachment] : [])
+  const { data: rules } = useQuery(detachmentRulesQuery(built?.catalogueId ?? '', detachmentNames))
   const { data: deployments } = useQuery(deploymentsQuery())
   const deployment = deployments?.find((entry) => entry.id === view.deploymentId)
   const awardsFor = (key: string, mode?: string) =>

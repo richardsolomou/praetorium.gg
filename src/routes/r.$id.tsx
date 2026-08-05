@@ -17,7 +17,8 @@ function SharedRoster() {
   const { data: priced } = useQuery(
     priceQuery(
       roster?.catalogueId ?? '',
-      roster?.detachmentId ?? undefined,
+      roster?.detachmentIds ?? [],
+      roster?.limit ?? 0,
       roster?.picks.map(({ entryId, models, choices, spreads, toggles }) => ({ entryId, models, choices, spreads, toggles })) ?? [],
     ),
   )
@@ -30,7 +31,7 @@ function SharedRoster() {
           <p className="eyebrow">Shared roster</p>
           <h1 className="text-3xl">{roster.name}</h1>
           <p className="mt-1 text-sm text-dim">
-            {priced?.detachment ?? 'No detachment'} · {roster.picks.length} units
+            {priced?.detachments.map((detachment) => detachment.name).join(' · ') || 'No detachment'} · {roster.picks.length} units
           </p>
         </div>
         <div className="flex items-center gap-3">

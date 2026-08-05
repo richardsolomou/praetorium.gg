@@ -48,6 +48,10 @@ export type BuiltRoster = {
   limit: number
   /** Named for display, since an opponent's device may have no catalogue loaded. */
   detachment: string | null
+  /** Ordered purchases; the first is primary and supplies the force disposition. */
+  detachments?: { name: string; points: number | null }[]
+  /** The 11th-edition detachment-point allowance for this battle size. */
+  detachmentPointBudget?: number | null
   /** The force disposition the detachment plays under; the pair decides the mission. */
   disposition: string | null
   selections: Selection[]
@@ -94,7 +98,7 @@ export type StratagemLimit = 'phase' | 'turn' | 'battle' | 'unlimited'
 
 export const STRATAGEM_LIMITS: StratagemLimit[] = ['phase', 'turn', 'battle', 'unlimited']
 
-export const STRATAGEMS_MAX = 12
+export const STRATAGEMS_MAX = 24
 export const STRATAGEM_CP_MAX = 6
 
 /** A secondary mission, named by the player because the deck is not in the data either. */
@@ -125,10 +129,12 @@ export const SECONDARY_GUIDE = 40
 
 /** The matched-play game sizes, smallest first. */
 export const GAME_SIZES = [
-  { name: 'Incursion', limit: 1000 },
-  { name: 'Strike Force', limit: 2000 },
-  { name: 'Onslaught', limit: 3000 },
+  { name: 'Incursion', limit: 1000, detachmentPoints: 2 },
+  { name: 'Strike Force', limit: 2000, detachmentPoints: 3 },
+  { name: 'Onslaught', limit: 3000, detachmentPoints: null },
 ] as const
+
+export const detachmentPointBudget = (limit: number) => GAME_SIZES.find((size) => size.limit === limit)?.detachmentPoints ?? null
 
 export type Command =
   | { kind: 'attach-roster'; roster: Roster }
@@ -287,6 +293,13 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
       if (name.length > ROSTER_NAME_MAX_LENGTH) return 'that name is too long'
       if (!command.roster.text.trim()) return 'paste your list'
       if (command.roster.text.length > ROSTER_MAX_LENGTH) return 'that list is too long'
+      const built = command.roster.built
+      if (
+        built?.detachmentPointBudget !== null &&
+        built?.detachmentPointBudget !== undefined &&
+        (built.detachments ?? []).reduce((total, detachment) => total + (detachment.points ?? 0), 0) > built.detachmentPointBudget
+      )
+        return 'detachments exceed the DP budget'
       return null
     }
     case 'begin-battle': {

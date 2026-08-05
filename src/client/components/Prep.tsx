@@ -18,7 +18,8 @@ type Props = { view: BattleView; send: (command: Command) => void; pending: bool
 export function Prep({ view, send, pending }: Props) {
   const you = view.players.find((player) => player.isViewer)
   const built = you?.roster?.built
-  const { data: rules } = useQuery(detachmentRulesQuery(built?.catalogueId ?? '', built?.detachment ?? ''))
+  const detachmentNames = built?.detachments?.map((detachment) => detachment.name) ?? (built?.detachment ? [built.detachment] : [])
+  const { data: rules } = useQuery(detachmentRulesQuery(built?.catalogueId ?? '', detachmentNames))
 
   const [stratagems, setStratagems] = useState<Stratagem[]>(
     () => you?.stratagems.map(({ key, name, cp, limit }) => ({ key, name, cp, limit })) ?? [],
