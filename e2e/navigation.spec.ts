@@ -23,8 +23,13 @@ test('a guest can enter through the roster library and browse the product', asyn
   await expect(page.getByText('No battles yet.')).toBeVisible()
 
   await page.getByRole('link', { name: 'Factions' }).click()
-  await expect(page.getByRole('heading', { name: 'Factions' })).toBeVisible()
-  await page.getByRole('button', { name: 'Xenos - Necrons' }).click()
+  await expect(page.getByText('All factions')).toBeVisible()
+  const necrons = page.locator('[data-shelf="All factions"] [data-faction="Xenos - Necrons"]')
+  await necrons.getByRole('button', { name: 'Add Xenos - Necrons to favourites' }).click()
+  await expect(page.locator('[data-shelf="Favourites"] [data-faction="Xenos - Necrons"]')).toBeVisible()
+  await page.screenshot({ path: 'test-results/faction-index.png', fullPage: true })
+  await necrons.getByRole('button').first().click()
+  await page.screenshot({ path: 'test-results/faction-detail.png', fullPage: true })
   await page.getByLabel('Find a datasheet').fill('Overlord')
   await page
     .getByRole('link', { name: /Overlord/ })

@@ -224,7 +224,7 @@ export type CatalogueIndex = {
   pointsTypeId: string
   /** Unit and model entries by name, for looking one up the way a person would. */
   unitsByName: Map<string, SelectionEntry[]>
-  catalogues: Map<string, { id: string; name: string; revision?: number }>
+  catalogues: Map<string, { id: string; name: string; revision?: number; library?: boolean; gameSystem: boolean }>
   /** Which catalogue each definition came from, for the chapter-specific pricing that asks. */
   catalogueOf: Map<string, string>
   /**
@@ -264,7 +264,7 @@ export function buildIndex(files: readonly CatalogueFile[], revision: string): C
   const definitions = new Map<string, Definition>()
   const costTypes = new Map<string, CostType>()
   const unitsByName = new Map<string, SelectionEntry[]>()
-  const catalogues = new Map<string, { id: string; name: string; revision?: number }>()
+  const catalogues = new Map<string, { id: string; name: string; revision?: number; library?: boolean; gameSystem: boolean }>()
   const catalogueOf = new Map<string, string>()
   const forces: { id: string; name: string }[] = []
   const datasheets = new Set<string>()
@@ -290,7 +290,13 @@ export function buildIndex(files: readonly CatalogueFile[], revision: string): C
   for (const file of files) {
     const root = file.gameSystem ?? file.catalogue
     if (!root) continue
-    catalogues.set(root.id, { id: root.id, name: root.name, revision: root.revision })
+    catalogues.set(root.id, {
+      id: root.id,
+      name: root.name,
+      revision: root.revision,
+      library: root.library,
+      gameSystem: Boolean(file.gameSystem),
+    })
     for (const force of root.forceEntries ?? []) forces.push({ id: force.id, name: force.name ?? force.id })
     for (const profile of root.sharedProfiles ?? []) shared.set(profile.id, profile)
     for (const group of root.sharedInfoGroups ?? []) shared.set(group.id, group)
