@@ -57,6 +57,18 @@ export class Repository {
     return battle ? { battle, players: this.playersOf(battle.id) } : undefined
   }
 
+  /** Battles this player has a seat in, newest first. */
+  battlesOf(playerId: string): BattleSeats[] {
+    return this.database
+      .select({ id: battles.id, token: battles.token, createdAt: battles.createdAt })
+      .from(battles)
+      .innerJoin(battlePlayers, eq(battlePlayers.battleId, battles.id))
+      .where(eq(battlePlayers.playerId, playerId))
+      .orderBy(desc(battles.createdAt))
+      .all()
+      .map((battle) => ({ battle, players: this.playersOf(battle.id) }))
+  }
+
   /** Takes the second seat, if it is still free. */
   join(input: { battleId: string; playerId: string; now: number }): JoinResult {
     return this.database.transaction((tx) => {

@@ -17,9 +17,9 @@ import { Pane } from './builder/Pane'
 import { UnitCard } from './builder/UnitCard'
 
 type Props = {
-  onAttach: (roster: Roster) => void
-  pending: boolean
-  attached: boolean
+  onAttach?: (roster: Roster) => void
+  pending?: boolean
+  attached?: boolean
   /** What the player has written down, so a saved list carries it and restores it. */
   prep: { stratagems: Stratagem[]; secondaries: Secondary[] }
   onRestorePrep: (prep: { stratagems: Stratagem[]; secondaries: Secondary[] }) => void
@@ -47,7 +47,7 @@ type Pick = {
  * The price and the legality both come from the server, because the catalogue is
  * 90MB and the browser has no business holding it.
  */
-export function ListBuilder({ onAttach, pending, attached, prep, onRestorePrep }: Props) {
+export function ListBuilder({ onAttach, pending = false, attached = false, prep, onRestorePrep }: Props) {
   const { data: available } = useQuery(factionsQuery())
   const [catalogueId, setCatalogueId] = useState('')
   // Picks carry their own key: the same datasheet may legitimately appear twice,
@@ -252,7 +252,7 @@ export function ListBuilder({ onAttach, pending, attached, prep, onRestorePrep }
   }
 
   const attach = () => {
-    if (!priced) return
+    if (!priced || !onAttach) return
     onAttach({
       name: listName,
       // The readable form travels with the list so an opponent can see it whatever
@@ -536,20 +536,22 @@ export function ListBuilder({ onAttach, pending, attached, prep, onRestorePrep }
             <Download />
             Export
           </Button>
-          <Button
-            size="sm"
-            className="h-9 px-4"
-            disabled={pending || !listName || !units.length || over || needsDetachment}
-            onClick={attach}
-          >
-            {over && priced
-              ? `${priced.points - limit} pts over`
-              : needsDetachment
-                ? 'Pick a detachment first'
-                : attached
-                  ? 'Replace my list'
-                  : 'Attach this list'}
-          </Button>
+          {onAttach ? (
+            <Button
+              size="sm"
+              className="h-9 px-4"
+              disabled={pending || !listName || !units.length || over || needsDetachment}
+              onClick={attach}
+            >
+              {over && priced
+                ? `${priced.points - limit} pts over`
+                : needsDetachment
+                  ? 'Pick a detachment first'
+                  : attached
+                    ? 'Replace my list'
+                    : 'Attach this list'}
+            </Button>
+          ) : null}
         </span>
       </footer>
     </div>

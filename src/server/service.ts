@@ -53,6 +53,25 @@ export class PraetoriumService {
     return this.repository.player(playerId)
   }
 
+  /** A player's battles with their current state folded from each log. */
+  battles(playerId: string) {
+    return this.repository.battlesOf(playerId).map((seats) => {
+      const state = reduceBattle(
+        seats.players.map((player) => player.id),
+        this.repository.log(seats.battle.id),
+      )
+      return {
+        token: seats.battle.token,
+        createdAt: seats.battle.createdAt,
+        status: state.status,
+        round: state.round,
+        phase: state.phase,
+        players: seats.players.map((player) => player.name),
+        scores: state.players.map((player) => player.primary + player.secondary),
+      }
+    })
+  }
+
   /**
    * The player an account is, claiming the guest in hand when it has none yet.
    *
