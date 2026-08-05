@@ -8,7 +8,8 @@ import { evaluate, evaluateForces, type Selection } from '../core/evaluate'
 import { attachmentErrors, attachmentOf } from '../core/attach'
 import { detachmentPointBudget, detachmentPointsError } from '../core/battle'
 import { buildUnit, modelCountOf, unitChoices, unitToggles, wargearOf } from '../core/roster'
-import { datasheetIn, groupOfEntry, unitsIn } from './catalogue'
+import { routeSlug } from '../core/slug'
+import { datasheetIn, datasheetInBySlug, groupOfEntry, unitsIn } from './catalogue'
 import { fromRosterXml, toRosterXml } from '../core/rosz'
 import { parseXml, rosterXml } from './rosz'
 import { ATTRIBUTION, slug } from './rules'
@@ -16,6 +17,7 @@ import { mutationRpc, rpc } from './rpc'
 import {
   createBattleSchema,
   datasheetSchema,
+  datasheetSlugSchema,
   detachmentRulesSchema,
   exportRosterSchema,
   importRosterSchema,
@@ -155,26 +157,30 @@ export const factions = createServerFn({ method: 'GET' }).handler(() =>
     const rules = app().rules()
     return {
       revision: loaded.index.revision,
-      factions: loaded.factions.map((faction) => ({
-        id: faction.id,
-        name: faction.name,
-        displayName: rules?.factionNames.get(slug(faction.name)) ?? faction.name,
-        references: faction.references,
-        detachments: (loaded.detachments.get(faction.id)?.options ?? []).map((detachment) => {
-          const reference = rules?.detachmentReferences.get(slug(faction.name))?.get(slug(detachment.name))
-          return {
-            id: detachment.id,
-            name: detachment.name,
-            disposition: detachment.disposition,
-            reference: reference
-              ? {
-                  ...reference,
-                  dispositions: reference.dispositions.map((disposition) => rules?.dispositions.get(disposition) ?? disposition),
-                }
-              : null,
-          }
-        }),
-      })),
+      factions: loaded.factions.map((faction) => {
+        const displayName = rules?.factionNames.get(slug(faction.name)) ?? faction.name
+        return {
+          id: faction.id,
+          slug: routeSlug(displayName),
+          name: faction.name,
+          displayName,
+          references: faction.references,
+          detachments: (loaded.detachments.get(faction.id)?.options ?? []).map((detachment) => {
+            const reference = rules?.detachmentReferences.get(slug(faction.name))?.get(slug(detachment.name))
+            return {
+              id: detachment.id,
+              name: detachment.name,
+              disposition: detachment.disposition,
+              reference: reference
+                ? {
+                    ...reference,
+                    dispositions: reference.dispositions.map((disposition) => rules?.dispositions.get(disposition) ?? disposition),
+                  }
+                : null,
+            }
+          }),
+        }
+      }),
     }
   }),
 )
@@ -194,6 +200,15 @@ export const datasheet = createServerFn({ method: 'GET' })
     rpc(() => {
       const loaded = app().catalogue()
       return loaded ? datasheetIn(loaded, data.catalogueId, data.entryId) : null
+    }),
+  )
+
+export const datasheetBySlug = createServerFn({ method: 'GET' })
+  .validator(datasheetSlugSchema)
+  .handler(({ data }) =>
+    rpc(() => {
+      const loaded = app().catalogue()
+      return loaded ? datasheetInBySlug(loaded, data.catalogueId, data.slug) : null
     }),
   )
 

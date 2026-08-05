@@ -1,12 +1,13 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, notFound, Outlet, useRouterState } from '@tanstack/react-router'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { factionFor } from '../client/factions'
 import { factionsQuery } from '../client/queries'
 
 export const Route = createFileRoute('/factions/$catalogueId')({
   loader: async ({ context, params }) => {
     const data = await context.queryClient.ensureQueryData(factionsQuery())
-    if (!data?.factions.some((faction) => faction.id === params.catalogueId)) throw notFound()
+    if (!factionFor(data, params.catalogueId)) throw notFound()
   },
   component: FactionPage,
 })
@@ -16,7 +17,7 @@ function FactionPage() {
   const { catalogueId } = Route.useParams()
   const { data } = useQuery(factionsQuery())
   if (path !== `/factions/${catalogueId}`) return <Outlet />
-  const faction = data?.factions.find((entry) => entry.id === catalogueId)
+  const faction = factionFor(data, catalogueId)
   if (!faction) return null
 
   return (
@@ -38,7 +39,7 @@ function FactionPage() {
             <Link
               key={reference.id}
               to="/factions/$catalogueId/reference"
-              params={{ catalogueId }}
+              params={{ catalogueId: faction.slug }}
               className="flex items-center justify-between gap-4 px-3 py-3 hover:bg-raised"
             >
               <span>

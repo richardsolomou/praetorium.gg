@@ -3,13 +3,15 @@ import { createFileRoute, Link, notFound } from '@tanstack/react-router'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useState } from 'react'
 import { Input } from '@/components/ui/input'
+import { factionFor } from '../client/factions'
 import { factionsQuery, unitsQuery } from '../client/queries'
 
 export const Route = createFileRoute('/factions/$catalogueId/reference/datasheets')({
   loader: async ({ context, params }) => {
     const data = await context.queryClient.ensureQueryData(factionsQuery())
-    if (!data?.factions.some((faction) => faction.id === params.catalogueId)) throw notFound()
-    await context.queryClient.ensureQueryData(unitsQuery(params.catalogueId, ''))
+    const faction = factionFor(data, params.catalogueId)
+    if (!faction) throw notFound()
+    await context.queryClient.ensureQueryData(unitsQuery(faction.id, ''))
   },
   component: DatasheetsPage,
 })
@@ -17,16 +19,16 @@ export const Route = createFileRoute('/factions/$catalogueId/reference/datasheet
 function DatasheetsPage() {
   const { catalogueId } = Route.useParams()
   const { data } = useQuery(factionsQuery())
-  const faction = data?.factions.find((entry) => entry.id === catalogueId)
+  const faction = factionFor(data, catalogueId)
   const [query, setQuery] = useState('')
-  const { data: units = [] } = useQuery({ ...unitsQuery(catalogueId, query), placeholderData: keepPreviousData })
+  const { data: units = [] } = useQuery({ ...unitsQuery(faction?.id ?? '', query), placeholderData: keepPreviousData })
   if (!faction) return null
 
   return (
     <main className="mx-auto w-full max-w-5xl px-4 py-8">
       <Link
         to="/factions/$catalogueId/reference"
-        params={{ catalogueId }}
+        params={{ catalogueId: faction.slug }}
         className="eyebrow flex items-center gap-1 text-azure hover:text-bone"
       >
         <ChevronLeft className="size-3.5" /> {faction.references[0]?.name ?? faction.displayName}
@@ -51,7 +53,7 @@ function DatasheetsPage() {
           <Link
             key={unit.id}
             to="/factions/$catalogueId/$entryId"
-            params={{ catalogueId, entryId: unit.id }}
+            params={{ catalogueId: faction.slug, entryId: unit.slug }}
             className="flex items-center justify-between border border-edge bg-panel px-3 py-2 hover:border-azure"
           >
             <span className="truncate text-sm font-bold uppercase">{unit.name}</span>

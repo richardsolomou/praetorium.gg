@@ -1,22 +1,24 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, notFound } from '@tanstack/react-router'
 import { ChevronRight } from 'lucide-react'
-import { datasheetQuery, factionsQuery } from '../client/queries'
+import { factionFor } from '../client/factions'
+import { datasheetSlugQuery, factionsQuery } from '../client/queries'
 
 export const Route = createFileRoute('/factions/$catalogueId/$entryId')({
   loader: async ({ context, params }) => {
-    await context.queryClient.ensureQueryData(factionsQuery())
-    if (!(await context.queryClient.ensureQueryData(datasheetQuery(params.catalogueId, params.entryId)))) throw notFound()
+    const data = await context.queryClient.ensureQueryData(factionsQuery())
+    const faction = factionFor(data, params.catalogueId)
+    if (!faction || !(await context.queryClient.ensureQueryData(datasheetSlugQuery(faction.id, params.entryId)))) throw notFound()
   },
   component: DatasheetPage,
 })
 
 function DatasheetPage() {
   const params = Route.useParams()
-  const { data: sheet } = useQuery(datasheetQuery(params.catalogueId, params.entryId))
   const { data } = useQuery(factionsQuery())
-  if (!sheet) return null
-  const faction = data?.factions.find((entry) => entry.id === params.catalogueId)
+  const faction = factionFor(data, params.catalogueId)
+  const { data: sheet } = useQuery(datasheetSlugQuery(faction?.id ?? '', params.entryId))
+  if (!sheet || !faction) return null
   const profiles = (type: string) => sheet.profiles.filter((profile) => profile.type === type)
   const unit = profiles('Unit')
   const ranged = profiles('Ranged Weapons')
@@ -28,15 +30,15 @@ function DatasheetPage() {
       <nav aria-label="Breadcrumb" className="eyebrow flex flex-wrap items-center gap-1 text-azure">
         <Link to="/factions">Factions</Link>
         <ChevronRight className="size-3 text-dim" aria-hidden />
-        <Link to="/factions/$catalogueId" params={{ catalogueId: params.catalogueId }}>
+        <Link to="/factions/$catalogueId" params={{ catalogueId: faction.slug }}>
           {faction?.displayName ?? 'Faction'}
         </Link>
         <ChevronRight className="size-3 text-dim" aria-hidden />
-        <Link to="/factions/$catalogueId/reference" params={{ catalogueId: params.catalogueId }}>
+        <Link to="/factions/$catalogueId/reference" params={{ catalogueId: faction.slug }}>
           {faction?.references[0]?.name ?? 'Reference'}
         </Link>
         <ChevronRight className="size-3 text-dim" aria-hidden />
-        <Link to="/factions/$catalogueId/reference/datasheets" params={{ catalogueId: params.catalogueId }}>
+        <Link to="/factions/$catalogueId/reference/datasheets" params={{ catalogueId: faction.slug }}>
           Datasheets
         </Link>
       </nav>

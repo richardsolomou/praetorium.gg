@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { Check, Copy, Download, Eye, Layers3, LoaderCircle, Plus, Trash2, TriangleAlert, Upload, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
@@ -208,8 +208,8 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
     },
   })
 
-  const { data: priced } = useQuery(
-    priceQuery(
+  const { data: priced } = useQuery({
+    ...priceQuery(
       catalogueId,
       detachmentIds,
       limit,
@@ -222,7 +222,8 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
         toggles,
       })),
     ),
-  )
+    placeholderData: keepPreviousData,
+  })
 
   if (!available) {
     return (
@@ -414,9 +415,11 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
     <p className="p-2.5 text-xs text-faint">Pick a book first.</p>
   )
 
+  const loadoutCatalogueId = selected === null ? catalogueId : (picked[selected]?.catalogueId ?? catalogueId)
   const loadout = (
     <Loadout
-      catalogueId={selected === null ? catalogueId : (picked[selected]?.catalogueId ?? catalogueId)}
+      catalogueId={loadoutCatalogueId}
+      catalogueSlug={available.factions.find((entry) => entry.id === loadoutCatalogueId)?.slug ?? loadoutCatalogueId}
       unit={selectedUnit}
       onChoose={(key, optionId) => selected !== null && choose(selected, key, optionId)}
       onSpread={(key, counts) => selected !== null && spread(selected, key, counts)}

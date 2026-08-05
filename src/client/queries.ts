@@ -5,6 +5,7 @@ import {
   collection,
   deployments,
   datasheet,
+  datasheetBySlug,
   detachmentRules,
   factions,
   me,
@@ -46,6 +47,14 @@ export const datasheetQuery = (catalogueId: string, entryId: string) =>
     queryKey: ['datasheet', catalogueId, entryId],
     queryFn: () => datasheet({ data: { catalogueId, entryId } }),
     enabled: Boolean(catalogueId && entryId),
+    staleTime: Infinity,
+  })
+
+export const datasheetSlugQuery = (catalogueId: string, slug: string) =>
+  queryOptions({
+    queryKey: ['datasheet-slug', catalogueId, slug],
+    queryFn: () => datasheetBySlug({ data: { catalogueId, slug } }),
+    enabled: Boolean(catalogueId && slug),
     staleTime: Infinity,
   })
 
