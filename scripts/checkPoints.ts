@@ -100,6 +100,7 @@ const tally = { matched: 0, mismatched: 0, ambiguous: 0, missing: 0, unsupported
 const mismatches: string[] = []
 const census = new Set<string>()
 let withoutCatalogue = 0
+const wantedUnit = process.env.POINTS_UNIT?.toLowerCase()
 
 for (const faction of factions) {
   // Chapter-specific surcharges ask which book the list is from, so the manual's
@@ -107,6 +108,7 @@ for (const faction of factions) {
   const primaryCatalogueId = catalogueBySlug.get(faction.slug)
   if (!primaryCatalogueId) withoutCatalogue++
   for (const unit of faction.units) {
+    if (wantedUnit && !unit.name.toLowerCase().includes(wantedUnit)) continue
     const candidates = resolve(unit.name)
     const tiers = firstCopyRange(unit)?.costs ?? []
     if (!tiers.length) continue
@@ -136,8 +138,8 @@ for (const faction of factions) {
       if (result.points === tier.points) tally.matched++
       else {
         tally.mismatched++
-        if (mismatches.length < 25)
-          mismatches.push(`${unit.name} @ ${tier.models} models: got ${result.points}, Munitorum says ${tier.points}`)
+        mismatches.push(`${unit.name} @ ${tier.models} models: got ${result.points}, Munitorum says ${tier.points}`)
+        if (wantedUnit) console.log(JSON.stringify(built.selection, null, 2))
       }
     }
   }
@@ -156,7 +158,7 @@ console.log(
 )
 
 if (mismatches.length) {
-  console.log(`\n## first mismatches`)
+  console.log(`\n## mismatches`)
   for (const line of mismatches) console.log(`  ${line}`)
 }
 
