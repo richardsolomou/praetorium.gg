@@ -9,6 +9,7 @@ import { ROSTER_MAX_LENGTH, ROSTER_NAME_MAX_LENGTH } from '../../core/battle'
 import { catalogueStatusQuery, factionsQuery } from '../queries'
 import { useOrigin } from '../useOrigin'
 import { Battlefield } from './Battlefield'
+import { Disclosure } from './Disclosure'
 import { ListBuilder } from './ListBuilder'
 import { Prep } from './Prep'
 
@@ -194,8 +195,12 @@ export function Setup({ view, send, pending, problem }: Props) {
         </div>
       ) : null}
 
-      <details className={`${stage === 'missions' ? '' : 'hidden'} rounded-lg border border-edge bg-panel p-4`} open>
-        <summary className="cursor-pointer text-sm">Stratagems and secondaries</summary>
+      <Disclosure
+        label="Stratagems and secondaries"
+        className={`${stage === 'missions' ? '' : 'hidden'} rounded-lg border border-edge bg-panel p-4`}
+        triggerClassName="text-sm"
+        defaultOpen
+      >
         <p className="mt-2 mb-4 text-xs text-dim">
           Neither is in the community data, so copy them from your own book once. The app takes it from there.
         </p>
@@ -207,7 +212,7 @@ export function Setup({ view, send, pending, problem }: Props) {
           }}
           pending={pending}
         />
-      </details>
+      </Disclosure>
 
       {problem ? <p className="text-sm text-destructive">{problem}</p> : null}
 

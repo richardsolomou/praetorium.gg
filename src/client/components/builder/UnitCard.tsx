@@ -1,5 +1,6 @@
 import { ChevronRight, Copy, Crown, EllipsisVertical, Heart, Minus, Plus, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import type { Attachment } from '../../../core/attach'
 
 export type BuiltUnit = {
@@ -120,42 +121,30 @@ export function UnitCard({
               <Crown />
             </Button>
           ))}
-          <details className="relative">
-            <summary
-              className="flex size-7 cursor-pointer list-none items-center justify-center rounded-sm hover:bg-raised [&::-webkit-details-marker]:hidden"
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              className="flex size-7 cursor-pointer items-center justify-center rounded-sm hover:bg-raised"
               aria-label={`Unit actions for ${unit.name}`}
             >
               <EllipsisVertical className="size-4" />
-            </summary>
-            <div className="absolute top-8 right-0 z-20 w-44 border border-edge-strong bg-raised p-1 shadow-xl">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="w-full justify-start rounded-none px-2 py-1.5 text-left text-xs font-semibold uppercase hover:bg-edge"
-                onClick={onDuplicate}
-              >
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44 rounded-none border border-edge-strong bg-raised shadow-xl ring-0">
+              <DropdownMenuItem className="rounded-none text-xs font-semibold uppercase focus:bg-edge" onClick={onDuplicate}>
                 <Copy className="size-3.5" /> Duplicate unit
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="w-full justify-start rounded-none px-2 py-1.5 text-left text-xs font-semibold uppercase hover:bg-edge"
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="rounded-none text-xs font-semibold uppercase focus:bg-edge"
                 aria-pressed={owned}
                 onClick={onOwned}
               >
                 <Heart className={`size-3.5 ${owned ? 'fill-azure text-azure' : ''}`} />
                 {owned ? 'Remove from collection' : 'Add to collection'}
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="w-full justify-start rounded-none px-2 py-1.5 text-left text-xs font-semibold text-destructive uppercase hover:bg-edge"
-                onClick={onRemove}
-              >
+              </DropdownMenuItem>
+              <DropdownMenuItem variant="destructive" className="rounded-none text-xs font-semibold uppercase" onClick={onRemove}>
                 <X className="size-3.5" /> Delete unit
-              </Button>
-            </div>
-          </details>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <ChevronRight className="size-4 text-faint" aria-hidden />
         </span>
       </div>

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { deploymentsQuery, detachmentRulesQuery } from '../queries'
 import type { BattleView, Command } from '../../core/battle'
 import type { PresentPlayer } from '../../server/presence'
+import { Disclosure } from './Disclosure'
 import { Prep } from './Prep'
 import { Report } from './Report'
 
@@ -257,8 +258,7 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
                 !finished &&
                 player.secondaryMode === 'tactical' &&
                 player.secondaries.filter((card) => card.status === 'active').length < 2 ? (
-                  <details className="pt-1">
-                    <summary className="eyebrow cursor-pointer text-azure">Draw a replacement</summary>
+                  <Disclosure label="Draw a replacement" className="pt-1" triggerClassName="eyebrow text-azure">
                     <div className="mt-1 flex max-h-32 flex-wrap gap-1 overflow-y-auto">
                       {(rules?.secondaries ?? [])
                         .filter((card) => !player.secondaries.some((held) => held.key === card.key))
@@ -274,11 +274,10 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
                           </Button>
                         ))}
                     </div>
-                  </details>
+                  </Disclosure>
                 ) : null}
                 {player.isViewer && !finished && !player.secondaries.some((card) => card.secret) ? (
-                  <details className="pt-1">
-                    <summary className="eyebrow cursor-pointer text-azure">Select secret mission</summary>
+                  <Disclosure label="Select secret mission" className="pt-1" triggerClassName="eyebrow text-azure">
                     <div className="mt-1 flex max-h-32 flex-wrap gap-1 overflow-y-auto">
                       {(rules?.secondaries ?? [])
                         .filter((card) => !player.secondaries.some((held) => held.key === card.key))
@@ -294,7 +293,7 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
                           </Button>
                         ))}
                     </div>
-                  </details>
+                  </Disclosure>
                 ) : null}
               </div>
             ) : null}
@@ -451,16 +450,13 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
         </section>
       </div>
 
-      <details className="text-sm text-dim">
-        <summary className="cursor-pointer">Stratagems and secondaries</summary>
+      <Disclosure label="Stratagems and secondaries" className="text-sm text-dim">
         <div className="mt-3 rounded-lg border border-edge bg-panel p-4">
           <Prep view={view} send={send} pending={pending} />
         </div>
-      </details>
+      </Disclosure>
 
-      <details className="text-sm text-dim">
-        <summary className="cursor-pointer">Lists</summary>
-
+      <Disclosure label="Lists" className="text-sm text-dim">
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
           {view.players.map((player) => (
             <div key={player.id} className="rounded-lg border border-edge bg-panel p-3">
@@ -469,7 +465,7 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
             </div>
           ))}
         </div>
-      </details>
+      </Disclosure>
       <MobileScoreboard view={view} />
     </main>
   )
@@ -636,10 +632,15 @@ const awardTitle = (award: Award) =>
 function ReportDetails({ token, forceOpen = false }: { token: string; forceOpen?: boolean }) {
   const [open, setOpen] = useState(false)
   return (
-    <details className="text-sm text-dim" open={forceOpen || undefined} onToggle={(event) => setOpen(event.currentTarget.open)}>
-      <summary className={`cursor-pointer ${forceOpen ? 'hidden lg:list-item' : ''}`}>How the battle went</summary>
+    <Disclosure
+      label="How the battle went"
+      className="text-sm text-dim"
+      triggerClassName={forceOpen ? 'hidden lg:flex' : undefined}
+      open={forceOpen || open}
+      onOpenChange={setOpen}
+    >
       <Report token={token} open={forceOpen || open} />
-    </details>
+    </Disclosure>
   )
 }
 
