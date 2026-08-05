@@ -153,6 +153,8 @@ export type LoggedCommand = { seq: number; by: PlayerId; at: number; command: Co
 export type PlayerState = {
   id: PlayerId
   cp: number
+  cpGained: number
+  cpSpent: number
   primary: number
   secondary: number
   roster: Roster | null
@@ -210,6 +212,8 @@ export function reduceBattle(playerIds: readonly PlayerId[], log: readonly Logge
     players: playerIds.map((id) => ({
       id,
       cp: 0,
+      cpGained: 0,
+      cpSpent: 0,
       primary: 0,
       secondary: 0,
       roster: null,
@@ -441,6 +445,7 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
       const stratagem = player.stratagems.find((candidate) => candidate.key === command.key)
       if (!stratagem) return
       player.cp -= stratagem.cp
+      player.cpSpent += stratagem.cp
       player.uses.push({ key: stratagem.key, round: state.round, phase: state.phase, turn: state.activePlayerId })
       return
     }
@@ -473,6 +478,8 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
     }
     case 'adjust-cp': {
       player.cp += command.delta
+      if (command.delta > 0) player.cpGained += command.delta
+      else player.cpSpent += Math.abs(command.delta)
       return
     }
     case 'score': {
@@ -537,7 +544,10 @@ function enterTurn(state: BattleState, playerId: PlayerId) {
   state.activePlayerId = playerId
   state.phase = 'command'
   const player = state.players.find((candidate) => candidate.id === playerId)
-  if (player) player.cp += COMMAND_PHASE_CP
+  if (player) {
+    player.cp += COMMAND_PHASE_CP
+    player.cpGained += COMMAND_PHASE_CP
+  }
 }
 
 /** One thing that happened, in the words a player would use about it. */
@@ -662,6 +672,8 @@ export type BattleView = {
     isViewer: boolean
     isActive: boolean
     cp: number
+    cpGained: number
+    cpSpent: number
     primary: number
     secondary: number
     total: number
@@ -716,6 +728,8 @@ export function battleView(
       isViewer: player.id === viewerId,
       isActive: player.id === state.activePlayerId,
       cp: player.cp,
+      cpGained: player.cpGained,
+      cpSpent: player.cpSpent,
       primary: player.primary,
       secondary: player.secondary,
       total: player.primary + player.secondary,

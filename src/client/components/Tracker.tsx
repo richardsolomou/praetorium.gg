@@ -20,8 +20,8 @@ type Props = {
 
 /** Side 0 is the player who opened the battle. The tint is how you tell whose number you are reading. */
 const SIDES = [
-  { accent: 'border-l-steel', value: 'text-steel' },
-  { accent: 'border-l-rust', value: 'text-rust' },
+  { accent: 'border-l-side-a', value: 'text-side-a' },
+  { accent: 'border-l-side-b', value: 'text-side-b' },
 ]
 
 export function Tracker({ view, mission, present, send, pending, problem }: Props) {
@@ -49,7 +49,7 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
   const finished = view.status === 'finished'
 
   return (
-    <main className="mx-auto w-full max-w-[1500px] space-y-4 px-4 py-6">
+    <main className="mx-auto w-full max-w-[1500px] space-y-4 px-4 pt-6 pb-36 lg:pb-6">
       <header className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 border-b border-edge pb-3">
         <div>
           <p className="eyebrow">
@@ -89,6 +89,10 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
                 title={present.some((watcher) => watcher.playerId === player.id) ? 'Watching now' : 'Not on the page'}
               />
             </div>
+
+            <p className="readout text-[0.6875rem] text-faint">
+              CP {player.cpGained} gained · {player.cpSpent} used · {player.cp} remaining
+            </p>
 
             {/* Each stat's controls sit under the number they change, so nothing is labelled twice. */}
             <div className="grid grid-cols-3 gap-2 border-t border-edge pt-3">
@@ -349,6 +353,7 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
             <p className="mt-1 text-xl font-bold uppercase">{finished ? outcome(view) : `${view.phase} phase`}</p>
             <p className="mt-1 text-xs text-dim">{mission?.name ?? 'Matched play'}</p>
           </div>
+          <ScoreChart players={view.players} />
           {finished ? null : (
             <div className="space-y-2 border-t border-edge pt-3">
               <Button
@@ -398,7 +403,60 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
           ))}
         </div>
       </details>
+      <MobileScoreboard view={view} />
     </main>
+  )
+}
+
+function ScoreChart({ players }: { players: BattleView['players'] }) {
+  const cumulative = players.map((player) => {
+    let total = 0
+    return player.rounds.map((round) => (total += round.total))
+  })
+  const max = Math.max(1, ...cumulative.flat())
+  const points = (scores: number[]) => scores.map((score, at) => `${at * 55 + 10},${60 - (score / max) * 50}`).join(' ')
+  return (
+    <div className="border-y border-edge py-2">
+      <p className="eyebrow mb-1">Victory points</p>
+      <svg viewBox="0 0 240 66" className="w-full">
+        <title>Cumulative victory points by round</title>
+        <path d="M10 60H230" className="stroke-edge" />
+        {cumulative[0] ? <polyline points={points(cumulative[0])} fill="none" className="stroke-side-a" strokeWidth="2" /> : null}
+        {cumulative[1] ? <polyline points={points(cumulative[1])} fill="none" className="stroke-side-b" strokeWidth="2" /> : null}
+      </svg>
+    </div>
+  )
+}
+
+function MobileScoreboard({ view }: { view: BattleView }) {
+  return (
+    <aside
+      className="fixed inset-x-0 bottom-0 z-40 border-t border-edge bg-panel/98 px-3 py-2 backdrop-blur lg:hidden"
+      aria-label="Battle scoreboard"
+    >
+      <div className="mx-auto grid max-w-xl grid-cols-[1fr_auto_1fr] items-center gap-3">
+        {view.players.map((player, index) => (
+          <div key={player.id} className={index ? 'order-3 text-right' : 'order-1'}>
+            <p className={`truncate text-xs font-bold uppercase ${SIDES[index]?.value}`}>{player.name}</p>
+            <p className="readout text-xl">
+              {player.total} <span className="text-xs text-dim">VP · {player.cp} CP</span>
+            </p>
+            <div className="mt-1 flex gap-0.5" aria-label={`${player.name} rounds`}>
+              {player.rounds.map((round) => (
+                <span
+                  key={round.round}
+                  className={`h-1 flex-1 ${round.round <= view.round ? (index ? 'bg-side-b' : 'bg-side-a') : 'bg-edge-strong'}`}
+                />
+              ))}
+            </div>
+          </div>
+        ))}
+        <div className="order-2 text-center">
+          <p className="eyebrow">Round</p>
+          <p className="readout text-xl">{view.round}</p>
+        </div>
+      </div>
+    </aside>
   )
 }
 
