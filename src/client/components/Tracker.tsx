@@ -393,15 +393,15 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
         <section className="order-first space-y-3 border border-edge bg-panel p-4 sm:col-span-2 lg:col-span-1 lg:col-start-2 lg:row-start-1">
           <div className="grid grid-cols-2 border-b border-edge lg:hidden">
             {(['info', 'events'] as const).map((tab) => (
-              <button
+              <Button
                 key={tab}
-                type="button"
-                className={`eyebrow border-b-2 py-2 ${mobileTab === tab ? 'border-azure text-azure' : 'border-transparent'}`}
+                variant="ghost"
+                className={`eyebrow rounded-none border-x-transparent border-t-transparent border-b-2 py-2 focus-visible:border-x-transparent focus-visible:border-t-transparent focus-visible:ring-0 ${mobileTab === tab ? 'border-b-azure text-azure' : 'border-b-transparent'}`}
                 aria-pressed={mobileTab === tab}
                 onClick={() => setMobileTab(tab)}
               >
                 {tab}
-              </button>
+              </Button>
             ))}
           </div>
           <div className={mobileTab === 'events' ? 'hidden lg:block' : ''}>

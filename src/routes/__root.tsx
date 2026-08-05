@@ -1,6 +1,7 @@
 import type { QueryClient } from '@tanstack/react-query'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { createRootRouteWithContext, HeadContent, Link, Outlet, Scripts, useNavigate } from '@tanstack/react-router'
+import { Button } from '@/components/ui/button'
 import { authClient } from '../client/authClient'
 import { meQuery } from '../client/queries'
 import appCss from '../styles.css?url'
@@ -43,9 +44,9 @@ function Account() {
 
   if (me?.signedIn) {
     return (
-      <button
-        type="button"
-        className="eyebrow ml-auto hover:text-azure"
+      <Button
+        variant="ghost"
+        className="eyebrow ml-auto h-auto px-0 hover:bg-transparent hover:text-azure"
         onClick={async () => {
           await authClient.signOut()
           await queryClient.invalidateQueries()
@@ -53,7 +54,7 @@ function Account() {
         }}
       >
         {me.name} · sign out
-      </button>
+      </Button>
     )
   }
 

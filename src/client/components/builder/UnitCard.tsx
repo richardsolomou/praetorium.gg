@@ -61,7 +61,12 @@ export function UnitCard({
       className={`border bg-card transition-colors ${selected ? 'border-azure' : 'border-edge hover:border-edge-strong'}`}
     >
       <div className="flex items-start gap-2 px-2.5 py-2">
-        <button type="button" className="min-w-0 flex-1 text-left" onClick={onSelect} aria-pressed={selected}>
+        <Button
+          variant="ghost"
+          className="h-auto min-w-0 flex-1 justify-start rounded-none p-0 text-left hover:bg-transparent"
+          onClick={onSelect}
+          aria-pressed={selected}
+        >
           <span className="block truncate text-[0.9375rem] leading-tight font-bold tracking-[0.02em] uppercase">{unit.name}</span>
           {unit.wargear.length ? (
             <ul className="mt-1 space-y-px">
@@ -73,7 +78,7 @@ export function UnitCard({
               ))}
             </ul>
           ) : null}
-        </button>
+        </Button>
         <span className="flex shrink-0 items-center gap-1.5">
           {unit.size.resizable ? (
             <span className="flex items-center gap-1">
@@ -123,29 +128,32 @@ export function UnitCard({
               <EllipsisVertical className="size-4" />
             </summary>
             <div className="absolute top-8 right-0 z-20 w-44 border border-edge-strong bg-raised p-1 shadow-xl">
-              <button
-                type="button"
-                className="flex w-full items-center gap-2 px-2 py-1.5 text-left text-xs font-semibold uppercase hover:bg-edge"
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full justify-start rounded-none px-2 py-1.5 text-left text-xs font-semibold uppercase hover:bg-edge"
                 onClick={onDuplicate}
               >
                 <Copy className="size-3.5" /> Duplicate unit
-              </button>
-              <button
-                type="button"
-                className="flex w-full items-center gap-2 px-2 py-1.5 text-left text-xs font-semibold uppercase hover:bg-edge"
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full justify-start rounded-none px-2 py-1.5 text-left text-xs font-semibold uppercase hover:bg-edge"
                 aria-pressed={owned}
                 onClick={onOwned}
               >
                 <Heart className={`size-3.5 ${owned ? 'fill-azure text-azure' : ''}`} />
                 {owned ? 'Remove from collection' : 'Add to collection'}
-              </button>
-              <button
-                type="button"
-                className="flex w-full items-center gap-2 px-2 py-1.5 text-left text-xs font-semibold text-destructive uppercase hover:bg-edge"
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full justify-start rounded-none px-2 py-1.5 text-left text-xs font-semibold text-destructive uppercase hover:bg-edge"
                 onClick={onRemove}
               >
                 <X className="size-3.5" /> Delete unit
-              </button>
+              </Button>
             </div>
           </details>
           <ChevronRight className="size-4 text-faint" aria-hidden />
@@ -163,13 +171,14 @@ export function UnitCard({
         <div key={`${row.label}-${row.name}`} className="flex items-center gap-2 border-t border-edge bg-raised px-2.5 py-1">
           <span className="chip shrink-0">{row.label}</span>
           <span className="min-w-0 flex-1 truncate text-xs">{row.name}</span>
-          <button
-            type="button"
-            className="shrink-0 text-[0.6875rem] font-semibold tracking-[0.06em] text-azure uppercase"
+          <Button
+            variant="ghost"
+            size="xs"
+            className="shrink-0 text-[0.6875rem] tracking-[0.06em] text-azure uppercase"
             onClick={row.onAct}
           >
             {row.action}
-          </button>
+          </Button>
         </div>
       ))}
 
@@ -177,14 +186,15 @@ export function UnitCard({
         <div className="flex flex-wrap items-center gap-1.5 border-t border-edge bg-raised px-2.5 py-1">
           <span className="chip shrink-0">{unit.attachment?.kind === 'leader' ? 'Lead' : 'Support'}</span>
           {canJoin.map((target) => (
-            <button
+            <Button
               key={target.key}
-              type="button"
-              className="text-[0.6875rem] font-semibold tracking-[0.06em] text-azure uppercase hover:text-bone"
+              variant="ghost"
+              size="xs"
+              className="text-[0.6875rem] tracking-[0.06em] text-azure uppercase hover:bg-transparent hover:text-bone"
               onClick={() => onJoin(target.key)}
             >
               {target.name}
-            </button>
+            </Button>
           ))}
         </div>
       ) : null}
