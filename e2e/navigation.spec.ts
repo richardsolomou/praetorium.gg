@@ -5,8 +5,18 @@ test('a guest can enter through the roster library and browse the product', asyn
   await page.getByLabel('Your name').fill('Alice')
   await page.getByRole('button', { name: 'Continue' }).click()
 
-  await expect(page.getByRole('heading', { name: 'Build an army' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'My rosters' })).toBeVisible()
+  await expect(page.getByText('No rosters yet. Create one or bring one from another app.')).toBeVisible()
+  await page.screenshot({ path: 'test-results/roster-library.png', fullPage: true })
+  await page.getByRole('button', { name: 'Create editable roster' }).click()
+  await expect(page.getByRole('heading', { name: 'Create editable roster' })).toBeVisible()
   await expect(page.getByRole('combobox', { name: 'Faction' })).toBeVisible()
+  await page.getByRole('button', { name: 'Back to rosters' }).click()
+  await expect(page.getByRole('button', { name: 'Import roster' })).toBeVisible()
+  const chooser = page.waitForEvent('filechooser')
+  await page.getByRole('button', { name: 'Import roster' }).click()
+  await chooser
+  await expect(page.getByRole('heading', { name: 'Create editable roster' })).toBeVisible()
 
   await page.getByRole('link', { name: 'Battles' }).click()
   await expect(page.getByRole('heading', { name: 'Battle history' })).toBeVisible()

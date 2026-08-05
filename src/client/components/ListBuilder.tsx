@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { Check, Copy, Download, Eye, Save, Trash2, TriangleAlert, Upload } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -24,6 +24,15 @@ type Props = {
   /** What the player has written down, so a saved list carries it and restores it. */
   prep: { stratagems: Stratagem[]; secondaries: Secondary[] }
   onRestorePrep: (prep: { stratagems: Stratagem[]; secondaries: Secondary[] }) => void
+  initial?: {
+    id: string
+    name: string
+    catalogueId: string
+    detachmentId: string | null
+    limit: number
+    picks: Omit<Pick, 'key'>[]
+  }
+  openImport?: boolean
 }
 
 type Pick = {
@@ -50,20 +59,25 @@ type Pick = {
  * The price and the legality both come from the server, because the catalogue is
  * 90MB and the browser has no business holding it.
  */
-export function ListBuilder({ onAttach, pending = false, attached = false, prep, onRestorePrep }: Props) {
+export function ListBuilder({ onAttach, pending = false, attached = false, prep, onRestorePrep, initial, openImport = false }: Props) {
   const { data: available } = useQuery(factionsQuery())
-  const [catalogueId, setCatalogueId] = useState('')
+  const [catalogueId, setCatalogueId] = useState(initial?.catalogueId ?? '')
   // Picks carry their own key: the same datasheet may legitimately appear twice,
   // so position is the only thing that tells two of them apart.
-  const [picked, setPicked] = useState<Pick[]>([])
-  const [nextKey, setNextKey] = useState(0)
-  const [limit, setLimit] = useState<number>(GAME_SIZES[1].limit)
-  const [detachmentId, setDetachmentId] = useState<string | undefined>()
-  const [name, setName] = useState('')
+  const [picked, setPicked] = useState<Pick[]>(() => initial?.picks.map((pick, key) => ({ ...pick, key })) ?? [])
+  const [nextKey, setNextKey] = useState(initial?.picks.length ?? 0)
+  const [limit, setLimit] = useState<number>(initial?.limit ?? GAME_SIZES[1].limit)
+  const [detachmentId, setDetachmentId] = useState<string | undefined>(initial?.detachmentId ?? undefined)
+  const [name, setName] = useState(initial?.name ?? '')
   const [selected, setSelected] = useState<number | null>(null)
   const [showing, setShowing] = useState<'picker' | 'loadout' | null>(null)
+  const importInput = useRef<HTMLInputElement>(null)
 
-  const [savedId, setSavedId] = useState<string | undefined>()
+  useEffect(() => {
+    if (openImport) importInput.current?.click()
+  }, [openImport])
+
+  const [savedId, setSavedId] = useState<string | undefined>(initial?.id)
   const queryClient = useQueryClient()
   const { data: saved } = useQuery(savedRostersQuery())
   const { data: owned } = useQuery(collectionQuery())
@@ -443,6 +457,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
             Bring a list from another tool
           </label>
           <input
+            ref={importInput}
             id="bring"
             type="file"
             accept=".ros,.rosz"
