@@ -67,7 +67,10 @@ export function loadCatalogue(directory = catalogueDirectory()): LoadedCatalogue
 
   const index = buildIndex(files, revision.definitions)
   const factions = [...index.catalogues.values()]
-    .filter((catalogue) => !catalogue.name.endsWith(LIBRARY_SUFFIX) && unitCount(index, catalogue.id) > 0)
+    .filter(
+      (catalogue) =>
+        !catalogue.library && !catalogue.gameSystem && !catalogue.name.endsWith(LIBRARY_SUFFIX) && unitCount(index, catalogue.id) > 0,
+    )
     .map((catalogue) => ({ id: catalogue.id, name: catalogue.name }))
     .toSorted((left, right) => left.name.localeCompare(right.name))
 
