@@ -23,7 +23,7 @@ function explain(result: SubmitResult) {
  * refetch to say so is a round trip during which the page holds a view older than
  * its own last command — which sent a stale seq, and named the wrong command to
  * undo. Invisible on localhost; the ordinary case across the internet, where
- * mustering is several commands in a row.
+ * setting a battle up is several commands in a row.
  */
 export function useCommand(token: string, seq: number) {
   const queryClient = useQueryClient()

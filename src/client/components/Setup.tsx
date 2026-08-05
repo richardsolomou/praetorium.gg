@@ -19,7 +19,7 @@ type Props = { view: BattleView; send: (command: Command) => void; pending: bool
  * about who goes first. A list is either built from the catalogue or pasted in
  * as text, and nothing here reads the text.
  */
-export function Mustering({ view, send, pending, problem }: Props) {
+export function Setup({ view, send, pending, problem }: Props) {
   const you = view.players.find((player) => player.isViewer)!
   const opponent = view.players.find((player) => !player.isViewer)
   const [armyName, setArmyName] = useState(you.roster?.name ?? '')
@@ -37,7 +37,7 @@ export function Mustering({ view, send, pending, problem }: Props) {
     // does not use the room.
     <main className="mx-auto w-full max-w-[1600px] space-y-6 px-4 py-6">
       <section className="max-w-2xl">
-        <p className="eyebrow">Mustering</p>
+        <p className="eyebrow">Battle setup</p>
         <h1 className="mt-1 text-2xl">{opponent ? `${you.name} versus ${opponent.name}` : 'Waiting for an opponent'}</h1>
         {opponent ? null : (
           <div className="mt-4 space-y-2">

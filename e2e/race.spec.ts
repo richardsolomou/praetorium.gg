@@ -5,7 +5,7 @@ import { expect, test, type Page } from '@playwright/test'
  * first command has not landed yet.
  *
  * Localhost hides this: the read returns before a hand can move. Deployed behind
- * a CDN it is the ordinary case — mustering is several commands in a row — and the
+ * a CDN it is the ordinary case — setting a battle up is several commands in a row —
  * second one was being rejected with `stale`, telling a player their opponent got
  * there first when their opponent had done nothing at all. Reads are delayed here
  * to make that window wide enough to act inside, deterministically.
