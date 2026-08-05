@@ -25,6 +25,20 @@ async function add(page: Page, name: string) {
     .click()
 }
 
+test('a supplement imports its shared detachment group', async ({ page }) => {
+  await page.goto('/')
+  await page.getByLabel('Your name').fill('Richard')
+  await page.getByRole('button', { name: 'Open a battle' }).click()
+  await expect(page.getByLabel('Send this link to your opponent')).toHaveValue(/\/b\//)
+  await page.getByRole('button', { name: 'Build from the catalogue' }).click()
+  await page.getByRole('combobox', { name: 'Faction' }).click()
+  await page.getByRole('option', { name: 'Imperium - Adeptus Astartes - Black Templars' }).click()
+  await page.getByRole('combobox', { name: 'Detachment' }).click()
+  await page.getByRole('option', { name: 'Companions of Vehemence' }).click()
+  await add(page, 'Crusader Squad')
+  await expect(page.locator('[data-unit="Crusader Squad"]')).toBeVisible()
+})
+
 test('a squad grows from the roster itself', async ({ page }) => {
   await openBuilder(page)
   await add(page, 'Immortals')
