@@ -1,4 +1,4 @@
-import { ChevronRight, Copy, Crown, Minus, Plus, X } from 'lucide-react'
+import { ChevronRight, Copy, Crown, Heart, Minus, Plus, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { Attachment } from '../../../core/attach'
 
@@ -22,6 +22,8 @@ type Props = {
   onSelect: () => void
   onRemove: () => void
   onDuplicate: () => void
+  owned: boolean
+  onOwned: () => void
   onToggle: (key: string, selected: boolean) => void
   onResize: (models: number) => void
   /** Rows stating what this unit is attached to, or what is attached to it. */
@@ -39,7 +41,20 @@ type Props = {
  * is the most common edit in list building and the least deserving of a trip to
  * another pane — on a phone that pane is a whole screen away.
  */
-export function UnitCard({ unit, selected, onSelect, onRemove, onDuplicate, onToggle, onResize, joined, canJoin, onJoin }: Props) {
+export function UnitCard({
+  unit,
+  selected,
+  onSelect,
+  onRemove,
+  onDuplicate,
+  owned,
+  onOwned,
+  onToggle,
+  onResize,
+  joined,
+  canJoin,
+  onJoin,
+}: Props) {
   return (
     <div
       data-unit={unit.name}
@@ -102,6 +117,15 @@ export function UnitCard({ unit, selected, onSelect, onRemove, onDuplicate, onTo
           ))}
           <Button variant="ghost" size="icon-sm" aria-label={`Duplicate ${unit.name}`} onClick={onDuplicate}>
             <Copy />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label={`${owned ? 'Remove' : 'Add'} ${unit.name} ${owned ? 'from' : 'to'} your collection`}
+            aria-pressed={owned}
+            onClick={onOwned}
+          >
+            <Heart className={owned ? 'fill-azure text-azure' : ''} />
           </Button>
           <Button variant="ghost" size="icon-sm" aria-label={`Remove ${unit.name}`} onClick={onRemove}>
             <X />

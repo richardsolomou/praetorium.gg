@@ -71,6 +71,9 @@ test('the filters narrow the book to what is worth taking', async ({ page }) => 
   // eslint-disable-next-line no-await-in-loop
   for (let taken = 0; taken < 3; taken++) await lychguard.click()
   await expect(page.getByText('3/3 in roster')).toBeVisible()
+  await expect(page.locator('[data-unit="Lychguard"]').getByRole('button', { name: 'Remove Lychguard from your collection' })).toHaveCount(
+    3,
+  )
   await page.getByRole('button', { name: 'Unit limit' }).click()
   await expect(lychguard).toBeHidden()
 

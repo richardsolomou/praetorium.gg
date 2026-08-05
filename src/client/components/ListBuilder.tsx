@@ -7,8 +7,8 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import type { Roster, Secondary, Stratagem } from '../../core/battle'
 import { GAME_SIZES, ROSTER_NAME_MAX_LENGTH } from '../../core/battle'
-import { deleteRoster, exportRoster, importRoster, saveRoster } from '../../server/fns'
-import { factionsQuery, priceQuery, savedRostersQuery } from '../queries'
+import { deleteRoster, exportRoster, importRoster, saveRoster, setOwned } from '../../server/fns'
+import { collectionQuery, factionsQuery, priceQuery, savedRostersQuery } from '../queries'
 import { errorMessage } from '../queryClient'
 import { GROUPS } from './builder/groups'
 import { Loadout } from './builder/Loadout'
@@ -65,6 +65,12 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
   const [savedId, setSavedId] = useState<string | undefined>()
   const queryClient = useQueryClient()
   const { data: saved } = useQuery(savedRostersQuery())
+  const { data: owned } = useQuery(collectionQuery())
+  const collection = new Set(owned ?? [])
+  const own = useMutation({
+    mutationFn: (input: { entryId: string; owned: boolean }) => setOwned({ data: input }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: collectionQuery().queryKey }),
+  })
   const refreshSaved = () => queryClient.invalidateQueries({ queryKey: savedRostersQuery().queryKey })
 
   const loadSaved = (list: NonNullable<typeof saved>[number], copy = false) => {
@@ -513,6 +519,8 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
                       }}
                       onRemove={() => drop(index)}
                       onDuplicate={() => duplicate(index)}
+                      owned={collection.has(unit.entryId)}
+                      onOwned={() => own.mutate({ entryId: unit.entryId, owned: !collection.has(unit.entryId) })}
                       onToggle={(key, enabled) => toggle(index, key, enabled)}
                       onResize={(models) => resize(index, models)}
                       joined={joinedRows(index)}
