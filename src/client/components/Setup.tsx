@@ -63,13 +63,13 @@ export function Setup({ view, send, pending, problem }: Props) {
           <Button
             key={id}
             variant="ghost"
-            className={`rounded-none border-x-transparent border-t-transparent border-b-2 px-2 py-3 text-left focus-visible:border-x-transparent focus-visible:border-t-transparent focus-visible:ring-0 ${stage === id ? 'border-b-azure bg-raised' : 'border-b-transparent'} ${id !== 'roster' && !you.roster ? 'text-faint' : ''}`}
+            className={`h-auto flex-col items-start gap-0 rounded-none border-x-transparent border-t-transparent border-b-2 px-2 py-2 text-left focus-visible:border-x-transparent focus-visible:border-t-transparent focus-visible:ring-0 sm:flex-row sm:items-center sm:gap-1 sm:py-3 ${stage === id ? 'border-b-azure bg-raised' : 'border-b-transparent'} ${id !== 'roster' && !you.roster ? 'text-faint' : ''}`}
             disabled={id !== 'roster' && !you.roster}
             aria-current={stage === id ? 'step' : undefined}
             onClick={() => setStage(id)}
           >
             <span className="eyebrow block">Step {number}</span>
-            <span className="text-sm font-bold uppercase">{label}</span>
+            <span className="text-xs font-bold uppercase sm:text-sm">{label}</span>
           </Button>
         ))}
       </nav>
