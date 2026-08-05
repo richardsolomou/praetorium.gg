@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Check, Download, Save, Trash2, TriangleAlert, Upload } from 'lucide-react'
+import { Check, Copy, Download, Save, Trash2, TriangleAlert, Upload } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -64,6 +64,18 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
   const queryClient = useQueryClient()
   const { data: saved } = useQuery(savedRostersQuery())
   const refreshSaved = () => queryClient.invalidateQueries({ queryKey: savedRostersQuery().queryKey })
+
+  const loadSaved = (list: NonNullable<typeof saved>[number], copy = false) => {
+    setSavedId(copy ? undefined : list.id)
+    setName(copy ? `Copy of ${list.name}` : list.name)
+    setCatalogueId(list.catalogueId)
+    setDetachmentId(list.detachmentId ?? undefined)
+    setLimit(list.limit)
+    setPicked(list.picks.map((pick, at) => ({ ...pick, key: at })))
+    setNextKey(list.picks.length)
+    setSelected(null)
+    if (list.prep) onRestorePrep(list.prep)
+  }
 
   const save = useMutation({
     mutationFn: () =>
@@ -425,21 +437,20 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
                   <button
                     type="button"
                     className="max-w-40 truncate px-2 py-0.5 text-xs hover:text-azure"
-                    onClick={() => {
-                      setSavedId(list.id)
-                      setName(list.name)
-                      setCatalogueId(list.catalogueId)
-                      setDetachmentId(list.detachmentId ?? undefined)
-                      setLimit(list.limit)
-                      setPicked(list.picks.map((pick, at) => ({ ...pick, key: at })))
-                      setNextKey(list.picks.length)
-                      setSelected(null)
-                      // Stratagems are chosen once and travel with the list.
-                      if (list.prep) onRestorePrep(list.prep)
-                    }}
+                    title={`${list.picks.length} units · ${list.limit} points · updated ${new Date(list.updatedAt).toLocaleDateString()}`}
+                    onClick={() => loadSaved(list)}
                   >
                     {list.name}
                   </button>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    className="size-6"
+                    aria-label={`Copy ${list.name}`}
+                    onClick={() => loadSaved(list, true)}
+                  >
+                    <Copy />
+                  </Button>
                   <Button
                     variant="ghost"
                     size="icon-sm"

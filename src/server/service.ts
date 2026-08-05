@@ -123,6 +123,7 @@ export class PraetoriumService {
       catalogueId: row.catalogueId,
       detachmentId: row.detachmentId,
       limit: row.limit,
+      updatedAt: row.updatedAt,
       picks: picksSchema.parse(JSON.parse(row.picks)),
       prep: row.prep ? savedPrepSchema.parse(JSON.parse(row.prep)) : null,
     }))

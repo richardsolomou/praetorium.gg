@@ -50,4 +50,10 @@ test('a list is saved and loaded into another battle', async ({ browser }) => {
     .click()
   await expect(page.getByLabel('Plague Marines models')).toHaveText('6')
   await expect(page.getByRole('combobox', { name: 'Detachment' })).toContainText(/Death Lord/)
+
+  await page.getByRole('button', { name: 'Copy Nurgle 2k' }).click()
+  await expect(page.getByLabel('List name')).toHaveValue('Copy of Nurgle 2k')
+  await expect(page.getByLabel('Plague Marines models')).toHaveText('6')
+  await page.getByRole('button', { name: 'Save list' }).click()
+  await expect(page.getByRole('button', { name: 'Copy of Nurgle 2k', exact: true })).toBeVisible()
 })

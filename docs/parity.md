@@ -133,7 +133,7 @@ It does not include BattleBase's rankings, events, leagues, locations, friends o
 | Catalogue acquisition      | Done                  | The instance fetches pinned BSData and 40kdc-data revisions in the background and swaps staged data atomically. No game data is committed.                                                                                                             |
 | Roster construction        | Substantial           | Faction, game size, detachment, top-level datasheets, squad size, choices, split collective wargear, enhancements, attachments and points limits.                                                                                                      |
 | Roster validation          | Substantial           | Constraints, modifiers, conditions, force scope, ordering, category keywords and catalogue-sensitive costs. The Munitorum ratchet is 97.4% of 1,548 checks. Unknown semantics are reported rather than guessed.                                        |
-| Roster library             | Partial               | A standalone roster destination can build, import, name, save, load and delete lists. There is no copy flow, metadata view or shareable read-only roster.                                                                                              |
+| Roster library             | Substantial           | The standalone destination builds, imports, names, saves, loads, renames, copies and deletes lists. Saved entries expose unit count, points limit and last update; a shareable read-only roster remains.                                               |
 | Interchange                | Partial               | `.ros` and `.rosz` import and `.ros` export work. Unplaceable units are reported. Import restores units and model counts, but does not yet promise lossless import of every nested force, selection, choice or attachment another builder can express. |
 | Collection                 | Partial               | Per-datasheet owned membership drives the picker filter. There are no quantities, collection browser or favourites view.                                                                                                                               |
 | Mission setup              | Done for current data | Force dispositions derive the mission; deployment zones and objectives are drawn from data; fixed/tactical secondaries, primary cards and detachment/core stratagems are picked rather than typed.                                                     |
@@ -172,7 +172,7 @@ This is the implementation order that closes the largest user-visible gaps witho
 
 The responsive application shell now has **Battles**, **Rosters** and **Factions** routes. Rosters can be built, imported, saved, loaded and deleted without starting a battle; battle history shows setup, active and finished battles; factions and their datasheets can be browsed independently. Keep social and competitive BattleBase destinations out of scope.
 
-Finish this slice with roster copy/rename actions and richer saved-roster metadata. Faction results now link to read-only datasheets. Battle summaries should add army names and last activity without storing derived battle state.
+Finish this slice with a shareable read-only roster. Saved lists now copy and rename while exposing unit count, points limit and last update; faction results link to read-only datasheets. Battle summaries should add army names and last activity without storing derived battle state.
 
 ### 2. Rebuild the battle tracker in BattleBase's information architecture
 
