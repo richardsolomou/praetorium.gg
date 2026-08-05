@@ -145,6 +145,10 @@ export class Repository {
     return this.database.select().from(rosters).where(eq(rosters.playerId, playerId)).orderBy(desc(rosters.updatedAt)).all()
   }
 
+  roster(id: string) {
+    return this.database.select().from(rosters).where(eq(rosters.id, id)).get()
+  }
+
   /** The datasheets this player owns models for. */
   collectionOf(playerId: string) {
     return this.database.select().from(collection).where(eq(collection.playerId, playerId)).all()

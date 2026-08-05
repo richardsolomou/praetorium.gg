@@ -1,0 +1,66 @@
+import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
+import { createFileRoute, notFound } from '@tanstack/react-router'
+import { priceQuery, sharedRosterQuery } from '../client/queries'
+
+export const Route = createFileRoute('/r/$id')({
+  loader: async ({ context, params }) => {
+    if (!(await context.queryClient.ensureQueryData(sharedRosterQuery(params.id)))) throw notFound()
+  },
+  component: SharedRoster,
+})
+
+function SharedRoster() {
+  const { id } = Route.useParams()
+  const { data: roster } = useSuspenseQuery(sharedRosterQuery(id))
+  const { data: priced } = useQuery(
+    priceQuery(
+      roster?.catalogueId ?? '',
+      roster?.detachmentId ?? undefined,
+      roster?.picks.map(({ entryId, models, choices, spreads }) => ({ entryId, models, choices, spreads })) ?? [],
+    ),
+  )
+  if (!roster) return null
+
+  return (
+    <main className="mx-auto w-full max-w-3xl px-4 py-8">
+      <header className="flex flex-wrap items-end justify-between gap-4 border-b border-edge pb-4">
+        <div>
+          <p className="eyebrow">Shared roster</p>
+          <h1 className="text-3xl">{roster.name}</h1>
+          <p className="mt-1 text-sm text-dim">
+            {priced?.detachment ?? 'No detachment'} · {roster.picks.length} units
+          </p>
+        </div>
+        <span className="readout text-2xl font-bold">
+          {priced?.points ?? '—'}/{roster.limit}
+        </span>
+      </header>
+
+      {priced?.errors.length ? (
+        <div className="mt-4 border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
+          This roster has {priced.errors.length} validation {priced.errors.length === 1 ? 'issue' : 'issues'} against the current catalogue
+          revision.
+        </div>
+      ) : null}
+
+      <div className="mt-4 space-y-2">
+        {(priced?.units ?? []).map((unit) => (
+          <article key={unit.key} className="border border-edge bg-panel p-3">
+            <div className="flex items-baseline justify-between gap-3">
+              <h2 className="text-base">{unit.name}</h2>
+              <span className="chip">{unit.points} pts</span>
+            </div>
+            <p className="readout mt-1 text-xs text-dim">{unit.size.models} models</p>
+            <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-dim">
+              {unit.wargear.map((piece) => (
+                <li key={piece.name}>
+                  {piece.count}x {piece.name}
+                </li>
+              ))}
+            </ul>
+          </article>
+        ))}
+      </div>
+    </main>
+  )
+}

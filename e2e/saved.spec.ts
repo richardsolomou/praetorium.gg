@@ -56,4 +56,7 @@ test('a list is saved and loaded into another battle', async ({ browser }) => {
   await expect(page.getByLabel('Plague Marines models')).toHaveText('6')
   await page.getByRole('button', { name: 'Save list' }).click()
   await expect(page.getByRole('button', { name: 'Copy of Nurgle 2k', exact: true })).toBeVisible()
+  await page.getByRole('link', { name: 'View Copy of Nurgle 2k' }).click()
+  await expect(page.getByRole('heading', { name: 'Copy of Nurgle 2k' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Plague Marines' })).toBeVisible()
 })

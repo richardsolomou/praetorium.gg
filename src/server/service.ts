@@ -129,6 +129,22 @@ export class PraetoriumService {
     }))
   }
 
+  /** A roster shared by its random id, without any owner identity. */
+  sharedRoster(id: string) {
+    const row = this.repository.roster(id)
+    return row
+      ? {
+          id: row.id,
+          name: row.name,
+          catalogueId: row.catalogueId,
+          detachmentId: row.detachmentId,
+          limit: row.limit,
+          updatedAt: row.updatedAt,
+          picks: picksSchema.parse(JSON.parse(row.picks)),
+        }
+      : null
+  }
+
   deleteRoster(playerId: string, id: string) {
     this.repository.deleteRoster(id, playerId)
   }

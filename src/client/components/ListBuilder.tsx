@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Check, Copy, Download, Save, Trash2, TriangleAlert, Upload } from 'lucide-react'
+import { Link } from '@tanstack/react-router'
+import { Check, Copy, Download, Eye, Save, Trash2, TriangleAlert, Upload } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -442,6 +443,15 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
                   >
                     {list.name}
                   </button>
+                  <Button
+                    render={<Link to="/r/$id" params={{ id: list.id }} />}
+                    variant="ghost"
+                    size="icon-sm"
+                    className="size-6"
+                    aria-label={`View ${list.name}`}
+                  >
+                    <Eye />
+                  </Button>
                   <Button
                     variant="ghost"
                     size="icon-sm"
