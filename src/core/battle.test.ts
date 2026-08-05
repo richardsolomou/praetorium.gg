@@ -113,6 +113,12 @@ describe('the turn sequence', () => {
     expect(state.status).toBe('finished')
   })
 
+  it('keeps the final battle round within the five-round ledger', () => {
+    const rounds = Array.from({ length: BATTLE_ROUNDS }, () => [...turns(6, ALICE), ...turns(6, BOB)]).flat()
+    const state = reduceBattle(PLAYERS, log(...started(), ...rounds))
+    expect(state.round).toBe(BATTLE_ROUNDS)
+  })
+
   it('refuses to end a phase for the player whose turn it is not', () => {
     const state = reduceBattle(PLAYERS, log(...started()))
     expect(validate(state, BOB, advance())).toBe('it is not your turn')
