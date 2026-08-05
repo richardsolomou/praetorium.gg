@@ -73,6 +73,12 @@ const slugOf = (catalogueName: string) =>
 
 const catalogueBySlug = new Map<string, string>()
 for (const catalogue of index.catalogues.values()) catalogueBySlug.set(slugOf(catalogue.name), catalogue.id)
+const catalogueLinks = new Map(
+  files.flatMap((file) => {
+    const catalogue = file.catalogue ?? file.gameSystem
+    return catalogue ? [[catalogue.id, (catalogue.catalogueLinks ?? []).map((link) => link.targetId)] as const] : []
+  }),
+)
 const catalogueAliases: Record<string, string> = {
   'chaos-titan-legions': 'titanicus-traitoris',
   'imperial-agents': 'agents-of-the-imperium',
@@ -106,11 +112,22 @@ for (const id of index.datasheets) {
  * the catalogues model as `model` rather than `unit`. Looking only for units
  * skipped two thirds of the game.
  */
-function resolve(name: string) {
+function resolve(name: string, catalogueId?: string) {
   const key = normalise(name)
   const all = byName.get(key) ?? bySingularName.get(key.endsWith('s') ? key.slice(0, -1) : key) ?? []
-  const datasheets = all.filter((entry) => entry.type === 'unit')
-  return datasheets.length ? datasheets : all.filter((entry) => entry.type === 'model')
+  const accessible = new Set<string>()
+  const visit = (id: string) => {
+    if (accessible.has(id)) return
+    accessible.add(id)
+    for (const linked of catalogueLinks.get(id) ?? []) visit(linked)
+  }
+  if (catalogueId) visit(catalogueId)
+
+  const direct = catalogueId ? all.filter((entry) => index.catalogueOf.get(entry.id) === catalogueId) : []
+  const imported = catalogueId ? all.filter((entry) => accessible.has(index.catalogueOf.get(entry.id) ?? '')) : []
+  const candidates = direct.length ? direct : imported.length ? imported : all
+  const datasheets = candidates.filter((entry) => entry.type === 'unit')
+  return datasheets.length ? datasheets : candidates.filter((entry) => entry.type === 'model')
 }
 
 /** Separately priced wargear uses the quantities selected for the whole unit. */
@@ -150,7 +167,11 @@ for (const faction of factions) {
   }
   for (const unit of faction.units) {
     if (wantedUnit && !unit.name.toLowerCase().includes(wantedUnit)) continue
-    const candidates = resolve(unit.name)
+    const unitCatalogueId =
+      faction.slug === 'imperial-agents' && unit.groupTitle?.toLowerCase().includes('every model has the imperium keyword')
+        ? catalogueBySlug.get('adeptus-astartes')
+        : primaryCatalogueId
+    const candidates = resolve(unit.name, unitCatalogueId)
     const tiers = (firstCopyRange(unit)?.costs ?? []).filter((cost) => !cost.addon)
     if (!tiers.length) continue
     if (!candidates.length) {
@@ -166,11 +187,6 @@ for (const faction of factions) {
 
     const [entry] = candidates
     if (!entry) continue
-    const unitCatalogueId =
-      faction.slug === 'imperial-agents' && unit.groupTitle?.toLowerCase().includes('every model has the imperium keyword')
-        ? catalogueBySlug.get('adeptus-astartes')
-        : primaryCatalogueId
-
     for (const tier of tiers) {
       // The app builds a unit the same way, through the same function, so this
       // number is about the evaluator rather than about this script's guesswork.
