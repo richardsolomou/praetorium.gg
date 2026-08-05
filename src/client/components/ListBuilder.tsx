@@ -1,10 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { Check, Copy, Download, Eye, Layers3, LoaderCircle, Trash2, TriangleAlert, Upload } from 'lucide-react'
+import { Check, Copy, Download, Eye, Layers3, LoaderCircle, Plus, Trash2, TriangleAlert, Upload, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import type { Roster, Secondary, Stratagem } from '../../core/battle'
 import { GAME_SIZES, ROSTER_NAME_MAX_LENGTH } from '../../core/battle'
@@ -428,39 +428,55 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
           </div>
 
           {faction?.detachments.length ? (
-            <div className="min-w-0">
+            <div className="min-w-64">
               <span className="eyebrow block">Detachments</span>
-              <DropdownMenu>
-                <DropdownMenuTrigger
-                  aria-label="Detachments"
-                  className="flex h-6 max-w-72 items-center gap-1 truncate font-semibold text-azure uppercase"
-                >
-                  <Layers3 className="size-3" aria-hidden />
-                  {detachmentIds.length
-                    ? `${faction.detachments.find((entry) => entry.id === detachmentIds[0])?.name ?? 'Primary'}${detachmentIds.length > 1 ? ` +${detachmentIds.length - 1}` : ''}`
-                    : 'Buy detachments'}
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-80 rounded-none border border-edge-strong bg-raised ring-0">
-                  {faction.detachments.map((entry) => {
-                    const checked = detachmentIds.includes(entry.id)
-                    const cost = entry.reference?.points
-                    return (
-                      <DropdownMenuCheckboxItem
-                        key={entry.id}
-                        checked={checked}
-                        closeOnClick
-                        disabled={!checked && detachmentIds.length >= 3}
-                        onCheckedChange={(next) => toggleDetachment(entry.id, next)}
-                        className="rounded-none text-xs uppercase focus:bg-edge"
-                      >
-                        <span className="min-w-0 flex-1 truncate">{entry.name}</span>
-                        {checked && detachmentIds[0] === entry.id ? <span className="eyebrow text-azure">Primary</span> : null}
-                        {cost === null || cost === undefined ? null : <span className="chip">{cost} DP</span>}
-                      </DropdownMenuCheckboxItem>
-                    )
-                  })}
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <div className="mt-1 space-y-1">
+                {detachmentIds.map((id, index) => {
+                  const entry = faction.detachments.find((candidate) => candidate.id === id)
+                  if (!entry) return null
+                  return (
+                    <div key={id} className="flex min-h-8 items-center gap-2 border border-edge-strong bg-raised px-2 py-1">
+                      <Layers3 className="size-3 shrink-0 text-azure" aria-hidden />
+                      <span className="min-w-0 flex-1 truncate text-xs font-semibold uppercase">{entry.name}</span>
+                      {index === 0 ? <span className="eyebrow text-azure">Primary</span> : null}
+                      {entry.reference?.points == null ? null : <span className="chip">{entry.reference.points} DP</span>}
+                      <Button variant="ghost" size="icon" aria-label={`Remove ${entry.name}`} onClick={() => toggleDetachment(id, false)}>
+                        <X />
+                      </Button>
+                    </div>
+                  )
+                })}
+                {detachmentIds.length < 3 ? (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger
+                      aria-label="Add detachment"
+                      className="flex h-8 w-full items-center gap-2 border border-dashed border-edge-strong px-2 text-xs font-semibold text-azure uppercase"
+                    >
+                      <Plus className="size-3" aria-hidden /> Add detachment
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="w-80 rounded-none border border-edge-strong bg-raised ring-0">
+                      {faction.detachments
+                        .filter((entry) => !detachmentIds.includes(entry.id))
+                        .map((entry) => (
+                          <DropdownMenuItem
+                            key={entry.id}
+                            onClick={() => toggleDetachment(entry.id, true)}
+                            className="rounded-none text-xs uppercase focus:bg-edge"
+                          >
+                            <span className="min-w-0 flex-1 truncate">{entry.name}</span>
+                            {entry.reference?.points == null ? null : <span className="chip">{entry.reference.points} DP</span>}
+                          </DropdownMenuItem>
+                        ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                ) : null}
+                {priced?.detachmentError ? (
+                  <p role="alert" className="flex max-w-80 gap-1.5 text-xs text-destructive">
+                    <TriangleAlert className="mt-0.5 size-3 shrink-0" aria-hidden />
+                    {priced.detachmentError}
+                  </p>
+                ) : null}
+              </div>
             </div>
           ) : null}
 
@@ -491,7 +507,9 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
             `${priced?.points ?? 0}/${limit} points`,
             priced?.detachmentPointBudget === null || priced?.detachmentPointBudget === undefined
               ? null
-              : `${priced.detachmentPointsSpent}/${priced.detachmentPointBudget} DP`,
+              : detachmentIds.length <= 1
+                ? `${priced.detachmentPointsSpent} DP detachment`
+                : `${priced.detachmentPointsSpent}/${priced.detachmentPointBudget} DP allowance`,
             `${units.length} ${units.length === 1 ? 'unit' : 'units'}`,
           ]
             .filter(Boolean)
@@ -680,7 +698,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
               {over && priced
                 ? `${priced.points - limit} pts over`
                 : overDetachmentPoints && priced && priced.detachmentPointBudget !== null
-                  ? `${priced.detachmentPointsSpent - priced.detachmentPointBudget} DP over`
+                  ? 'Invalid detachments'
                   : needsDetachment
                     ? 'Pick a detachment first'
                     : attached

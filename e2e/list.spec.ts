@@ -24,8 +24,8 @@ test('a built list is priced, played and tracked', async ({ browser }) => {
   await alice.getByRole('option', { name: 'Chaos - Death Guard' }).click()
 
   // A list without a detachment is not a legal army, so it cannot be attached.
-  await alice.getByRole('button', { name: 'Detachments' }).click()
-  await alice.getByRole('menuitemcheckbox', { name: /Death Lord/ }).click()
+  await alice.getByRole('button', { name: 'Add detachment' }).click()
+  await alice.getByRole('menuitem', { name: /Death Lord/ }).click()
 
   await alice.getByLabel('Add a unit').fill('Plague Marines')
   await alice.getByRole('button', { name: 'Add Plague Marines', exact: true }).first().click()

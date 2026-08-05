@@ -136,6 +136,14 @@ export const GAME_SIZES = [
 
 export const detachmentPointBudget = (limit: number) => GAME_SIZES.find((size) => size.limit === limit)?.detachmentPoints ?? null
 
+export function detachmentPointsError(detachments: readonly { points: number | null }[], allowance: number | null): string | null {
+  if (detachments.length <= 1 || allowance === null) return null
+  const spent = detachments.reduce((total, detachment) => total + (detachment.points ?? 0), 0)
+  return spent > allowance
+    ? `This combination costs ${spent} DP; multiple detachments at this battle size may cost at most ${allowance} DP.`
+    : null
+}
+
 export type Command =
   | { kind: 'attach-roster'; roster: Roster }
   | { kind: 'set-unit'; unitKey: string; destroyed: boolean }
@@ -294,12 +302,10 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
       if (!command.roster.text.trim()) return 'paste your list'
       if (command.roster.text.length > ROSTER_MAX_LENGTH) return 'that list is too long'
       const built = command.roster.built
-      if (
-        built?.detachmentPointBudget !== null &&
-        built?.detachmentPointBudget !== undefined &&
-        (built.detachments ?? []).reduce((total, detachment) => total + (detachment.points ?? 0), 0) > built.detachmentPointBudget
-      )
-        return 'detachments exceed the DP budget'
+      if (built?.detachmentPointBudget !== undefined) {
+        const detachmentError = detachmentPointsError(built.detachments ?? [], built.detachmentPointBudget)
+        if (detachmentError) return 'invalid detachment combination'
+      }
       return null
     }
     case 'begin-battle': {
