@@ -25,6 +25,7 @@ const SIDES = [
 ]
 
 export function Tracker({ view, mission, present, send, pending, problem }: Props) {
+  const [mobileTab, setMobileTab] = useState<'info' | 'events'>('info')
   const you = view.players.find((player) => player.isViewer)
   const built = you?.roster?.built
   // The cards say what they pay out, so the interface can offer the figure instead
@@ -69,7 +70,7 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
         {view.players.map((player, index) => (
           <section
             key={player.id}
-            className={`space-y-3 rounded-lg border border-edge border-l-2 bg-panel p-4 lg:row-start-1 ${index === 0 ? 'lg:col-start-1' : 'lg:col-start-3'} ${SIDES[index]?.accent ?? ''} ${
+            className={`${mobileTab === 'events' ? 'hidden lg:block' : ''} space-y-3 rounded-lg border border-edge border-l-2 bg-panel p-4 lg:row-start-1 ${index === 0 ? 'lg:col-start-1' : 'lg:col-start-3'} ${SIDES[index]?.accent ?? ''} ${
               player.isActive ? 'ring-2 ring-azure/50' : ''
             }`}
           >
@@ -348,14 +349,31 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
         ))}
 
         <section className="order-first space-y-3 border border-edge bg-panel p-4 sm:col-span-2 lg:col-span-1 lg:col-start-2 lg:row-start-1">
-          <div className="text-center">
-            <p className="eyebrow">{finished ? 'Final result' : `Battle round ${view.round}`}</p>
-            <p className="mt-1 text-xl font-bold uppercase">{finished ? outcome(view) : `${view.phase} phase`}</p>
-            <p className="mt-1 text-xs text-dim">{mission?.name ?? 'Matched play'}</p>
+          <div className="grid grid-cols-2 border-b border-edge lg:hidden">
+            {(['info', 'events'] as const).map((tab) => (
+              <button
+                key={tab}
+                type="button"
+                className={`eyebrow border-b-2 py-2 ${mobileTab === tab ? 'border-azure text-azure' : 'border-transparent'}`}
+                aria-pressed={mobileTab === tab}
+                onClick={() => setMobileTab(tab)}
+              >
+                {tab}
+              </button>
+            ))}
           </div>
-          <ScoreChart players={view.players} />
+          <div className={mobileTab === 'events' ? 'hidden lg:block' : ''}>
+            <div className="text-center">
+              <p className="eyebrow">{finished ? 'Final result' : 'Now'}</p>
+              <p className="mt-1 text-xl font-bold uppercase">{finished ? outcome(view) : `${view.phase} phase`}</p>
+              <p className="mt-1 text-xs text-dim">
+                Round {view.round} · {mission?.name ?? 'Matched play'}
+              </p>
+            </div>
+            <ScoreChart players={view.players} />
+          </div>
           {finished ? null : (
-            <div className="space-y-2 border-t border-edge pt-3">
+            <div className={`${mobileTab === 'events' ? 'hidden lg:block' : ''} space-y-2 border-t border-edge pt-3`}>
               <Button
                 variant={yourTurn ? 'default' : 'outline'}
                 className="h-11 w-full text-base"
@@ -380,7 +398,7 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
             </div>
           )}
           {problem ? <p className="text-sm text-destructive">{problem}</p> : null}
-          <ReportDetails token={view.token} />
+          <ReportDetails token={view.token} forceOpen={mobileTab === 'events'} />
         </section>
       </div>
 
@@ -529,12 +547,12 @@ const awardTitle = (award: Award) =>
   undefined
 
 /** Opened on demand, so the account is not fetched on every change to the battle. */
-function ReportDetails({ token }: { token: string }) {
+function ReportDetails({ token, forceOpen = false }: { token: string; forceOpen?: boolean }) {
   const [open, setOpen] = useState(false)
   return (
-    <details className="text-sm text-dim" onToggle={(event) => setOpen(event.currentTarget.open)}>
-      <summary className="cursor-pointer">How the battle went</summary>
-      <Report token={token} open={open} />
+    <details className="text-sm text-dim" open={forceOpen || undefined} onToggle={(event) => setOpen(event.currentTarget.open)}>
+      <summary className={`cursor-pointer ${forceOpen ? 'hidden lg:list-item' : ''}`}>How the battle went</summary>
+      <Report token={token} open={forceOpen || open} />
     </details>
   )
 }
