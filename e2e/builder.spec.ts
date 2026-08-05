@@ -151,4 +151,5 @@ test('a squad divides its weapons between two options', async ({ page }) => {
   await expect(page.getByText('7x Gauss blaster')).toBeVisible()
   await expect(page.getByText('3x Tesla carbine')).toBeVisible()
   await expect(page.getByText('Within the points limit')).toBeAttached()
+  await page.screenshot({ path: 'test-results/loadout.png', fullPage: true })
 })

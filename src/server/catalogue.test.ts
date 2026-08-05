@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { buildIndex, type Catalogue, type CatalogueFile } from '../core/catalogue'
-import { type LoadedCatalogue, unitsIn } from './catalogue'
+import { datasheetIn, type LoadedCatalogue, unitsIn } from './catalogue'
 
 const PTS = 'cost-pts'
 
@@ -67,5 +67,37 @@ describe('the picker', () => {
     // The index knows the name but the entry is not in it, so nothing can be built.
     book.index.definitions.delete('ghost')
     expect(unitsIn(book, 'cat', '')[0]?.points).toBeNull()
+  })
+})
+
+describe('a datasheet', () => {
+  it('collects model, weapon, ability and keyword display data', () => {
+    const book = bookOf({
+      selectionEntries: [
+        {
+          id: 'squad',
+          name: 'Squad',
+          type: 'unit',
+          categoryLinks: categories('Infantry', 'Battleline'),
+          profiles: [{ id: 'unit', name: 'Squad', typeName: 'Unit', characteristics: [{ name: 'T', $text: '4' }] }],
+          selectionEntries: [
+            {
+              id: 'gun',
+              name: 'Rifle',
+              type: 'upgrade',
+              profiles: [{ id: 'weapon', name: 'Rifle', typeName: 'Ranged Weapons', characteristics: [{ name: 'A', $text: '2' }] }],
+            },
+          ],
+        },
+      ],
+    })
+    expect(datasheetIn(book, 'cat', 'squad')).toMatchObject({
+      name: 'Squad',
+      keywords: ['Battleline', 'Infantry'],
+      profiles: [
+        { name: 'Squad', type: 'Unit', values: [{ name: 'T', value: '4' }] },
+        { name: 'Rifle', type: 'Ranged Weapons', values: [{ name: 'A', value: '2' }] },
+      ],
+    })
   })
 })

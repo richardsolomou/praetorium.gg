@@ -157,7 +157,7 @@ export type CategoryEntry = {
 /** `$text` is where the JSON puts a characteristic's words. */
 export type Characteristic = { name?: string; $text?: string }
 
-export type Profile = { id: string; name?: string; typeName?: string; characteristics?: Characteristic[] }
+export type Profile = { id: string; name?: string; typeName?: string; hidden?: boolean; characteristics?: Characteristic[] }
 
 /** A named bundle of profiles hanging off an entry — "Leader" is one. */
 export type InfoGroup = { id: string; name?: string; profiles?: Profile[] }

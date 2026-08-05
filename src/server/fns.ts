@@ -7,13 +7,14 @@ import { configuredProviders } from './auth'
 import { evaluate, type Selection } from '../core/evaluate'
 import { attachmentOf } from '../core/attach'
 import { buildUnit, wargearOf } from '../core/roster'
-import { groupOfEntry, unitsIn } from './catalogue'
+import { datasheetIn, groupOfEntry, unitsIn } from './catalogue'
 import { fromRosterXml, toRosterXml } from '../core/rosz'
 import { parseXml, rosterXml } from './rosz'
 import { ATTRIBUTION, slug } from './rules'
 import { mutationRpc, rpc } from './rpc'
 import {
   createBattleSchema,
+  datasheetSchema,
   detachmentRulesSchema,
   exportRosterSchema,
   importRosterSchema,
@@ -164,6 +165,15 @@ export const units = createServerFn({ method: 'GET' })
     rpc(() => {
       const loaded = app().catalogue()
       return loaded ? unitsIn(loaded, data.catalogueId, data.query) : []
+    }),
+  )
+
+export const datasheet = createServerFn({ method: 'GET' })
+  .validator(datasheetSchema)
+  .handler(({ data }) =>
+    rpc(() => {
+      const loaded = app().catalogue()
+      return loaded ? datasheetIn(loaded, data.catalogueId, data.entryId) : null
     }),
   )
 

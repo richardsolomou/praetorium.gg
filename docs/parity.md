@@ -148,7 +148,7 @@ It does not include BattleBase's rankings, events, leagues, locations, friends o
 | Visual system          | Done                             | Near-black surfaces, compact radii, tracked uppercase headings, tabular numbers, bordered points chips, red/blue ownership tints and an openly licensed condensed typeface.                                       |
 | Builder desktop layout | Close                            | Three panes for picker, roster and loadout; category shelves, counts and a persistent points total follow BattleBase's information architecture.                                                                  |
 | Builder mobile layout  | Close                            | One roster plus one movable picker/loadout pane avoids duplicate controls and keeps squad size on the card. It follows Praetorium's chosen responsive interpretation rather than BattleBase's separate phone app. |
-| Builder detail         | Partial                          | Cards and choice controls match the density, but the loadout pane lacks datasheet stats, weapon profiles, rules, keywords and BattleBase's utility actions.                                                       |
+| Builder detail         | Substantial                      | The loadout pane shows model stats, weapon profiles, ability pills and a link to the full datasheet alongside choice controls. Enhancement card treatment and remaining utility actions remain.                   |
 | Application shell      | Done for the scoped destinations | Persistent navigation exposes first-class battle history, roster building and faction browsing. Social and competitive BattleBase destinations remain out of scope.                                               |
 | Setup flow             | Partial                          | The order follows the game and all game facts are picked from data, but it is presented as stacked forms rather than BattleBase's compact destination-based workflow.                                             |
 | Battle tracker         | Substantial                      | Desktop uses player/shared/player columns with ownership tints, shared phase controls and a five-turn primary/secondary ledger folded from the command log. Card state, charts and timing remain.                 |
@@ -172,7 +172,7 @@ This is the implementation order that closes the largest user-visible gaps witho
 
 The responsive application shell now has **Battles**, **Rosters** and **Factions** routes. Rosters can be built, imported, saved, loaded and deleted without starting a battle; battle history shows setup, active and finished battles; factions and their datasheets can be browsed independently. Keep social and competitive BattleBase destinations out of scope.
 
-Finish this slice with roster copy/rename actions, richer saved-roster metadata, a read-only datasheet route and direct links from faction results. Battle summaries should add army names and last activity without storing derived battle state.
+Finish this slice with roster copy/rename actions and richer saved-roster metadata. Faction results now link to read-only datasheets. Battle summaries should add army names and last activity without storing derived battle state.
 
 ### 2. Rebuild the battle tracker in BattleBase's information architecture
 
@@ -186,7 +186,7 @@ On phones, make an explicit choice rather than shrinking the desktop grid. Match
 
 - Expand the unit actions beyond the implemented duplicate and delete controls with favourite/owned. Duplication preserves the complete configured pick, including its attachment target.
 - Put enhancements and a warlord marker on the unit card, while keeping one accessible control for each value.
-- Add datasheet detail: model stats, ranged and melee weapon profiles, abilities and keywords. Decide the legal/product policy for displaying full rules text before implementing it; the catalogue index carrying text does not by itself settle that decision.
+- Refine the implemented datasheet detail against more books and complex profile shapes. It presents model stats, ranged and melee weapon profiles, abilities and keywords from fetched catalogues without committing their text to this repository.
 - Show the datasheet's replacement sentence beside wargear controls so the counts have context.
 - Model mission-pack picker restrictions only from fetched data. Do not hard-code BattleBase's current “Epic Heroes and toughness 10” sentence.
 - Add the missing saved-attachment round-trip test.

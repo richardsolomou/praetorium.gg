@@ -4,6 +4,7 @@ import {
   catalogueStatus,
   collection,
   deployments,
+  datasheet,
   detachmentRules,
   factions,
   me,
@@ -32,6 +33,14 @@ export const unitsQuery = (catalogueId: string, query: string) =>
     queryKey: ['units', catalogueId, query],
     queryFn: () => units({ data: { catalogueId, query } }),
     enabled: Boolean(catalogueId),
+  })
+
+export const datasheetQuery = (catalogueId: string, entryId: string) =>
+  queryOptions({
+    queryKey: ['datasheet', catalogueId, entryId],
+    queryFn: () => datasheet({ data: { catalogueId, entryId } }),
+    enabled: Boolean(catalogueId && entryId),
+    staleTime: Infinity,
   })
 
 export type PickedUnit = {
