@@ -15,7 +15,7 @@ import path from 'node:path'
 import { parse } from 'yaml'
 import { buildIndex, type CatalogueFile, type SelectionEntry } from '../src/core/catalogue'
 import { evaluate, type Selection } from '../src/core/evaluate'
-import { buildUnit } from '../src/core/roster'
+import { buildUnit, isResizable } from '../src/core/roster'
 
 const dataDirectory = process.env.CATALOGUE_DIR ?? path.join(import.meta.dirname, '..', 'catalogue-data')
 const definitionsDirectory = path.join(dataDirectory, 'definitions')
@@ -192,7 +192,10 @@ for (const faction of factions) {
       // The app builds a unit the same way, through the same function, so this
       // number is about the evaluator rather than about this script's guesswork.
       const built = buildUnit(entry.id, index, tier.models, undefined, { primaryCatalogueId: unitCatalogueId })
-      if (!built || built.size.models !== tier.models) {
+      // The manual calls a fixed datasheet one priced model even when its
+      // catalogue selection contains a required companion, such as Sir Hekhtur.
+      const fixedDatasheet = built && tier.models === 1 && !isResizable(built.size)
+      if (!built || (built.size.models !== tier.models && !fixedDatasheet)) {
         tally.unsupportedShape++
         skipped.unsupported.push(
           `${faction.slug}: ${unit.name} @ ${tier.models} models (${built ? `built ${built.size.models}` : 'could not build'})`,
