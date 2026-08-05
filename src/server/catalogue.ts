@@ -18,10 +18,12 @@ export function catalogueDirectory(dataDirectory = process.env.DATA_DIR ?? '/dat
 
 export type LoadedCatalogue = {
   index: CatalogueIndex
-  factions: { id: string; name: string }[]
+  factions: { id: string; name: string; references: CatalogueReference[] }[]
   /** The detachment options each book offers, keyed by catalogue id. */
   detachments: Map<string, DetachmentOptions>
 }
+
+export type CatalogueReference = { id: string; name: string; datasheets: number; detachments: number }
 
 /**
  * How a book presents its detachments: one wrapper entry the roster must hold
@@ -66,15 +68,27 @@ export function loadCatalogue(directory = catalogueDirectory()): LoadedCatalogue
   if (!files.length) return null
 
   const index = buildIndex(files, revision.definitions)
+  const detachments = detachmentsOf(files)
   const factions = [...index.catalogues.values()]
     .filter(
       (catalogue) =>
         !catalogue.library && !catalogue.gameSystem && !catalogue.name.endsWith(LIBRARY_SUFFIX) && unitCount(index, catalogue.id) > 0,
     )
-    .map((catalogue) => ({ id: catalogue.id, name: catalogue.name }))
+    .map((catalogue) => ({
+      id: catalogue.id,
+      name: catalogue.name,
+      references: [
+        {
+          id: catalogue.id,
+          name: catalogue.name,
+          datasheets: unitCount(index, catalogue.id),
+          detachments: detachments.get(catalogue.id)?.options.length ?? 0,
+        },
+      ],
+    }))
     .toSorted((left, right) => left.name.localeCompare(right.name))
 
-  return { index, factions, detachments: detachmentsOf(files) }
+  return { index, factions, detachments }
 }
 
 function detachmentsOf(files: readonly CatalogueFile[]): Map<string, DetachmentOptions> {
