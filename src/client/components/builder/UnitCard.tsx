@@ -1,4 +1,4 @@
-import { ChevronRight, Copy, Crown, Heart, Minus, Plus, X } from 'lucide-react'
+import { ChevronRight, Copy, Crown, EllipsisVertical, Heart, Minus, Plus, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { Attachment } from '../../../core/attach'
 
@@ -115,21 +115,39 @@ export function UnitCard({
               <Crown />
             </Button>
           ))}
-          <Button variant="ghost" size="icon-sm" aria-label={`Duplicate ${unit.name}`} onClick={onDuplicate}>
-            <Copy />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-label={`${owned ? 'Remove' : 'Add'} ${unit.name} ${owned ? 'from' : 'to'} your collection`}
-            aria-pressed={owned}
-            onClick={onOwned}
-          >
-            <Heart className={owned ? 'fill-azure text-azure' : ''} />
-          </Button>
-          <Button variant="ghost" size="icon-sm" aria-label={`Remove ${unit.name}`} onClick={onRemove}>
-            <X />
-          </Button>
+          <details className="relative">
+            <summary
+              className="flex size-7 cursor-pointer list-none items-center justify-center rounded-sm hover:bg-raised [&::-webkit-details-marker]:hidden"
+              aria-label={`Unit actions for ${unit.name}`}
+            >
+              <EllipsisVertical className="size-4" />
+            </summary>
+            <div className="absolute top-8 right-0 z-20 w-44 border border-edge-strong bg-raised p-1 shadow-xl">
+              <button
+                type="button"
+                className="flex w-full items-center gap-2 px-2 py-1.5 text-left text-xs font-semibold uppercase hover:bg-edge"
+                onClick={onDuplicate}
+              >
+                <Copy className="size-3.5" /> Duplicate unit
+              </button>
+              <button
+                type="button"
+                className="flex w-full items-center gap-2 px-2 py-1.5 text-left text-xs font-semibold uppercase hover:bg-edge"
+                aria-pressed={owned}
+                onClick={onOwned}
+              >
+                <Heart className={`size-3.5 ${owned ? 'fill-azure text-azure' : ''}`} />
+                {owned ? 'Remove from collection' : 'Add to collection'}
+              </button>
+              <button
+                type="button"
+                className="flex w-full items-center gap-2 px-2 py-1.5 text-left text-xs font-semibold text-destructive uppercase hover:bg-edge"
+                onClick={onRemove}
+              >
+                <X className="size-3.5" /> Delete unit
+              </button>
+            </div>
+          </details>
           <ChevronRight className="size-4 text-faint" aria-hidden />
         </span>
       </div>

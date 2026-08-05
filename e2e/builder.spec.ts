@@ -43,7 +43,9 @@ test('a unit duplicates with its configured model count', async ({ page }) => {
   await openBuilder(page)
   await add(page, 'Immortals')
   await page.getByRole('button', { name: 'More models in Immortals' }).click()
-  await page.getByRole('button', { name: 'Duplicate Immortals' }).click()
+  await page.getByLabel('Unit actions for Immortals').click()
+  await page.screenshot({ path: 'test-results/unit-actions.png', fullPage: true })
+  await page.getByRole('button', { name: 'Duplicate unit' }).click()
 
   await expect(page.locator('[data-unit="Immortals"]')).toHaveCount(2)
   await expect(page.getByLabel('Immortals models')).toHaveText(['6', '6'])
@@ -71,9 +73,8 @@ test('the filters narrow the book to what is worth taking', async ({ page }) => 
   // eslint-disable-next-line no-await-in-loop
   for (let taken = 0; taken < 3; taken++) await lychguard.click()
   await expect(page.getByText('3/3 in roster')).toBeVisible()
-  await expect(page.locator('[data-unit="Lychguard"]').getByRole('button', { name: 'Remove Lychguard from your collection' })).toHaveCount(
-    3,
-  )
+  await page.locator('[data-unit="Lychguard"]').first().getByLabel('Unit actions for Lychguard').click()
+  await expect(page.locator('[data-unit="Lychguard"]').first().getByRole('button', { name: 'Remove from collection' })).toBeVisible()
   await page.getByRole('button', { name: 'Unit limit' }).click()
   await expect(lychguard).toBeHidden()
 
