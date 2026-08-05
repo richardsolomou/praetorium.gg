@@ -1,6 +1,6 @@
 # Catalogue sources
 
-Muster reads community catalogue data for Warhammer 40,000 and ships none of it. This directory records where the data comes from and which revision is in use; the data itself is fetched into a working directory that is never committed.
+Praetorium reads community catalogue data for Warhammer 40,000 and ships none of it. This directory records where the data comes from and which revision is in use; the data itself is fetched into a working directory that is never committed.
 
 That is deliberate. The catalogues describe Games Workshop's game, and keeping them out of this repository is what lets the project be public without redistributing anyone's content. It is the same posture New Recruit takes.
 

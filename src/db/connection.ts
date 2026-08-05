@@ -7,13 +7,13 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { schema } from './schema'
 
-export type MusterDatabase = BetterSQLite3Database<typeof schema> & { $client: Database.Database }
+export type PraetoriumDatabase = BetterSQLite3Database<typeof schema> & { $client: Database.Database }
 
 const migrationsFolder = import.meta.env.PROD
   ? path.join(path.dirname(process.argv[1]), 'drizzle')
   : fileURLToPath(new URL('../../drizzle', import.meta.url))
 
-export function openDatabase(file: string): MusterDatabase {
+export function openDatabase(file: string): PraetoriumDatabase {
   if (file !== ':memory:') fs.mkdirSync(path.dirname(file), { recursive: true })
   const database = drizzle({ client: new Database(file), schema })
   database.run(sql`PRAGMA journal_mode = WAL`)
@@ -24,10 +24,10 @@ export function openDatabase(file: string): MusterDatabase {
   return database
 }
 
-export function closeDatabase(database: MusterDatabase) {
+export function closeDatabase(database: PraetoriumDatabase) {
   database.$client.close()
 }
 
 export function databasePath(dataDirectory = process.env.DATA_DIR ?? '/data') {
-  return path.join(path.resolve(dataDirectory), 'muster.sqlite')
+  return path.join(path.resolve(dataDirectory), 'praetorium.sqlite')
 }

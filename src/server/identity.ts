@@ -2,7 +2,7 @@ import crypto from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 
-export const PLAYER_COOKIE = 'muster_player'
+export const PLAYER_COOKIE = 'praetorium_player'
 
 const COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 365
 

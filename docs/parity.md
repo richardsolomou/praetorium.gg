@@ -4,7 +4,7 @@ Where this is up to, and what is left. Read [CLAUDE.md](../CLAUDE.md) first — 
 
 ## What we are doing and why
 
-We play with BattleBase at the table. The goal is that switching to Muster costs nobody anything they had already learned, so we are matching it deliberately — its information architecture, its density, its vocabulary — and only then changing things to differentiate.
+We play with BattleBase at the table. The goal is that switching to Praetorium costs nobody anything they had already learned, so we are matching it deliberately — its information architecture, its density, its vocabulary — and only then changing things to differentiate.
 
 One decision worth not re-litigating: **BattleBase's web app is the layout we follow, on dark surfaces.** There are two BattleBases and they look nothing alike — the web app is light, dense, three-column; the phone app is dark, single-column, with a guided "NOW &lt;step&gt;" tracker and a persistent bottom scoreboard. Richard picked the web app's layout with the phone app's dark palette. Do not swap one for the other without asking.
 
@@ -36,7 +36,7 @@ The pages worth looking at, and what each one is:
 | `/battles/<id>`      | A finished battle, three columns                                                                                                                     |
 | `/factions`          | Books, with a favourites section                                                                                                                     |
 
-Their nav also carries Rankings, Events, Leagues and Locations, none of which Muster has anything to say about. Do not build pages for them because the nav has them.
+Their nav also carries Rankings, Events, Leagues and Locations, none of which Praetorium has anything to say about. Do not build pages for them because the nav has them.
 
 The **phone app is a different codebase** with a dark theme, a bottom tab bar and a guided tracker. Its App Store listing is a read-only source for screenshots of it: `apps.apple.com/us/app/battlebase/id1609745397`, with the images on `is1-ssl.mzstatic.com` — pull the `PurpleSource` `srcset` entries and append `/900x0w.png`.
 
@@ -111,7 +111,7 @@ Their **unit card kebab**: `Duplicate unit`, `Add to favourites`, `Mathhammer wi
 
 Their **picker**: a search field, then `POINTS FIT` / `UNIT LIMIT` / `OWNED` chips, then a note — "Epic Heroes and units with toughness 10 or higher are hidden" — which is the mission pack's restrictions, not the book's. Rows read `NAME`, `n/m in roster`, a points chip, and `ADD`.
 
-Their **phone tracker**, for whenever the tracker gets attention: a scrolling content area over a fixed bottom bar that carries both players' VP and CP, their names in side colours with faction beneath, a five-segment round bar each, `BATTLE ROUND n` in the centre, and `INFO` / `EVENTS` tabs. Below that, `NOW` and the current step — "SCORING SELECTED SECRET MISSIONS" — with the scorable cards and explicit `SCORE 0` / `SCORE 20` buttons, then `UNDO`, a primary action that states why it is disabled ("PLEASE ENTER MISSION SCORES"), and a camera. The whole thing is a guided step machine, which is a real difference from Muster's phase model and a decision to make rather than copy.
+Their **phone tracker**, for whenever the tracker gets attention: a scrolling content area over a fixed bottom bar that carries both players' VP and CP, their names in side colours with faction beneath, a five-segment round bar each, `BATTLE ROUND n` in the centre, and `INFO` / `EVENTS` tabs. Below that, `NOW` and the current step — "SCORING SELECTED SECRET MISSIONS" — with the scorable cards and explicit `SCORE 0` / `SCORE 20` buttons, then `UNDO`, a primary action that states why it is disabled ("PLEASE ENTER MISSION SCORES"), and a camera. The whole thing is a guided step machine, which is a real difference from Praetorium's phase model and a decision to make rather than copy.
 
 ## Done
 
@@ -124,7 +124,7 @@ Their **phone tracker**, for whenever the tracker gets attention: a scrolling co
 - **Squad size on the card**, not behind the loadout pane.
 - **Split squads.** Per-option counts, which needed `collective` semantics implementing from scratch across expansion, wargear, capacity and violations.
 
-Deployed at `muster.ras.sh`, auto-deploying from `main`. See [deployment.md](deployment.md).
+Deployed at `praetorium.ras.sh`, auto-deploying from `main`. See [deployment.md](deployment.md).
 
 ## What we learned about our own side
 

@@ -1,7 +1,7 @@
 import { useSuspenseQuery } from '@tanstack/react-query'
 import { createFileRoute, notFound } from '@tanstack/react-router'
 import { Invitation } from '../client/components/Invitation'
-import { Muster } from '../client/components/Muster'
+import { Mustering } from '../client/components/Mustering'
 import { Tracker } from '../client/components/Tracker'
 import { battleQuery } from '../client/queries'
 import { useCommand } from '../client/useCommand'
@@ -24,6 +24,6 @@ function BattlePage() {
 
   if (!screen) return null
   if (screen.kind === 'invitation') return <Invitation token={token} free={screen.free} />
-  if (screen.view.status === 'setup') return <Muster view={screen.view} send={send} pending={pending} problem={problem} />
+  if (screen.view.status === 'setup') return <Mustering view={screen.view} send={send} pending={pending} problem={problem} />
   return <Tracker view={screen.view} mission={screen.mission} present={present} send={send} pending={pending} problem={problem} />
 }

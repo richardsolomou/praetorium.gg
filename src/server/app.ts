@@ -3,16 +3,16 @@ import { type BattleEvents, createBattleEvents } from '../adapters/events'
 import { catalogueDirectory, type LoadedCatalogue, loadCatalogue } from './catalogue'
 import { type LoadedRules, loadRules } from './rules'
 import { isCurrent, type SyncState, syncSources } from './sync'
-import { databasePath, type MusterDatabase, openDatabase } from '../db/connection'
+import { databasePath, type PraetoriumDatabase, openDatabase } from '../db/connection'
 import { Repository } from '../db/repository'
 import { authSecret, createAuth } from './auth'
 import { sessionSecret } from './identity'
 import { Presence } from './presence'
-import { MusterService } from './service'
+import { PraetoriumService } from './service'
 
 type App = {
-  database: MusterDatabase
-  service: MusterService
+  database: PraetoriumDatabase
+  service: PraetoriumService
   events: BattleEvents
   presence: Presence
   secret: string
@@ -71,16 +71,16 @@ const sync = {
 }
 
 // Dev keeps the instance on globalThis so HMR reloads reuse one SQLite handle.
-const globalApp = globalThis as typeof globalThis & { musterApp?: App }
+const globalApp = globalThis as typeof globalThis & { praetoriumApp?: App }
 
 export function app(): App {
-  if (!globalApp.musterApp) {
+  if (!globalApp.praetoriumApp) {
     const file = databasePath()
     const database = openDatabase(file)
     const events = createBattleEvents()
-    globalApp.musterApp = {
+    globalApp.praetoriumApp = {
       database,
-      service: new MusterService(new Repository(database), Date.now, events),
+      service: new PraetoriumService(new Repository(database), Date.now, events),
       events,
       presence: new Presence(),
       secret: sessionSecret(path.dirname(file)),
@@ -92,8 +92,8 @@ export function app(): App {
     // Fetched in the background rather than at boot: an instance must start and
     // serve battles whether or not it has the catalogues yet.
     sync.begin(catalogueDirectory(path.dirname(file)), () => {
-      globalApp.musterApp = { ...globalApp.musterApp!, catalogue: memoize(loadCatalogue), rules: memoize(loadRules) }
+      globalApp.praetoriumApp = { ...globalApp.praetoriumApp!, catalogue: memoize(loadCatalogue), rules: memoize(loadRules) }
     })
   }
-  return globalApp.musterApp
+  return globalApp.praetoriumApp
 }

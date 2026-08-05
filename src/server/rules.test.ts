@@ -8,7 +8,7 @@ let directory: string
 
 /** A dataset small enough to read, shaped exactly like the real one. */
 beforeEach(() => {
-  directory = fs.mkdtempSync(path.join(os.tmpdir(), 'muster-rules-'))
+  directory = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-rules-'))
   const core = path.join(directory, 'data', 'core', 'death-guard')
   fs.mkdirSync(core, { recursive: true })
   const root = path.join(directory, 'data', 'core')

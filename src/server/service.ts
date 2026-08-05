@@ -37,7 +37,7 @@ export type BattleScreen = SeatedScreen | { kind: 'invitation'; free: boolean }
  */
 export type SubmitAnswer = { result: SubmitResult; screen: SeatedScreen }
 
-export class MusterService {
+export class PraetoriumService {
   constructor(
     private readonly repository: Repository,
     private readonly clock: () => number,

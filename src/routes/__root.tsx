@@ -5,7 +5,7 @@ import { authClient } from '../client/authClient'
 import { meQuery } from '../client/queries'
 import appCss from '../styles.css?url'
 
-const TITLE = 'Muster'
+const TITLE = 'Praetorium'
 const DESCRIPTION = 'Track a Warhammer 40,000 game with your opponent, live on both phones.'
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
@@ -13,7 +13,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: 'utf-8' },
       { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-      { name: 'theme-color', content: '#0d0f11' },
+      // Matches `--color-void`; the browser paints this before the stylesheet lands.
+      { name: 'theme-color', content: '#0a0b0d' },
       { title: `${TITLE} — live Warhammer 40,000 battle tracking` },
       { name: 'description', content: DESCRIPTION },
       // Battle links get pasted into chats, so they need a real card.
@@ -80,7 +81,7 @@ function RootComponent() {
           <header className="sticky top-0 z-30 border-b border-edge bg-panel/95 backdrop-blur">
             <div className="flex h-12 items-center gap-5 px-4">
               <Link to="/" className="text-lg leading-none font-bold tracking-[0.02em] text-bone uppercase hover:text-azure">
-                Muster
+                Praetorium
               </Link>
               <Account />
             </div>
@@ -88,6 +89,15 @@ function RootComponent() {
           <div className="flex-1">
             <Outlet />
           </div>
+          {/*
+           * Said plainly and on every page, because the name is drawn from Games
+           * Workshop's setting and nothing about this is theirs or endorsed by them.
+           * The community data has its own attribution, which appears where that
+           * data does — see `ATTRIBUTION` in `src/server/rules.ts`.
+           */}
+          <footer className="border-t border-edge px-4 py-4 text-center text-xs text-faint">
+            Praetorium is an unofficial product, and is not in any way affiliated with or endorsed by Games Workshop.
+          </footer>
         </div>
         <Scripts />
       </body>

@@ -4,7 +4,7 @@ import { defineConfig, devices } from '@playwright/test'
 
 const port = Number(process.env.PLAYWRIGHT_PORT ?? 4173)
 const baseURL = `http://127.0.0.1:${port}`
-const root = process.env.PLAYWRIGHT_DATA_ROOT ?? path.join(os.tmpdir(), `muster-playwright-${port}`)
+const root = process.env.PLAYWRIGHT_DATA_ROOT ?? path.join(os.tmpdir(), `praetorium-playwright-${port}`)
 // The synced catalogue, so list building is exercised against the real data.
 const catalogue = process.env.CATALOGUE_DIR ?? path.join(import.meta.dirname, 'catalogue-data')
 const rules = process.env.RULES_DIR ?? path.join(import.meta.dirname, 'catalogue-data', 'rules')

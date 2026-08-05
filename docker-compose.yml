@@ -1,5 +1,5 @@
 services:
-  muster:
+  praetorium:
     build:
       context: .
     restart: unless-stopped
@@ -23,4 +23,4 @@ services:
       DISCORD_CLIENT_SECRET: ${DISCORD_CLIENT_SECRET:-}
     volumes:
       # The SQLite database holding every battle and its command log.
-      - ${DATA_HOST_DIR:-./muster-data}:/data
+      - ${DATA_HOST_DIR:-./praetorium-data}:/data

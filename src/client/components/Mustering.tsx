@@ -19,7 +19,7 @@ type Props = { view: BattleView; send: (command: Command) => void; pending: bool
  * about who goes first. A list is either built from the catalogue or pasted in
  * as text, and nothing here reads the text.
  */
-export function Muster({ view, send, pending, problem }: Props) {
+export function Mustering({ view, send, pending, problem }: Props) {
   const you = view.players.find((player) => player.isViewer)!
   const opponent = view.players.find((player) => !player.isViewer)
   const [armyName, setArmyName] = useState(you.roster?.name ?? '')

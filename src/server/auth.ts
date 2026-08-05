@@ -3,7 +3,7 @@ import { drizzleAdapter } from 'better-auth/adapters/drizzle'
 import crypto from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
-import type { MusterDatabase } from '../db/connection'
+import type { PraetoriumDatabase } from '../db/connection'
 import { schema } from '../db/schema'
 
 export const SOCIAL_PROVIDERS = ['google', 'discord'] as const
@@ -45,7 +45,7 @@ function socialProviders(env: NodeJS.ProcessEnv) {
   }
 }
 
-export function createAuth(database: MusterDatabase, secret: string) {
+export function createAuth(database: PraetoriumDatabase, secret: string) {
   return betterAuth({
     database: drizzleAdapter(database, { provider: 'sqlite', schema }),
     secret,

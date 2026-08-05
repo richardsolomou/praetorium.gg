@@ -1,4 +1,4 @@
-# Muster
+# Praetorium
 
 Two people play a game of Warhammer 40,000 and both watch the same screen — round, phase, command points, victory points — on their own phone, in step, with no way for the two devices to disagree.
 
@@ -74,7 +74,7 @@ Setup runs in the order the game does: army, game size, detachment, list, battle
 
 The mission is not chosen — eleventh edition takes it from the two armies' force dispositions, and the dataset states which mission each pairing plays, along with its caps of 15 victory points a round and 45 a game. The deployment is drawn from the pattern's own polygons, objectives included, rather than named for you to look up.
 
-Everything starts off the table. Units are deployed at muster or held in reserve to arrive later, and during the game each one is on the table, in reserve, or lost. Scoring is offered only when a card allows it: a payout that applies in your command phase from round two is disabled until then, and says so.
+Everything starts off the table. Units are deployed at praetorium or held in reserve to arrive later, and during the game each one is on the table, in reserve, or lost. Scoring is offered only when a card allows it: a payout that applies in your command phase from round two is disabled until then, and says so.
 
 ## Accounts
 

@@ -1,7 +1,7 @@
 import { and, asc, desc, eq } from 'drizzle-orm'
 import { type Command, type LoggedCommand, PLAYERS_PER_BATTLE, reduceBattle, validate } from '../core/battle'
 import { commandSchema } from '../core/commands'
-import type { MusterDatabase } from './connection'
+import type { PraetoriumDatabase } from './connection'
 import { battlePlayers, battles, collection, commands, players, rosters } from './schema'
 
 export type BattleRecord = { id: string; token: string; createdAt: number }
@@ -17,7 +17,7 @@ export type JoinResult = 'joined' | 'already-in' | 'full'
 export type SubmitResult = { outcome: 'appended'; seq: number } | { outcome: 'stale'; seq: number } | { outcome: 'refused'; reason: string }
 
 export class Repository {
-  constructor(private readonly database: MusterDatabase) {}
+  constructor(private readonly database: PraetoriumDatabase) {}
 
   upsertPlayer(input: { id: string; name: string; now: number }) {
     this.database
@@ -157,7 +157,7 @@ export class Repository {
       .run()
   }
 
-  private logQuery(battleId: string, tx: Transaction | MusterDatabase = this.database): LoggedCommand[] {
+  private logQuery(battleId: string, tx: Transaction | PraetoriumDatabase = this.database): LoggedCommand[] {
     return tx
       .select({ seq: commands.seq, by: commands.playerId, at: commands.at, body: commands.body })
       .from(commands)
@@ -167,7 +167,7 @@ export class Repository {
       .map((row) => ({ seq: row.seq, by: row.by, at: row.at, command: commandSchema.parse(JSON.parse(row.body)) }))
   }
 
-  private playersOf(battleId: string, tx: Transaction | MusterDatabase = this.database): BattlePlayer[] {
+  private playersOf(battleId: string, tx: Transaction | PraetoriumDatabase = this.database): BattlePlayer[] {
     return tx
       .select({ id: players.id, name: players.name, side: battlePlayers.side })
       .from(battlePlayers)
@@ -178,4 +178,4 @@ export class Repository {
   }
 }
 
-type Transaction = Parameters<Parameters<MusterDatabase['transaction']>[0]>[0]
+type Transaction = Parameters<Parameters<PraetoriumDatabase['transaction']>[0]>[0]

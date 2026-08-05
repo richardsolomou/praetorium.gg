@@ -1,17 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { createBattleEvents } from '../adapters/events'
-import { closeDatabase, type MusterDatabase, openDatabase } from '../db/connection'
+import { closeDatabase, type PraetoriumDatabase, openDatabase } from '../db/connection'
 import { Repository } from '../db/repository'
-import { MusterService } from './service'
+import { PraetoriumService } from './service'
 
-let database: MusterDatabase
-let service: MusterService
+let database: PraetoriumDatabase
+let service: PraetoriumService
 let now = 0
 
 beforeEach(() => {
   database = openDatabase(':memory:')
   now = 0
-  service = new MusterService(new Repository(database), () => ++now, createBattleEvents())
+  service = new PraetoriumService(new Repository(database), () => ++now, createBattleEvents())
   service.identify('alice', 'Alice')
   service.identify('bob', 'Bob')
   service.identify('carol', 'Carol')
@@ -24,7 +24,7 @@ function started() {
   const { token } = service.createBattle('alice')
   service.join(token, 'bob')
   let seq = 0
-  const send = (by: string, command: Parameters<MusterService['submit']>[3]) => {
+  const send = (by: string, command: Parameters<PraetoriumService['submit']>[3]) => {
     const { result } = service.submit(token, by, seq, command)
     if (result.outcome === 'appended') seq = result.seq
     return result

@@ -14,7 +14,7 @@ COPY tsconfig.json vite.config.ts ./
 RUN pnpm build
 
 FROM node:24-alpine
-LABEL org.opencontainers.image.title="Muster" \
+LABEL org.opencontainers.image.title="Praetorium" \
       org.opencontainers.image.description="Live Warhammer 40,000 battle tracking for two players." \
       org.opencontainers.image.licenses="AGPL-3.0-only"
 WORKDIR /app

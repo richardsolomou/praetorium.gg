@@ -41,7 +41,7 @@ test('stratagems and mission cards are tracked through a turn', async ({ browser
   await expect(alice.getByLabel(/Tipping Point deployment zones/)).toBeVisible()
   const deployment = alice.locator('section').filter({ hasText: /Deploy your army/ })
   await deployment.getByRole('button', { name: 'Lord of Virulence' }).click()
-  await alice.screenshot({ path: 'test-results/muster.png', fullPage: true })
+  await alice.screenshot({ path: 'test-results/praetorium.png', fullPage: true })
 
   await bob.goto(link)
   await bob.getByLabel('Your name').fill('Bob')
@@ -55,7 +55,7 @@ test('stratagems and mission cards are tracked through a turn', async ({ browser
   await expect(alice.getByRole('heading', { name: 'command phase' })).toBeVisible()
 
   const panel = /Death Guard — Death Lord/
-  // Deployed at muster, so it is on the table rather than in reserve.
+  // Deployed at praetorium, so it is on the table rather than in reserve.
   await expect(alice.locator('section', { hasText: panel }).locator('[data-stat="standing"]')).toHaveText('1/1')
   const cp = alice.locator('section', { hasText: panel }).locator('[data-stat="cp"]')
   await expect(cp).toHaveText('1')
