@@ -84,7 +84,7 @@ test('a built list is priced, played and tracked', async ({ browser }) => {
 
   await alice.screenshot({ path: 'test-results/builder.png', fullPage: true })
   await alice.getByRole('button', { name: 'Attach this list' }).click()
-  await expect(alice.getByRole('button', { name: 'Replace my list' })).toBeVisible()
+  await alice.getByRole('button', { name: /Step 3 Missions/ }).click()
 
   // The detachment's own stratagems arrive from the rules data, already chosen.
   await expect(alice.getByRole('button', { name: /Mortarion’s Teachings/ })).toHaveAttribute('aria-pressed', 'true')
@@ -101,6 +101,7 @@ test('a built list is priced, played and tracked', async ({ browser }) => {
   await bob.getByLabel('Your army').fill('Ultramarines')
   await bob.getByLabel('Your list').fill('10 Intercessors')
   await bob.getByRole('button', { name: /my list/ }).click()
+  await bob.getByRole('button', { name: /Step 4 Ready/ }).click()
 
   await alice.getByRole('button', { name: 'Alice goes first' }).click()
   await expect(alice.getByRole('heading', { name: 'command phase' })).toBeVisible()

@@ -29,7 +29,14 @@ test('stratagems and mission cards are tracked through a turn', async ({ browser
   await alice.getByLabel('Add a unit').fill('Lord of Virulence')
   await alice.getByRole('button', { name: 'Add Lord of Virulence', exact: true }).first().click()
   await alice.getByRole('button', { name: 'Attach this list' }).click()
-  await expect(alice.getByRole('button', { name: 'Replace my list' })).toBeVisible()
+
+  // The battlefield is drawn, not described, and the army goes onto it.
+  await alice.getByRole('button', { name: 'Tipping Point' }).click()
+  await alice.getByRole('button', { name: /Step 2 Battlefield/ }).click()
+  await expect(alice.getByLabel(/Tipping Point deployment zones/)).toBeVisible()
+  const deployment = alice.locator('section').filter({ hasText: /Deploy your army/ })
+  await deployment.getByRole('button', { name: 'Lord of Virulence' }).click()
+  await alice.getByRole('button', { name: /Step 3 Missions/ }).click()
 
   // The detachment's six arrive already chosen; a mission card is one tap.
   await expect(alice.getByRole('button', { name: /Undying Spite/ })).toHaveAttribute('aria-pressed', 'true')
@@ -37,11 +44,6 @@ test('stratagems and mission cards are tracked through a turn', async ({ browser
   await alice.getByRole('button', { name: /^Behind Enemy Lines/ }).click()
   await alice.getByRole('button', { name: 'Save these' }).click()
 
-  // The battlefield is drawn, not described, and the army goes onto it.
-  await alice.getByRole('button', { name: 'Tipping Point' }).click()
-  await expect(alice.getByLabel(/Tipping Point deployment zones/)).toBeVisible()
-  const deployment = alice.locator('section').filter({ hasText: /Deploy your army/ })
-  await deployment.getByRole('button', { name: 'Lord of Virulence' }).click()
   await alice.screenshot({ path: 'test-results/praetorium.png', fullPage: true })
 
   await bob.goto(link)
@@ -51,6 +53,7 @@ test('stratagems and mission cards are tracked through a turn', async ({ browser
   await bob.getByLabel('Your army').fill('Ultramarines')
   await bob.getByLabel('Your list').fill('10 Intercessors')
   await bob.getByRole('button', { name: /my list/ }).click()
+  await bob.getByRole('button', { name: /Step 4 Ready/ }).click()
 
   await alice.getByRole('button', { name: 'Alice goes first' }).click()
   await expect(alice.getByRole('heading', { name: 'command phase' })).toBeVisible()

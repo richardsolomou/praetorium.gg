@@ -29,6 +29,9 @@ export function Setup({ view, send, pending, problem }: Props) {
   const { data: sync } = useQuery(catalogueStatusQuery())
   // An instance with no catalogue synced offers pasting and says nothing about it.
   const [mode, setMode] = useState<'build' | 'paste'>('build')
+  const [stage, setStage] = useState<'roster' | 'battlefield' | 'missions' | 'ready'>(() =>
+    !you.roster ? 'roster' : view.deploymentId ? 'missions' : 'battlefield',
+  )
   const building = Boolean(available) && mode === 'build'
   const ready = view.players.length > 1 && view.players.every((player) => player.roster)
 
@@ -47,6 +50,29 @@ export function Setup({ view, send, pending, problem }: Props) {
         )}
       </section>
 
+      <nav className="grid max-w-3xl grid-cols-4 border border-edge bg-panel" aria-label="Battle setup steps">
+        {(
+          [
+            ['roster', '1', 'Roster'],
+            ['battlefield', '2', 'Battlefield'],
+            ['missions', '3', 'Missions'],
+            ['ready', '4', 'Ready'],
+          ] as const
+        ).map(([id, number, label]) => (
+          <button
+            key={id}
+            type="button"
+            className={`border-b-2 px-2 py-3 text-left ${stage === id ? 'border-azure bg-raised' : 'border-transparent'} ${id !== 'roster' && !you.roster ? 'text-faint' : ''}`}
+            disabled={id !== 'roster' && !you.roster}
+            aria-current={stage === id ? 'step' : undefined}
+            onClick={() => setStage(id)}
+          >
+            <span className="eyebrow block">Step {number}</span>
+            <span className="text-sm font-bold uppercase">{label}</span>
+          </button>
+        ))}
+      </nav>
+
       {!available && sync && sync.status !== 'ready' ? (
         <p className="rounded-lg border border-edge bg-panel p-3 text-sm text-dim">
           {sync.status === 'failed'
@@ -55,7 +81,7 @@ export function Setup({ view, send, pending, problem }: Props) {
         </p>
       ) : null}
 
-      {available ? (
+      {stage === 'roster' && available ? (
         <div className="flex gap-2">
           <Button variant={mode === 'build' ? 'default' : 'outline'} size="sm" onClick={() => setMode('build')}>
             Build from the catalogue
@@ -66,14 +92,17 @@ export function Setup({ view, send, pending, problem }: Props) {
         </div>
       ) : null}
 
-      {building ? (
+      {stage !== 'roster' ? null : building ? (
         // The builder is the page while it is open, so it gets the height rather
         // than growing a second scrollbar inside the one the page already has.
         <section className="flex h-[calc(100dvh-11rem)] min-h-120 flex-col">
           <ListBuilder
             pending={pending}
             attached={Boolean(you.roster)}
-            onAttach={(roster) => send({ kind: 'attach-roster', roster })}
+            onAttach={(roster) => {
+              send({ kind: 'attach-roster', roster })
+              setStage('battlefield')
+            }}
             prep={{
               stratagems: you.stratagems.map(({ key, name, cp, limit }) => ({ key, name, cp, limit })),
               secondaries: you.secondaries.map(({ key, name }) => ({ key, name })),
@@ -89,6 +118,7 @@ export function Setup({ view, send, pending, problem }: Props) {
           onSubmit={(event) => {
             event.preventDefault()
             send({ kind: 'attach-roster', roster: { name: armyName, text } })
+            setStage('battlefield')
           }}
         >
           <div className="space-y-2">
@@ -125,9 +155,16 @@ export function Setup({ view, send, pending, problem }: Props) {
         </p>
       ) : null}
 
-      {you.roster ? (
+      {you.roster && stage === 'battlefield' ? (
         <div className="space-y-5 rounded-lg border border-edge bg-panel p-4">
-          <Battlefield view={view} send={send} pending={pending} />
+          <Battlefield
+            view={view}
+            send={(command) => {
+              send(command)
+              if (command.kind === 'set-deployment' && command.patternId) setStage('missions')
+            }}
+            pending={pending}
+          />
 
           {you.units.length ? (
             <section className="space-y-2">
@@ -157,31 +194,46 @@ export function Setup({ view, send, pending, problem }: Props) {
         </div>
       ) : null}
 
-      <details className="rounded-lg border border-edge bg-panel p-4" open={Boolean(you.roster)}>
+      <details className={`${stage === 'missions' ? '' : 'hidden'} rounded-lg border border-edge bg-panel p-4`} open>
         <summary className="cursor-pointer text-sm">Stratagems and secondaries</summary>
         <p className="mt-2 mb-4 text-xs text-dim">
           Neither is in the community data, so copy them from your own book once. The app takes it from there.
         </p>
-        <Prep view={view} send={send} pending={pending} />
+        <Prep
+          view={view}
+          send={(command) => {
+            send(command)
+            if (command.kind === 'set-prep') setStage('ready')
+          }}
+          pending={pending}
+        />
       </details>
 
       {problem ? <p className="text-sm text-destructive">{problem}</p> : null}
 
-      {ready ? (
+      {stage === 'ready' ? (
         <section className="space-y-3">
-          <p className="eyebrow">Who takes the first turn</p>
-          <div className="flex flex-wrap gap-2">
-            {view.players.map((player) => (
-              <Button
-                key={player.id}
-                disabled={pending}
-                className="h-11 text-base"
-                onClick={() => send({ kind: 'begin-battle', firstPlayerId: player.id })}
-              >
-                {player.name} goes first
-              </Button>
-            ))}
-          </div>
+          {ready ? (
+            <>
+              <p className="eyebrow">Who takes the first turn</p>
+              <div className="flex flex-wrap gap-2">
+                {view.players.map((player) => (
+                  <Button
+                    key={player.id}
+                    disabled={pending}
+                    className="h-11 text-base"
+                    onClick={() => send({ kind: 'begin-battle', firstPlayerId: player.id })}
+                  >
+                    {player.name} goes first
+                  </Button>
+                ))}
+              </div>
+            </>
+          ) : (
+            <p className="border border-edge bg-panel p-4 text-sm text-dim">
+              Both players need to attach a roster before the battle can begin.
+            </p>
+          )}
         </section>
       ) : null}
     </main>
