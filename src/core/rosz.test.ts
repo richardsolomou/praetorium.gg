@@ -53,6 +53,22 @@ describe('exporting a roster', () => {
   it('is a document another tool can parse', () => {
     expect(() => parse(toRosterXml(roster, index, 190))).not.toThrow()
   })
+
+  it('writes allied selections as their own force', () => {
+    const xml = toRosterXml(
+      {
+        ...roster,
+        forces: [
+          { catalogueId: 'cat', selections: [roster.selections[0]!] },
+          { catalogueId: 'allies', selections: [roster.selections[1]!] },
+        ],
+      },
+      index,
+      190,
+    )
+
+    expect(fromRosterXml(xml, index, parse).forces.map((force) => force.catalogueId)).toEqual(['cat', 'allies'])
+  })
 })
 
 describe('importing a roster', () => {
@@ -67,6 +83,22 @@ describe('importing a roster', () => {
 
   it('reads the book the force names', () => {
     expect(fromRosterXml(toRosterXml(roster, index, 190), index, parse).catalogueId).toBe('cat')
+  })
+
+  it('keeps selections from every force with their catalogue', () => {
+    const xml = `<roster name="Allies"><forces>
+      <force catalogueId="cat" catalogueName="Chaos - Death Guard"><selections>
+        <selection name="Plague Marines" entryId="squad" number="1" type="unit"/>
+      </selections></force>
+      <force catalogueId="allies" catalogueName="Allied book"><selections>
+        <selection name="Lord of Virulence" entryId="lord" number="1" type="model"/>
+      </selections></force>
+    </forces></roster>`
+
+    expect(fromRosterXml(xml, index, parse).forces).toEqual([
+      { catalogueId: 'cat', catalogueName: 'Chaos - Death Guard', selections: [{ id: 'squad', count: 1 }] },
+      { catalogueId: 'allies', catalogueName: 'Allied book', selections: [{ id: 'lord', count: 1 }] },
+    ])
   })
 
   it('resolves an id another tool wrote as a path of links', () => {

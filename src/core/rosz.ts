@@ -20,6 +20,7 @@ export type ParsedRoster = {
   catalogueId: string | null
   catalogueName: string | null
   selections: Selection[]
+  forces: { catalogueId: string | null; catalogueName: string | null; selections: Selection[] }[]
   /** Entries the file referenced that this instance's catalogue does not have. */
   unknown: string[]
 }
@@ -35,11 +36,16 @@ const ROSTER_NS = 'http://www.battlescribe.net/schema/rosterSchema'
  * the revision, not the file somebody imported.
  */
 export function toRosterXml(
-  roster: { name: string; catalogueId: string; selections: readonly Selection[] },
+  roster: {
+    name: string
+    catalogueId: string
+    selections: readonly Selection[]
+    forces?: readonly { catalogueId: string; selections: readonly Selection[] }[]
+  },
   index: CatalogueIndex,
   points: number,
 ): string {
-  const catalogue = index.catalogues.get(roster.catalogueId)
+  const forces = roster.forces ?? [{ catalogueId: roster.catalogueId, selections: roster.selections }]
   const lines = [
     '<?xml version="1.0" encoding="utf-8"?>',
     `<roster xmlns="${ROSTER_NS}" id="${id(roster.name)}" name="${escape(roster.name)}" battleScribeVersion="2.03"` +
@@ -48,16 +54,28 @@ export function toRosterXml(
     `    <cost name="pts" typeId="${escape(index.pointsTypeId)}" value="${points}"/>`,
     '  </costs>',
     '  <forces>',
-    `    <force id="${id(`${roster.name}-force`)}" name="Army Roster" entryId="force"` +
-      ` catalogueId="${escape(roster.catalogueId)}" catalogueName="${escape(catalogue?.name ?? '')}">`,
-    '      <selections>',
-    ...roster.selections.flatMap((selection) => selectionXml(selection, index, 4)),
-    '      </selections>',
-    '    </force>',
+    ...forces.flatMap((force, at) => forceXml(roster.name, force, at, index)),
     '  </forces>',
     '</roster>',
   ]
   return lines.join('\n')
+}
+
+function forceXml(
+  rosterName: string,
+  force: { catalogueId: string; selections: readonly Selection[] },
+  at: number,
+  index: CatalogueIndex,
+): string[] {
+  const catalogue = index.catalogues.get(force.catalogueId)
+  return [
+    `    <force id="${id(`${rosterName}-force-${at}`)}" name="Army Roster" entryId="force"` +
+      ` catalogueId="${escape(force.catalogueId)}" catalogueName="${escape(catalogue?.name ?? '')}">`,
+    '      <selections>',
+    ...force.selections.flatMap((selection) => selectionXml(selection, index, 4)),
+    '      </selections>',
+    '    </force>',
+  ]
 }
 
 function selectionXml(selection: Selection, index: CatalogueIndex, depth: number): string[] {
@@ -93,16 +111,21 @@ function selectionXml(selection: Selection, index: CatalogueIndex, depth: number
 export function fromRosterXml(xml: string, index: CatalogueIndex, parse: (input: string) => XmlNode): ParsedRoster {
   const document = parse(xml)
   const roster = asNode(document.roster)
-  const force = asNode(asNode(roster?.forces)?.force)
+  const forces = list(asNode(roster?.forces)?.force)
   const unknown: string[] = []
-
-  const selections = list(asNode(force?.selections)?.selection).flatMap((entry) => read(entry, index, unknown))
+  const parsedForces = forces.map((force) => ({
+    catalogueId: text(force['@_catalogueId']),
+    catalogueName: text(force['@_catalogueName']),
+    selections: list(asNode(force.selections)?.selection).flatMap((entry) => read(entry, index, unknown)),
+  }))
+  const first = parsedForces[0]
 
   return {
     name: text(roster?.['@_name']) ?? 'Imported list',
-    catalogueId: text(force?.['@_catalogueId']),
-    catalogueName: text(force?.['@_catalogueName']),
-    selections,
+    catalogueId: first?.catalogueId ?? null,
+    catalogueName: first?.catalogueName ?? null,
+    selections: parsedForces.flatMap((force) => force.selections),
+    forces: parsedForces,
     unknown: [...new Set(unknown)],
   }
 }

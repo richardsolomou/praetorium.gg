@@ -337,25 +337,28 @@ export const importRoster = createServerFn({ method: 'POST' })
       const detachment = catalogueId ? loaded.detachments.get(catalogueId) : undefined
       const flattened = parsed.selections.flatMap(allSelections)
       const detachmentId = detachment?.options.find((option) => flattened.some((selection) => selection.id === option.id))?.id ?? null
-      const importedUnits: { selection: Selection; parent: number | null }[] = []
-      const collectUnits = (selection: Selection, parent: number | null) => {
+      const importedUnits: { selection: Selection; parent: number | null; catalogueId: string | null }[] = []
+      const collectUnits = (selection: Selection, parent: number | null, forceCatalogueId: string | null) => {
         const isDatasheet = loaded.index.datasheets.has(selection.id)
-        const at = isDatasheet ? importedUnits.push({ selection, parent }) - 1 : parent
-        for (const child of selection.selections ?? []) collectUnits(child, at)
+        const at = isDatasheet ? importedUnits.push({ selection, parent, catalogueId: forceCatalogueId }) - 1 : parent
+        for (const child of selection.selections ?? []) collectUnits(child, at, forceCatalogueId)
       }
-      for (const selection of parsed.selections) collectUnits(selection, null)
+      for (const force of parsed.forces) {
+        for (const selection of force.selections) collectUnits(selection, null, force.catalogueId)
+      }
 
       return {
         name: data.name ?? parsed.name,
         catalogueId,
         catalogueName: parsed.catalogueName,
         detachmentId,
-        units: importedUnits.map(({ selection, parent }) => {
+        units: importedUnits.map(({ selection, parent, catalogueId: forceCatalogueId }) => {
           const decisions = unitChoices(selection.id, selection, loaded.index, { primaryCatalogueId: catalogueId ?? undefined })
           const entry = loaded.index.definitions.get(selection.id)
           const attachedTo = parent !== null && entry && attachmentOf(entry, loaded.index) ? parent : undefined
           return {
             entryId: selection.id,
+            catalogueId: forceCatalogueId ?? loaded.index.catalogueOf.get(selection.id),
             models: Math.max(1, modelCountOf(selection, loaded.index)),
             choices: Object.fromEntries(
               decisions.filter((choice) => choice.room === 1 && choice.chosen).map((choice) => [choice.key, choice.chosen]),
@@ -406,11 +409,21 @@ export const exportRoster = createServerFn({ method: 'POST' })
         parent.selections = [...(parent.selections ?? []), child]
       })
       const nested = exported.filter((_, index) => !data.units.some((unit, child) => child === index && unit.attachedTo !== undefined))
+      const forceSelections = new Map<string, Selection[]>()
+      forceSelections.set(data.catalogueId, [...detachmentSelection])
+      nested.forEach((selection) => {
+        const unit = data.units[exported.indexOf(selection)]
+        const owner = unit?.catalogueId ?? loaded.index.catalogueOf.get(selection.id) ?? data.catalogueId
+        const force = forceSelections.get(owner) ?? []
+        force.push(selection)
+        forceSelections.set(owner, force)
+      })
+      const forces = [...forceSelections].map(([forceCatalogueId, force]) => ({ catalogueId: forceCatalogueId, selections: force }))
 
       return {
         filename: `${data.name.replaceAll(/[^\w -]/g, '')}.ros`,
         xml: toRosterXml(
-          { name: data.name, catalogueId: data.catalogueId, selections: [...detachmentSelection, ...nested] },
+          { name: data.name, catalogueId: data.catalogueId, selections: forces[0]?.selections ?? [], forces },
           loaded.index,
           points,
         ),
