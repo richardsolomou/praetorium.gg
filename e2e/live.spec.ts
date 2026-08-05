@@ -13,8 +13,12 @@ test('a battle stays in step across two devices', async ({ browser }) => {
   await alice.getByLabel('Your name').fill('Alice')
   await alice.getByRole('button', { name: 'Open a battle' }).click()
 
-  const link = await alice.getByLabel('Send this link to your opponent').inputValue()
-  expect(link).toContain('/b/')
+  // The origin is only known once mounted, so the field starts empty: waiting for
+  // the value rather than reading straight away is what stops this reading nothing.
+  // It passed on localhost for months and lost the race on a slower CI runner.
+  const invite = alice.getByLabel('Send this link to your opponent')
+  await expect(invite).toHaveValue(/\/b\//)
+  const link = await invite.inputValue()
 
   await bob.goto(link)
   await bob.getByLabel('Your name').fill('Bob')
