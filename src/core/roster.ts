@@ -319,14 +319,79 @@ function withModelComposition(
   context?: { primaryCatalogueId?: string; roster?: readonly Selection[] },
 ): Selection {
   if (modelCountOf(selection, index) === models) return selection
+  const fitted = withOptionalModels(selection, models, index)
+  if (modelCountOf(fitted, index) === models) return fitted
   for (const choice of unitChoices(entryId, selection, index, context)) {
     if (explicit.has(choice.key) || choice.room !== 1) continue
     for (const option of choice.options) {
       const candidate = withChoice(selection, choice.key, option.id, index)
       if (modelCountOf(candidate, index) === models) return candidate
+      const completed = withOptionalModels(candidate, models, index)
+      if (modelCountOf(completed, index) === models) return completed
     }
   }
   return selection
+}
+
+type ModelSlot = { path: string[]; definition: Definition; current: number; max: number }
+
+/** Fills bounded optional model slots when they are the exact remainder of a requested composition. */
+function withOptionalModels(selection: Selection, models: number, index: CatalogueIndex): Selection {
+  let remaining = models - modelCountOf(selection, index)
+  if (remaining <= 0) return selection
+
+  let result = selection
+  for (const slot of optionalModelSlots(selection, index)) {
+    if (!remaining) break
+    const added = Math.min(remaining, slot.max - slot.current)
+    if (added <= 0) continue
+    const count = slot.current + added
+    const shallow = withCounts(result, [{ path: slot.path, count }])
+    result = updateSelection(shallow, slot.path, () => expand(slot.path.at(-1)!, slot.definition, index, MAX_DEPTH, count, new Set(), 1))
+    remaining -= added
+  }
+  return remaining ? selection : result
+}
+
+function optionalModelSlots(selection: Selection, index: CatalogueIndex): ModelSlot[] {
+  const found: ModelSlot[] = []
+  const walk = (node: Selection, trail: string[], depth: number, seen: Set<string>) => {
+    const definition = index.definitions.get(node.id)
+    if (!definition) return
+    const target = resolve(definition, index)
+    if (depth <= 0 || seen.has(target.id)) return
+    const visited = new Set(seen).add(target.id)
+    const present = new Map((node.selections ?? []).map((child) => [child.id, child]))
+
+    for (const child of childrenOf(target, index)) {
+      const inner = resolve(child.definition, index)
+      const here = [...trail, child.id]
+      const held = present.get(child.id)
+      if (inner.type === 'model') {
+        const min = requiredCount(child.definition, index)
+        const max = maximumCount(child.definition, index)
+        const current = held?.count ?? 0
+        if (min === 0 && max !== null && max > current) found.push({ path: here, definition: child.definition, current, max })
+        continue
+      }
+      if (inner.type === undefined && !held) {
+        const models = childrenOf(inner, index).filter((option) => resolve(option.definition, index).type === 'model')
+        if (models.length === 1) {
+          const [model] = models
+          if (!model) continue
+          const min = requiredCount(model.definition, index)
+          const max = maximumCount(model.definition, index)
+          if (min === 0 && max !== null && max > 0) {
+            found.push({ path: [...here, model.id], definition: model.definition, current: 0, max })
+          }
+        }
+        continue
+      }
+      if (held) walk(held, here, depth - 1, visited)
+    }
+  }
+  walk(selection, [], MAX_DEPTH, new Set())
+  return found
 }
 
 /** Optional single entries with roster meaning rather than loadout meaning. */

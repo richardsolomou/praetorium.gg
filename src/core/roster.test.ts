@@ -336,6 +336,38 @@ describe('how many models a unit may field', () => {
     expect(modelCountOf(built.selection, index)).toBe(20)
   })
 
+  it('fills a bounded optional model slot to complete a requested composition', () => {
+    const index = indexOf({
+      sharedSelectionEntries: [
+        {
+          id: 'handlers',
+          name: 'Handlers',
+          type: 'unit',
+          selectionEntries: [
+            {
+              id: 'body',
+              name: 'Body',
+              type: 'model',
+              constraints: [
+                { id: 'body-min', type: 'min', value: 10, field: 'selections', scope: 'parent' },
+                { id: 'body-max', type: 'max', value: 10, field: 'selections', scope: 'parent' },
+              ],
+            },
+            {
+              id: 'handler',
+              name: 'Handler',
+              type: 'model',
+              constraints: [{ id: 'handler-max', type: 'max', value: 2, field: 'selections', scope: 'parent' }],
+            },
+          ],
+        },
+      ],
+    })
+
+    const built = buildUnit('handlers', index, 12)!
+    expect(modelCountOf(built.selection, index)).toBe(12)
+  })
+
   it('resizes a model inside nested groups instead of counting the container', () => {
     const index = indexOf({
       sharedSelectionEntries: [
