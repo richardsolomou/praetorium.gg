@@ -141,6 +141,8 @@ export type Command =
   | { kind: 'score-secondary'; key: string; delta: number }
   | { kind: 'set-secondary-status'; key: string; status: SecondaryStatus }
   | { kind: 'draw-secondary'; secondary: Secondary }
+  | { kind: 'select-secret'; secondary: Secondary }
+  | { kind: 'reveal-secret' }
   | { kind: 'begin-battle'; firstPlayerId: PlayerId }
   | { kind: 'adjust-cp'; delta: number }
   | { kind: 'score'; category: 'primary' | 'secondary'; delta: number }
@@ -174,6 +176,8 @@ export type PlayerState = {
   secondaryByRound: number[]
   scoredByRound: Record<string, number[]>
   secondaryStatus: Record<string, SecondaryStatus>
+  secretSecondary: string | null
+  secretRevealed: boolean
 }
 
 export type StratagemUse = { key: string; round: number; phase: Phase; turn: PlayerId | null }
@@ -228,6 +232,8 @@ export function reduceBattle(playerIds: readonly PlayerId[], log: readonly Logge
       secondaryByRound: Array(BATTLE_ROUNDS).fill(0),
       scoredByRound: {},
       secondaryStatus: {},
+      secretSecondary: null,
+      secretRevealed: false,
     })),
     undoable: null,
     seq: 0,
@@ -368,6 +374,19 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
       if (player.secondaries.length >= SECONDARY_HISTORY_MAX) return 'the secondary history is full'
       return null
     }
+    case 'select-secret': {
+      if (state.status !== 'playing') return 'the battle is not running'
+      if (player.secretSecondary) return 'you already have a secret mission'
+      if (!command.secondary.name.trim()) return 'name the secret mission'
+      if (player.secondaries.some((secondary) => secondary.key === command.secondary.key)) return 'that secondary has already been selected'
+      return null
+    }
+    case 'reveal-secret': {
+      if (state.status !== 'playing') return 'the battle is not running'
+      if (!player.secretSecondary) return 'you have no secret mission'
+      if (player.secretRevealed) return 'the secret mission is already revealed'
+      return null
+    }
     case 'undo': {
       if (!state.undoable) return 'there is nothing to undo'
       if (state.undoable.seq !== command.target) return 'only the last action can be undone'
@@ -427,6 +446,8 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
       player.primaryCard = command.primary ? { ...command.primary, name: command.primary.name.trim() } : null
       player.secondaryMode = command.secondaryMode
       player.secondaryStatus = Object.fromEntries(player.secondaries.map((secondary) => [secondary.key, 'active']))
+      player.secretSecondary = null
+      player.secretRevealed = false
       // A secondary nobody can see must not keep contributing to the total.
       const kept = Object.fromEntries(
         Object.entries(player.scored).filter(([key]) => player.secondaries.some((secondary) => secondary.key === key)),
@@ -461,12 +482,25 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
     }
     case 'set-secondary-status': {
       player.secondaryStatus = { ...player.secondaryStatus, [command.key]: command.status }
+      if (command.key === player.secretSecondary && command.status !== 'active') player.secretRevealed = true
       return
     }
     case 'draw-secondary': {
       const secondary = { ...command.secondary, name: command.secondary.name.trim() }
       player.secondaries.push(secondary)
       player.secondaryStatus = { ...player.secondaryStatus, [secondary.key]: 'active' }
+      return
+    }
+    case 'select-secret': {
+      const secondary = { ...command.secondary, name: command.secondary.name.trim() }
+      player.secondaries.push(secondary)
+      player.secondaryStatus = { ...player.secondaryStatus, [secondary.key]: 'active' }
+      player.secretSecondary = secondary.key
+      player.secretRevealed = false
+      return
+    }
+    case 'reveal-secret': {
+      player.secretRevealed = true
       return
     }
     case 'begin-battle': {
@@ -564,6 +598,7 @@ export function battleReport(
   players: readonly { id: PlayerId; name: string }[],
   log: readonly LoggedCommand[],
   playerIds: readonly PlayerId[] = players.map((player) => player.id),
+  viewerId?: PlayerId,
 ): ReportEntry[] {
   const named = new Map(players.map((player) => [player.id, player.name]))
   const state = reduceBattle(playerIds, [])
@@ -574,7 +609,7 @@ export function battleReport(
     if (entry.command.kind === 'undo' || undone.has(entry.seq)) continue
     const before = { round: state.round, phase: state.phase, active: state.activePlayerId }
     apply(state, entry.by, entry.command)
-    const text = describe(entry.command, state, before, entry.by, named)
+    const text = describe(entry.command, state, before, entry.by, named, viewerId)
     if (text) entries.push({ seq: entry.seq, round: before.round || state.round, phase: before.phase, by: entry.by, text })
   }
 
@@ -587,6 +622,7 @@ function describe(
   before: { round: number; phase: Phase; active: PlayerId | null },
   by: PlayerId,
   named: Map<PlayerId, string>,
+  viewerId?: PlayerId,
 ): string | null {
   const who = named.get(by) ?? 'Someone'
   const player = after.players.find((candidate) => candidate.id === by)
@@ -629,7 +665,9 @@ function describe(
       return `${who} scores ${command.delta} ${command.category}`
     case 'score-secondary': {
       const secondary = player?.secondaries.find((candidate) => candidate.key === command.key)
-      return `${who} scores ${command.delta} on ${secondary?.name ?? 'a secondary'}`
+      const name =
+        player?.secretSecondary === command.key && !player.secretRevealed && viewerId !== by ? 'a secret mission' : secondary?.name
+      return `${who} scores ${command.delta} on ${name ?? 'a secondary'}`
     }
     case 'set-secondary-status': {
       const secondary = player?.secondaries.find((candidate) => candidate.key === command.key)
@@ -637,6 +675,12 @@ function describe(
     }
     case 'draw-secondary':
       return `${who} draws ${command.secondary.name}`
+    case 'select-secret':
+      return viewerId === by ? `${who} selects ${command.secondary.name} as a secret mission` : `${who} selects a secret mission`
+    case 'reveal-secret': {
+      const secondary = player?.secondaries.find((candidate) => candidate.key === player.secretSecondary)
+      return `${who} reveals ${secondary?.name ?? 'a secret mission'}`
+    }
     case 'set-unit': {
       const unit = player?.units.find((candidate) => candidate.key === command.unitKey)?.name ?? 'a unit'
       return command.destroyed ? `${who} loses ${unit}` : `${who} brings ${unit} back`
@@ -685,7 +729,15 @@ export type BattleView = {
     deployed: number
     /** Each stratagem with whether it can be used right now, and why not when it cannot. */
     stratagems: { key: string; name: string; cp: number; limit: StratagemLimit; refusal: string | null }[]
-    secondaries: { key: string; name: string; points: number; rounds: number[]; status: SecondaryStatus }[]
+    secondaries: {
+      key: string
+      name: string
+      points: number
+      rounds: number[]
+      status: SecondaryStatus
+      secret: boolean
+      revealed: boolean
+    }[]
     primaryCard: Secondary | null
     secondaryMode: SecondaryMode
   }[]
@@ -752,11 +804,14 @@ export function battleView(
       primaryCard: player.primaryCard,
       secondaryMode: player.secondaryMode,
       secondaries: player.secondaries.map((secondary) => ({
-        key: secondary.key,
-        name: secondary.name,
+        key: player.secretSecondary === secondary.key && !player.secretRevealed && player.id !== viewerId ? 'secret' : secondary.key,
+        name:
+          player.secretSecondary === secondary.key && !player.secretRevealed && player.id !== viewerId ? 'Secret mission' : secondary.name,
         points: player.scored[secondary.key] ?? 0,
         rounds: player.scoredByRound[secondary.key] ?? Array(BATTLE_ROUNDS).fill(0),
         status: player.secondaryStatus[secondary.key] ?? 'active',
+        secret: player.secretSecondary === secondary.key,
+        revealed: player.secretSecondary !== secondary.key || player.secretRevealed,
       })),
     })),
     guides: { primary: PRIMARY_GUIDE, secondary: SECONDARY_GUIDE },

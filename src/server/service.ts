@@ -202,6 +202,7 @@ export class PraetoriumService {
       seats.players,
       this.repository.log(seats.battle.id),
       seats.players.map((player) => player.id),
+      playerId,
     )
   }
 

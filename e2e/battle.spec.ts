@@ -55,6 +55,14 @@ test('stratagems and mission cards are tracked through a turn', async ({ browser
   await alice.getByRole('button', { name: 'Alice goes first' }).click()
   await expect(alice.getByRole('heading', { name: 'command phase' })).toBeVisible()
 
+  await alice.getByText('Select secret mission').click()
+  await alice.getByRole('button', { name: 'Assassination', exact: true }).click()
+  await expect(alice.locator('[data-secondary="assassination"]')).toContainText('Assassination')
+  await expect(bob.locator('[data-secondary="secret"]')).toContainText('Secret mission')
+  await expect(bob.getByText('Assassination', { exact: true })).toHaveCount(0)
+  await alice.getByRole('button', { name: 'Reveal' }).click()
+  await expect(bob.locator('[data-secondary="assassination"]')).toContainText('Assassination')
+
   const panel = /Death Guard — Death Lord/
   // Deployed at praetorium, so it is on the table rather than in reserve.
   await expect(alice.locator('section', { hasText: panel }).locator('[data-stat="standing"]')).toHaveText('1/1')
@@ -78,12 +86,12 @@ test('stratagems and mission cards are tracked through a turn', async ({ browser
   // And the opponent's device follows without being touched.
   await expect(bob.locator('section', { hasText: panel }).locator('[data-stat="secondary"]')).not.toHaveText('0')
 
-  await alice.getByRole('button', { name: 'Discard' }).click()
+  await alice.locator('[data-secondary="behind-enemy-lines"]').getByRole('button', { name: 'Discard' }).click()
   await expect(alice.getByText('discarded', { exact: true })).toBeVisible()
   await expect(bob.getByText('discarded', { exact: true })).toBeVisible()
   await alice.getByText('Draw a replacement').click()
-  await alice.getByRole('button', { name: 'Assassination', exact: true }).click()
-  await expect(bob.getByText('Assassination', { exact: true })).toBeVisible()
+  await alice.getByRole('button', { name: 'Bring It Down', exact: true }).click()
+  await expect(bob.getByText('Bring It Down', { exact: true })).toBeVisible()
 
   // The account of the battle is read back out of the log, on demand.
   await alice.getByText('How the battle went').click()
@@ -91,7 +99,7 @@ test('stratagems and mission cards are tracked through a turn', async ({ browser
   await expect(alice.getByText(/uses .* for 1 CP/)).toBeVisible()
   await expect(alice.getByText('The battlefield is Tipping Point')).toBeVisible()
   await expect(alice.getByText(/marks Behind Enemy Lines discarded/)).toBeVisible()
-  await expect(alice.getByText(/draws Assassination/)).toBeVisible()
+  await expect(alice.getByText(/draws Bring It Down/)).toBeVisible()
 
   await alice.screenshot({ path: 'test-results/battle.png', fullPage: true })
 })
