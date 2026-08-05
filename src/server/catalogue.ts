@@ -136,6 +136,7 @@ export type UnitSummary = { id: string; name: string; points: number | null; gro
 export type Datasheet = {
   id: string
   name: string
+  points: number | null
   keywords: string[]
   profiles: { id: string; name: string; type: string; values: { name: string; value: string }[] }[]
 }
@@ -178,6 +179,7 @@ export function datasheetIn(loaded: LoadedCatalogue, catalogueId: string, entryI
   return {
     id: root.id,
     name: root.name ?? root.id,
+    points: priceOf(loaded, catalogueId, entryId),
     keywords: [...new Set((root.categoryLinks ?? []).map((link) => link.name).filter((name): name is string => Boolean(name)))].toSorted(),
     profiles: [...profiles.values()]
       .filter((profile) => !profile.hidden && profile.name && profile.typeName)

@@ -97,6 +97,7 @@ describe('a datasheet', () => {
     })
     expect(datasheetIn(book, 'cat', 'squad')).toMatchObject({
       name: 'Squad',
+      points: 0,
       keywords: ['Battleline', 'Infantry'],
       profiles: [
         { name: 'Squad', type: 'Unit', values: [{ name: 'T', value: '4' }] },
