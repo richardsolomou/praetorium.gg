@@ -1,10 +1,13 @@
 import { useQuery } from '@tanstack/react-query'
-import { createFileRoute, Link, notFound } from '@tanstack/react-router'
+import { createFileRoute, Link, notFound, redirect, useParams } from '@tanstack/react-router'
 import { ChevronRight } from 'lucide-react'
 import { factionFor } from '../client/factions'
 import { datasheetSlugQuery, factionsQuery } from '../client/queries'
 
 export const Route = createFileRoute('/factions/$catalogueId/$entryId')({
+  beforeLoad: ({ params }) => {
+    throw redirect({ to: '/factions/$catalogueId/datasheets/$entryId', params, replace: true })
+  },
   loader: async ({ context, params }) => {
     const data = await context.queryClient.ensureQueryData(factionsQuery())
     const faction = factionFor(data, params.catalogueId)
@@ -13,11 +16,11 @@ export const Route = createFileRoute('/factions/$catalogueId/$entryId')({
   component: DatasheetPage,
 })
 
-function DatasheetPage() {
-  const params = Route.useParams()
+export function DatasheetPage() {
+  const params = useParams({ strict: false })
   const { data } = useQuery(factionsQuery())
-  const faction = factionFor(data, params.catalogueId)
-  const { data: sheet } = useQuery(datasheetSlugQuery(faction?.id ?? '', params.entryId))
+  const faction = factionFor(data, params.catalogueId ?? '')
+  const { data: sheet } = useQuery(datasheetSlugQuery(faction?.id ?? '', params.entryId ?? ''))
   if (!sheet || !faction) return null
   const profiles = (type: string) => sheet.profiles.filter((profile) => profile.type === type)
   const unit = profiles('Unit')
@@ -34,11 +37,7 @@ function DatasheetPage() {
           {faction?.displayName ?? 'Faction'}
         </Link>
         <ChevronRight className="size-3 text-dim" aria-hidden />
-        <Link to="/factions/$catalogueId/reference" params={{ catalogueId: faction.slug }}>
-          {faction?.references[0]?.name ?? 'Reference'}
-        </Link>
-        <ChevronRight className="size-3 text-dim" aria-hidden />
-        <Link to="/factions/$catalogueId/reference/datasheets" params={{ catalogueId: faction.slug }}>
+        <Link to="/factions/$catalogueId/datasheets" params={{ catalogueId: faction.slug }}>
           Datasheets
         </Link>
       </nav>

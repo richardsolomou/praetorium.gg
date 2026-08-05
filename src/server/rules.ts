@@ -28,6 +28,9 @@ type RawStratagem = {
   detachment_id?: string | null
   cp_cost?: number
   timing?: string
+  type?: string
+  phases?: string[]
+  player_turn?: string
   game_version?: { edition?: string; dataslate?: string }
 }
 
@@ -73,6 +76,8 @@ type RawDetachment = {
   force_dispositions?: string[]
 }
 
+type RawEnhancement = { id: string; name: string; detachment_id?: string; cost?: number; keyword_restrictions?: string[] }
+
 type Point = { x: number; y: number }
 
 type RawPattern = {
@@ -117,11 +122,21 @@ export type DetachmentReference = {
   dispositions: string[]
 }
 
+export type DetachmentRulesDetail = {
+  id: string
+  name: string
+  points: number | null
+  dispositions: string[]
+  enhancementNames: string[]
+  stratagems: { id: string; name: string; cp: number; type: string | null; phases: string[]; turn: string | null }[]
+}
+
 export type LoadedRules = {
   /** Faction slug then detachment slug, so a chosen detachment maps straight to its six. */
   byDetachment: Map<string, Map<string, Stratagem[]>>
   /** Display metadata for each detachment, from the same licensed source as its stratagems. */
   detachmentReferences: Map<string, Map<string, DetachmentReference>>
+  detachmentDetails: Map<string, Map<string, DetachmentRulesDetail>>
   /** Player-facing faction names, separate from BSData's technical catalogue labels. */
   factionNames: Map<string, string>
   /** Stratagems every army has, offered alongside whatever the detachment brings. */
@@ -148,6 +163,7 @@ export function loadRules(directory = rulesDirectory()): LoadedRules | null {
 
   const byDetachment = new Map<string, Map<string, Stratagem[]>>()
   const detachmentReferences = new Map<string, Map<string, DetachmentReference>>()
+  const detachmentDetails = new Map<string, Map<string, DetachmentRulesDetail>>()
   const factionNames = new Map<string, string>()
   let dataslate: string | null = null
 
@@ -159,17 +175,49 @@ export function loadRules(directory = rulesDirectory()): LoadedRules | null {
       for (const found of readFactions(factionFile)) factionNames.set(found.id, found.name)
     }
     const referenceFile = path.join(core, faction.name, 'detachments.json')
+    const enhancementFile = path.join(core, faction.name, 'enhancements.json')
     if (fs.existsSync(referenceFile)) {
+      const rawDetachments = readDetachments(referenceFile)
+      const enhancements = fs.existsSync(enhancementFile) ? readEnhancements(enhancementFile) : []
+      const rawStratagems = fs.existsSync(file) ? readStratagems(file) : []
       detachmentReferences.set(
         faction.name,
         new Map(
-          readDetachments(referenceFile).map((detachment) => [
+          rawDetachments.map((detachment) => [
             detachment.id,
             {
               enhancements: detachment.enhancement_ids?.length ?? 0,
               stratagems: detachment.stratagem_ids?.length ?? 0,
               points: detachment.detachment_points ?? null,
               dispositions: detachment.force_dispositions ?? [],
+            },
+          ]),
+        ),
+      )
+      detachmentDetails.set(
+        faction.name,
+        new Map(
+          rawDetachments.map((detachment) => [
+            detachment.id,
+            {
+              id: detachment.id,
+              name: detachment.name,
+              points: detachment.detachment_points ?? null,
+              dispositions: detachment.force_dispositions ?? [],
+              enhancementNames: enhancements
+                .filter((enhancement) => enhancement.detachment_id === detachment.id)
+                .map((enhancement) => enhancement.name),
+              stratagems: rawStratagems
+                .filter((stratagem) => stratagem.detachment_id === detachment.id)
+                .map((stratagem) => ({
+                  id: stratagem.id,
+                  name: titleCase(stratagem.name),
+                  cp: stratagem.cp_cost ?? 0,
+                  type: stratagem.type ? titleCase(stratagem.type.replaceAll('-', ' ')) : null,
+                  phases: stratagem.phases ?? [],
+                  turn: stratagem.player_turn ?? null,
+                }))
+                .toSorted(byName),
             },
           ]),
         ),
@@ -240,6 +288,7 @@ export function loadRules(directory = rulesDirectory()): LoadedRules | null {
   return {
     byDetachment,
     detachmentReferences,
+    detachmentDetails,
     factionNames,
     core: coreStratagems,
     secondaries,
@@ -295,6 +344,11 @@ function readDetachments(file: string): RawDetachment[] {
   return parsed
 }
 
+function readEnhancements(file: string): RawEnhancement[] {
+  const parsed: RawEnhancement[] = JSON.parse(fs.readFileSync(file, 'utf8'))
+  return parsed
+}
+
 function readFactions(file: string): RawFaction[] {
   const parsed: RawFaction[] = JSON.parse(fs.readFileSync(file, 'utf8'))
   return parsed
@@ -306,7 +360,7 @@ function readCards(file: string): RawCard[] {
   return parsed
 }
 
-const byName = (left: MissionCard, right: MissionCard) => left.name.localeCompare(right.name)
+const byName = (left: { name: string }, right: { name: string }) => left.name.localeCompare(right.name)
 
 /**
  * A card with its payouts flattened.

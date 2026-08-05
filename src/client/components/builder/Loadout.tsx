@@ -138,7 +138,7 @@ function DatasheetSummary({ catalogueSlug, sheet }: { catalogueSlug: string; she
         </div>
       ) : null}
       <Link
-        to="/factions/$catalogueId/$entryId"
+        to="/factions/$catalogueId/datasheets/$entryId"
         params={{ catalogueId: catalogueSlug, entryId: sheet.slug }}
         target="_blank"
         rel="noreferrer"

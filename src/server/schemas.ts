@@ -79,6 +79,7 @@ export const detachmentRulesSchema = z.object({
   catalogueId,
   detachmentNames: z.array(z.string().min(1).max(120)).min(1).max(3),
 })
+export const detachmentDetailSchema = z.object({ catalogueId, slug: z.string().min(1).max(160) })
 
 export const rosterIdSchema = z.object({ id: z.string().min(1).max(64) })
 

@@ -34,6 +34,10 @@ beforeEach(() => {
       force_dispositions: ['disruption'],
     },
   ])
+  write(path.join(core, 'enhancements.json'), [
+    { id: 'living-plague', name: 'Living Plague', detachment_id: 'flyblown-host', cost: 20 },
+    { id: 'rejuvenating-swarm', name: 'Rejuvenating Swarm', detachment_id: 'flyblown-host', cost: 10 },
+  ])
   write(path.join(core, 'factions.json'), [{ id: 'death-guard', name: 'Death Guard' }])
   write(path.join(root, 'stratagems.json'), [{ id: 'command-re-roll', name: 'COMMAND RE-ROLL', cp_cost: 1, timing: 'once-per-battle' }])
   write(path.join(root, 'secondary-cards.json'), [
@@ -89,6 +93,13 @@ describe('stratagems', () => {
       stratagems: 2,
       points: 2,
       dispositions: ['disruption'],
+    })
+  })
+
+  it('keeps the detail needed by the detachment reference page', () => {
+    expect(load().detachmentDetails.get('death-guard')?.get('flyblown-host')).toMatchObject({
+      enhancementNames: ['Living Plague', 'Rejuvenating Swarm'],
+      stratagems: expect.arrayContaining([expect.objectContaining({ name: 'Grim Reapers', cp: 1 })]),
     })
   })
 
