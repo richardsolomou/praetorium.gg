@@ -84,9 +84,14 @@ const normalise = (name: string) =>
     .trim()
 
 const byName = new Map<string, SelectionEntry[]>()
-for (const [name, entries] of index.unitsByName) {
-  const key = normalise(name)
-  byName.set(key, [...(byName.get(key) ?? []), ...entries])
+const bySingularName = new Map<string, SelectionEntry[]>()
+for (const id of index.datasheets) {
+  const entry = index.definitions.get(id)
+  if (!entry || !('type' in entry) || (entry.type !== 'unit' && entry.type !== 'model')) continue
+  const key = normalise(entry.name ?? '')
+  byName.set(key, [...(byName.get(key) ?? []), entry])
+  const singular = key.endsWith('s') ? key.slice(0, -1) : key
+  bySingularName.set(singular, [...(bySingularName.get(singular) ?? []), entry])
 }
 
 /**
@@ -97,7 +102,8 @@ for (const [name, entries] of index.unitsByName) {
  * skipped two thirds of the game.
  */
 function resolve(name: string) {
-  const all = byName.get(normalise(name)) ?? []
+  const key = normalise(name)
+  const all = byName.get(key) ?? bySingularName.get(key.endsWith('s') ? key.slice(0, -1) : key) ?? []
   const datasheets = all.filter((entry) => entry.type === 'unit')
   return datasheets.length ? datasheets : all.filter((entry) => entry.type === 'model')
 }
