@@ -1,4 +1,4 @@
-import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, notFound } from '@tanstack/react-router'
 import { Printer } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -6,14 +6,30 @@ import { priceQuery, sharedRosterQuery } from '../client/queries'
 
 export const Route = createFileRoute('/r/$id')({
   loader: async ({ context, params }) => {
-    if (!(await context.queryClient.ensureQueryData(sharedRosterQuery(params.id)))) throw notFound()
+    const roster = await context.queryClient.ensureQueryData(sharedRosterQuery(params.id))
+    if (!roster) throw notFound()
+    await context.queryClient.ensureQueryData(
+      priceQuery(
+        roster.catalogueId,
+        roster.detachmentIds,
+        roster.limit,
+        roster.picks.map(({ entryId, catalogueId, models, choices, spreads, toggles }) => ({
+          entryId,
+          catalogueId,
+          models,
+          choices,
+          spreads,
+          toggles,
+        })),
+      ),
+    )
   },
   component: SharedRoster,
 })
 
 function SharedRoster() {
   const { id } = Route.useParams()
-  const { data: roster } = useSuspenseQuery(sharedRosterQuery(id))
+  const { data: roster } = useQuery(sharedRosterQuery(id))
   const { data: priced } = useQuery(
     priceQuery(
       roster?.catalogueId ?? '',

@@ -224,7 +224,16 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
     ),
   )
 
-  if (!available) return null
+  if (!available) {
+    return (
+      <div className="flex min-h-0 flex-1 items-center justify-center border border-edge bg-sunken p-8 text-center">
+        <div>
+          <p className="eyebrow">Catalogue unavailable</p>
+          <p className="mt-2 text-sm text-dim">Catalogue data is syncing. Try this page again shortly.</p>
+        </div>
+      </div>
+    )
+  }
 
   const over = Boolean(priced && priced.points > limit)
   // A list without one is not a legal army, so it cannot be attached.

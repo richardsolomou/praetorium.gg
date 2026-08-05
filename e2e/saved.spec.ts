@@ -39,6 +39,16 @@ test('a list is saved and loaded into another battle', async ({ browser }) => {
   // The name is offered, not demanded; this one is overridden on purpose.
   await page.getByLabel('List name').fill('Nurgle 2k')
   await expect(page.getByRole('status')).toContainText('Saved automatically')
+
+  await page.getByRole('link', { name: 'Rosters' }).click()
+  await page.getByRole('link', { name: /Nurgle 2k/ }).click()
+  await expect(page).toHaveURL(/\/rosters\/[^/]+\/edit$/)
+  await expect(total).toHaveText(priced)
+  await page
+    .getByRole('button', { name: /^Immortals/ })
+    .first()
+    .click()
+
   const datasheetPage = page.waitForEvent('popup')
   await page.getByRole('link', { name: 'View full datasheet' }).click()
   const datasheet = await datasheetPage

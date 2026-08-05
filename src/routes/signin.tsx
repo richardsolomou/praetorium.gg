@@ -9,7 +9,10 @@ import { signInOptionsQuery } from '../client/queries'
 import { errorMessage } from '../client/queryClient'
 import { PASSWORD_MIN_LENGTH } from '../server/auth'
 
-export const Route = createFileRoute('/signin')({ component: SignIn })
+export const Route = createFileRoute('/signin')({
+  loader: ({ context }) => context.queryClient.ensureQueryData(signInOptionsQuery()),
+  component: SignIn,
+})
 
 /**
  * An account exists to keep a player's lists, not to gate play.

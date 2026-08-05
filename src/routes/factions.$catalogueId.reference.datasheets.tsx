@@ -1,4 +1,4 @@
-import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, notFound } from '@tanstack/react-router'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useState } from 'react'
@@ -9,16 +9,17 @@ export const Route = createFileRoute('/factions/$catalogueId/reference/datasheet
   loader: async ({ context, params }) => {
     const data = await context.queryClient.ensureQueryData(factionsQuery())
     if (!data?.factions.some((faction) => faction.id === params.catalogueId)) throw notFound()
+    await context.queryClient.ensureQueryData(unitsQuery(params.catalogueId, ''))
   },
   component: DatasheetsPage,
 })
 
 function DatasheetsPage() {
   const { catalogueId } = Route.useParams()
-  const { data } = useSuspenseQuery(factionsQuery())
+  const { data } = useQuery(factionsQuery())
   const faction = data?.factions.find((entry) => entry.id === catalogueId)
   const [query, setQuery] = useState('')
-  const { data: units = [] } = useQuery(unitsQuery(catalogueId, query))
+  const { data: units = [] } = useQuery({ ...unitsQuery(catalogueId, query), placeholderData: keepPreviousData })
   if (!faction) return null
 
   return (
