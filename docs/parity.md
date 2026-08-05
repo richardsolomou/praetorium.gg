@@ -26,6 +26,93 @@ Then `chromium.connectOverCDP('http://127.0.0.1:9222')`. Remember `browser.close
 
 **It hands a fresh visitor an `AUTH_TOKEN` and drops you into a real account** (`tronictronic`) with real rosters and battles. Treat it as strictly read-only: navigate and screenshot, never create, edit or delete anything in there.
 
+The pages worth looking at, and what each one is:
+
+| Page                 | What it shows                                                                                                                                        |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/rosters`           | The roster list, and the entry point to the builder: `Create editable roster`, `Paste GW app roster`, `Paste other app roster`, a battle-size filter |
+| `/rosters/<id>/edit` | The builder. Three columns: picker, roster, loadout                                                                                                  |
+| `/battles`           | Battle list, tabbed `PUBLIC` / `MINE` / `FRIENDS`                                                                                                    |
+| `/battles/<id>`      | A finished battle, three columns                                                                                                                     |
+| `/factions`          | Books, with a favourites section                                                                                                                     |
+
+Their nav also carries Rankings, Events, Leagues and Locations, none of which Muster has anything to say about. Do not build pages for them because the nav has them.
+
+The **phone app is a different codebase** with a dark theme, a bottom tab bar and a guided tracker. Its App Store listing is a read-only source for screenshots of it: `apps.apple.com/us/app/battlebase/id1609745397`, with the images on `is1-ssl.mzstatic.com` — pull the `PurpleSource` `srcset` entries and append `/900x0w.png`.
+
+Reference captures taken during this work lived in a session scratchpad and are gone. They are deliberately **not** committed: they are their interface, and several contain a real person's private rosters and battle history. Re-capture what you need.
+
+## What we learned about the catalogue data
+
+The expensive part of this work was not the code. Four things are not where you would expect them.
+
+**Which units a character may join is a sentence, not a structure.** No link, category or constraint says a Plasmancer may join Immortals. An ability's description does, in one of two formats:
+
+```text
+This model can be attached to the following units:
+■ IMMORTALS
+■ LYCHGUARD
+```
+
+```text
+This model can be attached to the following units: ^^**Immortals, Lychguard, Necron Warriors**^^
+```
+
+It sits on the entry's own `profiles`, or in an `infoGroups` entry, or behind an `infoLinks` reference to a shared one — `src/core/attach.ts` handles all three. **A Leader's ability is titled `Leader`; a supporting character's is titled after the model**, and that is the only thing distinguishing the two. Across every book, 204 of 432 characters carry such a sentence. Necrons resolves all 18 of its own, and matches BattleBase's own labels exactly (Overlord leads, Plasmancer supports).
+
+About 297 target names across all books name a unit from another catalogue — a chapter book naming a Codex unit. Do not try to resolve names to entry ids: match the names against **the units in the roster**, which is the only question the interface ever asks.
+
+**A datasheet's roster cap is on its category, not on the datasheet.** Every unit carries a category named after itself, and the `max` sits there, force-scoped, with a `set` modifier lowering it for smaller games:
+
+```text
+category "Immortals"  -> max=6 @force/selections
+category "Lychguard"  -> max=3 @force
+category "Trazyn the Infinite" -> max=1 @force
+```
+
+Some entries also carry one of their own; the stricter wins. A **negative value means no cap**. Reading only the entry's constraints answers "no limit stated" for every battleline squad in the game; reading categories too, 290 of 303 rows across eight books carry the right number.
+
+**`collective` changes what a count means**, and it was declared in the types and read nowhere. This is the real shape of a squad:
+
+```text
+Immortals [unit]
+  5-10 Immortals [group]        min=5 max=10 @parent/selections
+    Immortal [model]            max=10 @parent
+      Close combat weapon [upgrade, collective]  min=1 max=1 @parent
+      Weapons [group]                            min=1 max=1 @parent
+        Gauss blaster [upgrade, collective]       max=1 @parent
+        Tesla carbine  [upgrade, collective]      max=1 @parent
+```
+
+The `max=1` is **per model**, so ten models may hold ten, and a collective count is a total for the whole unit rather than one model's share. That is what makes "eight blasters and two carbines" expressible. It also means a group of them is always full, which is why `refit` exists.
+
+**A model entry can itself be collective**, which is what caught out the first version of `refit`: `Prosecutor [model, collective]` inside a `3-9 Prosecutors` group. Refitting models overrules the squad size that was asked for, so `refit` touches only `upgrade` entries.
+
+Two features the evaluator still does not act on, both reported by `pnpm catalogue:points`: a `measured field associations`, and `scope primary-catalogue` where there is no catalogue to compare against.
+
+## What we learned about their interface
+
+Values worth not re-deriving. Ours are dark equivalents, in `src/styles.css`.
+
+| Theirs                  | Value                                                               |
+| ----------------------- | ------------------------------------------------------------------- |
+| Accent (links, buttons) | `#2196f3`                                                           |
+| Player sides            | `#ff0000` and `#4444ff`                                             |
+| Achieved                | `#00aa00`                                                           |
+| Discarded / warning     | `#ffa400`                                                           |
+| Surfaces                | `#ffffff` cards on `#eeeeee` panels                                 |
+| Borders                 | `#bbbbbb`, `#cccccc`                                                |
+| Radii                   | 3px buttons, 4px cards                                              |
+| Typeface                | ITC Conduit W02, Medium and Bold, self-hosted from `/static/media/` |
+
+Their **loadout pane** — the third column, which is richer than ours: unit name, points chip, a red `DELETE`, a settings gear; links to `View datasheet`, `Mathhammer`, `Buy on Amazon`; a supporter-only unit notes box; a `− n +` stepper for the **model count**; then `WARGEAR OPTIONS`, each weapon with its full stat line and its own `− n +`, and the datasheet's own sentence about what may be swapped for what.
+
+Their **unit card kebab**: `Duplicate unit`, `Add to favourites`, `Mathhammer with this unit` (supporter), `Delete`. No model count in there.
+
+Their **picker**: a search field, then `POINTS FIT` / `UNIT LIMIT` / `OWNED` chips, then a note — "Epic Heroes and units with toughness 10 or higher are hidden" — which is the mission pack's restrictions, not the book's. Rows read `NAME`, `n/m in roster`, a points chip, and `ADD`.
+
+Their **phone tracker**, for whenever the tracker gets attention: a scrolling content area over a fixed bottom bar that carries both players' VP and CP, their names in side colours with faction beneath, a five-segment round bar each, `BATTLE ROUND n` in the centre, and `INFO` / `EVENTS` tabs. Below that, `NOW` and the current step — "SCORING SELECTED SECRET MISSIONS" — with the scorable cards and explicit `SCORE 0` / `SCORE 20` buttons, then `UNDO`, a primary action that states why it is disabled ("PLEASE ENTER MISSION SCORES"), and a camera. The whole thing is a guided step machine, which is a real difference from Muster's phase model and a decision to make rather than copy.
+
 ## Done
 
 - **Builder rebuilt in their shape.** Three panes (book, roster, loadout) collapsing to one column on a phone with the book behind **Add units**. Category shelves with counts and collapse, bordered points chips, wargear bullet lines, a sticky tick-and-total bar. `src/client/components/builder/`.
@@ -38,6 +125,14 @@ Then `chromium.connectOverCDP('http://127.0.0.1:9222')`. Remember `browser.close
 - **Split squads.** Per-option counts, which needed `collective` semantics implementing from scratch across expansion, wargear, capacity and violations.
 
 Deployed at `muster.ras.sh`, auto-deploying from `main`. See [deployment.md](deployment.md).
+
+## What we learned about our own side
+
+- **Pricing a page of picker rows costs 14ms** for 60 rows through `buildUnit` plus `evaluate`. Pricing a whole book would not be cheap, which is why only the page that is shown gets priced.
+- **`hiddenByRules` is the pattern for asking the evaluator a question about a candidate** that is not in a roster yet: it builds a synthetic root, places the rest of the list, then puts the candidate beside it. `rosterLimit` is written the same way. Copy that shape rather than inventing another.
+- **`unitsIn` returns at most 60 rows**, so the filters narrow what is shown rather than the whole book. A datasheet outside the first 60 for a query is not filtered out, it was never fetched.
+- **The catalogue is ~90MB of heap held in the process** and loaded on first use. `catalogue-data/` is gitignored; run `pnpm catalogue:sync` before anything that needs real data, including the e2e suite.
+- Every price cross-checked against BattleBase agreed exactly — Immortals 70, Overlord 90, Chronomancer 70, Catacomb Command Barge 120, Lokhust Lord 70, Skorpekh Lord 90, Lychguard 80. If a number disagrees with theirs, suspect ours.
 
 ## What is left
 
