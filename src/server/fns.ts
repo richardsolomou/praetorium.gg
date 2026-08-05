@@ -6,7 +6,7 @@ import { cookieOptions, PLAYER_COOKIE, playerFor, playerIdFrom, signPlayerId } f
 import { configuredProviders } from './auth'
 import { evaluate, type Selection } from '../core/evaluate'
 import { attachmentOf } from '../core/attach'
-import { buildUnit, wargearOf } from '../core/roster'
+import { buildUnit, modelCountOf, unitChoices, wargearOf } from '../core/roster'
 import { datasheetIn, groupOfEntry, unitsIn } from './catalogue'
 import { fromRosterXml, toRosterXml } from '../core/rosz'
 import { parseXml, rosterXml } from './rosz'
@@ -37,6 +37,8 @@ function orNull<T>(work: () => T) {
     throw error
   }
 }
+
+const allSelections = (selection: Selection): Selection[] => [selection, ...(selection.selections ?? []).flatMap(allSelections)]
 
 /**
  * Who is asking. An account that has claimed a guest identity is that identity, so
@@ -327,13 +329,32 @@ export const importRoster = createServerFn({ method: 'POST' })
 
       const parsed = fromRosterXml(rosterXml(data.file), loaded.index, parseXml)
       const catalogueId = parsed.catalogueId && loaded.index.catalogues.has(parsed.catalogueId) ? parsed.catalogueId : null
+      const detachment = catalogueId ? loaded.detachments.get(catalogueId) : undefined
+      const flattened = parsed.selections.flatMap(allSelections)
+      const detachmentId = detachment?.options.find((option) => flattened.some((selection) => selection.id === option.id))?.id ?? null
 
       return {
         name: data.name ?? parsed.name,
         catalogueId,
         catalogueName: parsed.catalogueName,
-        // Top-level selections become the picks; their own children are kept.
-        units: parsed.selections.map((selection) => ({ entryId: selection.id, models: selection.count })),
+        detachmentId,
+        units: parsed.selections
+          .filter((selection) => loaded.index.datasheets.has(selection.id))
+          .map((selection) => {
+            const decisions = unitChoices(selection.id, selection, loaded.index, { primaryCatalogueId: catalogueId ?? undefined })
+            return {
+              entryId: selection.id,
+              models: Math.max(1, modelCountOf(selection, loaded.index)),
+              choices: Object.fromEntries(
+                decisions.filter((choice) => choice.room === 1 && choice.chosen).map((choice) => [choice.key, choice.chosen]),
+              ),
+              spreads: Object.fromEntries(
+                decisions
+                  .filter((choice) => choice.room > 1)
+                  .map((choice) => [choice.key, Object.fromEntries(choice.options.map((option) => [option.id, option.count]))]),
+              ),
+            }
+          }),
         unknown: parsed.unknown,
       }
     }),

@@ -116,8 +116,9 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
     },
     onSuccess: (imported) => {
       if (imported.catalogueId) setCatalogueId(imported.catalogueId)
+      setDetachmentId(imported.detachmentId ?? undefined)
       setName(imported.name)
-      setPicked(imported.units.map((unit, at) => ({ key: at, entryId: unit.entryId, models: unit.models })))
+      setPicked(imported.units.map((unit, at) => ({ key: at, ...unit })))
       setNextKey(imported.units.length)
       setSavedId(undefined)
     },

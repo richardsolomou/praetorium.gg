@@ -245,6 +245,12 @@ export function unitSize(entryId: string, index: CatalogueIndex): UnitSize | nul
   return base ? sizeOf(base, index) : null
 }
 
+/** How many models an already-built or imported selection actually contains. */
+export function modelCountOf(selection: Selection, index: CatalogueIndex): number {
+  const counted = survey(selection, index, [])
+  return counted.models + counted.groups.reduce((total, group) => total + group.total, 0)
+}
+
 /** Whether the data lets a player change how many models this unit fields. */
 export const isResizable = (size: UnitSize) => size.path.length > 0 && size.max > size.min
 
