@@ -62,7 +62,7 @@
   --color-edge-strong: #333941;
   --color-bone: #eceef1;
   --color-dim: #8b929c;
-  --color-faint: #5f666f;
+  --color-faint: #767e88;
 
   --color-azure: #3d9bf5;
   --color-azure-ink: #06121f;
@@ -71,6 +71,17 @@
   --color-achieved: #35c759;
   --color-discarded: #f5a524;
   --color-rust: #c05c44;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 :root {
