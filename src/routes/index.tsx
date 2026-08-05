@@ -1,11 +1,10 @@
-import { useMutation } from '@tanstack/react-query'
-import { useSuspenseQuery } from '@tanstack/react-query'
+import { useMutation, useQueryClient, useSuspenseQuery } from '@tanstack/react-query'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { meQuery } from '../client/queries'
+import { battlesQuery, meQuery } from '../client/queries'
 import { errorMessage } from '../client/queryClient'
 import { PLAYER_NAME_MAX_LENGTH } from '../core/battle'
 import { createBattle } from '../server/fns'
@@ -19,9 +18,13 @@ function Home() {
   const { data: me } = useSuspenseQuery(meQuery())
   const [name, setName] = useState(me?.name ?? '')
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const open = useMutation({
     mutationFn: () => createBattle({ data: { name } }),
-    onSuccess: ({ token }) => navigate({ to: '/b/$token', params: { token } }),
+    onSuccess: async ({ token }) => {
+      await queryClient.invalidateQueries({ queryKey: battlesQuery().queryKey })
+      return navigate({ to: '/b/$token', params: { token } })
+    },
   })
 
   return (
