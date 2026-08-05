@@ -16,7 +16,7 @@ function SharedRoster() {
     priceQuery(
       roster?.catalogueId ?? '',
       roster?.detachmentId ?? undefined,
-      roster?.picks.map(({ entryId, models, choices, spreads }) => ({ entryId, models, choices, spreads })) ?? [],
+      roster?.picks.map(({ entryId, models, choices, spreads, toggles }) => ({ entryId, models, choices, spreads, toggles })) ?? [],
     ),
   )
   if (!roster) return null

@@ -19,7 +19,14 @@ import { picksSchema, savedPrepSchema } from './schemas'
  * or the invitation until they take one. Reading a battle never seats anyone —
  * a link preview must not be able to take the second chair.
  */
-export type Pick = { entryId: string; models?: number; choices?: Record<string, string> }
+export type Pick = {
+  entryId: string
+  models?: number
+  choices?: Record<string, string>
+  spreads?: Record<string, Record<string, number>>
+  toggles?: Record<string, number>
+  attachedTo?: number
+}
 
 export type SavedPrep = { stratagems: Stratagem[]; secondaries: Secondary[] }
 
