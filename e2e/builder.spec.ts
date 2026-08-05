@@ -135,6 +135,14 @@ test('a character can be marked as the warlord from its card', async ({ page }) 
   const warlord = page.getByRole('button', { name: 'Make Overlord Warlord' })
   await warlord.click()
   await expect(page.getByRole('button', { name: 'Remove Overlord Warlord' })).toHaveAttribute('aria-pressed', 'true')
+  await page
+    .locator('[data-unit="Overlord"]')
+    .getByRole('button', { name: /^Overlord/ })
+    .click()
+  const pane = page.locator('aside[aria-label="Loadout"]')
+  await expect(pane.getByText('InSv')).toBeVisible()
+  await expect(pane.getByText('4+')).toBeVisible()
+  await expect(pane.getByText('Range').first()).toBeVisible()
 })
 
 test('a squad divides its weapons between two options', async ({ page }) => {
@@ -152,6 +160,8 @@ test('a squad divides its weapons between two options', async ({ page }) => {
     .click()
   const pane = page.locator('aside[aria-label="Loadout"]')
   await expect(pane.getByText('Wargear options')).toBeVisible()
+  await expect(pane.getByText('Weapons').first()).toBeVisible()
+  await expect(pane.getByText('BS').first()).toBeVisible()
   await expect(pane.getByText('10/10')).toBeVisible()
 
   // The group is always full, so taking a carbine takes a blaster off a model.
