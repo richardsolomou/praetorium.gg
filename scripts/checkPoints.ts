@@ -133,10 +133,12 @@ function pricedWargearOf(selection: Selection) {
 
 const tally = { matched: 0, mismatched: 0, ambiguous: 0, missing: 0, unsupportedShape: 0 }
 const mismatches: string[] = []
+const skipped = { ambiguous: [] as string[], missing: [] as string[], unsupported: [] as string[] }
 const census = new Set<string>()
 let withoutCatalogue = 0
 const unmatchedFactions: string[] = []
 const wantedUnit = process.env.POINTS_UNIT?.toLowerCase()
+const showSkipped = process.env.POINTS_SKIPS === '1'
 
 for (const faction of factions) {
   // Chapter-specific surcharges ask which book the list is from, so the manual's
@@ -153,10 +155,12 @@ for (const faction of factions) {
     if (!tiers.length) continue
     if (!candidates.length) {
       tally.missing += tiers.length
+      skipped.missing.push(`${faction.slug}: ${unit.name} (${tiers.length} tiers)`)
       continue
     }
     if (candidates.length > 1) {
       tally.ambiguous += tiers.length
+      skipped.ambiguous.push(`${faction.slug}: ${unit.name} (${candidates.length} candidates, ${tiers.length} tiers)`)
       continue
     }
 
@@ -173,6 +177,9 @@ for (const faction of factions) {
       const built = buildUnit(entry.id, index, tier.models, undefined, { primaryCatalogueId: unitCatalogueId })
       if (!built || built.size.models !== tier.models) {
         tally.unsupportedShape++
+        skipped.unsupported.push(
+          `${faction.slug}: ${unit.name} @ ${tier.models} models (${built ? `built ${built.size.models}` : 'could not build'})`,
+        )
         continue
       }
 
@@ -208,6 +215,13 @@ if (unmatchedFactions.length) console.log(`unmatched faction files: ${unmatchedF
 if (mismatches.length) {
   console.log(`\n## mismatches`)
   for (const line of mismatches) console.log(`  ${line}`)
+}
+
+if (showSkipped) {
+  for (const [reason, lines] of Object.entries(skipped)) {
+    console.log(`\n## skipped: ${reason}`)
+    for (const line of lines) console.log(`  ${line}`)
+  }
 }
 
 console.log(`\n## catalogue features the evaluator did not act on (${census.size})`)
