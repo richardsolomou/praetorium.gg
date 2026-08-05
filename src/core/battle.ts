@@ -163,6 +163,10 @@ export type PlayerState = {
   secondaryMode: SecondaryMode
   /** What each named secondary has scored, keyed the same way. */
   scored: Record<string, number>
+  /** Per-round ledgers are folded from score commands, never stored separately. */
+  primaryByRound: number[]
+  secondaryByRound: number[]
+  scoredByRound: Record<string, number[]>
 }
 
 export type StratagemUse = { key: string; round: number; phase: Phase; turn: PlayerId | null }
@@ -211,6 +215,9 @@ export function reduceBattle(playerIds: readonly PlayerId[], log: readonly Logge
       primaryCard: null,
       secondaryMode: 'fixed',
       scored: {},
+      primaryByRound: Array(BATTLE_ROUNDS).fill(0),
+      secondaryByRound: Array(BATTLE_ROUNDS).fill(0),
+      scoredByRound: {},
     })),
     undoable: null,
     seq: 0,
@@ -402,6 +409,12 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
       )
       player.scored = kept
       player.secondary = Object.values(kept).reduce((total, points) => total + points, 0)
+      player.scoredByRound = Object.fromEntries(
+        Object.entries(player.scoredByRound).filter(([key]) => player.secondaries.some((secondary) => secondary.key === key)),
+      )
+      player.secondaryByRound = Array.from({ length: BATTLE_ROUNDS }, (_, round) =>
+        Object.values(player.scoredByRound).reduce((total, scores) => total + (scores[round] ?? 0), 0),
+      )
       return
     }
     case 'use-stratagem': {
@@ -415,6 +428,10 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
       const scored = (player.scored[command.key] ?? 0) + command.delta
       player.scored = { ...player.scored, [command.key]: scored }
       player.secondary = Object.values(player.scored).reduce((total, points) => total + points, 0)
+      const rounds = [...(player.scoredByRound[command.key] ?? Array(BATTLE_ROUNDS).fill(0))]
+      rounds[state.round - 1] = (rounds[state.round - 1] ?? 0) + command.delta
+      player.scoredByRound = { ...player.scoredByRound, [command.key]: rounds }
+      player.secondaryByRound[state.round - 1] = (player.secondaryByRound[state.round - 1] ?? 0) + command.delta
       return
     }
     case 'begin-battle': {
@@ -430,6 +447,8 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
     }
     case 'score': {
       player[command.category] += command.delta
+      const ledger = command.category === 'primary' ? player.primaryByRound : player.secondaryByRound
+      ledger[state.round - 1] = (ledger[state.round - 1] ?? 0) + command.delta
       return
     }
     case 'advance': {
@@ -610,6 +629,7 @@ export type BattleView = {
     primary: number
     secondary: number
     total: number
+    rounds: { round: number; primary: number; secondary: number; total: number }[]
     roster: Roster | null
     units: UnitState[]
     /** What is still on the table, for the line a player actually glances at. */
@@ -617,7 +637,7 @@ export type BattleView = {
     deployed: number
     /** Each stratagem with whether it can be used right now, and why not when it cannot. */
     stratagems: { key: string; name: string; cp: number; limit: StratagemLimit; refusal: string | null }[]
-    secondaries: { key: string; name: string; points: number }[]
+    secondaries: { key: string; name: string; points: number; rounds: number[] }[]
     primaryCard: Secondary | null
     secondaryMode: SecondaryMode
   }[]
@@ -663,6 +683,12 @@ export function battleView(
       primary: player.primary,
       secondary: player.secondary,
       total: player.primary + player.secondary,
+      rounds: Array.from({ length: BATTLE_ROUNDS }, (_, round) => ({
+        round: round + 1,
+        primary: player.primaryByRound[round] ?? 0,
+        secondary: player.secondaryByRound[round] ?? 0,
+        total: (player.primaryByRound[round] ?? 0) + (player.secondaryByRound[round] ?? 0),
+      })),
       roster: player.roster,
       units: player.units,
       standing: player.units.filter((unit) => !unit.destroyed).length,
@@ -679,6 +705,7 @@ export function battleView(
         key: secondary.key,
         name: secondary.name,
         points: player.scored[secondary.key] ?? 0,
+        rounds: player.scoredByRound[secondary.key] ?? Array(BATTLE_ROUNDS).fill(0),
       })),
     })),
     guides: { primary: PRIMARY_GUIDE, secondary: SECONDARY_GUIDE },

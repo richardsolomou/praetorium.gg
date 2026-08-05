@@ -49,7 +49,7 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
   const finished = view.status === 'finished'
 
   return (
-    <main className="mx-auto w-full max-w-3xl space-y-4 px-4 py-6">
+    <main className="mx-auto w-full max-w-[1500px] space-y-4 px-4 py-6">
       <header className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 border-b border-edge pb-3">
         <div>
           <p className="eyebrow">
@@ -65,11 +65,11 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
         )}
       </header>
 
-      <div className="grid items-start gap-3 sm:grid-cols-2">
+      <div className="grid items-start gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_18rem_minmax(0,1fr)]">
         {view.players.map((player, index) => (
           <section
             key={player.id}
-            className={`space-y-3 rounded-lg border border-edge border-l-2 bg-panel p-4 ${SIDES[index]?.accent ?? ''} ${
+            className={`space-y-3 rounded-lg border border-edge border-l-2 bg-panel p-4 lg:row-start-1 ${index === 0 ? 'lg:col-start-1' : 'lg:col-start-3'} ${SIDES[index]?.accent ?? ''} ${
               player.isActive ? 'ring-2 ring-azure/50' : ''
             }`}
           >
@@ -135,6 +135,18 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
                 {player.total}
               </span>
             </p>
+
+            <div className="grid grid-cols-5 border-y border-edge py-2">
+              {player.rounds.map((round) => (
+                <div key={round.round} className={`text-center ${round.round > 1 ? 'border-l border-edge' : ''}`}>
+                  <p className="eyebrow">T{round.round}</p>
+                  <p className={`readout text-lg ${round.round === view.round ? SIDES[index]?.value : 'text-dim'}`}>{round.total}</p>
+                  <p className="readout text-[0.625rem] text-faint">
+                    {round.primary}+{round.secondary}
+                  </p>
+                </div>
+              ))}
+            </div>
 
             {player.primaryCard ? (
               <div className="space-y-1 border-t border-edge pt-3">
@@ -280,39 +292,42 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
             ) : null}
           </section>
         ))}
+
+        <section className="order-first space-y-3 border border-edge bg-panel p-4 sm:col-span-2 lg:col-span-1 lg:col-start-2 lg:row-start-1">
+          <div className="text-center">
+            <p className="eyebrow">{finished ? 'Final result' : `Battle round ${view.round}`}</p>
+            <p className="mt-1 text-xl font-bold uppercase">{finished ? outcome(view) : `${view.phase} phase`}</p>
+            <p className="mt-1 text-xs text-dim">{mission?.name ?? 'Matched play'}</p>
+          </div>
+          {finished ? null : (
+            <div className="space-y-2 border-t border-edge pt-3">
+              <Button
+                variant={yourTurn ? 'default' : 'outline'}
+                className="h-11 w-full text-base"
+                disabled={!yourTurn || pending}
+                onClick={() => send({ kind: 'advance' })}
+                title={yourTurn ? undefined : 'Only the player taking the turn can end a phase'}
+              >
+                {view.phase === 'end' ? 'Pass the turn' : `End the ${view.phase} phase`}
+              </Button>
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  variant="outline"
+                  disabled={view.undoable === null || pending}
+                  onClick={() => view.undoable !== null && send({ kind: 'undo', target: view.undoable })}
+                >
+                  <Undo2 /> Undo
+                </Button>
+                <Button variant="destructive" disabled={pending} onClick={() => send({ kind: 'end-battle' })}>
+                  End battle
+                </Button>
+              </div>
+            </div>
+          )}
+          {problem ? <p className="text-sm text-destructive">{problem}</p> : null}
+          <ReportDetails token={view.token} />
+        </section>
       </div>
-
-      {problem ? <p className="text-sm text-destructive">{problem}</p> : null}
-
-      {finished ? null : (
-        <footer className="flex flex-wrap items-center gap-2 border-t border-edge pt-4">
-          <Button
-            // Not the primary action when it is not yours to take: a dimmed accent
-            // button still reads as the thing to press.
-            variant={yourTurn ? 'default' : 'outline'}
-            className="h-11 flex-1 text-base"
-            disabled={!yourTurn || pending}
-            onClick={() => send({ kind: 'advance' })}
-            title={yourTurn ? undefined : 'Only the player taking the turn can end a phase'}
-          >
-            {view.phase === 'end' ? 'Pass the turn' : `End the ${view.phase} phase`}
-          </Button>
-          <Button
-            variant="outline"
-            className="h-11"
-            disabled={view.undoable === null || pending}
-            onClick={() => view.undoable !== null && send({ kind: 'undo', target: view.undoable })}
-          >
-            <Undo2 />
-            Undo
-          </Button>
-          <Button variant="destructive" className="h-11" disabled={pending} onClick={() => send({ kind: 'end-battle' })}>
-            End battle
-          </Button>
-        </footer>
-      )}
-
-      <ReportDetails token={view.token} />
 
       <details className="text-sm text-dim">
         <summary className="cursor-pointer">Stratagems and secondaries</summary>
