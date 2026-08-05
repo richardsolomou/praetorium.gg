@@ -305,7 +305,9 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
                 {player.stratagems.map((stratagem) => (
                   <div key={stratagem.key} className="flex items-center justify-between gap-2 text-sm">
                     <span className={`min-w-0 flex-1 truncate ${stratagem.refusal ? 'text-dim' : ''}`}>{stratagem.name}</span>
-                    <span className="readout shrink-0 text-xs text-dim">{stratagem.cp} CP</span>
+                    <span className="readout shrink-0 text-xs text-dim">
+                      {stratagem.cp} CP · {stratagem.uses}x
+                    </span>
                     {player.isViewer && !finished ? (
                       <Button
                         variant="outline"

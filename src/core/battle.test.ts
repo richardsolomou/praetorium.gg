@@ -259,6 +259,11 @@ describe('stratagems', () => {
     expect(alice(state)?.cp).toBe(3)
   })
 
+  it('expose a usage count in the battle view', () => {
+    const state = reduceBattle(PLAYERS, log(...armed(), [ALICE, { kind: 'use-stratagem', key: 's1' }]))
+    expect(battleView({ token: 'abc' }, NAMES, state, ALICE).players[0]?.stratagems[0]?.uses).toBe(1)
+  })
+
   it('cannot be used twice in the same turn when that is the limit', () => {
     const state = reduceBattle(PLAYERS, log(...armed(), [ALICE, { kind: 'use-stratagem', key: 's1' }]))
     expect(validate(state, ALICE, { kind: 'use-stratagem', key: 's1' })).toBe('Grenade has been used this turn')
