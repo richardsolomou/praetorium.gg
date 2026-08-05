@@ -368,6 +368,41 @@ describe('how many models a unit may field', () => {
     expect(modelCountOf(built.selection, index)).toBe(12)
   })
 
+  it('scales every bounded model type in a proportional composition', () => {
+    const index = indexOf({
+      sharedSelectionEntries: [
+        {
+          id: 'mixed',
+          name: 'Mixed unit',
+          type: 'unit',
+          selectionEntries: [
+            {
+              id: 'large',
+              name: 'Large model',
+              type: 'model',
+              constraints: [
+                { id: 'large-min', type: 'min', value: 3, field: 'selections', scope: 'parent' },
+                { id: 'large-max', type: 'max', value: 6, field: 'selections', scope: 'parent' },
+              ],
+            },
+            {
+              id: 'small',
+              name: 'Small model',
+              type: 'model',
+              constraints: [
+                { id: 'small-min', type: 'min', value: 5, field: 'selections', scope: 'parent' },
+                { id: 'small-max', type: 'max', value: 10, field: 'selections', scope: 'parent' },
+              ],
+            },
+          ],
+        },
+      ],
+    })
+
+    const built = buildUnit('mixed', index, 16)!
+    expect(modelCountOf(built.selection, index)).toBe(16)
+  })
+
   it('resizes a model inside nested groups instead of counting the container', () => {
     const index = indexOf({
       sharedSelectionEntries: [
