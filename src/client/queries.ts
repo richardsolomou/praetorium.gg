@@ -49,6 +49,7 @@ export type PickedUnit = {
   models?: number
   choices?: Record<string, string>
   spreads?: Record<string, Record<string, number>>
+  toggles?: Record<string, number>
 }
 
 /** Keyed on the picks, so the price follows the list without anything having to remember to ask. */

@@ -185,7 +185,7 @@ On phones, make an explicit choice rather than shrinking the desktop grid. Match
 ### 3. Complete roster editing and datasheet presentation
 
 - Expand the unit actions beyond the implemented duplicate and delete controls with favourite/owned. Duplication preserves the complete configured pick, including its attachment target.
-- Put enhancements and a warlord marker on the unit card, while keeping one accessible control for each value.
+- Refine the implemented enhancement and Warlord card treatment. Enhancements are labelled on the card, and the catalogue's optional Warlord entry is a single accessible crown control that survives save/export/import.
 - Refine the implemented datasheet detail against more books and complex profile shapes. It presents model stats, ranged and melee weapon profiles, abilities and keywords from fetched catalogues without committing their text to this repository.
 - Show the datasheet's replacement sentence beside wargear controls so the counts have context.
 - Model mission-pack picker restrictions only from fetched data. Do not hard-code BattleBase's current “Epic Heroes and toughness 10” sentence.

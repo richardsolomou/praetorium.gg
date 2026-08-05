@@ -80,6 +80,7 @@ test('a built list is priced, played and tracked', async ({ browser }) => {
   await enhancement.click()
   await alice.getByRole('option', { name: /Face of Death/ }).click()
   await expect(total).not.toHaveText(`${beforeEnhancement}/2000`)
+  await expect(alice.locator('[data-unit="Lord of Virulence"]').getByText('Enhancement', { exact: true })).toBeVisible()
 
   await alice.screenshot({ path: 'test-results/builder.png', fullPage: true })
   await alice.getByRole('button', { name: 'Attach this list' }).click()

@@ -6,7 +6,7 @@ import { cookieOptions, PLAYER_COOKIE, playerFor, playerIdFrom, signPlayerId } f
 import { configuredProviders } from './auth'
 import { evaluate, type Selection } from '../core/evaluate'
 import { attachmentOf } from '../core/attach'
-import { buildUnit, modelCountOf, unitChoices, wargearOf } from '../core/roster'
+import { buildUnit, modelCountOf, unitChoices, unitToggles, wargearOf } from '../core/roster'
 import { datasheetIn, groupOfEntry, unitsIn } from './catalogue'
 import { fromRosterXml, toRosterXml } from '../core/rosz'
 import { parseXml, rosterXml } from './rosz'
@@ -213,6 +213,7 @@ export const priceRoster = createServerFn({ method: 'POST' })
           primaryCatalogueId: data.catalogueId,
           roster: detachmentSelection,
           spreads: wanted.spreads,
+          toggles: wanted.toggles,
         })
         const entry = loaded.index.definitions.get(wanted.entryId)
         return built ? [{ key, entryId: wanted.entryId, name: entry?.name ?? wanted.entryId, ...built }] : []
@@ -237,6 +238,10 @@ export const priceRoster = createServerFn({ method: 'POST' })
           points: evaluate([unit.selection], loaded.index, options).points,
           size: { min: unit.size.min, max: unit.size.max, models: unit.size.models, resizable: unit.size.max > unit.size.min },
           choices: unit.choices,
+          toggles: unit.toggles,
+          enhancements: unit.choices
+            .filter((choice) => choice.name.toLowerCase().includes('enhancement'))
+            .flatMap((choice) => choice.options.filter((option) => option.count > 0).map((option) => option.name)),
           // What the datasheet would print under the name, so a card can show the
           // list rather than make the player open the loadout to see it.
           wargear: wargearOf(unit.selection, loaded.index),
@@ -353,6 +358,9 @@ export const importRoster = createServerFn({ method: 'POST' })
                   .filter((choice) => choice.room > 1)
                   .map((choice) => [choice.key, Object.fromEntries(choice.options.map((option) => [option.id, option.count]))]),
               ),
+              toggles: Object.fromEntries(
+                unitToggles(selection.id, selection, loaded.index).map((toggle) => [toggle.key, toggle.selected ? 1 : 0]),
+              ),
             }
           }),
         unknown: parsed.unknown,
@@ -369,7 +377,11 @@ export const exportRoster = createServerFn({ method: 'POST' })
       if (!loaded) throw new Response('this instance has no catalogue', { status: 409 })
 
       const selections = data.units.flatMap((wanted) => {
-        const built = buildUnit(wanted.entryId, loaded.index, wanted.models, wanted.choices, { primaryCatalogueId: data.catalogueId })
+        const built = buildUnit(wanted.entryId, loaded.index, wanted.models, wanted.choices, {
+          primaryCatalogueId: data.catalogueId,
+          spreads: wanted.spreads,
+          toggles: wanted.toggles,
+        })
         return built ? [built.selection] : []
       })
       // The list's cost, worked out from its selections.

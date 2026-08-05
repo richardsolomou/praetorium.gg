@@ -125,6 +125,14 @@ test('a unit that leads nothing is offered no one to lead', async ({ page }) => 
   await expect(page.getByText('Support', { exact: true })).toBeHidden()
 })
 
+test('a character can be marked as the warlord from its card', async ({ page }) => {
+  await openBuilder(page)
+  await add(page, 'Overlord')
+  const warlord = page.getByRole('button', { name: 'Make Overlord Warlord' })
+  await warlord.click()
+  await expect(page.getByRole('button', { name: 'Remove Overlord Warlord' })).toHaveAttribute('aria-pressed', 'true')
+})
+
 test('a squad divides its weapons between two options', async ({ page }) => {
   await openBuilder(page)
   await add(page, 'Immortals')

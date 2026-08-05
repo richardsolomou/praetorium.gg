@@ -37,6 +37,8 @@ export type RosterPick = {
    * one group between two options, which a single chosen id cannot say.
    */
   spreads?: Record<string, Record<string, number>>
+  /** Optional single entries such as Warlord, keyed by their catalogue path. */
+  toggles?: Record<string, number>
 }
 
 /**
@@ -254,7 +256,8 @@ export function modelCountOf(selection: Selection, index: CatalogueIndex): numbe
 /** Whether the data lets a player change how many models this unit fields. */
 export const isResizable = (size: UnitSize) => size.path.length > 0 && size.max > size.min
 
-export type BuiltUnit = { selection: Selection; size: UnitSize; choices: UnitChoice[] }
+export type UnitToggle = { key: string; name: string; selected: boolean }
+export type BuiltUnit = { selection: Selection; size: UnitSize; choices: UnitChoice[]; toggles: UnitToggle[] }
 
 /** The unit as the data hands it over, with the player's choices taken and resized to `models`. */
 export function buildUnit(
@@ -262,7 +265,12 @@ export function buildUnit(
   index: CatalogueIndex,
   models?: number,
   choices?: Readonly<Record<string, string>>,
-  context?: { primaryCatalogueId?: string; roster?: readonly Selection[]; spreads?: Readonly<Record<string, Record<string, number>>> },
+  context?: {
+    primaryCatalogueId?: string
+    roster?: readonly Selection[]
+    spreads?: Readonly<Record<string, Record<string, number>>>
+    toggles?: Readonly<Record<string, number>>
+  },
 ): BuiltUnit | null {
   const base = defaultSelection(entryId, index)
   if (!base) return null
@@ -271,18 +279,48 @@ export function buildUnit(
   const chosen = Object.entries(choices ?? {}).reduce((tree, [key, optionId]) => withChoice(tree, key, optionId, index), base)
   // Then the spreads, which say how many of each option rather than which one.
   const spread = Object.entries(context?.spreads ?? {}).reduce((tree, [key, counts]) => withSpread(tree, key, counts), chosen)
+  const toggled = withCounts(
+    spread,
+    Object.entries(context?.toggles ?? {}).map(([key, count]) => ({ path: key.split('/'), count })),
+  )
 
-  const size = sizeOf(spread, index)
+  const size = sizeOf(toggled, index)
   if (models === undefined || !size.path.length || models === size.models) {
-    const fitted = refit(spread, index, 1)
-    return { selection: fitted, size, choices: unitChoices(entryId, fitted, index, context) }
+    const fitted = refit(toggled, index, 1)
+    return { selection: fitted, size, choices: unitChoices(entryId, fitted, index, context), toggles: unitToggles(entryId, fitted, index) }
   }
 
   const wanted = Math.min(Math.max(models, size.min), size.max)
-  const current = countAt(spread, size.path)
-  const resized = withCounts(spread, [{ path: size.path, count: Math.max(0, current + (wanted - size.models)) }])
+  const current = countAt(toggled, size.path)
+  const resized = withCounts(toggled, [{ path: size.path, count: Math.max(0, current + (wanted - size.models)) }])
   const selection = refit(resized, index, 1)
-  return { selection, size: { ...size, models: wanted }, choices: unitChoices(entryId, selection, index, context) }
+  return {
+    selection,
+    size: { ...size, models: wanted },
+    choices: unitChoices(entryId, selection, index, context),
+    toggles: unitToggles(entryId, selection, index),
+  }
+}
+
+/** Optional single entries with roster meaning rather than loadout meaning. */
+export function unitToggles(entryId: string, selection: Selection, index: CatalogueIndex): UnitToggle[] {
+  const root = index.definitions.get(entryId)
+  if (!root) return []
+  const found: UnitToggle[] = []
+  const walk = (definition: Definition, trail: string[], seen: Set<string>) => {
+    const target = resolve(definition, index)
+    if (seen.has(target.id)) return
+    const visited = new Set(seen).add(target.id)
+    for (const child of childrenOf(target, index)) {
+      const inner = resolve(child.definition, index)
+      const here = [...trail, child.id]
+      if ((inner.name ?? child.definition.name)?.trim().toLowerCase() === 'warlord') {
+        found.push({ key: here.join('/'), name: 'Warlord', selected: (at(selection, here)?.count ?? 0) > 0 })
+      } else walk(child.definition, here, visited)
+    }
+  }
+  walk(root, [], new Set())
+  return found
 }
 
 function sizeOf(base: Selection, index: CatalogueIndex): UnitSize {

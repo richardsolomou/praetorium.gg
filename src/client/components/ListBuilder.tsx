@@ -33,6 +33,7 @@ type Pick = {
   choices?: Record<string, string>
   /** How many of each option a group holds, where a group holds more than one. */
   spreads?: Record<string, Record<string, number>>
+  toggles?: Record<string, number>
   /** The key of the unit this one is attached to, when it is. */
   attachedTo?: number
 }
@@ -87,11 +88,12 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
           catalogueId,
           detachmentId: detachmentId ?? null,
           limit,
-          picks: picked.map(({ entryId, models, choices, spreads, attachedTo }) => ({
+          picks: picked.map(({ entryId, models, choices, spreads, toggles, attachedTo }) => ({
             entryId,
             models,
             choices,
             spreads,
+            toggles,
             // Saved by position, because the keys are this session's own numbering.
             attachedTo: attachedTo === undefined ? undefined : picked.findIndex((pick) => pick.key === attachedTo),
           })),
@@ -132,7 +134,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
           catalogueId,
           detachmentId,
           name: listName || 'Roster',
-          units: picked.map(({ entryId, models, choices, spreads }) => ({ entryId, models, choices, spreads })),
+          units: picked.map(({ entryId, models, choices, spreads, toggles }) => ({ entryId, models, choices, spreads, toggles })),
         },
       }),
     onSuccess: ({ filename, xml }) => {
@@ -157,7 +159,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
     priceQuery(
       catalogueId,
       detachmentId,
-      picked.map(({ entryId, models, choices, spreads }) => ({ entryId, models, choices, spreads })),
+      picked.map(({ entryId, models, choices, spreads, toggles }) => ({ entryId, models, choices, spreads, toggles })),
     ),
   )
 
@@ -193,6 +195,11 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
       current.map((pick, at) =>
         at === index ? { ...pick, spreads: { ...pick.spreads, [key]: { ...pick.spreads?.[key], ...counts } } } : pick,
       ),
+    )
+
+  const toggle = (index: number, key: string, enabled: boolean) =>
+    setPicked((current) =>
+      current.map((pick, at) => (at === index ? { ...pick, toggles: { ...pick.toggles, [key]: enabled ? 1 : 0 } } : pick)),
     )
 
   const drop = (index: number) => {
@@ -506,6 +513,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
                       }}
                       onRemove={() => drop(index)}
                       onDuplicate={() => duplicate(index)}
+                      onToggle={(key, enabled) => toggle(index, key, enabled)}
                       onResize={(models) => resize(index, models)}
                       joined={joinedRows(index)}
                       canJoin={joinable(index)}

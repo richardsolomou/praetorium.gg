@@ -1,4 +1,4 @@
-import { ChevronRight, Copy, Minus, Plus, X } from 'lucide-react'
+import { ChevronRight, Copy, Crown, Minus, Plus, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { Attachment } from '../../../core/attach'
 
@@ -9,6 +9,8 @@ export type BuiltUnit = {
   size: { min: number; max: number; models: number; resizable: boolean }
   wargear: { name: string; count: number }[]
   attachment: Attachment | null
+  toggles: { key: string; name: string; selected: boolean }[]
+  enhancements: string[]
 }
 
 /** Who this unit is joined to, in whichever direction the card is showing. */
@@ -20,6 +22,7 @@ type Props = {
   onSelect: () => void
   onRemove: () => void
   onDuplicate: () => void
+  onToggle: (key: string, selected: boolean) => void
   onResize: (models: number) => void
   /** Rows stating what this unit is attached to, or what is attached to it. */
   joined: Joined[]
@@ -36,7 +39,7 @@ type Props = {
  * is the most common edit in list building and the least deserving of a trip to
  * another pane — on a phone that pane is a whole screen away.
  */
-export function UnitCard({ unit, selected, onSelect, onRemove, onDuplicate, onResize, joined, canJoin, onJoin }: Props) {
+export function UnitCard({ unit, selected, onSelect, onRemove, onDuplicate, onToggle, onResize, joined, canJoin, onJoin }: Props) {
   return (
     <div
       data-unit={unit.name}
@@ -85,6 +88,18 @@ export function UnitCard({ unit, selected, onSelect, onRemove, onDuplicate, onRe
             </span>
           ) : null}
           <span className="chip">{unit.points} pts</span>
+          {unit.toggles.map((toggle) => (
+            <Button
+              key={toggle.key}
+              variant={toggle.selected ? 'default' : 'ghost'}
+              size="icon-sm"
+              aria-label={`${toggle.selected ? 'Remove' : 'Make'} ${unit.name} ${toggle.name}`}
+              aria-pressed={toggle.selected}
+              onClick={() => onToggle(toggle.key, !toggle.selected)}
+            >
+              <Crown />
+            </Button>
+          ))}
           <Button variant="ghost" size="icon-sm" aria-label={`Duplicate ${unit.name}`} onClick={onDuplicate}>
             <Copy />
           </Button>
@@ -94,6 +109,13 @@ export function UnitCard({ unit, selected, onSelect, onRemove, onDuplicate, onRe
           <ChevronRight className="size-4 text-faint" aria-hidden />
         </span>
       </div>
+
+      {unit.enhancements.map((enhancement) => (
+        <div key={enhancement} className="flex items-center gap-2 border-t border-edge bg-raised px-2.5 py-1">
+          <span className="chip text-achieved">Enhancement</span>
+          <span className="truncate text-xs font-semibold">{enhancement}</span>
+        </div>
+      ))}
 
       {joined.map((row) => (
         <div key={`${row.label}-${row.name}`} className="flex items-center gap-2 border-t border-edge bg-raised px-2.5 py-1">
