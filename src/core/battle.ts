@@ -551,12 +551,12 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
         enterTurn(state, opponent.id)
         return
       }
-      state.round++
-      if (state.round > BATTLE_ROUNDS) {
+      if (state.round === BATTLE_ROUNDS) {
         state.status = 'finished'
         state.activePlayerId = null
         return
       }
+      state.round++
       if (state.firstPlayerId) enterTurn(state, state.firstPlayerId)
       return
     }
