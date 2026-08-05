@@ -95,7 +95,13 @@ describe('battle history', () => {
   it('folds the current status and scores from the log', () => {
     const { send } = started()
     send('alice', { kind: 'score', category: 'primary', delta: 5 })
-    expect(service.battles('alice')[0]).toMatchObject({ status: 'playing', round: 1, phase: 'command', scores: [5, 0] })
+    expect(service.battles('alice')[0]).toMatchObject({
+      status: 'playing',
+      round: 1,
+      phase: 'command',
+      scores: [5, 0],
+      armies: ['Ultramarines', 'Death Guard'],
+    })
   })
 })
 

@@ -172,7 +172,7 @@ This is the implementation order that closes the largest user-visible gaps witho
 
 The responsive application shell now has **Battles**, **Rosters** and **Factions** routes. Rosters can be built, imported, saved, loaded and deleted without starting a battle; battle history shows setup, active and finished battles; factions and their datasheets can be browsed independently. Keep social and competitive BattleBase destinations out of scope.
 
-Saved lists copy and rename while exposing unit count, points limit and last update; random-ID read-only links re-price picks without exposing owner identity; faction results link to datasheets. Battle summaries still need army names and last activity without storing derived battle state.
+Saved lists copy and rename while exposing unit count, points limit and last update; random-ID read-only links re-price picks without exposing owner identity; faction results link to datasheets. Battle summaries show army names, status, score and last activity derived from the log.
 
 ### 2. Rebuild the battle tracker in BattleBase's information architecture
 

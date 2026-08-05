@@ -56,9 +56,10 @@ export class PraetoriumService {
   /** A player's battles with their current state folded from each log. */
   battles(playerId: string) {
     return this.repository.battlesOf(playerId).map((seats) => {
+      const log = this.repository.log(seats.battle.id)
       const state = reduceBattle(
         seats.players.map((player) => player.id),
-        this.repository.log(seats.battle.id),
+        log,
       )
       return {
         token: seats.battle.token,
@@ -67,7 +68,9 @@ export class PraetoriumService {
         round: state.round,
         phase: state.phase,
         players: seats.players.map((player) => player.name),
+        armies: state.players.map((player) => player.roster?.name ?? null),
         scores: state.players.map((player) => player.primary + player.secondary),
+        lastActivity: log.at(-1)?.at ?? seats.battle.createdAt,
       }
     })
   }
