@@ -59,8 +59,8 @@ describe('exporting a roster', () => {
       {
         ...roster,
         forces: [
-          { catalogueId: 'cat', selections: [roster.selections[0]!] },
-          { catalogueId: 'allies', selections: [roster.selections[1]!] },
+          { catalogueId: 'cat', selections: [roster.selections[0]] },
+          { catalogueId: 'allies', selections: [roster.selections[1]] },
         ],
       },
       index,
