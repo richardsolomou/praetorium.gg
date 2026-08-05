@@ -282,8 +282,10 @@ export function buildUnit(
 
   // Choices first: an option can bring its own bodies, so sizing has to see them.
   const chosen = Object.entries(choices ?? {}).reduce((tree, [key, optionId]) => withChoice(tree, key, optionId, index), base)
+  const composed =
+    models === undefined ? chosen : withModelComposition(entryId, chosen, models, new Set(Object.keys(choices ?? {})), index, context)
   // Then the spreads, which say how many of each option rather than which one.
-  const spread = Object.entries(context?.spreads ?? {}).reduce((tree, [key, counts]) => withSpread(tree, key, counts), chosen)
+  const spread = Object.entries(context?.spreads ?? {}).reduce((tree, [key, counts]) => withSpread(tree, key, counts), composed)
   const toggled = withCounts(
     spread,
     Object.entries(context?.toggles ?? {}).map(([key, count]) => ({ path: key.split('/'), count })),
@@ -305,6 +307,26 @@ export function buildUnit(
     choices: unitChoices(entryId, selection, index, context),
     toggles: unitToggles(entryId, selection, index),
   }
+}
+
+/** Picks a fixed composition whose expanded models exactly match the requested size. */
+function withModelComposition(
+  entryId: string,
+  selection: Selection,
+  models: number,
+  explicit: ReadonlySet<string>,
+  index: CatalogueIndex,
+  context?: { primaryCatalogueId?: string; roster?: readonly Selection[] },
+): Selection {
+  if (modelCountOf(selection, index) === models) return selection
+  for (const choice of unitChoices(entryId, selection, index, context)) {
+    if (explicit.has(choice.key) || choice.room !== 1) continue
+    for (const option of choice.options) {
+      const candidate = withChoice(selection, choice.key, option.id, index)
+      if (modelCountOf(candidate, index) === models) return candidate
+    }
+  }
+  return selection
 }
 
 /** Optional single entries with roster meaning rather than loadout meaning. */
@@ -531,12 +553,29 @@ export function withChoice(selection: Selection, key: string, optionId: string, 
   const group = groupId ? index.definitions.get(groupId) : undefined
   if (!group) return selection
 
-  const held = at(selection, path)?.selections ?? []
-  const emptied = held.filter((child) => child.id !== optionId).map((child) => ({ path: [...path, child.id], count: 0 }))
-  if (!optionId) return withCounts(selection, emptied)
+  const options = new Set(childrenOf(resolve(group, index), index).map((option) => option.id))
+  const present = at(selection, path) ? selection : withCounts(selection, [{ path, count: 1 }])
+  if (!optionId)
+    return updateSelection(present, path, (held) => ({ ...held, selections: held.selections?.filter((child) => !options.has(child.id)) }))
 
   const required = Math.max(1, requiredCount(index.definitions.get(optionId) ?? { id: optionId }, index))
-  return withCounts(selection, [...emptied, { path: [...path, optionId], count: required }])
+  const definition = index.definitions.get(optionId)
+  const replacement = definition
+    ? expand(optionId, definition, index, MAX_DEPTH, required, new Set(), 1)
+    : { id: optionId, count: required }
+  return updateSelection(present, path, (held) => ({
+    ...held,
+    selections: [...(held.selections ?? []).filter((child) => !options.has(child.id)), replacement],
+  }))
+}
+
+function updateSelection(selection: Selection, path: readonly string[], update: (selection: Selection) => Selection): Selection {
+  const [next, ...rest] = path
+  if (next === undefined) return update(selection)
+  return {
+    ...selection,
+    selections: (selection.selections ?? []).map((child) => (child.id === next ? updateSelection(child, rest, update) : child)),
+  }
 }
 
 /**

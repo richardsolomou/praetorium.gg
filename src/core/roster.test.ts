@@ -282,6 +282,60 @@ describe('how many models a unit may field', () => {
     expect(buildUnit('squad', indexOf(squad()), 8)?.size.models).toBe(8)
   })
 
+  it('selects and expands a fixed composition for the requested size', () => {
+    const index = indexOf({
+      sharedSelectionEntries: [
+        {
+          id: 'fixed-squad',
+          name: 'Fixed squad',
+          type: 'unit',
+          selectionEntryGroups: [
+            {
+              id: 'composition',
+              name: 'Unit Composition',
+              defaultSelectionEntryId: 'ten',
+              constraints: [
+                ...mandatory('composition-min'),
+                { id: 'composition-max', type: 'max', value: 1, field: 'selections', scope: 'parent' },
+              ],
+              selectionEntries: [
+                {
+                  id: 'ten',
+                  name: '10 models',
+                  type: 'upgrade',
+                  selectionEntries: [
+                    {
+                      id: 'ten-models',
+                      name: 'Models',
+                      type: 'model',
+                      constraints: [{ id: 'ten-min', type: 'min', value: 10, field: 'selections', scope: 'parent' }],
+                    },
+                  ],
+                },
+                {
+                  id: 'twenty',
+                  name: '20 models',
+                  type: 'upgrade',
+                  selectionEntries: [
+                    {
+                      id: 'twenty-models',
+                      name: 'Models',
+                      type: 'model',
+                      constraints: [{ id: 'twenty-min', type: 'min', value: 20, field: 'selections', scope: 'parent' }],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    })
+
+    const built = buildUnit('fixed-squad', index, 20)!
+    expect(modelCountOf(built.selection, index)).toBe(20)
+  })
+
   it('resizes a model inside nested groups instead of counting the container', () => {
     const index = indexOf({
       sharedSelectionEntries: [
