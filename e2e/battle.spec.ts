@@ -91,7 +91,7 @@ test('stratagems and mission cards are tracked through a turn', async ({ browser
   await expect(bob.getByText('discarded', { exact: true })).toBeVisible()
   await alice.getByText('Draw a replacement').click()
   await alice.getByRole('button', { name: 'Bring It Down', exact: true }).click()
-  await expect(bob.getByText('Bring It Down', { exact: true })).toBeVisible()
+  await expect(bob.locator('[data-secondary="bring-it-down"]')).toContainText('Bring It Down')
 
   // The account of the battle is read back out of the log, on demand.
   await alice.getByText('How the battle went').click()
