@@ -35,8 +35,11 @@ function Battles() {
             >
               <span>
                 <span className="block font-bold uppercase">{battle.players.join(' versus ') || 'Waiting for an opponent'}</span>
+                <span className="block text-sm text-bone">{battle.armies.filter(Boolean).join(' vs ') || 'Lists not attached'}</span>
                 <span className="text-xs text-dim">
                   {battle.status === 'playing' ? `Round ${battle.round} · ${battle.phase} phase` : battle.status}
+                  {' · '}
+                  {new Date(battle.lastActivity).toLocaleDateString()}
                 </span>
               </span>
               <span className="readout self-center text-xl">{battle.scores.join('–')}</span>

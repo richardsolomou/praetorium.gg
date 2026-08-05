@@ -99,8 +99,10 @@ export const STRATAGEM_CP_MAX = 6
 
 /** A secondary mission, named by the player because the deck is not in the data either. */
 export type Secondary = { key: string; name: string }
+export type SecondaryStatus = 'active' | 'achieved' | 'discarded'
 
 export const SECONDARIES_MAX = 6
+export const SECONDARY_HISTORY_MAX = 30
 
 /**
  * Fixed secondaries are chosen once and scored all game; tactical ones are drawn as
@@ -137,6 +139,8 @@ export type Command =
   | { kind: 'set-prep'; stratagems: Stratagem[]; secondaries: Secondary[]; primary: Secondary | null; secondaryMode: SecondaryMode }
   | { kind: 'use-stratagem'; key: string }
   | { kind: 'score-secondary'; key: string; delta: number }
+  | { kind: 'set-secondary-status'; key: string; status: SecondaryStatus }
+  | { kind: 'draw-secondary'; secondary: Secondary }
   | { kind: 'begin-battle'; firstPlayerId: PlayerId }
   | { kind: 'adjust-cp'; delta: number }
   | { kind: 'score'; category: 'primary' | 'secondary'; delta: number }
@@ -167,6 +171,7 @@ export type PlayerState = {
   primaryByRound: number[]
   secondaryByRound: number[]
   scoredByRound: Record<string, number[]>
+  secondaryStatus: Record<string, SecondaryStatus>
 }
 
 export type StratagemUse = { key: string; round: number; phase: Phase; turn: PlayerId | null }
@@ -218,6 +223,7 @@ export function reduceBattle(playerIds: readonly PlayerId[], log: readonly Logge
       primaryByRound: Array(BATTLE_ROUNDS).fill(0),
       secondaryByRound: Array(BATTLE_ROUNDS).fill(0),
       scoredByRound: {},
+      secondaryStatus: {},
     })),
     undoable: null,
     seq: 0,
@@ -345,6 +351,19 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
       if ((player.scored[command.key] ?? 0) + command.delta < 0) return 'that would go below zero'
       return null
     }
+    case 'set-secondary-status': {
+      if (state.status !== 'playing') return 'the battle is not running'
+      if (!player.secondaries.some((secondary) => secondary.key === command.key)) return 'that is not one of your secondaries'
+      return null
+    }
+    case 'draw-secondary': {
+      if (state.status !== 'playing') return 'the battle is not running'
+      if (player.secondaryMode !== 'tactical') return 'only tactical missions are drawn'
+      if (!command.secondary.name.trim()) return 'name the secondary'
+      if (player.secondaries.some((secondary) => secondary.key === command.secondary.key)) return 'that secondary has already been drawn'
+      if (player.secondaries.length >= SECONDARY_HISTORY_MAX) return 'the secondary history is full'
+      return null
+    }
     case 'undo': {
       if (!state.undoable) return 'there is nothing to undo'
       if (state.undoable.seq !== command.target) return 'only the last action can be undone'
@@ -403,6 +422,7 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
       player.secondaries = command.secondaries.map((secondary) => ({ ...secondary, name: secondary.name.trim() }))
       player.primaryCard = command.primary ? { ...command.primary, name: command.primary.name.trim() } : null
       player.secondaryMode = command.secondaryMode
+      player.secondaryStatus = Object.fromEntries(player.secondaries.map((secondary) => [secondary.key, 'active']))
       // A secondary nobody can see must not keep contributing to the total.
       const kept = Object.fromEntries(
         Object.entries(player.scored).filter(([key]) => player.secondaries.some((secondary) => secondary.key === key)),
@@ -432,6 +452,16 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
       rounds[state.round - 1] = (rounds[state.round - 1] ?? 0) + command.delta
       player.scoredByRound = { ...player.scoredByRound, [command.key]: rounds }
       player.secondaryByRound[state.round - 1] = (player.secondaryByRound[state.round - 1] ?? 0) + command.delta
+      return
+    }
+    case 'set-secondary-status': {
+      player.secondaryStatus = { ...player.secondaryStatus, [command.key]: command.status }
+      return
+    }
+    case 'draw-secondary': {
+      const secondary = { ...command.secondary, name: command.secondary.name.trim() }
+      player.secondaries.push(secondary)
+      player.secondaryStatus = { ...player.secondaryStatus, [secondary.key]: 'active' }
       return
     }
     case 'begin-battle': {
@@ -591,6 +621,12 @@ function describe(
       const secondary = player?.secondaries.find((candidate) => candidate.key === command.key)
       return `${who} scores ${command.delta} on ${secondary?.name ?? 'a secondary'}`
     }
+    case 'set-secondary-status': {
+      const secondary = player?.secondaries.find((candidate) => candidate.key === command.key)
+      return `${who} marks ${secondary?.name ?? 'a secondary'} ${command.status}`
+    }
+    case 'draw-secondary':
+      return `${who} draws ${command.secondary.name}`
     case 'set-unit': {
       const unit = player?.units.find((candidate) => candidate.key === command.unitKey)?.name ?? 'a unit'
       return command.destroyed ? `${who} loses ${unit}` : `${who} brings ${unit} back`
@@ -637,7 +673,7 @@ export type BattleView = {
     deployed: number
     /** Each stratagem with whether it can be used right now, and why not when it cannot. */
     stratagems: { key: string; name: string; cp: number; limit: StratagemLimit; refusal: string | null }[]
-    secondaries: { key: string; name: string; points: number; rounds: number[] }[]
+    secondaries: { key: string; name: string; points: number; rounds: number[]; status: SecondaryStatus }[]
     primaryCard: Secondary | null
     secondaryMode: SecondaryMode
   }[]
@@ -706,6 +742,7 @@ export function battleView(
         name: secondary.name,
         points: player.scored[secondary.key] ?? 0,
         rounds: player.scoredByRound[secondary.key] ?? Array(BATTLE_ROUNDS).fill(0),
+        status: player.secondaryStatus[secondary.key] ?? 'active',
       })),
     })),
     guides: { primary: PRIMARY_GUIDE, secondary: SECONDARY_GUIDE },

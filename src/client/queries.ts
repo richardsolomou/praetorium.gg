@@ -12,6 +12,7 @@ import {
   openBattle,
   priceRoster,
   savedRosters,
+  sharedRoster,
   signInOptions,
   units,
 } from '../server/fns'
@@ -59,6 +60,9 @@ export const priceQuery = (catalogueId: string, detachmentId: string | undefined
   })
 
 export const savedRostersQuery = () => queryOptions({ queryKey: ['saved-rosters'], queryFn: () => savedRosters() })
+
+export const sharedRosterQuery = (id: string) =>
+  queryOptions({ queryKey: ['shared-roster', id], queryFn: () => sharedRoster({ data: { id } }) })
 
 /** Null when the rules source has not been synced, so the interface can offer typing instead. */
 export const detachmentRulesQuery = (catalogueId: string, detachmentName: string) =>

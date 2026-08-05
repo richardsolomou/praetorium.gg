@@ -178,9 +178,18 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
                 <p className="eyebrow">Secondaries</p>
                 {player.secondaries.map((secondary) => (
                   <div key={secondary.key} className="flex items-center justify-between gap-2 text-sm">
-                    <span className="min-w-0 flex-1 truncate">{secondary.name}</span>
+                    <span className="min-w-0 flex-1 truncate">
+                      {secondary.name}
+                      {secondary.status === 'active' ? null : (
+                        <span
+                          className={`ml-1.5 text-[0.625rem] font-semibold uppercase ${secondary.status === 'achieved' ? 'text-achieved' : 'text-discarded'}`}
+                        >
+                          {secondary.status}
+                        </span>
+                      )}
+                    </span>
                     <span className="readout w-6 text-right text-dim">{secondary.points}</span>
-                    {player.isViewer && !finished ? (
+                    {player.isViewer && !finished && secondary.status === 'active' ? (
                       <span className="flex shrink-0 flex-wrap gap-1">
                         {pick(awardsFor(secondary.key, player.secondaryMode)).map((award) => (
                           <Button
@@ -197,10 +206,51 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
                             {award.per ? <span className="ml-0.5 text-[0.625rem] opacity-70">ea</span> : null}
                           </Button>
                         ))}
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          className="w-auto px-1 text-[0.625rem] text-achieved"
+                          onClick={() => send({ kind: 'set-secondary-status', key: secondary.key, status: 'achieved' })}
+                        >
+                          Achieve
+                        </Button>
+                        {player.secondaryMode === 'tactical' ? (
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            className="w-auto px-1 text-[0.625rem] text-discarded"
+                            onClick={() => send({ kind: 'set-secondary-status', key: secondary.key, status: 'discarded' })}
+                          >
+                            Discard
+                          </Button>
+                        ) : null}
                       </span>
                     ) : null}
                   </div>
                 ))}
+                {player.isViewer &&
+                !finished &&
+                player.secondaryMode === 'tactical' &&
+                player.secondaries.filter((card) => card.status === 'active').length < 2 ? (
+                  <details className="pt-1">
+                    <summary className="eyebrow cursor-pointer text-azure">Draw a replacement</summary>
+                    <div className="mt-1 flex max-h-32 flex-wrap gap-1 overflow-y-auto">
+                      {(rules?.secondaries ?? [])
+                        .filter((card) => !player.secondaries.some((held) => held.key === card.key))
+                        .map((card) => (
+                          <Button
+                            key={card.key}
+                            variant="outline"
+                            size="sm"
+                            className="h-7 text-[0.625rem]"
+                            onClick={() => send({ kind: 'draw-secondary', secondary: { key: card.key, name: card.name } })}
+                          >
+                            {card.name}
+                          </Button>
+                        ))}
+                    </div>
+                  </details>
+                ) : null}
               </div>
             ) : null}
 

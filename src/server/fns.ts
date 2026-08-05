@@ -206,14 +206,14 @@ export const priceRoster = createServerFn({ method: 'POST' })
           ]
         : []
 
-      const picked = data.units.flatMap((wanted) => {
+      const picked = data.units.flatMap((wanted, key) => {
         const built = buildUnit(wanted.entryId, loaded.index, wanted.models, wanted.choices, {
           primaryCatalogueId: data.catalogueId,
           roster: detachmentSelection,
           spreads: wanted.spreads,
         })
         const entry = loaded.index.definitions.get(wanted.entryId)
-        return built ? [{ entryId: wanted.entryId, name: entry?.name ?? wanted.entryId, ...built }] : []
+        return built ? [{ key, entryId: wanted.entryId, name: entry?.name ?? wanted.entryId, ...built }] : []
       })
 
       const options = { primaryCatalogueId: data.catalogueId }
@@ -229,6 +229,7 @@ export const priceRoster = createServerFn({ method: 'POST' })
         unhandled: whole.unhandled,
         selections,
         units: picked.map((unit) => ({
+          key: unit.key,
           entryId: unit.entryId,
           name: unit.name,
           points: evaluate([unit.selection], loaded.index, options).points,
@@ -252,6 +253,10 @@ export const savedRosters = createServerFn({ method: 'GET' }).handler(() =>
     return id ? app().service.savedRosters(id) : []
   }),
 )
+
+export const sharedRoster = createServerFn({ method: 'GET' })
+  .validator(rosterIdSchema)
+  .handler(({ data }) => rpc(() => app().service.sharedRoster(data.id)))
 
 export const saveRoster = createServerFn({ method: 'POST' })
   .validator(saveRosterSchema)
