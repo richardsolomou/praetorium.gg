@@ -24,6 +24,16 @@ beforeEach(() => {
     },
     { id: 'mortarions-teachings', name: "MORTARION'S TEACHINGS", detachment_id: 'flyblown-host', cp_cost: 2, timing: 'unknown-timing' },
   ])
+  write(path.join(core, 'detachments.json'), [
+    {
+      id: 'flyblown-host',
+      name: 'Flyblown Host',
+      enhancement_ids: ['living-plague', 'rejuvenating-swarm'],
+      stratagem_ids: ['grim-reapers', 'mortarions-teachings'],
+      detachment_points: 2,
+      force_dispositions: ['disruption'],
+    },
+  ])
   write(path.join(root, 'stratagems.json'), [{ id: 'command-re-roll', name: 'COMMAND RE-ROLL', cp_cost: 1, timing: 'once-per-battle' }])
   write(path.join(root, 'secondary-cards.json'), [
     {
@@ -68,6 +78,15 @@ const box = (width: number, height: number) => [
 const load = () => loadRules(directory)!
 
 describe('stratagems', () => {
+  it('keeps the reference metadata for each detachment', () => {
+    expect(load().detachmentReferences.get('death-guard')?.get('flyblown-host')).toEqual({
+      enhancements: 2,
+      stratagems: 2,
+      points: 2,
+      dispositions: ['disruption'],
+    })
+  })
+
   it('are grouped under the detachment that brings them', () => {
     expect(load().byDetachment.get('death-guard')?.get('flyblown-host')).toHaveLength(2)
   })

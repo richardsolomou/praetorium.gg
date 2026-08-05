@@ -49,8 +49,23 @@ function ReferencePage() {
         </p>
         <div className="mt-2 divide-y divide-edge border border-edge bg-panel">
           {faction.detachments.map((detachment) => (
-            <div key={detachment.id} className="px-3 py-2 text-sm font-bold uppercase">
-              {detachment.name}
+            <div key={detachment.id} className="flex items-center justify-between gap-4 px-3 py-2.5">
+              <span className="min-w-0">
+                <span className="block truncate text-sm font-bold uppercase">{detachment.name}</span>
+                {detachment.reference ? (
+                  <span className="text-xs text-dim">
+                    {detachment.reference.stratagems} stratagems · {detachment.reference.enhancements} enhancements
+                  </span>
+                ) : null}
+              </span>
+              {detachment.reference ? (
+                <span className="shrink-0 text-right">
+                  {detachment.reference.points === null ? null : <span className="chip">{detachment.reference.points} DP</span>}
+                  {detachment.reference.dispositions.length ? (
+                    <span className="eyebrow mt-1 block">{detachment.reference.dispositions.join(' · ')}</span>
+                  ) : null}
+                </span>
+              ) : null}
             </div>
           ))}
         </div>

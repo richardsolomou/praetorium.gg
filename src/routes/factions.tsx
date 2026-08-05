@@ -58,7 +58,11 @@ type Faction = {
   id: string
   name: string
   references: { id: string; name: string; datasheets: number; detachments: number }[]
-  detachments: { id: string; name: string }[]
+  detachments: {
+    id: string
+    name: string
+    reference: { enhancements: number; stratagems: number; points: number | null; dispositions: string[] } | null
+  }[]
 }
 
 function FactionShelf({
