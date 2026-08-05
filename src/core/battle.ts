@@ -747,7 +747,7 @@ export type BattleView = {
     standing: number
     deployed: number
     /** Each stratagem with whether it can be used right now, and why not when it cannot. */
-    stratagems: { key: string; name: string; cp: number; limit: StratagemLimit; refusal: string | null }[]
+    stratagems: { key: string; name: string; cp: number; limit: StratagemLimit; uses: number; refusal: string | null }[]
     secondaries: {
       key: string
       name: string
@@ -818,6 +818,7 @@ export function battleView(
       deployed: player.units.filter((unit) => unit.deployed && !unit.destroyed).length,
       stratagems: player.stratagems.map((stratagem) => ({
         ...stratagem,
+        uses: player.uses.filter((use) => use.key === stratagem.key).length,
         // The same rule the server enforces, so the interface never offers what
         // would be refused.
         refusal: validate(state, player.id, { kind: 'use-stratagem', key: stratagem.key }),
