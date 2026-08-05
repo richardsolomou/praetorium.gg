@@ -400,9 +400,18 @@ function widest(group: Selection, index: CatalogueIndex, trail: string[]): strin
   for (const child of group.selections ?? []) {
     const definition = index.definitions.get(child.id)
     if (!definition) continue
-    if (resolve(definition, index).type !== 'model') continue
-    const max = maximumCount(definition, index) ?? UNBOUNDED
-    if (!best || max > best.max) best = { path: [...trail, child.id], max }
+    const target = resolve(definition, index)
+    if (target.type === 'model') {
+      const max = maximumCount(definition, index) ?? UNBOUNDED
+      if (!best || max > best.max) best = { path: [...trail, child.id], max }
+      continue
+    }
+    if (target.type !== undefined) continue
+    const nested = widest(child, index, [...trail, child.id])
+    if (!nested) continue
+    const nestedDefinition = index.definitions.get(nested.at(-1)!)
+    const max = nestedDefinition ? (maximumCount(nestedDefinition, index) ?? UNBOUNDED) : 0
+    if (!best || max > best.max) best = { path: nested, max }
   }
   return best?.path ?? null
 }

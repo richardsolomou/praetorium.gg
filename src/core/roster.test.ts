@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { buildIndex, type Catalogue, type CatalogueFile } from './catalogue'
 import { evaluate, type Selection } from './evaluate'
-import { buildUnit, defaultSelection, unitChoices, unitSize, wargearOf, withChoice, withCounts, withSpread } from './roster'
+import { buildUnit, defaultSelection, modelCountOf, unitChoices, unitSize, wargearOf, withChoice, withCounts, withSpread } from './roster'
 
 const PTS = 'cost-pts'
 const system: CatalogueFile = { gameSystem: { id: 'gs', name: 'Test', costTypes: [{ id: PTS, name: 'pts' }] } }
@@ -247,6 +247,46 @@ describe('how many models a unit may field', () => {
 
   it('reaches the size asked for', () => {
     expect(buildUnit('squad', indexOf(squad()), 8)?.size.models).toBe(8)
+  })
+
+  it('resizes a model inside nested groups instead of counting the container', () => {
+    const index = indexOf({
+      sharedSelectionEntries: [
+        {
+          id: 'nested-squad',
+          name: 'Nested squad',
+          type: 'unit',
+          selectionEntryGroups: [
+            {
+              id: 'composition',
+              name: 'Composition',
+              constraints: [{ id: 'composition-min', type: 'min', value: 1, field: 'selections', scope: 'parent' }],
+              selectionEntryGroups: [
+                {
+                  id: 'bodies',
+                  name: '3-6 bodies',
+                  constraints: [{ id: 'bodies-min', type: 'min', value: 3, field: 'selections', scope: 'parent' }],
+                  selectionEntries: [
+                    {
+                      id: 'body',
+                      name: 'Body',
+                      type: 'model',
+                      constraints: [
+                        { id: 'body-min', type: 'min', value: 3, field: 'selections', scope: 'parent' },
+                        { id: 'body-max', type: 'max', value: 6, field: 'selections', scope: 'parent' },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    })
+
+    const built = buildUnit('nested-squad', index, 6)!
+    expect(modelCountOf(built.selection, index)).toBe(6)
   })
 
   it('clamps a size the data does not allow', () => {
