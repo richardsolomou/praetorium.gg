@@ -1,9 +1,11 @@
 import { useSuspenseQuery } from '@tanstack/react-query'
-import { createFileRoute, notFound } from '@tanstack/react-router'
-import { datasheetQuery } from '../client/queries'
+import { createFileRoute, Link, notFound } from '@tanstack/react-router'
+import { ChevronRight } from 'lucide-react'
+import { datasheetQuery, factionsQuery } from '../client/queries'
 
 export const Route = createFileRoute('/factions/$catalogueId/$entryId')({
   loader: async ({ context, params }) => {
+    await context.queryClient.ensureQueryData(factionsQuery())
     if (!(await context.queryClient.ensureQueryData(datasheetQuery(params.catalogueId, params.entryId)))) throw notFound()
   },
   component: DatasheetPage,
@@ -12,17 +14,38 @@ export const Route = createFileRoute('/factions/$catalogueId/$entryId')({
 function DatasheetPage() {
   const params = Route.useParams()
   const { data: sheet } = useSuspenseQuery(datasheetQuery(params.catalogueId, params.entryId))
+  const { data } = useSuspenseQuery(factionsQuery())
   if (!sheet) return null
+  const faction = data?.factions.find((entry) => entry.id === params.catalogueId)
   const profiles = (type: string) => sheet.profiles.filter((profile) => profile.type === type)
   const unit = profiles('Unit')
-  const weapons = [...profiles('Ranged Weapons'), ...profiles('Melee Weapons')]
+  const ranged = profiles('Ranged Weapons')
+  const melee = profiles('Melee Weapons')
   const abilities = profiles('Abilities')
 
   return (
     <main className="mx-auto w-full max-w-6xl space-y-6 px-4 py-8">
+      <nav aria-label="Breadcrumb" className="eyebrow flex flex-wrap items-center gap-1 text-azure">
+        <Link to="/factions">Factions</Link>
+        <ChevronRight className="size-3 text-dim" aria-hidden />
+        <Link to="/factions/$catalogueId" params={{ catalogueId: params.catalogueId }}>
+          {faction?.name ?? 'Faction'}
+        </Link>
+        <ChevronRight className="size-3 text-dim" aria-hidden />
+        <Link to="/factions/$catalogueId/reference" params={{ catalogueId: params.catalogueId }}>
+          {faction?.references[0]?.name ?? 'Reference'}
+        </Link>
+        <ChevronRight className="size-3 text-dim" aria-hidden />
+        <Link to="/factions/$catalogueId/reference/datasheets" params={{ catalogueId: params.catalogueId }}>
+          Datasheets
+        </Link>
+      </nav>
       <header className="border-b border-edge pb-4">
         <p className="eyebrow">Datasheet</p>
-        <h1 className="text-3xl">{sheet.name}</h1>
+        <div className="flex items-center justify-between gap-4">
+          <h1 className="text-3xl">{sheet.name}</h1>
+          {sheet.points === null ? null : <span className="chip shrink-0">{sheet.points} pts</span>}
+        </div>
         <div className="mt-2 flex flex-wrap gap-1">
           {sheet.keywords.map((keyword) => (
             <span key={keyword} className="chip">
@@ -33,7 +56,8 @@ function DatasheetPage() {
       </header>
 
       {unit.length ? <ProfileTable title="Models" profiles={unit} /> : null}
-      {weapons.length ? <ProfileTable title="Weapons" profiles={weapons} /> : null}
+      {ranged.length ? <ProfileTable title="Ranged weapons" profiles={ranged} /> : null}
+      {melee.length ? <ProfileTable title="Melee weapons" profiles={melee} /> : null}
       {abilities.length ? (
         <section>
           <h2 className="rubric">
