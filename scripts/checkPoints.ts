@@ -36,7 +36,7 @@ const files: CatalogueFile[] = fs
 const index = buildIndex(files, revision.definitions)
 console.log(`indexed ${index.definitions.size} definitions from ${files.length} files at ${revision.definitions.slice(0, 10)}\n`)
 
-type MfmUnit = { name: string; pricing?: { range?: string; costs?: { models: number; points: number }[] }[] }
+type MfmUnit = { name: string; groupTitle?: string; pricing?: { range?: string; costs?: { models: number; points: number }[] }[] }
 
 /**
  * The Munitorum prices a unit by which copy of it you are buying — "your 1st to
@@ -68,6 +68,12 @@ const slugOf = (catalogueName: string) =>
 
 const catalogueBySlug = new Map<string, string>()
 for (const catalogue of index.catalogues.values()) catalogueBySlug.set(slugOf(catalogue.name), catalogue.id)
+const catalogueAliases: Record<string, string> = {
+  'chaos-titan-legions': 'titanicus-traitoris',
+  'imperial-agents': 'agents-of-the-imperium',
+  'space-marines': 'adeptus-astartes',
+  'titan-legions': 'adeptus-titanicus',
+}
 
 /** The Munitorum Title-Cases every name and uses curly apostrophes; the catalogues do neither. */
 const normalise = (name: string) =>
@@ -100,13 +106,17 @@ const tally = { matched: 0, mismatched: 0, ambiguous: 0, missing: 0, unsupported
 const mismatches: string[] = []
 const census = new Set<string>()
 let withoutCatalogue = 0
+const unmatchedFactions: string[] = []
 const wantedUnit = process.env.POINTS_UNIT?.toLowerCase()
 
 for (const faction of factions) {
   // Chapter-specific surcharges ask which book the list is from, so the manual's
   // own faction file is what answers it.
-  const primaryCatalogueId = catalogueBySlug.get(faction.slug)
-  if (!primaryCatalogueId) withoutCatalogue++
+  const primaryCatalogueId = catalogueBySlug.get(faction.slug) ?? catalogueBySlug.get(catalogueAliases[faction.slug] ?? '')
+  if (!primaryCatalogueId && faction.units.length) {
+    withoutCatalogue++
+    unmatchedFactions.push(faction.slug)
+  }
   for (const unit of faction.units) {
     if (wantedUnit && !unit.name.toLowerCase().includes(wantedUnit)) continue
     const candidates = resolve(unit.name)
@@ -123,22 +133,26 @@ for (const faction of factions) {
 
     const [entry] = candidates
     if (!entry) continue
+    const unitCatalogueId =
+      faction.slug === 'imperial-agents' && unit.groupTitle?.toLowerCase().includes('every model has the imperium keyword')
+        ? catalogueBySlug.get('adeptus-astartes')
+        : primaryCatalogueId
 
     for (const tier of tiers) {
       // The app builds a unit the same way, through the same function, so this
       // number is about the evaluator rather than about this script's guesswork.
-      const built = buildUnit(entry.id, index, tier.models, undefined, { primaryCatalogueId })
+      const built = buildUnit(entry.id, index, tier.models, undefined, { primaryCatalogueId: unitCatalogueId })
       if (!built || built.size.models !== tier.models) {
         tally.unsupportedShape++
         continue
       }
 
-      const result = evaluate([built.selection], index, { primaryCatalogueId })
+      const result = evaluate([built.selection], index, { primaryCatalogueId: unitCatalogueId })
       for (const note of result.unhandled) census.add(note)
       if (result.points === tier.points) tally.matched++
       else {
         tally.mismatched++
-        mismatches.push(`${unit.name} @ ${tier.models} models: got ${result.points}, Munitorum says ${tier.points}`)
+        mismatches.push(`${faction.slug}: ${unit.name} @ ${tier.models} models: got ${result.points}, Munitorum says ${tier.points}`)
         if (wantedUnit) console.log(JSON.stringify(built.selection, null, 2))
       }
     }
@@ -156,6 +170,7 @@ console.log(
 console.log(
   `${withoutCatalogue} of ${factions.length} faction files could not be matched to a catalogue, so their surcharges are unapplied`,
 )
+if (unmatchedFactions.length) console.log(`unmatched faction files: ${unmatchedFactions.join(', ')}`)
 
 if (mismatches.length) {
   console.log(`\n## mismatches`)
