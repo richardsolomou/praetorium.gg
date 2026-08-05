@@ -319,6 +319,8 @@ function withModelComposition(
   context?: { primaryCatalogueId?: string; roster?: readonly Selection[] },
 ): Selection {
   if (modelCountOf(selection, index) === models) return selection
+  const scaled = withProportionalModels(selection, models, index)
+  if (modelCountOf(scaled, index) === models) return scaled
   const fitted = withOptionalModels(selection, models, index)
   if (modelCountOf(fitted, index) === models) return fitted
   for (const choice of unitChoices(entryId, selection, index, context)) {
@@ -331,6 +333,19 @@ function withModelComposition(
     }
   }
   return selection
+}
+
+/** Scales every bounded model group together when the requested composition is an exact multiple. */
+function withProportionalModels(selection: Selection, models: number, index: CatalogueIndex): Selection {
+  const current = modelCountOf(selection, index)
+  if (!current || models <= current || models % current !== 0) return selection
+  const factor = models / current
+  const groups = survey(selection, index, []).groups
+  if (!groups.length) return selection
+  const overrides = groups.map((group) => ({ path: group.adjust, count: countAt(selection, group.adjust) * factor }))
+  if (overrides.some((override, position) => override.count > groups[position].max)) return selection
+  const scaled = withCounts(selection, overrides)
+  return modelCountOf(scaled, index) === models ? scaled : selection
 }
 
 type ModelSlot = { path: string[]; definition: Definition; current: number; max: number }
