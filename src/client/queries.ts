@@ -46,6 +46,7 @@ export const datasheetQuery = (catalogueId: string, entryId: string) =>
 
 export type PickedUnit = {
   entryId: string
+  catalogueId?: string
   models?: number
   choices?: Record<string, string>
   spreads?: Record<string, Record<string, number>>
