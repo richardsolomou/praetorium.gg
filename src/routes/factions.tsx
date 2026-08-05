@@ -23,7 +23,10 @@ function Factions() {
 
   useEffect(() => {
     const stored = localStorage.getItem(FAVOURITES)
-    if (stored) setFavourites(new Set(JSON.parse(stored) as string[]))
+    if (stored) {
+      const parsed: unknown = JSON.parse(stored)
+      if (Array.isArray(parsed)) setFavourites(new Set(parsed.filter((value): value is string => typeof value === 'string')))
+    }
   }, [])
 
   if (path !== '/factions') return <Outlet />
@@ -60,6 +63,22 @@ function Factions() {
             <Heart className={`size-5 ${favourites.has(faction.id) ? 'fill-azure text-azure' : 'text-dim'}`} />
           </button>
         </div>
+        <section className="mt-5">
+          <p className="rubric flex items-baseline justify-between border-b border-edge pb-2">
+            <span>References</span>
+            <span className="readout">{faction.references.length}</span>
+          </p>
+          <div className="mt-2 divide-y divide-edge border border-edge bg-panel">
+            {faction.references.map((reference) => (
+              <div key={reference.id} className="flex items-center justify-between gap-4 px-3 py-3">
+                <span className="font-bold uppercase">{reference.name}</span>
+                <span className="shrink-0 text-xs text-dim">
+                  {reference.datasheets} datasheets · {reference.detachments} detachments
+                </span>
+              </div>
+            ))}
+          </div>
+        </section>
         {faction.detachments.length ? (
           <div className="mt-3 flex flex-wrap gap-1.5">
             {faction.detachments.map((detachment) => (
@@ -120,7 +139,12 @@ function Factions() {
   )
 }
 
-type Faction = { id: string; name: string; detachments: { id: string; name: string }[] }
+type Faction = {
+  id: string
+  name: string
+  references: { id: string; name: string; datasheets: number; detachments: number }[]
+  detachments: { id: string; name: string }[]
+}
 
 function FactionShelf({
   title,

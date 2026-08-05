@@ -29,6 +29,8 @@ test('a guest can enter through the roster library and browse the product', asyn
   await expect(page.locator('[data-shelf="Favourites"] [data-faction="Xenos - Necrons"]')).toBeVisible()
   await page.screenshot({ path: 'test-results/faction-index.png', fullPage: true })
   await necrons.getByRole('button').first().click()
+  await expect(page.getByText('References')).toBeVisible()
+  await expect(page.getByText(/datasheets · \d+ detachments/)).toBeVisible()
   await page.screenshot({ path: 'test-results/faction-detail.png', fullPage: true })
   await page.getByLabel('Find a datasheet').fill('Overlord')
   await page

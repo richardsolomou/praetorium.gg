@@ -18,7 +18,7 @@ function Rosters() {
   const { data: me } = useSuspenseQuery(meQuery())
   const { data: saved } = useSuspenseQuery(savedRostersQuery())
   const [prep, setPrep] = useState<{ stratagems: Stratagem[]; secondaries: Secondary[] }>({ stratagems: [], secondaries: [] })
-  const [editing, setEditing] = useState<string | 'new' | 'import' | null>(null)
+  const [editing, setEditing] = useState<string | null>(null)
   const [limit, setLimit] = useState<number | null>(null)
   if (!me) return <IdentityGate />
 

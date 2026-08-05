@@ -11,7 +11,11 @@ const points = (value: number) => [{ name: 'pts', typeId: PTS, value }]
 /** A book of datasheets, as the picker sees one. */
 function bookOf(catalogue: Partial<Catalogue>): LoadedCatalogue {
   const file: CatalogueFile = { catalogue: { id: 'cat', name: 'Test catalogue', ...catalogue } }
-  return { index: buildIndex([system, file], 'test-revision'), factions: [{ id: 'cat', name: 'Test catalogue' }], detachments: new Map() }
+  return {
+    index: buildIndex([system, file], 'test-revision'),
+    factions: [{ id: 'cat', name: 'Test catalogue', references: [] }],
+    detachments: new Map(),
+  }
 }
 
 const categories = (...names: string[]) => names.map((name, at) => ({ id: `link-${at}`, targetId: `cat-${at}`, name }))
