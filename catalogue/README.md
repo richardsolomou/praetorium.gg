@@ -8,7 +8,7 @@ That is deliberate. The catalogues describe Games Workshop's game, and keeping t
 
 `definitions` is [BSData/wh40k-11e](https://github.com/BSData/wh40k-11e): the entry trees, constraints, modifiers and costs that make a roster legal or illegal. It is JSON on `main` — one file per faction, plus `Warhammer 40,000.json` for the game system. There are no releases and no `catpkg` assets, so a revision is a commit sha rather than a tag.
 
-`points` is [BSData/wh40k-11e-mfm](https://github.com/BSData/wh40k-11e-mfm): points scraped from Games Workshop's own Munitorum Field Manual into per-faction YAML. This is not product data — it is the independent oracle the evaluator is checked against. If our evaluator computes a unit's cost from the catalogue and it disagrees with what GW prints, the evaluator is wrong.
+`points` is [BSData/wh40k-11e-mfm](https://github.com/BSData/wh40k-11e-mfm): points scraped from Games Workshop's own Munitorum Field Manual into per-faction YAML. This is not product data — it is the independent oracle the evaluator is checked against. A disagreement means the evaluator, the check harness or the definitions catalogue is out of step; inspect the built selection and both sources before changing product logic.
 
 ## Commands
 
