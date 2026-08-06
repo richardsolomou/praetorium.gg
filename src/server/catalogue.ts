@@ -6,6 +6,7 @@ import {
   type CatalogueIndex,
   type Definition,
   type InfoGroup,
+  type InfoLink,
   type Profile,
   type SelectionEntry,
 } from '../core/catalogue'
@@ -204,7 +205,13 @@ export type Datasheet = {
   points: number | null
   keywords: string[]
   profiles: { id: string; name: string; type: string; values: { name: string; value: string }[] }[]
+  abilities: { id: string; name: string; description: string | null; kind: AbilityKind }[]
 }
+
+export type AbilityKind = 'core' | 'faction' | 'datasheet' | 'rule' | 'wargear'
+
+const abilityDescription = (profile: Profile) =>
+  profile.characteristics?.find((characteristic) => characteristic.name === 'Description')?.$text ?? null
 
 /** Structured display data for one top-level datasheet, including linked shared profiles. */
 export function datasheetIn(loaded: LoadedCatalogue, catalogueId: string, entryId: string): Datasheet | null {
@@ -213,33 +220,51 @@ export function datasheetIn(loaded: LoadedCatalogue, catalogueId: string, entryI
   if (!root) return null
 
   const profiles = new Map<string, Profile>()
+  const abilities = new Map<string, Datasheet['abilities'][number]>()
   const visited = new Set<string>()
-  const addGroup = (group: InfoGroup) => group.profiles?.forEach((profile) => profiles.set(profile.id, profile))
-  const addProfiles = (definition: Definition) => {
-    definition.profiles?.forEach((profile) => profiles.set(profile.id, profile))
-    definition.infoGroups?.forEach(addGroup)
-    for (const link of definition.infoLinks ?? []) {
-      const shared = loaded.index.shared.get(link.targetId)
-      if (!shared) continue
-      if ('characteristics' in shared) profiles.set(shared.id, { ...shared, name: link.name ?? shared.name })
-      else addGroup(shared)
+  const addProfile = (profile: Profile, kind: AbilityKind) => {
+    if (profile.typeName === 'Abilities' && profile.name && !profile.hidden) {
+      abilities.set(`${kind}:${profile.id}`, { id: profile.id, name: profile.name, description: abilityDescription(profile), kind })
+    } else {
+      profiles.set(profile.id, profile)
     }
   }
-  const visit = (definition: Definition) => {
+  const addRule = (link: InfoLink, kind: AbilityKind) => {
+    if (link.hidden || link.type !== 'rule') return
+    const rule = loaded.index.rules.get(link.targetId)
+    const name = link.name ?? rule?.name
+    if (name && !rule?.hidden) abilities.set(`${kind}:${link.id}`, { id: link.id, name, description: rule?.description ?? null, kind })
+  }
+  const addGroup = (group: InfoGroup) => {
+    if (group.hidden) return
+    group.profiles?.forEach((profile) => addProfile(profile, 'rule'))
+    group.infoLinks?.forEach((link) => addRule(link, 'core'))
+  }
+  const addProfiles = (definition: Definition, kind: AbilityKind = 'datasheet', ownRules = false) => {
+    definition.profiles?.forEach((profile) => addProfile(profile, kind))
+    definition.infoGroups?.forEach(addGroup)
+    for (const link of definition.infoLinks ?? []) {
+      if (ownRules) addRule(link, 'faction')
+      const shared = loaded.index.shared.get(link.targetId)
+      if (!shared) continue
+      if ('characteristics' in shared) addProfile({ ...shared, name: link.name ?? shared.name }, kind)
+    }
+  }
+  const visit = (definition: Definition, isRoot = false) => {
     if (visited.has(definition.id)) return
     visited.add(definition.id)
-    addProfiles(definition)
-    definition.selectionEntries?.forEach(visit)
-    definition.selectionEntryGroups?.forEach(visit)
+    addProfiles(definition, 'datasheet', isRoot)
+    definition.selectionEntries?.forEach((entry) => visit(entry))
+    definition.selectionEntryGroups?.forEach((group) => visit(group))
     for (const link of definition.entryLinks ?? []) {
       visit(link)
       const target = loaded.index.definitions.get(link.targetId)
       // A linked group may be a catalogue-wide library. Its own profile belongs
       // here; recursively importing all its children does not.
-      if (target) addProfiles(target)
+      if (target) addProfiles(target, 'wargear')
     }
   }
-  visit(root)
+  visit(root, true)
 
   return {
     id: root.id,
@@ -257,6 +282,7 @@ export function datasheetIn(loaded: LoadedCatalogue, catalogueId: string, entryI
           value.name && value.$text ? [{ name: value.name, value: value.$text }] : [],
         ),
       })),
+    abilities: [...abilities.values()],
   }
 }
 
