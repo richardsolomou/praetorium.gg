@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, notFound, redirect, useParams } from '@tanstack/react-router'
 import { ChevronRight } from 'lucide-react'
+import { Keyword, KeywordList, type KeywordRule } from '../client/components/Keyword'
 import { factionFor } from '../client/factions'
 import { datasheetSlugQuery, factionsQuery } from '../client/queries'
 
@@ -24,9 +25,12 @@ export function DatasheetPage() {
   if (!sheet || !faction) return null
   const profiles = (type: string) => sheet.profiles.filter((profile) => profile.type === type)
   const unit = profiles('Unit')
+  const invulnerable = unit.flatMap((profile) => {
+    const value = profile.values.find((characteristic) => characteristic.name === 'InSv')?.value
+    return value ? [{ name: profile.name, value }] : []
+  })
   const ranged = profiles('Ranged Weapons')
   const melee = profiles('Melee Weapons')
-  const abilities = profiles('Abilities')
 
   return (
     <main className="mx-auto w-full max-w-6xl space-y-6 px-4 py-8">
@@ -49,41 +53,82 @@ export function DatasheetPage() {
         </div>
         <div className="mt-2 flex flex-wrap gap-1">
           {sheet.keywords.map((keyword) => (
-            <span key={keyword} className="chip">
-              {keyword}
-            </span>
+            <Keyword key={keyword} name={keyword} rules={sheet.keywordRules} className="chip" />
           ))}
         </div>
       </header>
 
-      {unit.length ? <ProfileTable title="Models" profiles={unit} /> : null}
-      {ranged.length ? <ProfileTable title="Ranged weapons" profiles={ranged} /> : null}
-      {melee.length ? <ProfileTable title="Melee weapons" profiles={melee} /> : null}
-      {abilities.length ? (
+      {unit.length ? <ProfileTable title="Models" profiles={unit} omit={['InSv']} keywordRules={sheet.keywordRules} /> : null}
+      {invulnerable.length ? (
         <section>
-          <h2 className="rubric">
-            Abilities <span className="readout text-faint">{abilities.length}</span>
-          </h2>
-          <div className="mt-2 grid gap-2 md:grid-cols-2">
-            {abilities.map((ability) => (
-              <article key={ability.id} className="border border-edge bg-panel p-3">
-                <h3 className="text-sm">{ability.name}</h3>
-                <p className="mt-1 text-sm whitespace-pre-line text-dim">
-                  {ability.values.find((value) => value.name === 'Description')?.value}
-                </p>
-              </article>
+          <h2 className="rubric">Invulnerable save</h2>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {invulnerable.map((profile) => (
+              <div key={profile.name} className="border border-edge bg-panel px-3 py-2">
+                <span className="text-sm font-semibold">{profile.name}</span>
+                <span className="readout ml-3 text-dim">{profile.value}</span>
+              </div>
             ))}
           </div>
         </section>
       ) : null}
+      {ranged.length ? <ProfileTable title="Ranged weapons" profiles={ranged} keywordRules={sheet.keywordRules} /> : null}
+      {melee.length ? <ProfileTable title="Melee weapons" profiles={melee} keywordRules={sheet.keywordRules} /> : null}
+      <Abilities abilities={sheet.abilities} />
     </main>
   )
 }
 
+type DisplayAbility = { id: string; name: string; description: string | null; kind: 'core' | 'faction' | 'datasheet' | 'rule' | 'wargear' }
+
+const abilitySections: { kind: DisplayAbility['kind']; title: string }[] = [
+  { kind: 'core', title: 'Core abilities' },
+  { kind: 'faction', title: 'Faction abilities' },
+  { kind: 'datasheet', title: 'Datasheet abilities' },
+  { kind: 'rule', title: 'Rules' },
+  { kind: 'wargear', title: 'Wargear abilities' },
+]
+
+function Abilities({ abilities }: { abilities: DisplayAbility[] }) {
+  return abilitySections.map(({ kind, title }) => {
+    const found = abilities.filter((ability) => ability.kind === kind)
+    if (!found.length) return null
+    return (
+      <section key={kind}>
+        <h2 className="rubric">
+          {title} <span className="readout text-faint">{found.length}</span>
+        </h2>
+        <div className="mt-2 grid gap-2 md:grid-cols-2">
+          {found.map((ability) => (
+            <article key={ability.id} className="border border-edge bg-panel p-3">
+              <h3 className="text-sm">{ability.name}</h3>
+              {ability.description ? <p className="mt-1 text-sm whitespace-pre-line text-dim">{ability.description}</p> : null}
+            </article>
+          ))}
+        </div>
+      </section>
+    )
+  })
+}
+
 type DisplayProfile = { id: string; name: string; values: { name: string; value: string }[] }
 
-function ProfileTable({ title, profiles }: { title: string; profiles: DisplayProfile[] }) {
-  const columns = [...new Set(profiles.flatMap((profile) => profile.values.map((value) => value.name)))]
+const noColumns: string[] = []
+
+function ProfileTable({
+  title,
+  profiles,
+  omit = noColumns,
+  keywordRules,
+}: {
+  title: string
+  profiles: DisplayProfile[]
+  omit?: string[]
+  keywordRules: KeywordRule[]
+}) {
+  const columns = [...new Set(profiles.flatMap((profile) => profile.values.map((value) => value.name)))].filter(
+    (column) => !omit.includes(column),
+  )
   return (
     <section>
       <h2 className="rubric">
@@ -107,7 +152,11 @@ function ProfileTable({ title, profiles }: { title: string; profiles: DisplayPro
                 <th className="px-3 py-2 font-semibold">{profile.name}</th>
                 {columns.map((column) => (
                   <td key={column} className="readout px-3 py-2 text-center text-dim">
-                    {profile.values.find((value) => value.name === column)?.value ?? '—'}
+                    {column === 'Keywords' && profile.values.find((value) => value.name === column)?.value ? (
+                      <KeywordList value={profile.values.find((value) => value.name === column)!.value} rules={keywordRules} />
+                    ) : (
+                      (profile.values.find((value) => value.name === column)?.value ?? '—')
+                    )}
                   </td>
                 ))}
               </tr>

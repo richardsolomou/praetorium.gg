@@ -92,6 +92,7 @@ export function DetachmentPage() {
                 </div>
                 <span className="chip shrink-0">{stratagem.cp} CP</span>
               </div>
+              <Unavailable />
             </article>
           ))}
         </div>

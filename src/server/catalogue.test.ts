@@ -20,6 +20,13 @@ function bookOf(catalogue: Partial<Catalogue>): LoadedCatalogue {
 
 const categories = (...names: string[]) => names.map((name, at) => ({ id: `link-${at}`, targetId: `cat-${at}`, name }))
 
+const ability = (id: string, name: string) => ({
+  id,
+  name,
+  typeName: 'Abilities',
+  characteristics: [{ name: 'Description', $text: `${name} text` }],
+})
+
 describe('the picker', () => {
   it('gives datasheets readable unambiguous route slugs', () => {
     const book = bookOf({
@@ -209,5 +216,80 @@ describe('a datasheet', () => {
         { name: 'Rifle', type: 'Ranged Weapons', values: [{ name: 'A', value: '2' }] },
       ],
     })
+  })
+
+  it('separates faction, core, datasheet, rule and wargear abilities', () => {
+    const book = bookOf({
+      sharedProfiles: [ability('shared-ability', 'My Will Be Done')],
+      sharedRules: [
+        { id: 'faction-rule', name: 'Reanimation Protocols', description: 'Reanimate.' },
+        { id: 'core-rule', name: 'Leader', description: 'Attach this model.' },
+      ],
+      sharedSelectionEntries: [{ id: 'orb', name: 'Orb', type: 'upgrade', profiles: [ability('orb-ability', 'Resurrection Orb')] }],
+      selectionEntries: [
+        {
+          id: 'lord',
+          name: 'Lord',
+          type: 'model',
+          profiles: [ability('own-ability', 'Translocation Shroud')],
+          infoLinks: [
+            { id: 'faction-link', targetId: 'faction-rule', name: 'Reanimation Protocols', type: 'rule' },
+            { id: 'shared-link', targetId: 'shared-ability', name: 'My Will Be Done', type: 'profile' },
+          ],
+          infoGroups: [
+            {
+              id: 'leader-group',
+              name: 'Leader',
+              profiles: [ability('leader-ability', 'Leader')],
+              infoLinks: [{ id: 'core-link', targetId: 'core-rule', name: 'Leader', type: 'rule' }],
+            },
+          ],
+          entryLinks: [{ id: 'orb-link', targetId: 'orb', name: 'Orb', type: 'selectionEntry' }],
+        },
+      ],
+    })
+
+    expect(datasheetIn(book, 'cat', 'lord')?.abilities.map(({ name, kind }) => [name, kind])).toEqual([
+      ['Translocation Shroud', 'datasheet'],
+      ['Leader', 'rule'],
+      ['Leader', 'core'],
+      ['Reanimation Protocols', 'faction'],
+      ['My Will Be Done', 'datasheet'],
+      ['Resurrection Orb', 'wargear'],
+    ])
+  })
+
+  it('keeps definitions for linked weapon keywords', () => {
+    const book = bookOf({
+      sharedRules: [{ id: 'devastating', name: 'Devastating Wounds', description: 'Critical wounds inflict mortal wounds.' }],
+      sharedSelectionEntries: [
+        {
+          id: 'blade',
+          name: 'Blade',
+          type: 'upgrade',
+          infoLinks: [{ id: 'devastating-link', targetId: 'devastating', name: 'Devastating Wounds', type: 'rule' }],
+          profiles: [
+            {
+              id: 'blade-profile',
+              name: 'Blade',
+              typeName: 'Melee Weapons',
+              characteristics: [{ name: 'Keywords', $text: 'Devastating Wounds' }],
+            },
+          ],
+        },
+      ],
+      selectionEntries: [
+        {
+          id: 'lord',
+          name: 'Lord',
+          type: 'model',
+          entryLinks: [{ id: 'blade-link', targetId: 'blade', name: 'Blade', type: 'selectionEntry' }],
+        },
+      ],
+    })
+
+    expect(datasheetIn(book, 'cat', 'lord')?.keywordRules).toEqual([
+      { name: 'Devastating Wounds', description: 'Critical wounds inflict mortal wounds.' },
+    ])
   })
 })

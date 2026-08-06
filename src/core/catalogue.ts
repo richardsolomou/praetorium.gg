@@ -160,13 +160,13 @@ export type Characteristic = { name?: string; $text?: string }
 export type Profile = { id: string; name?: string; typeName?: string; hidden?: boolean; characteristics?: Characteristic[] }
 
 /** A named bundle of profiles hanging off an entry — "Leader" is one. */
-export type InfoGroup = { id: string; name?: string; profiles?: Profile[] }
+export type InfoGroup = { id: string; name?: string; hidden?: boolean; profiles?: Profile[]; infoLinks?: InfoLink[] }
 
 /** Display text defined once and referenced by a detachment or datasheet. */
 export type Rule = { id: string; name?: string; description?: string; hidden?: boolean }
 
 /** A reference to a profile or info group defined once at the catalogue's top level. */
-export type InfoLink = { id: string; targetId: string; name?: string }
+export type InfoLink = { id: string; targetId: string; name?: string; hidden?: boolean; type?: 'profile' | 'infoGroup' | 'rule' }
 
 type Common = {
   id: string

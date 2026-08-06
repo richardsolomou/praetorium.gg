@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { datasheetQuery } from '../../queries'
 import type { Datasheet } from '../../../server/catalogue'
+import { KeywordList } from '../Keyword'
 
 /** Base UI selects cannot hold an empty value, so declining a choice needs a token. */
 const NONE = '__none__'
@@ -121,7 +122,9 @@ function DatasheetSummary({ catalogueSlug, sheet }: { catalogueSlug: string; she
                     ))}
                 </div>
                 {weapon.values.find((value) => value.name === 'Keywords')?.value ? (
-                  <p className="mt-1 text-[0.6875rem] text-faint">{weapon.values.find((value) => value.name === 'Keywords')?.value}</p>
+                  <p className="mt-1 text-[0.6875rem] text-faint">
+                    <KeywordList value={weapon.values.find((value) => value.name === 'Keywords')!.value} rules={sheet.keywordRules} />
+                  </p>
                 ) : null}
               </article>
             ))}

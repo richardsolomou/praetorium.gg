@@ -268,9 +268,15 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
       ),
     )
 
-  const toggle = (index: number, key: string, enabled: boolean) =>
+  const toggle = (index: number, key: string, toggleName: string, enabled: boolean) =>
     setPicked((current) =>
-      current.map((pick, at) => (at === index ? { ...pick, toggles: { ...pick.toggles, [key]: enabled ? 1 : 0 } } : pick)),
+      current.map((pick, at) => {
+        const toggles = { ...pick.toggles }
+        if (toggleName === 'Warlord' && enabled) {
+          for (const candidate of units[at]?.toggles ?? []) if (candidate.name === toggleName) toggles[candidate.key] = 0
+        }
+        return at === index ? { ...pick, toggles: { ...toggles, [key]: enabled ? 1 : 0 } } : { ...pick, toggles }
+      }),
     )
 
   const drop = (index: number) => {
@@ -665,7 +671,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
                       onDuplicate={() => duplicate(index)}
                       owned={collection.has(unit.entryId)}
                       onOwned={() => own.mutate({ entryId: unit.entryId, owned: !collection.has(unit.entryId) })}
-                      onToggle={(key, enabled) => toggle(index, key, enabled)}
+                      onToggle={(key, toggleName, enabled) => toggle(index, key, toggleName, enabled)}
                       onResize={(models) => resize(index, models)}
                       joined={joinedRows(index)}
                       canJoin={joinable(index)}
