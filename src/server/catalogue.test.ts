@@ -258,4 +258,38 @@ describe('a datasheet', () => {
       ['Resurrection Orb', 'wargear'],
     ])
   })
+
+  it('keeps definitions for linked weapon keywords', () => {
+    const book = bookOf({
+      sharedRules: [{ id: 'devastating', name: 'Devastating Wounds', description: 'Critical wounds inflict mortal wounds.' }],
+      sharedSelectionEntries: [
+        {
+          id: 'blade',
+          name: 'Blade',
+          type: 'upgrade',
+          infoLinks: [{ id: 'devastating-link', targetId: 'devastating', name: 'Devastating Wounds', type: 'rule' }],
+          profiles: [
+            {
+              id: 'blade-profile',
+              name: 'Blade',
+              typeName: 'Melee Weapons',
+              characteristics: [{ name: 'Keywords', $text: 'Devastating Wounds' }],
+            },
+          ],
+        },
+      ],
+      selectionEntries: [
+        {
+          id: 'lord',
+          name: 'Lord',
+          type: 'model',
+          entryLinks: [{ id: 'blade-link', targetId: 'blade', name: 'Blade', type: 'selectionEntry' }],
+        },
+      ],
+    })
+
+    expect(datasheetIn(book, 'cat', 'lord')?.keywordRules).toEqual([
+      { name: 'Devastating Wounds', description: 'Critical wounds inflict mortal wounds.' },
+    ])
+  })
 })

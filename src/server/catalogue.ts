@@ -206,6 +206,7 @@ export type Datasheet = {
   keywords: string[]
   profiles: { id: string; name: string; type: string; values: { name: string; value: string }[] }[]
   abilities: { id: string; name: string; description: string | null; kind: AbilityKind }[]
+  keywordRules: { name: string; description: string }[]
 }
 
 export type AbilityKind = 'core' | 'faction' | 'datasheet' | 'rule' | 'wargear'
@@ -221,6 +222,7 @@ export function datasheetIn(loaded: LoadedCatalogue, catalogueId: string, entryI
 
   const profiles = new Map<string, Profile>()
   const abilities = new Map<string, Datasheet['abilities'][number]>()
+  const keywordRules = new Map<string, Datasheet['keywordRules'][number]>()
   const visited = new Set<string>()
   const addProfile = (profile: Profile, kind: AbilityKind) => {
     if (profile.typeName === 'Abilities' && profile.name && !profile.hidden) {
@@ -244,6 +246,10 @@ export function datasheetIn(loaded: LoadedCatalogue, catalogueId: string, entryI
     definition.profiles?.forEach((profile) => addProfile(profile, kind))
     definition.infoGroups?.forEach(addGroup)
     for (const link of definition.infoLinks ?? []) {
+      const linkedRule = link.type === 'rule' ? loaded.index.rules.get(link.targetId) : undefined
+      if (!link.hidden && !linkedRule?.hidden && link.name && linkedRule?.description) {
+        keywordRules.set(link.name.toLocaleLowerCase(), { name: link.name, description: linkedRule.description })
+      }
       if (ownRules) addRule(link, 'faction')
       const shared = loaded.index.shared.get(link.targetId)
       if (!shared) continue
@@ -283,6 +289,7 @@ export function datasheetIn(loaded: LoadedCatalogue, catalogueId: string, entryI
         ),
       })),
     abilities: [...abilities.values()],
+    keywordRules: [...keywordRules.values()],
   }
 }
 

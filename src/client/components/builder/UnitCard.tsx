@@ -26,7 +26,7 @@ type Props = {
   onDuplicate: () => void
   owned: boolean
   onOwned: () => void
-  onToggle: (key: string, selected: boolean) => void
+  onToggle: (key: string, name: string, selected: boolean) => void
   onResize: (models: number) => void
   /** Rows stating what this unit is attached to, or what is attached to it. */
   joined: Joined[]
@@ -121,7 +121,7 @@ export function UnitCard({
               size="icon-sm"
               aria-label={`${toggle.selected ? 'Remove' : 'Make'} ${unit.name} ${toggle.name}`}
               aria-pressed={toggle.selected}
-              onClick={() => onToggle(toggle.key, !toggle.selected)}
+              onClick={() => onToggle(toggle.key, toggle.name, !toggle.selected)}
             >
               <Crown />
             </Button>

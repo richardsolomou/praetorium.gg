@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, notFound, redirect, useParams } from '@tanstack/react-router'
 import { ChevronRight } from 'lucide-react'
+import { Keyword, KeywordList, type KeywordRule } from '../client/components/Keyword'
 import { factionFor } from '../client/factions'
 import { datasheetSlugQuery, factionsQuery } from '../client/queries'
 
@@ -52,14 +53,12 @@ export function DatasheetPage() {
         </div>
         <div className="mt-2 flex flex-wrap gap-1">
           {sheet.keywords.map((keyword) => (
-            <span key={keyword} className="chip">
-              {keyword}
-            </span>
+            <Keyword key={keyword} name={keyword} rules={sheet.keywordRules} className="chip" />
           ))}
         </div>
       </header>
 
-      {unit.length ? <ProfileTable title="Models" profiles={unit} omit={['InSv']} /> : null}
+      {unit.length ? <ProfileTable title="Models" profiles={unit} omit={['InSv']} keywordRules={sheet.keywordRules} /> : null}
       {invulnerable.length ? (
         <section>
           <h2 className="rubric">Invulnerable save</h2>
@@ -73,8 +72,8 @@ export function DatasheetPage() {
           </div>
         </section>
       ) : null}
-      {ranged.length ? <ProfileTable title="Ranged weapons" profiles={ranged} /> : null}
-      {melee.length ? <ProfileTable title="Melee weapons" profiles={melee} /> : null}
+      {ranged.length ? <ProfileTable title="Ranged weapons" profiles={ranged} keywordRules={sheet.keywordRules} /> : null}
+      {melee.length ? <ProfileTable title="Melee weapons" profiles={melee} keywordRules={sheet.keywordRules} /> : null}
       <Abilities abilities={sheet.abilities} />
     </main>
   )
@@ -116,7 +115,17 @@ type DisplayProfile = { id: string; name: string; values: { name: string; value:
 
 const noColumns: string[] = []
 
-function ProfileTable({ title, profiles, omit = noColumns }: { title: string; profiles: DisplayProfile[]; omit?: string[] }) {
+function ProfileTable({
+  title,
+  profiles,
+  omit = noColumns,
+  keywordRules,
+}: {
+  title: string
+  profiles: DisplayProfile[]
+  omit?: string[]
+  keywordRules: KeywordRule[]
+}) {
   const columns = [...new Set(profiles.flatMap((profile) => profile.values.map((value) => value.name)))].filter(
     (column) => !omit.includes(column),
   )
@@ -143,7 +152,11 @@ function ProfileTable({ title, profiles, omit = noColumns }: { title: string; pr
                 <th className="px-3 py-2 font-semibold">{profile.name}</th>
                 {columns.map((column) => (
                   <td key={column} className="readout px-3 py-2 text-center text-dim">
-                    {profile.values.find((value) => value.name === column)?.value ?? '—'}
+                    {column === 'Keywords' && profile.values.find((value) => value.name === column)?.value ? (
+                      <KeywordList value={profile.values.find((value) => value.name === column)!.value} rules={keywordRules} />
+                    ) : (
+                      (profile.values.find((value) => value.name === column)?.value ?? '—')
+                    )}
                   </td>
                 ))}
               </tr>

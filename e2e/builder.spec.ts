@@ -225,6 +225,16 @@ test('a character can be marked as the warlord from its card', async ({ page }) 
   await expect(pane.getByText('Range').first()).toBeVisible()
 })
 
+test('making a new warlord removes the previous one', async ({ page }) => {
+  await openBuilder(page)
+  await add(page, 'Overlord')
+  await add(page, 'Plasmancer')
+  await page.getByRole('button', { name: 'Make Overlord Warlord' }).click()
+  await page.getByRole('button', { name: 'Make Plasmancer Warlord' }).click()
+  await expect(page.getByRole('button', { name: 'Make Overlord Warlord' })).toHaveAttribute('aria-pressed', 'false')
+  await expect(page.getByRole('button', { name: 'Remove Plasmancer Warlord' })).toHaveAttribute('aria-pressed', 'true')
+})
+
 test('a squad divides its weapons between two options', async ({ page }) => {
   await openBuilder(page)
   await add(page, 'Immortals')
