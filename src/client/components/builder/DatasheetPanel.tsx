@@ -83,7 +83,7 @@ export function WeaponSummary({ title, weapons, rules }: { title: string; weapon
       <div className="mt-1.5 space-y-1.5">
         {weapons.map((weapon) => (
           <article key={weapon.id} className="border border-edge bg-card px-2 py-1.5">
-            <h3 className="text-xs">{weapon.name}</h3>
+            <h3 className="text-xs">{weapon.count && weapon.count > 1 ? `${weapon.count}× ${weapon.name}` : weapon.name}</h3>
             <div className="mt-1 grid grid-cols-6 gap-1">
               {weapon.values
                 .filter((value) => value.name !== 'Keywords')

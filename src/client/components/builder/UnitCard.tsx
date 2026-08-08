@@ -70,13 +70,15 @@ export function UnitCard({
       data-unit={unit.name}
       className={`border bg-card transition-colors ${selected ? 'border-azure' : 'border-edge hover:border-edge-strong'}`}
     >
-      <div className="flex items-start gap-2 px-2.5 py-2">
+      <div className="relative flex items-start gap-2 px-2.5 py-2 transition-colors hover:bg-raised">
         <Button
           variant="ghost"
-          className="h-auto min-w-0 flex-1 flex-col items-start justify-start overflow-hidden rounded-none p-0 text-left hover:bg-transparent"
+          className="absolute inset-0 h-full w-full rounded-none hover:bg-transparent"
           onClick={onSelect}
           aria-pressed={selected}
-        >
+          aria-label={unit.name}
+        />
+        <div className="pointer-events-none min-w-0 flex-1 overflow-hidden text-left">
           <span className="w-full min-w-0">
             <span className="block truncate text-[0.9375rem] leading-tight font-bold tracking-[0.02em] uppercase">{unit.name}</span>
             {force ? <span className="eyebrow mt-0.5 block truncate text-azure">Allied force · {force}</span> : null}
@@ -91,8 +93,8 @@ export function UnitCard({
               ))}
             </ul>
           ) : null}
-        </Button>
-        <span className="flex shrink-0 items-center gap-1.5">
+        </div>
+        <span className="pointer-events-none relative z-10 flex shrink-0 items-center gap-1.5 [&_button]:pointer-events-auto">
           {unit.size.resizable ? (
             <span className="flex items-center gap-1">
               <Button

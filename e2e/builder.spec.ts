@@ -107,10 +107,10 @@ test('a squad grows from the roster itself', async ({ page }) => {
   await openBuilder(page)
   await add(page, 'Immortals')
 
-  await page
-    .locator('[data-unit="Immortals"]')
-    .getByRole('button', { name: /^Immortals/ })
-    .click()
+  const card = page.locator('[data-unit="Immortals"]')
+  await add(page, 'Flayed Ones')
+  await card.click({ position: { x: 4, y: 4 } })
+  await expect(page.locator('aside[aria-label="Loadout"]').getByRole('heading', { name: 'Immortals' })).toBeVisible()
   const profile = page.locator('aside[aria-label="Datasheet"] [data-slot="unit-profile"]')
   await expect(profile).toBeVisible()
   await profile.evaluate((existing) => {
@@ -120,11 +120,11 @@ test('a squad grows from the roster itself', async ({ page }) => {
   })
 
   const total = page.locator('[data-stat="points"]')
-  await expect(total).toHaveText('70/2000')
-  // No pane opened, no unit selected: the stepper is on the card.
+  await expect(total).toHaveText('125/2000')
+  // The stepper remains on the card rather than being duplicated in the pane.
   await page.getByRole('button', { name: 'More models in Immortals' }).click()
   await expect(page.getByLabel('Immortals models')).toHaveText('6')
-  await expect(total).not.toHaveText('70/2000')
+  await expect(total).not.toHaveText('125/2000')
   await expect(page.locator('html')).not.toHaveAttribute('data-profile-refreshed', 'true')
   // And the wargear lines follow the models carrying it.
   await expect(page.getByText('6x Gauss blaster')).toBeVisible()
@@ -291,8 +291,8 @@ test('a smaller desktop keeps the picker, roster and loadout visible', async ({ 
 
   await page.setViewportSize({ width: 1280, height: 800 })
   await expect(datasheet).toBeHidden()
-  expect((await picker.boundingBox())?.width).toBe(340)
-  expect((await loadout.boundingBox())?.width).toBe(340)
+  expect((await picker.boundingBox())?.width).toBe(360)
+  expect((await loadout.boundingBox())?.width).toBe(360)
 
   await page.setViewportSize({ width: 1440, height: 900 })
   await expect(datasheet).toBeVisible()
@@ -342,11 +342,30 @@ test('a squad divides its weapons between two options', async ({ page }) => {
   await expect(page.getByLabel('Tesla carbine count')).toHaveText('3')
   await expect(page.getByLabel('Gauss blaster count')).toHaveText('7')
 
+  // Removing a default weapon makes the inverse legal swap instead of being
+  // silently refilled by the catalogue's mandatory group.
+  await loadout.getByRole('button', { name: 'Fewer Gauss blaster' }).click()
+  await expect(page.getByLabel('Tesla carbine count')).toHaveText('4')
+  await expect(page.getByLabel('Gauss blaster count')).toHaveText('6')
+
   // The card reads as the datasheet would print it, and the squad is still legal.
-  await expect(page.getByText('7x Gauss blaster')).toBeVisible()
-  await expect(page.getByText('3x Tesla carbine')).toBeVisible()
+  await expect(page.getByText('6x Gauss blaster')).toBeVisible()
+  await expect(page.getByText('4x Tesla carbine')).toBeVisible()
   await expect(page.getByText('Within the points limit')).toBeAttached()
   await page.screenshot({ path: 'test-results/loadout.png', fullPage: true })
+})
+
+test('fixed duplicate weapons show their quantity with the profile', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 })
+  await openBuilder(page)
+  await add(page, 'Doomsday Ark')
+  await page
+    .locator('[data-unit="Doomsday Ark"]')
+    .getByRole('button', { name: /^Doomsday Ark/ })
+    .click()
+
+  const loadout = page.locator('aside[aria-label="Loadout"]')
+  await expect(loadout.getByRole('heading', { name: '2× Gauss flayer array' })).toBeVisible()
 })
 
 /**

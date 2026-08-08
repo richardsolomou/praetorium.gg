@@ -15,9 +15,9 @@ export function calculateRosterPrice(data: PriceInput) {
   const { chosen, selections: detachmentSelection } = rosterDetachments(loaded, data.catalogueId, data.detachmentIds)
   // Enhancements and unit limits can depend on the detachment already being in
   // the roster when units are expanded.
-  const references = app()
-    .rules()
-    ?.detachmentReferences.get(slug(loaded.index.catalogues.get(data.catalogueId)?.name ?? ''))
+  const rules = app().rules()
+  const factionSlug = slug(loaded.index.catalogues.get(data.catalogueId)?.name ?? '')
+  const references = rules?.detachmentReferences.get(factionSlug)
   const allowedDispositions = [
     ...new Set(
       chosen.flatMap((option) => {
@@ -31,6 +31,13 @@ export function calculateRosterPrice(data: PriceInput) {
     name: option.name,
     points: references?.get(slug(option.name))?.points ?? null,
   }))
+  const enhancementDescriptions = new Map(
+    chosen.flatMap((option) =>
+      (rules?.detachmentDetails.get(factionSlug)?.get(slug(option.name))?.enhancements ?? []).flatMap((enhancement) =>
+        enhancement.description ? [[slug(enhancement.name), enhancement.description] as const] : [],
+      ),
+    ),
+  )
   const budget = detachmentPointBudget(data.limit)
   const spent = purchased.reduce((total, option) => total + (option.points ?? 0), 0)
   const detachmentError = detachmentPointsError(purchased, budget)
@@ -89,7 +96,17 @@ export function calculateRosterPrice(data: PriceInput) {
       name: unit.name,
       points: evaluate([unit.selection], loaded.index, options).points,
       size: { min: unit.size.min, max: unit.size.max, models: unit.size.models, resizable: unit.size.max > unit.size.min },
-      choices: unit.choices,
+      choices: unit.choices.map((choice) =>
+        choice.name.toLowerCase().includes('enhancement')
+          ? {
+              ...choice,
+              options: choice.options.map((option) => ({
+                ...option,
+                description: enhancementDescriptions.get(slug(option.name)) ?? null,
+              })),
+            }
+          : choice,
+      ),
       toggles: unit.toggles,
       enhancements: unit.choices
         .filter((choice) => choice.name.toLowerCase().includes('enhancement'))

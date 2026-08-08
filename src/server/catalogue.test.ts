@@ -461,7 +461,17 @@ describe('a datasheet', () => {
 
   it('applies profile modifiers from the selected detachment and preserves their source', () => {
     const book = bookOf({
-      selectionEntries: [{ id: 'cursed-legion', name: 'Cursed Legion', type: 'upgrade' }],
+      selectionEntries: [
+        { id: 'cursed-legion', name: 'Cursed Legion', type: 'upgrade' },
+        {
+          id: 'immortals',
+          name: 'Immortals',
+          type: 'unit',
+          profiles: [
+            { id: 'immortal-blaster', name: 'Gauss blaster', typeName: 'Ranged Weapons', characteristics: [{ name: 'S', $text: '5' }] },
+          ],
+        },
+      ],
       entryLinks: [{ id: 'destroyers', name: 'Destroyers', targetId: 'destroyer-sheet', type: 'selectionEntry' }],
       sharedSelectionEntries: [
         {
@@ -534,6 +544,12 @@ describe('a datasheet', () => {
       })?.profiles[1]?.values[0],
     ).toEqual({ name: 'S', value: '4' })
     expect(datasheetIn(book, 'cat', 'destroyers')?.profiles[0]?.values[0]).toEqual({ name: 'S', value: '5' })
+    expect(
+      datasheetIn(book, 'cat', 'immortals', {
+        selections: [{ id: 'cursed-legion' }, { id: 'destroyers' }, { id: 'immortals' }],
+        unitSelectionIndex: 1,
+      })?.profiles[0]?.values[0],
+    ).toEqual({ name: 'S', value: '5' })
   })
 
   it.each(profileOperationCases)(

@@ -7,6 +7,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import type { RosterPick } from '../../../core/roster'
 import { datasheetQuery } from '../../queries'
 import { SearchableSelect } from '../SearchableSelect'
+import { RuleText } from '../RuleText'
 import { WeaponSummary } from './DatasheetPanel'
 
 /** Base UI selects cannot hold an empty value, so declining a choice needs a token. */
@@ -18,7 +19,7 @@ type LoadoutChoice = {
   chosen: string
   optional: boolean
   room: number
-  options: { id: string; name: string; points: number; count: number }[]
+  options: { id: string; name: string; points: number; count: number; description?: string | null }[]
 }
 
 type LoadoutUnit = {
@@ -121,6 +122,15 @@ function spread(choice: LoadoutChoice, onSpread: Props['onSpread']) {
     return giving ? { [option.id]: option.count + 1, [giving.id]: giving.count - 1 } : null
   }
 
+  const less = (option: LoadoutChoice['options'][number]) => {
+    if (option.count <= 0) return null
+    if (taken < choice.room) return { [option.id]: option.count - 1 }
+    const receiving = choice.options
+      .filter((candidate) => candidate.id !== option.id)
+      .toSorted((left, right) => right.count - left.count)[0]
+    return receiving ? { [option.id]: option.count - 1, [receiving.id]: receiving.count + 1 } : null
+  }
+
   return (
     <div key={choice.key}>
       <p className="eyebrow flex items-baseline justify-between gap-2">
@@ -141,8 +151,11 @@ function spread(choice: LoadoutChoice, onSpread: Props['onSpread']) {
               size="icon-sm"
               className="size-6"
               aria-label={`Fewer ${option.name}`}
-              disabled={option.count <= 0}
-              onClick={() => onSpread(choice.key, { [option.id]: option.count - 1 })}
+              disabled={!less(option)}
+              onClick={() => {
+                const next = less(option)
+                if (next) onSpread(choice.key, next)
+              }}
             >
               <Minus />
             </Button>
@@ -211,9 +224,14 @@ function either(choice: LoadoutChoice, onChoose: Props['onChoose'], unitName: st
         <SelectContent>
           {choice.optional ? <SelectItem value={NONE}>None</SelectItem> : null}
           {choice.options.map((option) => (
-            <SelectItem key={option.id} value={option.id}>
-              {option.name}
-              {option.points ? ` (+${option.points})` : ''}
+            <SelectItem key={option.id} value={option.id} className={option.description ? 'items-start py-2 whitespace-normal' : undefined}>
+              <span className="min-w-0">
+                <span className="block">
+                  {option.name}
+                  {option.points ? ` (+${option.points})` : ''}
+                </span>
+                {option.description ? <RuleText text={option.description} /> : null}
+              </span>
             </SelectItem>
           ))}
         </SelectContent>
