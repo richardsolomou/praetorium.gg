@@ -3,14 +3,10 @@ import { drizzleAdapter } from 'better-auth/adapters/drizzle'
 import crypto from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
+import { PASSWORD_MIN_LENGTH, SOCIAL_PROVIDERS, type SocialProvider } from '../auth'
 import type { PraetoriumDatabase } from '../db/connection'
 import { schema } from '../db/schema'
 import { forwardedOrigin } from './requestOrigin'
-
-export const SOCIAL_PROVIDERS = ['google', 'discord'] as const
-export type SocialProvider = (typeof SOCIAL_PROVIDERS)[number]
-
-export const PASSWORD_MIN_LENGTH = 10
 
 /**
  * Kept beside the database so an operator needs no configuration, and so sessions

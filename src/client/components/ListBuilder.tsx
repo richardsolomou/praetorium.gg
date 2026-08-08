@@ -328,11 +328,11 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
 
     for (const [at, candidate] of picked.entries()) {
       if (candidate.attachedTo !== pick.key) continue
-      const guest = units[at]
-      if (!guest) continue
+      const attachedUnit = units[at]
+      if (!attachedUnit) continue
       rows.push({
-        label: guest.attachment?.kind === 'leader' ? 'Leader' : 'Support',
-        name: guest.name,
+        label: attachedUnit.attachment?.kind === 'leader' ? 'Leader' : 'Support',
+        name: attachedUnit.name,
         action: 'Detach',
         onAct: () => join(at, undefined),
       })

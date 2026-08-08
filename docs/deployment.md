@@ -32,7 +32,7 @@ Nothing needs to be run by hand. A deploy carrying new pinned revisions fetches 
 
 The image runs Centrifugo, the app and Caddy together, and Caddy is what makes that one port: `/connection/*` goes to Centrifugo and everything else to the app. Any of the three dying takes the container down so the whole thing restarts rather than serving half a deployment.
 
-Fan-out is Centrifugo's now rather than the process's, so a second replica would at least hear about the first's commands. It still shares one SQLite file, though, so `docker-compose.yml` keeps `replicas: 1` — scaling out means moving the database first.
+Centrifugo handles fan-out, so replicas would hear about each other's commands. They would still share one SQLite file, so `docker-compose.yml` keeps `replicas: 1` — scaling out means moving the database first.
 
 ## Reverse proxy
 

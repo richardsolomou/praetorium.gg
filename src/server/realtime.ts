@@ -5,8 +5,8 @@ import crypto from 'node:crypto'
  *
  * The app never holds a socket open itself: it publishes "this battle changed"
  * over Centrifugo's HTTP API, and the page refetches through the normal read
- * path. That is the same discipline the old in-process stream had — a nudge and
- * never a payload — with the fan-out somewhere it can outlive one process.
+ * path. A notification is only a nudge, never a payload, and the fan-out can
+ * outlive one process.
  */
 const TOKEN_TTL_SECONDS = 5 * 60
 
@@ -34,7 +34,7 @@ export function connectionToken(playerId: string, secret: string, now = Math.flo
  * Proves this player may watch this battle.
  *
  * Issued per channel and only after the seat has been checked, so a leaked link
- * buys no stream — the same rule the old route enforced before opening one.
+ * buys no stream.
  * `info` is what the other player's screen shows as presence.
  */
 export function subscriptionToken(
