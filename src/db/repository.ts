@@ -105,6 +105,7 @@ export class Repository {
     name: string
     catalogueId: string
     detachmentId: string | null
+    disposition: string | null
     limit: number
     picks: string
     prep: string | null
@@ -119,6 +120,7 @@ export class Repository {
           name: input.name,
           catalogueId: input.catalogueId,
           detachmentId: input.detachmentId,
+          disposition: input.disposition,
           limit: input.limit,
           picks: input.picks,
           prep: input.prep,

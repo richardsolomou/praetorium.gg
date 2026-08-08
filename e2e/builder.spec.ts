@@ -286,15 +286,13 @@ test('a book that keeps its datasheets in a library can still be built from', as
   await expect(page.getByText('Within the points limit')).toBeAttached()
 })
 
-test('Legends are out of the book until they are asked for', async ({ page }) => {
+test('Legends are never offered', async ({ page }) => {
   await openBuilder(page, 'Dark Angels', /Unforgiven Task Force/)
   await page.getByLabel('Add a unit').fill('Land Speeder')
   await expect(page.getByRole('button', { name: 'Add Land Speeder', exact: true })).toBeVisible()
   const legend = page.getByRole('button', { name: 'Add Land Speeder Typhoon [Legends]', exact: true })
   await expect(legend).toBeHidden()
-
-  await page.getByRole('button', { name: 'Legends' }).click()
-  await expect(legend).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Legends' })).toHaveCount(0)
 })
 
 test('a chapter reaches the whole Codex range, not just its own datasheets', async ({ page }) => {

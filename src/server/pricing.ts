@@ -32,6 +32,13 @@ export function calculateRosterPrice(data: PriceInput) {
   const references = app()
     .rules()
     ?.detachmentReferences.get(slug(loaded.index.catalogues.get(data.catalogueId)?.name ?? ''))
+  const primaryReference = chosen[0] ? references?.get(slug(chosen[0].name)) : null
+  const allowedDispositions = primaryReference?.dispositions.length
+    ? primaryReference.dispositions
+    : chosen[0]?.disposition
+      ? [chosen[0].disposition]
+      : []
+  const { disposition, error: dispositionError } = resolveDisposition(allowedDispositions, data.disposition)
   const purchased = chosen.map((option) => ({
     name: option.name,
     points: references?.get(slug(option.name))?.points ?? null,
@@ -79,7 +86,8 @@ export function calculateRosterPrice(data: PriceInput) {
     detachmentPointsSpent: spent,
     detachmentPointsOver: Boolean(detachmentError),
     detachmentError,
-    disposition: chosen[0]?.disposition ?? null,
+    disposition,
+    dispositionError,
     points: whole.points,
     errors,
     unhandled: [
@@ -103,4 +111,9 @@ export function calculateRosterPrice(data: PriceInput) {
       attachment: attachmentOf(loaded.index.definitions.get(unit.entryId) ?? { id: unit.entryId }, loaded.index),
     })),
   }
+}
+
+export function resolveDisposition(allowed: readonly string[], selected: string | null) {
+  const disposition = allowed.includes(selected ?? '') ? selected : allowed.length === 1 ? allowed[0] : null
+  return { disposition, error: allowed.length > 1 && !disposition ? 'Pick a disposition.' : null }
 }

@@ -47,7 +47,7 @@ test('a list is saved and loaded into another battle', async ({ browser }) => {
   await expect(page).toHaveURL(/\/rosters\/[^/]+\/edit$/)
   await expect(total).toHaveText(priced)
   await page.reload()
-  await expect(page.getByRole('heading', { name: 'Edit Nurgle 2k' })).toBeVisible()
+  await expect(page.getByLabel('List name')).toHaveValue('Nurgle 2k')
   await expect(total).toHaveText(priced)
   await page
     .getByRole('button', { name: /^Immortals/ })

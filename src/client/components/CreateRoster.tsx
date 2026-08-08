@@ -9,11 +9,17 @@ import { GAME_SIZES } from '../../core/battle'
 import { saveRoster } from '../../server/functions'
 import { priceQuery, savedRostersQuery } from '../queries'
 import { errorMessage } from '../queryClient'
+import { DetachmentPoints } from './DetachmentPoints'
 
 type Faction = {
   id: string
   displayName: string
-  detachments: { id: string; name: string; reference: { points: number | null } | null }[]
+  detachments: {
+    id: string
+    name: string
+    dispositions: { id: string; name: string }[]
+    reference: { points: number | null } | null
+  }[]
 }
 
 export function CreateRoster({ factions }: { factions: Faction[] }) {
@@ -21,10 +27,14 @@ export function CreateRoster({ factions }: { factions: Faction[] }) {
   const [catalogueId, setCatalogueId] = useState('')
   const [limit, setLimit] = useState<number>(GAME_SIZES[1].limit)
   const [detachmentIds, setDetachmentIds] = useState<string[]>([])
+  const [disposition, setDisposition] = useState<string | null>(null)
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const faction = factions.find((candidate) => candidate.id === catalogueId)
-  const { data: priced } = useQuery(priceQuery(catalogueId, detachmentIds, limit, []))
+  const primary = faction?.detachments.find((detachment) => detachment.id === detachmentIds[0])
+  const dispositions = primary?.dispositions ?? []
+  const selectedDisposition = dispositions.length === 1 ? dispositions[0].id : disposition
+  const { data: priced } = useQuery(priceQuery(catalogueId, detachmentIds, selectedDisposition, limit, []))
   const create = useMutation({
     mutationFn: () =>
       saveRoster({
@@ -34,6 +44,7 @@ export function CreateRoster({ factions }: { factions: Faction[] }) {
             .join(' — '),
           catalogueId,
           detachmentIds,
+          disposition: selectedDisposition,
           limit,
           picks: [],
           prep: null,
@@ -71,6 +82,7 @@ export function CreateRoster({ factions }: { factions: Faction[] }) {
               onValueChange={(value: string | null) => {
                 setCatalogueId(value ?? '')
                 setDetachmentIds([])
+                setDisposition(null)
               }}
             >
               <SelectTrigger id="new-roster-faction" className="mt-1 w-full">
@@ -121,7 +133,7 @@ export function CreateRoster({ factions }: { factions: Faction[] }) {
                     key={detachment.id}
                     type="button"
                     aria-pressed={selected}
-                    onClick={() =>
+                    onClick={() => {
                       setDetachmentIds((current) =>
                         selected
                           ? current.filter((id) => id !== detachment.id)
@@ -129,7 +141,9 @@ export function CreateRoster({ factions }: { factions: Faction[] }) {
                             ? [...current, detachment.id]
                             : current,
                       )
-                    }
+                      if (!selected && !detachmentIds.length) setDisposition(null)
+                      if (selected && detachmentIds[0] === detachment.id) setDisposition(null)
+                    }}
                     className={`flex min-h-10 items-center justify-between gap-2 border px-2 py-1.5 text-left text-xs font-semibold uppercase ${
                       selected ? 'border-azure bg-raised text-azure' : 'border-edge bg-sunken text-dim hover:border-edge-strong'
                     }`}
@@ -142,10 +156,36 @@ export function CreateRoster({ factions }: { factions: Faction[] }) {
             </div>
           </fieldset>
 
-          {priced?.detachmentError ? (
-            <p role="alert" className="text-xs text-destructive">
-              {priced.detachmentError}
-            </p>
+          <DetachmentPoints
+            spent={priced?.detachmentPointsSpent ?? 0}
+            available={priced?.detachmentPointBudget ?? GAME_SIZES.find((size) => size.limit === limit)?.detachmentPoints ?? null}
+            error={priced?.detachmentError}
+          />
+
+          {dispositions.length ? (
+            <div>
+              <label className="eyebrow block" htmlFor="new-roster-disposition">
+                Disposition
+              </label>
+              {dispositions.length === 1 ? (
+                <p className="mt-1 text-sm text-dim">{dispositions[0].name}</p>
+              ) : (
+                <Select value={selectedDisposition} onValueChange={setDisposition}>
+                  <SelectTrigger id="new-roster-disposition" className="mt-1 w-full">
+                    <SelectValue placeholder="Pick a disposition">
+                      {(value: unknown) => dispositions.find((candidate) => candidate.id === value)?.name ?? 'Pick a disposition'}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {dispositions.map((candidate) => (
+                      <SelectItem key={candidate.id} value={candidate.id}>
+                        {candidate.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
           ) : null}
           {create.error ? (
             <p role="alert" className="text-xs text-destructive">
@@ -153,7 +193,16 @@ export function CreateRoster({ factions }: { factions: Faction[] }) {
             </p>
           ) : null}
           <DialogFooter className="rounded-none border-edge bg-sunken">
-            <Button type="submit" disabled={!catalogueId || !detachmentIds.length || Boolean(priced?.detachmentError) || create.isPending}>
+            <Button
+              type="submit"
+              disabled={
+                !catalogueId ||
+                !detachmentIds.length ||
+                Boolean(priced?.detachmentError) ||
+                Boolean(priced?.dispositionError) ||
+                create.isPending
+              }
+            >
               {create.isPending ? 'Creating…' : 'Create roster'}
             </Button>
           </DialogFooter>

@@ -111,6 +111,11 @@ export const factions = createServerFn({ method: 'GET' }).handler(() =>
               slug: slug(detachment.name),
               name: detachment.name,
               disposition: detachment.disposition,
+              dispositions: reference?.dispositions.length
+                ? reference.dispositions.map((id) => ({ id, name: rules?.dispositions.get(id) ?? id }))
+                : detachment.disposition
+                  ? [{ id: detachment.disposition, name: rules?.dispositions.get(detachment.disposition) ?? detachment.disposition }]
+                  : [],
               reference: reference
                 ? {
                     ...reference,
@@ -130,7 +135,7 @@ export const units = createServerFn({ method: 'GET' })
   .handler(({ data }) =>
     rpc(() => {
       const loaded = app().catalogue()
-      return loaded ? unitsIn(loaded, data.catalogueId, data.query, { legends: data.legends }) : []
+      return loaded ? unitsIn(loaded, data.catalogueId, data.query) : []
     }),
   )
 
@@ -209,6 +214,7 @@ export const savedRosterPrice = createServerFn({ method: 'GET' })
         ? calculateRosterPrice({
             catalogueId: roster.catalogueId,
             detachmentIds: roster.detachmentIds,
+            disposition: roster.disposition,
             limit: roster.limit,
             units: roster.picks,
           })

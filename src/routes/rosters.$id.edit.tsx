@@ -18,6 +18,7 @@ export const Route = createFileRoute('/rosters/$id/edit')({
           roster.id,
           roster.catalogueId,
           roster.detachmentIds,
+          roster.disposition,
           roster.limit,
           roster.picks.map(({ entryId, catalogueId, models, choices, spreads, toggles }) => ({
             entryId,

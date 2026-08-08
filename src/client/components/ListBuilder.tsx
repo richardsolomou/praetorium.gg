@@ -14,6 +14,7 @@ import type { RosterPick } from '../../core/roster'
 import { deleteRoster, exportRoster, importRoster, saveRoster, setOwned } from '../../server/functions'
 import { collectionQuery, factionsQuery, priceQuery, savedRostersQuery } from '../queries'
 import { errorMessage } from '../queryClient'
+import { DetachmentPoints } from './DetachmentPoints'
 import { shelve, shortName } from './builder/factions'
 import { GROUPS } from './builder/groups'
 import { Loadout } from './builder/Loadout'
@@ -34,6 +35,7 @@ type Props = {
     name: string
     catalogueId: string
     detachmentIds: string[]
+    disposition: string | null
     limit: number
     picks: Omit<Pick, 'key'>[]
   }
@@ -63,6 +65,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
   const [nextKey, setNextKey] = useState(initial?.picks.length ?? 0)
   const [limit, setLimit] = useState<number>(initial?.limit ?? GAME_SIZES[1].limit)
   const [detachmentIds, setDetachmentIds] = useState<string[]>(initial?.detachmentIds ?? [])
+  const [disposition, setDisposition] = useState<string | null>(initial?.disposition ?? null)
   const [name, setName] = useState(initial?.name ?? '')
   const [selected, setSelected] = useState<number | null>(null)
   const [showing, setShowing] = useState<'picker' | 'loadout' | null>(null)
@@ -90,6 +93,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
     setCatalogueId(list.catalogueId)
     setPickerCatalogueId(list.catalogueId)
     setDetachmentIds(list.detachmentIds)
+    setDisposition(list.disposition)
     setLimit(list.limit)
     setPicked(list.picks.map((pick, at) => ({ ...pick, key: at })))
     setNextKey(list.picks.length)
@@ -111,6 +115,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
           name: listName || 'Untitled list',
           catalogueId,
           detachmentIds,
+          disposition,
           limit,
           picks: picked.map(({ entryId, catalogueId: unitCatalogueId, models, choices, spreads, toggles, attachedTo }) => ({
             entryId,
@@ -139,7 +144,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
     // The mutation reads the complete rendered draft. A later render queues behind
     // this one, so the final request always contains the newest state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [catalogueId, detachmentIds, limit, listName, picked, prep, savedId])
+  }, [catalogueId, detachmentIds, disposition, limit, listName, picked, prep, savedId])
 
   /**
    * Reading a roster file. `.ros` is text; `.rosz` is a zip, so it travels as base64
@@ -169,6 +174,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
         data: {
           catalogueId,
           detachmentIds,
+          disposition,
           limit,
           name: listName || 'Roster',
           units: picked.map(({ entryId, catalogueId: unitCatalogueId, models, choices, spreads, toggles, attachedTo }) => ({
@@ -204,6 +210,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
     ...priceQuery(
       catalogueId,
       detachmentIds,
+      disposition,
       limit,
       picked.map(({ entryId, catalogueId: unitCatalogueId, models, choices, spreads, toggles }) => ({
         entryId,
@@ -243,8 +250,13 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
     setNextKey((current) => current + 1)
   }
 
-  const toggleDetachment = (id: string, checked: boolean) =>
-    setDetachmentIds((current) => (checked ? (current.includes(id) ? current : [...current, id]) : current.filter((entry) => entry !== id)))
+  const toggleDetachment = (id: string, checked: boolean) => {
+    setDetachmentIds((current) => {
+      const next = checked ? (current.includes(id) ? current : [...current, id]) : current.filter((entry) => entry !== id)
+      if (next[0] !== current[0]) setDisposition(null)
+      return next
+    })
+  }
 
   const resize = (index: number, models: number) =>
     setPicked((current) => current.map((pick, at) => (at === index ? { ...pick, models } : pick)))
@@ -384,39 +396,46 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
 
   const picker = faction ? (
     <div className="flex h-full flex-col">
-      <div className="border-b border-edge p-2.5">
-        <label className="eyebrow block" htmlFor="force">
-          Force
-        </label>
-        <Select
-          value={pickerCatalogueId || catalogueId}
-          onValueChange={(value: string | null) => setPickerCatalogueId(value ?? catalogueId)}
-        >
-          <SelectTrigger id="force" className="mt-1 w-full">
-            <SelectValue>
-              {(value: unknown) => {
-                const entry = available.factions.find((each) => each.id === value)
-                return entry ? shortName(entry.name) : 'Pick a force'
-              }}
-            </SelectValue>
-          </SelectTrigger>
-          <SelectContent className="w-auto min-w-(--anchor-width) max-w-[min(90vw,24rem)]">
-            {shelve(available.factions).map((shelf) => (
-              <SelectGroup key={shelf.lineage}>
-                <SelectLabel>{shelf.lineage}</SelectLabel>
-                {shelf.factions.map((entry) => (
-                  <SelectItem key={entry.id} value={entry.id}>
-                    {shortName(entry.name)}
-                    {entry.id === catalogueId ? ' (primary)' : ''}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+      {initial ? null : (
+        <div className="border-b border-edge p-2.5">
+          <label className="eyebrow block" htmlFor="force">
+            Force
+          </label>
+          <Select
+            value={pickerCatalogueId || catalogueId}
+            onValueChange={(value: string | null) => setPickerCatalogueId(value ?? catalogueId)}
+          >
+            <SelectTrigger id="force" className="mt-1 w-full">
+              <SelectValue>
+                {(value: unknown) => {
+                  const entry = available.factions.find((each) => each.id === value)
+                  return entry ? shortName(entry.name) : 'Pick a force'
+                }}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent className="w-auto min-w-(--anchor-width) max-w-[min(90vw,24rem)]">
+              {shelve(available.factions).map((shelf) => (
+                <SelectGroup key={shelf.lineage}>
+                  <SelectLabel>{shelf.lineage}</SelectLabel>
+                  {shelf.factions.map((entry) => (
+                    <SelectItem key={entry.id} value={entry.id}>
+                      {shortName(entry.name)}
+                      {entry.id === catalogueId ? ' (primary)' : ''}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
       <div className="min-h-0 flex-1">
-        <Picker catalogueId={pickerCatalogueId || catalogueId} onAdd={add} inRoster={held} room={priced ? limit - priced.points : null} />
+        <Picker
+          catalogueId={initial ? catalogueId : pickerCatalogueId || catalogueId}
+          onAdd={add}
+          inRoster={held}
+          room={priced ? limit - priced.points : null}
+        />
       </div>
     </div>
   ) : (
@@ -471,6 +490,17 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
                 </span>
               ) : null
             })}
+            {priced?.disposition ? (
+              <span className="contents">
+                <span aria-hidden>·</span>
+                <span className="shrink-0">
+                  {available.factions
+                    .flatMap((entry) => entry.detachments)
+                    .flatMap((entry) => entry.dispositions)
+                    .find((entry) => entry.id === priced.disposition)?.name ?? priced.disposition}
+                </span>
+              </span>
+            ) : null}
             <DropdownMenu>
               <DropdownMenuTrigger aria-label="Roster actions" className="ml-auto grid size-7 shrink-0 place-items-center hover:text-bone">
                 <EllipsisVertical className="size-4" />
@@ -501,6 +531,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
                     setPickerCatalogueId(value)
                     setPicked([])
                     setDetachmentIds([])
+                    setDisposition(null)
                     setSelected(null)
                   }}
                 >
@@ -552,14 +583,47 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
                   })}
                 </div>
               </fieldset>
-              {priced?.detachmentError ? (
-                <p role="alert" className="text-xs text-destructive">
-                  {priced.detachmentError}
-                </p>
-              ) : null}
+              <DetachmentPoints
+                spent={priced?.detachmentPointsSpent ?? 0}
+                available={priced?.detachmentPointBudget ?? GAME_SIZES.find((size) => size.limit === limit)?.detachmentPoints ?? null}
+                error={priced?.detachmentError}
+              />
+              {(() => {
+                const primary = faction?.detachments.find((detachment) => detachment.id === detachmentIds[0])
+                const dispositions = primary?.dispositions ?? []
+                if (!dispositions.length) return null
+                return (
+                  <div>
+                    <label className="eyebrow block" htmlFor="edit-roster-disposition">
+                      Disposition
+                    </label>
+                    {dispositions.length === 1 ? (
+                      <p className="mt-1 text-sm text-dim">{dispositions[0].name}</p>
+                    ) : (
+                      <Select value={disposition} onValueChange={setDisposition}>
+                        <SelectTrigger id="edit-roster-disposition" className="mt-1 w-full">
+                          <SelectValue placeholder="Pick a disposition">
+                            {(value: unknown) => dispositions.find((candidate) => candidate.id === value)?.name ?? 'Pick a disposition'}
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {dispositions.map((candidate) => (
+                            <SelectItem key={candidate.id} value={candidate.id}>
+                              {candidate.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </div>
+                )
+              })()}
             </div>
             <DialogFooter className="rounded-none border-edge bg-sunken">
-              <Button onClick={() => setEditingSetup(false)} disabled={!detachmentIds.length || Boolean(priced?.detachmentError)}>
+              <Button
+                onClick={() => setEditingSetup(false)}
+                disabled={!detachmentIds.length || Boolean(priced?.detachmentError) || Boolean(priced?.dispositionError)}
+              >
                 Done
               </Button>
             </DialogFooter>

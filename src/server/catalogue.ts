@@ -416,8 +416,7 @@ export function groupOfEntry(index: CatalogueIndex, entryId: string): UnitGroup 
  *
  * There is no category and no flag for it — the community data marks them by
  * suffix and nothing else, which is also how every other builder finds them. They
- * are a third of every book and are not tournament legal, so the picker leaves
- * them out until asked.
+ * are not legal here, so the picker never offers them.
  */
 const LEGENDS = /\[legends\]/i
 
@@ -434,7 +433,7 @@ export function unitsIn(
   loaded: LoadedCatalogue,
   catalogueId: string,
   query: string,
-  { legends = false, limit = 60 }: { legends?: boolean; limit?: number } = {},
+  { limit = 60 }: { limit?: number } = {},
 ): UnitSummary[] {
   const wanted = query.trim().toLowerCase()
   const found: { id: string; name: string; group: UnitGroup }[] = []
@@ -445,7 +444,7 @@ export function unitsIn(
     const target = targetOf(entry, loaded.index.definitions)
     if (entry.hidden || target.hidden) continue
     const name = nameOf(entry, loaded.index.definitions)
-    if (!legends && LEGENDS.test(name)) continue
+    if (LEGENDS.test(name)) continue
     if (wanted && !name.toLowerCase().includes(wanted)) continue
     found.push({ id, name, group: groupOf(entry, target) })
   }

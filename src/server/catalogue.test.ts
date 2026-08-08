@@ -156,7 +156,7 @@ describe('the picker', () => {
     expect(offered(shelf)).toEqual(['Squad'])
   })
 
-  it('leaves Legends out of the book until they are asked for', () => {
+  it('never offers Legends datasheets', () => {
     const book = bookOf({
       selectionEntries: [
         { id: 'squad', name: 'Squad', type: 'unit', costs: points(70) },
@@ -164,9 +164,7 @@ describe('the picker', () => {
       ],
     })
     expect(offered(book)).toEqual(['Squad'])
-    // Left out of the book rather than of what is shown: a third of every book is
-    // Legends, and the page of results would be all of it.
-    expect(unitsIn(book, 'cat', '', { legends: true }).map((unit) => unit.name)).toEqual(['Land Speeder [Legends]', 'Squad'])
+    expect(unitsIn(book, 'cat', 'Land Speeder')).toEqual([])
   })
 
   it('does not offer a library as a faction', () => {

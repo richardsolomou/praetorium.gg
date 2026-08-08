@@ -43,6 +43,13 @@
       "when": 1786177301970,
       "tag": "0005_loving_rick_jones",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1786206677829,
+      "tag": "0006_simple_elektra",
+      "breakpoints": true
     }
   ]
 }

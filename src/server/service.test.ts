@@ -101,6 +101,21 @@ describe('seats', () => {
   })
 })
 
+describe('saved rosters', () => {
+  it('keeps the selected disposition', () => {
+    service.saveRoster('alice', {
+      name: 'Recon force',
+      catalogueId: 'necrons',
+      detachmentIds: ['awakened-dynasty'],
+      disposition: 'reconnaissance',
+      limit: 2000,
+      picks: [],
+      prep: null,
+    })
+    expect(service.savedRosters('alice')[0]?.disposition).toBe('reconnaissance')
+  })
+})
+
 describe('battle history', () => {
   it('lists only battles the player is seated in', () => {
     service.createBattle('bob')

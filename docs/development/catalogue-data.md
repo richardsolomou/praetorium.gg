@@ -19,6 +19,7 @@ Praetorium builds and validates rosters from fetched community data. The domain 
 - `catalogueOf` identifies the file that defines an entry. `index.datasheets.get(catalogueId)` identifies the books that offer it.
 - `isDatasheetId` can fall back to any synced book when an imported roster names an unavailable catalogue.
 - A book's own detachments take priority. A book without detachments uses the detachments from the book that contributes most of its roster.
+- Legends datasheets are not legal roster choices and are never returned by the picker.
 - A detachment has a wrapper, a group, and its choices. Any layer can be inline or linked. Match wrapper names by the `Detachment` prefix.
 - Enhancement names and points come from the rules source. Description text prefers the catalogue, then the pinned Wahapedia export; leave conflicting matches blank.
 - A datasheet roster cap usually lives on its same-named category. `rosterLimit` reads that cap for display and filtering. `violations` remains the legality authority.
@@ -49,7 +50,7 @@ Praetorium builds and validates rosters from fetched community data. The domain 
 - Call `hiddenByRules` with the current roster. Visibility can depend on its detachment and force type.
 - Read available choices from the datasheet definition, not only from the built selection. Optional groups are absent from the default selection.
 - Add detachments before units during evaluation. Enhancements and unit limits can depend on them.
-- Eleventh-edition detachments are ordered purchases. The first detachment supplies the force disposition. All purchased detachments contribute their detachment-point cost and stratagems.
+- Eleventh-edition detachments are ordered purchases. The first detachment supplies the available force dispositions; a saved roster keeps the player's choice. All purchased detachments contribute their detachment-point cost and stratagems.
 
 ## Points ratchet
 

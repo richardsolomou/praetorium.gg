@@ -36,10 +36,10 @@ export const factionsQuery = () => queryOptions({ queryKey: ['factions'], queryF
 /** The datasheets the player owns models for, so the picker can filter on it. */
 export const collectionQuery = () => queryOptions({ queryKey: ['collection'], queryFn: () => collection(), staleTime: SSR_STALE_TIME })
 
-export const unitsQuery = (catalogueId: string, query: string, legends = false) =>
+export const unitsQuery = (catalogueId: string, query: string) =>
   queryOptions({
-    queryKey: ['units', catalogueId, query, legends],
-    queryFn: () => units({ data: { catalogueId, query, legends } }),
+    queryKey: ['units', catalogueId, query],
+    queryFn: () => units({ data: { catalogueId, query } }),
     enabled: Boolean(catalogueId),
     staleTime: SSR_STALE_TIME,
   })
@@ -61,10 +61,16 @@ export const datasheetSlugQuery = (catalogueId: string, slug: string) =>
   })
 
 /** Keyed on the picks, so the price follows the list without anything having to remember to ask. */
-export const priceQuery = (catalogueId: string, detachmentIds: readonly string[], limit: number, picked: readonly RosterPick[]) =>
+export const priceQuery = (
+  catalogueId: string,
+  detachmentIds: readonly string[],
+  disposition: string | null,
+  limit: number,
+  picked: readonly RosterPick[],
+) =>
   queryOptions({
-    queryKey: ['price', catalogueId, detachmentIds, limit, picked],
-    queryFn: () => priceRoster({ data: { catalogueId, detachmentIds: [...detachmentIds], limit, units: [...picked] } }),
+    queryKey: ['price', catalogueId, detachmentIds, disposition, limit, picked],
+    queryFn: () => priceRoster({ data: { catalogueId, detachmentIds: [...detachmentIds], disposition, limit, units: [...picked] } }),
     enabled: Boolean(catalogueId),
     staleTime: SSR_STALE_TIME,
   })
@@ -74,11 +80,12 @@ export const savedRosterPriceQuery = (
   id: string,
   catalogueId: string,
   detachmentIds: readonly string[],
+  disposition: string | null,
   limit: number,
   picked: readonly RosterPick[],
 ) =>
   queryOptions({
-    ...priceQuery(catalogueId, detachmentIds, limit, picked),
+    ...priceQuery(catalogueId, detachmentIds, disposition, limit, picked),
     queryFn: () => savedRosterPrice({ data: { id } }),
   })
 
