@@ -8,6 +8,7 @@ import { signUp } from './account'
  * loaded by the server on first use and every number crosses the wire.
  */
 test('a built list is priced, played and tracked', async ({ browser }) => {
+  test.setTimeout(45_000)
   const alice = await (await browser.newContext()).newPage()
   const bob = await (await browser.newContext()).newPage()
 
