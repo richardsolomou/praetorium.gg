@@ -24,7 +24,8 @@
 ## Serving
 
 - **One SQLite file, one instance.** Fan-out is out of process now, so replicas would at least hear each other; the database is what still makes this a single instance. Moving that is what has to come before adding one.
-- **The content policy is built, not served.** `connect-src 'self'` covers Centrifugo in production because Caddy puts it on the app's own origin. Development and the browser suite run it on its own port, so those builds carry `REALTIME_ORIGIN` and no other build carries the allowance. A middleware cannot fix this at runtime: Nitro applies the header after the app has finished with the response.
+- **The browser never crosses an origin to reach Centrifugo**, which is why `connect-src 'self'` needs no exception anywhere. Caddy puts it on the app's origin in the container and the dev server proxies `/connection` to it. A build-time allowance was the first attempt and it was the wrong one — the policy header comes from Nitro's route rules, so no middleware can widen it at runtime either.
+- **Caddy checks the websocket's origin, so Centrifugo must not.** The entrypoint sets `CENTRIFUGO_CLIENT_ALLOWED_ORIGINS='*'` because every request it sees has already been through the proxy; without it Centrifugo second-guesses a check that has already happened and answers 403.
 - **Server functions wrap reads in `rpc()` and mutations in `mutationRpc()`** — a thrown `Response` otherwise reaches the client as a successful result, and mutations must check their origin before state access. CSRF protection is per-function, not middleware.
 - **`APP_URL` is the canonical host, and `src/start.ts` enforces it.** `/api/health` is exempt and must stay exempt: the container checks itself over 127.0.0.1, and redirecting that would ask a different machine whether this one is alive.
 

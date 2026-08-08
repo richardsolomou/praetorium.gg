@@ -1,17 +1,15 @@
-import os from 'node:os'
 import path from 'node:path'
 import { defineConfig, devices } from '@playwright/test'
 
 const port = Number(process.env.PLAYWRIGHT_PORT ?? 4173)
 const baseURL = `http://127.0.0.1:${port}`
-const root = process.env.PLAYWRIGHT_DATA_ROOT ?? path.join(os.tmpdir(), `praetorium-playwright-${port}`)
+// Under /tmp rather than os.tmpdir(): the container mounts this, and a macOS
+// private temp directory is not shared with the Docker VM.
+const root = process.env.PLAYWRIGHT_DATA_ROOT ?? `/tmp/praetorium-e2e-${port}`
 // The synced catalogue, so list building is exercised against the real data.
 const catalogue = process.env.CATALOGUE_DIR ?? path.join(import.meta.dirname, 'catalogue-data')
-const rules = process.env.RULES_DIR ?? path.join(import.meta.dirname, 'catalogue-data', 'rules')
-// Centrifugo is a container of its own here, where production runs it inside the
-// app's. The browser is told where it is rather than guessing.
-const realtimePort = Number(process.env.PLAYWRIGHT_REALTIME_PORT ?? 8100)
-const realtimeSecret = 'praetorium-e2e-realtime-secret'
+const image = process.env.PLAYWRIGHT_IMAGE ?? 'praetorium-e2e'
+const container = `praetorium-e2e-${port}`
 
 export default defineConfig({
   testDir: './e2e',
@@ -25,20 +23,22 @@ export default defineConfig({
   reporter: process.env.CI ? 'github' : 'list',
   use: { baseURL, trace: process.env.PLAYWRIGHT_TRACE ? 'on' : 'retain-on-failure', screenshot: 'only-on-failure' },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
-  // Tests run against the production server: the realtime connection, the
-  // migrations and the session all behave differently under `vite dev`.
-  webServer: [
-    {
-      command: `REALTIME_SECRET=${realtimeSecret} REALTIME_PORT=${realtimePort} REALTIME_CONTAINER=praetorium-e2e-realtime ./scripts/realtime.sh`,
-      url: `http://127.0.0.1:${realtimePort}/health`,
-      reuseExistingServer: false,
-      timeout: 120_000,
-    },
-    {
-      command: `rm -rf ${root} && mkdir -p ${root} && DATA_DIR=${root} CATALOGUE_DIR=${catalogue} RULES_DIR=${rules} AUTH_RATE_LIMIT=off PORT=${port} REALTIME_SECRET=${realtimeSecret} REALTIME_API_URL=http://127.0.0.1:${realtimePort}/api REALTIME_URL=ws://127.0.0.1:${realtimePort}/connection/websocket node .output/server/index.mjs`,
-      url: `${baseURL}/api/health`,
-      reuseExistingServer: false,
-      timeout: 120_000,
-    },
-  ],
+  /*
+   * The container, not the bundle: Centrifugo and Caddy are part of how this app
+   * serves a request, so a suite that ran the Node output alone would be testing a
+   * topology nobody deploys — and the websocket would cross an origin it never
+   * crosses in production.
+   */
+  webServer: {
+    command: [
+      `docker rm -f ${container} >/dev/null 2>&1 || true`,
+      `rm -rf ${root} && mkdir -p ${root} && chmod 777 ${root}`,
+      `docker run --rm --name ${container} -p 127.0.0.1:${port}:3000` +
+        ` -v ${root}:/data -v ${catalogue}:/catalogue:ro` +
+        ` -e CATALOGUE_DIR=/catalogue -e RULES_DIR=/catalogue/rules -e AUTH_RATE_LIMIT=off ${image}`,
+    ].join(' && '),
+    url: `${baseURL}/api/health`,
+    reuseExistingServer: false,
+    timeout: 180_000,
+  },
 })

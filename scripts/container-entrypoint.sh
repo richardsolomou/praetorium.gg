@@ -18,6 +18,9 @@ export CENTRIFUGO_CLIENT_TOKEN_HMAC_SECRET_KEY=$REALTIME_SECRET
 export CENTRIFUGO_CLIENT_SUBSCRIPTION_TOKEN_ENABLED=true
 export CENTRIFUGO_CLIENT_SUBSCRIPTION_TOKEN_HMAC_SECRET_KEY=$REALTIME_SECRET
 export CENTRIFUGO_HTTP_API_KEY=${REALTIME_API_KEY:-$REALTIME_SECRET}
+# Caddy is what rejects a foreign origin, before the request ever gets here — so
+# Centrifugo, which only ever sees a proxied request, must not second-guess it.
+export CENTRIFUGO_CLIENT_ALLOWED_ORIGINS='*'
 export CENTRIFUGO_HTTP_SERVER_ADDRESS=127.0.0.1
 export CENTRIFUGO_HEALTH_ENABLED=true
 export XDG_CONFIG_HOME=/tmp/caddy-config

@@ -17,13 +17,13 @@ export const Route = createFileRoute('/api/realtime/token')({
       GET: async ({ request }) => {
         const player = await seatedPlayer(request)
         if (!player) return unauthorised()
-        const { secret, url } = realtimeConfig()
+        const { secret } = realtimeConfig()
         if (!secret) return new Response('realtime is not configured', { status: 503 })
         const battleId = seatedBattleId(request, player.id)
         if (battleId instanceof Response) return battleId
         // The channel is named after the battle rather than the invite token, so
         // the link that gets shared never becomes a channel name.
-        return Response.json({ token: connectionToken(player.id, secret), url, channel: battleChannel(battleId) })
+        return Response.json({ token: connectionToken(player.id, secret), channel: battleChannel(battleId) })
       },
       POST: async ({ request }) => {
         const player = await seatedPlayer(request)

@@ -5,26 +5,20 @@ import tailwindcss from '@tailwindcss/vite'
 import viteReact from '@vitejs/plugin-react'
 import { nitro } from 'nitro/vite'
 
-/*
- * Centrifugo is behind the same proxy as the app in production, so `connect-src
- * 'self'` covers the websocket and nothing has to be widened. Development and the
- * browser suite run it on a port of its own, and a policy baked at build time
- * cannot learn that at runtime — so the build that is going to be run that way
- * says so, and no other build carries the allowance.
- */
-const realtimeOrigin = process.env.REALTIME_ORIGIN?.trim()
-const connectSrc = ["'self'", realtimeOrigin].filter(Boolean).join(' ')
-
 export default defineConfig({
   resolve: { alias: { '@': path.resolve(import.meta.dirname, 'src') } },
-  server: { port: 3000 },
+  // Centrifugo runs beside the dev server rather than behind Caddy, so the proxy
+  // is what keeps the browser on one origin — the same origin it has in
+  // production, which is why the content policy needs no exception anywhere.
+  server: { port: 3000, proxy: { '/connection': { target: 'http://127.0.0.1:8000', ws: true } } },
   plugins: [
     tanstackStart(),
     nitro({
       routeRules: {
         '/**': {
           headers: {
-            'Content-Security-Policy': `default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src ${connectSrc}; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'`,
+            'Content-Security-Policy':
+              "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'",
             'Referrer-Policy': 'no-referrer',
             'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), payment=()',
             'X-Content-Type-Options': 'nosniff',

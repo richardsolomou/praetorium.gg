@@ -7,7 +7,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite dev",
-    "realtime": "./scripts/realtime.sh",
+    "realtime": "docker run --rm --name praetorium-realtime -p 127.0.0.1:8000:8000 -e CENTRIFUGO_CLIENT_TOKEN_HMAC_SECRET_KEY=praetorium-development-realtime-secret -e CENTRIFUGO_CLIENT_SUBSCRIPTION_TOKEN_ENABLED=true -e CENTRIFUGO_CLIENT_SUBSCRIPTION_TOKEN_HMAC_SECRET_KEY=praetorium-development-realtime-secret -e CENTRIFUGO_HTTP_API_KEY=praetorium-development-realtime-secret -v \"$PWD/realtime.json:/centrifugo/realtime.json:ro\" centrifugo/centrifugo:v6.9.1 centrifugo --config=/centrifugo/realtime.json",
     "build": "vite build && rm -rf .output/server/drizzle && cp -R drizzle .output/server/drizzle",
     "start": "node .output/server/index.mjs",
     "typecheck": "tsc --noEmit",
@@ -17,7 +17,7 @@
     "format:check": "oxfmt --check .",
     "check": "pnpm format:check && pnpm lint && pnpm db:check && pnpm catalogue:check && pnpm build && pnpm typecheck && pnpm test",
     "test": "vitest run",
-    "test:e2e": "REALTIME_ORIGIN=ws://127.0.0.1:8100 pnpm build && playwright test",
+    "test:e2e": "docker build -t praetorium-e2e . && playwright test",
     "test:e2e:run": "playwright test",
     "test:e2e:install": "playwright install chromium",
     "db:generate": "drizzle-kit generate",

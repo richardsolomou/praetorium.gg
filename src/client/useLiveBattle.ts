@@ -6,7 +6,7 @@ import { battleQuery } from './queries'
 
 export type PresentPlayer = { playerId: string; name: string }
 
-const TICKET = z.object({ token: z.string(), url: z.string().optional(), channel: z.string().optional() })
+const TICKET = z.object({ token: z.string(), channel: z.string().optional() })
 
 /**
  * Keeps an open battle current, and reports who else has it open.
@@ -42,14 +42,11 @@ export function useLiveBattle(token: string, enabled: boolean) {
     }
 
     const start = async () => {
-      const { token: connection, url, channel } = await ask()
+      const { token: connection, channel } = await ask()
       if (!live) return
-      // A path means Centrifugo is behind the same proxy as the app; anything else
-      // is an address of its own, which is how development runs it.
-      const where = url ?? '/connection/websocket'
-      const endpoint = where.startsWith('/')
-        ? `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}${where}`
-        : where
+      // Always this origin: Caddy puts Centrifugo behind it in the container, and
+      // the dev server proxies it. Nothing here ever crosses an origin.
+      const endpoint = `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}/connection/websocket`
 
       client = new Centrifuge(endpoint, { token: connection, getToken: async () => (await ask()).token })
       const subscription = client.newSubscription(channel!, {

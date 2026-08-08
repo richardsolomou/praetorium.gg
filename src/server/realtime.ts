@@ -13,14 +13,12 @@ const TOKEN_TTL_SECONDS = 5 * 60
 export const battleChannel = (battleId: string) => `battle:${battleId}`
 
 export function realtimeConfig(environment: NodeJS.ProcessEnv = process.env) {
-  const secret = environment.REALTIME_SECRET?.trim()
+  // The container writes one into /data on first boot. The fallback is for `pnpm
+  // dev`, where `pnpm realtime` runs Centrifugo with the same well-known string;
+  // production never reaches it, because the entrypoint always sets one.
+  const secret =
+    environment.REALTIME_SECRET?.trim() || (environment.NODE_ENV === 'production' ? undefined : 'praetorium-development-realtime-secret')
   return {
-    /**
-     * Where the browser connects. Same origin in production, because Caddy sits in
-     * front of both the app and Centrifugo; in development Centrifugo is its own
-     * container and the browser goes straight to it.
-     */
-    url: environment.REALTIME_URL?.trim() || '/connection/websocket',
     apiUrl: (environment.REALTIME_API_URL?.trim() || 'http://127.0.0.1:8000/api').replace(/\/$/, ''),
     apiKey: environment.REALTIME_API_KEY?.trim() || secret,
     secret,
