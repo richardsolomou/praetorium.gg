@@ -19,10 +19,10 @@ export type SubmitResult = { outcome: 'appended'; seq: number } | { outcome: 'st
 export class Repository {
   constructor(private readonly database: PraetoriumDatabase) {}
 
-  upsertPlayer(input: { id: string; name: string; now: number }) {
+  upsertPlayer(input: { id: string; name: string; userId: string; now: number }) {
     this.database
       .insert(players)
-      .values({ id: input.id, name: input.name, createdAt: input.now })
+      .values({ id: input.id, name: input.name, userId: input.userId, createdAt: input.now })
       .onConflictDoUpdate({ target: players.id, set: { name: input.name } })
       .run()
   }
@@ -33,16 +33,6 @@ export class Repository {
 
   playerOfUser(userId: string) {
     return this.database.select().from(players).where(eq(players.userId, userId)).orderBy(desc(players.createdAt)).get()
-  }
-
-  /**
-   * Ties a guest identity to an account.
-   *
-   * The guest row is kept rather than replaced: the command log points at its id, so
-   * replacing it would erase the player from every battle they have played.
-   */
-  claimPlayer(playerId: string, userId: string) {
-    this.database.update(players).set({ userId }).where(eq(players.id, playerId)).run()
   }
 
   createBattle(input: { id: string; token: string; playerId: string; now: number }) {

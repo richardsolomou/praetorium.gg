@@ -1,23 +1,23 @@
 import { expect, test } from '@playwright/test'
+import { signUp } from './account'
 
-test('the guest entry flow is operable from the keyboard', async ({ page }) => {
+test('opening a battle is operable from the keyboard', async ({ page }) => {
+  await signUp(page, 'Alice')
   await page.goto('/')
 
   for (let tabs = 0; tabs < 10; tabs++) {
     // eslint-disable-next-line no-await-in-loop
-    if (await page.getByLabel('Your name').evaluate((element) => element === document.activeElement)) break
+    if (await page.getByRole('button', { name: 'Open a battle' }).evaluate((element) => element === document.activeElement)) break
     // eslint-disable-next-line no-await-in-loop
     await page.keyboard.press('Tab')
   }
-  await expect(page.getByLabel('Your name')).toBeFocused()
-  await page.keyboard.type('Alice')
-  await page.keyboard.press('Tab')
   await expect(page.getByRole('button', { name: 'Open a battle' })).toBeFocused()
   await page.keyboard.press('Enter')
   await expect(page.getByLabel('Send this link to your opponent')).toHaveValue(/\/b\//)
 })
 
 test('reduced motion removes meaningful transitions', async ({ page }) => {
+  await signUp(page, 'Alice')
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await page.goto('/')
 

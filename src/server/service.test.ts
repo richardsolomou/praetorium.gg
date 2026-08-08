@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { createBattleEvents } from '../adapters/events'
 import { closeDatabase, type PraetoriumDatabase, openDatabase } from '../db/connection'
 import { Repository } from '../db/repository'
+import { user } from '../db/schema'
 import { PraetoriumService } from './service'
 
 let database: PraetoriumDatabase
@@ -12,10 +13,25 @@ beforeEach(() => {
   database = openDatabase(':memory:')
   now = 0
   service = new PraetoriumService(new Repository(database), () => ++now, createBattleEvents())
-  service.identify('alice', 'Alice')
-  service.identify('bob', 'Bob')
-  service.identify('carol', 'Carol')
+  enrol('alice', 'Alice')
+  enrol('bob', 'Bob')
+  enrol('carol', 'Carol')
 })
+
+/**
+ * A player with the account behind them, because there is no other kind.
+ *
+ * The id is fixed so the tests can name who is acting; `playerForUser` mints its
+ * own, which is right for the app and useless for reading a test.
+ */
+function enrol(id: string, name: string) {
+  const at = new Date(0)
+  database
+    .insert(user)
+    .values({ id: `user-${id}`, name, email: `${id}@example.test`, emailVerified: false, createdAt: at, updatedAt: at })
+    .run()
+  new Repository(database).upsertPlayer({ id, name, userId: `user-${id}`, now: ++now })
+}
 
 afterEach(() => closeDatabase(database))
 

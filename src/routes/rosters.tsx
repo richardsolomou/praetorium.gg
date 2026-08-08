@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Outlet } from '@tanstack/react-router'
-import { IdentityGate } from '../client/components/IdentityGate'
+import { SignInRequired } from '../client/components/SignInRequired'
 import { meQuery } from '../client/queries'
 
 export const Route = createFileRoute('/rosters')({
@@ -10,5 +10,5 @@ export const Route = createFileRoute('/rosters')({
 
 function RostersLayout() {
   const { data: me } = useQuery(meQuery())
-  return me ? <Outlet /> : <IdentityGate />
+  return me ? <Outlet /> : <SignInRequired title="Your rosters" explanation="Sign in to build a list and keep it between battles." />
 }

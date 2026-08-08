@@ -14,6 +14,6 @@ Fixes are made against the current `main` branch and the deployment at [praetori
 
 ## What is worth reporting
 
-Praetorium keeps two things: identities (a signed cookie, or an account claiming one) and battles, including the lists attached to them. So the interesting questions are whether one player can act as another, read a battle they are not in or were never sent, take a seat they were not offered, or make an instance accept a command its own rules forbid. Mutation origin checks, the guest cookie signature, and the event stream are all worth looking at.
+Praetorium keeps accounts and the battles and lists attached to them. So the interesting questions are whether one player can act as another, read a battle they are not in or were never sent, take a seat they were not offered, or make an instance accept a command its own rules forbid. Mutation origin checks, session handling, the sign-in redirect and the event stream are all worth looking at.
 
 Preview deployments (`pr-<number>.praetorium.gg`) are disposable instances of unmerged code. Findings there are welcome, but say so — they may already be fixed on `main`.

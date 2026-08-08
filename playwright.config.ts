@@ -24,7 +24,7 @@ export default defineConfig({
   // Tests run against the production server: the stream, the migrations and the
   // cookie all behave differently under `vite dev`.
   webServer: {
-    command: `rm -rf ${root} && mkdir -p ${root} && DATA_DIR=${root} CATALOGUE_DIR=${catalogue} RULES_DIR=${rules} PORT=${port} node .output/server/index.mjs`,
+    command: `rm -rf ${root} && mkdir -p ${root} && DATA_DIR=${root} CATALOGUE_DIR=${catalogue} RULES_DIR=${rules} AUTH_RATE_LIMIT=off PORT=${port} node .output/server/index.mjs`,
     url: `${baseURL}/api/health`,
     reuseExistingServer: false,
     timeout: 120_000,

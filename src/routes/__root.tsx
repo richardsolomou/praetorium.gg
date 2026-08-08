@@ -37,13 +37,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   ),
 })
 
-/** Who you are, and the way to stop being a guest. Playing needs neither. */
+/** Who you are, and the way to stop being them. */
 function Account() {
   const { data: me } = useQuery(meQuery())
   const queryClient = useQueryClient()
   const navigate = useNavigate()
 
-  if (me?.signedIn) {
+  if (me) {
     return (
       <Button
         variant="ghost"
@@ -61,7 +61,7 @@ function Account() {
 
   // One label whatever is cached: the page itself explains what an account is for.
   return (
-    <Link to="/signin" className="eyebrow ml-auto hover:text-azure">
+    <Link to="/signin" search={{ next: undefined }} className="eyebrow ml-auto hover:text-azure">
       Sign in
     </Link>
   )

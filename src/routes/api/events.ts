@@ -1,7 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { app } from '../../server/app'
 import { StreamLimiter } from '../../server/connections'
-import { playerIdFrom } from '../../server/identity'
 
 const HEARTBEAT_MS = 20_000
 
@@ -12,17 +11,18 @@ const noop = () => {}
 /**
  * One stream per open battle page. A message says only "this battle changed"; the
  * page then refetches through the normal read path, so nothing here decides what
- * a player may see. Players only, so a leaked link buys no stream.
+ * a player may see. Seated players only, so a leaked link buys no stream.
  */
 export const Route = createFileRoute('/api/events')({
   server: {
     handlers: {
-      GET: ({ request }) => {
+      GET: async ({ request }) => {
         const token = new URL(request.url).searchParams.get('battle')
         if (!token) return new Response('battle required', { status: 400 })
 
-        const viewer = playerIdFrom(request.headers, app().secret)
-        if (!viewer) return new Response('say who you are first', { status: 401 })
+        const session = await app().auth.api.getSession({ headers: request.headers })
+        if (!session) return new Response('sign in first', { status: 401 })
+        const viewer = app().service.playerForUser(session.user.id, session.user.name)
 
         let battleId: string
         let name: string

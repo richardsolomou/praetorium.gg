@@ -1,8 +1,6 @@
 import { createServerFn } from '@tanstack/react-start'
-import { getRequest, setCookie } from '@tanstack/react-start/server'
+import { getRequest } from '@tanstack/react-start/server'
 import { app } from './app'
-import { createId } from './crypto'
-import { cookieOptions, PLAYER_COOKIE, playerFor, playerIdFrom, signPlayerId } from './identity'
 import { configuredProviders } from './auth'
 import { evaluate, evaluateForces, type Selection } from '../core/evaluate'
 import { attachmentErrors, attachmentOf } from '../core/attach'
@@ -15,7 +13,6 @@ import { parseXml, rosterXml } from './rosz'
 import { ATTRIBUTION, slug } from './rules'
 import { mutationRpc, rpc } from './rpc'
 import {
-  createBattleSchema,
   datasheetSchema,
   datasheetSlugSchema,
   detachmentRulesSchema,
@@ -45,40 +42,15 @@ function orNull<T>(work: () => T) {
 
 const allSelections = (selection: Selection): Selection[] => [selection, ...(selection.selections ?? []).flatMap(allSelections)]
 
-/**
- * Who is asking. An account that has claimed a guest identity is that identity, so
- * nothing downstream needs to know which of the two it is talking to.
- */
+/** Who is asking, which is only ever an account. */
 async function currentPlayerId() {
-  const request = getRequest()
-  const session = await app().auth.api.getSession({ headers: request.headers })
-  return playerFor(
-    request.headers,
-    app().secret,
-    session ? { userId: session.user.id, name: session.user.name } : null,
-    (userId, guest, name) => app().service.playerForUser(userId, guest, name),
-  )
+  const session = await app().auth.api.getSession({ headers: getRequest().headers })
+  return session ? app().service.playerForUser(session.user.id, session.user.name) : null
 }
 
 async function requirePlayerId() {
   const id = await currentPlayerId()
-  if (!id) throw new Response('say who you are first', { status: 401 })
-  return id
-}
-
-/**
- * The identity behind the cookie, minting one on the way through. A guest is a
- * durable record from here on — the command log points at it — so this is the
- * only place an id comes into existence.
- */
-async function identify(name: string) {
-  const request = getRequest()
-  const existing = await currentPlayerId()
-  const id = existing ?? createId()
-  // The cookie is issued whether or not there is an account: it is what a guest is,
-  // and an account simply claims one.
-  if (!playerIdFrom(request.headers, app().secret)) setCookie(PLAYER_COOKIE, signPlayerId(id, app().secret), cookieOptions(request.headers))
-  app().service.identify(id, name)
+  if (!id) throw new Response('sign in first', { status: 401 })
   return id
 }
 
@@ -86,19 +58,9 @@ export const me = createServerFn({ method: 'GET' }).handler(() =>
   rpc(async () => {
     const id = await currentPlayerId()
     const player = id ? app().service.player(id) : undefined
-    return player ? { id: player.id, name: player.name, signedIn: Boolean(player.userId) } : null
+    return player ? { id: player.id, name: player.name } : null
   }),
 )
-
-/** Establishes a durable guest without making opening a battle the onboarding flow. */
-export const identifyPlayer = createServerFn({ method: 'POST' })
-  .validator(createBattleSchema)
-  .handler(({ data }) =>
-    mutationRpc(async () => {
-      const id = await identify(data.name)
-      return app().service.player(id)!
-    }),
-  )
 
 export const myBattles = createServerFn({ method: 'GET' }).handler(() =>
   rpc(async () => {
@@ -116,13 +78,13 @@ export const openBattle = createServerFn({ method: 'GET' })
     }),
   )
 
-export const createBattle = createServerFn({ method: 'POST' })
-  .validator(createBattleSchema)
-  .handler(({ data }) => mutationRpc(async () => app().service.createBattle(await identify(data.name))))
+export const createBattle = createServerFn({ method: 'POST' }).handler(() =>
+  mutationRpc(async () => app().service.createBattle(await requirePlayerId())),
+)
 
 export const joinBattle = createServerFn({ method: 'POST' })
   .validator(joinBattleSchema)
-  .handler(({ data }) => mutationRpc(async () => app().service.join(data.token, await identify(data.name))))
+  .handler(({ data }) => mutationRpc(async () => app().service.join(data.token, await requirePlayerId())))
 
 /**
  * Every change to a battle comes through here. The result is the domain's answer,

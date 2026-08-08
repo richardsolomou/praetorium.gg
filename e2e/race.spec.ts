@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { signUp } from './account'
 
 /**
  * A player acting twice in a row, on a connection where the refetch behind the
@@ -14,15 +15,17 @@ test('a player tapping twice in a row does not lose the race to themselves', asy
   const alice = await (await browser.newContext()).newPage()
   const bob = await (await browser.newContext()).newPage()
 
+  await signUp(alice, 'Alice')
+
   await alice.goto('/')
-  await alice.getByLabel('Your name').fill('Alice')
   await alice.getByRole('button', { name: 'Open a battle' }).click()
   const invite = alice.getByLabel('Send this link to your opponent')
   await expect(invite).toHaveValue(/\/b\//)
   const link = await invite.inputValue()
 
+  await signUp(bob, 'Bob')
+
   await bob.goto(link)
-  await bob.getByLabel('Your name').fill('Bob')
   await bob.getByRole('button', { name: 'Join the battle' }).click()
 
   await paste(alice, 'Ultramarines', '10 Intercessors')

@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { signUp } from './account'
 import { readFile } from 'node:fs/promises'
 
 /**
@@ -11,8 +12,9 @@ import { readFile } from 'node:fs/promises'
 test('a list leaves as .ros and comes back', async ({ browser }) => {
   const page = await (await browser.newContext()).newPage()
 
+  await signUp(page, 'Alice')
+
   await page.goto('/')
-  await page.getByLabel('Your name').fill('Alice')
   await page.getByRole('button', { name: 'Open a battle' }).click()
   await page.getByRole('button', { name: 'Build from the catalogue' }).click()
 

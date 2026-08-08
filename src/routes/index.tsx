@@ -1,12 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+import { SignInRequired } from '../client/components/SignInRequired'
 import { battlesQuery, meQuery } from '../client/queries'
 import { errorMessage } from '../client/queryClient'
-import { PLAYER_NAME_MAX_LENGTH } from '../core/battle'
 import { createBattle } from '../server/fns'
 
 export const Route = createFileRoute('/')({
@@ -16,11 +13,10 @@ export const Route = createFileRoute('/')({
 
 function Home() {
   const { data: me } = useQuery(meQuery())
-  const [name, setName] = useState(me?.name ?? '')
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const open = useMutation({
-    mutationFn: () => createBattle({ data: { name } }),
+    mutationFn: () => createBattle(),
     onSuccess: async ({ token }) => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: meQuery().queryKey }),
@@ -30,6 +26,15 @@ function Home() {
     },
   })
 
+  if (!me) {
+    return (
+      <SignInRequired
+        title="Track a battle together"
+        explanation="Open a battle, send the link to your opponent, and you both watch the same round, phase and score. Sign in to start one — your lists and your battles stay with the account."
+      />
+    )
+  }
+
   return (
     <main className="mx-auto w-full max-w-md px-4 py-12">
       <h1 className="text-2xl">Track a battle together</h1>
@@ -37,29 +42,10 @@ function Home() {
         Open a battle, send the link to your opponent, and you both watch the same round, phase and score. Whoever the rules say owns a move
         is the only one who can make it.
       </p>
-      <form
-        className="mt-8 space-y-4"
-        onSubmit={(event) => {
-          event.preventDefault()
-          open.mutate()
-        }}
-      >
-        <div className="space-y-2">
-          <Label htmlFor="name">Your name</Label>
-          <Input
-            id="name"
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            maxLength={PLAYER_NAME_MAX_LENGTH}
-            placeholder="Richard"
-            autoComplete="nickname"
-          />
-        </div>
-        <Button type="submit" disabled={!name.trim() || open.isPending} className="h-11 w-full text-base">
-          Open a battle
-        </Button>
-        {open.error ? <p className="text-sm text-destructive">{errorMessage(open.error)}</p> : null}
-      </form>
+      <Button onClick={() => open.mutate()} disabled={open.isPending} className="mt-8 h-11 w-full text-base">
+        Open a battle
+      </Button>
+      {open.error ? <p className="mt-3 text-sm text-destructive">{errorMessage(open.error)}</p> : null}
     </main>
   )
 }

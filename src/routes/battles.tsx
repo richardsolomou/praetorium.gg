@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { Button } from '@/components/ui/button'
-import { IdentityGate } from '../client/components/IdentityGate'
+import { SignInRequired } from '../client/components/SignInRequired'
 import { battlesQuery, meQuery } from '../client/queries'
 
 type Battle = Awaited<ReturnType<NonNullable<ReturnType<typeof battlesQuery>['queryFn']>>>[number]
@@ -15,7 +15,7 @@ export const Route = createFileRoute('/battles')({
 function Battles() {
   const { data: me } = useQuery(meQuery())
   const { data: battles = [] } = useQuery(battlesQuery())
-  if (!me) return <IdentityGate />
+  if (!me) return <SignInRequired title="Your battles" explanation="Sign in to see the battles you have played and the ones still going." />
 
   return (
     <main className="mx-auto w-full max-w-4xl px-4 py-8">

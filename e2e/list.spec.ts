@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { signUp } from './account'
 
 /**
  * A list built from the real catalogue, priced, resized, taken into a battle, and
@@ -10,8 +11,9 @@ test('a built list is priced, played and tracked', async ({ browser }) => {
   const alice = await (await browser.newContext()).newPage()
   const bob = await (await browser.newContext()).newPage()
 
+  await signUp(alice, 'Alice')
+
   await alice.goto('/')
-  await alice.getByLabel('Your name').fill('Alice')
   await alice.getByRole('button', { name: 'Open a battle' }).click()
   // The origin is only known once mounted, so the field starts empty: waiting for
   // the value rather than the element is what stops this reading nothing.
@@ -103,8 +105,9 @@ test('a built list is priced, played and tracked', async ({ browser }) => {
   await alice.getByRole('button', { name: /^Battlefield Dominance/ }).click()
   await alice.getByRole('button', { name: 'Save these' }).click()
 
+  await signUp(bob, 'Bob')
+
   await bob.goto(link)
-  await bob.getByLabel('Your name').fill('Bob')
   await bob.getByRole('button', { name: 'Join the battle' }).click()
   await bob.getByRole('button', { name: 'Paste a list' }).click()
   await bob.getByLabel('Your army').fill('Ultramarines')

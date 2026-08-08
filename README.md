@@ -53,7 +53,7 @@ docker compose up -d
 
 One container, one `/data` volume, one instance. It fetches its own community data in the background and serves battles while it does — there is nothing to run by hand, and **no game data is in this repository**. See [docs/deployment.md](docs/deployment.md) for what lands in the volume, what to back up, and why it stays at one replica.
 
-Playing needs no account: a signed cookie is a durable identity and the command log points at it. Signing up _claims_ the guest you are already using, so your lists and battles come with you. Email and password works with no configuration; Google and Discord appear only when both halves of their credentials are set.
+An account is your player: your lists, the battles you have played and the ones still going follow you to whatever device you pick up, and nothing depends on a cookie surviving. Email and password works with no configuration and needs no inbox — there is no verification step to stall a first game. Google and Discord appear only when both halves of their credentials are set.
 
 ## Not here yet 🚧
 

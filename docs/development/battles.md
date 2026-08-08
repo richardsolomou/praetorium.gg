@@ -29,10 +29,10 @@
 ## Identity
 
 - **Reads never seat anyone.** `PraetoriumService.screen` answers an invitation to a stranger rather than joining them, because a link preview crawler must not be able to take the second chair. Joining is an explicit mutation.
-- **An account claims a guest rather than replacing it.** The command log points at `players.id`, so replacing that row would erase the player from every battle they have played. `PraetoriumService.playerForUser` adopts the guest in hand, which is what keeps someone's saved lists when they sign up.
+- **A player is an account, and `playerForUser` is the only place one comes into existence.** `players.userId` is mandatory and unique. The row stays separate from `user` because the command log points at `players.id` and better-auth owns the shape of its own tables — so a name can change and a log still means what it meant.
 - **better-auth owns its five tables** (`user`, `session`, `account`, `verification`, `rateLimit`). Their shapes come from better-auth, so never add product columns to them; `players.userId` hangs off `user.id` instead.
-- **Playing needs no account, and no feature may come to need one.** An account is for keeping lists across devices. Verification is off deliberately: blocking a first game on an inbox would be the wrong trade.
-- **A guest identity is durable.** The command log points at `players.id`, so an id outlives the cookie that proved it and an account can be attached to one later. Never re-key commands to anything else.
+- **Everything needs an account, and joining a battle is no exception.** Email verification is still off deliberately: an inbox round trip at the table would be the wrong trade, and the account is there to hold your lists, not to prove who you are.
+- **`next` on the sign-in page is a path on this instance and nothing else.** An invite link sends a signed-out visitor through sign-in and back to the battle, and a redirect target that could be absolute would make that an open redirect.
 
 ## Known sharp edge
 

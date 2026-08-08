@@ -16,7 +16,7 @@ docker run -d --name praetorium -p 3000:3000 -v praetorium-data:/data ghcr.io/ri
 ## What lands in /data
 
 - `praetorium.sqlite` — every battle, its command log, and every saved list.
-- `session.secret` — signs the guest cookies. Losing it signs everyone out, which costs them their saved lists.
+- `session.secret` — signs sessions. Losing it signs everyone out; their accounts and lists survive.
 - `catalogue/` — the community data, about 126MB, fetched by the instance itself.
 
 Back up the database and the secret together. The catalogue is disposable: it is pinned in the image and re-fetched if deleted.
