@@ -68,6 +68,18 @@ const sync = {
   },
 }
 
+/** Pays the one-time parse cost after startup, before a player opens the catalogue. */
+export function warm(instance: Pick<App, 'catalogue' | 'rules'>) {
+  setImmediate(() => {
+    try {
+      instance.catalogue()
+      instance.rules()
+    } catch (error) {
+      sync.state = { status: 'failed', detail: error instanceof Error ? error.message : 'the catalogue could not be loaded' }
+    }
+  })
+}
+
 // Dev keeps the instance on globalThis so HMR reloads reuse one SQLite handle.
 const globalApp = globalThis as typeof globalThis & { praetoriumApp?: App }
 
@@ -90,7 +102,9 @@ export function app(): App {
     // serve battles whether or not it has the catalogues yet.
     sync.begin(catalogueDirectory(path.dirname(file)), () => {
       globalApp.praetoriumApp = { ...globalApp.praetoriumApp!, catalogue: memoize(loadCatalogue), rules: memoize(loadRules) }
+      warm(globalApp.praetoriumApp)
     })
+    if (sync.state.status === 'ready') warm(globalApp.praetoriumApp)
   }
   return globalApp.praetoriumApp
 }
