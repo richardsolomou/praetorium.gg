@@ -845,7 +845,7 @@ function ancestors(node: Node): Node[] {
 
 function rootEntry(node: Node): Node {
   let current = node
-  while (current.parent && current.parent.parent) current = current.parent
+  while (current.parent && !current.parent.force && current.parent.parent) current = current.parent
   return current
 }
 

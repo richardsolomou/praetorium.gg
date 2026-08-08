@@ -743,6 +743,46 @@ describe('a datasheet', () => {
     expect(datasheetIn(book, 'cat', 'unit', { selections, unitSelectionIndex: 1 })?.profiles[0]?.values[0]?.value).toBe('5')
   })
 
+  it('keeps root-entry profile modifiers inside their selected unit', () => {
+    const book = bookOf({
+      selectionEntries: [
+        {
+          id: 'destroyer',
+          name: 'Destroyer',
+          type: 'unit',
+          profiles: [
+            {
+              id: 'destroyer-blade',
+              name: 'Blade',
+              typeName: 'Melee Weapons',
+              characteristics: [{ name: 'S', typeId: 'strength', $text: '5' }],
+            },
+          ],
+          modifiers: [
+            { type: 'increment', field: 'strength', value: 2, scope: 'root-entry', affects: 'self.entries.profiles.Melee Weapons' },
+          ],
+        },
+        {
+          id: 'immortals',
+          name: 'Immortals',
+          type: 'unit',
+          profiles: [
+            {
+              id: 'immortals-blade',
+              name: 'Blade',
+              typeName: 'Melee Weapons',
+              characteristics: [{ name: 'S', typeId: 'strength', $text: '4' }],
+            },
+          ],
+        },
+      ],
+    })
+    const selections = [{ id: 'destroyer' }, { id: 'immortals' }]
+
+    expect(datasheetIn(book, 'cat', 'destroyer', { selections, unitSelectionIndex: 0 })?.profiles[0]?.values[0]?.value).toBe('7')
+    expect(datasheetIn(book, 'cat', 'immortals', { selections, unitSelectionIndex: 1 })?.profiles[0]?.values[0]?.value).toBe('4')
+  })
+
   it('separates faction, core, datasheet, rule and wargear abilities', () => {
     const book = bookOf({
       sharedProfiles: [ability('shared-ability', 'My Will Be Done')],
