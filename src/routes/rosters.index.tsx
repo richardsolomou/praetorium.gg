@@ -1,8 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { FileUp, Plus } from 'lucide-react'
+import { FileUp } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { savedRostersQuery } from '../client/queries'
+import { CreateRoster } from '../client/components/CreateRoster'
+import { factionsQuery, savedRostersQuery } from '../client/queries'
 import { GAME_SIZES } from '../core/battle'
 
 type Search = { limit?: number }
@@ -12,12 +13,14 @@ export const Route = createFileRoute('/rosters/')({
     const limit = Number(search.limit)
     return GAME_SIZES.some((size) => size.limit === limit) ? { limit } : {}
   },
-  loader: ({ context }) => context.queryClient.ensureQueryData(savedRostersQuery()),
+  loader: ({ context }) =>
+    Promise.all([context.queryClient.ensureQueryData(savedRostersQuery()), context.queryClient.ensureQueryData(factionsQuery())]),
   component: RosterLibrary,
 })
 
 function RosterLibrary() {
   const { data: saved = [] } = useQuery(savedRostersQuery())
+  const { data: available } = useQuery(factionsQuery())
   const { limit } = Route.useSearch()
   const shown = limit === undefined ? saved : saved.filter((roster) => roster.limit === limit)
 
@@ -32,9 +35,7 @@ function RosterLibrary() {
           <Button render={<Link to="/rosters/import" />} variant="outline">
             <FileUp /> Import roster
           </Button>
-          <Button render={<Link to="/rosters/new" />}>
-            <Plus /> Create editable roster
-          </Button>
+          {available ? <CreateRoster factions={available.factions} /> : null}
         </div>
       </div>
 

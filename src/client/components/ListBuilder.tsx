@@ -445,212 +445,221 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
           className="h-8 border-0 bg-transparent px-0 text-lg font-bold tracking-[0.02em] uppercase focus-visible:ring-0"
         />
 
-        {/*
-         * Faction, detachment and battle size read as the values they are rather
-         * than as three form controls, because on a phone the header competes with
-         * the roster for the screen and the roster is what is being read.
-         */}
-        <div className="grid grid-cols-2 gap-x-5 gap-y-1 sm:flex sm:flex-wrap sm:gap-x-7">
-          <div className="order-1 min-w-0">
-            <label className="eyebrow block" htmlFor="faction">
-              Faction
-            </label>
-            <Select
-              value={catalogueId}
-              onValueChange={(value: string | null) => {
-                setCatalogueId(value ?? '')
-                setPickerCatalogueId(value ?? '')
-                setPicked([])
-                setDetachmentIds([])
-                setSelected(null)
-              }}
-            >
-              <SelectTrigger id="faction" className="h-6 w-full border-0 bg-transparent px-0 font-semibold text-azure uppercase">
-                {/* The value is a catalogue id, so the trigger has to be told the name. */}
-                <SelectValue placeholder="Pick a book">
-                  {(value: unknown) => {
-                    const entry = available.factions.find((each) => each.id === value)
-                    return entry ? shortName(entry.name) : 'Pick a book'
+        {initial ? null : (
+          <>
+            {/*
+             * Faction, detachment and battle size read as the values they are rather
+             * than as three form controls, because on a phone the header competes with
+             * the roster for the screen and the roster is what is being read.
+             */}
+            <div className="grid grid-cols-2 gap-x-5 gap-y-1 sm:flex sm:flex-wrap sm:gap-x-7">
+              <div className="order-1 min-w-0">
+                <label className="eyebrow block" htmlFor="faction">
+                  Faction
+                </label>
+                <Select
+                  value={catalogueId}
+                  onValueChange={(value: string | null) => {
+                    setCatalogueId(value ?? '')
+                    setPickerCatalogueId(value ?? '')
+                    setPicked([])
+                    setDetachmentIds([])
+                    setSelected(null)
                   }}
-                </SelectValue>
-              </SelectTrigger>
-              {/* The lineage every name carries is the heading here rather than
+                >
+                  <SelectTrigger id="faction" className="h-6 w-full border-0 bg-transparent px-0 font-semibold text-azure uppercase">
+                    {/* The value is a catalogue id, so the trigger has to be told the name. */}
+                    <SelectValue placeholder="Pick a book">
+                      {(value: unknown) => {
+                        const entry = available.factions.find((each) => each.id === value)
+                        return entry ? shortName(entry.name) : 'Pick a book'
+                      }}
+                    </SelectValue>
+                  </SelectTrigger>
+                  {/* The lineage every name carries is the heading here rather than
                   nineteen repeated characters on each row, and the list is as wide
                   as its longest name rather than as wide as the column. */}
-              <SelectContent className="w-auto min-w-(--anchor-width) max-w-[min(90vw,24rem)]">
-                {shelve(available.factions).map((shelf) => (
-                  <SelectGroup key={shelf.lineage}>
-                    <SelectLabel>{shelf.lineage}</SelectLabel>
-                    {shelf.factions.map((entry) => (
-                      <SelectItem key={entry.id} value={entry.id}>
-                        {shortName(entry.name)}
+                  <SelectContent className="w-auto min-w-(--anchor-width) max-w-[min(90vw,24rem)]">
+                    {shelve(available.factions).map((shelf) => (
+                      <SelectGroup key={shelf.lineage}>
+                        <SelectLabel>{shelf.lineage}</SelectLabel>
+                        {shelf.factions.map((entry) => (
+                          <SelectItem key={entry.id} value={entry.id}>
+                            {shortName(entry.name)}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {faction?.detachments.length ? (
+                <div className="order-3 col-span-2 min-w-0 sm:order-2 sm:min-w-64">
+                  <span className="eyebrow block">Detachments</span>
+                  <div className="mt-1 space-y-1">
+                    {detachmentIds.map((id, index) => {
+                      const entry = faction.detachments.find((candidate) => candidate.id === id)
+                      if (!entry) return null
+                      return (
+                        <div key={id} className="flex min-h-8 items-center gap-2 border border-edge-strong bg-raised px-2 py-1">
+                          <Layers3 className="size-3 shrink-0 text-azure" aria-hidden />
+                          <span className="min-w-0 flex-1 truncate text-xs font-semibold uppercase">{entry.name}</span>
+                          {index === 0 ? <span className="eyebrow text-azure">Primary</span> : null}
+                          {entry.reference?.points == null ? null : <span className="chip">{entry.reference.points} DP</span>}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            aria-label={`Remove ${entry.name}`}
+                            onClick={() => toggleDetachment(id, false)}
+                          >
+                            <X />
+                          </Button>
+                        </div>
+                      )
+                    })}
+                    {detachmentIds.length < 3 ? (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger
+                          aria-label="Add detachment"
+                          className="flex h-8 w-full items-center gap-2 border border-dashed border-edge-strong px-2 text-xs font-semibold text-azure uppercase"
+                        >
+                          <Plus className="size-3" aria-hidden /> Add detachment
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent className="w-80 rounded-none border border-edge-strong bg-raised ring-0">
+                          {faction.detachments
+                            .filter((entry) => !detachmentIds.includes(entry.id))
+                            .map((entry) => (
+                              <DropdownMenuItem
+                                key={entry.id}
+                                onClick={() => toggleDetachment(entry.id, true)}
+                                className="rounded-none text-xs uppercase focus:bg-edge"
+                              >
+                                <span className="min-w-0 flex-1 truncate">{entry.name}</span>
+                                {entry.reference?.points == null ? null : <span className="chip">{entry.reference.points} DP</span>}
+                              </DropdownMenuItem>
+                            ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    ) : null}
+                    {priced?.detachmentError ? (
+                      <p role="alert" className="flex max-w-80 gap-1.5 text-xs text-destructive">
+                        <TriangleAlert className="mt-0.5 size-3 shrink-0" aria-hidden />
+                        {priced.detachmentError}
+                      </p>
+                    ) : null}
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="order-2 min-w-0 sm:order-3">
+                <label className="eyebrow block" htmlFor="size">
+                  Battle size
+                </label>
+                <Select value={String(limit)} onValueChange={(value: string | null) => setLimit(Number(value ?? GAME_SIZES[1].limit))}>
+                  <SelectTrigger id="size" className="h-6 w-full border-0 bg-transparent px-0 font-semibold uppercase">
+                    <SelectValue>
+                      {(value: unknown) => GAME_SIZES.find((entry) => String(entry.limit) === value)?.name ?? 'Pick a size'}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {GAME_SIZES.map((entry) => (
+                      <SelectItem key={entry.limit} value={String(entry.limit)}>
+                        {entry.name} — {entry.limit} pts
                       </SelectItem>
                     ))}
-                  </SelectGroup>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {faction?.detachments.length ? (
-            <div className="order-3 col-span-2 min-w-0 sm:order-2 sm:min-w-64">
-              <span className="eyebrow block">Detachments</span>
-              <div className="mt-1 space-y-1">
-                {detachmentIds.map((id, index) => {
-                  const entry = faction.detachments.find((candidate) => candidate.id === id)
-                  if (!entry) return null
-                  return (
-                    <div key={id} className="flex min-h-8 items-center gap-2 border border-edge-strong bg-raised px-2 py-1">
-                      <Layers3 className="size-3 shrink-0 text-azure" aria-hidden />
-                      <span className="min-w-0 flex-1 truncate text-xs font-semibold uppercase">{entry.name}</span>
-                      {index === 0 ? <span className="eyebrow text-azure">Primary</span> : null}
-                      {entry.reference?.points == null ? null : <span className="chip">{entry.reference.points} DP</span>}
-                      <Button variant="ghost" size="icon" aria-label={`Remove ${entry.name}`} onClick={() => toggleDetachment(id, false)}>
-                        <X />
-                      </Button>
-                    </div>
-                  )
-                })}
-                {detachmentIds.length < 3 ? (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger
-                      aria-label="Add detachment"
-                      className="flex h-8 w-full items-center gap-2 border border-dashed border-edge-strong px-2 text-xs font-semibold text-azure uppercase"
-                    >
-                      <Plus className="size-3" aria-hidden /> Add detachment
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent className="w-80 rounded-none border border-edge-strong bg-raised ring-0">
-                      {faction.detachments
-                        .filter((entry) => !detachmentIds.includes(entry.id))
-                        .map((entry) => (
-                          <DropdownMenuItem
-                            key={entry.id}
-                            onClick={() => toggleDetachment(entry.id, true)}
-                            className="rounded-none text-xs uppercase focus:bg-edge"
-                          >
-                            <span className="min-w-0 flex-1 truncate">{entry.name}</span>
-                            {entry.reference?.points == null ? null : <span className="chip">{entry.reference.points} DP</span>}
-                          </DropdownMenuItem>
-                        ))}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                ) : null}
-                {priced?.detachmentError ? (
-                  <p role="alert" className="flex max-w-80 gap-1.5 text-xs text-destructive">
-                    <TriangleAlert className="mt-0.5 size-3 shrink-0" aria-hidden />
-                    {priced.detachmentError}
-                  </p>
-                ) : null}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
-          ) : null}
 
-          <div className="order-2 min-w-0 sm:order-3">
-            <label className="eyebrow block" htmlFor="size">
-              Battle size
-            </label>
-            <Select value={String(limit)} onValueChange={(value: string | null) => setLimit(Number(value ?? GAME_SIZES[1].limit))}>
-              <SelectTrigger id="size" className="h-6 w-full border-0 bg-transparent px-0 font-semibold uppercase">
-                <SelectValue>
-                  {(value: unknown) => GAME_SIZES.find((entry) => String(entry.limit) === value)?.name ?? 'Pick a size'}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {GAME_SIZES.map((entry) => (
-                  <SelectItem key={entry.limit} value={String(entry.limit)}>
-                    {entry.name} — {entry.limit} pts
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
+            <p className="mt-1 text-xs text-faint">
+              {[
+                '11th edition',
+                `${priced?.points ?? 0}/${limit} points`,
+                priced?.detachmentPointBudget === null || priced?.detachmentPointBudget === undefined
+                  ? null
+                  : detachmentIds.length <= 1
+                    ? `${priced.detachmentPointsSpent} DP detachment`
+                    : `${priced.detachmentPointsSpent}/${priced.detachmentPointBudget} DP allowance`,
+                `${units.length} ${units.length === 1 ? 'unit' : 'units'}`,
+              ]
+                .filter(Boolean)
+                .join(' • ')}
+            </p>
 
-        <p className="mt-1 text-xs text-faint">
-          {[
-            '11th edition',
-            `${priced?.points ?? 0}/${limit} points`,
-            priced?.detachmentPointBudget === null || priced?.detachmentPointBudget === undefined
-              ? null
-              : detachmentIds.length <= 1
-                ? `${priced.detachmentPointsSpent} DP detachment`
-                : `${priced.detachmentPointsSpent}/${priced.detachmentPointBudget} DP allowance`,
-            `${units.length} ${units.length === 1 ? 'unit' : 'units'}`,
-          ]
-            .filter(Boolean)
-            .join(' • ')}
-        </p>
-
-        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5">
-          <label className="eyebrow cursor-pointer text-azure hover:text-bone" htmlFor="bring">
-            <Upload className="mr-1 inline size-3" />
-            Bring a list from another tool
-          </label>
-          <Input
-            ref={importInput}
-            id="bring"
-            type="file"
-            accept=".ros,.rosz"
-            disabled={bring.isPending}
-            className="sr-only"
-            onChange={(event) => {
-              const file = event.target.files?.[0]
-              if (file) bring.mutate(file)
-              event.target.value = ''
-            }}
-          />
-          {saved?.length ? (
-            <span className="flex flex-wrap items-center gap-1.5">
-              <span className="eyebrow">Your lists</span>
-              {saved.map((list) => (
-                <span key={list.id} className="flex items-center border border-edge bg-card">
-                  <Button
-                    variant="ghost"
-                    size="xs"
-                    className="max-w-40 truncate rounded-none px-2 py-0.5 text-xs hover:bg-transparent hover:text-azure"
-                    title={`${list.picks.length} units · ${list.limit} points · updated ${new Date(list.updatedAt).toLocaleDateString()}`}
-                    onClick={() => loadSaved(list)}
-                  >
-                    {list.name}
-                  </Button>
-                  <Button
-                    render={<Link to="/r/$id" params={{ id: list.id }} />}
-                    variant="ghost"
-                    size="icon-sm"
-                    className="size-6"
-                    aria-label={`View ${list.name}`}
-                  >
-                    <Eye />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    className="size-6"
-                    aria-label={`Copy ${list.name}`}
-                    onClick={() => loadSaved(list, true)}
-                  >
-                    <Copy />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    className="size-6"
-                    aria-label={`Delete ${list.name}`}
-                    disabled={remove.isPending}
-                    onClick={() => remove.mutate(list.id)}
-                  >
-                    <Trash2 />
-                  </Button>
+            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+              <label className="eyebrow cursor-pointer text-azure hover:text-bone" htmlFor="bring">
+                <Upload className="mr-1 inline size-3" />
+                Bring a list from another tool
+              </label>
+              <Input
+                ref={importInput}
+                id="bring"
+                type="file"
+                accept=".ros,.rosz"
+                disabled={bring.isPending}
+                className="sr-only"
+                onChange={(event) => {
+                  const file = event.target.files?.[0]
+                  if (file) bring.mutate(file)
+                  event.target.value = ''
+                }}
+              />
+              {saved?.length ? (
+                <span className="flex flex-wrap items-center gap-1.5">
+                  <span className="eyebrow">Your lists</span>
+                  {saved.map((list) => (
+                    <span key={list.id} className="flex items-center border border-edge bg-card">
+                      <Button
+                        variant="ghost"
+                        size="xs"
+                        className="max-w-40 truncate rounded-none px-2 py-0.5 text-xs hover:bg-transparent hover:text-azure"
+                        title={`${list.picks.length} units · ${list.limit} points · updated ${new Date(list.updatedAt).toLocaleDateString()}`}
+                        onClick={() => loadSaved(list)}
+                      >
+                        {list.name}
+                      </Button>
+                      <Button
+                        render={<Link to="/r/$id" params={{ id: list.id }} />}
+                        variant="ghost"
+                        size="icon-sm"
+                        className="size-6"
+                        aria-label={`View ${list.name}`}
+                      >
+                        <Eye />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        className="size-6"
+                        aria-label={`Copy ${list.name}`}
+                        onClick={() => loadSaved(list, true)}
+                      >
+                        <Copy />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        className="size-6"
+                        aria-label={`Delete ${list.name}`}
+                        disabled={remove.isPending}
+                        onClick={() => remove.mutate(list.id)}
+                      >
+                        <Trash2 />
+                      </Button>
+                    </span>
+                  ))}
                 </span>
-              ))}
-            </span>
-          ) : null}
-        </div>
+              ) : null}
+            </div>
 
-        {bring.error ? <p className="mt-1 text-xs text-destructive">{errorMessage(bring.error)}</p> : null}
-        {bring.data?.unknown.length ? (
-          <p className="mt-1 text-xs text-destructive">Could not place: {bring.data.unknown.join(', ')}</p>
-        ) : null}
+            {bring.error ? <p className="mt-1 text-xs text-destructive">{errorMessage(bring.error)}</p> : null}
+            {bring.data?.unknown.length ? (
+              <p className="mt-1 text-xs text-destructive">Could not place: {bring.data.unknown.join(', ')}</p>
+            ) : null}
+          </>
+        )}
       </header>
 
       <div className="flex min-h-0 flex-1">
