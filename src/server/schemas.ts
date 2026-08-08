@@ -49,6 +49,8 @@ const pickSchema = z.object({
   attachedTo: z.number().int().min(0).max(99).optional(),
 })
 
+export type RosterPick = z.infer<typeof pickSchema>
+
 const prepSchema = z.object({
   stratagems: z
     .array(

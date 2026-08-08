@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrig
 import type { Roster, Secondary, Stratagem } from '../../core/battle'
 import { GAME_SIZES, ROSTER_NAME_MAX_LENGTH } from '../../core/battle'
 import { deleteRoster, exportRoster, importRoster, saveRoster, setOwned } from '../../server/fns'
+import type { RosterPick } from '../../server/schemas'
 import { collectionQuery, factionsQuery, priceQuery, savedRostersQuery } from '../queries'
 import { errorMessage } from '../queryClient'
 import { shelve, shortName } from './builder/factions'
@@ -37,18 +38,7 @@ type Props = {
   openImport?: boolean
 }
 
-type Pick = {
-  key: number
-  entryId: string
-  catalogueId?: string
-  models?: number
-  choices?: Record<string, string>
-  /** How many of each option a group holds, where a group holds more than one. */
-  spreads?: Record<string, Record<string, number>>
-  toggles?: Record<string, number>
-  /** The key of the unit this one is attached to, when it is. */
-  attachedTo?: number
-}
+type Pick = RosterPick & { key: number }
 
 /**
  * Building a list from the catalogue rather than pasting one.

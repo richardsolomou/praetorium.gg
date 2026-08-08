@@ -12,23 +12,13 @@ import {
 import type { BattleSeats, JoinResult, Repository, SubmitResult } from '../db/repository'
 import { createId, createToken } from './crypto'
 import { type Mission, missionFor } from './rules'
-import { picksSchema, savedPrepSchema } from './schemas'
+import { picksSchema, type RosterPick, savedPrepSchema } from './schemas'
 
 /**
  * What someone holding the link gets: the battle itself once they have a seat,
  * or the invitation until they take one. Reading a battle never seats anyone —
  * a link preview must not be able to take the second chair.
  */
-export type Pick = {
-  entryId: string
-  catalogueId?: string
-  models?: number
-  choices?: Record<string, string>
-  spreads?: Record<string, Record<string, number>>
-  toggles?: Record<string, number>
-  attachedTo?: number
-}
-
 export type SavedPrep = { stratagems: Stratagem[]; secondaries: Secondary[] }
 
 export type SeatedScreen = { kind: 'battle'; view: BattleView; mission: Mission | null }
@@ -104,7 +94,7 @@ export class PraetoriumService {
       catalogueId: string
       detachmentIds: readonly string[]
       limit: number
-      picks: readonly Pick[]
+      picks: readonly RosterPick[]
       prep: SavedPrep | null
     },
   ) {
