@@ -102,7 +102,7 @@ function RootComponent() {
          */}
         <div className={`flex flex-col ${immersive ? 'h-dvh' : 'min-h-dvh'}`}>
           <header className="sticky top-0 z-30 border-b border-edge bg-panel/95 backdrop-blur">
-            <div className="flex h-12 items-center gap-2 px-2 sm:gap-5 sm:px-4">
+            <div className="flex h-12 items-center gap-2 px-0.5 sm:gap-5 sm:px-4">
               <Link to="/" className="text-base leading-none font-bold tracking-[0.02em] text-bone uppercase hover:text-azure sm:text-lg">
                 Praetorium
               </Link>

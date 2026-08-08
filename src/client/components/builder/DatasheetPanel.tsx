@@ -14,9 +14,10 @@ type Props = {
   detachmentIds: readonly string[]
   picks: readonly RosterPick[]
   pickIndex: number | null
+  showWeapons?: boolean
 }
 
-export function DatasheetPanel({ catalogueId, entryId, detachmentIds, picks, pickIndex }: Props) {
+export function DatasheetPanel({ catalogueId, entryId, detachmentIds, picks, pickIndex, showWeapons = false }: Props) {
   const [context, setContext] = useState({ detachmentIds, picks, pickIndex })
   useEffect(() => {
     const timeout = window.setTimeout(() => setContext({ detachmentIds, picks, pickIndex }), 150)
@@ -37,6 +38,8 @@ export function DatasheetPanel({ catalogueId, entryId, detachmentIds, picks, pic
   if (!sheet) return null
 
   const model = sheet.profiles.find((profile) => profile.type === 'Unit')
+  const ranged = sheet.profiles.filter((profile) => profile.type === 'Ranged Weapons')
+  const melee = sheet.profiles.filter((profile) => profile.type === 'Melee Weapons')
   return (
     <ScrollArea className="h-full [&_[data-slot=scroll-area-viewport]]:p-3">
       <div className="space-y-4">
@@ -46,6 +49,8 @@ export function DatasheetPanel({ catalogueId, entryId, detachmentIds, picks, pic
           ))}
         </div>
         {model ? <UnitProfile profile={model} /> : null}
+        {showWeapons && ranged.length ? <WeaponSummary title="Ranged weapons" weapons={ranged} rules={sheet.keywordRules} /> : null}
+        {showWeapons && melee.length ? <WeaponSummary title="Melee weapons" weapons={melee} rules={sheet.keywordRules} /> : null}
         <AbilitySummary abilities={sheet.abilities} rules={sheet.keywordRules} />
       </div>
     </ScrollArea>

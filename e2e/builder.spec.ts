@@ -41,6 +41,29 @@ test('enhancement choices show descriptions when rule and catalogue names differ
   await page.screenshot({ path: 'test-results/nekrosor-enhancement.png' })
 })
 
+test('Cursed Legion does not modify Immortals without an eligible leader', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 })
+  await openBuilder(page, 'Necrons', /Cursed Legion/)
+  await page.getByLabel('Add a unit').fill('Immortals')
+  await page.getByRole('button', { name: 'View Immortals datasheet' }).click()
+  const datasheet = page.locator('aside[aria-label="Datasheet"]')
+  await expect(datasheet).toBeVisible()
+  await expect(datasheet.getByRole('heading', { name: 'Gauss blaster' }).locator('..').getByText('5', { exact: true })).toBeVisible()
+  await expect(page.locator('[data-unit="Immortals"]')).toHaveCount(0)
+  expect(await page.evaluate(() => getComputedStyle(document.documentElement).fontSize)).toBe('20px')
+  await page.screenshot({ path: 'test-results/unit-preview.png' })
+
+  await add(page, 'Immortals')
+  await page
+    .getByRole('button', { name: /^Immortals/ })
+    .first()
+    .click()
+
+  const loadout = page.locator('aside[aria-label="Loadout"]')
+  await expect(loadout.getByRole('heading', { name: 'Gauss blaster' }).locator('..').getByText('5', { exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: /modified from 5 by Cursed Legion/ })).toHaveCount(0)
+})
+
 test('a supplement imports its shared detachment group', async ({ page }) => {
   await signUp(page, 'Richard')
 
@@ -305,8 +328,8 @@ test('a smaller desktop keeps the picker, roster and loadout visible', async ({ 
 
   await page.setViewportSize({ width: 1280, height: 800 })
   await expect(datasheet).toBeHidden()
-  expect((await picker.boundingBox())?.width).toBe(360)
-  expect((await loadout.boundingBox())?.width).toBe(360)
+  expect((await picker.boundingBox())?.width).toBe(400)
+  expect((await loadout.boundingBox())?.width).toBe(400)
 
   await page.setViewportSize({ width: 1440, height: 900 })
   await expect(datasheet).toBeVisible()

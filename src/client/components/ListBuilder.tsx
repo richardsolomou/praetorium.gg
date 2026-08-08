@@ -85,7 +85,8 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
   const [disposition, setDisposition] = useState<string | null>(initial?.disposition ?? null)
   const [name, setName] = useState(initial?.name ?? '')
   const [selected, setSelected] = useState<number | null>(null)
-  const [showing, setShowing] = useState<'picker' | 'loadout' | null>(null)
+  const [preview, setPreview] = useState<{ catalogueId: string; entryId: string } | null>(null)
+  const [showing, setShowing] = useState<'picker' | 'loadout' | 'datasheet' | null>(null)
   const [editingSetup, setEditingSetup] = useState(false)
   const importInput = useRef<HTMLInputElement>(null)
 
@@ -448,6 +449,10 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
         <Picker
           catalogueId={initial ? catalogueId : pickerCatalogueId || catalogueId}
           onAdd={add}
+          onPreview={(entryId) => {
+            setPreview({ catalogueId: initial ? catalogueId : pickerCatalogueId || catalogueId, entryId })
+            setShowing('datasheet')
+          }}
           inRoster={held}
           room={priced ? limit - priced.points : null}
         />
@@ -471,11 +476,12 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
   )
   const datasheet = (
     <DatasheetPanel
-      catalogueId={loadoutCatalogueId}
-      entryId={selectedUnit?.entryId ?? null}
+      catalogueId={preview?.catalogueId ?? loadoutCatalogueId}
+      entryId={preview?.entryId ?? selectedUnit?.entryId ?? null}
       detachmentIds={detachmentIds}
       picks={picked}
-      pickIndex={selected}
+      pickIndex={preview ? null : selected}
+      showWeapons={Boolean(preview)}
     />
   )
 
@@ -888,6 +894,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
                       }
                       selected={selected === index}
                       onSelect={() => {
+                        setPreview(null)
                         setSelected(index)
                         setShowing('loadout')
                       }}
@@ -935,7 +942,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
           {loadout}
         </Pane>
 
-        <Pane variant="datasheet" open={false} title="Datasheet" onClose={() => undefined}>
+        <Pane variant="datasheet" open={showing === 'datasheet'} title="Datasheet" onClose={() => setShowing(null)}>
           {datasheet}
         </Pane>
       </div>

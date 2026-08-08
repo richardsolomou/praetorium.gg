@@ -1,5 +1,5 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import { Heart, ListFilter, Plus } from 'lucide-react'
+import { Eye, Heart, ListFilter, Plus } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -10,7 +10,13 @@ import { collectionQuery, unitsQuery } from '../../queries'
 import { GROUPS } from './groups'
 import { Section } from './Section'
 
-type Props = { catalogueId: string; onAdd: (entryId: string) => void; inRoster: Record<string, number>; room: number | null }
+type Props = {
+  catalogueId: string
+  onAdd: (entryId: string) => void
+  onPreview: (entryId: string) => void
+  inRoster: Record<string, number>
+  room: number | null
+}
 
 type Filter = 'fit' | 'limit' | 'owned'
 
@@ -28,7 +34,7 @@ const FILTERS: { id: Filter; label: string; hint: string }[] = [
  * filters narrow by the reasons a datasheet is not a real option today: it does not
  * fit, you may not take another, or you do not own it.
  */
-export function Picker({ catalogueId, onAdd, inRoster, room }: Props) {
+export function Picker({ catalogueId, onAdd, onPreview, inRoster, room }: Props) {
   const [query, setQuery] = useState('')
   const [active, setActive] = useState<Set<Filter>>(new Set())
   const { data: found } = useQuery({ ...unitsQuery(catalogueId, query), placeholderData: keepPreviousData })
@@ -92,15 +98,23 @@ export function Picker({ catalogueId, onAdd, inRoster, room }: Props) {
                   const full = unit.limit !== null && held >= unit.limit
                   return (
                     <div key={unit.id} className="flex items-center gap-1.5 border border-edge bg-card px-2.5 py-1.5">
-                      <span className="min-w-0 flex-1">
-                        <span className="block text-sm leading-tight font-semibold tracking-[0.02em] uppercase">{unit.name}</span>
-                        {held ? (
-                          <span className={`readout block text-[0.6875rem] ${full ? 'text-discarded' : 'text-faint'}`}>
-                            {held}
-                            {unit.limit === null ? '' : `/${unit.limit}`} in roster
-                          </span>
-                        ) : null}
-                      </span>
+                      <button
+                        type="button"
+                        className="flex min-w-0 flex-1 items-center gap-1.5 text-left hover:text-azure"
+                        aria-label={`View ${unit.name} datasheet`}
+                        onClick={() => onPreview(unit.id)}
+                      >
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-sm leading-tight font-semibold tracking-[0.02em] uppercase">{unit.name}</span>
+                          {held ? (
+                            <span className={`readout block text-[0.6875rem] ${full ? 'text-discarded' : 'text-faint'}`}>
+                              {held}
+                              {unit.limit === null ? '' : `/${unit.limit}`} in roster
+                            </span>
+                          ) : null}
+                        </span>
+                        <Eye className="size-3.5 shrink-0 text-faint" aria-hidden />
+                      </button>
                       <Toggle
                         variant="default"
                         size="sm"
