@@ -1,4 +1,7 @@
 # syntax=docker/dockerfile:1
+FROM centrifugo/centrifugo:v6.9.1 AS realtime
+FROM caddy:2.11.4-alpine AS proxy
+
 FROM node:24-alpine AS build
 WORKDIR /app
 RUN corepack enable && corepack install --global pnpm@11.15.0
@@ -20,6 +23,10 @@ LABEL org.opencontainers.image.title="Praetorium" \
 WORKDIR /app
 RUN mkdir -p /data && chown -R node:node /app /data
 COPY --from=build --chown=node:node /app/.output ./.output
+COPY --from=realtime /usr/local/bin/centrifugo /usr/local/bin/centrifugo
+COPY --from=proxy /usr/bin/caddy /usr/local/bin/caddy
+COPY --chown=node:node realtime.json Caddyfile ./
+COPY --chown=node:node scripts/container-entrypoint.sh ./container-entrypoint.sh
 COPY --chown=node:node LICENSE ./
 ENV NODE_ENV=production PORT=3000 DATA_DIR=/data
 VOLUME ["/data"]
@@ -27,4 +34,4 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
   CMD wget -q --spider http://127.0.0.1:3000/api/health || exit 1
 USER node
-CMD ["node", ".output/server/index.mjs"]
+CMD ["./container-entrypoint.sh"]

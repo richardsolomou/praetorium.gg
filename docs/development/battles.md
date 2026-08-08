@@ -17,12 +17,14 @@
 
 ## Live updates
 
-- **Live updates are a nudge, never a payload.** `/api/events` sends `event: change` with a meaningless body; the page refetches and `battleView` decides what it may see. Putting battle state into the stream would put a second visibility decision next to the only one. `presence` is the exception and its entire vocabulary is names. The stream is players-only, and `StreamLimiter` bounds how many any player may hold open.
-- **Presence lives in memory, never in SQLite.** `src/server/presence.ts` is the live state of the open streams: arriving and leaving _is_ a stream opening and closing, which is why there are no heartbeats and nothing to expire. A row would outlive the tab it describes.
+- **Live updates are a nudge, never a payload.** Centrifugo carries the battle id and nothing else; the page refetches and `battleView` decides what it may see. Putting battle state into the message would put a second visibility decision next to the only one. Presence is the exception and its entire vocabulary is names.
+- **A subscription token is where the seat is checked.** `/api/realtime/token` proves who the connection is on `GET` and authorises one channel on `POST`, and neither is issued without a seat in that battle — which is what stops a leaked invite link buying a stream. The channel is named after the battle id rather than the invite token, so the thing that gets pasted into a chat never becomes a channel name.
+- **Presence is Centrifugo's, never SQLite's.** Arriving and leaving _is_ a subscription opening and closing, which is why there are no heartbeats and nothing to expire. A row would outlive the tab it describes.
 
 ## Serving
 
-- **One process, one SQLite file, one instance.** Fan-out is an in-process `EventEmitter`. A second replica serves battles that never hear about each other's commands. Horizontal scaling means moving fan-out out of process (Postgres `LISTEN`/`NOTIFY`) _before_ adding the replica, not after.
+- **One SQLite file, one instance.** Fan-out is out of process now, so replicas would at least hear each other; the database is what still makes this a single instance. Moving that is what has to come before adding one.
+- **The content policy is built, not served.** `connect-src 'self'` covers Centrifugo in production because Caddy puts it on the app's own origin. Development and the browser suite run it on its own port, so those builds carry `REALTIME_ORIGIN` and no other build carries the allowance. A middleware cannot fix this at runtime: Nitro applies the header after the app has finished with the response.
 - **Server functions wrap reads in `rpc()` and mutations in `mutationRpc()`** — a thrown `Response` otherwise reaches the client as a successful result, and mutations must check their origin before state access. CSRF protection is per-function, not middleware.
 - **`APP_URL` is the canonical host, and `src/start.ts` enforces it.** `/api/health` is exempt and must stay exempt: the container checks itself over 127.0.0.1, and redirecting that would ask a different machine whether this one is alive.
 

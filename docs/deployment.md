@@ -17,6 +17,7 @@ docker run -d --name praetorium -p 3000:3000 -v praetorium-data:/data ghcr.io/ri
 
 - `praetorium.sqlite` — every battle, its command log, and every saved list.
 - `session.secret` — signs sessions. Losing it signs everyone out; their accounts and lists survive.
+- `realtime-secret` — signs the tokens the browser connects to Centrifugo with. Generated on first boot; losing it costs one reconnect.
 - `catalogue/` — the community data, about 126MB, fetched by the instance itself.
 
 Back up the database and the secret together. The catalogue is disposable: it is pinned in the image and re-fetched if deleted.
@@ -27,9 +28,11 @@ On boot, the instance compares `/data/catalogue/revision.json` against the revis
 
 Nothing needs to be run by hand. A deploy carrying new pinned revisions fetches them on its next boot, and each source is written to a staging directory and swapped in, so a fetch that dies halfway cannot leave a half-written catalogue that looks complete.
 
-## One instance
+## One container, three processes
 
-Live updates fan out inside the process. A second replica would serve battles that never hear about each other's commands, so `docker-compose.yml` pins `replicas: 1`. Moving the fan-out to Postgres `LISTEN`/`NOTIFY` has to come before scaling out — see [the battles guide](development/battles.md).
+The image runs Centrifugo, the app and Caddy together, and Caddy is what makes that one port: `/connection/*` goes to Centrifugo and everything else to the app. Any of the three dying takes the container down so the whole thing restarts rather than serving half a deployment.
+
+Fan-out is Centrifugo's now rather than the process's, so a second replica would at least hear about the first's commands. It still shares one SQLite file, though, so `docker-compose.yml` keeps `replicas: 1` — scaling out means moving the database first.
 
 ## Reverse proxy
 
