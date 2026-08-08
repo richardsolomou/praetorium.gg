@@ -24,7 +24,7 @@ export const Route = createFileRoute('/api/realtime/token')({
         if (battleId instanceof Response) return battleId
         // The channel is named after the battle rather than the invite token, so
         // the link that gets shared never becomes a channel name.
-        return Response.json({ token: connectionToken(player.id, secret), channel: battleChannel(battleId) })
+        return Response.json({ token: await connectionToken(player.id, secret), channel: battleChannel(battleId) })
       },
       POST: async ({ request }) => {
         const player = await currentPlayer(request)
@@ -40,7 +40,7 @@ export const Route = createFileRoute('/api/realtime/token')({
         if (battleId instanceof Response) return battleId
         if (channel !== battleChannel(battleId)) return new Response('not your channel', { status: 403 })
 
-        return Response.json({ token: subscriptionToken(player, channel, secret) })
+        return Response.json({ token: await subscriptionToken(player, channel, secret) })
       },
     },
   },

@@ -1,4 +1,4 @@
-import crypto from 'node:crypto'
+import { SignJWT } from 'jose'
 
 /**
  * Centrifugo, which is what "live" means here.
@@ -26,7 +26,7 @@ export function realtimeConfig(environment: NodeJS.ProcessEnv = process.env) {
 }
 
 /** Proves who the connection is. It grants no channels by itself. */
-export function connectionToken(playerId: string, secret: string, now = Math.floor(Date.now() / 1000)) {
+export async function connectionToken(playerId: string, secret: string, now = Math.floor(Date.now() / 1000)) {
   return sign({ sub: playerId, exp: now + TOKEN_TTL_SECONDS }, secret)
 }
 
@@ -37,7 +37,7 @@ export function connectionToken(playerId: string, secret: string, now = Math.flo
  * buys no stream.
  * `info` is what the other player's screen shows as presence.
  */
-export function subscriptionToken(
+export async function subscriptionToken(
   player: { id: string; name: string },
   channel: string,
   secret: string,
@@ -46,9 +46,5 @@ export function subscriptionToken(
   return sign({ sub: player.id, channel, exp: now + TOKEN_TTL_SECONDS, info: { playerId: player.id, name: player.name } }, secret)
 }
 
-function sign(payload: Record<string, unknown>, secret: string) {
-  const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url')
-  const claims = Buffer.from(JSON.stringify(payload)).toString('base64url')
-  const unsigned = `${header}.${claims}`
-  return `${unsigned}.${crypto.createHmac('sha256', secret).update(unsigned).digest('base64url')}`
-}
+const sign = (payload: Record<string, unknown>, secret: string) =>
+  new SignJWT(payload).setProtectedHeader({ alg: 'HS256', typ: 'JWT' }).sign(new TextEncoder().encode(secret))
