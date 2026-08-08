@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrig
 import type { Roster, Secondary, Stratagem } from '../../core/battle'
 import { GAME_SIZES, ROSTER_NAME_MAX_LENGTH } from '../../core/battle'
 import type { RosterPick } from '../../core/roster'
-import { deleteRoster, exportRoster, importRoster, saveRoster, setOwned } from '../../server/fns'
+import { deleteRoster, exportRoster, importRoster, saveRoster, setOwned } from '../../server/functions'
 import { collectionQuery, factionsQuery, priceQuery, savedRostersQuery } from '../queries'
 import { errorMessage } from '../queryClient'
 import { shelve, shortName } from './builder/factions'

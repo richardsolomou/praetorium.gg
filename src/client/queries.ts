@@ -19,7 +19,7 @@ import {
   sharedRoster,
   signInOptions,
   units,
-} from '../server/fns'
+} from '../server/functions'
 
 const SSR_STALE_TIME = 30_000
 

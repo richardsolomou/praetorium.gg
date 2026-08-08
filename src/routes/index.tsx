@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { SignInRequired } from '../client/components/SignInRequired'
 import { battlesQuery, meQuery } from '../client/queries'
 import { errorMessage } from '../client/queryClient'
-import { createBattle } from '../server/fns'
+import { createBattle } from '../server/functions'
 
 export const Route = createFileRoute('/')({
   loader: ({ context }) => context.queryClient.ensureQueryData(meQuery()),
