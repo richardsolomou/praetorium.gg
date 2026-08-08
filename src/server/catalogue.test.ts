@@ -486,9 +486,15 @@ describe('a datasheet', () => {
   })
 
   it('finds rule definitions referenced by catalogue formatting', () => {
-    const book = bookOf({ sharedRules: [{ id: 'feel-no-pain', name: 'Feel No Pain', description: 'Ignore lost wounds.' }] })
-    expect(rulesReferencedIn(book, ['This model has **Feel No Pain 4+** and ^^**VEHICLE^^**.'])).toEqual([
+    const book = bookOf({
+      sharedRules: [
+        { id: 'feel-no-pain', name: 'Feel No Pain', description: 'Ignore lost wounds.' },
+        { id: 'lethal-hits', name: 'Lethal Hits', description: 'Critical hits wound automatically.' },
+      ],
+    })
+    expect(rulesReferencedIn(book, ['This model has **Feel No Pain 4+**, [LETHAL HITS] and ^^**VEHICLE^^**.'])).toEqual([
       { name: 'Feel No Pain', description: 'Ignore lost wounds.' },
+      { name: 'Lethal Hits', description: 'Critical hits wound automatically.' },
     ])
   })
 })

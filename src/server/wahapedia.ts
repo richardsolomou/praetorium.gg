@@ -1,5 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import * as cheerio from 'cheerio'
 import { parse } from 'csv-parse/sync'
 import { distance } from 'fastest-levenshtein'
 import { compile } from 'html-to-text'
@@ -28,13 +29,84 @@ const toText = compile({
 })
 
 export function loadWahapediaDescriptions(directory: string): WahapediaDescriptions | null {
+  const live = readLivePages(path.join(directory, 'pages'))
   const abilities = readNamedDescriptions([path.join(directory, 'Abilities.csv'), path.join(directory, 'Datasheets_abilities.csv')])
-  const detachmentAbilities = readDetachmentAbilities(path.join(directory, 'Detachment_abilities.csv'))
-  const enhancements = readDescriptions(path.join(directory, 'Enhancements.csv'))
-  const stratagems = readDescriptions(path.join(directory, 'Stratagems.csv'))
+  const detachmentAbilities = mergeDetachmentAbilities(
+    readDetachmentAbilities(path.join(directory, 'Detachment_abilities.csv')),
+    live.detachmentAbilities,
+  )
+  const enhancements = new Map([...readDescriptions(path.join(directory, 'Enhancements.csv')), ...live.enhancements])
+  const stratagems = new Map([...readDescriptions(path.join(directory, 'Stratagems.csv')), ...live.stratagems])
   return abilities.size || detachmentAbilities.size || enhancements.size || stratagems.size
     ? { abilities, detachmentAbilities, enhancements, stratagems }
     : null
+}
+
+function readLivePages(directory: string) {
+  const detachmentAbilities = new Map<string, DetachmentAbility[]>()
+  const enhancements = new Map<string, string>()
+  const stratagems = new Map<string, string>()
+  if (!fs.existsSync(directory)) return { detachmentAbilities, enhancements, stratagems }
+
+  for (const file of fs.readdirSync(directory).filter((name) => name.endsWith('.html'))) {
+    const $ = cheerio.load(fs.readFileSync(path.join(directory, file), 'utf8'))
+    $('div.clFl').each((_, element) => {
+      const detachment = $(element)
+        .children('h2.outline_header')
+        .first()
+        .text()
+        .replace(/\d+DP$/, '')
+        .trim()
+      if (!detachment) return
+      const key = routeSlug(detachment)
+      const columns = $(element).children('.Columns2')
+
+      const rules: DetachmentAbility[] = []
+      columns.children('.BreakInsideAvoid').each((__, section) => {
+        const heading = $(section).children('h3').first().text().trim()
+        if (!heading) return
+        const content = $(section).clone()
+        content.find('h3, .ShowFluff').remove()
+        const description = toText(content.html() ?? '').trim()
+        if (description) rules.push({ name: heading, description })
+      })
+      if (rules.length) detachmentAbilities.set(key, rules)
+
+      columns.find('ul.EnhancementsPts').each((__, list) => {
+        const title = $(list).find('li > span').first().clone()
+        const upgrade = title.find('.EnhUpgrade').remove().length > 0
+        const name = `${title.text().trim()}${upgrade ? ' (Upgrade)' : ''}`
+        const content = $(list).closest('.td_w').children('p').not('.ShowFluff')
+        const description = toText(
+          content
+            .toArray()
+            .map((node) => $.html(node))
+            .join('<br><br>'),
+        ).trim()
+        if (name && description) enhancements.set(descriptionKey(detachment, name), description)
+      })
+
+      columns.find('.str11Wrap').each((__, card) => {
+        const name = $(card).find('.str11Name').first().text().trim()
+        const description = toText($(card).find('.str11Text').first().html() ?? '').trim()
+        if (name && description) stratagems.set(descriptionKey(detachment, name), description)
+      })
+    })
+  }
+  return { detachmentAbilities, enhancements, stratagems }
+}
+
+function mergeDetachmentAbilities(
+  fallback: ReadonlyMap<string, readonly DetachmentAbility[]>,
+  preferred: ReadonlyMap<string, readonly DetachmentAbility[]>,
+) {
+  const merged = new Map(fallback)
+  for (const [detachment, rules] of preferred) {
+    const byName = new Map((merged.get(detachment) ?? []).map((rule) => [routeSlug(rule.name), rule]))
+    for (const rule of rules) byName.set(routeSlug(rule.name), rule)
+    merged.set(detachment, [...byName.values()])
+  }
+  return merged
 }
 
 export const descriptionKey = (detachment: string, name: string) => `${routeSlug(detachment)}|${routeSlug(name)}`
@@ -44,13 +116,15 @@ export function findDescription(descriptions: ReadonlyMap<string, string>, detac
   if (exact) return exact
 
   const prefix = `${routeSlug(detachment)}|`
-  const target = routeSlug(name)
+  const target = comparableName(name)
   const maximumDistance = Math.min(3, Math.max(1, Math.floor(target.length * 0.15)))
   const matches = [...descriptions].filter(
-    ([key]) => key.startsWith(prefix) && distance(target, key.slice(prefix.length)) <= maximumDistance,
+    ([key]) => key.startsWith(prefix) && distance(target, comparableName(key.slice(prefix.length))) <= maximumDistance,
   )
   return matches.length === 1 ? matches[0][1] : null
 }
+
+const comparableName = (name: string) => routeSlug(name).replace(/-upgrade$/, '')
 
 export function findDetachmentAbilities(
   abilities: ReadonlyMap<string, readonly DetachmentAbility[]>,

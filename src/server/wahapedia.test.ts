@@ -20,6 +20,24 @@ it('reads multiline HTML descriptions as plain text', () => {
   )
 })
 
+it('reads current descriptions from a pinned faction page', () => {
+  fs.mkdirSync(path.join(directory, 'pages'))
+  write(
+    'pages/necrons.html',
+    '<div class="clFl"><h2 class="outline_header">Hand of the Dynasty1DP</h2><div class="Columns2"><div class="BreakInsideAvoid"><h3>Hypermotility Protocols</h3><p>Move quickly.</p></div><div class="BreakInsideAvoid"><div class="td_w"><ul class="EnhancementsPts"><li><span>Tools of Dominion<span class="EnhUpgrade">UPGRADE</span></span></li></ul><p class="ShowFluff">Fluff.</p><p>Gain [LETHAL HITS].</p></div></div><div class="str11Wrap"><div class="str11Name">DOMINANCE PROTOCOLS</div><div class="str11Text"><b>EFFECT:</b> Add 1 to OC.</div></div></div></div>',
+  )
+  const loaded = loadWahapediaDescriptions(directory)
+  expect({
+    rule: loaded?.detachmentAbilities.get('hand-of-the-dynasty')?.[0],
+    enhancement: loaded?.enhancements.get(descriptionKey('Hand of the Dynasty', 'Tools of Dominion (Upgrade)')),
+    stratagem: loaded?.stratagems.get(descriptionKey('Hand of the Dynasty', 'Dominance Protocols')),
+  }).toEqual({
+    rule: { name: 'Hypermotility Protocols', description: 'Move quickly.' },
+    enhancement: 'Gain [LETHAL HITS].',
+    stratagem: 'EFFECT: Add 1 to OC.',
+  })
+})
+
 it('reads every ability belonging to a detachment', () => {
   write(
     'Detachment_abilities.csv',

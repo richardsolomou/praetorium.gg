@@ -9,7 +9,7 @@ export function Keyword({ name, rules, className = '' }: { name: string; rules: 
   const [focused, setFocused] = useState(false)
   const descriptionId = useId()
   const trigger = useRef<HTMLButtonElement>(null)
-  const normalized = name.toLocaleLowerCase()
+  const normalized = name.replace(/^\[|\]$/g, '').toLocaleLowerCase()
   const rule = rules
     .filter(
       (candidate) => normalized === candidate.name.toLocaleLowerCase() || normalized.startsWith(`${candidate.name.toLocaleLowerCase()} `),

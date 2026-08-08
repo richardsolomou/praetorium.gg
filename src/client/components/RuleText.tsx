@@ -13,10 +13,11 @@ const components: Components = {
 }
 
 export function RuleText({ text, rules = noRules }: { text: string; rules?: KeywordRule[] }) {
+  const markdown = text.replaceAll('^^', '').replaceAll(/(?<!\*)\[([A-Z][A-Z0-9 +'-]*)\](?!\*)/g, '**[$1]**')
   return (
     <Rules value={rules}>
       <div className="mt-2 space-y-2 text-sm text-dim">
-        <Markdown components={components}>{text.replaceAll('^^', '')}</Markdown>
+        <Markdown components={components}>{markdown}</Markdown>
       </div>
     </Rules>
   )

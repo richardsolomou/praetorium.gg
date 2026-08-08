@@ -82,7 +82,9 @@ export async function syncSources(directory: string, report: (message: string) =
 
 async function syncWahapedia(directory: string, report: (message: string) => void) {
   const target = path.join(directory, 'wahapedia')
-  const complete = Object.keys(sources.wahapedia.files).every((name) => fs.existsSync(path.join(target, name)))
+  const complete =
+    Object.keys(sources.wahapedia.files).every((name) => fs.existsSync(path.join(target, name))) &&
+    Object.keys(sources.wahapedia.pages).every((name) => fs.existsSync(path.join(target, 'pages', `${name}.html`)))
   if (localRevisions(directory).wahapedia === sources.wahapedia.revision && complete) return
   report(`wahapedia: fetching export from ${sources.wahapedia.revision}`)
   try {
@@ -111,6 +113,20 @@ async function fetchWahapediaInto(source: (typeof sources)['wahapedia'], target:
     const actual = createHash('sha256').update(bytes).digest('hex')
     if (actual !== expected) throw new Error(`Wahapedia ${name} does not match the pinned export`)
     fs.writeFileSync(path.join(staging, name), bytes)
+  }
+
+  const pages = path.join(staging, 'pages')
+  fs.mkdirSync(pages)
+  for (const [name, expected] of Object.entries(source.pages)) {
+    // eslint-disable-next-line no-await-in-loop
+    const response = await fetch(`${source.baseUrl}/factions/${name}/`)
+    if (!response.ok) throw new Error(`Wahapedia ${name} page answered ${response.status}`)
+    // eslint-disable-next-line no-await-in-loop
+    const bytes = new Uint8Array(await response.arrayBuffer())
+    if (bytes.length > MAX_EXPORT_BYTES) throw new Error(`Wahapedia ${name} page exceeds ${MAX_EXPORT_BYTES} bytes`)
+    const actual = createHash('sha256').update(bytes).digest('hex')
+    if (actual !== expected) throw new Error(`Wahapedia ${name} page does not match the pinned source`)
+    fs.writeFileSync(path.join(pages, `${name}.html`), bytes)
   }
 
   fs.rmSync(target, { recursive: true, force: true })

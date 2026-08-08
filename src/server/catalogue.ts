@@ -367,7 +367,9 @@ export function datasheetIn(loaded: LoadedCatalogue, catalogueId: string, entryI
 export function rulesReferencedIn(loaded: LoadedCatalogue, texts: readonly (string | null)[]) {
   const references = new Set(
     texts.flatMap((text) =>
-      [...(text ?? '').matchAll(/\*\*(.*?)\*\*|\^\^(.*?)\^\^/g)].map((match) => (match[1] ?? match[2] ?? '').replaceAll(/\*\*|\^\^/g, '')),
+      [...(text ?? '').matchAll(/\*\*(.*?)\*\*|\^\^(.*?)\^\^|\[([A-Z][A-Z0-9 +'-]*)\]/g)].map((match) =>
+        (match[1] ?? match[2] ?? match[3] ?? '').replaceAll(/\*\*|\^\^/g, ''),
+      ),
     ),
   )
   const candidates = new Map<string, Set<string>>()

@@ -71,6 +71,7 @@ jobs:
           key: catalogue-${{ hashFiles('catalogue/sources.json') }}
       - if: steps.catalogue.outputs.cache-hit != 'true'
         run: just catalogue-sync
+      - run: just descriptions
       - run: just e2e-install
       - uses: docker/setup-buildx-action@v4
       - if: github.ref == 'refs/heads/main'

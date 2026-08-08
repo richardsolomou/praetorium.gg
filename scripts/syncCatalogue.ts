@@ -29,6 +29,7 @@ const wahapediaSchema = z.object({
   baseUrl: z.literal('https://wahapedia.ru/wh40k11ed'),
   revision: z.string().min(1),
   files: z.record(z.string().regex(/^[\w.-]+\.csv$/), z.string().regex(/^[0-9a-f]{64}$/)),
+  pages: z.record(z.string().regex(/^[\w-]+$/), z.string().regex(/^[0-9a-f]{64}$/)),
   attribution: z.string().min(1),
   description: z.string().optional(),
 })
@@ -69,6 +70,14 @@ if (argument === '--check') {
     if (name === 'Last_update.csv')
       sources.wahapedia.revision = new TextDecoder().decode(bytes).split('\n')[1]?.replace('|', '').trim() ?? ''
   }
+  for (const name of Object.keys(sources.wahapedia.pages)) {
+    const response = await fetch(`${sources.wahapedia.baseUrl}/factions/${name}/`)
+    if (!response.ok) throw new Error(`Wahapedia ${name} page answered ${response.status}`)
+    sources.wahapedia.pages[name] = createHash('sha256')
+      .update(new Uint8Array(await response.arrayBuffer()))
+      .digest('hex')
+  }
+  sources.wahapedia.revision = `${sources.wahapedia.revision.split(' + pinned live pages')[0]} + pinned live pages`
   fs.writeFileSync(sourcesFile, `${JSON.stringify(sources, null, 2)}\n`)
 } else {
   await syncSources(dataDirectory, (message) => console.log(message))
