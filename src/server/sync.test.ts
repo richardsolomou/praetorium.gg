@@ -1,11 +1,14 @@
 import fs from 'node:fs'
+import { createHash } from 'node:crypto'
 import os from 'node:os'
 import path from 'node:path'
+import { zipSync } from 'fflate'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import sources from '../../catalogue/sources.json' with { type: 'json' }
+import { catalogueSources as sources } from './catalogueSources'
 import { isCurrent, syncSources } from './sync'
 
 let directory: string
+const hash = (value: string) => createHash('sha256').update(value).digest('hex')
 
 beforeEach(() => {
   directory = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-sync-'))
@@ -46,4 +49,66 @@ it('refetches a pinned export when a configured file is missing', async () => {
   await syncSources(directory, () => {})
 
   expect(fetch).toHaveBeenCalled()
+})
+
+it('keeps verified exports when one optional live page changes', async () => {
+  const exported = 'name|detachment|description|\nRule|Test|Description|\n'
+  const fetch = vi.fn<(url: string) => Promise<Response>>(
+    async (url) => new Response(url.endsWith('/Stratagems.csv') ? exported : 'changed page'),
+  )
+  vi.stubGlobal('fetch', fetch)
+  const messages: string[] = []
+
+  await syncSources(directory, (message) => messages.push(message), {
+    baseUrl: 'https://example.test',
+    revision: 'test revision',
+    files: { 'Stratagems.csv': hash(exported) },
+    pages: { faction: hash('pinned page') },
+  })
+
+  expect(fs.readFileSync(path.join(directory, 'wahapedia', 'Stratagems.csv'), 'utf8')).toBe(exported)
+  expect(messages).toContain('wahapedia: descriptions unavailable for faction')
+  const requests = fetch.mock.calls.length
+  await syncSources(directory, () => {}, {
+    baseUrl: 'https://example.test',
+    revision: 'test revision',
+    files: { 'Stratagems.csv': hash(exported) },
+    pages: { faction: hash('pinned page') },
+  })
+  expect(fetch).toHaveBeenCalledTimes(requests)
+})
+
+it('extracts only a source configured subpath', async () => {
+  const revisions = JSON.parse(fs.readFileSync(path.join(directory, 'revision.json'), 'utf8'))
+  fs.writeFileSync(path.join(directory, 'revision.json'), JSON.stringify({ ...revisions, rules: 'old' }))
+  const archive = zipSync({
+    'repository/data/core/faction/rules.json': new TextEncoder().encode('{}'),
+    'repository/tools/package.json': new TextEncoder().encode('{}'),
+  })
+  vi.stubGlobal(
+    'fetch',
+    vi.fn<(url: string) => Promise<Response>>(async (url) =>
+      url.includes('codeload.github.com') ? new Response(archive) : new Response('changed export'),
+    ),
+  )
+
+  await syncSources(directory)
+
+  expect(fs.existsSync(path.join(directory, 'rules', 'data', 'core', 'faction', 'rules.json'))).toBe(true)
+  expect(fs.existsSync(path.join(directory, 'rules', 'tools', 'package.json'))).toBe(false)
+})
+
+it('keeps the current source when an archive lacks its configured subpath', async () => {
+  const revisions = JSON.parse(fs.readFileSync(path.join(directory, 'revision.json'), 'utf8'))
+  fs.writeFileSync(path.join(directory, 'revision.json'), JSON.stringify({ ...revisions, rules: 'old' }))
+  fs.writeFileSync(path.join(directory, 'rules', 'current.json'), '{}')
+  const archive = zipSync({ 'repository/tools/package.json': new TextEncoder().encode('{}') })
+  vi.stubGlobal(
+    'fetch',
+    vi.fn<() => Promise<Response>>(async () => new Response(archive)),
+  )
+
+  await expect(syncSources(directory)).rejects.toThrow('archive contains no files under data/core')
+
+  expect(fs.existsSync(path.join(directory, 'rules', 'current.json'))).toBe(true)
 })

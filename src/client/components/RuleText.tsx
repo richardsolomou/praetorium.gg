@@ -1,5 +1,6 @@
 import { createContext, type ReactNode, useContext } from 'react'
 import Markdown, { type Components } from 'react-markdown'
+import { Separator } from '@/components/ui/separator'
 import { Keyword, type KeywordRule } from './Keyword'
 
 const noRules: KeywordRule[] = []
@@ -8,15 +9,17 @@ const components: Components = {
   p: ({ children }) => <p>{children}</p>,
   ul: ({ children }) => <ul className="list-disc space-y-1 pl-5">{children}</ul>,
   ol: ({ children }) => <ol className="list-decimal space-y-1 pl-5">{children}</ol>,
-  hr: () => <hr className="border-edge" />,
+  hr: () => <Separator className="bg-edge" />,
   strong: RuleReference,
 }
 
 export function RuleText({ text, rules = noRules }: { text: string; rules?: KeywordRule[] }) {
+  const cleaned = text.replaceAll('^^', '')
+  const markdown = cleaned.replaceAll(/(?<!\*)\[([\p{L}\p{N} +'"’\p{Pd}]+)\](?!\*)/gu, '**[$1]**')
   return (
     <Rules value={rules}>
       <div className="mt-2 space-y-2 text-sm text-dim">
-        <Markdown components={components}>{text.replaceAll('^^', '')}</Markdown>
+        <Markdown components={components}>{markdown}</Markdown>
       </div>
     </Rules>
   )

@@ -639,6 +639,30 @@ describe('the wargear a unit is carrying', () => {
     const index = indexOf({ sharedSelectionEntries: [{ id: 'blob', name: 'Blob', type: 'unit' }] })
     expect(wargearOf({ id: 'blob' }, index)).toEqual([])
   })
+
+  it('leaves roster toggles and zero-count upgrades out of wargear', () => {
+    const index = indexOf({
+      sharedSelectionEntries: [
+        {
+          id: 'captain',
+          name: 'Captain',
+          type: 'unit',
+          selectionEntries: [
+            { id: 'warlord', name: 'Warlord', type: 'upgrade' },
+            { id: 'rifle', name: 'Bolt rifle', type: 'upgrade' },
+          ],
+        },
+      ],
+    })
+    const selection = {
+      id: 'captain',
+      selections: [
+        { id: 'warlord', count: 1 },
+        { id: 'rifle', count: 0 },
+      ],
+    }
+    expect(wargearOf(selection, index)).toEqual([])
+  })
 })
 
 /** The weapon counts under the first model of the first unit, as ids and numbers. */

@@ -17,6 +17,7 @@ export default defineConfig({
   fullyParallel: false,
   workers: 2,
   retries: 0,
+  timeout: 45_000,
   // Both pages settle through Centrifugo rather than by polling, so assertions
   // need room for the nudge and the refetch behind it.
   expect: { timeout: 15_000 },

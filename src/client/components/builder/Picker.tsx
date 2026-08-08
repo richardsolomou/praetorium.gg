@@ -1,22 +1,23 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { Heart, ListFilter, Plus } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { setOwned } from '../../../server/functions'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { Toggle } from '@/components/ui/toggle'
+import { useCollectionMutation } from '../../useCollection'
 import { collectionQuery, unitsQuery } from '../../queries'
 import { GROUPS } from './groups'
 import { Section } from './Section'
 
 type Props = { catalogueId: string; onAdd: (entryId: string) => void; inRoster: Record<string, number>; room: number | null }
 
-type Filter = 'fit' | 'limit' | 'owned' | 'legends'
+type Filter = 'fit' | 'limit' | 'owned'
 
 const FILTERS: { id: Filter; label: string; hint: string }[] = [
   { id: 'fit', label: 'Points fit', hint: 'Hide anything that would not fit in the points left' },
   { id: 'limit', label: 'Unit limit', hint: 'Hide anything the roster already holds as many of as it may' },
   { id: 'owned', label: 'Owned', hint: 'Show only datasheets you own models for' },
-  { id: 'legends', label: 'Legends', hint: 'Also show the datasheets moved to Legends, which no tournament allows' },
 ]
 
 /**
@@ -25,23 +26,14 @@ const FILTERS: { id: Filter; label: string; hint: string }[] = [
  * Every row states what it costs before it is taken and how many of it the roster
  * already holds, because both are the questions being asked at this point. The
  * filters narrow by the reasons a datasheet is not a real option today: it does not
- * fit, you may not take another, or you do not own it. Legends is the one that
- * widens rather than narrows, because a third of every book is Legends and none of
- * it can be played.
+ * fit, you may not take another, or you do not own it.
  */
 export function Picker({ catalogueId, onAdd, inRoster, room }: Props) {
   const [query, setQuery] = useState('')
   const [active, setActive] = useState<Set<Filter>>(new Set())
-  // Legends are left out of the book itself rather than of what is shown: the
-  // server answers with a page of results, and Legends would eat it.
-  const { data: found } = useQuery(unitsQuery(catalogueId, query, active.has('legends')))
+  const { data: found } = useQuery({ ...unitsQuery(catalogueId, query), placeholderData: keepPreviousData })
   const { data: owned } = useQuery(collectionQuery())
-  const queryClient = useQueryClient()
-
-  const own = useMutation({
-    mutationFn: (input: { entryId: string; owned: boolean }) => setOwned({ data: input }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: collectionQuery().queryKey }),
-  })
+  const own = useCollectionMutation()
 
   const collection = new Set(owned ?? [])
   const toggle = (filter: Filter) =>
@@ -71,13 +63,13 @@ export function Picker({ catalogueId, onAdd, inRoster, room }: Props) {
         <div className="flex flex-wrap items-center gap-1.5">
           <ListFilter className="size-3.5 shrink-0 text-faint" aria-hidden />
           {FILTERS.map((filter) => (
-            <Button
+            <Toggle
               key={filter.id}
               variant="outline"
-              size="xs"
+              size="sm"
               title={filter.hint}
-              aria-pressed={active.has(filter.id)}
-              onClick={() => toggle(filter.id)}
+              pressed={active.has(filter.id)}
+              onPressedChange={() => toggle(filter.id)}
               className={`rounded-sm border px-1.5 py-px text-[0.6875rem] font-semibold tracking-[0.06em] uppercase transition-colors ${
                 active.has(filter.id)
                   ? 'border-azure bg-azure/15 text-azure'
@@ -85,11 +77,11 @@ export function Picker({ catalogueId, onAdd, inRoster, room }: Props) {
               }`}
             >
               {filter.label}
-            </Button>
+            </Toggle>
           ))}
         </div>
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto px-2.5">
+      <ScrollArea className="min-h-0 flex-1 [&_[data-slot=scroll-area-viewport]]:px-2.5">
         {shown.length ? (
           GROUPS.map(({ id, plural }) => {
             const rows = shown.filter((unit) => unit.group === id)
@@ -109,17 +101,17 @@ export function Picker({ catalogueId, onAdd, inRoster, room }: Props) {
                           </span>
                         ) : null}
                       </span>
-                      <Button
-                        variant="ghost"
-                        size="icon-xs"
+                      <Toggle
+                        variant="default"
+                        size="sm"
                         aria-label={`${collection.has(unit.id) ? 'Remove' : 'Add'} ${unit.name} ${collection.has(unit.id) ? 'from' : 'to'} your collection`}
-                        aria-pressed={collection.has(unit.id)}
+                        pressed={collection.has(unit.id)}
                         disabled={own.isPending}
-                        onClick={() => own.mutate({ entryId: unit.id, owned: !collection.has(unit.id) })}
-                        className="shrink-0"
+                        onPressedChange={(pressed) => own.mutate({ entryId: unit.id, owned: pressed })}
+                        className="size-6 shrink-0 p-0"
                       >
                         <Heart className={`size-3.5 ${collection.has(unit.id) ? 'fill-azure text-azure' : 'text-faint hover:text-dim'}`} />
-                      </Button>
+                      </Toggle>
                       {unit.points === null ? null : <span className="chip shrink-0">{unit.points} pts</span>}
                       <Button
                         size="sm"
@@ -141,7 +133,7 @@ export function Picker({ catalogueId, onAdd, inRoster, room }: Props) {
             {found?.length ? 'Everything is filtered out.' : query ? 'Nothing by that name.' : 'Loading the book…'}
           </p>
         )}
-      </div>
+      </ScrollArea>
     </div>
   )
 }

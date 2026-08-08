@@ -2,6 +2,18 @@ import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { ArrowDownToLine, RotateCcw, Skull, Undo2, Zap } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { deploymentsQuery, detachmentRulesQuery } from '../queries'
 import type { BattleView, Command } from '../../core/battle'
 import type { PresentPlayer } from '../useLiveBattle'
@@ -24,6 +36,7 @@ const SIDES = [
   { accent: 'border-l-side-a', value: 'text-side-a' },
   { accent: 'border-l-side-b', value: 'text-side-b' },
 ]
+const MOBILE_TABS = ['info', 'events'] as const
 
 export function Tracker({ view, mission, present, send, pending, problem }: Props) {
   const [mobileTab, setMobileTab] = useState<'info' | 'events'>('info')
@@ -391,19 +404,27 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
         ))}
 
         <section className="order-first space-y-3 border border-edge bg-panel p-4 sm:col-span-2 lg:col-span-1 lg:col-start-2 lg:row-start-1">
-          <div className="grid grid-cols-2 border-b border-edge lg:hidden">
-            {(['info', 'events'] as const).map((tab) => (
-              <Button
+          <ToggleGroup
+            value={[mobileTab]}
+            onValueChange={(value) => {
+              const next = MOBILE_TABS.find((tab) => tab === value[0])
+              if (next) setMobileTab(next)
+            }}
+            spacing={0}
+            variant="default"
+            className="grid h-auto w-full grid-cols-2 gap-0 border-b border-edge lg:hidden"
+            aria-label="Battle details"
+          >
+            {MOBILE_TABS.map((tab) => (
+              <ToggleGroupItem
                 key={tab}
-                variant="ghost"
-                className={`eyebrow rounded-none border-x-transparent border-t-transparent border-b-2 py-2 focus-visible:border-x-transparent focus-visible:border-t-transparent focus-visible:ring-0 ${mobileTab === tab ? 'border-b-azure text-azure' : 'border-b-transparent'}`}
-                aria-pressed={mobileTab === tab}
-                onClick={() => setMobileTab(tab)}
+                value={tab}
+                className="eyebrow rounded-none border-b-2 border-transparent py-2 aria-pressed:border-b-azure aria-pressed:text-azure"
               >
                 {tab}
-              </Button>
+              </ToggleGroupItem>
             ))}
-          </div>
+          </ToggleGroup>
           <div className={mobileTab === 'events' ? 'hidden lg:block' : ''}>
             <div className="text-center">
               <p className="eyebrow">{finished ? 'Final result' : 'Now'}</p>
@@ -440,9 +461,23 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
                 >
                   <Undo2 /> Undo
                 </Button>
-                <Button variant="destructive" disabled={pending} onClick={() => send({ kind: 'end-battle' })}>
-                  End battle
-                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger render={<Button variant="destructive" disabled={pending} />}>End battle</AlertDialogTrigger>
+                  <AlertDialogContent className="rounded-none border border-edge bg-panel text-bone ring-0">
+                    <AlertDialogHeader>
+                      <AlertDialogTitle className="uppercase">End this battle?</AlertDialogTitle>
+                      <AlertDialogDescription className="text-dim">
+                        This records the current result as final. You can still review the battle afterward.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter className="rounded-none border-edge bg-sunken">
+                      <AlertDialogCancel>Keep playing</AlertDialogCancel>
+                      <AlertDialogAction variant="destructive" onClick={() => send({ kind: 'end-battle' })}>
+                        End battle
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </div>
             </div>
           )}

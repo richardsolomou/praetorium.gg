@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, notFound, useParams } from '@tanstack/react-router'
-import { ChevronRight } from 'lucide-react'
+import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb'
 import { RuleText } from '../client/components/RuleText'
 import { factionFor } from '../client/factions'
 import { detachmentDetailQuery, factionsQuery } from '../client/queries'
@@ -25,15 +25,23 @@ export function DetachmentPage() {
 
   return (
     <main className="mx-auto w-full max-w-6xl space-y-6 px-4 py-8">
-      <nav aria-label="Breadcrumb" className="eyebrow flex flex-wrap items-center gap-1 text-azure">
-        <Link to="/factions">Factions</Link>
-        <ChevronRight className="size-3 text-dim" aria-hidden />
-        <Link to="/factions/$catalogueId" params={{ catalogueId: faction.slug }}>
-          {faction.displayName}
-        </Link>
-        <ChevronRight className="size-3 text-dim" aria-hidden />
-        <span className="text-dim">Detachments</span>
-      </nav>
+      <Breadcrumb>
+        <BreadcrumbList className="eyebrow gap-1 text-azure">
+          <BreadcrumbItem>
+            <BreadcrumbLink render={<Link to="/factions" />}>Factions</BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator className="text-dim" />
+          <BreadcrumbItem>
+            <BreadcrumbLink render={<Link to="/factions/$catalogueId" params={{ catalogueId: faction.slug }} />}>
+              {faction.displayName}
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator className="text-dim" />
+          <BreadcrumbItem>
+            <BreadcrumbPage className="text-dim">Detachments</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
 
       <header className="border-b border-edge pb-4">
         <p className="eyebrow">Detachment</p>

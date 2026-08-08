@@ -90,6 +90,7 @@ export class PraetoriumService {
       name: string
       catalogueId: string
       detachmentIds: readonly string[]
+      disposition: string | null
       limit: number
       picks: readonly RosterPick[]
       prep: SavedPrep | null
@@ -115,6 +116,7 @@ export class PraetoriumService {
       name: row.name,
       catalogueId: row.catalogueId,
       detachmentIds: detachmentIds(row.detachmentId),
+      disposition: row.disposition,
       limit: row.limit,
       updatedAt: row.updatedAt,
       picks: picksSchema.parse(JSON.parse(row.picks)),
@@ -131,6 +133,7 @@ export class PraetoriumService {
           name: row.name,
           catalogueId: row.catalogueId,
           detachmentIds: detachmentIds(row.detachmentId),
+          disposition: row.disposition,
           limit: row.limit,
           updatedAt: row.updatedAt,
           picks: picksSchema.parse(JSON.parse(row.picks)),

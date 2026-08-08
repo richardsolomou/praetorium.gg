@@ -6,38 +6,6 @@
  * grotesque with a tall x-height, and it takes uppercase tracking the same way.
  * Swapping in a licensed Conduit means changing `--font-sans` and nothing else.
  */
-@font-face {
-  font-family: 'Barlow Semi Condensed';
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src: url('/fonts/barlow-semi-condensed-400.woff2') format('woff2');
-}
-
-@font-face {
-  font-family: 'Barlow Semi Condensed';
-  font-style: normal;
-  font-weight: 500;
-  font-display: swap;
-  src: url('/fonts/barlow-semi-condensed-500.woff2') format('woff2');
-}
-
-@font-face {
-  font-family: 'Barlow Semi Condensed';
-  font-style: normal;
-  font-weight: 600;
-  font-display: swap;
-  src: url('/fonts/barlow-semi-condensed-600.woff2') format('woff2');
-}
-
-@font-face {
-  font-family: 'Barlow Semi Condensed';
-  font-style: normal;
-  font-weight: 700;
-  font-display: swap;
-  src: url('/fonts/barlow-semi-condensed-700.woff2') format('woff2');
-}
-
 /*
  * One palette, two vocabularies: the named colours the app writes by hand, and
  * the shadcn tokens its components read. Both point at the same values.

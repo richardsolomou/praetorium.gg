@@ -2,11 +2,15 @@ import { createServerFn } from '@tanstack/react-start'
 import { app } from './app'
 import { configuredProviders } from './auth'
 import { routeSlug } from '../core/slug'
-import { datasheetIn, datasheetInBySlug, detachmentCatalogueDetail, type LoadedCatalogue, rulesReferencedIn, unitsIn } from './catalogue'
+import { buildUnit } from '../core/roster'
+import { datasheetIn, datasheetInBySlug, rulesReferencedIn } from './catalogue'
+import { detachmentCatalogueDetail } from './catalogueDescriptions'
+import type { LoadedCatalogue } from './catalogueIndex'
+import { unitsIn } from './cataloguePicker'
 import { slug } from './rules'
 import { findAbilityDescription, WAHAPEDIA_ATTRIBUTION } from './wahapedia'
 import { mutationRpc, rpc } from './rpc'
-import { calculateRosterPrice } from './pricing'
+import { calculateRosterPrice, rosterDetachments } from './pricing'
 import { exportRosterFile, importRosterFile } from './rosterFiles'
 import { currentPlayer, currentPlayerId, requirePlayerId } from './playerSession'
 import {
@@ -111,6 +115,11 @@ export const factions = createServerFn({ method: 'GET' }).handler(() =>
               slug: slug(detachment.name),
               name: detachment.name,
               disposition: detachment.disposition,
+              dispositions: reference?.dispositions.length
+                ? reference.dispositions.map((id) => ({ id, name: rules?.dispositions.get(id) ?? id }))
+                : detachment.disposition
+                  ? [{ id: detachment.disposition, name: rules?.dispositions.get(detachment.disposition) ?? detachment.disposition }]
+                  : [],
               reference: reference
                 ? {
                     ...reference,
@@ -130,7 +139,7 @@ export const units = createServerFn({ method: 'GET' })
   .handler(({ data }) =>
     rpc(() => {
       const loaded = app().catalogue()
-      return loaded ? unitsIn(loaded, data.catalogueId, data.query, { legends: data.legends }) : []
+      return loaded ? unitsIn(loaded, data.catalogueId, data.query) : []
     }),
   )
 
@@ -139,7 +148,28 @@ export const datasheet = createServerFn({ method: 'GET' })
   .handler(({ data }) =>
     rpc(() => {
       const loaded = app().catalogue()
-      return loaded ? describeAbilities(loaded, datasheetIn(loaded, data.catalogueId, data.entryId)) : null
+      if (!loaded) return null
+      const detachments = rosterDetachments(loaded, data.catalogueId, data.detachmentIds).selections
+      const builtUnits = data.picks.flatMap((pick, index) => {
+        const unit = buildUnit(pick.entryId, loaded.index, pick.models, pick.choices, {
+          primaryCatalogueId: data.catalogueId,
+          roster: detachments,
+          spreads: pick.spreads,
+          toggles: pick.toggles,
+        })
+        return unit ? [{ index, selection: unit.selection }] : []
+      })
+      const selected = builtUnits.findIndex((unit) => unit.index === data.pickIndex)
+      const selections = [...detachments, ...builtUnits.map((unit) => unit.selection)]
+      return describeAbilities(
+        loaded,
+        datasheetIn(
+          loaded,
+          data.catalogueId,
+          data.entryId,
+          selected < 0 ? undefined : { selections, unitSelectionIndex: detachments.length + selected },
+        ),
+      )
     }),
   )
 
@@ -209,6 +239,7 @@ export const savedRosterPrice = createServerFn({ method: 'GET' })
         ? calculateRosterPrice({
             catalogueId: roster.catalogueId,
             detachmentIds: roster.detachmentIds,
+            disposition: roster.disposition,
             limit: roster.limit,
             units: roster.picks,
           })

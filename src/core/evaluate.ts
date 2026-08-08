@@ -86,6 +86,207 @@ type EvaluateOptions = {
   roster?: readonly Selection[]
 }
 
+export type ProfileModifier = {
+  originIds: string[]
+  filters: string[]
+  includeSelf: boolean
+  includeEntries: boolean
+  recursive: boolean
+  global: boolean
+  profileType: string
+  field: string
+  type: Modifier['type']
+  value?: unknown
+  arg?: string
+  position?: number | string
+  join?: string
+  skipIfPresent?: string
+  times: number
+  source: string
+}
+
+/** Applicable catalogue modifiers that change profiles displayed for one selected unit. */
+export function profileModifiers(
+  selections: readonly Selection[],
+  unitId: string,
+  index: CatalogueIndex,
+  options: EvaluateOptions = {},
+  unitSelectionIndex?: number,
+): ProfileModifier[] {
+  const census = new Census()
+  const counter = { next: 0 }
+  const root: Node = {
+    target: { id: 'roster' },
+    order: counter.next++,
+    catalogueId: options.primaryCatalogueId,
+    link: null,
+    id: 'roster',
+    count: 1,
+    parent: null,
+    children: [],
+  }
+  const force: Node = {
+    target: { id: index.forces[0]?.id ?? 'force', name: index.forces[0]?.name ?? 'Army Roster' },
+    order: counter.next++,
+    force: true,
+    link: null,
+    id: 'force-0',
+    count: 1,
+    parent: root,
+    children: [],
+  }
+  root.children = [force]
+  force.children = selections
+    .map((selection) => build(selection, force, index, census, counter))
+    .filter((node): node is Node => node !== null)
+
+  const unit = unitSelectionIndex === undefined ? descendants(force).find((node) => node.id === unitId) : force.children[unitSelectionIndex]
+  if (!unit) return []
+  const selectedIds = new Set(descendants(root).map((node) => node.id))
+  const unitNodes = new Set(descendants(unit))
+  const found = new Map<string, ProfileModifier>()
+
+  const add = (node: Node, modifier: Modifier, exact?: { id: string; type: string }) => {
+    if (!isProfileModifierType(modifier.type)) return
+    const times = repeatCount(modifier, node, root, index, census)
+    if (times === 0) return
+    const source = (modifier.conditions ?? [])
+      .flatMap((condition) => {
+        if (!condition.childId || !selectedIds.has(condition.childId)) return []
+        const definition = index.definitions.get(condition.childId)
+        return definition?.name ? [definition.name] : []
+      })
+      .at(0)
+    const label = source ?? node.target.name ?? node.link?.name ?? 'Catalogue modifier'
+    const common = {
+      field: modifier.field,
+      type: modifier.type,
+      value: modifier.value,
+      arg: modifier.arg,
+      position: modifier.position,
+      join: modifier.join,
+      skipIfPresent: modifier.skipIfPresent,
+      times,
+      source: label,
+    }
+
+    if (exact) {
+      const applied: ProfileModifier = {
+        ...common,
+        originIds: [],
+        filters: [exact.id],
+        includeSelf: true,
+        includeEntries: false,
+        recursive: false,
+        global: true,
+        profileType: exact.type,
+      }
+      found.set(JSON.stringify(applied), applied)
+      return
+    }
+
+    const affects = modifier.affects
+    const profileType = affects?.match(/(?:^|\.)profiles\.([^.]*)$/)?.[1]
+    if (!profileType) return
+    const target = parseProfileAffects(affects)
+    for (const origin of resolveScope(modifier.scope ?? 'self', node, root, census)) {
+      if (!target.forces && origin !== root && !origin.force && !unitNodes.has(origin)) continue
+      const applied: ProfileModifier = {
+        ...common,
+        originIds: [...new Set([origin.id, origin.target.id])],
+        filters: target.filters,
+        includeSelf: target.includeSelf,
+        includeEntries: target.includeEntries,
+        recursive: target.recursive,
+        global: target.forces || origin === root || Boolean(origin.force),
+        profileType,
+      }
+      found.set(JSON.stringify(applied), applied)
+    }
+  }
+
+  for (const node of descendants(root)) {
+    for (const modifier of modifiersOf(node)) add(node, modifier)
+    if (!unitNodes.has(node)) continue
+    for (const source of sourcesOf(node)) {
+      for (const profile of source.profiles ?? []) {
+        if (!profile.typeName) continue
+        for (const modifier of flattenedModifiers([profile])) {
+          add(node, modifier, modifier.affects ? undefined : { id: profile.id, type: profile.typeName })
+        }
+      }
+      for (const link of source.infoLinks ?? []) {
+        if (link.type !== 'profile') continue
+        const profile = index.shared.get(link.targetId)
+        if (!profile || !('characteristics' in profile) || !profile.typeName) continue
+        for (const modifier of flattenedModifiers([profile, link])) {
+          add(node, modifier, modifier.affects ? undefined : { id: link.id, type: profile.typeName })
+        }
+      }
+    }
+  }
+  return [...found.values()]
+}
+
+function flattenedModifiers(sources: readonly { modifiers?: Modifier[]; modifierGroups?: ModifierGroup[] }[]) {
+  const collected: Modifier[] = []
+  const flatten = (group: ModifierGroup, inherited: ModifierGroup[]) => {
+    const chain = [...inherited, group]
+    for (const modifier of group.modifiers ?? []) {
+      collected.push({
+        ...modifier,
+        conditions: [...chain.flatMap((entry) => entry.conditions ?? []), ...(modifier.conditions ?? [])],
+        conditionGroups: [...chain.flatMap((entry) => entry.conditionGroups ?? []), ...(modifier.conditionGroups ?? [])],
+        repeats: [...chain.flatMap((entry) => entry.repeats ?? []), ...(modifier.repeats ?? [])],
+      })
+    }
+    for (const nested of group.modifierGroups ?? []) flatten(nested, chain)
+  }
+  for (const source of sources) {
+    collected.push(...(source.modifiers ?? []))
+    for (const group of source.modifierGroups ?? []) flatten(group, [])
+  }
+  return collected
+}
+
+const PROFILE_MODIFIER_TYPES = new Set<Modifier['type']>([
+  'set',
+  'increment',
+  'decrement',
+  'multiply',
+  'divide',
+  'modulo',
+  'power',
+  'exponent',
+  'triangular',
+  'cumulative-add',
+  'cumulative-power',
+  'cumulative-multiply',
+  'append',
+  'prepend',
+  'floor',
+  'ceil',
+  'replace',
+])
+
+const isProfileModifierType = (type: Modifier['type']) => PROFILE_MODIFIER_TYPES.has(type)
+
+function parseProfileAffects(affects: string) {
+  const path = affects.split('.')
+  const profile = path.indexOf('profiles')
+  const selection = profile < 0 ? [] : path.slice(0, profile)
+  const controls = new Set(['self', 'entries', 'forces', 'recursive', 'group'])
+  const includeEntries = selection.includes('entries')
+  const forces = selection.includes('forces')
+  return {
+    includeSelf: selection.includes('self') || (!includeEntries && !forces),
+    includeEntries,
+    recursive: selection.includes('recursive'),
+    forces,
+    filters: selection.filter((part) => !controls.has(part)),
+  }
+}
+
 export function evaluate(selections: readonly Selection[], index: CatalogueIndex, options: EvaluateOptions = {}): Evaluation {
   return evaluateForces([selections], index, options)
 }

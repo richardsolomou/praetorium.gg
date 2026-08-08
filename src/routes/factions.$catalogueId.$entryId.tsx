@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, notFound, redirect, useParams } from '@tanstack/react-router'
-import { ChevronRight } from 'lucide-react'
+import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbSeparator } from '@/components/ui/breadcrumb'
 import { Keyword, KeywordList, type KeywordRule } from '../client/components/Keyword'
 import { RuleText } from '../client/components/RuleText'
 import { factionFor } from '../client/factions'
@@ -35,17 +35,25 @@ export function DatasheetPage() {
 
   return (
     <main className="mx-auto w-full max-w-6xl space-y-6 px-4 py-8">
-      <nav aria-label="Breadcrumb" className="eyebrow flex flex-wrap items-center gap-1 text-azure">
-        <Link to="/factions">Factions</Link>
-        <ChevronRight className="size-3 text-dim" aria-hidden />
-        <Link to="/factions/$catalogueId" params={{ catalogueId: faction.slug }}>
-          {faction?.displayName ?? 'Faction'}
-        </Link>
-        <ChevronRight className="size-3 text-dim" aria-hidden />
-        <Link to="/factions/$catalogueId/datasheets" params={{ catalogueId: faction.slug }}>
-          Datasheets
-        </Link>
-      </nav>
+      <Breadcrumb>
+        <BreadcrumbList className="eyebrow gap-1 text-azure">
+          <BreadcrumbItem>
+            <BreadcrumbLink render={<Link to="/factions" />}>Factions</BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator className="text-dim" />
+          <BreadcrumbItem>
+            <BreadcrumbLink render={<Link to="/factions/$catalogueId" params={{ catalogueId: faction.slug }} />}>
+              {faction.displayName}
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator className="text-dim" />
+          <BreadcrumbItem>
+            <BreadcrumbLink render={<Link to="/factions/$catalogueId/datasheets" params={{ catalogueId: faction.slug }} />}>
+              Datasheets
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
       <header className="border-b border-edge pb-4">
         <p className="eyebrow">Datasheet</p>
         <div className="flex items-center justify-between gap-4">

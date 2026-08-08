@@ -52,6 +52,10 @@ catalogue-sync:
 catalogue-check:
     pnpm catalogue:check
 
+# Ratchet description coverage across the fetched rules sources
+descriptions:
+    pnpm catalogue:descriptions
+
 # Price every datasheet against the Munitorum. A ratchet: it may not go down
 points:
     pnpm catalogue:points

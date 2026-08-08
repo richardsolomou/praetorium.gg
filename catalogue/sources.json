@@ -22,7 +22,7 @@
   },
   "wahapedia": {
     "baseUrl": "https://wahapedia.ru/wh40k11ed",
-    "revision": "2026-05-09 23:42:21",
+    "revision": "2026-05-09 23:42:21 + 2026-08-08 live pages",
     "files": {
       "Stratagems.csv": "493599d1f979b27b4d174bfe5fde4f1d4a3dafcede926a9f08fea959411436ed",
       "Enhancements.csv": "b08fafdbd11bff3a37762f1a0938b670de3c60b3698a7ac1cc600940f9c2efe5",
@@ -30,6 +30,31 @@
       "Abilities.csv": "d66a20c18373c5bd426747bd26e48e2febc587905d39025cc795463a6323ab6e",
       "Datasheets_abilities.csv": "e8fa5a1704e067f27a8fc9fe29bf79f950536f98dc528c5f8951eacd3f757943",
       "Last_update.csv": "f408f381f06aa6732782330dcae5c4cd5d2df1c5a2f9f30975cf982dc581ec6f"
+    },
+    "pages": {
+      "imperial-agents": "7de94f462bca78bfebe57d41212e5c7b8b4dc45912386b433910ea37d383aeb3",
+      "astra-militarum": "694ef377764052729a850a141761c0d551ab6c44ac125410b142fd2cb28d4789",
+      "genestealer-cults": "c8616cd389b3c80379ff0ca86b27dbb01acae2fd53f6599b25e89ca10d93d7ea",
+      "necrons": "89dab797e7653ef79ec6a7fd4092eb8cbf43d1d5e462d8f51bec6443ed0ada6a",
+      "aeldari": "26586971d42f1a237f00a8394ba3b3956534fd18e9c1d47a95f5e0231128e7e5",
+      "orks": "68b75c5d61b9645efda73c550335bb2fd977a0317b2d481782e8de9b9f4a70e5",
+      "grey-knights": "7dc14567df4c116c31a5da1297dfe4726389d77199adc7dcd49c1cdc3acd4474",
+      "t-au-empire": "bbdc985bf6a3696f559ec7f5d26a57d25be8b70b8013e908cdc647123c11c8c5",
+      "leagues-of-votann": "09d3917725d2af76d78827347cf438c6466372cacb782342de41ab3f46f92613",
+      "adeptus-mechanicus": "634001eb00f2ffdc50fc92fa5b844b421f3117a66fb96793ccca832163a9c62e",
+      "thousand-sons": "cd9131972d84440bb2fea930ec4d7229bb68283256cf5e37053aaba23c27f65f",
+      "death-guard": "529d49ca072170350c14d48e5eb82866a43dcc1b81e224c8eb37fd34da12c40b",
+      "emperor-s-children": "5e1b24fa67054b27e574b47fe8563f99600e2aca9c6a45513f059a9be0dc674a",
+      "world-eaters": "3f2a9d14eb3ba059c491d3a912000a6e5dc1631c84cadad27fdbd7cf6ca1c105",
+      "chaos-knights": "aa01339e4a1101f16c71751670e53f5a2ebd7e4dd2b25163431423d915ea1b16",
+      "chaos-daemons": "eab9ab1d83c607ea45d38a7abcd764509caf6b7dce73c6d4fe7d679bcda96c27",
+      "imperial-knights": "06d37e79d4db2e425da301c9307b1453ce032be2dfbc19f4602a58c13dd81b2f",
+      "space-marines": "922dfec96299ef9d2762c0a6ffb00ac9454c0ea322193f438c49d4a434c3782e",
+      "tyranids": "57c258e3490a5808795d9d3a6b1d0d87daed5fd8674ca6d3d79f8e3d8655a22a",
+      "adeptus-custodes": "00082537ecc030170c3c7c96651cf58521a610d72dfecb100c4bd3e38f7d1e91",
+      "adepta-sororitas": "1b4cf125ff24f37bfac1933bc30358afb709fa580a2d9adcc5cc116cdbcd1d90",
+      "chaos-space-marines": "ecdb948c3bafde4f1dddeb918cde4669e95541cf1be7951a9875803e39c0a70f",
+      "drukhari": "05bce4d5e0dee685a887bae6998ea12adf76d4930a296b01fde6d09722f1a9a8"
     },
     "attribution": "Descriptions provided by Wahapedia",
     "description": "Optional description text for datasheets, detachments, enhancements, and stratagems. Fetched by each instance and never committed."

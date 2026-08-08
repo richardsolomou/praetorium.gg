@@ -82,7 +82,18 @@ type ModifierType =
   | 'increment'
   | 'decrement'
   | 'multiply'
+  | 'divide'
+  | 'modulo'
+  | 'power'
+  | 'exponent'
+  | 'triangular'
+  | 'cumulative-add'
+  | 'cumulative-power'
+  | 'cumulative-multiply'
   | 'append'
+  | 'prepend'
+  | 'floor'
+  | 'ceil'
   | 'add'
   | 'remove'
   | 'replace'
@@ -93,8 +104,14 @@ type ModifierType =
 export type Modifier = {
   type: ModifierType
   field: string
-  value: unknown
+  value?: unknown
   scope?: string
+  /** Profile path targeted by display modifiers, such as every melee weapon under this unit. */
+  affects?: string
+  arg?: string
+  position?: number | string
+  join?: string
+  skipIfPresent?: string
   conditions?: Condition[]
   conditionGroups?: ConditionGroup[]
   repeats?: Repeat[]
@@ -146,9 +163,17 @@ type CategoryEntry = {
 }
 
 /** `$text` is where the JSON puts a characteristic's words. */
-type Characteristic = { name?: string; $text?: string }
+export type Characteristic = { name?: string; typeId?: string; $text?: string }
 
-export type Profile = { id: string; name?: string; typeName?: string; hidden?: boolean; characteristics?: Characteristic[] }
+export type Profile = {
+  id: string
+  name?: string
+  typeName?: string
+  hidden?: boolean
+  characteristics?: Characteristic[]
+  modifiers?: Modifier[]
+  modifierGroups?: ModifierGroup[]
+}
 
 /** A named bundle of profiles hanging off an entry — "Leader" is one. */
 export type InfoGroup = { id: string; name?: string; hidden?: boolean; profiles?: Profile[]; infoLinks?: InfoLink[] }
@@ -157,7 +182,15 @@ export type InfoGroup = { id: string; name?: string; hidden?: boolean; profiles?
 type Rule = { id: string; name?: string; description?: string; hidden?: boolean }
 
 /** A reference to a profile or info group defined once at the catalogue's top level. */
-export type InfoLink = { id: string; targetId: string; name?: string; hidden?: boolean; type?: 'profile' | 'infoGroup' | 'rule' }
+export type InfoLink = {
+  id: string
+  targetId: string
+  name?: string
+  hidden?: boolean
+  type?: 'profile' | 'infoGroup' | 'rule'
+  modifiers?: Modifier[]
+  modifierGroups?: ModifierGroup[]
+}
 
 type Common = {
   id: string

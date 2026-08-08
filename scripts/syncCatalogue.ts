@@ -13,32 +13,13 @@ import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
-import { z } from 'zod'
-import { SOURCE_NAMES, syncSources } from '../src/server/sync'
-
-const sourceSchema = z.object({
-  repository: z.string().regex(/^[\w.-]+\/[\w.-]+$/, 'expected owner/name'),
-  branch: z.string().min(1),
-  revision: z.string().regex(/^[0-9a-f]{40}$/, 'expected a full commit sha, so the data cannot move underneath us'),
-  path: z.string().optional(),
-  attribution: z.string().optional(),
-  description: z.string().optional(),
-})
-
-const wahapediaSchema = z.object({
-  baseUrl: z.literal('https://wahapedia.ru/wh40k11ed'),
-  revision: z.string().min(1),
-  files: z.record(z.string().regex(/^[\w.-]+\.csv$/), z.string().regex(/^[0-9a-f]{64}$/)),
-  attribution: z.string().min(1),
-  description: z.string().optional(),
-})
-
-const sourcesSchema = z.object({ definitions: sourceSchema, points: sourceSchema, rules: sourceSchema, wahapedia: wahapediaSchema })
+import { catalogueSourcesSchema, SOURCE_NAMES } from '../src/server/catalogueSources'
+import { syncSources } from '../src/server/sync'
 
 const sourcesFile = path.join(import.meta.dirname, '..', 'catalogue', 'sources.json')
 const dataDirectory = process.env.CATALOGUE_DIR ?? path.join(import.meta.dirname, '..', 'catalogue-data')
 
-const readSources = () => sourcesSchema.parse(JSON.parse(fs.readFileSync(sourcesFile, 'utf8')))
+const readSources = () => catalogueSourcesSchema.parse(JSON.parse(fs.readFileSync(sourcesFile, 'utf8')))
 
 /** The head of a branch, through the `gh` CLI so the caller's existing auth is used. */
 const head = (repository: string, branch: string) =>
@@ -69,6 +50,14 @@ if (argument === '--check') {
     if (name === 'Last_update.csv')
       sources.wahapedia.revision = new TextDecoder().decode(bytes).split('\n')[1]?.replace('|', '').trim() ?? ''
   }
+  for (const name of Object.keys(sources.wahapedia.pages)) {
+    const response = await fetch(`${sources.wahapedia.baseUrl}/factions/${name}/`)
+    if (!response.ok) throw new Error(`Wahapedia ${name} page answered ${response.status}`)
+    sources.wahapedia.pages[name] = createHash('sha256')
+      .update(new Uint8Array(await response.arrayBuffer()))
+      .digest('hex')
+  }
+  sources.wahapedia.revision = `${sources.wahapedia.revision.split(' + pinned live pages')[0]} + pinned live pages`
   fs.writeFileSync(sourcesFile, `${JSON.stringify(sources, null, 2)}\n`)
 } else {
   await syncSources(dataDirectory, (message) => console.log(message))

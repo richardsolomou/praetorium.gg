@@ -1,18 +1,34 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { Check, Copy, Download, Eye, Layers3, LoaderCircle, Plus, Trash2, TriangleAlert, Upload, X } from 'lucide-react'
+import { Check, Copy, Download, EllipsisVertical, Eye, Layers3, LoaderCircle, Plus, Trash2, TriangleAlert, Upload, X } from 'lucide-react'
 import { strFromU8 } from 'fflate'
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Toggle } from '@/components/ui/toggle'
 import type { Roster, Secondary, Stratagem } from '../../core/battle'
 import { GAME_SIZES, ROSTER_NAME_MAX_LENGTH } from '../../core/battle'
 import type { RosterPick } from '../../core/roster'
-import { deleteRoster, exportRoster, importRoster, saveRoster, setOwned } from '../../server/functions'
+import { deleteRoster, exportRoster, importRoster, saveRoster } from '../../server/functions'
 import { collectionQuery, factionsQuery, priceQuery, savedRostersQuery } from '../queries'
+import { useCollectionMutation } from '../useCollection'
 import { errorMessage } from '../queryClient'
+import { DetachmentPoints } from './DetachmentPoints'
 import { shelve, shortName } from './builder/factions'
 import { GROUPS } from './builder/groups'
 import { Loadout } from './builder/Loadout'
@@ -20,6 +36,8 @@ import { Picker } from './builder/Picker'
 import { Section } from './builder/Section'
 import { Pane } from './builder/Pane'
 import { UnitCard } from './builder/UnitCard'
+import { dispositionsFor } from './rosterSetup'
+import { SearchableSelect } from './SearchableSelect'
 
 type Props = {
   onAttach?: (roster: Roster) => void
@@ -33,6 +51,7 @@ type Props = {
     name: string
     catalogueId: string
     detachmentIds: string[]
+    disposition: string | null
     limit: number
     picks: Omit<Pick, 'key'>[]
   }
@@ -62,9 +81,11 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
   const [nextKey, setNextKey] = useState(initial?.picks.length ?? 0)
   const [limit, setLimit] = useState<number>(initial?.limit ?? GAME_SIZES[1].limit)
   const [detachmentIds, setDetachmentIds] = useState<string[]>(initial?.detachmentIds ?? [])
+  const [disposition, setDisposition] = useState<string | null>(initial?.disposition ?? null)
   const [name, setName] = useState(initial?.name ?? '')
   const [selected, setSelected] = useState<number | null>(null)
   const [showing, setShowing] = useState<'picker' | 'loadout' | null>(null)
+  const [editingSetup, setEditingSetup] = useState(false)
   const importInput = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -76,10 +97,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
   const { data: saved } = useQuery(savedRostersQuery())
   const { data: owned } = useQuery(collectionQuery())
   const collection = new Set(owned ?? [])
-  const own = useMutation({
-    mutationFn: (input: { entryId: string; owned: boolean }) => setOwned({ data: input }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: collectionQuery().queryKey }),
-  })
+  const own = useCollectionMutation()
   const refreshSaved = () => queryClient.invalidateQueries({ queryKey: savedRostersQuery().queryKey })
 
   const loadSaved = (list: NonNullable<typeof saved>[number], copy = false) => {
@@ -88,6 +106,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
     setCatalogueId(list.catalogueId)
     setPickerCatalogueId(list.catalogueId)
     setDetachmentIds(list.detachmentIds)
+    setDisposition(list.disposition)
     setLimit(list.limit)
     setPicked(list.picks.map((pick, at) => ({ ...pick, key: at })))
     setNextKey(list.picks.length)
@@ -96,6 +115,10 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
   }
 
   const faction = available?.factions.find((entry) => entry.id === catalogueId)
+  const factionGroups = shelve(available?.factions ?? []).map((shelf) => ({
+    label: shelf.lineage,
+    items: shelf.factions.map((entry) => ({ label: shortName(entry.name), value: entry.id })),
+  }))
   const suggested = faction
     ? [shortName(faction.name), faction.detachments.find((entry) => entry.id === detachmentIds[0])?.name].filter(Boolean).join(' — ')
     : ''
@@ -109,6 +132,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
           name: listName || 'Untitled list',
           catalogueId,
           detachmentIds,
+          disposition,
           limit,
           picks: picked.map(({ entryId, catalogueId: unitCatalogueId, models, choices, spreads, toggles, attachedTo }) => ({
             entryId,
@@ -130,14 +154,14 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
   })
 
   useEffect(() => {
-    if (!catalogueId || !picked.length || !listName) return
+    if (!catalogueId || (!picked.length && !savedId) || !listName) return
     const id = savedId ?? crypto.randomUUID()
     if (!savedId) setSavedId(id)
     save.mutate(id)
     // The mutation reads the complete rendered draft. A later render queues behind
     // this one, so the final request always contains the newest state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [catalogueId, detachmentIds, limit, listName, picked, prep, savedId])
+  }, [catalogueId, detachmentIds, disposition, limit, listName, picked, prep, savedId])
 
   /**
    * Reading a roster file. `.ros` is text; `.rosz` is a zip, so it travels as base64
@@ -167,6 +191,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
         data: {
           catalogueId,
           detachmentIds,
+          disposition,
           limit,
           name: listName || 'Roster',
           units: picked.map(({ entryId, catalogueId: unitCatalogueId, models, choices, spreads, toggles, attachedTo }) => ({
@@ -202,6 +227,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
     ...priceQuery(
       catalogueId,
       detachmentIds,
+      disposition,
       limit,
       picked.map(({ entryId, catalogueId: unitCatalogueId, models, choices, spreads, toggles }) => ({
         entryId,
@@ -241,14 +267,27 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
     setNextKey((current) => current + 1)
   }
 
-  const toggleDetachment = (id: string, checked: boolean) =>
-    setDetachmentIds((current) => (checked ? (current.includes(id) ? current : [...current, id]) : current.filter((entry) => entry !== id)))
+  const toggleDetachment = (id: string, checked: boolean) => {
+    setDetachmentIds((current) => {
+      const next = checked ? (current.includes(id) ? current : [...current, id]) : current.filter((entry) => entry !== id)
+      if (next[0] !== current[0]) setDisposition(null)
+      return next
+    })
+  }
 
   const resize = (index: number, models: number) =>
     setPicked((current) => current.map((pick, at) => (at === index ? { ...pick, models } : pick)))
 
   const choose = (index: number, key: string, optionId: string) =>
-    setPicked((current) => current.map((pick, at) => (at === index ? { ...pick, choices: { ...pick.choices, [key]: optionId } } : pick)))
+    setPicked((current) =>
+      current.map((pick, at) => {
+        if (at !== index) return pick
+        const choices = { ...pick.choices }
+        if (optionId) choices[key] = optionId
+        else delete choices[key]
+        return { ...pick, choices }
+      }),
+    )
 
   /** How many of each option a group holds, leaving the unit's other groups alone. */
   const spread = (index: number, key: string, counts: Record<string, number>) =>
@@ -382,39 +421,35 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
 
   const picker = faction ? (
     <div className="flex h-full flex-col">
-      <div className="border-b border-edge p-2.5">
-        <label className="eyebrow block" htmlFor="force">
-          Force
-        </label>
-        <Select
-          value={pickerCatalogueId || catalogueId}
-          onValueChange={(value: string | null) => setPickerCatalogueId(value ?? catalogueId)}
-        >
-          <SelectTrigger id="force" className="mt-1 w-full">
-            <SelectValue>
-              {(value: unknown) => {
-                const entry = available.factions.find((each) => each.id === value)
-                return entry ? shortName(entry.name) : 'Pick a force'
-              }}
-            </SelectValue>
-          </SelectTrigger>
-          <SelectContent className="w-auto min-w-(--anchor-width) max-w-[min(90vw,24rem)]">
-            {shelve(available.factions).map((shelf) => (
-              <SelectGroup key={shelf.lineage}>
-                <SelectLabel>{shelf.lineage}</SelectLabel>
-                {shelf.factions.map((entry) => (
-                  <SelectItem key={entry.id} value={entry.id}>
-                    {shortName(entry.name)}
-                    {entry.id === catalogueId ? ' (primary)' : ''}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+      {initial ? null : (
+        <div className="border-b border-edge p-2.5">
+          <Label className="eyebrow block" htmlFor="force">
+            Force
+          </Label>
+          <SearchableSelect
+            id="force"
+            groups={factionGroups.map((group) => ({
+              ...group,
+              items: group.items.map((entry) => ({
+                ...entry,
+                label: `${entry.label}${entry.value === catalogueId ? ' (primary)' : ''}`,
+              })),
+            }))}
+            value={pickerCatalogueId || catalogueId}
+            onValueChange={setPickerCatalogueId}
+            placeholder="Pick a force"
+            searchPlaceholder="Search forces…"
+            className="mt-1"
+          />
+        </div>
+      )}
       <div className="min-h-0 flex-1">
-        <Picker catalogueId={pickerCatalogueId || catalogueId} onAdd={add} inRoster={held} room={priced ? limit - priced.points : null} />
+        <Picker
+          catalogueId={initial ? catalogueId : pickerCatalogueId || catalogueId}
+          onAdd={add}
+          inRoster={held}
+          room={priced ? limit - priced.points : null}
+        />
       </div>
     </div>
   ) : (
@@ -427,6 +462,9 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
       catalogueId={loadoutCatalogueId}
       catalogueSlug={available.factions.find((entry) => entry.id === loadoutCatalogueId)?.slug ?? loadoutCatalogueId}
       unit={selectedUnit}
+      detachmentIds={detachmentIds}
+      picks={picked}
+      pickIndex={selected}
       onChoose={(key, optionId) => selected !== null && choose(selected, key, optionId)}
       onSpread={(key, counts) => selected !== null && spread(selected, key, counts)}
     />
@@ -445,212 +483,378 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
           className="h-8 border-0 bg-transparent px-0 text-lg font-bold tracking-[0.02em] uppercase focus-visible:ring-0"
         />
 
-        {/*
-         * Faction, detachment and battle size read as the values they are rather
-         * than as three form controls, because on a phone the header competes with
-         * the roster for the screen and the roster is what is being read.
-         */}
-        <div className="grid grid-cols-2 gap-x-5 gap-y-1 sm:flex sm:flex-wrap sm:gap-x-7">
-          <div className="order-1 min-w-0">
-            <label className="eyebrow block" htmlFor="faction">
-              Faction
-            </label>
-            <Select
-              value={catalogueId}
-              onValueChange={(value: string | null) => {
-                setCatalogueId(value ?? '')
-                setPickerCatalogueId(value ?? '')
-                setPicked([])
-                setDetachmentIds([])
-                setSelected(null)
-              }}
-            >
-              <SelectTrigger id="faction" className="h-6 w-full border-0 bg-transparent px-0 font-semibold text-azure uppercase">
-                {/* The value is a catalogue id, so the trigger has to be told the name. */}
-                <SelectValue placeholder="Pick a book">
-                  {(value: unknown) => {
-                    const entry = available.factions.find((each) => each.id === value)
-                    return entry ? shortName(entry.name) : 'Pick a book'
+        {initial && faction ? (
+          <div className="flex min-w-0 items-center gap-2 text-xs text-dim">
+            <Link to="/factions/$catalogueId" params={{ catalogueId: faction.slug }} className="truncate text-azure hover:text-bone">
+              {faction.displayName}
+            </Link>
+            <span aria-hidden>·</span>
+            <Link to="/rosters" search={{ limit }} className="shrink-0 hover:text-bone">
+              {GAME_SIZES.find((size) => size.limit === limit)?.name ?? `${limit} points`}
+            </Link>
+            {detachmentIds.map((id) => {
+              const detachment = faction.detachments.find((candidate) => candidate.id === id)
+              return detachment ? (
+                <span key={id} className="contents">
+                  <span aria-hidden>·</span>
+                  <Link
+                    to="/factions/$catalogueId/detachments/$detachmentId"
+                    params={{ catalogueId: faction.slug, detachmentId: detachment.slug }}
+                    className="truncate hover:text-bone"
+                  >
+                    {detachment.name}
+                  </Link>
+                </span>
+              ) : null
+            })}
+            {priced?.disposition ? (
+              <span className="contents">
+                <span aria-hidden>·</span>
+                <span className="shrink-0">
+                  {available.factions
+                    .flatMap((entry) => entry.detachments)
+                    .flatMap((entry) => entry.dispositions)
+                    .find((entry) => entry.id === priced.disposition)?.name ?? priced.disposition}
+                </span>
+              </span>
+            ) : null}
+            <DropdownMenu>
+              <DropdownMenuTrigger aria-label="Roster actions" className="ml-auto grid size-7 shrink-0 place-items-center hover:text-bone">
+                <EllipsisVertical className="size-4" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setEditingSetup(true)}>Edit roster setup</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        ) : null}
+
+        <Dialog open={editingSetup} onOpenChange={setEditingSetup}>
+          <DialogContent className="rounded-none border border-edge bg-panel text-bone ring-0 sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="text-xl uppercase">Edit roster setup</DialogTitle>
+              <DialogDescription className="text-dim">Changing faction removes the units already picked.</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label className="eyebrow block" htmlFor="edit-roster-faction">
+                  Faction
+                </Label>
+                <SearchableSelect
+                  id="edit-roster-faction"
+                  groups={factionGroups}
+                  value={catalogueId}
+                  onValueChange={(value) => {
+                    if (value === catalogueId) return
+                    setCatalogueId(value)
+                    setPickerCatalogueId(value)
+                    setPicked([])
+                    setDetachmentIds([])
+                    setDisposition(null)
+                    setSelected(null)
                   }}
-                </SelectValue>
-              </SelectTrigger>
-              {/* The lineage every name carries is the heading here rather than
-                  nineteen repeated characters on each row, and the list is as wide
-                  as its longest name rather than as wide as the column. */}
-              <SelectContent className="w-auto min-w-(--anchor-width) max-w-[min(90vw,24rem)]">
-                {shelve(available.factions).map((shelf) => (
-                  <SelectGroup key={shelf.lineage}>
-                    <SelectLabel>{shelf.lineage}</SelectLabel>
-                    {shelf.factions.map((entry) => (
-                      <SelectItem key={entry.id} value={entry.id}>
-                        {shortName(entry.name)}
+                  placeholder="Pick a faction"
+                  searchPlaceholder="Search factions…"
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label className="eyebrow block" htmlFor="edit-roster-size">
+                  Battle size
+                </Label>
+                <Select value={String(limit)} onValueChange={(value: string | null) => setLimit(Number(value ?? limit))}>
+                  <SelectTrigger id="edit-roster-size" className="mt-1 w-full">
+                    <SelectValue>{(value: unknown) => GAME_SIZES.find((size) => String(size.limit) === value)?.name}</SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {GAME_SIZES.map((size) => (
+                      <SelectItem key={size.limit} value={String(size.limit)}>
+                        {size.name} — {size.limit} pts
                       </SelectItem>
                     ))}
-                  </SelectGroup>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {faction?.detachments.length ? (
-            <div className="order-3 col-span-2 min-w-0 sm:order-2 sm:min-w-64">
-              <span className="eyebrow block">Detachments</span>
-              <div className="mt-1 space-y-1">
-                {detachmentIds.map((id, index) => {
-                  const entry = faction.detachments.find((candidate) => candidate.id === id)
-                  if (!entry) return null
-                  return (
-                    <div key={id} className="flex min-h-8 items-center gap-2 border border-edge-strong bg-raised px-2 py-1">
-                      <Layers3 className="size-3 shrink-0 text-azure" aria-hidden />
-                      <span className="min-w-0 flex-1 truncate text-xs font-semibold uppercase">{entry.name}</span>
-                      {index === 0 ? <span className="eyebrow text-azure">Primary</span> : null}
-                      {entry.reference?.points == null ? null : <span className="chip">{entry.reference.points} DP</span>}
-                      <Button variant="ghost" size="icon" aria-label={`Remove ${entry.name}`} onClick={() => toggleDetachment(id, false)}>
-                        <X />
-                      </Button>
+                  </SelectContent>
+                </Select>
+              </div>
+              <fieldset>
+                <legend className="eyebrow">Detachments</legend>
+                <div className="mt-1 grid max-h-64 gap-1 overflow-y-auto sm:grid-cols-2">
+                  {faction?.detachments.map((detachment) => {
+                    const chosen = detachmentIds.includes(detachment.id)
+                    return (
+                      <Toggle
+                        key={detachment.id}
+                        pressed={chosen}
+                        onPressedChange={(pressed) => toggleDetachment(detachment.id, pressed)}
+                        className={`min-h-10 border px-2 py-1.5 text-left text-xs font-semibold uppercase ${chosen ? 'border-azure bg-raised text-azure' : 'border-edge bg-sunken text-dim'}`}
+                      >
+                        {detachment.name}
+                      </Toggle>
+                    )
+                  })}
+                </div>
+              </fieldset>
+              <DetachmentPoints
+                spent={priced?.detachmentPointsSpent ?? 0}
+                available={priced?.detachmentPointBudget ?? GAME_SIZES.find((size) => size.limit === limit)?.detachmentPoints ?? null}
+                error={priced?.detachmentError}
+              />
+              {(() => {
+                const dispositions = dispositionsFor(faction?.detachments ?? [], detachmentIds)
+                if (!dispositions.length) return null
+                return (
+                  <div>
+                    <Label className="eyebrow block" htmlFor="edit-roster-disposition">
+                      Disposition
+                    </Label>
+                    <div className="mt-1 h-9">
+                      {dispositions.length === 1 ? (
+                        <p className="flex h-full items-center text-sm text-dim">{dispositions[0].name}</p>
+                      ) : (
+                        <Select value={disposition} onValueChange={setDisposition}>
+                          <SelectTrigger id="edit-roster-disposition" className="h-full w-full">
+                            <SelectValue placeholder="Pick a disposition">
+                              {(value: unknown) => dispositions.find((candidate) => candidate.id === value)?.name ?? 'Pick a disposition'}
+                            </SelectValue>
+                          </SelectTrigger>
+                          <SelectContent>
+                            {dispositions.map((candidate) => (
+                              <SelectItem key={candidate.id} value={candidate.id}>
+                                {candidate.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
                     </div>
-                  )
-                })}
-                {detachmentIds.length < 3 ? (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger
-                      aria-label="Add detachment"
-                      className="flex h-8 w-full items-center gap-2 border border-dashed border-edge-strong px-2 text-xs font-semibold text-azure uppercase"
-                    >
-                      <Plus className="size-3" aria-hidden /> Add detachment
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent className="w-80 rounded-none border border-edge-strong bg-raised ring-0">
-                      {faction.detachments
-                        .filter((entry) => !detachmentIds.includes(entry.id))
-                        .map((entry) => (
-                          <DropdownMenuItem
-                            key={entry.id}
-                            onClick={() => toggleDetachment(entry.id, true)}
-                            className="rounded-none text-xs uppercase focus:bg-edge"
+                  </div>
+                )
+              })()}
+            </div>
+            <DialogFooter className="rounded-none border-edge bg-sunken">
+              <Button
+                onClick={() => setEditingSetup(false)}
+                disabled={!detachmentIds.length || Boolean(priced?.detachmentError) || Boolean(priced?.dispositionError)}
+              >
+                Done
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {initial ? null : (
+          <>
+            {/*
+             * Faction, detachment and battle size read as the values they are rather
+             * than as three form controls, because on a phone the header competes with
+             * the roster for the screen and the roster is what is being read.
+             */}
+            <div className="grid grid-cols-2 gap-x-5 gap-y-1 sm:flex sm:flex-wrap sm:gap-x-7">
+              <div className="order-1 min-w-0">
+                <Label className="eyebrow block" htmlFor="faction">
+                  Faction
+                </Label>
+                <SearchableSelect
+                  id="faction"
+                  groups={factionGroups}
+                  value={catalogueId}
+                  onValueChange={(value) => {
+                    setCatalogueId(value)
+                    setPickerCatalogueId(value)
+                    setPicked([])
+                    setDetachmentIds([])
+                    setSelected(null)
+                  }}
+                  placeholder="Pick a faction"
+                  searchPlaceholder="Search factions…"
+                  className="h-6 border-0 bg-transparent px-0 font-semibold text-azure uppercase hover:bg-transparent data-popup-open:bg-transparent"
+                />
+              </div>
+
+              {faction?.detachments.length ? (
+                <div className="order-3 col-span-2 min-w-0 sm:order-2 sm:min-w-64">
+                  <span className="eyebrow block">Detachments</span>
+                  <div className="mt-1 space-y-1">
+                    {detachmentIds.map((id, index) => {
+                      const entry = faction.detachments.find((candidate) => candidate.id === id)
+                      if (!entry) return null
+                      return (
+                        <div key={id} className="flex min-h-8 items-center gap-2 border border-edge-strong bg-raised px-2 py-1">
+                          <Layers3 className="size-3 shrink-0 text-azure" aria-hidden />
+                          <span className="min-w-0 flex-1 truncate text-xs font-semibold uppercase">{entry.name}</span>
+                          {index === 0 ? <span className="eyebrow text-azure">Primary</span> : null}
+                          {entry.reference?.points == null ? null : <span className="chip">{entry.reference.points} DP</span>}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            aria-label={`Remove ${entry.name}`}
+                            onClick={() => toggleDetachment(id, false)}
                           >
-                            <span className="min-w-0 flex-1 truncate">{entry.name}</span>
-                            {entry.reference?.points == null ? null : <span className="chip">{entry.reference.points} DP</span>}
-                          </DropdownMenuItem>
-                        ))}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                ) : null}
-                {priced?.detachmentError ? (
-                  <p role="alert" className="flex max-w-80 gap-1.5 text-xs text-destructive">
-                    <TriangleAlert className="mt-0.5 size-3 shrink-0" aria-hidden />
-                    {priced.detachmentError}
-                  </p>
-                ) : null}
+                            <X />
+                          </Button>
+                        </div>
+                      )
+                    })}
+                    {detachmentIds.length < 3 ? (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger
+                          aria-label="Add detachment"
+                          className="flex h-8 w-full items-center gap-2 border border-dashed border-edge-strong px-2 text-xs font-semibold text-azure uppercase"
+                        >
+                          <Plus className="size-3" aria-hidden /> Add detachment
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent className="w-80 rounded-none border border-edge-strong bg-raised ring-0">
+                          {faction.detachments
+                            .filter((entry) => !detachmentIds.includes(entry.id))
+                            .map((entry) => (
+                              <DropdownMenuItem
+                                key={entry.id}
+                                onClick={() => toggleDetachment(entry.id, true)}
+                                className="rounded-none text-xs uppercase focus:bg-edge"
+                              >
+                                <span className="min-w-0 flex-1 truncate">{entry.name}</span>
+                                {entry.reference?.points == null ? null : <span className="chip">{entry.reference.points} DP</span>}
+                              </DropdownMenuItem>
+                            ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    ) : null}
+                    {priced?.detachmentError ? (
+                      <p role="alert" className="flex max-w-80 gap-1.5 text-xs text-destructive">
+                        <TriangleAlert className="mt-0.5 size-3 shrink-0" aria-hidden />
+                        {priced.detachmentError}
+                      </p>
+                    ) : null}
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="order-2 min-w-0 sm:order-3">
+                <Label className="eyebrow block" htmlFor="size">
+                  Battle size
+                </Label>
+                <Select value={String(limit)} onValueChange={(value: string | null) => setLimit(Number(value ?? GAME_SIZES[1].limit))}>
+                  <SelectTrigger id="size" className="h-6 w-full border-0 bg-transparent px-0 font-semibold uppercase">
+                    <SelectValue>
+                      {(value: unknown) => GAME_SIZES.find((entry) => String(entry.limit) === value)?.name ?? 'Pick a size'}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {GAME_SIZES.map((entry) => (
+                      <SelectItem key={entry.limit} value={String(entry.limit)}>
+                        {entry.name} — {entry.limit} pts
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
-          ) : null}
 
-          <div className="order-2 min-w-0 sm:order-3">
-            <label className="eyebrow block" htmlFor="size">
-              Battle size
-            </label>
-            <Select value={String(limit)} onValueChange={(value: string | null) => setLimit(Number(value ?? GAME_SIZES[1].limit))}>
-              <SelectTrigger id="size" className="h-6 w-full border-0 bg-transparent px-0 font-semibold uppercase">
-                <SelectValue>
-                  {(value: unknown) => GAME_SIZES.find((entry) => String(entry.limit) === value)?.name ?? 'Pick a size'}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {GAME_SIZES.map((entry) => (
-                  <SelectItem key={entry.limit} value={String(entry.limit)}>
-                    {entry.name} — {entry.limit} pts
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
+            <p className="mt-1 text-xs text-faint">
+              {[
+                '11th edition',
+                `${priced?.points ?? 0}/${limit} points`,
+                priced?.detachmentPointBudget === null || priced?.detachmentPointBudget === undefined
+                  ? null
+                  : detachmentIds.length <= 1
+                    ? `${priced.detachmentPointsSpent} DP detachment`
+                    : `${priced.detachmentPointsSpent}/${priced.detachmentPointBudget} DP allowance`,
+                `${units.length} ${units.length === 1 ? 'unit' : 'units'}`,
+              ]
+                .filter(Boolean)
+                .join(' • ')}
+            </p>
 
-        <p className="mt-1 text-xs text-faint">
-          {[
-            '11th edition',
-            `${priced?.points ?? 0}/${limit} points`,
-            priced?.detachmentPointBudget === null || priced?.detachmentPointBudget === undefined
-              ? null
-              : detachmentIds.length <= 1
-                ? `${priced.detachmentPointsSpent} DP detachment`
-                : `${priced.detachmentPointsSpent}/${priced.detachmentPointBudget} DP allowance`,
-            `${units.length} ${units.length === 1 ? 'unit' : 'units'}`,
-          ]
-            .filter(Boolean)
-            .join(' • ')}
-        </p>
-
-        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5">
-          <label className="eyebrow cursor-pointer text-azure hover:text-bone" htmlFor="bring">
-            <Upload className="mr-1 inline size-3" />
-            Bring a list from another tool
-          </label>
-          <Input
-            ref={importInput}
-            id="bring"
-            type="file"
-            accept=".ros,.rosz"
-            disabled={bring.isPending}
-            className="sr-only"
-            onChange={(event) => {
-              const file = event.target.files?.[0]
-              if (file) bring.mutate(file)
-              event.target.value = ''
-            }}
-          />
-          {saved?.length ? (
-            <span className="flex flex-wrap items-center gap-1.5">
-              <span className="eyebrow">Your lists</span>
-              {saved.map((list) => (
-                <span key={list.id} className="flex items-center border border-edge bg-card">
-                  <Button
-                    variant="ghost"
-                    size="xs"
-                    className="max-w-40 truncate rounded-none px-2 py-0.5 text-xs hover:bg-transparent hover:text-azure"
-                    title={`${list.picks.length} units · ${list.limit} points · updated ${new Date(list.updatedAt).toLocaleDateString()}`}
-                    onClick={() => loadSaved(list)}
-                  >
-                    {list.name}
-                  </Button>
-                  <Button
-                    render={<Link to="/r/$id" params={{ id: list.id }} />}
-                    variant="ghost"
-                    size="icon-sm"
-                    className="size-6"
-                    aria-label={`View ${list.name}`}
-                  >
-                    <Eye />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    className="size-6"
-                    aria-label={`Copy ${list.name}`}
-                    onClick={() => loadSaved(list, true)}
-                  >
-                    <Copy />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    className="size-6"
-                    aria-label={`Delete ${list.name}`}
-                    disabled={remove.isPending}
-                    onClick={() => remove.mutate(list.id)}
-                  >
-                    <Trash2 />
-                  </Button>
+            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+              <Label className="eyebrow cursor-pointer text-azure hover:text-bone" htmlFor="bring">
+                <Upload className="mr-1 inline size-3" />
+                Bring a list from another tool
+              </Label>
+              <Input
+                ref={importInput}
+                id="bring"
+                type="file"
+                accept=".ros,.rosz"
+                disabled={bring.isPending}
+                className="sr-only"
+                onChange={(event) => {
+                  const file = event.target.files?.[0]
+                  if (file) bring.mutate(file)
+                  event.target.value = ''
+                }}
+              />
+              {saved?.length ? (
+                <span className="flex flex-wrap items-center gap-1.5">
+                  <span className="eyebrow">Your lists</span>
+                  {saved.map((list) => (
+                    <span key={list.id} className="flex items-center border border-edge bg-card">
+                      <Button
+                        variant="ghost"
+                        size="xs"
+                        className="max-w-40 truncate rounded-none px-2 py-0.5 text-xs hover:bg-transparent hover:text-azure"
+                        title={`${list.picks.length} units · ${list.limit} points · updated ${new Date(list.updatedAt).toLocaleDateString()}`}
+                        onClick={() => loadSaved(list)}
+                      >
+                        {list.name}
+                      </Button>
+                      <Button
+                        render={<Link to="/r/$id" params={{ id: list.id }} />}
+                        variant="ghost"
+                        size="icon-sm"
+                        className="size-6"
+                        aria-label={`View ${list.name}`}
+                      >
+                        <Eye />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        className="size-6"
+                        aria-label={`Copy ${list.name}`}
+                        onClick={() => loadSaved(list, true)}
+                      >
+                        <Copy />
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger
+                          render={
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              className="size-6"
+                              aria-label={`Delete ${list.name}`}
+                              disabled={remove.isPending}
+                            />
+                          }
+                        >
+                          <Trash2 />
+                        </AlertDialogTrigger>
+                        <AlertDialogContent className="rounded-none border border-edge bg-panel text-bone ring-0">
+                          <AlertDialogHeader>
+                            <AlertDialogTitle className="uppercase">Delete {list.name}?</AlertDialogTitle>
+                            <AlertDialogDescription className="text-dim">
+                              This removes the saved roster. Battles that already use it are not changed.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter className="rounded-none border-edge bg-sunken">
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction variant="destructive" onClick={() => remove.mutate(list.id)}>
+                              Delete roster
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </span>
+                  ))}
                 </span>
-              ))}
-            </span>
-          ) : null}
-        </div>
+              ) : null}
+            </div>
 
-        {bring.error ? <p className="mt-1 text-xs text-destructive">{errorMessage(bring.error)}</p> : null}
-        {bring.data?.unknown.length ? (
-          <p className="mt-1 text-xs text-destructive">Could not place: {bring.data.unknown.join(', ')}</p>
-        ) : null}
+            {bring.error ? <p className="mt-1 text-xs text-destructive">{errorMessage(bring.error)}</p> : null}
+            {bring.data?.unknown.length ? (
+              <p className="mt-1 text-xs text-destructive">Could not place: {bring.data.unknown.join(', ')}</p>
+            ) : null}
+          </>
+        )}
       </header>
 
       <div className="flex min-h-0 flex-1">

@@ -1,6 +1,6 @@
 import path from 'node:path'
 import { type BattleEvents, RealtimePublisher } from '../adapters/events'
-import { catalogueDirectory, type LoadedCatalogue, loadCatalogue } from './catalogue'
+import { catalogueDirectory, type LoadedCatalogue, loadCatalogue } from './catalogueIndex'
 import { type LoadedRules, loadRules } from './rules'
 import { isCurrent, type SyncState, syncSources } from './sync'
 import { databasePath, type PraetoriumDatabase, openDatabase } from '../db/connection'
@@ -46,14 +46,11 @@ const sync = {
   running: false,
   begin(directory: string, onReady: () => void) {
     if (this.running) return
-    if (isCurrent(directory)) {
-      this.state = { status: 'ready', detail: null }
-      return
-    }
+    const authoritativeReady = isCurrent(directory)
     this.running = true
-    this.state = { status: 'working', detail: 'fetching the community data' }
+    this.state = authoritativeReady ? { status: 'ready', detail: null } : { status: 'working', detail: 'fetching the community data' }
     void syncSources(directory, (message) => {
-      this.state = { status: 'working', detail: message }
+      if (!authoritativeReady) this.state = { status: 'working', detail: message }
     })
       .then(() => {
         this.state = { status: 'ready', detail: null }

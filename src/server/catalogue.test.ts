@@ -1,15 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { buildIndex, type Catalogue, type CatalogueFile } from '../core/catalogue'
-import {
-  datasheetIn,
-  datasheetInBySlug,
-  detachmentCatalogueDetail,
-  detachmentsOf,
-  factionsIn,
-  type LoadedCatalogue,
-  rulesReferencedIn,
-  unitsIn,
-} from './catalogue'
+import { buildIndex, type Catalogue, type CatalogueFile, type Modifier } from '../core/catalogue'
+import { datasheetIn, datasheetInBySlug, rulesReferencedIn } from './catalogue'
+import { detachmentCatalogueDetail } from './catalogueDescriptions'
+import { detachmentsOf, factionsIn, type LoadedCatalogue } from './catalogueIndex'
+import { unitsIn } from './cataloguePicker'
 
 const PTS = 'cost-pts'
 
@@ -41,6 +35,35 @@ const ability = (id: string, name: string) => ({
   typeName: 'Abilities',
   characteristics: [{ name: 'Description', $text: `${name} text` }],
 })
+
+type ProfileOperationCase = Pick<Modifier, 'type' | 'value' | 'position' | 'join' | 'arg'> & {
+  base: string
+  expected: string
+  repeated?: boolean
+  skipIfPresent?: string
+}
+
+const profileOperationCases: ProfileOperationCase[] = [
+  { type: 'set', base: '5', value: '4+', expected: '4+' },
+  { type: 'append', base: 'Assault', value: 'Lethal Hits', expected: 'Assault, Lethal Hits', join: ', ' },
+  { type: 'prepend', base: 'Lethal Hits', value: 'Assault', expected: 'Assault, Lethal Hits', join: ', ' },
+  { type: 'increment', base: 'D6+1', value: 2, expected: 'D6+3', position: -1 },
+  { type: 'decrement', base: '6-2', value: 1, expected: '5-3' },
+  { type: 'multiply', base: '2', value: 3, expected: '12', repeated: true },
+  { type: 'divide', base: '12', value: 3, expected: '2', repeated: true },
+  { type: 'modulo', base: '13', value: 5, expected: '3' },
+  { type: 'power', base: '2', value: 3, expected: '64', repeated: true },
+  { type: 'exponent', base: '2', value: 3, expected: '18', repeated: true },
+  { type: 'triangular', base: '2', value: 3, expected: '11', repeated: true },
+  { type: 'floor', base: '1', value: 2, expected: '2' },
+  { type: 'ceil', base: '12"', value: 9, expected: '9"' },
+  { type: 'cumulative-add', base: '2', value: 3, expected: '6.5', repeated: true },
+  { type: 'cumulative-power', base: '2', value: 3, expected: '4', repeated: true },
+  { type: 'cumulative-multiply', base: '2', value: 3, expected: '24', repeated: true },
+  { type: 'replace', base: 'Rapid Fire 1, Assault', value: 'Rapid Fire 2', expected: 'Rapid Fire 2, Assault', arg: 'Rapid Fire 1' },
+  { type: 'replace', base: 'Rapid Fire 1, Assault', expected: ', Assault', arg: 'Rapid Fire 1' },
+  { type: 'append', base: 'Assault', value: 'Assault', expected: 'Assault', skipIfPresent: 'Assault' },
+]
 
 describe('the picker', () => {
   it('gives datasheets readable unambiguous route slugs', () => {
@@ -156,7 +179,7 @@ describe('the picker', () => {
     expect(offered(shelf)).toEqual(['Squad'])
   })
 
-  it('leaves Legends out of the book until they are asked for', () => {
+  it('never offers Legends datasheets', () => {
     const book = bookOf({
       selectionEntries: [
         { id: 'squad', name: 'Squad', type: 'unit', costs: points(70) },
@@ -164,9 +187,7 @@ describe('the picker', () => {
       ],
     })
     expect(offered(book)).toEqual(['Squad'])
-    // Left out of the book rather than of what is shown: a third of every book is
-    // Legends, and the page of results would be all of it.
-    expect(unitsIn(book, 'cat', '', { legends: true }).map((unit) => unit.name)).toEqual(['Land Speeder [Legends]', 'Squad'])
+    expect(unitsIn(book, 'cat', 'Land Speeder')).toEqual([])
   })
 
   it('does not offer a library as a faction', () => {
@@ -410,6 +431,302 @@ describe('a datasheet', () => {
     })
   })
 
+  it('shows only weapons carried by the selected unit when roster context is present', () => {
+    const book = bookOf({
+      selectionEntries: [
+        {
+          id: 'captain',
+          name: 'Captain',
+          type: 'unit',
+          selectionEntries: [
+            {
+              id: 'blade-entry',
+              name: 'Blade',
+              type: 'upgrade',
+              profiles: [{ id: 'blade', name: 'Blade', typeName: 'Melee Weapons', characteristics: [{ name: 'S', $text: '5' }] }],
+            },
+            {
+              id: 'spear-entry',
+              name: 'Spear',
+              type: 'upgrade',
+              profiles: [{ id: 'spear', name: 'Spear', typeName: 'Melee Weapons', characteristics: [{ name: 'S', $text: '6' }] }],
+            },
+          ],
+        },
+      ],
+    })
+    const context = { selections: [{ id: 'captain', selections: [{ id: 'blade-entry', count: 1 }] }], unitSelectionIndex: 0 }
+    expect(datasheetIn(book, 'cat', 'captain', context)?.profiles.map((profile) => profile.name)).toEqual(['Blade'])
+  })
+
+  it('applies profile modifiers from the selected detachment and preserves their source', () => {
+    const book = bookOf({
+      selectionEntries: [{ id: 'cursed-legion', name: 'Cursed Legion', type: 'upgrade' }],
+      entryLinks: [{ id: 'destroyers', name: 'Destroyers', targetId: 'destroyer-sheet', type: 'selectionEntry' }],
+      sharedSelectionEntries: [
+        {
+          id: 'destroyer-sheet',
+          name: 'Destroyers',
+          type: 'unit',
+          selectionEntries: [
+            {
+              id: 'blade-entry',
+              name: 'Blade',
+              type: 'upgrade',
+              profiles: [
+                {
+                  id: 'blade',
+                  name: 'Blade',
+                  typeName: 'Melee Weapons',
+                  characteristics: [{ name: 'S', typeId: 'melee-strength', $text: '5' }],
+                },
+              ],
+            },
+            {
+              id: 'claw-entry',
+              name: 'Claw',
+              type: 'upgrade',
+              profiles: [
+                {
+                  id: 'claw',
+                  name: 'Claw',
+                  typeName: 'Melee Weapons',
+                  characteristics: [{ name: 'S', typeId: 'melee-strength', $text: '4' }],
+                },
+              ],
+            },
+          ],
+          modifierGroups: [
+            {
+              conditions: [
+                {
+                  type: 'atLeast',
+                  value: 1,
+                  field: 'selections',
+                  scope: 'force',
+                  childId: 'cursed-legion',
+                  includeChildSelections: true,
+                },
+              ],
+              modifiers: [
+                {
+                  type: 'increment',
+                  value: 2,
+                  field: 'melee-strength',
+                  scope: 'root-entry',
+                  affects: 'self.entries.recursive.blade-entry.profiles.Melee Weapons',
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    })
+
+    expect(
+      datasheetIn(book, 'cat', 'destroyers', {
+        selections: [{ id: 'cursed-legion' }, { id: 'destroyers' }],
+      })?.profiles[0]?.values[0],
+    ).toEqual({ name: 'S', value: '7', baseValue: '5', modifiers: ['Cursed Legion'] })
+    expect(
+      datasheetIn(book, 'cat', 'destroyers', {
+        selections: [{ id: 'cursed-legion' }, { id: 'destroyers' }],
+      })?.profiles[1]?.values[0],
+    ).toEqual({ name: 'S', value: '4' })
+    expect(datasheetIn(book, 'cat', 'destroyers')?.profiles[0]?.values[0]).toEqual({ name: 'S', value: '5' })
+  })
+
+  it.each(profileOperationCases)(
+    'applies the $type profile operation',
+    ({ type, base, value, expected, position, join, arg, repeated, skipIfPresent }) => {
+      const book = bookOf({
+        selectionEntries: [
+          {
+            id: 'unit',
+            name: 'Unit',
+            type: 'unit',
+            profiles: [
+              { id: 'profile', name: 'Profile', typeName: 'Unit', characteristics: [{ name: 'M', typeId: 'field', $text: base }] },
+            ],
+            selectionEntries: [{ id: 'body', name: 'Body', type: 'model' }],
+            modifiers: [
+              {
+                type,
+                field: 'field',
+                value,
+                position,
+                join,
+                arg,
+                skipIfPresent,
+                affects: 'profiles.Unit',
+                repeats: repeated ? [{ value: 1, field: 'selections', scope: 'self', childId: 'model' }] : undefined,
+              },
+            ],
+          },
+        ],
+      })
+      const sheet = datasheetIn(book, 'cat', 'unit', {
+        selections: [{ id: 'unit', selections: [{ id: 'body', count: 2 }] }],
+      })
+      expect(sheet?.profiles[0]?.values[0]?.value).toBe(expected)
+    },
+  )
+
+  it('applies profile name and annotation modifiers', () => {
+    const book = bookOf({
+      selectionEntries: [
+        {
+          id: 'unit',
+          name: 'Unit',
+          type: 'unit',
+          profiles: [{ id: 'profile', name: 'Blade', typeName: 'Melee Weapons', characteristics: [{ name: 'S', $text: '5' }] }],
+          modifiers: [
+            { type: 'append', field: 'name', value: 'Masterwork', join: ' — ', affects: 'profiles.Melee Weapons' },
+            { type: 'append', field: 'annotation', value: 'Cold Fervour', join: ', ', affects: 'profiles.Melee Weapons' },
+          ],
+        },
+      ],
+    })
+    expect(datasheetIn(book, 'cat', 'unit', { selections: [{ id: 'unit' }] })?.profiles[0]?.name).toBe('Blade — Masterwork (Cold Fervour)')
+  })
+
+  it('applies modifiers declared directly on a profile', () => {
+    const book = bookOf({
+      selectionEntries: [
+        {
+          id: 'unit',
+          name: 'Unit',
+          type: 'unit',
+          profiles: [
+            {
+              id: 'profile',
+              name: 'Blade',
+              typeName: 'Melee Weapons',
+              characteristics: [{ name: 'S', typeId: 'strength', $text: '5' }],
+              modifiers: [{ type: 'increment', field: 'strength', value: 2 }],
+            },
+          ],
+        },
+      ],
+    })
+    expect(datasheetIn(book, 'cat', 'unit', { selections: [{ id: 'unit' }] })?.profiles[0]?.values[0]?.value).toBe('7')
+  })
+
+  it('applies modifiers declared on a linked profile', () => {
+    const book = bookOf({
+      sharedProfiles: [
+        {
+          id: 'shared-profile',
+          name: 'Blade',
+          typeName: 'Melee Weapons',
+          characteristics: [{ name: 'S', typeId: 'strength', $text: '5' }],
+        },
+      ],
+      selectionEntries: [
+        {
+          id: 'unit',
+          name: 'Unit',
+          type: 'unit',
+          infoLinks: [
+            {
+              id: 'profile-link',
+              targetId: 'shared-profile',
+              type: 'profile',
+              modifiers: [{ type: 'increment', field: 'strength', value: 2 }],
+            },
+          ],
+        },
+      ],
+    })
+    expect(datasheetIn(book, 'cat', 'unit', { selections: [{ id: 'unit' }] })?.profiles[0]?.values[0]?.value).toBe('7')
+  })
+
+  it('applies profile visibility modifiers', () => {
+    const book = bookOf({
+      selectionEntries: [
+        {
+          id: 'unit',
+          name: 'Unit',
+          type: 'unit',
+          profiles: [
+            {
+              id: 'revealed',
+              name: 'Revealed',
+              typeName: 'Unit',
+              hidden: true,
+              characteristics: [{ name: 'M', $text: '5"' }],
+              modifiers: [{ type: 'set', field: 'hidden', value: false }],
+            },
+            {
+              id: 'concealed',
+              name: 'Concealed',
+              typeName: 'Unit',
+              characteristics: [{ name: 'M', $text: '6"' }],
+              modifiers: [{ type: 'set', field: 'hidden', value: true }],
+            },
+          ],
+        },
+      ],
+    })
+    expect(datasheetIn(book, 'cat', 'unit', { selections: [{ id: 'unit' }] })?.profiles.map(({ name }) => name)).toEqual(['Revealed'])
+  })
+
+  it('evaluates profile conditions against the complete roster', () => {
+    const book = bookOf({
+      selectionEntries: [
+        {
+          id: 'unit',
+          name: 'Unit',
+          type: 'unit',
+          profiles: [
+            { id: 'profile', name: 'Blade', typeName: 'Melee Weapons', characteristics: [{ name: 'S', typeId: 'strength', $text: '5' }] },
+          ],
+          modifiers: [
+            {
+              type: 'increment',
+              field: 'strength',
+              value: 2,
+              affects: 'self.entries.recursive.profiles.Melee Weapons',
+              conditions: [{ type: 'atLeast', value: 1, field: 'selections', scope: 'force', childId: 'support' }],
+            },
+          ],
+        },
+        { id: 'support', name: 'Support', type: 'unit' },
+      ],
+    })
+    const value = (selections: { id: string }[]) => datasheetIn(book, 'cat', 'unit', { selections })?.profiles[0]?.values[0]?.value
+    expect(value([{ id: 'unit' }, { id: 'support' }])).toBe('7')
+    expect(value([{ id: 'unit' }])).toBe('5')
+  })
+
+  it('uses the selected copy when a roster contains duplicate datasheets', () => {
+    const book = bookOf({
+      selectionEntries: [
+        {
+          id: 'unit',
+          name: 'Unit',
+          type: 'unit',
+          profiles: [
+            { id: 'profile', name: 'Blade', typeName: 'Melee Weapons', characteristics: [{ name: 'S', typeId: 'strength', $text: '5' }] },
+          ],
+          selectionEntries: [{ id: 'boost', name: 'Boost', type: 'upgrade' }],
+          modifiers: [
+            {
+              type: 'increment',
+              field: 'strength',
+              value: 2,
+              affects: 'self.entries.recursive.profiles.Melee Weapons',
+              conditions: [{ type: 'atLeast', value: 1, field: 'selections', scope: 'self', childId: 'boost' }],
+            },
+          ],
+        },
+      ],
+    })
+    const selections = [{ id: 'unit', selections: [{ id: 'boost' }] }, { id: 'unit' }]
+    expect(datasheetIn(book, 'cat', 'unit', { selections, unitSelectionIndex: 0 })?.profiles[0]?.values[0]?.value).toBe('7')
+    expect(datasheetIn(book, 'cat', 'unit', { selections, unitSelectionIndex: 1 })?.profiles[0]?.values[0]?.value).toBe('5')
+  })
+
   it('separates faction, core, datasheet, rule and wargear abilities', () => {
     const book = bookOf({
       sharedProfiles: [ability('shared-ability', 'My Will Be Done')],
@@ -486,9 +803,15 @@ describe('a datasheet', () => {
   })
 
   it('finds rule definitions referenced by catalogue formatting', () => {
-    const book = bookOf({ sharedRules: [{ id: 'feel-no-pain', name: 'Feel No Pain', description: 'Ignore lost wounds.' }] })
-    expect(rulesReferencedIn(book, ['This model has **Feel No Pain 4+** and ^^**VEHICLE^^**.'])).toEqual([
+    const book = bookOf({
+      sharedRules: [
+        { id: 'feel-no-pain', name: 'Feel No Pain', description: 'Ignore lost wounds.' },
+        { id: 'lethal-hits', name: 'Lethal Hits', description: 'Critical hits wound automatically.' },
+      ],
+    })
+    expect(rulesReferencedIn(book, ['This model has **Feel No Pain 4+**, [LETHAL HITS] and ^^**VEHICLE^^**.'])).toEqual([
       { name: 'Feel No Pain', description: 'Ignore lost wounds.' },
+      { name: 'Lethal Hits', description: 'Critical hits wound automatically.' },
     ])
   })
 })

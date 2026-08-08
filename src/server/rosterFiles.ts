@@ -2,7 +2,7 @@ import { attachmentOf } from '../core/attach'
 import { evaluate, type Selection } from '../core/evaluate'
 import { buildUnit, modelCountOf, unitChoices, unitToggles } from '../core/roster'
 import { fromRosterXml, toRosterXml } from '../core/rosz'
-import { isDatasheetId, type LoadedCatalogue } from './catalogue'
+import { isDatasheetId, type LoadedCatalogue } from './catalogueIndex'
 import { parseXml, rosterXml } from './rosz'
 import type { ExportRosterInput, ImportRosterInput } from './schemas'
 

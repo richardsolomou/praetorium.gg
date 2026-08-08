@@ -1,11 +1,16 @@
 import { Minus, Plus } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
+import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import { datasheetQuery } from '../../queries'
 import type { Datasheet } from '../../../server/catalogue'
+import type { RosterPick } from '../../../core/roster'
 import { KeywordList } from '../Keyword'
+import { HoverTooltip } from '../HoverTooltip'
+import { SearchableSelect } from '../SearchableSelect'
 
 /** Base UI selects cannot hold an empty value, so declining a choice needs a token. */
 const NONE = '__none__'
@@ -14,6 +19,7 @@ type LoadoutChoice = {
   key: string
   name: string
   chosen: string
+  optional: boolean
   room: number
   options: { id: string; name: string; points: number; count: number }[]
 }
@@ -30,6 +36,9 @@ type Props = {
   catalogueId: string
   catalogueSlug: string
   unit: LoadoutUnit | null
+  detachmentIds: readonly string[]
+  picks: readonly RosterPick[]
+  pickIndex: number | null
   onChoose: (key: string, optionId: string) => void
   onSpread: (key: string, counts: Record<string, number>) => void
 }
@@ -46,8 +55,16 @@ type Props = {
  * carbines, which a single answer cannot say; that one gets a count against each
  * option. Nothing is typed either way: every option and every price is the data's.
  */
-export function Loadout({ catalogueId, catalogueSlug, unit, onChoose, onSpread }: Props) {
-  const { data: sheet } = useQuery(datasheetQuery(catalogueId, unit?.entryId ?? ''))
+export function Loadout({ catalogueId, catalogueSlug, unit, detachmentIds, picks, pickIndex, onChoose, onSpread }: Props) {
+  const [context, setContext] = useState({ detachmentIds, picks, pickIndex })
+  useEffect(() => {
+    const timeout = window.setTimeout(() => setContext({ detachmentIds, picks, pickIndex }), 150)
+    return () => window.clearTimeout(timeout)
+  }, [detachmentIds, picks, pickIndex])
+  const { data: sheet } = useQuery({
+    ...datasheetQuery(catalogueId, unit?.entryId ?? '', context.detachmentIds, context.picks, context.pickIndex),
+    placeholderData: (previous, previousQuery) => (previousQuery?.queryKey[2] === unit?.entryId ? previous : undefined),
+  })
   if (!unit) {
     return (
       <div className="flex h-full items-center justify-center p-6">
@@ -62,75 +79,53 @@ export function Loadout({ catalogueId, catalogueSlug, unit, onChoose, onSpread }
         <h2 className="truncate text-sm leading-tight">{unit.name}</h2>
         <span className="chip shrink-0">{unit.points} pts</span>
       </div>
-      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-2.5">
-        {sheet ? <DatasheetSummary catalogueSlug={catalogueSlug} sheet={sheet} /> : null}
-        <section>
-          <p className="rubric flex items-baseline justify-between border-b border-edge pb-1.5">
-            <span>Wargear options</span>
-            <span className="readout">{unit.choices.length}</span>
-          </p>
-          <div className="mt-3 space-y-4">
-            {unit.choices.length ? (
-              unit.choices.map((choice) => (choice.room > 1 ? spread(choice, onSpread) : either(choice, onChoose, unit.name)))
-            ) : (
-              <p className="text-xs text-faint">Nothing on this datasheet is optional.</p>
-            )}
-          </div>
-        </section>
-      </div>
+      <ScrollArea className="min-h-0 flex-1 [&_[data-slot=scroll-area-viewport]]:p-2.5">
+        <div className="space-y-4">
+          {sheet ? <DatasheetSummary catalogueSlug={catalogueSlug} sheet={sheet} /> : null}
+          <section>
+            <p className="rubric flex items-baseline justify-between border-b border-edge pb-1.5">
+              <span>Wargear options</span>
+              <span className="readout">{unit.choices.length}</span>
+            </p>
+            <div className="mt-3 space-y-4">
+              {unit.choices.length ? (
+                unit.choices.map((choice) => (choice.room > 1 ? spread(choice, onSpread) : either(choice, onChoose, unit.name)))
+              ) : (
+                <p className="text-xs text-faint">Nothing on this datasheet is optional.</p>
+              )}
+            </div>
+          </section>
+        </div>
+      </ScrollArea>
     </div>
   )
 }
 
 function DatasheetSummary({ catalogueSlug, sheet }: { catalogueSlug: string; sheet: Datasheet }) {
   const model = sheet.profiles.find((profile) => profile.type === 'Unit')
-  const weapons = sheet.profiles.filter((profile) => profile.type === 'Ranged Weapons' || profile.type === 'Melee Weapons')
+  const ranged = sheet.profiles.filter((profile) => profile.type === 'Ranged Weapons')
+  const melee = sheet.profiles.filter((profile) => profile.type === 'Melee Weapons')
   const abilities = sheet.profiles.filter((profile) => profile.type === 'Abilities')
   return (
     <div className="space-y-3 border-b border-edge pb-4">
       {model ? (
-        <div className="grid grid-cols-7 gap-1">
+        <div
+          data-slot="unit-profile"
+          className="grid gap-1"
+          style={{ gridTemplateColumns: `repeat(${model.values.length}, minmax(0, 1fr))` }}
+        >
           {model.values.map((value) => (
             <div key={value.name} className="text-center">
               <p className="eyebrow">{value.name}</p>
-              <p className="readout text-sm">{value.value}</p>
+              <p className="readout text-sm">
+                <ProfileValue value={value} />
+              </p>
             </div>
           ))}
         </div>
       ) : null}
-      {weapons.length ? (
-        <div>
-          <p className="eyebrow flex items-baseline justify-between border-b border-edge pb-1">
-            <span>Weapons</span>
-            <span className="readout">{weapons.length}</span>
-          </p>
-          <div className="mt-1.5 space-y-1.5">
-            {weapons.map((weapon) => (
-              <article key={weapon.id} className="border border-edge bg-card px-2 py-1.5">
-                <div className="flex items-baseline justify-between gap-2">
-                  <h3 className="truncate text-xs">{weapon.name}</h3>
-                  <span className="eyebrow shrink-0">{weapon.type.replace(' Weapons', '')}</span>
-                </div>
-                <div className="mt-1 grid grid-cols-6 gap-1">
-                  {weapon.values
-                    .filter((value) => value.name !== 'Keywords')
-                    .map((value) => (
-                      <div key={value.name} className="min-w-0 text-center">
-                        <p className="eyebrow text-[0.625rem]">{value.name}</p>
-                        <p className="readout text-xs text-faint">{value.value}</p>
-                      </div>
-                    ))}
-                </div>
-                {weapon.values.find((value) => value.name === 'Keywords')?.value ? (
-                  <p className="mt-1 text-[0.6875rem] text-faint">
-                    <KeywordList value={weapon.values.find((value) => value.name === 'Keywords')!.value} rules={sheet.keywordRules} />
-                  </p>
-                ) : null}
-              </article>
-            ))}
-          </div>
-        </div>
-      ) : null}
+      {ranged.length ? <WeaponSummary title="Equipped ranged weapons" weapons={ranged} rules={sheet.keywordRules} /> : null}
+      {melee.length ? <WeaponSummary title="Equipped melee weapons" weapons={melee} rules={sheet.keywordRules} /> : null}
       {abilities.length ? (
         <div className="flex flex-wrap gap-1">
           {abilities.map((ability) => (
@@ -150,6 +145,67 @@ function DatasheetSummary({ catalogueSlug, sheet }: { catalogueSlug: string; she
         View full datasheet
       </Link>
     </div>
+  )
+}
+
+type Weapon = Datasheet['profiles'][number]
+
+function WeaponSummary({ title, weapons, rules }: { title: string; weapons: Weapon[]; rules: Datasheet['keywordRules'] }) {
+  return (
+    <div>
+      <p className="eyebrow flex items-baseline justify-between border-b border-edge pb-1">
+        <span>{title}</span>
+        <span className="readout">{weapons.length}</span>
+      </p>
+      <div className="mt-1.5 space-y-1.5">
+        {weapons.map((weapon) => (
+          <article key={weapon.id} className="border border-edge bg-card px-2 py-1.5">
+            <h3 className="truncate text-xs">{weapon.name}</h3>
+            <div className="mt-1 grid grid-cols-6 gap-1">
+              {weapon.values
+                .filter((value) => value.name !== 'Keywords')
+                .map((value) => (
+                  <div key={value.name} className="min-w-0 text-center">
+                    <p className="eyebrow text-[0.625rem]">{value.name}</p>
+                    <p className="readout text-xs text-faint">
+                      <ProfileValue value={value} />
+                    </p>
+                  </div>
+                ))}
+            </div>
+            {weapon.values.find((value) => value.name === 'Keywords')?.value ? (
+              <p className="mt-1 text-[0.6875rem] text-faint">
+                <KeywordList value={weapon.values.find((value) => value.name === 'Keywords')!.value} rules={rules} />
+              </p>
+            ) : null}
+          </article>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+type DisplayValue = Datasheet['profiles'][number]['values'][number]
+
+function ProfileValue({ value }: { value: DisplayValue }) {
+  if (!value.baseValue || !value.modifiers?.length) return value.value
+  const sources = value.modifiers.join(', ')
+  return (
+    <HoverTooltip
+      className="font-semibold text-azure"
+      label={`${value.name} ${value.value}, modified from ${value.baseValue} by ${sources}`}
+      content={
+        <>
+          <strong className="block font-semibold">Modified {value.name}</strong>
+          <span className="mt-1 block text-dim">
+            {value.baseValue} → <span className="text-azure">{value.value}</span>
+          </span>
+          <span className="mt-1 block text-xs text-faint">{sources}</span>
+        </>
+      }
+    >
+      {value.value}
+    </HoverTooltip>
   )
 }
 
@@ -223,6 +279,33 @@ function spread(choice: LoadoutChoice, onSpread: Props['onSpread']) {
 
 /** A group that holds one thing: which one. */
 function either(choice: LoadoutChoice, onChoose: Props['onChoose'], unitName: string) {
+  if (choice.options.length > 7) {
+    const items = choice.options.map((option) => ({
+      label: `${option.name}${option.points ? ` (+${option.points})` : ''}`,
+      value: option.id,
+    }))
+    if (choice.optional) items.unshift({ label: 'None', value: NONE })
+    return (
+      <div key={choice.key}>
+        <p className="eyebrow">{choice.name}</p>
+        <SearchableSelect
+          ariaLabel={`${unitName} ${choice.name}`}
+          groups={[
+            {
+              label: '',
+              items,
+            },
+          ]}
+          value={choice.chosen || (choice.optional ? NONE : '')}
+          onValueChange={(value) => onChoose(choice.key, value === NONE ? '' : value)}
+          placeholder="Choose"
+          searchPlaceholder={`Search ${choice.name.toLowerCase()}…`}
+          className="mt-1.5"
+        />
+      </div>
+    )
+  }
+
   return (
     <div key={choice.key}>
       <p className="eyebrow">{choice.name}</p>
@@ -234,6 +317,7 @@ function either(choice: LoadoutChoice, onChoose: Props['onChoose'], unitName: st
           <SelectValue>{(value: unknown) => choice.options.find((option) => option.id === value)?.name ?? 'Choose'}</SelectValue>
         </SelectTrigger>
         <SelectContent>
+          {choice.optional ? <SelectItem value={NONE}>None</SelectItem> : null}
           {choice.options.map((option) => (
             <SelectItem key={option.id} value={option.id}>
               {option.name}

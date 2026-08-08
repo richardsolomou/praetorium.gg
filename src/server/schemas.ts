@@ -21,11 +21,7 @@ export const submitSchema = z.object({ token, expectedSeq: z.number().int().min(
 export const unitsSchema = z.object({
   catalogueId,
   query: z.string().max(80).default(''),
-  /** Legends are left out of the book unless the player asks for them. */
-  legends: z.boolean().default(false),
 })
-export const datasheetSchema = z.object({ catalogueId, entryId: id })
-export const datasheetSlugSchema = z.object({ catalogueId, slug })
 
 /**
  * A list is sent as the entries the player picked and how many models they want
@@ -52,6 +48,15 @@ const pickSchema = z.object({
   attachedTo: z.number().int().min(0).max(99).optional(),
 })
 
+export const datasheetSchema = z.object({
+  catalogueId,
+  entryId: id,
+  detachmentIds: z.array(id).max(3).default([]),
+  picks: z.array(pickSchema).max(100).default([]),
+  pickIndex: z.number().int().min(0).max(99).nullable().default(null),
+})
+export const datasheetSlugSchema = z.object({ catalogueId, slug })
+
 const prepSchema = z.object({
   stratagems: z
     .array(
@@ -71,6 +76,7 @@ export const saveRosterSchema = z.object({
   name: z.string().trim().min(1, 'name the list').max(ROSTER_NAME_MAX_LENGTH),
   catalogueId,
   detachmentIds: z.array(id).max(3),
+  disposition: id.nullable(),
   limit: rosterLimit,
   picks: z.array(pickSchema).max(100),
   prep: prepSchema.nullable(),
@@ -97,6 +103,7 @@ export const savedPrepSchema = prepSchema
 export const priceSchema = z.object({
   catalogueId,
   detachmentIds: z.array(id).max(3),
+  disposition: id.nullable(),
   limit: rosterLimit,
   units: z.array(pickSchema).max(100),
 })

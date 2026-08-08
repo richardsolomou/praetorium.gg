@@ -13,6 +13,7 @@ export const Route = createFileRoute('/r/$id')({
         roster.id,
         roster.catalogueId,
         roster.detachmentIds,
+        roster.disposition,
         roster.limit,
         roster.picks.map(({ entryId, catalogueId, models, choices, spreads, toggles }) => ({
           entryId,
@@ -35,6 +36,7 @@ function SharedRoster() {
     priceQuery(
       roster?.catalogueId ?? '',
       roster?.detachmentIds ?? [],
+      roster?.disposition ?? null,
       roster?.limit ?? 0,
       roster?.picks.map(({ entryId, models, choices, spreads, toggles }) => ({ entryId, models, choices, spreads, toggles })) ?? [],
     ),

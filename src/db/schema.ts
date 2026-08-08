@@ -174,6 +174,7 @@ export const rosters = sqliteTable(
     name: text('name').notNull(),
     catalogueId: text('catalogue_id').notNull(),
     detachmentId: text('detachment_id'),
+    disposition: text('disposition'),
     limit: integer('limit').notNull(),
     /** The picked units as JSON: entry ids, model counts and chosen options. */
     picks: text('picks').notNull(),

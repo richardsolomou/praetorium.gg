@@ -1,6 +1,13 @@
 import { ChevronRight, Copy, Crown, EllipsisVertical, Heart, Minus, Plus, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { Toggle } from '@/components/ui/toggle'
 import type { Attachment } from '../../../core/attach'
 
 type BuiltUnit = {
@@ -115,16 +122,17 @@ export function UnitCard({
           ) : null}
           <span className="chip">{unit.points} pts</span>
           {unit.toggles.map((toggle) => (
-            <Button
+            <Toggle
               key={toggle.key}
-              variant={toggle.selected ? 'default' : 'ghost'}
-              size="icon-sm"
+              variant="default"
+              size="sm"
+              className="size-7 p-0"
               aria-label={`${toggle.selected ? 'Remove' : 'Make'} ${unit.name} ${toggle.name}`}
-              aria-pressed={toggle.selected}
-              onClick={() => onToggle(toggle.key, toggle.name, !toggle.selected)}
+              pressed={toggle.selected}
+              onPressedChange={(pressed) => onToggle(toggle.key, toggle.name, pressed)}
             >
               <Crown />
-            </Button>
+            </Toggle>
           ))}
           <DropdownMenu>
             <DropdownMenuTrigger
@@ -137,14 +145,14 @@ export function UnitCard({
               <DropdownMenuItem className="rounded-none text-xs font-semibold uppercase focus:bg-edge" onClick={onDuplicate}>
                 <Copy className="size-3.5" /> Duplicate unit
               </DropdownMenuItem>
-              <DropdownMenuItem
+              <DropdownMenuCheckboxItem
                 className="rounded-none text-xs font-semibold uppercase focus:bg-edge"
-                aria-pressed={owned}
-                onClick={onOwned}
+                checked={owned}
+                onCheckedChange={onOwned}
               >
                 <Heart className={`size-3.5 ${owned ? 'fill-azure text-azure' : ''}`} />
                 {owned ? 'Remove from collection' : 'Add to collection'}
-              </DropdownMenuItem>
+              </DropdownMenuCheckboxItem>
               <DropdownMenuItem variant="destructive" className="rounded-none text-xs font-semibold uppercase" onClick={onRemove}>
                 <X className="size-3.5" /> Delete unit
               </DropdownMenuItem>

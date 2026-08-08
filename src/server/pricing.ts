@@ -3,7 +3,8 @@ import { detachmentPointBudget, detachmentPointsError } from '../core/battle'
 import { evaluate, evaluateForces, type Selection } from '../core/evaluate'
 import { buildUnit, wargearOf } from '../core/roster'
 import { app } from './app'
-import { groupOfEntry } from './catalogue'
+import type { LoadedCatalogue } from './catalogueIndex'
+import { groupOfEntry } from './cataloguePicker'
 import { slug } from './rules'
 import type { PriceInput } from './schemas'
 
@@ -11,27 +12,21 @@ export function calculateRosterPrice(data: PriceInput) {
   const loaded = app().catalogue()
   if (!loaded) return null
 
-  const detachment = loaded.detachments.get(data.catalogueId)
-  const chosen = data.detachmentIds.flatMap((id) => {
-    const option = detachment?.options.find((candidate) => candidate.id === id)
-    return option ? [option] : []
-  })
+  const { chosen, selections: detachmentSelection } = rosterDetachments(loaded, data.catalogueId, data.detachmentIds)
   // Enhancements and unit limits can depend on the detachment already being in
   // the roster when units are expanded.
-  const detachmentSelection: Selection[] = chosen.flatMap((option, index) =>
-    index
-      ? [{ id: option.id, count: 1 }]
-      : [
-          {
-            id: detachment!.wrapperId,
-            count: 1,
-            selections: [{ id: detachment!.groupId, count: 1, selections: [{ id: option.id, count: 1 }] }],
-          },
-        ],
-  )
   const references = app()
     .rules()
     ?.detachmentReferences.get(slug(loaded.index.catalogues.get(data.catalogueId)?.name ?? ''))
+  const allowedDispositions = [
+    ...new Set(
+      chosen.flatMap((option) => {
+        const fromRules = references?.get(slug(option.name))?.dispositions ?? []
+        return fromRules.length ? fromRules : option.disposition ? [option.disposition] : []
+      }),
+    ),
+  ]
+  const { disposition, error: dispositionError } = resolveDisposition(allowedDispositions, data.disposition)
   const purchased = chosen.map((option) => ({
     name: option.name,
     points: references?.get(slug(option.name))?.points ?? null,
@@ -79,7 +74,8 @@ export function calculateRosterPrice(data: PriceInput) {
     detachmentPointsSpent: spent,
     detachmentPointsOver: Boolean(detachmentError),
     detachmentError,
-    disposition: chosen[0]?.disposition ?? null,
+    disposition,
+    dispositionError,
     points: whole.points,
     errors,
     unhandled: [
@@ -103,4 +99,32 @@ export function calculateRosterPrice(data: PriceInput) {
       attachment: attachmentOf(loaded.index.definitions.get(unit.entryId) ?? { id: unit.entryId }, loaded.index),
     })),
   }
+}
+
+/** Selected detachments in the catalogue shape that roster-scoped conditions inspect. */
+export function rosterDetachments(loaded: LoadedCatalogue, catalogueId: string, detachmentIds: readonly string[]) {
+  const detachment = loaded.detachments.get(catalogueId)
+  const chosen = detachmentIds.flatMap((id) => {
+    const option = detachment?.options.find((candidate) => candidate.id === id)
+    return option ? [option] : []
+  })
+  const selections: Selection[] = chosen.flatMap((option, index) =>
+    index
+      ? [{ id: option.id, count: 1 }]
+      : detachment
+        ? [
+            {
+              id: detachment.wrapperId,
+              count: 1,
+              selections: [{ id: detachment.groupId, count: 1, selections: [{ id: option.id, count: 1 }] }],
+            },
+          ]
+        : [],
+  )
+  return { chosen, selections }
+}
+
+export function resolveDisposition(allowed: readonly string[], selected: string | null) {
+  const disposition = allowed.includes(selected ?? '') ? selected : allowed.length === 1 ? allowed[0] : null
+  return { disposition, error: allowed.length > 1 && !disposition ? 'Pick a disposition.' : null }
 }

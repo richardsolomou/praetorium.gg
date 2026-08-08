@@ -106,12 +106,25 @@ test('a squad grows from the roster itself', async ({ page }) => {
   await openBuilder(page)
   await add(page, 'Immortals')
 
+  await page
+    .locator('[data-unit="Immortals"]')
+    .getByRole('button', { name: /^Immortals/ })
+    .click()
+  const profile = page.locator('[data-slot="unit-profile"]')
+  await expect(profile).toBeVisible()
+  await profile.evaluate((existing) => {
+    new MutationObserver(() => {
+      if (!document.contains(existing)) document.documentElement.dataset.profileRefreshed = 'true'
+    }).observe(document.body, { childList: true, subtree: true })
+  })
+
   const total = page.locator('[data-stat="points"]')
   await expect(total).toHaveText('70/2000')
   // No pane opened, no unit selected: the stepper is on the card.
   await page.getByRole('button', { name: 'More models in Immortals' }).click()
   await expect(page.getByLabel('Immortals models')).toHaveText('6')
   await expect(total).not.toHaveText('70/2000')
+  await expect(page.locator('html')).not.toHaveAttribute('data-profile-refreshed', 'true')
   // And the wargear lines follow the models carrying it.
   await expect(page.getByText('6x Gauss blaster')).toBeVisible()
 })
@@ -139,7 +152,9 @@ test('the filters narrow the book to what is worth taking', async ({ page }) => 
   await page.getByLabel('Add a unit').fill('Lychguard')
   const lychguard = page.getByRole('button', { name: 'Add Lychguard', exact: true }).first()
   await expect(lychguard).toBeVisible()
-  await page.getByRole('button', { name: /Lychguard to your collection/ }).click()
+  const ownLychguard = page.getByRole('button', { name: /Lychguard to your collection/ })
+  await ownLychguard.click()
+  await expect(page.getByRole('button', { name: /Lychguard from your collection/ })).toHaveAttribute('aria-pressed', 'true')
   await page.getByRole('button', { name: 'Owned' }).click()
   await expect(lychguard).toBeVisible()
   await page.getByRole('button', { name: 'Owned' }).click()
@@ -151,7 +166,7 @@ test('the filters narrow the book to what is worth taking', async ({ page }) => 
   for (let taken = 0; taken < 3; taken++) await lychguard.click()
   await expect(page.getByText('3/3 in roster')).toBeVisible()
   await page.locator('[data-unit="Lychguard"]').first().getByLabel('Unit actions for Lychguard').click()
-  await expect(page.getByRole('menuitem', { name: 'Remove from collection' })).toBeVisible()
+  await expect(page.getByRole('menuitemcheckbox', { name: 'Remove from collection' })).toBeVisible()
   await page.keyboard.press('Escape')
   await page.getByRole('button', { name: 'Unit limit' }).click()
   await expect(lychguard).toBeHidden()
@@ -218,6 +233,7 @@ test('a character can be marked as the warlord from its card', async ({ page }) 
   const warlord = page.getByRole('button', { name: 'Make Overlord Warlord' })
   await warlord.click()
   await expect(page.getByRole('button', { name: 'Remove Overlord Warlord' })).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByText(/\d+x Warlord/)).toHaveCount(0)
   await page
     .locator('[data-unit="Overlord"]')
     .getByRole('button', { name: /^Overlord/ })
@@ -225,7 +241,17 @@ test('a character can be marked as the warlord from its card', async ({ page }) 
   const pane = page.locator('aside[aria-label="Loadout"]')
   await expect(pane.getByText('InSv')).toBeVisible()
   await expect(pane.getByText('4+')).toBeVisible()
-  await expect(pane.getByText('Range').first()).toBeVisible()
+  await expect(pane.getByText('Equipped ranged weapons')).toBeVisible()
+  await expect(pane.getByText('Equipped melee weapons')).toBeVisible()
+  await expect(pane.getByText('Tachyon arrow', { exact: true })).toBeVisible()
+  await expect(pane.getByText("Overlord's blade", { exact: true })).toBeVisible()
+  await expect(pane.getByText('Voidscythe', { exact: true })).toBeHidden()
+  const profile = pane.locator('[data-slot="unit-profile"]')
+  const stats = await profile.boundingBox()
+  const lastStat = await profile.locator(':scope > div').last().boundingBox()
+  expect(stats).not.toBeNull()
+  expect(lastStat).not.toBeNull()
+  expect(Math.abs((lastStat?.x ?? 0) + (lastStat?.width ?? 0) - ((stats?.x ?? 0) + (stats?.width ?? 0)))).toBeLessThan(2)
 })
 
 test('making a new warlord removes the previous one', async ({ page }) => {
@@ -236,6 +262,7 @@ test('making a new warlord removes the previous one', async ({ page }) => {
   await page.getByRole('button', { name: 'Make Plasmancer Warlord' }).click()
   await expect(page.getByRole('button', { name: 'Make Overlord Warlord' })).toHaveAttribute('aria-pressed', 'false')
   await expect(page.getByRole('button', { name: 'Remove Plasmancer Warlord' })).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByText(/\d+x Warlord/)).toHaveCount(0)
 })
 
 test('a squad divides its weapons between two options', async ({ page }) => {
@@ -286,15 +313,13 @@ test('a book that keeps its datasheets in a library can still be built from', as
   await expect(page.getByText('Within the points limit')).toBeAttached()
 })
 
-test('Legends are out of the book until they are asked for', async ({ page }) => {
+test('Legends are never offered', async ({ page }) => {
   await openBuilder(page, 'Dark Angels', /Unforgiven Task Force/)
   await page.getByLabel('Add a unit').fill('Land Speeder')
   await expect(page.getByRole('button', { name: 'Add Land Speeder', exact: true })).toBeVisible()
   const legend = page.getByRole('button', { name: 'Add Land Speeder Typhoon [Legends]', exact: true })
   await expect(legend).toBeHidden()
-
-  await page.getByRole('button', { name: 'Legends' }).click()
-  await expect(legend).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Legends' })).toHaveCount(0)
 })
 
 test('a chapter reaches the whole Codex range, not just its own datasheets', async ({ page }) => {

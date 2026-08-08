@@ -2,6 +2,8 @@ import { useQuery } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
+import { Toggle } from '@/components/ui/toggle'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import type { BattleView, Command, Secondary, SecondaryMode, Stratagem } from '../../core/battle'
 import { SECONDARIES_MAX, SECONDARY_MODES, STRATAGEMS_MAX } from '../../core/battle'
 import { detachmentRulesQuery } from '../queries'
@@ -69,19 +71,21 @@ export function Prep({ view, send, pending }: Props) {
 
       <section className="space-y-2">
         <Label>Secondary play</Label>
-        <div className="flex gap-1.5">
+        <ToggleGroup
+          value={[mode]}
+          onValueChange={(value) => {
+            const next = SECONDARY_MODES.find((entry) => entry === value[0])
+            if (next) setMode(next)
+          }}
+          variant="outline"
+          size="sm"
+        >
           {SECONDARY_MODES.map((entry) => (
-            <Button
-              key={entry}
-              variant={mode === entry ? 'default' : 'outline'}
-              size="sm"
-              aria-pressed={mode === entry}
-              onClick={() => setMode(entry)}
-            >
+            <ToggleGroupItem key={entry} value={entry}>
               {entry === 'fixed' ? 'Fixed' : 'Tactical'}
-            </Button>
+            </ToggleGroupItem>
           ))}
-        </div>
+        </ToggleGroup>
       </section>
 
       <Pills
@@ -136,16 +140,10 @@ function Pills({ label, entries, taken, onToggle }: PillsProps) {
         {entries.map((entry) => {
           const chosen = taken.includes(entry.key)
           return (
-            <Button
-              key={entry.key}
-              variant={chosen ? 'default' : 'outline'}
-              size="sm"
-              aria-pressed={chosen}
-              onClick={() => onToggle(entry.key)}
-            >
+            <Toggle key={entry.key} variant="outline" size="sm" pressed={chosen} onPressedChange={() => onToggle(entry.key)}>
               {entry.name}
               {entry.note ? <span className="readout ml-1 text-xs opacity-70">{entry.note}</span> : null}
-            </Button>
+            </Toggle>
           )
         })}
       </div>
