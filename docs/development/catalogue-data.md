@@ -7,7 +7,9 @@ Praetorium builds and validates rosters from fetched community data. The domain 
 - `catalogue/sources.json` records each source and pins its revision or file hashes.
 - `catalogue-data/` contains fetched data and is gitignored. Do not commit game data or copied rules text.
 - `src/server/sync.ts` compares local revisions with the pinned revisions and downloads missing data in the background.
+- Repository sources extract only their configured subpath. Archive size, output size, paths, and non-empty contents are checked before replacement.
 - Each download uses a staging directory. It replaces the current source only after the download finishes and its revision or hashes match.
+- Optional description exports still refresh when the authoritative sources are current. Live faction pages are best-effort additions and do not make the verified exports unavailable.
 - `just catalogue-sync` calls the same sync code as the server.
 - The server loads the catalogue on first use. An instance without catalogue data can still serve battles and pasted rosters.
 

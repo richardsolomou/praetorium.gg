@@ -46,14 +46,11 @@ const sync = {
   running: false,
   begin(directory: string, onReady: () => void) {
     if (this.running) return
-    if (isCurrent(directory)) {
-      this.state = { status: 'ready', detail: null }
-      return
-    }
+    const authoritativeReady = isCurrent(directory)
     this.running = true
-    this.state = { status: 'working', detail: 'fetching the community data' }
+    this.state = authoritativeReady ? { status: 'ready', detail: null } : { status: 'working', detail: 'fetching the community data' }
     void syncSources(directory, (message) => {
-      this.state = { status: 'working', detail: message }
+      if (!authoritativeReady) this.state = { status: 'working', detail: message }
     })
       .then(() => {
         this.state = { status: 'ready', detail: null }
