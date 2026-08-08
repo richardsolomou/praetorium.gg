@@ -231,6 +231,12 @@ test('a character can be marked as the warlord from its card', async ({ page }) 
   await expect(pane.getByText('Tachyon arrow', { exact: true })).toBeVisible()
   await expect(pane.getByText("Overlord's blade", { exact: true })).toBeVisible()
   await expect(pane.getByText('Voidscythe', { exact: true })).toBeHidden()
+  const profile = pane.locator('[data-slot="unit-profile"]')
+  const stats = await profile.boundingBox()
+  const lastStat = await profile.locator(':scope > div').last().boundingBox()
+  expect(stats).not.toBeNull()
+  expect(lastStat).not.toBeNull()
+  expect(Math.abs((lastStat?.x ?? 0) + (lastStat?.width ?? 0) - ((stats?.x ?? 0) + (stats?.width ?? 0)))).toBeLessThan(2)
 })
 
 test('making a new warlord removes the previous one', async ({ page }) => {

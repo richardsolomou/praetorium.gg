@@ -108,7 +108,11 @@ function DatasheetSummary({ catalogueSlug, sheet }: { catalogueSlug: string; she
   return (
     <div className="space-y-3 border-b border-edge pb-4">
       {model ? (
-        <div className="grid grid-cols-7 gap-1">
+        <div
+          data-slot="unit-profile"
+          className="grid gap-1"
+          style={{ gridTemplateColumns: `repeat(${model.values.length}, minmax(0, 1fr))` }}
+        >
           {model.values.map((value) => (
             <div key={value.name} className="text-center">
               <p className="eyebrow">{value.name}</p>
