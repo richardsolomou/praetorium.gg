@@ -27,7 +27,7 @@ export class Repository {
       .run()
   }
 
-  playerOfUser(userId: string) {
+  playerByUserId(userId: string) {
     return this.database.select().from(players).where(eq(players.userId, userId)).orderBy(desc(players.createdAt)).get()
   }
 
@@ -40,11 +40,11 @@ export class Repository {
 
   battleByToken(token: string): BattleSeats | undefined {
     const battle = this.database.select().from(battles).where(eq(battles.token, token)).get()
-    return battle ? { battle, players: this.playersOf(battle.id) } : undefined
+    return battle ? { battle, players: this.playersByBattle(battle.id) } : undefined
   }
 
   /** Battles this player has a seat in, newest first. */
-  battlesOf(playerId: string): BattleSeats[] {
+  battlesByPlayer(playerId: string): BattleSeats[] {
     return this.database
       .select({ id: battles.id, token: battles.token, createdAt: battles.createdAt })
       .from(battles)
@@ -52,13 +52,13 @@ export class Repository {
       .where(eq(battlePlayers.playerId, playerId))
       .orderBy(desc(battles.createdAt))
       .all()
-      .map((battle) => ({ battle, players: this.playersOf(battle.id) }))
+      .map((battle) => ({ battle, players: this.playersByBattle(battle.id) }))
   }
 
   /** Takes the second seat, if it is still free. */
   join(input: { battleId: string; playerId: string; now: number }): JoinResult {
     return this.database.transaction((tx) => {
-      const seated = this.playersOf(input.battleId, tx)
+      const seated = this.playersByBattle(input.battleId, tx)
       if (seated.some((player) => player.id === input.playerId)) return 'already-in'
       if (seated.length >= PLAYERS_PER_BATTLE) return 'full'
       const side = Math.max(-1, ...seated.map((player) => player.side)) + 1
@@ -83,7 +83,7 @@ export class Repository {
    */
   submit(input: { battleId: string; playerId: string; expectedSeq: number; command: Command; now: number }): SubmitResult {
     return this.database.transaction((tx) => {
-      const seated = this.playersOf(input.battleId, tx)
+      const seated = this.playersByBattle(input.battleId, tx)
       const state = reduceBattle(
         seated.map((player) => player.id),
         this.logQuery(input.battleId, tx),
@@ -128,7 +128,7 @@ export class Repository {
       .run()
   }
 
-  rostersOf(playerId: string) {
+  rostersByPlayer(playerId: string) {
     return this.database.select().from(rosters).where(eq(rosters.playerId, playerId)).orderBy(desc(rosters.updatedAt)).all()
   }
 
@@ -137,7 +137,7 @@ export class Repository {
   }
 
   /** The datasheets this player owns models for. */
-  collectionOf(playerId: string) {
+  collectionByPlayer(playerId: string) {
     return this.database.select().from(collection).where(eq(collection.playerId, playerId)).all()
   }
 
@@ -170,7 +170,7 @@ export class Repository {
       .map((row) => ({ seq: row.seq, by: row.by, at: row.at, command: commandSchema.parse(JSON.parse(row.body)) }))
   }
 
-  private playersOf(battleId: string, tx: Transaction | PraetoriumDatabase = this.database): BattlePlayer[] {
+  private playersByBattle(battleId: string, tx: Transaction | PraetoriumDatabase = this.database): BattlePlayer[] {
     return tx
       .select({ id: players.id, name: players.name, side: battlePlayers.side })
       .from(battlePlayers)

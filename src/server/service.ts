@@ -15,15 +15,15 @@ import { createId, createToken } from './crypto'
 import { type Mission, missionFor } from './rules'
 import { picksSchema, savedPrepSchema } from './schemas'
 
+type SavedPrep = { stratagems: Stratagem[]; secondaries: Secondary[] }
+
+type SeatedScreen = { kind: 'battle'; view: BattleView; mission: Mission | null }
+
 /**
  * What someone holding the link gets: the battle itself once they have a seat,
  * or the invitation until they take one. Reading a battle never seats anyone —
  * a link preview must not be able to take the second chair.
  */
-type SavedPrep = { stratagems: Stratagem[]; secondaries: Secondary[] }
-
-type SeatedScreen = { kind: 'battle'; view: BattleView; mission: Mission | null }
-
 type BattleScreen = SeatedScreen | { kind: 'invitation'; free: boolean }
 
 /**
@@ -45,7 +45,7 @@ export class PraetoriumService {
 
   /** A player's battles with their current state folded from each log. */
   battles(playerId: string) {
-    return this.repository.battlesOf(playerId).map((seats) => {
+    return this.repository.battlesByPlayer(playerId).map((seats) => {
       const log = this.repository.log(seats.battle.id)
       const state = reduceBattle(
         seats.players.map((player) => player.id),
@@ -73,7 +73,7 @@ export class PraetoriumService {
    * points at `players.id`, which never changes, so renaming is free.
    */
   playerForUser(userId: string, name: string) {
-    const existing = this.repository.playerOfUser(userId)
+    const existing = this.repository.playerByUserId(userId)
     if (existing) {
       if (existing.name !== name) this.repository.upsertPlayer({ id: existing.id, name, userId, now: this.clock() })
       return existing.id
@@ -110,7 +110,7 @@ export class PraetoriumService {
 
   /** A player's own saved lists, newest first. Their picks come back parsed. */
   savedRosters(playerId: string) {
-    return this.repository.rostersOf(playerId).map((row) => ({
+    return this.repository.rostersByPlayer(playerId).map((row) => ({
       id: row.id,
       name: row.name,
       catalogueId: row.catalogueId,
@@ -144,7 +144,7 @@ export class PraetoriumService {
 
   /** The datasheets a player owns, as a set the picker can ask about directly. */
   collection(playerId: string) {
-    return this.repository.collectionOf(playerId).map((row) => row.entryId)
+    return this.repository.collectionByPlayer(playerId).map((row) => row.entryId)
   }
 
   setOwned(playerId: string, entryId: string, owned: boolean) {
