@@ -10,6 +10,7 @@ import type { Datasheet } from '../../../server/catalogue'
 import type { RosterPick } from '../../../core/roster'
 import { KeywordList } from '../Keyword'
 import { HoverTooltip } from '../HoverTooltip'
+import { SearchableSelect } from '../SearchableSelect'
 
 /** Base UI selects cannot hold an empty value, so declining a choice needs a token. */
 const NONE = '__none__'
@@ -267,6 +268,31 @@ function spread(choice: LoadoutChoice, onSpread: Props['onSpread']) {
 
 /** A group that holds one thing: which one. */
 function either(choice: LoadoutChoice, onChoose: Props['onChoose'], unitName: string) {
+  if (choice.options.length > 7) {
+    return (
+      <div key={choice.key}>
+        <p className="eyebrow">{choice.name}</p>
+        <SearchableSelect
+          ariaLabel={`${unitName} ${choice.name}`}
+          groups={[
+            {
+              label: '',
+              items: choice.options.map((option) => ({
+                label: `${option.name}${option.points ? ` (+${option.points})` : ''}`,
+                value: option.id,
+              })),
+            },
+          ]}
+          value={choice.chosen}
+          onValueChange={(value) => onChoose(choice.key, value)}
+          placeholder="Choose"
+          searchPlaceholder={`Search ${choice.name.toLowerCase()}…`}
+          className="mt-1.5"
+        />
+      </div>
+    )
+  }
+
   return (
     <div key={choice.key}>
       <p className="eyebrow">{choice.name}</p>

@@ -19,7 +19,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Toggle } from '@/components/ui/toggle'
 import type { Roster, Secondary, Stratagem } from '../../core/battle'
 import { GAME_SIZES, ROSTER_NAME_MAX_LENGTH } from '../../core/battle'
@@ -36,6 +36,7 @@ import { Section } from './builder/Section'
 import { Pane } from './builder/Pane'
 import { UnitCard } from './builder/UnitCard'
 import { dispositionsFor } from './rosterSetup'
+import { SearchableSelect } from './SearchableSelect'
 
 type Props = {
   onAttach?: (roster: Roster) => void
@@ -116,6 +117,10 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
   }
 
   const faction = available?.factions.find((entry) => entry.id === catalogueId)
+  const factionGroups = shelve(available?.factions ?? []).map((shelf) => ({
+    label: shelf.lineage,
+    items: shelf.factions.map((entry) => ({ label: shortName(entry.name), value: entry.id })),
+  }))
   const suggested = faction
     ? [shortName(faction.name), faction.detachments.find((entry) => entry.id === detachmentIds[0])?.name].filter(Boolean).join(' — ')
     : ''
@@ -415,32 +420,21 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
           <Label className="eyebrow block" htmlFor="force">
             Force
           </Label>
-          <Select
+          <SearchableSelect
+            id="force"
+            groups={factionGroups.map((group) => ({
+              ...group,
+              items: group.items.map((entry) => ({
+                ...entry,
+                label: `${entry.label}${entry.value === catalogueId ? ' (primary)' : ''}`,
+              })),
+            }))}
             value={pickerCatalogueId || catalogueId}
-            onValueChange={(value: string | null) => setPickerCatalogueId(value ?? catalogueId)}
-          >
-            <SelectTrigger id="force" className="mt-1 w-full">
-              <SelectValue>
-                {(value: unknown) => {
-                  const entry = available.factions.find((each) => each.id === value)
-                  return entry ? shortName(entry.name) : 'Pick a force'
-                }}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent className="w-auto min-w-(--anchor-width) max-w-[min(90vw,24rem)]">
-              {shelve(available.factions).map((shelf) => (
-                <SelectGroup key={shelf.lineage}>
-                  <SelectLabel>{shelf.lineage}</SelectLabel>
-                  {shelf.factions.map((entry) => (
-                    <SelectItem key={entry.id} value={entry.id}>
-                      {shortName(entry.name)}
-                      {entry.id === catalogueId ? ' (primary)' : ''}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              ))}
-            </SelectContent>
-          </Select>
+            onValueChange={setPickerCatalogueId}
+            placeholder="Pick a force"
+            searchPlaceholder="Search forces…"
+            className="mt-1"
+          />
         </div>
       )}
       <div className="min-h-0 flex-1">
@@ -540,10 +534,12 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
                 <Label className="eyebrow block" htmlFor="edit-roster-faction">
                   Faction
                 </Label>
-                <Select
+                <SearchableSelect
+                  id="edit-roster-faction"
+                  groups={factionGroups}
                   value={catalogueId}
-                  onValueChange={(value: string | null) => {
-                    if (!value || value === catalogueId) return
+                  onValueChange={(value) => {
+                    if (value === catalogueId) return
                     setCatalogueId(value)
                     setPickerCatalogueId(value)
                     setPicked([])
@@ -551,18 +547,10 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
                     setDisposition(null)
                     setSelected(null)
                   }}
-                >
-                  <SelectTrigger id="edit-roster-faction" className="mt-1 w-full">
-                    <SelectValue>{(value: unknown) => available.factions.find((entry) => entry.id === value)?.displayName}</SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {available.factions.map((entry) => (
-                      <SelectItem key={entry.id} value={entry.id}>
-                        {entry.displayName}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  placeholder="Pick a faction"
+                  searchPlaceholder="Search factions…"
+                  className="mt-1"
+                />
               </div>
               <div>
                 <Label className="eyebrow block" htmlFor="edit-roster-size">
@@ -659,41 +647,21 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
                 <Label className="eyebrow block" htmlFor="faction">
                   Faction
                 </Label>
-                <Select
+                <SearchableSelect
+                  id="faction"
+                  groups={factionGroups}
                   value={catalogueId}
-                  onValueChange={(value: string | null) => {
-                    setCatalogueId(value ?? '')
-                    setPickerCatalogueId(value ?? '')
+                  onValueChange={(value) => {
+                    setCatalogueId(value)
+                    setPickerCatalogueId(value)
                     setPicked([])
                     setDetachmentIds([])
                     setSelected(null)
                   }}
-                >
-                  <SelectTrigger id="faction" className="h-6 w-full border-0 bg-transparent px-0 font-semibold text-azure uppercase">
-                    {/* The value is a catalogue id, so the trigger has to be told the name. */}
-                    <SelectValue placeholder="Pick a book">
-                      {(value: unknown) => {
-                        const entry = available.factions.find((each) => each.id === value)
-                        return entry ? shortName(entry.name) : 'Pick a book'
-                      }}
-                    </SelectValue>
-                  </SelectTrigger>
-                  {/* The lineage every name carries is the heading here rather than
-                  nineteen repeated characters on each row, and the list is as wide
-                  as its longest name rather than as wide as the column. */}
-                  <SelectContent className="w-auto min-w-(--anchor-width) max-w-[min(90vw,24rem)]">
-                    {shelve(available.factions).map((shelf) => (
-                      <SelectGroup key={shelf.lineage}>
-                        <SelectLabel>{shelf.lineage}</SelectLabel>
-                        {shelf.factions.map((entry) => (
-                          <SelectItem key={entry.id} value={entry.id}>
-                            {shortName(entry.name)}
-                          </SelectItem>
-                        ))}
-                      </SelectGroup>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  placeholder="Pick a faction"
+                  searchPlaceholder="Search factions…"
+                  className="h-6 border-0 bg-transparent px-0 font-semibold text-azure uppercase hover:bg-transparent data-popup-open:bg-transparent"
+                />
               </div>
 
               {faction?.detachments.length ? (

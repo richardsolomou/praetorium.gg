@@ -13,6 +13,7 @@ import { priceQuery, savedRostersQuery } from '../queries'
 import { errorMessage } from '../queryClient'
 import { DetachmentPoints } from './DetachmentPoints'
 import { dispositionsFor } from './rosterSetup'
+import { SearchableSelect } from './SearchableSelect'
 
 type Faction = {
   id: string
@@ -79,27 +80,24 @@ export function CreateRoster({ factions }: { factions: Faction[] }) {
             <Label className="eyebrow block" htmlFor="new-roster-faction">
               Faction
             </Label>
-            <Select
+            <SearchableSelect
+              id="new-roster-faction"
+              groups={[
+                {
+                  label: '',
+                  items: factions.map((entry) => ({ label: entry.displayName, value: entry.id })),
+                },
+              ]}
               value={catalogueId}
-              onValueChange={(value: string | null) => {
-                setCatalogueId(value ?? '')
+              onValueChange={(value) => {
+                setCatalogueId(value)
                 setDetachmentIds([])
                 setDisposition(null)
               }}
-            >
-              <SelectTrigger id="new-roster-faction" className="mt-1 w-full">
-                <SelectValue placeholder="Pick a faction">
-                  {(value: unknown) => factions.find((candidate) => candidate.id === value)?.displayName ?? 'Pick a faction'}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {factions.map((entry) => (
-                  <SelectItem key={entry.id} value={entry.id}>
-                    {entry.displayName}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              placeholder="Pick a faction"
+              searchPlaceholder="Search factions…"
+              className="mt-1"
+            />
           </div>
 
           <div>

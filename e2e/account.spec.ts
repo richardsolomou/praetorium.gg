@@ -29,6 +29,7 @@ test('a list saved under an account is there on another device', async ({ browse
   await page.getByRole('button', { name: 'Open a battle' }).click()
   await page.getByRole('button', { name: 'Build from the catalogue' }).click()
   await page.getByRole('combobox', { name: 'Faction' }).click()
+  await page.getByPlaceholder('Search factions…').fill('Death G')
   await page.getByRole('option', { name: 'Death Guard', exact: true }).click()
   await page.getByRole('button', { name: 'Add detachment' }).click()
   await page.getByRole('menuitem', { name: /Death Lord/ }).click()
