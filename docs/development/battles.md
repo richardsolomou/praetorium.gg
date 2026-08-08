@@ -1,46 +1,49 @@
 # Battles
 
-`src/core/battle.ts` is the domain, `src/server/service.ts` is the only way in, and the concurrency design is the product. Read [the README](../../README.md) for why it cannot go out of step; this is what breaks if you change it.
+`src/core/battle.ts` contains the battle domain. `src/server/service.ts` connects it to persistence and realtime updates.
 
-## The log and the fold
+## Command log
 
-- **`src/core/battle.ts` is the whole domain** — phases, the command union, the fold, legality, and `battleView`. It stays free of IO and framework imports. Nothing enforces that; you are the enforcement.
-- **State is folded, never stored.** A column holding a score, a phase or a round is a regression: it would be a second copy of something the log already says, free to disagree. `reduceBattle` is the only way to learn what a battle currently is.
-- **`validate` is the only authority on legality.** The server calls it to accept a command; the interface calls it (through `battleView`) to decide what to offer. Two implementations of "may this player do this" is the bug this design exists to prevent.
-- **Reading history, judging a command and appending it happen in one transaction** (`Repository.submit`). Doing any part outside lets a command that was legal when it was checked land after one that made it illegal — exactly what two players tapping at once produces.
-- **`expectedSeq` is the client's claim about what it has already seen.** A mismatch is `stale`, which is an answer and not an error: the client refetches and the player taps again. Never "fix" a stale result by re-sending with the fresh seq — that discards the condition the whole mechanism exists to enforce.
-- **A command's answer carries the battle it produced** (`SubmitAnswer`), and `useCommand` writes it straight into the cache. The sender's next command is conditional on this one, and the refetch behind a command lands a round trip after the command does — so a page told to wait for it acts on a view older than its own last action: sending a seq from before it, and naming the wrong command to undo. Both were invisible on localhost and ordinary across the internet, where setting a battle up is several commands in a row. This is not the stream growing a payload: it is one answer to one caller, built by the same `battleView` a read goes through, and it is why `seatedScreen` is the only place a seated view is assembled.
-- **Undo is a command, not a rewrite.** It names the newest command still standing, and only its own author may send it; the fold skips what an undo names. History is only ever appended to, so an undone command still counts towards `seq` and a stale client is still caught.
-- **A new `Command` kind must be handled in `validate` and `apply`.** Both end in a `never` assignment, so adding one breaks the build rather than being silently permitted.
-- **`battleView` is the only place visibility is decided.** Nothing in a battle is secret today, but hidden information — a secondary still in hand, an undeployed reserve — arrives as a field held back there and nowhere else. Route components must not reassemble a view by hand.
-- **A unit is its owner's to report lost**, the same as their command points are theirs to spend. `set-unit` checks the key belongs to the sender.
+- Store commands, not derived battle state. `reduceBattle` derives the score, round, phase, and unit state.
+- Use `validate` as the only command-legality check. The server and `battleView` both depend on it.
+- Read the log, validate the command, and append it in one `Repository.submit` transaction.
+- Require `expectedSeq` on each command. Return `stale` when it does not match. Do not resend the command automatically with a new sequence number.
+- Return the updated seated screen with a submitted command. `useCommand` writes that screen to the query cache before another command can use it.
+- Implement every new `Command` kind in both `validate` and `apply`. Their exhaustive checks make missing cases fail the build.
 
-## Live updates
+Undo appends an `undo` command that names the latest active command. It does not delete history. Only the original author can undo that command.
 
-- **Live updates are a nudge, never a payload.** Centrifugo carries the battle id and nothing else; the page refetches and `battleView` decides what it may see. Putting battle state into the message would put a second visibility decision next to the only one. Presence is the exception and its entire vocabulary is names.
-- **A subscription token is where the seat is checked.** `/api/realtime/token` proves who the connection is on `GET` and authorises one channel on `POST`, and neither is issued without a seat in that battle — which is what stops a leaked invite link buying a stream. The channel is named after the battle id rather than the invite token, so the thing that gets pasted into a chat never becomes a channel name.
-- **Presence is Centrifugo's, never SQLite's.** Arriving and leaving _is_ a subscription opening and closing, which is why there are no heartbeats and nothing to expire. A row would outlive the tab it describes.
+## Views and visibility
 
-## Serving
+`battleView` is the only place that decides what a player can see. Routes and realtime messages must not build a second view.
 
-- **One SQLite file, one instance.** Fan-out is out of process now, so replicas would at least hear each other; the database is what still makes this a single instance. Moving that is what has to come before adding one.
-- **The browser never crosses an origin to reach Centrifugo**, which is why `connect-src 'self'` needs no exception anywhere. Caddy puts it on the app's origin in the container and the dev server proxies `/connection` to it. A build-time allowance was the first attempt and it was the wrong one — the policy header comes from Nitro's route rules, so no middleware can widen it at runtime either.
-- **Caddy checks the websocket's origin, so Centrifugo must not.** The entrypoint sets `CENTRIFUGO_CLIENT_ALLOWED_ORIGINS='*'` because every request it sees has already been through the proxy; without it Centrifugo second-guesses a check that has already happened and answers 403.
-- **Server functions wrap reads in `rpc()` and mutations in `mutationRpc()`** — a thrown `Response` otherwise reaches the client as a successful result, and mutations must check their origin before state access. CSRF protection is per-function, not middleware.
-- **`APP_URL` is the canonical host, and `src/start.ts` enforces it.** `/api/health` is exempt and must stay exempt: the container checks itself over 127.0.0.1, and redirecting that would ask a different machine whether this one is alive.
+A read never claims a battle seat. `PraetoriumService.screen` returns an invitation until the player sends the join mutation. This prevents link-preview crawlers from taking a seat.
 
-## Identity
+## Realtime updates
 
-- **Reads never seat anyone.** `PraetoriumService.screen` answers an invitation to a stranger rather than joining them, because a link preview crawler must not be able to take the second chair. Joining is an explicit mutation.
-- **A player is an account, and `playerForUser` is the only place one comes into existence.** `players.userId` is mandatory and unique. The row stays separate from `user` because the command log points at `players.id` and better-auth owns the shape of its own tables — so a name can change and a log still means what it meant.
-- **better-auth owns its five tables** (`user`, `session`, `account`, `verification`, `rateLimit`). Their shapes come from better-auth, so never add product columns to them; `players.userId` hangs off `user.id` instead.
-- **Everything needs an account, and joining a battle is no exception.** Email verification is still off deliberately: an inbox round trip at the table would be the wrong trade, and the account is there to hold your lists, not to prove who you are.
-- **`next` on the sign-in page is a path on this instance and nothing else.** An invite link sends a signed-out visitor through sign-in and back to the battle, and a redirect target that could be absolute would make that an open redirect.
+- Realtime messages contain only the battle ID. The client refetches the battle through the normal read path.
+- `/api/realtime/token` requires an account and a seat in the requested battle.
+- Realtime channels use the internal battle ID, not the invitation token.
+- Centrifugo subscription state provides presence. Do not store presence in SQLite.
+- Caddy and the Vite development proxy serve Centrifugo on the app origin. Keep `connect-src 'self'`.
 
-## Known sharp edge
+## Server boundaries
 
-Every command is conditional on the whole battle's history, so an action that could not possibly conflict — scoring your own victory points while your opponent ends a phase — can still lose a race and need a second tap. Only genuine cross-player races do: a page no longer loses to itself. The fix, when the remaining case starts annoying people, is per-command conditionality: order-dependent commands keep `expectedSeq`, order-independent ones state what they actually depend on. Removing `expectedSeq` is not the fix.
+- Run one application replica while SQLite is the database.
+- Wrap server-function reads with `rpc()` and mutations with `mutationRpc()`.
+- Keep `/api/health` outside canonical-host redirects so container health checks remain local.
+- Keep sign-in `next` values as paths on this instance. Absolute redirect targets create an open redirect.
+
+## Accounts
+
+An account maps to one `players` row through `playerForUser`. The command log uses the stable player ID, so an account name can change without changing history.
+
+Better Auth owns the `user`, `session`, `account`, `verification`, and `rateLimit` tables. Add product data to Praetorium tables instead of changing those schemas.
+
+## Concurrency limit
+
+`expectedSeq` applies to the full battle log. Independent commands from both players can still race, and one player may need to submit again. Keep this behavior until commands declare narrower dependencies. Do not remove `expectedSeq`.
 
 ## Tests
 
-`src/core/battle.test.ts` pins the turn sequence, the ownership rules and undo. `src/server/service.test.ts` drives the whole flow against an in-memory SQLite database and owns the race: two players holding the same seq, the loser's command staying out of the log entirely. A change to who may do what, or to when a round turns over, belongs in those files first.
+`src/core/battle.test.ts` covers turn order, ownership, visibility, and undo. `src/server/service.test.ts` covers persistence and concurrent submissions against SQLite.

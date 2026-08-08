@@ -1,13 +1,20 @@
-# Stratagems, missions and scoring
+# Stratagems, missions, and scoring
 
-The rules data is a separate source from the catalogues, with a separate licence, and it is why the app can offer stratagems at all.
+Praetorium reads stratagems and mission data from [40kdc-data](https://github.com/tabletop-developer-consortium/40kdc-data) under CC BY 4.0. `ATTRIBUTION` in `src/server/rules.ts` must appear wherever the app shows this data.
 
-- **Stratagems and mission cards come from a third source, and its licence is the reason.** The BSData catalogues carry neither, so `catalogue/sources.json` also pins [40kdc-data](https://github.com/tabletop-developer-consortium/40kdc-data), whose data is CC BY 4.0 — redistribution and adaptation are permitted _with attribution_, which makes attribution a condition rather than a courtesy. `ATTRIBUTION` from `src/server/rules.ts` goes on screen wherever that data does. Do not remove it.
-- **An unrecognised stratagem timing becomes `unlimited`, never a guess.** Inventing a limit would stop a player using something they are entitled to, mid-game.
-- **Nothing in this app is typed that can be picked.** Stratagems, the primary mission, secondaries and unit loadouts are all chosen from the data; a list names itself after its faction and detachment. The only free text left is a player's own name and an optional list name, and the list name has a default. If a new feature asks a player to type a game fact, the data source is the thing to fix.
-- **Scoring offers the figure the card pays.** A card's awards carry the number, so the interface shows `+3 ea` rather than a generic stepper. `FALLBACK_AWARDS` covers a card whose payouts are unknown, because no way to score is worse than a plain one.
-- **Stratagems need a built list.** Prep reads the catalogue and detachment off `roster.built`, so a pasted list gets no stratagems and no mission cards. That is the honest consequence of not typing them: knowing your stratagems means knowing your detachment.
-- **Prep is one command, not two.** `set-prep` carries both lists because two commands in a row would make the second stale against the first — the concurrency guard working exactly as designed, against a caller that split one act in half.
-- **The scoring ceilings come from the mission, and are shown rather than enforced.** A mission states 15 a round and 45 a game, so those figures are real now instead of guessed; `PRIMARY_GUIDE` remains the fallback when no mission is known. Refusing a score would still stop a real game at a real table, so nothing is refused.
-- **The mission is derived from both armies, never stored.** Eleventh edition takes it from the pair of force dispositions, so a detachment records its disposition and `PraetoriumService.screen` resolves the mission on read. Storing it would be a second copy of something the two lists already decide.
-- **A deployment zone's points are relative to its own position.** Applying the offset is what stops every zone piling into one corner, and the drawing area is measured from the pattern rather than assumed — a hardcoded board size was wrong the first time.
+## Rules data
+
+- Players choose stratagems, missions, secondaries, and loadouts from fetched data. Do not replace a missing data field with free text.
+- An unknown stratagem timing maps to `unlimited`. Do not invent a usage limit.
+- A pasted roster has no structured faction or detachment. It cannot provide catalogue-backed stratagems or mission cards.
+- `set-prep` stores stratagems and secondaries in one command. Splitting the action would make the second command stale.
+
+## Scoring
+
+- Use each card's award values for scoring controls. Use `FALLBACK_AWARDS` only when the source has no award data.
+- Show mission scoring caps as guidance. Do not reject a score that exceeds them.
+- Derive the mission from both rosters' force dispositions in `PraetoriumService.screen`. Do not store a separate mission value.
+
+## Deployment patterns
+
+Deployment-zone points are relative to each zone's position. Apply the zone offset before drawing each point. Measure the drawing area from the pattern instead of assuming a board size.

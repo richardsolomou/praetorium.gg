@@ -1,69 +1,75 @@
-# Reading the catalogues
+# Catalogue data
 
-Everything about army lists comes from here: the community data, the evaluator over it, and the traps that each cost a real debugging session. `src/core/catalogue.ts`, `src/core/evaluate.ts` and `src/core/roster.ts` are the code; this is why they are shaped the way they are.
+Praetorium builds and validates rosters from fetched community data. The domain code stays in `src/core`; loading and search stay in `src/server`.
 
-## Where the data comes from
+## Sources and loading
 
-- **No game data lives in this repository, ever.** `catalogue/sources.json` records where it comes from and pins a revision; `catalogue-data/` is fetched and gitignored. This is what lets the project be public without redistributing Games Workshop's content.
-- **The rule was never "no stratagems", it was "no vendored game data".** All three sources are fetched at a pinned revision into an ignored directory; none is committed. Writing GW's rules text into this repository is what is forbidden, not reading a licensed community dataset.
-- **The instance fetches its own community data.** `src/server/sync.ts` compares `/data/catalogue/revision.json` against the revisions pinned in the bundle and fetches what is missing, in the background, so an instance starts and serves battles either way. `catalogue/sources.json` is imported rather than read from disk so it travels in the bundle — a container has `src` and nothing else. GitHub's zipball is used rather than its tarball because `fflate` already reads zip and Node has no tar.
-- **A source is staged and swapped, never written in place.** A fetch that dies halfway must not leave a half-written catalogue that looks complete.
-- **`just catalogue-sync` runs the same code the server runs.** The script exists for convenience in development and for warming the CI cache; it must not grow its own fetching logic, or the two will drift.
-- **The catalogue is loaded on first use, never at boot.** About 90MB of heap, held in the process because that measured far cheaper than compiling it down. An instance with no data synced starts normally and simply offers pasting instead — `factions` answers null and the interface says nothing about it.
+- `catalogue/sources.json` records three sources and pins each commit revision.
+- `catalogue-data/` contains fetched data and is gitignored. Do not commit game data or copied rules text.
+- `src/server/sync.ts` compares local revisions with the pinned revisions and downloads missing data in the background.
+- Each download uses a staging directory. It replaces the current source only after the download finishes.
+- `just catalogue-sync` calls the same sync code as the server.
+- The server loads the catalogue on first use. An instance without catalogue data can still serve battles and pasted rosters.
 
-## What a book offers
+## Books and datasheets
 
-- **A datasheet is defined by what links to it, not by type and not by depth.** A character is a `model` entry exactly as an "Intercessor Sergeant" is, so filtering the picker on `type === 'unit'` hid most of the game — but so did the reading that replaced it. A book states its roster as **links at its root**, and `index.datasheets` is that list per book. Depth says nothing: Jakhal and Burna Boy sit at the top of their files as bodies inside a squad and were offered as datasheets, while Astra Militarum, Aeldari, Drukhari, Chaos Daemons, Chaos Knights, Imperial Knights and both Titanicus books hold nothing at the top of their own file at all and were offered as no faction.
-- **A book borrows another's roster through `catalogueLinks`, and only when `importRootEntries` says so.** Blood Angels link Space Marines to field them — twenty-seven datasheets of their own, two hundred and forty-nine in the picker. Chaos Daemons link Chaos Space Marines only to reach rules that name them, and reading both the same way offers a Daemons player the Traitor Legions. Borrowing is one level deep, which is what the data expects: chapters re-declare Agents and the Knights library rather than inheriting them through Space Marines.
-- **`library: true` is in the data, so nothing needs to guess at it.** Matching names ending in " Library" put Astartes Heresy Legends, Titans, Tyranids and Unaligned Forces in the faction list, and they are shelves, not armies.
-- **A datasheet belongs to no book — it is **offered** by books.** `catalogueOf` says which file an entry was written in, which for a chapter is usually not the book the player picked. Anything asking "is this datasheet in this faction" asks `datasheets.get(catalogueId)`, and `isDatasheetId` is the only place that falls back to "any book at all" — for an import naming a catalogue this instance never synced.
-- **A book with no detachments of its own plays with those of the book it imports most of its roster from.** Preferring the **longest** list instead gave World Eaters the Daemons detachments, Adeptus Custodes the Knights ones and Genestealer Cults the Astra Militarum ones. A book's own detachments always win, however few.
-- **A detachment is one entry above one group above the choices, and every layer may be written out or linked.** Astra Militarum link a group holding thirteen; Necrons write theirs inline. The wrapper is named "Detachment", "Detachments" or "Detachment Choice", so it is matched by prefix.
-- **A datasheet's roster cap lives on its category, not on the datasheet.** Every unit carries a category named after itself and that category holds the `max`; only some entries also carry one of their own. Reading just the entry answered "no limit stated" for every battleline squad in the game — 290 of 303 rows carry a limit once categories are read. A negative maximum is how the data says "no cap", and `rosterLimit` is for showing and filtering only: `violations` remains the sole authority on legality.
-- **The collection stores membership and nothing else.** `collection` is one row per player per datasheet, because the only question asked of it is whether the picker should show that datasheet. A count of models owned would be a number to keep correct for nobody.
+- A book offers the datasheets linked from its root. Do not identify datasheets by entry type or file depth.
+- Follow `catalogueLinks` only when `importRootEntries` is true. Imported rosters are one level deep.
+- Exclude entries marked `library: true` from the faction list.
+- `catalogueOf` identifies the file that defines an entry. `index.datasheets.get(catalogueId)` identifies the books that offer it.
+- `isDatasheetId` can fall back to any synced book when an imported roster names an unavailable catalogue.
+- A book's own detachments take priority. A book without detachments uses the detachments from the book that contributes most of its roster.
+- A detachment has a wrapper, a group, and its choices. Any layer can be inline or linked. Match wrapper names by the `Detachment` prefix.
+- A datasheet roster cap usually lives on its same-named category. `rosterLimit` reads that cap for display and filtering. `violations` remains the legality authority.
+- The collection stores one membership row per player and datasheet. It does not store model quantities.
 
-## Building a unit
+## Building units
 
-- **A `collective` entry holds a total for the whole unit, not one model's share.** Ten gauss blasters are stored as ten on one node, and its `@parent` constraints are written per model — "each model may take one" is `max=1`, so a ten-model squad may hold ten. Everything about splitting a squad follows from that: `expand` scales required counts and caps by the models carrying them, `wargearOf` takes a collective count as it stands instead of multiplying, `unitChoices` reports capacity as `max × models`, and `violations` scales a per-parent limit the same way. The flag was declared and unused before, so the tree said one blaster where a squad had five and the constraint said one where the limit was five — two errors that cancelled out until either was fixed alone.
-- **A per-model group is always full, and `refit` is what fills it.** Growing a squad leaves its weapons behind, so every build ends with a pass that tops each required group up to the models holding it, adding the shortfall to the option the data names as default and failing that the cheapest. It never trims, and it touches only collective **upgrades** — filling a group of models would overrule the squad size that was asked for, which silently pinned Prosecutors and Vigilators at their minimum price whatever size was requested. It fills only groups the data _requires_, because topping up an optional group puts points on a list nobody asked for.
-- **Reducing one option in a full group means increasing another.** The interface's `+` takes one off whichever sibling has the most to give, which is what the datasheet says in words: each model may replace its blaster with a carbine. A `−` needs no partner because `refit` puts the freed slot back on the default.
-- **`spreads` have to reach the server or they do nothing.** They travel on the pick beside `models` and `choices`, through pricing, saving and export alike; three call sites omitted them at first and the interface simply had no effect.
-- **Overriding a model count means zeroing the other slots first.** `defaultSelection` has already placed a squad's minimum bodies, so setting one slot's count without emptying the rest leaves both and the unit comes out oversized — which read as `defaultSelection` over-counting when it was the caller double-counting.
-- **A squad's bounds may sit on the group or on its occupants, and govern their sum.** `unitSize` works at the group level and falls back to what the occupants add up to, because a group written as "3-9 Prosecutors" often carries no constraints at all. Pushing a group's minimum onto one occupant reported a five-model squad as needing six.
-- **Always look inside a group when building defaults.** A group with no minimum of its own routinely holds entries that insist on themselves; skipping it left units with a sergeant and nobody to lead.
-- **A group's requirement belongs to what goes inside it.** `defaultSelection` fills a group by spreading its minimum across the options, respecting each option's own cap and preferring the group's named default then the cheapest. Putting the number on the group itself left squads with no models in them, and taking the priciest option puts points on a list nobody asked for.
-- **Wargear counts multiply down the selection tree.** A squad of five models each carrying one blaster stores the five on the model and a one on the weapon, so `wargearOf` returns five by multiplying, not by reading the leaf. Reading the leaf printed "1x Gauss blaster" on a five-model squad.
+- A `collective` count is the total for the unit. Constraints with `scope: parent` are per model and must scale with the number of carriers.
+- `expand`, `unitChoices`, `violations`, and `wargearOf` must use the same collective-count rules.
+- `refit` fills required per-model upgrade groups after a model-count change. It uses the declared default, then the cheapest option. It does not fill optional groups or groups of models.
+- Increasing one option in a full group reduces an available sibling. Decreasing an option lets `refit` return the freed count to the default.
+- Preserve `spreads` through pricing, saving, import, and export.
+- Clear other model slots before applying a model-count override. The default selection already contains the minimum models.
+- A squad-size constraint can live on the group or its occupants. `unitSize` applies the bound to their total.
+- Inspect required entries inside selection groups when building defaults.
+- Fill a required group's count across its options. Respect each option cap and prefer the declared default, then the cheapest option.
+- Wargear counts multiply through ordinary selection ancestors. Collective counts already represent the unit total and do not multiply again.
 
 ## Pricing and legality
 
-- **`src/core/evaluate.ts` never guesses.** A feature it does not understand goes into `unhandled`, and a condition group it cannot read fails closed. A confidently wrong points total is worse than an honest gap — an empty `and` group read as satisfied is what silently added 15 points to a third of the game.
-- **A group is a container in the catalogue, not a selection in a roster.** `selectionsUnder` promotes group layers away so a condition counting `model` selections directly under a unit sees the models the data nested in a group, and `inGroup` is how a condition naming a group still counts the selections that came from it. Both readings are in the data and both are common; treating a group as a level of nesting made every unit written the first way look empty.
-- **Points depend on which book the list is from.** `EvaluateOptions.primaryCatalogueId` answers `scope: primary-catalogue`, which is how a chapter-specific surcharge is written — the same captain costs five points more in one book than another. Without it those surcharges cannot be applied, and the evaluator says so rather than charging either way.
-- **Every roster records the data revision it was validated against, and a battle pins one for both.** Two clients on different revisions agree about the score and disagree about legality, which is exactly what players argue over.
-- **A roster has a force between it and its selections.** Conditions count forces and scope to them — a per-detachment limit is written against the force, not the roster — so `evaluate` puts one in. It is transparent when counting selections, exactly as a group is, so nothing that already worked sees a new layer.
-- **Every node carries its position in the list.** `before` and `after` are about order, not counting, and they are how eleventh edition writes an escalating per-copy cost. Without them a second Baneblade cost the same as the first.
-- **`instanceOf` reads both ways depending on the scope** — "am I one of these" against `self`, "is there one of these in here" against `roster` — so it counts the scope alongside its contents. Answering only one way broke the other, in both directions, and the tests pin both.
-- **Keywords are category links, and conditions ask about them constantly.** "Is this inside a model of my own faction" is a category test, not a name test, and ignoring `categoryLinks` made every such test answer no — which hid every enhancement in the game. `matches` checks category membership alongside identity.
-- **Visibility is a property of the roster, not of an entry.** `hiddenByRules` takes the rest of the list, because an enhancement is hidden unless the detachment it belongs to has been taken, and campaign-only content is hidden unless the roster is a Crusade force. Asking without the roster present hid every enhancement; not asking at all offered fourteen Crusade choices per unit.
-- **Choices come from the datasheet, not from the built selection.** An optional group is absent from a default list by definition, so walking only what was built would never offer an enhancement.
-- **The detachment goes into the roster before the units.** Enhancements and several unit limits are written as conditions on which detachment the roster holds, so a list evaluated without one is judged against rules that never fire. A book that offers detachments cannot have a list attached until one is picked.
-- **Eleventh-edition detachments are ordered purchases, not one choice.** The first is primary and supplies the force disposition; every purchased detachment contributes its fetched `detachment_points` cost against the battle-size budget (2 DP at Incursion, 3 DP at Strike Force), and all of them contribute their stratagems. Saved and imported lists preserve that order.
+- `src/core/evaluate.ts` reports unsupported semantics in `unhandled`. An unreadable condition group fails closed.
+- Selection groups are catalogue containers. `selectionsUnder` removes group layers when a condition counts selections. `inGroup` retains group membership for conditions that name the group.
+- Pass `EvaluateOptions.primaryCatalogueId` when costs or conditions can depend on the selected book.
+- A roster contains forces, and forces contain selections. Force-scoped conditions must see that layer.
+- Preserve selection order. `before` and `after` conditions use it for escalating per-copy costs.
+- `instanceOf` compares the current selection for `self` scope and searches the scoped contents for container scopes.
+- Treat category links as keywords when matching conditions.
+- Call `hiddenByRules` with the current roster. Visibility can depend on its detachment and force type.
+- Read available choices from the datasheet definition, not only from the built selection. Optional groups are absent from the default selection.
+- Add detachments before units during evaluation. Enhancements and unit limits can depend on them.
+- Eleventh-edition detachments are ordered purchases. The first detachment supplies the force disposition. All purchased detachments contribute their detachment-point cost and stratagems.
 
-### The Munitorum is the oracle
+## Points ratchet
 
-- **The Munitorum is the oracle, not a second opinion.** `just points` builds real units at real model counts and compares against Games Workshop's own printed points. It currently agrees on 99.6% of 1,863 checks through the same `buildUnit` the app calls. The seven remaining differences are Deathwatch Terminators, Fortis Kill Teams, Indomitor Kill Teams and Spectrus Kill Teams: the definitions catalogue carries older prices for those four datasheets, including at current upstream HEAD. That number is a ratchet: a change that lowers it is a regression even if every unit test passes — unless what the check builds changed, in which case say so and rebaseline. Read the mismatch list before believing a refactor was safe.
-- **Distinguish evaluator bugs from harness bugs.** The check script guesses how to place N models in a unit and reads the Munitorum's per-copy pricing ranges. Both have been wrong and both inflated the mismatch count. Before chasing a mismatch, confirm the harness built what it thinks it built.
+`just points` builds units with the same `buildUnit` function as the app and compares them with the Munitorum source. It currently matches 99.6% of 1,863 checks.
 
-## The picker
+The remaining differences are upstream prices for Deathwatch Terminators, Fortis Kill Teams, Indomitor Kill Teams, and Spectrus Kill Teams. A lower match rate is a regression unless the generated check set changed and the new baseline is explained.
 
-- **The picker prices through the same `buildUnit` the roster does.** A number in the picker that disagreed with what the unit costs once added would be worse than no number. Pricing a page of results measured at 14ms; pricing the whole book would not be, which is why the page is what gets priced.
-- **Which units a character may join is a sentence, not a structure.** There is no link, category or constraint saying a Plasmancer may join Immortals — there is an ability whose description says so, in one of two formats (`■ IMMORTALS` lines, or `^^**Immortals, Lychguard**^^` inline). `attachmentOf` parses it, which is why `core/catalogue.ts` carries `profiles` and `infoGroups` at all despite otherwise holding nothing display-only. A character with no such sentence simply cannot be attached; finding nothing is an ordinary answer.
-- **Leader versus supporting is read from the ability's title.** A Leader's ability is titled "Leader"; a supporting character's is titled after the model. `support` is therefore the default, because the wrong word on a row is a smaller lie than inventing a Leader the data does not have. Verified against the live BattleBase roster: Overlord leads, Plasmancer supports.
+Inspect the generated selection before changing evaluator logic. A mismatch can come from the evaluator, the catalogue, or the check harness.
 
-## Saved lists, import and export
+## Picker and attachments
 
-- **A saved list stores the picks, not the expanded selections.** Re-pricing them against whatever catalogue the instance holds is the honest answer when Games Workshop changes points, and it is what a player expects a saved list to do. `RosterPick` is that shape.
-- **`built.units` is the one derived thing that is stored, deliberately.** The command log points at those keys when a unit is lost, so they are fixed when the list is attached and cannot be re-derived later without the log meaning something else. It also lets an opponent read a list on an instance with no catalogue loaded.
-- **Roster interop works because both sides read the same catalogues.** An entry id in a New Recruit or BattleScribe export is the same id this instance holds, so matching is exact; the `::`-joined link path they sometimes write is resolved from its tail, and a name match is the last resort. Anything unplaceable is named back to the player — an import that quietly loses half a list is worse than one that admits what it dropped.
-- **`fast-xml-parser` and `fflate` earn their place.** XML and zip are not one-liners, both are well travelled, and nothing else in the app needs either.
-- **Export works on what the builder is showing**, not on an attached roster: exporting a list is a list-building act, and requiring a battle to do it was the wrong shape.
+- Price picker rows with `buildUnit`, using the same inputs as the roster. Price only the displayed page.
+- Character attachment targets come from ability text. `attachmentOf` supports bullet-list and inline formats.
+- A missing attachment rule means the unit cannot attach.
+- An ability titled `Leader` marks a leader. Other supported attachment abilities default to support.
+
+## Saved lists and interchange
+
+- Save `RosterPick` values instead of expanded selections. Rebuild them against the current catalogue when pricing a saved list.
+- Freeze `built.units` when a roster is attached. Battle commands refer to those stable unit keys.
+- Import roster entries by catalogue ID. Resolve joined link paths from their final ID. Use a name match only as a fallback.
+- Report entries that cannot be imported instead of dropping them.
+- Use `fast-xml-parser` for roster XML and `fflate` for `.rosz` archives.
+- Export the current builder state. A battle attachment is not required.

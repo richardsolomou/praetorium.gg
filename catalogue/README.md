@@ -1,22 +1,24 @@
 # Catalogue sources
 
-Praetorium reads community catalogue data for Warhammer 40,000 and ships none of it. This directory records where the data comes from and which revision is in use; the data itself is fetched into a working directory that is never committed.
+Praetorium fetches community Warhammer 40,000 data at runtime. This directory stores source locations and pinned revisions in `sources.json`. The fetched data lives in the gitignored `catalogue-data/` directory.
 
-That is deliberate. The catalogues describe Games Workshop's game, and keeping them out of this repository is what lets the project be public without redistributing anyone's content. It is the same posture New Recruit takes.
+No game data is committed to this repository.
 
-## The two sources
+## Sources
 
-`definitions` is [BSData/wh40k-11e](https://github.com/BSData/wh40k-11e): the entry trees, constraints, modifiers and costs that make a roster legal or illegal. It is JSON on `main` — one file per faction, plus `Warhammer 40,000.json` for the game system. There are no releases and no `catpkg` assets, so a revision is a commit sha rather than a tag.
+- `definitions` uses [BSData/wh40k-11e](https://github.com/BSData/wh40k-11e) for faction entries, constraints, modifiers, and costs.
+- `points` uses [BSData/wh40k-11e-mfm](https://github.com/BSData/wh40k-11e-mfm) for an independent comparison with the Munitorum Field Manual.
+- `rules` uses [40kdc-data](https://github.com/tabletop-developer-consortium/40kdc-data) for stratagems, missions, and scoring data under CC BY 4.0.
 
-`points` is [BSData/wh40k-11e-mfm](https://github.com/BSData/wh40k-11e-mfm): points scraped from Games Workshop's own Munitorum Field Manual into per-faction YAML. This is not product data — it is the independent oracle the evaluator is checked against. A disagreement means the evaluator, the check harness or the definitions catalogue is out of step; inspect the built selection and both sources before changing product logic.
+The points source checks the evaluator. It is not loaded by the product. When a comparison fails, inspect the generated selection, the definitions, and the points source before changing evaluation logic.
 
 ## Commands
 
-- `pnpm catalogue:check` — offline. Validates `sources.json` and that both revisions are pinned to full commit shas. Runs as part of `pnpm check`.
-- `pnpm catalogue:sync` — fetches both sources at the pinned revisions into `catalogue-data/`.
-- `pnpm catalogue:update` — moves both sources to the head of their configured branch and rewrites `sources.json`.
-- `pnpm catalogue:points` — evaluates real units at real model counts and compares against the Munitorum figures.
+- `pnpm catalogue:check` validates `sources.json` and its pinned commit revisions. It runs as part of `pnpm check`.
+- `pnpm catalogue:sync` fetches all sources at their pinned revisions.
+- `pnpm catalogue:update` updates each source to its configured branch head and rewrites `sources.json`.
+- `pnpm catalogue:points` compares generated unit costs with the points source.
 
-## Why the revision is pinned
+## Pinned revisions
 
-Every roster must record the revision it was validated against, and every battle must pin one for both rosters. Two clients holding different revisions agree perfectly about the score and disagree about whether a list is legal, which is precisely the thing players argue over.
+Saved rosters record the definitions revision used for validation. Pinning keeps list results stable until the source revision changes deliberately.
