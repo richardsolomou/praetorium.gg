@@ -1,6 +1,6 @@
 import path from 'node:path'
 import { type BattleEvents, RealtimePublisher } from '../adapters/events'
-import { catalogueDirectory, type LoadedCatalogue, loadCatalogue } from './catalogue'
+import { catalogueDirectory, type LoadedCatalogue, loadCatalogue } from './catalogueIndex'
 import { type LoadedRules, loadRules } from './rules'
 import { isCurrent, type SyncState, syncSources } from './sync'
 import { databasePath, type PraetoriumDatabase, openDatabase } from '../db/connection'

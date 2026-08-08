@@ -13,6 +13,14 @@ Praetorium builds and validates rosters from fetched community data. The domain 
 - `just catalogue-sync` calls the same sync code as the server.
 - The server loads the catalogue on first use. An instance without catalogue data can still serve battles and pasted rosters.
 
+Server catalogue code is split by responsibility:
+
+- `catalogueIndex.ts` loads files and indexes books, detachments, and datasheet membership.
+- `catalogue.ts` projects a datasheet for display and applies contextual profile modifiers.
+- `cataloguePicker.ts` searches, groups, prices, and limits picker results.
+- `catalogueDescriptions.ts` resolves detachment and enhancement text without guessing between conflicting matches.
+- `sync.ts` owns downloads and atomic replacement. It does not interpret game data.
+
 ## Books and datasheets
 
 - A book offers the datasheets linked from its root. Do not identify datasheets by entry type or file depth.

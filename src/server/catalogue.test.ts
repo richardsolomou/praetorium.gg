@@ -1,15 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { buildIndex, type Catalogue, type CatalogueFile, type Modifier } from '../core/catalogue'
-import {
-  datasheetIn,
-  datasheetInBySlug,
-  detachmentCatalogueDetail,
-  detachmentsOf,
-  factionsIn,
-  type LoadedCatalogue,
-  rulesReferencedIn,
-  unitsIn,
-} from './catalogue'
+import { datasheetIn, datasheetInBySlug, rulesReferencedIn } from './catalogue'
+import { detachmentCatalogueDetail } from './catalogueDescriptions'
+import { detachmentsOf, factionsIn, type LoadedCatalogue } from './catalogueIndex'
+import { unitsIn } from './cataloguePicker'
 
 const PTS = 'cost-pts'
 
