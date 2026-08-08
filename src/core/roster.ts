@@ -10,7 +10,7 @@
  * Pure, like the rest of `src/core`.
  */
 
-import type { CatalogueIndex, Constraint, Definition } from './catalogue'
+import { type CatalogueIndex, type Constraint, type Definition, targetOf } from './catalogue'
 import { hiddenByRules } from './evaluate'
 import type { Selection } from './evaluate'
 
@@ -206,9 +206,7 @@ function childrenOf(definition: Definition, index: CatalogueIndex) {
   return found
 }
 
-function resolve(definition: Definition, index: CatalogueIndex): Definition {
-  return 'targetId' in definition ? (index.definitions.get(definition.targetId) ?? definition) : definition
-}
+const resolve = (definition: Definition, index: CatalogueIndex) => targetOf(definition, index.definitions)
 
 /**
  * Lays `overrides` over a selection tree by path, so a caller can say "this unit,

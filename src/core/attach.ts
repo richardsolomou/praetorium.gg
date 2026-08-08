@@ -1,4 +1,4 @@
-import type { CatalogueIndex, Definition, InfoGroup, Profile } from './catalogue'
+import { type CatalogueIndex, type Definition, type InfoGroup, type Profile, targetOf } from './catalogue'
 import type { EvaluationError } from './evaluate'
 
 /**
@@ -74,7 +74,13 @@ export function attachmentErrors(units: readonly { entryId: string; attachedTo?:
   return errors
 }
 
-/** Every ability on the entry, as title and words. */
+/**
+ * Every ability on the entry, as title and words.
+ *
+ * A book reaches most of its characters through a link, and the abilities are on
+ * the datasheet the link points at — so both are read, the link first because it
+ * may add one of its own.
+ */
 function statements(definition: Definition, index: CatalogueIndex): [string, string][] {
   const found: [string, string][] = []
 
@@ -88,15 +94,21 @@ function statements(definition: Definition, index: CatalogueIndex): [string, str
     for (const profile of group.profiles ?? []) fromProfile(profile, group.name ?? profile.name ?? '')
   }
 
-  for (const group of definition.infoGroups ?? []) fromGroup(group)
-  for (const profile of definition.profiles ?? []) fromProfile(profile, profile.name ?? '')
-  // A shared ability is linked rather than repeated, and the link may rename it.
-  for (const link of definition.infoLinks ?? []) {
-    const target = index.shared.get(link.targetId)
-    if (!target) continue
-    if ('characteristics' in target) fromProfile(target, link.name ?? target.name ?? '')
-    else fromGroup({ ...target, name: link.name ?? target.name })
+  const read = (source: Definition) => {
+    for (const group of source.infoGroups ?? []) fromGroup(group)
+    for (const profile of source.profiles ?? []) fromProfile(profile, profile.name ?? '')
+    // A shared ability is linked rather than repeated, and the link may rename it.
+    for (const link of source.infoLinks ?? []) {
+      const target = index.shared.get(link.targetId)
+      if (!target) continue
+      if ('characteristics' in target) fromProfile(target, link.name ?? target.name ?? '')
+      else fromGroup({ ...target, name: link.name ?? target.name })
+    }
   }
+
+  read(definition)
+  const target = targetOf(definition, index.definitions)
+  if (target !== definition) read(target)
 
   return found
 }

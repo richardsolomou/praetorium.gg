@@ -5,12 +5,13 @@ import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select'
 import type { Roster, Secondary, Stratagem } from '../../core/battle'
 import { GAME_SIZES, ROSTER_NAME_MAX_LENGTH } from '../../core/battle'
 import { deleteRoster, exportRoster, importRoster, saveRoster, setOwned } from '../../server/fns'
 import { collectionQuery, factionsQuery, priceQuery, savedRostersQuery } from '../queries'
 import { errorMessage } from '../queryClient'
+import { shelve, shortName } from './builder/factions'
 import { GROUPS } from './builder/groups'
 import { Loadout } from './builder/Loadout'
 import { Picker } from './builder/Picker'
@@ -105,9 +106,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
 
   const faction = available?.factions.find((entry) => entry.id === catalogueId)
   const suggested = faction
-    ? [faction.name.split(' - ').at(-1), faction.detachments.find((entry) => entry.id === detachmentIds[0])?.name]
-        .filter(Boolean)
-        .join(' — ')
+    ? [shortName(faction.name), faction.detachments.find((entry) => entry.id === detachmentIds[0])?.name].filter(Boolean).join(' — ')
     : ''
   const listName = name.trim() || suggested
   const save = useMutation({
@@ -401,14 +400,24 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
           onValueChange={(value: string | null) => setPickerCatalogueId(value ?? catalogueId)}
         >
           <SelectTrigger id="force" className="mt-1 w-full">
-            <SelectValue>{(value: unknown) => available.factions.find((entry) => entry.id === value)?.name ?? 'Pick a force'}</SelectValue>
+            <SelectValue>
+              {(value: unknown) => {
+                const entry = available.factions.find((each) => each.id === value)
+                return entry ? shortName(entry.name) : 'Pick a force'
+              }}
+            </SelectValue>
           </SelectTrigger>
-          <SelectContent>
-            {available.factions.map((entry) => (
-              <SelectItem key={entry.id} value={entry.id}>
-                {entry.name}
-                {entry.id === catalogueId ? ' (primary)' : ''}
-              </SelectItem>
+          <SelectContent className="w-auto min-w-(--anchor-width) max-w-[min(90vw,24rem)]">
+            {shelve(available.factions).map((shelf) => (
+              <SelectGroup key={shelf.lineage}>
+                <SelectLabel>{shelf.lineage}</SelectLabel>
+                {shelf.factions.map((entry) => (
+                  <SelectItem key={entry.id} value={entry.id}>
+                    {shortName(entry.name)}
+                    {entry.id === catalogueId ? ' (primary)' : ''}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
             ))}
           </SelectContent>
         </Select>
@@ -468,14 +477,25 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
               <SelectTrigger id="faction" className="h-6 w-full border-0 bg-transparent px-0 font-semibold text-azure uppercase">
                 {/* The value is a catalogue id, so the trigger has to be told the name. */}
                 <SelectValue placeholder="Pick a book">
-                  {(value: unknown) => available.factions.find((entry) => entry.id === value)?.name ?? 'Pick a book'}
+                  {(value: unknown) => {
+                    const entry = available.factions.find((each) => each.id === value)
+                    return entry ? shortName(entry.name) : 'Pick a book'
+                  }}
                 </SelectValue>
               </SelectTrigger>
-              <SelectContent>
-                {available.factions.map((entry) => (
-                  <SelectItem key={entry.id} value={entry.id}>
-                    {entry.name}
-                  </SelectItem>
+              {/* The lineage every name carries is the heading here rather than
+                  nineteen repeated characters on each row, and the list is as wide
+                  as its longest name rather than as wide as the column. */}
+              <SelectContent className="w-auto min-w-(--anchor-width) max-w-[min(90vw,24rem)]">
+                {shelve(available.factions).map((shelf) => (
+                  <SelectGroup key={shelf.lineage}>
+                    <SelectLabel>{shelf.lineage}</SelectLabel>
+                    {shelf.factions.map((entry) => (
+                      <SelectItem key={entry.id} value={entry.id}>
+                        {shortName(entry.name)}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
                 ))}
               </SelectContent>
             </Select>

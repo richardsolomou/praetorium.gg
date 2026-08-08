@@ -21,7 +21,7 @@ test('a built list is priced, played and tracked', async ({ browser }) => {
 
   await alice.getByRole('button', { name: 'Build from the catalogue' }).click()
   await alice.getByRole('combobox', { name: 'Faction' }).click()
-  await alice.getByRole('option', { name: 'Chaos - Death Guard' }).click()
+  await alice.getByRole('option', { name: 'Death Guard', exact: true }).click()
 
   // A list without a detachment is not a legal army, so it cannot be attached.
   await alice.getByRole('button', { name: 'Add detachment' }).click()

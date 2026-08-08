@@ -35,10 +35,10 @@ export const factionsQuery = () => queryOptions({ queryKey: ['factions'], queryF
 /** The datasheets the player owns models for, so the picker can filter on it. */
 export const collectionQuery = () => queryOptions({ queryKey: ['collection'], queryFn: () => collection(), staleTime: SSR_STALE_TIME })
 
-export const unitsQuery = (catalogueId: string, query: string) =>
+export const unitsQuery = (catalogueId: string, query: string, legends = false) =>
   queryOptions({
-    queryKey: ['units', catalogueId, query],
-    queryFn: () => units({ data: { catalogueId, query } }),
+    queryKey: ['units', catalogueId, query, legends],
+    queryFn: () => units({ data: { catalogueId, query, legends } }),
     enabled: Boolean(catalogueId),
     staleTime: SSR_STALE_TIME,
   })
