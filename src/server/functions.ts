@@ -165,11 +165,11 @@ function describeAbilities(loaded: LoadedCatalogue, sheet: ReturnType<typeof dat
     ...sheet,
     abilities,
     keywordRules: mergeKeywordRules(
-      sheet.keywordRules,
       rulesReferencedIn(
         loaded,
         abilities.map((ability) => ability.description),
       ),
+      sheet.keywordRules,
     ),
     attribution: supplied ? WAHAPEDIA_ATTRIBUTION : null,
   }

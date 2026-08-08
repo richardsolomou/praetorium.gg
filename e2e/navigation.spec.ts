@@ -122,6 +122,7 @@ test('a player can enter through the roster library and browse the product', asy
   await expect(page.getByRole('heading', { name: 'My Will Be Done' })).toBeVisible()
   await expect(page.getByRole('heading', { name: /Wargear abilities/ })).toBeVisible()
   await page.getByRole('button', { name: 'Devastating Wounds' }).first().click()
+  await expect(page.getByRole('tooltip').getByText('Devastating Wounds', { exact: true })).toBeVisible()
   await expect(page.getByRole('tooltip')).toContainText('critical wound')
   await page.screenshot({ path: 'test-results/keyword-tooltip.png', fullPage: true })
   await page.reload()
