@@ -93,7 +93,7 @@ export function Picker({ catalogueId, onAdd, inRoster, room }: Props) {
                   return (
                     <div key={unit.id} className="flex items-center gap-1.5 border border-edge bg-card px-2.5 py-1.5">
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm leading-tight font-semibold tracking-[0.02em] uppercase">{unit.name}</span>
+                        <span className="block text-sm leading-tight font-semibold tracking-[0.02em] uppercase">{unit.name}</span>
                         {held ? (
                           <span className={`readout block text-[0.6875rem] ${full ? 'text-discarded' : 'text-faint'}`}>
                             {held}

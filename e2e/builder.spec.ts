@@ -254,6 +254,30 @@ test('a character can be marked as the warlord from its card', async ({ page }) 
   expect(Math.abs((lastStat?.x ?? 0) + (lastStat?.width ?? 0) - ((stats?.x ?? 0) + (stats?.width ?? 0)))).toBeLessThan(2)
 })
 
+test('a smaller desktop keeps the picker, roster and datasheet visible', async ({ page }) => {
+  await page.setViewportSize({ width: 1100, height: 800 })
+  await openBuilder(page)
+
+  const picker = page.locator('aside[aria-label="Add units"]')
+  const loadout = page.locator('aside[aria-label="Loadout"]')
+  await expect(picker).toBeVisible()
+  await expect(loadout).toBeVisible()
+
+  await page.getByLabel('Add a unit').fill('Deceiver')
+  const name = picker.getByText("C'tan Shard of the Deceiver", { exact: true })
+  await expect(name).toBeVisible()
+  expect(await name.evaluate((element) => getComputedStyle(element).whiteSpace)).toBe('normal')
+
+  await page.getByRole('button', { name: "Add C'tan Shard of the Deceiver", exact: true }).click()
+  await page
+    .locator('[data-unit="C\'tan Shard of the Deceiver"]')
+    .getByRole('button', { name: /^C'tan Shard of the Deceiver/ })
+    .click()
+  await expect(loadout.getByText('Datasheet abilities')).toBeVisible()
+  await expect(loadout.getByText('Grand Illusion', { exact: true })).toBeVisible()
+  await page.screenshot({ path: 'test-results/builder-three-columns.png', fullPage: true })
+})
+
 test('making a new warlord removes the previous one', async ({ page }) => {
   await openBuilder(page)
   await add(page, 'Overlord')

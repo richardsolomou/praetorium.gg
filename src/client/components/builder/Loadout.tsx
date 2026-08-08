@@ -8,7 +8,8 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { datasheetQuery } from '../../queries'
 import type { Datasheet } from '../../../server/catalogue'
 import type { RosterPick } from '../../../core/roster'
-import { KeywordList } from '../Keyword'
+import { Keyword, KeywordList } from '../Keyword'
+import { RuleText } from '../RuleText'
 import { HoverTooltip } from '../HoverTooltip'
 import { SearchableSelect } from '../SearchableSelect'
 
@@ -105,9 +106,13 @@ function DatasheetSummary({ catalogueSlug, sheet }: { catalogueSlug: string; she
   const model = sheet.profiles.find((profile) => profile.type === 'Unit')
   const ranged = sheet.profiles.filter((profile) => profile.type === 'Ranged Weapons')
   const melee = sheet.profiles.filter((profile) => profile.type === 'Melee Weapons')
-  const abilities = sheet.profiles.filter((profile) => profile.type === 'Abilities')
   return (
     <div className="space-y-3 border-b border-edge pb-4">
+      <div className="flex flex-wrap gap-1">
+        {sheet.keywords.map((keyword) => (
+          <Keyword key={keyword} name={keyword} rules={sheet.keywordRules} className="chip" />
+        ))}
+      </div>
       {model ? (
         <div
           data-slot="unit-profile"
@@ -126,15 +131,7 @@ function DatasheetSummary({ catalogueSlug, sheet }: { catalogueSlug: string; she
       ) : null}
       {ranged.length ? <WeaponSummary title="Equipped ranged weapons" weapons={ranged} rules={sheet.keywordRules} /> : null}
       {melee.length ? <WeaponSummary title="Equipped melee weapons" weapons={melee} rules={sheet.keywordRules} /> : null}
-      {abilities.length ? (
-        <div className="flex flex-wrap gap-1">
-          {abilities.map((ability) => (
-            <span key={ability.id} className="chip">
-              {ability.name}
-            </span>
-          ))}
-        </div>
-      ) : null}
+      <AbilitySummary abilities={sheet.abilities} rules={sheet.keywordRules} />
       <Link
         to="/factions/$catalogueId/datasheets/$entryId"
         params={{ catalogueId: catalogueSlug, entryId: sheet.slug }}
@@ -146,6 +143,37 @@ function DatasheetSummary({ catalogueSlug, sheet }: { catalogueSlug: string; she
       </Link>
     </div>
   )
+}
+
+const ABILITY_SECTIONS = [
+  { kind: 'core', title: 'Core abilities' },
+  { kind: 'faction', title: 'Faction abilities' },
+  { kind: 'datasheet', title: 'Datasheet abilities' },
+  { kind: 'rule', title: 'Rules' },
+  { kind: 'wargear', title: 'Wargear abilities' },
+] as const
+
+function AbilitySummary({ abilities, rules }: { abilities: Datasheet['abilities']; rules: Datasheet['keywordRules'] }) {
+  return ABILITY_SECTIONS.map(({ kind, title }) => {
+    const found = abilities.filter((ability) => ability.kind === kind)
+    if (!found.length) return null
+    return (
+      <section key={kind}>
+        <p className="eyebrow flex items-baseline justify-between border-b border-edge pb-1">
+          <span>{title}</span>
+          <span className="readout">{found.length}</span>
+        </p>
+        <div className="mt-1.5 space-y-1.5">
+          {found.map((ability) => (
+            <article key={ability.id} className="border border-edge bg-card px-2 py-1.5">
+              <h3 className="text-xs">{ability.name}</h3>
+              {ability.description ? <RuleText text={ability.description} rules={rules} /> : null}
+            </article>
+          ))}
+        </div>
+      </section>
+    )
+  })
 }
 
 type Weapon = Datasheet['profiles'][number]
