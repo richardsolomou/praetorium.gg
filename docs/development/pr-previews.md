@@ -12,7 +12,7 @@ One pull request comment shows the current state:
 
 The `PR preview deploy` check shows the same state.
 
-Each preview has an empty database and no persistent volume. A new deployment removes its battles and accounts, then recreates the shared preview login before the application starts. The preview fetches catalogue data after startup, so list building can appear after the health check passes.
+Each preview has an empty database and no persistent volume. A new deployment removes its battles and accounts, then recreates the shared preview login before the application starts. The container enables preview seeding for the `pr-<number>.praetorium.gg` application URL; the deploy configuration also sets `PRAETORIUM_SEED_PREVIEW=true` explicitly. The preview fetches catalogue data after startup, so list building can appear after the health check passes.
 
 Closing or merging removes the instance. A weekly prune removes previews left behind by a failed cleanup.
 
