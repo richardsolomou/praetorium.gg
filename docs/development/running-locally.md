@@ -28,7 +28,7 @@ Lint and format are oxlint and oxfmt, not ESLint and Prettier. Warnings are deni
 - `just e2e` — builds the container image, then drives real browsers against it. `just e2e-run` reuses the image already built, `just e2e-trace` records a trace, and `just e2e-install` fetches Chromium once. Docker is required, because Centrifugo and Caddy are part of how a request is served and a suite that skipped them would be testing a topology nobody deploys.
 - `just points` — the points ratchet. Slow, and not part of `check`; CI runs it on its own.
 
-The e2e server is pointed at `catalogue-data/`, so list building is exercised against the real data. Run `pnpm catalogue:sync` first or those specs fail.
+The e2e container mounts `catalogue-data/`, so list building is exercised against the real data. Run `just catalogue-sync` first or those specs fail.
 
 Two traps worth knowing before writing a spec:
 
@@ -37,4 +37,4 @@ Two traps worth knowing before writing a spec:
 
 ## Database
 
-Migrations are generated with `pnpm db:generate` and never hand-edited once applied. `drizzle/` is copied into `.output/server/drizzle` by the build so the production server can run them.
+Migrations are generated with `just db-generate` and never hand-edited once applied. `drizzle/` is copied into `.output/server/drizzle` by the build so the production server can run them.

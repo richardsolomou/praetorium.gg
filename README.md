@@ -42,7 +42,7 @@ Live updates carry nothing at all. The event stream says only "this battle chang
 
 The evaluator reads the community [BSData](https://github.com/BSData/wh40k-11e) catalogues: give it what a player picked and it returns the cost and what is illegal about it, including the per-copy and per-model pricing eleventh edition uses.
 
-It is checked against Games Workshop's own numbers rather than against itself. `pnpm catalogue:points` builds real units at the model counts the Munitorum Field Manual prices and compares: **it agrees on 99.6% of 1,863 checks**. The seven remaining differences are four Deathwatch datasheets whose catalogue still carries older prices upstream. Anything it does not understand stays visible instead of becoming a guess — a confidently wrong points total is worse than an honest gap.
+It is checked against Games Workshop's own numbers rather than against itself. `just points` builds real units at the model counts the Munitorum Field Manual prices and compares: **it agrees on 99.6% of 1,863 checks**. The seven remaining differences are four Deathwatch datasheets whose catalogue still carries older prices upstream. Anything it does not understand stays visible instead of becoming a guess — a confidently wrong points total is worse than an honest gap.
 
 ## Run it 🚀
 
