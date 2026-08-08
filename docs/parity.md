@@ -112,7 +112,7 @@ It does not include BattleBase's rankings, events, leagues, locations, friends o
 | Battle tracker         | Done                             | Desktop uses player/shared/player columns, shared controls, five-turn ledgers, CP gained/used/remaining, VP and CP charts, turn timing, card state, army status and deployment detail folded from the log.        |
 | Phone tracker          | Done                             | The shared action leads a single-column surface above a fixed two-player VP/CP scoreboard and round segments, with `INFO`/`EVENTS`, contextual scoring, undo and one phase-advance action.                        |
 
-Deployed at `praetorium.gg`, auto-deploying from `main`. See [deployment.md](deployment.md).
+See [deployment.md](deployment.md) for the self-hosted runtime model.
 
 ## What we learned about our own side
 
