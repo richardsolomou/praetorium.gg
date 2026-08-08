@@ -86,6 +86,93 @@ type EvaluateOptions = {
   roster?: readonly Selection[]
 }
 
+export type ProfileModifier = {
+  ownerId: string
+  targetIds: string[]
+  profileType: string
+  field: string
+  type: 'set' | 'increment' | 'decrement' | 'multiply'
+  value: number
+  times: number
+  source: string
+}
+
+/** Applicable catalogue modifiers that change profiles displayed for one selected unit. */
+export function profileModifiers(
+  selections: readonly Selection[],
+  unitId: string,
+  index: CatalogueIndex,
+  options: EvaluateOptions = {},
+): ProfileModifier[] {
+  const census = new Census()
+  const counter = { next: 0 }
+  const root: Node = {
+    target: { id: 'roster' },
+    order: counter.next++,
+    catalogueId: options.primaryCatalogueId,
+    link: null,
+    id: 'roster',
+    count: 1,
+    parent: null,
+    children: [],
+  }
+  const force: Node = {
+    target: { id: index.forces[0]?.id ?? 'force', name: index.forces[0]?.name ?? 'Army Roster' },
+    order: counter.next++,
+    force: true,
+    link: null,
+    id: 'force-0',
+    count: 1,
+    parent: root,
+    children: [],
+  }
+  root.children = [force]
+  force.children = selections
+    .map((selection) => build(selection, force, index, census, counter))
+    .filter((node): node is Node => node !== null)
+
+  const unit = descendants(force).find((node) => node.id === unitId)
+  if (!unit) return []
+  const selectedIds = new Set(descendants(root).map((node) => node.id))
+  const found = new Map<string, ProfileModifier>()
+
+  for (const node of descendants(unit)) {
+    for (const modifier of modifiersOf(node)) {
+      const affects = modifier.affects
+      const profileType = affects?.match(/\.profiles\.([^.]*)$/)?.[1]
+      if (!profileType || !isProfileModifierType(modifier.type)) continue
+      const times = repeatCount(modifier, node, root, index, census)
+      const value = Number(modifier.value)
+      if (times === 0 || !Number.isFinite(value)) continue
+      const source = (modifier.conditions ?? [])
+        .flatMap((condition) => {
+          if (!condition.childId || !selectedIds.has(condition.childId)) return []
+          const definition = index.definitions.get(condition.childId)
+          return definition?.name ? [definition.name] : []
+        })
+        .at(0)
+      const applied: ProfileModifier = {
+        ownerId: modifier.scope === 'root-entry' ? unit.id : node.id,
+        targetIds: affects
+          .split('.')
+          .slice(0, -2)
+          .filter((part) => index.definitions.has(part) || index.shared.has(part)),
+        profileType,
+        field: modifier.field,
+        type: modifier.type,
+        value,
+        times,
+        source: source ?? 'Catalogue modifier',
+      }
+      found.set(JSON.stringify(applied), applied)
+    }
+  }
+  return [...found.values()]
+}
+
+const isProfileModifierType = (type: Modifier['type']): type is ProfileModifier['type'] =>
+  type === 'set' || type === 'increment' || type === 'decrement' || type === 'multiply'
+
 export function evaluate(selections: readonly Selection[], index: CatalogueIndex, options: EvaluateOptions = {}): Evaluation {
   return evaluateForces([selections], index, options)
 }

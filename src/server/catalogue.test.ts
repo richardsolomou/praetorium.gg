@@ -408,6 +408,83 @@ describe('a datasheet', () => {
     })
   })
 
+  it('applies profile modifiers from the selected detachment and preserves their source', () => {
+    const book = bookOf({
+      selectionEntries: [{ id: 'cursed-legion', name: 'Cursed Legion', type: 'upgrade' }],
+      entryLinks: [{ id: 'destroyers', name: 'Destroyers', targetId: 'destroyer-sheet', type: 'selectionEntry' }],
+      sharedSelectionEntries: [
+        {
+          id: 'destroyer-sheet',
+          name: 'Destroyers',
+          type: 'unit',
+          selectionEntries: [
+            {
+              id: 'blade-entry',
+              name: 'Blade',
+              type: 'upgrade',
+              profiles: [
+                {
+                  id: 'blade',
+                  name: 'Blade',
+                  typeName: 'Melee Weapons',
+                  characteristics: [{ name: 'S', typeId: 'melee-strength', $text: '5' }],
+                },
+              ],
+            },
+            {
+              id: 'claw-entry',
+              name: 'Claw',
+              type: 'upgrade',
+              profiles: [
+                {
+                  id: 'claw',
+                  name: 'Claw',
+                  typeName: 'Melee Weapons',
+                  characteristics: [{ name: 'S', typeId: 'melee-strength', $text: '4' }],
+                },
+              ],
+            },
+          ],
+          modifierGroups: [
+            {
+              conditions: [
+                {
+                  type: 'atLeast',
+                  value: 1,
+                  field: 'selections',
+                  scope: 'force',
+                  childId: 'cursed-legion',
+                  includeChildSelections: true,
+                },
+              ],
+              modifiers: [
+                {
+                  type: 'increment',
+                  value: 2,
+                  field: 'melee-strength',
+                  scope: 'root-entry',
+                  affects: 'self.entries.recursive.blade-entry.profiles.Melee Weapons',
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    })
+
+    expect(
+      datasheetIn(book, 'cat', 'destroyers', {
+        selections: [{ id: 'cursed-legion' }, { id: 'destroyers' }],
+      })?.profiles[0]?.values[0],
+    ).toEqual({ name: 'S', value: '7', baseValue: '5', modifiers: ['Cursed Legion'] })
+    expect(
+      datasheetIn(book, 'cat', 'destroyers', {
+        selections: [{ id: 'cursed-legion' }, { id: 'destroyers' }],
+      })?.profiles[1]?.values[0],
+    ).toEqual({ name: 'S', value: '4' })
+    expect(datasheetIn(book, 'cat', 'destroyers')?.profiles[0]?.values[0]).toEqual({ name: 'S', value: '5' })
+  })
+
   it('separates faction, core, datasheet, rule and wargear abilities', () => {
     const book = bookOf({
       sharedProfiles: [ability('shared-ability', 'My Will Be Done')],

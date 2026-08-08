@@ -5,7 +5,9 @@ import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { datasheetQuery } from '../../queries'
 import type { Datasheet } from '../../../server/catalogue'
+import type { RosterPick } from '../../../core/roster'
 import { KeywordList } from '../Keyword'
+import { HoverTooltip } from '../HoverTooltip'
 
 /** Base UI selects cannot hold an empty value, so declining a choice needs a token. */
 const NONE = '__none__'
@@ -30,6 +32,8 @@ type Props = {
   catalogueId: string
   catalogueSlug: string
   unit: LoadoutUnit | null
+  detachmentIds: readonly string[]
+  pick?: RosterPick
   onChoose: (key: string, optionId: string) => void
   onSpread: (key: string, counts: Record<string, number>) => void
 }
@@ -46,8 +50,8 @@ type Props = {
  * carbines, which a single answer cannot say; that one gets a count against each
  * option. Nothing is typed either way: every option and every price is the data's.
  */
-export function Loadout({ catalogueId, catalogueSlug, unit, onChoose, onSpread }: Props) {
-  const { data: sheet } = useQuery(datasheetQuery(catalogueId, unit?.entryId ?? ''))
+export function Loadout({ catalogueId, catalogueSlug, unit, detachmentIds, pick, onChoose, onSpread }: Props) {
+  const { data: sheet } = useQuery(datasheetQuery(catalogueId, unit?.entryId ?? '', detachmentIds, pick))
   if (!unit) {
     return (
       <div className="flex h-full items-center justify-center p-6">
@@ -93,7 +97,9 @@ function DatasheetSummary({ catalogueSlug, sheet }: { catalogueSlug: string; she
           {model.values.map((value) => (
             <div key={value.name} className="text-center">
               <p className="eyebrow">{value.name}</p>
-              <p className="readout text-sm">{value.value}</p>
+              <p className="readout text-sm">
+                <ProfileValue value={value} />
+              </p>
             </div>
           ))}
         </div>
@@ -117,7 +123,9 @@ function DatasheetSummary({ catalogueSlug, sheet }: { catalogueSlug: string; she
                     .map((value) => (
                       <div key={value.name} className="min-w-0 text-center">
                         <p className="eyebrow text-[0.625rem]">{value.name}</p>
-                        <p className="readout text-xs text-faint">{value.value}</p>
+                        <p className="readout text-xs text-faint">
+                          <ProfileValue value={value} />
+                        </p>
                       </div>
                     ))}
                 </div>
@@ -150,6 +158,30 @@ function DatasheetSummary({ catalogueSlug, sheet }: { catalogueSlug: string; she
         View full datasheet
       </Link>
     </div>
+  )
+}
+
+type DisplayValue = Datasheet['profiles'][number]['values'][number]
+
+function ProfileValue({ value }: { value: DisplayValue }) {
+  if (!value.baseValue || !value.modifiers?.length) return value.value
+  const sources = value.modifiers.join(', ')
+  return (
+    <HoverTooltip
+      className="font-semibold text-azure"
+      label={`${value.name} ${value.value}, modified from ${value.baseValue} by ${sources}`}
+      content={
+        <>
+          <strong className="block font-semibold">Modified {value.name}</strong>
+          <span className="mt-1 block text-dim">
+            {value.baseValue} → <span className="text-azure">{value.value}</span>
+          </span>
+          <span className="mt-1 block text-xs text-faint">{sources}</span>
+        </>
+      }
+    >
+      {value.value}
+    </HoverTooltip>
   )
 }
 

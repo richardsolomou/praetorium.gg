@@ -14,7 +14,7 @@ import {
   type SelectionEntry,
   targetOf,
 } from '../core/catalogue'
-import { evaluate, hiddenByRules, rosterLimit } from '../core/evaluate'
+import { evaluate, hiddenByRules, profileModifiers, rosterLimit, type ProfileModifier, type Selection } from '../core/evaluate'
 import { buildUnit } from '../core/roster'
 import { bracketedRuleReferences, ruleReferenceMatches } from '../core/ruleReference'
 import { routeSlug } from '../core/slug'
@@ -269,7 +269,12 @@ export type Datasheet = {
   name: string
   points: number | null
   keywords: string[]
-  profiles: { id: string; name: string; type: string; values: { name: string; value: string }[] }[]
+  profiles: {
+    id: string
+    name: string
+    type: string
+    values: { name: string; value: string; baseValue?: string; modifiers?: string[] }[]
+  }[]
   abilities: { id: string; name: string; description: string | null; kind: AbilityKind }[]
   keywordRules: { name: string; description: string }[]
 }
@@ -280,20 +285,26 @@ const abilityDescription = (profile: Profile) =>
   profile.characteristics?.find((characteristic) => characteristic.name === 'Description')?.$text ?? null
 
 /** Structured display data for one top-level datasheet, including linked shared profiles. */
-export function datasheetIn(loaded: LoadedCatalogue, catalogueId: string, entryId: string): Datasheet | null {
+export function datasheetIn(
+  loaded: LoadedCatalogue,
+  catalogueId: string,
+  entryId: string,
+  context?: { selections: readonly Selection[] },
+): Datasheet | null {
   if (!datasheetsOf(loaded.index, catalogueId).has(entryId)) return null
   const root = loaded.index.definitions.get(entryId)
   if (!root) return null
 
-  const profiles = new Map<string, Profile>()
+  const modifiers = context ? profileModifiers(context.selections, entryId, loaded.index, { primaryCatalogueId: catalogueId }) : []
+  const profiles = new Map<string, { profile: Profile; lineage: string[] }>()
   const abilities = new Map<string, Datasheet['abilities'][number]>()
   const keywordRules = new Map<string, Datasheet['keywordRules'][number]>()
   const visited = new Set<string>()
-  const addProfile = (profile: Profile, kind: AbilityKind) => {
+  const addProfile = (profile: Profile, kind: AbilityKind, lineage: string[]) => {
     if (profile.typeName === 'Abilities' && profile.name && !profile.hidden) {
       abilities.set(`${kind}:${profile.id}`, { id: profile.id, name: profile.name, description: abilityDescription(profile), kind })
     } else {
-      profiles.set(profile.id, profile)
+      profiles.set(profile.id, { profile, lineage })
     }
   }
   const addRule = (link: InfoLink, kind: AbilityKind) => {
@@ -302,14 +313,14 @@ export function datasheetIn(loaded: LoadedCatalogue, catalogueId: string, entryI
     const name = link.name ?? rule?.name
     if (name && !rule?.hidden) abilities.set(`${kind}:${link.id}`, { id: link.id, name, description: rule?.description ?? null, kind })
   }
-  const addGroup = (group: InfoGroup) => {
+  const addGroup = (group: InfoGroup, lineage: string[]) => {
     if (group.hidden) return
-    group.profiles?.forEach((profile) => addProfile(profile, 'rule'))
+    group.profiles?.forEach((profile) => addProfile(profile, 'rule', [...lineage, group.id]))
     group.infoLinks?.forEach((link) => addRule(link, 'core'))
   }
-  const addProfiles = (definition: Definition, kind: AbilityKind = 'datasheet', ownRules = false) => {
-    definition.profiles?.forEach((profile) => addProfile(profile, kind))
-    definition.infoGroups?.forEach(addGroup)
+  const addProfiles = (definition: Definition, lineage: string[], kind: AbilityKind = 'datasheet', ownRules = false) => {
+    definition.profiles?.forEach((profile) => addProfile(profile, kind, lineage))
+    definition.infoGroups?.forEach((group) => addGroup(group, lineage))
     for (const link of definition.infoLinks ?? []) {
       const linkedRule = link.type === 'rule' ? loaded.index.rules.get(link.targetId) : undefined
       if (!link.hidden && !linkedRule?.hidden && link.name && linkedRule?.description) {
@@ -318,21 +329,22 @@ export function datasheetIn(loaded: LoadedCatalogue, catalogueId: string, entryI
       if (ownRules) addRule(link, 'faction')
       const shared = loaded.index.shared.get(link.targetId)
       if (!shared) continue
-      if ('characteristics' in shared) addProfile({ ...shared, name: link.name ?? shared.name }, kind)
+      if ('characteristics' in shared) addProfile({ ...shared, name: link.name ?? shared.name }, kind, [...lineage, link.id])
     }
   }
-  const visit = (definition: Definition, isRoot = false) => {
+  const visit = (definition: Definition, isRoot = false, ancestors: string[] = []) => {
     if (visited.has(definition.id)) return
     visited.add(definition.id)
-    addProfiles(definition, 'datasheet', isRoot)
-    definition.selectionEntries?.forEach((entry) => visit(entry))
-    definition.selectionEntryGroups?.forEach((group) => visit(group))
+    const lineage = [...ancestors, definition.id]
+    addProfiles(definition, lineage, 'datasheet', isRoot)
+    definition.selectionEntries?.forEach((entry) => visit(entry, false, lineage))
+    definition.selectionEntryGroups?.forEach((group) => visit(group, false, lineage))
     for (const link of definition.entryLinks ?? []) {
-      visit(link)
+      visit(link, false, lineage)
       const target = loaded.index.definitions.get(link.targetId)
       // A linked group may be a catalogue-wide library. Its own profile belongs
       // here; recursively importing all its children does not.
-      if (target) addProfiles(target, 'wargear')
+      if (target) addProfiles(target, [...lineage, link.id, target.id], 'wargear')
     }
   }
   // A book reaches most of its datasheets through a link, and everything a
@@ -340,7 +352,7 @@ export function datasheetIn(loaded: LoadedCatalogue, catalogueId: string, entryI
   // points at. The link is visited first because it may add to what it points at.
   const sheet = targetOf(root, loaded.index.definitions)
   visit(root, true)
-  if (sheet !== root) visit(sheet, true)
+  if (sheet !== root) visit(sheet, true, [root.id])
 
   const keywords = [...(root.categoryLinks ?? []), ...(sheet === root ? [] : (sheet.categoryLinks ?? []))]
 
@@ -351,18 +363,48 @@ export function datasheetIn(loaded: LoadedCatalogue, catalogueId: string, entryI
     points: priceOf(loaded, catalogueId, entryId),
     keywords: [...new Set(keywords.map((link) => link.name).filter((name): name is string => Boolean(name)))].toSorted(),
     profiles: [...profiles.values()]
-      .filter((profile) => !profile.hidden && profile.name && profile.typeName)
-      .map((profile) => ({
+      .filter(({ profile }) => !profile.hidden && profile.name && profile.typeName)
+      .map(({ profile, lineage }) => ({
         id: profile.id,
         name: profile.name!,
         type: profile.typeName!,
-        values: (profile.characteristics ?? []).flatMap((value) =>
-          value.name && value.$text ? [{ name: value.name, value: value.$text }] : [],
-        ),
+        values: (profile.characteristics ?? []).flatMap((value) => {
+          if (!value.name || !value.$text) return []
+          const changed = modifiedProfileValue(value.$text, value.typeId, profile.typeName!, [...lineage, profile.id], modifiers)
+          return [{ name: value.name, ...changed }]
+        }),
       })),
     abilities: [...abilities.values()],
     keywordRules: [...keywordRules.values()],
   }
+}
+
+function modifiedProfileValue(
+  baseValue: string,
+  field: string | undefined,
+  profileType: string,
+  lineage: readonly string[],
+  modifiers: readonly ProfileModifier[],
+) {
+  if (!field) return { value: baseValue }
+  const numeric = baseValue.match(/^(-?\d+)(")?$/)
+  if (!numeric) return { value: baseValue }
+  let value = Number(numeric[1])
+  const applied = modifiers.filter(
+    (modifier) =>
+      modifier.field === field &&
+      modifier.profileType === profileType &&
+      lineage.includes(modifier.ownerId) &&
+      modifier.targetIds.every((id) => lineage.includes(id)),
+  )
+  for (const modifier of applied.toSorted((left, right) => Number(right.type === 'set') - Number(left.type === 'set'))) {
+    if (modifier.type === 'set') value = modifier.value
+    else if (modifier.type === 'increment') value += modifier.value * modifier.times
+    else if (modifier.type === 'decrement') value -= modifier.value * modifier.times
+    else value *= modifier.value ** modifier.times
+  }
+  if (!applied.length || value === Number(numeric[1])) return { value: baseValue }
+  return { value: `${value}${numeric[2] ?? ''}`, baseValue, modifiers: [...new Set(applied.map((modifier) => modifier.source))] }
 }
 
 export function rulesReferencedIn(loaded: LoadedCatalogue, texts: readonly (string | null)[]) {

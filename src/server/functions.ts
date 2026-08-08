@@ -2,11 +2,12 @@ import { createServerFn } from '@tanstack/react-start'
 import { app } from './app'
 import { configuredProviders } from './auth'
 import { routeSlug } from '../core/slug'
+import { buildUnit } from '../core/roster'
 import { datasheetIn, datasheetInBySlug, detachmentCatalogueDetail, type LoadedCatalogue, rulesReferencedIn, unitsIn } from './catalogue'
 import { slug } from './rules'
 import { findAbilityDescription, WAHAPEDIA_ATTRIBUTION } from './wahapedia'
 import { mutationRpc, rpc } from './rpc'
-import { calculateRosterPrice } from './pricing'
+import { calculateRosterPrice, rosterDetachments } from './pricing'
 import { exportRosterFile, importRosterFile } from './rosterFiles'
 import { currentPlayer, currentPlayerId, requirePlayerId } from './playerSession'
 import {
@@ -144,7 +145,18 @@ export const datasheet = createServerFn({ method: 'GET' })
   .handler(({ data }) =>
     rpc(() => {
       const loaded = app().catalogue()
-      return loaded ? describeAbilities(loaded, datasheetIn(loaded, data.catalogueId, data.entryId)) : null
+      if (!loaded) return null
+      const detachments = rosterDetachments(loaded, data.catalogueId, data.detachmentIds).selections
+      const unit = data.pick
+        ? buildUnit(data.entryId, loaded.index, data.pick.models, data.pick.choices, {
+            primaryCatalogueId: data.catalogueId,
+            roster: detachments,
+            spreads: data.pick.spreads,
+            toggles: data.pick.toggles,
+          })
+        : null
+      const selections = unit ? [...detachments, unit.selection] : []
+      return describeAbilities(loaded, datasheetIn(loaded, data.catalogueId, data.entryId, selections.length ? { selections } : undefined))
     }),
   )
 

@@ -44,10 +44,10 @@ export const unitsQuery = (catalogueId: string, query: string) =>
     staleTime: SSR_STALE_TIME,
   })
 
-export const datasheetQuery = (catalogueId: string, entryId: string) =>
+export const datasheetQuery = (catalogueId: string, entryId: string, detachmentIds: readonly string[] = [], pick?: RosterPick) =>
   queryOptions({
-    queryKey: ['datasheet', catalogueId, entryId],
-    queryFn: () => datasheet({ data: { catalogueId, entryId } }),
+    queryKey: ['datasheet', catalogueId, entryId, detachmentIds, pick],
+    queryFn: () => datasheet({ data: { catalogueId, entryId, detachmentIds: [...detachmentIds], pick } }),
     enabled: Boolean(catalogueId && entryId),
     staleTime: Infinity,
   })

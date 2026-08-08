@@ -22,8 +22,6 @@ export const unitsSchema = z.object({
   catalogueId,
   query: z.string().max(80).default(''),
 })
-export const datasheetSchema = z.object({ catalogueId, entryId: id })
-export const datasheetSlugSchema = z.object({ catalogueId, slug })
 
 /**
  * A list is sent as the entries the player picked and how many models they want
@@ -49,6 +47,14 @@ const pickSchema = z.object({
    */
   attachedTo: z.number().int().min(0).max(99).optional(),
 })
+
+export const datasheetSchema = z.object({
+  catalogueId,
+  entryId: id,
+  detachmentIds: z.array(id).max(3).default([]),
+  pick: pickSchema.optional(),
+})
+export const datasheetSlugSchema = z.object({ catalogueId, slug })
 
 const prepSchema = z.object({
   stratagems: z

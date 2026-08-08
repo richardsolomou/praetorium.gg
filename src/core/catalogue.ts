@@ -95,6 +95,8 @@ export type Modifier = {
   field: string
   value: unknown
   scope?: string
+  /** Profile path targeted by display modifiers, such as every melee weapon under this unit. */
+  affects?: string
   conditions?: Condition[]
   conditionGroups?: ConditionGroup[]
   repeats?: Repeat[]
@@ -146,7 +148,7 @@ type CategoryEntry = {
 }
 
 /** `$text` is where the JSON puts a characteristic's words. */
-type Characteristic = { name?: string; $text?: string }
+export type Characteristic = { name?: string; typeId?: string; $text?: string }
 
 export type Profile = { id: string; name?: string; typeName?: string; hidden?: boolean; characteristics?: Characteristic[] }
 
