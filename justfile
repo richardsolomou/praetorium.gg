@@ -63,7 +63,7 @@ db-check:
     pnpm db:check
 
 e2e-install:
-    pnpm exec playwright install chromium
+    pnpm exec playwright install chromium --only-shell
 
 e2e-build:
     docker build -t praetorium-e2e .

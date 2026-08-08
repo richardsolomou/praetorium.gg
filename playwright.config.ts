@@ -15,7 +15,7 @@ export default defineConfig({
   testDir: './e2e',
   outputDir: 'test-results',
   fullyParallel: false,
-  workers: 1,
+  workers: 2,
   retries: 0,
   // Both pages settle through Centrifugo rather than by polling, so assertions
   // need room for the nudge and the refetch behind it.
