@@ -11,6 +11,15 @@
     "unicorn/filename-case": "off",
     "import/no-unassigned-import": "off"
   },
+  "overrides": [
+    {
+      "files": ["scripts/**"],
+      "rules": {
+        "no-await-in-loop": "off",
+        "typescript/no-unsafe-type-assertion": "off"
+      }
+    }
+  ],
   "ignorePatterns": ["src/routeTree.gen.ts", ".output/**", "node_modules/**", "src/components/ui/**"],
   "env": {
     "builtin": true

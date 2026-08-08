@@ -10,7 +10,7 @@ docker compose up -d
 Or pull the image CI publishes:
 
 ```sh
-docker run -d --name praetorium -p 3000:3000 -v praetorium-data:/data ghcr.io/richardsolomou/praetorium:latest
+docker run -d --name praetorium -p 3000:3000 -v praetorium-data:/data ghcr.io/richardsolomou/praetorium.gg:latest
 ```
 
 ## What lands in /data
@@ -29,7 +29,7 @@ Nothing needs to be run by hand. A deploy carrying new pinned revisions fetches 
 
 ## One instance
 
-Live updates fan out inside the process. A second replica would serve battles that never hear about each other's commands, so `docker-compose.yml` pins `replicas: 1`. Moving the fan-out to Postgres `LISTEN`/`NOTIFY` has to come before scaling out — see the note in [CLAUDE.md](../CLAUDE.md).
+Live updates fan out inside the process. A second replica would serve battles that never hear about each other's commands, so `docker-compose.yml` pins `replicas: 1`. Moving the fan-out to Postgres `LISTEN`/`NOTIFY` has to come before scaling out — see [the battles guide](development/battles.md).
 
 ## Reverse proxy
 
@@ -41,26 +41,20 @@ The proxy must forward `X-Forwarded-Host` and `X-Forwarded-Proto`. Set `APP_URL`
 
 Deployed at `dokploy.ras.sh` as project **praetorium**, application **app**:
 
-- Source: `richardsolomou/praetorium`, `main`, built from the Dockerfile, auto-deploying on push through the Dokploy GitHub App.
+- Source: `richardsolomou/praetorium.gg`, `main`, built from the Dockerfile, auto-deploying on push through the Dokploy GitHub App.
 - Volume `praetorium-data` mounted at `/data`.
-- `APP_URL=https://praetorium.ras.sh`, one replica.
-- Domain `praetorium.ras.sh` on port 3000 with a Let's Encrypt certificate.
-- Image published to `ghcr.io/richardsolomou/praetorium`.
+- `APP_URL=https://praetorium.gg`, one replica.
+- Domain `praetorium.gg` on port 3000 with a Let's Encrypt certificate.
+- Image published to `ghcr.io/richardsolomou/praetorium.gg`.
 
-The container and Traefik service are `praetorium-cgzzus`. Dokploy generates that suffix and will not let it be edited afterwards, so the application was recreated to change it: `application.update` ignores `appName`, while `application.create` accepts one and appends its own suffix. Detach the volume from the old application first (`mounts.remove`) — otherwise deleting it takes the volume, and with it the database and 127MB of catalogue.
-
-One reference to the old name survives on the host, deliberately: a `muster.ras.sh` certificate in Traefik's `acme.json`. That file is the shared certificate store for every site on this box, the entry is referenced by no router and the hostname no longer resolves, so editing it by hand would risk TLS for four other sites to remove a record that expires by itself.
+The container and Traefik service are `praetorium-cgzzus`. Dokploy generates that suffix and will not let it be edited afterwards, so changing it means recreating the application: `application.update` ignores `appName`, while `application.create` accepts one and appends its own suffix. Detach the volume first (`mounts.remove`) — otherwise deleting the old application takes the volume with it, and with it the database and 127MB of catalogue.
 
 First boot spends a minute or two fetching the catalogue, and the app is usable throughout. A push to `main` redeploys; the volume and its catalogue survive.
 
-DNS is the one thing Dokploy cannot do from here: `ras.sh` is on Cloudflare, so a new hostname needs a proxied record pointing at the same origin as the other subdomains before the certificate can be issued.
+### Things that bite
 
-### What the rename to Praetorium cost, for next time
-
-The old `muster-data` volume was deleted along with the battles, saved lists and secrets in it, because there were no real users. The same rename with users would have needed care, and the traps are worth keeping:
-
-- **Renaming a Dokploy volume does not move it.** It mounts a new empty one and orphans everything in the old. Copy the contents across first, or leave the name alone — it is invisible to users.
-- **The database filename is part of the rename** (`muster.sqlite` → `praetorium.sqlite`), so a deploy creates an empty database beside the old one. Moving it means moving its `-wal` and `-shm` too, with the container down.
-- **The cookie name is part of the rename** as well (`praetorium_player`), which signs every guest out once and costs them the lists tied to that identity.
-- **Renaming the GitHub repository silently stopped deploys.** Dokploy stores the repository name and kept matching pushes against `muster`, so three commits looked pushed and nothing shipped. Repointing the source is the fix; check that a deploy actually runs after any repo rename.
-- **Replacing a DNS record rather than adding one takes the old hostname down.** For a moment `muster.ras.sh` had no record and `praetorium.ras.sh` had no Traefik router, so both were dead. Add the new host to Dokploy first, then move DNS.
+- **Renaming the GitHub repository silently stops deploys.** Dokploy stores the repository name and keeps matching pushes against the old one, so commits look pushed and nothing ships. Repoint the source, then check that a push actually deploys.
+- **Traefik does not retry a failed ACME attempt.** Add a hostname before its DNS resolves and Let's Encrypt answers `NXDOMAIN`; Traefik gives up and serves `CN=TRAEFIK DEFAULT CERT` indefinitely. Behind Cloudflare that is invisible from a browser, because the edge terminates TLS with its own certificate and does not check the origin's. Restarting `dokploy-traefik` is what makes it try again.
+- **Add the hostname to Dokploy before moving DNS**, and let the certificate issue before changing `APP_URL`. A hostname with no Traefik router is a 404 — the app never sees the request, so its canonical-host redirect cannot rescue it.
+- **A preview wildcard has to be one level below its apex.** `*.praetorium.gg` is covered by Cloudflare's Universal SSL and can be proxied like everything else. A wildcard two levels down is not, and every preview URL would fail TLS at the edge before reaching this box.
+- **DNS is the one thing Dokploy cannot do from here.** A new hostname needs its record pointing at the origin before the certificate can be issued.
