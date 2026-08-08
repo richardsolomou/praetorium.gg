@@ -17,7 +17,7 @@ test('an account keeps the lists a guest saved', async ({ browser }) => {
   await page.getByRole('button', { name: 'Build from the catalogue' }).click()
 
   await page.getByRole('combobox', { name: 'Faction' }).click()
-  await page.getByRole('option', { name: 'Chaos - Death Guard' }).click()
+  await page.getByRole('option', { name: 'Death Guard', exact: true }).click()
   await page.getByRole('button', { name: 'Add detachment' }).click()
   await page.getByRole('menuitem', { name: /Death Lord/ }).click()
   await page.getByLabel('Add a unit').fill('Plague Marines')

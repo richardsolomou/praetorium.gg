@@ -23,7 +23,7 @@ test('stratagems and mission cards are tracked through a turn', async ({ browser
 
   await alice.getByRole('button', { name: 'Build from the catalogue' }).click()
   await alice.getByRole('combobox', { name: 'Faction' }).click()
-  await alice.getByRole('option', { name: 'Chaos - Death Guard' }).click()
+  await alice.getByRole('option', { name: 'Death Guard', exact: true }).click()
   await alice.getByRole('button', { name: 'Add detachment' }).click()
   await alice.getByRole('menuitem', { name: /Death Lord/ }).click()
   await alice.getByLabel('Add a unit').fill('Lord of Virulence')

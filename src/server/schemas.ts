@@ -19,7 +19,12 @@ export const submitSchema = z.object({ token, expectedSeq: z.number().int().min(
 
 const catalogueId = z.string().min(1).max(64)
 
-export const unitsSchema = z.object({ catalogueId, query: z.string().max(80).default('') })
+export const unitsSchema = z.object({
+  catalogueId,
+  query: z.string().max(80).default(''),
+  /** Legends are left out of the book unless the player asks for them. */
+  legends: z.boolean().default(false),
+})
 export const datasheetSchema = z.object({ catalogueId, entryId: z.string().min(1).max(64) })
 export const datasheetSlugSchema = z.object({ catalogueId, slug: z.string().min(1).max(160) })
 

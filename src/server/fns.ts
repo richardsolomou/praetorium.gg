@@ -9,7 +9,7 @@ import { attachmentErrors, attachmentOf } from '../core/attach'
 import { detachmentPointBudget, detachmentPointsError } from '../core/battle'
 import { buildUnit, modelCountOf, unitChoices, unitToggles, wargearOf } from '../core/roster'
 import { routeSlug } from '../core/slug'
-import { datasheetIn, datasheetInBySlug, detachmentCatalogueDetail, groupOfEntry, unitsIn } from './catalogue'
+import { datasheetIn, datasheetInBySlug, detachmentCatalogueDetail, groupOfEntry, isDatasheetId, unitsIn } from './catalogue'
 import { fromRosterXml, toRosterXml } from '../core/rosz'
 import { parseXml, rosterXml } from './rosz'
 import { ATTRIBUTION, slug } from './rules'
@@ -192,7 +192,7 @@ export const units = createServerFn({ method: 'GET' })
   .handler(({ data }) =>
     rpc(() => {
       const loaded = app().catalogue()
-      return loaded ? unitsIn(loaded, data.catalogueId, data.query) : []
+      return loaded ? unitsIn(loaded, data.catalogueId, data.query, { legends: data.legends }) : []
     }),
   )
 
@@ -466,7 +466,7 @@ export const importRoster = createServerFn({ method: 'POST' })
           .map(({ id }) => id) ?? []
       const importedUnits: { selection: Selection; parent: number | null; catalogueId: string | null }[] = []
       const collectUnits = (selection: Selection, parent: number | null, forceCatalogueId: string | null) => {
-        const isDatasheet = loaded.index.datasheets.has(selection.id)
+        const isDatasheet = isDatasheetId(loaded.index, selection.id, forceCatalogueId)
         const at = isDatasheet ? importedUnits.push({ selection, parent, catalogueId: forceCatalogueId }) - 1 : parent
         for (const child of selection.selections ?? []) collectUnits(child, at, forceCatalogueId)
       }

@@ -13,7 +13,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { parse } from 'yaml'
-import { buildIndex, type CatalogueFile, type SelectionEntry } from '../src/core/catalogue'
+import { buildIndex, type CatalogueFile, type SelectionEntry, targetOf } from '../src/core/catalogue'
 import { evaluate, type Selection } from '../src/core/evaluate'
 import { buildUnit, isResizable } from '../src/core/roster'
 
@@ -98,7 +98,14 @@ const normalise = (name: string) =>
 
 const byName = new Map<string, SelectionEntry[]>()
 const bySingularName = new Map<string, SelectionEntry[]>()
-for (const id of index.datasheets) {
+// Every datasheet any book offers, resolved through the link that offers it: the
+// harness prices the entry itself, exactly as it did when the index held entries
+// rather than the links to them.
+const offered = new Set<string>()
+for (const ids of index.datasheets.values())
+  for (const id of ids) offered.add(targetOf(index.definitions.get(id) ?? { id }, index.definitions).id)
+
+for (const id of offered) {
   const entry = index.definitions.get(id)
   if (!entry || !('type' in entry) || (entry.type !== 'unit' && entry.type !== 'model')) continue
   const key = normalise(entry.name ?? '')

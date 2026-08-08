@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { buildIndex, type Catalogue, type CatalogueFile } from '../core/catalogue'
-import { datasheetIn, datasheetInBySlug, detachmentsOf, type LoadedCatalogue, unitsIn } from './catalogue'
+import { datasheetIn, datasheetInBySlug, detachmentsOf, factionsIn, type LoadedCatalogue, unitsIn } from './catalogue'
 
 const PTS = 'cost-pts'
 
@@ -8,15 +8,21 @@ const system: CatalogueFile = { gameSystem: { id: 'gs', name: 'Test', costTypes:
 
 const points = (value: number) => [{ name: 'pts', typeId: PTS, value }]
 
-/** A book of datasheets, as the picker sees one. */
-function bookOf(catalogue: Partial<Catalogue>): LoadedCatalogue {
-  const file: CatalogueFile = { catalogue: { id: 'cat', name: 'Test catalogue', ...catalogue } }
-  return {
-    index: buildIndex([system, file], 'test-revision'),
-    factions: [{ id: 'cat', name: 'Test catalogue', references: [] }],
-    detachments: new Map(),
-  }
+/** A shelf of books, as the picker sees them. The first is the one being picked from. */
+function shelfOf(...catalogues: Partial<Catalogue>[]): LoadedCatalogue {
+  const files = catalogues.map(
+    (catalogue, at): CatalogueFile => ({
+      catalogue: { id: at ? `cat-${at}` : 'cat', name: at ? `Book ${at}` : 'Test catalogue', ...catalogue },
+    }),
+  )
+  const index = buildIndex([system, ...files], 'test-revision')
+  return { index, factions: factionsIn(index, detachmentsOf(files, index)), detachments: detachmentsOf(files, index) }
 }
+
+/** A book of datasheets, as the picker sees one. */
+const bookOf = (catalogue: Partial<Catalogue>) => shelfOf(catalogue)
+
+const offered = (loaded: LoadedCatalogue) => unitsIn(loaded, 'cat', '').map((unit) => unit.name)
 
 const categories = (...names: string[]) => names.map((name, at) => ({ id: `link-${at}`, targetId: `cat-${at}`, name }))
 
@@ -86,11 +92,80 @@ describe('the picker', () => {
     expect(unitsIn(book, 'cat', '')[0]?.points).toBe(60)
   })
 
-  it('says nothing rather than zero for a datasheet it cannot build', () => {
-    const book = bookOf({ selectionEntries: [{ id: 'ghost', name: 'Ghost', type: 'unit', costs: points(10) }] })
-    // The index knows the name but the entry is not in it, so nothing can be built.
-    book.index.definitions.delete('ghost')
-    expect(unitsIn(book, 'cat', '')[0]?.points).toBeNull()
+  it('offers a datasheet the book reaches by a link', () => {
+    // How most of the game is written: the datasheets live in a library, and a book
+    // states its roster as links into it.
+    const shelf = shelfOf(
+      { entryLinks: [{ id: 'ours', targetId: 'squad', name: 'Squad', type: 'selectionEntry' }] },
+      { library: true, sharedSelectionEntries: [{ id: 'squad', name: 'Squad', type: 'unit', costs: points(70) }] },
+    )
+    expect(offered(shelf)).toEqual(['Squad'])
+    expect(unitsIn(shelf, 'cat', '')[0]?.points).toBe(70)
+  })
+
+  it('offers the datasheets of a book it imports, and not of one it merely links', () => {
+    const shelf = shelfOf(
+      {
+        selectionEntries: [{ id: 'ours', name: 'Ours', type: 'unit', costs: points(10) }],
+        catalogueLinks: [
+          { targetId: 'cat-1', importRootEntries: true },
+          // Linked to reach the rules that mention it, not to field it.
+          { targetId: 'cat-2' },
+        ],
+      },
+      { selectionEntries: [{ id: 'theirs', name: 'Theirs', type: 'unit', costs: points(20) }] },
+      { selectionEntries: [{ id: 'mentioned', name: 'Mentioned', type: 'unit', costs: points(30) }] },
+    )
+    expect(offered(shelf)).toEqual(['Ours', 'Theirs'])
+  })
+
+  it('offers a datasheet reached twice only once', () => {
+    const shelf = shelfOf(
+      {
+        entryLinks: [{ id: 'ours', targetId: 'squad', name: 'Squad', type: 'selectionEntry' }],
+        catalogueLinks: [{ targetId: 'cat-1', importRootEntries: true }],
+      },
+      {
+        library: true,
+        sharedSelectionEntries: [{ id: 'squad', name: 'Squad', type: 'unit', costs: points(70) }],
+        entryLinks: [{ id: 'theirs', targetId: 'squad', name: 'Squad', type: 'selectionEntry' }],
+      },
+    )
+    expect(unitsIn(shelf, 'cat', '').map((unit) => unit.id)).toEqual(['ours'])
+  })
+
+  it('leaves out a body that only exists inside a squad', () => {
+    // A sergeant is a model entry sitting at the top of the file exactly as its
+    // squad does; what makes the squad pickable is that the book links to it.
+    const shelf = bookOf({
+      sharedSelectionEntries: [
+        { id: 'squad', name: 'Squad', type: 'unit', costs: points(70) },
+        { id: 'sergeant', name: 'Sergeant', type: 'model', costs: points(20) },
+      ],
+      entryLinks: [{ id: 'ours', targetId: 'squad', name: 'Squad', type: 'selectionEntry' }],
+    })
+    expect(offered(shelf)).toEqual(['Squad'])
+  })
+
+  it('leaves Legends out of the book until they are asked for', () => {
+    const book = bookOf({
+      selectionEntries: [
+        { id: 'squad', name: 'Squad', type: 'unit', costs: points(70) },
+        { id: 'old', name: 'Land Speeder [Legends]', type: 'unit', costs: points(60) },
+      ],
+    })
+    expect(offered(book)).toEqual(['Squad'])
+    // Left out of the book rather than of what is shown: a third of every book is
+    // Legends, and the page of results would be all of it.
+    expect(unitsIn(book, 'cat', '', { legends: true }).map((unit) => unit.name)).toEqual(['Land Speeder [Legends]', 'Squad'])
+  })
+
+  it('does not offer a library as a faction', () => {
+    const shelf = shelfOf(
+      { entryLinks: [{ id: 'ours', targetId: 'squad', name: 'Squad', type: 'selectionEntry' }] },
+      { library: true, sharedSelectionEntries: [{ id: 'squad', name: 'Squad', type: 'unit', costs: points(70) }] },
+    )
+    expect(shelf.factions.map((faction) => faction.id)).toEqual(['cat'])
   })
 })
 
@@ -125,11 +200,16 @@ describe('detachments', () => {
     ).toEqual(['Kult of Speed'])
   })
 
-  it('imports the group from a linked primary catalogue', () => {
+  it('takes the detachments of the book it imports most of its roster from', () => {
+    // A chapter has no detachment entry of its own and several books it can reach.
+    // Which one it plays with is decided by which one it mostly is, not by which
+    // holds the longer list: preferring the longer one gave World Eaters the
+    // Daemons detachments and Adeptus Custodes the Knights ones.
     const auxiliary: CatalogueFile = {
       catalogue: {
         id: 'auxiliary',
         name: 'Auxiliary catalogue',
+        selectionEntries: [{ id: 'agent', name: 'Agent', type: 'unit' }],
         sharedSelectionEntries: [
           {
             id: 'aux-wrapper',
@@ -139,7 +219,10 @@ describe('detachments', () => {
               {
                 id: 'aux-choices',
                 name: 'Detachment',
-                selectionEntries: [{ id: 'auxiliary-force', name: 'Auxiliary Force', type: 'upgrade' }],
+                selectionEntries: [
+                  { id: 'auxiliary-force', name: 'Auxiliary Force', type: 'upgrade' },
+                  { id: 'ordo', name: 'Ordo Xenos', type: 'upgrade' },
+                ],
               },
             ],
           },
@@ -150,6 +233,11 @@ describe('detachments', () => {
       catalogue: {
         id: 'base',
         name: 'Base catalogue',
+        selectionEntries: [
+          { id: 'marine', name: 'Marine', type: 'unit' },
+          { id: 'tank', name: 'Tank', type: 'unit' },
+          { id: 'scout', name: 'Scout', type: 'unit' },
+        ],
         sharedSelectionEntries: [
           {
             id: 'wrapper',
@@ -159,10 +247,7 @@ describe('detachments', () => {
               {
                 id: 'choices',
                 name: 'Detachment',
-                selectionEntries: [
-                  { id: 'gladius', name: 'Gladius Task Force', type: 'upgrade' },
-                  { id: 'anvil', name: 'Anvil Siege Force', type: 'upgrade' },
-                ],
+                selectionEntries: [{ id: 'gladius', name: 'Gladius Task Force', type: 'upgrade' }],
               },
             ],
           },
@@ -173,7 +258,10 @@ describe('detachments', () => {
       catalogue: {
         id: 'supplement',
         name: 'Supplement',
-        catalogueLinks: [{ targetId: 'auxiliary' }, { targetId: 'base' }],
+        catalogueLinks: [
+          { targetId: 'auxiliary', importRootEntries: true },
+          { targetId: 'base', importRootEntries: true },
+        ],
       },
     }
     const files = [system, auxiliary, base, supplement]
@@ -182,7 +270,59 @@ describe('detachments', () => {
       detachmentsOf(files, index)
         .get('supplement')
         ?.options.map((option) => option.name),
-    ).toEqual(['Anvil Siege Force', 'Gladius Task Force'])
+    ).toEqual(['Gladius Task Force'])
+  })
+
+  it('leaves a book with the detachments it states itself', () => {
+    // Even where a book it imports offers more of them.
+    const parent: CatalogueFile = {
+      catalogue: {
+        id: 'parent',
+        name: 'Parent catalogue',
+        selectionEntries: [{ id: 'daemon', name: 'Daemon', type: 'unit' }],
+        sharedSelectionEntries: [
+          {
+            id: 'parent-wrapper',
+            name: 'Detachment',
+            type: 'upgrade',
+            selectionEntryGroups: [
+              {
+                id: 'parent-choices',
+                name: 'Detachment',
+                selectionEntries: [
+                  { id: 'incursion', name: 'Daemonic Incursion', type: 'upgrade' },
+                  { id: 'legion', name: 'Blood Legion', type: 'upgrade' },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    }
+    const own: CatalogueFile = {
+      catalogue: {
+        id: 'own',
+        name: 'Own catalogue',
+        catalogueLinks: [{ targetId: 'parent', importRootEntries: true }],
+        sharedSelectionEntries: [
+          {
+            id: 'own-wrapper',
+            name: 'Detachments',
+            type: 'upgrade',
+            selectionEntryGroups: [
+              { id: 'own-choices', name: 'Detachment', selectionEntries: [{ id: 'warband', name: 'Berzerker Warband', type: 'upgrade' }] },
+            ],
+          },
+        ],
+      },
+    }
+    const files = [system, parent, own]
+    const index = buildIndex(files, 'test-revision')
+    expect(
+      detachmentsOf(files, index)
+        .get('own')
+        ?.options.map((option) => option.name),
+    ).toEqual(['Berzerker Warband'])
   })
 })
 

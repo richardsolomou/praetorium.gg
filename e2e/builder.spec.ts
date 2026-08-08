@@ -5,16 +5,16 @@ import { expect, type Page, test } from '@playwright/test'
  * the roster is, the filters that narrow a book down to today's real options, and
  * characters standing with the units they lead.
  */
-async function openBuilder(page: Page) {
+async function openBuilder(page: Page, faction = 'Necrons', detachment = /Awakened Dynasty/) {
   await page.goto('/')
   await page.getByLabel('Your name').fill('Richard')
   await page.getByRole('button', { name: 'Open a battle' }).click()
   await expect(page.getByLabel('Send this link to your opponent')).toHaveValue(/\/b\//)
   await page.getByRole('button', { name: 'Build from the catalogue' }).click()
   await page.getByRole('combobox', { name: 'Faction' }).click()
-  await page.getByRole('option', { name: 'Xenos - Necrons' }).click()
+  await page.getByRole('option', { name: faction, exact: true }).click()
   await page.getByRole('button', { name: 'Add detachment' }).click()
-  await page.getByRole('menuitem', { name: /Awakened Dynasty/ }).click()
+  await page.getByRole('menuitem', { name: detachment }).click()
 }
 
 async function add(page: Page, name: string) {
@@ -32,14 +32,14 @@ test('a supplement imports its shared detachment group', async ({ page }) => {
   await expect(page.getByLabel('Send this link to your opponent')).toHaveValue(/\/b\//)
   await page.getByRole('button', { name: 'Build from the catalogue' }).click()
   await page.getByRole('combobox', { name: 'Faction' }).click()
-  await page.getByRole('option', { name: 'Imperium - Adeptus Astartes - Black Templars' }).click()
+  await page.getByRole('option', { name: 'Black Templars', exact: true }).click()
   await page.getByRole('button', { name: 'Add detachment' }).click()
   await page.getByRole('menuitem', { name: /Companions of Vehemence/ }).click()
   await add(page, 'Crusader Squad')
   await expect(page.locator('[data-unit="Crusader Squad"]')).toBeVisible()
 
   await page.getByRole('combobox', { name: 'Faction' }).click()
-  await page.getByRole('option', { name: 'Imperium - Adeptus Astartes - Imperial Fists' }).click()
+  await page.getByRole('option', { name: 'Imperial Fists', exact: true }).click()
   await page.getByRole('button', { name: 'Add detachment' }).click()
   await expect(page.getByRole('menuitem', { name: /Emperor's Shield/ })).toBeVisible()
   await expect(page.getByRole('menuitem', { name: /Imperialis Fleet/ })).toHaveCount(0)
@@ -89,7 +89,7 @@ test('detachment combinations follow the 11th edition allowance', async ({ page 
 test('an allied force can be added from its own catalogue', async ({ page }) => {
   await openBuilder(page)
   await page.getByRole('combobox', { name: 'Force' }).click()
-  await page.getByRole('option', { name: 'Chaos - Death Guard' }).click()
+  await page.getByRole('option', { name: 'Death Guard', exact: true }).click()
   await add(page, 'Plague Marines')
 
   const allied = page.locator('[data-unit="Plague Marines"]')
@@ -265,4 +265,39 @@ test('a squad divides its weapons between two options', async ({ page }) => {
   await expect(page.getByText('3x Tesla carbine')).toBeVisible()
   await expect(page.getByText('Within the points limit')).toBeAttached()
   await page.screenshot({ path: 'test-results/loadout.png', fullPage: true })
+})
+
+/**
+ * Astra Militarum own no datasheets: every one of them, and their detachments, are
+ * reached by a link into a library. So a book written that way was offered as no
+ * faction at all, and the ones that were offered were missing whatever they borrow.
+ */
+test('a book that keeps its datasheets in a library can still be built from', async ({ page }) => {
+  await openBuilder(page, 'Astra Militarum', /Combined Arms/)
+  await add(page, 'Cadian Shock Troops')
+  await expect(page.locator('[data-unit="Cadian Shock Troops"]')).toBeVisible()
+
+  // And what it borrows from another book is there beside its own.
+  await add(page, 'Callidus Assassin')
+  await expect(page.locator('[data-unit="Callidus Assassin"]')).toBeVisible()
+  await expect(page.getByText('Within the points limit')).toBeAttached()
+})
+
+test('Legends are out of the book until they are asked for', async ({ page }) => {
+  await openBuilder(page, 'Dark Angels', /Unforgiven Task Force/)
+  await page.getByLabel('Add a unit').fill('Land Speeder')
+  await expect(page.getByRole('button', { name: 'Add Land Speeder', exact: true })).toBeVisible()
+  const legend = page.getByRole('button', { name: 'Add Land Speeder Typhoon [Legends]', exact: true })
+  await expect(legend).toBeHidden()
+
+  await page.getByRole('button', { name: 'Legends' }).click()
+  await expect(legend).toBeVisible()
+})
+
+test('a chapter reaches the whole Codex range, not just its own datasheets', async ({ page }) => {
+  // Dark Angels state twenty-seven datasheets of their own and field two hundred
+  // and forty-nine, the rest imported from the Space Marines book.
+  await openBuilder(page, 'Dark Angels', /Unforgiven Task Force/)
+  await add(page, 'Intercessor Squad')
+  await expect(page.locator('[data-unit="Intercessor Squad"]')).toBeVisible()
 })

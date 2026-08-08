@@ -194,6 +194,17 @@ export type SelectionEntryGroup = Common & { type?: undefined; defaultSelectionE
 /** A reference to an entry or group defined elsewhere, carrying its own local additions. */
 export type EntryLink = Common & { targetId: string; type?: 'selectionEntry' | 'selectionEntryGroup'; import?: boolean }
 
+/**
+ * One book borrowing another's roster.
+ *
+ * `importRootEntries` is what separates the two reasons a book links another:
+ * Blood Angels link Space Marines to be able to take their datasheets, and Chaos
+ * Daemons link Chaos Space Marines only to reach rules that mention them. Reading
+ * every link as the first would offer a Daemons player the whole Traitor Legions
+ * range.
+ */
+export type CatalogueLink = { targetId: string; name?: string; importRootEntries?: boolean }
+
 export type Catalogue = {
   id: string
   name: string
@@ -207,7 +218,7 @@ export type Catalogue = {
   selectionEntryGroups?: SelectionEntryGroup[]
   sharedSelectionEntryGroups?: SelectionEntryGroup[]
   entryLinks?: EntryLink[]
-  catalogueLinks?: { targetId: string }[]
+  catalogueLinks?: CatalogueLink[]
   sharedProfiles?: Profile[]
   sharedInfoGroups?: InfoGroup[]
   sharedRules?: Rule[]
@@ -233,13 +244,19 @@ export type CatalogueIndex = {
   /** Which catalogue each definition came from, for the chapter-specific pricing that asks. */
   catalogueOf: Map<string, string>
   /**
-   * The entries a player can pick directly — the datasheets.
+   * The datasheets each faction offers, keyed by catalogue id.
    *
-   * Depth is the only thing that separates a datasheet from a body inside one: an
-   * "Intercessor Sergeant" is a model entry just like a "Lord of Virulence" is,
-   * and the difference is that one sits at the top of its catalogue.
+   * A book states its own roster as links at its root, and borrows another book's
+   * by importing a catalogue link — which is how Blood Angels reach the Space
+   * Marines range, and how Astra Militarum reach a library holding every one of
+   * their units and nothing else. Libraries and the game system are not keys here:
+   * nobody plays them.
+   *
+   * Reading the entries at the top of a file instead answered "nothing" for eight
+   * factions and offered a Burna Boy as a datasheet, because a body inside a squad
+   * sits at the top of a file exactly as the squad does.
    */
-  datasheets: Set<string>
+  datasheets: Map<string, ReadonlySet<string>>
   /**
    * The kinds of force a roster can be — Army Roster, Boarding Actions, Crusade.
    * Conditions count and scope to these, so a roster needs one to answer them.
@@ -274,7 +291,7 @@ export function buildIndex(files: readonly CatalogueFile[], revision: string): C
   const catalogues = new Map<string, { id: string; name: string; revision?: number; library?: boolean; gameSystem: boolean }>()
   const catalogueOf = new Map<string, string>()
   const forces: { id: string; name: string }[] = []
-  const datasheets = new Set<string>()
+  const books = new Map<string, Catalogue>()
   const shared = new Map<string, Profile | InfoGroup>()
   const rules = new Map<string, Rule>()
   const categories = new Map<string, CategoryEntry>()
@@ -310,12 +327,10 @@ export function buildIndex(files: readonly CatalogueFile[], revision: string): C
     for (const group of root.sharedInfoGroups ?? []) shared.set(group.id, group)
     for (const rule of root.sharedRules ?? []) rules.set(rule.id, rule)
     for (const category of root.categoryEntries ?? []) categories.set(category.id, category)
+    if (file.catalogue) books.set(root.id, root)
     owner = root.id
     for (const costType of root.costTypes ?? []) costTypes.set(costType.id, costType)
-    for (const child of [...(root.selectionEntries ?? []), ...(root.sharedSelectionEntries ?? [])]) {
-      if (child.type === 'unit' || child.type === 'model') datasheets.add(child.id)
-      collect(child)
-    }
+    for (const child of [...(root.selectionEntries ?? []), ...(root.sharedSelectionEntries ?? [])]) collect(child)
     for (const child of root.selectionEntryGroups ?? []) collect(child)
     for (const child of root.sharedSelectionEntryGroups ?? []) collect(child)
     for (const child of root.entryLinks ?? []) collect(child)
@@ -331,11 +346,80 @@ export function buildIndex(files: readonly CatalogueFile[], revision: string): C
     unitsByName,
     catalogues,
     catalogueOf,
-    datasheets,
+    datasheets: datasheetsIn(books, definitions),
     forces,
     shared,
     rules,
     categories,
     revision,
   }
+}
+
+/** A link stands for its target: what an entry _is_ comes from there, not from the link. */
+export function targetOf(definition: Definition, definitions: ReadonlyMap<string, Definition>): Definition {
+  return 'targetId' in definition ? (definitions.get(definition.targetId) ?? definition) : definition
+}
+
+/** What to call an entry. A link usually repeats its target's name, and may replace it. */
+export function nameOf(definition: Definition, definitions: ReadonlyMap<string, Definition>): string {
+  return definition.name ?? targetOf(definition, definitions).name ?? definition.id
+}
+
+/**
+ * The datasheets a book states at its root: the ones a player picks from it.
+ *
+ * `id` is what a roster would hold and `targetId` what that resolves to, which
+ * are the same thing only when a book writes a datasheet out rather than linking
+ * one — and most of the game is linked.
+ */
+export function rootEntriesOf(book: Catalogue, definitions: ReadonlyMap<string, Definition>) {
+  const found: { id: string; targetId: string }[] = []
+  for (const entry of book.selectionEntries ?? []) {
+    if (entry.type === 'unit' || entry.type === 'model') found.push({ id: entry.id, targetId: entry.id })
+  }
+  for (const link of book.entryLinks ?? []) {
+    const { type } = targetOf(link, definitions)
+    if (type === 'unit' || type === 'model') found.push({ id: link.id, targetId: link.targetId })
+  }
+  return found
+}
+
+/**
+ * The books this one takes its roster from, the one it takes most of first.
+ *
+ * Order is what settles the questions a book leaves open — an Imperial Fists list
+ * is a Space Marines list that also reaches the Inquisition, and nothing but the
+ * size of what it borrows says so.
+ */
+export function importsOf(book: Catalogue, books: ReadonlyMap<string, Catalogue>, definitions: ReadonlyMap<string, Definition>) {
+  const imported: Catalogue[] = []
+  for (const link of book.catalogueLinks ?? []) {
+    const source = link.importRootEntries ? books.get(link.targetId) : undefined
+    if (source) imported.push(source)
+  }
+  return imported.toSorted((left, right) => rootEntriesOf(right, definitions).length - rootEntriesOf(left, definitions).length)
+}
+
+/**
+ * Which datasheets each faction may pick from.
+ *
+ * Runs once every file is indexed, because a book's roster is written as links
+ * into other books and a link cannot be followed before its target is known.
+ */
+function datasheetsIn(books: ReadonlyMap<string, Catalogue>, definitions: ReadonlyMap<string, Definition>) {
+  const datasheets = new Map<string, ReadonlySet<string>>()
+  for (const book of books.values()) {
+    if (book.library) continue
+    // Keyed by what a pick would resolve to, so a datasheet reached both directly
+    // and through an imported book is offered once — the book's own entry first,
+    // since that is the one carrying anything it says locally.
+    const found = new Map<string, string>()
+    for (const source of [book, ...importsOf(book, books, definitions)]) {
+      for (const entry of rootEntriesOf(source, definitions)) {
+        if (!found.has(entry.targetId)) found.set(entry.targetId, entry.id)
+      }
+    }
+    if (found.size) datasheets.set(book.id, new Set(found.values()))
+  }
+  return datasheets
 }

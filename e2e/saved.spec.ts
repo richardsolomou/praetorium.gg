@@ -15,7 +15,7 @@ test('a list is saved and loaded into another battle', async ({ browser }) => {
   await page.getByRole('button', { name: 'Build from the catalogue' }).click()
 
   await page.getByRole('combobox', { name: 'Faction' }).click()
-  await page.getByRole('option', { name: 'Xenos - Necrons' }).click()
+  await page.getByRole('option', { name: 'Necrons', exact: true }).click()
   await page.getByRole('button', { name: 'Add detachment' }).click()
   await page.getByRole('menuitem', { name: /Awakened Dynasty/ }).click()
   await page.getByLabel('Add a unit').fill('Immortals')
