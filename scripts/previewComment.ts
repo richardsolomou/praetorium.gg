@@ -8,8 +8,7 @@ import process from 'node:process'
 
 const PREVIEW_DOMAIN = 'praetorium.gg'
 const MARKER = '<!-- praetorium-preview -->'
-const NOTE =
-  'A preview is a whole instance with an empty database, and every deployment replaces it. Anything played there is gone at the next push.'
+const NOTE = 'Sign in with `preview@praetorium.gg` / `preview-preview-preview`. Preview data is disposable and resets on every deployment.'
 
 type State = 'awaiting' | 'building' | 'ready' | 'failed' | 'deleted'
 

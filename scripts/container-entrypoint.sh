@@ -26,6 +26,10 @@ export CENTRIFUGO_HEALTH_ENABLED=true
 export XDG_CONFIG_HOME=/tmp/caddy-config
 export XDG_DATA_HOME=/tmp/caddy-data
 
+if [ "${PRAETORIUM_SEED_PREVIEW:-}" = true ]; then
+  node .output/server/seed-preview.mjs
+fi
+
 centrifugo --config=/app/realtime.json &
 realtime_pid=$!
 PORT=3001 node .output/server/index.mjs &

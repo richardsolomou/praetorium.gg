@@ -14,7 +14,8 @@ COPY src ./src
 COPY public ./public
 COPY drizzle ./drizzle
 COPY catalogue ./catalogue
-COPY tsconfig.json vite.config.ts ./
+COPY scripts/seedPreview.ts ./scripts/seedPreview.ts
+COPY tsconfig.json vite.config.ts vite.seed.config.ts ./
 RUN pnpm build
 
 FROM node:24-alpine

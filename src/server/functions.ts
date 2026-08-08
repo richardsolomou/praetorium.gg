@@ -1,6 +1,6 @@
 import { createServerFn } from '@tanstack/react-start'
 import { app } from './app'
-import { configuredProviders, previewLogin } from './auth'
+import { configuredProviders } from './auth'
 import { routeSlug } from '../core/slug'
 import { buildUnit } from '../core/roster'
 import { datasheetIn, datasheetInBySlug, rulesReferencedIn } from './catalogue'
@@ -383,9 +383,4 @@ export const exportRoster = createServerFn({ method: 'POST' })
   )
 
 /** What this instance can actually offer at sign-in, so the page shows only that. */
-export const signInOptions = createServerFn({ method: 'GET' }).handler(() =>
-  rpc(async () => {
-    await app().previewLoginReady
-    return { providers: configuredProviders(), previewLogin: previewLogin() }
-  }),
-)
+export const signInOptions = createServerFn({ method: 'GET' }).handler(() => rpc(() => ({ providers: configuredProviders() })))

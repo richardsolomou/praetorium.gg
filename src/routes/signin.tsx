@@ -28,8 +28,8 @@ export const Route = createFileRoute('/signin')({
 function SignIn() {
   const { next } = Route.useSearch()
   const { data: options } = useQuery(signInOptionsQuery())
-  const [email, setEmail] = useState(options?.previewLogin?.email ?? '')
-  const [password, setPassword] = useState(options?.previewLogin?.password ?? '')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [name, setName] = useState('')
   const [joining, setJoining] = useState(false)
   const navigate = useNavigate()
@@ -59,8 +59,6 @@ function SignIn() {
         Your account is your player: it holds your saved lists, the battles you have played and the ones still going, on whatever device you
         pick up.
       </p>
-      {options?.previewLogin ? <p className="mt-3 text-sm text-dim">This preview login is ready to use.</p> : null}
-
       <form
         className="mt-8 space-y-4"
         onSubmit={(event) => {

@@ -1,6 +1,5 @@
 import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
-import { eq } from 'drizzle-orm'
 import crypto from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -29,13 +28,6 @@ export function configuredProviders(env: NodeJS.ProcessEnv = process.env): Socia
     const prefix = provider.toUpperCase()
     return Boolean(env[`${prefix}_CLIENT_ID`]?.trim() && env[`${prefix}_CLIENT_SECRET`]?.trim())
   })
-}
-
-export type PreviewLogin = { email: string; password: string }
-
-export function previewLogin(env: NodeJS.ProcessEnv = process.env): PreviewLogin | null {
-  if (env.PREVIEW_LOGIN !== 'true') return null
-  return { email: 'preview@praetorium.gg', password: 'praetorium-preview' }
 }
 
 function socialProviders(env: NodeJS.ProcessEnv) {
@@ -90,9 +82,4 @@ export function createAuth(database: PraetoriumDatabase, secret: string) {
       return forwarded ? [forwarded] : []
     },
   })
-}
-
-export async function seedPreviewLogin(database: PraetoriumDatabase, auth: ReturnType<typeof createAuth>, login: PreviewLogin | null) {
-  if (!login || database.select({ id: schema.user.id }).from(schema.user).where(eq(schema.user.email, login.email)).get()) return
-  await auth.api.signUpEmail({ body: { name: 'Preview Player', ...login } })
 }

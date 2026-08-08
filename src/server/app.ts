@@ -5,7 +5,7 @@ import { type LoadedRules, loadRules } from './rules'
 import { isCurrent, type SyncState, syncSources } from './sync'
 import { databasePath, type PraetoriumDatabase, openDatabase } from '../db/connection'
 import { Repository } from '../db/repository'
-import { authSecret, createAuth, previewLogin, seedPreviewLogin } from './auth'
+import { authSecret, createAuth } from './auth'
 import { realtimeConfig } from './realtime'
 import { PraetoriumService } from './service'
 
@@ -20,7 +20,6 @@ type App = {
   /** How the community data is doing, so the interface can say rather than guess. */
   sync: () => SyncState
   auth: ReturnType<typeof createAuth>
-  previewLoginReady: Promise<void>
 }
 
 /** Parsing the whole catalogue takes seconds, so it happens once and only if asked for. */
@@ -87,13 +86,11 @@ export function app(): App {
     const database = openDatabase(file)
     const realtime = realtimeConfig()
     const events = new RealtimePublisher(realtime.apiUrl, realtime.apiKey)
-    const auth = createAuth(database, authSecret(path.dirname(file)))
     globalApp.praetoriumApp = {
       database,
       service: new PraetoriumService(new Repository(database), Date.now, events),
       events,
-      auth,
-      previewLoginReady: seedPreviewLogin(database, auth, previewLogin()),
+      auth: createAuth(database, authSecret(path.dirname(file))),
       catalogue: memoize(loadCatalogue),
       rules: memoize(loadRules),
       sync: () => sync.state,

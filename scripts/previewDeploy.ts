@@ -131,7 +131,7 @@ async function deploy() {
   await api('application.saveEnvironment', {
     body: {
       applicationId,
-      env: `APP_URL=https://${host}\nPREVIEW_LOGIN=true\n`,
+      env: `APP_URL=https://${host}\nPRAETORIUM_SEED_PREVIEW=true\n`,
       buildArgs: null,
       buildSecrets: null,
       createEnvFile: false,
