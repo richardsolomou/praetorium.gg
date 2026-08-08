@@ -1,4 +1,5 @@
 import fs from 'node:fs'
+import { createHash } from 'node:crypto'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
@@ -6,6 +7,7 @@ import sources from '../../catalogue/sources.json' with { type: 'json' }
 import { isCurrent, syncSources } from './sync'
 
 let directory: string
+const hash = (value: string) => createHash('sha256').update(value).digest('hex')
 
 beforeEach(() => {
   directory = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-sync-'))
@@ -46,4 +48,23 @@ it('refetches a pinned export when a configured file is missing', async () => {
   await syncSources(directory, () => {})
 
   expect(fetch).toHaveBeenCalled()
+})
+
+it('keeps verified exports when one optional live page changes', async () => {
+  const exported = 'name|detachment|description|\nRule|Test|Description|\n'
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (url: string) => new Response(url.endsWith('/Stratagems.csv') ? exported : 'changed page')),
+  )
+  const messages: string[] = []
+
+  await syncSources(directory, (message) => messages.push(message), {
+    baseUrl: 'https://example.test',
+    revision: 'test revision',
+    files: { 'Stratagems.csv': hash(exported) },
+    pages: { faction: hash('pinned page') },
+  })
+
+  expect(fs.readFileSync(path.join(directory, 'wahapedia', 'Stratagems.csv'), 'utf8')).toBe(exported)
+  expect(messages).toContain('wahapedia: descriptions unavailable for faction')
 })

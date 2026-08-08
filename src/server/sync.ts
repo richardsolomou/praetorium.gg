@@ -13,6 +13,7 @@ import sources from '../../catalogue/sources.json' with { type: 'json' }
  * dependency for the same job.
  */
 type SourceName = 'definitions' | 'points' | 'rules'
+type WahapediaSource = { baseUrl: string; revision: string; files: Record<string, string>; pages: Record<string, string> }
 
 export const SOURCE_NAMES: SourceName[] = ['definitions', 'points', 'rules']
 
@@ -52,9 +53,13 @@ export const isCurrent = (directory: string) => {
  * Each source lands in a sibling directory first and is swapped in, so a run that
  * dies halfway cannot leave a half-written catalogue that looks complete.
  */
-export async function syncSources(directory: string, report: (message: string) => void = () => {}): Promise<void> {
+export async function syncSources(
+  directory: string,
+  report: (message: string) => void = () => {},
+  wahapediaSource: WahapediaSource = sources.wahapedia,
+): Promise<void> {
   if (isCurrent(directory)) {
-    await syncWahapedia(directory, report)
+    await syncWahapedia(directory, report, wahapediaSource)
     report('catalogue is already at the pinned revisions')
     return
   }
@@ -76,21 +81,25 @@ export async function syncSources(directory: string, report: (message: string) =
     await fetchInto(source.repository, source.revision, target)
   }
   fs.writeFileSync(path.join(directory, REVISION_FILE), `${JSON.stringify(pinned, null, 2)}\n`)
-  await syncWahapedia(directory, report)
+  await syncWahapedia(directory, report, wahapediaSource)
   report('catalogue is ready')
 }
 
-async function syncWahapedia(directory: string, report: (message: string) => void) {
+async function syncWahapedia(directory: string, report: (message: string) => void, source: WahapediaSource) {
   const target = path.join(directory, 'wahapedia')
   const complete =
-    Object.keys(sources.wahapedia.files).every((name) => fs.existsSync(path.join(target, name))) &&
-    Object.keys(sources.wahapedia.pages).every((name) => fs.existsSync(path.join(target, 'pages', `${name}.html`)))
-  if (localRevisions(directory).wahapedia === sources.wahapedia.revision && complete) return
-  report(`wahapedia: fetching export from ${sources.wahapedia.revision}`)
+    Object.keys(source.files).every((name) => fs.existsSync(path.join(target, name))) &&
+    Object.keys(source.pages).every((name) => fs.existsSync(path.join(target, 'pages', `${name}.html`)))
+  if (localRevisions(directory).wahapedia === source.revision && complete) return
+  report(`wahapedia: fetching export from ${source.revision}`)
   try {
-    await fetchWahapediaInto(sources.wahapedia, target)
-    const revisions = { ...localRevisions(directory), wahapedia: sources.wahapedia.revision }
-    fs.writeFileSync(path.join(directory, REVISION_FILE), `${JSON.stringify(revisions, null, 2)}\n`)
+    const unavailable = await fetchWahapediaInto(source, target)
+    if (unavailable.length) {
+      report(`wahapedia: descriptions unavailable for ${unavailable.join(', ')}`)
+    } else {
+      const revisions = { ...localRevisions(directory), wahapedia: source.revision }
+      fs.writeFileSync(path.join(directory, REVISION_FILE), `${JSON.stringify(revisions, null, 2)}\n`)
+    }
   } catch (error) {
     report(`wahapedia: descriptions unavailable (${error instanceof Error ? error.message : String(error)})`)
   }
@@ -98,7 +107,7 @@ async function syncWahapedia(directory: string, report: (message: string) => voi
 
 const MAX_EXPORT_BYTES = 5 * 1024 * 1024
 
-async function fetchWahapediaInto(source: (typeof sources)['wahapedia'], target: string) {
+async function fetchWahapediaInto(source: WahapediaSource, target: string) {
   const staging = `${target}.incoming`
   fs.rmSync(staging, { recursive: true, force: true })
   fs.mkdirSync(staging, { recursive: true })
@@ -117,20 +126,31 @@ async function fetchWahapediaInto(source: (typeof sources)['wahapedia'], target:
 
   const pages = path.join(staging, 'pages')
   fs.mkdirSync(pages)
+  const unavailable: string[] = []
   for (const [name, expected] of Object.entries(source.pages)) {
-    // eslint-disable-next-line no-await-in-loop
-    const response = await fetch(`${source.baseUrl}/factions/${name}/`)
-    if (!response.ok) throw new Error(`Wahapedia ${name} page answered ${response.status}`)
-    // eslint-disable-next-line no-await-in-loop
-    const bytes = new Uint8Array(await response.arrayBuffer())
-    if (bytes.length > MAX_EXPORT_BYTES) throw new Error(`Wahapedia ${name} page exceeds ${MAX_EXPORT_BYTES} bytes`)
-    const actual = createHash('sha256').update(bytes).digest('hex')
-    if (actual !== expected) throw new Error(`Wahapedia ${name} page does not match the pinned source`)
-    fs.writeFileSync(path.join(pages, `${name}.html`), bytes)
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      const response = await fetch(`${source.baseUrl}/factions/${name}/`)
+      if (!response.ok) throw new Error(`answered ${response.status}`)
+      // eslint-disable-next-line no-await-in-loop
+      const bytes = new Uint8Array(await response.arrayBuffer())
+      if (bytes.length > MAX_EXPORT_BYTES) throw new Error(`exceeds ${MAX_EXPORT_BYTES} bytes`)
+      const actual = createHash('sha256').update(bytes).digest('hex')
+      if (actual !== expected) throw new Error('does not match the pinned source')
+      fs.writeFileSync(path.join(pages, `${name}.html`), bytes)
+    } catch {
+      const existing = path.join(target, 'pages', `${name}.html`)
+      if (fs.existsSync(existing) && createHash('sha256').update(fs.readFileSync(existing)).digest('hex') === expected) {
+        fs.copyFileSync(existing, path.join(pages, `${name}.html`))
+      } else {
+        unavailable.push(name)
+      }
+    }
   }
 
   fs.rmSync(target, { recursive: true, force: true })
   fs.renameSync(staging, target)
+  return unavailable
 }
 
 async function fetchInto(repository: string, revision: string, target: string) {
