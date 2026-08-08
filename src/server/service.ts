@@ -20,11 +20,11 @@ import { picksSchema, savedPrepSchema } from './schemas'
  * or the invitation until they take one. Reading a battle never seats anyone —
  * a link preview must not be able to take the second chair.
  */
-export type SavedPrep = { stratagems: Stratagem[]; secondaries: Secondary[] }
+type SavedPrep = { stratagems: Stratagem[]; secondaries: Secondary[] }
 
-export type SeatedScreen = { kind: 'battle'; view: BattleView; mission: Mission | null }
+type SeatedScreen = { kind: 'battle'; view: BattleView; mission: Mission | null }
 
-export type BattleScreen = SeatedScreen | { kind: 'invitation'; free: boolean }
+type BattleScreen = SeatedScreen | { kind: 'invitation'; free: boolean }
 
 /**
  * What a command answers: what happened to it, and what the battle now is.
@@ -34,7 +34,7 @@ export type BattleScreen = SeatedScreen | { kind: 'invitation'; free: boolean }
  * round trip later, a page acts on a view it has already changed — sending a seq
  * from before its own command, or naming the wrong command to undo.
  */
-export type SubmitAnswer = { result: SubmitResult; screen: SeatedScreen }
+type SubmitAnswer = { result: SubmitResult; screen: SeatedScreen }
 
 export class PraetoriumService {
   constructor(

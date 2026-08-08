@@ -4,8 +4,8 @@ import { commandSchema } from '../core/commands'
 import type { PraetoriumDatabase } from './connection'
 import { battlePlayers, battles, collection, commands, players, rosters } from './schema'
 
-export type BattleRecord = { id: string; token: string; createdAt: number }
-export type BattlePlayer = { id: string; name: string; side: number }
+type BattleRecord = { id: string; token: string; createdAt: number }
+type BattlePlayer = { id: string; name: string; side: number }
 export type BattleSeats = { battle: BattleRecord; players: BattlePlayer[] }
 
 export type JoinResult = 'joined' | 'already-in' | 'full'

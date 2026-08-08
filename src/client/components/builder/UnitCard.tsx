@@ -15,7 +15,7 @@ export type BuiltUnit = {
 }
 
 /** Who this unit is joined to, in whichever direction the card is showing. */
-export type Joined = { label: string; name: string; action: string; onAct: () => void }
+type Joined = { label: string; name: string; action: string; onAct: () => void }
 
 type Props = {
   unit: BuiltUnit

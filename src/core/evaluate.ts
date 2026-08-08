@@ -29,7 +29,7 @@ export type Selection = { id: string; count?: number; selections?: readonly Sele
 
 export type EvaluationError = { entryId: string; entryName: string; message: string }
 
-export type Evaluation = {
+type Evaluation = {
   /** Totals per cost type name, so `pts` reads the way the data names it. */
   costs: Record<string, number>
   points: number
@@ -69,7 +69,7 @@ class Census {
   }
 }
 
-export type EvaluateOptions = {
+type EvaluateOptions = {
   /**
    * The catalogue the list is being built from. Chapter-specific pricing asks for
    * it directly — a Blood Angels captain costs five points more than the same
