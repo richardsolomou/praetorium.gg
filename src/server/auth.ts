@@ -73,9 +73,8 @@ export function createAuth(database: PraetoriumDatabase, secret: string) {
     session: { expiresIn: 60 * 60 * 24 * 90, updateAge: 60 * 60 * 24 },
     advanced: {
       useSecureCookies: (process.env.APP_URL ?? '').startsWith('https://'),
-      // Behind Cloudflare and Traefik every request arrives from the proxy, so
-      // without this the limits above are one bucket for the whole internet and a
-      // single noisy client locks everyone out.
+      // Behind a reverse proxy, the socket address would put every visitor into
+      // one rate-limit bucket.
       ipAddress: { ipAddressHeaders: ['cf-connecting-ip', 'x-forwarded-for'] },
     },
     trustedOrigins: (request) => {

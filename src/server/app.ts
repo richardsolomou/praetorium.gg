@@ -38,15 +38,16 @@ function memoize<T>(work: () => T): () => T {
 /**
  * The one sync in flight, if any.
  *
- * Kept outside the app so a reload during development does not start a second
- * download of the same 60MB.
+ * Kept outside the app so a reload during development does not start the same
+ * download twice.
  */
 const sync = {
   state: { status: 'absent', detail: null } as SyncState,
   running: false,
   begin(directory: string, onReady: () => void) {
-    if (this.running || isCurrent(directory)) {
-      this.state = isCurrent(directory) ? { status: 'ready', detail: null } : this.state
+    if (this.running) return
+    if (isCurrent(directory)) {
+      this.state = { status: 'ready', detail: null }
       return
     }
     this.running = true
