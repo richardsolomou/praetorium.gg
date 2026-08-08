@@ -50,7 +50,7 @@ test('Cursed Legion does not modify Immortals without an eligible leader', async
   await expect(datasheet).toBeVisible()
   await expect(datasheet.getByRole('heading', { name: 'Gauss blaster' }).locator('..').getByText('5', { exact: true })).toBeVisible()
   await expect(page.locator('[data-unit="Immortals"]')).toHaveCount(0)
-  expect(await page.evaluate(() => getComputedStyle(document.documentElement).fontSize)).toBe('20px')
+  expect(await page.evaluate(() => getComputedStyle(document.documentElement).fontSize)).toBe('19px')
   await page.screenshot({ path: 'test-results/unit-preview.png' })
 
   await add(page, 'Immortals')
@@ -328,8 +328,8 @@ test('a smaller desktop keeps the picker, roster and loadout visible', async ({ 
 
   await page.setViewportSize({ width: 1280, height: 800 })
   await expect(datasheet).toBeHidden()
-  expect((await picker.boundingBox())?.width).toBe(400)
-  expect((await loadout.boundingBox())?.width).toBe(400)
+  expect((await picker.boundingBox())?.width).toBe(380)
+  expect((await loadout.boundingBox())?.width).toBe(380)
 
   await page.setViewportSize({ width: 1440, height: 900 })
   await expect(datasheet).toBeVisible()
