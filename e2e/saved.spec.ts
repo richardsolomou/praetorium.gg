@@ -33,9 +33,9 @@ test('a list is saved and loaded into another battle', async ({ browser }) => {
   await page.getByRole('button', { name: /More models in Immortals/ }).click()
 
   const total = page.locator('[data-stat="points"]')
-  // The bar reads 0/2000 before the first price lands, so capturing without waiting
-  // compares a saved list against a total that had not been worked out yet.
-  await expect(total).not.toHaveText('0/2000')
+  // Wait for the resize to be priced; the preceding 160-point result can still be
+  // visible while that request is in flight.
+  await expect(total).toHaveText('230/2000')
   const priced = await total.innerText()
 
   // The name is offered, not demanded; this one is overridden on purpose.

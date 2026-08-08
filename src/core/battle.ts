@@ -47,11 +47,11 @@ type BuiltRoster = {
   limit: number
   /** Named for display, since an opponent's device may have no catalogue loaded. */
   detachment: string | null
-  /** Ordered purchases; the first is primary and supplies the force disposition. */
+  /** Ordered detachment purchases. */
   detachments?: { name: string; points: number | null }[]
   /** The 11th-edition detachment-point allowance for this battle size. */
   detachmentPointBudget?: number | null
-  /** The force disposition the detachment plays under; the pair decides the mission. */
+  /** The chosen force disposition; the pair decides the mission. */
   disposition: string | null
   selections: Selection[]
   /**

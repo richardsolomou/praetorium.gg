@@ -22,6 +22,7 @@ import { Picker } from './builder/Picker'
 import { Section } from './builder/Section'
 import { Pane } from './builder/Pane'
 import { UnitCard } from './builder/UnitCard'
+import { dispositionsFor } from './rosterSetup'
 
 type Props = {
   onAttach?: (roster: Roster) => void
@@ -589,32 +590,33 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
                 error={priced?.detachmentError}
               />
               {(() => {
-                const primary = faction?.detachments.find((detachment) => detachment.id === detachmentIds[0])
-                const dispositions = primary?.dispositions ?? []
+                const dispositions = dispositionsFor(faction?.detachments ?? [], detachmentIds)
                 if (!dispositions.length) return null
                 return (
                   <div>
                     <label className="eyebrow block" htmlFor="edit-roster-disposition">
                       Disposition
                     </label>
-                    {dispositions.length === 1 ? (
-                      <p className="mt-1 text-sm text-dim">{dispositions[0].name}</p>
-                    ) : (
-                      <Select value={disposition} onValueChange={setDisposition}>
-                        <SelectTrigger id="edit-roster-disposition" className="mt-1 w-full">
-                          <SelectValue placeholder="Pick a disposition">
-                            {(value: unknown) => dispositions.find((candidate) => candidate.id === value)?.name ?? 'Pick a disposition'}
-                          </SelectValue>
-                        </SelectTrigger>
-                        <SelectContent>
-                          {dispositions.map((candidate) => (
-                            <SelectItem key={candidate.id} value={candidate.id}>
-                              {candidate.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
+                    <div className="mt-1 h-9">
+                      {dispositions.length === 1 ? (
+                        <p className="flex h-full items-center text-sm text-dim">{dispositions[0].name}</p>
+                      ) : (
+                        <Select value={disposition} onValueChange={setDisposition}>
+                          <SelectTrigger id="edit-roster-disposition" className="h-full w-full">
+                            <SelectValue placeholder="Pick a disposition">
+                              {(value: unknown) => dispositions.find((candidate) => candidate.id === value)?.name ?? 'Pick a disposition'}
+                            </SelectValue>
+                          </SelectTrigger>
+                          <SelectContent>
+                            {dispositions.map((candidate) => (
+                              <SelectItem key={candidate.id} value={candidate.id}>
+                                {candidate.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    </div>
                   </div>
                 )
               })()}

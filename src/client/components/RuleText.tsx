@@ -13,7 +13,8 @@ const components: Components = {
 }
 
 export function RuleText({ text, rules = noRules }: { text: string; rules?: KeywordRule[] }) {
-  const markdown = text.replaceAll('^^', '').replaceAll(/(?<!\*)\[([A-Z][A-Z0-9 +'-]*)\](?!\*)/g, '**[$1]**')
+  const cleaned = text.replaceAll('^^', '')
+  const markdown = cleaned.replaceAll(/(?<!\*)\[([\p{L}\p{N} +'"’\p{Pd}]+)\](?!\*)/gu, '**[$1]**')
   return (
     <Rules value={rules}>
       <div className="mt-2 space-y-2 text-sm text-dim">

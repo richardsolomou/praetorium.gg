@@ -16,6 +16,7 @@ import {
 } from '../core/catalogue'
 import { evaluate, hiddenByRules, rosterLimit } from '../core/evaluate'
 import { buildUnit } from '../core/roster'
+import { bracketedRuleReferences, ruleReferenceMatches } from '../core/ruleReference'
 import { routeSlug } from '../core/slug'
 
 /**
@@ -366,21 +367,17 @@ export function datasheetIn(loaded: LoadedCatalogue, catalogueId: string, entryI
 
 export function rulesReferencedIn(loaded: LoadedCatalogue, texts: readonly (string | null)[]) {
   const references = new Set(
-    texts.flatMap((text) =>
-      [...(text ?? '').matchAll(/\*\*(.*?)\*\*|\^\^(.*?)\^\^|\[([A-Z][A-Z0-9 +'-]*)\]/g)].map((match) =>
-        (match[1] ?? match[2] ?? match[3] ?? '').replaceAll(/\*\*|\^\^/g, ''),
+    texts.flatMap((text) => [
+      ...[...(text ?? '').matchAll(/\*\*(.*?)\*\*|\^\^(.*?)\^\^/g)].map((match) =>
+        (match[1] ?? match[2] ?? '').replaceAll(/\*\*|\^\^/g, ''),
       ),
-    ),
+      ...bracketedRuleReferences(text ?? ''),
+    ]),
   )
   const candidates = new Map<string, Set<string>>()
   for (const rule of loaded.index.rules.values()) {
     if (!rule.name || !rule.description) continue
-    const name = rule.name.toLocaleLowerCase()
-    if (
-      ![...references].some((reference) => reference.toLocaleLowerCase() === name || reference.toLocaleLowerCase().startsWith(`${name} `))
-    ) {
-      continue
-    }
+    if (![...references].some((reference) => ruleReferenceMatches(reference, rule.name!))) continue
     const descriptions = candidates.get(rule.name) ?? new Set<string>()
     descriptions.add(rule.description)
     candidates.set(rule.name, descriptions)

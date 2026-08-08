@@ -10,6 +10,7 @@ import { saveRoster } from '../../server/functions'
 import { priceQuery, savedRostersQuery } from '../queries'
 import { errorMessage } from '../queryClient'
 import { DetachmentPoints } from './DetachmentPoints'
+import { dispositionsFor } from './rosterSetup'
 
 type Faction = {
   id: string
@@ -31,8 +32,7 @@ export function CreateRoster({ factions }: { factions: Faction[] }) {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const faction = factions.find((candidate) => candidate.id === catalogueId)
-  const primary = faction?.detachments.find((detachment) => detachment.id === detachmentIds[0])
-  const dispositions = primary?.dispositions ?? []
+  const dispositions = dispositionsFor(faction?.detachments ?? [], detachmentIds)
   const selectedDisposition = dispositions.length === 1 ? dispositions[0].id : disposition
   const { data: priced } = useQuery(priceQuery(catalogueId, detachmentIds, selectedDisposition, limit, []))
   const create = useMutation({
@@ -167,24 +167,26 @@ export function CreateRoster({ factions }: { factions: Faction[] }) {
               <label className="eyebrow block" htmlFor="new-roster-disposition">
                 Disposition
               </label>
-              {dispositions.length === 1 ? (
-                <p className="mt-1 text-sm text-dim">{dispositions[0].name}</p>
-              ) : (
-                <Select value={selectedDisposition} onValueChange={setDisposition}>
-                  <SelectTrigger id="new-roster-disposition" className="mt-1 w-full">
-                    <SelectValue placeholder="Pick a disposition">
-                      {(value: unknown) => dispositions.find((candidate) => candidate.id === value)?.name ?? 'Pick a disposition'}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {dispositions.map((candidate) => (
-                      <SelectItem key={candidate.id} value={candidate.id}>
-                        {candidate.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
+              <div className="mt-1 h-9">
+                {dispositions.length === 1 ? (
+                  <p className="flex h-full items-center text-sm text-dim">{dispositions[0].name}</p>
+                ) : (
+                  <Select value={selectedDisposition} onValueChange={setDisposition}>
+                    <SelectTrigger id="new-roster-disposition" className="h-full w-full">
+                      <SelectValue placeholder="Pick a disposition">
+                        {(value: unknown) => dispositions.find((candidate) => candidate.id === value)?.name ?? 'Pick a disposition'}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {dispositions.map((candidate) => (
+                        <SelectItem key={candidate.id} value={candidate.id}>
+                          {candidate.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
             </div>
           ) : null}
           {create.error ? (

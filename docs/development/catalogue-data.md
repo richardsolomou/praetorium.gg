@@ -50,7 +50,7 @@ Praetorium builds and validates rosters from fetched community data. The domain 
 - Call `hiddenByRules` with the current roster. Visibility can depend on its detachment and force type.
 - Read available choices from the datasheet definition, not only from the built selection. Optional groups are absent from the default selection.
 - Add detachments before units during evaluation. Enhancements and unit limits can depend on them.
-- Eleventh-edition detachments are ordered purchases. The first detachment supplies the available force dispositions; a saved roster keeps the player's choice. All purchased detachments contribute their detachment-point cost and stratagems.
+- Eleventh-edition detachments are ordered purchases. A roster can use any force disposition offered by a purchased detachment and keeps the player's choice. All purchased detachments contribute their detachment-point cost and stratagems.
 
 ## Points ratchet
 

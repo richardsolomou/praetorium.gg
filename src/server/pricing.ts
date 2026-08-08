@@ -32,12 +32,14 @@ export function calculateRosterPrice(data: PriceInput) {
   const references = app()
     .rules()
     ?.detachmentReferences.get(slug(loaded.index.catalogues.get(data.catalogueId)?.name ?? ''))
-  const primaryReference = chosen[0] ? references?.get(slug(chosen[0].name)) : null
-  const allowedDispositions = primaryReference?.dispositions.length
-    ? primaryReference.dispositions
-    : chosen[0]?.disposition
-      ? [chosen[0].disposition]
-      : []
+  const allowedDispositions = [
+    ...new Set(
+      chosen.flatMap((option) => {
+        const fromRules = references?.get(slug(option.name))?.dispositions ?? []
+        return fromRules.length ? fromRules : option.disposition ? [option.disposition] : []
+      }),
+    ),
+  ]
   const { disposition, error: dispositionError } = resolveDisposition(allowedDispositions, data.disposition)
   const purchased = chosen.map((option) => ({
     name: option.name,

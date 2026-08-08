@@ -1,6 +1,14 @@
 import type { QueryClient } from '@tanstack/react-query'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { createRootRouteWithContext, HeadContent, Link, Outlet, Scripts, useLocation, useNavigate } from '@tanstack/react-router'
+import '@fontsource/barlow-semi-condensed/latin-400.css'
+import '@fontsource/barlow-semi-condensed/latin-500.css'
+import '@fontsource/barlow-semi-condensed/latin-600.css'
+import '@fontsource/barlow-semi-condensed/latin-700.css'
+import barlow400 from '@fontsource/barlow-semi-condensed/files/barlow-semi-condensed-latin-400-normal.woff2?url'
+import barlow500 from '@fontsource/barlow-semi-condensed/files/barlow-semi-condensed-latin-500-normal.woff2?url'
+import barlow600 from '@fontsource/barlow-semi-condensed/files/barlow-semi-condensed-latin-600-normal.woff2?url'
+import barlow700 from '@fontsource/barlow-semi-condensed/files/barlow-semi-condensed-latin-700-normal.woff2?url'
 import { Button } from '@/components/ui/button'
 import { authClient } from '../client/authClient'
 import { meQuery } from '../client/queries'
@@ -26,7 +34,16 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: 'og:site_name', content: TITLE },
       { name: 'twitter:card', content: 'summary' },
     ],
-    links: [{ rel: 'stylesheet', href: appCss }],
+    links: [
+      { rel: 'stylesheet', href: appCss },
+      ...[barlow400, barlow500, barlow600, barlow700].map((href) => ({
+        rel: 'preload' as const,
+        href,
+        as: 'font' as const,
+        type: 'font/woff2',
+        crossOrigin: 'anonymous' as const,
+      })),
+    ],
   }),
   component: RootComponent,
   notFoundComponent: () => (

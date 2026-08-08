@@ -1,22 +1,19 @@
 import { useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { ruleReferenceMatches } from '../../core/ruleReference'
 
 export type KeywordRule = { name: string; description: string }
 
 export function Keyword({ name, rules, className = '' }: { name: string; rules: KeywordRule[]; className?: string }) {
-  const [pinned, setPinned] = useState(false)
   const [hovered, setHovered] = useState(false)
   const [focused, setFocused] = useState(false)
   const descriptionId = useId()
   const trigger = useRef<HTMLButtonElement>(null)
-  const normalized = name.replace(/^\[|\]$/g, '').toLocaleLowerCase()
   const rule = rules
-    .filter(
-      (candidate) => normalized === candidate.name.toLocaleLowerCase() || normalized.startsWith(`${candidate.name.toLocaleLowerCase()} `),
-    )
+    .filter((candidate) => ruleReferenceMatches(name, candidate.name))
     .toSorted((left, right) => right.name.length - left.name.length)[0]
   if (!rule) return <span className={className}>{name}</span>
-  const open = pinned || hovered || focused
+  const open = hovered || focused
   const bounds = trigger.current?.getBoundingClientRect()
   const above = bounds ? bounds.bottom + 200 > window.innerHeight : false
 
@@ -27,7 +24,6 @@ export function Keyword({ name, rules, className = '' }: { name: string; rules: 
         type="button"
         aria-expanded={open}
         aria-describedby={descriptionId}
-        onClick={() => setPinned((current) => !current)}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
         onFocus={() => setFocused(true)}
