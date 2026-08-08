@@ -4,10 +4,10 @@ Praetorium builds and validates rosters from fetched community data. The domain 
 
 ## Sources and loading
 
-- `catalogue/sources.json` records three sources and pins each commit revision.
+- `catalogue/sources.json` records each source and pins its revision or file hashes.
 - `catalogue-data/` contains fetched data and is gitignored. Do not commit game data or copied rules text.
 - `src/server/sync.ts` compares local revisions with the pinned revisions and downloads missing data in the background.
-- Each download uses a staging directory. It replaces the current source only after the download finishes.
+- Each download uses a staging directory. It replaces the current source only after the download finishes and its revision or hashes match.
 - `just catalogue-sync` calls the same sync code as the server.
 - The server loads the catalogue on first use. An instance without catalogue data can still serve battles and pasted rosters.
 
@@ -20,7 +20,7 @@ Praetorium builds and validates rosters from fetched community data. The domain 
 - `isDatasheetId` can fall back to any synced book when an imported roster names an unavailable catalogue.
 - A book's own detachments take priority. A book without detachments uses the detachments from the book that contributes most of its roster.
 - A detachment has a wrapper, a group, and its choices. Any layer can be inline or linked. Match wrapper names by the `Detachment` prefix.
-- Enhancement names and points come from the rules source. Description text comes from the catalogue; prefer the matching detachment or book, and leave conflicting matches blank.
+- Enhancement names and points come from the rules source. Description text prefers the catalogue, then the pinned Wahapedia export; leave conflicting matches blank.
 - A datasheet roster cap usually lives on its same-named category. `rosterLimit` reads that cap for display and filtering. `violations` remains the legality authority.
 - The collection stores one membership row per player and datasheet. It does not store model quantities.
 

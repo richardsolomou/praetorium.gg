@@ -1,6 +1,6 @@
 # Stratagems, missions, and scoring
 
-Praetorium reads stratagems and mission data from [40kdc-data](https://github.com/tabletop-developer-consortium/40kdc-data) under CC BY 4.0. `ATTRIBUTION` in `src/server/rules.ts` must appear wherever the app shows this data.
+Praetorium reads structured stratagem and mission data from [40kdc-data](https://github.com/tabletop-developer-consortium/40kdc-data) under CC BY 4.0. Descriptions come from Wahapedia's data export. The attribution assembled in `src/server/rules.ts` must appear wherever the app shows this data.
 
 ## Rules data
 

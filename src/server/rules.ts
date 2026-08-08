@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import type { Stratagem, StratagemLimit } from '../core/battle'
+import { descriptionKey, loadWahapediaDescriptions, WAHAPEDIA_ATTRIBUTION } from './wahapedia'
 
 /**
  * Stratagems and secondary mission cards, from the Tabletop Developer Consortium's
@@ -127,11 +128,20 @@ type DetachmentRulesDetail = {
   name: string
   points: number | null
   dispositions: string[]
-  enhancements: { name: string; points: number | null }[]
-  stratagems: { id: string; name: string; cp: number; type: string | null; phases: string[]; turn: string | null }[]
+  enhancements: { name: string; points: number | null; description: string | null }[]
+  stratagems: {
+    id: string
+    name: string
+    cp: number
+    type: string | null
+    phases: string[]
+    turn: string | null
+    description: string | null
+  }[]
 }
 
 export type LoadedRules = {
+  attribution: string
   /** Faction slug then detachment slug, so a chosen detachment maps straight to its six. */
   byDetachment: Map<string, Map<string, Stratagem[]>>
   /** Display metadata for each detachment, from the same licensed source as its stratagems. */
@@ -157,9 +167,13 @@ function rulesDirectory(dataDirectory = process.env.DATA_DIR ?? '/data') {
   return process.env.RULES_DIR ?? path.join(path.resolve(dataDirectory), 'catalogue', 'rules')
 }
 
-export function loadRules(directory = rulesDirectory()): LoadedRules | null {
+export function loadRules(
+  directory = rulesDirectory(),
+  wahapediaDirectory = path.join(path.dirname(directory), 'wahapedia'),
+): LoadedRules | null {
   const core = path.join(directory, 'data', 'core')
   if (!fs.existsSync(core)) return null
+  const wahapedia = loadWahapediaDescriptions(wahapediaDirectory)
 
   const byDetachment = new Map<string, Map<string, Stratagem[]>>()
   const detachmentReferences = new Map<string, Map<string, DetachmentReference>>()
@@ -206,7 +220,11 @@ export function loadRules(directory = rulesDirectory()): LoadedRules | null {
               dispositions: detachment.force_dispositions ?? [],
               enhancements: enhancements
                 .filter((enhancement) => enhancement.detachment_id === detachment.id)
-                .map((enhancement) => ({ name: enhancement.name, points: enhancement.cost ?? null })),
+                .map((enhancement) => ({
+                  name: enhancement.name,
+                  points: enhancement.cost ?? null,
+                  description: wahapedia?.enhancements.get(descriptionKey(detachment.name, enhancement.name)) ?? null,
+                })),
               stratagems: rawStratagems
                 .filter((stratagem) => stratagem.detachment_id === detachment.id)
                 .map((stratagem) => ({
@@ -216,6 +234,7 @@ export function loadRules(directory = rulesDirectory()): LoadedRules | null {
                   type: stratagem.type ? titleCase(stratagem.type.replaceAll('-', ' ')) : null,
                   phases: stratagem.phases ?? [],
                   turn: stratagem.player_turn ?? null,
+                  description: wahapedia?.stratagems.get(descriptionKey(detachment.name, stratagem.name)) ?? null,
                 }))
                 .toSorted(byName),
             },
@@ -286,6 +305,7 @@ export function loadRules(directory = rulesDirectory()): LoadedRules | null {
 
   if (!byDetachment.size && !secondaries.length) return null
   return {
+    attribution: wahapedia ? `${ATTRIBUTION}. ${WAHAPEDIA_ATTRIBUTION}.` : ATTRIBUTION,
     byDetachment,
     detachmentReferences,
     detachmentDetails,

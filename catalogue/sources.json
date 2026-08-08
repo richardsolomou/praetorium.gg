@@ -19,5 +19,16 @@
     "path": "data/core",
     "attribution": "Data by the Tabletop Developer Consortium, CC BY 4.0",
     "description": "Stratagems by detachment and secondary mission cards. Licensed under CC BY 4.0."
+  },
+  "wahapedia": {
+    "baseUrl": "https://wahapedia.ru/wh40k11ed",
+    "revision": "2026-05-09 23:42:21",
+    "files": {
+      "Stratagems.csv": "493599d1f979b27b4d174bfe5fde4f1d4a3dafcede926a9f08fea959411436ed",
+      "Enhancements.csv": "b08fafdbd11bff3a37762f1a0938b670de3c60b3698a7ac1cc600940f9c2efe5",
+      "Last_update.csv": "f408f381f06aa6732782330dcae5c4cd5d2df1c5a2f9f30975cf982dc581ec6f"
+    },
+    "attribution": "Descriptions provided by Wahapedia",
+    "description": "Optional description text for enhancements and stratagems. Fetched by each instance and never committed."
   }
 }

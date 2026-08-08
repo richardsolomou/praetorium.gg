@@ -39,6 +39,16 @@ beforeEach(() => {
     { id: 'rejuvenating-swarm', name: 'Rejuvenating Swarm', detachment_id: 'flyblown-host', cost: 10 },
   ])
   write(path.join(core, 'factions.json'), [{ id: 'death-guard', name: 'Death Guard' }])
+  const wahapedia = path.join(directory, 'wahapedia')
+  fs.mkdirSync(wahapedia)
+  fs.writeFileSync(
+    path.join(wahapedia, 'Stratagems.csv'),
+    'name|detachment|description|\nGRIM REAPERS|Flyblown Host|<b>Cut them down.</b>|\n',
+  )
+  fs.writeFileSync(
+    path.join(wahapedia, 'Enhancements.csv'),
+    'name|detachment|description|\nLiving Plague|Flyblown Host|<b>Spread the plague.</b>|\n',
+  )
   write(path.join(root, 'stratagems.json'), [{ id: 'command-re-roll', name: 'COMMAND RE-ROLL', cp_cost: 1, timing: 'once-per-battle' }])
   write(path.join(root, 'secondary-cards.json'), [
     {
@@ -80,7 +90,7 @@ const box = (width: number, height: number) => [
   { x: 0, y: height },
 ]
 
-const load = () => loadRules(directory)!
+const load = () => loadRules(directory, path.join(directory, 'wahapedia'))!
 
 describe('stratagems', () => {
   it('keeps the player-facing faction name', () => {
@@ -99,10 +109,10 @@ describe('stratagems', () => {
   it('keeps the detail needed by the detachment reference page', () => {
     expect(load().detachmentDetails.get('death-guard')?.get('flyblown-host')).toMatchObject({
       enhancements: [
-        { name: 'Living Plague', points: 20 },
-        { name: 'Rejuvenating Swarm', points: 10 },
+        { name: 'Living Plague', points: 20, description: 'Spread the plague.' },
+        { name: 'Rejuvenating Swarm', points: 10, description: null },
       ],
-      stratagems: expect.arrayContaining([expect.objectContaining({ name: 'Grim Reapers', cp: 1 })]),
+      stratagems: expect.arrayContaining([expect.objectContaining({ name: 'Grim Reapers', cp: 1, description: 'Cut them down.' })]),
     })
   })
 

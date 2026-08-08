@@ -3,7 +3,7 @@ import { app } from './app'
 import { configuredProviders } from './auth'
 import { routeSlug } from '../core/slug'
 import { datasheetIn, datasheetInBySlug, detachmentCatalogueDetail, unitsIn } from './catalogue'
-import { ATTRIBUTION, slug } from './rules'
+import { slug } from './rules'
 import { mutationRpc, rpc } from './rpc'
 import { calculateRosterPrice } from './pricing'
 import { exportRosterFile, importRosterFile } from './rosterFiles'
@@ -222,7 +222,7 @@ export const detachmentRules = createServerFn({ method: 'GET' })
       const faction = catalogue.index.catalogues.get(data.catalogueId)
       const detachments = faction ? rules.byDetachment.get(slug(faction.name)) : undefined
       return {
-        attribution: ATTRIBUTION,
+        attribution: rules.attribution,
         dataslate: rules.dataslate,
         stratagems: data.detachmentNames.flatMap((name) => detachments?.get(slug(name)) ?? []),
         core: rules.core,
@@ -258,9 +258,9 @@ export const detachmentDetail = createServerFn({ method: 'GET' })
           points: enhancement.points,
           description:
             catalogueDetail?.enhancements.find((candidate) => candidate.name.toLocaleLowerCase() === enhancement.name.toLocaleLowerCase())
-              ?.description ?? null,
+              ?.description ?? enhancement.description,
         })),
-        attribution: ATTRIBUTION,
+        attribution: rules.attribution,
       }
     }),
   )

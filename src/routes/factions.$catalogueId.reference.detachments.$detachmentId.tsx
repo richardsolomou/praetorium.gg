@@ -78,7 +78,9 @@ export function DetachmentPage() {
 
       <section>
         <SectionTitle title="Stratagems" count={detachment.stratagems.length} />
-        <p className="mt-2 text-sm text-dim">The synced rules source does not include stratagem descriptions.</p>
+        {detachment.stratagems.some((stratagem) => !stratagem.description) ? (
+          <p className="mt-2 text-sm text-dim">Some stratagem descriptions are unavailable from the synced sources.</p>
+        ) : null}
         <div className="mt-2 grid gap-2 md:grid-cols-2">
           {detachment.stratagems.map((stratagem) => (
             <article key={stratagem.id} className="border border-edge bg-panel p-4">
@@ -93,6 +95,7 @@ export function DetachmentPage() {
                 </div>
                 <span className="chip shrink-0">{stratagem.cp} CP</span>
               </div>
+              {stratagem.description ? <RuleText text={stratagem.description} /> : null}
             </article>
           ))}
         </div>
