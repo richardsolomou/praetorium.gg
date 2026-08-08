@@ -61,9 +61,10 @@ export function Loadout({ catalogueId, catalogueSlug, unit, detachmentIds, picks
     const timeout = window.setTimeout(() => setContext({ detachmentIds, picks, pickIndex }), 150)
     return () => window.clearTimeout(timeout)
   }, [detachmentIds, picks, pickIndex])
-  const { data: sheet } = useQuery(
-    datasheetQuery(catalogueId, unit?.entryId ?? '', context.detachmentIds, context.picks, context.pickIndex),
-  )
+  const { data: sheet } = useQuery({
+    ...datasheetQuery(catalogueId, unit?.entryId ?? '', context.detachmentIds, context.picks, context.pickIndex),
+    placeholderData: (previous, previousQuery) => (previousQuery?.queryKey[2] === unit?.entryId ? previous : undefined),
+  })
   if (!unit) {
     return (
       <div className="flex h-full items-center justify-center p-6">

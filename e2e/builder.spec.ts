@@ -106,12 +106,25 @@ test('a squad grows from the roster itself', async ({ page }) => {
   await openBuilder(page)
   await add(page, 'Immortals')
 
+  await page
+    .locator('[data-unit="Immortals"]')
+    .getByRole('button', { name: /^Immortals/ })
+    .click()
+  const profile = page.locator('[data-slot="unit-profile"]')
+  await expect(profile).toBeVisible()
+  await profile.evaluate((existing) => {
+    new MutationObserver(() => {
+      if (!document.contains(existing)) document.documentElement.dataset.profileRefreshed = 'true'
+    }).observe(document.body, { childList: true, subtree: true })
+  })
+
   const total = page.locator('[data-stat="points"]')
   await expect(total).toHaveText('70/2000')
   // No pane opened, no unit selected: the stepper is on the card.
   await page.getByRole('button', { name: 'More models in Immortals' }).click()
   await expect(page.getByLabel('Immortals models')).toHaveText('6')
   await expect(total).not.toHaveText('70/2000')
+  await expect(page.locator('html')).not.toHaveAttribute('data-profile-refreshed', 'true')
   // And the wargear lines follow the models carrying it.
   await expect(page.getByText('6x Gauss blaster')).toBeVisible()
 })
