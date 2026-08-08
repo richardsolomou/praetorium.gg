@@ -103,6 +103,7 @@ test('an allied force can be added from its own catalogue', async ({ page }) => 
 })
 
 test('a squad grows from the roster itself', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 })
   await openBuilder(page)
   await add(page, 'Immortals')
 
@@ -110,7 +111,7 @@ test('a squad grows from the roster itself', async ({ page }) => {
     .locator('[data-unit="Immortals"]')
     .getByRole('button', { name: /^Immortals/ })
     .click()
-  const profile = page.locator('[data-slot="unit-profile"]')
+  const profile = page.locator('aside[aria-label="Datasheet"] [data-slot="unit-profile"]')
   await expect(profile).toBeVisible()
   await profile.evaluate((existing) => {
     new MutationObserver(() => {

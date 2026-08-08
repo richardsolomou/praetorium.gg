@@ -9,6 +9,7 @@ import { signUp } from './account'
 test('a list is saved and loaded into another battle', async ({ browser }) => {
   const context = await browser.newContext()
   const page = await context.newPage()
+  await page.setViewportSize({ width: 1600, height: 900 })
 
   await signUp(page, 'Alice')
 
@@ -54,11 +55,9 @@ test('a list is saved and loaded into another battle', async ({ browser }) => {
     .first()
     .click()
 
-  const datasheetPage = page.waitForEvent('popup')
-  await page.getByRole('link', { name: 'View full datasheet' }).click()
-  const datasheet = await datasheetPage
-  await expect(datasheet.getByRole('heading', { name: 'Immortals', exact: true })).toBeVisible()
-  await datasheet.close()
+  const datasheet = page.locator('aside[aria-label="Datasheet"]')
+  await expect(datasheet.locator('[data-slot="unit-profile"]')).toBeVisible()
+  await expect(datasheet.getByText('Ranged weapons', { exact: true })).toBeVisible()
   await expect(page.getByLabel('List name')).toHaveValue('Nurgle 2k')
   await expect(page.getByLabel('Immortals models')).toHaveText('6')
 

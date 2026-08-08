@@ -65,13 +65,15 @@ function Account() {
       <Button
         variant="ghost"
         className="eyebrow ml-auto h-auto px-0 hover:bg-transparent hover:text-azure"
+        aria-label={`${me.name} · sign out`}
         onClick={async () => {
           await authClient.signOut()
           await queryClient.invalidateQueries()
           await navigate({ to: '/' })
         }}
       >
-        {me.name} · sign out
+        <span className="max-w-16 truncate sm:max-w-none">{me.name}</span>
+        <span className="hidden sm:inline">· sign out</span>
       </Button>
     )
   }
