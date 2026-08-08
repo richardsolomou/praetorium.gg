@@ -1,6 +1,7 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { Check, Copy, Download, Eye, Layers3, LoaderCircle, Plus, Trash2, TriangleAlert, Upload, X } from 'lucide-react'
+import { strFromU8 } from 'fflate'
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -145,7 +146,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
   const bring = useMutation({
     mutationFn: async (file: File) => {
       const zipped = file.name.toLowerCase().endsWith('.rosz')
-      const body = zipped ? btoa(String.fromCodePoint(...new Uint8Array(await file.arrayBuffer()))) : await file.text()
+      const body = zipped ? btoa(strFromU8(new Uint8Array(await file.arrayBuffer()), true)) : await file.text()
       return importRoster({ data: { file: body } })
     },
     onSuccess: (imported) => {
