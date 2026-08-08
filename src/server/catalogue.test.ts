@@ -437,6 +437,34 @@ describe('a datasheet', () => {
     })
   })
 
+  it('shows only weapons carried by the selected unit when roster context is present', () => {
+    const book = bookOf({
+      selectionEntries: [
+        {
+          id: 'captain',
+          name: 'Captain',
+          type: 'unit',
+          selectionEntries: [
+            {
+              id: 'blade-entry',
+              name: 'Blade',
+              type: 'upgrade',
+              profiles: [{ id: 'blade', name: 'Blade', typeName: 'Melee Weapons', characteristics: [{ name: 'S', $text: '5' }] }],
+            },
+            {
+              id: 'spear-entry',
+              name: 'Spear',
+              type: 'upgrade',
+              profiles: [{ id: 'spear', name: 'Spear', typeName: 'Melee Weapons', characteristics: [{ name: 'S', $text: '6' }] }],
+            },
+          ],
+        },
+      ],
+    })
+    const context = { selections: [{ id: 'captain', selections: [{ id: 'blade-entry', count: 1 }] }], unitSelectionIndex: 0 }
+    expect(datasheetIn(book, 'cat', 'captain', context)?.profiles.map((profile) => profile.name)).toEqual(['Blade'])
+  })
+
   it('applies profile modifiers from the selected detachment and preserves their source', () => {
     const book = bookOf({
       selectionEntries: [{ id: 'cursed-legion', name: 'Cursed Legion', type: 'upgrade' }],

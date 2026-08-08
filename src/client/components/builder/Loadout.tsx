@@ -19,6 +19,7 @@ type LoadoutChoice = {
   key: string
   name: string
   chosen: string
+  optional: boolean
   room: number
   options: { id: string; name: string; points: number; count: number }[]
 }
@@ -101,7 +102,8 @@ export function Loadout({ catalogueId, catalogueSlug, unit, detachmentIds, picks
 
 function DatasheetSummary({ catalogueSlug, sheet }: { catalogueSlug: string; sheet: Datasheet }) {
   const model = sheet.profiles.find((profile) => profile.type === 'Unit')
-  const weapons = sheet.profiles.filter((profile) => profile.type === 'Ranged Weapons' || profile.type === 'Melee Weapons')
+  const ranged = sheet.profiles.filter((profile) => profile.type === 'Ranged Weapons')
+  const melee = sheet.profiles.filter((profile) => profile.type === 'Melee Weapons')
   const abilities = sheet.profiles.filter((profile) => profile.type === 'Abilities')
   return (
     <div className="space-y-3 border-b border-edge pb-4">
@@ -117,41 +119,8 @@ function DatasheetSummary({ catalogueSlug, sheet }: { catalogueSlug: string; she
           ))}
         </div>
       ) : null}
-      {weapons.length ? (
-        <div>
-          <p className="eyebrow flex items-baseline justify-between border-b border-edge pb-1">
-            <span>Weapons</span>
-            <span className="readout">{weapons.length}</span>
-          </p>
-          <div className="mt-1.5 space-y-1.5">
-            {weapons.map((weapon) => (
-              <article key={weapon.id} className="border border-edge bg-card px-2 py-1.5">
-                <div className="flex items-baseline justify-between gap-2">
-                  <h3 className="truncate text-xs">{weapon.name}</h3>
-                  <span className="eyebrow shrink-0">{weapon.type.replace(' Weapons', '')}</span>
-                </div>
-                <div className="mt-1 grid grid-cols-6 gap-1">
-                  {weapon.values
-                    .filter((value) => value.name !== 'Keywords')
-                    .map((value) => (
-                      <div key={value.name} className="min-w-0 text-center">
-                        <p className="eyebrow text-[0.625rem]">{value.name}</p>
-                        <p className="readout text-xs text-faint">
-                          <ProfileValue value={value} />
-                        </p>
-                      </div>
-                    ))}
-                </div>
-                {weapon.values.find((value) => value.name === 'Keywords')?.value ? (
-                  <p className="mt-1 text-[0.6875rem] text-faint">
-                    <KeywordList value={weapon.values.find((value) => value.name === 'Keywords')!.value} rules={sheet.keywordRules} />
-                  </p>
-                ) : null}
-              </article>
-            ))}
-          </div>
-        </div>
-      ) : null}
+      {ranged.length ? <WeaponSummary title="Equipped ranged weapons" weapons={ranged} rules={sheet.keywordRules} /> : null}
+      {melee.length ? <WeaponSummary title="Equipped melee weapons" weapons={melee} rules={sheet.keywordRules} /> : null}
       {abilities.length ? (
         <div className="flex flex-wrap gap-1">
           {abilities.map((ability) => (
@@ -170,6 +139,43 @@ function DatasheetSummary({ catalogueSlug, sheet }: { catalogueSlug: string; she
       >
         View full datasheet
       </Link>
+    </div>
+  )
+}
+
+type Weapon = Datasheet['profiles'][number]
+
+function WeaponSummary({ title, weapons, rules }: { title: string; weapons: Weapon[]; rules: Datasheet['keywordRules'] }) {
+  return (
+    <div>
+      <p className="eyebrow flex items-baseline justify-between border-b border-edge pb-1">
+        <span>{title}</span>
+        <span className="readout">{weapons.length}</span>
+      </p>
+      <div className="mt-1.5 space-y-1.5">
+        {weapons.map((weapon) => (
+          <article key={weapon.id} className="border border-edge bg-card px-2 py-1.5">
+            <h3 className="truncate text-xs">{weapon.name}</h3>
+            <div className="mt-1 grid grid-cols-6 gap-1">
+              {weapon.values
+                .filter((value) => value.name !== 'Keywords')
+                .map((value) => (
+                  <div key={value.name} className="min-w-0 text-center">
+                    <p className="eyebrow text-[0.625rem]">{value.name}</p>
+                    <p className="readout text-xs text-faint">
+                      <ProfileValue value={value} />
+                    </p>
+                  </div>
+                ))}
+            </div>
+            {weapon.values.find((value) => value.name === 'Keywords')?.value ? (
+              <p className="mt-1 text-[0.6875rem] text-faint">
+                <KeywordList value={weapon.values.find((value) => value.name === 'Keywords')!.value} rules={rules} />
+              </p>
+            ) : null}
+          </article>
+        ))}
+      </div>
     </div>
   )
 }
@@ -269,6 +275,11 @@ function spread(choice: LoadoutChoice, onSpread: Props['onSpread']) {
 /** A group that holds one thing: which one. */
 function either(choice: LoadoutChoice, onChoose: Props['onChoose'], unitName: string) {
   if (choice.options.length > 7) {
+    const items = choice.options.map((option) => ({
+      label: `${option.name}${option.points ? ` (+${option.points})` : ''}`,
+      value: option.id,
+    }))
+    if (choice.optional) items.unshift({ label: 'None', value: NONE })
     return (
       <div key={choice.key}>
         <p className="eyebrow">{choice.name}</p>
@@ -277,14 +288,11 @@ function either(choice: LoadoutChoice, onChoose: Props['onChoose'], unitName: st
           groups={[
             {
               label: '',
-              items: choice.options.map((option) => ({
-                label: `${option.name}${option.points ? ` (+${option.points})` : ''}`,
-                value: option.id,
-              })),
+              items,
             },
           ]}
-          value={choice.chosen}
-          onValueChange={(value) => onChoose(choice.key, value)}
+          value={choice.chosen || (choice.optional ? NONE : '')}
+          onValueChange={(value) => onChoose(choice.key, value === NONE ? '' : value)}
           placeholder="Choose"
           searchPlaceholder={`Search ${choice.name.toLowerCase()}…`}
           className="mt-1.5"
@@ -304,6 +312,7 @@ function either(choice: LoadoutChoice, onChoose: Props['onChoose'], unitName: st
           <SelectValue>{(value: unknown) => choice.options.find((option) => option.id === value)?.name ?? 'Choose'}</SelectValue>
         </SelectTrigger>
         <SelectContent>
+          {choice.optional ? <SelectItem value={NONE}>None</SelectItem> : null}
           {choice.options.map((option) => (
             <SelectItem key={option.id} value={option.id}>
               {option.name}

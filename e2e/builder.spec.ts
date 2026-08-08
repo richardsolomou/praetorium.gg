@@ -218,6 +218,7 @@ test('a character can be marked as the warlord from its card', async ({ page }) 
   const warlord = page.getByRole('button', { name: 'Make Overlord Warlord' })
   await warlord.click()
   await expect(page.getByRole('button', { name: 'Remove Overlord Warlord' })).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByText(/\d+x Warlord/)).toHaveCount(0)
   await page
     .locator('[data-unit="Overlord"]')
     .getByRole('button', { name: /^Overlord/ })
@@ -225,7 +226,11 @@ test('a character can be marked as the warlord from its card', async ({ page }) 
   const pane = page.locator('aside[aria-label="Loadout"]')
   await expect(pane.getByText('InSv')).toBeVisible()
   await expect(pane.getByText('4+')).toBeVisible()
-  await expect(pane.getByText('Range').first()).toBeVisible()
+  await expect(pane.getByText('Equipped ranged weapons')).toBeVisible()
+  await expect(pane.getByText('Equipped melee weapons')).toBeVisible()
+  await expect(pane.getByText('Tachyon arrow', { exact: true })).toBeVisible()
+  await expect(pane.getByText("Overlord's blade", { exact: true })).toBeVisible()
+  await expect(pane.getByText('Voidscythe', { exact: true })).toBeHidden()
 })
 
 test('making a new warlord removes the previous one', async ({ page }) => {
@@ -236,6 +241,7 @@ test('making a new warlord removes the previous one', async ({ page }) => {
   await page.getByRole('button', { name: 'Make Plasmancer Warlord' }).click()
   await expect(page.getByRole('button', { name: 'Make Overlord Warlord' })).toHaveAttribute('aria-pressed', 'false')
   await expect(page.getByRole('button', { name: 'Remove Plasmancer Warlord' })).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByText(/\d+x Warlord/)).toHaveCount(0)
 })
 
 test('a squad divides its weapons between two options', async ({ page }) => {

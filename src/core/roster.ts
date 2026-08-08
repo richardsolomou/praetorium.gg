@@ -423,7 +423,7 @@ export function unitToggles(entryId: string, selection: Selection, index: Catalo
     for (const child of childrenOf(target, index)) {
       const inner = resolve(child.definition, index)
       const here = [...trail, child.id]
-      if ((inner.name ?? child.definition.name)?.trim().toLowerCase() === 'warlord') {
+      if (isRosterToggle(inner.name ?? child.definition.name)) {
         found.push({ key: here.join('/'), name: 'Warlord', selected: (at(selection, here)?.count ?? 0) > 0 })
       } else walk(child.definition, here, visited)
     }
@@ -431,6 +431,8 @@ export function unitToggles(entryId: string, selection: Selection, index: Catalo
   walk(root, [], new Set())
   return found
 }
+
+const isRosterToggle = (name: string | undefined) => name?.trim().toLowerCase() === 'warlord'
 
 function sizeOf(base: Selection, index: CatalogueIndex): UnitSize {
   const { models, groups } = survey(base, index, [])
@@ -782,9 +784,9 @@ export function wargearOf(selection: Selection, index: CatalogueIndex): Wargear[
       const own = child.count ?? 1
       const count = definition && isCollective(definition, index) ? own : carried * own
       const grandchildren = child.selections ?? []
-      if (kind === 'upgrade' && !grandchildren.length) {
+      if (kind === 'upgrade' && !grandchildren.length && count > 0) {
         const name = (definition && resolve(definition, index).name) ?? definition?.name
-        if (name) found.set(name, (found.get(name) ?? 0) + count)
+        if (name && !isRosterToggle(name)) found.set(name, (found.get(name) ?? 0) + count)
       }
       if (depth < MAX_DEPTH) walk(child, depth + 1, count)
     }

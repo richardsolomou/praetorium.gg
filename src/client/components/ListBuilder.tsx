@@ -281,7 +281,15 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
     setPicked((current) => current.map((pick, at) => (at === index ? { ...pick, models } : pick)))
 
   const choose = (index: number, key: string, optionId: string) =>
-    setPicked((current) => current.map((pick, at) => (at === index ? { ...pick, choices: { ...pick.choices, [key]: optionId } } : pick)))
+    setPicked((current) =>
+      current.map((pick, at) => {
+        if (at !== index) return pick
+        const choices = { ...pick.choices }
+        if (optionId) choices[key] = optionId
+        else delete choices[key]
+        return { ...pick, choices }
+      }),
+    )
 
   /** How many of each option a group holds, leaving the unit's other groups alone. */
   const spread = (index: number, key: string, counts: Record<string, number>) =>

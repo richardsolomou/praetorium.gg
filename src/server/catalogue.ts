@@ -298,6 +298,16 @@ export function datasheetIn(
   const modifiers = context
     ? profileModifiers(context.selections, entryId, loaded.index, { primaryCatalogueId: catalogueId }, context.unitSelectionIndex)
     : []
+  const selected = new Set<string>()
+  const selectedUnit = context?.unitSelectionIndex === undefined ? undefined : context.selections[context.unitSelectionIndex]
+  const collectSelected = (selection: Selection) => {
+    if ((selection.count ?? 1) <= 0) return
+    selected.add(selection.id)
+    const definition = loaded.index.definitions.get(selection.id)
+    if (definition) selected.add(targetOf(definition, loaded.index.definitions).id)
+    selection.selections?.forEach(collectSelected)
+  }
+  if (selectedUnit) collectSelected(selectedUnit)
   const profiles = new Map<string, { profile: Profile; lineage: string[]; owner: string[] }>()
   const abilities = new Map<string, Datasheet['abilities'][number]>()
   const keywordRules = new Map<string, Datasheet['keywordRules'][number]>()
@@ -370,6 +380,9 @@ export function datasheetIn(
     profiles: [...profiles.values()].flatMap(({ profile, lineage, owner }) => {
       if (!profile.name || !profile.typeName) return []
       const profileType = profile.typeName
+      const weapon = profileType === 'Ranged Weapons' || profileType === 'Melee Weapons'
+      const intrinsic = owner.includes(root.id) || owner.includes(sheet.id)
+      if (selectedUnit && weapon && !intrinsic && !owner.some((id) => selected.has(id))) return []
       const profileLineage = [...lineage, profile.id]
       const hidden = modifiedProfileField(String(profile.hidden ?? false), 'hidden', profileType, profileLineage, owner, modifiers).value
       if (hidden === 'true') return []
