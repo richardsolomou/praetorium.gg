@@ -103,13 +103,13 @@ type Deployment = {
  * counted. Enough for the interface to offer the real figure instead of asking a
  * player to work it out and type it in.
  */
-export type Award = { vp: number; per: string | null; mode: string | null; when: string | null; trigger: Trigger }
+type Award = { vp: number; per: string | null; mode: string | null; when: string | null; trigger: Trigger }
 
 /**
  * When a payout may be taken. Anything absent is unrestricted, so a card that says
  * nothing about timing can always be scored.
  */
-export type Trigger = { phase: string | null; playerTurn: string | null; roundMin: number | null; roundMax: number | null }
+type Trigger = { phase: string | null; playerTurn: string | null; roundMin: number | null; roundMax: number | null }
 
 export type Mission = { id: string; name: string; roundCap: number | null; gameCap: number | null }
 
