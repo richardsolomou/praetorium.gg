@@ -28,8 +28,8 @@ export const Route = createFileRoute('/signin')({
 function SignIn() {
   const { next } = Route.useSearch()
   const { data: options } = useQuery(signInOptionsQuery())
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
+  const [email, setEmail] = useState(options?.previewLogin?.email ?? '')
+  const [password, setPassword] = useState(options?.previewLogin?.password ?? '')
   const [name, setName] = useState('')
   const [joining, setJoining] = useState(false)
   const navigate = useNavigate()
@@ -48,7 +48,7 @@ function SignIn() {
       // `next` is a pathname rather than a route, so this is a navigation by href
       // rather than by route id.
       if (next) window.location.assign(next)
-      else await navigate({ to: '/' })
+      else await navigate({ to: '/rosters' })
     },
   })
 
@@ -59,6 +59,7 @@ function SignIn() {
         Your account is your player: it holds your saved lists, the battles you have played and the ones still going, on whatever device you
         pick up.
       </p>
+      {options?.previewLogin ? <p className="mt-3 text-sm text-dim">This preview login is ready to use.</p> : null}
 
       <form
         className="mt-8 space-y-4"
@@ -107,7 +108,7 @@ function SignIn() {
               key={provider}
               variant="outline"
               className="h-11 w-full text-base capitalize"
-              onClick={() => void authClient.signIn.social({ provider, callbackURL: '/' })}
+              onClick={() => void authClient.signIn.social({ provider, callbackURL: next ?? '/rosters' })}
             >
               Continue with {provider}
             </Button>

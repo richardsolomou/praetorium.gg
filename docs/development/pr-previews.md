@@ -12,11 +12,11 @@ One pull request comment shows the current state:
 
 The `PR preview deploy` check shows the same state.
 
-Each preview has an empty database and no persistent volume. A new deployment removes its battles and accounts. The preview fetches catalogue data after startup, so list building can appear after the health check passes.
+Each preview has an empty database and no persistent volume. A new deployment removes its battles and accounts, then recreates the shared preview login shown on the sign-in page. The preview fetches catalogue data after startup, so list building can appear after the health check passes.
 
 Closing or merging removes the instance. A weekly prune removes previews left behind by a failed cleanup.
 
-Previews are public and use the normal sign-in flow. Do not store sensitive data in them.
+Previews are public, as is the shared preview login. Do not store sensitive data in them.
 
 Fork builds do not receive deployment secrets. They upload an image artifact. The trusted `preview-deploy.yml` workflow publishes it after maintainer approval.
 
