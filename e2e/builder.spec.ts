@@ -228,6 +228,7 @@ test('a unit that leads nothing is offered no one to lead', async ({ page }) => 
 })
 
 test('a character can be marked as the warlord from its card', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 })
   await openBuilder(page)
   await add(page, 'Overlord')
   const warlord = page.getByRole('button', { name: 'Make Overlord Warlord' })
@@ -238,11 +239,11 @@ test('a character can be marked as the warlord from its card', async ({ page }) 
     .locator('[data-unit="Overlord"]')
     .getByRole('button', { name: /^Overlord/ })
     .click()
-  const pane = page.locator('aside[aria-label="Loadout"]')
+  const pane = page.locator('aside[aria-label="Datasheet"]')
   await expect(pane.getByText('InSv')).toBeVisible()
   await expect(pane.getByText('4+')).toBeVisible()
-  await expect(pane.getByText('Equipped ranged weapons')).toBeVisible()
-  await expect(pane.getByText('Equipped melee weapons')).toBeVisible()
+  await expect(pane.getByText('Ranged weapons', { exact: true })).toBeVisible()
+  await expect(pane.getByText('Melee weapons', { exact: true })).toBeVisible()
   await expect(pane.getByText('Tachyon arrow', { exact: true })).toBeVisible()
   await expect(pane.getByText("Overlord's blade", { exact: true })).toBeVisible()
   await expect(pane.getByText('Voidscythe', { exact: true })).toBeHidden()
@@ -254,14 +255,16 @@ test('a character can be marked as the warlord from its card', async ({ page }) 
   expect(Math.abs((lastStat?.x ?? 0) + (lastStat?.width ?? 0) - ((stats?.x ?? 0) + (stats?.width ?? 0)))).toBeLessThan(2)
 })
 
-test('a smaller desktop keeps the picker, roster and datasheet visible', async ({ page }) => {
+test('a smaller desktop keeps the picker, roster and loadout visible', async ({ page }) => {
   await page.setViewportSize({ width: 1100, height: 800 })
   await openBuilder(page)
 
   const picker = page.locator('aside[aria-label="Add units"]')
   const loadout = page.locator('aside[aria-label="Loadout"]')
+  const datasheet = page.locator('aside[aria-label="Datasheet"]')
   await expect(picker).toBeVisible()
   await expect(loadout).toBeVisible()
+  await expect(datasheet).toBeHidden()
 
   await page.getByLabel('Add a unit').fill('Deceiver')
   const name = picker.getByText("C'tan Shard of the Deceiver", { exact: true })
@@ -273,9 +276,15 @@ test('a smaller desktop keeps the picker, roster and datasheet visible', async (
     .locator('[data-unit="C\'tan Shard of the Deceiver"]')
     .getByRole('button', { name: /^C'tan Shard of the Deceiver/ })
     .click()
-  await expect(loadout.getByText('Datasheet abilities')).toBeVisible()
-  await expect(loadout.getByText('Grand Illusion', { exact: true })).toBeVisible()
-  await page.screenshot({ path: 'test-results/builder-three-columns.png', fullPage: true })
+  const heading = await loadout.getByRole('heading', { name: "C'tan Shard of the Deceiver" }).boundingBox()
+  const points = await loadout.getByText('330 pts').boundingBox()
+  expect(heading && points && points.y >= heading.y + heading.height).toBe(true)
+
+  await page.setViewportSize({ width: 1600, height: 900 })
+  await expect(datasheet).toBeVisible()
+  await expect(datasheet.getByText('Datasheet abilities')).toBeVisible()
+  await expect(datasheet.getByText('Grand Illusion', { exact: true })).toBeVisible()
+  await page.screenshot({ path: 'test-results/builder-four-columns.png', fullPage: true })
 })
 
 test('making a new warlord removes the previous one', async ({ page }) => {
@@ -290,6 +299,7 @@ test('making a new warlord removes the previous one', async ({ page }) => {
 })
 
 test('a squad divides its weapons between two options', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 })
   await openBuilder(page)
   await add(page, 'Immortals')
 
@@ -302,15 +312,16 @@ test('a squad divides its weapons between two options', async ({ page }) => {
     .locator('[data-unit="Immortals"]')
     .getByRole('button', { name: /^Immortals/ })
     .click()
-  const pane = page.locator('aside[aria-label="Loadout"]')
-  await expect(pane.getByText('Wargear options')).toBeVisible()
-  await expect(pane.getByText('Weapons').first()).toBeVisible()
-  await expect(pane.getByText('BS').first()).toBeVisible()
-  await expect(pane.getByText('10/10')).toBeVisible()
+  const loadout = page.locator('aside[aria-label="Loadout"]')
+  const datasheet = page.locator('aside[aria-label="Datasheet"]')
+  await expect(loadout.getByText('Wargear options')).toBeVisible()
+  await expect(datasheet.getByText('Weapons').first()).toBeVisible()
+  await expect(datasheet.getByText('BS').first()).toBeVisible()
+  await expect(loadout.getByText('10/10')).toBeVisible()
 
   // The group is always full, so taking a carbine takes a blaster off a model.
   // eslint-disable-next-line no-await-in-loop
-  for (let swapped = 0; swapped < 3; swapped++) await pane.getByRole('button', { name: 'More Tesla carbine' }).click()
+  for (let swapped = 0; swapped < 3; swapped++) await loadout.getByRole('button', { name: 'More Tesla carbine' }).click()
   await expect(page.getByLabel('Tesla carbine count')).toHaveText('3')
   await expect(page.getByLabel('Gauss blaster count')).toHaveText('7')
 

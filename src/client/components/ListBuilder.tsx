@@ -29,6 +29,7 @@ import { collectionQuery, factionsQuery, priceQuery, savedRostersQuery } from '.
 import { useCollectionMutation } from '../useCollection'
 import { errorMessage } from '../queryClient'
 import { DetachmentPoints } from './DetachmentPoints'
+import { DatasheetPanel } from './builder/DatasheetPanel'
 import { shelve, shortName } from './builder/factions'
 import { GROUPS } from './builder/groups'
 import { Loadout } from './builder/Loadout'
@@ -459,14 +460,18 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
   const loadoutCatalogueId = selected === null ? catalogueId : (picked[selected]?.catalogueId ?? catalogueId)
   const loadout = (
     <Loadout
-      catalogueId={loadoutCatalogueId}
-      catalogueSlug={available.factions.find((entry) => entry.id === loadoutCatalogueId)?.slug ?? loadoutCatalogueId}
       unit={selectedUnit}
+      onChoose={(key, optionId) => selected !== null && choose(selected, key, optionId)}
+      onSpread={(key, counts) => selected !== null && spread(selected, key, counts)}
+    />
+  )
+  const datasheet = (
+    <DatasheetPanel
+      catalogueId={loadoutCatalogueId}
+      entryId={selectedUnit?.entryId ?? null}
       detachmentIds={detachmentIds}
       picks={picked}
       pickIndex={selected}
-      onChoose={(key, optionId) => selected !== null && choose(selected, key, optionId)}
-      onSpread={(key, counts) => selected !== null && spread(selected, key, counts)}
     />
   )
 
@@ -924,6 +929,10 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
 
         <Pane variant="loadout" open={showing === 'loadout' && Boolean(selectedUnit)} title="Loadout" onClose={() => setShowing(null)}>
           {loadout}
+        </Pane>
+
+        <Pane variant="datasheet" open={false} title="Datasheet" onClose={() => undefined}>
+          {datasheet}
         </Pane>
       </div>
 

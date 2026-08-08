@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import { useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 
-type Props = { variant: 'picker' | 'loadout'; open: boolean; title: string; onClose: () => void; children: ReactNode }
+type Props = { variant: 'picker' | 'loadout' | 'datasheet'; open: boolean; title: string; onClose: () => void; children: ReactNode }
 
 /**
  * A side pane where there is room for one, the same pane over the roster where
@@ -16,11 +16,12 @@ type Props = { variant: 'picker' | 'loadout'; open: boolean; title: string; onCl
  */
 const VARIANTS = {
   // Written out rather than composed: Tailwind only sees class names it can read.
-  picker: 'lg:static lg:z-auto lg:inset-auto lg:flex lg:w-80 xl:w-88 lg:shrink-0 lg:border-r lg:border-l-0',
-  loadout: 'lg:static lg:z-auto lg:inset-auto lg:flex lg:w-80 xl:w-88 lg:shrink-0 lg:border-l',
+  picker: 'lg:static lg:z-auto lg:inset-auto lg:flex lg:w-72 xl:w-80 lg:shrink-0 lg:border-r lg:border-l-0',
+  loadout: 'lg:static lg:z-auto lg:inset-auto lg:flex lg:w-72 xl:w-80 lg:shrink-0 lg:border-l',
+  datasheet: '2xl:static 2xl:z-auto 2xl:inset-auto 2xl:flex 2xl:w-96 2xl:shrink-0 2xl:border-l',
 } as const
 
-const CLOSERS = { picker: 'lg:hidden', loadout: 'lg:hidden' } as const
+const CLOSERS = { picker: 'lg:hidden', loadout: 'lg:hidden', datasheet: '2xl:hidden' } as const
 
 export function Pane({ variant, open, title, onClose, children }: Props) {
   useEffect(() => {
