@@ -9,7 +9,12 @@ export function Keyword({ name, rules, className = '' }: { name: string; rules: 
   const [focused, setFocused] = useState(false)
   const descriptionId = useId()
   const trigger = useRef<HTMLButtonElement>(null)
-  const rule = rules.find((candidate) => candidate.name.toLocaleLowerCase() === name.toLocaleLowerCase())
+  const normalized = name.toLocaleLowerCase()
+  const rule = rules
+    .filter(
+      (candidate) => normalized === candidate.name.toLocaleLowerCase() || normalized.startsWith(`${candidate.name.toLocaleLowerCase()} `),
+    )
+    .toSorted((left, right) => right.name.length - left.name.length)[0]
   if (!rule) return <span className={className}>{name}</span>
   const open = pinned || hovered || focused
   const bounds = trigger.current?.getBoundingClientRect()
@@ -43,7 +48,7 @@ export function Keyword({ name, rules, className = '' }: { name: string; rules: 
               }}
               className="fixed z-50 w-80 max-w-[80vw] border border-edge bg-raised p-3 text-left text-sm text-bone shadow-xl"
             >
-              <strong className="block font-semibold">{name}</strong>
+              <strong className="block font-semibold">{rule.name}</strong>
               <span className="mt-1 block whitespace-pre-line text-dim">{rule.description.replaceAll(/\^\^|\*/g, '')}</span>
             </span>,
             document.body,

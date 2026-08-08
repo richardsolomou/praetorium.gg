@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import { buildIndex, type Catalogue, type CatalogueFile } from '../core/catalogue'
-import { datasheetIn, datasheetInBySlug, detachmentsOf, factionsIn, type LoadedCatalogue, unitsIn } from './catalogue'
+import {
+  datasheetIn,
+  datasheetInBySlug,
+  detachmentCatalogueDetail,
+  detachmentsOf,
+  factionsIn,
+  type LoadedCatalogue,
+  rulesReferencedIn,
+  unitsIn,
+} from './catalogue'
 
 const PTS = 'cost-pts'
 
@@ -166,6 +175,49 @@ describe('the picker', () => {
       { library: true, sharedSelectionEntries: [{ id: 'squad', name: 'Squad', type: 'unit', costs: points(70) }] },
     )
     expect(shelf.factions.map((faction) => faction.id)).toEqual(['cat'])
+  })
+})
+
+describe('detachment enhancements', () => {
+  const detail = (...entries: NonNullable<Catalogue['sharedSelectionEntries']>) => {
+    const loaded = bookOf({
+      sharedSelectionEntries: [
+        {
+          id: 'wrapper',
+          name: 'Detachment',
+          type: 'upgrade',
+          selectionEntryGroups: [
+            { id: 'choices', name: 'Detachment', selectionEntries: [{ id: 'host', name: 'Plague Host', type: 'upgrade' }] },
+          ],
+        },
+        ...entries,
+      ],
+    })
+    return detachmentCatalogueDetail(loaded, 'cat', 'host', ['Living Relic'])?.enhancements[0]
+  }
+
+  it('finds description text without a detachment comment', () => {
+    expect(
+      detail({ id: 'relic', name: 'Living Relic', type: 'upgrade', profiles: [ability('relic-rule', 'Living Relic')] })?.description,
+    ).toBe('Living Relic text')
+  })
+
+  it('prefers the entry named for the detachment', () => {
+    expect(
+      detail(
+        { id: 'other', name: 'Living Relic', type: 'upgrade', comment: 'Other Host', profiles: [ability('other-rule', 'Other')] },
+        { id: 'relic', name: 'Living Relic', type: 'upgrade', comment: 'Plague Host', profiles: [ability('relic-rule', 'Living Relic')] },
+      )?.description,
+    ).toBe('Living Relic text')
+  })
+
+  it('does not choose between conflicting descriptions', () => {
+    expect(
+      detail(
+        { id: 'first', name: 'Living Relic', type: 'upgrade', profiles: [ability('first-rule', 'First')] },
+        { id: 'second', name: 'Living Relic', type: 'upgrade', profiles: [ability('second-rule', 'Second')] },
+      )?.description,
+    ).toBeNull()
   })
 })
 
@@ -430,6 +482,13 @@ describe('a datasheet', () => {
 
     expect(datasheetIn(book, 'cat', 'lord')?.keywordRules).toEqual([
       { name: 'Devastating Wounds', description: 'Critical wounds inflict mortal wounds.' },
+    ])
+  })
+
+  it('finds rule definitions referenced by catalogue formatting', () => {
+    const book = bookOf({ sharedRules: [{ id: 'feel-no-pain', name: 'Feel No Pain', description: 'Ignore lost wounds.' }] })
+    expect(rulesReferencedIn(book, ['This model has **Feel No Pain 4+** and ^^**VEHICLE^^**.'])).toEqual([
+      { name: 'Feel No Pain', description: 'Ignore lost wounds.' },
     ])
   })
 })

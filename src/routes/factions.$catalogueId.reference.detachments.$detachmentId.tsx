@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, notFound, useParams } from '@tanstack/react-router'
 import { ChevronRight } from 'lucide-react'
+import { RuleText } from '../client/components/RuleText'
 import { factionFor } from '../client/factions'
 import { detachmentDetailQuery, factionsQuery } from '../client/queries'
 
@@ -51,13 +52,17 @@ export function DetachmentPage() {
         ) : null}
       </header>
 
-      {detachment.rule ? (
+      {detachment.rules.length ? (
         <section>
-          <SectionTitle title="Detachment rule" count={1} />
-          <article className="mt-2 border border-edge bg-panel p-4">
-            <h2 className="text-lg">{detachment.rule.name}</h2>
-            {detachment.rule.description ? <RuleText text={detachment.rule.description} /> : <Unavailable />}
-          </article>
+          <SectionTitle title="Detachment rules" count={detachment.rules.length} />
+          <div className="mt-2 grid gap-2">
+            {detachment.rules.map((rule) => (
+              <article key={rule.name} className="border border-edge bg-panel p-4">
+                <h2 className="text-lg">{rule.name}</h2>
+                {rule.description ? <RuleText text={rule.description} rules={detachment.keywordRules} /> : <Unavailable />}
+              </article>
+            ))}
+          </div>
         </section>
       ) : null}
 
@@ -70,7 +75,7 @@ export function DetachmentPage() {
                 <h2 className="text-base">{enhancement.name}</h2>
                 {enhancement.points === null ? null : <span className="chip shrink-0">{enhancement.points} pts</span>}
               </div>
-              {enhancement.description ? <RuleText text={enhancement.description} /> : <Unavailable />}
+              {enhancement.description ? <RuleText text={enhancement.description} rules={detachment.keywordRules} /> : <Unavailable />}
             </article>
           ))}
         </div>
@@ -78,6 +83,9 @@ export function DetachmentPage() {
 
       <section>
         <SectionTitle title="Stratagems" count={detachment.stratagems.length} />
+        {detachment.stratagems.some((stratagem) => !stratagem.description) ? (
+          <p className="mt-2 text-sm text-dim">Some stratagem descriptions are unavailable from the synced sources.</p>
+        ) : null}
         <div className="mt-2 grid gap-2 md:grid-cols-2">
           {detachment.stratagems.map((stratagem) => (
             <article key={stratagem.id} className="border border-edge bg-panel p-4">
@@ -92,7 +100,7 @@ export function DetachmentPage() {
                 </div>
                 <span className="chip shrink-0">{stratagem.cp} CP</span>
               </div>
-              <Unavailable />
+              {stratagem.description ? <RuleText text={stratagem.description} rules={detachment.keywordRules} /> : null}
             </article>
           ))}
         </div>
@@ -110,10 +118,6 @@ function SectionTitle({ title: label, count }: { title: string; count: number })
       <span className="readout">{count}</span>
     </h2>
   )
-}
-
-function RuleText({ text }: { text: string }) {
-  return <p className="mt-2 text-sm whitespace-pre-line text-dim">{text.replaceAll(/\^\^|\*\*/g, '')}</p>
 }
 
 function Unavailable() {

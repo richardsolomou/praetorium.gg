@@ -2,8 +2,9 @@ import { createServerFn } from '@tanstack/react-start'
 import { app } from './app'
 import { configuredProviders } from './auth'
 import { routeSlug } from '../core/slug'
-import { datasheetIn, datasheetInBySlug, detachmentCatalogueDetail, unitsIn } from './catalogue'
-import { ATTRIBUTION, slug } from './rules'
+import { datasheetIn, datasheetInBySlug, detachmentCatalogueDetail, type LoadedCatalogue, rulesReferencedIn, unitsIn } from './catalogue'
+import { slug } from './rules'
+import { findAbilityDescription, WAHAPEDIA_ATTRIBUTION } from './wahapedia'
 import { mutationRpc, rpc } from './rpc'
 import { calculateRosterPrice } from './pricing'
 import { exportRosterFile, importRosterFile } from './rosterFiles'
@@ -138,7 +139,7 @@ export const datasheet = createServerFn({ method: 'GET' })
   .handler(({ data }) =>
     rpc(() => {
       const loaded = app().catalogue()
-      return loaded ? datasheetIn(loaded, data.catalogueId, data.entryId) : null
+      return loaded ? describeAbilities(loaded, datasheetIn(loaded, data.catalogueId, data.entryId)) : null
     }),
   )
 
@@ -147,9 +148,32 @@ export const datasheetBySlug = createServerFn({ method: 'GET' })
   .handler(({ data }) =>
     rpc(() => {
       const loaded = app().catalogue()
-      return loaded ? datasheetInBySlug(loaded, data.catalogueId, data.slug) : null
+      return loaded ? describeAbilities(loaded, datasheetInBySlug(loaded, data.catalogueId, data.slug)) : null
     }),
   )
+
+function describeAbilities(loaded: LoadedCatalogue, sheet: ReturnType<typeof datasheetIn>) {
+  if (!sheet) return null
+  const descriptions = app().rules()?.abilityDescriptions
+  if (!descriptions) return { ...sheet, attribution: null }
+  const supplied = sheet.abilities.some((ability) => !ability.description && findAbilityDescription(descriptions, ability.name))
+  const abilities = sheet.abilities.map((ability) => ({
+    ...ability,
+    description: ability.description ?? findAbilityDescription(descriptions, ability.name),
+  }))
+  return {
+    ...sheet,
+    abilities,
+    keywordRules: mergeKeywordRules(
+      rulesReferencedIn(
+        loaded,
+        abilities.map((ability) => ability.description),
+      ),
+      sheet.keywordRules,
+    ),
+    attribution: supplied ? WAHAPEDIA_ATTRIBUTION : null,
+  }
+}
 
 /**
  * Prices a list in progress and says what is wrong with it.
@@ -222,7 +246,7 @@ export const detachmentRules = createServerFn({ method: 'GET' })
       const faction = catalogue.index.catalogues.get(data.catalogueId)
       const detachments = faction ? rules.byDetachment.get(slug(faction.name)) : undefined
       return {
-        attribution: ATTRIBUTION,
+        attribution: rules.attribution,
         dataslate: rules.dataslate,
         stratagems: data.detachmentNames.flatMap((name) => detachments?.get(slug(name)) ?? []),
         core: rules.core,
@@ -243,23 +267,46 @@ export const detachmentDetail = createServerFn({ method: 'GET' })
       const detail = rules.detachmentDetails.get(slug(faction.name))?.get(data.slug)
       const option = catalogue.detachments.get(data.catalogueId)?.options.find((candidate) => slug(candidate.name) === data.slug)
       if (!detail || !option) return null
-      const catalogueDetail = detachmentCatalogueDetail(catalogue, data.catalogueId, option.id, detail.enhancementNames)
+      const catalogueDetail = detachmentCatalogueDetail(
+        catalogue,
+        data.catalogueId,
+        option.id,
+        detail.enhancements.map((enhancement) => enhancement.name),
+      )
+      const detachmentRuleCards = mergeDetachmentRules(catalogueDetail?.rule ?? null, detail.rules)
+      const enhancements = detail.enhancements.map((enhancement) => ({
+        name: enhancement.name,
+        points: enhancement.points,
+        description:
+          catalogueDetail?.enhancements.find((candidate) => candidate.name.toLocaleLowerCase() === enhancement.name.toLocaleLowerCase())
+            ?.description ?? enhancement.description,
+      }))
       return {
         ...detail,
         dispositions: detail.dispositions.map((disposition) => rules.dispositions.get(disposition) ?? disposition),
-        rule: catalogueDetail?.rule ?? null,
-        enhancements: detail.enhancementNames.map(
-          (name) =>
-            catalogueDetail?.enhancements.find((enhancement) => enhancement.name.toLocaleLowerCase() === name.toLocaleLowerCase()) ?? {
-              name,
-              points: null,
-              description: null,
-            },
-        ),
-        attribution: ATTRIBUTION,
+        rules: detachmentRuleCards,
+        enhancements,
+        keywordRules: rulesReferencedIn(catalogue, [
+          ...detachmentRuleCards.map((rule) => rule.description),
+          ...enhancements.map((enhancement) => enhancement.description),
+          ...detail.stratagems.map((stratagem) => stratagem.description),
+        ]),
+        attribution: rules.attribution,
       }
     }),
   )
+
+function mergeDetachmentRules(
+  catalogueRule: { name: string; description: string | null } | null,
+  rules: readonly { name: string; description: string }[],
+) {
+  if (rules.length || !catalogueRule) return rules
+  return [catalogueRule]
+}
+
+function mergeKeywordRules<T extends { name: string }>(preferred: readonly T[], fallback: readonly T[]) {
+  return [...new Map([...fallback, ...preferred].map((rule) => [rule.name.toLocaleLowerCase(), rule])).values()]
+}
 
 /** The battlefields on offer, as polygons, so the interface can draw one. */
 export const deployments = createServerFn({ method: 'GET' }).handler(() =>

@@ -10,6 +10,7 @@
  */
 
 import { execFileSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 import { z } from 'zod'
@@ -24,7 +25,15 @@ const sourceSchema = z.object({
   description: z.string().optional(),
 })
 
-const sourcesSchema = z.object({ definitions: sourceSchema, points: sourceSchema, rules: sourceSchema })
+const wahapediaSchema = z.object({
+  baseUrl: z.literal('https://wahapedia.ru/wh40k11ed'),
+  revision: z.string().min(1),
+  files: z.record(z.string().regex(/^[\w.-]+\.csv$/), z.string().regex(/^[0-9a-f]{64}$/)),
+  attribution: z.string().min(1),
+  description: z.string().optional(),
+})
+
+const sourcesSchema = z.object({ definitions: sourceSchema, points: sourceSchema, rules: sourceSchema, wahapedia: wahapediaSchema })
 
 const sourcesFile = path.join(import.meta.dirname, '..', 'catalogue', 'sources.json')
 const dataDirectory = process.env.CATALOGUE_DIR ?? path.join(import.meta.dirname, '..', 'catalogue-data')
@@ -51,6 +60,14 @@ if (argument === '--check') {
     }
     console.log(`${name}: ${source.revision.slice(0, 10)} -> ${latest.slice(0, 10)}`)
     sources[name] = { ...source, revision: latest }
+  }
+  for (const name of Object.keys(sources.wahapedia.files)) {
+    const response = await fetch(`${sources.wahapedia.baseUrl}/${name}`)
+    if (!response.ok) throw new Error(`Wahapedia ${name} answered ${response.status}`)
+    const bytes = new Uint8Array(await response.arrayBuffer())
+    sources.wahapedia.files[name] = createHash('sha256').update(bytes).digest('hex')
+    if (name === 'Last_update.csv')
+      sources.wahapedia.revision = new TextDecoder().decode(bytes).split('\n')[1]?.replace('|', '').trim() ?? ''
   }
   fs.writeFileSync(sourcesFile, `${JSON.stringify(sources, null, 2)}\n`)
 } else {

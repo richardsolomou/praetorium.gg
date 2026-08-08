@@ -87,9 +87,10 @@ test('a player can enter through the roster library and browse the product', asy
     page
       .getByRole('heading', { name: /Stratagems/ })
       .locator('..')
-      .getByText('No description is available from the synced sources.'),
+      .locator('article > div:last-child'),
   ).toHaveCount(6)
   await expect(page.getByText(/Tabletop Developer Consortium/)).toBeVisible()
+  await expect(page.getByText(/Descriptions provided by Wahapedia/)).toBeVisible()
   await page.reload()
   await expect(page.getByRole('heading', { name: 'Cryptek Conclave', exact: true })).toBeVisible()
   const detachmentResponse = await page.request.get('/factions/necrons/detachments/cryptek-conclave')
@@ -121,6 +122,7 @@ test('a player can enter through the roster library and browse the product', asy
   await expect(page.getByRole('heading', { name: 'My Will Be Done' })).toBeVisible()
   await expect(page.getByRole('heading', { name: /Wargear abilities/ })).toBeVisible()
   await page.getByRole('button', { name: 'Devastating Wounds' }).first().click()
+  await expect(page.getByRole('tooltip').getByText('Devastating Wounds', { exact: true })).toBeVisible()
   await expect(page.getByRole('tooltip')).toContainText('critical wound')
   await page.screenshot({ path: 'test-results/keyword-tooltip.png', fullPage: true })
   await page.reload()

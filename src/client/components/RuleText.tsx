@@ -1,0 +1,29 @@
+import { createContext, type ReactNode, useContext } from 'react'
+import Markdown, { type Components } from 'react-markdown'
+import { Keyword, type KeywordRule } from './Keyword'
+
+const noRules: KeywordRule[] = []
+const Rules = createContext<KeywordRule[]>(noRules)
+const components: Components = {
+  p: ({ children }) => <p>{children}</p>,
+  ul: ({ children }) => <ul className="list-disc space-y-1 pl-5">{children}</ul>,
+  ol: ({ children }) => <ol className="list-decimal space-y-1 pl-5">{children}</ol>,
+  hr: () => <hr className="border-edge" />,
+  strong: RuleReference,
+}
+
+export function RuleText({ text, rules = noRules }: { text: string; rules?: KeywordRule[] }) {
+  return (
+    <Rules value={rules}>
+      <div className="mt-2 space-y-2 text-sm text-dim">
+        <Markdown components={components}>{text.replaceAll('^^', '')}</Markdown>
+      </div>
+    </Rules>
+  )
+}
+
+function RuleReference({ children }: { children?: ReactNode }) {
+  const rules = useContext(Rules)
+  const name = typeof children === 'string' ? children : null
+  return <strong className="font-semibold text-bone">{name ? <Keyword name={name} rules={rules} /> : children}</strong>
+}

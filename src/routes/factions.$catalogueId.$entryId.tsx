@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, notFound, redirect, useParams } from '@tanstack/react-router'
 import { ChevronRight } from 'lucide-react'
 import { Keyword, KeywordList, type KeywordRule } from '../client/components/Keyword'
+import { RuleText } from '../client/components/RuleText'
 import { factionFor } from '../client/factions'
 import { datasheetSlugQuery, factionsQuery } from '../client/queries'
 
@@ -74,7 +75,8 @@ export function DatasheetPage() {
       ) : null}
       {ranged.length ? <ProfileTable title="Ranged weapons" profiles={ranged} keywordRules={sheet.keywordRules} /> : null}
       {melee.length ? <ProfileTable title="Melee weapons" profiles={melee} keywordRules={sheet.keywordRules} /> : null}
-      <Abilities abilities={sheet.abilities} />
+      <Abilities abilities={sheet.abilities} rules={sheet.keywordRules} />
+      {sheet.attribution ? <p className="border-t border-edge pt-4 text-xs text-dim">{sheet.attribution}.</p> : null}
     </main>
   )
 }
@@ -89,7 +91,7 @@ const abilitySections: { kind: DisplayAbility['kind']; title: string }[] = [
   { kind: 'wargear', title: 'Wargear abilities' },
 ]
 
-function Abilities({ abilities }: { abilities: DisplayAbility[] }) {
+function Abilities({ abilities, rules }: { abilities: DisplayAbility[]; rules: KeywordRule[] }) {
   return abilitySections.map(({ kind, title }) => {
     const found = abilities.filter((ability) => ability.kind === kind)
     if (!found.length) return null
@@ -102,7 +104,7 @@ function Abilities({ abilities }: { abilities: DisplayAbility[] }) {
           {found.map((ability) => (
             <article key={ability.id} className="border border-edge bg-panel p-3">
               <h3 className="text-sm">{ability.name}</h3>
-              {ability.description ? <p className="mt-1 text-sm whitespace-pre-line text-dim">{ability.description}</p> : null}
+              {ability.description ? <RuleText text={ability.description} rules={rules} /> : null}
             </article>
           ))}
         </div>
