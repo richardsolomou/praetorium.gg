@@ -1,6 +1,6 @@
 # BattleBase parity
 
-Where this is up to, and what is left. Read [CLAUDE.md](../CLAUDE.md) first — the load-bearing rules are there, and several of them exist because of mistakes made in this work.
+Where this is up to, and what is left. Read [CLAUDE.md](../CLAUDE.md) first, and [docs/development/](development/) for the rules behind this work, and several of them exist because of mistakes made in this work.
 
 ## What we are doing and why
 
@@ -44,49 +44,7 @@ Reference captures taken during this work lived in a session scratchpad and are 
 
 ## What we learned about the catalogue data
 
-The expensive part of this work was not the code. Four things are not where you would expect them.
-
-**Which units a character may join is a sentence, not a structure.** No link, category or constraint says a Plasmancer may join Immortals. An ability's description does, in one of two formats:
-
-```text
-This model can be attached to the following units:
-■ IMMORTALS
-■ LYCHGUARD
-```
-
-```text
-This model can be attached to the following units: ^^**Immortals, Lychguard, Necron Warriors**^^
-```
-
-It sits on the entry's own `profiles`, or in an `infoGroups` entry, or behind an `infoLinks` reference to a shared one — `src/core/attach.ts` handles all three. **A Leader's ability is titled `Leader`; a supporting character's is titled after the model**, and that is the only thing distinguishing the two. Across every book, 204 of 432 characters carry such a sentence. Necrons resolves all 18 of its own, and matches BattleBase's own labels exactly (Overlord leads, Plasmancer supports).
-
-About 297 target names across all books name a unit from another catalogue — a chapter book naming a Codex unit. Do not try to resolve names to entry ids: match the names against **the units in the roster**, which is the only question the interface ever asks.
-
-**A datasheet's roster cap is on its category, not on the datasheet.** Every unit carries a category named after itself, and the `max` sits there, force-scoped, with a `set` modifier lowering it for smaller games:
-
-```text
-category "Immortals"  -> max=6 @force/selections
-category "Lychguard"  -> max=3 @force
-category "Trazyn the Infinite" -> max=1 @force
-```
-
-Some entries also carry one of their own; the stricter wins. A **negative value means no cap**. Reading only the entry's constraints answers "no limit stated" for every battleline squad in the game; reading categories too, 290 of 303 rows across eight books carry the right number.
-
-**`collective` changes what a count means**, and it was declared in the types and read nowhere. This is the real shape of a squad:
-
-```text
-Immortals [unit]
-  5-10 Immortals [group]        min=5 max=10 @parent/selections
-    Immortal [model]            max=10 @parent
-      Close combat weapon [upgrade, collective]  min=1 max=1 @parent
-      Weapons [group]                            min=1 max=1 @parent
-        Gauss blaster [upgrade, collective]       max=1 @parent
-        Tesla carbine  [upgrade, collective]      max=1 @parent
-```
-
-The `max=1` is **per model**, so ten models may hold ten, and a collective count is a total for the whole unit rather than one model's share. That is what makes "eight blasters and two carbines" expressible. It also means a group of them is always full, which is why `refit` exists.
-
-**A model entry can itself be collective**, which is what caught out the first version of `refit`: `Prosecutor [model, collective]` inside a `3-9 Prosecutors` group. Refitting models overrules the squad size that was asked for, so `refit` touches only `upgrade` entries.
+The expensive part of this work was not the code — four things are not where you would expect them, and all four live in [docs/development/catalogue-data.md](development/catalogue-data.md): which units a character may join (an ability's prose), a datasheet's roster cap (its category), what a `collective` count means (the whole unit, not one model), and that a model entry can itself be collective.
 
 One evaluator notice remains, reported by `pnpm catalogue:points`: `scope primary-catalogue` where a standalone probe has no catalogue to compare against.
 
@@ -154,7 +112,7 @@ It does not include BattleBase's rankings, events, leagues, locations, friends o
 | Battle tracker         | Done                             | Desktop uses player/shared/player columns, shared controls, five-turn ledgers, CP gained/used/remaining, VP and CP charts, turn timing, card state, army status and deployment detail folded from the log.        |
 | Phone tracker          | Done                             | The shared action leads a single-column surface above a fixed two-player VP/CP scoreboard and round segments, with `INFO`/`EVENTS`, contextual scoring, undo and one phase-advance action.                        |
 
-Deployed at `praetorium.ras.sh`, auto-deploying from `main`. See [deployment.md](deployment.md).
+Deployed at `praetorium.gg`, auto-deploying from `main`. See [deployment.md](deployment.md).
 
 ## What we learned about our own side
 
