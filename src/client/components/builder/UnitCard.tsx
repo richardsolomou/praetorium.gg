@@ -78,15 +78,15 @@ export function UnitCard({
           aria-pressed={selected}
           aria-label={unit.name}
         />
-        <div className="pointer-events-none min-w-0 flex-1 overflow-hidden text-left">
+        <div className="pointer-events-none min-w-0 flex-1 text-left">
           <span className="w-full min-w-0">
-            <span className="block truncate text-[0.9375rem] leading-tight font-bold tracking-[0.02em] uppercase">{unit.name}</span>
-            {force ? <span className="eyebrow mt-0.5 block truncate text-azure">Allied force · {force}</span> : null}
+            <span className="block text-[0.9375rem] leading-tight font-bold tracking-[0.02em] uppercase">{unit.name}</span>
+            {force ? <span className="eyebrow mt-0.5 block text-azure">Allied force · {force}</span> : null}
           </span>
           {unit.wargear.length ? (
             <ul className="mt-1 w-full min-w-0 space-y-px">
               {unit.wargear.map((piece) => (
-                <li key={piece.name} className="truncate text-xs text-dim">
+                <li key={piece.name} className="text-xs text-dim">
                   <span aria-hidden>• </span>
                   <span className="readout">{piece.count}x</span> {piece.name}
                 </li>
@@ -167,14 +167,14 @@ export function UnitCard({
       {unit.enhancements.map((enhancement) => (
         <div key={enhancement} className="flex items-center gap-2 border-t border-edge bg-raised px-2.5 py-1">
           <span className="chip text-achieved">Enhancement</span>
-          <span className="truncate text-xs font-semibold">{enhancement}</span>
+          <span className="text-xs font-semibold">{enhancement}</span>
         </div>
       ))}
 
       {joined.map((row) => (
         <div key={`${row.label}-${row.name}`} className="flex items-center gap-2 border-t border-edge bg-raised px-2.5 py-1">
           <span className="chip shrink-0">{row.label}</span>
-          <span className="min-w-0 flex-1 truncate text-xs">{row.name}</span>
+          <span className="min-w-0 flex-1 text-xs">{row.name}</span>
           <Button
             variant="ghost"
             size="xs"

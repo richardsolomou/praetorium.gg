@@ -318,6 +318,10 @@ test('a smaller desktop keeps the picker, roster and loadout visible', async ({ 
   const cardName = await card.getByText("C'tan Shard of the Deceiver", { exact: true }).boundingBox()
   const configuredWargear = await card.getByText(/1x Cosmic insanity/).boundingBox()
   expect(cardName && configuredWargear && configuredWargear.y >= cardName.y + cardName.height).toBe(true)
+  expect(
+    await card.getByText("C'tan Shard of the Deceiver", { exact: true }).evaluate((element) => getComputedStyle(element).whiteSpace),
+  ).toBe('normal')
+  expect(await card.getByText(/1x Cosmic insanity/).evaluate((element) => getComputedStyle(element).whiteSpace)).toBe('normal')
   await page
     .locator('[data-unit="C\'tan Shard of the Deceiver"]')
     .getByRole('button', { name: /^C'tan Shard of the Deceiver/ })
@@ -328,14 +332,17 @@ test('a smaller desktop keeps the picker, roster and loadout visible', async ({ 
 
   await page.setViewportSize({ width: 1280, height: 800 })
   await expect(datasheet).toBeHidden()
-  expect((await picker.boundingBox())?.width).toBe(380)
-  expect((await loadout.boundingBox())?.width).toBe(380)
+  const roster = picker.locator('xpath=following-sibling::div[1]')
+  const compactWidths = await Promise.all([picker, roster, loadout].map((column) => column.boundingBox()))
+  for (const width of compactWidths) expect(width?.width).toBeCloseTo(compactWidths[0]?.width ?? 0, 0)
 
   await page.setViewportSize({ width: 1440, height: 900 })
   await expect(datasheet).toBeVisible()
   await expect(datasheet.getByText('Datasheet abilities')).toBeVisible()
   await expect(loadout.getByText('Ranged weapons', { exact: true })).toBeVisible()
   await expect(datasheet.getByText('Grand Illusion', { exact: true })).toBeVisible()
+  const widths = await Promise.all([picker, roster, loadout, datasheet].map((column) => column.boundingBox()))
+  for (const width of widths) expect(width?.width).toBeCloseTo(widths[0]?.width ?? 0, 0)
   const factionAbility = datasheet.getByRole('button', { name: 'Reanimation Protocols', exact: true })
   await factionAbility.hover()
   await expect(page.getByRole('tooltip')).toContainText('activates its Reanimation Protocols')

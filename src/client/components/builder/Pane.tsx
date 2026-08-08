@@ -16,10 +16,10 @@ type Props = { variant: 'picker' | 'loadout' | 'datasheet'; open: boolean; title
  */
 const VARIANTS = {
   // Written out rather than composed: Tailwind only sees class names it can read.
-  picker: 'lg:static lg:z-auto lg:inset-auto lg:flex lg:w-72 xl:w-80 lg:shrink-0 lg:border-r lg:border-l-0',
-  loadout: 'lg:static lg:z-auto lg:inset-auto lg:flex lg:w-72 xl:w-80 lg:shrink-0 lg:border-l',
+  picker: 'lg:static lg:z-auto lg:inset-auto lg:flex lg:w-1/3 min-[1440px]:!w-1/4 lg:shrink-0 lg:border-r lg:border-l-0',
+  loadout: 'lg:static lg:z-auto lg:inset-auto lg:flex lg:w-1/3 min-[1440px]:!w-1/4 lg:shrink-0 lg:border-l',
   datasheet:
-    'min-[1440px]:static min-[1440px]:z-auto min-[1440px]:inset-auto min-[1440px]:flex min-[1440px]:w-80 min-[1440px]:shrink-0 min-[1440px]:border-l',
+    'min-[1440px]:static min-[1440px]:z-auto min-[1440px]:inset-auto min-[1440px]:flex min-[1440px]:w-1/4 min-[1440px]:shrink-0 min-[1440px]:border-l',
 } as const
 
 const CLOSERS = { picker: 'lg:hidden', loadout: 'lg:hidden', datasheet: 'min-[1440px]:hidden' } as const
