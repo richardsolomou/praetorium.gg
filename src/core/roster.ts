@@ -261,6 +261,8 @@ export function modelCountOf(selection: Selection, index: CatalogueIndex): numbe
 }
 
 /** Whether the data lets a player change how many models this unit fields. */
+export const isResizable = (size: UnitSize) => size.path.length > 0 && size.max > size.min
+
 type UnitToggle = { key: string; name: string; selected: boolean }
 export type BuiltUnit = { selection: Selection; size: UnitSize; choices: UnitChoice[]; toggles: UnitToggle[] }
 
