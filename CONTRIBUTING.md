@@ -17,14 +17,14 @@ The rule that shapes all of it: a decision is implemented once, in the lowest la
 
 See [docs/development/running-locally.md](docs/development/running-locally.md) for setup, the checks, the test commands, and the traps in each.
 
-Short version: `pnpm install`, `pnpm catalogue:sync`, `pnpm dev`, and `pnpm check` before you push.
+Short version: `just install`, `just catalogue-sync`, `just dev`, and `just check` before you push. `just` on its own lists every recipe.
 
 ## Changes that need more than code
 
 - **A new `Command` kind** must be handled in `validate` and `apply`; both end in a `never` assignment, so the build tells you.
-- **Anything touching points or legality** runs `pnpm catalogue:points` and reports the number. It is a ratchet.
+- **Anything touching points or legality** runs `just points` and reports the number. It is a ratchet.
 - **Anything rendered** gets looked at in a browser, not reasoned about from the diff.
-- **A schema change** is a generated migration (`pnpm db:generate`), never an edit to an applied one.
+- **A schema change** is a generated migration (`just db-generate`), never an edit to an applied one.
 - **Anything an operator configures** moves together: `.env.example`, `docker-compose.yml`, and [docs/deployment.md](docs/deployment.md).
 
 ## Pull requests

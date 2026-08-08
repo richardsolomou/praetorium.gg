@@ -42,7 +42,7 @@ Live updates carry nothing at all. The event stream says only "this battle chang
 
 The evaluator reads the community [BSData](https://github.com/BSData/wh40k-11e) catalogues: give it what a player picked and it returns the cost and what is illegal about it, including the per-copy and per-model pricing eleventh edition uses.
 
-It is checked against Games Workshop's own numbers rather than against itself. `pnpm catalogue:points` builds real units at the model counts the Munitorum Field Manual prices and compares: **it agrees on 99.6% of 1,863 checks**. The seven remaining differences are four Deathwatch datasheets whose catalogue still carries older prices upstream. Anything it does not understand stays visible instead of becoming a guess — a confidently wrong points total is worse than an honest gap.
+It is checked against Games Workshop's own numbers rather than against itself. `just points` builds real units at the model counts the Munitorum Field Manual prices and compares: **it agrees on 99.6% of 1,863 checks**. The seven remaining differences are four Deathwatch datasheets whose catalogue still carries older prices upstream. Anything it does not understand stays visible instead of becoming a guess — a confidently wrong points total is worse than an honest gap.
 
 ## Run it 🚀
 
@@ -53,7 +53,7 @@ docker compose up -d
 
 One container, one `/data` volume, one instance. It fetches its own community data in the background and serves battles while it does — there is nothing to run by hand, and **no game data is in this repository**. See [docs/deployment.md](docs/deployment.md) for what lands in the volume, what to back up, and why it stays at one replica.
 
-Playing needs no account: a signed cookie is a durable identity and the command log points at it. Signing up _claims_ the guest you are already using, so your lists and battles come with you. Email and password works with no configuration; Google and Discord appear only when both halves of their credentials are set.
+An account is your player: your lists, the battles you have played and the ones still going follow you to whatever device you pick up, and nothing depends on a cookie surviving. Email and password works with no configuration and needs no inbox — there is no verification step to stall a first game. Google and Discord appear only when both halves of their credentials are set.
 
 ## Not here yet 🚧
 
@@ -61,7 +61,7 @@ No wound tracking within a unit — a unit is standing or lost. No automatic pri
 
 ## Development 🛠️
 
-Node 24.x and pnpm 11.15.0. Setup and checks are in [CONTRIBUTING.md](CONTRIBUTING.md), the design rules are in [CLAUDE.md](CLAUDE.md), and [SECURITY.md](SECURITY.md) covers vulnerability reports.
+Node 24.x, pnpm 11.15.0 and just. `just install && just dev` is the whole setup; the rest is in [CONTRIBUTING.md](CONTRIBUTING.md), the design rules are in [CLAUDE.md](CLAUDE.md), and [SECURITY.md](SECURITY.md) covers vulnerability reports.
 
 ## Attribution
 

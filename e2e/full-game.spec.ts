@@ -1,17 +1,19 @@
 import { expect, test, type Page } from '@playwright/test'
+import { signUp } from './account'
 
 test('two phones complete all five rounds in step', async ({ browser }) => {
   const alice = await (await browser.newContext({ viewport: { width: 390, height: 844 } })).newPage()
   const bob = await (await browser.newContext({ viewport: { width: 390, height: 844 } })).newPage()
 
+  await signUp(alice, 'Alice')
+
   await alice.goto('/')
-  await alice.getByLabel('Your name').fill('Alice')
   await alice.getByRole('button', { name: 'Open a battle' }).click()
   const invite = alice.getByLabel('Send this link to your opponent')
   await expect(invite).toHaveValue(/\/b\//)
 
+  await signUp(bob, 'Bob')
   await bob.goto(await invite.inputValue())
-  await bob.getByLabel('Your name').fill('Bob')
   await bob.getByRole('button', { name: 'Join the battle' }).click()
   await attach(alice, 'Ultramarines', '10 Intercessors')
   await attach(bob, 'Death Guard', '10 Plague Marines')

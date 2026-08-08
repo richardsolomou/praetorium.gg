@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { signUp } from './account'
 
 /**
  * The one thing the unit tests cannot prove: that a change made on one device
@@ -9,8 +10,9 @@ test('a battle stays in step across two devices', async ({ browser }) => {
   const alice = await (await browser.newContext()).newPage()
   const bob = await (await browser.newContext()).newPage()
 
+  await signUp(alice, 'Alice')
+
   await alice.goto('/')
-  await alice.getByLabel('Your name').fill('Alice')
   await alice.getByRole('button', { name: 'Open a battle' }).click()
 
   // The origin is only known once mounted, so the field starts empty: waiting for
@@ -20,8 +22,9 @@ test('a battle stays in step across two devices', async ({ browser }) => {
   await expect(invite).toHaveValue(/\/b\//)
   const link = await invite.inputValue()
 
+  await signUp(bob, 'Bob')
+
   await bob.goto(link)
-  await bob.getByLabel('Your name').fill('Bob')
   await bob.getByRole('button', { name: 'Join the battle' }).click()
 
   // Alice is not touched here: her page learns Bob arrived from the stream alone.

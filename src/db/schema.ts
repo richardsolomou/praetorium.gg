@@ -94,13 +94,17 @@ export const players = sqliteTable(
     id: text('id').primaryKey(),
     name: text('name').notNull(),
     /**
-     * The account that has claimed this identity, when one has.
+     * The account this player is.
      *
-     * A guest is a real, durable record — the command log points at it — so signing
-     * in claims the guest rather than replacing it. That is what keeps a player's
-     * saved lists and battle history when they lose a cookie.
+     * One per account, mandatory: everything here — a battle, a saved list, a
+     * command in a log — belongs to somebody who signed in. The row is still
+     * separate from `user` because the command log points at `players.id` and
+     * better-auth owns the shape of its own tables.
      */
-    userId: text('user_id').references(() => user.id, { onDelete: 'set null' }),
+    userId: text('user_id')
+      .notNull()
+      .unique()
+      .references(() => user.id, { onDelete: 'cascade' }),
     createdAt: integer('created_at').notNull(),
   },
   (table) => [index('players_user_id_index').on(table.userId)],

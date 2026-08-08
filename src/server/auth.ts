@@ -50,8 +50,8 @@ export function createAuth(database: PraetoriumDatabase, secret: string) {
     database: drizzleAdapter(database, { provider: 'sqlite', schema }),
     secret,
     baseURL: process.env.APP_URL?.trim() || undefined,
-    // An account exists to keep a player's lists, not to gate play: nothing here
-    // needs an inbox, and there is no verification step to stall a first game.
+    // An account is who you are here, but it still needs no inbox: there is no
+    // verification step to stall a first game.
     emailAndPassword: { enabled: true, minPasswordLength: PASSWORD_MIN_LENGTH, autoSignIn: true, requireEmailVerification: false },
     socialProviders: socialProviders(process.env),
     // Signing in with Google to an account made with a password should land on the
@@ -61,16 +61,26 @@ export function createAuth(database: PraetoriumDatabase, secret: string) {
      * Limits are per IP, and two people at the same table share one: a pair signing
      * up in the same room must not lock each other out. Generous enough for that,
      * tight enough to make guessing a password pointless.
+     *
+     * `AUTH_RATE_LIMIT=off` is for the browser suite, which makes an account per
+     * spec from one unresolvable address and would otherwise throttle itself into
+     * failing — slowly, and somewhere other than the request that was refused.
      */
     rateLimit: {
-      enabled: true,
+      enabled: process.env.AUTH_RATE_LIMIT !== 'off',
       storage: 'database',
       window: 60,
       max: 120,
       customRules: { '/sign-in/email': { window: 60, max: 20 }, '/sign-up/email': { window: 60, max: 15 } },
     },
     session: { expiresIn: 60 * 60 * 24 * 90, updateAge: 60 * 60 * 24 },
-    advanced: { useSecureCookies: (process.env.APP_URL ?? '').startsWith('https://') },
+    advanced: {
+      useSecureCookies: (process.env.APP_URL ?? '').startsWith('https://'),
+      // Behind Cloudflare and Traefik every request arrives from the proxy, so
+      // without this the limits above are one bucket for the whole internet and a
+      // single noisy client locks everyone out.
+      ipAddress: { ipAddressHeaders: ['cf-connecting-ip', 'x-forwarded-for'] },
+    },
     trustedOrigins: (request) => {
       const forwarded = request ? forwardedOrigin(request) : undefined
       return forwarded ? [forwarded] : []

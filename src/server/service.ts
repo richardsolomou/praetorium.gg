@@ -52,11 +52,6 @@ export class PraetoriumService {
     private readonly events: BattleEvents,
   ) {}
 
-  /** Names the player behind a cookie, creating the record on first sight. */
-  identify(playerId: string, name: string) {
-    this.repository.upsertPlayer({ id: playerId, name, now: this.clock() })
-  }
-
   player(playerId: string) {
     return this.repository.player(playerId)
   }
@@ -89,16 +84,21 @@ export class PraetoriumService {
    * Signing in must not cost someone their saved lists, so an account adopts the
    * guest identity it arrives with rather than starting a fresh one.
    */
-  playerForUser(userId: string, guestId: string | null, name: string) {
-    const claimed = this.repository.playerOfUser(userId)
-    if (claimed) return claimed.id
-    if (guestId && this.repository.player(guestId)) {
-      this.repository.claimPlayer(guestId, userId)
-      return guestId
+  /**
+   * The player behind an account, minted on first sight.
+   *
+   * An account is the only way to be anyone here, so this is the one place a
+   * player comes into existence. The name follows the account: the command log
+   * points at `players.id`, which never changes, so renaming is free.
+   */
+  playerForUser(userId: string, name: string) {
+    const existing = this.repository.playerOfUser(userId)
+    if (existing) {
+      if (existing.name !== name) this.repository.upsertPlayer({ id: existing.id, name, userId, now: this.clock() })
+      return existing.id
     }
     const id = createId()
-    this.repository.upsertPlayer({ id, name, now: this.clock() })
-    this.repository.claimPlayer(id, userId)
+    this.repository.upsertPlayer({ id, name, userId, now: this.clock() })
     return id
   }
 

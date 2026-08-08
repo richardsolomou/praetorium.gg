@@ -46,7 +46,7 @@ Reference captures taken during this work lived in a session scratchpad and are 
 
 The expensive part of this work was not the code — four things are not where you would expect them, and all four live in [docs/development/catalogue-data.md](development/catalogue-data.md): which units a character may join (an ability's prose), a datasheet's roster cap (its category), what a `collective` count means (the whole unit, not one model), and that a model entry can itself be collective.
 
-One evaluator notice remains, reported by `pnpm catalogue:points`: `scope primary-catalogue` where a standalone probe has no catalogue to compare against.
+One evaluator notice remains, reported by `just points`: `scope primary-catalogue` where a standalone probe has no catalogue to compare against.
 
 ## What we learned about their interface
 
@@ -149,6 +149,6 @@ Every one of these cost time already.
 
 - **Text is uppercased in CSS**, so the DOM holds `Overlord` while the page shows `OVERLORD`. Find a unit card by `data-unit`, never by visible text.
 - **A pane is one instance that CSS moves** (`builder/Pane.tsx`). Rendering a sidebar and a sheet with the same contents put two of every control in the page, both real to a screen reader.
-- **The points ratchet is enforced in CI** at 97.0%, currently 99.6% of 1,863. Run `pnpm catalogue:points` after anything touching `defaultSelection`, `buildUnit`, `refit` or the evaluator, and read the mismatch list rather than the percentage alone. The remaining seven differences are classified upstream catalogue values, not permission for a new mismatch.
+- **The points ratchet is enforced in CI** at 97.0%, currently 99.6% of 1,863. Run `just points` after anything touching `defaultSelection`, `buildUnit`, `refit` or the evaluator, and read the mismatch list rather than the percentage alone. The remaining seven differences are classified upstream catalogue values, not permission for a new mismatch.
 - **The evaluator's errors are not in the ratchet.** A change can keep points identical and make every squad in the game report a spurious violation, which is exactly what implementing collective counts did before `violations` learned to scale a per-model limit. Build a real squad and read its errors.
 - **`spreads` must reach the server.** They travel on the pick beside `models` and `choices`, through pricing, saving and export; three call sites omitted them and the interface silently did nothing.

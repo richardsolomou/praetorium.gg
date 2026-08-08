@@ -1,5 +1,5 @@
 import path from 'node:path'
-import { type BattleEvents, createBattleEvents } from '../adapters/events'
+import { type BattleEvents, RealtimePublisher } from '../adapters/events'
 import { catalogueDirectory, type LoadedCatalogue, loadCatalogue } from './catalogue'
 import { type LoadedRules, loadRules } from './rules'
 import { isCurrent, type SyncState, syncSources } from './sync'
@@ -7,14 +7,13 @@ import { databasePath, type PraetoriumDatabase, openDatabase } from '../db/conne
 import { Repository } from '../db/repository'
 import { authSecret, createAuth } from './auth'
 import { sessionSecret } from './identity'
-import { Presence } from './presence'
+import { realtimeConfig } from './realtime'
 import { PraetoriumService } from './service'
 
 type App = {
   database: PraetoriumDatabase
   service: PraetoriumService
   events: BattleEvents
-  presence: Presence
   secret: string
   /** Loaded on first use, and null on an instance with no catalogue data synced. */
   catalogue: () => LoadedCatalogue | null
@@ -77,12 +76,12 @@ export function app(): App {
   if (!globalApp.praetoriumApp) {
     const file = databasePath()
     const database = openDatabase(file)
-    const events = createBattleEvents()
+    const realtime = realtimeConfig()
+    const events = new RealtimePublisher(realtime.apiUrl, realtime.apiKey)
     globalApp.praetoriumApp = {
       database,
       service: new PraetoriumService(new Repository(database), Date.now, events),
       events,
-      presence: new Presence(),
       secret: sessionSecret(path.dirname(file)),
       auth: createAuth(database, authSecret(path.dirname(file))),
       catalogue: memoize(loadCatalogue),

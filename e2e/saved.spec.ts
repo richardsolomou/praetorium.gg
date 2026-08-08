@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { signUp } from './account'
 
 /**
  * A list kept between battles. What is stored is the picks, so loading it re-prices
@@ -9,8 +10,9 @@ test('a list is saved and loaded into another battle', async ({ browser }) => {
   const context = await browser.newContext()
   const page = await context.newPage()
 
+  await signUp(page, 'Alice')
+
   await page.goto('/')
-  await page.getByLabel('Your name').fill('Alice')
   await page.getByRole('button', { name: 'Open a battle' }).click()
   await page.getByRole('button', { name: 'Build from the catalogue' }).click()
 

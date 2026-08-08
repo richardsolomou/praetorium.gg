@@ -1,4 +1,5 @@
 import { expect, type Page, test } from '@playwright/test'
+import { signUp } from './account'
 
 /**
  * The four things a player coming from another builder reaches for: squad size where
@@ -6,8 +7,9 @@ import { expect, type Page, test } from '@playwright/test'
  * characters standing with the units they lead.
  */
 async function openBuilder(page: Page, faction = 'Necrons', detachment = /Awakened Dynasty/) {
+  await signUp(page, 'Richard')
+
   await page.goto('/')
-  await page.getByLabel('Your name').fill('Richard')
   await page.getByRole('button', { name: 'Open a battle' }).click()
   await expect(page.getByLabel('Send this link to your opponent')).toHaveValue(/\/b\//)
   await page.getByRole('button', { name: 'Build from the catalogue' }).click()
@@ -26,8 +28,9 @@ async function add(page: Page, name: string) {
 }
 
 test('a supplement imports its shared detachment group', async ({ page }) => {
+  await signUp(page, 'Richard')
+
   await page.goto('/')
-  await page.getByLabel('Your name').fill('Richard')
   await page.getByRole('button', { name: 'Open a battle' }).click()
   await expect(page.getByLabel('Send this link to your opponent')).toHaveValue(/\/b\//)
   await page.getByRole('button', { name: 'Build from the catalogue' }).click()

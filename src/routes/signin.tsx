@@ -10,17 +10,23 @@ import { errorMessage } from '../client/queryClient'
 import { PASSWORD_MIN_LENGTH } from '../server/auth'
 
 export const Route = createFileRoute('/signin')({
+  // Where the visitor was going before they were asked to sign in. An invite link
+  // puts the battle here, so signing in lands in the battle rather than at home.
+  // Only ever a path on this instance: an absolute or protocol-relative URL here
+  // would turn the sign-in page into an open redirect.
+  validateSearch: (search: Record<string, unknown>) => ({
+    next: typeof search.next === 'string' && /^\/(?!\/)/.test(search.next) ? search.next : undefined,
+  }),
   loader: ({ context }) => context.queryClient.ensureQueryData(signInOptionsQuery()),
   component: SignIn,
 })
 
 /**
- * An account exists to keep a player's lists, not to gate play.
- *
- * Signing in claims the guest identity already in hand, so the battles and lists
- * made before making an account come with it.
+ * An account is who you are here: battles, saved lists and every command in a log
+ * point at it, and there is no other way to be anyone.
  */
 function SignIn() {
+  const { next } = Route.useSearch()
   const { data: options } = useQuery(signInOptionsQuery())
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -39,16 +45,19 @@ function SignIn() {
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries()
-      await navigate({ to: '/' })
+      // `next` is a pathname rather than a route, so this is a navigation by href
+      // rather than by route id.
+      if (next) window.location.assign(next)
+      else await navigate({ to: '/' })
     },
   })
 
   return (
     <main className="mx-auto w-full max-w-md px-4 py-12">
-      <h1 className="text-2xl">{joining ? 'Keep your lists' : 'Welcome back'}</h1>
+      <h1 className="text-2xl">{joining ? 'Make an account' : 'Welcome back'}</h1>
       <p className="mt-3 text-sm text-dim">
-        Playing needs no account. One keeps your saved lists and your battles when you change device or lose a cookie — and it takes over
-        the guest you are already using.
+        Your account is your player: it holds your saved lists, the battles you have played and the ones still going, on whatever device you
+        pick up.
       </p>
 
       <form

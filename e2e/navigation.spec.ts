@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { signUp } from './account'
 
 test('primary navigation keeps every scoped destination on phones', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
@@ -15,10 +16,13 @@ test('primary navigation keeps every scoped destination on phones', async ({ pag
   await page.screenshot({ path: 'test-results/navigation-phone.png', fullPage: true })
 })
 
-test('a guest can enter through the roster library and browse the product', async ({ page }) => {
+test('a player can enter through the roster library and browse the product', async ({ page }) => {
+  // Signed out, the library says what it is and asks for an account.
   await page.goto('/rosters')
-  await page.getByLabel('Your name').fill('Alice')
-  await page.getByRole('button', { name: 'Continue' }).click()
+  await expect(page.getByRole('heading', { name: 'Your rosters' })).toBeVisible()
+
+  await signUp(page, 'Alice')
+  await page.goto('/rosters')
 
   await expect(page.getByRole('heading', { name: 'My rosters' })).toBeVisible()
   await expect(page.getByText('No rosters yet. Create one or bring one from another app.')).toBeVisible()
