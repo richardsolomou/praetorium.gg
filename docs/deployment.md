@@ -1,16 +1,14 @@
-# Deployment
+# Self-hosting
 
-Praetorium runs as one container with one persistent `/data` volume.
+The hosted service at [praetorium.gg](https://praetorium.gg) is the supported way to use Praetorium. Self-hosting is available for operators who can manage Docker, persistent storage, backups, and a reverse proxy.
+
+Private deployments do not include managed support. Review this page and the supplied `docker-compose.yml` before starting.
+
+Praetorium runs as one container with one persistent `/data` volume. Copy `.env.example` to `.env`, review the settings, then start the Compose service.
 
 ```sh
 cp .env.example .env
 docker compose up -d
-```
-
-Or pull the image CI publishes:
-
-```sh
-docker run -d --name praetorium -p 3000:3000 -v praetorium-data:/data ghcr.io/richardsolomou/praetorium.gg:latest
 ```
 
 ## Persistent data

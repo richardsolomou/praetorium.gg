@@ -44,16 +44,13 @@ The evaluator reads the community [BSData](https://github.com/BSData/wh40k-11e) 
 
 `just points` compares generated rosters with the Munitorum Field Manual. It currently agrees on **99.6% of 1,863 checks**. The remaining differences come from four Deathwatch datasheets with older upstream catalogue prices. Unsupported catalogue rules are reported instead of guessed.
 
-## Run it 🚀
+## Use Praetorium 🚀
 
-```sh
-cp .env.example .env
-docker compose up -d
-```
-
-The container uses one `/data` volume and runs as one instance. It fetches community data in the background and can serve battles during the first sync. **This repository contains no game data.** See [the deployment guide](docs/deployment.md) for storage, backups, and reverse proxy setup.
+The hosted service at [praetorium.gg](https://praetorium.gg) is the primary way to use Praetorium. It includes updates, persistent storage, and the community catalogue sync.
 
 An account stores your lists and battle history. Email and password works without extra configuration or email verification. Google and Discord appear when their credentials are configured.
+
+Praetorium is open source under the AGPL. Experienced operators can run a private instance; see the [self-hosting notes](docs/deployment.md) for its storage and network requirements. **This repository contains no game data.**
 
 ## Scope 🚧
 
