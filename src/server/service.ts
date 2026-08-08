@@ -79,12 +79,6 @@ export class PraetoriumService {
   }
 
   /**
-   * The player an account is, claiming the guest in hand when it has none yet.
-   *
-   * Signing in must not cost someone their saved lists, so an account adopts the
-   * guest identity it arrives with rather than starting a fresh one.
-   */
-  /**
    * The player behind an account, minted on first sight.
    *
    * An account is the only way to be anyone here, so this is the one place a

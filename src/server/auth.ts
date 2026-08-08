@@ -5,6 +5,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import type { PraetoriumDatabase } from '../db/connection'
 import { schema } from '../db/schema'
+import { forwardedOrigin } from './requestOrigin'
 
 export const SOCIAL_PROVIDERS = ['google', 'discord'] as const
 export type SocialProvider = (typeof SOCIAL_PROVIDERS)[number]
@@ -86,15 +87,4 @@ export function createAuth(database: PraetoriumDatabase, secret: string) {
       return forwarded ? [forwarded] : []
     },
   })
-}
-
-function forwardedOrigin(request: Request) {
-  const host = request.headers.get('x-forwarded-host')?.split(',')[0]?.trim() || request.headers.get('host')?.trim()
-  const protocol = request.headers.get('x-forwarded-proto')?.split(',')[0]?.trim()
-  if (!host || (protocol !== 'http' && protocol !== 'https')) return undefined
-  try {
-    return new URL(`${protocol}://${host}`).origin
-  } catch {
-    return undefined
-  }
 }

@@ -12,7 +12,7 @@
 
 ## Who is it for? 👋
 
-Two people at a table who currently keep score on paper, or in a builder that does not follow them into the game. Open a battle, send your opponent the link, and they take the second seat. No account needed.
+Two people at a table who currently keep score on paper, or in a builder that does not follow them into the game. Open a battle, send your opponent the link, and they sign in to take the second seat.
 
 ## How it works ✨
 

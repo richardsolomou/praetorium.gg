@@ -94,24 +94,7 @@ export const priceSchema = z.object({
   catalogueId,
   detachmentIds: z.array(z.string().min(1).max(64)).max(3),
   limit: z.number().int().min(0).max(10_000),
-  units: z
-    .array(
-      z.object({
-        entryId: z.string().min(1).max(64),
-        catalogueId: z.string().min(1).max(64).optional(),
-        models: z.number().int().min(1).max(60).optional(),
-        /** Group path to chosen option, as `unitChoices` reports it. */
-        choices: z.record(z.string().max(400), z.string().min(1).max(64)).optional(),
-        /**
-         * Group path to how many of each option it holds, for groups holding more than
-         * one — a squad splitting its weapons between two.
-         */
-        spreads: z.record(z.string().max(400), z.record(z.string().max(64), z.number().int().min(0).max(60))).optional(),
-        toggles: z.record(z.string().max(400), z.number().int().min(0).max(1)).optional(),
-        attachedTo: z.number().int().min(0).max(99).optional(),
-      }),
-    )
-    .max(100),
+  units: z.array(pickSchema).max(100),
 })
 
 export type PriceInput = z.infer<typeof priceSchema>

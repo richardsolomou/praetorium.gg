@@ -16,7 +16,7 @@ docker run -d --name praetorium -p 3000:3000 -v praetorium-data:/data ghcr.io/ri
 ## What lands in /data
 
 - `praetorium.sqlite` — every battle, its command log, and every saved list.
-- `session.secret` — signs sessions. Losing it signs everyone out; their accounts and lists survive.
+- `auth.secret` — signs sessions. Losing it signs everyone out; their accounts and lists survive.
 - `realtime-secret` — signs the tokens the browser connects to Centrifugo with. Generated on first boot; losing it costs one reconnect.
 - `catalogue/` — the community data, about 126MB, fetched by the instance itself.
 

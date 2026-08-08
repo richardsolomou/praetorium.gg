@@ -83,11 +83,7 @@ export const rateLimit = sqliteTable(
   (table) => [index('rateLimit_key_idx').on(table.key)],
 )
 
-/**
- * Someone playing, identified by a signed cookie rather than an account. A guest
- * identity is durable — it is the thing a battle's history points at — so an
- * account can be attached to one later without touching the log.
- */
+/** Someone playing. Kept separate from auth-owned users so logs retain stable player ids. */
 export const players = sqliteTable(
   'players',
   {

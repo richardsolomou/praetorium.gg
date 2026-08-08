@@ -1,4 +1,5 @@
 import { getRequest } from '@tanstack/react-start/server'
+import { forwardedOrigin, parseOrigin } from './requestOrigin'
 
 /**
  * The request must carry an Origin belonging to this deployment. `APP_URL` is
@@ -11,24 +12,9 @@ export function requireMutationOrigin(request = getRequest()) {
   if (![new URL(request.url).origin, forwardedOrigin(request), configuredOrigin()].includes(origin)) throw rejected()
 }
 
-function forwardedOrigin(request: Request) {
-  const host = request.headers.get('x-forwarded-host')?.split(',')[0]?.trim() || request.headers.get('host')?.trim()
-  const protocol = request.headers.get('x-forwarded-proto')?.split(',')[0]?.trim()
-  if (!host || (protocol !== 'http' && protocol !== 'https')) return undefined
-  return parseOrigin(`${protocol}://${host}`)
-}
-
 function configuredOrigin() {
   const url = process.env.APP_URL?.trim()
   return url ? parseOrigin(url) : undefined
-}
-
-function parseOrigin(url: string) {
-  try {
-    return new URL(url).origin
-  } catch {
-    return undefined
-  }
 }
 
 const rejected = () => new Response('cross-origin mutation rejected', { status: 403 })
