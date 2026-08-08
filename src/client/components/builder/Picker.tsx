@@ -1,11 +1,11 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { Heart, ListFilter, Plus } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Toggle } from '@/components/ui/toggle'
-import { setOwned } from '../../../server/functions'
+import { useCollectionMutation } from '../../useCollection'
 import { collectionQuery, unitsQuery } from '../../queries'
 import { GROUPS } from './groups'
 import { Section } from './Section'
@@ -31,14 +31,9 @@ const FILTERS: { id: Filter; label: string; hint: string }[] = [
 export function Picker({ catalogueId, onAdd, inRoster, room }: Props) {
   const [query, setQuery] = useState('')
   const [active, setActive] = useState<Set<Filter>>(new Set())
-  const { data: found } = useQuery(unitsQuery(catalogueId, query))
+  const { data: found } = useQuery({ ...unitsQuery(catalogueId, query), placeholderData: keepPreviousData })
   const { data: owned } = useQuery(collectionQuery())
-  const queryClient = useQueryClient()
-
-  const own = useMutation({
-    mutationFn: (input: { entryId: string; owned: boolean }) => setOwned({ data: input }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: collectionQuery().queryKey }),
-  })
+  const own = useCollectionMutation()
 
   const collection = new Set(owned ?? [])
   const toggle = (filter: Filter) =>

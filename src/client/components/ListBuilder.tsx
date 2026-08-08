@@ -24,8 +24,9 @@ import { Toggle } from '@/components/ui/toggle'
 import type { Roster, Secondary, Stratagem } from '../../core/battle'
 import { GAME_SIZES, ROSTER_NAME_MAX_LENGTH } from '../../core/battle'
 import type { RosterPick } from '../../core/roster'
-import { deleteRoster, exportRoster, importRoster, saveRoster, setOwned } from '../../server/functions'
+import { deleteRoster, exportRoster, importRoster, saveRoster } from '../../server/functions'
 import { collectionQuery, factionsQuery, priceQuery, savedRostersQuery } from '../queries'
+import { useCollectionMutation } from '../useCollection'
 import { errorMessage } from '../queryClient'
 import { DetachmentPoints } from './DetachmentPoints'
 import { shelve, shortName } from './builder/factions'
@@ -96,10 +97,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
   const { data: saved } = useQuery(savedRostersQuery())
   const { data: owned } = useQuery(collectionQuery())
   const collection = new Set(owned ?? [])
-  const own = useMutation({
-    mutationFn: (input: { entryId: string; owned: boolean }) => setOwned({ data: input }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: collectionQuery().queryKey }),
-  })
+  const own = useCollectionMutation()
   const refreshSaved = () => queryClient.invalidateQueries({ queryKey: savedRostersQuery().queryKey })
 
   const loadSaved = (list: NonNullable<typeof saved>[number], copy = false) => {

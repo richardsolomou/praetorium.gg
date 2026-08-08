@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { Plus } from 'lucide-react'
 import { useState } from 'react'
@@ -37,7 +37,10 @@ export function CreateRoster({ factions }: { factions: Faction[] }) {
   const faction = factions.find((candidate) => candidate.id === catalogueId)
   const dispositions = dispositionsFor(faction?.detachments ?? [], detachmentIds)
   const selectedDisposition = dispositions.length === 1 ? dispositions[0].id : disposition
-  const { data: priced } = useQuery(priceQuery(catalogueId, detachmentIds, selectedDisposition, limit, []))
+  const { data: priced } = useQuery({
+    ...priceQuery(catalogueId, detachmentIds, selectedDisposition, limit, []),
+    placeholderData: keepPreviousData,
+  })
   const create = useMutation({
     mutationFn: () =>
       saveRoster({
