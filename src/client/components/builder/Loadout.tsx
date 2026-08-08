@@ -33,7 +33,8 @@ type Props = {
   catalogueSlug: string
   unit: LoadoutUnit | null
   detachmentIds: readonly string[]
-  pick?: RosterPick
+  picks: readonly RosterPick[]
+  pickIndex: number | null
   onChoose: (key: string, optionId: string) => void
   onSpread: (key: string, counts: Record<string, number>) => void
 }
@@ -50,8 +51,8 @@ type Props = {
  * carbines, which a single answer cannot say; that one gets a count against each
  * option. Nothing is typed either way: every option and every price is the data's.
  */
-export function Loadout({ catalogueId, catalogueSlug, unit, detachmentIds, pick, onChoose, onSpread }: Props) {
-  const { data: sheet } = useQuery(datasheetQuery(catalogueId, unit?.entryId ?? '', detachmentIds, pick))
+export function Loadout({ catalogueId, catalogueSlug, unit, detachmentIds, picks, pickIndex, onChoose, onSpread }: Props) {
+  const { data: sheet } = useQuery(datasheetQuery(catalogueId, unit?.entryId ?? '', detachmentIds, picks, pickIndex))
   if (!unit) {
     return (
       <div className="flex h-full items-center justify-center p-6">

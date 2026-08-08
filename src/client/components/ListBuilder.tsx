@@ -450,7 +450,8 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
       catalogueSlug={available.factions.find((entry) => entry.id === loadoutCatalogueId)?.slug ?? loadoutCatalogueId}
       unit={selectedUnit}
       detachmentIds={detachmentIds}
-      pick={selected === null ? undefined : picked[selected]}
+      picks={picked}
+      pickIndex={selected}
       onChoose={(key, optionId) => selected !== null && choose(selected, key, optionId)}
       onSpread={(key, counts) => selected !== null && spread(selected, key, counts)}
     />

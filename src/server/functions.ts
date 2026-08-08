@@ -147,16 +147,26 @@ export const datasheet = createServerFn({ method: 'GET' })
       const loaded = app().catalogue()
       if (!loaded) return null
       const detachments = rosterDetachments(loaded, data.catalogueId, data.detachmentIds).selections
-      const unit = data.pick
-        ? buildUnit(data.entryId, loaded.index, data.pick.models, data.pick.choices, {
-            primaryCatalogueId: data.catalogueId,
-            roster: detachments,
-            spreads: data.pick.spreads,
-            toggles: data.pick.toggles,
-          })
-        : null
-      const selections = unit ? [...detachments, unit.selection] : []
-      return describeAbilities(loaded, datasheetIn(loaded, data.catalogueId, data.entryId, selections.length ? { selections } : undefined))
+      const builtUnits = data.picks.flatMap((pick, index) => {
+        const unit = buildUnit(pick.entryId, loaded.index, pick.models, pick.choices, {
+          primaryCatalogueId: data.catalogueId,
+          roster: detachments,
+          spreads: pick.spreads,
+          toggles: pick.toggles,
+        })
+        return unit ? [{ index, selection: unit.selection }] : []
+      })
+      const selected = builtUnits.findIndex((unit) => unit.index === data.pickIndex)
+      const selections = [...detachments, ...builtUnits.map((unit) => unit.selection)]
+      return describeAbilities(
+        loaded,
+        datasheetIn(
+          loaded,
+          data.catalogueId,
+          data.entryId,
+          selected < 0 ? undefined : { selections, unitSelectionIndex: detachments.length + selected },
+        ),
+      )
     }),
   )
 

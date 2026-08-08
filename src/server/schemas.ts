@@ -52,7 +52,8 @@ export const datasheetSchema = z.object({
   catalogueId,
   entryId: id,
   detachmentIds: z.array(id).max(3).default([]),
-  pick: pickSchema.optional(),
+  picks: z.array(pickSchema).max(100).default([]),
+  pickIndex: z.number().int().min(0).max(99).nullable().default(null),
 })
 export const datasheetSlugSchema = z.object({ catalogueId, slug })
 
