@@ -16,7 +16,7 @@ Praetorium is for two players who want one shared battle record instead of paper
 
 ## How it works ✨
 
-1. **Build or import a list** with its faction, detachments, units, loadouts, enhancements, and points limit. Imports support `.ros` and `.rosz` files from New Recruit and BattleScribe.
+1. **Build or import a list** with its faction, detachments, units, loadouts, enhancements, and points limit. Imports support `.ros` and `.rosz` files.
 2. **Attach both lists.** Praetorium derives the mission from their force dispositions.
 3. **Complete battle setup** by choosing the battlefield, deployment, stratagems, mission cards, and first player.
 4. **Play the game** while both screens show the same round, phase, command points, victory points, and unit state.
@@ -42,7 +42,7 @@ Live updates contain only a change notification. The page then uses the normal r
 
 The evaluator reads the community [BSData](https://github.com/BSData/wh40k-11e) catalogues. It calculates points and reports roster violations, including per-copy and per-model costs.
 
-`just points` compares generated rosters with the Munitorum Field Manual. It currently agrees on **99.6% of 1,863 checks**. The remaining differences come from four Deathwatch datasheets with older upstream catalogue prices. Unsupported catalogue rules are reported instead of guessed.
+`just points` compares generated rosters with an independent reference dataset. Unsupported catalogue rules are reported instead of guessed.
 
 ## Use Praetorium 🚀
 
@@ -62,7 +62,7 @@ Development requires Node 24.x, pnpm 11.15.0, and just. Run `just install && jus
 
 ## Attribution
 
-Praetorium is an unofficial product, and is not in any way affiliated with or endorsed by Games Workshop. Stratagem and mission data comes from [40kdc-data](https://github.com/tabletop-developer-consortium/40kdc-data) under CC BY 4.0; see [catalogue/README.md](catalogue/README.md) for every source and its licence.
+Warhammer 40,000 and related marks belong to Games Workshop. Praetorium is unofficial and is not endorsed by Games Workshop. Stratagem and mission data comes from [40kdc-data](https://github.com/tabletop-developer-consortium/40kdc-data) under CC BY 4.0. See [catalogue/README.md](catalogue/README.md) for data sources and licenses.
 
 ## License
 

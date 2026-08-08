@@ -1,22 +1,20 @@
-# BattleBase parity
+# Product design
 
-Praetorium uses BattleBase's web interface as a reference for information architecture, density, and vocabulary. It uses the phone app's dark palette. Matching exact fonts or pixels is not a goal.
-
-The reference is useful because players already understand it. Praetorium can differ when its two-player command log, catalogue data, or product scope requires a different design.
+Praetorium uses a compact, dark interface designed for two players at a table. The roster builder favors information density. The battle tracker favors clear ownership and large controls.
 
 ## Scope
 
-Parity includes:
+Praetorium includes:
 
-- New Recruit-style roster construction, validation, import, and export.
-- BattleBase-style roster presentation and battle tracking.
+- Catalogue-backed roster construction, validation, import, and export.
+- Compact roster presentation and battle tracking.
 - One synchronized battle shared by two signed-in players.
 
-Parity does not include rankings, events, leagues, locations, friends, public battle discovery, chat, matchmaking, a rules encyclopedia, model positions, or wound allocation.
+It does not include rankings, events, leagues, locations, friends, public battle discovery, chat, matchmaking, a rules encyclopedia, model positions, or wound allocation.
 
-## Interface reference
+## Interface
 
-Use these BattleBase web patterns unless Praetorium has a documented reason to differ:
+Use these patterns consistently:
 
 - A dense three-column roster builder on desktop.
 - Picker, roster, and loadout panes with one clear task each.
@@ -26,7 +24,7 @@ Use these BattleBase web patterns unless Praetorium has a documented reason to d
 
 On phones, Praetorium keeps the roster visible and moves the picker or loadout into one sheet. The battle tracker uses one scrolling column with a fixed two-player scoreboard.
 
-Reference screenshots are not stored in this repository. They can contain private roster and battle data. Capture new references when needed and keep them outside version control.
+Keep screenshots that contain roster or battle data outside version control.
 
 ## Current coverage
 
@@ -44,7 +42,7 @@ Reference screenshots are not stored in this repository. They can contain privat
 
 ## Known data limits
 
-`just points` currently matches 99.6% of 1,863 Munitorum checks. The remaining differences are upstream prices for four Deathwatch datasheets. Keep new mismatches out of the baseline.
+`just points` currently matches 99.6% of 1,863 reference checks. Keep new mismatches out of the baseline.
 
 The fetched sources do not provide every mission-pack restriction or every prose replacement rule as structured data. Praetorium reports missing semantics instead of reconstructing them from memory.
 

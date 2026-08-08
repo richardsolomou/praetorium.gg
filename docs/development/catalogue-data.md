@@ -52,7 +52,7 @@ Praetorium builds and validates rosters from fetched community data. The domain 
 
 ## Points ratchet
 
-`just points` builds units with the same `buildUnit` function as the app and compares them with the Munitorum source. It currently matches 99.6% of 1,863 checks.
+`just points` builds units with the same `buildUnit` function as the app and compares them with the points reference. It currently matches 99.6% of 1,863 checks.
 
 The remaining differences are upstream prices for Deathwatch Terminators, Fortis Kill Teams, Indomitor Kill Teams, and Spectrus Kill Teams. A lower match rate is a regression unless the generated check set changed and the new baseline is explained.
 

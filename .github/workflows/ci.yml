@@ -98,7 +98,7 @@ jobs:
           key: catalogue-${{ hashFiles('catalogue/sources.json') }}
       - if: steps.catalogue.outputs.cache-hit != 'true'
         run: just catalogue-sync
-      # The ratchet: agreement with Games Workshop's own points must not fall.
+      # The points reference match rate must not fall.
       - run: just points | tee points.txt
       - name: Hold the agreement above its floor
         run: |

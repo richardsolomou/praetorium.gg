@@ -1,6 +1,6 @@
 # Interface
 
-Praetorium follows BattleBase's information architecture with a dark visual system. See [the parity guide](../parity.md) for the current comparison.
+Praetorium uses a compact, dark visual system. See [the product design guide](../product-design.md) for its scope and layout.
 
 ## Layout
 
