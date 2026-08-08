@@ -34,3 +34,16 @@ it('keeps the authoritative catalogue ready when optional descriptions change up
   await syncSources(directory, (message) => messages.push(message))
   expect(isCurrent(directory) && messages.some((message) => message.startsWith('wahapedia: descriptions unavailable'))).toBe(true)
 })
+
+it('refetches a pinned export when a configured file is missing', async () => {
+  const revisions = JSON.parse(fs.readFileSync(path.join(directory, 'revision.json'), 'utf8'))
+  fs.writeFileSync(path.join(directory, 'revision.json'), JSON.stringify({ ...revisions, wahapedia: sources.wahapedia.revision }))
+  fs.mkdirSync(path.join(directory, 'wahapedia'))
+  for (const name of Object.keys(sources.wahapedia.files).slice(1)) fs.writeFileSync(path.join(directory, 'wahapedia', name), '')
+  const fetch = vi.fn<() => Promise<Response>>(async () => new Response('changed export'))
+  vi.stubGlobal('fetch', fetch)
+
+  await syncSources(directory, () => {})
+
+  expect(fetch).toHaveBeenCalled()
+})

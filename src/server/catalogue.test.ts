@@ -7,6 +7,7 @@ import {
   detachmentsOf,
   factionsIn,
   type LoadedCatalogue,
+  rulesReferencedIn,
   unitsIn,
 } from './catalogue'
 
@@ -481,6 +482,13 @@ describe('a datasheet', () => {
 
     expect(datasheetIn(book, 'cat', 'lord')?.keywordRules).toEqual([
       { name: 'Devastating Wounds', description: 'Critical wounds inflict mortal wounds.' },
+    ])
+  })
+
+  it('finds rule definitions referenced by catalogue formatting', () => {
+    const book = bookOf({ sharedRules: [{ id: 'feel-no-pain', name: 'Feel No Pain', description: 'Ignore lost wounds.' }] })
+    expect(rulesReferencedIn(book, ['This model has **Feel No Pain 4+** and ^^**VEHICLE^^**.'])).toEqual([
+      { name: 'Feel No Pain', description: 'Ignore lost wounds.' },
     ])
   })
 })

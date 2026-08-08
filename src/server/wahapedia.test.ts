@@ -20,6 +20,31 @@ it('reads multiline HTML descriptions as plain text', () => {
   )
 })
 
+it('reads every ability belonging to a detachment', () => {
+  write(
+    'Detachment_abilities.csv',
+    'name|detachment|description|\nCold Fervour|Cursed Legion|<b>First rule.</b>|\nShared Madness|Cursed Legion|Second rule.|\n',
+  )
+  write('Stratagems.csv', 'name|detachment|description|\n')
+  write('Enhancements.csv', 'name|detachment|description|\n')
+  expect(loadWahapediaDescriptions(directory)?.detachmentAbilities.get('cursed-legion')).toEqual([
+    { name: 'Cold Fervour', description: 'First rule.' },
+    { name: 'Shared Madness', description: 'Second rule.' },
+  ])
+})
+
+it('reads unambiguous datasheet ability descriptions', () => {
+  write('Abilities.csv', 'name|description|\nOath of Moment|Re-roll Hit rolls.|\n')
+  write('Datasheets_abilities.csv', 'name|description|\nOath of Moment|Re-roll Hit rolls.|\n')
+  expect(loadWahapediaDescriptions(directory)?.abilities.get('oath-of-moment')).toBe('Re-roll Hit rolls.')
+})
+
+it('drops datasheet ability names with conflicting descriptions', () => {
+  write('Abilities.csv', 'name|description|\nShared Name|First rule.|\n')
+  write('Datasheets_abilities.csv', 'name|description|\nShared Name|Second rule.|\n')
+  expect(loadWahapediaDescriptions(directory)?.abilities.has('shared-name') ?? false).toBe(false)
+})
+
 it('drops conflicting descriptions for the same rule', () => {
   write(
     'Stratagems.csv',

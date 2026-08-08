@@ -87,7 +87,7 @@ test('a player can enter through the roster library and browse the product', asy
     page
       .getByRole('heading', { name: /Stratagems/ })
       .locator('..')
-      .locator('article > p'),
+      .locator('article > div:last-child'),
   ).toHaveCount(6)
   await expect(page.getByText(/Tabletop Developer Consortium/)).toBeVisible()
   await expect(page.getByText(/Descriptions provided by Wahapedia/)).toBeVisible()

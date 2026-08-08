@@ -82,7 +82,8 @@ export async function syncSources(directory: string, report: (message: string) =
 
 async function syncWahapedia(directory: string, report: (message: string) => void) {
   const target = path.join(directory, 'wahapedia')
-  if (localRevisions(directory).wahapedia === sources.wahapedia.revision && fs.existsSync(target)) return
+  const complete = Object.keys(sources.wahapedia.files).every((name) => fs.existsSync(path.join(target, name)))
+  if (localRevisions(directory).wahapedia === sources.wahapedia.revision && complete) return
   report(`wahapedia: fetching export from ${sources.wahapedia.revision}`)
   try {
     await fetchWahapediaInto(sources.wahapedia, target)

@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import type { Stratagem, StratagemLimit } from '../core/battle'
-import { findDescription, loadWahapediaDescriptions, WAHAPEDIA_ATTRIBUTION } from './wahapedia'
+import { findDescription, findDetachmentAbilities, loadWahapediaDescriptions, WAHAPEDIA_ATTRIBUTION } from './wahapedia'
 
 /**
  * Stratagems and secondary mission cards, from the Tabletop Developer Consortium's
@@ -128,6 +128,7 @@ type DetachmentRulesDetail = {
   name: string
   points: number | null
   dispositions: string[]
+  rules: { name: string; description: string }[]
   enhancements: { name: string; points: number | null; description: string | null }[]
   stratagems: {
     id: string
@@ -142,6 +143,7 @@ type DetachmentRulesDetail = {
 
 export type LoadedRules = {
   attribution: string
+  abilityDescriptions: ReadonlyMap<string, string>
   /** Faction slug then detachment slug, so a chosen detachment maps straight to its six. */
   byDetachment: Map<string, Map<string, Stratagem[]>>
   /** Display metadata for each detachment, from the same licensed source as its stratagems. */
@@ -218,6 +220,7 @@ export function loadRules(
               name: detachment.name,
               points: detachment.detachment_points ?? null,
               dispositions: detachment.force_dispositions ?? [],
+              rules: wahapedia ? [...findDetachmentAbilities(wahapedia.detachmentAbilities, detachment.name)] : [],
               enhancements: enhancements
                 .filter((enhancement) => enhancement.detachment_id === detachment.id)
                 .map((enhancement) => ({
@@ -306,6 +309,7 @@ export function loadRules(
   if (!byDetachment.size && !secondaries.length) return null
   return {
     attribution: wahapedia ? `${ATTRIBUTION}. ${WAHAPEDIA_ATTRIBUTION}.` : ATTRIBUTION,
+    abilityDescriptions: wahapedia?.abilities ?? new Map(),
     byDetachment,
     detachmentReferences,
     detachmentDetails,

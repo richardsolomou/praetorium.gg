@@ -42,6 +42,11 @@ beforeEach(() => {
   const wahapedia = path.join(directory, 'wahapedia')
   fs.mkdirSync(wahapedia)
   fs.writeFileSync(
+    path.join(wahapedia, 'Detachment_abilities.csv'),
+    'name|detachment|description|\nVirulent Vectorium|Flyblown Host|<b>Spread disease.</b>|\n',
+  )
+  fs.writeFileSync(path.join(wahapedia, 'Abilities.csv'), 'name|description|\nOath of Moment|Re-roll Hit rolls.|\n')
+  fs.writeFileSync(
     path.join(wahapedia, 'Stratagems.csv'),
     'name|detachment|description|\nGRIM REAPERS|Flyblown Host|<b>Cut them down.</b>|\n',
   )
@@ -93,6 +98,10 @@ const box = (width: number, height: number) => [
 const load = () => loadRules(directory, path.join(directory, 'wahapedia'))!
 
 describe('stratagems', () => {
+  it('keeps descriptions that supplement datasheet abilities', () => {
+    expect(load().abilityDescriptions.get('oath-of-moment')).toBe('Re-roll Hit rolls.')
+  })
+
   it('keeps the player-facing faction name', () => {
     expect(load().factionNames.get('death-guard')).toBe('Death Guard')
   })
@@ -108,6 +117,7 @@ describe('stratagems', () => {
 
   it('keeps the detail needed by the detachment reference page', () => {
     expect(load().detachmentDetails.get('death-guard')?.get('flyblown-host')).toMatchObject({
+      rules: [{ name: 'Virulent Vectorium', description: 'Spread disease.' }],
       enhancements: [
         { name: 'Living Plague', points: 20, description: 'Spread the plague.' },
         { name: 'Rejuvenating Swarm', points: 10, description: 'Return models.' },

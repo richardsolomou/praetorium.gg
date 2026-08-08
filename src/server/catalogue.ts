@@ -364,6 +364,30 @@ export function datasheetIn(loaded: LoadedCatalogue, catalogueId: string, entryI
   }
 }
 
+export function rulesReferencedIn(loaded: LoadedCatalogue, texts: readonly (string | null)[]) {
+  const references = new Set(
+    texts.flatMap((text) =>
+      [...(text ?? '').matchAll(/\*\*(.*?)\*\*|\^\^(.*?)\^\^/g)].map((match) => (match[1] ?? match[2] ?? '').replaceAll(/\*\*|\^\^/g, '')),
+    ),
+  )
+  const candidates = new Map<string, Set<string>>()
+  for (const rule of loaded.index.rules.values()) {
+    if (!rule.name || !rule.description) continue
+    const name = rule.name.toLocaleLowerCase()
+    if (
+      ![...references].some((reference) => reference.toLocaleLowerCase() === name || reference.toLocaleLowerCase().startsWith(`${name} `))
+    ) {
+      continue
+    }
+    const descriptions = candidates.get(rule.name) ?? new Set<string>()
+    descriptions.add(rule.description)
+    candidates.set(rule.name, descriptions)
+  }
+  return [...candidates].flatMap(([name, descriptions]) =>
+    descriptions.size === 1 ? [{ name, description: descriptions.values().next().value! }] : [],
+  )
+}
+
 const GROUP_BY_CATEGORY = new Map<string, UnitGroup>([
   ['character', 'character'],
   ['battleline', 'battleline'],
