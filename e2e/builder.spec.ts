@@ -290,6 +290,11 @@ test('a smaller desktop keeps the picker, roster and loadout visible', async ({ 
   expect(heading && points && points.y >= heading.y + heading.height).toBe(true)
 
   await page.setViewportSize({ width: 1280, height: 800 })
+  await expect(datasheet).toBeHidden()
+  expect((await picker.boundingBox())?.width).toBe(340)
+  expect((await loadout.boundingBox())?.width).toBe(340)
+
+  await page.setViewportSize({ width: 1440, height: 900 })
   await expect(datasheet).toBeVisible()
   await expect(datasheet.getByText('Datasheet abilities')).toBeVisible()
   await expect(loadout.getByText('Ranged weapons', { exact: true })).toBeVisible()
