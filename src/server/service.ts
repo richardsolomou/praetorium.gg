@@ -9,31 +9,22 @@ import {
   type Secondary,
   type Stratagem,
 } from '../core/battle'
+import type { RosterPick } from '../core/roster'
 import type { BattleSeats, JoinResult, Repository, SubmitResult } from '../db/repository'
 import { createId, createToken } from './crypto'
 import { type Mission, missionFor } from './rules'
 import { picksSchema, savedPrepSchema } from './schemas'
+
+type SavedPrep = { stratagems: Stratagem[]; secondaries: Secondary[] }
+
+type SeatedScreen = { kind: 'battle'; view: BattleView; mission: Mission | null }
 
 /**
  * What someone holding the link gets: the battle itself once they have a seat,
  * or the invitation until they take one. Reading a battle never seats anyone —
  * a link preview must not be able to take the second chair.
  */
-export type Pick = {
-  entryId: string
-  catalogueId?: string
-  models?: number
-  choices?: Record<string, string>
-  spreads?: Record<string, Record<string, number>>
-  toggles?: Record<string, number>
-  attachedTo?: number
-}
-
-export type SavedPrep = { stratagems: Stratagem[]; secondaries: Secondary[] }
-
-export type SeatedScreen = { kind: 'battle'; view: BattleView; mission: Mission | null }
-
-export type BattleScreen = SeatedScreen | { kind: 'invitation'; free: boolean }
+type BattleScreen = SeatedScreen | { kind: 'invitation'; free: boolean }
 
 /**
  * What a command answers: what happened to it, and what the battle now is.
@@ -43,7 +34,7 @@ export type BattleScreen = SeatedScreen | { kind: 'invitation'; free: boolean }
  * round trip later, a page acts on a view it has already changed — sending a seq
  * from before its own command, or naming the wrong command to undo.
  */
-export type SubmitAnswer = { result: SubmitResult; screen: SeatedScreen }
+type SubmitAnswer = { result: SubmitResult; screen: SeatedScreen }
 
 export class PraetoriumService {
   constructor(
@@ -52,13 +43,9 @@ export class PraetoriumService {
     private readonly events: BattleEvents,
   ) {}
 
-  player(playerId: string) {
-    return this.repository.player(playerId)
-  }
-
   /** A player's battles with their current state folded from each log. */
   battles(playerId: string) {
-    return this.repository.battlesOf(playerId).map((seats) => {
+    return this.repository.battlesByPlayer(playerId).map((seats) => {
       const log = this.repository.log(seats.battle.id)
       const state = reduceBattle(
         seats.players.map((player) => player.id),
@@ -79,12 +66,6 @@ export class PraetoriumService {
   }
 
   /**
-   * The player an account is, claiming the guest in hand when it has none yet.
-   *
-   * Signing in must not cost someone their saved lists, so an account adopts the
-   * guest identity it arrives with rather than starting a fresh one.
-   */
-  /**
    * The player behind an account, minted on first sight.
    *
    * An account is the only way to be anyone here, so this is the one place a
@@ -92,7 +73,7 @@ export class PraetoriumService {
    * points at `players.id`, which never changes, so renaming is free.
    */
   playerForUser(userId: string, name: string) {
-    const existing = this.repository.playerOfUser(userId)
+    const existing = this.repository.playerByUserId(userId)
     if (existing) {
       if (existing.name !== name) this.repository.upsertPlayer({ id: existing.id, name, userId, now: this.clock() })
       return existing.id
@@ -110,7 +91,7 @@ export class PraetoriumService {
       catalogueId: string
       detachmentIds: readonly string[]
       limit: number
-      picks: readonly Pick[]
+      picks: readonly RosterPick[]
       prep: SavedPrep | null
     },
   ) {
@@ -129,7 +110,7 @@ export class PraetoriumService {
 
   /** A player's own saved lists, newest first. Their picks come back parsed. */
   savedRosters(playerId: string) {
-    return this.repository.rostersOf(playerId).map((row) => ({
+    return this.repository.rostersByPlayer(playerId).map((row) => ({
       id: row.id,
       name: row.name,
       catalogueId: row.catalogueId,
@@ -163,7 +144,7 @@ export class PraetoriumService {
 
   /** The datasheets a player owns, as a set the picker can ask about directly. */
   collection(playerId: string) {
-    return this.repository.collectionOf(playerId).map((row) => row.entryId)
+    return this.repository.collectionByPlayer(playerId).map((row) => row.entryId)
   }
 
   setOwned(playerId: string, entryId: string, owned: boolean) {

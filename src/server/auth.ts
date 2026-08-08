@@ -3,13 +3,10 @@ import { drizzleAdapter } from 'better-auth/adapters/drizzle'
 import crypto from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
+import { PASSWORD_MIN_LENGTH, SOCIAL_PROVIDERS, type SocialProvider } from '../authConfig'
 import type { PraetoriumDatabase } from '../db/connection'
 import { schema } from '../db/schema'
-
-export const SOCIAL_PROVIDERS = ['google', 'discord'] as const
-export type SocialProvider = (typeof SOCIAL_PROVIDERS)[number]
-
-export const PASSWORD_MIN_LENGTH = 10
+import { forwardedOrigin } from './requestOrigin'
 
 /**
  * Kept beside the database so an operator needs no configuration, and so sessions
@@ -76,9 +73,8 @@ export function createAuth(database: PraetoriumDatabase, secret: string) {
     session: { expiresIn: 60 * 60 * 24 * 90, updateAge: 60 * 60 * 24 },
     advanced: {
       useSecureCookies: (process.env.APP_URL ?? '').startsWith('https://'),
-      // Behind Cloudflare and Traefik every request arrives from the proxy, so
-      // without this the limits above are one bucket for the whole internet and a
-      // single noisy client locks everyone out.
+      // Behind a reverse proxy, the socket address would put every visitor into
+      // one rate-limit bucket.
       ipAddress: { ipAddressHeaders: ['cf-connecting-ip', 'x-forwarded-for'] },
     },
     trustedOrigins: (request) => {
@@ -86,15 +82,4 @@ export function createAuth(database: PraetoriumDatabase, secret: string) {
       return forwarded ? [forwarded] : []
     },
   })
-}
-
-function forwardedOrigin(request: Request) {
-  const host = request.headers.get('x-forwarded-host')?.split(',')[0]?.trim() || request.headers.get('host')?.trim()
-  const protocol = request.headers.get('x-forwarded-proto')?.split(',')[0]?.trim()
-  if (!host || (protocol !== 'http' && protocol !== 'https')) return undefined
-  try {
-    return new URL(`${protocol}://${host}`).origin
-  } catch {
-    return undefined
-  }
 }

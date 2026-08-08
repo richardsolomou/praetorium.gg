@@ -17,7 +17,7 @@ import type { Selection } from './evaluate'
 /** Crusade and campaign subtrees run deep and none of it is mandatory. */
 const MAX_DEPTH = 4
 
-export type DefaultOptions = { maxDepth?: number }
+type DefaultOptions = { maxDepth?: number }
 
 /**
  * What a player picked, in the form a saved list keeps.
@@ -28,6 +28,8 @@ export type DefaultOptions = { maxDepth?: number }
  */
 export type RosterPick = {
   entryId: string
+  /** The catalogue that owns an allied unit; absent for the primary force. */
+  catalogueId?: string
   models?: number
   choices?: Record<string, string>
   /**
@@ -39,6 +41,8 @@ export type RosterPick = {
   spreads?: Record<string, Record<string, number>>
   /** Optional single entries such as Warlord, keyed by their catalogue path. */
   toggles?: Record<string, number>
+  /** The position of the unit this one joins in the saved pick list. */
+  attachedTo?: number
 }
 
 /**
@@ -239,7 +243,7 @@ function applyCount(selection: Selection, path: readonly string[], count: number
  * an individual occupant: a group of five to ten holding a sergeant and a body
  * would otherwise report a minimum of six for a five-model squad.
  */
-export type UnitSize = { min: number; max: number; models: number; path: string[] }
+type UnitSize = { min: number; max: number; models: number; path: string[] }
 
 type BoundedGroup = { min: number; max: number; total: number; adjust: string[] }
 
@@ -259,7 +263,7 @@ export function modelCountOf(selection: Selection, index: CatalogueIndex): numbe
 /** Whether the data lets a player change how many models this unit fields. */
 export const isResizable = (size: UnitSize) => size.path.length > 0 && size.max > size.min
 
-export type UnitToggle = { key: string; name: string; selected: boolean }
+type UnitToggle = { key: string; name: string; selected: boolean }
 export type BuiltUnit = { selection: Selection; size: UnitSize; choices: UnitChoice[]; toggles: UnitToggle[] }
 
 /** The unit as the data hands it over, with the player's choices taken and resized to `models`. */
@@ -529,7 +533,7 @@ function countAt(selection: Selection, path: readonly string[]): number {
 }
 
 /** A decision the data leaves to the player: one of these, in this slot. */
-export type UnitChoice = {
+type UnitChoice = {
   /** Path to the group holding the options, as a `/`-joined key the caller can round-trip. */
   key: string
   name: string

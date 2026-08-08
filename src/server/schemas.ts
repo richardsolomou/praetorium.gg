@@ -1,7 +1,12 @@
 import { z } from 'zod'
+import { ROSTER_NAME_MAX_LENGTH, SECONDARIES_MAX, STRATAGEM_CP_MAX, STRATAGEM_LIMITS, STRATAGEMS_MAX } from '../core/battle'
 import { commandSchema } from '../core/commands'
 
-const token = z.string().min(1).max(64)
+const id = z.string().min(1).max(64)
+const token = id
+const catalogueId = id
+const slug = z.string().min(1).max(160)
+const rosterLimit = z.number().int().min(0).max(10_000)
 
 export const tokenSchema = z.object({ token })
 
@@ -13,26 +18,24 @@ export const joinBattleSchema = tokenSchema
  */
 export const submitSchema = z.object({ token, expectedSeq: z.number().int().min(0), command: commandSchema })
 
-const catalogueId = z.string().min(1).max(64)
-
 export const unitsSchema = z.object({
   catalogueId,
   query: z.string().max(80).default(''),
   /** Legends are left out of the book unless the player asks for them. */
   legends: z.boolean().default(false),
 })
-export const datasheetSchema = z.object({ catalogueId, entryId: z.string().min(1).max(64) })
-export const datasheetSlugSchema = z.object({ catalogueId, slug: z.string().min(1).max(160) })
+export const datasheetSchema = z.object({ catalogueId, entryId: id })
+export const datasheetSlugSchema = z.object({ catalogueId, slug })
 
 /**
  * A list is sent as the entries the player picked and how many models they want
  * in each; the server expands every one to a legal selection.
  */
 const pickSchema = z.object({
-  entryId: z.string().min(1).max(64),
-  catalogueId: z.string().min(1).max(64).optional(),
+  entryId: id,
+  catalogueId: id.optional(),
   models: z.number().int().min(1).max(60).optional(),
-  choices: z.record(z.string().max(400), z.string().min(1).max(64)).optional(),
+  choices: z.record(z.string().max(400), id).optional(),
   /**
    * Group path to how many of each option it holds, for groups holding more than
    * one — a squad splitting its weapons between two.
@@ -53,38 +56,39 @@ const prepSchema = z.object({
   stratagems: z
     .array(
       z.object({
-        key: z.string().min(1).max(64),
-        name: z.string().min(1).max(80),
-        cp: z.number().int().min(0).max(6),
-        limit: z.enum(['phase', 'turn', 'battle', 'unlimited']),
+        key: id,
+        name: z.string().min(1).max(ROSTER_NAME_MAX_LENGTH),
+        cp: z.number().int().min(0).max(STRATAGEM_CP_MAX),
+        limit: z.enum(STRATAGEM_LIMITS),
       }),
     )
-    .max(24),
-  secondaries: z.array(z.object({ key: z.string().min(1).max(64), name: z.string().min(1).max(80) })).max(6),
+    .max(STRATAGEMS_MAX),
+  secondaries: z.array(z.object({ key: id, name: z.string().min(1).max(ROSTER_NAME_MAX_LENGTH) })).max(SECONDARIES_MAX),
 })
 
 export const saveRosterSchema = z.object({
-  id: z.string().min(1).max(64).optional(),
-  name: z.string().trim().min(1, 'name the list').max(80),
+  id: id.optional(),
+  name: z.string().trim().min(1, 'name the list').max(ROSTER_NAME_MAX_LENGTH),
   catalogueId,
-  detachmentIds: z.array(z.string().min(1).max(64)).max(3),
-  limit: z.number().int().min(0).max(10_000),
+  detachmentIds: z.array(id).max(3),
+  limit: rosterLimit,
   picks: z.array(pickSchema).max(100),
   prep: prepSchema.nullable(),
 })
 
 /** A roster file as text: `.ros` directly, or the XML lifted out of a `.rosz`. */
 export const importRosterSchema = z.object({ file: z.string().min(1).max(4_000_000), name: z.string().max(120).optional() })
+export type ImportRosterInput = z.infer<typeof importRosterSchema>
 
 export const detachmentRulesSchema = z.object({
   catalogueId,
   detachmentNames: z.array(z.string().min(1).max(120)).min(1).max(3),
 })
-export const detachmentDetailSchema = z.object({ catalogueId, slug: z.string().min(1).max(160) })
+export const detachmentDetailSchema = z.object({ catalogueId, slug })
 
-export const rosterIdSchema = z.object({ id: z.string().min(1).max(64) })
+export const rosterIdSchema = z.object({ id })
 
-export const ownedSchema = z.object({ entryId: z.string().min(1).max(64), owned: z.boolean() })
+export const ownedSchema = z.object({ entryId: id, owned: z.boolean() })
 
 /** Saved rows are read back through these, so a hand-edited one fails loudly. */
 export const picksSchema = z.array(pickSchema).max(100)
@@ -92,29 +96,13 @@ export const savedPrepSchema = prepSchema
 
 export const priceSchema = z.object({
   catalogueId,
-  detachmentIds: z.array(z.string().min(1).max(64)).max(3),
-  limit: z.number().int().min(0).max(10_000),
-  units: z
-    .array(
-      z.object({
-        entryId: z.string().min(1).max(64),
-        catalogueId: z.string().min(1).max(64).optional(),
-        models: z.number().int().min(1).max(60).optional(),
-        /** Group path to chosen option, as `unitChoices` reports it. */
-        choices: z.record(z.string().max(400), z.string().min(1).max(64)).optional(),
-        /**
-         * Group path to how many of each option it holds, for groups holding more than
-         * one — a squad splitting its weapons between two.
-         */
-        spreads: z.record(z.string().max(400), z.record(z.string().max(64), z.number().int().min(0).max(60))).optional(),
-        toggles: z.record(z.string().max(400), z.number().int().min(0).max(1)).optional(),
-        attachedTo: z.number().int().min(0).max(99).optional(),
-      }),
-    )
-    .max(100),
+  detachmentIds: z.array(id).max(3),
+  limit: rosterLimit,
+  units: z.array(pickSchema).max(100),
 })
 
 export type PriceInput = z.infer<typeof priceSchema>
 
 /** Exports whatever the builder is showing, so it works before a list is attached. */
 export const exportRosterSchema = priceSchema.extend({ name: z.string().trim().min(1).max(120) })
+export type ExportRosterInput = z.infer<typeof exportRosterSchema>

@@ -1,40 +1,40 @@
 # Running locally
 
-Node 24.x, pnpm 11.15.0 and just 1.58.0, all pinned — the first two in `package.json`, all three in `mise.toml`.
+Node 24.x, pnpm 11.15.0, and just 1.58.0 are pinned in `package.json` and `mise.toml`.
 
 ```sh
 just install
-just catalogue-sync    # optional, enables list building
+just catalogue-sync
 just dev
 ```
 
-`just dev` runs Centrifugo alongside the app and takes it down again on the way out, so live updates work without a second terminal and no stray container outlives the one you started it from. The dev server proxies `/connection` to it, which keeps the browser on one origin exactly as it is in production.
+The catalogue sync is optional unless you need list building. Without it, the app serves battles and supports pasted rosters.
 
-`just` with no recipe lists them all. Every recipe is a thin wrapper over the `pnpm` script underneath, so either works; CI uses the pnpm scripts directly, which is why they stay.
+`just dev` starts the app and Centrifugo. The Vite server proxies `/connection` so realtime traffic stays on the app origin.
 
-Without a synced catalogue the app starts and serves battles; it simply offers pasting a list instead of building one. The sync fetches about 130MB from three pinned community repositories into `catalogue-data/`, which is gitignored.
+Run `just` without a recipe to list all commands. Each recipe wraps a `pnpm` script. CI uses the `pnpm` scripts directly.
 
 ## Checks
 
-`just check` is the whole gate, and it is what CI runs: format, lint, `db:check`, `catalogue:check`, build, typecheck, unit tests.
+`just check` runs formatting, lint, database checks, catalogue checks, the production build, type checking, and unit tests.
 
-The build runs **before** typecheck because it generates `src/routeTree.gen.ts` — on a fresh clone typecheck fails until you have built once.
+The build runs before type checking because it generates `src/routeTree.gen.ts`.
 
-Lint and format are oxlint and oxfmt, not ESLint and Prettier. Warnings are denied. `scripts/**` is exempt from two rules that only make sense inside the app.
+The repository uses oxlint and oxfmt. Lint warnings fail the check.
 
 ## Tests
 
-- `just test` — Vitest, everything under `src`.
-- `just e2e` — builds the container image, then drives real browsers against it. `just e2e-run` reuses the image already built, `just e2e-trace` records a trace, and `just e2e-install` fetches Chromium once. Docker is required, because Centrifugo and Caddy are part of how a request is served and a suite that skipped them would be testing a topology nobody deploys.
-- `just points` — the points ratchet. Slow, and not part of `check`; CI runs it on its own.
+- `just test` runs Vitest for `src`.
+- `just e2e` builds the production container and runs Playwright. Use `just e2e-run` to reuse the image, `just e2e-trace` to record a trace, and `just e2e-install` to install Chromium.
+- `just points` runs the points ratchet. It is not part of `just check`.
 
-The e2e container mounts `catalogue-data/`, so list building is exercised against the real data. Run `just catalogue-sync` first or those specs fail.
+The end-to-end container mounts `catalogue-data/`. Sync the catalogue before running list-building tests.
 
-Two traps worth knowing before writing a spec:
+Two Playwright rules matter:
 
-- **An open battle page never reaches network idle** — it holds the event stream open forever. Waiting for `networkidle` hangs until it times out; wait for an element instead.
-- **`data-unit` is how a spec finds a unit card.** CSS uppercases the names, so the DOM holds "Overlord" while the page shows "OVERLORD"; matching on visible text is a trap that has cost two rounds of spec fixes.
+- An open battle page keeps the event stream active. Wait for a page element instead of `networkidle`.
+- Find unit cards with `data-unit`. CSS changes the displayed case, so visible-text selectors are unreliable.
 
 ## Database
 
-Migrations are generated with `just db-generate` and never hand-edited once applied. `drizzle/` is copied into `.output/server/drizzle` by the build so the production server can run them.
+Generate migrations with `just db-generate`. Do not edit an applied migration. The build copies `drizzle/` into `.output/server/drizzle` for production.

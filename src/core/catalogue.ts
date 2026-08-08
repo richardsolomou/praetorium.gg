@@ -14,20 +14,11 @@
  * Nothing in this file reads the filesystem or the network.
  */
 
-export type CostType = { id: string; name: string; defaultCostLimit?: number; hidden?: boolean }
+type CostType = { id: string; name: string; defaultCostLimit?: number; hidden?: boolean }
 
 export type Cost = { name: string; typeId: string; value: number }
 
-export type ConditionType =
-  | 'atLeast'
-  | 'atMost'
-  | 'equalTo'
-  | 'greaterThan'
-  | 'lessThan'
-  | 'instanceOf'
-  | 'notInstanceOf'
-  | 'before'
-  | 'after'
+type ConditionType = 'atLeast' | 'atMost' | 'equalTo' | 'greaterThan' | 'lessThan' | 'instanceOf' | 'notInstanceOf' | 'before' | 'after'
 
 /**
  * `field` is what to measure: `selections`, `forces`, or a cost type id.
@@ -46,7 +37,7 @@ export type Condition = {
   includeChildForces?: boolean
 }
 
-export type ConditionGroupType = 'and' | 'or' | 'atLeast' | 'atMost' | 'equalTo'
+type ConditionGroupType = 'and' | 'or' | 'atLeast' | 'atMost' | 'equalTo'
 
 export type ConditionGroup = {
   type: ConditionGroupType
@@ -86,7 +77,7 @@ export type Repeat = {
   roundUp?: boolean
 }
 
-export type ModifierType =
+type ModifierType =
   | 'set'
   | 'increment'
   | 'decrement'
@@ -128,7 +119,7 @@ export type Constraint = {
   percentValue?: boolean
 }
 
-export type EntryType = 'model' | 'unit' | 'upgrade' | 'model-or-unit'
+type EntryType = 'model' | 'unit' | 'upgrade' | 'model-or-unit'
 
 /**
  * Membership of a keyword group — CHARACTER, INFANTRY, "Faction: Death Guard".
@@ -137,7 +128,7 @@ export type EntryType = 'model' | 'unit' | 'upgrade' | 'model-or-unit'
  * model of its own faction, and that is written as a category test rather than a
  * name test.
  */
-export type CategoryLink = { id: string; targetId: string; name?: string; primary?: boolean }
+type CategoryLink = { id: string; targetId: string; name?: string; primary?: boolean }
 
 /**
  * A keyword, and what it limits.
@@ -146,7 +137,7 @@ export type CategoryLink = { id: string; targetId: string; name?: string; primar
  * here rather than on the datasheet: every unit has a category named after itself,
  * and that category carries the number.
  */
-export type CategoryEntry = {
+type CategoryEntry = {
   id: string
   name?: string
   constraints?: Constraint[]
@@ -155,7 +146,7 @@ export type CategoryEntry = {
 }
 
 /** `$text` is where the JSON puts a characteristic's words. */
-export type Characteristic = { name?: string; $text?: string }
+type Characteristic = { name?: string; $text?: string }
 
 export type Profile = { id: string; name?: string; typeName?: string; hidden?: boolean; characteristics?: Characteristic[] }
 
@@ -163,7 +154,7 @@ export type Profile = { id: string; name?: string; typeName?: string; hidden?: b
 export type InfoGroup = { id: string; name?: string; hidden?: boolean; profiles?: Profile[]; infoLinks?: InfoLink[] }
 
 /** Display text defined once and referenced by a detachment or datasheet. */
-export type Rule = { id: string; name?: string; description?: string; hidden?: boolean }
+type Rule = { id: string; name?: string; description?: string; hidden?: boolean }
 
 /** A reference to a profile or info group defined once at the catalogue's top level. */
 export type InfoLink = { id: string; targetId: string; name?: string; hidden?: boolean; type?: 'profile' | 'infoGroup' | 'rule' }
@@ -189,7 +180,7 @@ type Common = {
 export type SelectionEntry = Common & { type?: EntryType; collective?: boolean }
 
 /** A container around entries. Having no type of its own is what distinguishes it. */
-export type SelectionEntryGroup = Common & { type?: undefined; defaultSelectionEntryId?: string }
+type SelectionEntryGroup = Common & { type?: undefined; defaultSelectionEntryId?: string }
 
 /** A reference to an entry or group defined elsewhere, carrying its own local additions. */
 export type EntryLink = Common & { targetId: string; type?: 'selectionEntry' | 'selectionEntryGroup'; import?: boolean }
@@ -203,7 +194,7 @@ export type EntryLink = Common & { targetId: string; type?: 'selectionEntry' | '
  * every link as the first would offer a Daemons player the whole Traitor Legions
  * range.
  */
-export type CatalogueLink = { targetId: string; name?: string; importRootEntries?: boolean }
+type CatalogueLink = { targetId: string; name?: string; importRootEntries?: boolean }
 
 export type Catalogue = {
   id: string
@@ -228,7 +219,7 @@ export type Catalogue = {
 /** A parsed file: the game system and every catalogue arrive in the same envelope. */
 export type CatalogueFile = { gameSystem?: Catalogue; catalogue?: Catalogue }
 
-export const POINTS_COST_NAME = 'pts'
+const POINTS_COST_NAME = 'pts'
 
 export type Definition = SelectionEntry | SelectionEntryGroup | EntryLink
 
@@ -372,7 +363,7 @@ export function nameOf(definition: Definition, definitions: ReadonlyMap<string, 
  * are the same thing only when a book writes a datasheet out rather than linking
  * one — and most of the game is linked.
  */
-export function rootEntriesOf(book: Catalogue, definitions: ReadonlyMap<string, Definition>) {
+function rootEntriesOf(book: Catalogue, definitions: ReadonlyMap<string, Definition>) {
   const found: { id: string; targetId: string }[] = []
   for (const entry of book.selectionEntries ?? []) {
     if (entry.type === 'unit' || entry.type === 'model') found.push({ id: entry.id, targetId: entry.id })

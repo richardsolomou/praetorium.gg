@@ -37,13 +37,13 @@ export type LoadedCatalogue = {
   detachments: Map<string, DetachmentOptions>
 }
 
-export type CatalogueReference = { id: string; name: string; datasheets: number; detachments: number }
+type CatalogueReference = { id: string; name: string; datasheets: number; detachments: number }
 
 /**
  * How a book presents its detachments: one wrapper entry the roster must hold
  * exactly one of, a group inside it, and the choices in that group.
  */
-export type DetachmentOptions = { wrapperId: string; groupId: string; options: DetachmentOption[] }
+type DetachmentOptions = { wrapperId: string; groupId: string; options: DetachmentOption[] }
 
 /**
  * A detachment and the force disposition it plays under.
@@ -52,9 +52,9 @@ export type DetachmentOptions = { wrapperId: string; groupId: string; options: D
  * detachment's keywords — "Reconnaissance", "Take and Hold" — alongside unrelated
  * ones, so it is recognised by name rather than by position.
  */
-export type DetachmentOption = { id: string; name: string; disposition: string | null }
+type DetachmentOption = { id: string; name: string; disposition: string | null }
 
-export type DetachmentCatalogueDetail = {
+type DetachmentCatalogueDetail = {
   rule: { name: string; description: string | null } | null
   enhancements: { name: string; points: number | null; description: string | null }[]
 }
@@ -221,7 +221,7 @@ export function detachmentCatalogueDetail(
 const unitCount = (index: CatalogueIndex, catalogueId: string) => index.datasheets.get(catalogueId)?.size ?? 0
 
 /** The ids a book offers, which is the only sense in which a datasheet is "in" it. */
-export const datasheetsOf = (index: CatalogueIndex, catalogueId: string) => index.datasheets.get(catalogueId) ?? new Set<string>()
+const datasheetsOf = (index: CatalogueIndex, catalogueId: string) => index.datasheets.get(catalogueId) ?? new Set<string>()
 
 /**
  * Whether an id is a datasheet at all, for a caller with no book in hand.
@@ -249,7 +249,7 @@ export function isDatasheetId(index: CatalogueIndex, entryId: string, catalogueI
  */
 export type UnitGroup = 'character' | 'battleline' | 'transport' | 'other'
 
-export type UnitSummary = { id: string; slug: string; name: string; points: number | null; group: UnitGroup; limit: number | null }
+type UnitSummary = { id: string; slug: string; name: string; points: number | null; group: UnitGroup; limit: number | null }
 
 export type Datasheet = {
   id: string
@@ -262,7 +262,7 @@ export type Datasheet = {
   keywordRules: { name: string; description: string }[]
 }
 
-export type AbilityKind = 'core' | 'faction' | 'datasheet' | 'rule' | 'wargear'
+type AbilityKind = 'core' | 'faction' | 'datasheet' | 'rule' | 'wargear'
 
 const abilityDescription = (profile: Profile) =>
   profile.characteristics?.find((characteristic) => characteristic.name === 'Description')?.$text ?? null
@@ -427,7 +427,7 @@ export function unitsIn(
 }
 
 /** Name slugs stay clean unless a book genuinely contains two same-named sheets. */
-export function datasheetSlug(loaded: LoadedCatalogue, catalogueId: string, entryId: string) {
+function datasheetSlug(loaded: LoadedCatalogue, catalogueId: string, entryId: string) {
   const entry = loaded.index.definitions.get(entryId)
   const base = routeSlug(entry?.name ?? entryId)
   const collisions = [...datasheetsOf(loaded.index, catalogueId)].filter(

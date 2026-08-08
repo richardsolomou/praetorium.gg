@@ -11,7 +11,7 @@ import sources from '../../catalogue/sources.json' with { type: 'json' }
  * tarball because `fflate` already reads zip and Node has no tar — one fewer
  * dependency for the same job.
  */
-export type SourceName = 'definitions' | 'points' | 'rules'
+type SourceName = 'definitions' | 'points' | 'rules'
 
 export const SOURCE_NAMES: SourceName[] = ['definitions', 'points', 'rules']
 
@@ -19,12 +19,12 @@ export type SyncState = { status: 'absent' | 'working' | 'ready' | 'failed'; det
 
 const REVISION_FILE = 'revision.json'
 
-export function pinnedRevisions(): Record<SourceName, string> {
+function pinnedRevisions(): Record<SourceName, string> {
   return { definitions: sources.definitions.revision, points: sources.points.revision, rules: sources.rules.revision }
 }
 
 /** What is on disk, or nothing when this instance has never synced. */
-export function localRevisions(directory: string): Partial<Record<SourceName, string>> {
+function localRevisions(directory: string): Partial<Record<SourceName, string>> {
   try {
     const parsed: Partial<Record<SourceName, string>> = JSON.parse(fs.readFileSync(path.join(directory, REVISION_FILE), 'utf8'))
     return parsed

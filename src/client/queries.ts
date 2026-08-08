@@ -1,4 +1,5 @@
 import { queryOptions } from '@tanstack/react-query'
+import type { RosterPick } from '../core/roster'
 import {
   battleReport,
   catalogueStatus,
@@ -18,7 +19,7 @@ import {
   sharedRoster,
   signInOptions,
   units,
-} from '../server/fns'
+} from '../server/functions'
 
 const SSR_STALE_TIME = 30_000
 
@@ -59,17 +60,8 @@ export const datasheetSlugQuery = (catalogueId: string, slug: string) =>
     staleTime: Infinity,
   })
 
-export type PickedUnit = {
-  entryId: string
-  catalogueId?: string
-  models?: number
-  choices?: Record<string, string>
-  spreads?: Record<string, Record<string, number>>
-  toggles?: Record<string, number>
-}
-
 /** Keyed on the picks, so the price follows the list without anything having to remember to ask. */
-export const priceQuery = (catalogueId: string, detachmentIds: readonly string[], limit: number, picked: readonly PickedUnit[]) =>
+export const priceQuery = (catalogueId: string, detachmentIds: readonly string[], limit: number, picked: readonly RosterPick[]) =>
   queryOptions({
     queryKey: ['price', catalogueId, detachmentIds, limit, picked],
     queryFn: () => priceRoster({ data: { catalogueId, detachmentIds: [...detachmentIds], limit, units: [...picked] } }),
@@ -83,7 +75,7 @@ export const savedRosterPriceQuery = (
   catalogueId: string,
   detachmentIds: readonly string[],
   limit: number,
-  picked: readonly PickedUnit[],
+  picked: readonly RosterPick[],
 ) =>
   queryOptions({
     ...priceQuery(catalogueId, detachmentIds, limit, picked),

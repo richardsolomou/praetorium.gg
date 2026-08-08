@@ -6,7 +6,6 @@ import { isCurrent, type SyncState, syncSources } from './sync'
 import { databasePath, type PraetoriumDatabase, openDatabase } from '../db/connection'
 import { Repository } from '../db/repository'
 import { authSecret, createAuth } from './auth'
-import { sessionSecret } from './identity'
 import { realtimeConfig } from './realtime'
 import { PraetoriumService } from './service'
 
@@ -14,7 +13,6 @@ type App = {
   database: PraetoriumDatabase
   service: PraetoriumService
   events: BattleEvents
-  secret: string
   /** Loaded on first use, and null on an instance with no catalogue data synced. */
   catalogue: () => LoadedCatalogue | null
   /** Stratagems and mission cards, null when that source has not been synced. */
@@ -40,15 +38,16 @@ function memoize<T>(work: () => T): () => T {
 /**
  * The one sync in flight, if any.
  *
- * Kept outside the app so a reload during development does not start a second
- * download of the same 60MB.
+ * Kept outside the app so a reload during development does not start the same
+ * download twice.
  */
 const sync = {
   state: { status: 'absent', detail: null } as SyncState,
   running: false,
   begin(directory: string, onReady: () => void) {
-    if (this.running || isCurrent(directory)) {
-      this.state = isCurrent(directory) ? { status: 'ready', detail: null } : this.state
+    if (this.running) return
+    if (isCurrent(directory)) {
+      this.state = { status: 'ready', detail: null }
       return
     }
     this.running = true
@@ -82,7 +81,6 @@ export function app(): App {
       database,
       service: new PraetoriumService(new Repository(database), Date.now, events),
       events,
-      secret: sessionSecret(path.dirname(file)),
       auth: createAuth(database, authSecret(path.dirname(file))),
       catalogue: memoize(loadCatalogue),
       rules: memoize(loadRules),

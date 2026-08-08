@@ -1,38 +1,62 @@
-# Contributing
+# Contributing to Praetorium
+
+Thanks for helping with Praetorium. We aim to keep the battle tracker small, predictable, and easy to inspect. Check for an existing issue before starting a substantial change. Open an issue first if the scope or product direction needs discussion. Coding-agent instructions live in [AGENTS.md](AGENTS.md).
+
+## Development setup
+
+Install Node 24.x, pnpm 11.15.0, and just 1.58.0, then run:
+
+```sh
+just install
+just catalogue-sync
+just dev
+```
+
+The catalogue sync is optional unless you work on list building. The app can run without catalogue data and still serve battles.
+
+See [Running locally](docs/development/running-locally.md) for individual commands and end-to-end test setup.
+
+## Checks
+
+Run the complete local check suite with:
+
+```sh
+just check
+```
+
+This checks formatting, lint, database migrations, catalogue source pins, the production build, types, and unit tests. The build runs before type checking because it generates `src/routeTree.gen.ts`.
+
+Run `just e2e` for changes to rendered behavior or complete user flows. The command builds the production container and runs Playwright against it. Sync the catalogue first when a test uses list building.
+
+Run `just points` after changes to points or roster legality. The result is a ratchet. A lower match rate is a regression unless the set of generated checks changed and the new baseline is explained.
+
+Two browser-test details matter:
+
+- Battle pages keep a live connection open, so they never reach network idle. Wait for a page element instead.
+- Find unit cards with `data-unit`. CSS changes the displayed case, so visible-text matching is unreliable.
 
 ## Layout
 
-```text
-src/core      the domain: battles, the catalogue evaluator, roster building. No IO, no framework.
-src/db        SQLite through drizzle. Generated migrations, never hand-edited once applied.
-src/server    services, server functions, the event stream, catalogue loading.
-src/client    React components and TanStack Query.
-src/routes    TanStack Router route files, which stay thin.
-catalogue/    where the community data comes from — pinned revisions, no data.
-```
+- `src/core` contains the domain model for battles, catalogues, evaluation, and rosters. It has no IO or framework imports.
+- `src/db` contains the Drizzle repository, SQLite schema, and database connection.
+- `src/server` contains application setup, authentication, server functions, catalogue loading, and realtime publishing.
+- `src/client` contains React components, hooks, and query definitions.
+- `src/routes` contains TanStack Router route files. Keep routes thin.
+- `catalogue` records the pinned community data sources. It contains no game data.
+- `e2e` contains Playwright coverage against the production container.
 
-The rule that shapes all of it: a decision is implemented once, in the lowest layer that can hold it, and everything above consults it. `validate` decides legality for both the server and the buttons; `violations` decides whether a list is legal for both the builder and the battle.
+## Conventions
 
-## Running it
-
-See [docs/development/running-locally.md](docs/development/running-locally.md) for setup, the checks, the test commands, and the traps in each.
-
-Short version: `just install`, `just catalogue-sync`, `just dev`, and `just check` before you push. `just` on its own lists every recipe.
-
-## Changes that need more than code
-
-- **A new `Command` kind** must be handled in `validate` and `apply`; both end in a `never` assignment, so the build tells you.
-- **Anything touching points or legality** runs `just points` and reports the number. It is a ratchet.
-- **Anything rendered** gets looked at in a browser, not reasoned about from the diff.
-- **A schema change** is a generated migration (`just db-generate`), never an edit to an applied one.
-- **Anything an operator configures** moves together: `.env.example`, `docker-compose.yml`, and [docs/deployment.md](docs/deployment.md).
+- Implement each decision once, in the lowest layer that can own it. `validate` decides whether a command is legal. `violations` decides whether a roster is legal.
+- Keep derived battle state out of the database. Fold scores, rounds, phases, and missions from the command log and attached lists.
+- Treat unknown catalogue rules as unknown. Report them instead of guessing.
+- Generate schema migrations with `just db-generate`. Do not edit an applied migration.
+- Update `.env.example`, `docker-compose.yml`, and [the deployment guide](docs/deployment.md) together when an operator-facing setting changes.
+- Inspect rendered changes in a browser at desktop and phone widths.
+- Add tests for new behavior and negative paths.
 
 ## Pull requests
 
-Titles are conventional commits. The body follows `.github/pull_request_template.md`.
+Use a conventional commit title and the repository pull request template. Branches in this repository receive a disposable preview linked from the pull request. See [Pull request previews](docs/development/pr-previews.md) for its lifecycle.
 
-Every pull request from a branch here gets [its own deployed instance](docs/development/pr-previews.md) to click through, linked from a comment on the pull request.
-
-## Security
-
-See [SECURITY.md](SECURITY.md).
+Report vulnerabilities privately as described in [SECURITY.md](SECURITY.md).

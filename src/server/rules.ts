@@ -89,7 +89,7 @@ type RawPattern = {
 }
 
 /** A battlefield, as polygons the interface can draw rather than words it must describe. */
-export type Deployment = {
+type Deployment = {
   id: string
   name: string
   description: string | null
@@ -103,26 +103,26 @@ export type Deployment = {
  * counted. Enough for the interface to offer the real figure instead of asking a
  * player to work it out and type it in.
  */
-export type Award = { vp: number; per: string | null; mode: string | null; when: string | null; trigger: Trigger }
+type Award = { vp: number; per: string | null; mode: string | null; when: string | null; trigger: Trigger }
 
 /**
  * When a payout may be taken. Anything absent is unrestricted, so a card that says
  * nothing about timing can always be scored.
  */
-export type Trigger = { phase: string | null; playerTurn: string | null; roundMin: number | null; roundMax: number | null }
+type Trigger = { phase: string | null; playerTurn: string | null; roundMin: number | null; roundMax: number | null }
 
 export type Mission = { id: string; name: string; roundCap: number | null; gameCap: number | null }
 
-export type MissionCard = { key: string; name: string; text: string | null; awards: Award[] }
+type MissionCard = { key: string; name: string; text: string | null; awards: Award[] }
 
-export type DetachmentReference = {
+type DetachmentReference = {
   enhancements: number
   stratagems: number
   points: number | null
   dispositions: string[]
 }
 
-export type DetachmentRulesDetail = {
+type DetachmentRulesDetail = {
   id: string
   name: string
   points: number | null
@@ -153,7 +153,7 @@ export type LoadedRules = {
 }
 
 /** Sits inside the catalogue directory, so one sync brings every source. */
-export function rulesDirectory(dataDirectory = process.env.DATA_DIR ?? '/data') {
+function rulesDirectory(dataDirectory = process.env.DATA_DIR ?? '/data') {
   return process.env.RULES_DIR ?? path.join(path.resolve(dataDirectory), 'catalogue', 'rules')
 }
 

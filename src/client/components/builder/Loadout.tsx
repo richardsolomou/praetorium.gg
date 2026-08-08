@@ -10,7 +10,7 @@ import { KeywordList } from '../Keyword'
 /** Base UI selects cannot hold an empty value, so declining a choice needs a token. */
 const NONE = '__none__'
 
-export type LoadoutChoice = {
+type LoadoutChoice = {
   key: string
   name: string
   chosen: string
@@ -18,7 +18,7 @@ export type LoadoutChoice = {
   options: { id: string; name: string; points: number; count: number }[]
 }
 
-export type LoadoutUnit = {
+type LoadoutUnit = {
   entryId: string
   name: string
   points: number

@@ -1,6 +1,7 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { Check, Copy, Download, Eye, Layers3, LoaderCircle, Plus, Trash2, TriangleAlert, Upload, X } from 'lucide-react'
+import { strFromU8 } from 'fflate'
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -8,7 +9,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select'
 import type { Roster, Secondary, Stratagem } from '../../core/battle'
 import { GAME_SIZES, ROSTER_NAME_MAX_LENGTH } from '../../core/battle'
-import { deleteRoster, exportRoster, importRoster, saveRoster, setOwned } from '../../server/fns'
+import type { RosterPick } from '../../core/roster'
+import { deleteRoster, exportRoster, importRoster, saveRoster, setOwned } from '../../server/functions'
 import { collectionQuery, factionsQuery, priceQuery, savedRostersQuery } from '../queries'
 import { errorMessage } from '../queryClient'
 import { shelve, shortName } from './builder/factions'
@@ -37,18 +39,7 @@ type Props = {
   openImport?: boolean
 }
 
-type Pick = {
-  key: number
-  entryId: string
-  catalogueId?: string
-  models?: number
-  choices?: Record<string, string>
-  /** How many of each option a group holds, where a group holds more than one. */
-  spreads?: Record<string, Record<string, number>>
-  toggles?: Record<string, number>
-  /** The key of the unit this one is attached to, when it is. */
-  attachedTo?: number
-}
+type Pick = RosterPick & { key: number }
 
 /**
  * Building a list from the catalogue rather than pasting one.
@@ -155,7 +146,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
   const bring = useMutation({
     mutationFn: async (file: File) => {
       const zipped = file.name.toLowerCase().endsWith('.rosz')
-      const body = zipped ? btoa(String.fromCodePoint(...new Uint8Array(await file.arrayBuffer()))) : await file.text()
+      const body = zipped ? btoa(strFromU8(new Uint8Array(await file.arrayBuffer()), true)) : await file.text()
       return importRoster({ data: { file: body } })
     },
     onSuccess: (imported) => {
@@ -328,11 +319,11 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
 
     for (const [at, candidate] of picked.entries()) {
       if (candidate.attachedTo !== pick.key) continue
-      const guest = units[at]
-      if (!guest) continue
+      const attachedUnit = units[at]
+      if (!attachedUnit) continue
       rows.push({
-        label: guest.attachment?.kind === 'leader' ? 'Leader' : 'Support',
-        name: guest.name,
+        label: attachedUnit.attachment?.kind === 'leader' ? 'Leader' : 'Support',
+        name: attachedUnit.name,
         action: 'Detach',
         onAct: () => join(at, undefined),
       })

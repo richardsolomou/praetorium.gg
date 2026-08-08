@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
-import { joinBattle } from '../../server/fns'
+import { joinBattle } from '../../server/functions'
 import { meQuery } from '../queries'
 import { errorMessage } from '../queryClient'
 import { SignInRequired } from './SignInRequired'

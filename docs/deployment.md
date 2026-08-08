@@ -1,63 +1,39 @@
-# Deployment
+# Self-hosting
 
-Praetorium runs as one container with one persistent `/data` volume.
+The hosted service at [praetorium.gg](https://praetorium.gg) is the supported way to use Praetorium. Self-hosting is available for operators who can manage Docker, persistent storage, backups, and a reverse proxy.
+
+Private deployments do not include managed support. Review this page and the supplied `docker-compose.yml` before starting.
+
+Praetorium runs as one container with one persistent `/data` volume. Copy `.env.example` to `.env`, review the settings, then start the Compose service.
 
 ```sh
 cp .env.example .env
 docker compose up -d
 ```
 
-Or pull the image CI publishes:
+## Persistent data
 
-```sh
-docker run -d --name praetorium -p 3000:3000 -v praetorium-data:/data ghcr.io/richardsolomou/praetorium.gg:latest
-```
+- `praetorium.sqlite` stores accounts, lists, battles, and command logs.
+- `auth.secret` signs account sessions. Replacing it signs everyone out but does not delete their data.
+- `realtime-secret` signs Centrifugo tokens. Replacing it disconnects active realtime clients.
+- `catalogue/` stores about 130MB of fetched community data.
 
-## What lands in /data
+Back up `praetorium.sqlite` and `auth.secret` together. The app can fetch the catalogue again.
 
-- `praetorium.sqlite` — every battle, its command log, and every saved list.
-- `session.secret` — signs sessions. Losing it signs everyone out; their accounts and lists survive.
-- `realtime-secret` — signs the tokens the browser connects to Centrifugo with. Generated on first boot; losing it costs one reconnect.
-- `catalogue/` — the community data, about 126MB, fetched by the instance itself.
+## Catalogue sync
 
-Back up the database and the secret together. The catalogue is disposable: it is pinned in the image and re-fetched if deleted.
+At startup, the app compares `/data/catalogue/revision.json` with the revisions pinned in the image. It fetches missing data in the background. Battles remain available during the sync. List building appears when the sync finishes.
 
-## The catalogue fetches itself
-
-On boot, the instance compares `/data/catalogue/revision.json` against the revisions pinned in the image and fetches anything missing in the background. It starts and serves battles immediately either way — list building appears when the data lands, and the interface says so while it is on its way.
-
-Nothing needs to be run by hand. A deploy carrying new pinned revisions fetches them on its next boot, and each source is written to a staging directory and swapped in, so a fetch that dies halfway cannot leave a half-written catalogue that looks complete.
+Each source downloads to a staging directory before it replaces the current copy. An interrupted download does not replace valid catalogue data.
 
 ## One container, three processes
 
-The image runs Centrifugo, the app and Caddy together, and Caddy is what makes that one port: `/connection/*` goes to Centrifugo and everything else to the app. Any of the three dying takes the container down so the whole thing restarts rather than serving half a deployment.
+The image runs the app, Centrifugo, and Caddy. Caddy sends `/connection/*` to Centrifugo and all other requests to the app. The container stops if any process exits so the container runtime can restart the full service.
 
-Fan-out is Centrifugo's now rather than the process's, so a second replica would at least hear about the first's commands. It still shares one SQLite file, though, so `docker-compose.yml` keeps `replicas: 1` — scaling out means moving the database first.
+Run one replica. Multiple replicas cannot safely share the SQLite database. Move to a network database before adding replicas.
 
 ## Reverse proxy
 
-The proxy must forward `X-Forwarded-Host` and `X-Forwarded-Proto`. Set `APP_URL` when it cannot represent the public origin through those headers; when set, it is also the canonical host and requests arriving on any other hostname are redirected to it with the path intact, so a battle link shared before a rename keeps working.
+The proxy must forward `X-Forwarded-Host` and `X-Forwarded-Proto`. Set `APP_URL` when those headers do not describe the public origin. When set, `APP_URL` is also the canonical origin. Requests for another host redirect to it and keep their path.
 
-`GET /api/health` is the health endpoint and is exempt from that redirect: the container checks itself over 127.0.0.1, and redirecting would send the check to a different machine.
-
-## Dokploy
-
-Deployed at `dokploy.ras.sh` as project **praetorium**, application **app**:
-
-- Source: `richardsolomou/praetorium.gg`, `main`, built from the Dockerfile, auto-deploying on push through the Dokploy GitHub App.
-- Volume `praetorium-data` mounted at `/data`.
-- `APP_URL=https://praetorium.gg`, one replica.
-- Domain `praetorium.gg` on port 3000 with a Let's Encrypt certificate.
-- Image published to `ghcr.io/richardsolomou/praetorium.gg`.
-
-The container and Traefik service are `praetorium-cgzzus`. Dokploy generates that suffix and will not let it be edited afterwards, so changing it means recreating the application: `application.update` ignores `appName`, while `application.create` accepts one and appends its own suffix. Detach the volume first (`mounts.remove`) — otherwise deleting the old application takes the volume with it, and with it the database and 127MB of catalogue.
-
-First boot spends a minute or two fetching the catalogue, and the app is usable throughout. A push to `main` redeploys; the volume and its catalogue survive.
-
-### Things that bite
-
-- **Renaming the GitHub repository silently stops deploys.** Dokploy stores the repository name and keeps matching pushes against the old one, so commits look pushed and nothing ships. Repoint the source, then check that a push actually deploys.
-- **Traefik does not retry a failed ACME attempt.** Add a hostname before its DNS resolves and Let's Encrypt answers `NXDOMAIN`; Traefik gives up and serves `CN=TRAEFIK DEFAULT CERT` indefinitely. Behind Cloudflare that is invisible from a browser, because the edge terminates TLS with its own certificate and does not check the origin's. Restarting `dokploy-traefik` is what makes it try again.
-- **Add the hostname to Dokploy before moving DNS**, and let the certificate issue before changing `APP_URL`. A hostname with no Traefik router is a 404 — the app never sees the request, so its canonical-host redirect cannot rescue it.
-- **A preview wildcard has to be one level below its apex.** `*.praetorium.gg` is covered by Cloudflare's Universal SSL and can be proxied like everything else. A wildcard two levels down is not, and every preview URL would fail TLS at the edge before reaching this box.
-- **DNS is the one thing Dokploy cannot do from here.** A new hostname needs its record pointing at the origin before the certificate can be issued.
+Use `GET /api/health` for health checks. This route does not redirect to `APP_URL`.

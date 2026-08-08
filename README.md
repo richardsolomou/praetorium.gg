@@ -2,7 +2,7 @@
 
 # Praetorium
 
-**Build a Warhammer 40,000 army list, then track the game you play with it — both players on their own phone, in step, with no way for the two devices to disagree.**
+**Build a Warhammer 40,000 army list, then track the game live from both players' phones.**
 
 [praetorium.gg](https://praetorium.gg)
 
@@ -12,60 +12,57 @@
 
 ## Who is it for? 👋
 
-Two people at a table who currently keep score on paper, or in a builder that does not follow them into the game. Open a battle, send your opponent the link, and they take the second seat. No account needed.
+Praetorium is for two players who want one shared battle record instead of paper scores or separate trackers. Open a battle, send the link, and your opponent signs in to take the second seat.
 
 ## How it works ✨
 
-1. **Build a list** from the community catalogues — faction, detachment, squad sizes, weapon loadouts, enhancements, against a game-size points ceiling. Or paste one, or import a `.ros`/`.rosz` from New Recruit or BattleScribe.
-2. **Both players attach a list**, and the mission follows from the pair of them: eleventh edition takes it from the two force dispositions rather than asking.
-3. **Set up in the order the game does** — battlefield, deployment, stratagems and mission cards, then who takes the first turn.
-4. **Play.** Round, phase, command points, victory points and which units are still standing, on both screens at once.
+1. **Build or import a list** with its faction, detachments, units, loadouts, enhancements, and points limit. Imports support `.ros` and `.rosz` files.
+2. **Attach both lists.** Praetorium derives the mission from their force dispositions.
+3. **Complete battle setup** by choosing the battlefield, deployment, stratagems, mission cards, and first player.
+4. **Play the game** while both screens show the same round, phase, command points, victory points, and unit state.
 
 Along the way:
 
-- Stratagems arrive already chosen for your detachment, with the cost and usage limit the data states.
-- Scoring offers the figure the card actually pays — `+3 ea`, not a blank stepper.
-- Undo reaches exactly one command, the newest, and only for whoever issued it.
-- Lists are saved and reused between battles, and export as `.ros` for a tournament organiser.
+- Detachment stratagems include their command-point cost and usage limit.
+- Scoring controls use the values defined by each mission card.
+- A player can undo their latest command.
+- Saved lists can be reused, shared, and exported as `.ros` files.
 
-## Why it cannot go out of step 🔒
+## Shared battle state 🔒
 
-There is one authoritative history per battle: an append-only log of commands. Nothing derived is stored, so there is no second copy of the score to disagree with the first — both devices fold the same log and arrive at the same numbers.
+Each battle has one append-only command log. The app derives scores, rounds, phases, and unit state from that log instead of storing a second copy.
 
-Every command is conditional. A client sends the sequence number of the history it is showing, and the server appends only if nothing has happened since. Reading history, judging the command against the rules, and writing the result happen inside one transaction, so two players tapping at the same instant cannot both win: the second is told it is behind and refetches.
+Each command includes the sequence number that the client last read. The server validates and appends the command in one transaction. If another command arrived first, the client refreshes before it tries again.
 
-Ownership comes from the rules rather than from the interface. Only the player taking a turn can end a phase; only the player who spent a command point can spend it. All of that lives in one function that both the server and the interface consult, so the buttons you are offered and the commands the server will accept cannot drift apart.
+The domain rules control which commands each player can send. The server and interface use the same validation function, so visible controls match server enforcement.
 
-Live updates carry nothing at all. The event stream says only "this battle changed"; the page then refetches through the normal read path, which is the only place that decides what a player may see.
+Live updates contain only a change notification. The page then uses the normal read path to fetch the current player view.
 
-## Points, honestly 🎯
+## Points and legality 🎯
 
-The evaluator reads the community [BSData](https://github.com/BSData/wh40k-11e) catalogues: give it what a player picked and it returns the cost and what is illegal about it, including the per-copy and per-model pricing eleventh edition uses.
+The evaluator reads the community [BSData](https://github.com/BSData/wh40k-11e) catalogues. It calculates points and reports roster violations, including per-copy and per-model costs.
 
-It is checked against Games Workshop's own numbers rather than against itself. `just points` builds real units at the model counts the Munitorum Field Manual prices and compares: **it agrees on 99.6% of 1,863 checks**. The seven remaining differences are four Deathwatch datasheets whose catalogue still carries older prices upstream. Anything it does not understand stays visible instead of becoming a guess — a confidently wrong points total is worse than an honest gap.
+`just points` compares generated rosters with an independent reference dataset. Unsupported catalogue rules are reported instead of guessed.
 
-## Run it 🚀
+## Use Praetorium 🚀
 
-```sh
-cp .env.example .env
-docker compose up -d
-```
+The hosted service at [praetorium.gg](https://praetorium.gg) is the primary way to use Praetorium. It includes updates, persistent storage, and the community catalogue sync.
 
-One container, one `/data` volume, one instance. It fetches its own community data in the background and serves battles while it does — there is nothing to run by hand, and **no game data is in this repository**. See [docs/deployment.md](docs/deployment.md) for what lands in the volume, what to back up, and why it stays at one replica.
+An account stores your lists and battle history. Email and password works without extra configuration or email verification. Google and Discord appear when their credentials are configured.
 
-An account is your player: your lists, the battles you have played and the ones still going follow you to whatever device you pick up, and nothing depends on a cookie surviving. Email and password works with no configuration and needs no inbox — there is no verification step to stall a first game. Google and Discord appear only when both halves of their credentials are set.
+Praetorium is open source under the AGPL. Experienced operators can run a private instance; see the [self-hosting notes](docs/deployment.md) for its storage and network requirements. **This repository contains no game data.**
 
-## Not here yet 🚧
+## Scope 🚧
 
-No wound tracking within a unit — a unit is standing or lost. No automatic primary scoring from objectives held: the app offers the figure the card pays and you say which applied. Finding opponents, chat, and anything else social are deliberately out of scope.
+Praetorium tracks whether a unit is active or destroyed, but not wounds on individual models. Players choose which mission score applies; the app does not infer objective control. Matchmaking, chat, and other social features are outside the product scope.
 
 ## Development 🛠️
 
-Node 24.x, pnpm 11.15.0 and just. `just install && just dev` is the whole setup; the rest is in [CONTRIBUTING.md](CONTRIBUTING.md), the design rules are in [CLAUDE.md](CLAUDE.md), and [SECURITY.md](SECURITY.md) covers vulnerability reports.
+Development requires Node 24.x, pnpm 11.15.0, and just. Run `just install && just dev`. See [CONTRIBUTING.md](CONTRIBUTING.md) for checks, [AGENTS.md](AGENTS.md) for architecture rules, and [SECURITY.md](SECURITY.md) for vulnerability reports.
 
 ## Attribution
 
-Praetorium is an unofficial product, and is not in any way affiliated with or endorsed by Games Workshop. Stratagem and mission data comes from [40kdc-data](https://github.com/tabletop-developer-consortium/40kdc-data) under CC BY 4.0; see [catalogue/README.md](catalogue/README.md) for every source and its licence.
+Warhammer 40,000 and related marks belong to Games Workshop. Praetorium is unofficial and is not endorsed by Games Workshop. Stratagem and mission data comes from [40kdc-data](https://github.com/tabletop-developer-consortium/40kdc-data) under CC BY 4.0. See [catalogue/README.md](catalogue/README.md) for data sources and licenses.
 
 ## License
 

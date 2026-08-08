@@ -2,18 +2,24 @@
 
 ## Reporting a vulnerability
 
-Please do not open a public issue for an unpatched vulnerability.
+Do not open a public issue for an unpatched vulnerability.
 
-Use GitHub's private vulnerability reporting. If it is unavailable, open an issue asking for a private way to get in touch, without details of the vulnerability itself.
+Use GitHub private vulnerability reporting. If it is unavailable, open an issue that asks for a private contact method. Do not include vulnerability details in that issue.
 
-In the private report, include the affected deployment or commit, steps to reproduce, the impact, and any workaround you know of.
+Include the affected version or commit, reproduction steps, impact, and known workarounds in the private report.
 
 ## Supported versions
 
-Fixes are made against the current `main` branch and the deployment at [praetorium.gg](https://praetorium.gg).
+Security fixes target the current `main` branch and [praetorium.gg](https://praetorium.gg).
 
 ## What is worth reporting
 
-Praetorium keeps accounts and the battles and lists attached to them. So the interesting questions are whether one player can act as another, read a battle they are not in or were never sent, take a seat they were not offered, or make an instance accept a command its own rules forbid. Mutation origin checks, session handling, the sign-in redirect and the event stream are all worth looking at.
+Praetorium stores accounts, army lists, and battle history. Report any way to:
 
-Preview deployments (`pr-<number>.praetorium.gg`) are disposable instances of unmerged code. Findings there are welcome, but say so — they may already be fixed on `main`.
+- Act as another player.
+- Read a battle without a seat or invitation.
+- Take a seat without permission.
+- Submit a command that the domain rules reject.
+- Bypass mutation origin checks, session handling, redirect validation, or event-stream authorization.
+
+Preview deployments run unmerged code and are replaced often. State which preview and commit you tested.

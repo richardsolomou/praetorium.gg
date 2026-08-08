@@ -1,12 +1,12 @@
-import crypto from 'node:crypto'
+import { SignJWT } from 'jose'
 
 /**
  * Centrifugo, which is what "live" means here.
  *
  * The app never holds a socket open itself: it publishes "this battle changed"
  * over Centrifugo's HTTP API, and the page refetches through the normal read
- * path. That is the same discipline the old in-process stream had — a nudge and
- * never a payload — with the fan-out somewhere it can outlive one process.
+ * path. A notification is only a nudge, never a payload, and the fan-out can
+ * outlive one process.
  */
 const TOKEN_TTL_SECONDS = 5 * 60
 
@@ -26,7 +26,7 @@ export function realtimeConfig(environment: NodeJS.ProcessEnv = process.env) {
 }
 
 /** Proves who the connection is. It grants no channels by itself. */
-export function connectionToken(playerId: string, secret: string, now = Math.floor(Date.now() / 1000)) {
+export async function connectionToken(playerId: string, secret: string, now = Math.floor(Date.now() / 1000)) {
   return sign({ sub: playerId, exp: now + TOKEN_TTL_SECONDS }, secret)
 }
 
@@ -34,10 +34,10 @@ export function connectionToken(playerId: string, secret: string, now = Math.flo
  * Proves this player may watch this battle.
  *
  * Issued per channel and only after the seat has been checked, so a leaked link
- * buys no stream — the same rule the old route enforced before opening one.
+ * buys no stream.
  * `info` is what the other player's screen shows as presence.
  */
-export function subscriptionToken(
+export async function subscriptionToken(
   player: { id: string; name: string },
   channel: string,
   secret: string,
@@ -46,9 +46,5 @@ export function subscriptionToken(
   return sign({ sub: player.id, channel, exp: now + TOKEN_TTL_SECONDS, info: { playerId: player.id, name: player.name } }, secret)
 }
 
-function sign(payload: Record<string, unknown>, secret: string) {
-  const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url')
-  const claims = Buffer.from(JSON.stringify(payload)).toString('base64url')
-  const unsigned = `${header}.${claims}`
-  return `${unsigned}.${crypto.createHmac('sha256', secret).update(unsigned).digest('base64url')}`
-}
+const sign = (payload: Record<string, unknown>, secret: string) =>
+  new SignJWT(payload).setProtectedHeader({ alg: 'HS256', typ: 'JWT' }).sign(new TextEncoder().encode(secret))

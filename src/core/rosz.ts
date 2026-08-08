@@ -14,7 +14,7 @@ import type { CatalogueIndex } from './catalogue'
 import type { Selection } from './evaluate'
 
 /** What a `.ros` file says, reduced to what can be rebuilt from it. */
-export type ParsedRoster = {
+type ParsedRoster = {
   name: string
   /** The catalogue the force was built from, when the file names one. */
   catalogueId: string | null

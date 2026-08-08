@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import type { Command } from '../core/battle'
 import type { SubmitResult } from '../db/repository'
-import { submit } from '../server/fns'
+import { submit } from '../server/functions'
 import { battleQuery } from './queries'
 import { errorMessage } from './queryClient'
 

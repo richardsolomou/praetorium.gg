@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import type { Attachment } from '../../../core/attach'
 
-export type BuiltUnit = {
+type BuiltUnit = {
   entryId: string
   name: string
   points: number
@@ -15,7 +15,7 @@ export type BuiltUnit = {
 }
 
 /** Who this unit is joined to, in whichever direction the card is showing. */
-export type Joined = { label: string; name: string; action: string; onAct: () => void }
+type Joined = { label: string; name: string; action: string; onAct: () => void }
 
 type Props = {
   unit: BuiltUnit

@@ -12,4 +12,4 @@
 
 - [ ] `just check`
 - [ ] `just e2e`
-- [ ] `just points` (points or legality changed — state the percentage)
+- [ ] `just points` (points or roster validation changed — state the percentage)

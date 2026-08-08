@@ -12,17 +12,16 @@ import type { Selection } from './evaluate'
  */
 
 /** The phases of a battle round, in the order 11th edition plays them. */
-export const PHASES = ['command', 'movement', 'shooting', 'charge', 'fight', 'end'] as const
+const PHASES = ['command', 'movement', 'shooting', 'charge', 'fight', 'end'] as const
 
-export type Phase = (typeof PHASES)[number]
+type Phase = (typeof PHASES)[number]
 
 export const BATTLE_ROUNDS = 5
 
 /** Granted once, to the player entering their own command phase. */
-export const COMMAND_PHASE_CP = 1
+const COMMAND_PHASE_CP = 1
 
 export const PLAYERS_PER_BATTLE = 2
-export const PLAYER_NAME_MAX_LENGTH = 40
 export const ROSTER_NAME_MAX_LENGTH = 80
 export const ROSTER_MAX_LENGTH = 20_000
 
@@ -40,7 +39,7 @@ export type PlayerId = string
  */
 export type Roster = { name: string; text: string; built?: BuiltRoster }
 
-export type BuiltRoster = {
+type BuiltRoster = {
   catalogueId: string
   /** The catalogue revision this list was priced and validated against. */
   revision: string
@@ -66,13 +65,13 @@ export type BuiltRoster = {
   units: SubmittedUnit[]
 }
 
-export type SubmittedUnit = { key: string; name: string; points: number; models: number }
+type SubmittedUnit = { key: string; name: string; points: number; models: number }
 
 /**
  * A unit's standing in the battle. Deployed means on the table: everything starts
  * off it, which is what makes a deployment step mean anything.
  */
-export type UnitState = SubmittedUnit & {
+type UnitState = SubmittedUnit & {
   destroyed: boolean
   deployed: boolean
   /**
@@ -103,10 +102,10 @@ export const STRATAGEM_CP_MAX = 6
 
 /** A secondary mission, named by the player because the deck is not in the data either. */
 export type Secondary = { key: string; name: string }
-export type SecondaryStatus = 'active' | 'achieved' | 'discarded'
+type SecondaryStatus = 'active' | 'achieved' | 'discarded'
 
 export const SECONDARIES_MAX = 6
-export const SECONDARY_HISTORY_MAX = 30
+const SECONDARY_HISTORY_MAX = 30
 
 /**
  * Fixed secondaries are chosen once and scored all game; tactical ones are drawn as
@@ -124,8 +123,8 @@ export const SECONDARY_MODES: SecondaryMode[] = ['fixed', 'tactical']
  * at a real table, which is far worse than displaying a total that has gone past
  * what the mission allows.
  */
-export const PRIMARY_GUIDE = 50
-export const SECONDARY_GUIDE = 40
+const PRIMARY_GUIDE = 50
+const SECONDARY_GUIDE = 40
 
 /** The matched-play game sizes, smallest first. */
 export const GAME_SIZES = [
@@ -166,7 +165,7 @@ export type Command =
 
 export type LoggedCommand = { seq: number; by: PlayerId; at: number; command: Command }
 
-export type PlayerState = {
+type PlayerState = {
   id: PlayerId
   cp: number
   cpGained: number
@@ -195,9 +194,9 @@ export type PlayerState = {
   secretRevealed: boolean
 }
 
-export type StratagemUse = { key: string; round: number; phase: Phase; turn: PlayerId | null }
+type StratagemUse = { key: string; round: number; phase: Phase; turn: PlayerId | null }
 
-export type BattleState = {
+type BattleState = {
   status: 'setup' | 'playing' | 'finished'
   /** 0 during setup, then 1 through `BATTLE_ROUNDS`. */
   round: number
@@ -622,7 +621,7 @@ function enterTurn(state: BattleState, playerId: PlayerId) {
 }
 
 /** One thing that happened, in the words a player would use about it. */
-export type ReportEntry = { seq: number; round: number; phase: Phase; by: string; text: string }
+type ReportEntry = { seq: number; round: number; phase: Phase; by: string; text: string }
 
 /**
  * A readable account of the battle, derived from the log.
