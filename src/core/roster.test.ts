@@ -543,6 +543,41 @@ describe('options the data restricts by keyword', () => {
   })
 })
 
+it('does not offer mandatory weapons as alternatives to each other', () => {
+  const index = indexOf({
+    sharedSelectionEntries: [
+      {
+        id: 'soldier',
+        name: 'Soldier',
+        type: 'unit',
+        selectionEntryGroups: [
+          {
+            id: 'weapons',
+            name: 'Weapons',
+            selectionEntries: [
+              {
+                id: 'rifle',
+                name: 'Rifle',
+                type: 'upgrade',
+                constraints: [{ id: 'rifle-min', type: 'min', value: 1, field: 'selections', scope: 'parent' }],
+              },
+              {
+                id: 'combat-weapon',
+                name: 'Close combat weapon',
+                type: 'upgrade',
+                constraints: [{ id: 'combat-min', type: 'min', value: 1, field: 'selections', scope: 'parent' }],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  })
+  const built = buildUnit('soldier', index)!
+
+  expect(built.choices).toEqual([])
+})
+
 describe('the wargear a unit is carrying', () => {
   it('names each leaf upgrade with how many of it there are', () => {
     const index = indexOf({

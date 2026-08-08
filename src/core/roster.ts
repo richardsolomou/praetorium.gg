@@ -594,7 +594,8 @@ export function unitChoices(
         const scale = scaleOf(child.definition, index, carriers)
         const capacity = maximumCount(child.definition, index)
         const room = capacity === null ? occupantRoom(choosable, index) : capacity * scale
-        if (choosable.length > 1 && room >= 1 && room !== UNBOUNDED) {
+        const fixed = choosable.some((option) => requiredCount(option.definition, index) > 0)
+        if (!fixed && choosable.length > 1 && room >= 1 && room !== UNBOUNDED) {
           const group = at(selection, here)
           const held = group?.selections ?? []
           const taken = held.find((present) => (present.count ?? 1) > 0 && choosable.some((option) => option.id === present.id))

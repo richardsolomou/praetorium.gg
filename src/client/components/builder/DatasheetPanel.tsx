@@ -120,6 +120,22 @@ function AbilitySummary({ abilities, rules }: { abilities: Datasheet['abilities'
   return ABILITY_SECTIONS.map(({ kind, title }) => {
     const found = abilities.filter((ability) => ability.kind === kind)
     if (!found.length) return null
+    if (kind === 'core' || kind === 'faction') {
+      const described = [
+        ...found.flatMap((ability) => (ability.description ? [{ name: ability.name, description: ability.description }] : [])),
+        ...rules,
+      ]
+      return (
+        <section key={kind}>
+          <p className="eyebrow border-b border-edge pb-1">{title}</p>
+          <div className="mt-1.5 flex flex-wrap gap-1">
+            {found.map((ability) => (
+              <Keyword key={ability.id} name={ability.name} rules={described} className="chip" />
+            ))}
+          </div>
+        </section>
+      )
+    }
     return (
       <section key={kind}>
         <p className="eyebrow flex items-baseline justify-between border-b border-edge pb-1">
