@@ -27,6 +27,20 @@ async function add(page: Page, name: string) {
     .click()
 }
 
+test('enhancement choices show descriptions when rule and catalogue names differ', async ({ page }) => {
+  await openBuilder(page, 'Necrons', /Cursed Legion/)
+  await add(page, 'Skorpekh Lord')
+  await page
+    .getByRole('button', { name: /^Skorpekh Lord/ })
+    .first()
+    .click()
+
+  await page.getByRole('combobox', { name: /Skorpekh Lord Enhancements/ }).click()
+  const mark = page.getByRole('option', { name: /Mark of the Nekrosor/ })
+  await expect(mark).toContainText('add 1 to the Hit roll')
+  await page.screenshot({ path: 'test-results/nekrosor-enhancement.png' })
+})
+
 test('a supplement imports its shared detachment group', async ({ page }) => {
   await signUp(page, 'Richard')
 

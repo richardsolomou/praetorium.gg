@@ -3,10 +3,12 @@ import { detachmentPointBudget, detachmentPointsError } from '../core/battle'
 import { evaluate, evaluateForces, type Selection } from '../core/evaluate'
 import { buildUnit, wargearOf } from '../core/roster'
 import { app } from './app'
+import { detachmentCatalogueDetail } from './catalogueDescriptions'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { groupOfEntry } from './cataloguePicker'
 import { slug } from './rules'
 import type { PriceInput } from './schemas'
+import { descriptionKey, findDescription } from './wahapedia'
 
 export function calculateRosterPrice(data: PriceInput) {
   const loaded = app().catalogue()
@@ -33,9 +35,21 @@ export function calculateRosterPrice(data: PriceInput) {
   }))
   const enhancementDescriptions = new Map(
     chosen.flatMap((option) =>
-      (rules?.detachmentDetails.get(factionSlug)?.get(slug(option.name))?.enhancements ?? []).flatMap((enhancement) =>
-        enhancement.description ? [[slug(enhancement.name), enhancement.description] as const] : [],
-      ),
+      (() => {
+        const enhancements = rules?.detachmentDetails.get(factionSlug)?.get(slug(option.name))?.enhancements ?? []
+        const catalogueDetail = detachmentCatalogueDetail(
+          loaded,
+          data.catalogueId,
+          option.id,
+          enhancements.map((enhancement) => enhancement.name),
+        )
+        return enhancements.flatMap((enhancement) => {
+          const description =
+            catalogueDetail?.enhancements.find((candidate) => candidate.name.toLocaleLowerCase() === enhancement.name.toLocaleLowerCase())
+              ?.description ?? enhancement.description
+          return description ? [[descriptionKey(option.name, enhancement.name), description] as const] : []
+        })
+      })(),
     ),
   )
   const budget = detachmentPointBudget(data.limit)
@@ -102,7 +116,7 @@ export function calculateRosterPrice(data: PriceInput) {
               ...choice,
               options: choice.options.map((option) => ({
                 ...option,
-                description: enhancementDescriptions.get(slug(option.name)) ?? null,
+                description: findEnhancementDescription(enhancementDescriptions, chosen, option.name),
               })),
             }
           : choice,
@@ -117,6 +131,12 @@ export function calculateRosterPrice(data: PriceInput) {
     })),
   }
 }
+
+export const findEnhancementDescription = (
+  descriptions: ReadonlyMap<string, string>,
+  detachments: readonly { name: string }[],
+  enhancement: string,
+) => detachments.map((detachment) => findDescription(descriptions, detachment.name, enhancement)).find(Boolean) ?? null
 
 /** Selected detachments in the catalogue shape that roster-scoped conditions inspect. */
 export function rosterDetachments(loaded: LoadedCatalogue, catalogueId: string, detachmentIds: readonly string[]) {
