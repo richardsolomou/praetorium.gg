@@ -1,5 +1,4 @@
 import { createServerFn } from '@tanstack/react-start'
-import { getRequest } from '@tanstack/react-start/server'
 import { app } from './app'
 import { configuredProviders } from './auth'
 import { routeSlug } from '../core/slug'
@@ -8,6 +7,7 @@ import { ATTRIBUTION, slug } from './rules'
 import { mutationRpc, rpc } from './rpc'
 import { calculateRosterPrice } from './pricing'
 import { exportRosterFile, importRosterFile } from './rosterFiles'
+import { currentPlayerId, requirePlayerId } from './playerSession'
 import {
   datasheetSchema,
   datasheetSlugSchema,
@@ -33,18 +33,6 @@ function orNull<T>(work: () => T) {
     if (error instanceof Response && error.status === 404) return null
     throw error
   }
-}
-
-/** Who is asking, which is only ever an account. */
-async function currentPlayerId() {
-  const session = await app().auth.api.getSession({ headers: getRequest().headers })
-  return session ? app().service.playerForUser(session.user.id, session.user.name) : null
-}
-
-async function requirePlayerId() {
-  const id = await currentPlayerId()
-  if (!id) throw new Response('sign in first', { status: 401 })
-  return id
 }
 
 export const me = createServerFn({ method: 'GET' }).handler(() =>

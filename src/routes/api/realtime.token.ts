@@ -1,6 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { z } from 'zod'
 import { app } from '../../server/app'
+import { currentPlayer } from '../../server/playerSession'
 import { battleChannel, connectionToken, realtimeConfig, subscriptionToken } from '../../server/realtime'
 
 /**
@@ -15,7 +16,7 @@ export const Route = createFileRoute('/api/realtime/token')({
   server: {
     handlers: {
       GET: async ({ request }) => {
-        const player = await seatedPlayer(request)
+        const player = await currentPlayer(request)
         if (!player) return unauthorised()
         const { secret } = realtimeConfig()
         if (!secret) return new Response('realtime is not configured', { status: 503 })
@@ -26,7 +27,7 @@ export const Route = createFileRoute('/api/realtime/token')({
         return Response.json({ token: connectionToken(player.id, secret), channel: battleChannel(battleId) })
       },
       POST: async ({ request }) => {
-        const player = await seatedPlayer(request)
+        const player = await currentPlayer(request)
         if (!player) return unauthorised()
         const { secret } = realtimeConfig()
         if (!secret) return new Response('realtime is not configured', { status: 503 })
@@ -57,12 +58,4 @@ function seatedBattleId(request: Request, playerId: string) {
     if (error instanceof Response) return error
     throw error
   }
-}
-
-async function seatedPlayer(request: Request) {
-  const session = await app().auth.api.getSession({ headers: request.headers })
-  if (!session) return null
-  const id = app().service.playerForUser(session.user.id, session.user.name)
-  const player = app().service.player(id)
-  return player ? { id: player.id, name: player.name } : null
 }
