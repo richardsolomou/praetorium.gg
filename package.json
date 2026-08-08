@@ -41,6 +41,7 @@
     "csv-parse": "7.0.2",
     "drizzle-orm": "^0.45.2",
     "fast-xml-parser": "^5.10.1",
+    "fastest-levenshtein": "1.0.16",
     "fflate": "^0.8.3",
     "html-to-text": "10.0.0",
     "jose": "^6.2.8",

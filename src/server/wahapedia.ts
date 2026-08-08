@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { parse } from 'csv-parse/sync'
+import { distance } from 'fastest-levenshtein'
 import { compile } from 'html-to-text'
 import { routeSlug } from '../core/slug'
 
@@ -28,6 +29,19 @@ export function loadWahapediaDescriptions(directory: string): WahapediaDescripti
 }
 
 export const descriptionKey = (detachment: string, name: string) => `${routeSlug(detachment)}|${routeSlug(name)}`
+
+export function findDescription(descriptions: ReadonlyMap<string, string>, detachment: string, name: string): string | null {
+  const exact = descriptions.get(descriptionKey(detachment, name))
+  if (exact) return exact
+
+  const prefix = `${routeSlug(detachment)}|`
+  const target = routeSlug(name)
+  const maximumDistance = Math.min(3, Math.max(1, Math.floor(target.length * 0.15)))
+  const matches = [...descriptions].filter(
+    ([key]) => key.startsWith(prefix) && distance(target, key.slice(prefix.length)) <= maximumDistance,
+  )
+  return matches.length === 1 ? matches[0][1] : null
+}
 
 function readDescriptions(file: string): Map<string, string> {
   if (!fs.existsSync(file)) return new Map()

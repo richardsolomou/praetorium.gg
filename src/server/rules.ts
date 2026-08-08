@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import type { Stratagem, StratagemLimit } from '../core/battle'
-import { descriptionKey, loadWahapediaDescriptions, WAHAPEDIA_ATTRIBUTION } from './wahapedia'
+import { findDescription, loadWahapediaDescriptions, WAHAPEDIA_ATTRIBUTION } from './wahapedia'
 
 /**
  * Stratagems and secondary mission cards, from the Tabletop Developer Consortium's
@@ -223,7 +223,7 @@ export function loadRules(
                 .map((enhancement) => ({
                   name: enhancement.name,
                   points: enhancement.cost ?? null,
-                  description: wahapedia?.enhancements.get(descriptionKey(detachment.name, enhancement.name)) ?? null,
+                  description: wahapedia ? findDescription(wahapedia.enhancements, detachment.name, enhancement.name) : null,
                 })),
               stratagems: rawStratagems
                 .filter((stratagem) => stratagem.detachment_id === detachment.id)
@@ -234,7 +234,7 @@ export function loadRules(
                   type: stratagem.type ? titleCase(stratagem.type.replaceAll('-', ' ')) : null,
                   phases: stratagem.phases ?? [],
                   turn: stratagem.player_turn ?? null,
-                  description: wahapedia?.stratagems.get(descriptionKey(detachment.name, stratagem.name)) ?? null,
+                  description: wahapedia ? findDescription(wahapedia.stratagems, detachment.name, stratagem.name) : null,
                 }))
                 .toSorted(byName),
             },
