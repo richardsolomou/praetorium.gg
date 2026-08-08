@@ -20,6 +20,7 @@ Praetorium builds and validates rosters from fetched community data. The domain 
 - `isDatasheetId` can fall back to any synced book when an imported roster names an unavailable catalogue.
 - A book's own detachments take priority. A book without detachments uses the detachments from the book that contributes most of its roster.
 - A detachment has a wrapper, a group, and its choices. Any layer can be inline or linked. Match wrapper names by the `Detachment` prefix.
+- Enhancement names and points come from the rules source. Description text comes from the catalogue; prefer the matching detachment or book, and leave conflicting matches blank.
 - A datasheet roster cap usually lives on its same-named category. `rosterLimit` reads that cap for display and filtering. `violations` remains the legality authority.
 - The collection stores one membership row per player and datasheet. It does not store model quantities.
 

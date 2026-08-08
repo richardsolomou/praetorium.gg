@@ -98,7 +98,10 @@ describe('stratagems', () => {
 
   it('keeps the detail needed by the detachment reference page', () => {
     expect(load().detachmentDetails.get('death-guard')?.get('flyblown-host')).toMatchObject({
-      enhancementNames: ['Living Plague', 'Rejuvenating Swarm'],
+      enhancements: [
+        { name: 'Living Plague', points: 20 },
+        { name: 'Rejuvenating Swarm', points: 10 },
+      ],
       stratagems: expect.arrayContaining([expect.objectContaining({ name: 'Grim Reapers', cp: 1 })]),
     })
   })

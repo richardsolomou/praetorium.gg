@@ -127,7 +127,7 @@ type DetachmentRulesDetail = {
   name: string
   points: number | null
   dispositions: string[]
-  enhancementNames: string[]
+  enhancements: { name: string; points: number | null }[]
   stratagems: { id: string; name: string; cp: number; type: string | null; phases: string[]; turn: string | null }[]
 }
 
@@ -204,9 +204,9 @@ export function loadRules(directory = rulesDirectory()): LoadedRules | null {
               name: detachment.name,
               points: detachment.detachment_points ?? null,
               dispositions: detachment.force_dispositions ?? [],
-              enhancementNames: enhancements
+              enhancements: enhancements
                 .filter((enhancement) => enhancement.detachment_id === detachment.id)
-                .map((enhancement) => enhancement.name),
+                .map((enhancement) => ({ name: enhancement.name, points: enhancement.cost ?? null })),
               stratagems: rawStratagems
                 .filter((stratagem) => stratagem.detachment_id === detachment.id)
                 .map((stratagem) => ({

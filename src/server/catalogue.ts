@@ -191,25 +191,36 @@ export function detachmentCatalogueDetail(
     ?.map((link) => loaded.index.rules.get(link.targetId))
     .find((candidate) => candidate && !candidate.hidden)
 
-  const wanted = new Set(enhancementNames.map((name) => name.toLocaleLowerCase()))
-  const enhancements = [...loaded.index.definitions.values()]
-    .filter(
-      (entry): entry is SelectionEntry =>
-        entry.type === 'upgrade' && entry.comment === option.name && Boolean(entry.name && wanted.has(entry.name.toLocaleLowerCase())),
-    )
-    .map((entry) => ({
-      name: entry.name!,
-      points: entry.costs?.find((cost) => cost.typeId === loaded.index.pointsTypeId)?.value ?? null,
-      description:
-        entry.profiles?.flatMap((profile) => profile.characteristics ?? []).find((characteristic) => characteristic.name === 'Description')
-          ?.$text ?? null,
-    }))
+  const upgrades = [...loaded.index.definitions.values()].filter((entry): entry is SelectionEntry => entry.type === 'upgrade')
+  const enhancements = enhancementNames
+    .map((name) => {
+      const candidates = upgrades.filter((entry) => entry.name?.toLocaleLowerCase() === name.toLocaleLowerCase())
+      const entry =
+        unambiguous(candidates.filter((candidate) => candidate.comment === option.name)) ??
+        unambiguous(candidates.filter((candidate) => loaded.index.catalogueOf.get(candidate.id) === catalogueId)) ??
+        unambiguous(candidates)
+      return {
+        name,
+        points: entry?.costs?.find((cost) => cost.typeId === loaded.index.pointsTypeId)?.value ?? null,
+        description: entry ? descriptionOf(entry) : null,
+      }
+    })
     .toSorted((left, right) => left.name.localeCompare(right.name))
 
   return {
     rule: rule?.name ? { name: rule.name, description: rule.description ?? null } : null,
     enhancements,
   }
+}
+
+const descriptionOf = (entry: SelectionEntry) =>
+  entry.profiles?.flatMap((profile) => profile.characteristics ?? []).find((characteristic) => characteristic.name === 'Description')
+    ?.$text ?? null
+
+/** Picks only when every matching entry says the same thing. */
+function unambiguous(entries: readonly SelectionEntry[]): SelectionEntry | null {
+  const described = entries.filter((entry) => descriptionOf(entry))
+  return new Set(described.map(descriptionOf)).size === 1 ? (described[0] ?? null) : null
 }
 
 /**

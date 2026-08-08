@@ -243,19 +243,23 @@ export const detachmentDetail = createServerFn({ method: 'GET' })
       const detail = rules.detachmentDetails.get(slug(faction.name))?.get(data.slug)
       const option = catalogue.detachments.get(data.catalogueId)?.options.find((candidate) => slug(candidate.name) === data.slug)
       if (!detail || !option) return null
-      const catalogueDetail = detachmentCatalogueDetail(catalogue, data.catalogueId, option.id, detail.enhancementNames)
+      const catalogueDetail = detachmentCatalogueDetail(
+        catalogue,
+        data.catalogueId,
+        option.id,
+        detail.enhancements.map((enhancement) => enhancement.name),
+      )
       return {
         ...detail,
         dispositions: detail.dispositions.map((disposition) => rules.dispositions.get(disposition) ?? disposition),
         rule: catalogueDetail?.rule ?? null,
-        enhancements: detail.enhancementNames.map(
-          (name) =>
-            catalogueDetail?.enhancements.find((enhancement) => enhancement.name.toLocaleLowerCase() === name.toLocaleLowerCase()) ?? {
-              name,
-              points: null,
-              description: null,
-            },
-        ),
+        enhancements: detail.enhancements.map((enhancement) => ({
+          name: enhancement.name,
+          points: enhancement.points,
+          description:
+            catalogueDetail?.enhancements.find((candidate) => candidate.name.toLocaleLowerCase() === enhancement.name.toLocaleLowerCase())
+              ?.description ?? null,
+        })),
         attribution: ATTRIBUTION,
       }
     }),
