@@ -61,7 +61,7 @@ No wound tracking within a unit — a unit is standing or lost. No automatic pri
 
 ## Development 🛠️
 
-Node 24.x and pnpm 11.15.0. Setup and checks are in [CONTRIBUTING.md](CONTRIBUTING.md), the design rules are in [CLAUDE.md](CLAUDE.md), and [SECURITY.md](SECURITY.md) covers vulnerability reports.
+Node 24.x, pnpm 11.15.0 and just. `just install && just dev` is the whole setup; the rest is in [CONTRIBUTING.md](CONTRIBUTING.md), the design rules are in [CLAUDE.md](CLAUDE.md), and [SECURITY.md](SECURITY.md) covers vulnerability reports.
 
 ## Attribution
 

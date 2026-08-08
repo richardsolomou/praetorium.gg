@@ -34,4 +34,4 @@ Each of these is a short read, and the one that matches what you are touching is
 
 ## Commands
 
-`pnpm check` is the gate. `pnpm test:e2e` drives real browsers. See [CONTRIBUTING.md](CONTRIBUTING.md) for the rest, including the two e2e traps that have each cost a round of fixes.
+`just` lists them. `just check` is the gate, `just dev` runs the app and Centrifugo together, and `just e2e` drives real browsers against the container image. Each recipe wraps the `pnpm` script underneath, which is what CI calls. See [CONTRIBUTING.md](CONTRIBUTING.md) for the rest, including the two e2e traps that have each cost a round of fixes.
