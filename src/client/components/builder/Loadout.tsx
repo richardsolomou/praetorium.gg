@@ -1,6 +1,7 @@
 import { Minus, Plus } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
+import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { datasheetQuery } from '../../queries'
@@ -52,7 +53,14 @@ type Props = {
  * option. Nothing is typed either way: every option and every price is the data's.
  */
 export function Loadout({ catalogueId, catalogueSlug, unit, detachmentIds, picks, pickIndex, onChoose, onSpread }: Props) {
-  const { data: sheet } = useQuery(datasheetQuery(catalogueId, unit?.entryId ?? '', detachmentIds, picks, pickIndex))
+  const [context, setContext] = useState({ detachmentIds, picks, pickIndex })
+  useEffect(() => {
+    const timeout = window.setTimeout(() => setContext({ detachmentIds, picks, pickIndex }), 150)
+    return () => window.clearTimeout(timeout)
+  }, [detachmentIds, picks, pickIndex])
+  const { data: sheet } = useQuery(
+    datasheetQuery(catalogueId, unit?.entryId ?? '', context.detachmentIds, context.picks, context.pickIndex),
+  )
   if (!unit) {
     return (
       <div className="flex h-full items-center justify-center p-6">
