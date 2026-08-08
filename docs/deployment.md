@@ -18,7 +18,7 @@ docker run -d --name praetorium -p 3000:3000 -v praetorium-data:/data ghcr.io/ri
 - `praetorium.sqlite` — every battle, its command log, and every saved list.
 - `auth.secret` — signs sessions. Losing it signs everyone out; their accounts and lists survive.
 - `realtime-secret` — signs the tokens the browser connects to Centrifugo with. Generated on first boot; losing it costs one reconnect.
-- `catalogue/` — the community data, about 126MB, fetched by the instance itself.
+- `catalogue/` — the community data, about 130MB, fetched by the instance itself.
 
 Back up the database and the secret together. The catalogue is disposable: it is pinned in the image and re-fetched if deleted.
 
@@ -50,7 +50,7 @@ Deployed at `dokploy.ras.sh` as project **praetorium**, application **app**:
 - Domain `praetorium.gg` on port 3000 with a Let's Encrypt certificate.
 - Image published to `ghcr.io/richardsolomou/praetorium.gg`.
 
-The container and Traefik service are `praetorium-cgzzus`. Dokploy generates that suffix and will not let it be edited afterwards, so changing it means recreating the application: `application.update` ignores `appName`, while `application.create` accepts one and appends its own suffix. Detach the volume first (`mounts.remove`) — otherwise deleting the old application takes the volume with it, and with it the database and 127MB of catalogue.
+The container and Traefik service are `praetorium-cgzzus`. Dokploy generates that suffix and will not let it be edited afterwards, so changing it means recreating the application: `application.update` ignores `appName`, while `application.create` accepts one and appends its own suffix. Detach the volume first (`mounts.remove`) — otherwise deleting the old application takes the volume with it, including the database and catalogue.
 
 First boot spends a minute or two fetching the catalogue, and the app is usable throughout. A push to `main` redeploys; the volume and its catalogue survive.
 
