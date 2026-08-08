@@ -37,9 +37,6 @@ export function DatasheetPanel({ catalogueId, entryId, detachmentIds, picks, pic
   if (!sheet) return null
 
   const model = sheet.profiles.find((profile) => profile.type === 'Unit')
-  const ranged = sheet.profiles.filter((profile) => profile.type === 'Ranged Weapons')
-  const melee = sheet.profiles.filter((profile) => profile.type === 'Melee Weapons')
-
   return (
     <ScrollArea className="h-full [&_[data-slot=scroll-area-viewport]]:p-3">
       <div className="space-y-4">
@@ -49,8 +46,6 @@ export function DatasheetPanel({ catalogueId, entryId, detachmentIds, picks, pic
           ))}
         </div>
         {model ? <UnitProfile profile={model} /> : null}
-        {ranged.length ? <WeaponSummary title="Ranged weapons" weapons={ranged} rules={sheet.keywordRules} /> : null}
-        {melee.length ? <WeaponSummary title="Melee weapons" weapons={melee} rules={sheet.keywordRules} /> : null}
         <AbilitySummary abilities={sheet.abilities} rules={sheet.keywordRules} />
       </div>
     </ScrollArea>
@@ -78,7 +73,7 @@ function UnitProfile({ profile }: { profile: Profile }) {
   )
 }
 
-function WeaponSummary({ title, weapons, rules }: { title: string; weapons: Profile[]; rules: Datasheet['keywordRules'] }) {
+export function WeaponSummary({ title, weapons, rules }: { title: string; weapons: Profile[]; rules: Datasheet['keywordRules'] }) {
   return (
     <section>
       <p className="eyebrow flex items-baseline justify-between border-b border-edge pb-1">

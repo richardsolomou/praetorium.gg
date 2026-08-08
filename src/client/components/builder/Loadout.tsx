@@ -1,8 +1,13 @@
+import { useQuery } from '@tanstack/react-query'
 import { Minus, Plus } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import type { RosterPick } from '../../../core/roster'
+import { datasheetQuery } from '../../queries'
 import { SearchableSelect } from '../SearchableSelect'
+import { WeaponSummary } from './DatasheetPanel'
 
 /** Base UI selects cannot hold an empty value, so declining a choice needs a token. */
 const NONE = '__none__'
@@ -25,7 +30,11 @@ type LoadoutUnit = {
 }
 
 type Props = {
+  catalogueId: string
   unit: LoadoutUnit | null
+  detachmentIds: readonly string[]
+  picks: readonly RosterPick[]
+  pickIndex: number | null
   onChoose: (key: string, optionId: string) => void
   onSpread: (key: string, counts: Record<string, number>) => void
 }
@@ -42,7 +51,17 @@ type Props = {
  * carbines, which a single answer cannot say; that one gets a count against each
  * option. Nothing is typed either way: every option and every price is the data's.
  */
-export function Loadout({ unit, onChoose, onSpread }: Props) {
+export function Loadout({ catalogueId, unit, detachmentIds, picks, pickIndex, onChoose, onSpread }: Props) {
+  const [context, setContext] = useState({ detachmentIds, picks, pickIndex })
+  useEffect(() => {
+    const timeout = window.setTimeout(() => setContext({ detachmentIds, picks, pickIndex }), 150)
+    return () => window.clearTimeout(timeout)
+  }, [detachmentIds, picks, pickIndex])
+  const { data: sheet } = useQuery({
+    ...datasheetQuery(catalogueId, unit?.entryId ?? '', context.detachmentIds, context.picks, context.pickIndex),
+    placeholderData: (previous, previousQuery) => (previousQuery?.queryKey[2] === unit?.entryId ? previous : undefined),
+  })
+
   if (!unit) {
     return (
       <div className="flex h-full items-center justify-center p-6">
@@ -50,6 +69,8 @@ export function Loadout({ unit, onChoose, onSpread }: Props) {
       </div>
     )
   }
+  const ranged = sheet?.profiles.filter((profile) => profile.type === 'Ranged Weapons') ?? []
+  const melee = sheet?.profiles.filter((profile) => profile.type === 'Melee Weapons') ?? []
 
   return (
     <div className="flex h-full flex-col">
@@ -58,19 +79,23 @@ export function Loadout({ unit, onChoose, onSpread }: Props) {
         <span className="chip mt-1.5 inline-block">{unit.points} pts</span>
       </div>
       <ScrollArea className="min-h-0 flex-1 [&_[data-slot=scroll-area-viewport]]:p-2.5">
-        <section>
-          <p className="rubric flex items-baseline justify-between border-b border-edge pb-1.5">
-            <span>Wargear options</span>
-            <span className="readout">{unit.choices.length}</span>
-          </p>
-          <div className="mt-3 space-y-4">
-            {unit.choices.length ? (
-              unit.choices.map((choice) => (choice.room > 1 ? spread(choice, onSpread) : either(choice, onChoose, unit.name)))
-            ) : (
-              <p className="text-xs text-faint">Nothing on this datasheet is optional.</p>
-            )}
-          </div>
-        </section>
+        <div className="space-y-4">
+          {ranged.length && sheet ? <WeaponSummary title="Ranged weapons" weapons={ranged} rules={sheet.keywordRules} /> : null}
+          {melee.length && sheet ? <WeaponSummary title="Melee weapons" weapons={melee} rules={sheet.keywordRules} /> : null}
+          <section>
+            <p className="rubric flex items-baseline justify-between border-b border-edge pb-1.5">
+              <span>Wargear options</span>
+              <span className="readout">{unit.choices.length}</span>
+            </p>
+            <div className="mt-3 space-y-4">
+              {unit.choices.length ? (
+                unit.choices.map((choice) => (choice.room > 1 ? spread(choice, onSpread) : either(choice, onChoose, unit.name)))
+              ) : (
+                <p className="text-xs text-faint">Nothing on this datasheet is optional.</p>
+              )}
+            </div>
+          </section>
+        </div>
       </ScrollArea>
     </div>
   )

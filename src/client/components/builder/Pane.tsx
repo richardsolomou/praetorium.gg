@@ -16,12 +16,12 @@ type Props = { variant: 'picker' | 'loadout' | 'datasheet'; open: boolean; title
  */
 const VARIANTS = {
   // Written out rather than composed: Tailwind only sees class names it can read.
-  picker: 'lg:static lg:z-auto lg:inset-auto lg:flex lg:w-72 xl:w-80 lg:shrink-0 lg:border-r lg:border-l-0',
-  loadout: 'lg:static lg:z-auto lg:inset-auto lg:flex lg:w-72 xl:w-80 lg:shrink-0 lg:border-l',
-  datasheet: '2xl:static 2xl:z-auto 2xl:inset-auto 2xl:flex 2xl:w-96 2xl:shrink-0 2xl:border-l',
+  picker: 'lg:static lg:z-auto lg:inset-auto lg:flex lg:w-64 lg:shrink-0 lg:border-r lg:border-l-0',
+  loadout: 'lg:static lg:z-auto lg:inset-auto lg:flex lg:w-64 lg:shrink-0 lg:border-l',
+  datasheet: 'xl:static xl:z-auto xl:inset-auto xl:flex xl:w-80 xl:shrink-0 xl:border-l',
 } as const
 
-const CLOSERS = { picker: 'lg:hidden', loadout: 'lg:hidden', datasheet: '2xl:hidden' } as const
+const CLOSERS = { picker: 'lg:hidden', loadout: 'lg:hidden', datasheet: 'xl:hidden' } as const
 
 export function Pane({ variant, open, title, onClose, children }: Props) {
   useEffect(() => {

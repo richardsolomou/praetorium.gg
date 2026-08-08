@@ -57,7 +57,7 @@ test('a list is saved and loaded into another battle', async ({ browser }) => {
 
   const datasheet = page.locator('aside[aria-label="Datasheet"]')
   await expect(datasheet.locator('[data-slot="unit-profile"]')).toBeVisible()
-  await expect(datasheet.getByText('Ranged weapons', { exact: true })).toBeVisible()
+  await expect(page.locator('aside[aria-label="Loadout"]').getByText('Ranged weapons', { exact: true })).toBeVisible()
   await expect(page.getByLabel('List name')).toHaveValue('Nurgle 2k')
   await expect(page.getByLabel('Immortals models')).toHaveText('6')
 

@@ -460,7 +460,11 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
   const loadoutCatalogueId = selected === null ? catalogueId : (picked[selected]?.catalogueId ?? catalogueId)
   const loadout = (
     <Loadout
+      catalogueId={loadoutCatalogueId}
       unit={selectedUnit}
+      detachmentIds={detachmentIds}
+      picks={picked}
+      pickIndex={selected}
       onChoose={(key, optionId) => selected !== null && choose(selected, key, optionId)}
       onSpread={(key, counts) => selected !== null && spread(selected, key, counts)}
     />

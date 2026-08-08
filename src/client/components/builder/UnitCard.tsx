@@ -73,16 +73,16 @@ export function UnitCard({
       <div className="flex items-start gap-2 px-2.5 py-2">
         <Button
           variant="ghost"
-          className="h-auto min-w-0 flex-1 justify-start rounded-none p-0 text-left hover:bg-transparent"
+          className="h-auto min-w-0 flex-1 flex-col items-start justify-start overflow-hidden rounded-none p-0 text-left hover:bg-transparent"
           onClick={onSelect}
           aria-pressed={selected}
         >
-          <span className="min-w-0">
+          <span className="w-full min-w-0">
             <span className="block truncate text-[0.9375rem] leading-tight font-bold tracking-[0.02em] uppercase">{unit.name}</span>
             {force ? <span className="eyebrow mt-0.5 block truncate text-azure">Allied force · {force}</span> : null}
           </span>
           {unit.wargear.length ? (
-            <ul className="mt-1 space-y-px">
+            <ul className="mt-1 w-full min-w-0 space-y-px">
               {unit.wargear.map((piece) => (
                 <li key={piece.name} className="truncate text-xs text-dim">
                   <span aria-hidden>• </span>
