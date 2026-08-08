@@ -4,10 +4,23 @@ import { Check, Copy, Download, EllipsisVertical, Eye, Layers3, LoaderCircle, Pl
 import { strFromU8 } from 'fflate'
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Toggle } from '@/components/ui/toggle'
 import type { Roster, Secondary, Stratagem } from '../../core/battle'
 import { GAME_SIZES, ROSTER_NAME_MAX_LENGTH } from '../../core/battle'
 import type { RosterPick } from '../../core/roster'
@@ -399,9 +412,9 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
     <div className="flex h-full flex-col">
       {initial ? null : (
         <div className="border-b border-edge p-2.5">
-          <label className="eyebrow block" htmlFor="force">
+          <Label className="eyebrow block" htmlFor="force">
             Force
-          </label>
+          </Label>
           <Select
             value={pickerCatalogueId || catalogueId}
             onValueChange={(value: string | null) => setPickerCatalogueId(value ?? catalogueId)}
@@ -524,9 +537,9 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
             </DialogHeader>
             <div className="space-y-4">
               <div>
-                <label className="eyebrow block" htmlFor="edit-roster-faction">
+                <Label className="eyebrow block" htmlFor="edit-roster-faction">
                   Faction
-                </label>
+                </Label>
                 <Select
                   value={catalogueId}
                   onValueChange={(value: string | null) => {
@@ -552,9 +565,9 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
                 </Select>
               </div>
               <div>
-                <label className="eyebrow block" htmlFor="edit-roster-size">
+                <Label className="eyebrow block" htmlFor="edit-roster-size">
                   Battle size
-                </label>
+                </Label>
                 <Select value={String(limit)} onValueChange={(value: string | null) => setLimit(Number(value ?? limit))}>
                   <SelectTrigger id="edit-roster-size" className="mt-1 w-full">
                     <SelectValue>{(value: unknown) => GAME_SIZES.find((size) => String(size.limit) === value)?.name}</SelectValue>
@@ -574,15 +587,14 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
                   {faction?.detachments.map((detachment) => {
                     const chosen = detachmentIds.includes(detachment.id)
                     return (
-                      <button
+                      <Toggle
                         key={detachment.id}
-                        type="button"
-                        aria-pressed={chosen}
-                        onClick={() => toggleDetachment(detachment.id, !chosen)}
+                        pressed={chosen}
+                        onPressedChange={(pressed) => toggleDetachment(detachment.id, pressed)}
                         className={`min-h-10 border px-2 py-1.5 text-left text-xs font-semibold uppercase ${chosen ? 'border-azure bg-raised text-azure' : 'border-edge bg-sunken text-dim'}`}
                       >
                         {detachment.name}
-                      </button>
+                      </Toggle>
                     )
                   })}
                 </div>
@@ -597,9 +609,9 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
                 if (!dispositions.length) return null
                 return (
                   <div>
-                    <label className="eyebrow block" htmlFor="edit-roster-disposition">
+                    <Label className="eyebrow block" htmlFor="edit-roster-disposition">
                       Disposition
-                    </label>
+                    </Label>
                     <div className="mt-1 h-9">
                       {dispositions.length === 1 ? (
                         <p className="flex h-full items-center text-sm text-dim">{dispositions[0].name}</p>
@@ -644,9 +656,9 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
              */}
             <div className="grid grid-cols-2 gap-x-5 gap-y-1 sm:flex sm:flex-wrap sm:gap-x-7">
               <div className="order-1 min-w-0">
-                <label className="eyebrow block" htmlFor="faction">
+                <Label className="eyebrow block" htmlFor="faction">
                   Faction
-                </label>
+                </Label>
                 <Select
                   value={catalogueId}
                   onValueChange={(value: string | null) => {
@@ -743,9 +755,9 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
               ) : null}
 
               <div className="order-2 min-w-0 sm:order-3">
-                <label className="eyebrow block" htmlFor="size">
+                <Label className="eyebrow block" htmlFor="size">
                   Battle size
-                </label>
+                </Label>
                 <Select value={String(limit)} onValueChange={(value: string | null) => setLimit(Number(value ?? GAME_SIZES[1].limit))}>
                   <SelectTrigger id="size" className="h-6 w-full border-0 bg-transparent px-0 font-semibold uppercase">
                     <SelectValue>
@@ -779,10 +791,10 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
             </p>
 
             <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5">
-              <label className="eyebrow cursor-pointer text-azure hover:text-bone" htmlFor="bring">
+              <Label className="eyebrow cursor-pointer text-azure hover:text-bone" htmlFor="bring">
                 <Upload className="mr-1 inline size-3" />
                 Bring a list from another tool
-              </label>
+              </Label>
               <Input
                 ref={importInput}
                 id="bring"
@@ -828,16 +840,35 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
                       >
                         <Copy />
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        className="size-6"
-                        aria-label={`Delete ${list.name}`}
-                        disabled={remove.isPending}
-                        onClick={() => remove.mutate(list.id)}
-                      >
-                        <Trash2 />
-                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger
+                          render={
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              className="size-6"
+                              aria-label={`Delete ${list.name}`}
+                              disabled={remove.isPending}
+                            />
+                          }
+                        >
+                          <Trash2 />
+                        </AlertDialogTrigger>
+                        <AlertDialogContent className="rounded-none border border-edge bg-panel text-bone ring-0">
+                          <AlertDialogHeader>
+                            <AlertDialogTitle className="uppercase">Delete {list.name}?</AlertDialogTitle>
+                            <AlertDialogDescription className="text-dim">
+                              This removes the saved roster. Battles that already use it are not changed.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter className="rounded-none border-edge bg-sunken">
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction variant="destructive" onClick={() => remove.mutate(list.id)}>
+                              Delete roster
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     </span>
                   ))}
                 </span>

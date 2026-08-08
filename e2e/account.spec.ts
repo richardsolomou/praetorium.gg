@@ -50,6 +50,15 @@ test('a list saved under an account is there on another device', async ({ browse
   await elsewhere.getByRole('button', { name: 'Open a battle' }).click()
   await elsewhere.getByRole('button', { name: 'Build from the catalogue' }).click()
   await expect(elsewhere.getByRole('button', { name: 'Kept list', exact: true })).toBeVisible()
+
+  await elsewhere.getByRole('button', { name: 'Delete Kept list' }).click()
+  await expect(elsewhere.getByRole('alertdialog', { name: 'Delete Kept list?' })).toBeVisible()
+  await elsewhere.getByRole('button', { name: 'Cancel' }).click()
+  await expect(elsewhere.getByRole('button', { name: 'Kept list', exact: true })).toBeVisible()
+
+  await elsewhere.getByRole('button', { name: 'Delete Kept list' }).click()
+  await elsewhere.getByRole('button', { name: 'Delete roster' }).click()
+  await expect(elsewhere.getByRole('button', { name: 'Kept list', exact: true })).toBeHidden()
 })
 
 test('an invite link signs you in and drops you back into the battle', async ({ browser }) => {

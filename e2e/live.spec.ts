@@ -71,6 +71,12 @@ test('a battle stays in step across two devices', async ({ browser }) => {
   await alice.getByRole('button', { name: 'events' }).click()
   await expect(alice.getByText(/Alice ends the command phase/)).toBeVisible()
   await alice.screenshot({ path: 'test-results/tracker-events.png', fullPage: true })
+
+  await alice.getByRole('button', { name: 'info' }).click()
+  await alice.getByRole('button', { name: 'End battle' }).click()
+  await expect(alice.getByRole('alertdialog', { name: 'End this battle?' })).toBeVisible()
+  await alice.getByRole('button', { name: 'Keep playing' }).click()
+  await expect(alice.getByRole('button', { name: /End the .+ phase/ })).toBeVisible()
 })
 
 /** One player's card, found by the army on it rather than by which side it is on. */

@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
-import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import type { BattleView, Command } from '../../core/battle'
 import { deploymentsQuery } from '../queries'
 
@@ -41,23 +41,21 @@ export function Battlefield({ view, send, pending }: Props) {
   return (
     <section className="space-y-3">
       <Label>Battlefield</Label>
-      <div className="flex flex-wrap gap-1.5">
+      <ToggleGroup
+        value={view.deploymentId ? [view.deploymentId] : []}
+        onValueChange={(value) => send({ kind: 'set-deployment', patternId: value.at(-1) ?? null })}
+        disabled={pending}
+        variant="outline"
+        className="flex-wrap"
+      >
         {patterns.map((pattern) => {
-          const taken = pattern.id === view.deploymentId
           return (
-            <Button
-              key={pattern.id}
-              variant={taken ? 'default' : 'outline'}
-              size="sm"
-              aria-pressed={taken}
-              disabled={pending}
-              onClick={() => send({ kind: 'set-deployment', patternId: taken ? null : pattern.id })}
-            >
+            <ToggleGroupItem key={pattern.id} size="sm" value={pattern.id}>
               {pattern.name}
-            </Button>
+            </ToggleGroupItem>
           )
         })}
-      </div>
+      </ToggleGroup>
 
       {chosen ? (
         <figure className="space-y-2">

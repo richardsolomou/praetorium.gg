@@ -151,7 +151,7 @@ test('the filters narrow the book to what is worth taking', async ({ page }) => 
   for (let taken = 0; taken < 3; taken++) await lychguard.click()
   await expect(page.getByText('3/3 in roster')).toBeVisible()
   await page.locator('[data-unit="Lychguard"]').first().getByLabel('Unit actions for Lychguard').click()
-  await expect(page.getByRole('menuitem', { name: 'Remove from collection' })).toBeVisible()
+  await expect(page.getByRole('menuitemcheckbox', { name: 'Remove from collection' })).toBeVisible()
   await page.keyboard.press('Escape')
   await page.getByRole('button', { name: 'Unit limit' }).click()
   await expect(lychguard).toBeHidden()

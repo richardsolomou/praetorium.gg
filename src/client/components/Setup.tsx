@@ -4,6 +4,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import { Toggle } from '@/components/ui/toggle'
 import type { BattleView, Command } from '../../core/battle'
 import { ROSTER_MAX_LENGTH, ROSTER_NAME_MAX_LENGTH } from '../../core/battle'
 import { catalogueStatusQuery, factionsQuery } from '../queries'
@@ -14,6 +16,14 @@ import { ListBuilder } from './ListBuilder'
 import { Prep } from './Prep'
 
 type Props = { view: BattleView; send: (command: Command) => void; pending: boolean; problem: string | null }
+const ROSTER_MODES = ['build', 'paste'] as const
+const SETUP_STAGES = [
+  ['roster', '1', 'Roster'],
+  ['battlefield', '2', 'Battlefield'],
+  ['missions', '3', 'Missions'],
+  ['ready', '4', 'Ready'],
+] as const
+type SetupStage = (typeof SETUP_STAGES)[number][0]
 
 /**
  * Before the first turn: your list in, your opponent's list in, and a decision
@@ -30,9 +40,7 @@ export function Setup({ view, send, pending, problem }: Props) {
   const { data: sync } = useQuery(catalogueStatusQuery())
   // An instance with no catalogue synced offers pasting and says nothing about it.
   const [mode, setMode] = useState<'build' | 'paste'>('build')
-  const [stage, setStage] = useState<'roster' | 'battlefield' | 'missions' | 'ready'>(() =>
-    !you.roster ? 'roster' : view.deploymentId ? 'missions' : 'battlefield',
-  )
+  const [stage, setStage] = useState<SetupStage>(() => (!you.roster ? 'roster' : view.deploymentId ? 'missions' : 'battlefield'))
   const building = Boolean(available) && mode === 'build'
   const ready = view.players.length > 1 && view.players.every((player) => player.roster)
 
@@ -52,14 +60,7 @@ export function Setup({ view, send, pending, problem }: Props) {
       </section>
 
       <nav className="grid max-w-3xl grid-cols-4 border border-edge bg-panel" aria-label="Battle setup steps">
-        {(
-          [
-            ['roster', '1', 'Roster'],
-            ['battlefield', '2', 'Battlefield'],
-            ['missions', '3', 'Missions'],
-            ['ready', '4', 'Ready'],
-          ] as const
-        ).map(([id, number, label]) => (
+        {SETUP_STAGES.map(([id, number, label]) => (
           <Button
             key={id}
             variant="ghost"
@@ -83,14 +84,18 @@ export function Setup({ view, send, pending, problem }: Props) {
       ) : null}
 
       {stage === 'roster' && available ? (
-        <div className="flex gap-2">
-          <Button variant={mode === 'build' ? 'default' : 'outline'} size="sm" onClick={() => setMode('build')}>
-            Build from the catalogue
-          </Button>
-          <Button variant={mode === 'paste' ? 'default' : 'outline'} size="sm" onClick={() => setMode('paste')}>
-            Paste a list
-          </Button>
-        </div>
+        <ToggleGroup
+          value={[mode]}
+          onValueChange={(value) => {
+            const next = ROSTER_MODES.find((entry) => entry === value[0])
+            if (next) setMode(next)
+          }}
+          variant="outline"
+          size="sm"
+        >
+          <ToggleGroupItem value="build">Build from the catalogue</ToggleGroupItem>
+          <ToggleGroupItem value="paste">Paste a list</ToggleGroupItem>
+        </ToggleGroup>
       ) : null}
 
       {stage !== 'roster' ? null : building ? (
@@ -177,16 +182,16 @@ export function Setup({ view, send, pending, problem }: Props) {
               </Label>
               <div className="flex flex-wrap gap-1.5">
                 {you.units.map((unit) => (
-                  <Button
+                  <Toggle
                     key={unit.key}
-                    variant={unit.deployed ? 'default' : 'outline'}
+                    variant="outline"
                     size="sm"
-                    aria-pressed={unit.deployed}
+                    pressed={unit.deployed}
                     disabled={pending}
-                    onClick={() => send({ kind: 'deploy-unit', unitKey: unit.key, deployed: !unit.deployed })}
+                    onPressedChange={(pressed) => send({ kind: 'deploy-unit', unitKey: unit.key, deployed: pressed })}
                   >
                     {unit.name}
-                  </Button>
+                  </Toggle>
                 ))}
               </div>
               <p className="text-xs text-dim">Anything left off the table is in reserve, and can arrive later.</p>

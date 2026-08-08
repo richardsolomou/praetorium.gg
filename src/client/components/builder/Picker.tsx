@@ -3,6 +3,8 @@ import { Heart, ListFilter, Plus } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { Toggle } from '@/components/ui/toggle'
 import { setOwned } from '../../../server/functions'
 import { collectionQuery, unitsQuery } from '../../queries'
 import { GROUPS } from './groups'
@@ -66,13 +68,13 @@ export function Picker({ catalogueId, onAdd, inRoster, room }: Props) {
         <div className="flex flex-wrap items-center gap-1.5">
           <ListFilter className="size-3.5 shrink-0 text-faint" aria-hidden />
           {FILTERS.map((filter) => (
-            <Button
+            <Toggle
               key={filter.id}
               variant="outline"
-              size="xs"
+              size="sm"
               title={filter.hint}
-              aria-pressed={active.has(filter.id)}
-              onClick={() => toggle(filter.id)}
+              pressed={active.has(filter.id)}
+              onPressedChange={() => toggle(filter.id)}
               className={`rounded-sm border px-1.5 py-px text-[0.6875rem] font-semibold tracking-[0.06em] uppercase transition-colors ${
                 active.has(filter.id)
                   ? 'border-azure bg-azure/15 text-azure'
@@ -80,11 +82,11 @@ export function Picker({ catalogueId, onAdd, inRoster, room }: Props) {
               }`}
             >
               {filter.label}
-            </Button>
+            </Toggle>
           ))}
         </div>
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto px-2.5">
+      <ScrollArea className="min-h-0 flex-1 [&_[data-slot=scroll-area-viewport]]:px-2.5">
         {shown.length ? (
           GROUPS.map(({ id, plural }) => {
             const rows = shown.filter((unit) => unit.group === id)
@@ -104,17 +106,17 @@ export function Picker({ catalogueId, onAdd, inRoster, room }: Props) {
                           </span>
                         ) : null}
                       </span>
-                      <Button
-                        variant="ghost"
-                        size="icon-xs"
+                      <Toggle
+                        variant="default"
+                        size="sm"
                         aria-label={`${collection.has(unit.id) ? 'Remove' : 'Add'} ${unit.name} ${collection.has(unit.id) ? 'from' : 'to'} your collection`}
-                        aria-pressed={collection.has(unit.id)}
+                        pressed={collection.has(unit.id)}
                         disabled={own.isPending}
-                        onClick={() => own.mutate({ entryId: unit.id, owned: !collection.has(unit.id) })}
-                        className="shrink-0"
+                        onPressedChange={(pressed) => own.mutate({ entryId: unit.id, owned: pressed })}
+                        className="size-6 shrink-0 p-0"
                       >
                         <Heart className={`size-3.5 ${collection.has(unit.id) ? 'fill-azure text-azure' : 'text-faint hover:text-dim'}`} />
-                      </Button>
+                      </Toggle>
                       {unit.points === null ? null : <span className="chip shrink-0">{unit.points} pts</span>}
                       <Button
                         size="sm"
@@ -136,7 +138,7 @@ export function Picker({ catalogueId, onAdd, inRoster, room }: Props) {
             {found?.length ? 'Everything is filtered out.' : query ? 'Nothing by that name.' : 'Loading the book…'}
           </p>
         )}
-      </div>
+      </ScrollArea>
     </div>
   )
 }

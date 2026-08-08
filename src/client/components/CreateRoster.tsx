@@ -4,7 +4,9 @@ import { Plus } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Toggle } from '@/components/ui/toggle'
 import { GAME_SIZES } from '../../core/battle'
 import { saveRoster } from '../../server/functions'
 import { priceQuery, savedRostersQuery } from '../queries'
@@ -74,9 +76,9 @@ export function CreateRoster({ factions }: { factions: Faction[] }) {
           }}
         >
           <div>
-            <label className="eyebrow block" htmlFor="new-roster-faction">
+            <Label className="eyebrow block" htmlFor="new-roster-faction">
               Faction
-            </label>
+            </Label>
             <Select
               value={catalogueId}
               onValueChange={(value: string | null) => {
@@ -101,9 +103,9 @@ export function CreateRoster({ factions }: { factions: Faction[] }) {
           </div>
 
           <div>
-            <label className="eyebrow block" htmlFor="new-roster-size">
+            <Label className="eyebrow block" htmlFor="new-roster-size">
               Battle size
-            </label>
+            </Label>
             <Select value={String(limit)} onValueChange={(value: string | null) => setLimit(Number(value ?? GAME_SIZES[1].limit))}>
               <SelectTrigger id="new-roster-size" className="mt-1 w-full">
                 <SelectValue>
@@ -129,11 +131,10 @@ export function CreateRoster({ factions }: { factions: Faction[] }) {
               {faction?.detachments.map((detachment) => {
                 const selected = detachmentIds.includes(detachment.id)
                 return (
-                  <button
+                  <Toggle
                     key={detachment.id}
-                    type="button"
-                    aria-pressed={selected}
-                    onClick={() => {
+                    pressed={selected}
+                    onPressedChange={() => {
                       setDetachmentIds((current) =>
                         selected
                           ? current.filter((id) => id !== detachment.id)
@@ -150,7 +151,7 @@ export function CreateRoster({ factions }: { factions: Faction[] }) {
                   >
                     <span>{detachment.name}</span>
                     {detachment.reference?.points == null ? null : <span className="chip">{detachment.reference.points} DP</span>}
-                  </button>
+                  </Toggle>
                 )
               })}
             </div>
@@ -164,9 +165,9 @@ export function CreateRoster({ factions }: { factions: Faction[] }) {
 
           {dispositions.length ? (
             <div>
-              <label className="eyebrow block" htmlFor="new-roster-disposition">
+              <Label className="eyebrow block" htmlFor="new-roster-disposition">
                 Disposition
-              </label>
+              </Label>
               <div className="mt-1 h-9">
                 {dispositions.length === 1 ? (
                   <p className="flex h-full items-center text-sm text-dim">{dispositions[0].name}</p>
