@@ -1,5 +1,5 @@
 import { queryOptions } from '@tanstack/react-query'
-import type { RosterPick } from '../server/schemas'
+import type { RosterPick } from '../core/roster'
 import {
   battleReport,
   catalogueStatus,

@@ -28,6 +28,8 @@ export type DefaultOptions = { maxDepth?: number }
  */
 export type RosterPick = {
   entryId: string
+  /** The catalogue that owns an allied unit; absent for the primary force. */
+  catalogueId?: string
   models?: number
   choices?: Record<string, string>
   /**
@@ -39,6 +41,8 @@ export type RosterPick = {
   spreads?: Record<string, Record<string, number>>
   /** Optional single entries such as Warlord, keyed by their catalogue path. */
   toggles?: Record<string, number>
+  /** The position of the unit this one joins in the saved pick list. */
+  attachedTo?: number
 }
 
 /**

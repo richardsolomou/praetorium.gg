@@ -9,10 +9,11 @@ import {
   type Secondary,
   type Stratagem,
 } from '../core/battle'
+import type { RosterPick } from '../core/roster'
 import type { BattleSeats, JoinResult, Repository, SubmitResult } from '../db/repository'
 import { createId, createToken } from './crypto'
 import { type Mission, missionFor } from './rules'
-import { picksSchema, type RosterPick, savedPrepSchema } from './schemas'
+import { picksSchema, savedPrepSchema } from './schemas'
 
 /**
  * What someone holding the link gets: the battle itself once they have a seat,

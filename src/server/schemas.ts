@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { ROSTER_NAME_MAX_LENGTH, SECONDARIES_MAX, STRATAGEM_CP_MAX, STRATAGEM_LIMITS, STRATAGEMS_MAX } from '../core/battle'
 import { commandSchema } from '../core/commands'
 
 const token = z.string().min(1).max(64)
@@ -49,25 +50,25 @@ const pickSchema = z.object({
   attachedTo: z.number().int().min(0).max(99).optional(),
 })
 
-export type RosterPick = z.infer<typeof pickSchema>
-
 const prepSchema = z.object({
   stratagems: z
     .array(
       z.object({
         key: z.string().min(1).max(64),
-        name: z.string().min(1).max(80),
-        cp: z.number().int().min(0).max(6),
-        limit: z.enum(['phase', 'turn', 'battle', 'unlimited']),
+        name: z.string().min(1).max(ROSTER_NAME_MAX_LENGTH),
+        cp: z.number().int().min(0).max(STRATAGEM_CP_MAX),
+        limit: z.enum(STRATAGEM_LIMITS),
       }),
     )
-    .max(24),
-  secondaries: z.array(z.object({ key: z.string().min(1).max(64), name: z.string().min(1).max(80) })).max(6),
+    .max(STRATAGEMS_MAX),
+  secondaries: z
+    .array(z.object({ key: z.string().min(1).max(64), name: z.string().min(1).max(ROSTER_NAME_MAX_LENGTH) }))
+    .max(SECONDARIES_MAX),
 })
 
 export const saveRosterSchema = z.object({
   id: z.string().min(1).max(64).optional(),
-  name: z.string().trim().min(1, 'name the list').max(80),
+  name: z.string().trim().min(1, 'name the list').max(ROSTER_NAME_MAX_LENGTH),
   catalogueId,
   detachmentIds: z.array(z.string().min(1).max(64)).max(3),
   limit: z.number().int().min(0).max(10_000),
