@@ -27,10 +27,6 @@ export class Repository {
       .run()
   }
 
-  player(id: string) {
-    return this.database.select().from(players).where(eq(players.id, id)).get()
-  }
-
   playerOfUser(userId: string) {
     return this.database.select().from(players).where(eq(players.userId, userId)).orderBy(desc(players.createdAt)).get()
   }

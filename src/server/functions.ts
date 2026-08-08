@@ -7,7 +7,7 @@ import { ATTRIBUTION, slug } from './rules'
 import { mutationRpc, rpc } from './rpc'
 import { calculateRosterPrice } from './pricing'
 import { exportRosterFile, importRosterFile } from './rosterFiles'
-import { currentPlayerId, requirePlayerId } from './playerSession'
+import { currentPlayer, currentPlayerId, requirePlayerId } from './playerSession'
 import {
   datasheetSchema,
   datasheetSlugSchema,
@@ -35,13 +35,7 @@ function orNull<T>(work: () => T) {
   }
 }
 
-export const me = createServerFn({ method: 'GET' }).handler(() =>
-  rpc(async () => {
-    const id = await currentPlayerId()
-    const player = id ? app().service.player(id) : undefined
-    return player ? { id: player.id, name: player.name } : null
-  }),
-)
+export const me = createServerFn({ method: 'GET' }).handler(() => rpc(() => currentPlayer()))
 
 export const myBattles = createServerFn({ method: 'GET' }).handler(() =>
   rpc(async () => {

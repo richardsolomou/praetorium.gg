@@ -43,10 +43,6 @@ export class PraetoriumService {
     private readonly events: BattleEvents,
   ) {}
 
-  player(playerId: string) {
-    return this.repository.player(playerId)
-  }
-
   /** A player's battles with their current state folded from each log. */
   battles(playerId: string) {
     return this.repository.battlesOf(playerId).map((seats) => {
