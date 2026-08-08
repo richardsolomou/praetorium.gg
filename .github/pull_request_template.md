@@ -10,6 +10,6 @@
 
 <!-- Commands actually run, with their result counts. Anything rendered: say that you looked at it. -->
 
-- [ ] `pnpm check`
-- [ ] `pnpm test:e2e`
-- [ ] `pnpm catalogue:points` (points or legality changed — state the percentage)
+- [ ] `just check`
+- [ ] `just e2e`
+- [ ] `just points` (points or legality changed — state the percentage)
