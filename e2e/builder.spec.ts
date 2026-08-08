@@ -35,10 +35,10 @@ test('enhancement choices show descriptions when rule and catalogue names differ
     .first()
     .click()
 
-  await page.getByRole('combobox', { name: /Skorpekh Lord Enhancements/ }).click()
-  const mark = page.getByRole('option', { name: /Mark of the Nekrosor/ })
-  await expect(mark).toContainText('add 1 to the Hit roll')
-  await page.screenshot({ path: 'test-results/nekrosor-enhancement.png' })
+  const enhancements = page.getByRole('group', { name: /Skorpekh Lord Enhancements/ })
+  const mark = enhancements.getByRole('button', { name: 'Select Mark of the Nekrosor' })
+  await expect(mark.locator('..')).toContainText('add 1 to the Hit roll')
+  await mark.locator('..').screenshot({ path: 'test-results/nekrosor-enhancement.png' })
 })
 
 test('Cursed Legion does not modify Immortals without an eligible leader', async ({ page }) => {

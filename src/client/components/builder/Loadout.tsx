@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { Minus, Plus } from 'lucide-react'
+import { Check, Minus, Plus } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -90,7 +90,13 @@ export function Loadout({ catalogueId, unit, detachmentIds, picks, pickIndex, on
             </p>
             <div className="mt-3 space-y-4">
               {unit.choices.length ? (
-                unit.choices.map((choice) => (choice.room > 1 ? spread(choice, onSpread) : either(choice, onChoose, unit.name)))
+                unit.choices.map((choice) =>
+                  choice.name.toLowerCase().includes('enhancement')
+                    ? enhancement(choice, onChoose, unit.name)
+                    : choice.room > 1
+                      ? spread(choice, onSpread)
+                      : either(choice, onChoose, unit.name),
+                )
               ) : (
                 <p className="text-xs text-faint">Nothing on this datasheet is optional.</p>
               )}
@@ -99,6 +105,54 @@ export function Loadout({ catalogueId, unit, detachmentIds, picks, pickIndex, on
         </div>
       </ScrollArea>
     </div>
+  )
+}
+
+function enhancement(choice: LoadoutChoice, onChoose: Props['onChoose'], unitName: string) {
+  return (
+    <fieldset key={choice.key} aria-label={`${unitName} ${choice.name}`} className="m-0 min-w-0 border-0 p-0">
+      <legend className="eyebrow p-0">{choice.name}</legend>
+      <div className="mt-1.5 space-y-1.5">
+        {choice.optional ? (
+          <button
+            type="button"
+            aria-pressed={!choice.chosen}
+            onClick={() => onChoose(choice.key, '')}
+            className={`flex w-full items-center justify-between border px-2.5 py-2 text-left text-xs font-semibold uppercase ${
+              choice.chosen ? 'border-edge bg-card text-dim hover:border-dim hover:text-bone' : 'border-azure bg-azure/10 text-azure'
+            }`}
+          >
+            No enhancement
+            {!choice.chosen ? <Check className="size-3.5" aria-hidden /> : null}
+          </button>
+        ) : null}
+        {choice.options.map((option) => {
+          const selected = choice.chosen === option.id
+          return (
+            <article key={option.id} className={`border ${selected ? 'border-azure bg-azure/10' : 'border-edge bg-card'}`}>
+              <button
+                type="button"
+                aria-pressed={selected}
+                aria-label={`Select ${option.name}`}
+                onClick={() => onChoose(choice.key, option.id)}
+                className="flex w-full items-center justify-between gap-2 px-2.5 py-2 text-left hover:bg-raised"
+              >
+                <span className="text-sm font-semibold text-bone">{option.name}</span>
+                <span className="flex shrink-0 items-center gap-1.5">
+                  {option.points ? <span className="chip">+{option.points} pts</span> : null}
+                  {selected ? <Check className="size-3.5 text-azure" aria-hidden /> : null}
+                </span>
+              </button>
+              {option.description ? (
+                <div className="border-t border-edge px-2.5 pb-2">
+                  <RuleText text={option.description} />
+                </div>
+              ) : null}
+            </article>
+          )
+        })}
+      </div>
+    </fieldset>
   )
 }
 
