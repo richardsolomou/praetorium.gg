@@ -1,9 +1,7 @@
-import { QueryClient } from '@tanstack/react-query'
+import { createStackQueryClient, queryErrorMessage } from 'ras-stack/tanstack/query'
 
 export function createQueryClient() {
-  return new QueryClient({ defaultOptions: { queries: { staleTime: 1000 } } })
+  return createStackQueryClient()
 }
 
-export function errorMessage(error: unknown) {
-  return error instanceof Error && error.message ? error.message : 'Something went wrong. Try again.'
-}
+export const errorMessage = queryErrorMessage

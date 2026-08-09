@@ -1,9 +1,7 @@
-import { getRequest } from '@tanstack/react-start/server'
-import { createRpc } from 'ras-stack/server'
+import { createTanStackRpc } from 'ras-stack/tanstack/server'
 import { requireMutationOrigin } from './mutationOrigin'
 
-export const { rpc, mutationRpc } = createRpc({
-  getRequest,
+export const { rpc, mutationRpc } = createTanStackRpc({
   requireMutation: requireMutationOrigin,
   logError: (error, context) => console.error({ event: 'server_function_failed', ...context, error }),
 })
