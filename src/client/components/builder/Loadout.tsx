@@ -114,10 +114,16 @@ export function Loadout({ catalogueId, unit, detachmentIds, picks, pickIndex, on
               size="sm"
               aria-label={`${toggle.selected ? 'Remove' : 'Make'} ${unit.name} ${toggle.name}`}
               pressed={toggle.selected}
+              className={
+                toggle.selected
+                  ? 'border-azure bg-azure/15 text-azure hover:bg-azure/20 hover:text-azure'
+                  : 'border-edge-strong text-dim hover:border-azure hover:text-bone'
+              }
               onPressedChange={(pressed) => onToggle(toggle.key, toggle.name, pressed)}
             >
-              <Crown />
+              <Crown className={toggle.selected ? 'fill-current' : undefined} />
               {toggle.name}
+              {toggle.selected ? <Check className="size-3.5" aria-hidden /> : null}
             </Toggle>
           ))}
         </div>
@@ -126,25 +132,23 @@ export function Loadout({ catalogueId, unit, detachmentIds, picks, pickIndex, on
         <div className="space-y-4">
           {ranged.length && sheet ? <WeaponSummary title="Ranged weapons" weapons={ranged} rules={sheet.keywordRules} /> : null}
           {melee.length && sheet ? <WeaponSummary title="Melee weapons" weapons={melee} rules={sheet.keywordRules} /> : null}
-          <section>
-            <p className="rubric flex items-baseline justify-between border-b border-edge pb-1.5">
-              <span>Wargear options</span>
-              <span className="readout">{unit.choices.length}</span>
-            </p>
-            <div className="mt-3 space-y-4">
-              {unit.choices.length ? (
-                unit.choices.map((choice) =>
+          {unit.choices.length ? (
+            <section>
+              <p className="rubric flex items-baseline justify-between border-b border-edge pb-1.5">
+                <span>Wargear options</span>
+                <span className="readout">{unit.choices.length}</span>
+              </p>
+              <div className="mt-3 space-y-4">
+                {unit.choices.map((choice) =>
                   choice.name.toLowerCase().includes('enhancement')
                     ? enhancement(choice, onChoose, unit.name)
                     : choice.room > 1
                       ? spread(choice, onSpread)
                       : either(choice, onChoose, unit.name),
-                )
-              ) : (
-                <p className="text-xs text-faint">Nothing on this datasheet is optional.</p>
-              )}
-            </div>
-          </section>
+                )}
+              </div>
+            </section>
+          ) : null}
         </div>
       </ScrollArea>
     </div>

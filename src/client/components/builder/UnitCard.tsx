@@ -45,9 +45,9 @@ export function UnitCard({ unit, force, selected, onSelect, onRemove, onDuplicat
   return (
     <div
       data-unit={unit.name}
-      className={`border bg-card transition-colors ${selected ? 'border-azure' : 'border-edge hover:border-edge-strong'}`}
+      className={`border bg-card transition-colors ${selected ? 'border-azure' : 'border-edge hover:border-azure'}`}
     >
-      <div className="relative flex items-start gap-2 px-2.5 py-2 transition-colors hover:bg-raised">
+      <div className="relative flex items-start gap-2 px-2.5 py-2">
         <Button
           variant="ghost"
           className="absolute inset-0 h-full w-full rounded-none hover:bg-transparent"

@@ -426,6 +426,7 @@ test('fixed duplicate weapons show their quantity with the profile', async ({ pa
 
   const loadout = page.locator('aside[aria-label="Loadout"]')
   await expect(loadout.getByRole('heading', { name: '2× Gauss flayer array' })).toBeVisible()
+  await expect(loadout.getByText('Wargear options', { exact: true })).toBeHidden()
 })
 
 /**
