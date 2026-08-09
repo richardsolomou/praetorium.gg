@@ -50,7 +50,7 @@ export function UnitCard({ unit, force, selected, onSelect, onRemove, onDuplicat
       <div className="relative flex items-start gap-2 px-2.5 py-2">
         <Button
           variant="ghost"
-          className="absolute inset-0 h-full w-full rounded-none hover:bg-transparent"
+          className="absolute inset-0 h-full w-full rounded-none hover:bg-transparent dark:hover:bg-transparent"
           onClick={onSelect}
           aria-pressed={selected}
           aria-label={unit.name}
