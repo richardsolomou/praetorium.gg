@@ -129,7 +129,13 @@ async function deploy() {
   })
   // The canonical host is enforced by the app, so a preview has to be told its own.
   await api('application.saveEnvironment', {
-    body: { applicationId, env: `APP_URL=https://${host}\n`, buildArgs: null, buildSecrets: null, createEnvFile: false },
+    body: {
+      applicationId,
+      env: `APP_URL=https://${host}\nPRAETORIUM_SEED_PREVIEW=true\n`,
+      buildArgs: null,
+      buildSecrets: null,
+      createEnvFile: false,
+    },
   })
   await api('application.deploy', { body: { applicationId } })
   await waitForDeployment(applicationId)

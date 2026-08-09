@@ -29,6 +29,7 @@ import { collectionQuery, factionsQuery, priceQuery, savedRostersQuery } from '.
 import { useCollectionMutation } from '../useCollection'
 import { errorMessage } from '../queryClient'
 import { DetachmentPoints } from './DetachmentPoints'
+import { DatasheetPanel } from './builder/DatasheetPanel'
 import { shelve, shortName } from './builder/factions'
 import { GROUPS } from './builder/groups'
 import { Loadout } from './builder/Loadout'
@@ -84,7 +85,8 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
   const [disposition, setDisposition] = useState<string | null>(initial?.disposition ?? null)
   const [name, setName] = useState(initial?.name ?? '')
   const [selected, setSelected] = useState<number | null>(null)
-  const [showing, setShowing] = useState<'picker' | 'loadout' | null>(null)
+  const [preview, setPreview] = useState<{ catalogueId: string; entryId: string } | null>(null)
+  const [showing, setShowing] = useState<'picker' | 'loadout' | 'datasheet' | null>(null)
   const [editingSetup, setEditingSetup] = useState(false)
   const importInput = useRef<HTMLInputElement>(null)
 
@@ -447,6 +449,10 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
         <Picker
           catalogueId={initial ? catalogueId : pickerCatalogueId || catalogueId}
           onAdd={add}
+          onPreview={(entryId) => {
+            setPreview({ catalogueId: initial ? catalogueId : pickerCatalogueId || catalogueId, entryId })
+            setShowing('datasheet')
+          }}
           inRoster={held}
           room={priced ? limit - priced.points : null}
         />
@@ -460,13 +466,24 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
   const loadout = (
     <Loadout
       catalogueId={loadoutCatalogueId}
-      catalogueSlug={available.factions.find((entry) => entry.id === loadoutCatalogueId)?.slug ?? loadoutCatalogueId}
       unit={selectedUnit}
       detachmentIds={detachmentIds}
       picks={picked}
       pickIndex={selected}
       onChoose={(key, optionId) => selected !== null && choose(selected, key, optionId)}
       onSpread={(key, counts) => selected !== null && spread(selected, key, counts)}
+      onToggle={(key, toggleName, enabled) => selected !== null && toggle(selected, key, toggleName, enabled)}
+      onResize={(models) => selected !== null && resize(selected, models)}
+    />
+  )
+  const datasheet = (
+    <DatasheetPanel
+      catalogueId={preview?.catalogueId ?? loadoutCatalogueId}
+      entryId={preview?.entryId ?? selectedUnit?.entryId ?? null}
+      detachmentIds={detachmentIds}
+      picks={picked}
+      pickIndex={preview ? null : selected}
+      showWeapons={Boolean(preview)}
     />
   )
 
@@ -879,6 +896,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
                       }
                       selected={selected === index}
                       onSelect={() => {
+                        setPreview(null)
                         setSelected(index)
                         setShowing('loadout')
                       }}
@@ -886,8 +904,6 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
                       onDuplicate={() => duplicate(index)}
                       owned={collection.has(unit.entryId)}
                       onOwned={() => own.mutate({ entryId: unit.entryId, owned: !collection.has(unit.entryId) })}
-                      onToggle={(key, toggleName, enabled) => toggle(index, key, toggleName, enabled)}
-                      onResize={(models) => resize(index, models)}
                       joined={joinedRows(index)}
                       canJoin={joinable(index)}
                       onJoin={(targetKey) => join(index, targetKey)}
@@ -924,6 +940,10 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
 
         <Pane variant="loadout" open={showing === 'loadout' && Boolean(selectedUnit)} title="Loadout" onClose={() => setShowing(null)}>
           {loadout}
+        </Pane>
+
+        <Pane variant="datasheet" open={showing === 'datasheet'} title="Datasheet" onClose={() => setShowing(null)}>
+          {datasheet}
         </Pane>
       </div>
 

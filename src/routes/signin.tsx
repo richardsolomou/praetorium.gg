@@ -48,7 +48,7 @@ function SignIn() {
       // `next` is a pathname rather than a route, so this is a navigation by href
       // rather than by route id.
       if (next) window.location.assign(next)
-      else await navigate({ to: '/' })
+      else await navigate({ to: '/rosters' })
     },
   })
 
@@ -59,7 +59,6 @@ function SignIn() {
         Your account is your player: it holds your saved lists, the battles you have played and the ones still going, on whatever device you
         pick up.
       </p>
-
       <form
         className="mt-8 space-y-4"
         onSubmit={(event) => {
@@ -107,7 +106,7 @@ function SignIn() {
               key={provider}
               variant="outline"
               className="h-11 w-full text-base capitalize"
-              onClick={() => void authClient.signIn.social({ provider, callbackURL: '/' })}
+              onClick={() => void authClient.signIn.social({ provider, callbackURL: next ?? '/rosters' })}
             >
               Continue with {provider}
             </Button>

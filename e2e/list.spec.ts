@@ -48,12 +48,12 @@ test('a built list is priced, played and tracked', async ({ browser }) => {
   // A Plague Marines squad is five or ten, so growing it must cost more. The
   // clicks are sequential on purpose: each one re-prices the list.
   const grow = alice.getByRole('button', { name: /More models in Plague Marines/ })
-  await grow.click()
-  await grow.click()
-  await grow.click()
-  await grow.click()
-  await grow.click()
-  await expect(alice.getByLabel('Plague Marines models')).toHaveText('10')
+  for (let models = 6; models <= 10; models++) {
+    // eslint-disable-next-line no-await-in-loop
+    await grow.click()
+    // eslint-disable-next-line no-await-in-loop
+    await expect(alice.getByLabel('Plague Marines models')).toHaveText(String(models))
+  }
   expect(Number.parseInt(await total.innerText(), 10)).toBeGreaterThan(atFive)
 
   // A loadout choice the data leaves open, changed and re-priced.
@@ -85,15 +85,17 @@ test('a built list is priced, played and tracked', async ({ browser }) => {
     .click()
 
   // An enhancement is offered only for the detachment it belongs to, and costs points.
-  const enhancement = alice.getByRole('combobox', { name: /Lord of Virulence Enhancements/ })
+  const enhancement = alice.getByRole('group', { name: /Lord of Virulence Enhancements/ })
   await expect(enhancement).toBeVisible()
   const beforeEnhancement = Number.parseInt(await total.innerText(), 10)
-  await enhancement.click()
-  await alice.getByRole('option', { name: /Face of Death/ }).click()
+  const faceOfDeath = enhancement.getByRole('button', { name: 'Select Face of Death' })
+  await expect(faceOfDeath.locator('..')).toContainText('At the start of the Fight phase')
+  await faceOfDeath.locator('..').screenshot({ path: 'test-results/enhancement-options.png' })
+  await faceOfDeath.click()
+  await expect(faceOfDeath).toHaveAttribute('aria-pressed', 'true')
   await expect(total).not.toHaveText(`${beforeEnhancement}/2000`)
   await expect(alice.locator('[data-unit="Lord of Virulence"]').getByText('Enhancement', { exact: true })).toBeVisible()
-  await enhancement.click()
-  await alice.getByRole('option', { name: 'None' }).click()
+  await enhancement.getByRole('button', { name: 'No enhancement' }).click()
   await expect(total).toHaveText(`${beforeEnhancement}/2000`)
   await expect(alice.locator('[data-unit="Lord of Virulence"]').getByText('Enhancement', { exact: true })).toBeHidden()
 

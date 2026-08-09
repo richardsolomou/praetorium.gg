@@ -461,7 +461,17 @@ describe('a datasheet', () => {
 
   it('applies profile modifiers from the selected detachment and preserves their source', () => {
     const book = bookOf({
-      selectionEntries: [{ id: 'cursed-legion', name: 'Cursed Legion', type: 'upgrade' }],
+      selectionEntries: [
+        { id: 'cursed-legion', name: 'Cursed Legion', type: 'upgrade' },
+        {
+          id: 'immortals',
+          name: 'Immortals',
+          type: 'unit',
+          profiles: [
+            { id: 'immortal-blaster', name: 'Gauss blaster', typeName: 'Ranged Weapons', characteristics: [{ name: 'S', $text: '5' }] },
+          ],
+        },
+      ],
       entryLinks: [{ id: 'destroyers', name: 'Destroyers', targetId: 'destroyer-sheet', type: 'selectionEntry' }],
       sharedSelectionEntries: [
         {
@@ -534,6 +544,12 @@ describe('a datasheet', () => {
       })?.profiles[1]?.values[0],
     ).toEqual({ name: 'S', value: '4' })
     expect(datasheetIn(book, 'cat', 'destroyers')?.profiles[0]?.values[0]).toEqual({ name: 'S', value: '5' })
+    expect(
+      datasheetIn(book, 'cat', 'immortals', {
+        selections: [{ id: 'cursed-legion' }, { id: 'destroyers' }, { id: 'immortals' }],
+        unitSelectionIndex: 1,
+      })?.profiles[0]?.values[0],
+    ).toEqual({ name: 'S', value: '5' })
   })
 
   it.each(profileOperationCases)(
@@ -725,6 +741,46 @@ describe('a datasheet', () => {
     const selections = [{ id: 'unit', selections: [{ id: 'boost' }] }, { id: 'unit' }]
     expect(datasheetIn(book, 'cat', 'unit', { selections, unitSelectionIndex: 0 })?.profiles[0]?.values[0]?.value).toBe('7')
     expect(datasheetIn(book, 'cat', 'unit', { selections, unitSelectionIndex: 1 })?.profiles[0]?.values[0]?.value).toBe('5')
+  })
+
+  it('keeps root-entry profile modifiers inside their selected unit', () => {
+    const book = bookOf({
+      selectionEntries: [
+        {
+          id: 'destroyer',
+          name: 'Destroyer',
+          type: 'unit',
+          profiles: [
+            {
+              id: 'destroyer-blade',
+              name: 'Blade',
+              typeName: 'Melee Weapons',
+              characteristics: [{ name: 'S', typeId: 'strength', $text: '5' }],
+            },
+          ],
+          modifiers: [
+            { type: 'increment', field: 'strength', value: 2, scope: 'root-entry', affects: 'self.entries.profiles.Melee Weapons' },
+          ],
+        },
+        {
+          id: 'immortals',
+          name: 'Immortals',
+          type: 'unit',
+          profiles: [
+            {
+              id: 'immortals-blade',
+              name: 'Blade',
+              typeName: 'Melee Weapons',
+              characteristics: [{ name: 'S', typeId: 'strength', $text: '4' }],
+            },
+          ],
+        },
+      ],
+    })
+    const selections = [{ id: 'destroyer' }, { id: 'immortals' }]
+
+    expect(datasheetIn(book, 'cat', 'destroyer', { selections, unitSelectionIndex: 0 })?.profiles[0]?.values[0]?.value).toBe('7')
+    expect(datasheetIn(book, 'cat', 'immortals', { selections, unitSelectionIndex: 1 })?.profiles[0]?.values[0]?.value).toBe('4')
   })
 
   it('separates faction, core, datasheet, rule and wargear abilities', () => {

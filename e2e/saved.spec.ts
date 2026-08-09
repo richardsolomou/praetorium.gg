@@ -9,6 +9,7 @@ import { signUp } from './account'
 test('a list is saved and loaded into another battle', async ({ browser }) => {
   const context = await browser.newContext()
   const page = await context.newPage()
+  await page.setViewportSize({ width: 1600, height: 900 })
 
   await signUp(page, 'Alice')
 
@@ -45,6 +46,10 @@ test('a list is saved and loaded into another battle', async ({ browser }) => {
   await page.getByRole('link', { name: 'Rosters' }).click()
   await page.getByRole('link', { name: /Nurgle 2k/ }).click()
   await expect(page).toHaveURL(/\/rosters\/[^/]+\/edit$/)
+  const editor = page.getByLabel('Add units').locator('xpath=ancestor::div[contains(@class,"bg-sunken")][1]')
+  const editorBounds = await editor.boundingBox()
+  expect(editorBounds?.x).toBe(0)
+  expect(editorBounds?.width).toBe(1600)
   await expect(total).toHaveText(priced)
   await page.reload()
   await expect(page.getByLabel('List name')).toHaveValue('Nurgle 2k')
@@ -54,13 +59,12 @@ test('a list is saved and loaded into another battle', async ({ browser }) => {
     .first()
     .click()
 
-  const datasheetPage = page.waitForEvent('popup')
-  await page.getByRole('link', { name: 'View full datasheet' }).click()
-  const datasheet = await datasheetPage
-  await expect(datasheet.getByRole('heading', { name: 'Immortals', exact: true })).toBeVisible()
-  await datasheet.close()
+  const datasheet = page.locator('aside[aria-label="Datasheet"]')
+  await expect(datasheet.locator('[data-slot="unit-profile"]')).toBeVisible()
+  await expect(page.locator('aside[aria-label="Loadout"]').getByText('Ranged weapons', { exact: true })).toBeVisible()
   await expect(page.getByLabel('List name')).toHaveValue('Nurgle 2k')
   await expect(page.getByLabel('Immortals models')).toHaveText('6')
+  await page.screenshot({ path: 'test-results/saved-roster-edge-to-edge.png', fullPage: true })
 
   // A second battle, in the same browser, starts from the saved list.
   await page.goto('/')
@@ -79,6 +83,7 @@ test('a list is saved and loaded into another battle', async ({ browser }) => {
 
   await page.getByRole('button', { name: 'Copy Nurgle 2k' }).click()
   await expect(page.getByLabel('List name')).toHaveValue('Copy of Nurgle 2k')
+  await page.locator('[data-unit="Immortals"]').getByRole('button', { name: 'Immortals', exact: true }).click()
   await expect(page.getByLabel('Immortals models')).toHaveText('6')
   await expect(page.getByRole('status')).toContainText('Saved automatically')
   await expect(page.getByRole('button', { name: 'Copy of Nurgle 2k', exact: true })).toBeVisible()

@@ -1,16 +1,15 @@
-import { Minus, Plus } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
-import { Link } from '@tanstack/react-router'
+import { Check, Crown, Minus, Plus } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { datasheetQuery } from '../../queries'
-import type { Datasheet } from '../../../server/catalogue'
+import { Toggle } from '@/components/ui/toggle'
 import type { RosterPick } from '../../../core/roster'
-import { KeywordList } from '../Keyword'
-import { HoverTooltip } from '../HoverTooltip'
+import { datasheetQuery } from '../../queries'
 import { SearchableSelect } from '../SearchableSelect'
+import { RuleText } from '../RuleText'
+import { WeaponSummary } from './DatasheetPanel'
 
 /** Base UI selects cannot hold an empty value, so declining a choice needs a token. */
 const NONE = '__none__'
@@ -21,7 +20,7 @@ type LoadoutChoice = {
   chosen: string
   optional: boolean
   room: number
-  options: { id: string; name: string; points: number; count: number }[]
+  options: { id: string; name: string; points: number; count: number; description?: string | null }[]
 }
 
 type LoadoutUnit = {
@@ -29,25 +28,24 @@ type LoadoutUnit = {
   name: string
   points: number
   size: { min: number; max: number; models: number; resizable: boolean }
+  toggles: { key: string; name: string; selected: boolean }[]
   choices: LoadoutChoice[]
 }
 
 type Props = {
   catalogueId: string
-  catalogueSlug: string
   unit: LoadoutUnit | null
   detachmentIds: readonly string[]
   picks: readonly RosterPick[]
   pickIndex: number | null
   onChoose: (key: string, optionId: string) => void
   onSpread: (key: string, counts: Record<string, number>) => void
+  onToggle: (key: string, name: string, selected: boolean) => void
+  onResize: (models: number) => void
 }
 
 /**
  * What the selected unit is carrying.
- *
- * Squad size is not here: it is on the card, where the roster is, because one
- * control with one name is worth more than two that agree.
  *
  * Two kinds of choice, because the data holds two. A group with room for one is an
  * either-or — a captain's relic blade or his power sword — and reads as a choice. A
@@ -55,7 +53,7 @@ type Props = {
  * carbines, which a single answer cannot say; that one gets a count against each
  * option. Nothing is typed either way: every option and every price is the data's.
  */
-export function Loadout({ catalogueId, catalogueSlug, unit, detachmentIds, picks, pickIndex, onChoose, onSpread }: Props) {
+export function Loadout({ catalogueId, unit, detachmentIds, picks, pickIndex, onChoose, onSpread, onToggle, onResize }: Props) {
   const [context, setContext] = useState({ detachmentIds, picks, pickIndex })
   useEffect(() => {
     const timeout = window.setTimeout(() => setContext({ detachmentIds, picks, pickIndex }), 150)
@@ -65,6 +63,7 @@ export function Loadout({ catalogueId, catalogueSlug, unit, detachmentIds, picks
     ...datasheetQuery(catalogueId, unit?.entryId ?? '', context.detachmentIds, context.picks, context.pickIndex),
     placeholderData: (previous, previousQuery) => (previousQuery?.queryKey[2] === unit?.entryId ? previous : undefined),
   })
+
   if (!unit) {
     return (
       <div className="flex h-full items-center justify-center p-6">
@@ -72,140 +71,135 @@ export function Loadout({ catalogueId, catalogueSlug, unit, detachmentIds, picks
       </div>
     )
   }
+  const ranged = sheet?.profiles.filter((profile) => profile.type === 'Ranged Weapons') ?? []
+  const melee = sheet?.profiles.filter((profile) => profile.type === 'Melee Weapons') ?? []
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex items-baseline justify-between gap-2 border-b border-edge p-2.5">
-        <h2 className="truncate text-sm leading-tight">{unit.name}</h2>
-        <span className="chip shrink-0">{unit.points} pts</span>
+      <div className="border-b border-edge p-2.5">
+        <h2 className="text-sm leading-tight">{unit.name}</h2>
+        <div className="mt-1.5 flex flex-wrap items-center gap-2">
+          <span className="chip">{unit.points} pts</span>
+          {unit.size.resizable ? (
+            <span className="flex items-center gap-1">
+              <Button
+                variant="outline"
+                size="icon-sm"
+                className="size-6"
+                aria-label={`Fewer models in ${unit.name}`}
+                disabled={unit.size.models <= unit.size.min}
+                onClick={() => onResize(unit.size.models - 1)}
+              >
+                <Minus />
+              </Button>
+              <span className="readout w-6 text-center text-sm" aria-label={`${unit.name} models`}>
+                {unit.size.models}
+              </span>
+              <Button
+                variant="outline"
+                size="icon-sm"
+                className="size-6"
+                aria-label={`More models in ${unit.name}`}
+                disabled={unit.size.models >= unit.size.max}
+                onClick={() => onResize(unit.size.models + 1)}
+              >
+                <Plus />
+              </Button>
+            </span>
+          ) : null}
+          {unit.toggles.map((toggle) => (
+            <Toggle
+              key={toggle.key}
+              variant="outline"
+              size="sm"
+              aria-label={`${toggle.selected ? 'Remove' : 'Make'} ${unit.name} ${toggle.name}`}
+              pressed={toggle.selected}
+              className={
+                toggle.selected
+                  ? 'border-azure bg-azure/15 text-azure hover:bg-azure/20 hover:text-azure'
+                  : 'border-edge-strong text-dim hover:border-azure hover:text-bone'
+              }
+              onPressedChange={(pressed) => onToggle(toggle.key, toggle.name, pressed)}
+            >
+              <Crown className={toggle.selected ? 'fill-current' : undefined} />
+              {toggle.name}
+              {toggle.selected ? <Check className="size-3.5" aria-hidden /> : null}
+            </Toggle>
+          ))}
+        </div>
       </div>
       <ScrollArea className="min-h-0 flex-1 [&_[data-slot=scroll-area-viewport]]:p-2.5">
         <div className="space-y-4">
-          {sheet ? <DatasheetSummary catalogueSlug={catalogueSlug} sheet={sheet} /> : null}
-          <section>
-            <p className="rubric flex items-baseline justify-between border-b border-edge pb-1.5">
-              <span>Wargear options</span>
-              <span className="readout">{unit.choices.length}</span>
-            </p>
-            <div className="mt-3 space-y-4">
-              {unit.choices.length ? (
-                unit.choices.map((choice) => (choice.room > 1 ? spread(choice, onSpread) : either(choice, onChoose, unit.name)))
-              ) : (
-                <p className="text-xs text-faint">Nothing on this datasheet is optional.</p>
-              )}
-            </div>
-          </section>
+          {ranged.length && sheet ? <WeaponSummary title="Ranged weapons" weapons={ranged} rules={sheet.keywordRules} /> : null}
+          {melee.length && sheet ? <WeaponSummary title="Melee weapons" weapons={melee} rules={sheet.keywordRules} /> : null}
+          {unit.choices.length ? (
+            <section>
+              <p className="rubric flex items-baseline justify-between border-b border-edge pb-1.5">
+                <span>Wargear options</span>
+                <span className="readout">{unit.choices.length}</span>
+              </p>
+              <div className="mt-3 space-y-4">
+                {unit.choices.map((choice) =>
+                  choice.name.toLowerCase().includes('enhancement')
+                    ? enhancement(choice, onChoose, unit.name)
+                    : choice.room > 1
+                      ? spread(choice, onSpread)
+                      : either(choice, onChoose, unit.name),
+                )}
+              </div>
+            </section>
+          ) : null}
         </div>
       </ScrollArea>
     </div>
   )
 }
 
-function DatasheetSummary({ catalogueSlug, sheet }: { catalogueSlug: string; sheet: Datasheet }) {
-  const model = sheet.profiles.find((profile) => profile.type === 'Unit')
-  const ranged = sheet.profiles.filter((profile) => profile.type === 'Ranged Weapons')
-  const melee = sheet.profiles.filter((profile) => profile.type === 'Melee Weapons')
-  const abilities = sheet.profiles.filter((profile) => profile.type === 'Abilities')
+function enhancement(choice: LoadoutChoice, onChoose: Props['onChoose'], unitName: string) {
   return (
-    <div className="space-y-3 border-b border-edge pb-4">
-      {model ? (
-        <div
-          data-slot="unit-profile"
-          className="grid gap-1"
-          style={{ gridTemplateColumns: `repeat(${model.values.length}, minmax(0, 1fr))` }}
-        >
-          {model.values.map((value) => (
-            <div key={value.name} className="text-center">
-              <p className="eyebrow">{value.name}</p>
-              <p className="readout text-sm">
-                <ProfileValue value={value} />
-              </p>
-            </div>
-          ))}
-        </div>
-      ) : null}
-      {ranged.length ? <WeaponSummary title="Equipped ranged weapons" weapons={ranged} rules={sheet.keywordRules} /> : null}
-      {melee.length ? <WeaponSummary title="Equipped melee weapons" weapons={melee} rules={sheet.keywordRules} /> : null}
-      {abilities.length ? (
-        <div className="flex flex-wrap gap-1">
-          {abilities.map((ability) => (
-            <span key={ability.id} className="chip">
-              {ability.name}
-            </span>
-          ))}
-        </div>
-      ) : null}
-      <Link
-        to="/factions/$catalogueId/datasheets/$entryId"
-        params={{ catalogueId: catalogueSlug, entryId: sheet.slug }}
-        target="_blank"
-        rel="noreferrer"
-        className="eyebrow text-azure hover:text-bone"
-      >
-        View full datasheet
-      </Link>
-    </div>
-  )
-}
-
-type Weapon = Datasheet['profiles'][number]
-
-function WeaponSummary({ title, weapons, rules }: { title: string; weapons: Weapon[]; rules: Datasheet['keywordRules'] }) {
-  return (
-    <div>
-      <p className="eyebrow flex items-baseline justify-between border-b border-edge pb-1">
-        <span>{title}</span>
-        <span className="readout">{weapons.length}</span>
-      </p>
+    <fieldset key={choice.key} aria-label={`${unitName} ${choice.name}`} className="m-0 min-w-0 border-0 p-0">
+      <legend className="eyebrow p-0">{choice.name}</legend>
       <div className="mt-1.5 space-y-1.5">
-        {weapons.map((weapon) => (
-          <article key={weapon.id} className="border border-edge bg-card px-2 py-1.5">
-            <h3 className="truncate text-xs">{weapon.name}</h3>
-            <div className="mt-1 grid grid-cols-6 gap-1">
-              {weapon.values
-                .filter((value) => value.name !== 'Keywords')
-                .map((value) => (
-                  <div key={value.name} className="min-w-0 text-center">
-                    <p className="eyebrow text-[0.625rem]">{value.name}</p>
-                    <p className="readout text-xs text-faint">
-                      <ProfileValue value={value} />
-                    </p>
-                  </div>
-                ))}
-            </div>
-            {weapon.values.find((value) => value.name === 'Keywords')?.value ? (
-              <p className="mt-1 text-[0.6875rem] text-faint">
-                <KeywordList value={weapon.values.find((value) => value.name === 'Keywords')!.value} rules={rules} />
-              </p>
-            ) : null}
-          </article>
-        ))}
+        {choice.optional ? (
+          <button
+            type="button"
+            aria-pressed={!choice.chosen}
+            onClick={() => onChoose(choice.key, '')}
+            className={`flex w-full items-center justify-between border px-2.5 py-2 text-left text-xs font-semibold uppercase ${
+              choice.chosen ? 'border-edge bg-card text-dim hover:border-dim hover:text-bone' : 'border-azure bg-azure/10 text-azure'
+            }`}
+          >
+            No enhancement
+            {!choice.chosen ? <Check className="size-3.5" aria-hidden /> : null}
+          </button>
+        ) : null}
+        {choice.options.map((option) => {
+          const selected = choice.chosen === option.id
+          return (
+            <article key={option.id} className={`border ${selected ? 'border-azure bg-azure/10' : 'border-edge bg-card'}`}>
+              <button
+                type="button"
+                aria-pressed={selected}
+                aria-label={`Select ${option.name}`}
+                onClick={() => onChoose(choice.key, option.id)}
+                className="flex w-full items-center justify-between gap-2 px-2.5 py-2 text-left hover:bg-raised"
+              >
+                <span className="text-sm font-semibold text-bone">{option.name}</span>
+                <span className="flex shrink-0 items-center gap-1.5">
+                  {option.points ? <span className="chip">+{option.points} pts</span> : null}
+                  {selected ? <Check className="size-3.5 text-azure" aria-hidden /> : null}
+                </span>
+              </button>
+              {option.description ? (
+                <div className="border-t border-edge px-2.5 pb-2">
+                  <RuleText text={option.description} />
+                </div>
+              ) : null}
+            </article>
+          )
+        })}
       </div>
-    </div>
-  )
-}
-
-type DisplayValue = Datasheet['profiles'][number]['values'][number]
-
-function ProfileValue({ value }: { value: DisplayValue }) {
-  if (!value.baseValue || !value.modifiers?.length) return value.value
-  const sources = value.modifiers.join(', ')
-  return (
-    <HoverTooltip
-      className="font-semibold text-azure"
-      label={`${value.name} ${value.value}, modified from ${value.baseValue} by ${sources}`}
-      content={
-        <>
-          <strong className="block font-semibold">Modified {value.name}</strong>
-          <span className="mt-1 block text-dim">
-            {value.baseValue} → <span className="text-azure">{value.value}</span>
-          </span>
-          <span className="mt-1 block text-xs text-faint">{sources}</span>
-        </>
-      }
-    >
-      {value.value}
-    </HoverTooltip>
+    </fieldset>
   )
 }
 
@@ -229,6 +223,15 @@ function spread(choice: LoadoutChoice, onSpread: Props['onSpread']) {
     return giving ? { [option.id]: option.count + 1, [giving.id]: giving.count - 1 } : null
   }
 
+  const less = (option: LoadoutChoice['options'][number]) => {
+    if (option.count <= 0) return null
+    if (taken < choice.room) return { [option.id]: option.count - 1 }
+    const receiving = choice.options
+      .filter((candidate) => candidate.id !== option.id)
+      .toSorted((left, right) => right.count - left.count)[0]
+    return receiving ? { [option.id]: option.count - 1, [receiving.id]: receiving.count + 1 } : null
+  }
+
   return (
     <div key={choice.key}>
       <p className="eyebrow flex items-baseline justify-between gap-2">
@@ -249,8 +252,11 @@ function spread(choice: LoadoutChoice, onSpread: Props['onSpread']) {
               size="icon-sm"
               className="size-6"
               aria-label={`Fewer ${option.name}`}
-              disabled={option.count <= 0}
-              onClick={() => onSpread(choice.key, { [option.id]: option.count - 1 })}
+              disabled={!less(option)}
+              onClick={() => {
+                const next = less(option)
+                if (next) onSpread(choice.key, next)
+              }}
             >
               <Minus />
             </Button>
@@ -319,9 +325,14 @@ function either(choice: LoadoutChoice, onChoose: Props['onChoose'], unitName: st
         <SelectContent>
           {choice.optional ? <SelectItem value={NONE}>None</SelectItem> : null}
           {choice.options.map((option) => (
-            <SelectItem key={option.id} value={option.id}>
-              {option.name}
-              {option.points ? ` (+${option.points})` : ''}
+            <SelectItem key={option.id} value={option.id} className={option.description ? 'items-start py-2 whitespace-normal' : undefined}>
+              <span className="min-w-0">
+                <span className="block">
+                  {option.name}
+                  {option.points ? ` (+${option.points})` : ''}
+                </span>
+                {option.description ? <RuleText text={option.description} /> : null}
+              </span>
             </SelectItem>
           ))}
         </SelectContent>

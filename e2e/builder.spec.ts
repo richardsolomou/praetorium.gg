@@ -27,6 +27,43 @@ async function add(page: Page, name: string) {
     .click()
 }
 
+test('enhancement choices show descriptions when rule and catalogue names differ', async ({ page }) => {
+  await openBuilder(page, 'Necrons', /Cursed Legion/)
+  await add(page, 'Skorpekh Lord')
+  await page
+    .getByRole('button', { name: /^Skorpekh Lord/ })
+    .first()
+    .click()
+
+  const enhancements = page.getByRole('group', { name: /Skorpekh Lord Enhancements/ })
+  const mark = enhancements.getByRole('button', { name: 'Select Mark of the Nekrosor' })
+  await expect(mark.locator('..')).toContainText('add 1 to the Hit roll')
+  await mark.locator('..').screenshot({ path: 'test-results/nekrosor-enhancement.png' })
+})
+
+test('Cursed Legion does not modify Immortals without an eligible leader', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 })
+  await openBuilder(page, 'Necrons', /Cursed Legion/)
+  await page.getByLabel('Add a unit').fill('Immortals')
+  await page.getByRole('button', { name: 'View Immortals datasheet' }).click()
+  const datasheet = page.locator('aside[aria-label="Datasheet"]')
+  await expect(datasheet).toBeVisible()
+  await expect(datasheet.getByRole('heading', { name: 'Gauss blaster' }).locator('..').getByText('5', { exact: true })).toBeVisible()
+  await expect(page.locator('[data-unit="Immortals"]')).toHaveCount(0)
+  expect(await page.evaluate(() => getComputedStyle(document.documentElement).fontSize)).toBe('19px')
+  await page.screenshot({ path: 'test-results/unit-preview.png' })
+
+  await add(page, 'Immortals')
+  await page
+    .getByRole('button', { name: /^Immortals/ })
+    .first()
+    .click()
+
+  const loadout = page.locator('aside[aria-label="Loadout"]')
+  await expect(loadout.getByRole('heading', { name: 'Gauss blaster' }).locator('..').getByText('5', { exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: /modified from 5 by Cursed Legion/ })).toHaveCount(0)
+})
+
 test('a supplement imports its shared detachment group', async ({ page }) => {
   await signUp(page, 'Richard')
 
@@ -102,15 +139,16 @@ test('an allied force can be added from its own catalogue', async ({ page }) => 
   await page.screenshot({ path: 'test-results/allied-force.png', fullPage: true })
 })
 
-test('a squad grows from the roster itself', async ({ page }) => {
+test('a squad grows from its unit editor', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 })
   await openBuilder(page)
   await add(page, 'Immortals')
 
-  await page
-    .locator('[data-unit="Immortals"]')
-    .getByRole('button', { name: /^Immortals/ })
-    .click()
-  const profile = page.locator('[data-slot="unit-profile"]')
+  const card = page.locator('[data-unit="Immortals"]')
+  await add(page, 'Flayed Ones')
+  await card.click({ position: { x: 4, y: 4 } })
+  await expect(page.locator('aside[aria-label="Loadout"]').getByRole('heading', { name: 'Immortals' })).toBeVisible()
+  const profile = page.locator('aside[aria-label="Datasheet"] [data-slot="unit-profile"]')
   await expect(profile).toBeVisible()
   await profile.evaluate((existing) => {
     new MutationObserver(() => {
@@ -119,26 +157,32 @@ test('a squad grows from the roster itself', async ({ page }) => {
   })
 
   const total = page.locator('[data-stat="points"]')
-  await expect(total).toHaveText('70/2000')
-  // No pane opened, no unit selected: the stepper is on the card.
+  await expect(total).toHaveText('125/2000')
+  // The stepper lives with the rest of the selected unit's configuration.
   await page.getByRole('button', { name: 'More models in Immortals' }).click()
   await expect(page.getByLabel('Immortals models')).toHaveText('6')
-  await expect(total).not.toHaveText('70/2000')
+  await expect(total).not.toHaveText('125/2000')
   await expect(page.locator('html')).not.toHaveAttribute('data-profile-refreshed', 'true')
   // And the wargear lines follow the models carrying it.
   await expect(page.getByText('6x Gauss blaster')).toBeVisible()
+  await page.screenshot({ path: 'test-results/unit-editor-model-count.png', fullPage: true })
 })
 
 test('a unit duplicates with its configured model count', async ({ page }) => {
   await openBuilder(page)
   await add(page, 'Immortals')
+  await page.locator('[data-unit="Immortals"]').getByRole('button', { name: 'Immortals', exact: true }).click()
   await page.getByRole('button', { name: 'More models in Immortals' }).click()
   await page.getByLabel('Unit actions for Immortals').click()
   await page.screenshot({ path: 'test-results/unit-actions.png', fullPage: true })
   await page.getByRole('menuitem', { name: 'Duplicate unit' }).click()
 
-  await expect(page.locator('[data-unit="Immortals"]')).toHaveCount(2)
-  await expect(page.getByLabel('Immortals models')).toHaveText(['6', '6'])
+  const copies = page.locator('[data-unit="Immortals"]')
+  await expect(copies).toHaveCount(2)
+  await copies.nth(0).getByRole('button', { name: 'Immortals', exact: true }).click()
+  await expect(page.getByLabel('Immortals models')).toHaveText('6')
+  await copies.nth(1).getByRole('button', { name: 'Immortals', exact: true }).click()
+  await expect(page.getByLabel('Immortals models')).toHaveText('6')
 })
 
 test('the filters narrow the book to what is worth taking', async ({ page }) => {
@@ -227,25 +271,37 @@ test('a unit that leads nothing is offered no one to lead', async ({ page }) => 
   await expect(page.getByText('Support', { exact: true })).toBeHidden()
 })
 
-test('a character can be marked as the warlord from its card', async ({ page }) => {
+test('a character can be marked as the warlord from its unit editor', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 })
   await openBuilder(page)
   await add(page, 'Overlord')
+  const rosterCard = page.locator('[data-unit="Overlord"]')
+  const rosterButton = rosterCard.getByRole('button', { name: 'Overlord', exact: true })
+  const restingBackground = await rosterButton.evaluate((element) => getComputedStyle(element).backgroundColor)
+  await rosterCard.hover()
+  await expect.poll(() => rosterButton.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe(restingBackground)
+  await rosterButton.click()
   const warlord = page.getByRole('button', { name: 'Make Overlord Warlord' })
   await warlord.click()
   await expect(page.getByRole('button', { name: 'Remove Overlord Warlord' })).toHaveAttribute('aria-pressed', 'true')
   await expect(page.getByText(/\d+x Warlord/)).toHaveCount(0)
+  await page.screenshot({ path: 'test-results/unit-editor-controls.png', fullPage: true })
   await page
     .locator('[data-unit="Overlord"]')
     .getByRole('button', { name: /^Overlord/ })
     .click()
-  const pane = page.locator('aside[aria-label="Loadout"]')
+  const pane = page.locator('aside[aria-label="Datasheet"]')
+  const loadout = page.locator('aside[aria-label="Loadout"]')
   await expect(pane.getByText('InSv')).toBeVisible()
   await expect(pane.getByText('4+')).toBeVisible()
-  await expect(pane.getByText('Equipped ranged weapons')).toBeVisible()
-  await expect(pane.getByText('Equipped melee weapons')).toBeVisible()
-  await expect(pane.getByText('Tachyon arrow', { exact: true })).toBeVisible()
-  await expect(pane.getByText("Overlord's blade", { exact: true })).toBeVisible()
-  await expect(pane.getByText('Voidscythe', { exact: true })).toBeHidden()
+  await expect(loadout.getByText('Ranged weapons', { exact: true })).toBeVisible()
+  await expect(loadout.getByText('Melee weapons', { exact: true })).toBeVisible()
+  await expect(loadout.getByText('Tachyon arrow', { exact: true })).toBeVisible()
+  await expect(loadout.getByText("Overlord's blade", { exact: true })).toBeVisible()
+  await expect(loadout.getByText('Voidscythe', { exact: true })).toBeHidden()
+  const leader = pane.getByRole('button', { name: 'Leader', exact: true })
+  await leader.hover()
+  await expect(page.getByRole('tooltip')).toContainText('select one friendly bodyguard unit')
   const profile = pane.locator('[data-slot="unit-profile"]')
   const stats = await profile.boundingBox()
   const lastStat = await profile.locator(':scope > div').last().boundingBox()
@@ -254,47 +310,128 @@ test('a character can be marked as the warlord from its card', async ({ page }) 
   expect(Math.abs((lastStat?.x ?? 0) + (lastStat?.width ?? 0) - ((stats?.x ?? 0) + (stats?.width ?? 0)))).toBeLessThan(2)
 })
 
+test('a smaller desktop keeps the picker, roster and loadout visible', async ({ page }) => {
+  await page.setViewportSize({ width: 1100, height: 800 })
+  await openBuilder(page)
+
+  const picker = page.locator('aside[aria-label="Add units"]')
+  const loadout = page.locator('aside[aria-label="Loadout"]')
+  const datasheet = page.locator('aside[aria-label="Datasheet"]')
+  await expect(picker).toBeVisible()
+  await expect(loadout).toBeVisible()
+  await expect(datasheet).toBeHidden()
+
+  await page.getByLabel('Add a unit').fill('Deceiver')
+  const name = picker.getByText("C'tan Shard of the Deceiver", { exact: true })
+  await expect(name).toBeVisible()
+  expect(await name.evaluate((element) => getComputedStyle(element).whiteSpace)).toBe('normal')
+
+  await page.getByRole('button', { name: "Add C'tan Shard of the Deceiver", exact: true }).click()
+  const card = page.locator('[data-unit="C\'tan Shard of the Deceiver"]')
+  const cardName = await card.getByText("C'tan Shard of the Deceiver", { exact: true }).boundingBox()
+  const configuredWargear = await card.getByText(/1x Cosmic insanity/).boundingBox()
+  expect(cardName && configuredWargear && configuredWargear.y >= cardName.y + cardName.height).toBe(true)
+  expect(
+    await card.getByText("C'tan Shard of the Deceiver", { exact: true }).evaluate((element) => getComputedStyle(element).whiteSpace),
+  ).toBe('normal')
+  expect(await card.getByText(/1x Cosmic insanity/).evaluate((element) => getComputedStyle(element).whiteSpace)).toBe('normal')
+  await page
+    .locator('[data-unit="C\'tan Shard of the Deceiver"]')
+    .getByRole('button', { name: /^C'tan Shard of the Deceiver/ })
+    .click()
+  const heading = await loadout.getByRole('heading', { name: "C'tan Shard of the Deceiver" }).boundingBox()
+  const points = await loadout.getByText('330 pts').boundingBox()
+  expect(heading && points && points.y >= heading.y + heading.height).toBe(true)
+
+  await page.setViewportSize({ width: 1280, height: 800 })
+  await expect(datasheet).toBeHidden()
+  const roster = picker.locator('xpath=following-sibling::div[1]')
+  const compactWidths = await Promise.all([picker, roster, loadout].map((column) => column.boundingBox()))
+  for (const width of compactWidths) expect(width?.width).toBeCloseTo(compactWidths[0]?.width ?? 0, 0)
+
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await expect(datasheet).toBeVisible()
+  await expect(datasheet.getByText('Datasheet abilities')).toBeVisible()
+  await expect(loadout.getByText('Ranged weapons', { exact: true })).toBeVisible()
+  await expect(datasheet.getByText('Grand Illusion', { exact: true })).toBeVisible()
+  const widths = await Promise.all([picker, roster, loadout, datasheet].map((column) => column.boundingBox()))
+  for (const width of widths) expect(width?.width).toBeCloseTo(widths[0]?.width ?? 0, 0)
+  const editor = picker.locator('xpath=ancestor::div[contains(@class,"bg-sunken")][1]')
+  const editorBounds = await editor.boundingBox()
+  expect(editorBounds?.x).toBe(0)
+  expect(editorBounds?.width).toBe(1440)
+  const factionAbility = datasheet.getByRole('button', { name: 'Reanimation Protocols', exact: true })
+  await factionAbility.hover()
+  await expect(page.getByRole('tooltip')).toContainText('activates its Reanimation Protocols')
+  await page.screenshot({ path: 'test-results/builder-four-columns.png', fullPage: true })
+})
+
 test('making a new warlord removes the previous one', async ({ page }) => {
   await openBuilder(page)
   await add(page, 'Overlord')
   await add(page, 'Plasmancer')
+  await page.locator('[data-unit="Overlord"]').getByRole('button', { name: 'Overlord', exact: true }).click()
   await page.getByRole('button', { name: 'Make Overlord Warlord' }).click()
+  await page.locator('[data-unit="Plasmancer"]').getByRole('button', { name: 'Plasmancer', exact: true }).click()
   await page.getByRole('button', { name: 'Make Plasmancer Warlord' }).click()
-  await expect(page.getByRole('button', { name: 'Make Overlord Warlord' })).toHaveAttribute('aria-pressed', 'false')
   await expect(page.getByRole('button', { name: 'Remove Plasmancer Warlord' })).toHaveAttribute('aria-pressed', 'true')
+  await page.locator('[data-unit="Overlord"]').getByRole('button', { name: 'Overlord', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Make Overlord Warlord' })).toHaveAttribute('aria-pressed', 'false')
   await expect(page.getByText(/\d+x Warlord/)).toHaveCount(0)
 })
 
 test('a squad divides its weapons between two options', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 })
   await openBuilder(page)
   await add(page, 'Immortals')
+  await page.locator('[data-unit="Immortals"]').getByRole('button', { name: 'Immortals', exact: true }).click()
 
   // Ten bodies, so there are ten guns to divide.
-  // eslint-disable-next-line no-await-in-loop
-  for (let grown = 0; grown < 5; grown++) await page.getByRole('button', { name: 'More models in Immortals' }).click()
+  for (let models = 6; models <= 10; models++) {
+    // eslint-disable-next-line no-await-in-loop
+    await page.getByRole('button', { name: 'More models in Immortals' }).click()
+    // eslint-disable-next-line no-await-in-loop
+    await expect(page.getByLabel('Immortals models')).toHaveText(String(models))
+  }
   await expect(page.getByText('10x Gauss blaster')).toBeVisible()
 
-  await page
-    .locator('[data-unit="Immortals"]')
-    .getByRole('button', { name: /^Immortals/ })
-    .click()
-  const pane = page.locator('aside[aria-label="Loadout"]')
-  await expect(pane.getByText('Wargear options')).toBeVisible()
-  await expect(pane.getByText('Weapons').first()).toBeVisible()
-  await expect(pane.getByText('BS').first()).toBeVisible()
-  await expect(pane.getByText('10/10')).toBeVisible()
+  const loadout = page.locator('aside[aria-label="Loadout"]')
+  await expect(loadout.getByText('Wargear options')).toBeVisible()
+  await expect(loadout.getByText('Weapons').first()).toBeVisible()
+  await expect(loadout.getByText('BS').first()).toBeVisible()
+  await expect(loadout.getByText('10/10')).toBeVisible()
 
   // The group is always full, so taking a carbine takes a blaster off a model.
   // eslint-disable-next-line no-await-in-loop
-  for (let swapped = 0; swapped < 3; swapped++) await pane.getByRole('button', { name: 'More Tesla carbine' }).click()
+  for (let swapped = 0; swapped < 3; swapped++) await loadout.getByRole('button', { name: 'More Tesla carbine' }).click()
   await expect(page.getByLabel('Tesla carbine count')).toHaveText('3')
   await expect(page.getByLabel('Gauss blaster count')).toHaveText('7')
 
+  // Removing a default weapon makes the inverse legal swap instead of being
+  // silently refilled by the catalogue's mandatory group.
+  await loadout.getByRole('button', { name: 'Fewer Gauss blaster' }).click()
+  await expect(page.getByLabel('Tesla carbine count')).toHaveText('4')
+  await expect(page.getByLabel('Gauss blaster count')).toHaveText('6')
+
   // The card reads as the datasheet would print it, and the squad is still legal.
-  await expect(page.getByText('7x Gauss blaster')).toBeVisible()
-  await expect(page.getByText('3x Tesla carbine')).toBeVisible()
+  await expect(page.getByText('6x Gauss blaster')).toBeVisible()
+  await expect(page.getByText('4x Tesla carbine')).toBeVisible()
   await expect(page.getByText('Within the points limit')).toBeAttached()
   await page.screenshot({ path: 'test-results/loadout.png', fullPage: true })
+})
+
+test('fixed duplicate weapons show their quantity with the profile', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 })
+  await openBuilder(page)
+  await add(page, 'Doomsday Ark')
+  await page
+    .locator('[data-unit="Doomsday Ark"]')
+    .getByRole('button', { name: /^Doomsday Ark/ })
+    .click()
+
+  const loadout = page.locator('aside[aria-label="Loadout"]')
+  await expect(loadout.getByRole('heading', { name: '2× Gauss flayer array' })).toBeVisible()
+  await expect(loadout.getByText('Wargear options', { exact: true })).toBeHidden()
 })
 
 /**

@@ -140,7 +140,11 @@ export function profileModifiers(
     .map((selection) => build(selection, force, index, census, counter))
     .filter((node): node is Node => node !== null)
 
-  const unit = unitSelectionIndex === undefined ? descendants(force).find((node) => node.id === unitId) : force.children[unitSelectionIndex]
+  const indexed = unitSelectionIndex === undefined ? undefined : force.children[unitSelectionIndex]
+  const unit =
+    indexed && (indexed.id === unitId || indexed.target.id === unitId)
+      ? indexed
+      : descendants(force).find((node) => node.id === unitId || node.target.id === unitId)
   if (!unit) return []
   const selectedIds = new Set(descendants(root).map((node) => node.id))
   const unitNodes = new Set(descendants(unit))
@@ -841,7 +845,7 @@ function ancestors(node: Node): Node[] {
 
 function rootEntry(node: Node): Node {
   let current = node
-  while (current.parent && current.parent.parent) current = current.parent
+  while (current.parent && !current.parent.force && current.parent.parent) current = current.parent
   return current
 }
 

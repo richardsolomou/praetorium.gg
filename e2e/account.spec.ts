@@ -45,6 +45,7 @@ test('a list saved under an account is there on another device', async ({ browse
   await elsewhere.getByLabel('Email').fill(email)
   await elsewhere.getByLabel('Password').fill('a-long-enough-password')
   await elsewhere.getByRole('button', { name: 'Sign in', exact: true }).click()
+  await elsewhere.waitForURL('/rosters')
   await expect(elsewhere.getByRole('button', { name: /Alice · sign out/ })).toBeVisible()
 
   await elsewhere.goto('/')

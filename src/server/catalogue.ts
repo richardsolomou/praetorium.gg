@@ -14,6 +14,7 @@ export type Datasheet = {
     id: string
     name: string
     type: string
+    count?: number
     values: { name: string; value: string; baseValue?: string; modifiers?: string[] }[]
   }[]
   abilities: { id: string; name: string; description: string | null; kind: AbilityKind }[]
@@ -40,12 +41,24 @@ export function datasheetIn(
     ? profileModifiers(context.selections, entryId, loaded.index, { primaryCatalogueId: catalogueId }, context.unitSelectionIndex)
     : []
   const selected = new Set<string>()
-  const selectedUnit = context?.unitSelectionIndex === undefined ? undefined : context.selections[context.unitSelectionIndex]
+  const selectedCounts = new Map<string, number>()
+  const requestedUnit = context?.unitSelectionIndex === undefined ? undefined : context.selections[context.unitSelectionIndex]
+  const matchesUnit = (selection: Selection) => {
+    if (selection.id === root.id || selection.id === entryId) return true
+    const definition = loaded.index.definitions.get(selection.id)
+    return Boolean(definition && targetOf(definition, loaded.index.definitions).id === targetOf(root, loaded.index.definitions).id)
+  }
+  const selectedUnit = requestedUnit ? (matchesUnit(requestedUnit) ? requestedUnit : context?.selections.find(matchesUnit)) : undefined
   const collectSelected = (selection: Selection) => {
     if ((selection.count ?? 1) <= 0) return
     selected.add(selection.id)
+    selectedCounts.set(selection.id, Math.max(selectedCounts.get(selection.id) ?? 0, selection.count ?? 1))
     const definition = loaded.index.definitions.get(selection.id)
-    if (definition) selected.add(targetOf(definition, loaded.index.definitions).id)
+    if (definition) {
+      const target = targetOf(definition, loaded.index.definitions)
+      selected.add(target.id)
+      selectedCounts.set(target.id, Math.max(selectedCounts.get(target.id) ?? 0, selection.count ?? 1))
+    }
     selection.selections?.forEach(collectSelected)
   }
   if (selectedUnit) collectSelected(selectedUnit)
@@ -134,6 +147,7 @@ export function datasheetIn(
           id: profile.id,
           name: annotation ? `${changedName.value} (${annotation})` : changedName.value,
           type: profileType,
+          ...(weapon && selectedUnit ? { count: Math.max(1, ...owner.map((id) => selectedCounts.get(id) ?? 0)) } : {}),
           values: (profile.characteristics ?? []).flatMap((value) => {
             if (!value.name || !value.$text) return []
             const changed = modifiedProfileField(value.$text, value.typeId, profileType, profileLineage, owner, modifiers)
