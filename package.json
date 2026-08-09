@@ -8,7 +8,7 @@
   "scripts": {
     "dev": "vite dev",
     "realtime": "sh scripts/realtime.sh",
-    "build": "vite build && vite build --config vite.seed.config.ts && rm -rf .output/server/drizzle && cp -R drizzle .output/server/drizzle",
+    "build": "vite build && vite build --config vite.seed.config.ts && ras-stack-assets sync",
     "start": "node .output/server/index.mjs",
     "typecheck": "tsc --noEmit",
     "lint": "oxlint --type-aware --deny-warnings .",
@@ -54,7 +54,7 @@
     "html-to-text": "10.0.0",
     "jose": "^6.2.8",
     "lucide-react": "^1.27.0",
-    "ras-stack": "^0.8.2",
+    "ras-stack": "^0.22.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "react-markdown": "10.1.0",
