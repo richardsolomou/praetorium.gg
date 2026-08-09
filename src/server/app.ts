@@ -1,11 +1,12 @@
 import path from 'node:path'
+import { persistedSecret } from 'ras-stack/auth'
 import { type BattleEvents, RealtimePublisher } from '../adapters/events'
 import { catalogueDirectory, type LoadedCatalogue, loadCatalogue } from './catalogueIndex'
 import { type LoadedRules, loadRules } from './rules'
 import { isCurrent, type SyncState, syncSources } from './sync'
 import { databasePath, type PraetoriumDatabase, openDatabase } from '../db/connection'
 import { Repository } from '../db/repository'
-import { authSecret, createAuth } from './auth'
+import { createAuth } from './auth'
 import { realtimeConfig } from './realtime'
 import { PraetoriumService } from './service'
 
@@ -90,7 +91,7 @@ export function app(): App {
       database,
       service: new PraetoriumService(new Repository(database), Date.now, events),
       events,
-      auth: createAuth(database, authSecret(path.dirname(file))),
+      auth: createAuth(database, persistedSecret({ directory: path.dirname(file) })),
       catalogue: memoize(loadCatalogue),
       rules: memoize(loadRules),
       sync: () => sync.state,

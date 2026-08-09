@@ -1,4 +1,4 @@
-import { SignJWT } from 'jose'
+import { signRealtimeToken } from 'ras-stack/realtime'
 
 /**
  * Centrifugo, which is what "live" means here.
@@ -27,7 +27,7 @@ export function realtimeConfig(environment: NodeJS.ProcessEnv = process.env) {
 
 /** Proves who the connection is. It grants no channels by itself. */
 export async function connectionToken(playerId: string, secret: string, now = Math.floor(Date.now() / 1000)) {
-  return sign({ sub: playerId, exp: now + TOKEN_TTL_SECONDS }, secret)
+  return signRealtimeToken(playerId, {}, { secret, now, ttlSeconds: TOKEN_TTL_SECONDS })
 }
 
 /**
@@ -43,8 +43,9 @@ export async function subscriptionToken(
   secret: string,
   now = Math.floor(Date.now() / 1000),
 ) {
-  return sign({ sub: player.id, channel, exp: now + TOKEN_TTL_SECONDS, info: { playerId: player.id, name: player.name } }, secret)
+  return signRealtimeToken(
+    player.id,
+    { channel, info: { playerId: player.id, name: player.name } },
+    { secret, now, ttlSeconds: TOKEN_TTL_SECONDS },
+  )
 }
-
-const sign = (payload: Record<string, unknown>, secret: string) =>
-  new SignJWT(payload).setProtectedHeader({ alg: 'HS256', typ: 'JWT' }).sign(new TextEncoder().encode(secret))
