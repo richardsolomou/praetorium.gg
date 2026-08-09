@@ -382,8 +382,10 @@ test('a squad divides its weapons between two options', async ({ page }) => {
   await page.locator('[data-unit="Immortals"]').getByRole('button', { name: 'Immortals', exact: true }).click()
 
   // Ten bodies, so there are ten guns to divide.
-  // eslint-disable-next-line no-await-in-loop
-  for (let grown = 0; grown < 5; grown++) await page.getByRole('button', { name: 'More models in Immortals' }).click()
+  for (let models = 6; models <= 10; models++) {
+    await page.getByRole('button', { name: 'More models in Immortals' }).click()
+    await expect(page.getByLabel('Immortals models')).toHaveText(String(models))
+  }
   await expect(page.getByText('10x Gauss blaster')).toBeVisible()
 
   const loadout = page.locator('aside[aria-label="Loadout"]')

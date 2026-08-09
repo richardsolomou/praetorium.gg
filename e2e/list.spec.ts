@@ -48,12 +48,10 @@ test('a built list is priced, played and tracked', async ({ browser }) => {
   // A Plague Marines squad is five or ten, so growing it must cost more. The
   // clicks are sequential on purpose: each one re-prices the list.
   const grow = alice.getByRole('button', { name: /More models in Plague Marines/ })
-  await grow.click()
-  await grow.click()
-  await grow.click()
-  await grow.click()
-  await grow.click()
-  await expect(alice.getByLabel('Plague Marines models')).toHaveText('10')
+  for (let models = 6; models <= 10; models++) {
+    await grow.click()
+    await expect(alice.getByLabel('Plague Marines models')).toHaveText(String(models))
+  }
   expect(Number.parseInt(await total.innerText(), 10)).toBeGreaterThan(atFive)
 
   // A loadout choice the data leaves open, changed and re-priced.
