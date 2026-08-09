@@ -49,7 +49,9 @@ test('a built list is priced, played and tracked', async ({ browser }) => {
   // clicks are sequential on purpose: each one re-prices the list.
   const grow = alice.getByRole('button', { name: /More models in Plague Marines/ })
   for (let models = 6; models <= 10; models++) {
+    // eslint-disable-next-line no-await-in-loop
     await grow.click()
+    // eslint-disable-next-line no-await-in-loop
     await expect(alice.getByLabel('Plague Marines models')).toHaveText(String(models))
   }
   expect(Number.parseInt(await total.innerText(), 10)).toBeGreaterThan(atFive)

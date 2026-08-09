@@ -383,7 +383,9 @@ test('a squad divides its weapons between two options', async ({ page }) => {
 
   // Ten bodies, so there are ten guns to divide.
   for (let models = 6; models <= 10; models++) {
+    // eslint-disable-next-line no-await-in-loop
     await page.getByRole('button', { name: 'More models in Immortals' }).click()
+    // eslint-disable-next-line no-await-in-loop
     await expect(page.getByLabel('Immortals models')).toHaveText(String(models))
   }
   await expect(page.getByText('10x Gauss blaster')).toBeVisible()

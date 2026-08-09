@@ -32,7 +32,9 @@ test('a list leaves as .ros and comes back', async ({ browser }) => {
     .getByRole('button', { name: /^Immortals/ })
     .click()
   for (let models = 6; models <= 10; models++) {
+    // eslint-disable-next-line no-await-in-loop
     await page.getByRole('button', { name: 'More models in Immortals' }).click()
+    // eslint-disable-next-line no-await-in-loop
     await expect(page.getByLabel('Immortals models')).toHaveText(String(models))
   }
   const loadout = page.locator('aside[aria-label="Loadout"]')
