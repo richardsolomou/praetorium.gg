@@ -472,6 +472,8 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
       pickIndex={selected}
       onChoose={(key, optionId) => selected !== null && choose(selected, key, optionId)}
       onSpread={(key, counts) => selected !== null && spread(selected, key, counts)}
+      onToggle={(key, toggleName, enabled) => selected !== null && toggle(selected, key, toggleName, enabled)}
+      onResize={(models) => selected !== null && resize(selected, models)}
     />
   )
   const datasheet = (
@@ -902,8 +904,6 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
                       onDuplicate={() => duplicate(index)}
                       owned={collection.has(unit.entryId)}
                       onOwned={() => own.mutate({ entryId: unit.entryId, owned: !collection.has(unit.entryId) })}
-                      onToggle={(key, toggleName, enabled) => toggle(index, key, toggleName, enabled)}
-                      onResize={(models) => resize(index, models)}
                       joined={joinedRows(index)}
                       canJoin={joinable(index)}
                       onJoin={(targetKey) => join(index, targetKey)}

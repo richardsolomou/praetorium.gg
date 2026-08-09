@@ -83,6 +83,7 @@ test('a list is saved and loaded into another battle', async ({ browser }) => {
 
   await page.getByRole('button', { name: 'Copy Nurgle 2k' }).click()
   await expect(page.getByLabel('List name')).toHaveValue('Copy of Nurgle 2k')
+  await page.locator('[data-unit="Immortals"]').getByRole('button', { name: 'Immortals', exact: true }).click()
   await expect(page.getByLabel('Immortals models')).toHaveText('6')
   await expect(page.getByRole('status')).toContainText('Saved automatically')
   await expect(page.getByRole('button', { name: 'Copy of Nurgle 2k', exact: true })).toBeVisible()

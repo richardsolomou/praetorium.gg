@@ -1,9 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
-import { Check, Minus, Plus } from 'lucide-react'
+import { Check, Crown, Minus, Plus } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { Toggle } from '@/components/ui/toggle'
 import type { RosterPick } from '../../../core/roster'
 import { datasheetQuery } from '../../queries'
 import { SearchableSelect } from '../SearchableSelect'
@@ -27,6 +28,7 @@ type LoadoutUnit = {
   name: string
   points: number
   size: { min: number; max: number; models: number; resizable: boolean }
+  toggles: { key: string; name: string; selected: boolean }[]
   choices: LoadoutChoice[]
 }
 
@@ -38,13 +40,12 @@ type Props = {
   pickIndex: number | null
   onChoose: (key: string, optionId: string) => void
   onSpread: (key: string, counts: Record<string, number>) => void
+  onToggle: (key: string, name: string, selected: boolean) => void
+  onResize: (models: number) => void
 }
 
 /**
  * What the selected unit is carrying.
- *
- * Squad size is not here: it is on the card, where the roster is, because one
- * control with one name is worth more than two that agree.
  *
  * Two kinds of choice, because the data holds two. A group with room for one is an
  * either-or — a captain's relic blade or his power sword — and reads as a choice. A
@@ -52,7 +53,7 @@ type Props = {
  * carbines, which a single answer cannot say; that one gets a count against each
  * option. Nothing is typed either way: every option and every price is the data's.
  */
-export function Loadout({ catalogueId, unit, detachmentIds, picks, pickIndex, onChoose, onSpread }: Props) {
+export function Loadout({ catalogueId, unit, detachmentIds, picks, pickIndex, onChoose, onSpread, onToggle, onResize }: Props) {
   const [context, setContext] = useState({ detachmentIds, picks, pickIndex })
   useEffect(() => {
     const timeout = window.setTimeout(() => setContext({ detachmentIds, picks, pickIndex }), 150)
@@ -77,7 +78,49 @@ export function Loadout({ catalogueId, unit, detachmentIds, picks, pickIndex, on
     <div className="flex h-full flex-col">
       <div className="border-b border-edge p-2.5">
         <h2 className="text-sm leading-tight">{unit.name}</h2>
-        <span className="chip mt-1.5 inline-block">{unit.points} pts</span>
+        <div className="mt-1.5 flex flex-wrap items-center gap-2">
+          <span className="chip">{unit.points} pts</span>
+          {unit.size.resizable ? (
+            <span className="flex items-center gap-1">
+              <Button
+                variant="outline"
+                size="icon-sm"
+                className="size-6"
+                aria-label={`Fewer models in ${unit.name}`}
+                disabled={unit.size.models <= unit.size.min}
+                onClick={() => onResize(unit.size.models - 1)}
+              >
+                <Minus />
+              </Button>
+              <span className="readout w-6 text-center text-sm" aria-label={`${unit.name} models`}>
+                {unit.size.models}
+              </span>
+              <Button
+                variant="outline"
+                size="icon-sm"
+                className="size-6"
+                aria-label={`More models in ${unit.name}`}
+                disabled={unit.size.models >= unit.size.max}
+                onClick={() => onResize(unit.size.models + 1)}
+              >
+                <Plus />
+              </Button>
+            </span>
+          ) : null}
+          {unit.toggles.map((toggle) => (
+            <Toggle
+              key={toggle.key}
+              variant="outline"
+              size="sm"
+              aria-label={`${toggle.selected ? 'Remove' : 'Make'} ${unit.name} ${toggle.name}`}
+              pressed={toggle.selected}
+              onPressedChange={(pressed) => onToggle(toggle.key, toggle.name, pressed)}
+            >
+              <Crown />
+              {toggle.name}
+            </Toggle>
+          ))}
+        </div>
       </div>
       <ScrollArea className="min-h-0 flex-1 [&_[data-slot=scroll-area-viewport]]:p-2.5">
         <div className="space-y-4">

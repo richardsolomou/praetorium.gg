@@ -1,4 +1,4 @@
-import { ChevronRight, Copy, Crown, EllipsisVertical, Heart, Minus, Plus, X } from 'lucide-react'
+import { Copy, EllipsisVertical, Heart, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -7,17 +7,14 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Toggle } from '@/components/ui/toggle'
 import type { Attachment } from '../../../core/attach'
 
 type BuiltUnit = {
   entryId: string
   name: string
   points: number
-  size: { min: number; max: number; models: number; resizable: boolean }
   wargear: { name: string; count: number }[]
   attachment: Attachment | null
-  toggles: { key: string; name: string; selected: boolean }[]
   enhancements: string[]
 }
 
@@ -33,8 +30,6 @@ type Props = {
   onDuplicate: () => void
   owned: boolean
   onOwned: () => void
-  onToggle: (key: string, name: string, selected: boolean) => void
-  onResize: (models: number) => void
   /** Rows stating what this unit is attached to, or what is attached to it. */
   joined: Joined[]
   /** Units in the roster this one may join, when it may join any. */
@@ -45,26 +40,8 @@ type Props = {
 /**
  * One unit in the roster, as a datasheet would print it: the name, what it is
  * carrying, what it costs, and who it is standing with.
- *
- * The model count is here rather than only in the loadout pane. Changing squad size
- * is the most common edit in list building and the least deserving of a trip to
- * another pane — on a phone that pane is a whole screen away.
  */
-export function UnitCard({
-  unit,
-  force,
-  selected,
-  onSelect,
-  onRemove,
-  onDuplicate,
-  owned,
-  onOwned,
-  onToggle,
-  onResize,
-  joined,
-  canJoin,
-  onJoin,
-}: Props) {
+export function UnitCard({ unit, force, selected, onSelect, onRemove, onDuplicate, owned, onOwned, joined, canJoin, onJoin }: Props) {
   return (
     <div
       data-unit={unit.name}
@@ -95,47 +72,7 @@ export function UnitCard({
           ) : null}
         </div>
         <span className="pointer-events-none relative z-10 flex shrink-0 items-center gap-1.5 [&_button]:pointer-events-auto">
-          {unit.size.resizable ? (
-            <span className="flex items-center gap-1">
-              <Button
-                variant="outline"
-                size="icon-sm"
-                className="size-6"
-                aria-label={`Fewer models in ${unit.name}`}
-                disabled={unit.size.models <= unit.size.min}
-                onClick={() => onResize(unit.size.models - 1)}
-              >
-                <Minus />
-              </Button>
-              <span className="readout w-6 text-center text-sm" aria-label={`${unit.name} models`}>
-                {unit.size.models}
-              </span>
-              <Button
-                variant="outline"
-                size="icon-sm"
-                className="size-6"
-                aria-label={`More models in ${unit.name}`}
-                disabled={unit.size.models >= unit.size.max}
-                onClick={() => onResize(unit.size.models + 1)}
-              >
-                <Plus />
-              </Button>
-            </span>
-          ) : null}
           <span className="chip">{unit.points} pts</span>
-          {unit.toggles.map((toggle) => (
-            <Toggle
-              key={toggle.key}
-              variant="default"
-              size="sm"
-              className="size-7 p-0"
-              aria-label={`${toggle.selected ? 'Remove' : 'Make'} ${unit.name} ${toggle.name}`}
-              pressed={toggle.selected}
-              onPressedChange={(pressed) => onToggle(toggle.key, toggle.name, pressed)}
-            >
-              <Crown />
-            </Toggle>
-          ))}
           <DropdownMenu>
             <DropdownMenuTrigger
               className="flex size-7 cursor-pointer items-center justify-center rounded-sm hover:bg-raised"
@@ -160,7 +97,6 @@ export function UnitCard({
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          <ChevronRight className="size-4 text-faint" aria-hidden />
         </span>
       </div>
 
