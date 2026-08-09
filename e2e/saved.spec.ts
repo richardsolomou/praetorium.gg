@@ -46,6 +46,10 @@ test('a list is saved and loaded into another battle', async ({ browser }) => {
   await page.getByRole('link', { name: 'Rosters' }).click()
   await page.getByRole('link', { name: /Nurgle 2k/ }).click()
   await expect(page).toHaveURL(/\/rosters\/[^/]+\/edit$/)
+  const editor = page.getByLabel('Add units').locator('xpath=ancestor::div[contains(@class,"bg-sunken")][1]')
+  const editorBounds = await editor.boundingBox()
+  expect(editorBounds?.x).toBe(0)
+  expect(editorBounds?.width).toBe(1600)
   await expect(total).toHaveText(priced)
   await page.reload()
   await expect(page.getByLabel('List name')).toHaveValue('Nurgle 2k')
@@ -60,6 +64,7 @@ test('a list is saved and loaded into another battle', async ({ browser }) => {
   await expect(page.locator('aside[aria-label="Loadout"]').getByText('Ranged weapons', { exact: true })).toBeVisible()
   await expect(page.getByLabel('List name')).toHaveValue('Nurgle 2k')
   await expect(page.getByLabel('Immortals models')).toHaveText('6')
+  await page.screenshot({ path: 'test-results/saved-roster-edge-to-edge.png', fullPage: true })
 
   // A second battle, in the same browser, starts from the saved list.
   await page.goto('/')

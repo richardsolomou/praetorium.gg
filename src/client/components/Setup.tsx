@@ -101,7 +101,7 @@ export function Setup({ view, send, pending, problem }: Props) {
       {stage !== 'roster' ? null : building ? (
         // The builder is the page while it is open, so it gets the height rather
         // than growing a second scrollbar inside the one the page already has.
-        <section className="flex h-[calc(100dvh-11rem)] min-h-120 flex-col">
+        <section className="relative left-1/2 flex h-[calc(100dvh-11rem)] min-h-120 w-screen -translate-x-1/2 flex-col">
           <ListBuilder
             pending={pending}
             attached={Boolean(you.roster)}
