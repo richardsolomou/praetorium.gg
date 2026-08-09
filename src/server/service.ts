@@ -1,4 +1,5 @@
 import type { BattleEvents } from '../adapters/events'
+import { randomId, randomToken } from 'ras-stack/auth'
 import {
   type BattleView,
   battleReport,
@@ -11,7 +12,6 @@ import {
 } from '../core/battle'
 import type { RosterPick } from '../core/roster'
 import type { BattleSeats, JoinResult, Repository, SubmitResult } from '../db/repository'
-import { createId, createToken } from './crypto'
 import { type Mission, missionFor } from './rules'
 import { picksSchema, savedPrepSchema } from './schemas'
 
@@ -78,7 +78,7 @@ export class PraetoriumService {
       if (existing.name !== name) this.repository.upsertPlayer({ id: existing.id, name, userId, now: this.clock() })
       return existing.id
     }
-    const id = createId()
+    const id = randomId()
     this.repository.upsertPlayer({ id, name, userId, now: this.clock() })
     return id
   }
@@ -96,7 +96,7 @@ export class PraetoriumService {
       prep: SavedPrep | null
     },
   ) {
-    const id = roster.id ?? createId()
+    const id = roster.id ?? randomId()
     this.repository.saveRoster({
       ...roster,
       detachmentId: JSON.stringify(roster.detachmentIds),
@@ -156,8 +156,8 @@ export class PraetoriumService {
   }
 
   createBattle(playerId: string) {
-    const token = createToken()
-    this.repository.createBattle({ id: createId(), token, playerId, now: this.clock() })
+    const token = randomToken()
+    this.repository.createBattle({ id: randomId(), token, playerId, now: this.clock() })
     return { token }
   }
 

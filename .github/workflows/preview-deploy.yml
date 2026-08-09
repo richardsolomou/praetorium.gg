@@ -27,12 +27,7 @@ jobs:
       checks: write
     steps:
       - uses: actions/checkout@v7
-      - run: corepack enable && corepack prepare pnpm@11.15.0 --activate
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 24
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
+      - uses: richardsolomou/ras-stack/actions/setup-js@v0.2.0
       - name: Mark preview as awaiting approval
         env:
           GH_TOKEN: ${{ github.token }}
@@ -49,12 +44,7 @@ jobs:
       checks: write
     steps:
       - uses: actions/checkout@v7
-      - run: corepack enable && corepack prepare pnpm@11.15.0 --activate
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 24
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
+      - uses: richardsolomou/ras-stack/actions/setup-js@v0.2.0
       - name: Mark preview as deploying
         env:
           GH_TOKEN: ${{ github.token }}
@@ -73,12 +63,7 @@ jobs:
       checks: write
     steps:
       - uses: actions/checkout@v7
-      - run: corepack enable && corepack prepare pnpm@11.15.0 --activate
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 24
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
+      - uses: richardsolomou/ras-stack/actions/setup-js@v0.2.0
       - name: Download preview image
         if: github.event.workflow_run.pull_requests[0].head.repo.id != github.event.repository.id
         uses: actions/download-artifact@v8
@@ -129,12 +114,7 @@ jobs:
       pull-requests: write
     steps:
       - uses: actions/checkout@v7
-      - run: corepack enable && corepack prepare pnpm@11.15.0 --activate
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 24
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
+      - uses: richardsolomou/ras-stack/actions/setup-js@v0.2.0
       - name: Delete preview
         env:
           DOKPLOY_URL: ${{ secrets.DOKPLOY_URL }}

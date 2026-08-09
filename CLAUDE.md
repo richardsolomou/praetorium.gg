@@ -36,3 +36,7 @@ Each of these is a short read, and the one that matches what you are touching is
 ## Commands
 
 `just` lists them. `just check` is the gate, `just dev` runs the app and Centrifugo together, and `just e2e` drives real browsers against the container image. Each recipe wraps the `pnpm` script underneath, which is what CI calls. See [CONTRIBUTING.md](CONTRIBUTING.md) for the rest, including the two e2e traps that have each cost a round of fixes.
+
+## Changesets and releases
+
+Run `pnpm changeset` for released application behavior: `minor` for new capability and `patch` for fixes, with one imperative user-visible sentence. Documentation, tests, refactors, and tooling-only changes do not need one. A changeset merged to `main` releases immediately by updating the version and changelog and creating the matching tag and GitHub Release.

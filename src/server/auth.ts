@@ -1,44 +1,15 @@
 import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
-import crypto from 'node:crypto'
-import fs from 'node:fs'
-import path from 'node:path'
-import { PASSWORD_MIN_LENGTH, SOCIAL_PROVIDERS, type SocialProvider } from '../authConfig'
+import { configuredProviders, providerCredentials, standardRateLimitOptions, standardSessionOptions, trustedOrigins } from 'ras-stack/auth'
+import { PASSWORD_MIN_LENGTH, SOCIAL_PROVIDERS } from '../authConfig'
 import type { PraetoriumDatabase } from '../db/connection'
 import { schema } from '../db/schema'
-import { forwardedOrigin } from './requestOrigin'
-
-/**
- * Kept beside the database so an operator needs no configuration, and so sessions
- * survive a redeploy. The environment wins when someone would rather manage it.
- */
-export function authSecret(dataDirectory: string) {
-  const configured = process.env.AUTH_SECRET?.trim()
-  if (configured) return configured
-  const file = path.join(dataDirectory, 'auth.secret')
-  if (fs.existsSync(file)) return fs.readFileSync(file, 'utf8').trim()
-  const secret = crypto.randomBytes(32).toString('base64url')
-  fs.writeFileSync(file, secret, { mode: 0o600 })
-  return secret
-}
-
-/** A provider is offered only when both halves of its credential are present. */
-export function configuredProviders(env: NodeJS.ProcessEnv = process.env): SocialProvider[] {
-  return SOCIAL_PROVIDERS.filter((provider) => {
-    const prefix = provider.toUpperCase()
-    return Boolean(env[`${prefix}_CLIENT_ID`]?.trim() && env[`${prefix}_CLIENT_SECRET`]?.trim())
-  })
-}
 
 function socialProviders(env: NodeJS.ProcessEnv) {
-  const credentials = (provider: SocialProvider) => ({
-    clientId: env[`${provider.toUpperCase()}_CLIENT_ID`] ?? '',
-    clientSecret: env[`${provider.toUpperCase()}_CLIENT_SECRET`] ?? '',
-  })
-  const enabled = configuredProviders(env)
+  const enabled = configuredProviders(SOCIAL_PROVIDERS, env)
   return {
-    ...(enabled.includes('google') ? { google: credentials('google') } : {}),
-    ...(enabled.includes('discord') ? { discord: credentials('discord') } : {}),
+    ...(enabled.includes('google') ? { google: providerCredentials('google', env)! } : {}),
+    ...(enabled.includes('discord') ? { discord: providerCredentials('discord', env)! } : {}),
   }
 }
 
@@ -63,23 +34,14 @@ export function createAuth(database: PraetoriumDatabase, secret: string) {
      * spec from one unresolvable address and would otherwise throttle itself into
      * failing — slowly, and somewhere other than the request that was refused.
      */
-    rateLimit: {
-      enabled: process.env.AUTH_RATE_LIMIT !== 'off',
-      storage: 'database',
-      window: 60,
-      max: 120,
-      customRules: { '/sign-in/email': { window: 60, max: 20 }, '/sign-up/email': { window: 60, max: 15 } },
-    },
-    session: { expiresIn: 60 * 60 * 24 * 90, updateAge: 60 * 60 * 24 },
+    rateLimit: { ...standardRateLimitOptions(), enabled: process.env.AUTH_RATE_LIMIT !== 'off' },
+    session: standardSessionOptions(),
     advanced: {
       useSecureCookies: (process.env.APP_URL ?? '').startsWith('https://'),
       // Behind a reverse proxy, the socket address would put every visitor into
       // one rate-limit bucket.
       ipAddress: { ipAddressHeaders: ['cf-connecting-ip', 'x-forwarded-for'] },
     },
-    trustedOrigins: (request) => {
-      const forwarded = request ? forwardedOrigin(request) : undefined
-      return forwarded ? [forwarded] : []
-    },
+    trustedOrigins: trustedOrigins({ trustForwardedHeaders: true }),
   })
 }

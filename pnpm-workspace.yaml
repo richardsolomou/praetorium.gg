@@ -4,3 +4,5 @@ allowBuilds:
   # centrifuge pulls it in; we speak Centrifugo's JSON protocol and never protobuf,
   # so its build script has nothing to do here.
   protobufjs: false
+minimumReleaseAgeExclude:
+  - ras-stack@0.2.0

@@ -60,3 +60,9 @@ Two browser-test details matter:
 Use a conventional commit title and the repository pull request template. Branches in this repository receive a disposable preview linked from the pull request. See [Pull request previews](docs/development/pr-previews.md) for its lifecycle.
 
 Report vulnerabilities privately as described in [SECURITY.md](SECURITY.md).
+
+## Release notes
+
+Run `pnpm changeset` for changes to released application behavior. Choose `minor` for new capabilities and `patch` for fixes, then write one imperative, user-visible sentence. Documentation, tests, refactors, and tooling-only changes do not need a changeset.
+
+When a changeset reaches `main`, CI updates `package.json` and `CHANGELOG.md`, then creates the matching tag and GitHub Release.
