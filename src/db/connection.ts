@@ -1,31 +1,23 @@
-import Database from 'better-sqlite3'
-import { sql } from 'drizzle-orm'
-import { type BetterSQLite3Database, drizzle } from 'drizzle-orm/better-sqlite3'
-import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
-import fs from 'node:fs'
+import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { bundledDirectory } from 'ras-stack/database'
+import { closeDrizzleSqlite, openDrizzleSqlite } from 'ras-stack/database/sqlite'
 import { schema } from './schema'
 
-export type PraetoriumDatabase = BetterSQLite3Database<typeof schema> & { $client: Database.Database }
+export type PraetoriumDatabase = BetterSQLite3Database<typeof schema> & { $client: import('better-sqlite3').Database }
 
-const migrationsFolder = import.meta.env.PROD
-  ? path.join(path.dirname(process.argv[1]), 'drizzle')
-  : fileURLToPath(new URL('../../drizzle', import.meta.url))
+const migrationsFolder = bundledDirectory({
+  developmentUrl: new URL('../../drizzle', import.meta.url),
+  production: import.meta.env.PROD,
+  name: 'drizzle',
+})
 
 export function openDatabase(file: string): PraetoriumDatabase {
-  if (file !== ':memory:') fs.mkdirSync(path.dirname(file), { recursive: true })
-  const database = drizzle({ client: new Database(file), schema })
-  database.run(sql`PRAGMA journal_mode = WAL`)
-  database.run(sql`PRAGMA synchronous = FULL`)
-  database.run(sql`PRAGMA busy_timeout = 5000`)
-  database.run(sql`PRAGMA foreign_keys = ON`)
-  migrate(database, { migrationsFolder })
-  return database
+  return openDrizzleSqlite({ file, schema, migrationsFolder })
 }
 
 export function closeDatabase(database: PraetoriumDatabase) {
-  database.$client.close()
+  closeDrizzleSqlite(database)
 }
 
 export function databasePath(dataDirectory = process.env.DATA_DIR ?? '/data') {

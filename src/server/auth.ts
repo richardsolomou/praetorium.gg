@@ -1,17 +1,9 @@
 import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
-import { configuredProviders, providerCredentials, standardRateLimitOptions, standardSessionOptions, trustedOrigins } from 'ras-stack/auth'
+import { configuredProviderOptions, standardRateLimitOptions, standardSessionOptions, trustedOrigins } from 'ras-stack/auth'
 import { PASSWORD_MIN_LENGTH, SOCIAL_PROVIDERS } from '../authConfig'
 import type { PraetoriumDatabase } from '../db/connection'
 import { schema } from '../db/schema'
-
-function socialProviders(env: NodeJS.ProcessEnv) {
-  const enabled = configuredProviders(SOCIAL_PROVIDERS, env)
-  return {
-    ...(enabled.includes('google') ? { google: providerCredentials('google', env)! } : {}),
-    ...(enabled.includes('discord') ? { discord: providerCredentials('discord', env)! } : {}),
-  }
-}
 
 export function createAuth(database: PraetoriumDatabase, secret: string) {
   return betterAuth({
@@ -21,7 +13,7 @@ export function createAuth(database: PraetoriumDatabase, secret: string) {
     // An account is who you are here, but it still needs no inbox: there is no
     // verification step to stall a first game.
     emailAndPassword: { enabled: true, minPasswordLength: PASSWORD_MIN_LENGTH, autoSignIn: true, requireEmailVerification: false },
-    socialProviders: socialProviders(process.env),
+    socialProviders: configuredProviderOptions(SOCIAL_PROVIDERS),
     // Signing in with Google to an account made with a password should land on the
     // same account, not a second one.
     account: { accountLinking: { enabled: true, trustedProviders: [...SOCIAL_PROVIDERS] } },

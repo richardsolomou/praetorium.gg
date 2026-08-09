@@ -15,7 +15,7 @@ COPY public ./public
 COPY drizzle ./drizzle
 COPY catalogue ./catalogue
 COPY scripts/seedPreview.ts ./scripts/seedPreview.ts
-COPY tsconfig.json vite.config.ts vite.seed.config.ts ./
+COPY ras-stack.assets.json tsconfig.json vite.config.ts vite.seed.config.ts ./
 RUN pnpm build
 
 FROM node:24-alpine
