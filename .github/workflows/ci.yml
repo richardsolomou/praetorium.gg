@@ -35,7 +35,7 @@ jobs:
       # than once per run: it is 60MB of catalogues and does not change otherwise.
       - name: Cache the catalogue data
         id: catalogue
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: catalogue-data
           key: catalogue-${{ hashFiles('catalogue/sources.json') }}
@@ -65,7 +65,7 @@ jobs:
       - if: github.ref == 'refs/heads/main'
         run: docker push --all-tags ghcr.io/${{ github.repository }}
       - if: failure()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-results
           path: test-results
@@ -81,7 +81,7 @@ jobs:
           version: '1.58.0'
       - name: Cache the catalogue data
         id: catalogue
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: catalogue-data
           key: catalogue-${{ hashFiles('catalogue/sources.json') }}
