@@ -1,5 +1,12 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { Centrifuge, UnauthorizedError } from 'centrifuge'
+import type { Centrifuge } from 'centrifuge'
+import {
+  connectRealtimeClient,
+  createSameOriginRealtimeClient,
+  openRealtimeSubscription,
+  requestRealtimeTicket,
+  watchSubscriptionPresence,
+} from 'ras-stack/realtime/client'
 import { useEffect, useState } from 'react'
 import { z } from 'zod'
 import { battleQuery } from './queries'
@@ -27,14 +34,10 @@ export function useLiveBattle(token: string, enabled: boolean) {
     if (!enabled) return undefined
     let live = true
     let client: Centrifuge | undefined
+    let closeRealtime: (() => void) | undefined
 
     const tokenUrl = `/api/realtime/token?battle=${encodeURIComponent(token)}`
-    const ask = async (init?: RequestInit) => {
-      const response = await fetch(tokenUrl, init)
-      if (response.status === 401 || response.status === 403) throw new UnauthorizedError('unauthorized')
-      if (!response.ok) throw new Error(`realtime authentication failed with status ${response.status}`)
-      return TICKET.parse(await response.json())
-    }
+    const ask = (init?: RequestInit) => requestRealtimeTicket(tokenUrl, { init, parse: (value) => TICKET.parse(value) })
 
     const refresh = () => {
       void queryClient.invalidateQueries({ queryKey: battleQuery(token).queryKey })
@@ -44,48 +47,53 @@ export function useLiveBattle(token: string, enabled: boolean) {
     const start = async () => {
       const { token: connection, channel } = await ask()
       if (!live) return
-      // Always this origin: Caddy puts Centrifugo behind it in the container, and
-      // the dev server proxies it. Nothing here ever crosses an origin.
-      const endpoint = `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}/connection/websocket`
-
-      client = new Centrifuge(endpoint, { token: connection, getToken: async () => (await ask()).token })
-      const subscription = client.newSubscription(channel!, {
-        getToken: async ({ channel: requested }) =>
-          (
-            await ask({
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ channel: requested }),
-            })
-          ).token,
-      })
-
-      const readPresence = () => {
-        void subscription.presence().then(({ clients }) => {
-          if (!live) return
-          const seen = new Map<string, PresentPlayer>()
-          for (const { user, connInfo } of Object.values(clients)) {
-            const named = z.object({ name: z.string() }).safeParse(connInfo)
-            seen.set(user, { playerId: user, name: named.success ? named.data.name : 'Someone' })
+      client = createSameOriginRealtimeClient({ token: connection, getToken: async () => (await ask()).token })
+      const liveSubscription = openRealtimeSubscription(
+        client,
+        channel!,
+        {
+          getToken: async ({ channel: requested }) =>
+            (
+              await ask({
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ channel: requested }),
+              })
+            ).token,
+        },
+        (subscription) => {
+          const stopPresence = watchSubscriptionPresence(subscription, (clients) => {
+            if (!live) return
+            const seen = new Map<string, PresentPlayer>()
+            for (const { user, connInfo } of Object.values(clients)) {
+              const named = z.object({ name: z.string() }).safeParse(connInfo)
+              seen.set(user, { playerId: user, name: named.success ? named.data.name : 'Someone' })
+            }
+            setPresent([...seen.values()])
+          })
+          subscription.on('publication', refresh)
+          subscription.on('subscribed', refresh)
+          return () => {
+            subscription.off('publication', refresh)
+            subscription.off('subscribed', refresh)
+            stopPresence()
           }
-          setPresent([...seen.values()])
-        })
+        },
+      )
+      const disconnect = connectRealtimeClient(client)
+      closeRealtime = () => {
+        liveSubscription.close()
+        disconnect()
       }
-
-      subscription.on('publication', refresh)
-      subscription.on('subscribed', () => {
-        refresh()
-        readPresence()
-      })
-      subscription.on('join', readPresence)
-      subscription.on('leave', readPresence)
-      subscription.subscribe()
-      client.connect()
+      if (!live) {
+        closeRealtime()
+      }
     }
 
     void start()
     return () => {
       live = false
+      closeRealtime?.()
       client?.disconnect()
       setPresent([])
     }
