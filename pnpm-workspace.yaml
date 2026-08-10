@@ -7,5 +7,8 @@ allowBuilds:
 minimumReleaseAgeExclude:
   - csv-parse@7.0.2
   - jose@6.2.8
-  - ras-stack@0.29.0
+  - ras-stack@0.30.0
 minimumReleaseAge: 10080
+peerDependencyRules:
+  allowedVersions:
+    better-sqlite3: '13'
