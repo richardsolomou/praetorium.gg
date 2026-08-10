@@ -1,5 +1,6 @@
 import path from 'node:path'
 import { persistedSecret } from 'ras-stack/auth'
+import { globalSingleton } from 'ras-stack/server'
 import { type BattleEvents, RealtimePublisher } from '../adapters/events'
 import { catalogueDirectory, type LoadedCatalogue, loadCatalogue } from './catalogueIndex'
 import { type LoadedRules, loadRules } from './rules'
@@ -78,16 +79,13 @@ export function warm(instance: Pick<App, 'catalogue' | 'rules'>) {
   })
 }
 
-// Dev keeps the instance on globalThis so HMR reloads reuse one SQLite handle.
-const globalApp = globalThis as typeof globalThis & { praetoriumApp?: App }
-
 export function app(): App {
-  if (!globalApp.praetoriumApp) {
+  return globalSingleton('praetorium.app', () => {
     const file = databasePath()
     const database = openDatabase(file)
     const realtime = realtimeConfig()
     const events = new RealtimePublisher(realtime.apiUrl, realtime.apiKey)
-    globalApp.praetoriumApp = {
+    const instance: App = {
       database,
       service: new PraetoriumService(new Repository(database), Date.now, events),
       events,
@@ -99,10 +97,11 @@ export function app(): App {
     // Fetched in the background rather than at boot: an instance must start and
     // serve battles whether or not it has the catalogues yet.
     sync.begin(catalogueDirectory(path.dirname(file)), () => {
-      globalApp.praetoriumApp = { ...globalApp.praetoriumApp!, catalogue: memoize(loadCatalogue), rules: memoize(loadRules) }
-      warm(globalApp.praetoriumApp)
+      instance.catalogue = memoize(loadCatalogue)
+      instance.rules = memoize(loadRules)
+      warm(instance)
     })
-    if (sync.state.status === 'ready') warm(globalApp.praetoriumApp)
-  }
-  return globalApp.praetoriumApp
+    if (sync.state.status === 'ready') warm(instance)
+    return instance
+  })
 }
