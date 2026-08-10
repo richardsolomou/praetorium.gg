@@ -17,3 +17,11 @@ export async function requirePlayerId(request = getRequest()) {
   if (!id) throw new Response('sign in first', { status: 401 })
   return id
 }
+
+export async function requirePlayer(request = getRequest()) {
+  const player = await currentPlayer(request)
+  if (!player) throw new Response('sign in first', { status: 401 })
+  const session = await app().auth.api.getSession({ headers: request.headers })
+  if (!session) throw new Response('sign in first', { status: 401 })
+  return { ...player, userId: session.user.id }
+}

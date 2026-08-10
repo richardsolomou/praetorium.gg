@@ -13,7 +13,7 @@ import { findAbilityDescription, WAHAPEDIA_ATTRIBUTION } from './wahapedia'
 import { mutationRpc, rpc } from './rpc'
 import { calculateRosterPrice, rosterDetachments } from './pricing'
 import { exportRosterFile, importRosterFile } from './rosterFiles'
-import { currentPlayer, currentPlayerId, requirePlayerId } from './playerSession'
+import { currentPlayer, currentPlayerId, requirePlayer, requirePlayerId } from './playerSession'
 import {
   datasheetSchema,
   datasheetSlugSchema,
@@ -60,12 +60,24 @@ export const openBattle = createServerFn({ method: 'GET' })
   )
 
 export const createBattle = createServerFn({ method: 'POST' }).handler(() =>
-  mutationRpc(async () => app().service.createBattle(await requirePlayerId())),
+  mutationRpc(async () => {
+    const player = await requirePlayer()
+    const result = app().service.createBattle(player.id)
+    await app().telemetry.capture(player.userId, 'battle_created')
+    return result
+  }),
 )
 
 export const joinBattle = createServerFn({ method: 'POST' })
   .validator(joinBattleSchema)
-  .handler(({ data }) => mutationRpc(async () => app().service.join(data.token, await requirePlayerId())))
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const player = await requirePlayer()
+      const result = app().service.join(data.token, player.id)
+      await app().telemetry.capture(player.userId, 'battle_joined')
+      return result
+    }),
+  )
 
 /**
  * Every change to a battle comes through here. The result is the domain's answer,
@@ -75,7 +87,12 @@ export const joinBattle = createServerFn({ method: 'POST' })
 export const submit = createServerFn({ method: 'POST' })
   .validator(submitSchema)
   .handler(({ data }) =>
-    mutationRpc(async () => app().service.submit(data.token, await requirePlayerId(), data.expectedSeq, data.command, app().rules())),
+    mutationRpc(async () => {
+      const player = await requirePlayer()
+      const result = app().service.submit(data.token, player.id, data.expectedSeq, data.command, app().rules())
+      await app().telemetry.capture(player.userId, 'battle_command_submitted', { command: data.command.kind })
+      return result
+    }),
   )
 
 /** The datasheets this player owns, so the picker can be asked to show only those. */
@@ -250,7 +267,14 @@ export const savedRosterPrice = createServerFn({ method: 'GET' })
 
 export const saveRoster = createServerFn({ method: 'POST' })
   .validator(saveRosterSchema)
-  .handler(({ data }) => mutationRpc(async () => app().service.saveRoster(await requirePlayerId(), data)))
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const player = await requirePlayer()
+      const result = app().service.saveRoster(player.id, data)
+      await app().telemetry.capture(player.userId, 'roster_saved', { unit_count: data.picks.length })
+      return result
+    }),
+  )
 
 export const deleteRoster = createServerFn({ method: 'POST' })
   .validator(rosterIdSchema)

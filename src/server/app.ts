@@ -2,7 +2,7 @@ import path from 'node:path'
 import { persistedSecret } from 'ras-stack/auth'
 import { globalSingleton } from 'ras-stack/server'
 import { type BattleEvents, RealtimePublisher } from '../adapters/events'
-import { serverPostHog } from '../adapters/posthog'
+import { serverTelemetry } from '../adapters/posthog'
 import { catalogueDirectory, type LoadedCatalogue, loadCatalogue } from './catalogueIndex'
 import { type LoadedRules, loadRules } from './rules'
 import { isCurrent, type SyncState, syncSources } from './sync'
@@ -23,6 +23,7 @@ type App = {
   /** How the community data is doing, so the interface can say rather than guess. */
   sync: () => SyncState
   auth: ReturnType<typeof createAuth>
+  telemetry: ReturnType<typeof serverTelemetry>
 }
 
 /** Parsing the whole catalogue takes seconds, so it happens once and only if asked for. */
@@ -82,7 +83,7 @@ export function warm(instance: Pick<App, 'catalogue' | 'rules'>) {
 
 export function app(): App {
   return globalSingleton('praetorium.app', () => {
-    void serverPostHog()
+    const telemetry = serverTelemetry()
     const file = databasePath()
     const database = openDatabase(file)
     const realtime = realtimeConfig()
@@ -95,6 +96,7 @@ export function app(): App {
       catalogue: memoize(loadCatalogue),
       rules: memoize(loadRules),
       sync: () => sync.state,
+      telemetry,
     }
     // Fetched in the background rather than at boot: an instance must start and
     // serve battles whether or not it has the catalogues yet.
