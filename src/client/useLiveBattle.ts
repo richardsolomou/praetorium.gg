@@ -1,19 +1,16 @@
 import { useQueryClient } from '@tanstack/react-query'
-import type { Centrifuge } from 'centrifuge'
-import {
-  connectRealtimeClient,
-  createSameOriginRealtimeClient,
-  openRealtimeSubscription,
-  requestRealtimeTicket,
-  watchSubscriptionPresence,
-} from 'ras-stack/realtime/client'
-import { useEffect, useState } from 'react'
+import type { Centrifuge, Subscription, SubscriptionOptions } from 'centrifuge'
+import { createSameOriginRealtimeClient, requestRealtimeTicket } from 'ras-stack/realtime/client'
+import { useConnectedRealtimeClient, useRealtimePresence, useRealtimeSubscription } from 'ras-stack/realtime/react'
+import { useCallback, useMemo } from 'react'
 import { z } from 'zod'
 import { battleQuery } from './queries'
 
 export type PresentPlayer = { playerId: string; name: string }
 
 const TICKET = z.object({ token: z.string(), channel: z.string().optional() })
+const clientChannels = new WeakMap<Centrifuge, string>()
+const reportRealtimeError = (error: unknown) => console.error({ event: 'realtime_failed', error })
 
 /**
  * Keeps an open battle current, and reports who else has it open.
@@ -28,76 +25,63 @@ const TICKET = z.object({ token: z.string(), channel: z.string().optional() })
  */
 export function useLiveBattle(token: string, enabled: boolean) {
   const queryClient = useQueryClient()
-  const [present, setPresent] = useState<PresentPlayer[]>([])
-
-  useEffect(() => {
-    if (!enabled) return undefined
-    let live = true
-    let client: Centrifuge | undefined
-    let closeRealtime: (() => void) | undefined
-
-    const tokenUrl = `/api/realtime/token?battle=${encodeURIComponent(token)}`
-    const ask = (init?: RequestInit) => requestRealtimeTicket(tokenUrl, { init, parse: (value) => TICKET.parse(value) })
-
-    const refresh = () => {
-      void queryClient.invalidateQueries({ queryKey: battleQuery(token).queryKey })
-      void queryClient.invalidateQueries({ queryKey: ['report', token] })
-    }
-
-    const start = async () => {
-      const { token: connection, channel } = await ask()
-      if (!live) return
-      client = createSameOriginRealtimeClient({ token: connection, getToken: async () => (await ask()).token })
-      const liveSubscription = openRealtimeSubscription(
-        client,
-        channel!,
-        {
-          getToken: async ({ channel: requested }) =>
-            (
-              await ask({
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ channel: requested }),
-              })
-            ).token,
-        },
-        (subscription) => {
-          const stopPresence = watchSubscriptionPresence(subscription, (clients) => {
-            if (!live) return
-            const seen = new Map<string, PresentPlayer>()
-            for (const { user, connInfo } of Object.values(clients)) {
-              const named = z.object({ name: z.string() }).safeParse(connInfo)
-              seen.set(user, { playerId: user, name: named.success ? named.data.name : 'Someone' })
-            }
-            setPresent([...seen.values()])
+  const ask = useCallback(
+    (init?: RequestInit) =>
+      requestRealtimeTicket(`/api/realtime/token?battle=${encodeURIComponent(token)}`, {
+        init,
+        parse: (value) => TICKET.parse(value),
+      }),
+    [token],
+  )
+  const createClient = useCallback(async () => {
+    const { token: connection, channel } = await ask()
+    if (!channel) throw new Error('Realtime ticket did not include a battle channel')
+    const client = createSameOriginRealtimeClient({ token: connection, getToken: async () => (await ask()).token })
+    clientChannels.set(client, channel)
+    return client
+  }, [ask])
+  const client = useConnectedRealtimeClient(createClient, enabled, { onError: reportRealtimeError })
+  const refresh = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: battleQuery(token).queryKey })
+    void queryClient.invalidateQueries({ queryKey: ['report', token] })
+  }, [queryClient, token])
+  const subscriptionOptions = useMemo<SubscriptionOptions>(
+    () => ({
+      getToken: async ({ channel }) =>
+        (
+          await ask({
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ channel }),
           })
-          subscription.on('publication', refresh)
-          subscription.on('subscribed', refresh)
-          return () => {
-            subscription.off('publication', refresh)
-            subscription.off('subscribed', refresh)
-            stopPresence()
-          }
-        },
-      )
-      const disconnect = connectRealtimeClient(client)
-      closeRealtime = () => {
-        liveSubscription.close()
-        disconnect()
+        ).token,
+    }),
+    [ask],
+  )
+  const configure = useCallback(
+    (subscription: Subscription) => {
+      subscription.on('publication', refresh)
+      subscription.on('subscribed', refresh)
+      return () => {
+        subscription.off('publication', refresh)
+        subscription.off('subscribed', refresh)
       }
-      if (!live) {
-        closeRealtime()
-      }
+    },
+    [refresh],
+  )
+  const subscription = useRealtimeSubscription({
+    client,
+    channel: client ? clientChannels.get(client) : undefined,
+    options: subscriptionOptions,
+    configure,
+  })
+  const clients = useRealtimePresence(subscription, { onError: reportRealtimeError })
+  return useMemo(() => {
+    const seen = new Map<string, PresentPlayer>()
+    for (const { user, connInfo } of Object.values(clients)) {
+      const named = z.object({ name: z.string() }).safeParse(connInfo)
+      seen.set(user, { playerId: user, name: named.success ? named.data.name : 'Someone' })
     }
-
-    void start()
-    return () => {
-      live = false
-      closeRealtime?.()
-      client?.disconnect()
-      setPresent([])
-    }
-  }, [token, enabled, queryClient])
-
-  return present
+    return [...seen.values()]
+  }, [clients])
 }

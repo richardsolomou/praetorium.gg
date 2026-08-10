@@ -1,5 +1,6 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { useAuthAction } from 'ras-stack/auth/react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -34,23 +35,22 @@ function SignIn() {
   const [joining, setJoining] = useState(false)
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const submit = useAuthAction({ failureMessage: errorMessage })
 
-  const submit = useMutation({
-    mutationFn: async () => {
-      const result = joining
-        ? await authClient.signUp.email({ email, password, name: name.trim() || email.split('@')[0] || 'Player' })
-        : await authClient.signIn.email({ email, password })
-      if (result.error) throw new Error(result.error.message ?? 'that did not work')
-      return result
-    },
-    onSuccess: async () => {
+  const authenticate = async () => {
+    const result = await submit.run(() =>
+      joining
+        ? authClient.signUp.email({ email, password, name: name.trim() || email.split('@')[0] || 'Player' })
+        : authClient.signIn.email({ email, password }),
+    )
+    if (!result.error) {
       await queryClient.invalidateQueries()
       // `next` is a pathname rather than a route, so this is a navigation by href
       // rather than by route id.
       if (next) window.location.assign(next)
       else await navigate({ to: '/rosters' })
-    },
-  })
+    }
+  }
 
   return (
     <main className="mx-auto w-full max-w-md px-4 py-12">
@@ -63,7 +63,7 @@ function SignIn() {
         className="mt-8 space-y-4"
         onSubmit={(event) => {
           event.preventDefault()
-          submit.mutate()
+          void authenticate()
         }}
       >
         {joining ? (
@@ -89,13 +89,21 @@ function SignIn() {
           />
           {joining ? <p className="text-xs text-dim">At least {PASSWORD_MIN_LENGTH} characters.</p> : null}
         </div>
-        <Button type="submit" className="h-11 w-full text-base" disabled={submit.isPending}>
+        <Button type="submit" className="h-11 w-full text-base" disabled={submit.busy}>
           {joining ? 'Create the account' : 'Sign in'}
         </Button>
-        {submit.error ? <p className="text-sm text-destructive">{errorMessage(submit.error)}</p> : null}
+        {submit.error ? <p className="text-sm text-destructive">{submit.error}</p> : null}
       </form>
 
-      <Button variant="ghost" size="sm" className="mt-4" onClick={() => setJoining((current) => !current)}>
+      <Button
+        variant="ghost"
+        size="sm"
+        className="mt-4"
+        onClick={() => {
+          setJoining((current) => !current)
+          submit.clearError()
+        }}
+      >
         {joining ? 'I already have an account' : 'I need an account'}
       </Button>
 
