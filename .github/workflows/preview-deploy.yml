@@ -24,7 +24,7 @@ jobs:
       contents: read
       checks: write
       issues: write
-    uses: richardsolomou/ras-stack/.github/workflows/report-preview-status.yml@v0.30.0
+    uses: richardsolomou/ras-stack/.github/workflows/report-preview-status.yml@v0.33.0
     with:
       state: awaiting
       pr-number: ${{ github.event.workflow_run.pull_requests[0].number }}
@@ -42,7 +42,7 @@ jobs:
       contents: read
       checks: write
       issues: write
-    uses: richardsolomou/ras-stack/.github/workflows/report-preview-status.yml@v0.30.0
+    uses: richardsolomou/ras-stack/.github/workflows/report-preview-status.yml@v0.33.0
     with:
       state: building
       pr-number: ${{ github.event.workflow_run.pull_requests[0].number }}
@@ -65,7 +65,7 @@ jobs:
       issues: write
     steps:
       - uses: actions/checkout@v7
-      - uses: richardsolomou/ras-stack/actions/setup-js@v0.30.0
+      - uses: richardsolomou/ras-stack/actions/setup-js@v0.33.0
       - name: Download preview image
         if: github.event.workflow_run.pull_requests[0].head.repo.id != github.event.repository.id
         uses: actions/download-artifact@v8
@@ -103,7 +103,7 @@ jobs:
           PREVIEW_NOTE: Sign in with `preview@praetorium.gg` / `preview-preview-preview`. Preview data is disposable and resets on every deployment.
           PREVIEW_URL: https://pr-${{ github.event.workflow_run.pull_requests[0].number }}.praetorium.gg
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        run: pnpm exec ras-stack-preview ready
+        run: pnpm exec ras preview ready
       - name: Mark preview as failed
         if: failure()
         env:
@@ -114,7 +114,7 @@ jobs:
           PREVIEW_NOTE: Sign in with `preview@praetorium.gg` / `preview-preview-preview`. Preview data is disposable and resets on every deployment.
           PREVIEW_URL: https://pr-${{ github.event.workflow_run.pull_requests[0].number }}.praetorium.gg
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        run: pnpm exec ras-stack-preview failed
+        run: pnpm exec ras preview failed
 
   cleanup:
     if: github.event_name == 'pull_request_target'
@@ -124,7 +124,7 @@ jobs:
       issues: write
     steps:
       - uses: actions/checkout@v7
-      - uses: richardsolomou/ras-stack/actions/setup-js@v0.30.0
+      - uses: richardsolomou/ras-stack/actions/setup-js@v0.33.0
       - name: Delete preview
         env:
           DOKPLOY_URL: ${{ secrets.DOKPLOY_URL }}
@@ -137,4 +137,4 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PREVIEW_MARKER: <!-- praetorium-preview -->
-        run: pnpm exec ras-stack-preview deleted
+        run: pnpm exec ras preview deleted

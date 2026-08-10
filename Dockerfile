@@ -15,7 +15,9 @@ COPY drizzle ./drizzle
 COPY catalogue ./catalogue
 COPY scripts/containerRuntime.ts scripts/seedPreview.ts ./scripts/
 COPY ras-stack.assets.json tsconfig.json vite.config.ts vite.seed.config.ts ./
-RUN pnpm build
+ARG VITE_POSTHOG_PROJECT_TOKEN
+ARG VITE_POSTHOG_HOST
+RUN VITE_POSTHOG_PROJECT_TOKEN=$VITE_POSTHOG_PROJECT_TOKEN VITE_POSTHOG_HOST=$VITE_POSTHOG_HOST pnpm build
 
 FROM node:24-alpine
 LABEL org.opencontainers.image.title="Praetorium" \

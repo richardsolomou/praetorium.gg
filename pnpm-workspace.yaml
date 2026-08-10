@@ -1,13 +1,21 @@
 allowBuilds:
   better-sqlite3: true
+  core-js: true
   esbuild: true
   # centrifuge pulls it in; we speak Centrifugo's JSON protocol and never protobuf,
   # so its build script has nothing to do here.
   protobufjs: false
 minimumReleaseAgeExclude:
+  - '@posthog/browser-common@0.4.0'
+  - '@posthog/core@1.47.0'
+  - '@posthog/types@1.402.2'
+  - core-js@3.50.0
+  - dompurify@3.4.13
   - csv-parse@7.0.2
   - jose@6.2.8
-  - ras-stack@0.30.0
+  - posthog-js@1.415.1
+  - posthog-node@5.48.1
+  - ras-stack@0.33.0
 minimumReleaseAge: 10080
 peerDependencyRules:
   allowedVersions:

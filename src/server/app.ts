@@ -2,6 +2,7 @@ import path from 'node:path'
 import { persistedSecret } from 'ras-stack/auth'
 import { globalSingleton } from 'ras-stack/server'
 import { type BattleEvents, RealtimePublisher } from '../adapters/events'
+import { serverPostHog } from '../adapters/posthog'
 import { catalogueDirectory, type LoadedCatalogue, loadCatalogue } from './catalogueIndex'
 import { type LoadedRules, loadRules } from './rules'
 import { isCurrent, type SyncState, syncSources } from './sync'
@@ -81,6 +82,7 @@ export function warm(instance: Pick<App, 'catalogue' | 'rules'>) {
 
 export function app(): App {
   return globalSingleton('praetorium.app', () => {
+    void serverPostHog()
     const file = databasePath()
     const database = openDatabase(file)
     const realtime = realtimeConfig()

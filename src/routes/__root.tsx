@@ -10,12 +10,18 @@ import barlow500 from '@fontsource/barlow-semi-condensed/files/barlow-semi-conde
 import barlow600 from '@fontsource/barlow-semi-condensed/files/barlow-semi-condensed-latin-600-normal.woff2?url'
 import barlow700 from '@fontsource/barlow-semi-condensed/files/barlow-semi-condensed-latin-700-normal.woff2?url'
 import { Button } from '@/components/ui/button'
+import { postHogEnvironment } from 'ras-stack/posthog'
+import { PostHogBetterAuthIdentity, PostHogIntegration } from 'ras-stack/posthog/react'
 import { authClient } from '../client/authClient'
 import { meQuery } from '../client/queries'
 import appCss from '../styles.css?url'
 
 const TITLE = 'Praetorium'
 const DESCRIPTION = 'Track a Warhammer 40,000 game with your opponent, live on both phones.'
+const posthog = postHogEnvironment({
+  projectToken: import.meta.env.VITE_POSTHOG_PROJECT_TOKEN,
+  host: import.meta.env.VITE_POSTHOG_HOST,
+})
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   loader: ({ context }) => context.queryClient.ensureQueryData(meQuery()),
@@ -95,46 +101,49 @@ function RootComponent() {
         <HeadContent />
       </head>
       <body className={immersive ? 'h-dvh overflow-hidden' : 'min-h-dvh'}>
-        {/*
-         * The bar spans the window and the page inside it decides its own width,
-         * because a three-column builder and a sign-in form do not want the same
-         * measure. Nothing here is centred on the page's behalf.
-         */}
-        <div className={`flex flex-col ${immersive ? 'h-dvh' : 'min-h-dvh'}`}>
-          <header className="sticky top-0 z-30 border-b border-edge bg-panel/95 backdrop-blur">
-            <div className="flex h-12 items-center gap-2 px-0.5 sm:gap-5 sm:px-4">
-              <Link to="/" className="text-base leading-none font-bold tracking-[0.02em] text-bone uppercase hover:text-azure sm:text-lg">
-                Praetorium
-              </Link>
-              <nav className="flex items-center gap-2 sm:gap-4" aria-label="Primary">
-                <Link to="/battles" className="eyebrow hover:text-azure" activeProps={{ className: 'text-azure' }}>
-                  Battles
-                </Link>
-                <Link to="/rosters" className="eyebrow hover:text-azure" activeProps={{ className: 'text-azure' }}>
-                  Rosters
-                </Link>
-                <Link to="/factions" className="eyebrow hover:text-azure" activeProps={{ className: 'text-azure' }}>
-                  Factions
-                </Link>
-              </nav>
-              <Account />
-            </div>
-          </header>
-          <div className={immersive ? 'h-[calc(100dvh-3rem)] min-h-0' : 'min-h-0 flex-1'}>
-            <Outlet />
-          </div>
+        <PostHogIntegration environment={posthog}>
+          {posthog && <PostHogBetterAuthIdentity authClient={authClient} />}
           {/*
-           * Said plainly and on every page, because the name is drawn from Games
-           * Workshop's setting and nothing about this is theirs or endorsed by them.
-           * The community data has its own attribution, which appears where that
-           * data does — see `ATTRIBUTION` in `src/server/rules.ts`.
+           * The bar spans the window and the page inside it decides its own width,
+           * because a three-column builder and a sign-in form do not want the same
+           * measure. Nothing here is centred on the page's behalf.
            */}
-          {immersive ? null : (
-            <footer className="border-t border-edge px-4 py-4 text-center text-xs text-faint">
-              Praetorium is an unofficial product, and is not in any way affiliated with or endorsed by Games Workshop.
-            </footer>
-          )}
-        </div>
+          <div className={`flex flex-col ${immersive ? 'h-dvh' : 'min-h-dvh'}`}>
+            <header className="sticky top-0 z-30 border-b border-edge bg-panel/95 backdrop-blur">
+              <div className="flex h-12 items-center gap-2 px-0.5 sm:gap-5 sm:px-4">
+                <Link to="/" className="text-base leading-none font-bold tracking-[0.02em] text-bone uppercase hover:text-azure sm:text-lg">
+                  Praetorium
+                </Link>
+                <nav className="flex items-center gap-2 sm:gap-4" aria-label="Primary">
+                  <Link to="/battles" className="eyebrow hover:text-azure" activeProps={{ className: 'text-azure' }}>
+                    Battles
+                  </Link>
+                  <Link to="/rosters" className="eyebrow hover:text-azure" activeProps={{ className: 'text-azure' }}>
+                    Rosters
+                  </Link>
+                  <Link to="/factions" className="eyebrow hover:text-azure" activeProps={{ className: 'text-azure' }}>
+                    Factions
+                  </Link>
+                </nav>
+                <Account />
+              </div>
+            </header>
+            <div className={immersive ? 'h-[calc(100dvh-3rem)] min-h-0' : 'min-h-0 flex-1'}>
+              <Outlet />
+            </div>
+            {/*
+             * Said plainly and on every page, because the name is drawn from Games
+             * Workshop's setting and nothing about this is theirs or endorsed by them.
+             * The community data has its own attribution, which appears where that
+             * data does — see `ATTRIBUTION` in `src/server/rules.ts`.
+             */}
+            {immersive ? null : (
+              <footer className="border-t border-edge px-4 py-4 text-center text-xs text-faint">
+                Praetorium is an unofficial product, and is not in any way affiliated with or endorsed by Games Workshop.
+              </footer>
+            )}
+          </div>
+        </PostHogIntegration>
         <Scripts />
       </body>
     </html>
