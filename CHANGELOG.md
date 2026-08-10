@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.2.1
+
+### Patch Changes
+
+- 097910d: Capture anonymous server telemetry for key battle milestones and operational failures.
+
 ## 0.2.0
 
 ### Minor Changes
