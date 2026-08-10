@@ -1,7 +1,5 @@
 # syntax=docker/dockerfile:1
-FROM centrifugo/centrifugo:v6.9.1@sha256:8ba0c9443dadedc21b20254b3fc76f35c1998b29acc7cdec877ea0c3636c237e AS realtime
-
-FROM caddy:2.11.4-alpine@sha256:5f5c8640aae01df9654968d946d8f1a56c497f1dd5c5cda4cf95ab7c14d58648 AS proxy
+FROM ghcr.io/richardsolomou/ras-stack-runtime-binaries:runtime-v1.0.0@sha256:5f82b2d53b93465bf91cc1bc90b292e94cbdd823cedd3f432dca94097e59163d AS runtime-binaries
 
 FROM node:24-alpine AS build
 WORKDIR /app
@@ -26,8 +24,8 @@ LABEL org.opencontainers.image.title="Praetorium" \
 WORKDIR /app
 RUN mkdir -p /data && chown -R node:node /app /data
 COPY --from=build --chown=node:node /app/.output ./.output
-COPY --from=realtime /usr/local/bin/centrifugo /usr/local/bin/centrifugo
-COPY --from=proxy /usr/bin/caddy /usr/local/bin/caddy
+COPY --from=runtime-binaries /usr/local/bin/centrifugo /usr/local/bin/centrifugo
+COPY --from=runtime-binaries /usr/local/bin/caddy /usr/local/bin/caddy
 COPY --chown=node:node realtime.json ./
 COPY --chown=node:node LICENSE ./
 ENV NODE_ENV=production PORT=3000 DATA_DIR=/data
