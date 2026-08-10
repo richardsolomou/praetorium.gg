@@ -7,5 +7,5 @@ allowBuilds:
 minimumReleaseAgeExclude:
   - csv-parse@7.0.2
   - jose@6.2.8
-  - ras-stack@0.27.0
+  - ras-stack@0.29.0
 minimumReleaseAge: 10080
