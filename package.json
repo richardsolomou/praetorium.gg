@@ -54,7 +54,7 @@
     "html-to-text": "10.0.0",
     "jose": "^6.2.8",
     "lucide-react": "^1.27.0",
-    "ras-stack": "^0.29.0",
+    "ras-stack": "^0.30.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "react-markdown": "10.1.0",
