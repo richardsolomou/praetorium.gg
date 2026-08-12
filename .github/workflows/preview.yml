@@ -32,46 +32,13 @@ jobs:
         run: pnpm exec ras preview building
 
   build:
-    runs-on: ubuntu-latest
+    name: Preview image
     permissions:
       contents: read
       packages: write
-    steps:
-      - uses: actions/checkout@v7
-      - uses: docker/setup-buildx-action@v4
-      - name: Log in to the container registry
-        if: github.event.pull_request.head.repo.full_name == github.repository
-        uses: docker/login-action@v4.5.1
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ github.token }}
-      - name: Build and publish preview image
-        if: github.event.pull_request.head.repo.full_name == github.repository
-        uses: docker/build-push-action@v7
-        with:
-          context: .
-          platforms: linux/amd64
-          tags: ghcr.io/${{ github.repository_owner }}/praetorium.gg-preview:pr-${{ github.event.pull_request.number }}
-          push: true
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-      # A fork's build never sees a secret, so its image travels as an artifact for
-      # the trusted workflow to publish.
-      - name: Build preview artifact
-        if: github.event.pull_request.head.repo.full_name != github.repository
-        uses: docker/build-push-action@v7
-        with:
-          context: .
-          platforms: linux/amd64
-          tags: praetorium.gg-preview:${{ github.event.pull_request.head.sha }}
-          outputs: type=docker,dest=${{ runner.temp }}/preview-image.tar
-          cache-from: type=gha
-      - name: Store preview image
-        if: github.event.pull_request.head.repo.full_name != github.repository
-        uses: actions/upload-artifact@v7
-        with:
-          name: preview-image-${{ github.event.pull_request.number }}
-          path: ${{ runner.temp }}/preview-image.tar
-          retention-days: 1
-          compression-level: 0
+    uses: richardsolomou/ras-stack/.github/workflows/build-preview-image.yml@v0.36.0
+    with:
+      published-image: ghcr.io/${{ github.repository_owner }}/praetorium.gg:preview-pr-${{ github.event.pull_request.number }}-sha-${{ github.event.pull_request.head.sha }}
+      fork-image: praetorium.gg:preview-pr-${{ github.event.pull_request.number }}-sha-${{ github.event.pull_request.head.sha }}
+      artifact-name: preview-image-${{ github.event.pull_request.number }}
+      cache-scope: praetorium-preview
