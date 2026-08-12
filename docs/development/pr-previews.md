@@ -1,6 +1,6 @@
 # Pull request previews
 
-Every pull request from a branch in this repository gets its own Praetorium instance. The workflow publishes a commit-specific image alongside production images as `ghcr.io/richardsolomou/praetorium.gg:preview-pr-<number>-sha-<commit>` and deploys its digest to an isolated preview URL. Dokploy's configured image shows what is live, while the workflow and pull request status show what is being deployed.
+Every pull request from a branch in this repository gets its own Praetorium instance. The repository supplies its package, domain, port, and environment template to ras-stack's standard Dokploy preview workflows. They publish a commit-specific image alongside production images as `ghcr.io/richardsolomou/praetorium.gg:preview-pr-<number>-sha-<commit>` and deploy its digest to an isolated preview URL. Dokploy's configured image shows what is live, while the workflow and pull request status show what is being deployed.
 
 One pull request comment shows the current state:
 
