@@ -44,26 +44,15 @@ jobs:
       - run: just descriptions
       - run: just e2e-install
       - uses: docker/setup-buildx-action@v4
-      - if: github.ref == 'refs/heads/main'
-        uses: docker/login-action@v4
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build the application image
         uses: docker/build-push-action@v7
         with:
           context: .
           load: true
-          tags: |
-            praetorium-e2e
-            ghcr.io/${{ github.repository }}:latest
-            ghcr.io/${{ github.repository }}:sha-${{ github.sha }}
+          tags: praetorium-e2e
           cache-from: type=gha
           cache-to: type=gha,mode=max
       - run: just e2e-run
-      - if: github.ref == 'refs/heads/main'
-        run: docker push --all-tags ghcr.io/${{ github.repository }}
       - if: failure()
         uses: actions/upload-artifact@v7
         with:
@@ -105,3 +94,47 @@ jobs:
       contents: write
     uses: richardsolomou/ras-stack/.github/workflows/release-changesets.yml@v0.35.0
     secrets: inherit
+
+  production-image:
+    if: needs.release.outputs.created == 'true'
+    needs: [release]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.release.outputs.sha }}
+      - uses: richardsolomou/ras-stack/actions/setup-js@v0.35.0
+      - uses: richardsolomou/ras-stack/actions/setup-just@v0.35.0
+        with:
+          version: '1.58.0'
+      - name: Cache the catalogue data
+        id: catalogue
+        uses: actions/cache@v6
+        with:
+          path: catalogue-data
+          key: catalogue-${{ hashFiles('catalogue/sources.json') }}
+      - if: steps.catalogue.outputs.cache-hit != 'true'
+        run: just catalogue-sync
+      - run: just descriptions
+      - name: Build and publish production image
+        id: image
+        uses: richardsolomou/ras-stack/actions/publish-production-image@v0.36.1
+        with:
+          image: ghcr.io/${{ github.repository }}
+          sha: ${{ needs.release.outputs.sha }}
+          release-tag: ${{ needs.release.outputs.tag }}
+          token: ${{ github.token }}
+          build-args: |
+            VITE_POSTHOG_HOST=${{ vars.VITE_POSTHOG_HOST }}
+            VITE_POSTHOG_PROJECT_TOKEN=${{ vars.VITE_POSTHOG_PROJECT_TOKEN }}
+      - name: Deploy production image
+        if: vars.DOKPLOY_IMAGE_DEPLOY == 'true'
+        uses: richardsolomou/ras-stack/actions/deploy-dokploy-image@v0.36.1
+        with:
+          url: ${{ secrets.DOKPLOY_URL }}
+          api-key: ${{ secrets.DOKPLOY_API_KEY }}
+          application-id: ${{ secrets.DOKPLOY_APPLICATION_ID }}
+          image: ${{ steps.image.outputs.reference }}

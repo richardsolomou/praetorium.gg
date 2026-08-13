@@ -1,29 +1,20 @@
 name: PR preview prune
 
-# Cleanup already runs when a pull request closes; this is what catches the ones
-# where that failed, so a preview cannot outlive its branch by more than a week.
 on:
   schedule:
     - cron: '41 4 * * 1'
   workflow_dispatch:
 
 jobs:
-  prune:
-    runs-on: ubuntu-latest
+  previews:
     permissions:
       contents: read
+      packages: write
       pull-requests: read
-    steps:
-      - uses: actions/checkout@v7
-      - uses: richardsolomou/ras-stack/actions/setup-js@v0.35.0
-      - name: Prune previews without open pull requests
-        env:
-          DOKPLOY_URL: ${{ secrets.DOKPLOY_URL }}
-          DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
-          DOKPLOY_ENVIRONMENT_ID: ${{ secrets.DOKPLOY_ENVIRONMENT_ID }}
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          OPEN_PR_NUMBERS="$(gh pr list --state open --limit 1000 --json number --jq '.[].number' | tr '\n' ' ')"
-          export OPEN_PR_NUMBERS
-          pnpm exec tsx scripts/previewDeploy.ts prune
+    uses: richardsolomou/ras-stack/.github/workflows/prune-dokploy-previews.yml@v0.36.1
+    with:
+      package: praetorium.gg
+      application-prefix: praetorium
+      domain: praetorium.gg
+      port: 3000
+    secrets: inherit

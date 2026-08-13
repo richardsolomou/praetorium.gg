@@ -15,7 +15,7 @@ minimumReleaseAgeExclude:
   - jose@6.2.8
   - posthog-js@1.415.1
   - posthog-node@5.48.1
-  - ras-stack@0.35.0
+  - ras-stack@0.36.1
 minimumReleaseAge: 10080
 peerDependencyRules:
   allowedVersions:

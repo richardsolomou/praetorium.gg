@@ -1,6 +1,6 @@
 # Pull request previews
 
-Every pull request from a branch in this repository gets its own Praetorium instance. The workflow builds a container image and deploys it to an isolated preview URL.
+Every pull request from a branch in this repository gets its own Praetorium instance. The repository supplies its package, domain, port, and environment template to ras-stack's standard Dokploy preview workflows. They publish a commit-specific image alongside production images as `ghcr.io/richardsolomou/praetorium.gg:preview-pr-<number>-sha-<commit>` and deploy its digest to an isolated preview URL. Dokploy's configured image shows what is live, while the workflow and pull request status show what is being deployed.
 
 One pull request comment shows the current state:
 
@@ -14,7 +14,7 @@ The `PR preview deploy` check shows the same state.
 
 Each preview has an empty database and no persistent volume. A new deployment removes its battles and accounts, then recreates the shared preview login before the application starts. The container enables preview seeding for the `pr-<number>.praetorium.gg` application URL; the deploy configuration also sets `PRAETORIUM_SEED_PREVIEW=true` explicitly. The preview fetches catalogue data after startup, so list building can appear after the health check passes.
 
-Closing or merging removes the instance. A weekly prune removes previews left behind by a failed cleanup.
+Closing or merging removes the instance and its preview images. A weekly prune removes previews and images left behind by a failed cleanup.
 
 The seeded account is `preview@praetorium.gg` with password `preview-preview-preview`. Previews are public, as is the shared preview login. Do not store sensitive data in them.
 
