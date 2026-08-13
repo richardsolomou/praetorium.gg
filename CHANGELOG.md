@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.2.3
+
+### Patch Changes
+
+- 2de8bb2: Capture anonymous server telemetry for collection updates and roster deletion.
+
 ## 0.2.2
 
 ### Patch Changes
