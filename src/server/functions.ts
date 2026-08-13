@@ -105,7 +105,14 @@ export const collection = createServerFn({ method: 'GET' }).handler(() =>
 
 export const setOwned = createServerFn({ method: 'POST' })
   .validator(ownedSchema)
-  .handler(({ data }) => mutationRpc(async () => app().service.setOwned(await requirePlayerId(), data.entryId, data.owned)))
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const player = await requirePlayer()
+      const result = app().service.setOwned(player.id, data.entryId, data.owned)
+      await app().telemetry.capture(player.userId, 'player_collection_updated', { owned: data.owned })
+      return result
+    }),
+  )
 
 /** How the community data is doing, so a fresh instance can say so rather than look broken. */
 export const catalogueStatus = createServerFn({ method: 'GET' }).handler(() => rpc(() => app().sync()))
@@ -280,7 +287,9 @@ export const deleteRoster = createServerFn({ method: 'POST' })
   .validator(rosterIdSchema)
   .handler(({ data }) =>
     mutationRpc(async () => {
-      app().service.deleteRoster(await requirePlayerId(), data.id)
+      const player = await requirePlayer()
+      app().service.deleteRoster(player.id, data.id)
+      await app().telemetry.capture(player.userId, 'roster_deleted')
       return null
     }),
   )
