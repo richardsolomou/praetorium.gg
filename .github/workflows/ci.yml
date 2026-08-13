@@ -50,8 +50,8 @@ jobs:
           context: .
           load: true
           tags: praetorium-e2e
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=e2e-image
+          cache-to: type=gha,mode=min,scope=e2e-image
       - run: just e2e-run
       - if: failure()
         uses: actions/upload-artifact@v7
@@ -121,7 +121,7 @@ jobs:
       - run: just descriptions
       - name: Build and publish production image
         id: image
-        uses: richardsolomou/ras-stack/actions/publish-production-image@v0.36.1
+        uses: richardsolomou/ras-stack/actions/publish-production-image@v0.36.2
         with:
           image: ghcr.io/${{ github.repository }}
           sha: ${{ needs.release.outputs.sha }}
@@ -132,7 +132,7 @@ jobs:
             VITE_POSTHOG_PROJECT_TOKEN=${{ vars.VITE_POSTHOG_PROJECT_TOKEN }}
       - name: Deploy production image
         if: vars.DOKPLOY_IMAGE_DEPLOY == 'true'
-        uses: richardsolomou/ras-stack/actions/deploy-dokploy-image@v0.36.1
+        uses: richardsolomou/ras-stack/actions/deploy-dokploy-image@v0.36.2
         with:
           url: ${{ secrets.DOKPLOY_URL }}
           api-key: ${{ secrets.DOKPLOY_API_KEY }}
