@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.2.2
+
+### Patch Changes
+
+- d59bdee: Publish and deploy release images by immutable digest.
+
 ## 0.2.1
 
 ### Patch Changes
