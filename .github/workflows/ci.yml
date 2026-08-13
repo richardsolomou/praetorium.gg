@@ -50,8 +50,8 @@ jobs:
           context: .
           load: true
           tags: praetorium-e2e
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=e2e-image
+          cache-to: type=gha,mode=min,scope=e2e-image
       - run: just e2e-run
       - if: failure()
         uses: actions/upload-artifact@v7

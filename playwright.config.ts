@@ -15,7 +15,9 @@ export default defineConfig({
   testDir: './e2e',
   outputDir: 'test-results',
   fullyParallel: false,
-  workers: 2,
+  // GitHub's hosted runner has four cores. Local runs stay lighter, while CI
+  // uses the full runner after every test has already been isolated by data.
+  workers: process.env.CI ? 4 : 2,
   retries: 0,
   timeout: 45_000,
   // Both pages settle through Centrifugo rather than by polling, so assertions
