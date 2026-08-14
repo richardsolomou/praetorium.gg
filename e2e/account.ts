@@ -54,10 +54,7 @@ export async function createRoster(page: Page, { faction, detachment, name }: { 
   return rosterName
 }
 
-export async function createBattle(
-  page: Page,
-  { opponent, solo = false, clock }: { opponent?: string; solo?: boolean; clock?: number } = {},
-) {
+export async function createBattle(page: Page, { opponent, solo = false }: { opponent?: string; solo?: boolean } = {}) {
   await page.goto('/battles')
   await page.getByRole('button', { name: 'New battle' }).click()
   if (solo) {
@@ -66,39 +63,88 @@ export async function createBattle(
     await page.getByRole('combobox', { name: 'Opponent' }).click()
     await page.getByRole('option', { name: opponent, exact: true }).click()
   }
-  if (clock) await page.getByRole('button', { name: `${clock}m`, exact: true }).click()
   await page.getByRole('button', { name: 'Create battle' }).click()
   await page.waitForURL(/\/b\//)
   return page.url()
 }
 
+/** Setup shows one step at a time, so a helper has to walk to the step it needs. */
+export async function setupStep(page: Page, label: string) {
+  const chip = page.getByRole('button', { name: new RegExp(`^\\d+ · ${label}$`) })
+  for (let guard = 0; guard < 8; guard += 1) {
+    if (await chip.isEnabled()) {
+      await chip.click()
+      return
+    }
+    await page.getByRole('button', { name: 'Next', exact: true }).click()
+  }
+  throw new Error(`Setup never reached the ${label} step`)
+}
+
 export async function attachRoster(page: Page, name: string) {
+  await setupStep(page, 'Army')
   await page.getByRole('button', { name: new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`) }).click()
   await expect(page.getByText(name, { exact: true })).toBeVisible()
 }
 
-export async function startBattle(page: Page, firstPlayer?: string) {
-  await page.getByRole('button', { name: 'Tipping Point' }).click()
+export async function chooseBattlefield(page: Page) {
+  await setupStep(page, 'Battlefield')
+  const selected = page.getByRole('button', { name: /^Selected layout/ })
+  if (await selected.count()) return
+  // By position, not by name: which layouts a matchup offers follows the pinned rules data.
+  await page.getByRole('button', { name: /^Select layout A:/ }).click()
+  await expect(selected).toBeVisible()
+}
+
+/** A tactical player is asked to draw at the top of their command phase; close it to reach the board. */
+export async function dismissDrawPrompt(page: Page, timeout = 3000) {
+  // Auto-waits, because the prompt lands a beat after the phase does; absent is fine.
+  await page
+    .getByRole('button', { name: 'Not now' })
+    .click({ timeout })
+    .catch(() => {})
+}
+
+export async function startBattle(page: Page, firstPlayer?: string, dismissPrompt = true) {
+  await chooseBattlefield(page)
+  await setupStep(page, 'Start')
   if (firstPlayer) {
     const section = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Attacker and first turn' }) })
     await section.getByText('First turn', { exact: true }).locator('..').getByRole('button', { name: firstPlayer }).click()
   }
   await page.getByRole('button', { name: 'Start battle' }).click()
-  await expect(page.getByRole('heading', { name: 'command phase' })).toBeVisible()
+  if (dismissPrompt) {
+    await dismissDrawPrompt(page)
+    await expect(page.getByRole('heading', { name: 'command phase' })).toBeVisible()
+  }
 }
 
 export async function setupBattle(
   host: Page,
   guest: Page,
-  { opponent, hostRoster, guestRoster, clock }: { opponent: string; hostRoster: string; guestRoster: string; clock?: number },
+  {
+    opponent,
+    hostRoster,
+    guestRoster,
+    beforeStart,
+  }: { opponent: string; hostRoster: string; guestRoster: string; beforeStart?: () => Promise<void> },
 ) {
-  const url = await createBattle(host, { opponent, clock })
+  const url = await createBattle(host, { opponent })
   await guest.goto(url)
   await attachRoster(host, hostRoster)
+  await setupStep(guest, 'Army')
   await expect(guest.getByText(/ is ready\.$/)).toBeVisible()
   await attachRoster(guest, guestRoster)
   await expect(host.getByText(`${opponent} is ready.`)).toBeVisible()
+  // Cards are chosen while the battle is still being set up, not once it is running,
+  // and the wizard only reaches that step once the battlefield is settled.
+  if (beforeStart) {
+    await chooseBattlefield(host)
+    await setupStep(host, 'Cards')
+    await beforeStart()
+  }
   await startBattle(host)
+  await dismissDrawPrompt(guest)
   await expect(guest.getByRole('heading', { name: 'command phase' })).toBeVisible()
   return url
 }

@@ -745,6 +745,21 @@ describe('stratagems', () => {
     expect(alice(state)?.cp).toBe(3)
   })
 
+  it('cost the named amount when the board makes them dearer', () => {
+    const state = reduceBattle(PLAYERS, log(...armed(), [ALICE, { kind: 'use-stratagem', key: 's1', cp: 2 }]))
+    expect(alice(state)?.cp).toBe(2)
+  })
+
+  it('are refused when the named amount is more than the player holds', () => {
+    const state = reduceBattle(PLAYERS, log(...armed()))
+    expect(validate(state, ALICE, { kind: 'use-stratagem', key: 's1', cp: 5 })).toBe('not enough command points')
+  })
+
+  it('are refused a cost outside what a stratagem may ever charge', () => {
+    const state = reduceBattle(PLAYERS, log(...armed()))
+    expect(validate(state, ALICE, { kind: 'use-stratagem', key: 's1', cp: 99 })).toBe('that is not a possible cost')
+  })
+
   it('expose a usage count in the battle view', () => {
     const state = reduceBattle(PLAYERS, log(...armed(), [ALICE, { kind: 'use-stratagem', key: 's1' }]))
     expect(battleView({ token: 'abc' }, NAMES, state, ALICE).players[0]?.stratagems[0]?.uses).toBe(1)

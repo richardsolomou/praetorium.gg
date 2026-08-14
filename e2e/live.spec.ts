@@ -18,11 +18,11 @@ test('a battle stays in step across two devices', async ({ browser }) => {
   await expect(bob.getByRole('heading', { name: 'movement phase' })).toBeVisible()
   await expect(panel(bob, 'Necrons').locator('[data-stat="cp"]')).toHaveText('1')
 
-  await alice.getByRole('button', { name: 'Primary plus 5' }).click()
-  await expect(panel(bob, 'Necrons').locator('[data-stat="primary"]')).toHaveText('5')
+  await alice.getByRole('button', { name: '+1 additional CP' }).click()
+  await expect(panel(bob, 'Necrons').locator('[data-stat="cp"]')).toHaveText('2')
   await expect(bob.getByRole('button', { name: 'Undo' })).toBeDisabled()
   await alice.getByRole('button', { name: 'Undo' }).click()
-  await expect(panel(bob, 'Necrons').locator('[data-stat="primary"]')).toHaveText('0')
+  await expect(panel(bob, 'Necrons').locator('[data-stat="cp"]')).toHaveText('1')
 
   await alice.screenshot({ path: 'test-results/tracker-alice.png', fullPage: true })
   await bob.screenshot({ path: 'test-results/tracker-bob.png', fullPage: true })
@@ -31,10 +31,11 @@ test('a battle stays in step across two devices', async ({ browser }) => {
   await expect(scoreboard).toContainText('Necrons')
   await expect(scoreboard).toContainText('Death Guard')
   await alice.screenshot({ path: 'test-results/tracker-phone.png', fullPage: true })
-  const lists = alice.getByRole('button', { name: 'Lists' })
-  await lists.scrollIntoViewIfNeeded()
-  const [listsBox, scoreboardBox] = await Promise.all([lists.boundingBox(), scoreboard.boundingBox()])
-  expect(listsBox && scoreboardBox && listsBox.y + listsBox.height <= scoreboardBox.y).toBe(true)
+  // The last thing on the page must clear the fixed scoreboard rather than sit behind it.
+  const last = alice.getByRole('button', { name: 'Delete battle' })
+  await last.scrollIntoViewIfNeeded()
+  const [lastBox, scoreboardBox] = await Promise.all([last.boundingBox(), scoreboard.boundingBox()])
+  expect(lastBox && scoreboardBox && lastBox.y + lastBox.height <= scoreboardBox.y).toBe(true)
   await alice.getByRole('button', { name: 'events' }).click()
   await expect(alice.getByText(new RegExp(`${aliceName} ends the command phase`))).toBeVisible()
   await alice.screenshot({ path: 'test-results/tracker-events.png', fullPage: true })
@@ -47,5 +48,5 @@ test('a battle stays in step across two devices', async ({ browser }) => {
 })
 
 function panel(page: Page, army: string) {
-  return page.locator('section').filter({ hasText: army })
+  return page.locator('[data-panel="player"]').filter({ hasText: army })
 }

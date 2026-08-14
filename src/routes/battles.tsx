@@ -58,7 +58,6 @@ function CreateBattle() {
   const [solo, setSolo] = useState(false)
   const [limit, setLimit] = useState(2000)
   const [missionPackId, setMissionPackId] = useState<string | null>(references?.packs[0]?.id ?? null)
-  const [clockLimitMinutes, setClockLimitMinutes] = useState<number | null>(null)
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const create = useMutation({
@@ -69,7 +68,7 @@ function CreateBattle() {
           solo,
           limit,
           missionPackId,
-          clockLimitMinutes,
+          clockLimitMinutes: null,
         },
       }),
     onSuccess: async ({ token }) => {
@@ -145,21 +144,6 @@ function CreateBattle() {
             </div>
           </div>
         ) : null}
-        <div>
-          <Label className="eyebrow">Player clock</Label>
-          <div className="mt-1 flex flex-wrap gap-1">
-            {[null, 30, 45, 60, 90].map((minutes) => (
-              <Button
-                key={minutes ?? 'off'}
-                variant={clockLimitMinutes === minutes ? 'default' : 'outline'}
-                size="xs"
-                onClick={() => setClockLimitMinutes(minutes)}
-              >
-                {minutes ? `${minutes}m` : 'Off'}
-              </Button>
-            ))}
-          </div>
-        </div>
         {create.error ? <p className="text-sm text-destructive">{errorMessage(create.error)}</p> : null}
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)}>

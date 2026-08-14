@@ -62,7 +62,7 @@ export class PraetoriumService {
         armies: state.players.map((player) => player.roster?.name ?? null),
         detachments: state.players.map((player) => player.roster?.built?.detachments?.map((detachment) => detachment.name) ?? []),
         scores: state.players.map((player) => player.primary + player.secondary + (player.painted ? 10 : 0)),
-        mission: rules ? missionFor(rules, dispositions[0] ?? null, dispositions[1] ?? null, state.settings.missionPackId) : null,
+        mission: rules ? missionFor(rules, dispositions[0] ?? null, soloOpponent(state, dispositions), state.settings.missionPackId) : null,
         deploymentId: state.deploymentId,
         settings: state.settings,
         result: state.result,
@@ -299,7 +299,9 @@ export class PraetoriumService {
     // Eleventh edition takes the mission from the two armies' dispositions rather
     // than from either player, so it is derived and never stored.
     const [one, two] = view.players.map((player) => player.roster?.built?.disposition ?? null)
-    return { kind: 'battle', view, mission: rules ? missionFor(rules, one ?? null, two ?? null, state.settings.missionPackId) : null }
+    // A solo army has no opponent to pair with, so it plays its own disposition and still gets a mission.
+    const facing = state.settings.solo ? (one ?? null) : (two ?? null)
+    return { kind: 'battle', view, mission: rules ? missionFor(rules, one ?? null, facing, state.settings.missionPackId) : null }
   }
 
   private seated(seats: BattleSeats, playerId: string) {
@@ -311,6 +313,11 @@ export class PraetoriumService {
     if (!seats) throw new Response('no such battle', { status: 404 })
     return seats
   }
+}
+
+/** Solo practice pairs an army against itself; a real battle waits for the other list. */
+function soloOpponent(state: { settings: { solo: boolean } }, dispositions: (string | null)[]) {
+  return state.settings.solo ? (dispositions[0] ?? null) : (dispositions[1] ?? null)
 }
 
 function setupReferenceError(state: ReturnType<typeof reduceBattle>, rules: NonNullable<Parameters<typeof missionFor>[0]>): string | null {

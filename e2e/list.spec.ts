@@ -1,5 +1,15 @@
 import { expect, test } from '@playwright/test'
-import { attachRoster, createBattle, createRoster, startBattle, signUp, uniqueName, waitForRosterSave } from './account'
+import {
+  attachRoster,
+  chooseBattlefield,
+  createBattle,
+  createRoster,
+  setupStep,
+  signUp,
+  startBattle,
+  uniqueName,
+  waitForRosterSave,
+} from './account'
 
 test('a built list is priced, deployed and tracked', async ({ browser }) => {
   const alice = await (await browser.newContext()).newPage()
@@ -35,37 +45,20 @@ test('a built list is priced, deployed and tracked', async ({ browser }) => {
   await bob.goto(link)
   await attachRoster(bob, bobRoster)
   await expect(alice.getByText(`${bobName} is ready.`)).toBeVisible()
-  const lord = alice
-    .locator('div')
-    .filter({ hasText: /^Lord of Virulence/ })
-    .filter({ has: alice.getByRole('button', { name: 'strategic reserves' }) })
-  await lord.getByRole('button', { name: 'strategic reserves' }).click()
+  await chooseBattlefield(alice)
+  await setupStep(alice, 'Formations')
   await alice.getByRole('button', { name: 'Battle ready army · +10 VP' }).click()
   await startBattle(alice)
   await expect(bob.getByRole('heading', { name: 'command phase' })).toBeVisible()
 
-  const panel = alice.locator('section').filter({ hasText: 'Death Guard' })
-  const standing = panel.locator('[data-stat="standing"]')
-  await expect(standing).toHaveText('2/2')
+  const panel = alice.locator('[data-panel="player"]').filter({ hasText: 'Death Guard' })
   await expect(panel.locator('[data-stat="vp"]')).toHaveText('10')
   await expect(
     bob
-      .locator('section')
+      .locator('[data-panel="player"]')
       .filter({ hasText: 'Death Guard' })
       .getByText(/Death Lord/),
   ).toBeVisible()
 
-  await alice.getByRole('button', { name: /^Lose a model from Plague Marines/ }).click()
-  await expect(alice.getByText('9/10')).toBeVisible()
-  await alice
-    .getByRole('button', { name: /^Lose Plague Marines/ })
-    .first()
-    .click()
-  await expect(standing).toHaveText('1/2')
-  await expect(bob.locator('section').filter({ hasText: 'Death Guard' }).locator('[data-stat="standing"]')).toHaveText('1/2')
-  await expect(bob.getByRole('button', { name: /^Lose Plague Marines/ })).toHaveCount(0)
-
-  await alice.getByRole('button', { name: 'Secondary plus 5' }).click()
-  await expect(panel.locator('[data-stat="secondary"]')).toHaveText('5')
   await alice.screenshot({ path: 'test-results/tracked.png', fullPage: true })
 })

@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
-import { useEffect, useState } from 'react'
-import { Dice5, Maximize2, Pause, Play, RotateCcw, Skull, Undo2, Zap } from 'lucide-react'
+import { useState } from 'react'
+import { EllipsisVertical, RotateCcw, Undo2, Zap } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   AlertDialog,
@@ -14,18 +14,17 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
-import { UNIT_FORMATIONS } from '../../core/battle'
-import { deleteBattle, savedRosterPrice } from '../../server/functions'
-import { battleQuery, battlesQuery, deploymentsQuery, detachmentRulesQuery, gameReferencesQuery, savedRostersQuery } from '../queries'
+import { STRATAGEM_CP_MAX } from '../../core/battle'
+import { deleteBattle } from '../../server/functions'
+import { battleQuery, battlesQuery, deploymentsQuery, detachmentRulesQuery, gameReferencesQuery } from '../queries'
 import { errorMessage } from '../queryClient'
-import type { BattleView, Command } from '../../core/battle'
+import type { BattleView, Command, Phase } from '../../core/battle'
 import type { PresentPlayer } from '../useLiveBattle'
-import { BattlefieldReference } from './Battlefield'
 import { Disclosure } from './Disclosure'
-import { battleRoster, savedBattlePrep } from './Setup'
-import { Report } from './Report'
-import { Prep } from './Prep'
+import { Report, type ReportPlayer } from './Report'
 
 type Props = {
   view: BattleView
@@ -44,11 +43,16 @@ const SIDES = [
 ]
 const MOBILE_TABS = ['info', 'events'] as const
 
+/** The tracker draws every mission and stratagem the same way: a named card you can act on. */
+const HEADING = 'text-xs font-bold tracking-[0.08em] text-bone uppercase'
+const CARD = 'rounded-sm border border-edge bg-sunken px-2.5 py-1.5'
+const CARD_NAME = 'text-sm leading-tight font-bold text-azure uppercase'
+const CP_PILL = 'readout shrink-0 rounded-sm bg-azure/15 px-1.5 py-px text-[0.6875rem] font-bold text-azure uppercase'
+
 export function Tracker({ view, mission, present, send, pending, problem }: Props) {
   const [mobileTab, setMobileTab] = useState<'info' | 'events'>('info')
-  const [dieResult, setDieResult] = useState<{ sides: number; value: number } | null>(null)
-  const [fullscreen, setFullscreen] = useState(false)
-  const [keepAwake, setKeepAwake] = useState(false)
+  const [allPhases, setAllPhases] = useState(false)
+  const [drawDismissed, setDrawDismissed] = useState<number | null>(null)
   const you = view.players.find((player) => player.isViewer)
   const built = you?.roster?.built
   // The cards say what they pay out, so the interface can offer the figure instead
@@ -84,76 +88,36 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
     if (trigger.roundMax !== null && view.round > trigger.roundMax) return `up to round ${trigger.roundMax}`
     return null
   }
+  // Core stratagems are the same for every army, so membership of that list is what
+  // separates them from the ones a detachment brought — on either player's panel.
+  const coreKeys = new Set((rules?.core ?? []).map((stratagem) => stratagem.key))
+  // Seats are ordered by side, so both devices agree on which player is which colour.
+  const reportPlayers: ReportPlayer[] = view.players.map((player, index) => ({
+    id: player.id,
+    name: player.name,
+    className: SIDES[index]?.value ?? '',
+  }))
   const yourTurn = view.activePlayerId === view.viewerId
   const active = view.players.find((player) => player.isActive)
   const finished = view.status === 'finished'
-  const wakeLockAvailable = typeof navigator !== 'undefined' && 'wakeLock' in navigator
-
-  useEffect(() => {
-    const changed = () => setFullscreen(Boolean(document.fullscreenElement))
-    document.addEventListener('fullscreenchange', changed)
-    return () => document.removeEventListener('fullscreenchange', changed)
-  }, [])
-
-  useEffect(() => {
-    if (!keepAwake || !('wakeLock' in navigator)) return
-    let disposed = false
-    let requesting = false
-    let lock: WakeLockSentinel | null = null
-    const acquire = async () => {
-      if (disposed || requesting || lock || document.visibilityState !== 'visible') return
-      requesting = true
-      try {
-        const held = await navigator.wakeLock.request('screen')
-        if (disposed || document.visibilityState !== 'visible') {
-          await held.release()
-          return
-        }
-        lock = held
-        held.addEventListener('release', () => {
-          if (lock === held) lock = null
-        })
-      } catch {
-        if (!disposed) setKeepAwake(false)
-      } finally {
-        requesting = false
-      }
-    }
-    const visible = () => {
-      if (document.visibilityState === 'visible') void acquire()
-    }
-    document.addEventListener('visibilitychange', visible)
-    void acquire()
-    return () => {
-      disposed = true
-      document.removeEventListener('visibilitychange', visible)
-      const held = lock
-      lock = null
-      void held?.release()
-    }
-  }, [keepAwake])
 
   return (
-    <main className="mx-auto w-full max-w-[1500px] space-y-4 px-4 pt-6 pb-36 lg:pb-6">
-      <header className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 border-b border-edge pb-3">
-        <div>
-          <p className="eyebrow">
-            {finished ? 'Battle over' : `Round ${view.round} of ${view.rounds}`}
-            {mission ? ` · ${mission.name}` : ''}
-          </p>
-          <h1 className="mt-1 text-2xl capitalize">{finished ? outcome(view) : `${view.phase} phase`}</h1>
-          <p className="mt-1 text-xs text-dim">
-            {[
-              view.settings.limit ? `${view.settings.limit} points` : null,
-              missionPack?.name,
-              terrain?.name,
-              view.attackerId ? `${view.players.find((player) => player.id === view.attackerId)?.name ?? 'Unknown'} attacking` : null,
-              resultLabel(view),
-            ]
-              .filter(Boolean)
-              .join(' · ')}
-          </p>
-        </div>
+    /* Edge to edge: all three columns are in use for the whole game. */
+    <main className="w-full space-y-3 px-3 pt-3 pb-36 lg:pb-6">
+      {/* The centre column already announces the round and phase, so this only carries the settings. */}
+      <header className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 border-b border-edge pb-2">
+        <p className="text-xs text-dim">
+          {[
+            finished ? 'Battle over' : null,
+            view.settings.limit ? `${view.settings.limit} points` : null,
+            missionPack?.name,
+            terrain?.name,
+            view.attackerId ? `${view.players.find((player) => player.id === view.attackerId)?.name ?? 'Unknown'} attacking` : null,
+            resultLabel(view),
+          ]
+            .filter(Boolean)
+            .join(' · ')}
+        </p>
         {finished ? null : (
           <p className="text-sm text-dim">
             {yourTurn ? <span className="text-azure">Your turn</span> : `${active?.name ?? 'Nobody'}’s turn`}
@@ -161,22 +125,23 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
         )}
       </header>
 
-      <div className="grid items-start gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_18rem_minmax(0,1fr)]">
+      <div className="grid items-start gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,24rem)_minmax(0,1fr)]">
         {view.players.map((player, index) => (
           <section
             key={player.id}
+            data-panel="player"
             className={`${mobileTab === 'events' ? 'hidden lg:block' : ''} space-y-3 rounded-lg border border-edge border-l-2 bg-panel p-4 lg:row-start-1 ${index === 0 ? 'lg:col-start-1' : 'lg:col-start-3'} ${SIDES[index]?.accent ?? ''} ${
               player.isActive ? 'ring-2 ring-azure/50' : ''
             }`}
           >
             <div className="flex items-center justify-between gap-2">
               <div className="min-w-0">
-                <p className="truncate font-medium">
+                <p className={`truncate text-xl leading-tight font-bold uppercase ${SIDES[index]?.value ?? ''}`}>
                   {player.name}
-                  {player.isViewer ? <span className="ml-1.5 text-xs text-dim">you</span> : null}
+                  {player.isViewer ? <span className="ml-1.5 text-xs font-normal normal-case text-dim">you</span> : null}
                 </p>
                 {/* The list names itself after its detachment, so appending it would say it twice. */}
-                <p className="truncate text-xs text-dim">{rosterLine(player.roster)}</p>
+                <p className="truncate text-xs font-semibold tracking-[0.04em] text-azure uppercase">{rosterLine(player.roster)}</p>
               </div>
               <span
                 className={`size-2 shrink-0 rounded-full ${
@@ -186,351 +151,305 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
               />
             </div>
 
-            <p className="readout text-[0.6875rem] text-faint">
-              CP {player.cpGained} gained · {player.cpSpent} used · {player.cp} remaining
-            </p>
-
-            {view.clock.limitMinutes !== null ? (
-              <PlayerClock
-                key={`${player.id}-${view.seq}`}
-                used={player.clockMilliseconds}
-                remaining={player.clockRemainingMilliseconds}
-                running={view.clock.runningPlayerId === player.id && !view.clock.paused}
-              />
-            ) : null}
-
-            {/* Each stat's controls sit under the number they change, so nothing is labelled twice. */}
-            <div className="grid grid-cols-3 gap-2 border-t border-edge pt-3">
-              <Stat
-                label="CP"
-                value={player.cp}
-                tint={SIDES[index]?.value}
-                pending={pending}
-                onStep={player.isViewer && !finished ? (delta) => send({ kind: 'adjust-cp', delta }) : undefined}
-              />
-              <Stat
-                label="Primary"
-                guide={mission?.gameCap ?? view.guides.primary}
-                value={player.primary}
-                tint={SIDES[index]?.value}
-                pending={pending}
-                fives
-                // A chosen primary card is scored by its own payouts below.
-                onStep={
-                  player.isViewer && !finished && !player.primaryCard
-                    ? (delta) => send({ kind: 'score', category: 'primary', delta })
-                    : undefined
-                }
-              />
-              <Stat
-                label="Secondary"
-                guide={view.guides.secondary}
-                value={player.secondary}
-                tint={SIDES[index]?.value}
-                pending={pending}
-                fives
-                // Named secondaries are scored by name, so the pile control goes away.
-                onStep={
-                  player.isViewer && !finished && !player.secondaries.length
-                    ? (delta) => send({ kind: 'score', category: 'secondary', delta })
-                    : undefined
-                }
-              />
+            <div className="flex items-baseline justify-between gap-2 rounded-sm border border-edge bg-sunken px-2.5 py-1.5">
+              <span className="min-w-0 truncate text-xs font-semibold uppercase">{player.roster?.name ?? 'List not attached'}</span>
+              <span className="readout shrink-0 text-[0.6875rem] text-dim">{rosterPoints(player.roster)}</span>
             </div>
 
-            <p className="flex items-baseline justify-between border-t border-edge pt-3">
-              <span className="eyebrow">Victory points</span>
-              <span data-stat="vp" className="readout text-xl">
-                {player.total}
-              </span>
-            </p>
-
-            <div className="flex items-center justify-between gap-2 text-xs">
-              <span className={player.painted ? 'text-achieved' : 'text-dim'}>
-                Battle ready {player.painted ? `· +${player.paintedPoints} VP` : '· no bonus'}
-              </span>
-              {player.isViewer ? (
-                <Button
-                  variant={player.painted ? 'default' : 'outline'}
-                  size="xs"
-                  disabled={pending}
-                  onClick={() => send({ kind: 'set-painted', painted: !player.painted })}
-                >
-                  {player.painted ? 'Remove' : 'Add'} bonus
-                </Button>
-              ) : null}
-            </div>
-
-            <div className="grid grid-cols-5 border-y border-edge py-2">
-              {player.rounds.map((round) => (
-                <div key={round.round} className={`text-center ${round.round > 1 ? 'border-l border-edge' : ''}`}>
-                  <p className="eyebrow">T{round.round}</p>
-                  <p className={`readout text-lg ${round.round === view.round ? SIDES[index]?.value : 'text-dim'}`}>{round.total}</p>
-                  <p className="readout text-[0.625rem] text-faint">
-                    {round.primary}+{round.secondary}
-                  </p>
+            {/* The turn belongs to a player, so the control that ends it sits in their panel —
+                visible to both, but only the player taking the turn can press it. */}
+            {/* Ending the turn belongs to whoever is taking it; taking an action back belongs to
+                whoever did it. Both sit by the player they concern rather than in the middle. */}
+            {!finished && (player.isActive || player.isViewer) ? (
+              <div className="space-y-2 rounded-sm border border-edge bg-sunken p-2">
+                {player.isActive ? <p className="eyebrow text-center">Now · {view.phase} phase</p> : null}
+                <div className="flex items-stretch gap-2">
+                  {player.isViewer ? (
+                    <Button
+                      variant="outline"
+                      className={`h-11 px-3 ${player.isActive ? 'shrink-0' : 'w-full'}`}
+                      aria-label="Undo"
+                      title="Undo latest action"
+                      disabled={view.undoable === null || pending}
+                      onClick={() => view.undoable !== null && send({ kind: 'undo', target: view.undoable })}
+                    >
+                      <Undo2 />
+                      {player.isActive ? null : <span className="ml-2">Undo</span>}
+                    </Button>
+                  ) : null}
+                  {player.isActive ? (
+                    <div className="min-w-0 flex-1">
+                      <AdvanceControl view={view} pending={pending} yourTurn={yourTurn} send={send} />
+                    </div>
+                  ) : null}
                 </div>
-              ))}
-            </div>
-
-            {player.primaryCard ? (
-              <div className="space-y-1 border-t border-edge pt-3">
-                <p className="eyebrow">Primary — {player.primaryCard.name}</p>
-                {player.isViewer && !finished ? (
-                  <div className="flex flex-wrap gap-1">
-                    {pick(awardsFor(player.primaryCard.key)).map((award) => (
-                      <Button
-                        key={`${award.vp}-${award.per ?? ''}-${award.mode ?? ''}`}
-                        variant="outline"
-                        size="icon-sm"
-                        className="w-auto px-1.5"
-                        disabled={pending || blocked(award) !== null}
-                        title={blocked(award) ? `Only ${blocked(award)}` : awardTitle(award)}
-                        aria-label={`Primary plus ${award.vp}${award.per ? ` per ${award.per.replaceAll('-', ' ')}` : ''}`}
-                        onClick={() => send({ kind: 'score', category: 'primary', delta: award.vp })}
-                      >
-                        +{award.vp}
-                        {award.per ? <span className="ml-0.5 text-[0.625rem] opacity-70">ea</span> : null}
-                      </Button>
-                    ))}
-                  </div>
-                ) : null}
               </div>
             ) : null}
 
-            {player.secondaries.length ? (
-              <div className="space-y-1 border-t border-edge pt-3">
-                <p className="eyebrow">Secondaries</p>
-                {player.secondaries.map((secondary) => (
-                  <div key={secondary.key} data-secondary={secondary.key} className="flex items-center justify-between gap-2 text-sm">
-                    <span className="min-w-0 flex-1 truncate">
-                      {secondary.name}
-                      {secondary.secret ? (
-                        <span className="ml-1.5 text-[0.625rem] font-semibold uppercase text-azure">
-                          {secondary.revealed ? 'revealed' : 'secret'}
-                        </span>
-                      ) : null}
-                      {secondary.status === 'active' ? null : (
-                        <span
-                          className={`ml-1.5 text-[0.625rem] font-semibold uppercase ${secondary.status === 'achieved' ? 'text-achieved' : 'text-discarded'}`}
-                        >
-                          {secondary.status}
-                        </span>
-                      )}
-                      <span className="readout mt-0.5 block text-[0.625rem] text-faint">
-                        {secondary.rounds.map((points, round) => `T${round + 1} ${points}`).join(' · ')}
-                      </span>
+            <div className="grid gap-x-4 gap-y-3 xl:grid-cols-2 xl:items-start">
+              <div className="space-y-3">
+                <div className="border-t border-edge pt-3">
+                  <p className={HEADING}>Victory points</p>
+                  <p data-stat="vp" className="readout mt-0.5 text-4xl leading-none font-bold">
+                    {player.total}
+                  </p>
+                </div>
+
+                <div>
+                  <p className={HEADING}>Battle ready</p>
+                  <div className="mt-0.5 flex items-center justify-between gap-2 text-xs">
+                    <span className={player.painted ? 'text-achieved' : 'text-dim'}>
+                      {player.painted ? `Painted. +${player.paintedPoints} VP at the end of the battle.` : 'No bonus.'}
                     </span>
-                    <span className="readout w-6 text-right text-dim">{secondary.points}</span>
-                    {player.isViewer && !finished && secondary.status === 'active' ? (
-                      <span className="flex shrink-0 flex-wrap gap-1">
-                        {pick(awardsFor(secondary.key, player.secondaryMode)).map((award) => (
-                          <Button
-                            key={`${award.vp}-${award.per ?? ''}-${award.mode ?? ''}`}
-                            variant="outline"
-                            size="icon-sm"
-                            className="w-auto px-1.5"
-                            disabled={pending || blocked(award) !== null}
-                            title={blocked(award) ? `Only ${blocked(award)}` : awardTitle(award)}
-                            aria-label={`${secondary.name} plus ${award.vp}${award.per ? ` per ${award.per.replaceAll('-', ' ')}` : ''}`}
-                            onClick={() => send({ kind: 'score-secondary', key: secondary.key, delta: award.vp })}
-                          >
-                            +{award.vp}
-                            {award.per ? <span className="ml-0.5 text-[0.625rem] opacity-70">ea</span> : null}
-                          </Button>
-                        ))}
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          className="w-auto px-1 text-[0.625rem] text-achieved"
-                          onClick={() => send({ kind: 'set-secondary-status', key: secondary.key, status: 'achieved' })}
-                        >
-                          Achieve
-                        </Button>
-                        {player.secondaryMode === 'tactical' ? (
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            className="w-auto px-1 text-[0.625rem] text-discarded"
-                            onClick={() => send({ kind: 'set-secondary-status', key: secondary.key, status: 'discarded' })}
-                          >
-                            Discard
-                          </Button>
-                        ) : null}
-                        {secondary.secret && !secondary.revealed ? (
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            className="w-auto px-1 text-[0.625rem] text-azure"
-                            onClick={() => send({ kind: 'reveal-secret' })}
-                          >
-                            Reveal
-                          </Button>
-                        ) : null}
-                      </span>
+                    {player.isViewer ? (
+                      <Button
+                        variant={player.painted ? 'default' : 'outline'}
+                        size="xs"
+                        disabled={pending}
+                        onClick={() => send({ kind: 'set-painted', painted: !player.painted })}
+                      >
+                        {player.painted ? 'Remove' : 'Add'} bonus
+                      </Button>
                     ) : null}
                   </div>
-                ))}
-                {player.isViewer &&
-                !finished &&
-                player.secondaryMode === 'tactical' &&
-                player.secondaries.filter((card) => card.status === 'active').length < 2 ? (
-                  <Disclosure label="Draw a replacement" className="pt-1" triggerClassName="eyebrow text-azure">
-                    <div className="mt-1 space-y-2">
-                      <p className="text-xs text-dim">{player.remainingSecondaries.length} cards remaining</p>
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        disabled={pending || !player.remainingSecondaries.length}
-                        onClick={() => {
-                          const card = randomEntry(player.remainingSecondaries)
-                          if (card) send({ kind: 'draw-secondary', secondary: card })
-                        }}
-                      >
-                        Draw at random
-                      </Button>
-                      <div className="flex max-h-32 flex-wrap gap-1 overflow-y-auto">
+                </div>
+
+                <div className="grid grid-cols-5 border-y border-edge py-2">
+                  {player.rounds.map((round) => (
+                    <div key={round.round} className={`text-center ${round.round > 1 ? 'border-l border-edge' : ''}`}>
+                      <p className="eyebrow">T{round.round}</p>
+                      <p className={`readout text-lg ${round.round === view.round ? SIDES[index]?.value : 'text-dim'}`}>{round.total}</p>
+                      <p className="readout text-[0.625rem] text-faint">
+                        {round.primary}+{round.secondary}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="space-y-1.5 border-t border-edge pt-3">
+                  <p className="flex items-baseline justify-between gap-2">
+                    <span className={HEADING}>Primary mission</span>
+                    <span className="readout text-xs text-dim">
+                      <span data-stat="primary">{player.primary}</span>/{mission?.gameCap ?? view.guides.primary}
+                    </span>
+                  </p>
+                  {player.primaryCard ? (
+                    <div className={`${CARD} space-y-1.5`}>
+                      <p className={CARD_NAME}>{player.primaryCard.name}</p>
+                      {player.isViewer && !finished ? (
+                        <div className="flex flex-wrap gap-1">
+                          {pick(awardsFor(player.primaryCard.key)).map((award) => (
+                            <Button
+                              key={`${award.vp}-${award.per ?? ''}-${award.mode ?? ''}`}
+                              variant="outline"
+                              size="icon-sm"
+                              className="w-auto px-1.5"
+                              disabled={pending || blocked(award) !== null}
+                              title={blocked(award) ? `Only ${blocked(award)}` : awardTitle(award)}
+                              aria-label={`Primary plus ${award.vp}${award.per ? ` per ${award.per.replaceAll('-', ' ')}` : ''}`}
+                              onClick={() => send({ kind: 'score', category: 'primary', delta: award.vp })}
+                            >
+                              +{award.vp}
+                              {award.per ? <span className="ml-0.5 text-[0.625rem] opacity-70">ea</span> : null}
+                            </Button>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </div>
+
+                <div className="space-y-1.5 border-t border-edge pt-3">
+                  <p className="flex items-baseline justify-between gap-2">
+                    <span className={HEADING}>Secondary missions</span>
+                    <span className="readout text-xs text-dim">
+                      <span data-stat="secondary">{player.secondary}</span>/{view.guides.secondary}
+                    </span>
+                  </p>
+                  {player.secondaries.map((secondary) => (
+                    <div key={secondary.key} data-secondary={secondary.key} className={`${CARD} space-y-1 text-sm`}>
+                      <span className="flex items-baseline gap-2">
+                        <span className={`min-w-0 flex-1 ${CARD_NAME}`}>
+                          {secondary.name}
+                          {secondary.secret ? (
+                            <span className="ml-1.5 text-[0.625rem] font-semibold text-azure uppercase">
+                              {secondary.revealed ? 'revealed' : 'secret'}
+                            </span>
+                          ) : null}
+                          {secondary.status === 'active' ? null : (
+                            <span
+                              className={`ml-1.5 text-[0.625rem] font-semibold uppercase ${secondary.status === 'achieved' ? 'text-achieved' : 'text-discarded'}`}
+                            >
+                              {secondary.status}
+                            </span>
+                          )}
+                        </span>
+                        <span className="readout shrink-0 font-bold">{secondary.points}</span>
+                      </span>
+                      <span className="readout block text-[0.625rem] text-faint">
+                        {secondary.rounds.map((points, round) => `T${round + 1} ${points}`).join(' · ')}
+                      </span>
+                      {player.isViewer && !finished && secondary.status === 'active' ? (
+                        <span className="flex flex-wrap gap-1">
+                          {pick(awardsFor(secondary.key, player.secondaryMode)).map((award) => (
+                            <Button
+                              key={`${award.vp}-${award.per ?? ''}-${award.mode ?? ''}`}
+                              variant="outline"
+                              size="icon-sm"
+                              className="w-auto px-1.5"
+                              disabled={pending || blocked(award) !== null}
+                              title={blocked(award) ? `Only ${blocked(award)}` : awardTitle(award)}
+                              aria-label={`${secondary.name} plus ${award.vp}${award.per ? ` per ${award.per.replaceAll('-', ' ')}` : ''}`}
+                              onClick={() => send({ kind: 'score-secondary', key: secondary.key, delta: award.vp })}
+                            >
+                              +{award.vp}
+                              {award.per ? <span className="ml-0.5 text-[0.625rem] opacity-70">ea</span> : null}
+                            </Button>
+                          ))}
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            className="w-auto px-1 text-[0.625rem] text-achieved"
+                            onClick={() => send({ kind: 'set-secondary-status', key: secondary.key, status: 'achieved' })}
+                          >
+                            Achieve
+                          </Button>
+                          {player.secondaryMode === 'tactical' ? (
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              className="w-auto px-1 text-[0.625rem] text-discarded"
+                              onClick={() => send({ kind: 'set-secondary-status', key: secondary.key, status: 'discarded' })}
+                            >
+                              Discard
+                            </Button>
+                          ) : null}
+                          {secondary.secret && !secondary.revealed ? (
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              className="w-auto px-1 text-[0.625rem] text-azure"
+                              onClick={() => send({ kind: 'reveal-secret' })}
+                            >
+                              Reveal
+                            </Button>
+                          ) : null}
+                        </span>
+                      ) : null}
+                    </div>
+                  ))}
+                  {player.isViewer &&
+                  !finished &&
+                  player.secondaryMode === 'tactical' &&
+                  player.secondaries.filter((card) => card.status === 'active').length < 2 ? (
+                    <Disclosure
+                      label={player.secondaries.length ? 'Draw a replacement' : 'Draw a mission'}
+                      className="pt-1"
+                      triggerClassName="eyebrow text-azure"
+                    >
+                      <div className="mt-1 space-y-2">
+                        <p className="text-xs text-dim">{player.remainingSecondaries.length} cards remaining</p>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          disabled={pending || !player.remainingSecondaries.length}
+                          onClick={() => {
+                            const card = randomEntry(player.remainingSecondaries)
+                            if (card) send({ kind: 'draw-secondary', secondary: card })
+                          }}
+                        >
+                          Draw at random
+                        </Button>
+                        <div className="flex max-h-32 flex-wrap gap-1 overflow-y-auto">
+                          {player.remainingSecondaries.map((card) => (
+                            <Button
+                              key={card.key}
+                              variant="outline"
+                              size="sm"
+                              className="h-7 text-[0.625rem]"
+                              onClick={() => send({ kind: 'draw-secondary', secondary: { key: card.key, name: card.name } })}
+                            >
+                              {card.name}
+                            </Button>
+                          ))}
+                        </div>
+                      </div>
+                    </Disclosure>
+                  ) : null}
+                  {player.isViewer && !finished && !player.secondaries.some((card) => card.secret) ? (
+                    <Disclosure label="Select secret mission" className="pt-1" triggerClassName="eyebrow text-azure">
+                      <div className="mt-1 flex max-h-32 flex-wrap gap-1 overflow-y-auto">
                         {player.remainingSecondaries.map((card) => (
                           <Button
                             key={card.key}
                             variant="outline"
                             size="sm"
                             className="h-7 text-[0.625rem]"
-                            onClick={() => send({ kind: 'draw-secondary', secondary: { key: card.key, name: card.name } })}
+                            onClick={() => send({ kind: 'select-secret', secondary: { key: card.key, name: card.name } })}
                           >
                             {card.name}
                           </Button>
                         ))}
                       </div>
-                    </div>
-                  </Disclosure>
-                ) : null}
-                {player.isViewer && !finished && !player.secondaries.some((card) => card.secret) ? (
-                  <Disclosure label="Select secret mission" className="pt-1" triggerClassName="eyebrow text-azure">
-                    <div className="mt-1 flex max-h-32 flex-wrap gap-1 overflow-y-auto">
-                      {player.remainingSecondaries.map((card) => (
-                        <Button
-                          key={card.key}
-                          variant="outline"
-                          size="sm"
-                          className="h-7 text-[0.625rem]"
-                          onClick={() => send({ kind: 'select-secret', secondary: { key: card.key, name: card.name } })}
-                        >
-                          {card.name}
-                        </Button>
-                      ))}
-                    </div>
-                  </Disclosure>
-                ) : null}
+                    </Disclosure>
+                  ) : null}
+                </div>
               </div>
-            ) : null}
 
-            {player.stratagems.length ? (
-              <div className="space-y-1 border-t border-edge pt-3">
-                <p className="eyebrow">Stratagems</p>
-                {player.stratagems.map((stratagem) => (
-                  <div key={stratagem.key} className="flex items-center justify-between gap-2 text-sm">
-                    <span className={`min-w-0 flex-1 ${stratagem.refusal ? 'text-dim' : ''}`}>
-                      <span className="block truncate">{stratagem.name}</span>
-                      {player.isViewer && stratagem.refusal ? (
-                        <span className="block truncate text-[0.625rem] text-faint">{stratagem.refusal}</span>
-                      ) : null}
+              <div className="space-y-3">
+                <div className="border-t border-edge pt-3">
+                  <p className={HEADING}>Command points</p>
+                  <div className="mt-0.5 flex flex-wrap items-center gap-2">
+                    <span data-stat="cp" className={`readout text-3xl leading-none ${SIDES[index]?.value ?? ''}`}>
+                      {player.cp}
                     </span>
-                    <span className="readout shrink-0 text-xs text-dim">
-                      {stratagem.cp} CP · {stratagem.uses}x
-                    </span>
+                    {/* Gaining a point is a thing the rules do; losing one by hand is a mistake, and undo covers that. */}
                     {player.isViewer && !finished ? (
-                      <Button
-                        variant="outline"
-                        size="icon-sm"
-                        disabled={pending || stratagem.refusal !== null}
-                        title={stratagem.refusal ?? undefined}
-                        aria-label={`Use ${stratagem.name}`}
-                        onClick={() => send({ kind: 'use-stratagem', key: stratagem.key })}
-                      >
-                        <Zap />
+                      <Button variant="secondary" size="xs" disabled={pending} onClick={() => send({ kind: 'adjust-cp', delta: 1 })}>
+                        +1 additional CP
                       </Button>
                     ) : null}
                   </div>
-                ))}
-              </div>
-            ) : null}
+                  <p className="readout mt-1 text-[0.6875rem] text-faint">
+                    {player.cpGained} gained · {player.cpSpent} used
+                  </p>
+                </div>
 
-            {player.units.length ? (
-              <div className="border-t border-edge pt-3">
-                <p className="flex items-baseline justify-between">
-                  <span className="eyebrow">On the table</span>
-                  <span data-stat="standing" className="readout text-xs text-dim">
-                    {player.standing}/{player.units.length}
-                  </span>
-                </p>
-                <ul className="mt-1 divide-y divide-edge">
-                  {player.units.map((unit) => (
-                    <li key={unit.key} className="space-y-1 py-1 text-sm">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className={`min-w-0 flex-1 truncate ${unit.destroyed ? 'text-dim line-through' : ''}`}>
-                          {unit.name}
-                          {unit.models > 1 && !unit.destroyed ? (
-                            <span className="readout ml-1.5 text-xs text-dim">
-                              {unit.alive}/{unit.models}
-                            </span>
-                          ) : null}
-                          {!unit.destroyed ? (
-                            <span className="ml-1.5 text-[0.625rem] text-dim">{unit.formation.replaceAll('-', ' ')}</span>
-                          ) : null}
-                        </span>
-                        {player.isViewer && !finished ? (
-                          <span className="flex shrink-0 gap-1">
-                            {unit.models > 1 && !unit.destroyed ? (
-                              <Button
-                                variant="outline"
-                                size="icon-sm"
-                                aria-label={`Lose a model from ${unit.name}`}
-                                disabled={pending}
-                                onClick={() => send({ kind: 'wound-unit', unitKey: unit.key, delta: -1 })}
-                              >
-                                −1
-                              </Button>
-                            ) : null}
-                            <Button
-                              variant="ghost"
-                              size="icon-sm"
-                              aria-label={`${unit.destroyed ? 'Bring back' : 'Lose'} ${unit.name}`}
-                              disabled={pending}
-                              onClick={() => send({ kind: 'set-unit', unitKey: unit.key, destroyed: !unit.destroyed })}
-                            >
-                              {unit.destroyed ? <RotateCcw /> : <Skull />}
-                            </Button>
-                          </span>
-                        ) : (
-                          <span className="readout shrink-0 text-xs text-dim">{unit.points}</span>
-                        )}
-                      </div>
-                      {player.isViewer && !finished && !unit.destroyed ? (
-                        <div className="flex flex-wrap gap-1">
-                          {UNIT_FORMATIONS.filter(
-                            (formation) =>
-                              formation === 'battlefield' ||
-                              formation === 'strategic-reserves' ||
-                              unit.formationOptions?.includes(formation),
-                          ).map((formation) => (
-                            <Button
-                              key={formation}
-                              variant={unit.formation === formation ? 'default' : 'outline'}
-                              size="xs"
-                              disabled={pending}
-                              onClick={() => send({ kind: 'set-unit-formation', unitKey: unit.key, formation })}
-                            >
-                              {formation.replaceAll('-', ' ')}
-                            </Button>
+                {player.stratagems.length ? (
+                  <div className="space-y-3 border-t border-edge pt-3">
+                    {stratagemGroups(player.stratagems, coreKeys).map((group) => {
+                      const shown = allPhases ? group.items : group.items.filter((stratagem) => playableIn(stratagem, view.phase))
+                      if (!shown.length) return null
+                      return (
+                        <div key={group.label} className="space-y-1.5">
+                          <p className={HEADING}>{group.label}</p>
+                          {shown.map((stratagem) => (
+                            <StratagemCard
+                              key={stratagem.key}
+                              stratagem={stratagem}
+                              actionable={player.isViewer && !finished}
+                              pending={pending}
+                              available={player.cp}
+                              onUse={(cp) => send({ kind: 'use-stratagem', key: stratagem.key, ...(cp === undefined ? {} : { cp }) })}
+                            />
                           ))}
                         </div>
-                      ) : null}
-                    </li>
-                  ))}
-                </ul>
+                      )
+                    })}
+                    {hiddenThisPhase(player.stratagems, view.phase) && !allPhases ? (
+                      <Button variant="ghost" size="xs" className="text-azure" onClick={() => setAllPhases(true)}>
+                        Show {hiddenThisPhase(player.stratagems, view.phase)} for other phases
+                      </Button>
+                    ) : null}
+                    {allPhases ? (
+                      <Button variant="ghost" size="xs" className="text-azure" onClick={() => setAllPhases(false)}>
+                        Only this phase
+                      </Button>
+                    ) : null}
+                  </div>
+                ) : null}
               </div>
-            ) : null}
+            </div>
           </section>
         ))}
 
@@ -558,29 +477,30 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
           </ToggleGroup>
           <div className={mobileTab === 'events' ? 'hidden lg:block' : ''}>
             <div className="text-center">
-              <p className="eyebrow">{finished ? 'Final result' : 'Now'}</p>
-              <p className="mt-1 text-xl font-bold uppercase">{finished ? outcome(view) : `${view.phase} phase`}</p>
-              <p className="mt-1 text-xs text-dim">
-                Round {view.round} · {mission?.name ?? 'Matched play'}
-              </p>
+              {finished ? (
+                <>
+                  <p className="eyebrow">Final result</p>
+                  <h1 className="mt-1 text-xl font-bold uppercase">{outcome(view)}</h1>
+                </>
+              ) : (
+                <>
+                  <p className="eyebrow">Battle round</p>
+                  <p className="readout mt-1 text-4xl leading-none font-bold">
+                    <span data-stat="round">{view.round}</span>
+                    <span className="ml-1.5 text-base font-normal text-dim">of {view.rounds}</span>
+                  </p>
+                  <h1 className="mt-2 text-xl font-bold uppercase">{view.phase} phase</h1>
+                </>
+              )}
+              <p className="mt-1 text-xs text-dim">{mission?.name ?? 'Matched play'}</p>
               {deployment ? (
                 <p className="mt-1 text-xs text-dim" title={deployment.description ?? undefined}>
                   {deployment.name} · {deployment.objectives.length} objectives
                 </p>
               ) : null}
             </div>
-            {deployment ? (
-              <BattlefieldReference
-                deployment={deployment}
-                terrain={terrain}
-                templates={references?.terrainTemplates ?? []}
-                className="mt-3"
-              />
-            ) : null}
-            <ScoreChart players={view.players} />
-            <CpChart players={view.players} />
-            <TurnTiming turns={view.turns} />
           </div>
+          <ReportDetails token={view.token} players={reportPlayers} hiddenOnMobile={mobileTab !== 'events'} />
           {finished ? (
             <div className={`${mobileTab === 'events' ? 'hidden lg:block' : ''} space-y-2 border-t border-edge pt-3`}>
               <Button variant="secondary" className="w-full" disabled={pending} onClick={() => send({ kind: 'reopen-battle' })}>
@@ -597,32 +517,11 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
             </div>
           ) : (
             <div className={`${mobileTab === 'events' ? 'hidden lg:block' : ''} space-y-2 border-t border-edge pt-3`}>
-              {view.clock.limitMinutes !== null ? (
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  disabled={pending}
-                  onClick={() => send({ kind: view.clock.paused ? 'resume-clock' : 'pause-clock' })}
-                >
-                  {view.clock.paused ? <Play /> : <Pause />}
-                  {view.clock.paused ? 'Resume clocks' : 'Pause clocks'}
-                </Button>
-              ) : null}
-              <AdvanceControl view={view} pending={pending} yourTurn={yourTurn} send={send} />
-              <div className="grid grid-cols-2 gap-2">
-                <Button
-                  variant="outline"
-                  disabled={view.undoable === null || pending}
-                  onClick={() => view.undoable !== null && send({ kind: 'undo', target: view.undoable })}
-                >
-                  <Undo2 /> Undo
-                </Button>
-                <EndBattleDialog
-                  pending={pending}
-                  label="Finish early"
-                  onConfirm={() => send({ kind: 'end-battle', reason: 'finished-early' })}
-                />
-              </div>
+              <EndBattleDialog
+                pending={pending}
+                label="Finish early"
+                onConfirm={() => send({ kind: 'end-battle', reason: 'finished-early' })}
+              />
               <EndBattleDialog
                 pending={pending}
                 label="Concede battle"
@@ -631,77 +530,33 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
               />
             </div>
           )}
-          <Disclosure label="Score corrections" className="border-t border-edge pt-3 text-sm text-dim">
-            <CorrectionControls view={view} send={send} pending={pending} />
-          </Disclosure>
-          <Disclosure label="Table tools" className="border-t border-edge pt-3 text-sm text-dim">
-            <div className="mt-2 grid grid-cols-2 gap-2">
-              {[3, 6].map((sides) => (
-                <Button key={sides} variant="outline" onClick={() => setDieResult({ sides, value: randomIndex(sides) + 1 })}>
-                  <Dice5 /> D{sides}
-                </Button>
-              ))}
-              <Button
-                variant={fullscreen ? 'default' : 'outline'}
-                onClick={() => void (document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen())}
-              >
-                <Maximize2 /> {fullscreen ? 'Exit full screen' : 'Full screen'}
-              </Button>
-              <Button
-                variant={keepAwake ? 'default' : 'outline'}
-                disabled={!wakeLockAvailable}
-                onClick={() => setKeepAwake((current) => !current)}
-              >
-                {keepAwake ? 'Screen stays awake' : 'Keep screen awake'}
-              </Button>
-            </div>
-            {dieResult ? (
-              <p className="readout mt-2 text-center text-xl" aria-live="polite">
-                D{dieResult.sides} rolled {dieResult.value}
-              </p>
-            ) : null}
-          </Disclosure>
           {problem ? <p className="text-sm text-destructive">{problem}</p> : null}
           {remove.error ? <p className="text-sm text-destructive">{errorMessage(remove.error)}</p> : null}
-          <ReportDetails token={view.token} forceOpen={mobileTab === 'events'} />
           {view.creatorId === view.viewerId ? <DeleteBattleDialog pending={remove.isPending} onConfirm={() => remove.mutate()} /> : null}
         </section>
       </div>
 
-      <Disclosure label="Stratagems and secondaries" className="text-sm text-dim">
-        <div className="mt-3 rounded-lg border border-edge bg-panel p-4">
-          <Prep view={view} send={send} pending={pending} />
-        </div>
-      </Disclosure>
-
-      <Disclosure label="Lists" className="text-sm text-dim">
-        <div className="mt-3 grid gap-3 sm:grid-cols-2">
-          {view.players.map((player) => (
-            <div key={player.id} className="rounded-lg border border-edge bg-panel p-3">
-              <p className="eyebrow">{player.name}</p>
-              <pre className="readout mt-2 text-xs whitespace-pre-wrap text-bone">{player.roster?.text ?? '—'}</pre>
-            </div>
-          ))}
-        </div>
-        <RosterReplacement view={view} send={send} pending={pending} />
-      </Disclosure>
+      {you ? (
+        <DrawSecondariesDialog
+          player={you}
+          round={view.round}
+          // The hand is refilled at the top of your own command phase, which is when the rules replace it.
+          open={
+            !finished &&
+            view.phase === 'command' &&
+            yourTurn &&
+            you.secondaryMode === 'tactical' &&
+            you.remainingSecondaries.length > 0 &&
+            you.secondaries.filter((card) => card.status === 'active').length < 2 &&
+            drawDismissed !== view.round
+          }
+          pending={pending}
+          onDismiss={() => setDrawDismissed(view.round)}
+          send={send}
+        />
+      ) : null}
       <MobileScoreboard view={view} />
     </main>
-  )
-}
-
-function PlayerClock({ used, remaining, running }: { used: number; remaining: number | null; running: boolean }) {
-  const [elapsed, setElapsed] = useState(0)
-  useEffect(() => {
-    if (!running) return
-    const timer = window.setInterval(() => setElapsed((current) => current + 1000), 1000)
-    return () => window.clearInterval(timer)
-  }, [running])
-  const left = remaining === null ? null : Math.max(0, remaining - elapsed)
-  return (
-    <p className={`readout text-xs ${left !== null && left <= 5 * 60_000 ? 'text-destructive' : 'text-dim'}`}>
-      Clock {left === null ? `${clockTime(used + elapsed)} used` : `${clockTime(left)} left`} {running ? '· running' : ''}
-    </p>
   )
 }
 
@@ -775,36 +630,6 @@ function EndBattleDialog({
   )
 }
 
-function CorrectionControls({ view, send, pending }: { view: BattleView; send: (command: Command) => void; pending: boolean }) {
-  return (
-    <div className="mt-2 space-y-3">
-      {view.players.map((player) => (
-        <div key={player.id} className="space-y-1 border-t border-edge pt-2">
-          <p className="eyebrow">{player.name}</p>
-          {(['cp', 'primary', 'secondary'] as const).map((resource) => (
-            <div key={resource} className="grid grid-cols-[1fr_repeat(3,2.25rem)] items-center gap-1">
-              <span className="capitalize">{resource}</span>
-              {[-1, 1, 5].map((delta) => (
-                <Button
-                  key={delta}
-                  variant="outline"
-                  size="icon-sm"
-                  disabled={pending || (delta < 0 && player[resource] < Math.abs(delta))}
-                  onClick={() => send({ kind: 'correct-player', playerId: player.id, resource, delta })}
-                  aria-label={`Correct ${player.name} ${resource} by ${delta}`}
-                >
-                  {delta > 0 ? '+' : '−'}
-                  {Math.abs(delta)}
-                </Button>
-              ))}
-            </div>
-          ))}
-        </div>
-      ))}
-    </div>
-  )
-}
-
 function DeleteBattleDialog({ pending, onConfirm }: { pending: boolean; onConfirm: () => void }) {
   return (
     <AlertDialog>
@@ -829,95 +654,6 @@ function DeleteBattleDialog({ pending, onConfirm }: { pending: boolean; onConfir
   )
 }
 
-function RosterReplacement({ view, send, pending }: { view: BattleView; send: (command: Command) => void; pending: boolean }) {
-  const { data: saved = [] } = useQuery(savedRostersQuery())
-  const eligible = view.settings.limit === null ? saved : saved.filter((roster) => roster.limit === view.settings.limit)
-  const replace = useMutation({
-    mutationFn: async (savedRoster: (typeof saved)[number]) => {
-      const priced = await savedRosterPrice({ data: { id: savedRoster.id } })
-      if (!priced) throw new Error('That roster could not be loaded.')
-      return { roster: battleRoster(savedRoster, priced), prep: savedBattlePrep(savedRoster) }
-    },
-    onSuccess: ({ roster, prep }) => send({ kind: 'attach-roster', roster, prep }),
-  })
-  if (view.status === 'finished') return null
-  return (
-    <Disclosure label="Replace my roster" className="mt-3 text-sm text-dim">
-      <div className="mt-2 flex flex-wrap gap-2">
-        {eligible.map((roster) => (
-          <Button
-            key={roster.id}
-            variant="outline"
-            size="sm"
-            disabled={pending || replace.isPending}
-            onClick={() => replace.mutate(roster)}
-          >
-            {roster.name}
-          </Button>
-        ))}
-        {!eligible.length ? <p className="text-xs text-dim">No saved roster matches this battle size.</p> : null}
-      </div>
-      {replace.error ? <p className="mt-2 text-sm text-destructive">{errorMessage(replace.error)}</p> : null}
-    </Disclosure>
-  )
-}
-
-function ScoreChart({ players }: { players: BattleView['players'] }) {
-  const cumulative = players.map((player) => {
-    let total = 0
-    return player.rounds.map((round) => (total += round.total))
-  })
-  const max = Math.max(1, ...cumulative.flat())
-  const points = (scores: number[]) => scores.map((score, at) => `${at * 55 + 10},${60 - (score / max) * 50}`).join(' ')
-  return (
-    <div className="border-y border-edge py-2">
-      <p className="eyebrow mb-1">Victory points</p>
-      <svg viewBox="0 0 240 66" className="w-full">
-        <title>Cumulative victory points by round</title>
-        <path d="M10 60H230" className="stroke-edge" />
-        {cumulative[0] ? <polyline points={points(cumulative[0])} fill="none" className="stroke-side-a" strokeWidth="2" /> : null}
-        {cumulative[1] ? <polyline points={points(cumulative[1])} fill="none" className="stroke-side-b" strokeWidth="2" /> : null}
-      </svg>
-    </div>
-  )
-}
-
-function CpChart({ players }: { players: BattleView['players'] }) {
-  const max = Math.max(1, ...players.flatMap((player) => player.cpByRound))
-  const points = (scores: number[]) => scores.map((score, at) => `${at * 55 + 10},${44 - (score / max) * 34}`).join(' ')
-  return (
-    <div className="border-b border-edge py-2">
-      <p className="eyebrow mb-1">Command points by round</p>
-      <svg viewBox="0 0 240 50" className="w-full">
-        <title>Command points remaining by round</title>
-        <path d="M10 44H230" className="stroke-edge" />
-        {players[0] ? <polyline points={points(players[0].cpByRound)} fill="none" className="stroke-side-a" strokeWidth="2" /> : null}
-        {players[1] ? <polyline points={points(players[1].cpByRound)} fill="none" className="stroke-side-b" strokeWidth="2" /> : null}
-      </svg>
-    </div>
-  )
-}
-
-function TurnTiming({ turns }: { turns: BattleView['turns'] }) {
-  const completed = turns.filter((turn) => turn.minutes !== null)
-  if (!completed.length) return null
-  return (
-    <div className="border-b border-edge py-2">
-      <p className="eyebrow mb-1">Minutes per turn</p>
-      <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
-        {completed.map((turn) => (
-          <p key={`${turn.round}-${turn.playerId}`} className="flex justify-between gap-2">
-            <span className="truncate text-dim">
-              R{turn.round} · {turn.playerName}
-            </span>
-            <span className="readout">{turn.minutes}m</span>
-          </p>
-        ))}
-      </div>
-    </div>
-  )
-}
-
 function MobileScoreboard({ view }: { view: BattleView }) {
   return (
     <aside
@@ -925,8 +661,9 @@ function MobileScoreboard({ view }: { view: BattleView }) {
       aria-label="Battle scoreboard"
     >
       <div className="mx-auto grid max-w-xl grid-cols-[1fr_auto_1fr] items-center gap-3">
+        {/* min-w-0 on each cell, or a long list name widens the track instead of truncating. */}
         {view.players.map((player, index) => (
-          <div key={player.id} className={index ? 'order-3 text-right' : 'order-1'}>
+          <div key={player.id} className={`min-w-0 ${index ? 'order-3 text-right' : 'order-1'}`}>
             <p className={`truncate text-xs font-bold uppercase ${SIDES[index]?.value}`}>{player.name}</p>
             <p className="truncate text-[0.625rem] text-dim">{player.roster?.name ?? 'List not attached'}</p>
             <p className="readout text-xl">
@@ -948,52 +685,6 @@ function MobileScoreboard({ view }: { view: BattleView }) {
         </div>
       </div>
     </aside>
-  )
-}
-
-type StatProps = {
-  label: string
-  /** The conventional ceiling, shown quietly beside the number and never enforced. */
-  guide?: number
-  value: number
-  tint?: string
-  pending: boolean
-  /** Absent on the opponent's panel: the controls are the ownership rule, made visible. */
-  onStep?: (delta: number) => void
-  /** Victory points move in fives often enough to be worth a button. */
-  fives?: boolean
-}
-
-function Stat({ label, guide, value, tint, pending, onStep, fives }: StatProps) {
-  const steps = fives ? [-1, 1, 5] : [-1, 1]
-  return (
-    <div>
-      <p className="eyebrow">{label}</p>
-      {/* `data-stat` is how a test reads one player's number without depending on where it sits. */}
-      <p data-stat={label.toLowerCase()} className={`readout mt-0.5 text-3xl leading-none ${tint ?? ''}`}>
-        {value}
-      </p>
-      {guide ? <p className="readout mt-0.5 text-[0.625rem] text-dim">of {guide}</p> : null}
-      {onStep ? (
-        // A keypad rather than a row: a column is only ever a third of the panel,
-        // and three buttons abreast in it are too narrow for a thumb.
-        <div className="mt-2 grid grid-cols-2 gap-1">
-          {steps.map((step) => (
-            <Button
-              key={step}
-              variant="outline"
-              className={`h-9 w-full px-0 ${Math.abs(step) === 5 ? 'col-span-2' : ''}`}
-              disabled={pending}
-              onClick={() => onStep(step)}
-              aria-label={`${label} ${step < 0 ? 'minus' : 'plus'} ${Math.abs(step)}`}
-            >
-              {step < 0 ? '−' : '+'}
-              {Math.abs(step)}
-            </Button>
-          ))}
-        </div>
-      ) : null}
-    </div>
   )
 }
 
@@ -1020,19 +711,123 @@ const awardTitle = (award: Award) =>
   undefined
 
 /** Opened on demand, so the account is not fetched on every change to the battle. */
-function ReportDetails({ token, forceOpen = false }: { token: string; forceOpen?: boolean }) {
-  const [open, setOpen] = useState(false)
+/** The running account of the battle. Always open on a wide screen; the mobile tabs gate it instead. */
+function ReportDetails({ token, players, hiddenOnMobile }: { token: string; players: ReportPlayer[]; hiddenOnMobile: boolean }) {
   return (
-    <Disclosure
-      label="How the battle went"
-      className="text-sm text-dim"
-      triggerClassName={forceOpen ? 'hidden lg:flex' : undefined}
-      open={forceOpen || open}
-      onOpenChange={setOpen}
-    >
-      <Report token={token} open={forceOpen || open} />
-    </Disclosure>
+    <div className={`border-t border-edge pt-3 ${hiddenOnMobile ? 'hidden lg:block' : ''}`}>
+      <p className="text-xs font-bold tracking-[0.08em] text-bone uppercase">Battle events</p>
+      <Report token={token} open players={players} />
+    </div>
   )
+}
+
+type ViewStratagem = BattleView['players'][number]['stratagems'][number]
+
+/** The printed price, and the neighbouring ones a board state can move it to. */
+function costChoices(printed: number) {
+  return [printed - 1, printed, printed + 1, printed + 2].filter((cost) => cost >= 0 && cost <= STRATAGEM_CP_MAX)
+}
+
+/** The name opens what the stratagem is for; the button spends the CP. */
+function StratagemCard({
+  stratagem,
+  actionable,
+  pending,
+  available,
+  onUse,
+}: {
+  stratagem: ViewStratagem
+  actionable: boolean
+  pending: boolean
+  available: number
+  onUse: (cp?: number) => void
+}) {
+  const timing = [
+    stratagem.phases?.length ? `${stratagem.phases.join(', ')} phase` : 'any phase',
+    stratagem.turn === 'your-turn' ? 'your turn' : stratagem.turn === 'opponent-turn' ? "opponent's turn" : 'either turn',
+    stratagem.limit === 'unlimited' ? 'no use limit' : `once per ${stratagem.limit}`,
+  ].join(' · ')
+  return (
+    <div className={`${CARD} flex items-center gap-2 text-sm`}>
+      <Dialog>
+        <DialogTrigger
+          render={
+            <button
+              type="button"
+              aria-label={`About ${stratagem.name}`}
+              className={`min-w-0 flex-1 text-left ${CARD_NAME} hover:underline`}
+            />
+          }
+        >
+          {stratagem.name}
+        </DialogTrigger>
+        <DialogContent className="border border-edge bg-panel text-bone">
+          <DialogHeader>
+            <DialogTitle className="uppercase">{stratagem.name}</DialogTitle>
+            <DialogDescription className="text-dim">{timing}</DialogDescription>
+          </DialogHeader>
+          <p className="readout text-sm text-dim">
+            {stratagem.cp} CP · used {stratagem.uses}x
+          </p>
+          {stratagem.refusal ? <p className="text-sm text-discarded">{stratagem.refusal}</p> : null}
+        </DialogContent>
+      </Dialog>
+      <span className={`${CP_PILL} ${stratagem.refusal ? 'bg-edge text-dim' : ''}`}>{stratagem.cp} CP</span>
+      {actionable ? (
+        <>
+          {/* Some stratagems cost more or less depending on what is on the board, so the price is a choice. */}
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              aria-label={`Spend a different amount on ${stratagem.name}`}
+              className="grid size-7 shrink-0 place-items-center text-dim hover:text-bone"
+            >
+              <EllipsisVertical className="size-4" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {costChoices(stratagem.cp).map((cost) => (
+                <DropdownMenuItem key={cost} disabled={pending || cost > available} onClick={() => onUse(cost)}>
+                  Use for {cost} CP
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Button
+            variant="outline"
+            size="icon-sm"
+            disabled={pending || stratagem.refusal !== null}
+            title={stratagem.refusal ?? undefined}
+            aria-label={`Use ${stratagem.name}`}
+            onClick={() => onUse()}
+          >
+            <Zap />
+          </Button>
+        </>
+      ) : null}
+    </div>
+  )
+}
+
+/** A stratagem with no phases named is one that can be played whenever its other timing allows. */
+function playableIn(stratagem: ViewStratagem, phase: Phase) {
+  return !stratagem.phases?.length || stratagem.phases.includes(phase)
+}
+
+function hiddenThisPhase(stratagems: readonly ViewStratagem[], phase: Phase) {
+  return stratagems.filter((stratagem) => !playableIn(stratagem, phase)).length
+}
+
+function stratagemGroups(stratagems: readonly ViewStratagem[], coreKeys: ReadonlySet<string>) {
+  return [
+    { label: 'Detachment stratagems', items: stratagems.filter((stratagem) => !coreKeys.has(stratagem.key)) },
+    { label: 'Core stratagems', items: stratagems.filter((stratagem) => coreKeys.has(stratagem.key)) },
+  ].filter((group) => group.items.length)
+}
+
+/** What the list actually costs, summed from the units as submitted. */
+function rosterPoints(roster: BattleView['players'][number]['roster']) {
+  const units = roster?.built?.units
+  if (!units?.length) return ''
+  return `${units.reduce((total, unit) => total + unit.points, 0)} pts`
 }
 
 function rosterLine(roster: BattleView['players'][number]['roster']) {
@@ -1060,6 +855,65 @@ function resultLabel(view: BattleView) {
   return view.result.reason === 'finished-early' ? 'Finished early' : 'Completed'
 }
 
+/** Asks for the draw the rules call for, rather than waiting to be found in a panel. */
+function DrawSecondariesDialog({
+  player,
+  round,
+  open,
+  pending,
+  onDismiss,
+  send,
+}: {
+  player: BattleView['players'][number]
+  round: number
+  open: boolean
+  pending: boolean
+  onDismiss: () => void
+  send: (command: Command) => void
+}) {
+  const held = player.secondaries.filter((card) => card.status === 'active').length
+  const wanted = Math.max(0, 2 - held)
+  return (
+    <Dialog open={open} onOpenChange={(next) => (next ? undefined : onDismiss())}>
+      <DialogContent className="border border-edge bg-panel text-bone">
+        <DialogHeader>
+          <DialogTitle className="uppercase">Draw {wanted === 1 ? 'a secondary mission' : `${wanted} secondary missions`}</DialogTitle>
+          <DialogDescription className="text-dim">
+            Round {round} command phase · {player.remainingSecondaries.length} cards left in your deck
+          </DialogDescription>
+        </DialogHeader>
+        <Button
+          variant="secondary"
+          disabled={pending || !player.remainingSecondaries.length}
+          onClick={() => {
+            const card = randomEntry(player.remainingSecondaries)
+            if (card) send({ kind: 'draw-secondary', secondary: card })
+          }}
+        >
+          Draw at random
+        </Button>
+        <div className="flex max-h-56 flex-wrap gap-1 overflow-y-auto">
+          {player.remainingSecondaries.map((card) => (
+            <Button
+              key={card.key}
+              variant="outline"
+              size="sm"
+              className="h-7 text-[0.625rem]"
+              disabled={pending}
+              onClick={() => send({ kind: 'draw-secondary', secondary: { key: card.key, name: card.name } })}
+            >
+              {card.name}
+            </Button>
+          ))}
+        </div>
+        <Button variant="ghost" size="sm" onClick={onDismiss}>
+          Not now
+        </Button>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 function randomEntry<T>(entries: readonly T[]) {
   return entries[randomIndex(entries.length)]
 }
@@ -1069,14 +923,4 @@ function randomIndex(length: number) {
   const value = new Uint32Array(1)
   crypto.getRandomValues(value)
   return (value[0] ?? 0) % length
-}
-
-function clockTime(milliseconds: number) {
-  const seconds = Math.max(0, Math.ceil(milliseconds / 1000))
-  const hours = Math.floor(seconds / 3600)
-  const minutes = Math.floor((seconds % 3600) / 60)
-  const remainder = seconds % 60
-  return hours
-    ? `${hours}:${String(minutes).padStart(2, '0')}:${String(remainder).padStart(2, '0')}`
-    : `${minutes}:${String(remainder).padStart(2, '0')}`
 }

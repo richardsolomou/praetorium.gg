@@ -1,57 +1,59 @@
 import { useQuery } from '@tanstack/react-query'
-import { useEffect, useState } from 'react'
-import { Button } from '@/components/ui/button'
+import { useVirtualizer } from '@tanstack/react-virtual'
+import { useEffect, useRef } from 'react'
 import { Label } from '@/components/ui/label'
-import { Toggle } from '@/components/ui/toggle'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
-import type { BattleView, Command, Secondary, SecondaryMode, Stratagem } from '../../core/battle'
+import type { BattleView, Command, Secondary, SecondaryMode } from '../../core/battle'
 import { SECONDARIES_MAX, SECONDARY_MODES, STRATAGEMS_MAX } from '../../core/battle'
 import { detachmentRulesQuery } from '../queries'
 
-type Props = { view: BattleView; send: (command: Command) => void; pending: boolean }
+type Props = { view: BattleView; missionId: string | null; send: (command: Command) => void; pending: boolean }
 
 /**
- * Choosing what you are playing with: stratagems, a primary mission, secondaries.
+ * The one card decision a player actually makes: how their secondaries are drawn.
  *
- * Everything here is picked, never typed. The community catalogues carry none of
- * it, so it comes from the Tabletop Developer Consortium's dataset — which is also
- * why the attribution is on screen: its licence asks for it.
+ * Everything else follows from what is already on the table. The stratagems are the
+ * detachment's plus the core ones every army has, and the primary is whatever the two
+ * force dispositions play — so neither is offered as a choice that could be got wrong.
  */
-export function Prep({ view, send, pending }: Props) {
+export function Prep({ view, missionId, send, pending }: Props) {
   const you = view.players.find((player) => player.isViewer)
   const built = you?.roster?.built
   const detachmentNames = built?.detachments?.map((detachment) => detachment.name) ?? (built?.detachment ? [built.detachment] : [])
   const { data: rules } = useQuery(detachmentRulesQuery(built?.catalogueId ?? '', detachmentNames))
 
-  const [stratagems, setStratagems] = useState<Stratagem[]>(
-    () => you?.stratagems.map(({ key, name, cp, limit, phases, turn }) => ({ key, name, cp, limit, phases, turn })) ?? [],
-  )
-  const [secondaries, setSecondaries] = useState<Secondary[]>(() => you?.secondaries.map(({ key, name }) => ({ key, name })) ?? [])
-  const [primary, setPrimary] = useState<Secondary | null>(() => you?.primaryCard ?? null)
-  const [mode, setMode] = useState<SecondaryMode>(() => you?.secondaryMode ?? 'fixed')
-  const prepIdentity = JSON.stringify({
-    roster: you?.roster ?? null,
-    stratagems: you?.stratagems.map(({ key, name, cp, limit, phases, turn }) => ({ key, name, cp, limit, phases, turn })) ?? [],
-    secondaries: you?.secondaries.map(({ key, name }) => ({ key, name })) ?? [],
-    primary: you?.primaryCard ?? null,
-    mode: you?.secondaryMode ?? 'fixed',
-  })
+  const stratagems = rules ? [...rules.stratagems, ...rules.core].slice(0, STRATAGEMS_MAX) : []
+  const primaryCard = rules?.primaries.find((card) => card.key === missionId)
+  const primary: Secondary | null = primaryCard ? { key: primaryCard.key, name: primaryCard.name } : null
+  const mode: SecondaryMode = you?.secondaryMode ?? 'tactical'
+  const chosen = you?.secondaries.map(({ key, name }) => ({ key, name })) ?? []
 
+  const save = (next: { mode?: SecondaryMode; secondaries?: Secondary[] }) => {
+    if (!rules) return
+    const nextMode = next.mode ?? mode
+    send({
+      kind: 'set-prep',
+      stratagems,
+      // A tactical hand starts empty and is drawn from the deck once the battle begins.
+      secondaries: nextMode === 'tactical' ? [] : (next.secondaries ?? chosen),
+      secondaryDeck: nextMode === 'tactical' ? rules.secondaries.map(({ key, name }) => ({ key, name })) : undefined,
+      primary,
+      secondaryMode: nextMode,
+    })
+  }
+
+  // What the army brings is not a decision, so it is recorded as soon as it is known —
+  // and the matchup can settle later than the stratagems do, so this stays live rather
+  // than firing once.
   useEffect(() => {
-    setStratagems(you?.stratagems.map(({ key, name, cp, limit, phases, turn }) => ({ key, name, cp, limit, phases, turn })) ?? [])
-    setSecondaries(you?.secondaries.map(({ key, name }) => ({ key, name })) ?? [])
-    setPrimary(you?.primaryCard ?? null)
-    setMode(you?.secondaryMode ?? 'fixed')
-    // Only the roster or authoritative prep changes this key; scoring and presence leave an unsaved draft alone.
+    if (!rules || !you) return
+    const missingStratagems = stratagems.length > 0 && you.stratagems.length === 0
+    const missingPrimary = primary !== null && you.primaryCard === null
+    if (!missingStratagems && !missingPrimary) return
+    save({})
+    // Re-runs only when one of those two facts changes, and both are satisfied by the save.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [prepIdentity])
-
-  // A detachment's own stratagems are the answer often enough to be the default;
-  // nothing is overwritten once the player has a set of their own.
-  useEffect(() => {
-    if (!rules?.stratagems.length) return
-    setStratagems((current) => (current.length ? current : rules.stratagems))
-  }, [rules])
+  }, [rules, you?.stratagems.length, you?.primaryCard, primary?.key])
 
   if (!rules) {
     return (
@@ -61,135 +63,100 @@ export function Prep({ view, send, pending }: Props) {
     )
   }
 
-  const offered = [...rules.stratagems, ...rules.core]
-
   return (
     <div className="space-y-5">
-      <Pills
-        label="Stratagems"
-        entries={offered.map((stratagem) => ({ key: stratagem.key, name: stratagem.name, note: String(stratagem.cp) }))}
-        taken={stratagems.map((stratagem) => stratagem.key)}
-        onToggle={(key) => {
-          const found = offered.find((stratagem) => stratagem.key === key)
-          if (found) setStratagems((current) => toggle(current, found, STRATAGEMS_MAX))
-        }}
-      />
-
-      <Pills
-        label="Primary mission"
-        entries={rules.primaries.map((card) => ({ key: card.key, name: card.name }))}
-        taken={primary ? [primary.key] : []}
-        onToggle={(key) => {
-          const found = rules.primaries.find((card) => card.key === key)
-          setPrimary((current) => (current?.key === key || !found ? null : { key: found.key, name: found.name }))
-        }}
-      />
-
       <section className="space-y-2">
         <Label>Secondary play</Label>
         <ToggleGroup
           value={[mode]}
           onValueChange={(value) => {
             const next = SECONDARY_MODES.find((entry) => entry === value[0])
-            if (next) setMode(next)
+            if (next && next !== mode) save({ mode: next })
           }}
           variant="outline"
           size="sm"
         >
           {SECONDARY_MODES.map((entry) => (
-            <ToggleGroupItem key={entry} value={entry}>
+            <ToggleGroupItem key={entry} value={entry} disabled={pending}>
               {entry === 'fixed' ? 'Fixed' : 'Tactical'}
             </ToggleGroupItem>
           ))}
         </ToggleGroup>
+        <p className="text-xs text-dim">
+          {mode === 'tactical'
+            ? 'Drawn from the deck as the battle runs. Nothing to choose now.'
+            : `Choose up to ${SECONDARIES_MAX} cards to play for the whole battle.`}
+        </p>
       </section>
 
-      <Pills
-        label={mode === 'tactical' ? 'Starting secondaries' : 'Secondaries'}
-        entries={rules.secondaries.map((card) => ({ key: card.key, name: card.name }))}
-        taken={secondaries.map((secondary) => secondary.key)}
-        onToggle={(key) => {
-          const found = rules.secondaries.find((card) => card.key === key)
-          if (found) setSecondaries((current) => toggle(current, { key: found.key, name: found.name }, SECONDARIES_MAX))
-        }}
-      />
-
-      {mode === 'tactical' && rules.secondaries.length >= 2 ? (
-        <Button variant="outline" size="sm" disabled={pending} onClick={() => setSecondaries(randomSubset(rules.secondaries, 2))}>
-          Draw 2 at random
-        </Button>
+      {mode === 'fixed' ? (
+        <SecondaryPicker
+          cards={rules.secondaries}
+          chosen={chosen}
+          pending={pending}
+          onToggle={(card) => {
+            const held = chosen.some((entry) => entry.key === card.key)
+            const secondaries = held
+              ? chosen.filter((entry) => entry.key !== card.key)
+              : [...chosen, { key: card.key, name: card.name }].slice(0, SECONDARIES_MAX)
+            save({ secondaries })
+          }}
+        />
       ) : null}
 
-      <div className="flex flex-wrap items-center gap-3">
-        {/* One act, one command: two would make the second stale against the first. */}
-        <Button
-          variant="secondary"
-          size="sm"
-          disabled={pending}
-          onClick={() =>
-            send({
-              kind: 'set-prep',
-              stratagems,
-              secondaries,
-              secondaryDeck: mode === 'tactical' ? rules.secondaries.map(({ key, name }) => ({ key, name })) : undefined,
-              primary,
-              secondaryMode: mode,
-            })
-          }
-        >
-          Save these
-        </Button>
-        <p className="text-[0.6875rem] text-dim">
-          {rules.attribution}
-          {rules.dataslate ? ` · ${rules.dataslate.replaceAll('-', ' ')}` : ''}
-        </p>
-      </div>
+      <p className="text-[0.6875rem] text-dim">
+        {rules.attribution}
+        {rules.dataslate ? ` · ${rules.dataslate.replaceAll('-', ' ')}` : ''}
+      </p>
     </div>
   )
 }
 
-function randomSubset<T>(entries: readonly T[], count: number): T[] {
-  const remaining = [...entries]
-  const picked: T[] = []
-  while (picked.length < count && remaining.length) {
-    const value = new Uint32Array(1)
-    crypto.getRandomValues(value)
-    const index = (value[0] ?? 0) % remaining.length
-    picked.push(...remaining.splice(index, 1))
-  }
-  return picked
-}
+/** The fixed deck is long enough to be worth windowing rather than laying out whole. */
+function SecondaryPicker({
+  cards,
+  chosen,
+  pending,
+  onToggle,
+}: {
+  cards: readonly { key: string; name: string }[]
+  chosen: readonly Secondary[]
+  pending: boolean
+  onToggle: (card: { key: string; name: string }) => void
+}) {
+  const scroller = useRef<HTMLDivElement>(null)
+  const rows = useVirtualizer({
+    count: cards.length,
+    getScrollElement: () => scroller.current,
+    estimateSize: () => 44,
+    overscan: 8,
+  })
 
-/** In or out, up to a limit. */
-function toggle<T extends { key: string }>(current: T[], entry: T, max: number): T[] {
-  return current.some((held) => held.key === entry.key)
-    ? current.filter((held) => held.key !== entry.key)
-    : [...current, entry].slice(0, max)
-}
-
-type PillsProps = {
-  label: string
-  entries: { key: string; name: string; note?: string }[]
-  taken: string[]
-  onToggle: (key: string) => void
-}
-
-function Pills({ label, entries, taken, onToggle }: PillsProps) {
-  if (!entries.length) return null
   return (
-    <section className="space-y-2">
-      <Label>{label}</Label>
-      <div className="flex flex-wrap gap-1.5">
-        {entries.map((entry) => {
-          const chosen = taken.includes(entry.key)
+    <div ref={scroller} className="h-72 overflow-y-auto rounded-sm border border-edge bg-sunken p-2">
+      <div className="relative w-full" style={{ height: rows.getTotalSize() }}>
+        {rows.getVirtualItems().map((row) => {
+          const card = cards[row.index]
+          if (!card) return null
+          const held = chosen.some((entry) => entry.key === card.key)
           return (
-            <Toggle key={entry.key} variant="outline" size="sm" pressed={chosen} onPressedChange={() => onToggle(entry.key)}>
-              {entry.name}
-              {entry.note ? <span className="readout ml-1 text-xs opacity-70">{entry.note}</span> : null}
-            </Toggle>
+            <button
+              key={card.key}
+              type="button"
+              disabled={pending}
+              aria-pressed={held}
+              onClick={() => onToggle(card)}
+              className={`absolute top-0 left-0 flex w-full items-center justify-between gap-2 rounded-sm border px-2.5 py-1.5 text-left ${
+                held ? 'border-azure bg-azure/10' : 'border-edge hover:border-edge-strong'
+              }`}
+              style={{ height: row.size - 4, transform: `translateY(${row.start}px)` }}
+            >
+              <span className={`text-sm leading-tight font-bold uppercase ${held ? 'text-azure' : 'text-bone'}`}>{card.name}</span>
+              {held ? <span className="text-[0.625rem] font-semibold text-azure uppercase">taken</span> : null}
+            </button>
           )
         })}
       </div>
-    </section>
+    </div>
   )
 }

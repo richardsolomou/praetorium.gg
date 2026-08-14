@@ -13,15 +13,19 @@
 
 Undo appends an `undo` command that names the latest active command. It does not delete history. Only the original author can undo that command.
 
-Setup settings, roster replacements, formation choices, painted-army bonuses, clock controls, score corrections, concessions, reopening, and setup resets are commands too. A reset clears rosters and battlefield choices without erasing the audit trail or the configured game size, mission pack, clock, or solo format. A finished battle remains correctable and reopenable; deletion is the only destructive operation and is restricted to the account that created the battle.
+Setup settings, roster replacements, formation choices, painted-army bonuses, concessions, reopening, and setup resets are commands too. A reset clears rosters and battlefield choices without erasing the audit trail or the configured game size, mission pack or solo format. A finished battle remains reopenable; deletion is the only destructive operation and is restricted to the account that created the battle.
+
+`correct-player`, `pause-clock` and `resume-clock` are no longer offered anywhere and no new one can be made. They stay in `commandSchema` because `Repository.log` parses every stored command through it, so removing a kind would make an older battle unreadable rather than merely unchanged.
 
 Deployment and terrain are one battlefield choice. The three layouts for the armies' force dispositions each bind a deployment pattern to exact terrain geometry; `set-battlefield` records both IDs atomically. The setup and live tracker render that same plan, and a selected layout without its pinned geometry cannot start.
 
 Solo practice battles have one signed-in participant and do not invent a guest or duplicate player identity. That participant remains the active player when a turn ends. Their link has no joinable seat.
 
-## Clocks
+## Cards
 
-An optional player clock is folded from command timestamps. Beginning, advancing, pausing, resuming, ending, reopening, and undoing all preserve a deterministic elapsed-time record. The active player's clock switches automatically with the turn; the interface computes the still-running interval from the current time without storing a second timer value.
+What an army brings is not a choice a player makes twice. The stratagems are the detachment's own plus the core ones every army has, and the primary is whatever the two force dispositions play — both are recorded by `set-prep` as soon as they are known rather than offered as a picker. A solo battle pairs its one disposition against itself so that it still has a mission to score.
+
+Secondaries are tactical unless a player says otherwise: the hand starts empty, the deck is the whole pack, and the tracker asks for the draw at the top of that player's command phase. Fixed play is the alternative, and the only case where cards are chosen up front.
 
 ## Views and visibility
 
@@ -56,4 +60,4 @@ Better Auth owns the `user`, `session`, `account`, `verification`, and `rateLimi
 
 ## Tests
 
-`src/core/battle.test.ts` covers turn order, ownership, visibility, undo, solo play, resets, concessions, finished-state corrections, reopening, clock switching, tactical decks, and legacy logs whose battle size predates explicit settings. `src/server/service.test.ts` covers persistence, deletion permissions, and concurrent submissions against SQLite.
+`src/core/battle.test.ts` covers turn order, ownership, visibility, undo, solo play, resets, concessions, reopening, stratagem costs including the ones the board makes dearer, tactical decks, and legacy logs whose battle size predates explicit settings. `src/server/service.test.ts` covers persistence, deletion permissions, and concurrent submissions against SQLite.

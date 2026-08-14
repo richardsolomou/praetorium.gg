@@ -214,7 +214,8 @@ export type Command =
       primary: Secondary | null
       secondaryMode: SecondaryMode
     }
-  | { kind: 'use-stratagem'; key: string }
+  /** `cp` overrides the printed cost, for the stratagems whose price depends on the board. */
+  | { kind: 'use-stratagem'; key: string; cp?: number }
   | { kind: 'score-secondary'; key: string; delta: number }
   | { kind: 'set-secondary-status'; key: string; status: SecondaryStatus }
   | { kind: 'draw-secondary'; secondary: Secondary }
@@ -325,7 +326,7 @@ export function reduceBattle(playerIds: readonly PlayerId[], log: readonly Logge
       uses: [],
       secondaries: [],
       primaryCard: null,
-      secondaryMode: 'fixed',
+      secondaryMode: 'tactical',
       secondaryDeck: null,
       scored: {},
       primaryByRound: Array(BATTLE_ROUNDS).fill(0),
@@ -533,7 +534,9 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
       if (stratagem.phases?.length && !stratagem.phases.includes(state.phase)) return `${stratagem.name} cannot be used in this phase`
       if (stratagem.turn === 'your-turn' && state.activePlayerId !== by) return `${stratagem.name} is used on your turn`
       if (stratagem.turn === 'opponent-turn' && state.activePlayerId === by) return `${stratagem.name} is used on your opponent’s turn`
-      if (player.cp < stratagem.cp) return 'not enough command points'
+      const cost = command.cp ?? stratagem.cp
+      if (!Number.isInteger(cost) || cost < 0 || cost > STRATAGEM_CP_MAX) return 'that is not a possible cost'
+      if (player.cp < cost) return 'not enough command points'
       if (limitReached(player, stratagem, state)) return `${stratagem.name} has been used this ${stratagem.limit}`
       return null
     }
@@ -696,8 +699,9 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
     case 'use-stratagem': {
       const stratagem = player.stratagems.find((candidate) => candidate.key === command.key)
       if (!stratagem) return
-      player.cp -= stratagem.cp
-      player.cpSpent += stratagem.cp
+      const spent = command.cp ?? stratagem.cp
+      player.cp -= spent
+      player.cpSpent += spent
       player.cpByRound[state.round - 1] = player.cp
       player.uses.push({ key: stratagem.key, round: state.round, phase: state.phase, turn: state.activePlayerId })
       return
@@ -852,7 +856,7 @@ function resetPlayer(player: PlayerState) {
   player.secondaries = []
   player.secondaryDeck = null
   player.primaryCard = null
-  player.secondaryMode = 'fixed'
+  player.secondaryMode = 'tactical'
   player.scored = {}
   player.primaryByRound = Array(BATTLE_ROUNDS).fill(0)
   player.secondaryByRound = Array(BATTLE_ROUNDS).fill(0)
@@ -867,7 +871,7 @@ function resetPlayer(player: PlayerState) {
 }
 
 function applyPrep(player: PlayerState, prep: BattlePrep | null | undefined) {
-  const chosen = prep ?? { stratagems: [], secondaries: [], primary: null, secondaryMode: 'fixed' as const }
+  const chosen = prep ?? { stratagems: [], secondaries: [], primary: null, secondaryMode: 'tactical' as const }
   const deck = chosen.secondaryDeck?.map((secondary) => ({ ...secondary, name: secondary.name.trim() })) ?? null
   const unnamedSecondary =
     player.secondary - Object.values(player.scored).reduce((total, points) => total + points, 0) - player.corrections.secondary
@@ -1042,7 +1046,7 @@ function describe(
       return command.delta > 0 ? `${who} gains ${command.delta} CP` : `${who} spends ${Math.abs(command.delta)} CP`
     case 'use-stratagem': {
       const stratagem = player?.stratagems.find((candidate) => candidate.key === command.key)
-      return stratagem ? `${who} uses ${stratagem.name} for ${stratagem.cp} CP` : `${who} uses a stratagem`
+      return stratagem ? `${who} uses ${stratagem.name} for ${command.cp ?? stratagem.cp} CP` : `${who} uses a stratagem`
     }
     case 'score':
       return `${who} scores ${command.delta} ${command.category}`
