@@ -14,24 +14,26 @@ export function Invitation({ token, free }: { token: string; free: boolean }) {
     onSuccess: () => queryClient.invalidateQueries(),
   })
 
+  if (!me) {
+    return (
+      <SignInRequired
+        title={free ? 'You have been invited to a battle' : 'Sign in to open this battle'}
+        explanation={
+          free
+            ? 'Sign in to take the second seat. Your name on the scoreboard is the one on your account.'
+            : 'If you are one of the seated players, signing in will open the battle.'
+        }
+        next={`/b/${token}`}
+      />
+    )
+  }
+
   if (!free) {
     return (
       <main className="mx-auto w-full max-w-md px-4 py-12 text-center">
         <h1 className="text-2xl">This battle is full</h1>
         <p className="mt-2 text-sm text-dim">Two players are already in it.</p>
       </main>
-    )
-  }
-
-  // Signing in comes back here rather than to the front page, so the link still
-  // does what it said it would.
-  if (!me) {
-    return (
-      <SignInRequired
-        title="You have been invited to a battle"
-        explanation="Sign in to take the second seat. Your name on the scoreboard is the one on your account."
-        next={`/b/${token}`}
-      />
     )
   }
 

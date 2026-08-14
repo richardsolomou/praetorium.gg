@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { findEnhancementDescription, resolveDisposition } from './pricing'
+import { deploymentRules, findEnhancementDescription, resolveDisposition } from './pricing'
 import { descriptionKey } from './wahapedia'
 
 describe('force disposition', () => {
@@ -25,5 +25,18 @@ describe('enhancement descriptions', () => {
     expect(findEnhancementDescription(descriptions, [{ name: 'Cursed Legion' }], 'Mark of the Nekrosor')).toBe(
       'Each time this unit attacks, add 1 to the Hit roll.',
     )
+  })
+})
+
+describe('catalogue-backed deployment rules', () => {
+  it('derives every supported pre-battle option from ability names', () => {
+    expect(deploymentRules(['Deep Strike', 'Infiltrators', 'Scouts 6"'])).toEqual({
+      formationOptions: ['deep-strike'],
+      prebattleRules: ['infiltrators', 'scouts'],
+    })
+  })
+
+  it('does not invent deployment options without matching abilities', () => {
+    expect(deploymentRules(['Leader', 'Stealth'])).toEqual({ formationOptions: [], prebattleRules: [] })
   })
 })

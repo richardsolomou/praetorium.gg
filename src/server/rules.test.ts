@@ -177,6 +177,34 @@ describe('the mission', () => {
   it('is absent until both dispositions are known', () => {
     expect(missionFor(load(), 'disruption', null)).toBeNull()
   })
+
+  it('constrains a matchup to the selected mission pack', () => {
+    const root = path.join(directory, 'data', 'core')
+    write(path.join(root, 'missions.json'), [
+      { id: 'pack-a-mission', name: 'Pack A Mission', source: 'Pack A' },
+      { id: 'pack-b-mission', name: 'Pack B Mission', source: 'Pack B' },
+    ])
+    write(path.join(root, 'mission-matchups.json'), [
+      { disposition: 'disruption', opponent_disposition: 'take-and-hold', mission_id: 'pack-a-mission' },
+      { disposition: 'disruption', opponent_disposition: 'take-and-hold', mission_id: 'pack-b-mission' },
+    ])
+
+    expect(missionFor(load(), 'disruption', 'take-and-hold', 'pack-b')?.name).toBe('Pack B Mission')
+  })
+
+  it('does not fall through to another modern mission pack', () => {
+    const root = path.join(directory, 'data', 'core')
+    write(path.join(root, 'missions.json'), [{ id: 'pack-a-mission', name: 'Pack A Mission', source: 'Pack A' }])
+    write(path.join(root, 'mission-matchups.json'), [
+      { disposition: 'disruption', opponent_disposition: 'take-and-hold', mission_id: 'pack-a-mission' },
+    ])
+
+    expect(missionFor(load(), 'disruption', 'take-and-hold', 'pack-b')).toBeNull()
+  })
+
+  it('keeps the unqualified mission fallback for legacy battles', () => {
+    expect(missionFor(load(), 'disruption', 'take-and-hold', null)?.name).toBe('Death Trap')
+  })
 })
 
 describe('a deployment pattern', () => {
@@ -189,5 +217,42 @@ describe('a deployment pattern', () => {
 
   it('keeps the objective markers', () => {
     expect(load().deployments[0]?.objectives).toEqual([{ x: 30, y: 22 }])
+  })
+})
+
+describe('Battlemaster terrain geometry', () => {
+  it('accepts the current detail identity used by the public API', () => {
+    const id = 'terrain-01234567-89ab-cdef-0123-456789abcdef'
+    const root = path.join(directory, 'data', 'core')
+    write(path.join(root, 'terrain-layouts.json'), [
+      {
+        id: 'layout-a',
+        name: 'Layout A',
+        mission_matchup_id: 'disruption-vs-take-and-hold',
+        description: `Imported from Battlemaster layout ${id}.`,
+        pieces: [],
+      },
+    ])
+    const battlemaster = path.join(directory, 'battlemaster', 'layouts')
+    fs.mkdirSync(battlemaster, { recursive: true })
+    write(path.join(battlemaster, `${id}.json`), {
+      format: 'battlemaster.data.layout',
+      layout: { links: { page: `https://battlemaster.online/community/layout/owner/${id}` } },
+      terrain: [
+        {
+          name: 'Area AB',
+          footprint: { origin: { x: 0, y: 0 }, widthIn: 10, heightIn: 10, rotationDeg: 0 },
+          outline: { points: box(10, 10) },
+          parts: [],
+        },
+      ],
+    })
+
+    const rules = loadRules(directory, path.join(directory, 'wahapedia'), path.join(directory, 'battlemaster'))!
+
+    expect(rules.terrainLayouts[0]?.geometry?.areas[0]).toMatchObject({
+      id: 'area-1',
+      markers: [{ label: 'AB', position: { x: 35, y: 17 } }],
+    })
   })
 })

@@ -1,67 +1,34 @@
 import { expect, test, type Page } from '@playwright/test'
-import { signUp } from './account'
+import { createRoster, setupBattle, signUp, uniqueName } from './account'
 
-/**
- * The one thing the unit tests cannot prove: that a change made on one device
- * reaches the other without anybody touching it. Every assertion against the
- * page that did not act is the stream being tested, not the code compiling.
- */
 test('a battle stays in step across two devices', async ({ browser }) => {
   const alice = await (await browser.newContext()).newPage()
   const bob = await (await browser.newContext()).newPage()
+  const aliceName = uniqueName('Alice')
+  const bobName = uniqueName('Bob')
 
-  await signUp(alice, 'Alice')
+  await signUp(bob, bobName)
+  const bobRoster = await createRoster(bob, { faction: 'Death Guard', detachment: /Death Lord/, name: 'Death Guard' })
+  await signUp(alice, aliceName)
+  const aliceRoster = await createRoster(alice, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Necrons' })
+  await setupBattle(alice, bob, { opponent: bobName, hostRoster: aliceRoster, guestRoster: bobRoster })
 
-  await alice.goto('/')
-  await alice.getByRole('button', { name: 'Open a battle' }).click()
-
-  // The origin is only known once mounted, so the field starts empty: waiting for
-  // the value rather than reading straight away is what stops this reading nothing.
-  // It passed on localhost for months and lost the race on a slower CI runner.
-  const invite = alice.getByLabel('Send this link to your opponent')
-  await expect(invite).toHaveValue(/\/b\//)
-  const link = await invite.inputValue()
-
-  await signUp(bob, 'Bob')
-
-  await bob.goto(link)
-  await bob.getByRole('button', { name: 'Join the battle' }).click()
-
-  // Alice is not touched here: her page learns Bob arrived from the stream alone.
-  await expect(alice.getByRole('heading', { name: 'Alice versus Bob' })).toBeVisible()
-
-  await attach(alice, 'Ultramarines strike force', '10 Intercessors\n1 Captain')
-  await expect(bob.getByText('Alice has attached Ultramarines strike force.')).toBeVisible()
-
-  await attach(bob, 'Death Guard', '10 Plague Marines')
-  await alice.getByRole('button', { name: 'Alice goes first' }).click()
-
-  await expect(alice.getByRole('heading', { name: 'command phase' })).toBeVisible()
-  await expect(bob.getByRole('heading', { name: 'command phase' })).toBeVisible()
-
-  // The ownership rule, as the opponent's device sees it.
   await expect(bob.getByRole('button', { name: 'End the command phase' })).toBeDisabled()
-
   await alice.getByRole('button', { name: 'End the command phase' }).click()
   await expect(bob.getByRole('heading', { name: 'movement phase' })).toBeVisible()
-
-  // Alice gained a command point entering her own command phase, and Bob sees it.
-  await expect(panel(bob, 'Ultramarines strike force').locator('[data-stat="cp"]')).toHaveText('1')
+  await expect(panel(bob, 'Necrons').locator('[data-stat="cp"]')).toHaveText('1')
 
   await alice.getByRole('button', { name: 'Primary plus 5' }).click()
-  await expect(panel(bob, 'Ultramarines strike force').locator('[data-stat="primary"]')).toHaveText('5')
-
-  // Undo belongs to whoever acted, so it is not offered on the other device.
+  await expect(panel(bob, 'Necrons').locator('[data-stat="primary"]')).toHaveText('5')
   await expect(bob.getByRole('button', { name: 'Undo' })).toBeDisabled()
-
   await alice.getByRole('button', { name: 'Undo' }).click()
-  await expect(panel(bob, 'Ultramarines strike force').locator('[data-stat="primary"]')).toHaveText('0')
+  await expect(panel(bob, 'Necrons').locator('[data-stat="primary"]')).toHaveText('0')
 
   await alice.screenshot({ path: 'test-results/tracker-alice.png', fullPage: true })
   await bob.screenshot({ path: 'test-results/tracker-bob.png', fullPage: true })
   await alice.setViewportSize({ width: 390, height: 844 })
   const scoreboard = alice.getByRole('complementary', { name: 'Battle scoreboard' })
-  await expect(scoreboard).toContainText('Ultramarines strike force')
+  await expect(scoreboard).toContainText('Necrons')
   await expect(scoreboard).toContainText('Death Guard')
   await alice.screenshot({ path: 'test-results/tracker-phone.png', fullPage: true })
   const lists = alice.getByRole('button', { name: 'Lists' })
@@ -69,27 +36,16 @@ test('a battle stays in step across two devices', async ({ browser }) => {
   const [listsBox, scoreboardBox] = await Promise.all([lists.boundingBox(), scoreboard.boundingBox()])
   expect(listsBox && scoreboardBox && listsBox.y + listsBox.height <= scoreboardBox.y).toBe(true)
   await alice.getByRole('button', { name: 'events' }).click()
-  await expect(alice.getByText(/Alice ends the command phase/)).toBeVisible()
+  await expect(alice.getByText(new RegExp(`${aliceName} ends the command phase`))).toBeVisible()
   await alice.screenshot({ path: 'test-results/tracker-events.png', fullPage: true })
 
   await alice.getByRole('button', { name: 'info' }).click()
-  await alice.getByRole('button', { name: 'End battle' }).click()
-  await expect(alice.getByRole('alertdialog', { name: 'End this battle?' })).toBeVisible()
+  await alice.getByRole('button', { name: 'Finish early' }).click()
+  await expect(alice.getByRole('alertdialog', { name: 'Finish early?' })).toBeVisible()
   await alice.getByRole('button', { name: 'Keep playing' }).click()
   await expect(alice.getByRole('button', { name: /End the .+ phase/ })).toBeVisible()
 })
 
-/** One player's card, found by the army on it rather than by which side it is on. */
 function panel(page: Page, army: string) {
   return page.locator('section').filter({ hasText: army })
-}
-
-async function attach(page: Page, army: string, list: string) {
-  // This spec is about the stream, not list building, so it takes the paste path.
-  const paste = page.getByRole('button', { name: 'Paste a list' })
-  if (await paste.isVisible()) await paste.click()
-  await page.getByLabel('Your army').fill(army)
-  await page.getByLabel('Your list').fill(list)
-  await page.getByRole('button', { name: /my list/ }).click()
-  await page.getByRole('button', { name: /Step 4 Ready/ }).click()
 }

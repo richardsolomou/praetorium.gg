@@ -3,6 +3,7 @@ import { detachmentPointBudget, detachmentPointsError } from '../core/battle'
 import { evaluate, evaluateForces, type Selection } from '../core/evaluate'
 import { buildUnit, wargearOf } from '../core/roster'
 import { app } from './app'
+import { datasheetIn } from './catalogue'
 import { detachmentCatalogueDetail } from './catalogueDescriptions'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { groupOfEntry } from './cataloguePicker'
@@ -104,31 +105,47 @@ export function calculateRosterPrice(data: PriceInput) {
       ...(forceSelections.size > 1 ? ['allied-force eligibility is not present in the synced catalogue data'] : []),
     ],
     selections,
-    units: picked.map((unit) => ({
-      key: unit.key,
-      entryId: unit.entryId,
-      name: unit.name,
-      points: evaluate([unit.selection], loaded.index, options).points,
-      size: { min: unit.size.min, max: unit.size.max, models: unit.size.models, resizable: unit.size.max > unit.size.min },
-      choices: unit.choices.map((choice) =>
-        choice.name.toLowerCase().includes('enhancement')
-          ? {
-              ...choice,
-              options: choice.options.map((option) => ({
-                ...option,
-                description: findEnhancementDescription(enhancementDescriptions, chosen, option.name),
-              })),
-            }
-          : choice,
-      ),
-      toggles: unit.toggles,
-      enhancements: unit.choices
-        .filter((choice) => choice.name.toLowerCase().includes('enhancement'))
-        .flatMap((choice) => choice.options.filter((option) => option.count > 0).map((option) => option.name)),
-      wargear: wargearOf(unit.selection, loaded.index),
-      group: groupOfEntry(loaded.index, unit.entryId),
-      attachment: attachmentOf(loaded.index.definitions.get(unit.entryId) ?? { id: unit.entryId }, loaded.index),
-    })),
+    units: picked.map((unit) => {
+      const catalogueId = data.units[unit.key]?.catalogueId ?? loaded.index.catalogueOf.get(unit.entryId) ?? data.catalogueId
+      const deployment = deploymentRules(datasheetIn(loaded, catalogueId, unit.entryId)?.abilities.map((ability) => ability.name) ?? [])
+      return {
+        key: unit.key,
+        entryId: unit.entryId,
+        name: unit.name,
+        points: evaluate([unit.selection], loaded.index, options).points,
+        size: { min: unit.size.min, max: unit.size.max, models: unit.size.models, resizable: unit.size.max > unit.size.min },
+        ...deployment,
+        choices: unit.choices.map((choice) =>
+          choice.name.toLowerCase().includes('enhancement')
+            ? {
+                ...choice,
+                options: choice.options.map((option) => ({
+                  ...option,
+                  description: findEnhancementDescription(enhancementDescriptions, chosen, option.name),
+                })),
+              }
+            : choice,
+        ),
+        toggles: unit.toggles,
+        enhancements: unit.choices
+          .filter((choice) => choice.name.toLowerCase().includes('enhancement'))
+          .flatMap((choice) => choice.options.filter((option) => option.count > 0).map((option) => option.name)),
+        wargear: wargearOf(unit.selection, loaded.index),
+        group: groupOfEntry(loaded.index, unit.entryId),
+        attachment: attachmentOf(loaded.index.definitions.get(unit.entryId) ?? { id: unit.entryId }, loaded.index),
+      }
+    }),
+  }
+}
+
+export function deploymentRules(abilityNames: readonly string[]) {
+  const abilities = abilityNames.map((ability) => ability.toLocaleLowerCase())
+  return {
+    formationOptions: abilities.some((ability) => ability.includes('deep strike')) ? (['deep-strike'] as const) : [],
+    prebattleRules: [
+      ...(abilities.some((ability) => ability.includes('infiltrator')) ? (['infiltrators'] as const) : []),
+      ...(abilities.some((ability) => ability.startsWith('scouts')) ? (['scouts'] as const) : []),
+    ],
   }
 }
 

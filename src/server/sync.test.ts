@@ -9,6 +9,7 @@ import { isCurrent, syncSources } from './sync'
 
 let directory: string
 const hash = (value: string) => createHash('sha256').update(value).digest('hex')
+const battlemasterRevision = sources.battlemaster.revision
 
 beforeEach(() => {
   directory = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-sync-'))
@@ -24,8 +25,51 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  sources.battlemaster.revision = battlemasterRevision
   vi.unstubAllGlobals()
   fs.rmSync(directory, { recursive: true, force: true })
+})
+
+it('accepts the current Battlemaster detail identity', async () => {
+  const catalogKey = 'pinned catalog'
+  const id = 'terrain-01234567-89ab-cdef-0123-456789abcdef'
+  const owner = '01234567-89ab-cdef-0123-456789abcdef'
+  const updatedAt = '2026-08-12 20:32:30.796047+00'
+  sources.battlemaster.revision = hash(catalogKey)
+  vi.stubGlobal(
+    'fetch',
+    vi.fn<(url: string | URL) => Promise<Response>>(async (url) =>
+      String(url).includes('/v1.1/public/tts/layouts')
+        ? new Response(
+            JSON.stringify({
+              catalogKey,
+              layouts: [{ id, owner, ownerUsername: 'superwutz', name: 'Test layout', updatedAt, layoutKey: `${id}@${updatedAt}` }],
+            }),
+          )
+        : new Response(
+            JSON.stringify({
+              format: 'battlemaster.data.layout',
+              layout: {
+                name: 'Test layout',
+                owner: 'superwutz',
+                updatedAt,
+                layoutKey: '76fdff708ff2926a',
+                links: { page: `https://battlemaster.online/community/layout/${owner}/${id}` },
+              },
+              terrain: [],
+            }),
+          ),
+    ),
+  )
+
+  await syncSources(directory, () => {}, {
+    baseUrl: 'https://example.test',
+    revision: 'none',
+    files: {},
+    pages: {},
+  })
+
+  expect(fs.existsSync(path.join(directory, 'battlemaster', 'layouts', `${id}.json`))).toBe(true)
 })
 
 it('keeps the authoritative catalogue ready when optional descriptions change upstream', async () => {

@@ -4,6 +4,8 @@ import { closeDatabase, type PraetoriumDatabase, openDatabase } from '../db/conn
 import { Repository } from '../db/repository'
 import { user } from '../db/schema'
 import { PraetoriumService } from './service'
+import type { LoadedRules } from './rules'
+import { createBattleSchema } from './schemas'
 
 let database: PraetoriumDatabase
 let service: PraetoriumService
@@ -68,6 +70,25 @@ function view(token: string, playerId: string) {
 }
 
 describe('seats', () => {
+  it('preserves an opponent-only legacy creation request', () => {
+    const { token } = service.createBattle('alice', createBattleSchema.parse({ opponentId: 'bob' }))
+
+    expect(view(token, 'alice')).toMatchObject({ settings: { limit: null, solo: false }, players: [{ id: 'alice' }, { id: 'bob' }] })
+  })
+
+  it('creates a solo battle with one account and no joinable seat', () => {
+    const { token } = service.createBattle('alice', {
+      solo: true,
+      limit: 2000,
+      missionPackId: null,
+      clockLimitMinutes: 45,
+    })
+
+    expect(view(token, 'alice')).toMatchObject({ settings: { solo: true, clockLimitMinutes: 45 } })
+    expect(service.screen(token, 'bob')).toEqual({ kind: 'invitation', free: false })
+    expect(service.join(token, 'bob')).toBe('full')
+  })
+
   it('seats whoever opened the battle', () => {
     const { token } = service.createBattle('alice')
     expect(view(token, 'alice').players).toHaveLength(1)
@@ -101,8 +122,163 @@ describe('seats', () => {
   })
 })
 
+describe('battle deletion', () => {
+  it('lets the creator delete a battle', () => {
+    const { token } = service.createBattle('alice', 'bob')
+    service.deleteBattle(token, 'alice')
+    expect(refusalStatus(() => service.screen(token, 'alice'))).toBe(404)
+  })
+
+  it('does not let the opponent delete a battle', () => {
+    const { token } = service.createBattle('alice', 'bob')
+    expect(refusalStatus(() => service.deleteBattle(token, 'bob'))).toBe(403)
+  })
+})
+
+describe('battle setup references', () => {
+  const rules = (): LoadedRules =>
+    ({
+      missions: new Map([
+        [
+          'pack-a|reconnaissance|disruption',
+          {
+            id: 'mission-a',
+            name: 'Mission A',
+            roundCap: null,
+            gameCap: null,
+            source: 'Pack A',
+            packId: 'pack-a',
+            deploymentIds: ['valid-deployment'],
+          },
+        ],
+      ]),
+      deployments: [
+        { id: 'valid-deployment', name: 'Valid', description: null, zones: [], objectives: [] },
+        { id: 'other-deployment', name: 'Other', description: null, zones: [], objectives: [] },
+      ],
+      terrainLayouts: [
+        {
+          id: 'valid-terrain',
+          name: 'Valid terrain',
+          description: null,
+          matchupId: 'reconnaissance-vs-disruption',
+          variant: null,
+          deploymentId: 'valid-deployment',
+          pieces: [],
+          geometry: null,
+        },
+        {
+          id: 'wrong-terrain',
+          name: 'Wrong terrain',
+          description: null,
+          matchupId: 'reconnaissance-vs-disruption',
+          variant: null,
+          deploymentId: 'other-deployment',
+          pieces: [],
+          geometry: null,
+        },
+      ],
+    }) as unknown as LoadedRules
+
+  const configured = () => {
+    const { token } = service.createBattle('alice', {
+      opponentId: 'bob',
+      solo: false,
+      limit: 2000,
+      missionPackId: 'pack-a',
+      clockLimitMinutes: null,
+    })
+    let seq = 1
+    const attach = (by: string, name: string, disposition: string) => {
+      const result = service.submit(
+        token,
+        by,
+        seq,
+        {
+          kind: 'attach-roster',
+          roster: {
+            name,
+            text: name,
+            built: {
+              catalogueId: 'cat',
+              revision: 'rev',
+              limit: 2000,
+              detachment: null,
+              disposition,
+              selections: [],
+              units: [],
+            },
+          },
+        },
+        rules(),
+      ).result
+      if (result.outcome === 'appended') seq = result.seq
+    }
+    attach('alice', 'Alice army', 'reconnaissance')
+    attach('bob', 'Bob army', 'disruption')
+    return {
+      token,
+      send: (by: string, command: Parameters<PraetoriumService['submit']>[3]) => service.submit(token, by, seq, command, rules()).result,
+      setSeq: (next: number) => (seq = next),
+    }
+  }
+
+  it('refuses a deployment outside the selected pack matchup', () => {
+    const battle = configured()
+    const deployment = battle.send('alice', { kind: 'set-deployment', patternId: 'other-deployment' })
+    if (deployment.outcome === 'appended') battle.setSeq(deployment.seq)
+
+    expect(battle.send('alice', { kind: 'begin-battle', firstPlayerId: 'alice' })).toEqual({
+      outcome: 'refused',
+      reason: 'that deployment does not match the mission',
+    })
+  })
+
+  it('refuses terrain that belongs to another deployment', () => {
+    const battle = configured()
+    let result = battle.send('alice', { kind: 'set-deployment', patternId: 'valid-deployment' })
+    if (result.outcome === 'appended') battle.setSeq(result.seq)
+    result = battle.send('alice', {
+      kind: 'configure-battle',
+      limit: 2000,
+      missionPackId: 'pack-a',
+      terrainLayoutId: 'wrong-terrain',
+      twistId: null,
+      solo: false,
+      clockLimitMinutes: null,
+    })
+    if (result.outcome === 'appended') battle.setSeq(result.seq)
+
+    expect(battle.send('alice', { kind: 'begin-battle', firstPlayerId: 'alice' })).toEqual({
+      outcome: 'refused',
+      reason: 'that terrain layout does not match the deployment',
+    })
+  })
+
+  it('refuses a selected terrain layout without its exact geometry', () => {
+    const battle = configured()
+    let result = battle.send('alice', { kind: 'set-deployment', patternId: 'valid-deployment' })
+    if (result.outcome === 'appended') battle.setSeq(result.seq)
+    result = battle.send('alice', {
+      kind: 'configure-battle',
+      limit: 2000,
+      missionPackId: 'pack-a',
+      terrainLayoutId: 'valid-terrain',
+      twistId: null,
+      solo: false,
+      clockLimitMinutes: null,
+    })
+    if (result.outcome === 'appended') battle.setSeq(result.seq)
+
+    expect(battle.send('alice', { kind: 'begin-battle', firstPlayerId: 'alice' })).toEqual({
+      outcome: 'refused',
+      reason: 'exact terrain data is not available yet',
+    })
+  })
+})
+
 describe('saved rosters', () => {
-  it('keeps the selected disposition', () => {
+  const save = (visibility: 'private' | 'unlisted' = 'private') =>
     service.saveRoster('alice', {
       name: 'Recon force',
       catalogueId: 'necrons',
@@ -111,8 +287,73 @@ describe('saved rosters', () => {
       limit: 2000,
       picks: [],
       prep: null,
+      tags: ['League'],
+      visibility,
+      source: 'editable',
     })
-    expect(service.savedRosters('alice')[0]?.disposition).toBe('reconnaissance')
+
+  it('keeps roster metadata', () => {
+    save()
+    expect(service.savedRosters('alice')[0]).toMatchObject({
+      disposition: 'reconnaissance',
+      tags: ['League'],
+      visibility: 'private',
+      source: 'editable',
+    })
+  })
+
+  it('hides a private roster from another player', () => {
+    const { id } = save()
+    expect(service.sharedRoster(id, 'bob')).toBeNull()
+  })
+
+  it('shows a private roster to its owner', () => {
+    const { id } = save()
+    expect(service.sharedRoster(id, 'alice')?.name).toBe('Recon force')
+  })
+
+  it('shows an unlisted roster to a link holder', () => {
+    const { id } = save('unlisted')
+    expect(service.sharedRoster(id, null)?.name).toBe('Recon force')
+  })
+
+  it('can make a roster unlisted', () => {
+    const { id } = save()
+    service.setRosterVisibility('alice', id, 'unlisted')
+    expect(service.sharedRoster(id, null)?.name).toBe('Recon force')
+  })
+
+  it('revokes an unlisted link when the roster becomes private', () => {
+    const { id } = save('unlisted')
+    service.setRosterVisibility('alice', id, 'private')
+    expect(service.sharedRoster(id, null)).toBeNull()
+  })
+
+  it('does not let another player change roster access', () => {
+    const { id } = save()
+    expect(refusalStatus(() => service.setRosterVisibility('bob', id, 'unlisted'))).toBe(403)
+    expect(service.sharedRoster(id, null)).toBeNull()
+  })
+
+  it('does not let another player overwrite a roster', () => {
+    const { id } = save('unlisted')
+    expect(
+      refusalStatus(() =>
+        service.saveRoster('bob', {
+          id,
+          name: 'Stolen force',
+          catalogueId: 'necrons',
+          detachmentIds: [],
+          disposition: null,
+          limit: 2000,
+          picks: [],
+          prep: null,
+          tags: [],
+          visibility: 'private',
+          source: 'editable',
+        }),
+      ),
+    ).toBe(403)
   })
 })
 
@@ -212,6 +453,18 @@ describe('two players acting at once', () => {
     const { token, send, seq } = started()
     send('alice', { kind: 'advance' })
     expect(service.submit(token, 'bob', seq(), { kind: 'score', category: 'primary', delta: 5 }).result.outcome).toBe('appended')
+  })
+
+  it('requires an explicit retry for a stale roster attachment', () => {
+    const { token } = service.createBattle('alice', 'bob')
+    service.submit(token, 'alice', 0, { kind: 'attach-roster', roster: { name: 'Ultramarines', text: '10 Intercessors' } })
+    const stale = service.submit(token, 'bob', 0, { kind: 'attach-roster', roster: { name: 'Death Guard', text: '10 Plague Marines' } })
+
+    expect(stale.result).toEqual({ outcome: 'stale', seq: 1 })
+    expect(view(token, 'bob').players.find((player) => player.id === 'bob')?.roster).toBeNull()
+    expect(
+      service.submit(token, 'bob', 1, { kind: 'attach-roster', roster: { name: 'Death Guard', text: '10 Plague Marines' } }).result,
+    ).toEqual({ outcome: 'appended', seq: 2 })
   })
 })
 

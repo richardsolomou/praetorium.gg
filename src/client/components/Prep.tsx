@@ -24,11 +24,27 @@ export function Prep({ view, send, pending }: Props) {
   const { data: rules } = useQuery(detachmentRulesQuery(built?.catalogueId ?? '', detachmentNames))
 
   const [stratagems, setStratagems] = useState<Stratagem[]>(
-    () => you?.stratagems.map(({ key, name, cp, limit }) => ({ key, name, cp, limit })) ?? [],
+    () => you?.stratagems.map(({ key, name, cp, limit, phases, turn }) => ({ key, name, cp, limit, phases, turn })) ?? [],
   )
   const [secondaries, setSecondaries] = useState<Secondary[]>(() => you?.secondaries.map(({ key, name }) => ({ key, name })) ?? [])
   const [primary, setPrimary] = useState<Secondary | null>(() => you?.primaryCard ?? null)
   const [mode, setMode] = useState<SecondaryMode>(() => you?.secondaryMode ?? 'fixed')
+  const prepIdentity = JSON.stringify({
+    roster: you?.roster ?? null,
+    stratagems: you?.stratagems.map(({ key, name, cp, limit, phases, turn }) => ({ key, name, cp, limit, phases, turn })) ?? [],
+    secondaries: you?.secondaries.map(({ key, name }) => ({ key, name })) ?? [],
+    primary: you?.primaryCard ?? null,
+    mode: you?.secondaryMode ?? 'fixed',
+  })
+
+  useEffect(() => {
+    setStratagems(you?.stratagems.map(({ key, name, cp, limit, phases, turn }) => ({ key, name, cp, limit, phases, turn })) ?? [])
+    setSecondaries(you?.secondaries.map(({ key, name }) => ({ key, name })) ?? [])
+    setPrimary(you?.primaryCard ?? null)
+    setMode(you?.secondaryMode ?? 'fixed')
+    // Only the roster or authoritative prep changes this key; scoring and presence leave an unsaved draft alone.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prepIdentity])
 
   // A detachment's own stratagems are the answer often enough to be the default;
   // nothing is overwritten once the player has a set of their own.
@@ -89,7 +105,7 @@ export function Prep({ view, send, pending }: Props) {
       </section>
 
       <Pills
-        label="Secondaries"
+        label={mode === 'tactical' ? 'Starting secondaries' : 'Secondaries'}
         entries={rules.secondaries.map((card) => ({ key: card.key, name: card.name }))}
         taken={secondaries.map((secondary) => secondary.key)}
         onToggle={(key) => {
@@ -98,13 +114,28 @@ export function Prep({ view, send, pending }: Props) {
         }}
       />
 
+      {mode === 'tactical' && rules.secondaries.length >= 2 ? (
+        <Button variant="outline" size="sm" disabled={pending} onClick={() => setSecondaries(randomSubset(rules.secondaries, 2))}>
+          Draw 2 at random
+        </Button>
+      ) : null}
+
       <div className="flex flex-wrap items-center gap-3">
         {/* One act, one command: two would make the second stale against the first. */}
         <Button
           variant="secondary"
           size="sm"
           disabled={pending}
-          onClick={() => send({ kind: 'set-prep', stratagems, secondaries, primary, secondaryMode: mode })}
+          onClick={() =>
+            send({
+              kind: 'set-prep',
+              stratagems,
+              secondaries,
+              secondaryDeck: mode === 'tactical' ? rules.secondaries.map(({ key, name }) => ({ key, name })) : undefined,
+              primary,
+              secondaryMode: mode,
+            })
+          }
         >
           Save these
         </Button>
@@ -115,6 +146,18 @@ export function Prep({ view, send, pending }: Props) {
       </div>
     </div>
   )
+}
+
+function randomSubset<T>(entries: readonly T[], count: number): T[] {
+  const remaining = [...entries]
+  const picked: T[] = []
+  while (picked.length < count && remaining.length) {
+    const value = new Uint32Array(1)
+    crypto.getRandomValues(value)
+    const index = (value[0] ?? 0) % remaining.length
+    picked.push(...remaining.splice(index, 1))
+  }
+  return picked
 }
 
 /** In or out, up to a limit. */

@@ -180,6 +180,16 @@ export const rosters = sqliteTable(
     picks: text('picks').notNull(),
     /** The player's own stratagems and secondaries as JSON, so they are typed once. */
     prep: text('prep'),
+    /** Short player-authored labels as a JSON array. */
+    tags: text('tags').notNull().default('[]'),
+    /** Private rosters are owner-only; unlisted rosters resolve through their opaque id. */
+    visibility: text('visibility', { enum: ['private', 'unlisted'] })
+      .notNull()
+      .default('unlisted'),
+    /** How the list first entered Praetorium, retained through later edits. */
+    source: text('source', { enum: ['legacy', 'editable', 'battlebase', 'roster-file'] })
+      .notNull()
+      .default('legacy'),
     updatedAt: integer('updated_at').notNull(),
   },
   (table) => [index('rosters_player_id_index').on(table.playerId)],

@@ -93,8 +93,23 @@ type BattlemasterCatalog = {
   layouts: {
     id: string
     owner: string
+    ownerUsername?: string
+    name?: string
+    updatedAt?: string
     layoutKey: string
   }[]
+}
+
+type BattlemasterDetail = {
+  format?: string
+  layout?: {
+    id?: string
+    layoutKey?: string
+    name?: string
+    owner?: string
+    updatedAt?: string
+    links?: { page?: string }
+  }
 }
 
 const MAX_BATTLEMASTER_FILE_BYTES = 5 * 1024 * 1024
@@ -145,13 +160,35 @@ async function fetchBattlemasterInto(source: BattlemasterSource, target: string)
     if (bytes.length > MAX_BATTLEMASTER_FILE_BYTES) throw new Error(`${entry.id} exceeds ${MAX_BATTLEMASTER_FILE_BYTES} bytes`)
     total += bytes.length
     if (total > MAX_BATTLEMASTER_TOTAL_BYTES) throw new Error(`layouts exceed ${MAX_BATTLEMASTER_TOTAL_BYTES} bytes`)
-    const detail = JSON.parse(new TextDecoder().decode(bytes)) as { layout?: { id?: string; layoutKey?: string } }
-    if (detail.layout?.id !== entry.id || detail.layout.layoutKey !== entry.layoutKey) throw new Error(`${entry.id} changed during sync`)
+    const detail = JSON.parse(new TextDecoder().decode(bytes)) as BattlemasterDetail
+    if (!battlemasterDetailMatches(entry, detail, source.baseUrl)) throw new Error(`${entry.id} changed during sync`)
     fs.writeFileSync(path.join(staging, 'layouts', `${entry.id}.json`), bytes)
   }
 
   fs.rmSync(target, { recursive: true, force: true })
   fs.renameSync(staging, target)
+}
+
+function battlemasterDetailMatches(entry: BattlemasterCatalog['layouts'][number], detail: BattlemasterDetail, baseUrl: string) {
+  if (detail.layout?.id === entry.id && detail.layout.layoutKey === entry.layoutKey) return true
+  if (
+    detail.format !== 'battlemaster.data.layout' ||
+    !entry.name ||
+    !entry.ownerUsername ||
+    !entry.updatedAt ||
+    detail.layout?.name !== entry.name ||
+    detail.layout.owner !== entry.ownerUsername ||
+    detail.layout.updatedAt !== entry.updatedAt ||
+    !detail.layout.links?.page
+  ) {
+    return false
+  }
+  try {
+    const page = new URL(detail.layout.links.page)
+    return page.origin === new URL(baseUrl).origin && page.pathname === `/community/layout/${entry.owner}/${entry.id}`
+  } catch {
+    return false
+  }
 }
 
 async function syncWahapedia(directory: string, report: (message: string) => void, source: WahapediaSource) {

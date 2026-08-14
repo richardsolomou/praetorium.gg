@@ -54,6 +54,9 @@ export function CreateRoster({ factions }: { factions: Faction[] }) {
           limit,
           picks: [],
           prep: null,
+          tags: [],
+          visibility: 'private',
+          source: 'editable',
         },
       }),
     onSuccess: async ({ id }) => {

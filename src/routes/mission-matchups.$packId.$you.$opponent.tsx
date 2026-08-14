@@ -160,12 +160,13 @@ function TerrainLayout({
   )
 }
 
-function TerrainBoard({
+export function TerrainBoard({
   layout,
   deployment,
   templates,
   className,
   detailed = false,
+  ariaLabel,
 }: {
   layout: { name: string; pieces: TerrainPiece[]; geometry: TerrainGeometry | null }
   templates: TerrainTemplate[]
@@ -175,14 +176,15 @@ function TerrainBoard({
   }
   className?: string
   detailed?: boolean
+  ariaLabel?: string
 }) {
   const patternId = useId().replaceAll(':', '')
   const flipped = deploymentNeedsFlip(deployment?.zones ?? [])
   const hasObjectiveTerrain = layout.geometry?.areas.some((area) => area.markers?.length) ?? false
 
   return (
-    <svg viewBox="0 0 44 60" className={`border border-edge bg-sunken ${className ?? ''}`} aria-label={layout.name}>
-      <title>{layout.name}</title>
+    <svg viewBox="0 0 44 60" className={`border border-edge bg-sunken ${className ?? ''}`} aria-label={ariaLabel ?? layout.name}>
+      <title>{ariaLabel ?? layout.name}</title>
       <defs>
         <pattern id={`${patternId}-minor`} width="1" height="1" patternUnits="userSpaceOnUse">
           <path d="M 1 0 L 0 0 0 1" fill="none" className="stroke-bone/10" strokeWidth=".08" />
@@ -260,7 +262,7 @@ function TerrainBoard({
   )
 }
 
-type TerrainPiece = {
+export type TerrainPiece = {
   id: string
   name: string
   type: string
@@ -271,7 +273,7 @@ type TerrainPiece = {
   parentAreaId: string | null
 }
 
-type TerrainGeometry = {
+export type TerrainGeometry = {
   areas: {
     id: string
     name: string
@@ -336,7 +338,7 @@ function ExactTerrainGeometry({
               <text textAnchor="middle" dominantBaseline="middle" className="fill-bone" fontSize=".62" fontWeight="700">
                 {marker.label}
               </text>
-              <title>{marker.label} terrain</title>
+              <title>{`${marker.label} terrain`}</title>
             </g>
           ))
         : null}
@@ -649,7 +651,7 @@ function formatInches(value: number) {
   return `${Number.isInteger(rounded) ? rounded : rounded.toFixed(2).replace(/0$/, '')}″`
 }
 
-type TerrainTemplate = {
+export type TerrainTemplate = {
   id: string
   name: string
   kind: string

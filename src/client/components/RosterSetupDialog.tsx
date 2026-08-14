@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { detachmentPointsError, detachmentPointBudget, GAME_SIZES, ROSTER_NAME_MAX_LENGTH } from '../../core/battle'
+import { ROSTER_TAG_MAX_LENGTH, ROSTER_TAGS_MAX, type RosterVisibility } from '../../core/savedRoster'
 import { DetachmentReference } from './DetachmentReference'
 import { SearchableSelect } from './SearchableSelect'
 import { shelve, shortName } from './builder/factions'
@@ -27,6 +28,8 @@ export type RosterSetup = {
   detachmentIds: string[]
   disposition: string | null
   limit: number
+  tags: string[]
+  visibility: RosterVisibility
 }
 
 type Props = {
@@ -42,6 +45,7 @@ type Props = {
 
 export function RosterSetupDialog({ open, onOpenChange, factions, value, onDraftChange, hasUnits, onSave, pending = false }: Props) {
   const [draft, setDraft] = useState(value)
+  const [tagText, setTagText] = useState(value.tags.join(', '))
   const [reference, setReference] = useState<{ catalogueId: string; slug: string; name: string } | null>(null)
 
   const changeDraft = (next: RosterSetup) => {
@@ -72,6 +76,21 @@ export function RosterSetupDialog({ open, onOpenChange, factions, value, onDraft
     label: shelf.lineage,
     items: shelf.factions.map((entry) => ({ label: shortName(entry.name), value: entry.id })),
   }))
+  const tags = [
+    ...new Map(
+      tagText
+        .split(',')
+        .map((tag) => tag.trim())
+        .filter(Boolean)
+        .map((tag) => [tag.toLocaleLowerCase(), tag]),
+    ).values(),
+  ]
+  const tagsError =
+    tags.length > ROSTER_TAGS_MAX
+      ? `Use no more than ${ROSTER_TAGS_MAX} tags.`
+      : tags.find((tag) => tag.length > ROSTER_TAG_MAX_LENGTH)
+        ? `Keep each tag to ${ROSTER_TAG_MAX_LENGTH} characters.`
+        : null
 
   const toggleDetachment = (id: string) => {
     const ids = draft.detachmentIds.includes(id)
@@ -232,6 +251,42 @@ export function RosterSetupDialog({ open, onOpenChange, factions, value, onDraft
               />
             </div>
 
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <Label className="rubric block" htmlFor="setup-tags">
+                  Tags
+                </Label>
+                <Input
+                  id="setup-tags"
+                  value={tagText}
+                  onChange={(event) => setTagText(event.target.value)}
+                  placeholder="Tournament, painted"
+                  aria-describedby="setup-tags-help"
+                  className="mt-2 h-11 rounded-none border-edge bg-sunken"
+                />
+                <p id="setup-tags-help" className={`mt-1 text-xs ${tagsError ? 'text-destructive' : 'text-faint'}`}>
+                  {tagsError ?? `Separate up to ${ROSTER_TAGS_MAX} tags with commas.`}
+                </p>
+              </div>
+              <div>
+                <Label className="rubric block" htmlFor="setup-visibility">
+                  Access
+                </Label>
+                <Select
+                  value={draft.visibility}
+                  onValueChange={(visibility: RosterVisibility | null) => changeDraft({ ...draft, visibility: visibility ?? 'private' })}
+                >
+                  <SelectTrigger id="setup-visibility" className="mt-2 h-11 w-full rounded-none border-edge bg-sunken">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="private">Private — only you</SelectItem>
+                    <SelectItem value="unlisted">Unlisted — anyone with the link</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
             {hasUnits && (factionChanged || detachmentsChanged) ? (
               <p className="border border-discarded/60 bg-discarded/10 p-3 text-sm text-discarded">
                 {factionChanged
@@ -253,9 +308,10 @@ export function RosterSetupDialog({ open, onOpenChange, factions, value, onDraft
                 !draft.catalogueId ||
                 !draft.detachmentIds.length ||
                 (dispositions.length > 1 && !selectedDisposition) ||
-                Boolean(pointsError)
+                Boolean(pointsError) ||
+                Boolean(tagsError)
               }
-              onClick={() => onSave({ ...draft, name: draft.name.trim(), disposition: selectedDisposition })}
+              onClick={() => onSave({ ...draft, name: draft.name.trim(), disposition: selectedDisposition, tags })}
             >
               Save changes
             </Button>

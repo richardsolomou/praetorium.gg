@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { SignInRequired } from '../client/components/SignInRequired'
-import { battlesQuery, meQuery, opponentsQuery } from '../client/queries'
+import { battlesQuery, gameReferencesQuery, meQuery, opponentsQuery } from '../client/queries'
 import { errorMessage } from '../client/queryClient'
 import { createBattle } from '../server/functions'
 
@@ -18,6 +18,7 @@ export const Route = createFileRoute('/battles')({
       context.queryClient.ensureQueryData(meQuery()),
       context.queryClient.ensureQueryData(battlesQuery()),
       context.queryClient.ensureQueryData(opponentsQuery()),
+      context.queryClient.ensureQueryData(gameReferencesQuery()),
     ]),
   component: Battles,
 })
@@ -51,12 +52,26 @@ function Battles() {
 
 function CreateBattle() {
   const { data: opponents = [] } = useQuery(opponentsQuery())
+  const { data: references } = useQuery(gameReferencesQuery())
   const [open, setOpen] = useState(false)
   const [opponentId, setOpponentId] = useState<string | null>(null)
+  const [solo, setSolo] = useState(false)
+  const [limit, setLimit] = useState(2000)
+  const [missionPackId, setMissionPackId] = useState<string | null>(references?.packs[0]?.id ?? null)
+  const [clockLimitMinutes, setClockLimitMinutes] = useState<number | null>(null)
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const create = useMutation({
-    mutationFn: () => createBattle({ data: { opponentId: opponentId! } }),
+    mutationFn: () =>
+      createBattle({
+        data: {
+          ...(opponentId && !solo ? { opponentId } : {}),
+          solo,
+          limit,
+          missionPackId,
+          clockLimitMinutes,
+        },
+      }),
     onSuccess: async ({ token }) => {
       setOpen(false)
       await queryClient.invalidateQueries({ queryKey: battlesQuery().queryKey })
@@ -69,10 +84,18 @@ function CreateBattle() {
       <DialogTrigger render={<Button />}>New battle</DialogTrigger>
       <DialogContent className="rounded-none border-edge bg-panel sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-xl uppercase">Choose your opponent</DialogTitle>
-          <DialogDescription>The battle appears for both players immediately.</DialogDescription>
+          <DialogTitle className="text-xl uppercase">Start a battle</DialogTitle>
+          <DialogDescription>Choose a shared battle or a private solo practice game.</DialogDescription>
         </DialogHeader>
-        {opponents.length ? (
+        <div className="grid grid-cols-2 gap-2">
+          <Button variant={!solo ? 'default' : 'outline'} onClick={() => setSolo(false)}>
+            Real battle
+          </Button>
+          <Button variant={solo ? 'default' : 'outline'} onClick={() => setSolo(true)}>
+            Solo practice
+          </Button>
+        </div>
+        {!solo && opponents.length ? (
           <div>
             <Label htmlFor="battle-opponent" className="eyebrow">
               Opponent
@@ -92,15 +115,57 @@ function CreateBattle() {
               </SelectContent>
             </Select>
           </div>
-        ) : (
+        ) : !solo ? (
           <p className="border border-edge bg-sunken p-3 text-sm text-dim">No other players have an account on this instance yet.</p>
-        )}
+        ) : null}
+        <div>
+          <Label className="eyebrow">Battle size</Label>
+          <div className="mt-1 flex gap-1">
+            {[1000, 2000, 3000].map((points) => (
+              <Button key={points} variant={limit === points ? 'default' : 'outline'} size="sm" onClick={() => setLimit(points)}>
+                {points}
+              </Button>
+            ))}
+          </div>
+        </div>
+        {references?.packs.length ? (
+          <div>
+            <Label className="eyebrow">Mission pack</Label>
+            <div className="mt-1 flex flex-wrap gap-1">
+              {references.packs.map((pack) => (
+                <Button
+                  key={pack.id}
+                  variant={missionPackId === pack.id ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setMissionPackId(pack.id)}
+                >
+                  {pack.name}
+                </Button>
+              ))}
+            </div>
+          </div>
+        ) : null}
+        <div>
+          <Label className="eyebrow">Player clock</Label>
+          <div className="mt-1 flex flex-wrap gap-1">
+            {[null, 30, 45, 60, 90].map((minutes) => (
+              <Button
+                key={minutes ?? 'off'}
+                variant={clockLimitMinutes === minutes ? 'default' : 'outline'}
+                size="xs"
+                onClick={() => setClockLimitMinutes(minutes)}
+              >
+                {minutes ? `${minutes}m` : 'Off'}
+              </Button>
+            ))}
+          </div>
+        </div>
         {create.error ? <p className="text-sm text-destructive">{errorMessage(create.error)}</p> : null}
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)}>
             Cancel
           </Button>
-          <Button disabled={!opponentId || create.isPending} onClick={() => create.mutate()}>
+          <Button disabled={(!solo && !opponentId) || create.isPending} onClick={() => create.mutate()}>
             {create.isPending ? 'Creating…' : 'Create battle'}
           </Button>
         </DialogFooter>
@@ -125,15 +190,35 @@ function BattleShelf({ title, battles }: { title: string; battles: Battle[] }) {
             params={{ token: battle.token }}
             className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 border border-edge bg-panel p-3 hover:border-edge-strong"
           >
-            <BattleSide player={battle.players[0]} army={battle.armies[0]} score={battle.scores[0]} side="a" />
+            <BattleSide
+              player={battle.players[0]}
+              army={battle.armies[0]}
+              detachments={battle.detachments[0]}
+              score={battle.scores[0]}
+              side="a"
+            />
             <span className="text-center">
               <span className="eyebrow block">{battle.status === 'playing' ? `Round ${battle.round}` : battle.status}</span>
               <span className="block text-xs text-dim">
                 {battle.status === 'playing' ? `${battle.phase} phase · ` : ''}
                 {new Date(battle.lastActivity).toLocaleDateString()}
               </span>
+              <span className="mt-1 block text-[0.625rem] text-faint">
+                {battle.settings.limit ? `${battle.settings.limit} pts` : 'Legacy format'}
+                {battle.mission ? ` · ${battle.mission.name}` : ''}
+                {battle.deploymentId ? ` · ${battle.deploymentId.replaceAll('-', ' ')}` : ''}
+                {battle.result?.reason ? ` · ${battle.result.reason.replaceAll('-', ' ')}` : ''}
+              </span>
             </span>
-            <BattleSide player={battle.players[1]} army={battle.armies[1]} score={battle.scores[1]} side="b" />
+            <BattleSide
+              player={battle.players[1]}
+              army={battle.armies[1]}
+              detachments={battle.detachments[1]}
+              score={battle.scores[1]}
+              side="b"
+              emptyLabel={battle.settings.solo ? 'Solo practice' : 'Open seat'}
+              emptyArmy={battle.settings.solo ? 'Private battle' : 'Waiting for an opponent'}
+            />
           </Link>
         ))}
       </div>
@@ -141,13 +226,30 @@ function BattleShelf({ title, battles }: { title: string; battles: Battle[] }) {
   )
 }
 
-function BattleSide({ player, army, score, side }: { player?: string; army?: string | null; score?: number; side: 'a' | 'b' }) {
+function BattleSide({
+  player,
+  army,
+  detachments,
+  score,
+  side,
+  emptyLabel = 'Open seat',
+  emptyArmy = 'Waiting for an opponent',
+}: {
+  player?: string
+  army?: string | null
+  detachments?: string[]
+  score?: number
+  side: 'a' | 'b'
+  emptyLabel?: string
+  emptyArmy?: string
+}) {
   const waiting = !player
   return (
     <span className={`min-w-0 ${side === 'b' ? 'text-right' : ''}`}>
       <span className={`readout block text-2xl ${side === 'a' ? 'text-side-a' : 'text-side-b'}`}>{score ?? 0}</span>
-      <span className="block truncate font-bold uppercase">{player ?? 'Open seat'}</span>
-      <span className="block truncate text-xs text-dim">{army ?? (waiting ? 'Waiting for an opponent' : 'List not attached')}</span>
+      <span className="block truncate font-bold uppercase">{player ?? emptyLabel}</span>
+      <span className="block truncate text-xs text-dim">{army ?? (waiting ? emptyArmy : 'List not attached')}</span>
+      {detachments?.length ? <span className="block truncate text-[0.625rem] text-faint">{detachments.join(' · ')}</span> : null}
     </span>
   )
 }

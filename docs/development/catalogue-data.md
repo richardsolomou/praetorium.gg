@@ -10,6 +10,7 @@ Praetorium builds and validates rosters from fetched community data. The domain 
 - Repository sources extract only their configured subpath. Archive size, output size, paths, and non-empty contents are checked before replacement.
 - Each download uses a staging directory. It replaces the current source only after the download finishes and its revision or hashes match.
 - Optional description exports still refresh when the authoritative sources are current. Live faction pages are best-effort additions and do not make the verified exports unavailable.
+- Battlemaster supplies the exact terrain footprints, labels, and setup measurements. A layout without its pinned geometry remains visible as unavailable, cannot be selected, and cannot start a battle.
 - `just catalogue-sync` calls the same sync code as the server.
 - The server loads the catalogue on first use. An instance without catalogue data can still serve battles and pasted rosters.
 
@@ -81,6 +82,8 @@ Inspect the generated selection before changing evaluator logic. A mismatch can 
 ## Saved lists and interchange
 
 - Save `RosterPick` values instead of expanded selections. Rebuild them against the current catalogue when pricing a saved list.
+- New saved lists are private. Making one unlisted lets anyone holding its opaque URL read it; switching it back to private invalidates that public access without changing the URL. Existing lists remain unlisted across the access-control migration so previously shared links keep working.
+- Tags are player-authored metadata, not game data. Keep import provenance with the saved list so the library can distinguish an editable Praetorium roster, a BattleBase text import, and a `.ros` or `.rosz` file import.
 - Freeze `built.units` when a roster is attached. Battle commands refer to those stable unit keys.
 - Import roster entries by catalogue ID. Resolve joined link paths from their final ID. Use a name match only as a fallback.
 - Report entries that cannot be imported instead of dropping them.

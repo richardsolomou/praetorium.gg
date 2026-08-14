@@ -28,23 +28,25 @@ Keep screenshots that contain roster or battle data outside version control.
 
 ## Current coverage
 
-| Area              | Coverage                                                                                                 |
-| ----------------- | -------------------------------------------------------------------------------------------------------- |
-| Accounts          | Email and password work without provider configuration. Google and Discord are optional.                 |
-| Battles           | Two seats, server-side legality, stale-client rejection, undo, presence, and live updates.               |
-| Turn tracker      | Five rounds, six phases, command points, victory points, stratagems, and battle completion.              |
-| Rosters           | Build, import, save, copy, rename, share, print, export, and attach.                                     |
-| Catalogue         | Factions, detachments, units, model counts, loadouts, enhancements, attachments, and points limits.      |
-| Validation        | Constraints, modifiers, conditions, categories, force scope, attachments, and catalogue-sensitive costs. |
-| Missions          | Force dispositions, deployment zones, objectives, mission cards, and scoring awards.                     |
-| Battle review     | Per-round scoring, command points, turn duration, stratagems, unit outcomes, and event history.          |
-| Responsive design | Three desktop panes and one mobile roster with movable picker and loadout sheets.                        |
+| Area              | Coverage                                                                                                                                 |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| Accounts          | Email and password work without provider configuration. Google and Discord are optional.                                                 |
+| Battles           | Shared or solo setup drafts, server-side legality, clocks, corrections, concessions, reopening, presence, and live updates.              |
+| Turn tracker      | Five rounds, six phases, command points, victory points, painted bonuses, tactical decks, stratagems, formations, and battle completion. |
+| Rosters           | Build, import, save, tag, copy, rename, private or unlisted share, print, export, and attach.                                            |
+| Catalogue         | Factions, detachments, units, model counts, loadouts, enhancements, attachments, and points limits.                                      |
+| Validation        | Constraints, modifiers, conditions, categories, force scope, attachments, and catalogue-sensitive costs.                                 |
+| Missions          | Force dispositions, deployment zones, objectives, mission cards, and scoring awards.                                                     |
+| Battle review     | Per-round scoring, command points, clocks, result reasons, stratagems, unit outcomes, timestamped events, and corrections.               |
+| Responsive design | Three desktop panes and one mobile roster with movable picker and loadout sheets.                                                        |
 
 ## Known data limits
 
 `just points` currently matches 99.6% of 1,863 reference checks. Keep new mismatches out of the baseline.
 
 The fetched sources do not provide every mission-pack restriction or every prose replacement rule as structured data. Praetorium reports missing semantics instead of reconstructing them from memory.
+
+The current sources do not provide structured twist decks or enough transport relationships to automate embarking. Battle photos also require durable object storage that Praetorium does not currently operate. Those features stay absent rather than becoming local-only or guessed state.
 
 ## Verification
 

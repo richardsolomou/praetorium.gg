@@ -21,6 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import type { Roster, Secondary, Stratagem } from '../../core/battle'
 import { GAME_SIZES, ROSTER_NAME_MAX_LENGTH } from '../../core/battle'
 import type { RosterPick } from '../../core/roster'
+import type { RosterSource, RosterVisibility } from '../../core/savedRoster'
 import { deleteRoster, exportRoster, saveRoster } from '../../server/functions'
 import { collectionQuery, factionsQuery, priceQuery, savedRostersQuery } from '../queries'
 import { useCollectionMutation } from '../useCollection'
@@ -51,6 +52,9 @@ type Props = {
     disposition: string | null
     limit: number
     picks: Omit<Pick, 'key'>[]
+    tags: string[]
+    visibility: RosterVisibility
+    source: RosterSource
   }
 }
 
@@ -79,6 +83,9 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
   const [detachmentIds, setDetachmentIds] = useState<string[]>(initial?.detachmentIds ?? [])
   const [disposition, setDisposition] = useState<string | null>(initial?.disposition ?? null)
   const [name, setName] = useState(initial?.name ?? '')
+  const [tags, setTags] = useState(initial?.tags ?? [])
+  const [visibility, setVisibility] = useState<RosterVisibility>(initial?.visibility ?? 'private')
+  const [source, setSource] = useState<RosterSource>(initial?.source ?? 'editable')
   const [selected, setSelected] = useState<number | null>(null)
   const [preview, setPreview] = useState<{ catalogueId: string; entryId: string } | null>(null)
   const [showing, setShowing] = useState<'picker' | 'loadout' | 'datasheet' | null>(null)
@@ -109,6 +116,9 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
     setDetachmentIds(list.detachmentIds)
     setDisposition(list.disposition)
     setLimit(list.limit)
+    setTags(list.tags)
+    setVisibility(list.visibility)
+    setSource(list.source)
     setPicked(list.picks.map((pick, at) => ({ ...pick, key: at })))
     setNextKey(list.picks.length)
     setSelected(null)
@@ -146,6 +156,9 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
             attachedTo: attachedTo === undefined ? undefined : picked.findIndex((pick) => pick.key === attachedTo),
           })),
           prep,
+          tags,
+          visibility,
+          source,
         },
       }),
     onSuccess: ({ id }) => {
@@ -162,7 +175,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
     // The mutation reads the complete rendered draft. A later render queues behind
     // this one, so the final request always contains the newest state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [catalogueId, detachmentIds, disposition, limit, listName, picked, prep, savedId])
+  }, [catalogueId, detachmentIds, disposition, limit, listName, picked, prep, savedId, source, tags, visibility])
 
   /** Hands the list to another tool, in the format every one of them reads. */
   const take = useMutation({
@@ -304,9 +317,9 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
   }
 
   const duplicate = (index: number) => {
-    const source = picked[index]
-    if (!source) return
-    setPicked((current) => [...current.slice(0, index + 1), { ...source, key: nextKey }, ...current.slice(index + 1)])
+    const pickedSource = picked[index]
+    if (!pickedSource) return
+    setPicked((current) => [...current.slice(0, index + 1), { ...pickedSource, key: nextKey }, ...current.slice(index + 1)])
     setNextKey((current) => current + 1)
   }
 
@@ -401,34 +414,32 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
 
   const picker = faction ? (
     <div className="flex h-full flex-col">
-      {initial ? null : (
-        <div className="border-b border-edge p-2.5">
-          <Label className="eyebrow block" htmlFor="force">
-            Force
-          </Label>
-          <SearchableSelect
-            id="force"
-            groups={factionGroups.map((group) => ({
-              ...group,
-              items: group.items.map((entry) => ({
-                ...entry,
-                label: `${entry.label}${entry.value === catalogueId ? ' (primary)' : ''}`,
-              })),
-            }))}
-            value={pickerCatalogueId || catalogueId}
-            onValueChange={setPickerCatalogueId}
-            placeholder="Pick a force"
-            searchPlaceholder="Search forces…"
-            className="mt-1"
-          />
-        </div>
-      )}
+      <div className="border-b border-edge p-2.5">
+        <Label className="eyebrow block" htmlFor="force">
+          Force
+        </Label>
+        <SearchableSelect
+          id="force"
+          groups={factionGroups.map((group) => ({
+            ...group,
+            items: group.items.map((entry) => ({
+              ...entry,
+              label: `${entry.label}${entry.value === catalogueId ? ' (primary)' : ''}`,
+            })),
+          }))}
+          value={pickerCatalogueId || catalogueId}
+          onValueChange={setPickerCatalogueId}
+          placeholder="Pick a force"
+          searchPlaceholder="Search forces…"
+          className="mt-1"
+        />
+      </div>
       <div className="min-h-0 flex-1">
         <Picker
-          catalogueId={initial ? catalogueId : pickerCatalogueId || catalogueId}
+          catalogueId={pickerCatalogueId || catalogueId}
           onAdd={add}
           onPreview={(entryId) => {
-            setPreview({ catalogueId: initial ? catalogueId : pickerCatalogueId || catalogueId, entryId })
+            setPreview({ catalogueId: pickerCatalogueId || catalogueId, entryId })
             setShowing('datasheet')
           }}
           inRoster={held}
@@ -518,7 +529,9 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
                 <EllipsisVertical className="size-4" />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => setSetupDraft({ name: listName, catalogueId, detachmentIds, disposition, limit })}>
+                <DropdownMenuItem
+                  onClick={() => setSetupDraft({ name: listName, catalogueId, detachmentIds, disposition, limit, tags, visibility })}
+                >
                   Edit roster setup
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -542,6 +555,8 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
               setDetachmentIds(setup.detachmentIds)
               setDisposition(setup.disposition)
               setLimit(setup.limit)
+              setTags(setup.tags)
+              setVisibility(setup.visibility)
               if (changedFaction) {
                 setPicked([])
                 setSelected(null)
@@ -691,6 +706,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
                       </Button>
                       <Button
                         render={<Link to="/r/$id" params={{ id: list.id }} />}
+                        nativeButton={false}
                         variant="ghost"
                         size="icon-sm"
                         className="size-6"

@@ -8,7 +8,7 @@ just catalogue-sync
 just dev
 ```
 
-The catalogue sync is optional unless you need list building. Without it, the app serves battles and supports pasted rosters.
+Sync before working on list building, mission matchups, or battlefield plans. Without it, the app can still serve existing battles and pasted rosters, but combined deployment-and-terrain choices stay unavailable until their pinned data arrives.
 
 `just dev` starts the app and Centrifugo. The Vite server proxies `/connection` so realtime traffic stays on the app origin.
 
@@ -28,7 +28,7 @@ The repository uses oxlint and oxfmt. Lint warnings fail the check.
 - `just e2e` builds the production container and runs Playwright. Use `just e2e-run` to reuse the image, `just e2e-trace` to record a trace, and `just e2e-install` to install Chromium.
 - `just points` runs the points ratchet. It is not part of `just check`.
 
-The end-to-end container mounts `catalogue-data/`. Sync the catalogue before running list-building tests.
+The end-to-end container mounts `catalogue-data/`. Sync the catalogue before running list-building, mission, or battlefield tests.
 
 Two Playwright rules matter:
 

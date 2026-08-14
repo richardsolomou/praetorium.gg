@@ -57,6 +57,9 @@ export async function seedPreview() {
         detachmentId: JSON.stringify(PREVIEW_ROSTER.detachmentIds),
         picks: JSON.stringify(PREVIEW_ROSTER.picks),
         prep: null,
+        tags: '[]',
+        visibility: 'private',
+        source: 'editable',
         now: Date.now(),
       })
     }

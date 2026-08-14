@@ -126,7 +126,7 @@ function RootComponent() {
                     Factions
                   </Link>
                   <DropdownMenu>
-                    <DropdownMenuTrigger className="eyebrow hover:text-azure">Rules</DropdownMenuTrigger>
+                    <DropdownMenuTrigger className="eyebrow hidden hover:text-azure sm:inline-flex">Rules</DropdownMenuTrigger>
                     <DropdownMenuContent align="start">
                       <DropdownMenuItem render={<Link to="/mission-packs" />}>Mission packs</DropdownMenuItem>
                     </DropdownMenuContent>

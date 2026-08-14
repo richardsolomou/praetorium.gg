@@ -17,16 +17,18 @@ Praetorium is for two players who want one shared battle record instead of paper
 ## How it works ✨
 
 1. **Build or import a list** with its faction, detachments, units, loadouts, enhancements, and points limit. Imports support `.ros` and `.rosz` files.
-2. **Attach both lists.** Praetorium derives the mission from their force dispositions.
-3. **Complete battle setup** by choosing the battlefield, deployment, stratagems, mission cards, and first player.
-4. **Play the game** while both screens show the same round, phase, command points, victory points, and unit state.
+2. **Open a shared or solo practice battle** with its size, mission pack, optional player clock, and saved setup draft.
+3. **Attach the lists.** Praetorium derives the mission from their force dispositions and offers matching deployment and terrain data.
+4. **Complete battle setup** by choosing formations, deployment, stratagems, mission cards, attacker, and first player.
+5. **Play the game** while every screen shows the same round, phase, clocks, command points, victory points, and unit state.
 
 Along the way:
 
 - Detachment stratagems include their command-point cost and usage limit.
 - Scoring controls use the values defined by each mission card.
 - A player can undo their latest command.
-- Saved lists can be reused, shared, and exported as `.ros` files.
+- Finished battles can record a concession, be corrected, or be reopened without rewriting history.
+- Saved lists can be tagged, reused, printed, and exported as `.ros` files. They stay private unless their owner creates an unlisted sharing link.
 
 ## Shared battle state 🔒
 

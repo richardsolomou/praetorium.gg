@@ -22,6 +22,7 @@ Each of these is a short read, and the one that matches what you are touching is
 ## Rules that hold everywhere
 
 - **No game data lives in this repository.** `catalogue/sources.json` records each source and pinned revision. `catalogue-data/` is fetched and gitignored.
+- **Verify fetched data before rendered work.** Confirm every pinned source the feature needs is present and current, inspect the exact data path instead of a fallback, and never claim parity from a degraded rendering.
 - **`src/core` is the domain and stays free of IO and framework imports.** `battle.ts` is the whole game; `evaluate.ts`, `roster.ts` and `catalogue.ts` are the whole catalogue. Nothing enforces this; you are the enforcement.
 - **Never guess.** The evaluator puts what it does not understand into `unhandled` and fails a condition group closed; an unrecognised stratagem timing becomes `unlimited`; an unplaceable import is named back to the player. A confidently wrong answer is worse than an honest gap, and every rule in the topic docs is a variation on this.
 - **State is folded, never stored.** A column holding a score, a phase, a round or a mission is a second copy of something the log or the lists already say, free to disagree.

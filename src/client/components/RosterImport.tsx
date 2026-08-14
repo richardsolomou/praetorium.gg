@@ -43,6 +43,9 @@ export function RosterImport() {
           limit: 'limit' in imported && imported.limit ? imported.limit : GAME_SIZES[1].limit,
           picks: imported.units,
           prep: null,
+          tags: [],
+          visibility: 'private',
+          source: typeof source === 'string' ? 'battlebase' : 'roster-file',
         },
       })
       return id

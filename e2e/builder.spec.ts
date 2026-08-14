@@ -1,5 +1,5 @@
 import { expect, type Page, test } from '@playwright/test'
-import { signUp } from './account'
+import { createRoster, signUp, waitForRosterSave } from './account'
 
 /**
  * The four things a player coming from another builder reaches for: squad size where
@@ -8,15 +8,7 @@ import { signUp } from './account'
  */
 async function openBuilder(page: Page, faction = 'Necrons', detachment = /Awakened Dynasty/) {
   await signUp(page, 'Richard')
-
-  await page.goto('/')
-  await page.getByRole('button', { name: 'Open a battle' }).click()
-  await expect(page.getByLabel('Send this link to your opponent')).toHaveValue(/\/b\//)
-  await page.getByRole('button', { name: 'Build from the catalogue' }).click()
-  await page.getByRole('combobox', { name: 'Faction' }).click()
-  await page.getByRole('option', { name: faction, exact: true }).click()
-  await page.getByRole('button', { name: 'Add detachment' }).click()
-  await page.getByRole('menuitem', { name: detachment }).click()
+  await createRoster(page, { faction, detachment })
 }
 
 async function add(page: Page, name: string) {
@@ -66,76 +58,58 @@ test('Cursed Legion does not modify Immortals without an eligible leader', async
 
 test('a supplement imports its shared detachment group', async ({ page }) => {
   await signUp(page, 'Richard')
-
-  await page.goto('/')
-  await page.getByRole('button', { name: 'Open a battle' }).click()
-  await expect(page.getByLabel('Send this link to your opponent')).toHaveValue(/\/b\//)
-  await page.getByRole('button', { name: 'Build from the catalogue' }).click()
-  await page.getByRole('combobox', { name: 'Faction' }).click()
-  await page.getByRole('option', { name: 'Black Templars', exact: true }).click()
-  await page.getByRole('button', { name: 'Add detachment' }).click()
-  await page.getByRole('menuitem', { name: /Companions of Vehemence/ }).click()
+  await createRoster(page, { faction: 'Black Templars', detachment: /Companions of Vehemence/ })
   await add(page, 'Crusader Squad')
   await expect(page.locator('[data-unit="Crusader Squad"]')).toBeVisible()
 
-  await page.getByRole('combobox', { name: 'Faction' }).click()
+  await page.getByRole('button', { name: 'Roster actions' }).click()
+  await page.getByRole('menuitem', { name: 'Edit roster setup' }).click()
+  const setup = page.getByRole('dialog', { name: 'Edit roster setup' })
+  await setup.getByRole('combobox', { name: 'Faction' }).click()
   await page.getByRole('option', { name: 'Imperial Fists', exact: true }).click()
-  await page.getByRole('button', { name: 'Add detachment' }).click()
-  await expect(page.getByRole('menuitem', { name: /Emperor's Shield/ })).toBeVisible()
-  await expect(page.getByRole('menuitem', { name: /Imperialis Fleet/ })).toHaveCount(0)
+  await expect(setup.getByRole('button', { name: "Select Emperor's Shield" })).toBeVisible()
+  await expect(setup.getByRole('button', { name: /Select Imperialis Fleet/ })).toHaveCount(0)
 })
 
 test('detachment combinations follow the 11th edition allowance', async ({ page }) => {
   await openBuilder(page)
   await add(page, 'Immortals')
 
-  await page.getByRole('combobox', { name: 'Battle size' }).click()
+  await page.getByRole('button', { name: 'Roster actions' }).click()
+  await page.getByRole('menuitem', { name: 'Edit roster setup' }).click()
+  const setup = page.getByRole('dialog', { name: 'Edit roster setup' })
+  await setup.getByRole('combobox', { name: 'Battle size' }).click()
   await page.getByRole('option', { name: /Incursion/ }).click()
-  await expect(page.getByText('3 DP detachment')).toBeVisible()
-  await expect(page.getByRole('alert')).toHaveCount(0)
-  await page.getByRole('button', { name: 'Remove Awakened Dynasty' }).click()
-  await page.getByRole('button', { name: 'Add detachment' }).click()
-  await page.getByRole('menuitem', { name: /Cryptek Conclave/ }).click()
-  await page.getByRole('button', { name: 'Add detachment' }).click()
-  await page.getByRole('menuitem', { name: /Hand of the Dynasty/ }).click()
-  await expect(page.getByRole('alert')).toContainText('This combination costs 3 DP')
-  await expect(page.getByRole('button', { name: 'Invalid detachments' })).toBeDisabled()
-  await expect(page.getByText(/Detachment: allows at most 1/)).toBeHidden()
+  await expect(setup.getByText('3/2 DP used')).toBeVisible()
+  await expect(setup.getByRole('alert')).toHaveCount(0)
+  await setup.getByRole('combobox', { name: 'Battle size' }).click()
+  await page.getByRole('option', { name: /Strike Force/ }).click()
+  await setup.getByRole('button', { name: 'Remove Awakened Dynasty' }).click()
+  await setup.getByRole('button', { name: 'Select Cryptek Conclave' }).click()
+  await setup.getByRole('button', { name: 'Select Hand of the Dynasty' }).click()
+  await setup.getByRole('combobox', { name: 'Battle size' }).click()
+  await page.getByRole('option', { name: /Incursion/ }).click()
+  await expect(setup.getByRole('alert')).toContainText('This combination costs 3 DP')
+  await expect(setup.getByRole('button', { name: 'Save changes' })).toBeDisabled()
   await page.screenshot({ path: 'test-results/detachment-points.png', fullPage: true })
   await page.setViewportSize({ width: 390, height: 844 })
-  const firstDetachment = page.getByRole('button', { name: 'Remove Cryptek Conclave' })
+  const firstDetachment = setup.getByRole('button', { name: 'Remove Cryptek Conclave' })
   await expect(firstDetachment).toBeVisible()
-  await expect(page.getByRole('alert')).toBeVisible()
+  await expect(setup.getByRole('alert')).toBeVisible()
   const bounds = await firstDetachment.boundingBox()
   expect(bounds && bounds.x + bounds.width).toBeLessThanOrEqual(390)
-  const steps = await page.getByRole('navigation', { name: 'Battle setup steps' }).getByRole('button').all()
-  const stepBounds = await Promise.all(steps.map((step) => step.boundingBox()))
-  for (let index = 0; index < stepBounds.length - 1; index += 1) {
-    const current = stepBounds[index]
-    const next = stepBounds[index + 1]
-    expect(current && next && current.x + current.width <= next.x).toBe(true)
-  }
   await page.screenshot({ path: 'test-results/detachment-points-phone.png', fullPage: true })
-  await expect(page.getByRole('status')).toContainText('Saved automatically')
-
-  await page.goto('/')
-  await page.getByRole('button', { name: 'Open a battle' }).click()
-  await page.getByRole('button', { name: 'Build from the catalogue' }).click()
-  await page.getByRole('button', { name: 'Necrons — Cryptek Conclave', exact: true }).click()
-  await expect(page.getByText('Cryptek Conclave', { exact: true })).toBeVisible()
-  await expect(page.getByRole('alert')).toContainText('This combination costs 3 DP')
 })
 
 test('an allied force can be added from its own catalogue', async ({ page }) => {
   await openBuilder(page)
   await page.getByRole('combobox', { name: 'Force' }).click()
   await page.getByRole('option', { name: 'Death Guard', exact: true }).click()
-  await add(page, 'Plague Marines')
+  await waitForRosterSave(page, () => add(page, 'Plague Marines'))
 
   const allied = page.locator('[data-unit="Plague Marines"]')
   await expect(allied).toContainText('Allied force · Chaos - Death Guard')
   await expect(page.getByText('allied-force eligibility is not present in the synced catalogue data')).toBeVisible()
-  await expect(page.getByRole('status')).toContainText('Saved automatically')
   await page.screenshot({ path: 'test-results/allied-force.png', fullPage: true })
 })
 
@@ -217,8 +191,12 @@ test('the filters narrow the book to what is worth taking', async ({ page }) => 
 
   // Points fit hides what will not go in the room that is left, and only that.
   await page.getByRole('button', { name: 'Unit limit' }).click()
-  await page.getByRole('combobox', { name: 'Battle size' }).click()
+  await page.getByRole('button', { name: 'Roster actions' }).click()
+  await page.getByRole('menuitem', { name: 'Edit roster setup' }).click()
+  const setup = page.getByRole('dialog', { name: 'Edit roster setup' })
+  await setup.getByRole('combobox', { name: 'Battle size' }).click()
   await page.getByRole('option', { name: /Incursion/ }).click()
+  await setup.getByRole('button', { name: 'Save changes' }).click()
   // eslint-disable-next-line no-await-in-loop
   for (let taken = 0; taken < 6; taken++) await lychguard.click()
   await expect(page.locator('[data-stat="points"]')).toHaveText('720/1000')
@@ -402,8 +380,12 @@ test('a squad divides its weapons between two options', async ({ page }) => {
   await expect(loadout.getByText('10/10')).toBeVisible()
 
   // The group is always full, so taking a carbine takes a blaster off a model.
-  // eslint-disable-next-line no-await-in-loop
-  for (let swapped = 0; swapped < 3; swapped++) await loadout.getByRole('button', { name: 'More Tesla carbine' }).click()
+  for (let swapped = 1; swapped <= 3; swapped++) {
+    // eslint-disable-next-line no-await-in-loop
+    await loadout.getByRole('button', { name: 'More Tesla carbine' }).click()
+    // eslint-disable-next-line no-await-in-loop
+    await expect(page.getByLabel('Tesla carbine count')).toHaveText(String(swapped))
+  }
   await expect(page.getByLabel('Tesla carbine count')).toHaveText('3')
   await expect(page.getByLabel('Gauss blaster count')).toHaveText('7')
 

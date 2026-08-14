@@ -4,7 +4,7 @@ import { createSameOriginRealtimeClient, requestRealtimeTicket } from 'ras-stack
 import { useConnectedRealtimeClient, useRealtimePresence, useRealtimeSubscription } from 'ras-stack/realtime/react'
 import { useCallback, useMemo } from 'react'
 import { z } from 'zod'
-import { battleQuery } from './queries'
+import { battleQuery, battlesQuery } from './queries'
 
 export type PresentPlayer = { playerId: string; name: string }
 
@@ -43,6 +43,7 @@ export function useLiveBattle(token: string, enabled: boolean) {
   const client = useConnectedRealtimeClient(createClient, enabled, { onError: reportRealtimeError })
   const refresh = useCallback(() => {
     void queryClient.invalidateQueries({ queryKey: battleQuery(token).queryKey })
+    void queryClient.invalidateQueries({ queryKey: battlesQuery().queryKey })
     void queryClient.invalidateQueries({ queryKey: ['report', token] })
   }, [queryClient, token])
   const subscriptionOptions = useMemo<SubscriptionOptions>(

@@ -16,6 +16,7 @@ import { exportRosterFile, importRosterFile } from './rosterFiles'
 import { currentPlayer, currentPlayerId, requirePlayer, requirePlayerId } from './playerSession'
 import {
   createBattleSchema,
+  deleteBattleSchema,
   datasheetSchema,
   datasheetSlugSchema,
   detachmentRulesSchema,
@@ -27,6 +28,7 @@ import {
   ownedSchema,
   rosterIdSchema,
   saveRosterSchema,
+  rosterVisibilitySchema,
   submitSchema,
   tokenSchema,
   unitsSchema,
@@ -47,7 +49,7 @@ export const me = createServerFn({ method: 'GET' }).handler(() => rpc(() => curr
 export const myBattles = createServerFn({ method: 'GET' }).handler(() =>
   rpc(async () => {
     const id = await currentPlayerId()
-    return id ? app().service.battles(id) : []
+    return id ? app().service.battles(id, app().rules()) : []
   }),
 )
 
@@ -72,9 +74,20 @@ export const createBattle = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     mutationRpc(async () => {
       const player = await requirePlayer()
-      const result = app().service.createBattle(player.id, data.opponentId)
-      await app().telemetry.capture(player.userId, 'battle_created')
+      const result = app().service.createBattle(player.id, data)
+      await app().telemetry.capture(player.userId, 'battle_created', { solo: data.solo, limit: data.limit })
       return result
+    }),
+  )
+
+export const deleteBattle = createServerFn({ method: 'POST' })
+  .validator(deleteBattleSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const player = await requirePlayer()
+      app().service.deleteBattle(data.token, player.id)
+      await app().telemetry.capture(player.userId, 'battle_deleted')
+      return null
     }),
   )
 
@@ -252,7 +265,7 @@ export const priceRoster = createServerFn({ method: 'POST' })
   .validator(priceSchema)
   .handler(({ data }) => mutationRpc(() => calculateRosterPrice(data)))
 
-/** Lists a player keeps between battles. Their own only — there is nothing to share here. */
+/** Lists a player keeps between battles. Their own only; unlisted reads use the opaque-id route. */
 export const savedRosters = createServerFn({ method: 'GET' }).handler(() =>
   rpc(async () => {
     const id = await currentPlayerId()
@@ -262,14 +275,20 @@ export const savedRosters = createServerFn({ method: 'GET' }).handler(() =>
 
 export const sharedRoster = createServerFn({ method: 'GET' })
   .validator(rosterIdSchema)
-  .handler(({ data }) => rpc(() => app().service.sharedRoster(data.id)))
+  .handler(({ data }) =>
+    rpc(async () => {
+      const playerId = await currentPlayerId()
+      return app().service.sharedRoster(data.id, playerId)
+    }),
+  )
 
 /** SSR pricing for a persisted roster: the URL carries only its opaque public id. */
 export const savedRosterPrice = createServerFn({ method: 'GET' })
   .validator(rosterIdSchema)
   .handler(({ data }) =>
-    rpc(() => {
-      const roster = app().service.sharedRoster(data.id)
+    rpc(async () => {
+      const playerId = await currentPlayerId()
+      const roster = app().service.sharedRoster(data.id, playerId)
       return roster
         ? calculateRosterPrice({
             catalogueId: roster.catalogueId,
@@ -300,6 +319,17 @@ export const deleteRoster = createServerFn({ method: 'POST' })
       const player = await requirePlayer()
       app().service.deleteRoster(player.id, data.id)
       await app().telemetry.capture(player.userId, 'roster_deleted')
+      return null
+    }),
+  )
+
+export const setRosterVisibility = createServerFn({ method: 'POST' })
+  .validator(rosterVisibilitySchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const player = await requirePlayer()
+      app().service.setRosterVisibility(player.id, data.id, data.visibility)
+      await app().telemetry.capture(player.userId, 'roster_visibility_updated', { visibility: data.visibility })
       return null
     }),
   )
@@ -395,8 +425,18 @@ export const gameReferences = createServerFn({ method: 'GET' }).handler(() =>
   rpc(() => {
     const rules = app().rules()
     if (!rules) return null
-    const missions = [...new Map([...rules.missions.values()].map((mission) => [mission.id, mission])).values()]
-    const matchupEntries = [...rules.missions.entries()]
+    const missions = [
+      ...new Map([...rules.missions.values()].map((mission) => [`${mission.packId ?? 'legacy'}:${mission.id}`, mission])).values(),
+    ]
+    const matchupEntries = [
+      ...new Map(
+        [...rules.missions.entries()].map(([key, mission]) => {
+          const parts = key.split('|')
+          const pair = parts.slice(-2).join('|')
+          return [`${mission.packId ?? 'legacy'}:${pair}`, [pair, mission] as const]
+        }),
+      ).values(),
+    ]
     const packs = [...new Set(missions.map((mission) => mission.source).filter((source): source is string => Boolean(source)))].map(
       (name) => ({
         id: routeSlug(name),
@@ -407,7 +447,7 @@ export const gameReferences = createServerFn({ method: 'GET' }).handler(() =>
             ...mission,
             card: rules.primaries.find((card) => card.key === mission.id) ?? null,
             matchups: matchupEntries
-              .filter(([, candidate]) => candidate.id === mission.id)
+              .filter(([, candidate]) => candidate.id === mission.id && candidate.packId === mission.packId)
               .map(([pair]) => pair.split('|').map((id) => ({ id, name: rules.dispositions.get(id) ?? id }))),
           })),
       }),

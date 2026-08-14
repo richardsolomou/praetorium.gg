@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { createFileRoute, notFound } from '@tanstack/react-router'
+import { createFileRoute, Navigate, notFound } from '@tanstack/react-router'
 import { Invitation } from '../client/components/Invitation'
 import { Setup } from '../client/components/Setup'
 import { Tracker } from '../client/components/Tracker'
@@ -10,6 +10,7 @@ import {
   deploymentsQuery,
   detachmentRulesQuery,
   factionsQuery,
+  gameReferencesQuery,
   savedRostersQuery,
 } from '../client/queries'
 import { useCommand } from '../client/useCommand'
@@ -23,6 +24,7 @@ export const Route = createFileRoute('/b/$token')({
     if (screen.kind === 'battle') {
       await Promise.all([
         context.queryClient.ensureQueryData(factionsQuery()),
+        context.queryClient.ensureQueryData(gameReferencesQuery()),
         context.queryClient.ensureQueryData(catalogueStatusQuery()),
         context.queryClient.ensureQueryData(deploymentsQuery()),
         context.queryClient.ensureQueryData(savedRostersQuery()),
@@ -45,8 +47,9 @@ function BattlePage() {
   const present = useLiveBattle(token, seated)
   const { send, problem, pending } = useCommand(token, seated ? screen.view.seq : 0)
 
-  if (!screen) return null
+  if (!screen) return <Navigate to="/battles" replace />
   if (screen.kind === 'invitation') return <Invitation token={token} free={screen.free} />
-  if (screen.view.status === 'setup') return <Setup view={screen.view} send={send} pending={pending} problem={problem} />
+  if (screen.view.status === 'setup')
+    return <Setup view={screen.view} mission={screen.mission} send={send} pending={pending} problem={problem} />
   return <Tracker view={screen.view} mission={screen.mission} present={present} send={send} pending={pending} problem={problem} />
 }

@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import type { Stratagem, StratagemLimit } from '../core/battle'
+import { routeSlug } from '../core/slug'
 import { findDescription, findDetachmentAbilities, loadWahapediaDescriptions, WAHAPEDIA_ATTRIBUTION } from './wahapedia'
 
 /**
@@ -139,14 +140,14 @@ type RawTerrainTemplate = {
 }
 
 type RawBattlemasterLayout = {
-  layout?: { id?: string }
+  layout?: { id?: string; links?: { page?: string } }
   terrain?: {
-    id: string
+    id?: string
     name: string
     footprint: { origin: Point; widthIn: number; heightIn: number; rotationDeg: number }
     outline: { points: Point[] }
     parts: {
-      id: string
+      id?: string
       name: string
       material: string
       hasRoof: boolean
@@ -155,7 +156,7 @@ type RawBattlemasterLayout = {
       mirroredX: boolean
       mirroredY: boolean
       outline: { points: Point[] } | null
-      walls: { id: string; points: Point[]; thicknessIn: number }[]
+      walls: { id?: string; points: Point[]; thicknessIn: number }[]
     }[]
   }[]
 }
@@ -214,6 +215,7 @@ export type Mission = {
   roundCap: number | null
   gameCap: number | null
   source: string | null
+  packId: string | null
   deploymentIds: string[]
 }
 
@@ -258,7 +260,7 @@ export type LoadedRules = {
   core: Stratagem[]
   secondaries: MissionCard[]
   primaries: MissionCard[]
-  /** Which mission a pair of force dispositions plays, keyed `a|b`. */
+  /** Which mission a pair of force dispositions plays, with pack-qualified keys and an unqualified legacy fallback. */
   missions: Map<string, Mission>
   /** The five dispositions a detachment can have, by slug. */
   dispositions: Map<string, string>
@@ -411,14 +413,18 @@ export function loadRules(
   for (const matchup of readMatchups(path.join(core, 'mission-matchups.json'))) {
     const mission = byId.get(matchup.mission_id)
     if (!mission) continue
-    missions.set(`${matchup.disposition}|${matchup.opponent_disposition}`, {
+    const resolved = {
       id: mission.id,
       name: mission.name,
       roundCap: mission.vp_per_round_cap ?? null,
       gameCap: mission.vp_per_game_cap ?? null,
       source: mission.source ?? null,
+      packId: mission.source ? routeSlug(mission.source) : null,
       deploymentIds: mission.deployment_pattern_ids ?? [],
-    })
+    }
+    const pair = `${matchup.disposition}|${matchup.opponent_disposition}`
+    if (!missions.has(pair)) missions.set(pair, resolved)
+    if (resolved.packId) missions.set(`${resolved.packId}|${pair}`, resolved)
   }
 
   const dispositionDetails = readDispositions(path.join(core, 'force-dispositions.json')).map((entry) => ({
@@ -514,8 +520,18 @@ export function loadRules(
  * The mission two armies play, which 11th edition takes from their force
  * dispositions rather than from either player's choice. Order is not significant.
  */
-export function missionFor(rules: LoadedRules, one: string | null, two: string | null): Mission | null {
+export function missionFor(
+  rules: LoadedRules,
+  one: string | null,
+  two: string | null,
+  missionPackId: string | null = null,
+): Mission | null {
   if (!one || !two) return null
+  if (missionPackId) {
+    const selected = rules.missions.get(`${missionPackId}|${one}|${two}`) ?? rules.missions.get(`${missionPackId}|${two}|${one}`)
+    if (selected) return selected
+    if ([...rules.missions.keys()].some((key) => key.split('|').length === 3)) return null
+  }
   return rules.missions.get(`${one}|${two}`) ?? rules.missions.get(`${two}|${one}`) ?? null
 }
 
@@ -561,26 +577,36 @@ function battlemasterGeometry(directory: string, description: string | undefined
   const file = path.join(directory, 'layouts', `${id}.json`)
   if (!fs.existsSync(file)) return null
   const raw = JSON.parse(fs.readFileSync(file, 'utf8')) as RawBattlemasterLayout
-  if (raw.layout?.id !== id || !raw.terrain?.length) return null
+  if (!battlemasterLayoutMatches(raw.layout, id) || !raw.terrain?.length) return null
 
   return {
-    areas: raw.terrain.map((area) => ({
-      id: area.id,
+    areas: raw.terrain.map((area, areaIndex) => ({
+      id: area.id ?? `area-${areaIndex + 1}`,
       name: area.name,
       points: area.outline.points.map((point) => battlemasterBoardPoint(point, area.footprint)),
       markers: terrainReferenceMarkers(area),
-      parts: area.parts.map((part) => ({
-        id: part.id,
+      parts: area.parts.map((part, partIndex) => ({
+        id: part.id ?? `area-${areaIndex + 1}-part-${partIndex + 1}`,
         name: part.name,
         material: part.material,
         roof: part.outline?.points.map((point) => battlemasterBoardPoint(point, area.footprint, part)) ?? null,
-        walls: part.walls.map((wall) => ({
-          id: wall.id,
+        walls: part.walls.map((wall, wallIndex) => ({
+          id: wall.id ?? `area-${areaIndex + 1}-part-${partIndex + 1}-wall-${wallIndex + 1}`,
           points: wall.points.map((point) => battlemasterBoardPoint(point, area.footprint, part)),
           thickness: wall.thicknessIn,
         })),
       })),
     })),
+  }
+}
+
+function battlemasterLayoutMatches(layout: RawBattlemasterLayout['layout'], id: string) {
+  if (layout?.id === id) return true
+  if (!layout?.links?.page) return false
+  try {
+    return new URL(layout.links.page).pathname.endsWith(`/${id}`)
+  } catch {
+    return false
   }
 }
 
@@ -743,6 +769,12 @@ function dedupe(awards: Award[]): Award[] {
 
 /** Titled rather than shouted: the dataset stores names in capitals. */
 function toStratagem(raw: RawStratagem): Stratagem {
+  const phases = (raw.phases ?? []).filter((phase): phase is NonNullable<Stratagem['phases']>[number] =>
+    ['command', 'movement', 'shooting', 'charge', 'fight', 'end'].includes(phase),
+  )
+  const turn = ['your-turn', 'opponent-turn', 'either'].includes(raw.player_turn ?? '')
+    ? (raw.player_turn as NonNullable<Stratagem['turn']>)
+    : undefined
   return {
     key: raw.id,
     name: titleCase(raw.name),
@@ -750,6 +782,8 @@ function toStratagem(raw: RawStratagem): Stratagem {
     // An unrecognised timing becomes `unlimited` rather than a guess that would
     // wrongly stop a player using something.
     limit: LIMITS[raw.timing ?? ''] ?? 'unlimited',
+    ...(phases.length ? { phases } : {}),
+    ...(turn ? { turn } : {}),
   }
 }
 

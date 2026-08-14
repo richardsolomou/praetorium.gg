@@ -60,7 +60,7 @@ export function SearchableSelect({
       >
         <ComboboxValue placeholder={placeholder} />
       </ComboboxTrigger>
-      <ComboboxContent className="rounded-none border border-edge bg-panel text-bone ring-0">
+      <ComboboxContent className="rounded-none border border-edge bg-panel text-bone ring-0 transition-none">
         <ComboboxInput className="rounded-none" placeholder={searchPlaceholder} showTrigger={false} />
         <ComboboxEmpty className="text-dim">No matches.</ComboboxEmpty>
         <ComboboxList>

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { signUp } from './account'
+import { createRoster, signUp } from './account'
 import { readFile } from 'node:fs/promises'
 
 /**
@@ -14,14 +14,7 @@ test('a list leaves as .ros and comes back', async ({ browser }) => {
 
   await signUp(page, 'Alice')
 
-  await page.goto('/')
-  await page.getByRole('button', { name: 'Open a battle' }).click()
-  await page.getByRole('button', { name: 'Build from the catalogue' }).click()
-
-  await page.getByRole('combobox', { name: 'Faction' }).click()
-  await page.getByRole('option', { name: 'Necrons', exact: true }).click()
-  await page.getByRole('button', { name: 'Add detachment' }).click()
-  await page.getByRole('menuitem', { name: /Awakened Dynasty/ }).click()
+  await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/ })
   await page.getByLabel('Add a unit').fill('Immortals')
   await page.getByRole('button', { name: 'Add Immortals', exact: true }).first().click()
   await page.getByLabel('Add a unit').fill('Overlord')
@@ -38,8 +31,12 @@ test('a list leaves as .ros and comes back', async ({ browser }) => {
     await expect(page.getByLabel('Immortals models')).toHaveText(String(models))
   }
   const loadout = page.locator('aside[aria-label="Loadout"]')
-  // eslint-disable-next-line no-await-in-loop
-  for (let swapped = 0; swapped < 3; swapped++) await loadout.getByRole('button', { name: 'More Tesla carbine' }).click()
+  for (let swapped = 1; swapped <= 3; swapped++) {
+    // eslint-disable-next-line no-await-in-loop
+    await loadout.getByRole('button', { name: 'More Tesla carbine' }).click()
+    // eslint-disable-next-line no-await-in-loop
+    await expect(page.getByLabel('Tesla carbine count')).toHaveText(String(swapped))
+  }
 
   const total = page.locator('[data-stat="points"]')
   const priced = await total.innerText()
@@ -49,11 +46,10 @@ test('a list leaves as .ros and comes back', async ({ browser }) => {
   const saved = await download.path()
   expect(download.suggestedFilename()).toMatch(/\.ros$/)
 
-  // And back in, into a fresh battle.
-  await page.goto('/')
-  await page.getByRole('button', { name: 'Open a battle' }).click()
-  await page.getByRole('button', { name: 'Build from the catalogue' }).click()
-  await page.getByLabel('Bring a list from another tool').setInputFiles(saved)
+  // And back in, into a fresh saved roster.
+  await page.goto('/rosters')
+  await page.getByRole('button', { name: 'Import roster' }).click()
+  await page.locator('input[type="file"]').setInputFiles(saved)
 
   await expect(total).toHaveText(priced)
   await page
@@ -74,11 +70,10 @@ test('a list leaves as .ros and comes back', async ({ browser }) => {
   const alliedForce = force!.replace('catalogueId="', 'catalogueId="allied-').replace('id="', 'id="allied-')
   const alliedXml = xml.replace('</forces>', `${alliedForce}</forces>`)
 
-  await page.goto('/')
-  await page.getByRole('button', { name: 'Open a battle' }).click()
-  await page.getByRole('button', { name: 'Build from the catalogue' }).click()
+  await page.goto('/rosters')
+  await page.getByRole('button', { name: 'Import roster' }).click()
   await page
-    .getByLabel('Bring a list from another tool')
+    .locator('input[type="file"]')
     .setInputFiles({ name: 'allies.ros', mimeType: 'application/xml', buffer: Buffer.from(alliedXml) })
   await expect(page.locator('[data-unit="Immortals"]')).toHaveCount(2)
   await expect(page.locator('[data-unit="Overlord"]')).toHaveCount(2)

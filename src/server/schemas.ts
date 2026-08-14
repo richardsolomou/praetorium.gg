@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { ROSTER_NAME_MAX_LENGTH, SECONDARIES_MAX, STRATAGEM_CP_MAX, STRATAGEM_LIMITS, STRATAGEMS_MAX } from '../core/battle'
 import { commandSchema } from '../core/commands'
+import { ROSTER_SOURCES, ROSTER_TAG_MAX_LENGTH, ROSTER_TAGS_MAX, ROSTER_VISIBILITIES } from '../core/savedRoster'
 
 const id = z.string().min(1).max(64)
 const token = id
@@ -9,7 +10,18 @@ const slug = z.string().min(1).max(160)
 const rosterLimit = z.number().int().min(0).max(10_000)
 
 export const tokenSchema = z.object({ token })
-export const createBattleSchema = z.object({ opponentId: id })
+export const createBattleSchema = z.object({
+  opponentId: id.optional(),
+  solo: z.boolean().default(false),
+  limit: z
+    .number()
+    .int()
+    .refine((value) => [1000, 2000, 3000].includes(value))
+    .optional(),
+  missionPackId: id.nullable().default(null),
+  clockLimitMinutes: z.number().int().min(5).max(300).nullable().default(null),
+})
+export const deleteBattleSchema = z.object({ token })
 
 export const joinBattleSchema = tokenSchema
 
@@ -66,11 +78,18 @@ const prepSchema = z.object({
         name: z.string().min(1).max(ROSTER_NAME_MAX_LENGTH),
         cp: z.number().int().min(0).max(STRATAGEM_CP_MAX),
         limit: z.enum(STRATAGEM_LIMITS),
+        phases: z
+          .array(z.enum(['command', 'movement', 'shooting', 'charge', 'fight', 'end']))
+          .max(6)
+          .optional(),
+        turn: z.enum(['your-turn', 'opponent-turn', 'either']).optional(),
       }),
     )
     .max(STRATAGEMS_MAX),
   secondaries: z.array(z.object({ key: id, name: z.string().min(1).max(ROSTER_NAME_MAX_LENGTH) })).max(SECONDARIES_MAX),
 })
+
+export const rosterTagsSchema = z.array(z.string().trim().min(1).max(ROSTER_TAG_MAX_LENGTH)).max(ROSTER_TAGS_MAX)
 
 export const saveRosterSchema = z.object({
   id: id.optional(),
@@ -81,6 +100,9 @@ export const saveRosterSchema = z.object({
   limit: rosterLimit,
   picks: z.array(pickSchema).max(100),
   prep: prepSchema.nullable(),
+  tags: rosterTagsSchema.default([]),
+  visibility: z.enum(ROSTER_VISIBILITIES).default('private'),
+  source: z.enum(ROSTER_SOURCES).default('editable'),
 })
 
 /** A `.ros`, base64 `.rosz`, or BattleBase plain-text export. */
@@ -94,6 +116,7 @@ export const detachmentRulesSchema = z.object({
 export const detachmentDetailSchema = z.object({ catalogueId, slug })
 
 export const rosterIdSchema = z.object({ id })
+export const rosterVisibilitySchema = z.object({ id, visibility: z.enum(ROSTER_VISIBILITIES) })
 
 export const ownedSchema = z.object({ entryId: id, owned: z.boolean() })
 

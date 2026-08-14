@@ -31,13 +31,36 @@ export class Repository {
     return this.database.select().from(players).where(eq(players.userId, userId)).orderBy(desc(players.createdAt)).get()
   }
 
-  createBattle(input: { id: string; token: string; playerId: string; opponentId?: string; now: number }) {
+  createBattle(input: { id: string; token: string; playerId: string; opponentId?: string; initialCommand?: Command; now: number }) {
     this.database.transaction((tx) => {
       tx.insert(battles).values({ id: input.id, token: input.token, createdAt: input.now }).run()
       tx.insert(battlePlayers).values({ battleId: input.id, playerId: input.playerId, side: 0, joinedAt: input.now }).run()
       if (input.opponentId) {
         tx.insert(battlePlayers).values({ battleId: input.id, playerId: input.opponentId, side: 1, joinedAt: input.now }).run()
       }
+      if (input.initialCommand) {
+        const state = reduceBattle([input.playerId, ...(input.opponentId ? [input.opponentId] : [])], [])
+        const refusal = validate(state, input.playerId, input.initialCommand)
+        if (refusal) throw new Error(`new battle settings were refused: ${refusal}`)
+        tx.insert(commands)
+          .values({
+            battleId: input.id,
+            seq: 1,
+            playerId: input.playerId,
+            at: input.now,
+            body: JSON.stringify(input.initialCommand),
+          })
+          .run()
+      }
+    })
+  }
+
+  deleteBattle(battleId: string, playerId: string) {
+    return this.database.transaction((tx) => {
+      const opener = this.playersByBattle(battleId, tx).find((player) => player.side === 0)
+      if (opener?.id !== playerId) return false
+      tx.delete(battles).where(eq(battles.id, battleId)).run()
+      return true
     })
   }
 
@@ -97,7 +120,10 @@ export class Repository {
    * caller's claim about what it had already seen; a mismatch means it is behind,
    * and the answer is the current seq rather than a write.
    */
-  submit(input: { battleId: string; playerId: string; expectedSeq: number; command: Command; now: number }): SubmitResult {
+  submit(
+    input: { battleId: string; playerId: string; expectedSeq: number; command: Command; now: number },
+    validateState?: (state: ReturnType<typeof reduceBattle>) => string | null,
+  ): SubmitResult {
     return this.database.transaction((tx) => {
       const seated = this.playersByBattle(input.battleId, tx)
       const state = reduceBattle(
@@ -107,6 +133,8 @@ export class Repository {
       if (input.expectedSeq !== state.seq) return { outcome: 'stale', seq: state.seq }
       const refusal = validate(state, input.playerId, input.command)
       if (refusal) return { outcome: 'refused', reason: refusal }
+      const externalRefusal = validateState?.(state)
+      if (externalRefusal) return { outcome: 'refused', reason: externalRefusal }
       const seq = state.seq + 1
       tx.insert(commands)
         .values({ battleId: input.battleId, seq, playerId: input.playerId, at: input.now, body: JSON.stringify(input.command) })
@@ -125,6 +153,9 @@ export class Repository {
     limit: number
     picks: string
     prep: string | null
+    tags: string
+    visibility: 'private' | 'unlisted'
+    source: 'legacy' | 'editable' | 'battlebase' | 'roster-file'
     now: number
   }) {
     this.database
@@ -140,6 +171,9 @@ export class Repository {
           limit: input.limit,
           picks: input.picks,
           prep: input.prep,
+          tags: input.tags,
+          visibility: input.visibility,
+          source: input.source,
           updatedAt: input.now,
         },
       })
@@ -152,6 +186,16 @@ export class Repository {
 
   roster(id: string) {
     return this.database.select().from(rosters).where(eq(rosters.id, id)).get()
+  }
+
+  setRosterVisibility(id: string, playerId: string, visibility: 'private' | 'unlisted', now: number) {
+    return (
+      this.database
+        .update(rosters)
+        .set({ visibility, updatedAt: now })
+        .where(and(eq(rosters.id, id), eq(rosters.playerId, playerId)))
+        .run().changes > 0
+    )
   }
 
   /** The datasheets this player owns models for. */

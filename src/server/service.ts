@@ -13,7 +13,7 @@ import {
 import type { RosterPick } from '../core/roster'
 import type { BattleSeats, JoinResult, Repository, SubmitResult } from '../db/repository'
 import { type Mission, missionFor } from './rules'
-import { picksSchema, savedPrepSchema } from './schemas'
+import { picksSchema, rosterTagsSchema, savedPrepSchema } from './schemas'
 
 type SavedPrep = { stratagems: Stratagem[]; secondaries: Secondary[] }
 
@@ -44,13 +44,14 @@ export class PraetoriumService {
   ) {}
 
   /** A player's battles with their current state folded from each log. */
-  battles(playerId: string) {
+  battles(playerId: string, rules?: Parameters<typeof missionFor>[0] | null) {
     return this.repository.battlesByPlayer(playerId).map((seats) => {
       const log = this.repository.log(seats.battle.id)
       const state = reduceBattle(
         seats.players.map((player) => player.id),
         log,
       )
+      const dispositions = state.players.map((player) => player.roster?.built?.disposition ?? null)
       return {
         token: seats.battle.token,
         createdAt: seats.battle.createdAt,
@@ -59,7 +60,12 @@ export class PraetoriumService {
         phase: state.phase,
         players: seats.players.map((player) => player.name),
         armies: state.players.map((player) => player.roster?.name ?? null),
-        scores: state.players.map((player) => player.primary + player.secondary),
+        detachments: state.players.map((player) => player.roster?.built?.detachments?.map((detachment) => detachment.name) ?? []),
+        scores: state.players.map((player) => player.primary + player.secondary + (player.painted ? 10 : 0)),
+        mission: rules ? missionFor(rules, dispositions[0] ?? null, dispositions[1] ?? null, state.settings.missionPackId) : null,
+        deploymentId: state.deploymentId,
+        settings: state.settings,
+        result: state.result,
         lastActivity: log.at(-1)?.at ?? seats.battle.createdAt,
       }
     })
@@ -94,9 +100,14 @@ export class PraetoriumService {
       limit: number
       picks: readonly RosterPick[]
       prep: SavedPrep | null
+      tags: readonly string[]
+      visibility: 'private' | 'unlisted'
+      source: 'legacy' | 'editable' | 'battlebase' | 'roster-file'
     },
   ) {
     const id = roster.id ?? randomId()
+    const existing = this.repository.roster(id)
+    if (existing && existing.playerId !== playerId) throw new Response('you do not own this roster', { status: 403 })
     this.repository.saveRoster({
       ...roster,
       detachmentId: JSON.stringify(roster.detachmentIds),
@@ -104,6 +115,7 @@ export class PraetoriumService {
       playerId,
       picks: JSON.stringify(roster.picks),
       prep: roster.prep ? JSON.stringify(roster.prep) : null,
+      tags: JSON.stringify(roster.tags),
       now: this.clock(),
     })
     return { id }
@@ -121,13 +133,16 @@ export class PraetoriumService {
       updatedAt: row.updatedAt,
       picks: picksSchema.parse(JSON.parse(row.picks)),
       prep: row.prep ? savedPrepSchema.parse(JSON.parse(row.prep)) : null,
+      tags: rosterTagsSchema.parse(JSON.parse(row.tags)),
+      visibility: row.visibility,
+      source: row.source,
     }))
   }
 
-  /** A roster shared by its random id, without any owner identity. */
-  sharedRoster(id: string) {
+  /** An unlisted roster, or its owner's private roster, without exposing owner identity. */
+  sharedRoster(id: string, playerId: string | null = null) {
     const row = this.repository.roster(id)
-    return row
+    return row && (row.visibility === 'unlisted' || row.playerId === playerId)
       ? {
           id: row.id,
           name: row.name,
@@ -137,8 +152,17 @@ export class PraetoriumService {
           limit: row.limit,
           updatedAt: row.updatedAt,
           picks: picksSchema.parse(JSON.parse(row.picks)),
+          tags: rosterTagsSchema.parse(JSON.parse(row.tags)),
+          visibility: row.visibility,
+          source: row.source,
         }
       : null
+  }
+
+  setRosterVisibility(playerId: string, id: string, visibility: 'private' | 'unlisted') {
+    if (!this.repository.setRosterVisibility(id, playerId, visibility, this.clock())) {
+      throw new Response('you do not own this roster', { status: 403 })
+    }
   }
 
   deleteRoster(playerId: string, id: string) {
@@ -159,17 +183,54 @@ export class PraetoriumService {
     return this.repository.playersExcept(playerId)
   }
 
-  createBattle(playerId: string, opponentId?: string) {
+  createBattle(
+    playerId: string,
+    input?: string | { opponentId?: string; solo: boolean; limit?: number; missionPackId: string | null; clockLimitMinutes: number | null },
+  ) {
+    const settings = typeof input === 'object' && input.limit !== undefined ? { ...input, limit: input.limit } : null
+    const opponentId = typeof input === 'string' ? input : input?.opponentId
     if (opponentId && (opponentId === playerId || !this.repository.playerById(opponentId))) {
       throw new Response('choose an opponent', { status: 400 })
     }
+    if (settings && !settings.solo && !opponentId) throw new Response('choose an opponent or a practice battle', { status: 400 })
     const token = randomToken()
-    this.repository.createBattle({ id: randomId(), token, playerId, opponentId, now: this.clock() })
+    const id = randomId()
+    this.repository.createBattle({
+      id,
+      token,
+      playerId,
+      opponentId,
+      initialCommand: settings
+        ? {
+            kind: 'configure-battle',
+            limit: settings.limit,
+            missionPackId: settings.missionPackId,
+            terrainLayoutId: null,
+            twistId: null,
+            solo: settings.solo,
+            clockLimitMinutes: settings.clockLimitMinutes,
+          }
+        : undefined,
+      now: this.clock(),
+    })
     return { token }
+  }
+
+  deleteBattle(token: string, playerId: string) {
+    const seats = this.mustFind(token)
+    if (!this.seated(seats, playerId)) throw new Response('you are not in this battle', { status: 403 })
+    if (!this.repository.deleteBattle(seats.battle.id, playerId))
+      throw new Response('only the battle creator can delete it', { status: 403 })
+    this.events.publish(seats.battle.id)
   }
 
   join(token: string, playerId: string): JoinResult {
     const seats = this.mustFind(token)
+    const state = reduceBattle(
+      seats.players.map((player) => player.id),
+      this.repository.log(seats.battle.id),
+    )
+    if (state.settings.solo) return 'full'
     const result = this.repository.join({ battleId: seats.battle.id, playerId, now: this.clock() })
     if (result === 'joined') this.events.publish(seats.battle.id)
     return result
@@ -182,7 +243,11 @@ export class PraetoriumService {
   screen(token: string, playerId: string | null, rules?: Parameters<typeof missionFor>[0] | null): BattleScreen {
     const seats = this.mustFind(token)
     if (!playerId || !this.seated(seats, playerId)) {
-      return { kind: 'invitation', free: seats.players.length < PLAYERS_PER_BATTLE }
+      const state = reduceBattle(
+        seats.players.map((player) => player.id),
+        this.repository.log(seats.battle.id),
+      )
+      return { kind: 'invitation', free: !state.settings.solo && seats.players.length < PLAYERS_PER_BATTLE }
     }
     return this.seatedScreen(seats, playerId, rules)
   }
@@ -208,7 +273,9 @@ export class PraetoriumService {
   ): SubmitAnswer {
     const seats = this.mustFind(token)
     if (!this.seated(seats, playerId)) throw new Response('you are not in this battle', { status: 403 })
-    const result = this.repository.submit({ battleId: seats.battle.id, playerId, expectedSeq, command, now: this.clock() })
+    const result = this.repository.submit({ battleId: seats.battle.id, playerId, expectedSeq, command, now: this.clock() }, (state) =>
+      command.kind === 'begin-battle' && rules ? setupReferenceError(state, rules) : null,
+    )
     if (result.outcome === 'appended') this.events.publish(seats.battle.id)
     // Read after the write, so a refusal and a lost race answer with the state
     // that refused them rather than the one the caller was already holding.
@@ -228,11 +295,11 @@ export class PraetoriumService {
       seats.players.map((player) => player.id),
       this.repository.log(seats.battle.id),
     )
-    const view = battleView(seats.battle, seats.players, state, playerId)
+    const view = battleView(seats.battle, seats.players, state, playerId, this.clock())
     // Eleventh edition takes the mission from the two armies' dispositions rather
     // than from either player, so it is derived and never stored.
     const [one, two] = view.players.map((player) => player.roster?.built?.disposition ?? null)
-    return { kind: 'battle', view, mission: rules ? missionFor(rules, one ?? null, two ?? null) : null }
+    return { kind: 'battle', view, mission: rules ? missionFor(rules, one ?? null, two ?? null, state.settings.missionPackId) : null }
   }
 
   private seated(seats: BattleSeats, playerId: string) {
@@ -244,6 +311,24 @@ export class PraetoriumService {
     if (!seats) throw new Response('no such battle', { status: 404 })
     return seats
   }
+}
+
+function setupReferenceError(state: ReturnType<typeof reduceBattle>, rules: NonNullable<Parameters<typeof missionFor>[0]>): string | null {
+  const [one, two] = state.players.map((player) => player.roster?.built?.disposition ?? null)
+  const mission = missionFor(rules, one ?? null, two ?? null, state.settings.missionPackId)
+  if (one && two && state.settings.missionPackId && !mission) return 'the selected mission pack does not contain this matchup'
+  if (!state.deploymentId) return 'choose a deployment'
+  if (!rules.deployments.some((deployment) => deployment.id === state.deploymentId)) return 'that deployment is not available'
+  if (mission?.deploymentIds.length && !mission.deploymentIds.includes(state.deploymentId))
+    return 'that deployment does not match the mission'
+  if (!state.settings.terrainLayoutId) return null
+  const terrain = rules.terrainLayouts.find((layout) => layout.id === state.settings.terrainLayoutId)
+  if (!terrain) return 'that terrain layout is not available'
+  const matchups = one && two ? new Set([`${one}-vs-${two}`, `${two}-vs-${one}`]) : new Set<string>()
+  if (matchups.size && !matchups.has(terrain.matchupId)) return 'that terrain layout does not match the armies'
+  if (terrain.deploymentId && terrain.deploymentId !== state.deploymentId) return 'that terrain layout does not match the deployment'
+  if (!terrain.geometry) return 'exact terrain data is not available yet'
+  return null
 }
 
 /** The legacy column held one id; new rows hold the ordered 11e purchase list. */

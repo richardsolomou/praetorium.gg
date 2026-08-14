@@ -3,26 +3,30 @@ import { signUp } from './account'
 
 test('opening a battle is operable from the keyboard', async ({ page }) => {
   await signUp(page, 'Alice')
-  await page.goto('/')
+  await page.goto('/battles')
 
   for (let tabs = 0; tabs < 10; tabs++) {
     // eslint-disable-next-line no-await-in-loop
-    if (await page.getByRole('button', { name: 'Open a battle' }).evaluate((element) => element === document.activeElement)) break
+    if (await page.getByRole('button', { name: 'New battle' }).evaluate((element) => element === document.activeElement)) break
     // eslint-disable-next-line no-await-in-loop
     await page.keyboard.press('Tab')
   }
-  await expect(page.getByRole('button', { name: 'Open a battle' })).toBeFocused()
+  const newBattle = page.getByRole('button', { name: 'New battle' })
+  await expect(newBattle).toBeFocused()
   await page.keyboard.press('Enter')
-  await expect(page.getByLabel('Send this link to your opponent')).toHaveValue(/\/b\//)
+  await expect(page.getByRole('dialog', { name: 'Start a battle' })).toBeVisible()
+  await page.getByRole('button', { name: 'Solo practice' }).click()
+  await page.getByRole('button', { name: 'Create battle' }).click()
+  await expect(page).toHaveURL(/\/b\//)
 })
 
 test('reduced motion removes meaningful transitions', async ({ page }) => {
   await signUp(page, 'Alice')
   await page.emulateMedia({ reducedMotion: 'reduce' })
-  await page.goto('/')
+  await page.goto('/battles')
 
   const duration = await page
-    .getByRole('button', { name: 'Open a battle' })
+    .getByRole('button', { name: 'New battle' })
     .evaluate((element) => getComputedStyle(element).transitionDuration)
   expect(Number.parseFloat(duration)).toBeLessThanOrEqual(0.00001)
 })

@@ -54,9 +54,64 @@ describe('setup', () => {
     expect(validate(state, ALICE, { kind: 'begin-battle', firstPlayerId: ALICE })).toBe('both armies need a list')
   })
 
-  it('refuses a list once the battle has begun', () => {
+  it('allows correcting a list once the battle has begun', () => {
     const state = reduceBattle(PLAYERS, log(...started()))
-    expect(validate(state, BOB, roster('Death Guard'))).toBe('the battle has started')
+    expect(validate(state, BOB, roster('Death Guard'))).toBeNull()
+  })
+
+  it('keeps legacy logs with a non-default roster size startable', () => {
+    const alice = builtRoster('Incursion army', ['Intercessors'])
+    if (alice.kind !== 'attach-roster' || !alice.roster.built) throw new Error('expected a built roster')
+    alice.roster.built.limit = 1000
+    const state = reduceBattle(PLAYERS, log([ALICE, alice], [BOB, roster('Death Guard')]))
+    expect(validate(state, ALICE, { kind: 'begin-battle', firstPlayerId: ALICE })).toBeNull()
+  })
+
+  it('requires attached rosters to match an explicitly configured size', () => {
+    const state = reduceBattle(
+      PLAYERS,
+      log(
+        [
+          ALICE,
+          {
+            kind: 'configure-battle',
+            limit: 1000,
+            missionPackId: null,
+            terrainLayoutId: null,
+            twistId: null,
+            solo: false,
+            clockLimitMinutes: null,
+          },
+        ],
+        [ALICE, builtRoster('Strike force', ['Intercessors'])],
+        [BOB, roster('Death Guard')],
+      ),
+    )
+    expect(validate(state, ALICE, { kind: 'begin-battle', firstPlayerId: ALICE })).toBe('every roster must match the battle size')
+  })
+
+  it('refuses a replacement roster at the wrong configured size', () => {
+    const state = reduceBattle(
+      PLAYERS,
+      log(
+        [
+          ALICE,
+          {
+            kind: 'configure-battle',
+            limit: 1000,
+            missionPackId: null,
+            terrainLayoutId: null,
+            twistId: null,
+            solo: false,
+            clockLimitMinutes: null,
+          },
+        ],
+        [ALICE, roster('Incursion army')],
+        [BOB, roster('Death Guard')],
+        [ALICE, { kind: 'begin-battle', firstPlayerId: ALICE }],
+      ),
+    )
+    expect(validate(state, ALICE, builtRoster('Strike force', ['Intercessors']))).toBe('that roster does not match the battle size')
   })
 
   it('refuses multiple detachments over the battle-size allowance', () => {
@@ -78,6 +133,189 @@ describe('setup', () => {
     command.roster.built.detachmentPointBudget = 2
 
     expect(validate(reduceBattle(PLAYERS, log()), ALICE, command)).toBeNull()
+  })
+
+  it('validates tactical prep attached with a roster', () => {
+    const command: Command = {
+      kind: 'attach-roster',
+      roster: { name: 'Necrons', text: '10 Immortals' },
+      prep: { stratagems: [], secondaries: [], primary: null, secondaryMode: 'tactical' },
+    }
+
+    expect(validate(reduceBattle(PLAYERS, log()), ALICE, command)).toBe('choose a tactical secondary deck')
+  })
+
+  it('refuses duplicate cards in prep attached with a roster', () => {
+    const card = { key: 'a', name: 'Behind Enemy Lines' }
+    const command: Command = {
+      kind: 'attach-roster',
+      roster: { name: 'Necrons', text: '10 Immortals' },
+      prep: { stratagems: [], secondaries: [card], secondaryDeck: [card, card], primary: null, secondaryMode: 'tactical' },
+    }
+
+    expect(validate(reduceBattle(PLAYERS, log()), ALICE, command)).toBe('the secondary deck contains duplicates')
+  })
+
+  it('refuses selected cards outside prep attached with a roster', () => {
+    const command: Command = {
+      kind: 'attach-roster',
+      roster: { name: 'Necrons', text: '10 Immortals' },
+      prep: {
+        stratagems: [],
+        secondaries: [{ key: 'b', name: 'Bring It Down' }],
+        secondaryDeck: [{ key: 'a', name: 'Behind Enemy Lines' }],
+        primary: null,
+        secondaryMode: 'tactical',
+      },
+    }
+
+    expect(validate(reduceBattle(PLAYERS, log()), ALICE, command)).toBe('a selected secondary is not in the deck')
+  })
+
+  it('supports a private solo practice battle without a second identity', () => {
+    const history = log(
+      [
+        ALICE,
+        {
+          kind: 'configure-battle',
+          limit: 2000,
+          missionPackId: null,
+          terrainLayoutId: null,
+          twistId: null,
+          solo: true,
+          clockLimitMinutes: null,
+        },
+      ],
+      [ALICE, roster('Practice army')],
+      [ALICE, { kind: 'begin-battle', firstPlayerId: ALICE, attackerId: ALICE }],
+    )
+
+    expect(reduceBattle([ALICE], history)).toMatchObject({ status: 'playing', activePlayerId: ALICE, round: 1 })
+  })
+
+  it('resets a setup draft without deleting its history', () => {
+    const state = reduceBattle(
+      PLAYERS,
+      log(
+        [ALICE, roster('Ultramarines')],
+        [ALICE, { kind: 'set-deployment', patternId: 'sweeping-engagement' }],
+        [ALICE, { kind: 'reset-setup' }],
+      ),
+    )
+
+    expect(state.players.every((player) => player.roster === null)).toBe(true)
+    expect(state.deploymentId).toBeNull()
+  })
+
+  it('keeps the configured format when setup is reset', () => {
+    const state = reduceBattle(
+      PLAYERS,
+      log(
+        [
+          ALICE,
+          {
+            kind: 'configure-battle',
+            limit: 1000,
+            missionPackId: 'chapter-approved',
+            terrainLayoutId: 'layout-a',
+            twistId: 'twist-a',
+            solo: false,
+            clockLimitMinutes: 45,
+          },
+        ],
+        [ALICE, { kind: 'reset-setup' }],
+      ),
+    )
+
+    expect(state.settings).toEqual({
+      limit: 1000,
+      missionPackId: 'chapter-approved',
+      terrainLayoutId: null,
+      twistId: null,
+      solo: false,
+      clockLimitMinutes: 45,
+    })
+  })
+
+  it('clears deployment and terrain when a setup roster changes', () => {
+    const state = reduceBattle(
+      PLAYERS,
+      log(
+        [ALICE, { kind: 'set-deployment', patternId: 'tipping-point' }],
+        [
+          ALICE,
+          {
+            kind: 'configure-battle',
+            limit: 2000,
+            missionPackId: null,
+            terrainLayoutId: 'layout-a',
+            twistId: null,
+            solo: false,
+            clockLimitMinutes: null,
+          },
+        ],
+        [ALICE, roster('Ultramarines')],
+      ),
+    )
+
+    expect(state).toMatchObject({ deploymentId: null, settings: { terrainLayoutId: null } })
+  })
+
+  it('reconciles saved prep when a roster is replaced', () => {
+    const replacement = roster('Corrected roster')
+    if (replacement.kind !== 'attach-roster') throw new Error('expected an attached roster')
+    replacement.prep = {
+      stratagems: [{ key: 'new', name: 'New Order', cp: 1, limit: 'turn' }],
+      secondaries: [{ key: 'new-card', name: 'New Card' }],
+      primary: null,
+      secondaryMode: 'fixed',
+    }
+    const state = reduceBattle(
+      PLAYERS,
+      log(
+        ...started(),
+        [
+          ALICE,
+          {
+            kind: 'set-prep',
+            stratagems: [{ key: 'old', name: 'Old Order', cp: 1, limit: 'turn' }],
+            secondaries: [{ key: 'old-card', name: 'Old Card' }],
+            primary: null,
+            secondaryMode: 'fixed',
+          },
+        ],
+        [ALICE, replacement],
+      ),
+    )
+
+    expect(state.players[0]).toMatchObject({ stratagems: [{ key: 'new' }], secondaries: [{ key: 'new-card' }] })
+  })
+
+  it('keeps prep when replaying a legacy roster replacement without prep data', () => {
+    const state = reduceBattle(
+      PLAYERS,
+      log(
+        ...started(),
+        [
+          ALICE,
+          {
+            kind: 'set-prep',
+            stratagems: [{ key: 'old', name: 'Old Order', cp: 1, limit: 'turn' }],
+            secondaries: [{ key: 'old-card', name: 'Old Card' }],
+            primary: null,
+            secondaryMode: 'fixed',
+          },
+        ],
+        [ALICE, roster('Legacy corrected roster')],
+      ),
+    )
+
+    expect(state.players[0]).toMatchObject({ stratagems: [{ key: 'old' }], secondaries: [{ key: 'old-card' }] })
+  })
+
+  it('allows replacing your roster after play starts', () => {
+    const state = reduceBattle(PLAYERS, log(...started()))
+    expect(validate(state, ALICE, roster('Corrected roster'))).toBeNull()
   })
 })
 
@@ -140,6 +378,57 @@ describe('the turn sequence', () => {
     expect(state.round).toBe(BATTLE_ROUNDS)
   })
 
+  it('records each solo round as its own turn', () => {
+    const state = reduceBattle(
+      [ALICE],
+      log(
+        [
+          ALICE,
+          {
+            kind: 'configure-battle',
+            limit: 2000,
+            missionPackId: null,
+            terrainLayoutId: null,
+            twistId: null,
+            solo: true,
+            clockLimitMinutes: null,
+          },
+        ],
+        [ALICE, roster('Practice army')],
+        [ALICE, { kind: 'begin-battle', firstPlayerId: ALICE }],
+        ...turns(6, ALICE),
+      ),
+    )
+
+    expect(state.turns.map((turn) => turn.round)).toEqual([1, 2])
+  })
+
+  it('naturally completes all five solo rounds', () => {
+    const state = reduceBattle(
+      [ALICE],
+      log(
+        [
+          ALICE,
+          {
+            kind: 'configure-battle',
+            limit: 2000,
+            missionPackId: null,
+            terrainLayoutId: null,
+            twistId: null,
+            solo: true,
+            clockLimitMinutes: null,
+          },
+        ],
+        [ALICE, roster('Practice army')],
+        [ALICE, { kind: 'begin-battle', firstPlayerId: ALICE }],
+        ...turns(BATTLE_ROUNDS * 6, ALICE),
+      ),
+    )
+
+    expect(state).toMatchObject({ status: 'finished', result: { reason: 'completed', concededBy: null } })
+    expect(state.turns.map((turn) => turn.round)).toEqual([1, 2, 3, 4, 5])
+  })
+
   it('refuses to end a phase for the player whose turn it is not', () => {
     const state = reduceBattle(PLAYERS, log(...started()))
     expect(validate(state, BOB, advance())).toBe('it is not your turn')
@@ -147,6 +436,12 @@ describe('the turn sequence', () => {
 })
 
 describe('command points', () => {
+  it('refuses score corrections before play begins', () => {
+    const state = reduceBattle(PLAYERS, log())
+    expect(validate(state, ALICE, { kind: 'correct-player', playerId: ALICE, resource: 'primary', delta: 1 })).toBe(
+      'the battle has not started',
+    )
+  })
   it('cannot be spent below zero', () => {
     const state = reduceBattle(PLAYERS, log(...started()))
     expect(validate(state, ALICE, { kind: 'adjust-cp', delta: -2 })).toBe('not enough command points')
@@ -161,6 +456,170 @@ describe('command points', () => {
     const state = reduceBattle(PLAYERS, log(...started(), [ALICE, { kind: 'adjust-cp', delta: -1 }]))
     const player = battleView({ token: 'abc' }, NAMES, state, ALICE).players[0]
     expect(player).toMatchObject({ cpGained: 1, cpSpent: 1, cp: 0 })
+  })
+
+  it('lets either participant correct either score after completion', () => {
+    const state = reduceBattle(PLAYERS, log(...started(), [ALICE, { kind: 'end-battle', reason: 'finished-early' }]))
+    expect(validate(state, BOB, { kind: 'correct-player', playerId: ALICE, resource: 'primary', delta: 5 })).toBeNull()
+  })
+})
+
+describe('battle management', () => {
+  it('requires a conceding player for a concession', () => {
+    const state = reduceBattle(PLAYERS, log(...started()))
+    expect(validate(state, ALICE, { kind: 'end-battle', reason: 'conceded' })).toBe('choose who conceded')
+  })
+
+  it('refuses a conceding player on another result', () => {
+    const state = reduceBattle(PLAYERS, log(...started()))
+    expect(validate(state, ALICE, { kind: 'end-battle', reason: 'finished-early', concededBy: ALICE })).toBe(
+      'only a concession names a conceding player',
+    )
+  })
+
+  it('records natural completion only from the final turn', () => {
+    const state = reduceBattle(PLAYERS, log(...started()))
+    expect(validate(state, ALICE, { kind: 'end-battle', reason: 'completed' })).toBe('completed battles finish after the last turn')
+  })
+  it('records concessions and who conceded', () => {
+    const state = reduceBattle(PLAYERS, log(...started(), [BOB, { kind: 'end-battle', reason: 'conceded', concededBy: BOB }]))
+    expect(state).toMatchObject({ status: 'finished', result: { reason: 'conceded', concededBy: BOB } })
+  })
+
+  it('only allows a player to concede for themselves', () => {
+    const state = reduceBattle(PLAYERS, log(...started()))
+    expect(validate(state, ALICE, { kind: 'end-battle', reason: 'conceded', concededBy: BOB })).toBe('you can only concede for yourself')
+  })
+
+  it('can reopen a finished battle without discarding its score', () => {
+    const history = log(
+      ...started(),
+      [ALICE, { kind: 'score', category: 'primary', delta: 5 }],
+      [ALICE, { kind: 'end-battle', reason: 'finished-early' }],
+      [BOB, { kind: 'reopen-battle' }],
+    )
+    const state = reduceBattle(PLAYERS, history)
+    expect(state.status).toBe('playing')
+    expect(state.players[0]?.primary).toBe(5)
+  })
+
+  it('adds the painted-army bonus to the total', () => {
+    const state = reduceBattle(PLAYERS, log(...started(), [ALICE, { kind: 'set-painted', painted: true }]))
+    expect(battleView({ token: 'abc' }, NAMES, state, ALICE).players[0]).toMatchObject({ painted: true, paintedPoints: 10, total: 10 })
+  })
+
+  it('tracks unit formation states without inventing model positions', () => {
+    const state = reduceBattle(
+      PLAYERS,
+      log(
+        [ALICE, builtRoster('Ultramarines', ['Intercessors'])],
+        [ALICE, { kind: 'set-unit-formation', unitKey: 'u0', formation: 'strategic-reserves' }],
+      ),
+    )
+    expect(state.players[0]?.units[0]?.formation).toBe('strategic-reserves')
+  })
+
+  it('allows a catalogue-backed deep strike formation', () => {
+    const command = builtRoster('Death Guard', ['Lord of Virulence'])
+    if (command.kind !== 'attach-roster' || !command.roster.built) throw new Error('expected a built roster')
+    command.roster.built.units[0].formationOptions = ['deep-strike']
+    const state = reduceBattle(PLAYERS, log([ALICE, command]))
+
+    expect(validate(state, ALICE, { kind: 'set-unit-formation', unitKey: 'u0', formation: 'deep-strike' })).toBeNull()
+  })
+
+  it('refuses a deep strike formation absent from catalogue data', () => {
+    const state = reduceBattle(PLAYERS, log([ALICE, builtRoster('Ultramarines', ['Intercessors'])]))
+
+    expect(validate(state, ALICE, { kind: 'set-unit-formation', unitKey: 'u0', formation: 'deep-strike' })).toBe(
+      'the roster data does not support that formation',
+    )
+  })
+})
+
+describe('battle clocks', () => {
+  it('does not subtract clock time when a timestamp moves backwards', () => {
+    const history = log(
+      [
+        ALICE,
+        {
+          kind: 'configure-battle',
+          limit: 2000,
+          missionPackId: null,
+          terrainLayoutId: null,
+          twistId: null,
+          solo: false,
+          clockLimitMinutes: 60,
+        },
+      ],
+      ...started(),
+      [ALICE, { kind: 'pause-clock' }],
+    )
+    history.at(-2)!.at = 1000
+    history.at(-1)!.at = 500
+
+    expect(reduceBattle(PLAYERS, history).players[0]?.clockMilliseconds).toBe(0)
+  })
+
+  it('does not report a negative turn duration when a timestamp moves backwards', () => {
+    const history = log(...started(), ...turns(6, ALICE))
+    history[2].at = 1000
+    history.at(-1)!.at = 500
+
+    expect(battleView({ token: 'abc' }, NAMES, reduceBattle(PLAYERS, history), ALICE).turns[0]?.minutes).toBe(0)
+  })
+
+  it('folds elapsed time from command timestamps and pauses explicitly', () => {
+    const history = log(
+      [
+        ALICE,
+        {
+          kind: 'configure-battle',
+          limit: 2000,
+          missionPackId: null,
+          terrainLayoutId: null,
+          twistId: null,
+          solo: false,
+          clockLimitMinutes: 60,
+        },
+      ],
+      ...started(),
+      [ALICE, { kind: 'pause-clock' }],
+    )
+    history.forEach((entry, index) => (entry.at = index * 60_000))
+    const view = battleView({ token: 'abc' }, NAMES, reduceBattle(PLAYERS, history), ALICE, history.at(-1)!.at)
+
+    expect(view.clock).toMatchObject({ paused: true, limitMinutes: 60 })
+    expect(view.players[0]?.clockMilliseconds).toBe(60_000)
+  })
+
+  it('switches the running clock with the active turn', () => {
+    const history = log(
+      [
+        ALICE,
+        {
+          kind: 'configure-battle',
+          limit: 2000,
+          missionPackId: null,
+          terrainLayoutId: null,
+          twistId: null,
+          solo: false,
+          clockLimitMinutes: 60,
+        },
+      ],
+      ...started(),
+      ...turns(6, ALICE),
+    )
+    history.forEach((entry, index) => (entry.at = index * 60_000))
+    const state = reduceBattle(PLAYERS, history)
+    expect(state.clock.runningPlayerId).toBe(BOB)
+  })
+
+  it('starts a new timing segment when a battle is reopened', () => {
+    const history = log(...started(), [ALICE, { kind: 'end-battle', reason: 'finished-early' }], [BOB, { kind: 'reopen-battle' }])
+    history.forEach((entry, index) => (entry.at = index * 60_000))
+
+    expect(reduceBattle(PLAYERS, history).turns).toHaveLength(2)
   })
 })
 
@@ -296,9 +755,25 @@ describe('stratagems', () => {
     expect(validate(state, ALICE, { kind: 'use-stratagem', key: 's1' })).toBe('Grenade has been used this turn')
   })
 
+  it('keeps battle usage when prep is edited', () => {
+    const battleLimited = { ...STRAT, limit: 'battle' as const }
+    const state = reduceBattle(
+      PLAYERS,
+      log(
+        ...started(),
+        [ALICE, { kind: 'set-prep', stratagems: [battleLimited], secondaries: [], primary: null, secondaryMode: 'fixed' }],
+        [ALICE, { kind: 'adjust-cp', delta: 3 }],
+        [ALICE, { kind: 'use-stratagem', key: battleLimited.key }],
+        [ALICE, { kind: 'set-prep', stratagems: [battleLimited], secondaries: [], primary: null, secondaryMode: 'fixed' }],
+      ),
+    )
+
+    expect(validate(state, ALICE, { kind: 'use-stratagem', key: battleLimited.key })).toBe('Grenade has been used this battle')
+  })
+
   it('come back round in the next turn', () => {
     const history = log(...armed(), [ALICE, { kind: 'use-stratagem', key: 's1' }], ...turns(6, ALICE))
-    expect(validate(reduceBattle(PLAYERS, history), BOB, { kind: 'use-stratagem', key: 's1' })).toBe('that is not one of your stratagems')
+    expect(validate(reduceBattle(PLAYERS, history), ALICE, { kind: 'use-stratagem', key: 's1' })).toBeNull()
   })
 
   it('are refused without the command points to pay for them', () => {
@@ -321,6 +796,50 @@ describe('stratagems', () => {
     const state = reduceBattle(PLAYERS, log(...armed(), [ALICE, { kind: 'use-stratagem', key: 's1' }]))
     const view = battleView({ token: 'abc' }, NAMES, state, ALICE)
     expect(view.players.find((player) => player.isViewer)?.stratagems[0]?.refusal).toBe('Grenade has been used this turn')
+  })
+
+  it('enforces authoritative phase timing', () => {
+    const timed = { ...STRAT, phases: ['fight'] as ['fight'] }
+    const state = reduceBattle(
+      PLAYERS,
+      log(...started(), [ALICE, { kind: 'set-prep', stratagems: [timed], secondaries: [], primary: null, secondaryMode: 'fixed' }]),
+    )
+    expect(validate(state, ALICE, { kind: 'use-stratagem', key: timed.key })).toBe('Grenade cannot be used in this phase')
+  })
+
+  it('allows an authoritative phase when it arrives', () => {
+    const timed = { ...STRAT, phases: ['fight'] as ['fight'] }
+    const state = reduceBattle(
+      PLAYERS,
+      log(
+        ...started(),
+        [ALICE, { kind: 'set-prep', stratagems: [timed], secondaries: [], primary: null, secondaryMode: 'fixed' }],
+        ...turns(4, ALICE),
+      ),
+    )
+    expect(validate(state, ALICE, { kind: 'use-stratagem', key: timed.key })).toBeNull()
+  })
+
+  it('enforces opponent-turn timing independently', () => {
+    const timed = { ...STRAT, turn: 'opponent-turn' as const }
+    const state = reduceBattle(
+      PLAYERS,
+      log(...started(), [ALICE, { kind: 'set-prep', stratagems: [timed], secondaries: [], primary: null, secondaryMode: 'fixed' }]),
+    )
+    expect(validate(state, ALICE, { kind: 'use-stratagem', key: timed.key })).toBe('Grenade is used on your opponent’s turn')
+  })
+
+  it('allows opponent-turn timing on the opponent’s turn', () => {
+    const timed = { ...STRAT, turn: 'opponent-turn' as const }
+    const state = reduceBattle(
+      PLAYERS,
+      log(
+        ...started(),
+        [ALICE, { kind: 'set-prep', stratagems: [timed], secondaries: [], primary: null, secondaryMode: 'fixed' }],
+        ...turns(6, ALICE),
+      ),
+    )
+    expect(validate(state, ALICE, { kind: 'use-stratagem', key: timed.key })).toBeNull()
   })
 })
 
@@ -397,6 +916,10 @@ describe('secondaries', () => {
         primary: null,
         secondaryMode: 'tactical',
         secondaries: [{ key: 'a', name: 'Behind Enemy Lines' }],
+        secondaryDeck: [
+          { key: 'a', name: 'Behind Enemy Lines' },
+          { key: 'b', name: 'Bring It Down' },
+        ],
       },
     ]
     const state = reduceBattle(
@@ -404,6 +927,242 @@ describe('secondaries', () => {
       log(...started(), tactical, [ALICE, { kind: 'draw-secondary', secondary: { key: 'b', name: 'Bring It Down' } }]),
     )
     expect(alice(state)?.secondaries.map((secondary) => secondary.name)).toEqual(['Behind Enemy Lines', 'Bring It Down'])
+  })
+
+  it('derives the remaining tactical deck from cards already seen', () => {
+    const cards = [
+      { key: 'a', name: 'Behind Enemy Lines' },
+      { key: 'b', name: 'Bring It Down' },
+      { key: 'c', name: 'Engage on All Fronts' },
+    ]
+    const state = reduceBattle(
+      PLAYERS,
+      log(...started(), [
+        ALICE,
+        {
+          kind: 'set-prep',
+          stratagems: [],
+          primary: null,
+          secondaryMode: 'tactical',
+          secondaries: cards.slice(0, 2),
+          secondaryDeck: cards,
+        },
+      ]),
+    )
+    expect(battleView({ token: 'abc' }, NAMES, state, ALICE).players[0]?.remainingSecondaries).toEqual([cards[2]])
+  })
+
+  it('withholds the remaining tactical deck from the opponent', () => {
+    const cards = [
+      { key: 'a', name: 'Behind Enemy Lines' },
+      { key: 'b', name: 'Bring It Down' },
+    ]
+    const state = reduceBattle(
+      PLAYERS,
+      log(...started(), [
+        ALICE,
+        {
+          kind: 'set-prep',
+          stratagems: [],
+          primary: null,
+          secondaryMode: 'tactical',
+          secondaries: cards.slice(0, 1),
+          secondaryDeck: cards,
+        },
+      ]),
+    )
+
+    expect(battleView({ token: 'abc' }, NAMES, state, BOB).players[0]?.remainingSecondaries).toEqual([])
+  })
+
+  it('withholds a secret scoring prompt from the opponent', () => {
+    const state = reduceBattle(
+      PLAYERS,
+      log(...started(), [ALICE, { kind: 'select-secret', secondary: { key: 'secret-a', name: 'Hold the Line' } }], ...turns(5, ALICE)),
+    )
+
+    expect(battleView({ token: 'abc' }, NAMES, state, BOB).advancePrompt).toBeNull()
+  })
+
+  it('lets legacy tactical battles continue without an authoritative deck', () => {
+    const state = reduceBattle(
+      PLAYERS,
+      log(...started(), [
+        ALICE,
+        {
+          kind: 'set-prep',
+          stratagems: [],
+          primary: null,
+          secondaryMode: 'tactical',
+          secondaries: [{ key: 'a', name: 'Behind Enemy Lines' }],
+        },
+      ]),
+    )
+
+    expect(validate(state, ALICE, { kind: 'draw-secondary', secondary: { key: 'b', name: 'Bring It Down' } })).toBeNull()
+  })
+
+  it('refuses a draw outside the authoritative deck', () => {
+    const state = reduceBattle(
+      PLAYERS,
+      log(...started(), [
+        ALICE,
+        {
+          kind: 'set-prep',
+          stratagems: [],
+          primary: null,
+          secondaryMode: 'tactical',
+          secondaries: [],
+          secondaryDeck: [{ key: 'a', name: 'Behind Enemy Lines' }],
+        },
+      ]),
+    )
+
+    expect(validate(state, ALICE, { kind: 'draw-secondary', secondary: { key: 'b', name: 'Bring It Down' } })).toBe(
+      'that secondary is not in your deck',
+    )
+  })
+
+  it('refuses a secret outside the authoritative deck', () => {
+    const state = reduceBattle(
+      PLAYERS,
+      log(...started(), [
+        ALICE,
+        {
+          kind: 'set-prep',
+          stratagems: [],
+          primary: null,
+          secondaryMode: 'tactical',
+          secondaries: [],
+          secondaryDeck: [{ key: 'a', name: 'Behind Enemy Lines' }],
+        },
+      ]),
+    )
+
+    expect(validate(state, ALICE, { kind: 'select-secret', secondary: { key: 'b', name: 'Bring It Down' } })).toBe(
+      'that secondary is not in your deck',
+    )
+  })
+
+  it('uses the deck name when a draw payload is altered', () => {
+    const state = reduceBattle(
+      PLAYERS,
+      log(
+        ...started(),
+        [
+          ALICE,
+          {
+            kind: 'set-prep',
+            stratagems: [],
+            primary: null,
+            secondaryMode: 'tactical',
+            secondaries: [],
+            secondaryDeck: [{ key: 'a', name: 'Behind Enemy Lines' }],
+          },
+        ],
+        [ALICE, { kind: 'draw-secondary', secondary: { key: 'a', name: 'Altered' } }],
+      ),
+    )
+
+    expect(state.players[0]?.secondaries[0]?.name).toBe('Behind Enemy Lines')
+  })
+
+  it('uses the deck name when a secret payload is altered', () => {
+    const state = reduceBattle(
+      PLAYERS,
+      log(
+        ...started(),
+        [
+          ALICE,
+          {
+            kind: 'set-prep',
+            stratagems: [],
+            primary: null,
+            secondaryMode: 'tactical',
+            secondaries: [],
+            secondaryDeck: [{ key: 'a', name: 'Behind Enemy Lines' }],
+          },
+        ],
+        [ALICE, { kind: 'select-secret', secondary: { key: 'a', name: 'Altered' } }],
+      ),
+    )
+
+    expect(state.players[0]?.secondaries[0]?.name).toBe('Behind Enemy Lines')
+  })
+
+  it('keeps score corrections in the round ledger when prep changes', () => {
+    const state = reduceBattle(
+      PLAYERS,
+      log(
+        ...named(),
+        [ALICE, { kind: 'correct-player', playerId: ALICE, resource: 'secondary', delta: 3 }],
+        [
+          ALICE,
+          { kind: 'set-prep', stratagems: [], secondaries: [{ key: 'b', name: 'Bring It Down' }], primary: null, secondaryMode: 'fixed' },
+        ],
+      ),
+    )
+
+    expect(battleView({ token: 'abc' }, NAMES, state, ALICE).players[0]?.rounds[0]?.secondary).toBe(3)
+  })
+
+  it('keeps unnamed secondary scores when a roster applies saved prep', () => {
+    const replacement = roster('Replacement')
+    if (replacement.kind !== 'attach-roster') throw new Error('expected an attached roster')
+    replacement.prep = null
+    const state = reduceBattle(
+      PLAYERS,
+      log(...started(), [ALICE, { kind: 'score', category: 'secondary', delta: 5 }], [ALICE, replacement]),
+    )
+
+    const player = battleView({ token: 'abc' }, NAMES, state, ALICE).players[0]
+    expect(player?.secondary).toBe(5)
+    expect(player?.rounds[0]?.secondary).toBe(5)
+  })
+
+  it('prompts before passing a turn with an unresolved active mission', () => {
+    const state = reduceBattle(
+      PLAYERS,
+      log(
+        ...started(),
+        [
+          ALICE,
+          {
+            kind: 'set-prep',
+            stratagems: [],
+            primary: null,
+            secondaryMode: 'tactical',
+            secondaries: [{ key: 'a', name: 'Bring It Down' }],
+          },
+        ],
+        ...turns(5, ALICE),
+      ),
+    )
+    expect(battleView({ token: 'abc' }, NAMES, state, ALICE).advancePrompt).toContain('Bring It Down')
+  })
+
+  it('prompts again when an active mission has not scored this round', () => {
+    const state = reduceBattle(
+      PLAYERS,
+      log(
+        ...started(),
+        [
+          ALICE,
+          {
+            kind: 'set-prep',
+            stratagems: [],
+            primary: null,
+            secondaryMode: 'tactical',
+            secondaries: [{ key: 'a', name: 'Bring It Down' }],
+          },
+        ],
+        [ALICE, { kind: 'score-secondary', key: 'a', delta: 5 }],
+        ...turns(6, ALICE),
+        ...turns(6, BOB),
+        ...turns(5, ALICE),
+      ),
+    )
+    expect(battleView({ token: 'abc' }, NAMES, state, ALICE).advancePrompt).toContain('Bring It Down')
   })
 
   it('take over from the undifferentiated pile once named', () => {
@@ -463,9 +1222,24 @@ describe('deployment', () => {
     expect(state.deploymentId).toBe('tipping-point')
   })
 
+  it('sets a combined deployment and terrain layout atomically', () => {
+    const state = reduceBattle(
+      PLAYERS,
+      log(...withUnits(), [BOB, { kind: 'set-battlefield', patternId: 'tipping-point', terrainLayoutId: 'layout-b' }]),
+    )
+    expect(state).toMatchObject({ deploymentId: 'tipping-point', settings: { terrainLayoutId: 'layout-b' } })
+  })
+
   it('refuses to move the zones once the battle has started', () => {
     const state = reduceBattle(PLAYERS, log(...started()))
     expect(validate(state, ALICE, { kind: 'set-deployment', patternId: 'tipping-point' })).toBe('the battle has started')
+  })
+
+  it('refuses to replace the combined battlefield once the battle has started', () => {
+    const state = reduceBattle(PLAYERS, log(...started()))
+    expect(validate(state, ALICE, { kind: 'set-battlefield', patternId: 'tipping-point', terrainLayoutId: 'layout-b' })).toBe(
+      'the battle has started',
+    )
   })
 
   it('counts a destroyed unit as no longer on the table', () => {

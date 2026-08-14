@@ -1,6 +1,7 @@
-import { useQuery } from '@tanstack/react-query'
-import { useState } from 'react'
-import { ArrowDownToLine, RotateCcw, Skull, Undo2, Zap } from 'lucide-react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useNavigate } from '@tanstack/react-router'
+import { useEffect, useState } from 'react'
+import { Dice5, Maximize2, Pause, Play, RotateCcw, Skull, Undo2, Zap } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   AlertDialog,
@@ -14,12 +15,17 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
-import { deploymentsQuery, detachmentRulesQuery } from '../queries'
+import { UNIT_FORMATIONS } from '../../core/battle'
+import { deleteBattle, savedRosterPrice } from '../../server/functions'
+import { battleQuery, battlesQuery, deploymentsQuery, detachmentRulesQuery, gameReferencesQuery, savedRostersQuery } from '../queries'
+import { errorMessage } from '../queryClient'
 import type { BattleView, Command } from '../../core/battle'
 import type { PresentPlayer } from '../useLiveBattle'
+import { BattlefieldReference } from './Battlefield'
 import { Disclosure } from './Disclosure'
-import { Prep } from './Prep'
+import { battleRoster, savedBattlePrep } from './Setup'
 import { Report } from './Report'
+import { Prep } from './Prep'
 
 type Props = {
   view: BattleView
@@ -40,6 +46,9 @@ const MOBILE_TABS = ['info', 'events'] as const
 
 export function Tracker({ view, mission, present, send, pending, problem }: Props) {
   const [mobileTab, setMobileTab] = useState<'info' | 'events'>('info')
+  const [dieResult, setDieResult] = useState<{ sides: number; value: number } | null>(null)
+  const [fullscreen, setFullscreen] = useState(false)
+  const [keepAwake, setKeepAwake] = useState(false)
   const you = view.players.find((player) => player.isViewer)
   const built = you?.roster?.built
   // The cards say what they pay out, so the interface can offer the figure instead
@@ -47,7 +56,20 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
   const detachmentNames = built?.detachments?.map((detachment) => detachment.name) ?? (built?.detachment ? [built.detachment] : [])
   const { data: rules } = useQuery(detachmentRulesQuery(built?.catalogueId ?? '', detachmentNames))
   const { data: deployments } = useQuery(deploymentsQuery())
+  const { data: references } = useQuery(gameReferencesQuery())
   const deployment = deployments?.find((entry) => entry.id === view.deploymentId)
+  const missionPack = references?.packs.find((entry) => entry.id === view.settings.missionPackId)
+  const terrain = references?.terrainLayouts.find((entry) => entry.id === view.settings.terrainLayoutId)
+  const navigate = useNavigate()
+  const queryClient = useQueryClient()
+  const remove = useMutation({
+    mutationFn: () => deleteBattle({ data: { token: view.token } }),
+    onSuccess: async () => {
+      queryClient.removeQueries({ queryKey: battleQuery(view.token).queryKey })
+      await queryClient.invalidateQueries({ queryKey: battlesQuery().queryKey })
+      await navigate({ to: '/battles' })
+    },
+  })
   const awardsFor = (key: string, mode?: string) =>
     ([...(rules?.secondaries ?? []), ...(rules?.primaries ?? [])].find((card) => card.key === key)?.awards ?? []).filter(
       (award) => !award.mode || !mode || award.mode === mode,
@@ -65,6 +87,51 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
   const yourTurn = view.activePlayerId === view.viewerId
   const active = view.players.find((player) => player.isActive)
   const finished = view.status === 'finished'
+  const wakeLockAvailable = typeof navigator !== 'undefined' && 'wakeLock' in navigator
+
+  useEffect(() => {
+    const changed = () => setFullscreen(Boolean(document.fullscreenElement))
+    document.addEventListener('fullscreenchange', changed)
+    return () => document.removeEventListener('fullscreenchange', changed)
+  }, [])
+
+  useEffect(() => {
+    if (!keepAwake || !('wakeLock' in navigator)) return
+    let disposed = false
+    let requesting = false
+    let lock: WakeLockSentinel | null = null
+    const acquire = async () => {
+      if (disposed || requesting || lock || document.visibilityState !== 'visible') return
+      requesting = true
+      try {
+        const held = await navigator.wakeLock.request('screen')
+        if (disposed || document.visibilityState !== 'visible') {
+          await held.release()
+          return
+        }
+        lock = held
+        held.addEventListener('release', () => {
+          if (lock === held) lock = null
+        })
+      } catch {
+        if (!disposed) setKeepAwake(false)
+      } finally {
+        requesting = false
+      }
+    }
+    const visible = () => {
+      if (document.visibilityState === 'visible') void acquire()
+    }
+    document.addEventListener('visibilitychange', visible)
+    void acquire()
+    return () => {
+      disposed = true
+      document.removeEventListener('visibilitychange', visible)
+      const held = lock
+      lock = null
+      void held?.release()
+    }
+  }, [keepAwake])
 
   return (
     <main className="mx-auto w-full max-w-[1500px] space-y-4 px-4 pt-6 pb-36 lg:pb-6">
@@ -75,6 +142,17 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
             {mission ? ` · ${mission.name}` : ''}
           </p>
           <h1 className="mt-1 text-2xl capitalize">{finished ? outcome(view) : `${view.phase} phase`}</h1>
+          <p className="mt-1 text-xs text-dim">
+            {[
+              view.settings.limit ? `${view.settings.limit} points` : null,
+              missionPack?.name,
+              terrain?.name,
+              view.attackerId ? `${view.players.find((player) => player.id === view.attackerId)?.name ?? 'Unknown'} attacking` : null,
+              resultLabel(view),
+            ]
+              .filter(Boolean)
+              .join(' · ')}
+          </p>
         </div>
         {finished ? null : (
           <p className="text-sm text-dim">
@@ -111,6 +189,15 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
             <p className="readout text-[0.6875rem] text-faint">
               CP {player.cpGained} gained · {player.cpSpent} used · {player.cp} remaining
             </p>
+
+            {view.clock.limitMinutes !== null ? (
+              <PlayerClock
+                key={`${player.id}-${view.seq}`}
+                used={player.clockMilliseconds}
+                remaining={player.clockRemainingMilliseconds}
+                running={view.clock.runningPlayerId === player.id && !view.clock.paused}
+              />
+            ) : null}
 
             {/* Each stat's controls sit under the number they change, so nothing is labelled twice. */}
             <div className="grid grid-cols-3 gap-2 border-t border-edge pt-3">
@@ -157,6 +244,22 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
                 {player.total}
               </span>
             </p>
+
+            <div className="flex items-center justify-between gap-2 text-xs">
+              <span className={player.painted ? 'text-achieved' : 'text-dim'}>
+                Battle ready {player.painted ? `· +${player.paintedPoints} VP` : '· no bonus'}
+              </span>
+              {player.isViewer ? (
+                <Button
+                  variant={player.painted ? 'default' : 'outline'}
+                  size="xs"
+                  disabled={pending}
+                  onClick={() => send({ kind: 'set-painted', painted: !player.painted })}
+                >
+                  {player.painted ? 'Remove' : 'Add'} bonus
+                </Button>
+              ) : null}
+            </div>
 
             <div className="grid grid-cols-5 border-y border-edge py-2">
               {player.rounds.map((round) => (
@@ -273,10 +376,21 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
                 player.secondaryMode === 'tactical' &&
                 player.secondaries.filter((card) => card.status === 'active').length < 2 ? (
                   <Disclosure label="Draw a replacement" className="pt-1" triggerClassName="eyebrow text-azure">
-                    <div className="mt-1 flex max-h-32 flex-wrap gap-1 overflow-y-auto">
-                      {(rules?.secondaries ?? [])
-                        .filter((card) => !player.secondaries.some((held) => held.key === card.key))
-                        .map((card) => (
+                    <div className="mt-1 space-y-2">
+                      <p className="text-xs text-dim">{player.remainingSecondaries.length} cards remaining</p>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        disabled={pending || !player.remainingSecondaries.length}
+                        onClick={() => {
+                          const card = randomEntry(player.remainingSecondaries)
+                          if (card) send({ kind: 'draw-secondary', secondary: card })
+                        }}
+                      >
+                        Draw at random
+                      </Button>
+                      <div className="flex max-h-32 flex-wrap gap-1 overflow-y-auto">
+                        {player.remainingSecondaries.map((card) => (
                           <Button
                             key={card.key}
                             variant="outline"
@@ -287,25 +401,24 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
                             {card.name}
                           </Button>
                         ))}
+                      </div>
                     </div>
                   </Disclosure>
                 ) : null}
                 {player.isViewer && !finished && !player.secondaries.some((card) => card.secret) ? (
                   <Disclosure label="Select secret mission" className="pt-1" triggerClassName="eyebrow text-azure">
                     <div className="mt-1 flex max-h-32 flex-wrap gap-1 overflow-y-auto">
-                      {(rules?.secondaries ?? [])
-                        .filter((card) => !player.secondaries.some((held) => held.key === card.key))
-                        .map((card) => (
-                          <Button
-                            key={card.key}
-                            variant="outline"
-                            size="sm"
-                            className="h-7 text-[0.625rem]"
-                            onClick={() => send({ kind: 'select-secret', secondary: { key: card.key, name: card.name } })}
-                          >
-                            {card.name}
-                          </Button>
-                        ))}
+                      {player.remainingSecondaries.map((card) => (
+                        <Button
+                          key={card.key}
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-[0.625rem]"
+                          onClick={() => send({ kind: 'select-secret', secondary: { key: card.key, name: card.name } })}
+                        >
+                          {card.name}
+                        </Button>
+                      ))}
                     </div>
                   </Disclosure>
                 ) : null}
@@ -317,7 +430,12 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
                 <p className="eyebrow">Stratagems</p>
                 {player.stratagems.map((stratagem) => (
                   <div key={stratagem.key} className="flex items-center justify-between gap-2 text-sm">
-                    <span className={`min-w-0 flex-1 truncate ${stratagem.refusal ? 'text-dim' : ''}`}>{stratagem.name}</span>
+                    <span className={`min-w-0 flex-1 ${stratagem.refusal ? 'text-dim' : ''}`}>
+                      <span className="block truncate">{stratagem.name}</span>
+                      {player.isViewer && stratagem.refusal ? (
+                        <span className="block truncate text-[0.625rem] text-faint">{stratagem.refusal}</span>
+                      ) : null}
+                    </span>
                     <span className="readout shrink-0 text-xs text-dim">
                       {stratagem.cp} CP · {stratagem.uses}x
                     </span>
@@ -348,53 +466,66 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
                 </p>
                 <ul className="mt-1 divide-y divide-edge">
                   {player.units.map((unit) => (
-                    <li key={unit.key} className="flex items-center justify-between gap-2 py-1 text-sm">
-                      <span className={`min-w-0 flex-1 truncate ${unit.destroyed ? 'text-dim line-through' : ''}`}>
-                        {unit.name}
-                        {unit.models > 1 && !unit.destroyed ? (
-                          <span className="readout ml-1.5 text-xs text-dim">
-                            {unit.alive}/{unit.models}
-                          </span>
-                        ) : null}
-                        {!unit.deployed && !unit.destroyed ? <span className="ml-1.5 text-xs text-dim">in reserve</span> : null}
-                      </span>
-                      {player.isViewer && !finished ? (
-                        <span className="flex shrink-0 gap-1">
-                          {!unit.deployed && !unit.destroyed ? (
-                            <Button
-                              variant="outline"
-                              size="icon-sm"
-                              aria-label={`Bring on ${unit.name}`}
-                              disabled={pending}
-                              onClick={() => send({ kind: 'deploy-unit', unitKey: unit.key, deployed: true })}
-                            >
-                              <ArrowDownToLine />
-                            </Button>
-                          ) : null}
+                    <li key={unit.key} className="space-y-1 py-1 text-sm">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className={`min-w-0 flex-1 truncate ${unit.destroyed ? 'text-dim line-through' : ''}`}>
+                          {unit.name}
                           {unit.models > 1 && !unit.destroyed ? (
-                            <Button
-                              variant="outline"
-                              size="icon-sm"
-                              aria-label={`Lose a model from ${unit.name}`}
-                              disabled={pending}
-                              onClick={() => send({ kind: 'wound-unit', unitKey: unit.key, delta: -1 })}
-                            >
-                              −1
-                            </Button>
+                            <span className="readout ml-1.5 text-xs text-dim">
+                              {unit.alive}/{unit.models}
+                            </span>
                           ) : null}
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            aria-label={`${unit.destroyed ? 'Bring back' : 'Lose'} ${unit.name}`}
-                            disabled={pending}
-                            onClick={() => send({ kind: 'set-unit', unitKey: unit.key, destroyed: !unit.destroyed })}
-                          >
-                            {unit.destroyed ? <RotateCcw /> : <Skull />}
-                          </Button>
+                          {!unit.destroyed ? (
+                            <span className="ml-1.5 text-[0.625rem] text-dim">{unit.formation.replaceAll('-', ' ')}</span>
+                          ) : null}
                         </span>
-                      ) : (
-                        <span className="readout shrink-0 text-xs text-dim">{unit.points}</span>
-                      )}
+                        {player.isViewer && !finished ? (
+                          <span className="flex shrink-0 gap-1">
+                            {unit.models > 1 && !unit.destroyed ? (
+                              <Button
+                                variant="outline"
+                                size="icon-sm"
+                                aria-label={`Lose a model from ${unit.name}`}
+                                disabled={pending}
+                                onClick={() => send({ kind: 'wound-unit', unitKey: unit.key, delta: -1 })}
+                              >
+                                −1
+                              </Button>
+                            ) : null}
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              aria-label={`${unit.destroyed ? 'Bring back' : 'Lose'} ${unit.name}`}
+                              disabled={pending}
+                              onClick={() => send({ kind: 'set-unit', unitKey: unit.key, destroyed: !unit.destroyed })}
+                            >
+                              {unit.destroyed ? <RotateCcw /> : <Skull />}
+                            </Button>
+                          </span>
+                        ) : (
+                          <span className="readout shrink-0 text-xs text-dim">{unit.points}</span>
+                        )}
+                      </div>
+                      {player.isViewer && !finished && !unit.destroyed ? (
+                        <div className="flex flex-wrap gap-1">
+                          {UNIT_FORMATIONS.filter(
+                            (formation) =>
+                              formation === 'battlefield' ||
+                              formation === 'strategic-reserves' ||
+                              unit.formationOptions?.includes(formation),
+                          ).map((formation) => (
+                            <Button
+                              key={formation}
+                              variant={unit.formation === formation ? 'default' : 'outline'}
+                              size="xs"
+                              disabled={pending}
+                              onClick={() => send({ kind: 'set-unit-formation', unitKey: unit.key, formation })}
+                            >
+                              {formation.replaceAll('-', ' ')}
+                            </Button>
+                          ))}
+                        </div>
+                      ) : null}
                     </li>
                   ))}
                 </ul>
@@ -438,21 +569,46 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
                 </p>
               ) : null}
             </div>
+            {deployment ? (
+              <BattlefieldReference
+                deployment={deployment}
+                terrain={terrain}
+                templates={references?.terrainTemplates ?? []}
+                className="mt-3"
+              />
+            ) : null}
             <ScoreChart players={view.players} />
             <CpChart players={view.players} />
             <TurnTiming turns={view.turns} />
           </div>
-          {finished ? null : (
+          {finished ? (
             <div className={`${mobileTab === 'events' ? 'hidden lg:block' : ''} space-y-2 border-t border-edge pt-3`}>
-              <Button
-                variant={yourTurn ? 'default' : 'outline'}
-                className="h-11 w-full text-base"
-                disabled={!yourTurn || pending}
-                onClick={() => send({ kind: 'advance' })}
-                title={yourTurn ? undefined : 'Only the player taking the turn can end a phase'}
-              >
-                {view.phase === 'end' ? 'Pass the turn' : `End the ${view.phase} phase`}
+              <Button variant="secondary" className="w-full" disabled={pending} onClick={() => send({ kind: 'reopen-battle' })}>
+                <RotateCcw /> Reopen battle
               </Button>
+              <Button
+                variant="outline"
+                className="w-full"
+                disabled={view.undoable === null || pending}
+                onClick={() => view.undoable !== null && send({ kind: 'undo', target: view.undoable })}
+              >
+                <Undo2 /> Undo latest action
+              </Button>
+            </div>
+          ) : (
+            <div className={`${mobileTab === 'events' ? 'hidden lg:block' : ''} space-y-2 border-t border-edge pt-3`}>
+              {view.clock.limitMinutes !== null ? (
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  disabled={pending}
+                  onClick={() => send({ kind: view.clock.paused ? 'resume-clock' : 'pause-clock' })}
+                >
+                  {view.clock.paused ? <Play /> : <Pause />}
+                  {view.clock.paused ? 'Resume clocks' : 'Pause clocks'}
+                </Button>
+              ) : null}
+              <AdvanceControl view={view} pending={pending} yourTurn={yourTurn} send={send} />
               <div className="grid grid-cols-2 gap-2">
                 <Button
                   variant="outline"
@@ -461,28 +617,54 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
                 >
                   <Undo2 /> Undo
                 </Button>
-                <AlertDialog>
-                  <AlertDialogTrigger render={<Button variant="destructive" disabled={pending} />}>End battle</AlertDialogTrigger>
-                  <AlertDialogContent className="rounded-none border border-edge bg-panel text-bone ring-0">
-                    <AlertDialogHeader>
-                      <AlertDialogTitle className="uppercase">End this battle?</AlertDialogTitle>
-                      <AlertDialogDescription className="text-dim">
-                        This records the current result as final. You can still review the battle afterward.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter className="rounded-none border-edge bg-sunken">
-                      <AlertDialogCancel>Keep playing</AlertDialogCancel>
-                      <AlertDialogAction variant="destructive" onClick={() => send({ kind: 'end-battle' })}>
-                        End battle
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
+                <EndBattleDialog
+                  pending={pending}
+                  label="Finish early"
+                  onConfirm={() => send({ kind: 'end-battle', reason: 'finished-early' })}
+                />
               </div>
+              <EndBattleDialog
+                pending={pending}
+                label="Concede battle"
+                description="This records that you conceded and ends the battle for both players."
+                onConfirm={() => send({ kind: 'end-battle', reason: 'conceded', concededBy: view.viewerId })}
+              />
             </div>
           )}
+          <Disclosure label="Score corrections" className="border-t border-edge pt-3 text-sm text-dim">
+            <CorrectionControls view={view} send={send} pending={pending} />
+          </Disclosure>
+          <Disclosure label="Table tools" className="border-t border-edge pt-3 text-sm text-dim">
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              {[3, 6].map((sides) => (
+                <Button key={sides} variant="outline" onClick={() => setDieResult({ sides, value: randomIndex(sides) + 1 })}>
+                  <Dice5 /> D{sides}
+                </Button>
+              ))}
+              <Button
+                variant={fullscreen ? 'default' : 'outline'}
+                onClick={() => void (document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen())}
+              >
+                <Maximize2 /> {fullscreen ? 'Exit full screen' : 'Full screen'}
+              </Button>
+              <Button
+                variant={keepAwake ? 'default' : 'outline'}
+                disabled={!wakeLockAvailable}
+                onClick={() => setKeepAwake((current) => !current)}
+              >
+                {keepAwake ? 'Screen stays awake' : 'Keep screen awake'}
+              </Button>
+            </div>
+            {dieResult ? (
+              <p className="readout mt-2 text-center text-xl" aria-live="polite">
+                D{dieResult.sides} rolled {dieResult.value}
+              </p>
+            ) : null}
+          </Disclosure>
           {problem ? <p className="text-sm text-destructive">{problem}</p> : null}
+          {remove.error ? <p className="text-sm text-destructive">{errorMessage(remove.error)}</p> : null}
           <ReportDetails token={view.token} forceOpen={mobileTab === 'events'} />
+          {view.creatorId === view.viewerId ? <DeleteBattleDialog pending={remove.isPending} onConfirm={() => remove.mutate()} /> : null}
         </section>
       </div>
 
@@ -501,9 +683,182 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
             </div>
           ))}
         </div>
+        <RosterReplacement view={view} send={send} pending={pending} />
       </Disclosure>
       <MobileScoreboard view={view} />
     </main>
+  )
+}
+
+function PlayerClock({ used, remaining, running }: { used: number; remaining: number | null; running: boolean }) {
+  const [elapsed, setElapsed] = useState(0)
+  useEffect(() => {
+    if (!running) return
+    const timer = window.setInterval(() => setElapsed((current) => current + 1000), 1000)
+    return () => window.clearInterval(timer)
+  }, [running])
+  const left = remaining === null ? null : Math.max(0, remaining - elapsed)
+  return (
+    <p className={`readout text-xs ${left !== null && left <= 5 * 60_000 ? 'text-destructive' : 'text-dim'}`}>
+      Clock {left === null ? `${clockTime(used + elapsed)} used` : `${clockTime(left)} left`} {running ? '· running' : ''}
+    </p>
+  )
+}
+
+function AdvanceControl({
+  view,
+  pending,
+  yourTurn,
+  send,
+}: {
+  view: BattleView
+  pending: boolean
+  yourTurn: boolean
+  send: (command: Command) => void
+}) {
+  const label = view.phase === 'end' ? 'Pass the turn' : `End the ${view.phase} phase`
+  const trigger = (
+    <Button
+      variant={yourTurn ? 'default' : 'outline'}
+      className="h-11 w-full text-base"
+      disabled={!yourTurn || pending}
+      title={yourTurn ? undefined : 'Only the player taking the turn can end a phase'}
+    >
+      {label}
+    </Button>
+  )
+  if (!view.advancePrompt) return <Button {...trigger.props} onClick={() => send({ kind: 'advance' })} />
+  return (
+    <AlertDialog>
+      <AlertDialogTrigger render={trigger} />
+      <AlertDialogContent className="rounded-none border border-edge bg-panel text-bone ring-0">
+        <AlertDialogHeader>
+          <AlertDialogTitle className="uppercase">Score before continuing?</AlertDialogTitle>
+          <AlertDialogDescription className="text-dim">{view.advancePrompt}</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter className="rounded-none border-edge bg-sunken">
+          <AlertDialogCancel>Go back</AlertDialogCancel>
+          <AlertDialogAction onClick={() => send({ kind: 'advance' })}>Continue anyway</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  )
+}
+
+function EndBattleDialog({
+  pending,
+  label,
+  description = 'This records the current score as final. You can reopen the battle afterward.',
+  onConfirm,
+}: {
+  pending: boolean
+  label: string
+  description?: string
+  onConfirm: () => void
+}) {
+  return (
+    <AlertDialog>
+      <AlertDialogTrigger render={<Button variant="destructive" className="w-full" disabled={pending} />}>{label}</AlertDialogTrigger>
+      <AlertDialogContent className="rounded-none border border-edge bg-panel text-bone ring-0">
+        <AlertDialogHeader>
+          <AlertDialogTitle className="uppercase">{label}?</AlertDialogTitle>
+          <AlertDialogDescription className="text-dim">{description}</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter className="rounded-none border-edge bg-sunken">
+          <AlertDialogCancel>Keep playing</AlertDialogCancel>
+          <AlertDialogAction variant="destructive" onClick={onConfirm}>
+            {label}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  )
+}
+
+function CorrectionControls({ view, send, pending }: { view: BattleView; send: (command: Command) => void; pending: boolean }) {
+  return (
+    <div className="mt-2 space-y-3">
+      {view.players.map((player) => (
+        <div key={player.id} className="space-y-1 border-t border-edge pt-2">
+          <p className="eyebrow">{player.name}</p>
+          {(['cp', 'primary', 'secondary'] as const).map((resource) => (
+            <div key={resource} className="grid grid-cols-[1fr_repeat(3,2.25rem)] items-center gap-1">
+              <span className="capitalize">{resource}</span>
+              {[-1, 1, 5].map((delta) => (
+                <Button
+                  key={delta}
+                  variant="outline"
+                  size="icon-sm"
+                  disabled={pending || (delta < 0 && player[resource] < Math.abs(delta))}
+                  onClick={() => send({ kind: 'correct-player', playerId: player.id, resource, delta })}
+                  aria-label={`Correct ${player.name} ${resource} by ${delta}`}
+                >
+                  {delta > 0 ? '+' : '−'}
+                  {Math.abs(delta)}
+                </Button>
+              ))}
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function DeleteBattleDialog({ pending, onConfirm }: { pending: boolean; onConfirm: () => void }) {
+  return (
+    <AlertDialog>
+      <AlertDialogTrigger render={<Button variant="ghost" className="w-full text-destructive" disabled={pending} />}>
+        Delete battle
+      </AlertDialogTrigger>
+      <AlertDialogContent className="rounded-none border border-edge bg-panel text-bone ring-0">
+        <AlertDialogHeader>
+          <AlertDialogTitle className="uppercase">Delete this battle?</AlertDialogTitle>
+          <AlertDialogDescription className="text-dim">
+            The battle and its full command history will be permanently deleted.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter className="rounded-none border-edge bg-sunken">
+          <AlertDialogCancel>Keep battle</AlertDialogCancel>
+          <AlertDialogAction variant="destructive" onClick={onConfirm}>
+            Delete battle
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  )
+}
+
+function RosterReplacement({ view, send, pending }: { view: BattleView; send: (command: Command) => void; pending: boolean }) {
+  const { data: saved = [] } = useQuery(savedRostersQuery())
+  const eligible = view.settings.limit === null ? saved : saved.filter((roster) => roster.limit === view.settings.limit)
+  const replace = useMutation({
+    mutationFn: async (savedRoster: (typeof saved)[number]) => {
+      const priced = await savedRosterPrice({ data: { id: savedRoster.id } })
+      if (!priced) throw new Error('That roster could not be loaded.')
+      return { roster: battleRoster(savedRoster, priced), prep: savedBattlePrep(savedRoster) }
+    },
+    onSuccess: ({ roster, prep }) => send({ kind: 'attach-roster', roster, prep }),
+  })
+  if (view.status === 'finished') return null
+  return (
+    <Disclosure label="Replace my roster" className="mt-3 text-sm text-dim">
+      <div className="mt-2 flex flex-wrap gap-2">
+        {eligible.map((roster) => (
+          <Button
+            key={roster.id}
+            variant="outline"
+            size="sm"
+            disabled={pending || replace.isPending}
+            onClick={() => replace.mutate(roster)}
+          >
+            {roster.name}
+          </Button>
+        ))}
+        {!eligible.length ? <p className="text-xs text-dim">No saved roster matches this battle size.</p> : null}
+      </div>
+      {replace.error ? <p className="mt-2 text-sm text-destructive">{errorMessage(replace.error)}</p> : null}
+    </Disclosure>
   )
 }
 
@@ -687,7 +1042,41 @@ function rosterLine(roster: BattleView['players'][number]['roster']) {
 }
 
 function outcome(view: BattleView) {
+  if (view.result?.reason === 'conceded') {
+    const winner = view.players.find((player) => player.id !== view.result?.concededBy)
+    return winner ? `${winner.name} wins by concession` : 'Battle conceded'
+  }
   const [first, second] = view.players.toSorted((left, right) => right.total - left.total)
-  if (!first || !second) return 'No result'
+  if (!first) return 'No result'
+  if (!second) return `Final score ${first.total}`
   return first.total === second.total ? `Drawn at ${first.total}` : `${first.name} wins ${first.total}–${second.total}`
+}
+
+function resultLabel(view: BattleView) {
+  if (!view.result) return null
+  if (view.result.reason === 'conceded') {
+    return `${view.players.find((player) => player.id === view.result?.concededBy)?.name ?? 'A player'} conceded`
+  }
+  return view.result.reason === 'finished-early' ? 'Finished early' : 'Completed'
+}
+
+function randomEntry<T>(entries: readonly T[]) {
+  return entries[randomIndex(entries.length)]
+}
+
+function randomIndex(length: number) {
+  if (!length) return 0
+  const value = new Uint32Array(1)
+  crypto.getRandomValues(value)
+  return (value[0] ?? 0) % length
+}
+
+function clockTime(milliseconds: number) {
+  const seconds = Math.max(0, Math.ceil(milliseconds / 1000))
+  const hours = Math.floor(seconds / 3600)
+  const minutes = Math.floor((seconds % 3600) / 60)
+  const remainder = seconds % 60
+  return hours
+    ? `${hours}:${String(minutes).padStart(2, '0')}:${String(remainder).padStart(2, '0')}`
+    : `${minutes}:${String(remainder).padStart(2, '0')}`
 }

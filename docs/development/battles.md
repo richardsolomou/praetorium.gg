@@ -13,9 +13,19 @@
 
 Undo appends an `undo` command that names the latest active command. It does not delete history. Only the original author can undo that command.
 
+Setup settings, roster replacements, formation choices, painted-army bonuses, clock controls, score corrections, concessions, reopening, and setup resets are commands too. A reset clears rosters and battlefield choices without erasing the audit trail or the configured game size, mission pack, clock, or solo format. A finished battle remains correctable and reopenable; deletion is the only destructive operation and is restricted to the account that created the battle.
+
+Deployment and terrain are one battlefield choice. The three layouts for the armies' force dispositions each bind a deployment pattern to exact terrain geometry; `set-battlefield` records both IDs atomically. The setup and live tracker render that same plan, and a selected layout without its pinned geometry cannot start.
+
+Solo practice battles have one signed-in participant and do not invent a guest or duplicate player identity. That participant remains the active player when a turn ends. Their link has no joinable seat.
+
+## Clocks
+
+An optional player clock is folded from command timestamps. Beginning, advancing, pausing, resuming, ending, reopening, and undoing all preserve a deterministic elapsed-time record. The active player's clock switches automatically with the turn; the interface computes the still-running interval from the current time without storing a second timer value.
+
 ## Views and visibility
 
-`battleView` is the only place that decides what a player can see. Routes and realtime messages must not build a second view.
+`battleView` is the only place that decides what a player can see. Routes and realtime messages must not build a second view. An opponent can see drawn tactical missions but never the cards remaining in another player's deck.
 
 A read never claims a battle seat. `PraetoriumService.screen` returns an invitation until the player sends the join mutation. This prevents link-preview crawlers from taking a seat.
 
@@ -46,4 +56,4 @@ Better Auth owns the `user`, `session`, `account`, `verification`, and `rateLimi
 
 ## Tests
 
-`src/core/battle.test.ts` covers turn order, ownership, visibility, and undo. `src/server/service.test.ts` covers persistence and concurrent submissions against SQLite.
+`src/core/battle.test.ts` covers turn order, ownership, visibility, undo, solo play, resets, concessions, finished-state corrections, reopening, clock switching, tactical decks, and legacy logs whose battle size predates explicit settings. `src/server/service.test.ts` covers persistence, deletion permissions, and concurrent submissions against SQLite.

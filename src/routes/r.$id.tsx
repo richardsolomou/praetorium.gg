@@ -1,8 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, notFound } from '@tanstack/react-router'
 import { Printer } from 'lucide-react'
+import { useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { priceQuery, savedRosterPriceQuery, sharedRosterQuery } from '../client/queries'
+import { ROSTER_SOURCE_LABELS } from '../core/savedRoster'
 
 export const Route = createFileRoute('/r/$id')({
   loader: async ({ context, params }) => {
@@ -41,17 +43,30 @@ function SharedRoster() {
       roster?.picks.map(({ entryId, models, choices, spreads, toggles }) => ({ entryId, models, choices, spreads, toggles })) ?? [],
     ),
   )
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('print') === 'true') window.print()
+  }, [])
   if (!roster) return null
 
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-8">
       <header className="flex flex-wrap items-end justify-between gap-4 border-b border-edge pb-4">
         <div>
-          <p className="eyebrow">Shared roster</p>
+          <p className="eyebrow">{roster.visibility === 'private' ? 'Private roster' : 'Unlisted roster'}</p>
           <h1 className="text-3xl">{roster.name}</h1>
           <p className="mt-1 text-sm text-dim">
-            {priced?.detachments.map((detachment) => detachment.name).join(' · ') || 'No detachment'} · {roster.picks.length} units
+            {priced?.detachments.map((detachment) => detachment.name).join(' · ') || 'No detachment'} · {roster.picks.length} units ·{' '}
+            {ROSTER_SOURCE_LABELS[roster.source]}
           </p>
+          {roster.tags.length ? (
+            <p className="mt-2 flex flex-wrap gap-1">
+              {roster.tags.map((tag) => (
+                <span key={tag} className="chip text-azure">
+                  {tag}
+                </span>
+              ))}
+            </p>
+          ) : null}
         </div>
         <div className="flex items-center gap-3">
           <span className="readout text-2xl font-bold">

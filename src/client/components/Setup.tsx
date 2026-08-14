@@ -1,28 +1,61 @@
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import type { BattleView, Command, Roster } from '../../core/battle'
-import { savedRostersQuery } from '../queries'
+import { GAME_SIZES, UNIT_FORMATIONS } from '../../core/battle'
+import { battleQuery, battlesQuery, gameReferencesQuery, savedRostersQuery } from '../queries'
 import { errorMessage } from '../queryClient'
-import { savedRosterPrice } from '../../server/functions'
+import { deleteBattle, savedRosterPrice } from '../../server/functions'
 import { Battlefield } from './Battlefield'
 
-type Props = { view: BattleView; send: (command: Command) => void; pending: boolean; problem: string | null }
+type Props = {
+  view: BattleView
+  mission: { name: string; deploymentIds: string[] } | null
+  send: (command: Command) => void
+  pending: boolean
+  problem: string | null
+}
 
-export function Setup({ view, send, pending, problem }: Props) {
+export function Setup({ view, mission, send, pending, problem }: Props) {
   const you = view.players.find((player) => player.isViewer)!
-  const opponent = view.players.find((player) => !player.isViewer)!
+  const opponent = view.players.find((player) => !player.isViewer)
   const { data: saved = [] } = useQuery(savedRostersQuery())
+  const eligible = view.settings.limit === null ? saved : saved.filter((roster) => roster.limit === view.settings.limit)
+  const { data: references } = useQuery(gameReferencesQuery())
   const [choosingRoster, setChoosingRoster] = useState(!you.roster)
+  const [firstPlayerId, setFirstPlayerId] = useState(view.players[0]?.id ?? view.viewerId)
+  const [attackerId, setAttackerId] = useState(view.players[0]?.id ?? view.viewerId)
+  const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const ready = view.players.every((player) => player.roster)
+  const configure = (settings: Partial<Omit<Extract<Command, { kind: 'configure-battle' }>, 'kind'>>) =>
+    send({
+      kind: 'configure-battle',
+      limit: view.settings.limit ?? 2000,
+      missionPackId: view.settings.missionPackId,
+      terrainLayoutId: view.settings.terrainLayoutId,
+      twistId: view.settings.twistId,
+      solo: view.settings.solo,
+      clockLimitMinutes: view.settings.clockLimitMinutes,
+      ...settings,
+    })
+  const remove = useMutation({
+    mutationFn: () => deleteBattle({ data: { token: view.token } }),
+    onSuccess: async () => {
+      queryClient.removeQueries({ queryKey: battleQuery(view.token).queryKey })
+      await queryClient.invalidateQueries({ queryKey: battlesQuery().queryKey })
+      await navigate({ to: '/battles' })
+    },
+  })
   const attach = useMutation({
     mutationFn: async (savedRoster: (typeof saved)[number]) => {
       const priced = await savedRosterPrice({ data: { id: savedRoster.id } })
       if (!priced) throw new Error('That roster could not be loaded.')
       return { savedRoster, roster: battleRoster(savedRoster, priced) }
     },
-    onSuccess: ({ roster }) => {
-      send({ kind: 'attach-roster', roster })
+    onSuccess: ({ savedRoster, roster }) => {
+      send({ kind: 'attach-roster', roster, prep: savedBattlePrep(savedRoster) })
       setChoosingRoster(false)
     },
   })
@@ -32,10 +65,62 @@ export function Setup({ view, send, pending, problem }: Props) {
       <header className="border-b border-edge pb-4">
         <p className="eyebrow">Battle setup</p>
         <h1 className="mt-1 text-2xl">
-          {you.name} versus {opponent.name}
+          {view.settings.solo ? `${you.name} practice battle` : `${you.name} versus ${opponent?.name ?? 'open seat'}`}
         </h1>
-        <p className="mt-2 text-sm text-dim">Choose the army you brought, then set up the battlefield and deploy.</p>
+        <p className="mt-2 text-sm text-dim">Choose the armies and mission setup. Every choice is saved as soon as you make it.</p>
       </header>
+
+      <section className="space-y-4 border border-edge bg-panel p-4">
+        <div>
+          <p className="eyebrow">1 · Battle settings</p>
+          <h2 className="mt-1 text-lg">Format and clock</h2>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {GAME_SIZES.map((size) => (
+            <Button
+              key={size.limit}
+              variant={view.settings.limit === size.limit ? 'default' : 'outline'}
+              size="sm"
+              disabled={pending}
+              onClick={() => configure({ limit: size.limit })}
+            >
+              {size.name} · {size.limit}
+            </Button>
+          ))}
+        </div>
+        {references?.packs.length ? (
+          <div className="flex flex-wrap gap-2">
+            {references.packs.map((pack) => (
+              <Button
+                key={pack.id}
+                variant={view.settings.missionPackId === pack.id ? 'default' : 'outline'}
+                size="sm"
+                disabled={pending}
+                onClick={() => configure({ missionPackId: pack.id })}
+              >
+                {pack.name}
+              </Button>
+            ))}
+          </div>
+        ) : null}
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="eyebrow">Player clock</span>
+          {[null, 30, 45, 60, 90].map((minutes) => (
+            <Button
+              key={minutes ?? 'off'}
+              variant={view.settings.clockLimitMinutes === minutes ? 'default' : 'outline'}
+              size="xs"
+              disabled={pending}
+              onClick={() => configure({ clockLimitMinutes: minutes })}
+            >
+              {minutes ? `${minutes}m` : 'Off'}
+            </Button>
+          ))}
+        </div>
+        <p className="text-xs text-dim">
+          The synced rules source does not currently provide structured twist cards, so none are invented here.
+        </p>
+      </section>
 
       {choosingRoster ? (
         <section>
@@ -50,9 +135,9 @@ export function Setup({ view, send, pending, problem }: Props) {
               </Button>
             ) : null}
           </div>
-          {saved.length ? (
+          {eligible.length ? (
             <div className="mt-3 grid gap-2 sm:grid-cols-2">
-              {saved.map((roster) => (
+              {eligible.map((roster) => (
                 <Button
                   key={roster.id}
                   variant="outline"
@@ -69,7 +154,9 @@ export function Setup({ view, send, pending, problem }: Props) {
               ))}
             </div>
           ) : (
-            <p className="mt-3 border border-edge bg-panel p-4 text-sm text-dim">You do not have a saved roster yet.</p>
+            <p className="mt-3 border border-edge bg-panel p-4 text-sm text-dim">
+              {saved.length ? 'No saved roster matches this battle size.' : 'You do not have a saved roster yet.'}
+            </p>
           )}
           {attach.error ? <p className="mt-3 text-sm text-destructive">{errorMessage(attach.error)}</p> : null}
         </section>
@@ -85,42 +172,116 @@ export function Setup({ view, send, pending, problem }: Props) {
         </section>
       )}
 
-      <p className="text-sm text-dim">
-        {opponent.roster ? `${opponent.name} is ready.` : `Waiting for ${opponent.name} to choose a roster.`}
-      </p>
+      {opponent ? (
+        <p className="text-sm text-dim">
+          {opponent.roster ? `${opponent.name} is ready.` : `Waiting for ${opponent.name} to choose a roster.`}
+        </p>
+      ) : null}
 
       {you.roster && !choosingRoster ? (
         <section className="space-y-5 border border-edge bg-panel p-4">
-          <Battlefield view={view} send={send} pending={pending} />
+          <div>
+            <p className="eyebrow">2 · Battlefield</p>
+            <h2 className="mt-1 text-lg">Deployment and terrain</h2>
+          </div>
+          {mission ? <p className="text-sm text-dim">Mission matchup · {mission.name}</p> : null}
+          <Battlefield view={view} send={send} pending={pending} allowedIds={mission?.deploymentIds} />
+        </section>
+      ) : null}
+
+      {you.units.length ? (
+        <section className="space-y-3 border border-edge bg-panel p-4">
+          <div>
+            <p className="eyebrow">3 · Formations</p>
+            <h2 className="mt-1 text-lg">Place your units</h2>
+          </div>
+          {you.units.map((unit) => (
+            <div key={unit.key} className="flex flex-wrap items-center justify-between gap-2 border-t border-edge pt-2 text-sm">
+              <span>
+                {unit.name}
+                {unit.prebattleRules?.length ? <span className="ml-2 text-xs text-azure">{unit.prebattleRules.join(' · ')}</span> : null}
+              </span>
+              <div className="flex flex-wrap gap-1">
+                {UNIT_FORMATIONS.filter(
+                  (formation) =>
+                    formation === 'battlefield' || formation === 'strategic-reserves' || unit.formationOptions?.includes(formation),
+                ).map((formation) => (
+                  <Button
+                    key={formation}
+                    variant={unit.formation === formation ? 'default' : 'outline'}
+                    size="xs"
+                    disabled={pending}
+                    onClick={() => send({ kind: 'set-unit-formation', unitKey: unit.key, formation })}
+                  >
+                    {formation.replaceAll('-', ' ')}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          ))}
+          <Button
+            variant={you.painted ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => send({ kind: 'set-painted', painted: !you.painted })}
+          >
+            Battle ready army · +10 VP
+          </Button>
         </section>
       ) : null}
 
       {you.roster && view.deploymentId ? (
         ready ? (
           <section className="border border-edge bg-panel p-4">
-            <p className="eyebrow">Start the battle</p>
-            <h2 className="mt-1 text-lg">Who has the first turn?</h2>
-            <div className="mt-3 flex flex-wrap gap-2">
+            <p className="eyebrow">4 · Start the battle</p>
+            <h2 className="mt-1 text-lg">Attacker and first turn</h2>
+            <p className="mt-3 text-xs text-dim">Attacker</p>
+            <div className="mt-1 flex flex-wrap gap-2">
               {view.players.map((player) => (
-                <Button key={player.id} disabled={pending} onClick={() => send({ kind: 'begin-battle', firstPlayerId: player.id })}>
+                <Button key={player.id} variant={attackerId === player.id ? 'default' : 'outline'} onClick={() => setAttackerId(player.id)}>
                   {player.name}
                 </Button>
               ))}
             </div>
+            <p className="mt-3 text-xs text-dim">First turn</p>
+            <div className="mt-1 flex flex-wrap gap-2">
+              {view.players.map((player) => (
+                <Button
+                  key={player.id}
+                  variant={firstPlayerId === player.id ? 'default' : 'outline'}
+                  onClick={() => setFirstPlayerId(player.id)}
+                >
+                  {player.name}
+                </Button>
+              ))}
+            </div>
+            <Button className="mt-4" disabled={pending} onClick={() => send({ kind: 'begin-battle', firstPlayerId, attackerId })}>
+              Start battle
+            </Button>
           </section>
         ) : (
           <p className="border border-edge bg-panel p-4 text-sm text-dim">
-            Waiting for {opponent.name} to choose a roster before starting.
+            Waiting for {opponent?.name ?? 'the other player'} to choose a roster before starting.
           </p>
         )
       ) : null}
 
       {problem ? <p className="text-sm text-destructive">{problem}</p> : null}
+      <div className="flex justify-between border-t border-edge pt-4">
+        <Button variant="outline" disabled={pending} onClick={() => send({ kind: 'reset-setup' })}>
+          Reset setup
+        </Button>
+        {view.creatorId === view.viewerId ? (
+          <Button variant="destructive" disabled={remove.isPending} onClick={() => remove.mutate()}>
+            Delete battle
+          </Button>
+        ) : null}
+      </div>
+      {remove.error ? <p className="text-sm text-destructive">{errorMessage(remove.error)}</p> : null}
     </main>
   )
 }
 
-function battleRoster(
+export function battleRoster(
   saved: Awaited<ReturnType<NonNullable<ReturnType<typeof savedRostersQuery>['queryFn']>>>[number],
   priced: NonNullable<Awaited<ReturnType<typeof savedRosterPrice>>>,
 ): Roster {
@@ -148,7 +309,13 @@ function battleRoster(
         name: unit.name,
         points: unit.points,
         models: unit.size.models,
+        formationOptions: [...unit.formationOptions],
+        prebattleRules: unit.prebattleRules,
       })),
     },
   }
+}
+
+export function savedBattlePrep(saved: Awaited<ReturnType<NonNullable<ReturnType<typeof savedRostersQuery>['queryFn']>>>[number]) {
+  return saved.prep ? { ...saved.prep, primary: null, secondaryMode: 'fixed' as const } : null
 }
