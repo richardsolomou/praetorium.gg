@@ -59,6 +59,22 @@ describe('setup', () => {
     expect(validate(state, BOB, roster('Death Guard'))).toBeNull()
   })
 
+  it('refuses a change of cards once the battle has begun', () => {
+    const state = reduceBattle(PLAYERS, log(...started()))
+    const prep: Command = { kind: 'set-prep', stratagems: [], secondaries: [], primary: null, secondaryMode: 'fixed' }
+    expect(validate(state, ALICE, prep)).toBe('cards are settled before the battle begins')
+  })
+
+  it('refuses cards carried in with a replacement list', () => {
+    const state = reduceBattle(PLAYERS, log(...started()))
+    const command: Command = {
+      kind: 'attach-roster',
+      roster: { name: 'Death Guard', text: '10 Plague Marines' },
+      prep: { stratagems: [], secondaries: [], primary: null, secondaryMode: 'fixed' },
+    }
+    expect(validate(state, BOB, command)).toBe('cards are settled before the battle begins')
+  })
+
   it('keeps legacy logs with a non-default roster size startable', () => {
     const alice = builtRoster('Incursion army', ['Intercessors'])
     if (alice.kind !== 'attach-roster' || !alice.roster.built) throw new Error('expected a built roster')

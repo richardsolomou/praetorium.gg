@@ -411,6 +411,8 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
       return state.status === 'setup' ? null : 'the battle has started'
     case 'attach-roster': {
       if (state.status === 'finished') return 'the battle is over'
+      // Correcting a list mid-battle stays allowed; bringing a different set of cards with it does not.
+      if (state.status === 'playing' && command.prep) return 'cards are settled before the battle begins'
       const name = command.roster.name.trim()
       if (!name) return 'name your army'
       if (name.length > ROSTER_NAME_MAX_LENGTH) return 'that name is too long'
@@ -525,6 +527,9 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
     }
     case 'set-prep': {
       if (state.status === 'finished') return 'the battle is over'
+      // What an army brings is settled before the first turn, so the log cannot be
+      // rewritten mid-game to a different set of cards.
+      if (state.status === 'playing') return 'cards are settled before the battle begins'
       return validatePrep(command)
     }
     case 'use-stratagem': {
