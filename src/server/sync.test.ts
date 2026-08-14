@@ -75,7 +75,8 @@ it('keeps verified exports when one optional live page changes', async () => {
     files: { 'Stratagems.csv': hash(exported) },
     pages: { faction: hash('pinned page') },
   })
-  expect(fetch).toHaveBeenCalledTimes(requests)
+  // Battlemaster remains retryable when its optional snapshot is unavailable.
+  expect(fetch).toHaveBeenCalledTimes(requests + 1)
 })
 
 it('extracts only a source configured subpath', async () => {

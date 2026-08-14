@@ -155,9 +155,16 @@ export class PraetoriumService {
     else this.repository.removeFromCollection(playerId, entryId)
   }
 
-  createBattle(playerId: string) {
+  opponents(playerId: string) {
+    return this.repository.playersExcept(playerId)
+  }
+
+  createBattle(playerId: string, opponentId?: string) {
+    if (opponentId && (opponentId === playerId || !this.repository.playerById(opponentId))) {
+      throw new Response('choose an opponent', { status: 400 })
+    }
     const token = randomToken()
-    this.repository.createBattle({ id: randomId(), token, playerId, now: this.clock() })
+    this.repository.createBattle({ id: randomId(), token, playerId, opponentId, now: this.clock() })
     return { token }
   }
 

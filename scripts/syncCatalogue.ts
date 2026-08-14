@@ -42,6 +42,13 @@ if (argument === '--check') {
     console.log(`${name}: ${source.revision.slice(0, 10)} -> ${latest.slice(0, 10)}`)
     sources[name] = { ...source, revision: latest }
   }
+  const catalog = await fetch(
+    `${sources.battlemaster.baseUrl}/v1.1/public/tts/layouts?owner=${encodeURIComponent(sources.battlemaster.owner)}&missionPack=${encodeURIComponent(sources.battlemaster.missionPack)}&text=0`,
+  )
+  if (!catalog.ok) throw new Error(`Battlemaster catalog answered ${catalog.status}`)
+  const catalogKey = ((await catalog.json()) as { catalogKey?: unknown }).catalogKey
+  if (typeof catalogKey !== 'string') throw new Error('Battlemaster catalog has no catalog key')
+  sources.battlemaster.revision = createHash('sha256').update(catalogKey).digest('hex')
   for (const name of Object.keys(sources.wahapedia.files)) {
     const response = await fetch(`${sources.wahapedia.baseUrl}/${name}`)
     if (!response.ok) throw new Error(`Wahapedia ${name} answered ${response.status}`)

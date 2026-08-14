@@ -1,251 +1,154 @@
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
-import { Toggle } from '@/components/ui/toggle'
-import type { BattleView, Command } from '../../core/battle'
-import { ROSTER_MAX_LENGTH, ROSTER_NAME_MAX_LENGTH } from '../../core/battle'
-import { catalogueStatusQuery, factionsQuery } from '../queries'
-import { useOrigin } from '../useOrigin'
+import type { BattleView, Command, Roster } from '../../core/battle'
+import { savedRostersQuery } from '../queries'
+import { errorMessage } from '../queryClient'
+import { savedRosterPrice } from '../../server/functions'
 import { Battlefield } from './Battlefield'
-import { Disclosure } from './Disclosure'
-import { ListBuilder } from './ListBuilder'
-import { Prep } from './Prep'
 
 type Props = { view: BattleView; send: (command: Command) => void; pending: boolean; problem: string | null }
-const ROSTER_MODES = ['build', 'paste'] as const
-const SETUP_STAGES = [
-  ['roster', '1', 'Roster'],
-  ['battlefield', '2', 'Battlefield'],
-  ['missions', '3', 'Missions'],
-  ['ready', '4', 'Ready'],
-] as const
-type SetupStage = (typeof SETUP_STAGES)[number][0]
 
-/**
- * Before the first turn: your list in, your opponent's list in, and a decision
- * about who goes first. A list is either built from the catalogue or pasted in
- * as text, and nothing here reads the text.
- */
 export function Setup({ view, send, pending, problem }: Props) {
   const you = view.players.find((player) => player.isViewer)!
-  const opponent = view.players.find((player) => !player.isViewer)
-  const [armyName, setArmyName] = useState(you.roster?.name ?? '')
-  const [text, setText] = useState(you.roster?.text ?? '')
-  const origin = useOrigin()
-  const { data: available } = useQuery(factionsQuery())
-  const { data: sync } = useQuery(catalogueStatusQuery())
-  // An instance with no catalogue synced offers pasting and says nothing about it.
-  const [mode, setMode] = useState<'build' | 'paste'>('build')
-  const [stage, setStage] = useState<SetupStage>(() => (!you.roster ? 'roster' : view.deploymentId ? 'missions' : 'battlefield'))
-  const building = Boolean(available) && mode === 'build'
-  const ready = view.players.length > 1 && view.players.every((player) => player.roster)
+  const opponent = view.players.find((player) => !player.isViewer)!
+  const { data: saved = [] } = useQuery(savedRostersQuery())
+  const [choosingRoster, setChoosingRoster] = useState(!you.roster)
+  const ready = view.players.every((player) => player.roster)
+  const attach = useMutation({
+    mutationFn: async (savedRoster: (typeof saved)[number]) => {
+      const priced = await savedRosterPrice({ data: { id: savedRoster.id } })
+      if (!priced) throw new Error('That roster could not be loaded.')
+      return { savedRoster, roster: battleRoster(savedRoster, priced) }
+    },
+    onSuccess: ({ roster }) => {
+      send({ kind: 'attach-roster', roster })
+      setChoosingRoster(false)
+    },
+  })
 
   return (
-    // Wide enough for the builder's three panes, and the rest of the screen simply
-    // does not use the room.
-    <main className="mx-auto w-full max-w-[1600px] space-y-6 px-4 py-6">
-      <section className="max-w-2xl">
+    <main className="mx-auto w-full max-w-4xl space-y-6 px-4 py-8">
+      <header className="border-b border-edge pb-4">
         <p className="eyebrow">Battle setup</p>
-        <h1 className="mt-1 text-2xl">{opponent ? `${you.name} versus ${opponent.name}` : 'Waiting for an opponent'}</h1>
-        {opponent ? null : (
-          <div className="mt-4 space-y-2">
-            <Label htmlFor="link">Send this link to your opponent</Label>
-            <Input id="link" readOnly value={origin ? `${origin}/b/${view.token}` : ''} className="readout text-xs" />
+        <h1 className="mt-1 text-2xl">
+          {you.name} versus {opponent.name}
+        </h1>
+        <p className="mt-2 text-sm text-dim">Choose the army you brought, then set up the battlefield and deploy.</p>
+      </header>
+
+      {choosingRoster ? (
+        <section>
+          <div className="flex items-end justify-between gap-3 border-b border-edge pb-2">
+            <div>
+              <p className="eyebrow">Your army</p>
+              <h2 className="text-xl">Choose your roster</h2>
+            </div>
+            {you.roster ? (
+              <Button variant="ghost" size="sm" onClick={() => setChoosingRoster(false)}>
+                Keep current roster
+              </Button>
+            ) : null}
           </div>
-        )}
-      </section>
-
-      <nav className="grid max-w-3xl grid-cols-4 border border-edge bg-panel" aria-label="Battle setup steps">
-        {SETUP_STAGES.map(([id, number, label]) => (
-          <Button
-            key={id}
-            variant="ghost"
-            className={`h-auto flex-col items-start gap-0 rounded-none border-x-transparent border-t-transparent border-b-2 px-2 py-2 text-left focus-visible:border-x-transparent focus-visible:border-t-transparent focus-visible:ring-0 sm:flex-row sm:items-center sm:gap-1 sm:py-3 ${stage === id ? 'border-b-azure bg-raised' : 'border-b-transparent'} ${id !== 'roster' && !you.roster ? 'text-faint' : ''}`}
-            disabled={id !== 'roster' && !you.roster}
-            aria-current={stage === id ? 'step' : undefined}
-            onClick={() => setStage(id)}
-          >
-            <span className="eyebrow block">Step {number}</span>
-            <span className="text-xs font-bold uppercase sm:text-sm">{label}</span>
-          </Button>
-        ))}
-      </nav>
-
-      {!available && sync && sync.status !== 'ready' ? (
-        <p className="rounded-lg border border-edge bg-panel p-3 text-sm text-dim">
-          {sync.status === 'failed'
-            ? `The community data could not be fetched: ${sync.detail ?? 'unknown reason'}. Pasting a list still works.`
-            : 'Fetching the community data. List building will appear when it lands; pasting works meanwhile.'}
-        </p>
-      ) : null}
-
-      {stage === 'roster' && available ? (
-        <ToggleGroup
-          value={[mode]}
-          onValueChange={(value) => {
-            const next = ROSTER_MODES.find((entry) => entry === value[0])
-            if (next) setMode(next)
-          }}
-          variant="outline"
-          size="sm"
-        >
-          <ToggleGroupItem value="build">Build from the catalogue</ToggleGroupItem>
-          <ToggleGroupItem value="paste">Paste a list</ToggleGroupItem>
-        </ToggleGroup>
-      ) : null}
-
-      {stage !== 'roster' ? null : building ? (
-        // The builder is the page while it is open, so it gets the height rather
-        // than growing a second scrollbar inside the one the page already has.
-        <section className="relative left-1/2 flex h-[calc(100dvh-11rem)] min-h-120 w-screen -translate-x-1/2 flex-col">
-          <ListBuilder
-            pending={pending}
-            attached={Boolean(you.roster)}
-            onAttach={(roster) => {
-              send({ kind: 'attach-roster', roster })
-              setStage('battlefield')
-            }}
-            prep={{
-              stratagems: you.stratagems.map(({ key, name, cp, limit }) => ({ key, name, cp, limit })),
-              secondaries: you.secondaries.map(({ key, name }) => ({ key, name })),
-            }}
-            onRestorePrep={(restored) =>
-              send({ kind: 'set-prep', ...restored, primary: you.primaryCard, secondaryMode: you.secondaryMode })
-            }
-          />
+          {saved.length ? (
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              {saved.map((roster) => (
+                <Button
+                  key={roster.id}
+                  variant="outline"
+                  className="h-auto justify-between rounded-none border-edge bg-panel p-4 text-left"
+                  disabled={pending || attach.isPending}
+                  onClick={() => attach.mutate(roster)}
+                >
+                  <span className="min-w-0">
+                    <span className="block truncate font-bold uppercase">{roster.name}</span>
+                    <span className="mt-1 block text-xs font-normal text-dim">{roster.picks.length} units</span>
+                  </span>
+                  <span className="chip shrink-0">{roster.limit} pts</span>
+                </Button>
+              ))}
+            </div>
+          ) : (
+            <p className="mt-3 border border-edge bg-panel p-4 text-sm text-dim">You do not have a saved roster yet.</p>
+          )}
+          {attach.error ? <p className="mt-3 text-sm text-destructive">{errorMessage(attach.error)}</p> : null}
         </section>
       ) : (
-        <form
-          className="max-w-2xl space-y-4 border border-edge bg-panel p-4"
-          onSubmit={(event) => {
-            event.preventDefault()
-            send({ kind: 'attach-roster', roster: { name: armyName, text } })
-            setStage('battlefield')
-          }}
-        >
-          <div className="space-y-2">
-            <Label htmlFor="army">Your army</Label>
-            <Input
-              id="army"
-              value={armyName}
-              onChange={(event) => setArmyName(event.target.value)}
-              maxLength={ROSTER_NAME_MAX_LENGTH}
-              placeholder="Ultramarines strike force"
-            />
+        <section className="flex items-center justify-between gap-4 border border-edge bg-panel p-4">
+          <div className="min-w-0">
+            <p className="eyebrow">Your roster</p>
+            <p className="truncate font-bold uppercase">{you.roster?.name}</p>
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="list">Your list</Label>
-            <Textarea
-              id="list"
-              value={text}
-              onChange={(event) => setText(event.target.value)}
-              maxLength={ROSTER_MAX_LENGTH}
-              rows={8}
-              placeholder="Paste it in. Nothing here reads it yet."
-              className="readout text-xs"
-            />
-          </div>
-          <Button type="submit" variant="secondary" disabled={pending || !armyName.trim() || !text.trim()}>
-            {you.roster ? 'Update my list' : 'Attach my list'}
+          <Button variant="outline" size="sm" onClick={() => setChoosingRoster(true)}>
+            Change roster
           </Button>
-        </form>
+        </section>
       )}
 
-      {opponent ? (
-        <p className="text-sm text-dim">
-          {opponent.roster ? `${opponent.name} has attached ${opponent.roster.name}.` : `Waiting for ${opponent.name}’s list.`}
-        </p>
-      ) : null}
+      <p className="text-sm text-dim">
+        {opponent.roster ? `${opponent.name} is ready.` : `Waiting for ${opponent.name} to choose a roster.`}
+      </p>
 
-      {you.roster && stage === 'battlefield' ? (
-        <div className="space-y-5 rounded-lg border border-edge bg-panel p-4">
-          <Battlefield
-            view={view}
-            send={(command) => {
-              send(command)
-              if (command.kind === 'set-deployment' && command.patternId) setStage('missions')
-            }}
-            pending={pending}
-          />
-
-          {you.units.length ? (
-            <section className="space-y-2">
-              <Label>
-                Deploy your army{' '}
-                <span className="readout text-xs text-dim">
-                  {you.deployed}/{you.units.length}
-                </span>
-              </Label>
-              <div className="flex flex-wrap gap-1.5">
-                {you.units.map((unit) => (
-                  <Toggle
-                    key={unit.key}
-                    variant="outline"
-                    size="sm"
-                    pressed={unit.deployed}
-                    disabled={pending}
-                    onPressedChange={(pressed) => send({ kind: 'deploy-unit', unitKey: unit.key, deployed: pressed })}
-                  >
-                    {unit.name}
-                  </Toggle>
-                ))}
-              </div>
-              <p className="text-xs text-dim">Anything left off the table is in reserve, and can arrive later.</p>
-            </section>
-          ) : null}
-        </div>
-      ) : null}
-
-      <Disclosure
-        label="Stratagems and secondaries"
-        className={`${stage === 'missions' ? '' : 'hidden'} rounded-lg border border-edge bg-panel p-4`}
-        triggerClassName="text-sm"
-        defaultOpen
-      >
-        <p className="mt-2 mb-4 text-xs text-dim">
-          Neither is in the community data, so copy them from your own book once. The app takes it from there.
-        </p>
-        <Prep
-          view={view}
-          send={(command) => {
-            send(command)
-            if (command.kind === 'set-prep') setStage('ready')
-          }}
-          pending={pending}
-        />
-      </Disclosure>
-
-      {problem ? <p className="text-sm text-destructive">{problem}</p> : null}
-
-      {stage === 'ready' ? (
-        <section className="space-y-3">
-          {ready ? (
-            <>
-              <p className="eyebrow">Who takes the first turn</p>
-              <div className="flex flex-wrap gap-2">
-                {view.players.map((player) => (
-                  <Button
-                    key={player.id}
-                    disabled={pending}
-                    className="h-11 text-base"
-                    onClick={() => send({ kind: 'begin-battle', firstPlayerId: player.id })}
-                  >
-                    {player.name} goes first
-                  </Button>
-                ))}
-              </div>
-            </>
-          ) : (
-            <p className="border border-edge bg-panel p-4 text-sm text-dim">
-              Both players need to attach a roster before the battle can begin.
-            </p>
-          )}
+      {you.roster && !choosingRoster ? (
+        <section className="space-y-5 border border-edge bg-panel p-4">
+          <Battlefield view={view} send={send} pending={pending} />
         </section>
       ) : null}
+
+      {you.roster && view.deploymentId ? (
+        ready ? (
+          <section className="border border-edge bg-panel p-4">
+            <p className="eyebrow">Start the battle</p>
+            <h2 className="mt-1 text-lg">Who has the first turn?</h2>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {view.players.map((player) => (
+                <Button key={player.id} disabled={pending} onClick={() => send({ kind: 'begin-battle', firstPlayerId: player.id })}>
+                  {player.name}
+                </Button>
+              ))}
+            </div>
+          </section>
+        ) : (
+          <p className="border border-edge bg-panel p-4 text-sm text-dim">
+            Waiting for {opponent.name} to choose a roster before starting.
+          </p>
+        )
+      ) : null}
+
+      {problem ? <p className="text-sm text-destructive">{problem}</p> : null}
     </main>
   )
+}
+
+function battleRoster(
+  saved: Awaited<ReturnType<NonNullable<ReturnType<typeof savedRostersQuery>['queryFn']>>>[number],
+  priced: NonNullable<Awaited<ReturnType<typeof savedRosterPrice>>>,
+): Roster {
+  return {
+    name: saved.name,
+    text: [
+      `${priced.points} / ${saved.limit} pts`,
+      ...priced.detachments.map(
+        (detachment, index) => `${index ? 'Detachment' : 'Primary detachment'}: ${detachment.name} (${detachment.points ?? '?'} DP)`,
+      ),
+      '',
+      ...priced.units.map((unit) => `${unit.name}${unit.size.resizable ? ` (${unit.size.models})` : ''} — ${unit.points}`),
+    ].join('\n'),
+    built: {
+      catalogueId: saved.catalogueId,
+      revision: priced.revision,
+      limit: saved.limit,
+      detachment: priced.detachment,
+      detachments: priced.detachments,
+      detachmentPointBudget: priced.detachmentPointBudget,
+      disposition: priced.disposition,
+      selections: priced.selections,
+      units: priced.units.map((unit, index) => ({
+        key: `${index}-${unit.entryId}`,
+        name: unit.name,
+        points: unit.points,
+        models: unit.size.models,
+      })),
+    },
+  }
 }

@@ -10,9 +10,11 @@ import {
   detachmentRules,
   detachmentDetail,
   factions,
+  gameReferences,
   me,
   myBattles,
   openBattle,
+  opponents,
   priceRoster,
   savedRosters,
   savedRosterPrice,
@@ -26,12 +28,15 @@ const SSR_STALE_TIME = 30_000
 export const meQuery = () => queryOptions({ queryKey: ['me'], queryFn: () => me(), staleTime: SSR_STALE_TIME })
 
 export const battlesQuery = () => queryOptions({ queryKey: ['battles'], queryFn: () => myBattles(), staleTime: SSR_STALE_TIME })
+export const opponentsQuery = () => queryOptions({ queryKey: ['opponents'], queryFn: () => opponents(), staleTime: SSR_STALE_TIME })
 
 // No polling: `useLiveBattle` refetches this when the server says the battle changed.
 export const battleQuery = (token: string) =>
   queryOptions({ queryKey: ['battle', token], queryFn: () => openBattle({ data: { token } }), staleTime: SSR_STALE_TIME })
 
 export const factionsQuery = () => queryOptions({ queryKey: ['factions'], queryFn: () => factions(), staleTime: Infinity })
+export const gameReferencesQuery = () =>
+  queryOptions({ queryKey: ['game-references'], queryFn: () => gameReferences(), staleTime: Infinity })
 
 /** The datasheets the player owns models for, so the picker can filter on it. */
 export const collectionQuery = () => queryOptions({ queryKey: ['collection'], queryFn: () => collection(), staleTime: SSR_STALE_TIME })

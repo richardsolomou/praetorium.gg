@@ -6,9 +6,9 @@ import type { Secondary, Stratagem } from '../../core/battle'
 import { savedRostersQuery } from '../queries'
 import { ListBuilder } from './ListBuilder'
 
-type Props = { rosterId?: string; openImport?: boolean }
+type Props = { rosterId?: string }
 
-export function RosterEditor({ rosterId, openImport = false }: Props) {
+export function RosterEditor({ rosterId }: Props) {
   const { data: saved = [] } = useQuery(savedRostersQuery())
   const initial = rosterId ? saved.find((roster) => roster.id === rosterId) : undefined
   const [prep, setPrep] = useState<{ stratagems: Stratagem[]; secondaries: Secondary[] }>(
@@ -21,14 +21,14 @@ export function RosterEditor({ rosterId, openImport = false }: Props) {
         <div className="m-4 mb-3 flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="eyebrow">Your rosters</p>
-            <h1 className="text-xl leading-tight sm:text-2xl">{openImport ? 'Import roster' : 'Create editable roster'}</h1>
+            <h1 className="text-xl leading-tight sm:text-2xl">Create editable roster</h1>
           </div>
           <Button render={<Link to="/rosters" />} variant="outline">
             Back to rosters
           </Button>
         </div>
       )}
-      <ListBuilder prep={prep} onRestorePrep={setPrep} initial={initial} openImport={openImport} />
+      <ListBuilder prep={prep} onRestorePrep={setPrep} initial={initial} />
     </main>
   )
 }

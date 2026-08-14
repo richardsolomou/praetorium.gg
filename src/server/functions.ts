@@ -15,6 +15,7 @@ import { calculateRosterPrice, rosterDetachments } from './pricing'
 import { exportRosterFile, importRosterFile } from './rosterFiles'
 import { currentPlayer, currentPlayerId, requirePlayer, requirePlayerId } from './playerSession'
 import {
+  createBattleSchema,
   datasheetSchema,
   datasheetSlugSchema,
   detachmentRulesSchema,
@@ -50,6 +51,13 @@ export const myBattles = createServerFn({ method: 'GET' }).handler(() =>
   }),
 )
 
+export const opponents = createServerFn({ method: 'GET' }).handler(() =>
+  rpc(async () => {
+    const id = await currentPlayerId()
+    return id ? app().service.opponents(id) : []
+  }),
+)
+
 export const openBattle = createServerFn({ method: 'GET' })
   .validator(tokenSchema)
   .handler(({ data }) =>
@@ -59,14 +67,16 @@ export const openBattle = createServerFn({ method: 'GET' })
     }),
   )
 
-export const createBattle = createServerFn({ method: 'POST' }).handler(() =>
-  mutationRpc(async () => {
-    const player = await requirePlayer()
-    const result = app().service.createBattle(player.id)
-    await app().telemetry.capture(player.userId, 'battle_created')
-    return result
-  }),
-)
+export const createBattle = createServerFn({ method: 'POST' })
+  .validator(createBattleSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const player = await requirePlayer()
+      const result = app().service.createBattle(player.id, data.opponentId)
+      await app().telemetry.capture(player.userId, 'battle_created')
+      return result
+    }),
+  )
 
 export const joinBattle = createServerFn({ method: 'POST' })
   .validator(joinBattleSchema)
@@ -381,13 +391,55 @@ export const deployments = createServerFn({ method: 'GET' }).handler(() =>
   }),
 )
 
+export const gameReferences = createServerFn({ method: 'GET' }).handler(() =>
+  rpc(() => {
+    const rules = app().rules()
+    if (!rules) return null
+    const missions = [...new Map([...rules.missions.values()].map((mission) => [mission.id, mission])).values()]
+    const matchupEntries = [...rules.missions.entries()]
+    const packs = [...new Set(missions.map((mission) => mission.source).filter((source): source is string => Boolean(source)))].map(
+      (name) => ({
+        id: routeSlug(name),
+        name,
+        missions: missions
+          .filter((mission) => mission.source === name)
+          .map((mission) => ({
+            ...mission,
+            card: rules.primaries.find((card) => card.key === mission.id) ?? null,
+            matchups: matchupEntries
+              .filter(([, candidate]) => candidate.id === mission.id)
+              .map(([pair]) => pair.split('|').map((id) => ({ id, name: rules.dispositions.get(id) ?? id }))),
+          })),
+      }),
+    )
+    const dispositionDetails = rules.dispositionDetails ?? [...rules.dispositions].map(([id, name]) => ({ id, name, text: null }))
+    return {
+      dispositions: dispositionDetails.map((disposition) => ({
+        ...disposition,
+        matchups: matchupEntries
+          .filter(([pair]) => pair.split('|').includes(disposition.id))
+          .map(([pair, mission]) => ({
+            opponent: pair.split('|').find((id) => id !== disposition.id) ?? disposition.id,
+            mission,
+          })),
+      })),
+      packs,
+      secondaries: rules.secondaries,
+      deployments: rules.deployments,
+      terrainLayouts: rules.terrainLayouts ?? [],
+      terrainTemplates: rules.terrainTemplates ?? [],
+      attribution: rules.attribution,
+    }
+  }),
+)
+
 /** Fetched only when someone opens the account of the battle, not on every nudge. */
 export const battleReport = createServerFn({ method: 'GET' })
   .validator(tokenSchema)
   .handler(({ data }) => rpc(async () => app().service.report(data.token, await requirePlayerId())))
 
 /**
- * Reads a `.ros` or `.rosz` into picks this instance can price.
+ * Reads a `.ros`, `.rosz`, or BattleBase text export into picks this instance can price.
  *
  * Both sides read the same community catalogues, so an entry id from another tool
  * is the same id here. Anything that cannot be placed is named in the answer rather

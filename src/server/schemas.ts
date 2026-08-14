@@ -9,6 +9,7 @@ const slug = z.string().min(1).max(160)
 const rosterLimit = z.number().int().min(0).max(10_000)
 
 export const tokenSchema = z.object({ token })
+export const createBattleSchema = z.object({ opponentId: id })
 
 export const joinBattleSchema = tokenSchema
 
@@ -82,7 +83,7 @@ export const saveRosterSchema = z.object({
   prep: prepSchema.nullable(),
 })
 
-/** A roster file as text: `.ros` directly, or the XML lifted out of a `.rosz`. */
+/** A `.ros`, base64 `.rosz`, or BattleBase plain-text export. */
 export const importRosterSchema = z.object({ file: z.string().min(1).max(4_000_000), name: z.string().max(120).optional() })
 export type ImportRosterInput = z.infer<typeof importRosterSchema>
 

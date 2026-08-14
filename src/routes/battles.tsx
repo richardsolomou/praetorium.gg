@@ -1,14 +1,24 @@
-import { useQuery } from '@tanstack/react-query'
-import { createFileRoute, Link } from '@tanstack/react-router'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { SignInRequired } from '../client/components/SignInRequired'
-import { battlesQuery, meQuery } from '../client/queries'
+import { battlesQuery, meQuery, opponentsQuery } from '../client/queries'
+import { errorMessage } from '../client/queryClient'
+import { createBattle } from '../server/functions'
 
 type Battle = Awaited<ReturnType<NonNullable<ReturnType<typeof battlesQuery>['queryFn']>>>[number]
 
 export const Route = createFileRoute('/battles')({
   loader: ({ context }) =>
-    Promise.all([context.queryClient.ensureQueryData(meQuery()), context.queryClient.ensureQueryData(battlesQuery())]),
+    Promise.all([
+      context.queryClient.ensureQueryData(meQuery()),
+      context.queryClient.ensureQueryData(battlesQuery()),
+      context.queryClient.ensureQueryData(opponentsQuery()),
+    ]),
   component: Battles,
 })
 
@@ -24,7 +34,7 @@ function Battles() {
           <p className="eyebrow">Your battles</p>
           <h1 className="text-2xl">My battles</h1>
         </div>
-        <Button render={<Link to="/" />}>Open a battle</Button>
+        <CreateBattle />
       </div>
       {battles.length ? (
         <div className="mt-5 space-y-6">
@@ -36,6 +46,66 @@ function Battles() {
         <p className="mt-4 border border-edge bg-panel p-6 text-sm text-dim">No battles yet.</p>
       )}
     </main>
+  )
+}
+
+function CreateBattle() {
+  const { data: opponents = [] } = useQuery(opponentsQuery())
+  const [open, setOpen] = useState(false)
+  const [opponentId, setOpponentId] = useState<string | null>(null)
+  const queryClient = useQueryClient()
+  const navigate = useNavigate()
+  const create = useMutation({
+    mutationFn: () => createBattle({ data: { opponentId: opponentId! } }),
+    onSuccess: async ({ token }) => {
+      setOpen(false)
+      await queryClient.invalidateQueries({ queryKey: battlesQuery().queryKey })
+      return navigate({ to: '/b/$token', params: { token } })
+    },
+  })
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger render={<Button />}>New battle</DialogTrigger>
+      <DialogContent className="rounded-none border-edge bg-panel sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="text-xl uppercase">Choose your opponent</DialogTitle>
+          <DialogDescription>The battle appears for both players immediately.</DialogDescription>
+        </DialogHeader>
+        {opponents.length ? (
+          <div>
+            <Label htmlFor="battle-opponent" className="eyebrow">
+              Opponent
+            </Label>
+            <Select value={opponentId} onValueChange={setOpponentId}>
+              <SelectTrigger id="battle-opponent" className="mt-1 h-11 w-full rounded-none border-edge bg-sunken">
+                <SelectValue placeholder="Choose a player">
+                  {(value: unknown) => opponents.find((opponent) => opponent.id === value)?.name ?? 'Choose a player'}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {opponents.map((opponent) => (
+                  <SelectItem key={opponent.id} value={opponent.id}>
+                    {opponent.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        ) : (
+          <p className="border border-edge bg-sunken p-3 text-sm text-dim">No other players have an account on this instance yet.</p>
+        )}
+        {create.error ? <p className="text-sm text-destructive">{errorMessage(create.error)}</p> : null}
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setOpen(false)}>
+            Cancel
+          </Button>
+          <Button disabled={!opponentId || create.isPending} onClick={() => create.mutate()}>
+            {create.isPending ? 'Creating…' : 'Create battle'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }
 

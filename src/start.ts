@@ -1,5 +1,4 @@
-import { createStart } from '@tanstack/react-start'
-import { canonicalHostMiddleware } from 'ras-stack/tanstack/server'
+import { createMiddleware, createStart } from '@tanstack/react-start'
 
 /**
  * Sends every request for a hostname the deployment no longer calls itself to
@@ -13,9 +12,17 @@ import { canonicalHostMiddleware } from 'ras-stack/tanstack/server'
  * there. Doing nothing is the default: with no `APP_URL` there is no canonical
  * host to compare against.
  */
-const canonicalHost = canonicalHostMiddleware(() => ({
-  canonicalUrl: process.env.APP_URL,
-  pathsServedOnAnyHost: new Set(['/api/health']),
-}))
+const canonicalHost = createMiddleware({ type: 'request' }).server(({ request, next }) => {
+  const configured = process.env.APP_URL?.trim()
+  if (!configured) return next()
+  try {
+    const canonical = new URL(configured)
+    const incoming = new URL(request.url)
+    if (incoming.host === canonical.host || incoming.pathname === '/api/health') return next()
+    return Response.redirect(new URL(incoming.pathname + incoming.search + incoming.hash, canonical.origin), 301)
+  } catch {
+    return next()
+  }
+})
 
 export const startInstance = createStart(() => ({ requestMiddleware: [canonicalHost] }))

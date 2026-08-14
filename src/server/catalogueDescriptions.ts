@@ -15,14 +15,16 @@ export function detachmentCatalogueDetail(
   const option = loaded.detachments.get(catalogueId)?.options.find((candidate) => candidate.id === detachmentId)
   if (!option) return null
   const definition = loaded.index.definitions.get(option.id)
-  const rule = definition?.infoLinks
+  const linkedRule = definition?.infoLinks
     ?.map((link) => loaded.index.rules.get(link.targetId))
     .find((candidate) => candidate && !candidate.hidden)
+  const inlineRule = definition?.rules?.find((candidate) => !candidate.hidden)
+  const rule = linkedRule ?? inlineRule
 
   const upgrades = [...loaded.index.definitions.values()].filter((entry): entry is SelectionEntry => entry.type === 'upgrade')
   const enhancements = enhancementNames
     .map((name) => {
-      const candidates = upgrades.filter((entry) => entry.name?.toLocaleLowerCase() === name.toLocaleLowerCase())
+      const candidates = upgrades.filter((entry) => comparableName(entry.name) === comparableName(name))
       const entry =
         unambiguous(candidates.filter((candidate) => candidate.comment === option.name)) ??
         unambiguous(candidates.filter((candidate) => loaded.index.catalogueOf.get(candidate.id) === catalogueId)) ??
@@ -40,6 +42,12 @@ export function detachmentCatalogueDetail(
     enhancements,
   }
 }
+
+const comparableName = (name: string | undefined) =>
+  name
+    ?.replace(/\s*\(upgrade\)\s*$/i, '')
+    .trim()
+    .toLocaleLowerCase()
 
 const descriptionOf = (entry: SelectionEntry) =>
   entry.profiles?.flatMap((profile) => profile.characteristics ?? []).find((characteristic) => characteristic.name === 'Description')

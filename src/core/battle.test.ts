@@ -438,19 +438,19 @@ describe('deployment', () => {
 
   const alice = (state: ReturnType<typeof reduceBattle>) => state.players.find((player) => player.id === ALICE)
 
-  it('starts every unit off the table', () => {
+  it('starts every unit on the battlefield', () => {
     const state = reduceBattle(PLAYERS, log(...withUnits()))
-    expect(alice(state)?.units.every((unit) => !unit.deployed)).toBe(true)
+    expect(alice(state)?.units.every((unit) => unit.deployed)).toBe(true)
   })
 
-  it('puts a unit on the table when its owner says so', () => {
-    const state = reduceBattle(PLAYERS, log(...withUnits(), [ALICE, { kind: 'deploy-unit', unitKey: 'u0', deployed: true }]))
+  it('keeps supporting legacy commands that move a unit to reserve', () => {
+    const state = reduceBattle(PLAYERS, log(...withUnits(), [ALICE, { kind: 'deploy-unit', unitKey: 'u0', deployed: false }]))
     expect(battleView({ token: 'abc' }, NAMES, state, ALICE).players.find((player) => player.isViewer)?.deployed).toBe(1)
   })
 
-  it('leaves a unit its owner did not deploy in reserve', () => {
-    const state = reduceBattle(PLAYERS, log(...withUnits(), [ALICE, { kind: 'deploy-unit', unitKey: 'u0', deployed: true }]))
-    expect(alice(state)?.units.find((unit) => unit.key === 'u1')?.deployed).toBe(false)
+  it('leaves untouched units on the battlefield', () => {
+    const state = reduceBattle(PLAYERS, log(...withUnits(), [ALICE, { kind: 'deploy-unit', unitKey: 'u0', deployed: false }]))
+    expect(alice(state)?.units.find((unit) => unit.key === 'u1')?.deployed).toBe(true)
   })
 
   it('belongs to the player whose unit it is', () => {
@@ -475,7 +475,7 @@ describe('deployment', () => {
       [ALICE, { kind: 'begin-battle', firstPlayerId: ALICE }],
       [ALICE, { kind: 'set-unit', unitKey: 'u0', destroyed: true }],
     )
-    expect(battleView({ token: 'abc' }, NAMES, reduceBattle(PLAYERS, history), ALICE).players[0]?.deployed).toBe(0)
+    expect(battleView({ token: 'abc' }, NAMES, reduceBattle(PLAYERS, history), ALICE).players[0]?.deployed).toBe(1)
   })
 })
 

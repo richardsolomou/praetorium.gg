@@ -1,4 +1,4 @@
-import { and, asc, desc, eq } from 'drizzle-orm'
+import { and, asc, desc, eq, ne } from 'drizzle-orm'
 import { type Command, type LoggedCommand, PLAYERS_PER_BATTLE, reduceBattle, validate } from '../core/battle'
 import { commandSchema } from '../core/commands'
 import type { PraetoriumDatabase } from './connection'
@@ -31,11 +31,27 @@ export class Repository {
     return this.database.select().from(players).where(eq(players.userId, userId)).orderBy(desc(players.createdAt)).get()
   }
 
-  createBattle(input: { id: string; token: string; playerId: string; now: number }) {
+  createBattle(input: { id: string; token: string; playerId: string; opponentId?: string; now: number }) {
     this.database.transaction((tx) => {
       tx.insert(battles).values({ id: input.id, token: input.token, createdAt: input.now }).run()
       tx.insert(battlePlayers).values({ battleId: input.id, playerId: input.playerId, side: 0, joinedAt: input.now }).run()
+      if (input.opponentId) {
+        tx.insert(battlePlayers).values({ battleId: input.id, playerId: input.opponentId, side: 1, joinedAt: input.now }).run()
+      }
     })
+  }
+
+  playerById(id: string) {
+    return this.database.select().from(players).where(eq(players.id, id)).get()
+  }
+
+  playersExcept(playerId: string) {
+    return this.database
+      .select({ id: players.id, name: players.name })
+      .from(players)
+      .where(ne(players.id, playerId))
+      .orderBy(asc(players.name))
+      .all()
   }
 
   battleByToken(token: string): BattleSeats | undefined {

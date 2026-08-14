@@ -52,7 +52,7 @@ function FactionPage() {
           {faction.detachments.map((detachment) => (
             <Link
               key={detachment.id}
-              to="/factions/$catalogueId/detachments/$detachmentId"
+              to="/factions/$catalogueId/reference/detachments/$detachmentId"
               params={{ catalogueId: faction.slug, detachmentId: detachment.slug }}
               className="flex items-center justify-between gap-4 px-3 py-2.5 hover:bg-raised"
             >

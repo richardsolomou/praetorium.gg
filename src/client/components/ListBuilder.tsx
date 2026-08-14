@@ -1,8 +1,7 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { Check, Copy, Download, EllipsisVertical, Eye, Layers3, LoaderCircle, Plus, Trash2, TriangleAlert, Upload, X } from 'lucide-react'
-import { strFromU8 } from 'fflate'
-import { useEffect, useRef, useState } from 'react'
+import { Check, Copy, Download, EllipsisVertical, Eye, Layers3, LoaderCircle, Plus, Trash2, TriangleAlert, X } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
   AlertDialog,
@@ -15,20 +14,16 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Toggle } from '@/components/ui/toggle'
 import type { Roster, Secondary, Stratagem } from '../../core/battle'
 import { GAME_SIZES, ROSTER_NAME_MAX_LENGTH } from '../../core/battle'
 import type { RosterPick } from '../../core/roster'
-import { deleteRoster, exportRoster, importRoster, saveRoster } from '../../server/functions'
+import { deleteRoster, exportRoster, saveRoster } from '../../server/functions'
 import { collectionQuery, factionsQuery, priceQuery, savedRostersQuery } from '../queries'
 import { useCollectionMutation } from '../useCollection'
-import { errorMessage } from '../queryClient'
-import { DetachmentPoints } from './DetachmentPoints'
 import { DatasheetPanel } from './builder/DatasheetPanel'
 import { shelve, shortName } from './builder/factions'
 import { GROUPS } from './builder/groups'
@@ -37,8 +32,9 @@ import { Picker } from './builder/Picker'
 import { Section } from './builder/Section'
 import { Pane } from './builder/Pane'
 import { UnitCard } from './builder/UnitCard'
-import { dispositionsFor } from './rosterSetup'
 import { SearchableSelect } from './SearchableSelect'
+import { RosterSetupDialog, type RosterSetup } from './RosterSetupDialog'
+import { readWorkspaceState, writeWorkspaceState } from './workspaceState'
 
 type Props = {
   onAttach?: (roster: Roster) => void
@@ -56,7 +52,6 @@ type Props = {
     limit: number
     picks: Omit<Pick, 'key'>[]
   }
-  openImport?: boolean
 }
 
 type Pick = RosterPick & { key: number }
@@ -72,7 +67,7 @@ type Pick = RosterPick & { key: number }
  * The price and the legality both come from the server, because the catalogue is
  * 90MB and the browser has no business holding it.
  */
-export function ListBuilder({ onAttach, pending = false, attached = false, prep, onRestorePrep, initial, openImport = false }: Props) {
+export function ListBuilder({ onAttach, pending = false, attached = false, prep, onRestorePrep, initial }: Props) {
   const { data: available } = useQuery(factionsQuery())
   const [catalogueId, setCatalogueId] = useState(initial?.catalogueId ?? '')
   const [pickerCatalogueId, setPickerCatalogueId] = useState(initial?.catalogueId ?? '')
@@ -87,12 +82,14 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
   const [selected, setSelected] = useState<number | null>(null)
   const [preview, setPreview] = useState<{ catalogueId: string; entryId: string } | null>(null)
   const [showing, setShowing] = useState<'picker' | 'loadout' | 'datasheet' | null>(null)
-  const [editingSetup, setEditingSetup] = useState(false)
-  const importInput = useRef<HTMLInputElement>(null)
+  const workspacePath = initial?.id ? `/rosters/${initial.id}/edit` : '/rosters/new'
+  const [setupDraft, setSetupDraftState] = useState<RosterSetup | null>(null)
+  const editingSetup = setupDraft !== null
 
-  useEffect(() => {
-    if (openImport) importInput.current?.click()
-  }, [openImport])
+  const setSetupDraft = (draft: RosterSetup | null) => {
+    setSetupDraftState(draft)
+    writeWorkspaceState(workspacePath, 'roster-setup', draft)
+  }
 
   const [savedId, setSavedId] = useState<string | undefined>(initial?.id)
   const queryClient = useQueryClient()
@@ -100,6 +97,8 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
   const { data: owned } = useQuery(collectionQuery())
   const collection = new Set(owned ?? [])
   const own = useCollectionMutation()
+
+  useEffect(() => setSetupDraftState(readWorkspaceState<RosterSetup>(workspacePath, 'roster-setup')), [workspacePath])
   const refreshSaved = () => queryClient.invalidateQueries({ queryKey: savedRostersQuery().queryKey })
 
   const loadSaved = (list: NonNullable<typeof saved>[number], copy = false) => {
@@ -164,27 +163,6 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
     // this one, so the final request always contains the newest state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [catalogueId, detachmentIds, disposition, limit, listName, picked, prep, savedId])
-
-  /**
-   * Reading a roster file. `.ros` is text; `.rosz` is a zip, so it travels as base64
-   * and the server takes the XML out of it.
-   */
-  const bring = useMutation({
-    mutationFn: async (file: File) => {
-      const zipped = file.name.toLowerCase().endsWith('.rosz')
-      const body = zipped ? btoa(strFromU8(new Uint8Array(await file.arrayBuffer()), true)) : await file.text()
-      return importRoster({ data: { file: body } })
-    },
-    onSuccess: (imported) => {
-      if (imported.catalogueId) setCatalogueId(imported.catalogueId)
-      if (imported.catalogueId) setPickerCatalogueId(imported.catalogueId)
-      setDetachmentIds(imported.detachmentIds)
-      setName(imported.name)
-      setPicked(imported.units.map((unit, at) => ({ key: at, ...unit })))
-      setNextKey(imported.units.length)
-      setSavedId(undefined)
-    },
-  })
 
   /** Hands the list to another tool, in the format every one of them reads. */
   const take = useMutation({
@@ -515,7 +493,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
                 <span key={id} className="contents">
                   <span aria-hidden>·</span>
                   <Link
-                    to="/factions/$catalogueId/detachments/$detachmentId"
+                    to="/factions/$catalogueId/reference/detachments/$detachmentId"
                     params={{ catalogueId: faction.slug, detachmentId: detachment.slug }}
                     className="truncate hover:text-bone"
                   >
@@ -540,123 +518,38 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
                 <EllipsisVertical className="size-4" />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => setEditingSetup(true)}>Edit roster setup</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setSetupDraft({ name: listName, catalogueId, detachmentIds, disposition, limit })}>
+                  Edit roster setup
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
         ) : null}
 
-        <Dialog open={editingSetup} onOpenChange={setEditingSetup}>
-          <DialogContent className="rounded-none border border-edge bg-panel text-bone ring-0 sm:max-w-lg">
-            <DialogHeader>
-              <DialogTitle className="text-xl uppercase">Edit roster setup</DialogTitle>
-              <DialogDescription className="text-dim">Changing faction removes the units already picked.</DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label className="eyebrow block" htmlFor="edit-roster-faction">
-                  Faction
-                </Label>
-                <SearchableSelect
-                  id="edit-roster-faction"
-                  groups={factionGroups}
-                  value={catalogueId}
-                  onValueChange={(value) => {
-                    if (value === catalogueId) return
-                    setCatalogueId(value)
-                    setPickerCatalogueId(value)
-                    setPicked([])
-                    setDetachmentIds([])
-                    setDisposition(null)
-                    setSelected(null)
-                  }}
-                  placeholder="Pick a faction"
-                  searchPlaceholder="Search factions…"
-                  className="mt-1"
-                />
-              </div>
-              <div>
-                <Label className="eyebrow block" htmlFor="edit-roster-size">
-                  Battle size
-                </Label>
-                <Select value={String(limit)} onValueChange={(value: string | null) => setLimit(Number(value ?? limit))}>
-                  <SelectTrigger id="edit-roster-size" className="mt-1 w-full">
-                    <SelectValue>{(value: unknown) => GAME_SIZES.find((size) => String(size.limit) === value)?.name}</SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {GAME_SIZES.map((size) => (
-                      <SelectItem key={size.limit} value={String(size.limit)}>
-                        {size.name} — {size.limit} pts
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <fieldset>
-                <legend className="eyebrow">Detachments</legend>
-                <div className="mt-1 grid max-h-64 gap-1 overflow-y-auto sm:grid-cols-2">
-                  {faction?.detachments.map((detachment) => {
-                    const chosen = detachmentIds.includes(detachment.id)
-                    return (
-                      <Toggle
-                        key={detachment.id}
-                        pressed={chosen}
-                        onPressedChange={(pressed) => toggleDetachment(detachment.id, pressed)}
-                        className={`min-h-10 border px-2 py-1.5 text-left text-xs font-semibold uppercase ${chosen ? 'border-azure bg-raised text-azure' : 'border-edge bg-sunken text-dim'}`}
-                      >
-                        {detachment.name}
-                      </Toggle>
-                    )
-                  })}
-                </div>
-              </fieldset>
-              <DetachmentPoints
-                spent={priced?.detachmentPointsSpent ?? 0}
-                available={priced?.detachmentPointBudget ?? GAME_SIZES.find((size) => size.limit === limit)?.detachmentPoints ?? null}
-                error={priced?.detachmentError}
-              />
-              {(() => {
-                const dispositions = dispositionsFor(faction?.detachments ?? [], detachmentIds)
-                if (!dispositions.length) return null
-                return (
-                  <div>
-                    <Label className="eyebrow block" htmlFor="edit-roster-disposition">
-                      Disposition
-                    </Label>
-                    <div className="mt-1 h-9">
-                      {dispositions.length === 1 ? (
-                        <p className="flex h-full items-center text-sm text-dim">{dispositions[0].name}</p>
-                      ) : (
-                        <Select value={disposition} onValueChange={setDisposition}>
-                          <SelectTrigger id="edit-roster-disposition" className="h-full w-full">
-                            <SelectValue placeholder="Pick a disposition">
-                              {(value: unknown) => dispositions.find((candidate) => candidate.id === value)?.name ?? 'Pick a disposition'}
-                            </SelectValue>
-                          </SelectTrigger>
-                          <SelectContent>
-                            {dispositions.map((candidate) => (
-                              <SelectItem key={candidate.id} value={candidate.id}>
-                                {candidate.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      )}
-                    </div>
-                  </div>
-                )
-              })()}
-            </div>
-            <DialogFooter className="rounded-none border-edge bg-sunken">
-              <Button
-                onClick={() => setEditingSetup(false)}
-                disabled={!detachmentIds.length || Boolean(priced?.detachmentError) || Boolean(priced?.dispositionError)}
-              >
-                Done
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        {available && editingSetup ? (
+          <RosterSetupDialog
+            open={editingSetup}
+            onOpenChange={(open) => !open && setSetupDraft(null)}
+            factions={available.factions}
+            value={setupDraft}
+            onDraftChange={setSetupDraft}
+            hasUnits={Boolean(picked.length)}
+            onSave={(setup) => {
+              const changedFaction = setup.catalogueId !== catalogueId
+              setName(setup.name)
+              setCatalogueId(setup.catalogueId)
+              setPickerCatalogueId(setup.catalogueId)
+              setDetachmentIds(setup.detachmentIds)
+              setDisposition(setup.disposition)
+              setLimit(setup.limit)
+              if (changedFaction) {
+                setPicked([])
+                setSelected(null)
+              }
+              setSetupDraft(null)
+            }}
+          />
+        ) : null}
 
         {initial ? null : (
           <>
@@ -782,23 +675,6 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
             </p>
 
             <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5">
-              <Label className="eyebrow cursor-pointer text-azure hover:text-bone" htmlFor="bring">
-                <Upload className="mr-1 inline size-3" />
-                Bring a list from another tool
-              </Label>
-              <Input
-                ref={importInput}
-                id="bring"
-                type="file"
-                accept=".ros,.rosz"
-                disabled={bring.isPending}
-                className="sr-only"
-                onChange={(event) => {
-                  const file = event.target.files?.[0]
-                  if (file) bring.mutate(file)
-                  event.target.value = ''
-                }}
-              />
               {saved?.length ? (
                 <span className="flex flex-wrap items-center gap-1.5">
                   <span className="eyebrow">Your lists</span>
@@ -865,11 +741,6 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
                 </span>
               ) : null}
             </div>
-
-            {bring.error ? <p className="mt-1 text-xs text-destructive">{errorMessage(bring.error)}</p> : null}
-            {bring.data?.unknown.length ? (
-              <p className="mt-1 text-xs text-destructive">Could not place: {bring.data.unknown.join(', ')}</p>
-            ) : null}
           </>
         )}
       </header>

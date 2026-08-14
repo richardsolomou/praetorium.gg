@@ -2,7 +2,13 @@ import fs from 'node:fs'
 import { createHash } from 'node:crypto'
 import path from 'node:path'
 import { unzipSync } from 'fflate'
-import { catalogueSources as sources, SOURCE_NAMES, type SourceName, type WahapediaSource } from './catalogueSources'
+import {
+  catalogueSources as sources,
+  SOURCE_NAMES,
+  type BattlemasterSource,
+  type SourceName,
+  type WahapediaSource,
+} from './catalogueSources'
 
 /**
  * Fetching the community data an instance needs, without anybody running a script.
@@ -25,7 +31,7 @@ function pinnedRevisions(): Record<SourceName, string> {
 }
 
 /** What is on disk, or nothing when this instance has never synced. */
-function localRevisions(directory: string): Partial<Record<SourceName | 'wahapedia', string>> {
+function localRevisions(directory: string): Partial<Record<SourceName | 'battlemaster' | 'wahapedia', string>> {
   try {
     const parsed: Partial<Record<SourceName | 'wahapedia', string>> = JSON.parse(
       fs.readFileSync(path.join(directory, REVISION_FILE), 'utf8'),
@@ -54,6 +60,7 @@ export async function syncSources(
   wahapediaSource: WahapediaSource = sources.wahapedia,
 ): Promise<void> {
   if (isCurrent(directory)) {
+    await syncBattlemaster(directory, report, sources.battlemaster)
     await syncWahapedia(directory, report, wahapediaSource)
     report('catalogue is already at the pinned revisions')
     return
@@ -76,8 +83,75 @@ export async function syncSources(
     await fetchInto(source.repository, source.revision, target, 'path' in source ? source.path : undefined)
   }
   fs.writeFileSync(path.join(directory, REVISION_FILE), `${JSON.stringify(pinned, null, 2)}\n`)
+  await syncBattlemaster(directory, report, sources.battlemaster)
   await syncWahapedia(directory, report, wahapediaSource)
   report('catalogue is ready')
+}
+
+type BattlemasterCatalog = {
+  catalogKey: string
+  layouts: {
+    id: string
+    owner: string
+    layoutKey: string
+  }[]
+}
+
+const MAX_BATTLEMASTER_FILE_BYTES = 5 * 1024 * 1024
+const MAX_BATTLEMASTER_TOTAL_BYTES = 64 * 1024 * 1024
+
+async function syncBattlemaster(directory: string, report: (message: string) => void, source: BattlemasterSource) {
+  const target = path.join(directory, 'battlemaster')
+  if (localRevisions(directory).battlemaster === source.revision && fs.existsSync(target)) return
+  report(`battlemaster: fetching ${source.missionPack} terrain geometry`)
+  try {
+    await fetchBattlemasterInto(source, target)
+    const revisions = { ...localRevisions(directory), battlemaster: source.revision }
+    fs.writeFileSync(path.join(directory, REVISION_FILE), `${JSON.stringify(revisions, null, 2)}\n`)
+  } catch (error) {
+    report(`battlemaster: terrain geometry unavailable (${error instanceof Error ? error.message : String(error)})`)
+  }
+}
+
+async function fetchBattlemasterInto(source: BattlemasterSource, target: string) {
+  const catalogUrl = new URL('/v1.1/public/tts/layouts', source.baseUrl)
+  catalogUrl.searchParams.set('owner', source.owner)
+  catalogUrl.searchParams.set('missionPack', source.missionPack)
+  catalogUrl.searchParams.set('text', '0')
+  const response = await fetch(catalogUrl)
+  if (!response.ok) throw new Error(`catalog answered ${response.status}`)
+  const catalog = (await response.json()) as BattlemasterCatalog
+  if (!catalog.catalogKey || !catalog.layouts?.length) throw new Error('catalog is empty')
+  const revision = createHash('sha256').update(catalog.catalogKey).digest('hex')
+  if (revision !== source.revision) throw new Error('catalog does not match the pinned revision')
+
+  const staging = `${target}.incoming`
+  fs.rmSync(staging, { recursive: true, force: true })
+  fs.mkdirSync(path.join(staging, 'layouts'), { recursive: true })
+  fs.writeFileSync(path.join(staging, 'catalog.json'), `${JSON.stringify(catalog)}\n`)
+  let total = 0
+
+  for (const entry of catalog.layouts) {
+    if (!/^terrain-[0-9a-f-]+$/.test(entry.id)) throw new Error(`unsafe layout id ${entry.id}`)
+    if (!/^[0-9a-f-]+$/.test(entry.owner)) throw new Error(`unsafe owner id for ${entry.id}`)
+    const detailUrl = new URL(`/v1/public/data/layouts/${entry.owner}/${entry.id}`, source.baseUrl)
+    // Deliberately sequential: the public API and small production instances should
+    // not absorb a 45-request burst for data that changes only when the pin moves.
+    // eslint-disable-next-line no-await-in-loop
+    const detailResponse = await fetch(detailUrl)
+    if (!detailResponse.ok) throw new Error(`${entry.id} answered ${detailResponse.status}`)
+    // eslint-disable-next-line no-await-in-loop
+    const bytes = new Uint8Array(await detailResponse.arrayBuffer())
+    if (bytes.length > MAX_BATTLEMASTER_FILE_BYTES) throw new Error(`${entry.id} exceeds ${MAX_BATTLEMASTER_FILE_BYTES} bytes`)
+    total += bytes.length
+    if (total > MAX_BATTLEMASTER_TOTAL_BYTES) throw new Error(`layouts exceed ${MAX_BATTLEMASTER_TOTAL_BYTES} bytes`)
+    const detail = JSON.parse(new TextDecoder().decode(bytes)) as { layout?: { id?: string; layoutKey?: string } }
+    if (detail.layout?.id !== entry.id || detail.layout.layoutKey !== entry.layoutKey) throw new Error(`${entry.id} changed during sync`)
+    fs.writeFileSync(path.join(staging, 'layouts', `${entry.id}.json`), bytes)
+  }
+
+  fs.rmSync(target, { recursive: true, force: true })
+  fs.renameSync(staging, target)
 }
 
 async function syncWahapedia(directory: string, report: (message: string) => void, source: WahapediaSource) {
@@ -106,21 +180,30 @@ async function fetchWahapediaInto(source: WahapediaSource, target: string) {
   fs.rmSync(staging, { recursive: true, force: true })
   fs.mkdirSync(staging, { recursive: true })
 
+  const unavailable: string[] = []
   for (const [name, expected] of Object.entries(source.files)) {
-    // eslint-disable-next-line no-await-in-loop
-    const response = await fetch(`${source.baseUrl}/${name}`)
-    if (!response.ok) throw new Error(`Wahapedia ${name} answered ${response.status}`)
-    // eslint-disable-next-line no-await-in-loop
-    const bytes = new Uint8Array(await response.arrayBuffer())
-    if (bytes.length > MAX_EXPORT_BYTES) throw new Error(`Wahapedia ${name} exceeds ${MAX_EXPORT_BYTES} bytes`)
-    const actual = createHash('sha256').update(bytes).digest('hex')
-    if (actual !== expected) throw new Error(`Wahapedia ${name} does not match the pinned export`)
-    fs.writeFileSync(path.join(staging, name), bytes)
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      const response = await fetch(`${source.baseUrl}/${name}`)
+      if (!response.ok) throw new Error(`answered ${response.status}`)
+      // eslint-disable-next-line no-await-in-loop
+      const bytes = new Uint8Array(await response.arrayBuffer())
+      if (bytes.length > MAX_EXPORT_BYTES) throw new Error(`exceeds ${MAX_EXPORT_BYTES} bytes`)
+      const actual = createHash('sha256').update(bytes).digest('hex')
+      if (actual !== expected) throw new Error('does not match the pinned export')
+      fs.writeFileSync(path.join(staging, name), bytes)
+    } catch {
+      const existing = path.join(target, name)
+      if (fs.existsSync(existing) && createHash('sha256').update(fs.readFileSync(existing)).digest('hex') === expected) {
+        fs.copyFileSync(existing, path.join(staging, name))
+      } else {
+        unavailable.push(name)
+      }
+    }
   }
 
   const pages = path.join(staging, 'pages')
   fs.mkdirSync(pages)
-  const unavailable: string[] = []
   for (const [name, expected] of Object.entries(source.pages)) {
     try {
       // eslint-disable-next-line no-await-in-loop

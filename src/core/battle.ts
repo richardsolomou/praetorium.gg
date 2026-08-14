@@ -67,10 +67,7 @@ type BuiltRoster = {
 
 type SubmittedUnit = { key: string; name: string; points: number; models: number }
 
-/**
- * A unit's standing in the battle. Deployed means on the table: everything starts
- * off it, which is what makes a deployment step mean anything.
- */
+/** A unit's standing in the battle. Attached rosters begin on the battlefield. */
 type UnitState = SubmittedUnit & {
   destroyed: boolean
   deployed: boolean
@@ -443,7 +440,7 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
       player.roster = { ...command.roster, name: command.roster.name.trim() }
       // A replaced list is a different army, so nothing about the old one survives.
       player.units = (command.roster.built?.units ?? []).map((unit) =>
-        Object.assign({ destroyed: false, deployed: false, alive: unit.models }, unit),
+        Object.assign({ destroyed: false, deployed: true, alive: unit.models }, unit),
       )
       return
     }

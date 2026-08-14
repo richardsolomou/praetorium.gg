@@ -208,6 +208,7 @@ type Common = {
   profiles?: Profile[]
   infoGroups?: InfoGroup[]
   infoLinks?: InfoLink[]
+  rules?: Rule[]
 }
 
 export type SelectionEntry = Common & { type?: EntryType; collective?: boolean }

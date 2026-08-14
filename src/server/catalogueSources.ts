@@ -19,15 +19,26 @@ const wahapediaSourceSchema = z.object({
   description: z.string().optional(),
 })
 
+const battlemasterSourceSchema = z.object({
+  baseUrl: z.literal('https://battlemaster.online'),
+  owner: z.string().min(1),
+  missionPack: z.literal('chapter-approved-2026'),
+  revision: z.string().regex(/^[0-9a-f]{64}$/, 'expected the SHA-256 of the pinned catalog key'),
+  attribution: z.string().min(1),
+  description: z.string().optional(),
+})
+
 export const catalogueSourcesSchema = z.object({
   definitions: repositorySourceSchema,
   points: repositorySourceSchema,
   rules: repositorySourceSchema,
+  battlemaster: battlemasterSourceSchema,
   wahapedia: wahapediaSourceSchema,
 })
 
 export const SOURCE_NAMES = ['definitions', 'points', 'rules'] as const
 export type SourceName = (typeof SOURCE_NAMES)[number]
 export type WahapediaSource = Pick<z.infer<typeof wahapediaSourceSchema>, 'revision' | 'files' | 'pages'> & { baseUrl: string }
+export type BattlemasterSource = z.infer<typeof battlemasterSourceSchema>
 
 export const catalogueSources = catalogueSourcesSchema.parse(rawSources)

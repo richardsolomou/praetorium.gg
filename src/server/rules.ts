@@ -13,6 +13,7 @@ import { findDescription, findDetachmentAbilities, loadWahapediaDescriptions, WA
  * this data does.
  */
 export const ATTRIBUTION = 'Stratagems and mission cards by the Tabletop Developer Consortium, CC BY 4.0'
+const BATTLEMASTER_ATTRIBUTION = 'Terrain geometry provided by Battlemaster'
 
 /** How the dataset words a usage limit, mapped onto what the battle enforces. */
 const LIMITS: Record<string, StratagemLimit> = {
@@ -43,13 +44,15 @@ type RawCard = {
   awards?: RawAward[]
 }
 
+type RuleParameter = string | number | boolean | null | { side?: string; window?: string }
+
 type RawAward = {
   vp?: number
   vp_per?: number
   per?: string
   mode?: string
   cumulative?: boolean
-  when?: { type?: string }
+  when?: { type?: string; parameters?: Record<string, RuleParameter> }
   trigger?: RawTrigger
 }
 
@@ -60,11 +63,18 @@ type RawTrigger = {
   battle_round?: { min?: number; max?: number }
 }
 
-type RawMission = { id: string; name: string; vp_per_round_cap?: number; vp_per_game_cap?: number }
+type RawMission = {
+  id: string
+  name: string
+  vp_per_round_cap?: number
+  vp_per_game_cap?: number
+  deployment_pattern_ids?: string[]
+  source?: string
+}
 
 type RawMatchup = { disposition: string; opponent_disposition: string; mission_id: string }
 
-type RawDisposition = { id: string; name: string }
+type RawDisposition = { id: string; name: string; text?: string }
 
 type RawFaction = { id: string; name: string }
 
@@ -85,8 +95,86 @@ type RawPattern = {
   id: string
   name: string
   description?: string
-  zones?: { player?: string; name?: string; color?: string; position?: Point; shape?: { points?: Point[] } }[]
+  zones?: {
+    player?: string
+    name?: string
+    color?: string
+    position?: Point
+    shape?: { points?: Point[]; width?: number; height?: number }
+  }[]
   objectives?: Point[]
+}
+
+type RawTerrainLayout = {
+  id: string
+  name: string
+  description?: string
+  mission_matchup_id?: string
+  variant?: number
+  deployment_pattern_id?: string
+  pieces?: {
+    id: string
+    name: string
+    piece_type: string
+    template: string
+    position?: Point
+    rotation_degrees?: number
+    mirror?: string
+    parent_area_id?: string
+  }[]
+}
+
+type RawTerrainTemplate = {
+  id: string
+  name: string
+  kind: string
+  footprint: { type: string; points?: Point[]; width?: number; height?: number }
+  features?: {
+    id: string
+    template: string
+    position?: Point
+    rotation_degrees?: number
+    mirror?: string
+  }[]
+}
+
+type RawBattlemasterLayout = {
+  layout?: { id?: string }
+  terrain?: {
+    id: string
+    name: string
+    footprint: { origin: Point; widthIn: number; heightIn: number; rotationDeg: number }
+    outline: { points: Point[] }
+    parts: {
+      id: string
+      name: string
+      material: string
+      hasRoof: boolean
+      origin: Point
+      rotationDeg: number
+      mirroredX: boolean
+      mirroredY: boolean
+      outline: { points: Point[] } | null
+      walls: { id: string; points: Point[]; thicknessIn: number }[]
+    }[]
+  }[]
+}
+type RawBattlemasterTerrain = NonNullable<RawBattlemasterLayout['terrain']>[number]
+
+type TerrainGeometry = {
+  areas: {
+    id: string
+    name: string
+    points: Point[]
+    markers: { label: string; position: Point }[]
+    parts: {
+      id: string
+      name: string
+      material: string
+      roof: Point[] | null
+      walls: { id: string; points: Point[]; thickness: number }[]
+    }[]
+  }[]
 }
 
 /** A battlefield, as polygons the interface can draw rather than words it must describe. */
@@ -104,15 +192,30 @@ type Deployment = {
  * counted. Enough for the interface to offer the real figure instead of asking a
  * player to work it out and type it in.
  */
-type Award = { vp: number; per: string | null; mode: string | null; when: string | null; trigger: Trigger }
+type Award = {
+  vp: number
+  per: string | null
+  mode: string | null
+  when: string | null
+  parameters: Record<string, RuleParameter>
+  cumulative: boolean
+  trigger: Trigger
+}
 
 /**
  * When a payout may be taken. Anything absent is unrestricted, so a card that says
  * nothing about timing can always be scored.
  */
-type Trigger = { phase: string | null; playerTurn: string | null; roundMin: number | null; roundMax: number | null }
+type Trigger = { timing: string | null; phase: string | null; playerTurn: string | null; roundMin: number | null; roundMax: number | null }
 
-export type Mission = { id: string; name: string; roundCap: number | null; gameCap: number | null }
+export type Mission = {
+  id: string
+  name: string
+  roundCap: number | null
+  gameCap: number | null
+  source: string | null
+  deploymentIds: string[]
+}
 
 type MissionCard = { key: string; name: string; text: string | null; awards: Award[] }
 
@@ -159,7 +262,40 @@ export type LoadedRules = {
   missions: Map<string, Mission>
   /** The five dispositions a detachment can have, by slug. */
   dispositions: Map<string, string>
+  dispositionDetails: { id: string; name: string; text: string | null }[]
   deployments: Deployment[]
+  terrainLayouts: {
+    id: string
+    name: string
+    description: string | null
+    matchupId: string
+    variant: number | null
+    deploymentId: string | null
+    pieces: {
+      id: string
+      name: string
+      type: string
+      templateId: string
+      position: Point
+      rotation: number
+      mirror: string | null
+      parentAreaId: string | null
+    }[]
+    geometry: TerrainGeometry | null
+  }[]
+  terrainTemplates: {
+    id: string
+    name: string
+    kind: string
+    points: Point[]
+    features: {
+      id: string
+      templateId: string
+      position: Point
+      rotation: number
+      mirror: string | null
+    }[]
+  }[]
   /** Whatever the dataset says about how settled these numbers are. */
   dataslate: string | null
 }
@@ -172,6 +308,7 @@ function rulesDirectory(dataDirectory = process.env.DATA_DIR ?? '/data') {
 export function loadRules(
   directory = rulesDirectory(),
   wahapediaDirectory = path.join(path.dirname(directory), 'wahapedia'),
+  battlemasterDirectory = path.join(path.dirname(directory), 'battlemaster'),
 ): LoadedRules | null {
   const core = path.join(directory, 'data', 'core')
   if (!fs.existsSync(core)) return null
@@ -279,24 +416,31 @@ export function loadRules(
       name: mission.name,
       roundCap: mission.vp_per_round_cap ?? null,
       gameCap: mission.vp_per_game_cap ?? null,
+      source: mission.source ?? null,
+      deploymentIds: mission.deployment_pattern_ids ?? [],
     })
   }
 
-  const dispositions = new Map(readDispositions(path.join(core, 'force-dispositions.json')).map((entry) => [entry.id, entry.name]))
+  const dispositionDetails = readDispositions(path.join(core, 'force-dispositions.json')).map((entry) => ({
+    id: entry.id,
+    name: entry.name,
+    text: entry.text ?? null,
+  }))
+  const dispositions = new Map(dispositionDetails.map((entry) => [entry.id, entry.name]))
   const deployments = readPatterns(path.join(core, 'deployment-patterns.json'))
     .map((pattern) => ({
       id: pattern.id,
       name: pattern.name,
       description: pattern.description ?? null,
       zones: (pattern.zones ?? [])
-        .filter((zone) => (zone.shape?.points ?? []).length > 2)
+        .filter((zone) => pointsOf(zone.shape).length > 2)
         .map((zone) => ({
           player: zone.player ?? 'either',
           name: zone.name ?? 'Deployment',
           colour: zone.color ?? '#8c9199',
           // A zone's points are relative to its own position, so the offset is
           // applied here: without it every zone piles up in one corner.
-          points: (zone.shape?.points ?? []).map((point) => ({
+          points: pointsOf(zone.shape).map((point) => ({
             x: point.x + (zone.position?.x ?? 0),
             y: point.y + (zone.position?.y ?? 0),
           })),
@@ -305,10 +449,49 @@ export function loadRules(
     }))
     .filter((pattern) => pattern.zones.length)
     .toSorted((left, right) => left.name.localeCompare(right.name))
+  const terrainLayouts = readTerrainLayouts(path.join(core, 'terrain-layouts.json'))
+    .filter((layout) => layout.mission_matchup_id)
+    .map((layout) => ({
+      id: layout.id,
+      name: layout.name,
+      description: layout.description ?? null,
+      matchupId: layout.mission_matchup_id!,
+      variant: layout.variant ?? null,
+      deploymentId: layout.deployment_pattern_id ?? null,
+      geometry: battlemasterGeometry(battlemasterDirectory, layout.description),
+      pieces: (layout.pieces ?? [])
+        .filter((piece) => piece.position)
+        .map((piece) => ({
+          id: piece.id,
+          name: piece.name,
+          type: piece.piece_type,
+          templateId: piece.template,
+          position: piece.position!,
+          rotation: piece.rotation_degrees ?? 0,
+          mirror: piece.mirror ?? null,
+          parentAreaId: piece.parent_area_id ?? null,
+        })),
+    }))
+  const terrainTemplates = readTerrainTemplates(path.join(core, 'terrain-templates.json')).map((template) => ({
+    id: template.id,
+    name: template.name,
+    kind: template.kind,
+    points: footprintPoints(template.footprint),
+    features: (template.features ?? []).map((feature) => ({
+      id: feature.id,
+      templateId: feature.template,
+      position: feature.position ?? { x: 0, y: 0 },
+      rotation: feature.rotation_degrees ?? 0,
+      mirror: feature.mirror ?? null,
+    })),
+  }))
 
   if (!byDetachment.size && !secondaries.length) return null
+  const hasBattlemaster = terrainLayouts.some((layout) => layout.geometry)
   return {
-    attribution: wahapedia ? `${ATTRIBUTION}. ${WAHAPEDIA_ATTRIBUTION}.` : ATTRIBUTION,
+    attribution: [ATTRIBUTION, wahapedia ? WAHAPEDIA_ATTRIBUTION : null, hasBattlemaster ? BATTLEMASTER_ATTRIBUTION : null]
+      .filter(Boolean)
+      .join('. '),
     abilityDescriptions: wahapedia?.abilities ?? new Map(),
     byDetachment,
     detachmentReferences,
@@ -319,7 +502,10 @@ export function loadRules(
     primaries,
     missions,
     dispositions,
+    dispositionDetails,
     deployments,
+    terrainLayouts,
+    terrainTemplates,
     dataslate,
   }
 }
@@ -355,6 +541,134 @@ function readPatterns(file: string): RawPattern[] {
   if (!fs.existsSync(file)) return []
   const parsed: RawPattern[] = JSON.parse(fs.readFileSync(file, 'utf8'))
   return parsed
+}
+
+function readTerrainLayouts(file: string): RawTerrainLayout[] {
+  if (!fs.existsSync(file)) return []
+  const parsed: RawTerrainLayout[] = JSON.parse(fs.readFileSync(file, 'utf8'))
+  return parsed
+}
+
+function readTerrainTemplates(file: string): RawTerrainTemplate[] {
+  if (!fs.existsSync(file)) return []
+  const parsed: RawTerrainTemplate[] = JSON.parse(fs.readFileSync(file, 'utf8'))
+  return parsed
+}
+
+function battlemasterGeometry(directory: string, description: string | undefined): TerrainGeometry | null {
+  const id = description?.match(/Battlemaster layout (terrain-[0-9a-f-]+)/)?.[1]
+  if (!id) return null
+  const file = path.join(directory, 'layouts', `${id}.json`)
+  if (!fs.existsSync(file)) return null
+  const raw = JSON.parse(fs.readFileSync(file, 'utf8')) as RawBattlemasterLayout
+  if (raw.layout?.id !== id || !raw.terrain?.length) return null
+
+  return {
+    areas: raw.terrain.map((area) => ({
+      id: area.id,
+      name: area.name,
+      points: area.outline.points.map((point) => battlemasterBoardPoint(point, area.footprint)),
+      markers: terrainReferenceMarkers(area),
+      parts: area.parts.map((part) => ({
+        id: part.id,
+        name: part.name,
+        material: part.material,
+        roof: part.outline?.points.map((point) => battlemasterBoardPoint(point, area.footprint, part)) ?? null,
+        walls: part.walls.map((wall) => ({
+          id: wall.id,
+          points: wall.points.map((point) => battlemasterBoardPoint(point, area.footprint, part)),
+          thickness: wall.thicknessIn,
+        })),
+      })),
+    })),
+  }
+}
+
+function terrainReferenceMarkers(area: RawBattlemasterTerrain) {
+  const labels = area.name.match(/\b(?:AB|CD|EF|GH)\b/g) ?? []
+  const areaPoints = area.outline.points.map((point) => battlemasterBoardPoint(point, area.footprint))
+  const areaCentre = averagePoint(areaPoints)
+  return labels.map((label, index) => {
+    const part = area.parts.find((candidate) => candidate.name === label)
+    const partPoints = part
+      ? [...(part.outline?.points ?? []), ...part.walls.flatMap((wall) => wall.points)].map((point) =>
+          battlemasterBoardPoint(point, area.footprint, part),
+        )
+      : []
+    const fraction = labels.length === 1 ? 0.5 : (index + 1) / (labels.length + 1)
+    const partCentre = partPoints.length ? averagePoint(partPoints) : null
+    const towardCentre = partCentre ? { x: areaCentre.x - partCentre.x, y: areaCentre.y - partCentre.y } : null
+    const towardCentreLength = towardCentre ? Math.hypot(towardCentre.x, towardCentre.y) : 0
+    return {
+      label,
+      position:
+        partCentre && towardCentre && towardCentreLength
+          ? {
+              x: partCentre.x + (towardCentre.x / towardCentreLength) * 2,
+              y: partCentre.y + (towardCentre.y / towardCentreLength) * 2,
+            }
+          : battlemasterBoardPoint({ x: area.footprint.widthIn * fraction, y: area.footprint.heightIn / 2 }, area.footprint),
+    }
+  })
+}
+
+function averagePoint(points: Point[]) {
+  return {
+    x: points.reduce((total, point) => total + point.x, 0) / points.length,
+    y: points.reduce((total, point) => total + point.y, 0) / points.length,
+  }
+}
+
+function battlemasterBoardPoint(
+  point: Point,
+  area: RawBattlemasterTerrain['footprint'],
+  part?: RawBattlemasterTerrain['parts'][number],
+): Point {
+  let placed = point
+  if (part) {
+    placed = {
+      x: part.mirroredX ? -placed.x : placed.x,
+      y: part.mirroredY ? -placed.y : placed.y,
+    }
+    placed = rotatePoint(placed, part.rotationDeg)
+    placed = { x: placed.x + part.origin.x, y: placed.y + part.origin.y }
+  }
+  placed = rotatePoint(placed, area.rotationDeg)
+  placed = { x: placed.x + area.origin.x, y: placed.y + area.origin.y }
+  return { x: placed.x + 30, y: 22 - placed.y }
+}
+
+function rotatePoint(point: Point, degrees: number): Point {
+  const radians = (degrees * Math.PI) / 180
+  const cosine = Math.cos(radians)
+  const sine = Math.sin(radians)
+  return { x: point.x * cosine - point.y * sine, y: point.x * sine + point.y * cosine }
+}
+
+function footprintPoints(footprint: RawTerrainTemplate['footprint']): Point[] {
+  if (footprint.points?.length) return footprint.points
+  if (footprint.width && footprint.height) {
+    return [
+      { x: 0, y: 0 },
+      { x: footprint.width, y: 0 },
+      { x: footprint.width, y: footprint.height },
+      { x: 0, y: footprint.height },
+    ]
+  }
+  return []
+}
+
+function pointsOf(shape: { points?: Point[]; width?: number; height?: number } | undefined): Point[] {
+  if (shape?.points?.length) return shape.points
+  if (shape?.width && shape.height) {
+    return [
+      { x: 0, y: 0 },
+      { x: shape.width, y: 0 },
+      { x: shape.width, y: shape.height },
+      { x: 0, y: shape.height },
+    ]
+  }
+  return []
 }
 
 function readDispositions(file: string): RawDisposition[] {
@@ -400,7 +714,10 @@ function toCard(raw: RawCard): MissionCard {
       per: award.vp_per ? (award.per ?? 'each') : null,
       mode: award.mode ?? null,
       when: award.when?.type ?? null,
+      parameters: award.when?.parameters ?? {},
+      cumulative: award.cumulative ?? false,
       trigger: {
+        timing: award.trigger?.timing ?? null,
         phase: award.trigger?.phase ?? null,
         playerTurn: award.trigger?.player_turn ?? null,
         roundMin: award.trigger?.battle_round?.min ?? null,
@@ -416,7 +733,10 @@ function dedupe(awards: Award[]): Award[] {
   const seen = new Map<string, Award>()
   for (const award of awards) {
     const trigger = award.trigger
-    seen.set(`${award.vp}/${award.per}/${award.mode}/${trigger.phase}/${trigger.playerTurn}/${trigger.roundMin}/${trigger.roundMax}`, award)
+    seen.set(
+      `${award.vp}/${award.per}/${award.mode}/${award.when}/${JSON.stringify(award.parameters)}/${award.cumulative}/${trigger.timing}/${trigger.phase}/${trigger.playerTurn}/${trigger.roundMin}/${trigger.roundMax}`,
+      award,
+    )
   }
   return [...seen.values()]
 }
