@@ -16,6 +16,9 @@ test('two phones complete all five rounds in step', async ({ browser }) => {
   for (let round = 1; round <= 5; round += 1) {
     // eslint-disable-next-line no-await-in-loop
     await playTurn(alice)
+    // Bob's own draw prompt lands with the turn, so clear it before reading his board.
+    // eslint-disable-next-line no-await-in-loop
+    await dismissDrawPrompt(bob)
     // eslint-disable-next-line no-await-in-loop
     await expect(action(bob)).toBeEnabled()
     // eslint-disable-next-line no-await-in-loop
