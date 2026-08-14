@@ -16,7 +16,15 @@ console.log(`detachment rules without descriptions: ${missing.detachmentRules.le
 console.log(`enhancements without descriptions: ${missing.enhancements.length}`)
 console.log(`stratagems without descriptions: ${missing.stratagems.length}`)
 
-if (missing.detachmentRules.length > 24 || missing.enhancements.length > 61 || missing.stratagems.length > 96) {
+/*
+ * A ratchet, so these only ever come down. They were raised when the rules revision
+ * moved: the newer 40kdc data brings detachments the pinned Wahapedia snapshot does
+ * not describe yet, which grows the dataset rather than degrading it. Coverage at the
+ * time of writing is 446/470 detachment rules, 1548/1623 enhancements and 2106/2227
+ * stratagems — about 95% of each. Re-pinning Wahapedia to a snapshot that reaches the
+ * new detachments is what lowers these again.
+ */
+if (missing.detachmentRules.length > 24 || missing.enhancements.length > 75 || missing.stratagems.length > 121) {
   throw new Error('description coverage fell below the pinned catalogue baseline')
 }
 
