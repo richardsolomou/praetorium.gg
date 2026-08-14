@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   check:
-    uses: richardsolomou/ras-stack/.github/workflows/check-js.yml@v0.35.0
+    uses: richardsolomou/ras-stack/.github/workflows/check-js.yml@v0.39.0
     with:
       command: just check
       just-version: '1.58.0'
@@ -27,8 +27,8 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v7
-      - uses: richardsolomou/ras-stack/actions/setup-js@v0.35.0
-      - uses: richardsolomou/ras-stack/actions/setup-just@v0.35.0
+      - uses: richardsolomou/ras-stack/actions/setup-js@v0.39.0
+      - uses: richardsolomou/ras-stack/actions/setup-just@v0.39.0
         with:
           version: '1.58.0'
       # Keyed on the pinned revisions, so the data is fetched once per bump rather
@@ -64,8 +64,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: richardsolomou/ras-stack/actions/setup-js@v0.35.0
-      - uses: richardsolomou/ras-stack/actions/setup-just@v0.35.0
+      - uses: richardsolomou/ras-stack/actions/setup-js@v0.39.0
+      - uses: richardsolomou/ras-stack/actions/setup-just@v0.39.0
         with:
           version: '1.58.0'
       - name: Cache the catalogue data
@@ -92,7 +92,7 @@ jobs:
     needs: [check, e2e, points]
     permissions:
       contents: write
-    uses: richardsolomou/ras-stack/.github/workflows/release-changesets.yml@v0.35.0
+    uses: richardsolomou/ras-stack/.github/workflows/release-changesets.yml@v0.39.0
     secrets: inherit
 
   production-image:
@@ -106,8 +106,8 @@ jobs:
       - uses: actions/checkout@v7
         with:
           ref: ${{ needs.release.outputs.sha }}
-      - uses: richardsolomou/ras-stack/actions/setup-js@v0.35.0
-      - uses: richardsolomou/ras-stack/actions/setup-just@v0.35.0
+      - uses: richardsolomou/ras-stack/actions/setup-js@v0.39.0
+      - uses: richardsolomou/ras-stack/actions/setup-just@v0.39.0
         with:
           version: '1.58.0'
       - name: Cache the catalogue data
@@ -121,7 +121,7 @@ jobs:
       - run: just descriptions
       - name: Build and publish production image
         id: image
-        uses: richardsolomou/ras-stack/actions/publish-production-image@v0.36.2
+        uses: richardsolomou/ras-stack/actions/publish-production-image@v0.39.0
         with:
           image: ghcr.io/${{ github.repository }}
           sha: ${{ needs.release.outputs.sha }}
@@ -132,7 +132,7 @@ jobs:
             VITE_POSTHOG_PROJECT_TOKEN=${{ vars.VITE_POSTHOG_PROJECT_TOKEN }}
       - name: Deploy production image
         if: vars.DOKPLOY_IMAGE_DEPLOY == 'true'
-        uses: richardsolomou/ras-stack/actions/deploy-dokploy-image@v0.36.2
+        uses: richardsolomou/ras-stack/actions/deploy-dokploy-image@v0.39.0
         with:
           url: ${{ secrets.DOKPLOY_URL }}
           api-key: ${{ secrets.DOKPLOY_API_KEY }}
