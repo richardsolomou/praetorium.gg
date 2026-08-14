@@ -96,16 +96,7 @@ export async function chooseBattlefield(page: Page) {
   await expect(selected).toBeVisible()
 }
 
-/** A tactical player is asked to draw at the top of their command phase; close it to reach the board. */
-export async function dismissDrawPrompt(page: Page, timeout = 3000) {
-  // Auto-waits, because the prompt lands a beat after the phase does; absent is fine.
-  await page
-    .getByRole('button', { name: 'Not now' })
-    .click({ timeout })
-    .catch(() => {})
-}
-
-export async function startBattle(page: Page, firstPlayer?: string, dismissPrompt = true) {
+export async function startBattle(page: Page, firstPlayer?: string) {
   await chooseBattlefield(page)
   await setupStep(page, 'Start')
   if (firstPlayer) {
@@ -113,10 +104,7 @@ export async function startBattle(page: Page, firstPlayer?: string, dismissPromp
     await section.getByText('First turn', { exact: true }).locator('..').getByRole('button', { name: firstPlayer }).click()
   }
   await page.getByRole('button', { name: 'Start battle' }).click()
-  if (dismissPrompt) {
-    await dismissDrawPrompt(page)
-    await expect(page.getByRole('heading', { name: 'command phase' })).toBeVisible()
-  }
+  await expect(page.getByRole('heading', { name: 'command phase' })).toBeVisible()
 }
 
 export async function setupBattle(
@@ -144,7 +132,6 @@ export async function setupBattle(
     await beforeStart()
   }
   await startBattle(host)
-  await dismissDrawPrompt(guest)
   await expect(guest.getByRole('heading', { name: 'command phase' })).toBeVisible()
   return url
 }

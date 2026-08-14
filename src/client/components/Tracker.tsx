@@ -52,7 +52,6 @@ const CP_PILL = 'readout shrink-0 rounded-sm bg-azure/15 px-1.5 py-px text-[0.68
 export function Tracker({ view, mission, present, send, pending, problem }: Props) {
   const [mobileTab, setMobileTab] = useState<'info' | 'events'>('info')
   const [allPhases, setAllPhases] = useState(false)
-  const [drawDismissed, setDrawDismissed] = useState<number | null>(null)
   const you = view.players.find((player) => player.isViewer)
   const built = you?.roster?.built
   // The cards say what they pay out, so the interface can offer the figure instead
@@ -342,12 +341,9 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
                   !finished &&
                   player.secondaryMode === 'tactical' &&
                   player.secondaries.filter((card) => card.status === 'active').length < 2 ? (
-                    <Disclosure
-                      label={player.secondaries.length ? 'Draw a replacement' : 'Draw a mission'}
-                      className="pt-1"
-                      triggerClassName="eyebrow text-azure"
-                    >
-                      <div className="mt-1 space-y-2">
+                    <div className="space-y-2 rounded-sm border border-azure/40 bg-azure/5 px-2.5 py-2">
+                      <p className={HEADING}>{player.secondaries.length ? 'Draw a replacement' : 'Draw a mission'}</p>
+                      <div className="space-y-2">
                         <p className="text-xs text-dim">{player.remainingSecondaries.length} cards remaining</p>
                         <Button
                           variant="secondary"
@@ -374,7 +370,7 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
                           ))}
                         </div>
                       </div>
-                    </Disclosure>
+                    </div>
                   ) : null}
                   {player.isViewer && !finished && !player.secondaries.some((card) => card.secret) ? (
                     <Disclosure label="Select secret mission" className="pt-1" triggerClassName="eyebrow text-azure">
@@ -536,25 +532,6 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
         </section>
       </div>
 
-      {you ? (
-        <DrawSecondariesDialog
-          player={you}
-          round={view.round}
-          // The hand is refilled at the top of your own command phase, which is when the rules replace it.
-          open={
-            !finished &&
-            view.phase === 'command' &&
-            yourTurn &&
-            you.secondaryMode === 'tactical' &&
-            you.remainingSecondaries.length > 0 &&
-            you.secondaries.filter((card) => card.status === 'active').length < 2 &&
-            drawDismissed !== view.round
-          }
-          pending={pending}
-          onDismiss={() => setDrawDismissed(view.round)}
-          send={send}
-        />
-      ) : null}
       <MobileScoreboard view={view} />
     </main>
   )
@@ -853,65 +830,6 @@ function resultLabel(view: BattleView) {
     return `${view.players.find((player) => player.id === view.result?.concededBy)?.name ?? 'A player'} conceded`
   }
   return view.result.reason === 'finished-early' ? 'Finished early' : 'Completed'
-}
-
-/** Asks for the draw the rules call for, rather than waiting to be found in a panel. */
-function DrawSecondariesDialog({
-  player,
-  round,
-  open,
-  pending,
-  onDismiss,
-  send,
-}: {
-  player: BattleView['players'][number]
-  round: number
-  open: boolean
-  pending: boolean
-  onDismiss: () => void
-  send: (command: Command) => void
-}) {
-  const held = player.secondaries.filter((card) => card.status === 'active').length
-  const wanted = Math.max(0, 2 - held)
-  return (
-    <Dialog open={open} onOpenChange={(next) => (next ? undefined : onDismiss())}>
-      <DialogContent className="border border-edge bg-panel text-bone">
-        <DialogHeader>
-          <DialogTitle className="uppercase">Draw {wanted === 1 ? 'a secondary mission' : `${wanted} secondary missions`}</DialogTitle>
-          <DialogDescription className="text-dim">
-            Round {round} command phase · {player.remainingSecondaries.length} cards left in your deck
-          </DialogDescription>
-        </DialogHeader>
-        <Button
-          variant="secondary"
-          disabled={pending || !player.remainingSecondaries.length}
-          onClick={() => {
-            const card = randomEntry(player.remainingSecondaries)
-            if (card) send({ kind: 'draw-secondary', secondary: card })
-          }}
-        >
-          Draw at random
-        </Button>
-        <div className="flex max-h-56 flex-wrap gap-1 overflow-y-auto">
-          {player.remainingSecondaries.map((card) => (
-            <Button
-              key={card.key}
-              variant="outline"
-              size="sm"
-              className="h-7 text-[0.625rem]"
-              disabled={pending}
-              onClick={() => send({ kind: 'draw-secondary', secondary: { key: card.key, name: card.name } })}
-            >
-              {card.name}
-            </Button>
-          ))}
-        </div>
-        <Button variant="ghost" size="sm" onClick={onDismiss}>
-          Not now
-        </Button>
-      </DialogContent>
-    </Dialog>
-  )
 }
 
 function randomEntry<T>(entries: readonly T[]) {

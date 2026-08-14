@@ -50,9 +50,8 @@ test('stratagems and tactical missions are tracked through a turn', async ({ bro
   await alice.locator('[data-secondary="behind-enemy-lines"]').getByRole('button', { name: 'Discard' }).click()
   await expect(bob.getByText('discarded', { exact: true })).toBeVisible()
   await alice.locator('[data-secondary="assassination"]').getByRole('button', { name: 'Discard' }).click()
-  const draw = alice.getByText('Draw a replacement').locator('..')
-  await draw.getByRole('button', { name: 'Draw a replacement' }).click()
-  await draw.getByRole('button', { name: 'A Grievous Blow', exact: true }).click()
+  await expect(alice.getByText('Draw a replacement')).toBeVisible()
+  await alice.getByRole('button', { name: 'A Grievous Blow', exact: true }).click()
   await expect(bob.locator('[data-secondary="a-grievous-blow"]')).toContainText('A Grievous Blow')
 
   await expect(alice.getByText(new RegExp(`${aliceName} brought Death Guard`))).toBeVisible()
@@ -78,14 +77,14 @@ test('a tactical player is asked to draw at the top of their command phase', asy
   await attachRoster(alice, aliceRoster)
   await setupStep(bob, 'Army')
   await attachRoster(bob, bobRoster)
-  await startBattle(alice, undefined, false)
+  await startBattle(alice)
 
-  // The prompt is the point: it arrives on its own rather than waiting to be found.
-  const prompt = alice.getByRole('dialog').filter({ hasText: 'Draw 2 secondary missions' })
+  // The prompt is the point: it stands open in the panel rather than waiting to be found.
+  const prompt = alice.locator('[data-panel="player"]').filter({ hasText: 'Death Guard' }).getByText('Draw a mission')
   await expect(prompt).toBeVisible()
-  await prompt.getByRole('button', { name: 'A Grievous Blow', exact: true }).click()
-  await prompt.getByRole('button', { name: 'Beacon', exact: true }).click()
-  // Two in hand is a full hand, so it closes itself.
+  await alice.getByRole('button', { name: 'A Grievous Blow', exact: true }).click()
+  await alice.getByRole('button', { name: 'Beacon', exact: true }).click()
+  // Two in hand is a full hand, so it stops asking.
   await expect(prompt).toBeHidden()
   await expect(alice.locator('[data-secondary="a-grievous-blow"]')).toContainText('A Grievous Blow')
   await expect(bob.locator('[data-secondary="a-grievous-blow"]')).toContainText('A Grievous Blow')
@@ -93,17 +92,8 @@ test('a tactical player is asked to draw at the top of their command phase', asy
 
 /** A tactical hand starts empty, so a named card has to be taken from the deck. */
 async function drawSecondary(page: Page, name: string, key: string) {
-  // The command-phase prompt is the usual way in; the panel disclosure is the fallback.
-  const prompted = page.getByRole('dialog').getByRole('button', { name, exact: true })
-  if (await prompted.isVisible().catch(() => false)) {
-    await prompted.click()
-  } else {
-    const card = page.getByRole('button', { name, exact: true })
-    if (!(await card.isVisible())) {
-      await page.getByRole('button', { name: /^Draw a (mission|replacement)$/ }).click()
-    }
-    await card.scrollIntoViewIfNeeded()
-    await card.click()
-  }
+  const card = page.getByRole('button', { name, exact: true })
+  await card.scrollIntoViewIfNeeded()
+  await card.click()
   await expect(page.locator(`[data-secondary="${key}"]`)).toContainText(name)
 }

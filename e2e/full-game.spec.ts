@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { createRoster, dismissDrawPrompt, setupBattle, signUp, uniqueName } from './account'
+import { createRoster, setupBattle, signUp, uniqueName } from './account'
 
 test('two phones complete all five rounds in step', async ({ browser }) => {
   const alice = await (await browser.newContext({ viewport: { width: 390, height: 844 } })).newPage()
@@ -16,9 +16,6 @@ test('two phones complete all five rounds in step', async ({ browser }) => {
   for (let round = 1; round <= 5; round += 1) {
     // eslint-disable-next-line no-await-in-loop
     await playTurn(alice)
-    // Bob's own draw prompt lands with the turn, so clear it before reading his board.
-    // eslint-disable-next-line no-await-in-loop
-    await dismissDrawPrompt(bob)
     // eslint-disable-next-line no-await-in-loop
     await expect(action(bob)).toBeEnabled()
     // eslint-disable-next-line no-await-in-loop
@@ -41,8 +38,6 @@ function action(page: Page) {
 
 async function playTurn(page: Page, phase = 0): Promise<void> {
   if (phase === 6) return
-  // The prompt only lands at the top of a turn, so it is only worth looking for there.
-  if (phase === 0) await dismissDrawPrompt(page)
   await expect(action(page)).toBeEnabled()
   await action(page).click()
   await playTurn(page, phase + 1)
