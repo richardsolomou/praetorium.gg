@@ -70,7 +70,7 @@ export function CreateRoster({ factions }: { factions: Faction[] }) {
       <DialogTrigger render={<Button />}>
         <Plus /> Create editable roster
       </DialogTrigger>
-      <DialogContent className="rounded-none border border-edge bg-panel text-bone ring-0 sm:max-w-lg">
+      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-none border border-edge bg-panel text-bone ring-0 sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="text-xl uppercase">Create roster</DialogTitle>
           <DialogDescription className="text-dim">Choose the army setup before adding units.</DialogDescription>
