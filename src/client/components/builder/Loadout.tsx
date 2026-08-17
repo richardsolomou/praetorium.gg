@@ -68,14 +68,17 @@ export function Loadout({ catalogueId, unit, detachmentIds, picks, pickIndex, on
       </div>
     )
   }
-  const ranged = sheet?.profiles.filter((profile) => profile.type === 'Ranged Weapons') ?? []
-  const melee = sheet?.profiles.filter((profile) => profile.type === 'Melee Weapons') ?? []
-  const availableWeapons =
-    availableSheet?.profiles.filter((profile) => profile.type === 'Ranged Weapons' || profile.type === 'Melee Weapons') ?? []
+  if (!sheet || !availableSheet) return <LoadoutLoading />
+
+  const ranged = sheet.profiles.filter((profile) => profile.type === 'Ranged Weapons')
+  const melee = sheet.profiles.filter((profile) => profile.type === 'Melee Weapons')
+  const availableWeapons = availableSheet.profiles.filter(
+    (profile) => profile.type === 'Ranged Weapons' || profile.type === 'Melee Weapons',
+  )
   const choiceWeaponNames = unit.choices.flatMap((choice) => choice.options.map((option) => option.name))
   const fixedRanged = ranged.filter((profile) => !choiceWeaponNames.some((name) => weaponMatches(name, profile.name)))
   const fixedMelee = melee.filter((profile) => !choiceWeaponNames.some((name) => weaponMatches(name, profile.name)))
-  const rules = availableSheet?.keywordRules ?? sheet?.keywordRules ?? []
+  const rules = availableSheet.keywordRules
 
   return (
     <div className="flex h-full flex-col">
@@ -155,6 +158,30 @@ export function Loadout({ catalogueId, unit, detachmentIds, picks, pickIndex, on
         </div>
       </ScrollArea>
     </div>
+  )
+}
+
+/** Waits for the complete loadout so its sections arrive together instead of in stages. */
+function LoadoutLoading() {
+  return (
+    <output className="block h-full" aria-label="Loading loadout">
+      <div className="space-y-2 border-b border-edge p-2.5">
+        <span className="block h-4 w-32 animate-pulse bg-raised" />
+        <div className="flex gap-2">
+          <span className="h-6 w-14 animate-pulse bg-raised" />
+          <span className="h-6 w-20 animate-pulse bg-raised" />
+        </div>
+      </div>
+      <div className="space-y-4 p-2.5">
+        {Array.from({ length: 3 }, (_, index) => (
+          <div key={index} className="space-y-2 border-t border-edge pt-2">
+            <span className="block h-3 w-28 animate-pulse bg-raised" />
+            <span className="block h-20 animate-pulse bg-card" />
+          </div>
+        ))}
+      </div>
+      <span className="sr-only">Loading loadout…</span>
+    </output>
   )
 }
 
