@@ -1,6 +1,6 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { Check, Copy, Download, EllipsisVertical, Eye, Layers3, LoaderCircle, Plus, Trash2, TriangleAlert, X } from 'lucide-react'
+import { Check, Copy, Download, EllipsisVertical, Eye, Layers3, Pencil, Plus, Trash2, TriangleAlert, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
@@ -479,7 +479,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
   )
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col border border-edge bg-sunken">
+    <div data-roster-builder data-saving={save.isPending} className="flex min-h-0 flex-1 flex-col border border-edge bg-sunken">
       <header className="border-b border-edge px-3 py-2">
         <Input
           id="listname"
@@ -534,7 +534,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
                 <DropdownMenuItem
                   onClick={() => setSetupDraft({ name: listName, catalogueId, detachmentIds, disposition, limit, tags, visibility })}
                 >
-                  Edit roster setup
+                  <Pencil /> Edit roster setup
                 </DropdownMenuItem>
                 <DropdownMenuItem disabled={take.isPending || !units.length} onClick={() => take.mutate()}>
                   <Download /> Export GW text
@@ -815,27 +815,6 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
           ) : (
             <p className="py-6 text-sm text-faint">Pick a book to start building.</p>
           )}
-
-          {priced?.errors.length ? (
-            <ul className="mb-4 space-y-1 border border-destructive/40 bg-destructive/5 p-2.5 text-xs text-destructive">
-              {priced.errors.slice(0, 8).map((error) => (
-                <li key={`${error.entryId}-${error.message}`}>
-                  {error.entryName}: {error.message}
-                </li>
-              ))}
-            </ul>
-          ) : null}
-
-          {priced?.unhandled.length ? (
-            <div className="mb-4 border border-discarded/40 bg-discarded/5 p-2.5 text-xs text-discarded">
-              <p className="font-semibold uppercase">Could not validate every catalogue rule</p>
-              <ul className="mt-1 list-inside list-disc">
-                {priced.unhandled.slice(0, 8).map((message) => (
-                  <li key={message}>{message}</li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
         </div>
 
         <Pane variant="loadout" open={showing === 'loadout' && Boolean(selectedUnit)} title="Loadout" onClose={() => setShowing(null)}>
@@ -847,56 +826,71 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
         </Pane>
       </div>
 
-      <footer className="sticky bottom-0 z-20 flex flex-wrap items-center gap-2 border-t border-edge bg-panel px-3 py-2">
-        <span className="flex items-center gap-2">
-          {over ? (
-            <TriangleAlert className="size-5 text-destructive" aria-hidden />
-          ) : (
-            <Check className={`size-5 ${units.length ? 'text-achieved' : 'text-faint'}`} aria-hidden />
-          )}
-          {/*
-           * The mark is the legality statement, and a mark alone says nothing to
-           * anyone who cannot see it: it is the whole answer to "can I play this".
-           */}
-          <span className="sr-only">{over ? 'Over the points limit' : 'Within the points limit'}</span>
-          <span data-stat="points" className={`readout text-xl font-bold ${over ? 'text-destructive' : ''}`}>
-            {priced?.points ?? 0}/{limit}
+      <footer className="sticky bottom-0 z-20 border-t border-edge bg-panel px-3 py-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="flex items-center gap-2">
+            {over ? (
+              <TriangleAlert className="size-5 text-destructive" aria-hidden />
+            ) : (
+              <Check className={`size-5 ${units.length ? 'text-achieved' : 'text-faint'}`} aria-hidden />
+            )}
+            {/*
+             * The mark is the legality statement, and a mark alone says nothing to
+             * anyone who cannot see it: it is the whole answer to "can I play this".
+             */}
+            <span className="sr-only">{over ? 'Over the points limit' : 'Within the points limit'}</span>
+            <span data-stat="points" className={`readout text-xl font-bold ${over ? 'text-destructive' : ''}`}>
+              {priced?.points ?? 0}/{limit}
+            </span>
+            <span className="eyebrow">points</span>
           </span>
-          <span className="eyebrow">points</span>
-        </span>
 
-        <Button variant="outline" size="sm" className="lg:hidden" onClick={() => setShowing('picker')} disabled={!faction}>
-          Add units
-        </Button>
+          <Button variant="outline" size="sm" className="lg:hidden" onClick={() => setShowing('picker')} disabled={!faction}>
+            Add units
+          </Button>
 
-        <span className="ml-auto flex flex-wrap items-center gap-2">
-          {save.isPending ? (
-            <output className="inline-flex items-center gap-1 text-xs text-dim" aria-live="polite">
-              <LoaderCircle className="size-3 animate-spin" aria-hidden />
-              Saving
-            </output>
-          ) : null}
-          {onAttach ? (
-            <Button
-              size="sm"
-              className="h-9 px-4"
-              disabled={pending || !listName || !units.length || over || illegal || needsDetachment || overDetachmentPoints}
-              onClick={attach}
-            >
-              {over && priced
-                ? `${priced.points - limit} pts over`
-                : illegal
-                  ? 'Roster is not legal'
-                  : overDetachmentPoints && priced && priced.detachmentPointBudget !== null
-                    ? 'Invalid detachments'
-                    : needsDetachment
-                      ? 'Pick a detachment first'
-                      : attached
-                        ? 'Replace my list'
-                        : 'Attach this list'}
-            </Button>
-          ) : null}
-        </span>
+          <span className="ml-auto flex flex-wrap items-center gap-2">
+            {onAttach ? (
+              <Button
+                size="sm"
+                className="h-9 px-4"
+                disabled={pending || !listName || !units.length || over || illegal || needsDetachment || overDetachmentPoints}
+                onClick={attach}
+              >
+                {over && priced
+                  ? `${priced.points - limit} pts over`
+                  : illegal
+                    ? 'Roster is not legal'
+                    : overDetachmentPoints && priced && priced.detachmentPointBudget !== null
+                      ? 'Invalid detachments'
+                      : needsDetachment
+                        ? 'Pick a detachment first'
+                        : attached
+                          ? 'Replace my list'
+                          : 'Attach this list'}
+              </Button>
+            ) : null}
+          </span>
+        </div>
+        {priced?.errors.length ? (
+          <ul className="mt-2 space-y-1 border border-destructive/40 bg-destructive/5 p-2.5 text-xs text-destructive">
+            {priced.errors.slice(0, 8).map((error) => (
+              <li key={`${error.entryId}-${error.message}`}>
+                {error.entryName}: {error.message}
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        {priced?.unhandled.length ? (
+          <div className="mt-2 border border-discarded/40 bg-discarded/5 p-2.5 text-xs text-discarded">
+            <p className="font-semibold uppercase">Could not validate every catalogue rule</p>
+            <ul className="mt-1 list-inside list-disc">
+              {priced.unhandled.slice(0, 8).map((message) => (
+                <li key={message}>{message}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
       </footer>
       <RosterExportDialog text={exportText} onClose={() => setExportText(null)} />
     </div>

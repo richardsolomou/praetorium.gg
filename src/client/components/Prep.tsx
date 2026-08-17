@@ -51,12 +51,13 @@ export function Prep({ view, missionId, send, pending }: Props) {
     if (!rules || !you) return
     const missingStratagems = stratagems.length > 0 && you.stratagems.length === 0
     const missingPrimary = primary !== null && you.primaryCard === null
+    const missingDeck = mode === 'tactical' && rules.secondaries.length > 0 && you.remainingSecondaries.length === 0
     const invalidMode = tacticalOnly && storedMode !== 'tactical'
-    if (!missingStratagems && !missingPrimary && !invalidMode) return
+    if (!missingStratagems && !missingPrimary && !missingDeck && !invalidMode) return
     save({})
     // Re-runs only when one of those two facts changes, and both are satisfied by the save.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rules, you?.stratagems.length, you?.primaryCard, primary?.key, storedMode, tacticalOnly])
+  }, [rules, you?.stratagems.length, you?.primaryCard, you?.remainingSecondaries.length, primary?.key, mode, storedMode, tacticalOnly])
 
   if (!rules) {
     return (
