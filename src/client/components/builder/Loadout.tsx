@@ -20,7 +20,7 @@ type LoadoutChoice = {
   chosen: string
   optional: boolean
   room: number
-  options: { id: string; name: string; points: number; count: number; description?: string | null }[]
+  options: { id: string; name: string; points: number; count: number; max: number; description?: string | null }[]
 }
 
 type LoadoutUnit = {
@@ -218,6 +218,7 @@ function spread(choice: LoadoutChoice, onSpread: Props['onSpread']) {
     choice.options.filter((option) => option.id !== exclude && option.count > 0).toSorted((left, right) => right.count - left.count)[0]
 
   const more = (option: LoadoutChoice['options'][number]) => {
+    if (option.count >= option.max) return null
     if (room > 0) return { [option.id]: option.count + 1 }
     const giving = donor(option.id)
     return giving ? { [option.id]: option.count + 1, [giving.id]: giving.count - 1 } : null
