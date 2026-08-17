@@ -5,7 +5,15 @@ import { datasheetSlug, datasheetsOf, type LoadedCatalogue } from './catalogueIn
 
 export type UnitGroup = 'character' | 'battleline' | 'transport' | 'other'
 
-type UnitSummary = { id: string; slug: string; name: string; points: number | null; group: UnitGroup; limit: number | null }
+type UnitSummary = {
+  id: string
+  slug: string
+  name: string
+  points: number | null
+  group: UnitGroup
+  limit: number | null
+  allied: boolean
+}
 
 const GROUP_BY_CATEGORY = new Map<string, UnitGroup>([
   ['character', 'character'],
@@ -53,7 +61,8 @@ export function unitsIn(
   { limit = 60 }: { limit?: number } = {},
 ): UnitSummary[] {
   const wanted = query.trim().toLowerCase()
-  const found: { id: string; name: string; group: UnitGroup }[] = []
+  const found: { id: string; name: string; group: UnitGroup; allied: boolean }[] = []
+  const allied = loaded.index.alliedDatasheets.get(catalogueId) ?? new Set<string>()
 
   for (const id of datasheetsOf(loaded.index, catalogueId)) {
     const entry = loaded.index.definitions.get(id)
@@ -63,20 +72,20 @@ export function unitsIn(
     const name = nameOf(entry, loaded.index.definitions)
     if (LEGENDS.test(name)) continue
     if (wanted && !name.toLowerCase().includes(wanted)) continue
-    found.push({ id, name, group: groupOf(entry, target) })
+    found.push({ id, name, group: groupOf(entry, target), allied: allied.has(id) })
   }
 
-  return found
-    .toSorted((left, right) => left.name.localeCompare(right.name))
-    .slice(0, limit)
-    .map((unit) => ({
-      id: unit.id,
-      slug: datasheetSlug(loaded, catalogueId, unit.id),
-      name: unit.name,
-      group: unit.group,
-      points: priceOf(loaded, catalogueId, unit.id),
-      limit: limitOf(loaded, catalogueId, unit.id),
-    }))
+  const sorted = found.toSorted((left, right) => left.name.localeCompare(right.name))
+  const page = [...sorted.filter((unit) => !unit.allied).slice(0, limit), ...sorted.filter((unit) => unit.allied)]
+  return page.map((unit) => ({
+    id: unit.id,
+    slug: datasheetSlug(loaded, catalogueId, unit.id),
+    name: unit.name,
+    group: unit.group,
+    allied: unit.allied,
+    points: priceOf(loaded, catalogueId, unit.id),
+    limit: limitOf(loaded, catalogueId, unit.id),
+  }))
 }
 
 /** How many of one datasheet the roster may hold, or null when nothing limits it. */

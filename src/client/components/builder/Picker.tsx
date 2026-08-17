@@ -18,12 +18,13 @@ type Props = {
   room: number | null
 }
 
-type Filter = 'fit' | 'limit' | 'owned'
+type Filter = 'fit' | 'limit' | 'owned' | 'allies'
 
 const FILTERS: { id: Filter; label: string; hint: string }[] = [
   { id: 'fit', label: 'Points fit', hint: 'Hide anything that would not fit in the points left' },
   { id: 'limit', label: 'Unit limit', hint: 'Hide anything the roster already holds as many of as it may' },
   { id: 'owned', label: 'Owned', hint: 'Show only datasheets you own models for' },
+  { id: 'allies', label: 'Hide allies', hint: 'Hide allied datasheets contributed by secondary forces' },
 ]
 
 /**
@@ -54,6 +55,7 @@ export function Picker({ catalogueId, onAdd, onPreview, inRoster, room }: Props)
       if (active.has('fit') && room !== null && unit.points !== null && unit.points > room) return false
       if (active.has('limit') && unit.limit !== null && (inRoster[unit.id] ?? 0) >= unit.limit) return false
       if (active.has('owned') && !collection.has(unit.id)) return false
+      if (active.has('allies') && unit.allied) return false
       return true
     })
     .sort((left, right) => Number(collection.has(right.id)) - Number(collection.has(left.id)))
@@ -91,8 +93,8 @@ export function Picker({ catalogueId, onAdd, onPreview, inRoster, room }: Props)
       </div>
       <ScrollArea className="min-h-0 flex-1 [&_[data-slot=scroll-area-viewport]]:px-2.5">
         {shown.length ? (
-          GROUPS.map(({ id, plural }) => {
-            const rows = shown.filter((unit) => unit.group === id)
+          [...GROUPS, { id: 'allied' as const, plural: 'Allied units' }].map(({ id, plural }) => {
+            const rows = shown.filter((unit) => (id === 'allied' ? unit.allied : !unit.allied && unit.group === id))
             return rows.length ? (
               <Section key={id} title={plural} count={rows.length}>
                 {rows.map((unit) => {

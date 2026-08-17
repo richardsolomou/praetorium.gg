@@ -75,6 +75,7 @@ Inspect the generated selection before changing evaluator logic. A mismatch can 
 ## Picker and attachments
 
 - Price picker rows with `buildUnit`, using the same inputs as the roster. Price only the displayed page.
+- Keep datasheets from secondary imported books in an allied section after the primary picker page so players can include or hide them together.
 - Character attachment targets come from ability text. `attachmentOf` supports bullet-list and inline formats.
 - A missing attachment rule means the unit cannot attach.
 - An ability titled `Leader` marks a leader. Other supported attachment abilities default to support.

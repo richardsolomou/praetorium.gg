@@ -151,6 +151,58 @@ describe('the picker', () => {
     expect(offered(shelf)).toEqual(['Ours', 'Theirs'])
   })
 
+  it('marks secondary imported books as allies while keeping the main imported roster primary', () => {
+    const shelf = shelfOf(
+      {
+        selectionEntries: [{ id: 'ours', name: 'Ours', type: 'unit', costs: points(10) }],
+        catalogueLinks: [
+          { targetId: 'cat-1', importRootEntries: true },
+          { targetId: 'cat-2', importRootEntries: true },
+          { targetId: 'cat-3', importRootEntries: true },
+        ],
+      },
+      {
+        selectionEntries: [
+          { id: 'main-one', name: 'Main One', type: 'unit', costs: points(20) },
+          { id: 'main-two', name: 'Main Two', type: 'unit', costs: points(20) },
+        ],
+      },
+      { selectionEntries: [{ id: 'agent', name: 'Agent', type: 'unit', costs: points(30) }] },
+      { selectionEntries: [{ id: 'knight', name: 'Knight', type: 'unit', costs: points(40) }] },
+    )
+
+    expect(Object.fromEntries(unitsIn(shelf, 'cat', '').map((unit) => [unit.name, unit.allied]))).toEqual({
+      'Main One': false,
+      'Main Two': false,
+      Ours: false,
+      Agent: true,
+      Knight: true,
+    })
+  })
+
+  it('keeps allied units after the limited primary page', () => {
+    const shelf = shelfOf(
+      {
+        catalogueLinks: [
+          { targetId: 'cat-1', importRootEntries: true },
+          { targetId: 'cat-2', importRootEntries: true },
+        ],
+      },
+      {
+        selectionEntries: [
+          { id: 'alpha', name: 'Alpha', type: 'unit', costs: points(20) },
+          { id: 'bravo', name: 'Bravo', type: 'unit', costs: points(20) },
+        ],
+      },
+      { selectionEntries: [{ id: 'ally', name: 'Aaron the Ally', type: 'unit', costs: points(30) }] },
+    )
+
+    expect(unitsIn(shelf, 'cat', '', { limit: 1 }).map((unit) => [unit.name, unit.allied])).toEqual([
+      ['Alpha', false],
+      ['Aaron the Ally', true],
+    ])
+  })
+
   it('offers a datasheet reached twice only once', () => {
     const shelf = shelfOf(
       {
