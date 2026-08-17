@@ -1,5 +1,5 @@
 import { expect, type Page, test } from '@playwright/test'
-import { createRoster, signUp, waitForRosterSave } from './account'
+import { createRoster, signUp } from './account'
 
 /**
  * The four things a player coming from another builder reaches for: squad size where
@@ -18,6 +18,11 @@ async function add(page: Page, name: string) {
     .first()
     .click()
 }
+
+test('the unit picker stays within the roster faction', async ({ page }) => {
+  await openBuilder(page)
+  await expect(page.getByRole('combobox', { name: 'Force' })).toHaveCount(0)
+})
 
 test('King of the Colosseum creation keeps exactly one detachment selected', async ({ page }) => {
   await signUp(page, 'Richard')
@@ -146,18 +151,6 @@ test('detachment combinations follow the 11th edition allowance', async ({ page 
   const bounds = await firstDetachment.boundingBox()
   expect(bounds && bounds.x + bounds.width).toBeLessThanOrEqual(390)
   await page.screenshot({ path: 'test-results/detachment-points-phone.png', fullPage: true })
-})
-
-test('an allied force can be added from its own catalogue', async ({ page }) => {
-  await openBuilder(page)
-  await page.getByRole('combobox', { name: 'Force' }).click()
-  await page.getByRole('option', { name: 'Death Guard', exact: true }).click()
-  await waitForRosterSave(page, () => add(page, 'Plague Marines'))
-
-  const allied = page.locator('[data-unit="Plague Marines"]')
-  await expect(allied).toContainText('Allied force · Chaos - Death Guard')
-  await expect(page.getByText('allied-force eligibility is not present in the synced catalogue data')).toBeVisible()
-  await page.screenshot({ path: 'test-results/allied-force.png', fullPage: true })
 })
 
 test('a squad grows from its unit editor', async ({ page }) => {
