@@ -68,6 +68,7 @@ test('a player can enter through the roster library and browse the product', asy
   await dialog.getByRole('button', { name: /Awakened Dynasty/ }).click()
   await expect(dialog.getByText('3 used / 3 available DP')).toBeVisible()
   await expect(dialog.getByText('Take and Hold', { exact: true })).toBeVisible()
+  await page.setViewportSize({ width: 1600, height: 640 })
   await expect.poll(() => dialog.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true)
   await dialog.evaluate((element) => element.scrollTo({ top: element.scrollHeight }))
   await expect(dialog.getByRole('button', { name: 'Create roster' })).toBeInViewport()
