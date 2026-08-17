@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Toggle } from '@/components/ui/toggle'
-import { GAME_SIZES } from '../../core/battle'
+import { DEFAULT_GAME_LIMIT, detachmentLimit, GAME_SIZES, KOTC_LIMIT } from '../../core/battle'
 import { saveRoster } from '../../server/functions'
 import { priceQuery, savedRostersQuery } from '../queries'
 import { errorMessage } from '../queryClient'
@@ -29,7 +29,7 @@ type Faction = {
 export function CreateRoster({ factions }: { factions: Faction[] }) {
   const [open, setOpen] = useState(false)
   const [catalogueId, setCatalogueId] = useState('')
-  const [limit, setLimit] = useState<number>(GAME_SIZES[1].limit)
+  const [limit, setLimit] = useState<number>(DEFAULT_GAME_LIMIT)
   const [detachmentIds, setDetachmentIds] = useState<string[]>([])
   const [disposition, setDisposition] = useState<string | null>(null)
   const queryClient = useQueryClient()
@@ -110,7 +110,15 @@ export function CreateRoster({ factions }: { factions: Faction[] }) {
             <Label className="eyebrow block" htmlFor="new-roster-size">
               Battle size
             </Label>
-            <Select value={String(limit)} onValueChange={(value: string | null) => setLimit(Number(value ?? GAME_SIZES[1].limit))}>
+            <Select
+              value={String(limit)}
+              onValueChange={(value: string | null) => {
+                const next = Number(value ?? DEFAULT_GAME_LIMIT)
+                setLimit(next)
+                setDetachmentIds((current) => current.slice(0, detachmentLimit(next)))
+                setDisposition(null)
+              }}
+            >
               <SelectTrigger id="new-roster-size" className="mt-1 w-full">
                 <SelectValue>
                   {(value: unknown) => {
@@ -139,13 +147,11 @@ export function CreateRoster({ factions }: { factions: Faction[] }) {
                     key={detachment.id}
                     pressed={selected}
                     onPressedChange={() => {
-                      setDetachmentIds((current) =>
-                        selected
-                          ? current.filter((id) => id !== detachment.id)
-                          : current.length < 3
-                            ? [...current, detachment.id]
-                            : current,
-                      )
+                      setDetachmentIds((current) => {
+                        if (selected) return current.filter((id) => id !== detachment.id)
+                        if (limit === KOTC_LIMIT) return [detachment.id]
+                        return current.length < detachmentLimit(limit) ? [...current, detachment.id] : current
+                      })
                       if (!selected && !detachmentIds.length) setDisposition(null)
                       if (selected && detachmentIds[0] === detachment.id) setDisposition(null)
                     }}

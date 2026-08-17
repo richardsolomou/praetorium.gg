@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import { BATTLE_ROUNDS, battleReport, battleView, type Command, type LoggedCommand, reduceBattle, validate } from './battle'
+import {
+  BATTLE_ROUNDS,
+  battleReport,
+  battleView,
+  type Command,
+  detachmentLimit,
+  type LoggedCommand,
+  reduceBattle,
+  validate,
+} from './battle'
 
 const ALICE = 'alice'
 const BOB = 'bob'
@@ -45,6 +54,11 @@ const started = (): [string, Command][] => [
 const turns = (count: number, by: string): [string, Command][] => Array.from({ length: count }, () => [by, advance()])
 
 describe('setup', () => {
+  it('limits King of the Colosseum to one detachment', () => {
+    expect(detachmentLimit(600)).toBe(1)
+    expect(detachmentLimit(2000)).toBe(3)
+  })
+
   it('has no active player before the battle begins', () => {
     expect(reduceBattle(PLAYERS, log()).activePlayerId).toBeNull()
   })
@@ -386,6 +400,28 @@ describe('the turn sequence', () => {
     const rounds = Array.from({ length: BATTLE_ROUNDS }, () => [...turns(6, ALICE), ...turns(6, BOB)]).flat()
     const state = reduceBattle(PLAYERS, log(...started(), ...rounds))
     expect(state.status).toBe('finished')
+  })
+
+  it('finishes King of the Colosseum after three rounds', () => {
+    const configured: [string, Command] = [
+      ALICE,
+      {
+        kind: 'configure-battle',
+        limit: 600,
+        missionPackId: null,
+        terrainLayoutId: null,
+        twistId: null,
+        solo: false,
+        clockLimitMinutes: null,
+      },
+    ]
+    const rounds = Array.from({ length: 3 }, () => [...turns(6, ALICE), ...turns(6, BOB)]).flat()
+    const state = reduceBattle(PLAYERS, log(configured, ...started(), ...rounds))
+    const view = battleView({ token: 'abc' }, NAMES, state, ALICE)
+
+    expect(state).toMatchObject({ status: 'finished', round: 3, result: { reason: 'completed' } })
+    expect(view.rounds).toBe(3)
+    expect(view.players[0]?.rounds).toHaveLength(3)
   })
 
   it('keeps the final battle round within the five-round ledger', () => {

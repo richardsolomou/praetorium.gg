@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { deploymentRules, findEnhancementDescription, resolveDisposition } from './pricing'
+import { deploymentRules, findEnhancementDescription, kotcViolations, resolveDisposition } from './pricing'
 import { descriptionKey } from './wahapedia'
 
 describe('force disposition', () => {
@@ -38,5 +38,42 @@ describe('catalogue-backed deployment rules', () => {
 
   it('does not invent deployment options without matching abilities', () => {
     expect(deploymentRules(['Leader', 'Stealth'])).toEqual({ formationOptions: [], prebattleRules: [] })
+  })
+})
+
+describe('King of the Colosseum army construction', () => {
+  const unit = (entryId: string, keywords: string[], toughness: number, warlord = false) => ({
+    entryId,
+    name: entryId,
+    keywords,
+    toughness,
+    warlord,
+  })
+
+  it('accepts a legal prototype roster', () => {
+    expect(
+      kotcViolations(1, [
+        unit('leader', ['Infantry', 'Character'], 4, true),
+        unit('troops', ['Infantry', 'Battleline'], 4),
+        unit('tank', ['Vehicle'], 9),
+      ]),
+    ).toEqual([])
+  })
+
+  it('reports every KOTC-specific restriction without guessing unknown toughness', () => {
+    const errors = kotcViolations(2, [
+      unit('hero', ['Infantry', 'Epic Hero'], 10),
+      unit('tank', ['Vehicle'], 9),
+      unit('tank', ['Vehicle'], 9),
+    ])
+    expect(errors.map((error) => error.message)).toEqual([
+      'needs exactly 1 detachment, has 2',
+      'needs at least 2 Infantry units',
+      'needs a Warlord',
+      'does not allow Epic Heroes',
+      'does not allow Toughness 10',
+      'allows at most 1 Toughness 9 unit, has 2',
+      'allows at most 1 of this datasheet, has 2',
+    ])
   })
 })

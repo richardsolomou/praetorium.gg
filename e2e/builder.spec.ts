@@ -19,6 +19,26 @@ async function add(page: Page, name: string) {
     .click()
 }
 
+test('King of the Colosseum creation keeps exactly one detachment selected', async ({ page }) => {
+  await signUp(page, 'Richard')
+  await page.goto('/rosters')
+  await page.getByRole('button', { name: 'Create editable roster' }).click()
+  const dialog = page.getByRole('dialog', { name: 'Create roster' })
+  await dialog.getByRole('combobox', { name: 'Faction' }).click()
+  await page.getByPlaceholder('Search factions…').fill('Necrons')
+  await page.getByRole('option', { name: 'Necrons', exact: true }).click()
+  await dialog.getByRole('combobox', { name: 'Battle size' }).click()
+  await page.getByRole('option', { name: /King of the Colosseum/ }).click()
+
+  const awakened = dialog.getByRole('button', { name: /Awakened Dynasty/ })
+  const cryptek = dialog.getByRole('button', { name: /Cryptek Conclave/ })
+  await awakened.click()
+  await cryptek.click()
+
+  await expect(awakened).toHaveAttribute('aria-pressed', 'false')
+  await expect(cryptek).toHaveAttribute('aria-pressed', 'true')
+})
+
 test('enhancement choices show descriptions when rule and catalogue names differ', async ({ page }) => {
   await openBuilder(page, 'Necrons', /Cursed Legion/)
   await add(page, 'Skorpekh Lord')

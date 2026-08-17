@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { GAME_SIZES } from '../../core/battle'
+import { DEFAULT_GAME_LIMIT } from '../../core/battle'
 import { importRoster, saveRoster } from '../../server/functions'
 import { errorMessage } from '../queryClient'
 import { savedRostersQuery } from '../queries'
@@ -40,7 +40,7 @@ export function RosterImport() {
           catalogueId: imported.catalogueId,
           detachmentIds: imported.detachmentIds,
           disposition: 'disposition' in imported ? (imported.disposition ?? null) : null,
-          limit: 'limit' in imported && imported.limit ? imported.limit : GAME_SIZES[1].limit,
+          limit: 'limit' in imported && imported.limit ? imported.limit : DEFAULT_GAME_LIMIT,
           picks: imported.units,
           prep: null,
           tags: [],
