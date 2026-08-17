@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { ROSTER_NAME_MAX_LENGTH, SECONDARIES_MAX, STRATAGEM_CP_MAX, STRATAGEM_LIMITS, STRATAGEMS_MAX } from '../core/battle'
+import { GAME_SIZES, ROSTER_NAME_MAX_LENGTH, SECONDARIES_MAX, STRATAGEM_CP_MAX, STRATAGEM_LIMITS, STRATAGEMS_MAX } from '../core/battle'
 import { commandSchema } from '../core/commands'
 import { ROSTER_SOURCES, ROSTER_TAG_MAX_LENGTH, ROSTER_TAGS_MAX, ROSTER_VISIBILITIES } from '../core/savedRoster'
 
@@ -16,7 +16,7 @@ export const createBattleSchema = z.object({
   limit: z
     .number()
     .int()
-    .refine((value) => [1000, 2000, 3000].includes(value))
+    .refine((value) => GAME_SIZES.some((size) => size.limit === value))
     .optional(),
   missionPackId: id.nullable().default(null),
   clockLimitMinutes: z.number().int().min(5).max(300).nullable().default(null),

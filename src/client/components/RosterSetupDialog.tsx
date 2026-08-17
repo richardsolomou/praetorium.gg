@@ -5,7 +5,14 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { detachmentPointsError, detachmentPointBudget, GAME_SIZES, ROSTER_NAME_MAX_LENGTH } from '../../core/battle'
+import {
+  detachmentLimit,
+  detachmentPointsError,
+  detachmentPointBudget,
+  GAME_SIZES,
+  KOTC_LIMIT,
+  ROSTER_NAME_MAX_LENGTH,
+} from '../../core/battle'
 import { ROSTER_TAG_MAX_LENGTH, ROSTER_TAGS_MAX, type RosterVisibility } from '../../core/savedRoster'
 import { DetachmentReference } from './DetachmentReference'
 import { SearchableSelect } from './SearchableSelect'
@@ -66,7 +73,7 @@ export function RosterSetupDialog({ open, onOpenChange, factions, value, onDraft
   const availableDetachments =
     faction?.detachments.filter((detachment) => {
       if (draft.detachmentIds.includes(detachment.id)) return true
-      if (draft.detachmentIds.length >= 3) return false
+      if (draft.detachmentIds.length >= detachmentLimit(draft.limit) && draft.limit !== KOTC_LIMIT) return false
       if (!selected.length || allowance === null || detachment.reference?.points == null) return true
       return spent + detachment.reference.points <= allowance
     }) ?? []
@@ -95,7 +102,9 @@ export function RosterSetupDialog({ open, onOpenChange, factions, value, onDraft
   const toggleDetachment = (id: string) => {
     const ids = draft.detachmentIds.includes(id)
       ? draft.detachmentIds.filter((candidate) => candidate !== id)
-      : [...draft.detachmentIds, id].slice(0, 3)
+      : draft.limit === KOTC_LIMIT
+        ? [id]
+        : [...draft.detachmentIds, id].slice(0, detachmentLimit(draft.limit))
     const offered = dispositionsFor(faction?.detachments ?? [], ids)
     changeDraft({
       ...draft,
@@ -112,7 +121,7 @@ export function RosterSetupDialog({ open, onOpenChange, factions, value, onDraft
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-none border border-edge bg-panel p-0 text-bone ring-0 sm:max-w-2xl">
+        <DialogContent className="rounded-none border border-edge bg-panel p-0 text-bone ring-0 sm:max-w-2xl">
           <DialogHeader className="border-b border-edge px-5 py-4">
             <DialogTitle className="text-2xl uppercase">Edit roster setup</DialogTitle>
             <DialogDescription className="text-dim">
@@ -140,7 +149,18 @@ export function RosterSetupDialog({ open, onOpenChange, factions, value, onDraft
                 <Label className="eyebrow block" htmlFor="setup-size">
                   Battle size
                 </Label>
-                <Select value={String(draft.limit)} onValueChange={(next: string | null) => changeDraft({ ...draft, limit: Number(next) })}>
+                <Select
+                  value={String(draft.limit)}
+                  onValueChange={(next: string | null) => {
+                    const limit = Number(next)
+                    changeDraft({
+                      ...draft,
+                      limit,
+                      detachmentIds: draft.detachmentIds.slice(0, detachmentLimit(limit)),
+                      disposition: null,
+                    })
+                  }}
+                >
                   <SelectTrigger id="setup-size" className="mt-1 h-11 w-full rounded-none border-edge bg-sunken font-semibold uppercase">
                     <SelectValue>{(current: unknown) => GAME_SIZES.find((size) => String(size.limit) === current)?.name}</SelectValue>
                   </SelectTrigger>
@@ -319,7 +339,7 @@ export function RosterSetupDialog({ open, onOpenChange, factions, value, onDraft
         </DialogContent>
       </Dialog>
       <Dialog open={Boolean(reference)} onOpenChange={(next) => !next && setReference(null)}>
-        <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-none border border-edge bg-panel p-0 text-bone ring-0 sm:max-w-5xl">
+        <DialogContent className="rounded-none border border-edge bg-panel p-0 text-bone ring-0 sm:max-w-5xl">
           <DialogHeader className="sr-only">
             <DialogTitle>{reference?.name ?? 'Detachment reference'}</DialogTitle>
             <DialogDescription>Detachment rules, enhancements, and stratagems.</DialogDescription>

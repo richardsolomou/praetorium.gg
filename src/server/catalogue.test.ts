@@ -151,6 +151,58 @@ describe('the picker', () => {
     expect(offered(shelf)).toEqual(['Ours', 'Theirs'])
   })
 
+  it('marks secondary imported books as allies while keeping the main imported roster primary', () => {
+    const shelf = shelfOf(
+      {
+        selectionEntries: [{ id: 'ours', name: 'Ours', type: 'unit', costs: points(10) }],
+        catalogueLinks: [
+          { targetId: 'cat-1', importRootEntries: true },
+          { targetId: 'cat-2', importRootEntries: true },
+          { targetId: 'cat-3', importRootEntries: true },
+        ],
+      },
+      {
+        selectionEntries: [
+          { id: 'main-one', name: 'Main One', type: 'unit', costs: points(20) },
+          { id: 'main-two', name: 'Main Two', type: 'unit', costs: points(20) },
+        ],
+      },
+      { selectionEntries: [{ id: 'agent', name: 'Agent', type: 'unit', costs: points(30) }] },
+      { selectionEntries: [{ id: 'knight', name: 'Knight', type: 'unit', costs: points(40) }] },
+    )
+
+    expect(Object.fromEntries(unitsIn(shelf, 'cat', '').map((unit) => [unit.name, unit.alliedFaction]))).toEqual({
+      'Main One': null,
+      'Main Two': null,
+      Ours: null,
+      Agent: 'Book 2',
+      Knight: 'Book 3',
+    })
+  })
+
+  it('keeps allied units after the limited primary page', () => {
+    const shelf = shelfOf(
+      {
+        catalogueLinks: [
+          { targetId: 'cat-1', importRootEntries: true },
+          { targetId: 'cat-2', importRootEntries: true },
+        ],
+      },
+      {
+        selectionEntries: [
+          { id: 'alpha', name: 'Alpha', type: 'unit', costs: points(20) },
+          { id: 'bravo', name: 'Bravo', type: 'unit', costs: points(20) },
+        ],
+      },
+      { selectionEntries: [{ id: 'ally', name: 'Aaron the Ally', type: 'unit', costs: points(30) }] },
+    )
+
+    expect(unitsIn(shelf, 'cat', '', { limit: 1 }).map((unit) => [unit.name, unit.alliedFaction])).toEqual([
+      ['Alpha', null],
+      ['Aaron the Ally', 'Book 2'],
+    ])
+  })
+
   it('offers a datasheet reached twice only once', () => {
     const shelf = shelfOf(
       {
@@ -457,6 +509,39 @@ describe('a datasheet', () => {
     })
     const context = { selections: [{ id: 'captain', selections: [{ id: 'blade-entry', count: 1 }] }], unitSelectionIndex: 0 }
     expect(datasheetIn(book, 'cat', 'captain', context)?.profiles.map((profile) => profile.name)).toEqual(['Blade'])
+  })
+
+  it('uses the carried wargear quantity for weapon profiles', () => {
+    const book = bookOf({
+      selectionEntries: [
+        {
+          id: 'squad',
+          name: 'Squad',
+          type: 'unit',
+          selectionEntries: [
+            {
+              id: 'models',
+              name: 'Troopers',
+              type: 'model',
+              selectionEntries: [
+                {
+                  id: 'rifle-entry',
+                  name: 'Bolt rifle',
+                  type: 'upgrade',
+                  profiles: [{ id: 'rifle', name: 'Bolt rifle', typeName: 'Ranged Weapons', characteristics: [{ name: 'A', $text: '2' }] }],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    })
+    const context = {
+      selections: [{ id: 'squad', selections: [{ id: 'models', count: 4, selections: [{ id: 'rifle-entry', count: 1 }] }] }],
+      unitSelectionIndex: 0,
+    }
+
+    expect(datasheetIn(book, 'cat', 'squad', context)?.profiles).toMatchObject([{ name: 'Bolt rifle', count: 4 }])
   })
 
   it('applies profile modifiers from the selected detachment and preserves their source', () => {

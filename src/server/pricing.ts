@@ -1,5 +1,5 @@
 import { attachmentErrors, attachmentOf } from '../core/attach'
-import { detachmentPointBudget, detachmentPointsError } from '../core/battle'
+import { detachmentPointBudget, detachmentPointsError, KOTC_LIMIT } from '../core/battle'
 import { evaluate, evaluateForces, type Selection } from '../core/evaluate'
 import { buildUnit, wargearOf } from '../core/roster'
 import { app } from './app'
@@ -78,6 +78,20 @@ export function calculateRosterPrice(data: PriceInput) {
   })
   const selections = [...forceSelections.values()].flat()
   const whole = evaluateForces([...forceSelections.values()], loaded.index, options)
+  const kotcUnits = picked.map((unit) => {
+    const catalogueId = data.units[unit.key]?.catalogueId ?? loaded.index.catalogueOf.get(unit.entryId) ?? data.catalogueId
+    const sheet = datasheetIn(loaded, catalogueId, unit.entryId, {
+      selections,
+      unitSelectionIndex: selections.indexOf(unit.selection),
+    })
+    return {
+      entryId: unit.entryId,
+      name: unit.name,
+      keywords: sheet?.keywords ?? [],
+      toughness: toughnessOf(sheet?.profiles ?? []),
+      warlord: Object.values(data.units[unit.key]?.toggles ?? {}).some((count) => count > 0),
+    }
+  })
   // The 10e catalogue wrapper caps detachments at one; the 11e rules source
   // replaces that constraint with the DP budget checked above.
   const errors = [
@@ -86,6 +100,7 @@ export function calculateRosterPrice(data: PriceInput) {
         !(chosen.length > 1 && error.entryName.toLowerCase().includes('detachment') && error.message.includes('allows at most 1, has ')),
     ),
     ...attachmentErrors(data.units, loaded.index),
+    ...(data.limit === KOTC_LIMIT ? kotcViolations(chosen.length, kotcUnits) : []),
   ]
 
   return {
@@ -136,6 +151,44 @@ export function calculateRosterPrice(data: PriceInput) {
       }
     }),
   }
+}
+
+type KotcUnit = { entryId: string; name: string; keywords: readonly string[]; toughness: number | null; warlord: boolean }
+
+/** Prototype KOTC 2.0 army-construction changes layered over normal Incursion legality. */
+export function kotcViolations(detachments: number, units: readonly KotcUnit[]) {
+  const errors: { entryId: string; entryName: string; message: string }[] = []
+  const add = (message: string, unit?: KotcUnit) =>
+    errors.push({ entryId: unit?.entryId ?? 'kotc', entryName: unit?.name ?? 'King of the Colosseum', message })
+  if (detachments !== 1) add(`needs exactly 1 detachment, has ${detachments}`)
+  if (units.filter((unit) => hasKeyword(unit, 'infantry')).length < 2) add('needs at least 2 Infantry units')
+  if (!units.some((unit) => unit.warlord)) add('needs a Warlord')
+  for (const unit of units) {
+    if (hasKeyword(unit, 'epic hero')) add('does not allow Epic Heroes', unit)
+    if (unit.toughness === null) add('cannot verify its Toughness from the synced catalogue', unit)
+    else if (unit.toughness > 9) add(`does not allow Toughness ${unit.toughness}`, unit)
+  }
+  const toughnessNine = units.filter((unit) => unit.toughness === 9)
+  if (toughnessNine.length > 1) add(`allows at most 1 Toughness 9 unit, has ${toughnessNine.length}`)
+  const byDatasheet = new Map<string, KotcUnit[]>()
+  for (const unit of units) byDatasheet.set(unit.entryId, [...(byDatasheet.get(unit.entryId) ?? []), unit])
+  for (const copies of byDatasheet.values()) {
+    const allowance = copies.some((unit) => hasKeyword(unit, 'battleline') || hasKeyword(unit, 'dedicated transport')) ? 2 : 1
+    if (copies.length > allowance) add(`allows at most ${allowance} of this datasheet, has ${copies.length}`, copies[0])
+  }
+  return errors
+}
+
+const hasKeyword = (unit: KotcUnit, keyword: string) => unit.keywords.some((candidate) => candidate.trim().toLocaleLowerCase() === keyword)
+
+function toughnessOf(profiles: readonly { type: string; values: readonly { name: string; value: string }[] }[]): number | null {
+  const values = profiles
+    .filter((profile) => profile.type.toLocaleLowerCase() === 'unit')
+    .flatMap((profile) => profile.values)
+    .filter((value) => ['t', 'toughness'].includes(value.name.trim().toLocaleLowerCase()))
+    .map((value) => Number.parseInt(value.value, 10))
+    .filter(Number.isFinite)
+  return values.length ? Math.max(...values) : null
 }
 
 export function deploymentRules(abilityNames: readonly string[]) {

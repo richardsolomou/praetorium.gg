@@ -140,7 +140,7 @@ export function BattlefieldReference({
           </figcaption>
         </DialogTrigger>
       </figure>
-      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-none border border-edge bg-panel p-4 text-bone ring-0 sm:max-w-6xl">
+      <DialogContent className="rounded-none border border-edge bg-panel p-4 text-bone ring-0 sm:max-w-6xl">
         <DialogHeader>
           <DialogTitle>{terrain?.name ?? deployment.name}</DialogTitle>
           <DialogDescription>{deployment.description ?? deployment.name}</DialogDescription>

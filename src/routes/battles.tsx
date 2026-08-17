@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { GAME_SIZES } from '../core/battle'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -120,9 +121,14 @@ function CreateBattle() {
         <div>
           <Label className="eyebrow">Battle size</Label>
           <div className="mt-1 flex gap-1">
-            {[1000, 2000, 3000].map((points) => (
-              <Button key={points} variant={limit === points ? 'default' : 'outline'} size="sm" onClick={() => setLimit(points)}>
-                {points}
+            {GAME_SIZES.map((size) => (
+              <Button
+                key={size.limit}
+                variant={limit === size.limit ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setLimit(size.limit)}
+              >
+                {size.name} · {size.limit}
               </Button>
             ))}
           </div>

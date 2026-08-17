@@ -79,11 +79,12 @@ function UnitProfile({ profile }: { profile: Profile }) {
 }
 
 export function WeaponSummary({ title, weapons, rules }: { title: string; weapons: Profile[]; rules: Datasheet['keywordRules'] }) {
+  const count = weapons.reduce((total, weapon) => total + (weapon.count ?? 1), 0)
   return (
     <section>
       <p className="eyebrow flex items-baseline justify-between border-b border-edge pb-1">
         <span>{title}</span>
-        <span className="readout">{weapons.length}</span>
+        <span className="readout">{count}</span>
       </p>
       <div className="mt-1.5 space-y-1.5">
         {weapons.map((weapon) => (

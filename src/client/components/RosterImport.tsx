@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { GAME_SIZES } from '../../core/battle'
+import { DEFAULT_GAME_LIMIT } from '../../core/battle'
 import { importRoster, saveRoster } from '../../server/functions'
 import { errorMessage } from '../queryClient'
 import { savedRostersQuery } from '../queries'
@@ -40,7 +40,7 @@ export function RosterImport() {
           catalogueId: imported.catalogueId,
           detachmentIds: imported.detachmentIds,
           disposition: 'disposition' in imported ? (imported.disposition ?? null) : null,
-          limit: 'limit' in imported && imported.limit ? imported.limit : GAME_SIZES[1].limit,
+          limit: 'limit' in imported && imported.limit ? imported.limit : DEFAULT_GAME_LIMIT,
           picks: imported.units,
           prep: null,
           tags: [],
@@ -69,7 +69,7 @@ export function RosterImport() {
         <FileUp /> Import roster
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-none border border-edge bg-panel text-bone ring-0 sm:max-w-2xl">
+        <DialogContent className="rounded-none border border-edge bg-panel text-bone ring-0 sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle className="text-xl uppercase">Import roster</DialogTitle>
             <DialogDescription className="text-dim">

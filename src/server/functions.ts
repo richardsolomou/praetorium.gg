@@ -5,6 +5,7 @@ import { SOCIAL_PROVIDERS } from '../authConfig'
 import { routeSlug } from '../core/slug'
 import { buildUnit } from '../core/roster'
 import { datasheetIn, datasheetInBySlug, rulesReferencedIn } from './catalogue'
+import { factionDisplayName } from './factionNames'
 import { detachmentCatalogueDetail } from './catalogueDescriptions'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { unitsIn } from './cataloguePicker'
@@ -149,7 +150,7 @@ export const factions = createServerFn({ method: 'GET' }).handler(() =>
     return {
       revision: loaded.index.revision,
       factions: loaded.factions.map((faction) => {
-        const displayName = rules?.factionNames.get(slug(faction.name)) ?? faction.name.split(' - ').at(-1)!
+        const displayName = factionDisplayName(faction.name, rules?.factionNames)
         return {
           id: faction.id,
           slug: routeSlug(displayName),
@@ -187,7 +188,12 @@ export const units = createServerFn({ method: 'GET' })
   .handler(({ data }) =>
     rpc(() => {
       const loaded = app().catalogue()
-      return loaded ? unitsIn(loaded, data.catalogueId, data.query) : []
+      if (!loaded) return []
+      const names = app().rules()?.factionNames
+      return unitsIn(loaded, data.catalogueId, data.query).map((unit) => ({
+        ...unit,
+        alliedFaction: unit.alliedFaction ? factionDisplayName(unit.alliedFaction, names) : null,
+      }))
     }),
   )
 

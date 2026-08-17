@@ -10,6 +10,7 @@ Praetorium reads structured stratagem and mission data from [40kdc-data](https:/
 - A pasted roster has no structured faction or detachment. It cannot provide catalogue-backed stratagems or mission cards.
 - `set-prep` stores stratagems and secondaries in one command. Splitting the action would make the second command stale.
 - Tactical setup stores the configured deck with the initially drawn cards. Remaining cards are derived from that deck and its history; a replacement cannot name a card outside an authoritative deck.
+- King of the Colosseum lasts three rounds and requires tactical secondaries. Its 2.0 battlefield and twists remain absent until an upstream source supplies the current structured data; do not expose the older 9-inch deployment as the prototype's 8-inch deployment.
 
 ## Scoring
 

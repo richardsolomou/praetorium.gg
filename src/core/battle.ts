@@ -171,13 +171,20 @@ const SECONDARY_GUIDE = 40
 const PAINTED_ARMY_POINTS = 10
 
 /** The matched-play game sizes, smallest first. */
+export const KOTC_LIMIT = 600
+export const KOTC_ROUNDS = 3
+export const DEFAULT_GAME_LIMIT = 2000
+
 export const GAME_SIZES = [
+  { name: 'King of the Colosseum', limit: KOTC_LIMIT, detachmentPoints: null },
   { name: 'Incursion', limit: 1000, detachmentPoints: 2 },
   { name: 'Strike Force', limit: 2000, detachmentPoints: 3 },
   { name: 'Onslaught', limit: 3000, detachmentPoints: null },
 ] as const
 
 export const detachmentPointBudget = (limit: number) => GAME_SIZES.find((size) => size.limit === limit)?.detachmentPoints ?? null
+export const detachmentLimit = (limit: number) => (limit === KOTC_LIMIT ? 1 : 3)
+export const battleRoundLimit = (limit: number | null) => (limit === KOTC_LIMIT ? KOTC_ROUNDS : BATTLE_ROUNDS)
 
 export function detachmentPointsError(detachments: readonly { points: number | null }[], allowance: number | null): string | null {
   if (detachments.length <= 1 || allowance === null) return null
@@ -530,6 +537,8 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
       // What an army brings is settled before the first turn, so the log cannot be
       // rewritten mid-game to a different set of cards.
       if (state.status === 'playing') return 'cards are settled before the battle begins'
+      if (state.settings.limit === KOTC_LIMIT && command.secondaryMode !== 'tactical')
+        return 'King of the Colosseum requires tactical secondaries'
       return validatePrep(command)
     }
     case 'use-stratagem': {
@@ -796,7 +805,7 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
         setRunningClock(state, opponent.id)
         return
       }
-      if (state.round === BATTLE_ROUNDS) {
+      if (state.round === battleRoundLimit(state.settings.limit)) {
         state.status = 'finished'
         state.result = { reason: 'completed', concededBy: null }
         state.resumePlayerId = state.activePlayerId
@@ -1195,7 +1204,7 @@ export function battleView(
     status: state.status,
     round: state.round,
     phase: state.phase,
-    rounds: BATTLE_ROUNDS,
+    rounds: battleRoundLimit(state.settings.limit),
     seq: state.seq,
     viewerId,
     creatorId: players[0]?.id ?? viewerId,
@@ -1233,7 +1242,7 @@ export function battleView(
                   ? Math.max(0, now - state.clock.startedAt)
                   : 0),
             ),
-      rounds: Array.from({ length: BATTLE_ROUNDS }, (_, round) => ({
+      rounds: Array.from({ length: battleRoundLimit(state.settings.limit) }, (_, round) => ({
         round: round + 1,
         primary: player.primaryByRound[round] ?? 0,
         secondary: player.secondaryByRound[round] ?? 0,
@@ -1261,7 +1270,7 @@ export function battleView(
         name:
           player.secretSecondary === secondary.key && !player.secretRevealed && player.id !== viewerId ? 'Secret mission' : secondary.name,
         points: player.scored[secondary.key] ?? 0,
-        rounds: player.scoredByRound[secondary.key] ?? Array(BATTLE_ROUNDS).fill(0),
+        rounds: (player.scoredByRound[secondary.key] ?? Array(BATTLE_ROUNDS).fill(0)).slice(0, battleRoundLimit(state.settings.limit)),
         status: player.secondaryStatus[secondary.key] ?? 'active',
         secret: player.secretSecondary === secondary.key,
         revealed: player.secretSecondary !== secondary.key || player.secretRevealed,
