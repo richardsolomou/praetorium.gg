@@ -287,7 +287,6 @@ describe('saved rosters', () => {
       limit: 2000,
       picks: [],
       prep: null,
-      tags: ['League'],
       visibility,
       source: 'editable',
     })
@@ -296,7 +295,6 @@ describe('saved rosters', () => {
     save()
     expect(service.savedRosters('alice')[0]).toMatchObject({
       disposition: 'reconnaissance',
-      tags: ['League'],
       visibility: 'private',
       source: 'editable',
     })
@@ -348,7 +346,6 @@ describe('saved rosters', () => {
           limit: 2000,
           picks: [],
           prep: null,
-          tags: [],
           visibility: 'private',
           source: 'editable',
         }),

@@ -1,5 +1,5 @@
 import { expect, type Page, test } from '@playwright/test'
-import { createRoster, signUp, waitForRosterSave } from './account'
+import { createRoster, signUp } from './account'
 
 /**
  * The four things a player coming from another builder reaches for: squad size where
@@ -19,6 +19,11 @@ async function add(page: Page, name: string) {
     .click()
 }
 
+test('the unit picker stays within the roster faction', async ({ page }) => {
+  await openBuilder(page)
+  await expect(page.getByRole('combobox', { name: 'Force' })).toHaveCount(0)
+})
+
 test('King of the Colosseum creation keeps exactly one detachment selected', async ({ page }) => {
   await signUp(page, 'Richard')
   await page.goto('/rosters')
@@ -30,13 +35,21 @@ test('King of the Colosseum creation keeps exactly one detachment selected', asy
   await dialog.getByRole('combobox', { name: 'Battle size' }).click()
   await page.getByRole('option', { name: /King of the Colosseum/ }).click()
 
-  const awakened = dialog.getByRole('button', { name: /Awakened Dynasty/ })
-  const cryptek = dialog.getByRole('button', { name: /Cryptek Conclave/ })
+  const awakened = dialog.getByRole('button', { name: 'Select Awakened Dynasty' })
+  const cryptek = dialog.getByRole('button', { name: 'Select Cryptek Conclave' })
   await awakened.click()
   await cryptek.click()
 
-  await expect(awakened).toHaveAttribute('aria-pressed', 'false')
-  await expect(cryptek).toHaveAttribute('aria-pressed', 'true')
+  await expect(dialog.getByRole('button', { name: 'Select Awakened Dynasty' })).toBeVisible()
+  await expect(dialog.getByRole('button', { name: 'Remove Cryptek Conclave' })).toBeVisible()
+
+  await dialog.getByRole('button', { name: 'Create roster' }).click()
+  await page.waitForURL(/\/rosters\/.+\/edit/)
+  await page.getByLabel('Add a unit').fill('Chronomancer')
+  const addChronomancer = page.getByRole('button', { name: 'Add Chronomancer', exact: true })
+  await addChronomancer.click()
+  await expect(page.getByText('1/1 in roster')).toBeVisible()
+  await expect(addChronomancer).toBeDisabled()
 })
 
 test('enhancement choices show descriptions when rule and catalogue names differ', async ({ page }) => {
@@ -49,8 +62,27 @@ test('enhancement choices show descriptions when rule and catalogue names differ
 
   const enhancements = page.getByRole('group', { name: /Skorpekh Lord Enhancements/ })
   const mark = enhancements.getByRole('button', { name: 'Select Mark of the Nekrosor' })
-  await expect(mark.locator('..')).toContainText('add 1 to the Hit roll')
-  await mark.locator('..').screenshot({ path: 'test-results/nekrosor-enhancement.png' })
+  await expect(mark).toBeVisible()
+  const option = mark.locator('xpath=ancestor::article')
+  await expect(option.getByText('add 1 to the Hit roll')).toBeHidden()
+  await option.getByText('Description', { exact: true }).click()
+  await expect(option).toContainText('add 1 to the Hit roll')
+  await option.screenshot({ path: 'test-results/nekrosor-enhancement.png' })
+})
+
+test('wargear abilities are explained beside their choices', async ({ page }) => {
+  await openBuilder(page)
+  await add(page, 'Tomb Blades')
+  await page
+    .getByRole('button', { name: /^Tomb Blades/ })
+    .first()
+    .click()
+
+  const loadout = page.locator('aside[aria-label="Loadout"]')
+  for (const name of ['Shadowloom', 'Nebuloscope']) {
+    const option = loadout.getByRole('button', { name: `Select ${name}` }).locator('..')
+    await expect(option.locator('[data-slot="option-abilities"] p')).not.toHaveCount(0)
+  }
 })
 
 test('Cursed Legion does not modify Immortals without an eligible leader', async ({ page }) => {
@@ -72,7 +104,8 @@ test('Cursed Legion does not modify Immortals without an eligible leader', async
     .click()
 
   const loadout = page.locator('aside[aria-label="Loadout"]')
-  await expect(loadout.getByRole('heading', { name: 'Gauss blaster' }).locator('..').getByText('5', { exact: true })).toBeVisible()
+  const gauss = loadout.getByRole('listitem').filter({ hasText: 'Gauss blaster' })
+  await expect(gauss.getByText('5', { exact: true }).first()).toBeVisible()
   await expect(page.getByRole('button', { name: /modified from 5 by Cursed Legion/ })).toHaveCount(0)
 })
 
@@ -119,18 +152,6 @@ test('detachment combinations follow the 11th edition allowance', async ({ page 
   const bounds = await firstDetachment.boundingBox()
   expect(bounds && bounds.x + bounds.width).toBeLessThanOrEqual(390)
   await page.screenshot({ path: 'test-results/detachment-points-phone.png', fullPage: true })
-})
-
-test('an allied force can be added from its own catalogue', async ({ page }) => {
-  await openBuilder(page)
-  await page.getByRole('combobox', { name: 'Force' }).click()
-  await page.getByRole('option', { name: 'Death Guard', exact: true }).click()
-  await waitForRosterSave(page, () => add(page, 'Plague Marines'))
-
-  const allied = page.locator('[data-unit="Plague Marines"]')
-  await expect(allied).toContainText('Allied force · Chaos - Death Guard')
-  await expect(page.getByText('allied-force eligibility is not present in the synced catalogue data')).toBeVisible()
-  await page.screenshot({ path: 'test-results/allied-force.png', fullPage: true })
 })
 
 test('a squad grows from its unit editor', async ({ page }) => {
@@ -292,11 +313,9 @@ test('a character can be marked as the warlord from its unit editor', async ({ p
   const loadout = page.locator('aside[aria-label="Loadout"]')
   await expect(pane.getByText('InSv')).toBeVisible()
   await expect(pane.getByText('4+')).toBeVisible()
-  await expect(loadout.getByText('Ranged weapons', { exact: true })).toBeVisible()
-  await expect(loadout.getByText('Melee weapons', { exact: true })).toBeVisible()
   await expect(loadout.getByText('Tachyon arrow', { exact: true })).toBeVisible()
   await expect(loadout.getByText("Overlord's blade", { exact: true })).toBeVisible()
-  await expect(loadout.getByText('Voidscythe', { exact: true })).toBeHidden()
+  await expect(loadout.getByText('Voidscythe', { exact: true })).toBeVisible()
   const leader = pane.getByRole('button', { name: 'Leader', exact: true })
   await leader.hover()
   await expect(page.getByRole('tooltip')).toContainText('select one friendly bodyguard unit')
@@ -350,7 +369,7 @@ test('a smaller desktop keeps the picker, roster and loadout visible', async ({ 
   await page.setViewportSize({ width: 1440, height: 900 })
   await expect(datasheet).toBeVisible()
   await expect(datasheet.getByText('Datasheet abilities')).toBeVisible()
-  await expect(loadout.getByText('Ranged weapons', { exact: true })).toBeVisible()
+  await expect(loadout.getByText('Equipped ranged weapons', { exact: true })).toBeVisible()
   await expect(datasheet.getByText('Grand Illusion', { exact: true })).toBeVisible()
   const widths = await Promise.all([picker, roster, loadout, datasheet].map((column) => column.boundingBox()))
   for (const width of widths) expect(width?.width).toBeCloseTo(widths[0]?.width ?? 0, 0)
@@ -459,6 +478,15 @@ test('Legends are never offered', async ({ page }) => {
   const legend = page.getByRole('button', { name: 'Add Land Speeder Typhoon [Legends]', exact: true })
   await expect(legend).toBeHidden()
   await expect(page.getByRole('button', { name: 'Legends' })).toHaveCount(0)
+
+  await page.getByLabel('Add a unit').fill('Sentry Gun')
+  await expect(page.getByRole('button', { name: 'Add Sentry Gun', exact: true })).toHaveCount(0)
+})
+
+test('Crucible variants are never offered', async ({ page }) => {
+  await openBuilder(page, 'Grey Knights', /Warpbane Task Force/)
+  await page.getByLabel('Add a unit').fill('Crucible')
+  await expect(page.getByRole('button', { name: /\[Crucible\]/ })).toHaveCount(0)
 })
 
 test('a chapter reaches the whole Codex range, not just its own datasheets', async ({ page }) => {

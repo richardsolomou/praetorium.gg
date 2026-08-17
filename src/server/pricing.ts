@@ -1,5 +1,5 @@
 import { attachmentErrors, attachmentOf } from '../core/attach'
-import { detachmentPointBudget, detachmentPointsError, KOTC_LIMIT } from '../core/battle'
+import { detachmentPointBudget, detachmentPointsError, formatDatasheetLimit, KOTC_LIMIT } from '../core/battle'
 import { evaluate, evaluateForces, type Selection } from '../core/evaluate'
 import { buildUnit, wargearOf } from '../core/roster'
 import { app } from './app'
@@ -173,7 +173,10 @@ export function kotcViolations(detachments: number, units: readonly KotcUnit[]) 
   const byDatasheet = new Map<string, KotcUnit[]>()
   for (const unit of units) byDatasheet.set(unit.entryId, [...(byDatasheet.get(unit.entryId) ?? []), unit])
   for (const copies of byDatasheet.values()) {
-    const allowance = copies.some((unit) => hasKeyword(unit, 'battleline') || hasKeyword(unit, 'dedicated transport')) ? 2 : 1
+    const allowance = formatDatasheetLimit(
+      KOTC_LIMIT,
+      copies.some((unit) => hasKeyword(unit, 'battleline') || hasKeyword(unit, 'dedicated transport')),
+    )!
     if (copies.length > allowance) add(`allows at most ${allowance} of this datasheet, has ${copies.length}`, copies[0])
   }
   return errors

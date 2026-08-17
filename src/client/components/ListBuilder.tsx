@@ -53,7 +53,6 @@ type Props = {
     disposition: string | null
     limit: number
     picks: Omit<Pick, 'key'>[]
-    tags: string[]
     visibility: RosterVisibility
     source: RosterSource
   }
@@ -75,7 +74,6 @@ type Pick = RosterPick & { key: number }
 export function ListBuilder({ onAttach, pending = false, attached = false, prep, onRestorePrep, initial }: Props) {
   const { data: available } = useQuery(factionsQuery())
   const [catalogueId, setCatalogueId] = useState(initial?.catalogueId ?? '')
-  const [pickerCatalogueId, setPickerCatalogueId] = useState(initial?.catalogueId ?? '')
   // Picks carry their own key: the same datasheet may legitimately appear twice,
   // so position is the only thing that tells two of them apart.
   const [picked, setPicked] = useState<Pick[]>(() => initial?.picks.map((pick, key) => ({ ...pick, key })) ?? [])
@@ -84,7 +82,6 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
   const [detachmentIds, setDetachmentIds] = useState<string[]>(initial?.detachmentIds ?? [])
   const [disposition, setDisposition] = useState<string | null>(initial?.disposition ?? null)
   const [name, setName] = useState(initial?.name ?? '')
-  const [tags, setTags] = useState(initial?.tags ?? [])
   const [visibility, setVisibility] = useState<RosterVisibility>(initial?.visibility ?? 'private')
   const [source, setSource] = useState<RosterSource>(initial?.source ?? 'editable')
   const [selected, setSelected] = useState<number | null>(null)
@@ -114,11 +111,9 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
     setSavedId(copy ? undefined : list.id)
     setName(copy ? `Copy of ${list.name}` : list.name)
     setCatalogueId(list.catalogueId)
-    setPickerCatalogueId(list.catalogueId)
     setDetachmentIds(list.detachmentIds)
     setDisposition(list.disposition)
     setLimit(list.limit)
-    setTags(list.tags)
     setVisibility(list.visibility)
     setSource(list.source)
     setPicked(list.picks.map((pick, at) => ({ ...pick, key: at })))
@@ -158,7 +153,6 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
             attachedTo: attachedTo === undefined ? undefined : picked.findIndex((pick) => pick.key === attachedTo),
           })),
           prep,
-          tags,
           visibility,
           source,
         },
@@ -177,7 +171,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
     // The mutation reads the complete rendered draft. A later render queues behind
     // this one, so the final request always contains the newest state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [catalogueId, detachmentIds, disposition, limit, listName, picked, prep, savedId, source, tags, visibility])
+  }, [catalogueId, detachmentIds, disposition, limit, listName, picked, prep, savedId, source, visibility])
 
   /** Hands the list to another tool, in the format every one of them reads. */
   const take = useMutation({
@@ -252,7 +246,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
   for (const pick of picked) held[pick.entryId] = (held[pick.entryId] ?? 0) + 1
 
   const add = (entryId: string) => {
-    setPicked((current) => [...current, { key: nextKey, entryId, catalogueId: pickerCatalogueId || catalogueId }])
+    setPicked((current) => [...current, { key: nextKey, entryId, catalogueId }])
     setNextKey((current) => current + 1)
   }
 
@@ -416,36 +410,17 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
 
   const picker = faction ? (
     <div className="flex h-full flex-col">
-      <div className="border-b border-edge p-2.5">
-        <Label className="eyebrow block" htmlFor="force">
-          Force
-        </Label>
-        <SearchableSelect
-          id="force"
-          groups={factionGroups.map((group) => ({
-            ...group,
-            items: group.items.map((entry) => ({
-              ...entry,
-              label: `${entry.label}${entry.value === catalogueId ? ' (primary)' : ''}`,
-            })),
-          }))}
-          value={pickerCatalogueId || catalogueId}
-          onValueChange={setPickerCatalogueId}
-          placeholder="Pick a force"
-          searchPlaceholder="Search forces…"
-          className="mt-1"
-        />
-      </div>
       <div className="min-h-0 flex-1">
         <Picker
-          catalogueId={pickerCatalogueId || catalogueId}
+          catalogueId={catalogueId}
           onAdd={add}
           onPreview={(entryId) => {
-            setPreview({ catalogueId: pickerCatalogueId || catalogueId, entryId })
+            setPreview({ catalogueId, entryId })
             setShowing('datasheet')
           }}
           inRoster={held}
           room={priced ? limit - priced.points : null}
+          battleSize={limit}
         />
       </div>
     </div>
@@ -532,7 +507,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem
-                  onClick={() => setSetupDraft({ name: listName, catalogueId, detachmentIds, disposition, limit, tags, visibility })}
+                  onClick={() => setSetupDraft({ name: listName, catalogueId, detachmentIds, disposition, limit, visibility })}
                 >
                   <Pencil /> Edit roster setup
                 </DropdownMenuItem>
@@ -556,11 +531,9 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
               const changedFaction = setup.catalogueId !== catalogueId
               setName(setup.name)
               setCatalogueId(setup.catalogueId)
-              setPickerCatalogueId(setup.catalogueId)
               setDetachmentIds(setup.detachmentIds)
               setDisposition(setup.disposition)
               setLimit(setup.limit)
-              setTags(setup.tags)
               setVisibility(setup.visibility)
               if (changedFaction) {
                 setPicked([])
@@ -589,7 +562,6 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
                   value={catalogueId}
                   onValueChange={(value) => {
                     setCatalogueId(value)
-                    setPickerCatalogueId(value)
                     setPicked([])
                     setDetachmentIds([])
                     setSelected(null)
@@ -789,7 +761,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
                     <UnitCard
                       key={picked[index]?.key ?? unit.entryId}
                       unit={unit}
-                      force={
+                      alliedFaction={
                         picked[index]?.catalogueId === catalogueId
                           ? undefined
                           : available.factions.find((entry) => entry.id === picked[index]?.catalogueId)?.name
