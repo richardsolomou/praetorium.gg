@@ -20,7 +20,7 @@ test('stratagems and tactical missions are tracked through a turn', async ({ bro
   await signUp(bob, bobName)
   const bobRoster = await createRoster(bob, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Necrons' })
   await signUp(alice, aliceName)
-  const aliceRoster = await createRoster(alice, { faction: 'Death Guard', detachment: /Death Lord/, name: 'Death Guard' })
+  const aliceRoster = await createRoster(alice, { faction: 'Death Guard', detachment: /Shamblerot Vectorium/, name: 'Death Guard' })
   await alice.getByLabel('Add a unit').fill('Lord of Virulence')
   await waitForRosterSave(alice, () => alice.getByRole('button', { name: 'Add Lord of Virulence', exact: true }).first().click())
   await setupBattle(alice, bob, { opponent: bobName, hostRoster: aliceRoster, guestRoster: bobRoster })
@@ -70,7 +70,7 @@ test('a tactical player is asked to draw at the top of their command phase', asy
   await signUp(bob, bobName)
   const bobRoster = await createRoster(bob, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Necrons' })
   await signUp(alice, aliceName)
-  const aliceRoster = await createRoster(alice, { faction: 'Death Guard', detachment: /Death Lord/, name: 'Death Guard' })
+  const aliceRoster = await createRoster(alice, { faction: 'Death Guard', detachment: /Shamblerot Vectorium/, name: 'Death Guard' })
   // Tactical is the default, so nothing is chosen up front and the deck is the only source.
   const url = await createBattle(alice, { opponent: bobName })
   await bob.goto(url)

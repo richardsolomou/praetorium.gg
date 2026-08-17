@@ -25,7 +25,7 @@ test('a list saved under an account is there on another device', async ({ browse
   await page.getByRole('button', { name: 'Create the account' }).click()
   await expect(page.getByRole('button', { name: /Alice · sign out/ })).toBeVisible()
 
-  await createRoster(page, { faction: 'Death Guard', detachment: /Death Lord/, name: 'Kept list' })
+  await createRoster(page, { faction: 'Death Guard', detachment: /Shamblerot Vectorium/, name: 'Kept list' })
   await page.getByLabel('Add a unit').fill('Plague Marines')
   await waitForRosterSave(page, () => page.getByRole('button', { name: 'Add Plague Marines', exact: true }).first().click())
 
