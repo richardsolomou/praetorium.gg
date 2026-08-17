@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   check:
-    uses: richardsolomou/ras-stack/.github/workflows/check-js.yml@v0.39.3
+    uses: richardsolomou/ras-stack/.github/workflows/check-js.yml@v0.39.4
     with:
       command: just check
       just-version: '1.58.0'

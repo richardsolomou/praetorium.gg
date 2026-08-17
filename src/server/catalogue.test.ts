@@ -13,11 +13,9 @@ const points = (value: number) => [{ name: 'pts', typeId: PTS, value }]
 
 /** A shelf of books, as the picker sees them. The first is the one being picked from. */
 function shelfOf(...catalogues: Partial<Catalogue>[]): LoadedCatalogue {
-  const files = catalogues.map(
-    (catalogue, at): CatalogueFile => ({
-      catalogue: { id: at ? `cat-${at}` : 'cat', name: at ? `Book ${at}` : 'Test catalogue', ...catalogue },
-    }),
-  )
+  const files = catalogues.map((catalogue, at): CatalogueFile => ({
+    catalogue: { id: at ? `cat-${at}` : 'cat', name: at ? `Book ${at}` : 'Test catalogue', ...catalogue },
+  }))
   const index = buildIndex([system, ...files], 'test-revision')
   return { index, factions: factionsIn(index, detachmentsOf(files, index)), detachments: detachmentsOf(files, index) }
 }
