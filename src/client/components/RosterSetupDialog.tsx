@@ -112,7 +112,7 @@ export function RosterSetupDialog({ open, onOpenChange, factions, value, onDraft
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-none border border-edge bg-panel p-0 text-bone ring-0 sm:max-w-2xl">
+        <DialogContent className="rounded-none border border-edge bg-panel p-0 text-bone ring-0 sm:max-w-2xl">
           <DialogHeader className="border-b border-edge px-5 py-4">
             <DialogTitle className="text-2xl uppercase">Edit roster setup</DialogTitle>
             <DialogDescription className="text-dim">
@@ -319,7 +319,7 @@ export function RosterSetupDialog({ open, onOpenChange, factions, value, onDraft
         </DialogContent>
       </Dialog>
       <Dialog open={Boolean(reference)} onOpenChange={(next) => !next && setReference(null)}>
-        <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-none border border-edge bg-panel p-0 text-bone ring-0 sm:max-w-5xl">
+        <DialogContent className="rounded-none border border-edge bg-panel p-0 text-bone ring-0 sm:max-w-5xl">
           <DialogHeader className="sr-only">
             <DialogTitle>{reference?.name ?? 'Detachment reference'}</DialogTitle>
             <DialogDescription>Detachment rules, enhancements, and stratagems.</DialogDescription>

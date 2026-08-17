@@ -125,7 +125,7 @@ function TerrainLayout({
         <TerrainBoard layout={layout} deployment={deployment} templates={templates} className="mt-2 w-full" />
         <span className="mt-2 block text-xs text-dim group-hover:text-bone">{description}</span>
       </DialogTrigger>
-      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-none border border-edge bg-panel p-4 text-bone ring-0 sm:max-w-6xl">
+      <DialogContent className="rounded-none border border-edge bg-panel p-4 text-bone ring-0 sm:max-w-6xl">
         <DialogHeader>
           <DialogTitle>
             Layout {label} · {layout.name}
