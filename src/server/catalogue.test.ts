@@ -262,6 +262,12 @@ describe('the picker', () => {
 
     expect(offered(shelf)).toEqual(['Main One', 'Main Two', 'Squad'])
     expect(unitsIn(shelf, 'cat', 'Sentry Gun')).toEqual([])
+
+    const onlyImport = shelfOf(
+      { catalogueLinks: [{ targetId: 'cat-1', importRootEntries: true }] },
+      { selectionEntries: [{ id: 'sentry', name: 'Sentry Gun', type: 'model', costs: points(40) }], name: 'Unaligned Forces' },
+    )
+    expect(unitsIn(onlyImport, 'cat', '')).toEqual([])
   })
 
   it('does not offer a library as a faction', () => {

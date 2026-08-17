@@ -53,12 +53,7 @@ test('a list is saved and loaded into another battle', async ({ browser }) => {
 
   const datasheet = page.locator('aside[aria-label="Datasheet"]')
   await expect(datasheet.locator('[data-slot="unit-profile"]')).toBeVisible()
-  await expect(
-    page
-      .locator('aside[aria-label="Loadout"]')
-      .getByRole('heading', { name: /Gauss (?:blaster|reaper)/ })
-      .first(),
-  ).toBeVisible()
+  await expect(page.locator('aside[aria-label="Loadout"]').getByText('Gauss blaster', { exact: true }).first()).toBeVisible()
   await expect(page.getByLabel('List name')).toHaveValue('Nurgle 2k')
   await expect(page.getByLabel('Immortals models')).toHaveText('6')
   await page.screenshot({ path: 'test-results/saved-roster-edge-to-edge.png', fullPage: true })
