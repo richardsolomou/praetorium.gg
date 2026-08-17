@@ -1,18 +1,14 @@
 import { useQuery } from '@tanstack/react-query'
-import { Check, Crown, Minus, Plus } from 'lucide-react'
+import { Check, ChevronRight, Crown, Minus, Plus } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Toggle } from '@/components/ui/toggle'
 import type { RosterPick } from '../../../core/roster'
+import type { Datasheet } from '../../../server/catalogue'
 import { datasheetQuery } from '../../queries'
-import { SearchableSelect } from '../SearchableSelect'
 import { RuleText } from '../RuleText'
-import { WeaponSummary } from './DatasheetPanel'
-
-/** Base UI selects cannot hold an empty value, so declining a choice needs a token. */
-const NONE = '__none__'
+import { WeaponProfile, WeaponSummary } from './DatasheetPanel'
 
 type LoadoutChoice = {
   key: string
@@ -63,6 +59,7 @@ export function Loadout({ catalogueId, unit, detachmentIds, picks, pickIndex, on
     ...datasheetQuery(catalogueId, unit?.entryId ?? '', context.detachmentIds, context.picks, context.pickIndex),
     placeholderData: (previous, previousQuery) => (previousQuery?.queryKey[2] === unit?.entryId ? previous : undefined),
   })
+  const { data: availableSheet } = useQuery(datasheetQuery(catalogueId, unit?.entryId ?? '', detachmentIds))
 
   if (!unit) {
     return (
@@ -71,8 +68,17 @@ export function Loadout({ catalogueId, unit, detachmentIds, picks, pickIndex, on
       </div>
     )
   }
-  const ranged = sheet?.profiles.filter((profile) => profile.type === 'Ranged Weapons') ?? []
-  const melee = sheet?.profiles.filter((profile) => profile.type === 'Melee Weapons') ?? []
+  if (!sheet || !availableSheet) return <LoadoutLoading />
+
+  const ranged = sheet.profiles.filter((profile) => profile.type === 'Ranged Weapons')
+  const melee = sheet.profiles.filter((profile) => profile.type === 'Melee Weapons')
+  const availableWeapons = availableSheet.profiles.filter(
+    (profile) => profile.type === 'Ranged Weapons' || profile.type === 'Melee Weapons',
+  )
+  const choiceWeaponNames = unit.choices.flatMap((choice) => choice.options.map((option) => option.name))
+  const fixedRanged = ranged.filter((profile) => !choiceWeaponNames.some((name) => weaponMatches(name, profile.name)))
+  const fixedMelee = melee.filter((profile) => !choiceWeaponNames.some((name) => weaponMatches(name, profile.name)))
+  const rules = availableSheet.keywordRules
 
   return (
     <div className="flex h-full flex-col">
@@ -81,7 +87,7 @@ export function Loadout({ catalogueId, unit, detachmentIds, picks, pickIndex, on
         <div className="mt-1.5 flex flex-wrap items-center gap-2">
           <span className="chip">{unit.points} pts</span>
           {unit.size.resizable ? (
-            <span className="flex items-center gap-1">
+            <span className="grid grid-cols-[1.5rem_2rem_1.5rem] items-center gap-1">
               <Button
                 variant="outline"
                 size="icon-sm"
@@ -92,7 +98,7 @@ export function Loadout({ catalogueId, unit, detachmentIds, picks, pickIndex, on
               >
                 <Minus />
               </Button>
-              <span className="readout w-6 text-center text-sm" aria-label={`${unit.name} models`}>
+              <span className="readout text-center text-sm tabular-nums" aria-label={`${unit.name} models`}>
                 {unit.size.models}
               </span>
               <Button
@@ -130,21 +136,21 @@ export function Loadout({ catalogueId, unit, detachmentIds, picks, pickIndex, on
       </div>
       <ScrollArea className="min-h-0 flex-1 [&_[data-slot=scroll-area-viewport]]:p-2.5">
         <div className="space-y-4">
-          {ranged.length && sheet ? <WeaponSummary title="Ranged weapons" weapons={ranged} rules={sheet.keywordRules} /> : null}
-          {melee.length && sheet ? <WeaponSummary title="Melee weapons" weapons={melee} rules={sheet.keywordRules} /> : null}
+          {fixedRanged.length ? <WeaponSummary title="Equipped ranged weapons" weapons={fixedRanged} rules={rules} /> : null}
+          {fixedMelee.length ? <WeaponSummary title="Equipped melee weapons" weapons={fixedMelee} rules={rules} /> : null}
           {unit.choices.length ? (
             <section>
               <p className="rubric flex items-baseline justify-between border-b border-edge pb-1.5">
                 <span>Wargear options</span>
                 <span className="readout">{unit.choices.length}</span>
               </p>
-              <div className="mt-3 space-y-4">
+              <div className="mt-3 grid gap-5">
                 {unit.choices.map((choice) =>
                   choice.name.toLowerCase().includes('enhancement')
                     ? enhancement(choice, onChoose, unit.name)
                     : choice.room > 1
-                      ? spread(choice, onSpread)
-                      : either(choice, onChoose, unit.name),
+                      ? spread(choice, onSpread, availableWeapons, availableSheet.abilities, rules)
+                      : either(choice, onChoose, unit.name, availableWeapons, availableSheet.abilities, rules),
                 )}
               </div>
             </section>
@@ -155,11 +161,35 @@ export function Loadout({ catalogueId, unit, detachmentIds, picks, pickIndex, on
   )
 }
 
+/** Waits for the complete loadout so its sections arrive together instead of in stages. */
+function LoadoutLoading() {
+  return (
+    <output className="block h-full" aria-label="Loading loadout">
+      <div className="space-y-2 border-b border-edge p-2.5">
+        <span className="block h-4 w-32 animate-pulse bg-raised" />
+        <div className="flex gap-2">
+          <span className="h-6 w-14 animate-pulse bg-raised" />
+          <span className="h-6 w-20 animate-pulse bg-raised" />
+        </div>
+      </div>
+      <div className="space-y-4 p-2.5">
+        {Array.from({ length: 3 }, (_, index) => (
+          <div key={index} className="space-y-2 border-t border-edge pt-2">
+            <span className="block h-3 w-28 animate-pulse bg-raised" />
+            <span className="block h-20 animate-pulse bg-card" />
+          </div>
+        ))}
+      </div>
+      <span className="sr-only">Loading loadout…</span>
+    </output>
+  )
+}
+
 function enhancement(choice: LoadoutChoice, onChoose: Props['onChoose'], unitName: string) {
   return (
-    <fieldset key={choice.key} aria-label={`${unitName} ${choice.name}`} className="m-0 min-w-0 border-0 p-0">
-      <legend className="eyebrow p-0">{choice.name}</legend>
-      <div className="mt-1.5 space-y-1.5">
+    <fieldset key={choice.key} aria-label={`${unitName} ${choice.name}`} className="m-0 min-w-0 border-0">
+      <legend className="eyebrow mb-1.5">{choice.name}</legend>
+      <div className="space-y-1.5">
         {choice.optional ? (
           <button
             type="button"
@@ -191,9 +221,15 @@ function enhancement(choice: LoadoutChoice, onChoose: Props['onChoose'], unitNam
                 </span>
               </button>
               {option.description ? (
-                <div className="border-t border-edge px-2.5 pb-2">
-                  <RuleText text={option.description} />
-                </div>
+                <details className="group border-t border-edge">
+                  <summary className="eyebrow flex cursor-pointer list-none items-center gap-1.5 px-2.5 py-1.5 text-faint marker:hidden">
+                    <ChevronRight className="size-3.5 transition-transform group-open:rotate-90" aria-hidden />
+                    Description
+                  </summary>
+                  <div className="px-2.5 pb-2">
+                    <RuleText text={option.description} />
+                  </div>
+                </details>
               ) : null}
             </article>
           )
@@ -210,7 +246,13 @@ function enhancement(choice: LoadoutChoice, onChoose: Props['onChoose'], unitNam
  * option takes one off whichever option has the most to give. That is what the
  * datasheet says in words: each model may replace its blaster with a carbine.
  */
-function spread(choice: LoadoutChoice, onSpread: Props['onSpread']) {
+function spread(
+  choice: LoadoutChoice,
+  onSpread: Props['onSpread'],
+  weapons: WeaponProfileData[],
+  abilities: Datasheet['abilities'],
+  rules: Datasheet['keywordRules'],
+) {
   const taken = choice.options.reduce((total, option) => total + option.count, 0)
   const room = choice.room - taken
 
@@ -243,40 +285,46 @@ function spread(choice: LoadoutChoice, onSpread: Props['onSpread']) {
       </p>
       <ul className="mt-1.5 space-y-1">
         {choice.options.map((option) => (
-          <li key={option.id} className="flex items-center gap-2 border border-edge bg-card px-2 py-1">
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-xs">{option.name}</span>
-              {option.points ? <span className="readout text-[0.6875rem] text-faint">+{option.points} each</span> : null}
-            </span>
-            <Button
-              variant="outline"
-              size="icon-sm"
-              className="size-6"
-              aria-label={`Fewer ${option.name}`}
-              disabled={!less(option)}
-              onClick={() => {
-                const next = less(option)
-                if (next) onSpread(choice.key, next)
-              }}
-            >
-              <Minus />
-            </Button>
-            <span className="readout w-5 text-center text-sm" aria-label={`${option.name} count`}>
-              {option.count}
-            </span>
-            <Button
-              variant="outline"
-              size="icon-sm"
-              className="size-6"
-              aria-label={`More ${option.name}`}
-              disabled={!more(option)}
-              onClick={() => {
-                const next = more(option)
-                if (next) onSpread(choice.key, next)
-              }}
-            >
-              <Plus />
-            </Button>
+          <li key={option.id} className={`border ${option.count ? 'border-azure bg-azure/10' : 'border-edge bg-card'}`}>
+            <div className="flex items-center gap-2 px-2 py-1.5">
+              <span className="min-w-0 flex-1">
+                <span className="block text-xs font-semibold">{option.name}</span>
+                {option.points ? <span className="readout text-[0.6875rem] text-faint">+{option.points} each</span> : null}
+              </span>
+              <span className="grid shrink-0 grid-cols-[1.5rem_2rem_1.5rem] items-center gap-1">
+                <Button
+                  variant="outline"
+                  size="icon-sm"
+                  className="size-6"
+                  aria-label={`Fewer ${option.name}`}
+                  disabled={!less(option)}
+                  onClick={() => {
+                    const next = less(option)
+                    if (next) onSpread(choice.key, next)
+                  }}
+                >
+                  <Minus />
+                </Button>
+                <span className="readout text-center text-sm tabular-nums" aria-label={`${option.name} count`}>
+                  {option.count}
+                </span>
+                <Button
+                  variant="outline"
+                  size="icon-sm"
+                  className="size-6"
+                  aria-label={`More ${option.name}`}
+                  disabled={!more(option)}
+                  onClick={() => {
+                    const next = more(option)
+                    if (next) onSpread(choice.key, next)
+                  }}
+                >
+                  <Plus />
+                </Button>
+              </span>
+            </div>
+            <OptionProfiles optionName={option.name} weapons={weapons} rules={rules} />
+            <OptionAbilities optionName={option.name} abilities={abilities} rules={rules} />
           </li>
         ))}
       </ul>
@@ -285,59 +333,122 @@ function spread(choice: LoadoutChoice, onSpread: Props['onSpread']) {
 }
 
 /** A group that holds one thing: which one. */
-function either(choice: LoadoutChoice, onChoose: Props['onChoose'], unitName: string) {
-  if (choice.options.length > 7) {
-    const items = choice.options.map((option) => ({
-      label: `${option.name}${option.points ? ` (+${option.points})` : ''}`,
-      value: option.id,
-    }))
-    if (choice.optional) items.unshift({ label: 'None', value: NONE })
-    return (
-      <div key={choice.key}>
-        <p className="eyebrow">{choice.name}</p>
-        <SearchableSelect
-          ariaLabel={`${unitName} ${choice.name}`}
-          groups={[
-            {
-              label: '',
-              items,
-            },
-          ]}
-          value={choice.chosen || (choice.optional ? NONE : '')}
-          onValueChange={(value) => onChoose(choice.key, value === NONE ? '' : value)}
-          placeholder="Choose"
-          searchPlaceholder={`Search ${choice.name.toLowerCase()}…`}
-          className="mt-1.5"
-        />
-      </div>
-    )
-  }
-
+function either(
+  choice: LoadoutChoice,
+  onChoose: Props['onChoose'],
+  unitName: string,
+  weapons: WeaponProfileData[],
+  abilities: Datasheet['abilities'],
+  rules: Datasheet['keywordRules'],
+) {
   return (
-    <div key={choice.key}>
-      <p className="eyebrow">{choice.name}</p>
-      <Select
-        value={choice.chosen || NONE}
-        onValueChange={(value: string | null) => onChoose(choice.key, value === NONE ? '' : (value ?? ''))}
-      >
-        <SelectTrigger className="mt-1.5 h-9 w-full text-sm" aria-label={`${unitName} ${choice.name}`}>
-          <SelectValue>{(value: unknown) => choice.options.find((option) => option.id === value)?.name ?? 'Choose'}</SelectValue>
-        </SelectTrigger>
-        <SelectContent>
-          {choice.optional ? <SelectItem value={NONE}>None</SelectItem> : null}
-          {choice.options.map((option) => (
-            <SelectItem key={option.id} value={option.id} className={option.description ? 'items-start py-2 whitespace-normal' : undefined}>
-              <span className="min-w-0">
-                <span className="block">
-                  {option.name}
-                  {option.points ? ` (+${option.points})` : ''}
-                </span>
-                {option.description ? <RuleText text={option.description} /> : null}
-              </span>
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </div>
+    <fieldset key={choice.key} aria-label={`${unitName} ${choice.name}`} className="m-0 min-w-0 border-0 p-0">
+      <legend className="eyebrow p-0">{choice.name}</legend>
+      <div className="mt-1.5 space-y-1.5">
+        {choice.optional ? (
+          <button
+            type="button"
+            aria-pressed={!choice.chosen}
+            onClick={() => onChoose(choice.key, '')}
+            className={`flex w-full items-center justify-between border px-2.5 py-2 text-left text-xs font-semibold uppercase ${
+              choice.chosen ? 'border-edge bg-card text-dim hover:border-dim hover:text-bone' : 'border-azure bg-azure/10 text-azure'
+            }`}
+          >
+            None
+            {!choice.chosen ? <Check className="size-3.5" aria-hidden /> : null}
+          </button>
+        ) : null}
+        {choice.options.map((option) => {
+          const selected = choice.chosen === option.id
+          return (
+            <article
+              key={option.id}
+              className={`relative border ${selected ? 'border-azure bg-azure/10' : 'border-edge bg-card hover:border-dim'}`}
+            >
+              <button
+                type="button"
+                aria-pressed={selected}
+                aria-label={`Select ${option.name}`}
+                onClick={() => onChoose(choice.key, option.id)}
+                className="absolute inset-0 z-0 w-full cursor-pointer hover:bg-raised"
+              />
+              <div className="pointer-events-none relative z-10 [&_button]:pointer-events-auto">
+                <div className="flex w-full items-center justify-between gap-2 px-2.5 py-2 text-left">
+                  <span className="text-sm font-semibold text-bone">{option.name}</span>
+                  <span className="flex shrink-0 items-center gap-1.5">
+                    {option.points ? <span className="chip">+{option.points} pts</span> : null}
+                    {selected ? <Check className="size-3.5 text-azure" aria-hidden /> : null}
+                  </span>
+                </div>
+                <OptionProfiles optionName={option.name} weapons={weapons} rules={rules} />
+                <OptionAbilities optionName={option.name} abilities={abilities} rules={rules} />
+                {option.description ? (
+                  <div className="border-t border-edge px-2.5 pb-2">
+                    <RuleText text={option.description} />
+                  </div>
+                ) : null}
+              </div>
+            </article>
+          )
+        })}
+      </div>
+    </fieldset>
   )
+}
+
+function OptionAbilities({
+  optionName,
+  abilities,
+  rules,
+}: {
+  optionName: string
+  abilities: Datasheet['abilities']
+  rules: Datasheet['keywordRules']
+}) {
+  const matching = abilities.filter(
+    (ability) => (ability.kind === 'datasheet' || ability.kind === 'wargear') && wargearMatches(optionName, ability.name),
+  )
+  return matching.length ? (
+    <div data-slot="option-abilities" className="space-y-2 border-t border-edge px-2.5 pb-2">
+      {matching.map((ability) => (
+        <div key={ability.id}>
+          {ability.name.toLocaleLowerCase() === optionName.toLocaleLowerCase() ? null : <p className="eyebrow pt-2">{ability.name}</p>}
+          {ability.description ? <RuleText text={ability.description} rules={rules} /> : null}
+        </div>
+      ))}
+    </div>
+  ) : null
+}
+
+type WeaponProfileData = Datasheet['profiles'][number]
+
+function OptionProfiles({
+  optionName,
+  weapons,
+  rules,
+}: {
+  optionName: string
+  weapons: WeaponProfileData[]
+  rules: Datasheet['keywordRules']
+}) {
+  const matching = weapons.filter((weapon) => weaponMatches(optionName, weapon.name))
+  return matching.length ? (
+    <div className="border-t border-edge">
+      {matching.map((weapon) => (
+        <WeaponProfile key={weapon.id} weapon={weapon} rules={rules} showName={matching.length > 1} embedded />
+      ))}
+    </div>
+  ) : null
+}
+
+function weaponMatches(optionName: string, profileName: string) {
+  const option = optionName.trim().toLocaleLowerCase()
+  const profile = profileName.trim().toLocaleLowerCase()
+  return profile === option || profile.startsWith(`${option} (`) || option.includes(profile)
+}
+
+function wargearMatches(optionName: string, abilityName: string) {
+  const option = optionName.trim().toLocaleLowerCase()
+  const ability = abilityName.trim().toLocaleLowerCase()
+  return ability === option || ability.startsWith(`${option} (`) || option.includes(ability)
 }

@@ -13,7 +13,7 @@ import {
 import type { RosterPick } from '../core/roster'
 import type { BattleSeats, JoinResult, Repository, SubmitResult } from '../db/repository'
 import { type Mission, missionFor } from './rules'
-import { picksSchema, rosterTagsSchema, savedPrepSchema } from './schemas'
+import { picksSchema, savedPrepSchema } from './schemas'
 
 type SavedPrep = { stratagems: Stratagem[]; secondaries: Secondary[] }
 
@@ -100,7 +100,6 @@ export class PraetoriumService {
       limit: number
       picks: readonly RosterPick[]
       prep: SavedPrep | null
-      tags: readonly string[]
       visibility: 'private' | 'unlisted'
       source: 'legacy' | 'editable' | 'battlebase' | 'roster-file'
     },
@@ -115,7 +114,7 @@ export class PraetoriumService {
       playerId,
       picks: JSON.stringify(roster.picks),
       prep: roster.prep ? JSON.stringify(roster.prep) : null,
-      tags: JSON.stringify(roster.tags),
+      tags: '[]',
       now: this.clock(),
     })
     return { id }
@@ -133,7 +132,6 @@ export class PraetoriumService {
       updatedAt: row.updatedAt,
       picks: picksSchema.parse(JSON.parse(row.picks)),
       prep: row.prep ? savedPrepSchema.parse(JSON.parse(row.prep)) : null,
-      tags: rosterTagsSchema.parse(JSON.parse(row.tags)),
       visibility: row.visibility,
       source: row.source,
     }))
@@ -152,7 +150,6 @@ export class PraetoriumService {
           limit: row.limit,
           updatedAt: row.updatedAt,
           picks: picksSchema.parse(JSON.parse(row.picks)),
-          tags: rosterTagsSchema.parse(JSON.parse(row.tags)),
           visibility: row.visibility,
           source: row.source,
         }

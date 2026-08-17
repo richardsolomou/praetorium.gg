@@ -35,7 +35,7 @@ export function DatasheetPanel({ catalogueId, entryId, detachmentIds, picks, pic
       </div>
     )
   }
-  if (!sheet) return null
+  if (!sheet) return <DatasheetLoading />
 
   const model = sheet.profiles.find((profile) => profile.type === 'Unit')
   const ranged = sheet.profiles.filter((profile) => profile.type === 'Ranged Weapons')
@@ -54,6 +54,30 @@ export function DatasheetPanel({ catalogueId, entryId, detachmentIds, picks, pic
         <AbilitySummary abilities={sheet.abilities} rules={sheet.keywordRules} />
       </div>
     </ScrollArea>
+  )
+}
+
+/** Holds the pane's visual rhythm while a different datasheet is fetched. */
+function DatasheetLoading() {
+  return (
+    <output className="block space-y-4 p-3" aria-label="Loading datasheet">
+      <div className="flex gap-1">
+        <span className="h-5 w-16 animate-pulse bg-raised" />
+        <span className="h-5 w-24 animate-pulse bg-raised" />
+      </div>
+      <div className="grid grid-cols-6 gap-2">
+        {Array.from({ length: 6 }, (_, index) => (
+          <span key={index} className="h-10 animate-pulse bg-raised" />
+        ))}
+      </div>
+      {Array.from({ length: 3 }, (_, index) => (
+        <div key={index} className="space-y-2 border-t border-edge pt-2">
+          <span className="block h-3 w-28 animate-pulse bg-raised" />
+          <span className="block h-20 animate-pulse bg-card" />
+        </div>
+      ))}
+      <span className="sr-only">Loading datasheet…</span>
+    </output>
   )
 }
 
@@ -88,29 +112,45 @@ export function WeaponSummary({ title, weapons, rules }: { title: string; weapon
       </p>
       <div className="mt-1.5 space-y-1.5">
         {weapons.map((weapon) => (
-          <article key={weapon.id} className="border border-edge bg-card px-2 py-1.5">
-            <h3 className="text-xs">{weapon.count && weapon.count > 1 ? `${weapon.count}× ${weapon.name}` : weapon.name}</h3>
-            <div className="mt-1 grid grid-cols-6 gap-1">
-              {weapon.values
-                .filter((value) => value.name !== 'Keywords')
-                .map((value) => (
-                  <div key={value.name} className="min-w-0 text-center">
-                    <p className="eyebrow text-[0.625rem]">{value.name}</p>
-                    <p className="readout text-xs text-faint">
-                      <ProfileValue value={value} />
-                    </p>
-                  </div>
-                ))}
-            </div>
-            {weapon.values.find((value) => value.name === 'Keywords')?.value ? (
-              <p className="mt-1 text-[0.6875rem] text-faint">
-                <KeywordList value={weapon.values.find((value) => value.name === 'Keywords')!.value} rules={rules} />
-              </p>
-            ) : null}
-          </article>
+          <WeaponProfile key={weapon.id} weapon={weapon} rules={rules} />
         ))}
       </div>
     </section>
+  )
+}
+
+export function WeaponProfile({
+  weapon,
+  rules,
+  showName = true,
+  embedded = false,
+}: {
+  weapon: Profile
+  rules: Datasheet['keywordRules']
+  showName?: boolean
+  embedded?: boolean
+}) {
+  return (
+    <div className={`${embedded ? '' : 'border border-edge bg-card '}px-2 py-1.5`}>
+      {showName ? <h3 className="text-xs">{weapon.count && weapon.count > 1 ? `${weapon.count}× ${weapon.name}` : weapon.name}</h3> : null}
+      <div className={`${showName ? 'mt-1 ' : ''}grid grid-cols-6 gap-1`}>
+        {weapon.values
+          .filter((value) => value.name !== 'Keywords')
+          .map((value) => (
+            <div key={value.name} className="min-w-0 text-center">
+              <p className="eyebrow text-[0.625rem]">{value.name}</p>
+              <p className="readout text-xs text-faint">
+                <ProfileValue value={value} />
+              </p>
+            </div>
+          ))}
+      </div>
+      {weapon.values.find((value) => value.name === 'Keywords')?.value ? (
+        <p className="mt-1 text-[0.6875rem] text-faint">
+          <KeywordList value={weapon.values.find((value) => value.name === 'Keywords')!.value} rules={rules} />
+        </p>
+      ) : null}
+    </div>
   )
 }
 

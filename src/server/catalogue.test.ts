@@ -234,10 +234,34 @@ describe('the picker', () => {
       selectionEntries: [
         { id: 'squad', name: 'Squad', type: 'unit', costs: points(70) },
         { id: 'old', name: 'Land Speeder [Legends]', type: 'unit', costs: points(60) },
+        { id: 'crucible', name: 'Champion [Crucible]', type: 'unit', costs: points(60) },
       ],
     })
     expect(offered(book)).toEqual(['Squad'])
     expect(unitsIn(book, 'cat', 'Land Speeder')).toEqual([])
+    expect(unitsIn(book, 'cat', 'Crucible')).toEqual([])
+  })
+
+  it('never offers mission assets from the Unaligned Forces shelf', () => {
+    const shelf = shelfOf(
+      {
+        selectionEntries: [{ id: 'ours', name: 'Squad', type: 'unit', costs: points(70) }],
+        catalogueLinks: [
+          { targetId: 'cat-1', importRootEntries: true },
+          { targetId: 'cat-2', importRootEntries: true },
+        ],
+      },
+      {
+        selectionEntries: [
+          { id: 'main-one', name: 'Main One', type: 'unit', costs: points(20) },
+          { id: 'main-two', name: 'Main Two', type: 'unit', costs: points(20) },
+        ],
+      },
+      { selectionEntries: [{ id: 'sentry', name: 'Sentry Gun', type: 'model', costs: points(40) }], name: 'Unaligned Forces' },
+    )
+
+    expect(offered(shelf)).toEqual(['Main One', 'Main Two', 'Squad'])
+    expect(unitsIn(shelf, 'cat', 'Sentry Gun')).toEqual([])
   })
 
   it('does not offer a library as a faction', () => {

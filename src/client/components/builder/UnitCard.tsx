@@ -23,7 +23,7 @@ type Joined = { label: string; name: string; action: string; onAct: () => void }
 
 type Props = {
   unit: BuiltUnit
-  force?: string
+  alliedFaction?: string
   selected: boolean
   onSelect: () => void
   onRemove: () => void
@@ -41,7 +41,19 @@ type Props = {
  * One unit in the roster, as a datasheet would print it: the name, what it is
  * carrying, what it costs, and who it is standing with.
  */
-export function UnitCard({ unit, force, selected, onSelect, onRemove, onDuplicate, owned, onOwned, joined, canJoin, onJoin }: Props) {
+export function UnitCard({
+  unit,
+  alliedFaction,
+  selected,
+  onSelect,
+  onRemove,
+  onDuplicate,
+  owned,
+  onOwned,
+  joined,
+  canJoin,
+  onJoin,
+}: Props) {
   return (
     <div
       data-unit={unit.name}
@@ -58,7 +70,7 @@ export function UnitCard({ unit, force, selected, onSelect, onRemove, onDuplicat
         <div className="pointer-events-none min-w-0 flex-1 text-left">
           <span className="w-full min-w-0">
             <span className="block text-[0.9375rem] leading-tight font-bold tracking-[0.02em] uppercase">{unit.name}</span>
-            {force ? <span className="eyebrow mt-0.5 block text-azure">Allied force · {force}</span> : null}
+            {alliedFaction ? <span className="eyebrow mt-0.5 block text-azure">Allied unit · {alliedFaction}</span> : null}
           </span>
           {unit.wargear.length ? (
             <ul className="mt-1 w-full min-w-0 space-y-px">

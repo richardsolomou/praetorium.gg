@@ -48,7 +48,7 @@ export async function createRoster(page: Page, { faction, detachment, name }: { 
   await dialog.getByRole('combobox', { name: 'Faction' }).click()
   await page.getByPlaceholder('Search factions…').fill(faction)
   await page.getByRole('option', { name: faction, exact: true }).click()
-  await dialog.getByRole('button', { name: detachment }).click()
+  await dialog.getByRole('button', { name: new RegExp(`^Select (?:${detachment.source})$`, detachment.flags) }).click()
   await dialog.getByRole('button', { name: 'Create roster' }).click()
   await page.waitForURL(/\/rosters\/.+\/edit/)
   const rosterName = name ?? `${faction} roster`

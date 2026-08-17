@@ -33,7 +33,7 @@ Keep screenshots that contain roster or battle data outside version control.
 | Accounts          | Email and password work without provider configuration. Google and Discord are optional.                                                 |
 | Battles           | Shared or solo setup drafts, server-side legality, clocks, corrections, concessions, reopening, presence, and live updates.              |
 | Turn tracker      | Five rounds, six phases, command points, victory points, painted bonuses, tactical decks, stratagems, formations, and battle completion. |
-| Rosters           | Build, import, save, tag, copy, rename, private or unlisted share, print, export, and attach.                                            |
+| Rosters           | Build, import, save, copy, rename, private or unlisted share, print, export, and attach.                                                 |
 | Catalogue         | Factions, detachments, units, model counts, loadouts, enhancements, attachments, and points limits.                                      |
 | Validation        | Constraints, modifiers, conditions, categories, force scope, attachments, and catalogue-sensitive costs.                                 |
 | Missions          | Force dispositions, deployment zones, objectives, mission cards, and scoring awards.                                                     |

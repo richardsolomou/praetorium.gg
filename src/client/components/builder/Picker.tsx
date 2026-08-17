@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Toggle } from '@/components/ui/toggle'
+import { formatDatasheetLimit } from '../../../core/battle'
 import { useCollectionMutation } from '../../useCollection'
 import { collectionQuery, unitsQuery } from '../../queries'
 import { shortName } from './factions'
@@ -17,6 +18,7 @@ type Props = {
   onPreview: (entryId: string) => void
   inRoster: Record<string, number>
   room: number | null
+  battleSize: number
 }
 
 type Filter = 'fit' | 'limit' | 'owned' | 'allies'
@@ -36,7 +38,7 @@ const FILTERS: { id: Filter; label: string; hint: string }[] = [
  * filters narrow by the reasons a datasheet is not a real option today: it does not
  * fit, you may not take another, or you do not own it.
  */
-export function Picker({ catalogueId, onAdd, onPreview, inRoster, room }: Props) {
+export function Picker({ catalogueId, onAdd, onPreview, inRoster, room, battleSize }: Props) {
   const [query, setQuery] = useState('')
   const [active, setActive] = useState<Set<Filter>>(new Set())
   const { data: found } = useQuery({ ...unitsQuery(catalogueId, query), placeholderData: keepPreviousData })
@@ -51,15 +53,15 @@ export function Picker({ catalogueId, onAdd, onPreview, inRoster, room }: Props)
       return next
     })
 
-  const shown = (found ?? [])
-    .filter((unit) => {
-      if (active.has('fit') && room !== null && unit.points !== null && unit.points > room) return false
-      if (active.has('limit') && unit.limit !== null && (inRoster[unit.id] ?? 0) >= unit.limit) return false
-      if (active.has('owned') && !collection.has(unit.id)) return false
-      if (active.has('allies') && unit.allied) return false
-      return true
-    })
-    .sort((left, right) => Number(collection.has(right.id)) - Number(collection.has(left.id)))
+  const shown = (found ?? []).filter((unit) => {
+    if (active.has('fit') && room !== null && unit.points !== null && unit.points > room) return false
+    const formatLimit = formatDatasheetLimit(battleSize, unit.group === 'battleline' || unit.group === 'transport')
+    const effectiveLimit = minimumLimit(unit.limit, formatLimit)
+    if (active.has('limit') && effectiveLimit !== null && (inRoster[unit.id] ?? 0) >= effectiveLimit) return false
+    if (active.has('owned') && !collection.has(unit.id)) return false
+    if (active.has('allies') && unit.allied) return false
+    return true
+  })
   const alliedFactions = [
     ...new Set((found ?? []).flatMap((unit) => (unit.alliedFaction && shown.includes(unit) ? [unit.alliedFaction] : []))),
   ]
@@ -109,7 +111,10 @@ export function Picker({ catalogueId, onAdd, onPreview, inRoster, room }: Props)
                 <Section title={plural} count={rows.length} defaultOpen={!alliedFaction}>
                   {rows.map((unit) => {
                     const held = inRoster[unit.id] ?? 0
-                    const full = unit.limit !== null && held >= unit.limit
+                    const formatLimit = formatDatasheetLimit(battleSize, unit.group === 'battleline' || unit.group === 'transport')
+                    const effectiveLimit = minimumLimit(unit.limit, formatLimit)
+                    const full = effectiveLimit !== null && held >= effectiveLimit
+                    const formatFull = formatLimit !== null && held >= formatLimit
                     return (
                       <div key={unit.id} className="flex items-center gap-1.5 border border-edge bg-card px-2.5 py-1.5">
                         <button
@@ -123,7 +128,7 @@ export function Picker({ catalogueId, onAdd, onPreview, inRoster, room }: Props)
                             {held ? (
                               <span className={`readout block text-[0.6875rem] ${full ? 'text-discarded' : 'text-faint'}`}>
                                 {held}
-                                {unit.limit === null ? '' : `/${unit.limit}`} in roster
+                                {effectiveLimit === null ? '' : `/${effectiveLimit}`} in roster
                               </span>
                             ) : null}
                           </span>
@@ -133,7 +138,7 @@ export function Picker({ catalogueId, onAdd, onPreview, inRoster, room }: Props)
                           size="sm"
                           aria-label={`${collection.has(unit.id) ? 'Remove' : 'Add'} ${unit.name} ${collection.has(unit.id) ? 'from' : 'to'} your collection`}
                           pressed={collection.has(unit.id)}
-                          disabled={own.isPending}
+                          disabled={own.isPending && own.variables?.entryId === unit.id}
                           onPressedChange={(pressed) => own.mutate({ entryId: unit.id, owned: pressed })}
                           className="size-6 shrink-0 p-0"
                         >
@@ -146,6 +151,7 @@ export function Picker({ catalogueId, onAdd, onPreview, inRoster, room }: Props)
                           size="sm"
                           className="h-7 shrink-0 px-2 text-[0.6875rem]"
                           aria-label={`Add ${unit.name}`}
+                          disabled={formatFull}
                           onClick={() => onAdd(unit.id)}
                         >
                           <Plus className="size-3" />
@@ -166,4 +172,10 @@ export function Picker({ catalogueId, onAdd, onPreview, inRoster, room }: Props)
       </ScrollArea>
     </div>
   )
+}
+
+function minimumLimit(left: number | null, right: number | null) {
+  if (left === null) return right
+  if (right === null) return left
+  return Math.min(left, right)
 }

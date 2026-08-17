@@ -38,6 +38,17 @@ it('reads current descriptions from a pinned faction page', () => {
   })
 })
 
+it('reads stratagems nested inside a detachment layout block', () => {
+  fs.mkdirSync(path.join(directory, 'pages'))
+  write(
+    'pages/necrons.html',
+    '<div class="clFl"><h2 class="outline_header">Cursed Legion2DP</h2><div class="Columns2"></div><div class="layout"><div class="Columns2"><div class="str11Wrap"><div class="str11Name">DRIVEN TO BUTCHERY</div><div class="str11Text"><b>EFFECT:</b> Fight on death.</div></div></div></div></div>',
+  )
+  expect(loadWahapediaDescriptions(directory)?.stratagems.get(descriptionKey('Cursed Legion', 'Driven to Butchery'))).toBe(
+    'EFFECT: Fight on death.',
+  )
+})
+
 it('reads every ability belonging to a detachment', () => {
   write(
     'Detachment_abilities.csv',
