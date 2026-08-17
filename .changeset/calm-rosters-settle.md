@@ -2,4 +2,4 @@
 'praetorium': patch
 ---
 
-Keep roster controls stable, simplify roster setup, and show weapon profiles directly beside their loadout choices.
+Keep roster controls stable, simplify roster setup, collapse enhancements by default, and explain profiles and abilities beside their loadout choices.

@@ -55,10 +55,28 @@ test('enhancement choices show descriptions when rule and catalogue names differ
     .first()
     .click()
 
+  const disclosure = page.locator('details').filter({ hasText: 'Enhancements' })
+  await expect(disclosure).toHaveJSProperty('open', false)
+  await disclosure.locator('summary').click()
   const enhancements = page.getByRole('group', { name: /Skorpekh Lord Enhancements/ })
   const mark = enhancements.getByRole('button', { name: 'Select Mark of the Nekrosor' })
   await expect(mark.locator('..')).toContainText('add 1 to the Hit roll')
   await mark.locator('..').screenshot({ path: 'test-results/nekrosor-enhancement.png' })
+})
+
+test('wargear abilities are explained beside their choices', async ({ page }) => {
+  await openBuilder(page)
+  await add(page, 'Tomb Blades')
+  await page
+    .getByRole('button', { name: /^Tomb Blades/ })
+    .first()
+    .click()
+
+  const loadout = page.locator('aside[aria-label="Loadout"]')
+  for (const name of ['Shadowloom', 'Nebuloscope']) {
+    const option = loadout.getByRole('button', { name: `Select ${name}` }).locator('..')
+    await expect(option.locator('[data-slot="option-abilities"] p')).not.toHaveCount(0)
+  }
 })
 
 test('Cursed Legion does not modify Immortals without an eligible leader', async ({ page }) => {

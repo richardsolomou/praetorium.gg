@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { Check, Crown, Minus, Plus } from 'lucide-react'
+import { Check, ChevronRight, Crown, Minus, Plus } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -149,8 +149,8 @@ export function Loadout({ catalogueId, unit, detachmentIds, picks, pickIndex, on
                   choice.name.toLowerCase().includes('enhancement')
                     ? enhancement(choice, onChoose, unit.name)
                     : choice.room > 1
-                      ? spread(choice, onSpread, availableWeapons, rules)
-                      : either(choice, onChoose, unit.name, availableWeapons, rules),
+                      ? spread(choice, onSpread, availableWeapons, availableSheet.abilities, rules)
+                      : either(choice, onChoose, unit.name, availableWeapons, availableSheet.abilities, rules),
                 )}
               </div>
             </section>
@@ -186,56 +186,64 @@ function LoadoutLoading() {
 }
 
 function enhancement(choice: LoadoutChoice, onChoose: Props['onChoose'], unitName: string) {
+  const selectedOption = choice.options.find((option) => option.id === choice.chosen)
   return (
-    <fieldset key={choice.key} aria-label={`${unitName} ${choice.name}`} className="m-0 min-w-0 border-0 p-0">
-      <legend className="eyebrow p-0">{choice.name}</legend>
-      <div className="mt-1.5 space-y-1.5">
-        {choice.optional ? (
-          <button
-            type="button"
-            aria-pressed={!choice.chosen}
-            onClick={() => onChoose(choice.key, '')}
-            className={`flex w-full items-center justify-between border px-2.5 py-2 text-left text-xs font-semibold uppercase ${
-              choice.chosen ? 'border-edge bg-card text-dim hover:border-dim hover:text-bone' : 'border-azure bg-azure/10 text-azure'
-            }`}
-          >
-            No enhancement
-            {!choice.chosen ? <Check className="size-3.5" aria-hidden /> : null}
-          </button>
-        ) : null}
-        {choice.options.map((option) => {
-          const selected = choice.chosen === option.id
-          return (
-            <article
-              key={option.id}
-              className={`relative border ${selected ? 'border-azure bg-azure/10' : 'border-edge bg-card hover:border-dim'}`}
+    <details key={choice.key} className="group border border-edge bg-sunken">
+      <summary className="flex cursor-pointer list-none items-center gap-2 px-2.5 py-2 marker:hidden">
+        <ChevronRight className="size-3.5 shrink-0 text-faint transition-transform group-open:rotate-90" aria-hidden />
+        <span className="eyebrow flex-1">{choice.name}</span>
+        <span className="truncate text-xs text-dim">{selectedOption?.name ?? 'None'}</span>
+      </summary>
+      <fieldset aria-label={`${unitName} ${choice.name}`} className="m-0 min-w-0 border-0 border-t border-edge p-2.5">
+        <legend className="sr-only">{choice.name}</legend>
+        <div className="space-y-1.5">
+          {choice.optional ? (
+            <button
+              type="button"
+              aria-pressed={!choice.chosen}
+              onClick={() => onChoose(choice.key, '')}
+              className={`flex w-full items-center justify-between border px-2.5 py-2 text-left text-xs font-semibold uppercase ${
+                choice.chosen ? 'border-edge bg-card text-dim hover:border-dim hover:text-bone' : 'border-azure bg-azure/10 text-azure'
+              }`}
             >
-              <button
-                type="button"
-                aria-pressed={selected}
-                aria-label={`Select ${option.name}`}
-                onClick={() => onChoose(choice.key, option.id)}
-                className="absolute inset-0 z-0 w-full cursor-pointer hover:bg-raised"
-              />
-              <div className="pointer-events-none relative z-10 [&_button]:pointer-events-auto">
-                <div className="flex w-full items-center justify-between gap-2 px-2.5 py-2 text-left">
-                  <span className="text-sm font-semibold text-bone">{option.name}</span>
-                  <span className="flex shrink-0 items-center gap-1.5">
-                    {option.points ? <span className="chip">+{option.points} pts</span> : null}
-                    {selected ? <Check className="size-3.5 text-azure" aria-hidden /> : null}
-                  </span>
-                </div>
-                {option.description ? (
-                  <div className="border-t border-edge px-2.5 pb-2">
-                    <RuleText text={option.description} />
+              No enhancement
+              {!choice.chosen ? <Check className="size-3.5" aria-hidden /> : null}
+            </button>
+          ) : null}
+          {choice.options.map((option) => {
+            const selected = choice.chosen === option.id
+            return (
+              <article
+                key={option.id}
+                className={`relative border ${selected ? 'border-azure bg-azure/10' : 'border-edge bg-card hover:border-dim'}`}
+              >
+                <button
+                  type="button"
+                  aria-pressed={selected}
+                  aria-label={`Select ${option.name}`}
+                  onClick={() => onChoose(choice.key, option.id)}
+                  className="absolute inset-0 z-0 w-full cursor-pointer hover:bg-raised"
+                />
+                <div className="pointer-events-none relative z-10 [&_button]:pointer-events-auto">
+                  <div className="flex w-full items-center justify-between gap-2 px-2.5 py-2 text-left">
+                    <span className="text-sm font-semibold text-bone">{option.name}</span>
+                    <span className="flex shrink-0 items-center gap-1.5">
+                      {option.points ? <span className="chip">+{option.points} pts</span> : null}
+                      {selected ? <Check className="size-3.5 text-azure" aria-hidden /> : null}
+                    </span>
                   </div>
-                ) : null}
-              </div>
-            </article>
-          )
-        })}
-      </div>
-    </fieldset>
+                  {option.description ? (
+                    <div className="border-t border-edge px-2.5 pb-2">
+                      <RuleText text={option.description} />
+                    </div>
+                  ) : null}
+                </div>
+              </article>
+            )
+          })}
+        </div>
+      </fieldset>
+    </details>
   )
 }
 
@@ -246,7 +254,13 @@ function enhancement(choice: LoadoutChoice, onChoose: Props['onChoose'], unitNam
  * option takes one off whichever option has the most to give. That is what the
  * datasheet says in words: each model may replace its blaster with a carbine.
  */
-function spread(choice: LoadoutChoice, onSpread: Props['onSpread'], weapons: WeaponProfileData[], rules: Datasheet['keywordRules']) {
+function spread(
+  choice: LoadoutChoice,
+  onSpread: Props['onSpread'],
+  weapons: WeaponProfileData[],
+  abilities: Datasheet['abilities'],
+  rules: Datasheet['keywordRules'],
+) {
   const taken = choice.options.reduce((total, option) => total + option.count, 0)
   const room = choice.room - taken
 
@@ -318,6 +332,7 @@ function spread(choice: LoadoutChoice, onSpread: Props['onSpread'], weapons: Wea
               </span>
             </div>
             <OptionProfiles optionName={option.name} weapons={weapons} rules={rules} />
+            <OptionAbilities optionName={option.name} abilities={abilities} rules={rules} />
           </li>
         ))}
       </ul>
@@ -331,6 +346,7 @@ function either(
   onChoose: Props['onChoose'],
   unitName: string,
   weapons: WeaponProfileData[],
+  abilities: Datasheet['abilities'],
   rules: Datasheet['keywordRules'],
 ) {
   return (
@@ -373,6 +389,7 @@ function either(
                   </span>
                 </div>
                 <OptionProfiles optionName={option.name} weapons={weapons} rules={rules} />
+                <OptionAbilities optionName={option.name} abilities={abilities} rules={rules} />
                 {option.description ? (
                   <div className="border-t border-edge px-2.5 pb-2">
                     <RuleText text={option.description} />
@@ -385,6 +402,30 @@ function either(
       </div>
     </fieldset>
   )
+}
+
+function OptionAbilities({
+  optionName,
+  abilities,
+  rules,
+}: {
+  optionName: string
+  abilities: Datasheet['abilities']
+  rules: Datasheet['keywordRules']
+}) {
+  const matching = abilities.filter(
+    (ability) => (ability.kind === 'datasheet' || ability.kind === 'wargear') && wargearMatches(optionName, ability.name),
+  )
+  return matching.length ? (
+    <div data-slot="option-abilities" className="space-y-2 border-t border-edge px-2.5 pb-2">
+      {matching.map((ability) => (
+        <div key={ability.id}>
+          {ability.name.toLocaleLowerCase() === optionName.toLocaleLowerCase() ? null : <p className="eyebrow pt-2">{ability.name}</p>}
+          {ability.description ? <RuleText text={ability.description} rules={rules} /> : null}
+        </div>
+      ))}
+    </div>
+  ) : null
 }
 
 type WeaponProfileData = Datasheet['profiles'][number]
@@ -412,4 +453,10 @@ function weaponMatches(optionName: string, profileName: string) {
   const option = optionName.trim().toLocaleLowerCase()
   const profile = profileName.trim().toLocaleLowerCase()
   return profile === option || profile.startsWith(`${option} (`) || option.includes(profile)
+}
+
+function wargearMatches(optionName: string, abilityName: string) {
+  const option = optionName.trim().toLocaleLowerCase()
+  const ability = abilityName.trim().toLocaleLowerCase()
+  return ability === option || ability.startsWith(`${option} (`) || option.includes(ability)
 }
