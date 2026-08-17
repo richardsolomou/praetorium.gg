@@ -29,7 +29,9 @@ jobs:
       - uses: actions/checkout@v7
       - uses: richardsolomou/ras-stack/actions/setup-js@v0.39.3
       - name: Resolve and validate every upstream source
-        run: pnpm catalogue:sync --refresh
+        run: |
+          pnpm catalogue:sync --refresh
+          just descriptions
       - name: Build and publish the immutable snapshot
         run: |
           test -n "$SNAPSHOT_BUCKET"
