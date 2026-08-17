@@ -1017,6 +1017,11 @@ describe('per-model wargear when a squad changes size', () => {
   it('reports the group capacity as the models holding it', () => {
     const index = indexOf(squad(null))
     const built = buildUnit('squad', index, 7)!
-    expect(built.choices.find((choice) => choice.name === 'Weapons')?.room).toBe(7)
+    const choice = built.choices.find((candidate) => candidate.name === 'Weapons')
+    expect(choice?.room).toBe(7)
+    expect(choice?.options.map(({ count, max }) => ({ count, max }))).toEqual([
+      { count: 7, max: 7 },
+      { count: 0, max: 7 },
+    ])
   })
 })

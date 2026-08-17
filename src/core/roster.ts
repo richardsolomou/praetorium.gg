@@ -598,7 +598,7 @@ export function unitChoices(
         const choosable = childrenOf(inner, index).filter(
           (option) => visible(option.definition) && resolve(option.definition, index).type !== undefined,
         )
-        const repeating = repeatableModelOn(trail, index)
+        const repeating = repeatedCarrierOn(here, index)
         const scale = repeating
           ? effectiveCount(selection, repeating.path, repeating.definition, index, options)
           : scaleOf(child.definition, index, carriers)
@@ -661,6 +661,13 @@ function repeatableModelOn(path: readonly string[], index: CatalogueIndex): { pa
     }
   }
   return null
+}
+
+function repeatedCarrierOn(groupPath: readonly string[], index: CatalogueIndex) {
+  const groupId = groupPath.at(-1)
+  const group = groupId ? index.definitions.get(groupId) : undefined
+  if (!group || childrenOf(resolve(group, index), index).some((option) => isCollective(option.definition, index))) return null
+  return repeatableModelOn(groupPath.slice(0, -1), index)
 }
 
 function effectiveCount(
@@ -767,7 +774,7 @@ export function withSpread(selection: Selection, key: string, counts: Readonly<R
 /** Repeated specialist models need one model branch per nested option. */
 function withUnitSpread(selection: Selection, key: string, counts: Readonly<Record<string, number>>, index: CatalogueIndex): Selection {
   const path = key.split('/')
-  const repeating = repeatableModelOn(path, index)
+  const repeating = repeatedCarrierOn(path, index)
   if (!repeating) return withSpread(selection, key, counts)
 
   const modelId = repeating.path.at(-1)
