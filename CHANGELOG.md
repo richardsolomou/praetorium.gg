@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.4.1
+
+### Patch Changes
+
+- 64a7e58: Keep roster controls stable, simplify roster setup, collapse enhancements by default, and explain profiles and abilities beside their loadout choices.
+- e862ede: Keep community catalogue data available through verified shared snapshots.
+
 ## 0.4.0
 
 ### Minor Changes
