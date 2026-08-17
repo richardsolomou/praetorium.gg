@@ -25,7 +25,14 @@ test('stratagems and tactical missions are tracked through a turn', async ({ bro
   await waitForRosterSave(alice, () => alice.getByRole('button', { name: 'Add Lord of Virulence', exact: true }).first().click())
   await alice.reload()
   await expect(alice.locator('[data-unit="Lord of Virulence"]')).toBeVisible()
-  await setupBattle(alice, bob, { opponent: bobName, hostRoster: aliceRoster, guestRoster: bobRoster })
+  await setupBattle(alice, bob, {
+    opponent: bobName,
+    hostRoster: aliceRoster,
+    guestRoster: bobRoster,
+    beforeStart: async () => {
+      await expect(alice.getByRole('button', { name: 'Behind Enemy Lines', exact: true })).toBeVisible()
+    },
+  })
 
   await drawSecondary(alice, 'Behind Enemy Lines', 'behind-enemy-lines')
   await drawSecondary(alice, 'Assassination', 'assassination')
