@@ -37,14 +37,8 @@ export function groupOfEntry(index: CatalogueIndex, entryId: string): UnitGroup 
   return entry ? groupOf(entry, targetOf(entry, index.definitions)) : 'other'
 }
 
-/**
- * Datasheets Games Workshop has moved to Legends, which say so in their own name.
- *
- * There is no category and no flag for it — the community data marks them by
- * suffix and nothing else, which is also how every other builder finds them. They
- * are not legal here, so the picker never offers them.
- */
-const LEGENDS = /\[legends\]/i
+/** Non-matched-play variants are marked only by a suffix in the community data. */
+const NON_MATCHED_PLAY = /\[(?:legends|crucible)\]/i
 
 /**
  * The pickable datasheets in a book, with the price of the smallest legal version
@@ -71,7 +65,7 @@ export function unitsIn(
     const target = targetOf(entry, loaded.index.definitions)
     if (entry.hidden || target.hidden) continue
     const name = nameOf(entry, loaded.index.definitions)
-    if (LEGENDS.test(name)) continue
+    if (NON_MATCHED_PLAY.test(name)) continue
     // Unaligned Forces is the shared shelf for Legends fortifications and
     // mission-only battlefield assets. A few assets (including Sentry Gun) lack
     // the suffix even though they are not matched-play roster choices.

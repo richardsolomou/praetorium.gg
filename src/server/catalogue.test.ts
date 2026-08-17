@@ -234,10 +234,12 @@ describe('the picker', () => {
       selectionEntries: [
         { id: 'squad', name: 'Squad', type: 'unit', costs: points(70) },
         { id: 'old', name: 'Land Speeder [Legends]', type: 'unit', costs: points(60) },
+        { id: 'crucible', name: 'Champion [Crucible]', type: 'unit', costs: points(60) },
       ],
     })
     expect(offered(book)).toEqual(['Squad'])
     expect(unitsIn(book, 'cat', 'Land Speeder')).toEqual([])
+    expect(unitsIn(book, 'cat', 'Crucible')).toEqual([])
   })
 
   it('never offers mission assets from the Unaligned Forces shelf', () => {

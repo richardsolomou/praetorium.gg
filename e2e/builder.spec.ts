@@ -482,6 +482,12 @@ test('Legends are never offered', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Add Sentry Gun', exact: true })).toHaveCount(0)
 })
 
+test('Crucible variants are never offered', async ({ page }) => {
+  await openBuilder(page, 'Grey Knights', /Warpbane Task Force/)
+  await page.getByLabel('Add a unit').fill('Crucible')
+  await expect(page.getByRole('button', { name: /\[Crucible\]/ })).toHaveCount(0)
+})
+
 test('a chapter reaches the whole Codex range, not just its own datasheets', async ({ page }) => {
   // Dark Angels state twenty-seven datasheets of their own and field two hundred
   // and forty-nine, the rest imported from the Space Marines book.
