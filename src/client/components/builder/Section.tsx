@@ -2,7 +2,7 @@ import { ChevronDown } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 
-type Props = { title: string; count: number; children: ReactNode; empty?: string }
+type Props = { title: string; count: number; children: ReactNode; empty?: string; defaultOpen?: boolean }
 
 /**
  * A titled shelf with its count on the right, collapsible.
@@ -11,9 +11,9 @@ type Props = { title: string; count: number; children: ReactNode; empty?: string
  * right number of characters and battleline, not by scrolling to the bottom to
  * find out. An empty shelf still says its name, so its absence is visible.
  */
-export function Section({ title, count, children, empty }: Props) {
+export function Section({ title, count, children, empty, defaultOpen = true }: Props) {
   return (
-    <Collapsible render={<section />} defaultOpen>
+    <Collapsible render={<section />} defaultOpen={defaultOpen}>
       <CollapsibleTrigger className="group flex w-full cursor-pointer items-center justify-between py-1.5">
         <span className="rubric">{title}</span>
         <span className="flex items-center gap-1.5">

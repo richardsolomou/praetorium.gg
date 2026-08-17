@@ -7,7 +7,13 @@
  * is the part that scrolls out of sight. The lineage becomes the heading and the
  * last segment becomes the name, which is also what the list names itself after.
  */
-export const shortName = (name: string) => name.split(' - ').at(-1) ?? name
+export const shortName = (name: string) => {
+  const parts = name.split(' - ')
+  const last = parts.at(-1)
+  const leaf = last?.toLowerCase() === 'library' ? parts.at(-2) : last
+  const imperial = leaf?.match(/^(.+) of the Imperium$/i)
+  return imperial ? `Imperial ${imperial[1]}` : (leaf ?? name)
+}
 
 const lineageOf = (name: string) => name.split(' - ').slice(0, -1).at(-1) ?? ''
 

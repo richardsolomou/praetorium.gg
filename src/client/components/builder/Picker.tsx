@@ -7,6 +7,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Toggle } from '@/components/ui/toggle'
 import { useCollectionMutation } from '../../useCollection'
 import { collectionQuery, unitsQuery } from '../../queries'
+import { shortName } from './factions'
 import { GROUPS } from './groups'
 import { Section } from './Section'
 
@@ -64,7 +65,7 @@ export function Picker({ catalogueId, onAdd, onPreview, inRoster, room }: Props)
   ]
   const sections = [
     ...GROUPS.map((group) => ({ ...group, alliedFaction: null })),
-    ...alliedFactions.map((alliedFaction) => ({ id: `allied-${alliedFaction}`, plural: alliedFaction, alliedFaction })),
+    ...alliedFactions.map((alliedFaction) => ({ id: `allied-${alliedFaction}`, plural: shortName(alliedFaction), alliedFaction })),
   ]
 
   return (
@@ -105,7 +106,7 @@ export function Picker({ catalogueId, onAdd, onPreview, inRoster, room }: Props)
             return rows.length ? (
               <Fragment key={id}>
                 {alliedFaction === alliedFactions[0] ? <h2 className="rubric pt-1.5">Allied units</h2> : null}
-                <Section title={plural} count={rows.length}>
+                <Section title={plural} count={rows.length} defaultOpen={!alliedFaction}>
                   {rows.map((unit) => {
                     const held = inRoster[unit.id] ?? 0
                     const full = unit.limit !== null && held >= unit.limit
