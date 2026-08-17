@@ -761,7 +761,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
                     <UnitCard
                       key={picked[index]?.key ?? unit.entryId}
                       unit={unit}
-                      force={
+                      alliedFaction={
                         picked[index]?.catalogueId === catalogueId
                           ? undefined
                           : available.factions.find((entry) => entry.id === picked[index]?.catalogueId)?.name

@@ -477,6 +477,9 @@ test('Legends are never offered', async ({ page }) => {
   const legend = page.getByRole('button', { name: 'Add Land Speeder Typhoon [Legends]', exact: true })
   await expect(legend).toBeHidden()
   await expect(page.getByRole('button', { name: 'Legends' })).toHaveCount(0)
+
+  await page.getByLabel('Add a unit').fill('Sentry Gun')
+  await expect(page.getByRole('button', { name: 'Add Sentry Gun', exact: true })).toHaveCount(0)
 })
 
 test('a chapter reaches the whole Codex range, not just its own datasheets', async ({ page }) => {

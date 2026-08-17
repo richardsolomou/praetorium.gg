@@ -90,7 +90,7 @@ test('a player can enter through the roster library and browse the product', asy
   await expect(page.getByRole('link', { name: 'Awakened Dynasty', exact: true })).toBeVisible()
   await expect(page.getByRole('combobox', { name: 'Faction' })).toHaveCount(0)
   await expect(page.getByRole('combobox', { name: 'Battle size' })).toHaveCount(0)
-  await expect(page.getByRole('combobox', { name: 'Force' })).toContainText('Necrons (primary)')
+  await expect(page.getByRole('combobox', { name: 'Force' })).toHaveCount(0)
   await expect(page.getByText('Take and Hold', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Roster actions' }).click()
   await page.getByRole('menuitem', { name: 'Edit roster setup' }).click()

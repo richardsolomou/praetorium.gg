@@ -72,8 +72,12 @@ export function unitsIn(
     if (entry.hidden || target.hidden) continue
     const name = nameOf(entry, loaded.index.definitions)
     if (LEGENDS.test(name)) continue
-    if (wanted && !name.toLowerCase().includes(wanted)) continue
+    // Unaligned Forces is the shared shelf for Legends fortifications and
+    // mission-only battlefield assets. A few assets (including Sentry Gun) lack
+    // the suffix even though they are not matched-play roster choices.
     const ally = allied.get(id)
+    if (ally?.name === 'Unaligned Forces') continue
+    if (wanted && !name.toLowerCase().includes(wanted)) continue
     found.push({ id, name, group: groupOf(entry, target), alliedFaction: ally?.name ?? null, alliedOrder: ally?.order ?? -1 })
   }
 
