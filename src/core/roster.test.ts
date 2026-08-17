@@ -197,6 +197,62 @@ describe('a group that requires selections', () => {
   })
 })
 
+describe('mixed model composition', () => {
+  const index = indexOf({
+    sharedSelectionEntries: [
+      {
+        id: 'squad',
+        name: 'Squad',
+        type: 'unit',
+        selectionEntryGroups: [
+          {
+            id: 'models',
+            name: 'Models',
+            defaultSelectionEntryId: 'trooper',
+            constraints: [
+              { id: 'models-min', type: 'min', value: 3, field: 'selections', scope: 'parent' },
+              { id: 'models-max', type: 'max', value: 6, field: 'selections', scope: 'parent' },
+            ],
+            selectionEntries: [
+              {
+                id: 'sergeant',
+                name: 'Sergeant',
+                type: 'model',
+                constraints: [
+                  ...mandatory('sergeant-min'),
+                  { id: 'sergeant-max', type: 'max', value: 1, field: 'selections', scope: 'parent' },
+                ],
+              },
+              {
+                id: 'trooper',
+                name: 'Trooper',
+                type: 'model',
+                constraints: [{ id: 'trooper-max', type: 'max', value: 5, field: 'selections', scope: 'parent' }],
+              },
+              {
+                id: 'specialist',
+                name: 'Specialist',
+                type: 'model',
+                constraints: [{ id: 'specialist-max', type: 'max', value: 1, field: 'selections', scope: 'parent' }],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  })
+
+  it('offers replacements without making the required model adjustable', () => {
+    const built = buildUnit('squad', index)!
+    const choice = built.choices.find((candidate) => candidate.name === 'Models')
+    expect(choice?.room).toBe(2)
+    expect(choice?.options.map(({ id, max }) => ({ id, max }))).toEqual([
+      { id: 'trooper', max: 2 },
+      { id: 'specialist', max: 1 },
+    ])
+  })
+})
+
 describe('laying counts over a selection', () => {
   const tree = { id: 'squad', count: 1, selections: [{ id: 'troopers', count: 1, selections: [{ id: 'trooper', count: 1 }] }] }
 

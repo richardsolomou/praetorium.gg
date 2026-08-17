@@ -11,7 +11,7 @@
  */
 
 import { type CatalogueIndex, type Constraint, type Definition, targetOf } from './catalogue'
-import { hiddenByRules } from './evaluate'
+import { evaluate, hiddenByRules } from './evaluate'
 import type { Selection } from './evaluate'
 
 /** Crusade and campaign subtrees run deep and none of it is mandatory. */
@@ -81,7 +81,14 @@ function expand(
     // option's own cap: two selections from a group of one-each choices means one
     // of two things, not two of one.
     const inside: Selection[] = []
-    let remaining = count
+    // Reserve room for options with their own minimum before the declared default
+    // consumes the group's allowance. Mixed squads commonly put the ordinary
+    // model first and a required sergeant later in the catalogue.
+    const reserved = options.reduce(
+      (total, child) => total + requiredCount(child.definition, index) * scaleOf(child.definition, index, carriers),
+      0,
+    )
+    let remaining = Math.max(0, count - reserved)
     for (const child of ordered(target, options, index)) {
       const scale = scaleOf(child.definition, index, carriers)
       const cap = maximumCount(child.definition, index)
@@ -551,7 +558,7 @@ type UnitChoice = {
    * one, against a count against each option.
    */
   room: number
-  options: { id: string; name: string; points: number; count: number }[]
+  options: { id: string; name: string; points: number; count: number; max: number }[]
 }
 
 /**
@@ -595,21 +602,26 @@ export function unitChoices(
         const capacity = maximumCount(child.definition, index)
         const room = capacity === null ? occupantRoom(choosable, index) : capacity * scale
         const fixed = choosable.some((option) => requiredCount(option.definition, index) > 0)
-        if (!fixed && choosable.length > 1 && room >= 1 && room !== UNBOUNDED) {
-          const group = at(selection, here)
-          const held = group?.selections ?? []
-          const taken = held.find((present) => (present.count ?? 1) > 0 && choosable.some((option) => option.id === present.id))
+        const adjustable = fixed ? choosable.filter((option) => requiredCount(option.definition, index) === 0) : choosable
+        const group = at(selection, here)
+        const held = group?.selections ?? []
+        const adjustableRoom = fixed
+          ? adjustable.reduce((total, option) => total + (held.find((item) => item.id === option.id)?.count ?? 0), 0)
+          : room
+        if (adjustable.length > 1 && adjustableRoom >= 1 && adjustableRoom !== UNBOUNDED) {
+          const taken = held.find((present) => (present.count ?? 1) > 0 && adjustable.some((option) => option.id === present.id))
           choices.push({
             key: here.join('/'),
             name: inner.name ?? 'Choice',
             chosen: taken?.id ?? '',
             optional: requiredCount(child.definition, index) === 0,
-            room,
-            options: choosable.map((option) => ({
+            room: adjustableRoom,
+            options: adjustable.map((option) => ({
               id: option.id,
               name: resolve(option.definition, index).name ?? option.id,
               points: pointsOf(option, index),
               count: held.find((present) => present.id === option.id)?.count ?? 0,
+              max: legalMaximum(selection, here, option, adjustable, adjustableRoom, index, options),
             })),
           })
         }
@@ -622,6 +634,28 @@ export function unitChoices(
 
   walk(entry, [], depth, new Set(), 1)
   return choices
+}
+
+/** The effective cap after conditional catalogue modifiers have been applied. */
+function legalMaximum(
+  selection: Selection,
+  path: readonly string[],
+  option: Option,
+  siblings: readonly Option[],
+  room: number,
+  index: CatalogueIndex,
+  context: { primaryCatalogueId?: string; roster?: readonly Selection[] },
+): number {
+  const targetId = resolve(option.definition, index).id
+  for (let count = 1; count <= room; count++) {
+    const other = siblings.find((candidate) => candidate.id !== option.id)
+    const counts: Record<string, number> = { [option.id]: count }
+    if (other) counts[other.id] = room - count
+    const candidate = withSpread(selection, path.join('/'), counts)
+    const result = evaluate([...(context.roster ?? []), candidate], index, { primaryCatalogueId: context.primaryCatalogueId })
+    if (result.errors.some((error) => error.entryId === targetId && error.message.startsWith('allows at most'))) return count - 1
+  }
+  return room
 }
 
 const occupantRoom = (choosable: Option[], index: CatalogueIndex) =>
