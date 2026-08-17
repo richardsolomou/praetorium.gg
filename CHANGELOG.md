@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.3.1
+
+### Patch Changes
+
+- b324bc9: Show the correct weapon quantities in roster datasheets.
+- 801703b: Show owned datasheets first in the roster picker and remove the redundant view icon.
+
 ## 0.3.0
 
 ### Minor Changes
