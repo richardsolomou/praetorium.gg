@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Toggle } from '@/components/ui/toggle'
-import { GAME_SIZES } from '../../core/battle'
+import { DEFAULT_GAME_LIMIT, GAME_SIZES } from '../../core/battle'
 import { saveRoster } from '../../server/functions'
 import { priceQuery, savedRostersQuery } from '../queries'
 import { errorMessage } from '../queryClient'
@@ -29,7 +29,7 @@ type Faction = {
 export function CreateRoster({ factions }: { factions: Faction[] }) {
   const [open, setOpen] = useState(false)
   const [catalogueId, setCatalogueId] = useState('')
-  const [limit, setLimit] = useState<number>(GAME_SIZES[1].limit)
+  const [limit, setLimit] = useState<number>(DEFAULT_GAME_LIMIT)
   const [detachmentIds, setDetachmentIds] = useState<string[]>([])
   const [disposition, setDisposition] = useState<string | null>(null)
   const queryClient = useQueryClient()
@@ -110,7 +110,7 @@ export function CreateRoster({ factions }: { factions: Faction[] }) {
             <Label className="eyebrow block" htmlFor="new-roster-size">
               Battle size
             </Label>
-            <Select value={String(limit)} onValueChange={(value: string | null) => setLimit(Number(value ?? GAME_SIZES[1].limit))}>
+            <Select value={String(limit)} onValueChange={(value: string | null) => setLimit(Number(value ?? DEFAULT_GAME_LIMIT))}>
               <SelectTrigger id="new-roster-size" className="mt-1 w-full">
                 <SelectValue>
                   {(value: unknown) => {

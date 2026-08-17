@@ -19,7 +19,7 @@ import { Input } from '@/components/ui/input'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import type { Roster, Secondary, Stratagem } from '../../core/battle'
-import { GAME_SIZES, ROSTER_NAME_MAX_LENGTH } from '../../core/battle'
+import { DEFAULT_GAME_LIMIT, GAME_SIZES, KOTC_LIMIT, ROSTER_NAME_MAX_LENGTH } from '../../core/battle'
 import type { RosterPick } from '../../core/roster'
 import type { RosterSource, RosterVisibility } from '../../core/savedRoster'
 import { deleteRoster, exportRoster, saveRoster } from '../../server/functions'
@@ -79,7 +79,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
   // so position is the only thing that tells two of them apart.
   const [picked, setPicked] = useState<Pick[]>(() => initial?.picks.map((pick, key) => ({ ...pick, key })) ?? [])
   const [nextKey, setNextKey] = useState(initial?.picks.length ?? 0)
-  const [limit, setLimit] = useState<number>(initial?.limit ?? GAME_SIZES[1].limit)
+  const [limit, setLimit] = useState<number>(initial?.limit ?? DEFAULT_GAME_LIMIT)
   const [detachmentIds, setDetachmentIds] = useState<string[]>(initial?.detachmentIds ?? [])
   const [disposition, setDisposition] = useState<string | null>(initial?.disposition ?? null)
   const [name, setName] = useState(initial?.name ?? '')
@@ -246,6 +246,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
   }
 
   const over = Boolean(priced && priced.points > limit)
+  const illegal = limit === KOTC_LIMIT && Boolean(priced?.errors.length)
   // A list without one is not a legal army, so it cannot be attached.
   const needsDetachment = Boolean(faction?.detachments.length) && !detachmentIds.length
   const overDetachmentPoints = Boolean(priced?.detachmentPointsOver)
@@ -657,7 +658,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
                 <Label className="eyebrow block" htmlFor="size">
                   Battle size
                 </Label>
-                <Select value={String(limit)} onValueChange={(value: string | null) => setLimit(Number(value ?? GAME_SIZES[1].limit))}>
+                <Select value={String(limit)} onValueChange={(value: string | null) => setLimit(Number(value ?? DEFAULT_GAME_LIMIT))}>
                   <SelectTrigger id="size" className="h-6 w-full border-0 bg-transparent px-0 font-semibold uppercase">
                     <SelectValue>
                       {(value: unknown) => GAME_SIZES.find((entry) => String(entry.limit) === value)?.name ?? 'Pick a size'}
@@ -873,18 +874,20 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
             <Button
               size="sm"
               className="h-9 px-4"
-              disabled={pending || !listName || !units.length || over || needsDetachment || overDetachmentPoints}
+              disabled={pending || !listName || !units.length || over || illegal || needsDetachment || overDetachmentPoints}
               onClick={attach}
             >
               {over && priced
                 ? `${priced.points - limit} pts over`
-                : overDetachmentPoints && priced && priced.detachmentPointBudget !== null
-                  ? 'Invalid detachments'
-                  : needsDetachment
-                    ? 'Pick a detachment first'
-                    : attached
-                      ? 'Replace my list'
-                      : 'Attach this list'}
+                : illegal
+                  ? 'Roster is not legal'
+                  : overDetachmentPoints && priced && priced.detachmentPointBudget !== null
+                    ? 'Invalid detachments'
+                    : needsDetachment
+                      ? 'Pick a detachment first'
+                      : attached
+                        ? 'Replace my list'
+                        : 'Attach this list'}
             </Button>
           ) : null}
         </span>

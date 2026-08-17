@@ -171,7 +171,11 @@ const SECONDARY_GUIDE = 40
 const PAINTED_ARMY_POINTS = 10
 
 /** The matched-play game sizes, smallest first. */
+export const KOTC_LIMIT = 600
+export const DEFAULT_GAME_LIMIT = 2000
+
 export const GAME_SIZES = [
+  { name: 'King of the Colosseum', limit: KOTC_LIMIT, detachmentPoints: null },
   { name: 'Incursion', limit: 1000, detachmentPoints: 2 },
   { name: 'Strike Force', limit: 2000, detachmentPoints: 3 },
   { name: 'Onslaught', limit: 3000, detachmentPoints: null },
@@ -530,6 +534,8 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
       // What an army brings is settled before the first turn, so the log cannot be
       // rewritten mid-game to a different set of cards.
       if (state.status === 'playing') return 'cards are settled before the battle begins'
+      if (state.settings.limit === KOTC_LIMIT && command.secondaryMode !== 'tactical')
+        return 'King of the Colosseum requires tactical secondaries'
       return validatePrep(command)
     }
     case 'use-stratagem': {

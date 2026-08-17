@@ -63,6 +63,7 @@ Server catalogue code is split by responsibility:
 - Add detachments before units during evaluation. Enhancements and unit limits can depend on them.
 - Apply profile modifiers against the complete roster selection. Support the catalogue's ordered text, numeric, rounding, cumulative, name, annotation, and visibility operations. Keep the base value and each selected rule that changed it so the interface can explain every derived value.
 - Eleventh-edition detachments are ordered purchases. A roster can use any force disposition offered by a purchased detachment and keeps the player's choice. All purchased detachments contribute their detachment-point cost and stratagems.
+- King of the Colosseum layers its prototype construction rules over Incursion: 600 points, exactly one detachment, at least two Infantry units, a Warlord, no Epic Heroes, at most one Toughness 9 unit and none tougher, and format-specific datasheet caps. Derive these facts from the selected catalogue entries and profiles.
 
 ## Points ratchet
 

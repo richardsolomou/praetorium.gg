@@ -4,7 +4,7 @@ import { useEffect, useRef } from 'react'
 import { Label } from '@/components/ui/label'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import type { BattleView, Command, Secondary, SecondaryMode } from '../../core/battle'
-import { SECONDARIES_MAX, SECONDARY_MODES, STRATAGEMS_MAX } from '../../core/battle'
+import { KOTC_LIMIT, SECONDARIES_MAX, SECONDARY_MODES, STRATAGEMS_MAX } from '../../core/battle'
 import { detachmentRulesQuery } from '../queries'
 
 type Props = { view: BattleView; missionId: string | null; send: (command: Command) => void; pending: boolean }
@@ -25,7 +25,9 @@ export function Prep({ view, missionId, send, pending }: Props) {
   const stratagems = rules ? [...rules.stratagems, ...rules.core].slice(0, STRATAGEMS_MAX) : []
   const primaryCard = rules?.primaries.find((card) => card.key === missionId)
   const primary: Secondary | null = primaryCard ? { key: primaryCard.key, name: primaryCard.name } : null
-  const mode: SecondaryMode = you?.secondaryMode ?? 'tactical'
+  const tacticalOnly = view.settings.limit === KOTC_LIMIT
+  const storedMode: SecondaryMode = you?.secondaryMode ?? 'tactical'
+  const mode: SecondaryMode = tacticalOnly ? 'tactical' : storedMode
   const chosen = you?.secondaries.map(({ key, name }) => ({ key, name })) ?? []
 
   const save = (next: { mode?: SecondaryMode; secondaries?: Secondary[] }) => {
@@ -49,11 +51,12 @@ export function Prep({ view, missionId, send, pending }: Props) {
     if (!rules || !you) return
     const missingStratagems = stratagems.length > 0 && you.stratagems.length === 0
     const missingPrimary = primary !== null && you.primaryCard === null
-    if (!missingStratagems && !missingPrimary) return
+    const invalidMode = tacticalOnly && storedMode !== 'tactical'
+    if (!missingStratagems && !missingPrimary && !invalidMode) return
     save({})
     // Re-runs only when one of those two facts changes, and both are satisfied by the save.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rules, you?.stratagems.length, you?.primaryCard, primary?.key])
+  }, [rules, you?.stratagems.length, you?.primaryCard, primary?.key, storedMode, tacticalOnly])
 
   if (!rules) {
     return (
@@ -76,16 +79,18 @@ export function Prep({ view, missionId, send, pending }: Props) {
           variant="outline"
           size="sm"
         >
-          {SECONDARY_MODES.map((entry) => (
+          {SECONDARY_MODES.filter((entry) => !tacticalOnly || entry === 'tactical').map((entry) => (
             <ToggleGroupItem key={entry} value={entry} disabled={pending}>
               {entry === 'fixed' ? 'Fixed' : 'Tactical'}
             </ToggleGroupItem>
           ))}
         </ToggleGroup>
         <p className="text-xs text-dim">
-          {mode === 'tactical'
-            ? 'Drawn from the deck as the battle runs. Nothing to choose now.'
-            : `Choose up to ${SECONDARIES_MAX} cards to play for the whole battle.`}
+          {tacticalOnly
+            ? 'King of the Colosseum requires tactical secondaries.'
+            : mode === 'tactical'
+              ? 'Drawn from the deck as the battle runs. Nothing to choose now.'
+              : `Choose up to ${SECONDARIES_MAX} cards to play for the whole battle.`}
         </p>
       </section>
 
