@@ -1,5 +1,18 @@
 # praetorium
 
+## 0.4.0
+
+### Minor Changes
+
+- 1ff10c7: Build and play King of the Colosseum battles with its prototype army restrictions.
+- a666bb2: Group allied units by faction at the bottom of the unit picker and let players hide them.
+
+### Patch Changes
+
+- bc07d07: Export rosters as Games Workshop text from the actions menu.
+- 3f9747a: Keep modal controls reachable on shorter screens.
+- 7830c22: Offer legal model replacements in mixed-composition squads.
+
 ## 0.3.1
 
 ### Patch Changes
