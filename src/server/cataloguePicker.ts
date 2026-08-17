@@ -66,6 +66,8 @@ export function unitsIn(
     if (entry.hidden || target.hidden) continue
     const name = nameOf(entry, loaded.index.definitions)
     if (NON_MATCHED_PLAY.test(name)) continue
+    const ownerId = loaded.index.catalogueOf.get(target.id)
+    if (ownerId && loaded.index.catalogues.get(ownerId)?.name === 'Unaligned Forces') continue
     // Unaligned Forces is the shared shelf for Legends fortifications and
     // mission-only battlefield assets. A few assets (including Sentry Gun) lack
     // the suffix even though they are not matched-play roster choices.

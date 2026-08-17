@@ -29,6 +29,7 @@ jobs:
       port: 3000
       environment: |
         APP_URL=https://pr-{{PR_NUMBER}}.praetorium.gg
+        CATALOGUE_SNAPSHOT_BASE_URL=https://s3.praetorium.gg/praetorium-catalogue
         PRAETORIUM_SEED_PREVIEW=true
       marker: <!-- praetorium-preview -->
       note: Sign in with `preview@praetorium.gg` / `preview-preview-preview`. Preview data is disposable and resets on every deployment.

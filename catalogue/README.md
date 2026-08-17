@@ -1,6 +1,6 @@
 # Catalogue sources
 
-Praetorium fetches community Warhammer 40,000 data at runtime. This directory stores source locations and pinned revisions in `sources.json`. The fetched data lives in the gitignored `catalogue-data/` directory.
+Praetorium packages community Warhammer 40,000 data into verified snapshots. This directory defines the upstream locations checked by the hourly publisher. Active revisions and file checksums live in each immutable snapshot manifest. Fetched data lives in the gitignored `catalogue-data/` directory and the snapshot store, never in Git.
 
 No game data is committed to this repository.
 
@@ -14,11 +14,12 @@ The points source checks the evaluator. It is not loaded by the product. When a 
 
 ## Commands
 
-- `pnpm catalogue:check` validates `sources.json` and its pinned commit revisions. It runs as part of `pnpm check`.
-- `pnpm catalogue:sync` fetches all sources at their pinned revisions.
-- `pnpm catalogue:update` updates each source to its configured branch head and rewrites `sources.json`.
+- `pnpm catalogue:check` validates the source definitions. It runs as part of `pnpm check`.
+- `pnpm catalogue:sync` fetches and verifies the snapshot named by the remote `current.json` pointer.
+- `pnpm catalogue:update` resolves and downloads the latest upstream revisions for snapshot publication.
+- `pnpm catalogue:snapshot pack` creates an immutable snapshot and checksummed pointer from the downloaded data.
 - `pnpm catalogue:points` compares generated unit costs with the points source.
 
-## Pinned revisions
+## Snapshot revisions
 
-Saved rosters record the definitions revision used for validation. Pinning keeps list results stable until the source revision changes deliberately.
+The publisher records every upstream revision and file checksum in the snapshot manifest before atomically replacing `current.json`. Saved rosters continue to record the definitions revision used for validation.

@@ -46,7 +46,7 @@ Keep screenshots that contain roster or battle data outside version control.
 
 The fetched sources do not provide every mission-pack restriction or every prose replacement rule as structured data. Praetorium reports missing semantics instead of reconstructing them from memory.
 
-The current sources do not provide structured twist decks or enough transport relationships to automate embarking. Battle photos also require durable object storage that Praetorium does not currently operate. Those features stay absent rather than becoming local-only or guessed state.
+The current sources do not provide structured twist decks or enough transport relationships to automate embarking. Battle photos remain outside the product boundary even though the hosted service operates shared object storage; infrastructure availability does not expand the product's scope. Those features stay absent rather than becoming local-only or guessed state.
 
 ## Verification
 

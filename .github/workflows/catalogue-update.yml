@@ -1,0 +1,47 @@
+name: Catalogue update
+
+on:
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: catalogue-update
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.CATALOGUE_SNAPSHOT_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.CATALOGUE_SNAPSHOT_SECRET_ACCESS_KEY }}
+      AWS_DEFAULT_REGION: us-east-1
+      SNAPSHOT_BUCKET: ${{ vars.CATALOGUE_SNAPSHOT_BUCKET }}
+      SNAPSHOT_ENDPOINT: ${{ vars.CATALOGUE_SNAPSHOT_S3_ENDPOINT }}
+      CATALOGUE_SNAPSHOT_BASE_URL: ${{ vars.CATALOGUE_SNAPSHOT_BASE_URL }}
+      CATALOGUE_SNAPSHOT_FILE: /tmp/catalogue-snapshot.zip
+      CATALOGUE_SNAPSHOT_POINTER_FILE: /tmp/catalogue-current.json
+    steps:
+      - uses: actions/checkout@v7
+      - uses: richardsolomou/ras-stack/actions/setup-js@v0.39.3
+      - name: Resolve and validate every upstream source
+        run: |
+          pnpm catalogue:sync --refresh
+          just descriptions
+      - name: Build and publish the immutable snapshot
+        run: |
+          test -n "$SNAPSHOT_BUCKET"
+          test -n "$SNAPSHOT_ENDPOINT"
+          test -n "$CATALOGUE_SNAPSHOT_BASE_URL"
+          pnpm catalogue:snapshot pack
+          id="$(jq -r .id "$CATALOGUE_SNAPSHOT_POINTER_FILE")"
+          aws s3api head-object --bucket "$SNAPSHOT_BUCKET" --key "snapshots/$id.zip" --endpoint-url "$SNAPSHOT_ENDPOINT" >/dev/null 2>&1 \
+            || aws s3 cp "$CATALOGUE_SNAPSHOT_FILE" "s3://$SNAPSHOT_BUCKET/snapshots/$id.zip" --endpoint-url "$SNAPSHOT_ENDPOINT" --only-show-errors
+          curl --fail --location --silent --show-error "$CATALOGUE_SNAPSHOT_BASE_URL/snapshots/$id.zip" --output /tmp/published-catalogue.zip
+          CATALOGUE_SNAPSHOT_FILE=/tmp/published-catalogue.zip pnpm catalogue:snapshot verify
+          aws s3 cp "$CATALOGUE_SNAPSHOT_POINTER_FILE" "s3://$SNAPSHOT_BUCKET/current.json" \
+            --endpoint-url "$SNAPSHOT_ENDPOINT" --content-type application/json --cache-control no-store --only-show-errors

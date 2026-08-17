@@ -4,14 +4,21 @@ import os from 'node:os'
 import path from 'node:path'
 import { zipSync } from 'fflate'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import { catalogueSources as sources } from './catalogueSources'
+import { catalogueSources as config, type ResolvedCatalogueSources } from './catalogueSources'
 import { isCurrent, syncSources } from './sync'
 
 let directory: string
+let sources: ResolvedCatalogueSources
 const hash = (value: string) => createHash('sha256').update(value).digest('hex')
-const battlemasterRevision = sources.battlemaster.revision
 
 beforeEach(() => {
+  sources = {
+    definitions: { ...config.definitions, revision: 'definitions-revision' },
+    points: { ...config.points, revision: 'points-revision' },
+    rules: { ...config.rules, revision: 'rules-revision' },
+    battlemaster: { ...config.battlemaster, revision: 'battlemaster-revision' },
+    wahapedia: { ...config.wahapedia, revision: 'wahapedia-revision', files: {}, pages: {} },
+  }
   directory = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-sync-'))
   for (const name of ['definitions', 'points', 'rules']) fs.mkdirSync(path.join(directory, name))
   fs.writeFileSync(
@@ -25,7 +32,6 @@ beforeEach(() => {
 })
 
 afterEach(() => {
-  sources.battlemaster.revision = battlemasterRevision
   vi.unstubAllGlobals()
   fs.rmSync(directory, { recursive: true, force: true })
 })
@@ -62,24 +68,20 @@ it('accepts the current Battlemaster detail identity', async () => {
     ),
   )
 
-  await syncSources(directory, () => {}, {
-    baseUrl: 'https://example.test',
-    revision: 'none',
-    files: {},
-    pages: {},
-  })
+  await syncSources(directory, { ...sources, wahapedia: { ...sources.wahapedia, baseUrl: 'https://example.test' } })
 
   expect(fs.existsSync(path.join(directory, 'battlemaster', 'layouts', `${id}.json`))).toBe(true)
 })
 
 it('keeps the authoritative catalogue ready when optional descriptions change upstream', async () => {
+  sources.wahapedia.files = { 'Descriptions.csv': hash('expected export') }
   vi.stubGlobal(
     'fetch',
     vi.fn(async () => new Response('changed export')),
   )
   const messages: string[] = []
-  await syncSources(directory, (message) => messages.push(message))
-  expect(isCurrent(directory) && messages.some((message) => message.startsWith('wahapedia: descriptions unavailable'))).toBe(true)
+  await syncSources(directory, sources, (message) => messages.push(message))
+  expect(isCurrent(directory, sources) && messages.some((message) => message.startsWith('wahapedia: descriptions unavailable'))).toBe(true)
 })
 
 it('refetches a pinned export when a configured file is missing', async () => {
@@ -90,7 +92,7 @@ it('refetches a pinned export when a configured file is missing', async () => {
   const fetch = vi.fn<() => Promise<Response>>(async () => new Response('changed export'))
   vi.stubGlobal('fetch', fetch)
 
-  await syncSources(directory, () => {})
+  await syncSources(directory, sources)
 
   expect(fetch).toHaveBeenCalled()
 })
@@ -103,22 +105,22 @@ it('keeps verified exports when one optional live page changes', async () => {
   vi.stubGlobal('fetch', fetch)
   const messages: string[] = []
 
-  await syncSources(directory, (message) => messages.push(message), {
-    baseUrl: 'https://example.test',
-    revision: 'test revision',
-    files: { 'Stratagems.csv': hash(exported) },
-    pages: { faction: hash('pinned page') },
-  })
+  const withDescriptions: ResolvedCatalogueSources = {
+    ...sources,
+    wahapedia: {
+      ...sources.wahapedia,
+      baseUrl: 'https://example.test',
+      revision: 'test revision',
+      files: { 'Stratagems.csv': hash(exported) },
+      pages: { faction: hash('pinned page') },
+    },
+  }
+  await syncSources(directory, withDescriptions, (message) => messages.push(message))
 
   expect(fs.readFileSync(path.join(directory, 'wahapedia', 'Stratagems.csv'), 'utf8')).toBe(exported)
   expect(messages).toContain('wahapedia: descriptions unavailable for faction')
   const requests = fetch.mock.calls.length
-  await syncSources(directory, () => {}, {
-    baseUrl: 'https://example.test',
-    revision: 'test revision',
-    files: { 'Stratagems.csv': hash(exported) },
-    pages: { faction: hash('pinned page') },
-  })
+  await syncSources(directory, withDescriptions)
   // Battlemaster remains retryable when its optional snapshot is unavailable.
   expect(fetch).toHaveBeenCalledTimes(requests + 1)
 })
@@ -137,7 +139,7 @@ it('extracts only a source configured subpath', async () => {
     ),
   )
 
-  await syncSources(directory)
+  await syncSources(directory, sources)
 
   expect(fs.existsSync(path.join(directory, 'rules', 'data', 'core', 'faction', 'rules.json'))).toBe(true)
   expect(fs.existsSync(path.join(directory, 'rules', 'tools', 'package.json'))).toBe(false)
@@ -153,7 +155,7 @@ it('keeps the current source when an archive lacks its configured subpath', asyn
     vi.fn<() => Promise<Response>>(async () => new Response(archive)),
   )
 
-  await expect(syncSources(directory)).rejects.toThrow('archive contains no files under data/core')
+  await expect(syncSources(directory, sources)).rejects.toThrow('archive contains no files under data/core')
 
   expect(fs.existsSync(path.join(directory, 'rules', 'current.json'))).toBe(true)
 })

@@ -3,9 +3,9 @@ import { createHash } from 'node:crypto'
 import path from 'node:path'
 import { unzipSync } from 'fflate'
 import {
-  catalogueSources as sources,
   SOURCE_NAMES,
   type BattlemasterSource,
+  type ResolvedCatalogueSources,
   type SourceName,
   type WahapediaSource,
 } from './catalogueSources'
@@ -22,7 +22,7 @@ export type SyncState = { status: 'absent' | 'working' | 'ready' | 'failed'; det
 
 const REVISION_FILE = 'revision.json'
 
-function pinnedRevisions(): Record<SourceName, string> {
+function pinnedRevisions(sources: ResolvedCatalogueSources): Record<SourceName, string> {
   return {
     definitions: sources.definitions.revision,
     points: sources.points.revision,
@@ -42,10 +42,29 @@ function localRevisions(directory: string): Partial<Record<SourceName | 'battlem
   }
 }
 
-export const isCurrent = (directory: string) => {
+export const isCurrent = (directory: string, sources: ResolvedCatalogueSources) => {
   const local = localRevisions(directory)
-  const pinned = pinnedRevisions()
+  const pinned = pinnedRevisions(sources)
   return SOURCE_NAMES.every((name) => local[name] === pinned[name] && fs.existsSync(path.join(directory, name)))
+}
+
+/** Publication gate: every optional source must be complete too. */
+export const isComplete = (directory: string, sources: ResolvedCatalogueSources) => {
+  const local = localRevisions(directory)
+  if (!isCurrent(directory, sources)) return false
+  if (local.battlemaster !== sources.battlemaster.revision) return false
+  const layouts = path.join(directory, 'battlemaster', 'layouts')
+  if (!fs.existsSync(layouts) || !fs.readdirSync(layouts).length) return false
+  if (local.wahapedia !== sources.wahapedia.revision) return false
+  for (const [name, expected] of Object.entries(sources.wahapedia.files)) {
+    const file = path.join(directory, 'wahapedia', name)
+    if (!fs.existsSync(file) || createHash('sha256').update(fs.readFileSync(file)).digest('hex') !== expected) return false
+  }
+  for (const [name, expected] of Object.entries(sources.wahapedia.pages)) {
+    const file = path.join(directory, 'wahapedia', 'pages', `${name}.html`)
+    if (!fs.existsSync(file) || createHash('sha256').update(fs.readFileSync(file)).digest('hex') !== expected) return false
+  }
+  return true
 }
 
 /**
@@ -56,19 +75,19 @@ export const isCurrent = (directory: string) => {
  */
 export async function syncSources(
   directory: string,
+  sources: ResolvedCatalogueSources,
   report: (message: string) => void = () => {},
-  wahapediaSource: WahapediaSource = sources.wahapedia,
 ): Promise<void> {
-  if (isCurrent(directory)) {
+  if (isCurrent(directory, sources)) {
     await syncBattlemaster(directory, report, sources.battlemaster)
-    await syncWahapedia(directory, report, wahapediaSource)
+    await syncWahapedia(directory, report, sources.wahapedia)
     report('catalogue is already at the pinned revisions')
     return
   }
 
   fs.mkdirSync(directory, { recursive: true })
   const local = localRevisions(directory)
-  const pinned = pinnedRevisions()
+  const pinned = pinnedRevisions(sources)
   for (const name of SOURCE_NAMES) {
     const target = path.join(directory, name)
     if (local[name] === pinned[name] && fs.existsSync(target)) {
@@ -84,7 +103,7 @@ export async function syncSources(
   }
   fs.writeFileSync(path.join(directory, REVISION_FILE), `${JSON.stringify(pinned, null, 2)}\n`)
   await syncBattlemaster(directory, report, sources.battlemaster)
-  await syncWahapedia(directory, report, wahapediaSource)
+  await syncWahapedia(directory, report, sources.wahapedia)
   report('catalogue is ready')
 }
 

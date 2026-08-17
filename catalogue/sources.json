@@ -2,20 +2,17 @@
   "definitions": {
     "repository": "BSData/wh40k-11e",
     "branch": "main",
-    "revision": "fa11e0c84237a85c4748c55d92f361a04f54daf9",
     "description": "Community catalogues for Warhammer 40,000 11th edition. JSON, one file per faction."
   },
   "points": {
     "repository": "BSData/wh40k-11e-mfm",
     "branch": "main",
-    "revision": "88352b269cca0d3b3933a65c196834c085b67a07",
     "path": "data",
     "description": "Independent points reference used to check the evaluator. Not loaded by the product."
   },
   "rules": {
     "repository": "tabletop-developer-consortium/40kdc-data",
     "branch": "main",
-    "revision": "760020903c5c31ef734585c42c52b81c9d4c27be",
     "path": "data/core",
     "attribution": "Data by the Tabletop Developer Consortium, CC BY 4.0",
     "description": "Stratagems by detachment and secondary mission cards. Licensed under CC BY 4.0."
@@ -24,46 +21,44 @@
     "baseUrl": "https://battlemaster.online",
     "owner": "superwutz",
     "missionPack": "chapter-approved-2026",
-    "revision": "99c8fe65be6e183da6470657f789a254fe50e558e8246b316019c65860620e65",
     "attribution": "Terrain geometry provided by Battlemaster",
     "description": "Exact public terrain-area, roof, and wall geometry for Chapter Approved layouts. Used with permission by the upstream 40kdc dataset."
   },
   "wahapedia": {
     "baseUrl": "https://wahapedia.ru/wh40k11ed",
-    "revision": "2026-08-13 complete description snapshot",
-    "files": {
-      "Stratagems.csv": "119ce73e2a531ff303cfa73340c0c389f8ab2bf72a20c2be8c119182c923d1d5",
-      "Enhancements.csv": "b9ebbd9c2e1c59eb26b83e2d038b48d4d3e72fd89d654d18fe260bb9fba13c62",
-      "Detachment_abilities.csv": "dec68046510d6b981540fd291c19e11642066abd77baa9b16d1a3c0076130446",
-      "Abilities.csv": "9e3d412160dd863a79f293b730a0d7906da3bb143122767a3a3b493d7745aa49",
-      "Datasheets_abilities.csv": "365bf9941fd97aa8c4c86c526c72ca0c2c6a7f73cc69ec7b15f2bebdbf6e0daa",
-      "Last_update.csv": "88eae6c738acce67986dc09a0357c09874fb2229414b338e2d5a2cd366a0042f"
-    },
-    "pages": {
-      "imperial-agents": "b531055bb8470ff4200f6dff036afc441f6fed1a71c57f653ddd88bd18061130",
-      "astra-militarum": "419076617088f54889059af3f92ed12fb13d82525e5c381f56f806740552199d",
-      "genestealer-cults": "2c01d1103ac1b89e62df072c7a4e0429968ad89cbbd52d8e3ed23673c6d4860f",
-      "necrons": "22a02871b78a2080338c7883ce83aab8a1b6b28f1703377a75b42b57e2d59511",
-      "aeldari": "641920c0c8032f63ba14439949b03b21c2cb1bc271603d707828cb70eabc82f4",
-      "orks": "e5f88e8a8535a2b1f380e93849ee17599fe0e583cb330946113599400e26b11d",
-      "grey-knights": "f101b7d0b9a20a7fc0ffb081a096b4d4da503bac5f8a6638e01a7bf975e1fb08",
-      "t-au-empire": "f7d5ccd108df4d40f7989481bcdc579a61a02422ec78c2735e7abbc72d1b262c",
-      "leagues-of-votann": "006f009b0af2dfa5a87d3e57b2c7e9179061cd7689f5ec0f4c2e85afdc094512",
-      "adeptus-mechanicus": "77b02b54c4668b02641d1d34babe43009bd09394fd0d6c15392be51302a0f4e1",
-      "thousand-sons": "72856f5cb70e7c64c3605ec84f374f1bf8d2e5068a41f55295ddfe71f39ef392",
-      "death-guard": "a8dd88806eb3d7cec64735e17ec43f24846891f904fcf9b4d2b7b1ca992a7d21",
-      "emperor-s-children": "8877decd0a0ee088d80d2199e0c5ab855a1a950f225da7183fd7324e27eee056",
-      "world-eaters": "fbb75c836ec7621d3a7f6e87e1af5d5f38e81a2b57e64d5e1f0146e24bb7a051",
-      "chaos-knights": "e36333e92e91317a58ebca0dd64c4a5decf999bb231f7c24718bc3bdaf070b11",
-      "chaos-daemons": "048f2132e16d414e478984085da95f38c87f2e42b7c28584ee6fdcb4da370cc4",
-      "imperial-knights": "da98ada2d33ff179b9d5890459f25737fbfebcefae58f833fad768ec728bf6d9",
-      "space-marines": "61e80a74f82a11d8d040508238ebcaf49914eb143f300c97a74972289e1e0a7d",
-      "tyranids": "8cf33911ee61a2f4647beac60a9eb381aaaf75df1fddcfd83dce08f19b0ec6b0",
-      "adeptus-custodes": "8767805df195bcd2529cfe9f5928fb66e9013f256e90a35716ad0e209c86b380",
-      "adepta-sororitas": "20d0b2cb250df3634b3d44e0917d4fcc901a38f12c50dec701d3c865c2d96ec8",
-      "chaos-space-marines": "a52fc6fbc4c2ace1876b2395cd8d48fa7e2595e2fe6f3e6bf52ef83b7c0f9f11",
-      "drukhari": "4be134bc9448a816392d8fafaa28a0370c10f203ca211e1ba8c3128103f8e891"
-    },
+    "files": [
+      "Stratagems.csv",
+      "Enhancements.csv",
+      "Detachment_abilities.csv",
+      "Abilities.csv",
+      "Datasheets_abilities.csv",
+      "Last_update.csv"
+    ],
+    "pages": [
+      "imperial-agents",
+      "astra-militarum",
+      "genestealer-cults",
+      "necrons",
+      "aeldari",
+      "orks",
+      "grey-knights",
+      "t-au-empire",
+      "leagues-of-votann",
+      "adeptus-mechanicus",
+      "thousand-sons",
+      "death-guard",
+      "emperor-s-children",
+      "world-eaters",
+      "chaos-knights",
+      "chaos-daemons",
+      "imperial-knights",
+      "space-marines",
+      "tyranids",
+      "adeptus-custodes",
+      "adepta-sororitas",
+      "chaos-space-marines",
+      "drukhari"
+    ],
     "attribution": "Descriptions provided by Wahapedia",
     "description": "Optional description text for datasheets, detachments, enhancements, and stratagems. Fetched by each instance and never committed."
   }

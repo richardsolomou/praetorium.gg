@@ -4,9 +4,11 @@ Praetorium builds and validates rosters from fetched community data. The domain 
 
 ## Sources and loading
 
-- `catalogue/sources.json` records each source and pins its revision or file hashes.
+- `catalogue/sources.json` defines each upstream source. Revisions and file hashes live in immutable snapshot manifests outside Git.
 - `catalogue-data/` contains fetched data and is gitignored. Do not commit game data or copied rules text.
-- `src/server/sync.ts` compares local revisions with the pinned revisions and downloads missing data in the background.
+- An hourly automation checks upstream revisions and publishes a complete immutable snapshot. It replaces the remote `current.json` pointer only after reading and verifying the published archive.
+- Running instances check that pointer hourly, download a changed snapshot from the shared store, and swap it into place atomically. They never contact an upstream data provider.
+- `src/server/sync.ts` fetches upstream data only for the snapshot publisher. `src/server/catalogueSnapshot.ts` owns packing, verification, and instance downloads.
 - Repository sources extract only their configured subpath. Archive size, output size, paths, and non-empty contents are checked before replacement.
 - Each download uses a staging directory. It replaces the current source only after the download finishes and its revision or hashes match.
 - Optional description exports still refresh when the authoritative sources are current. Live faction pages are best-effort additions and do not make the verified exports unavailable.

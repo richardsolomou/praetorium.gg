@@ -16,15 +16,15 @@ docker compose up -d
 - `praetorium.sqlite` stores accounts, lists, battles, and command logs.
 - `auth.secret` signs account sessions. Replacing it signs everyone out but does not delete their data.
 - `realtime-secret` signs Centrifugo tokens. Replacing it disconnects active realtime clients.
-- `catalogue/` stores about 130MB of fetched community data.
+- `catalogue/` caches about 90MB of verified community data from the snapshot service.
 
 Back up `praetorium.sqlite` and `auth.secret` together. The app can fetch the catalogue again.
 
 ## Catalogue sync
 
-At startup, the app compares `/data/catalogue/revision.json` with the revisions pinned in the image. It fetches missing data in the background. Battles remain available during the sync. List building appears when the sync finishes.
+At startup and once an hour, the app reads `current.json` from Praetorium's shared public snapshot service, or from `CATALOGUE_SNAPSHOT_BASE_URL` when an operator configures a mirror. It downloads an archive only when that immutable snapshot ID differs from its local cache, verifies the archive, manifest, and every file, then swaps the complete directory into place atomically. Battles remain available while an initial snapshot downloads.
 
-Each source downloads to a staging directory before it replaces the current copy. An interrupted download does not replace valid catalogue data.
+Running instances never contact upstream data providers. A separate hourly publisher resolves their latest revisions, validates a complete candidate, uploads its immutable archive, and replaces `current.json` only after a public read-back succeeds.
 
 ## One container, three processes
 
