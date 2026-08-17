@@ -60,7 +60,20 @@ jobs:
           tags: praetorium-e2e
           cache-from: type=gha,scope=e2e-image
           cache-to: type=gha,mode=min,scope=e2e-image
-      - run: just e2e-run
+      # Each shard gets its own container, database, port, and artifact directory.
+      # This halves the browser critical path without adding contention to the
+      # single SQLite database inside either container.
+      - name: Run E2E shards
+        run: |
+          set -euo pipefail
+          PLAYWRIGHT_PORT=4173 PLAYWRIGHT_OUTPUT_DIR=test-results/shard-1 pnpm exec playwright test --shard=1/2 &
+          first=$!
+          PLAYWRIGHT_PORT=4174 PLAYWRIGHT_OUTPUT_DIR=test-results/shard-2 pnpm exec playwright test --shard=2/2 &
+          second=$!
+          status=0
+          wait "$first" || status=$?
+          wait "$second" || status=$?
+          exit "$status"
       - if: failure()
         uses: actions/upload-artifact@v7
         with:
