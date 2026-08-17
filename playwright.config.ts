@@ -14,7 +14,9 @@ const container = `praetorium-e2e-${port}`
 export default defineConfig({
   testDir: './e2e',
   outputDir: 'test-results',
-  fullyParallel: false,
+  // Spread the large builder spec across the worker pool. Tests create unique
+  // accounts and rosters, so the shared database does not imply shared records.
+  fullyParallel: true,
   // Every test shares one container and one SQLite file, so past a couple of
   // workers the runner buys contention rather than speed: four made sign-ups and
   // phase advances time out on tests that pass alone. Three keeps one more file
