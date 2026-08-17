@@ -388,6 +388,28 @@ describe('the turn sequence', () => {
     expect(state.status).toBe('finished')
   })
 
+  it('finishes King of the Colosseum after three rounds', () => {
+    const configured: [string, Command] = [
+      ALICE,
+      {
+        kind: 'configure-battle',
+        limit: 600,
+        missionPackId: null,
+        terrainLayoutId: null,
+        twistId: null,
+        solo: false,
+        clockLimitMinutes: null,
+      },
+    ]
+    const rounds = Array.from({ length: 3 }, () => [...turns(6, ALICE), ...turns(6, BOB)]).flat()
+    const state = reduceBattle(PLAYERS, log(configured, ...started(), ...rounds))
+    const view = battleView({ token: 'abc' }, NAMES, state, ALICE)
+
+    expect(state).toMatchObject({ status: 'finished', round: 3, result: { reason: 'completed' } })
+    expect(view.rounds).toBe(3)
+    expect(view.players[0]?.rounds).toHaveLength(3)
+  })
+
   it('keeps the final battle round within the five-round ledger', () => {
     const rounds = Array.from({ length: BATTLE_ROUNDS }, () => [...turns(6, ALICE), ...turns(6, BOB)]).flat()
     const state = reduceBattle(PLAYERS, log(...started(), ...rounds))
