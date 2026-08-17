@@ -5,7 +5,16 @@ import { datasheetSlug, datasheetsOf, type LoadedCatalogue } from './catalogueIn
 
 export type UnitGroup = 'character' | 'battleline' | 'transport' | 'other'
 
-type UnitSummary = { id: string; slug: string; name: string; points: number | null; group: UnitGroup; limit: number | null }
+type UnitSummary = {
+  id: string
+  slug: string
+  name: string
+  points: number | null
+  group: UnitGroup
+  limit: number | null
+  allied: boolean
+  alliedFaction: string | null
+}
 
 const GROUP_BY_CATEGORY = new Map<string, UnitGroup>([
   ['character', 'character'],
@@ -53,7 +62,8 @@ export function unitsIn(
   { limit = 60 }: { limit?: number } = {},
 ): UnitSummary[] {
   const wanted = query.trim().toLowerCase()
-  const found: { id: string; name: string; group: UnitGroup }[] = []
+  const found: { id: string; name: string; group: UnitGroup; alliedFaction: string | null; alliedOrder: number }[] = []
+  const allied = loaded.index.alliedDatasheets.get(catalogueId) ?? new Map<string, { name: string; order: number }>()
 
   for (const id of datasheetsOf(loaded.index, catalogueId)) {
     const entry = loaded.index.definitions.get(id)
@@ -63,20 +73,25 @@ export function unitsIn(
     const name = nameOf(entry, loaded.index.definitions)
     if (LEGENDS.test(name)) continue
     if (wanted && !name.toLowerCase().includes(wanted)) continue
-    found.push({ id, name, group: groupOf(entry, target) })
+    const ally = allied.get(id)
+    found.push({ id, name, group: groupOf(entry, target), alliedFaction: ally?.name ?? null, alliedOrder: ally?.order ?? -1 })
   }
 
-  return found
-    .toSorted((left, right) => left.name.localeCompare(right.name))
-    .slice(0, limit)
-    .map((unit) => ({
-      id: unit.id,
-      slug: datasheetSlug(loaded, catalogueId, unit.id),
-      name: unit.name,
-      group: unit.group,
-      points: priceOf(loaded, catalogueId, unit.id),
-      limit: limitOf(loaded, catalogueId, unit.id),
-    }))
+  const primary = found.filter((unit) => !unit.alliedFaction).toSorted((left, right) => left.name.localeCompare(right.name))
+  const allies = found
+    .filter((unit) => unit.alliedFaction)
+    .toSorted((left, right) => left.alliedOrder - right.alliedOrder || left.name.localeCompare(right.name))
+  const page = [...primary.slice(0, limit), ...allies]
+  return page.map((unit) => ({
+    id: unit.id,
+    slug: datasheetSlug(loaded, catalogueId, unit.id),
+    name: unit.name,
+    group: unit.group,
+    allied: Boolean(unit.alliedFaction),
+    alliedFaction: unit.alliedFaction,
+    points: priceOf(loaded, catalogueId, unit.id),
+    limit: limitOf(loaded, catalogueId, unit.id),
+  }))
 }
 
 /** How many of one datasheet the roster may hold, or null when nothing limits it. */
