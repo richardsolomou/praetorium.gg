@@ -20,7 +20,7 @@ test('a built list is priced, deployed and tracked', async ({ browser }) => {
   await signUp(bob, bobName)
   const bobRoster = await createRoster(bob, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Necrons' })
   await signUp(alice, aliceName)
-  const aliceRoster = await createRoster(alice, { faction: 'Death Guard', detachment: /Death Lord/, name: 'Death Guard' })
+  const aliceRoster = await createRoster(alice, { faction: 'Death Guard', detachment: /Shamblerot Vectorium/, name: 'Death Guard' })
   await alice.getByLabel('Add a unit').fill('Plague Marines')
   await alice.getByRole('button', { name: 'Add Plague Marines', exact: true }).first().click()
   const total = alice.locator('[data-stat="points"]')
@@ -57,7 +57,7 @@ test('a built list is priced, deployed and tracked', async ({ browser }) => {
     bob
       .locator('[data-panel="player"]')
       .filter({ hasText: 'Death Guard' })
-      .getByText(/Death Lord/),
+      .getByText(/Shamblerot Vectorium/),
   ).toBeVisible()
 
   await alice.screenshot({ path: 'test-results/tracked.png', fullPage: true })

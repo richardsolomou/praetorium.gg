@@ -8,7 +8,7 @@ test('a player tapping twice in a row does not lose the race to themselves', asy
   const bobName = uniqueName('Bob')
 
   await signUp(bob, bobName)
-  const bobRoster = await createRoster(bob, { faction: 'Death Guard', detachment: /Death Lord/, name: 'Death Guard' })
+  const bobRoster = await createRoster(bob, { faction: 'Death Guard', detachment: /Shamblerot Vectorium/, name: 'Death Guard' })
   await signUp(alice, aliceName)
   const aliceRoster = await createRoster(alice, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Necrons' })
   const link = await setupBattle(alice, bob, { opponent: bobName, hostRoster: aliceRoster, guestRoster: bobRoster })
