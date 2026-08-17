@@ -48,7 +48,7 @@ export function Prep({ view, missionId, send, pending }: Props) {
   // and the matchup can settle later than the stratagems do, so this stays live rather
   // than firing once.
   useEffect(() => {
-    if (!rules || !you) return
+    if (!rules || !you || pending) return
     const missingStratagems = stratagems.length > 0 && you.stratagems.length === 0
     const missingPrimary = primary !== null && you.primaryCard === null
     const missingDeck = mode === 'tactical' && rules.secondaries.length > 0 && you.remainingSecondaries.length === 0
@@ -57,7 +57,7 @@ export function Prep({ view, missionId, send, pending }: Props) {
     save({})
     // Re-runs only when one of those two facts changes, and both are satisfied by the save.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rules, you?.stratagems.length, you?.primaryCard, you?.remainingSecondaries.length, primary?.key, mode, storedMode, tacticalOnly])
+  }, [rules, you?.stratagems.length, you?.primaryCard, you?.remainingSecondaries.length, primary?.key, mode, storedMode, tacticalOnly, pending])
 
   if (!rules) {
     return (
