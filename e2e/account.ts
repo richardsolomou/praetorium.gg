@@ -23,6 +23,10 @@ export function uniqueName(base: string) {
 }
 
 export async function waitForRosterSave(page: Page, action: () => Promise<unknown>, expectedText?: string) {
+  // Autosaves are serialized. Let an earlier render finish before deciding which
+  // response belongs to this action, otherwise a fast setup save can satisfy the
+  // waiter for a later name or unit change.
+  await expect(page.locator('[data-roster-builder]')).toHaveAttribute('data-saving', 'false')
   const saved = page.waitForResponse((response) => {
     const postData = response.request().postData()
     return (
@@ -34,7 +38,7 @@ export async function waitForRosterSave(page: Page, action: () => Promise<unknow
   })
   await action()
   await saved
-  await expect(page.getByRole('status')).toContainText('Saved automatically')
+  await expect(page.locator('[data-roster-builder]')).toHaveAttribute('data-saving', 'false')
 }
 
 export async function createRoster(page: Page, { faction, detachment, name }: { faction: string; detachment: RegExp; name?: string }) {

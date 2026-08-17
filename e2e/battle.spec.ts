@@ -23,6 +23,8 @@ test('stratagems and tactical missions are tracked through a turn', async ({ bro
   const aliceRoster = await createRoster(alice, { faction: 'Death Guard', detachment: /Death Lord/, name: 'Death Guard' })
   await alice.getByLabel('Add a unit').fill('Lord of Virulence')
   await waitForRosterSave(alice, () => alice.getByRole('button', { name: 'Add Lord of Virulence', exact: true }).first().click())
+  await alice.reload()
+  await expect(alice.locator('[data-unit="Lord of Virulence"]')).toBeVisible()
   await setupBattle(alice, bob, { opponent: bobName, hostRoster: aliceRoster, guestRoster: bobRoster })
 
   await drawSecondary(alice, 'Behind Enemy Lines', 'behind-enemy-lines')

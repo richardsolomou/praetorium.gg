@@ -502,7 +502,7 @@ export const importRoster = createServerFn({ method: 'POST' })
     }),
   )
 
-/** A `.ros` document for the list the builder is showing, ready for another tool. */
+/** A human-readable GW-style document for the list the builder is showing. */
 export const exportRoster = createServerFn({ method: 'POST' })
   .validator(exportRosterSchema)
   .handler(({ data }) =>
@@ -510,7 +510,10 @@ export const exportRoster = createServerFn({ method: 'POST' })
       const loaded = app().catalogue()
       if (!loaded) throw new Response('this instance has no catalogue', { status: 409 })
 
-      return exportRosterFile(data, loaded)
+      const priced = calculateRosterPrice(data)
+      if (!priced) throw new Response('this instance has no catalogue', { status: 409 })
+      const dispositionName = priced.disposition ? (app().rules()?.dispositions.get(priced.disposition) ?? priced.disposition) : null
+      return exportRosterFile(data, loaded, priced, dispositionName)
     }),
   )
 
