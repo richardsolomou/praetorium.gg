@@ -282,8 +282,8 @@ export type CatalogueIndex = {
    * sits at the top of a file exactly as the squad does.
    */
   datasheets: Map<string, ReadonlySet<string>>
-  /** Datasheets contributed by secondary imports, kept separate for picker presentation. */
-  alliedDatasheets: Map<string, ReadonlySet<string>>
+  /** Datasheets contributed by secondary imports, with their source for picker presentation. */
+  alliedDatasheets: Map<string, ReadonlyMap<string, { name: string; order: number }>>
   /**
    * The kinds of force a roster can be — Army Roster, Boarding Actions, Crusade.
    * Conditions count and scope to these, so a roster needs one to answer them.
@@ -437,7 +437,7 @@ export function importsOf(book: Catalogue, books: ReadonlyMap<string, Catalogue>
  */
 function datasheetsIn(books: ReadonlyMap<string, Catalogue>, definitions: ReadonlyMap<string, Definition>) {
   const datasheets = new Map<string, ReadonlySet<string>>()
-  const allies = new Map<string, ReadonlySet<string>>()
+  const allies = new Map<string, ReadonlyMap<string, { name: string; order: number }>>()
   for (const book of books.values()) {
     if (book.library) continue
     // Keyed by what a pick would resolve to, so a datasheet reached both directly
@@ -447,13 +447,14 @@ function datasheetsIn(books: ReadonlyMap<string, Catalogue>, definitions: Readon
     // The largest import is the parent roster (for example the common range a
     // chapter borrows). Later, smaller imports are the optional allied shelves.
     const imports = importsOf(book, books, definitions)
-    const alliedSources = new Set(imports.slice(1).map((source) => source.id))
-    const allied = new Set<string>()
+    const alliedSources = new Map(imports.slice(1).map((source, order) => [source.id, { name: source.name, order }]))
+    const allied = new Map<string, { name: string; order: number }>()
     for (const source of [book, ...imports]) {
       for (const entry of rootEntriesOf(source, definitions)) {
         if (!found.has(entry.targetId)) {
           found.set(entry.targetId, entry.id)
-          if (alliedSources.has(source.id)) allied.add(entry.id)
+          const ally = alliedSources.get(source.id)
+          if (ally) allied.set(entry.id, ally)
         }
       }
     }

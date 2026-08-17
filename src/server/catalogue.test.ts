@@ -171,12 +171,12 @@ describe('the picker', () => {
       { selectionEntries: [{ id: 'knight', name: 'Knight', type: 'unit', costs: points(40) }] },
     )
 
-    expect(Object.fromEntries(unitsIn(shelf, 'cat', '').map((unit) => [unit.name, unit.allied]))).toEqual({
-      'Main One': false,
-      'Main Two': false,
-      Ours: false,
-      Agent: true,
-      Knight: true,
+    expect(Object.fromEntries(unitsIn(shelf, 'cat', '').map((unit) => [unit.name, unit.alliedFaction]))).toEqual({
+      'Main One': null,
+      'Main Two': null,
+      Ours: null,
+      Agent: 'Book 2',
+      Knight: 'Book 3',
     })
   })
 
@@ -197,9 +197,9 @@ describe('the picker', () => {
       { selectionEntries: [{ id: 'ally', name: 'Aaron the Ally', type: 'unit', costs: points(30) }] },
     )
 
-    expect(unitsIn(shelf, 'cat', '', { limit: 1 }).map((unit) => [unit.name, unit.allied])).toEqual([
-      ['Alpha', false],
-      ['Aaron the Ally', true],
+    expect(unitsIn(shelf, 'cat', '', { limit: 1 }).map((unit) => [unit.name, unit.alliedFaction])).toEqual([
+      ['Alpha', null],
+      ['Aaron the Ally', 'Book 2'],
     ])
   })
 
