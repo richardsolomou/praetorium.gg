@@ -8,7 +8,7 @@ just catalogue-sync
 just dev
 ```
 
-Sync before working on list building, mission matchups, or battlefield plans. Without it, the app can still serve existing battles and pasted rosters, but combined deployment-and-terrain choices stay unavailable until their pinned data arrives.
+Sync before working on list building, mission matchups, or battlefield plans. Without it, the app can still serve existing battles and pasted rosters, but combined deployment-and-terrain choices stay unavailable until the current verified snapshot arrives.
 
 `just dev` starts the app and Centrifugo. The Vite server proxies `/connection` so realtime traffic stays on the app origin.
 

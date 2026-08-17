@@ -13,6 +13,7 @@ services:
       # Public origin of the deployment. Only needed when proxy headers cannot
       # represent it; mutations are rejected from any other origin.
       APP_URL: ${APP_URL:-}
+      CATALOGUE_SNAPSHOT_BASE_URL: ${CATALOGUE_SNAPSHOT_BASE_URL:-}
       # Signs account sessions. Generated into /data when unset; changing it
       # signs every player out, but does not remove their data.
       AUTH_SECRET: ${AUTH_SECRET:-}

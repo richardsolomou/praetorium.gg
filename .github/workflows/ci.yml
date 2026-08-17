@@ -13,6 +13,9 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  CATALOGUE_SNAPSHOT_BASE_URL: ${{ vars.CATALOGUE_SNAPSHOT_BASE_URL }}
+
 jobs:
   check:
     uses: richardsolomou/ras-stack/.github/workflows/check-js.yml@v0.39.5
@@ -36,19 +39,7 @@ jobs:
       - uses: richardsolomou/ras-stack/actions/setup-just@v0.39.3
         with:
           version: '1.58.0'
-      # Keyed on the pinned revisions, so the data is fetched once per bump rather
-      # than once per run: it is 60MB of catalogues and does not change otherwise.
-      - name: Cache the catalogue data
-        id: catalogue
-        uses: actions/cache@v6
-        with:
-          path: catalogue-data
-          key: catalogue-2-${{ hashFiles('catalogue/sources.json') }}
-      - if: steps.catalogue.outputs.cache-hit != 'true'
-        run: just catalogue-sync
-      # The terrain sync fails soft so an instance without Battlemaster still builds.
-      # That means an incomplete catalogue can be cached, and every later run inherits
-      # a tracker whose battlefield layouts are disabled. Fail here instead.
+      - run: just catalogue-sync
       - name: Require the terrain geometry
         run: |
           set -euo pipefail
@@ -92,14 +83,7 @@ jobs:
       - uses: richardsolomou/ras-stack/actions/setup-just@v0.39.3
         with:
           version: '1.58.0'
-      - name: Cache the catalogue data
-        id: catalogue
-        uses: actions/cache@v6
-        with:
-          path: catalogue-data
-          key: catalogue-2-${{ hashFiles('catalogue/sources.json') }}
-      - if: steps.catalogue.outputs.cache-hit != 'true'
-        run: just catalogue-sync
+      - run: just catalogue-sync
       # The points reference match rate must not fall.
       - run: just points | tee points.txt
       - name: Hold the agreement above its floor
@@ -134,17 +118,7 @@ jobs:
       - uses: richardsolomou/ras-stack/actions/setup-just@v0.39.3
         with:
           version: '1.58.0'
-      - name: Cache the catalogue data
-        id: catalogue
-        uses: actions/cache@v6
-        with:
-          path: catalogue-data
-          key: catalogue-2-${{ hashFiles('catalogue/sources.json') }}
-      - if: steps.catalogue.outputs.cache-hit != 'true'
-        run: just catalogue-sync
-      # The terrain sync fails soft so an instance without Battlemaster still builds.
-      # That means an incomplete catalogue can be cached, and every later run inherits
-      # a tracker whose battlefield layouts are disabled. Fail here instead.
+      - run: just catalogue-sync
       - name: Require the terrain geometry
         run: |
           set -euo pipefail

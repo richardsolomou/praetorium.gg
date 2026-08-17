@@ -5,7 +5,8 @@ import { type BattleEvents, RealtimePublisher } from '../adapters/events'
 import { serverTelemetry } from '../adapters/posthog'
 import { catalogueDirectory, type LoadedCatalogue, loadCatalogue } from './catalogueIndex'
 import { type LoadedRules, loadRules } from './rules'
-import { isCurrent, type SyncState, syncSources } from './sync'
+import { fetchCurrentSnapshot, installedSnapshot } from './catalogueSnapshot'
+import type { SyncState } from './sync'
 import { databasePath, type PraetoriumDatabase, openDatabase } from '../db/connection'
 import { Repository } from '../db/repository'
 import { createAuth } from './auth'
@@ -50,10 +51,17 @@ const sync = {
   running: false,
   begin(directory: string, onReady: () => void) {
     if (this.running) return
-    const authoritativeReady = isCurrent(directory)
+    const authoritativeReady = Boolean(installedSnapshot(directory))
+    const baseUrl = process.env.CATALOGUE_SNAPSHOT_BASE_URL
+    if (!baseUrl) {
+      this.state = authoritativeReady
+        ? { status: 'ready', detail: null }
+        : { status: 'failed', detail: 'the catalogue snapshot service is not configured' }
+      return
+    }
     this.running = true
     this.state = authoritativeReady ? { status: 'ready', detail: null } : { status: 'working', detail: 'fetching the community data' }
-    void syncSources(directory, (message) => {
+    void fetchCurrentSnapshot(directory, baseUrl, (message) => {
       if (!authoritativeReady) this.state = { status: 'working', detail: message }
     })
       .then(() => {
@@ -61,7 +69,9 @@ const sync = {
         onReady()
       })
       .catch((error: unknown) => {
-        this.state = { status: 'failed', detail: error instanceof Error ? error.message : 'the fetch failed' }
+        this.state = authoritativeReady
+          ? { status: 'ready', detail: null }
+          : { status: 'failed', detail: error instanceof Error ? error.message : 'the fetch failed' }
       })
       .finally(() => {
         this.running = false
@@ -105,6 +115,16 @@ export function app(): App {
       instance.rules = memoize(loadRules)
       warm(instance)
     })
+    const catalogueRefresh = setInterval(
+      () =>
+        sync.begin(catalogueDirectory(path.dirname(file)), () => {
+          instance.catalogue = memoize(loadCatalogue)
+          instance.rules = memoize(loadRules)
+          warm(instance)
+        }),
+      60 * 60 * 1000,
+    )
+    catalogueRefresh.unref()
     if (sync.state.status === 'ready') warm(instance)
     return instance
   })

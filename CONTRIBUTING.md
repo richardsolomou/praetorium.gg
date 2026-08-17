@@ -42,7 +42,7 @@ Two browser-test details matter:
 - `src/server` contains application setup, authentication, server functions, catalogue loading, and realtime publishing.
 - `src/client` contains React components, hooks, and query definitions.
 - `src/routes` contains TanStack Router route files. Keep routes thin.
-- `catalogue` records the pinned community data sources. It contains no game data.
+- `catalogue` records community source locations. Snapshot manifests outside Git pin their revisions and checksums; the repository contains no game data.
 - `e2e` contains Playwright coverage against the production container.
 
 ## Conventions
