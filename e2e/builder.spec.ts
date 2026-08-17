@@ -30,13 +30,21 @@ test('King of the Colosseum creation keeps exactly one detachment selected', asy
   await dialog.getByRole('combobox', { name: 'Battle size' }).click()
   await page.getByRole('option', { name: /King of the Colosseum/ }).click()
 
-  const awakened = dialog.getByRole('button', { name: /Awakened Dynasty/ })
-  const cryptek = dialog.getByRole('button', { name: /Cryptek Conclave/ })
+  const awakened = dialog.getByRole('button', { name: 'Select Awakened Dynasty' })
+  const cryptek = dialog.getByRole('button', { name: 'Select Cryptek Conclave' })
   await awakened.click()
   await cryptek.click()
 
-  await expect(awakened).toHaveAttribute('aria-pressed', 'false')
-  await expect(cryptek).toHaveAttribute('aria-pressed', 'true')
+  await expect(dialog.getByRole('button', { name: 'Select Awakened Dynasty' })).toBeVisible()
+  await expect(dialog.getByRole('button', { name: 'Remove Cryptek Conclave' })).toBeVisible()
+
+  await dialog.getByRole('button', { name: 'Create roster' }).click()
+  await page.waitForURL(/\/rosters\/.+\/edit/)
+  await page.getByLabel('Add a unit').fill('Chronomancer')
+  const addChronomancer = page.getByRole('button', { name: 'Add Chronomancer', exact: true })
+  await addChronomancer.click()
+  await expect(page.getByText('1/1 in roster')).toBeVisible()
+  await expect(addChronomancer).toBeDisabled()
 })
 
 test('enhancement choices show descriptions when rule and catalogue names differ', async ({ page }) => {
@@ -72,7 +80,8 @@ test('Cursed Legion does not modify Immortals without an eligible leader', async
     .click()
 
   const loadout = page.locator('aside[aria-label="Loadout"]')
-  await expect(loadout.getByRole('heading', { name: 'Gauss blaster' }).locator('..').getByText('5', { exact: true })).toBeVisible()
+  const gauss = loadout.getByRole('listitem').filter({ hasText: 'Gauss blaster' })
+  await expect(gauss.getByText('5', { exact: true }).first()).toBeVisible()
   await expect(page.getByRole('button', { name: /modified from 5 by Cursed Legion/ })).toHaveCount(0)
 })
 
@@ -292,11 +301,9 @@ test('a character can be marked as the warlord from its unit editor', async ({ p
   const loadout = page.locator('aside[aria-label="Loadout"]')
   await expect(pane.getByText('InSv')).toBeVisible()
   await expect(pane.getByText('4+')).toBeVisible()
-  await expect(loadout.getByText('Ranged weapons', { exact: true })).toBeVisible()
-  await expect(loadout.getByText('Melee weapons', { exact: true })).toBeVisible()
   await expect(loadout.getByText('Tachyon arrow', { exact: true })).toBeVisible()
   await expect(loadout.getByText("Overlord's blade", { exact: true })).toBeVisible()
-  await expect(loadout.getByText('Voidscythe', { exact: true })).toBeHidden()
+  await expect(loadout.getByText('Voidscythe', { exact: true })).toBeVisible()
   const leader = pane.getByRole('button', { name: 'Leader', exact: true })
   await leader.hover()
   await expect(page.getByRole('tooltip')).toContainText('select one friendly bodyguard unit')
@@ -350,7 +357,7 @@ test('a smaller desktop keeps the picker, roster and loadout visible', async ({ 
   await page.setViewportSize({ width: 1440, height: 900 })
   await expect(datasheet).toBeVisible()
   await expect(datasheet.getByText('Datasheet abilities')).toBeVisible()
-  await expect(loadout.getByText('Ranged weapons', { exact: true })).toBeVisible()
+  await expect(loadout.getByText('Equipped ranged weapons', { exact: true })).toBeVisible()
   await expect(datasheet.getByText('Grand Illusion', { exact: true })).toBeVisible()
   const widths = await Promise.all([picker, roster, loadout, datasheet].map((column) => column.boundingBox()))
   for (const width of widths) expect(width?.width).toBeCloseTo(widths[0]?.width ?? 0, 0)

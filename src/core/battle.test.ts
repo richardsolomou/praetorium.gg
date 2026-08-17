@@ -5,6 +5,7 @@ import {
   battleView,
   type Command,
   detachmentLimit,
+  formatDatasheetLimit,
   type LoggedCommand,
   reduceBattle,
   validate,
@@ -57,6 +58,12 @@ describe('setup', () => {
   it('limits King of the Colosseum to one detachment', () => {
     expect(detachmentLimit(600)).toBe(1)
     expect(detachmentLimit(2000)).toBe(3)
+  })
+
+  it('applies King of the Colosseum datasheet caps', () => {
+    expect(formatDatasheetLimit(600, false)).toBe(1)
+    expect(formatDatasheetLimit(600, true)).toBe(2)
+    expect(formatDatasheetLimit(2000, false)).toBeNull()
   })
 
   it('has no active player before the battle begins', () => {

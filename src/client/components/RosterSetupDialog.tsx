@@ -27,7 +27,7 @@ type Detachment = {
   reference?: { points: number | null } | null
 }
 
-type Faction = { id: string; slug: string; name: string; displayName: string; detachments: Detachment[] }
+export type RosterSetupFaction = { id: string; slug: string; name: string; displayName: string; detachments: Detachment[] }
 
 export type RosterSetup = {
   name: string
@@ -41,8 +41,9 @@ export type RosterSetup = {
 
 type Props = {
   open: boolean
+  mode?: 'create' | 'edit'
   onOpenChange: (open: boolean) => void
-  factions: Faction[]
+  factions: RosterSetupFaction[]
   value: RosterSetup
   onDraftChange?: (value: RosterSetup) => void
   hasUnits: boolean
@@ -50,7 +51,17 @@ type Props = {
   pending?: boolean
 }
 
-export function RosterSetupDialog({ open, onOpenChange, factions, value, onDraftChange, hasUnits, onSave, pending = false }: Props) {
+export function RosterSetupDialog({
+  open,
+  mode = 'edit',
+  onOpenChange,
+  factions,
+  value,
+  onDraftChange,
+  hasUnits,
+  onSave,
+  pending = false,
+}: Props) {
   const [draft, setDraft] = useState(value)
   const [tagText, setTagText] = useState(value.tags.join(', '))
   const [reference, setReference] = useState<{ catalogueId: string; slug: string; name: string } | null>(null)
@@ -108,6 +119,12 @@ export function RosterSetupDialog({ open, onOpenChange, factions, value, onDraft
     const offered = dispositionsFor(faction?.detachments ?? [], ids)
     changeDraft({
       ...draft,
+      name:
+        mode === 'create'
+          ? [faction?.displayName, ...ids.map((selectedId) => faction?.detachments.find((entry) => entry.id === selectedId)?.name)]
+              .filter(Boolean)
+              .join(' — ')
+          : draft.name,
       detachmentIds: ids,
       disposition:
         offered.length === 1
@@ -123,9 +140,11 @@ export function RosterSetupDialog({ open, onOpenChange, factions, value, onDraft
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="rounded-none border border-edge bg-panel p-0 text-bone ring-0 sm:max-w-2xl">
           <DialogHeader className="border-b border-edge px-5 py-4">
-            <DialogTitle className="text-2xl uppercase">Edit roster setup</DialogTitle>
+            <DialogTitle className="text-2xl uppercase">{mode === 'create' ? 'Create roster' : 'Edit roster setup'}</DialogTitle>
             <DialogDescription className="text-dim">
-              Set the roster identity and the rules that shape its available units.
+              {mode === 'create'
+                ? 'Set the roster identity and army rules before adding units.'
+                : 'Set the roster identity and the rules that shape its available units.'}
             </DialogDescription>
           </DialogHeader>
 
@@ -139,7 +158,16 @@ export function RosterSetupDialog({ open, onOpenChange, factions, value, onDraft
                   id="setup-faction"
                   groups={groups}
                   value={draft.catalogueId}
-                  onValueChange={(catalogueId) => changeDraft({ ...draft, catalogueId, detachmentIds: [], disposition: null })}
+                  onValueChange={(catalogueId) => {
+                    const nextFaction = factions.find((entry) => entry.id === catalogueId)
+                    changeDraft({
+                      ...draft,
+                      name: mode === 'create' ? (nextFaction?.displayName ?? '') : draft.name,
+                      catalogueId,
+                      detachmentIds: [],
+                      disposition: null,
+                    })
+                  }}
                   placeholder="Pick a faction"
                   searchPlaceholder="Search factions…"
                   className="mt-1 h-11 rounded-none border-edge bg-sunken font-semibold uppercase"
@@ -333,7 +361,7 @@ export function RosterSetupDialog({ open, onOpenChange, factions, value, onDraft
               }
               onClick={() => onSave({ ...draft, name: draft.name.trim(), disposition: selectedDisposition, tags })}
             >
-              Save changes
+              {pending ? (mode === 'create' ? 'Creating…' : 'Saving…') : mode === 'create' ? 'Create roster' : 'Save changes'}
             </Button>
           </DialogFooter>
         </DialogContent>

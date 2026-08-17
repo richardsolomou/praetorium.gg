@@ -446,6 +446,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
           }}
           inRoster={held}
           room={priced ? limit - priced.points : null}
+          battleSize={limit}
         />
       </div>
     </div>

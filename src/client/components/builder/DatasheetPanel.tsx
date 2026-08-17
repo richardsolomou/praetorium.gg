@@ -88,29 +88,45 @@ export function WeaponSummary({ title, weapons, rules }: { title: string; weapon
       </p>
       <div className="mt-1.5 space-y-1.5">
         {weapons.map((weapon) => (
-          <article key={weapon.id} className="border border-edge bg-card px-2 py-1.5">
-            <h3 className="text-xs">{weapon.count && weapon.count > 1 ? `${weapon.count}× ${weapon.name}` : weapon.name}</h3>
-            <div className="mt-1 grid grid-cols-6 gap-1">
-              {weapon.values
-                .filter((value) => value.name !== 'Keywords')
-                .map((value) => (
-                  <div key={value.name} className="min-w-0 text-center">
-                    <p className="eyebrow text-[0.625rem]">{value.name}</p>
-                    <p className="readout text-xs text-faint">
-                      <ProfileValue value={value} />
-                    </p>
-                  </div>
-                ))}
-            </div>
-            {weapon.values.find((value) => value.name === 'Keywords')?.value ? (
-              <p className="mt-1 text-[0.6875rem] text-faint">
-                <KeywordList value={weapon.values.find((value) => value.name === 'Keywords')!.value} rules={rules} />
-              </p>
-            ) : null}
-          </article>
+          <WeaponProfile key={weapon.id} weapon={weapon} rules={rules} />
         ))}
       </div>
     </section>
+  )
+}
+
+export function WeaponProfile({
+  weapon,
+  rules,
+  showName = true,
+  embedded = false,
+}: {
+  weapon: Profile
+  rules: Datasheet['keywordRules']
+  showName?: boolean
+  embedded?: boolean
+}) {
+  return (
+    <div className={`${embedded ? '' : 'border border-edge bg-card '}px-2 py-1.5`}>
+      {showName ? <h3 className="text-xs">{weapon.count && weapon.count > 1 ? `${weapon.count}× ${weapon.name}` : weapon.name}</h3> : null}
+      <div className={`${showName ? 'mt-1 ' : ''}grid grid-cols-6 gap-1`}>
+        {weapon.values
+          .filter((value) => value.name !== 'Keywords')
+          .map((value) => (
+            <div key={value.name} className="min-w-0 text-center">
+              <p className="eyebrow text-[0.625rem]">{value.name}</p>
+              <p className="readout text-xs text-faint">
+                <ProfileValue value={value} />
+              </p>
+            </div>
+          ))}
+      </div>
+      {weapon.values.find((value) => value.name === 'Keywords')?.value ? (
+        <p className="mt-1 text-[0.6875rem] text-faint">
+          <KeywordList value={weapon.values.find((value) => value.name === 'Keywords')!.value} rules={rules} />
+        </p>
+      ) : null}
+    </div>
   )
 }
 

@@ -186,6 +186,9 @@ export const detachmentPointBudget = (limit: number) => GAME_SIZES.find((size) =
 export const detachmentLimit = (limit: number) => (limit === KOTC_LIMIT ? 1 : 3)
 export const battleRoundLimit = (limit: number | null) => (limit === KOTC_LIMIT ? KOTC_ROUNDS : BATTLE_ROUNDS)
 
+/** The format-specific cap for copies of one datasheet, before catalogue limits are applied. */
+export const formatDatasheetLimit = (limit: number, repeatable: boolean) => (limit === KOTC_LIMIT ? (repeatable ? 2 : 1) : null)
+
 export function detachmentPointsError(detachments: readonly { points: number | null }[], allowance: number | null): string | null {
   if (detachments.length <= 1 || allowance === null) return null
   const spent = detachments.reduce((total, detachment) => total + (detachment.points ?? 0), 0)
