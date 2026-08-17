@@ -17,8 +17,9 @@ export default defineConfig({
   fullyParallel: false,
   // Every test shares one container and one SQLite file, so past a couple of
   // workers the runner buys contention rather than speed: four made sign-ups and
-  // phase advances time out on tests that pass alone.
-  workers: 2,
+  // phase advances time out on tests that pass alone. Three keeps one more file
+  // moving without returning to that failure mode.
+  workers: 3,
   retries: 0,
   timeout: 45_000,
   // Both pages settle through Centrifugo rather than by polling, so assertions
