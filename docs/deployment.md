@@ -22,7 +22,7 @@ Back up `praetorium.sqlite` and `auth.secret` together. The app can fetch the ca
 
 ## Catalogue sync
 
-At startup and once an hour, the app reads `current.json` from the configured snapshot service. It downloads an archive only when that immutable snapshot ID differs from its local cache, verifies the archive, manifest, and every file, then swaps the complete directory into place atomically. Battles remain available while an initial snapshot downloads.
+At startup and once an hour, the app reads `current.json` from Praetorium's shared public snapshot service, or from `CATALOGUE_SNAPSHOT_BASE_URL` when an operator configures a mirror. It downloads an archive only when that immutable snapshot ID differs from its local cache, verifies the archive, manifest, and every file, then swaps the complete directory into place atomically. Battles remain available while an initial snapshot downloads.
 
 Running instances never contact upstream data providers. A separate hourly publisher resolves their latest revisions, validates a complete candidate, uploads its immutable archive, and replaces `current.json` only after a public read-back succeeds.
 

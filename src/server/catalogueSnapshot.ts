@@ -8,6 +8,9 @@ const POINTER_FORMAT = 'praetorium.catalogue-pointer.v1'
 const MAX_ARCHIVE_BYTES = 256 * 1024 * 1024
 const MAX_EXTRACTED_BYTES = 1024 * 1024 * 1024
 
+/** The shared public store; operators may override it with their own mirror. */
+export const DEFAULT_CATALOGUE_SNAPSHOT_BASE_URL = 'https://s3.praetorium.gg/praetorium-catalogue'
+
 type SnapshotManifest = {
   format: typeof FORMAT
   revisions: Record<string, string>

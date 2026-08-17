@@ -5,7 +5,7 @@ import { type BattleEvents, RealtimePublisher } from '../adapters/events'
 import { serverTelemetry } from '../adapters/posthog'
 import { catalogueDirectory, type LoadedCatalogue, loadCatalogue } from './catalogueIndex'
 import { type LoadedRules, loadRules } from './rules'
-import { fetchCurrentSnapshot, installedSnapshot } from './catalogueSnapshot'
+import { DEFAULT_CATALOGUE_SNAPSHOT_BASE_URL, fetchCurrentSnapshot, installedSnapshot } from './catalogueSnapshot'
 import type { SyncState } from './sync'
 import { databasePath, type PraetoriumDatabase, openDatabase } from '../db/connection'
 import { Repository } from '../db/repository'
@@ -52,13 +52,7 @@ const sync = {
   begin(directory: string, onReady: () => void) {
     if (this.running) return
     const authoritativeReady = Boolean(installedSnapshot(directory))
-    const baseUrl = process.env.CATALOGUE_SNAPSHOT_BASE_URL
-    if (!baseUrl) {
-      this.state = authoritativeReady
-        ? { status: 'ready', detail: null }
-        : { status: 'failed', detail: 'the catalogue snapshot service is not configured' }
-      return
-    }
+    const baseUrl = process.env.CATALOGUE_SNAPSHOT_BASE_URL || DEFAULT_CATALOGUE_SNAPSHOT_BASE_URL
     this.running = true
     this.state = authoritativeReady ? { status: 'ready', detail: null } : { status: 'working', detail: 'fetching the community data' }
     void fetchCurrentSnapshot(directory, baseUrl, (message) => {
