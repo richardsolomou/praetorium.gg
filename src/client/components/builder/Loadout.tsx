@@ -179,25 +179,31 @@ function enhancement(choice: LoadoutChoice, onChoose: Props['onChoose'], unitNam
         {choice.options.map((option) => {
           const selected = choice.chosen === option.id
           return (
-            <article key={option.id} className={`border ${selected ? 'border-azure bg-azure/10' : 'border-edge bg-card'}`}>
+            <article
+              key={option.id}
+              className={`relative border ${selected ? 'border-azure bg-azure/10' : 'border-edge bg-card hover:border-dim'}`}
+            >
               <button
                 type="button"
                 aria-pressed={selected}
                 aria-label={`Select ${option.name}`}
                 onClick={() => onChoose(choice.key, option.id)}
-                className="flex w-full items-center justify-between gap-2 px-2.5 py-2 text-left hover:bg-raised"
-              >
-                <span className="text-sm font-semibold text-bone">{option.name}</span>
-                <span className="flex shrink-0 items-center gap-1.5">
-                  {option.points ? <span className="chip">+{option.points} pts</span> : null}
-                  {selected ? <Check className="size-3.5 text-azure" aria-hidden /> : null}
-                </span>
-              </button>
-              {option.description ? (
-                <div className="border-t border-edge px-2.5 pb-2">
-                  <RuleText text={option.description} />
+                className="absolute inset-0 z-0 w-full cursor-pointer hover:bg-raised"
+              />
+              <div className="pointer-events-none relative z-10 [&_button]:pointer-events-auto">
+                <div className="flex w-full items-center justify-between gap-2 px-2.5 py-2 text-left">
+                  <span className="text-sm font-semibold text-bone">{option.name}</span>
+                  <span className="flex shrink-0 items-center gap-1.5">
+                    {option.points ? <span className="chip">+{option.points} pts</span> : null}
+                    {selected ? <Check className="size-3.5 text-azure" aria-hidden /> : null}
+                  </span>
                 </div>
-              ) : null}
+                {option.description ? (
+                  <div className="border-t border-edge px-2.5 pb-2">
+                    <RuleText text={option.description} />
+                  </div>
+                ) : null}
+              </div>
             </article>
           )
         })}
@@ -320,26 +326,32 @@ function either(
         {choice.options.map((option) => {
           const selected = choice.chosen === option.id
           return (
-            <article key={option.id} className={`border ${selected ? 'border-azure bg-azure/10' : 'border-edge bg-card'}`}>
+            <article
+              key={option.id}
+              className={`relative border ${selected ? 'border-azure bg-azure/10' : 'border-edge bg-card hover:border-dim'}`}
+            >
               <button
                 type="button"
                 aria-pressed={selected}
                 aria-label={`Select ${option.name}`}
                 onClick={() => onChoose(choice.key, option.id)}
-                className="flex w-full items-center justify-between gap-2 px-2.5 py-2 text-left hover:bg-raised"
-              >
-                <span className="text-sm font-semibold text-bone">{option.name}</span>
-                <span className="flex shrink-0 items-center gap-1.5">
-                  {option.points ? <span className="chip">+{option.points} pts</span> : null}
-                  {selected ? <Check className="size-3.5 text-azure" aria-hidden /> : null}
-                </span>
-              </button>
-              <OptionProfiles optionName={option.name} weapons={weapons} rules={rules} />
-              {option.description ? (
-                <div className="border-t border-edge px-2.5 pb-2">
-                  <RuleText text={option.description} />
+                className="absolute inset-0 z-0 w-full cursor-pointer hover:bg-raised"
+              />
+              <div className="pointer-events-none relative z-10 [&_button]:pointer-events-auto">
+                <div className="flex w-full items-center justify-between gap-2 px-2.5 py-2 text-left">
+                  <span className="text-sm font-semibold text-bone">{option.name}</span>
+                  <span className="flex shrink-0 items-center gap-1.5">
+                    {option.points ? <span className="chip">+{option.points} pts</span> : null}
+                    {selected ? <Check className="size-3.5 text-azure" aria-hidden /> : null}
+                  </span>
                 </div>
-              ) : null}
+                <OptionProfiles optionName={option.name} weapons={weapons} rules={rules} />
+                {option.description ? (
+                  <div className="border-t border-edge px-2.5 pb-2">
+                    <RuleText text={option.description} />
+                  </div>
+                ) : null}
+              </div>
             </article>
           )
         })}

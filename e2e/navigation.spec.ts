@@ -44,6 +44,8 @@ test('a player can enter through the roster library and browse the product', asy
   await page.getByRole('button', { name: 'Create editable roster' }).click()
   const dialog = page.getByRole('dialog', { name: 'Create roster' })
   await expect(dialog).toBeVisible()
+  await expect(dialog.getByRole('combobox', { name: 'Access' })).toContainText('Private — only you')
+  await expect(dialog.getByLabel('Tags')).toHaveCount(0)
   await page.screenshot({ path: 'test-results/create-roster-dialog.png', fullPage: true })
   await page.setViewportSize({ width: 390, height: 844 })
   await page.screenshot({ path: 'test-results/create-roster-dialog-phone.png', fullPage: true })

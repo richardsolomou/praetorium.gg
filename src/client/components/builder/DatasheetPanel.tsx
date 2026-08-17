@@ -35,7 +35,7 @@ export function DatasheetPanel({ catalogueId, entryId, detachmentIds, picks, pic
       </div>
     )
   }
-  if (!sheet) return null
+  if (!sheet) return <DatasheetLoading />
 
   const model = sheet.profiles.find((profile) => profile.type === 'Unit')
   const ranged = sheet.profiles.filter((profile) => profile.type === 'Ranged Weapons')
@@ -54,6 +54,30 @@ export function DatasheetPanel({ catalogueId, entryId, detachmentIds, picks, pic
         <AbilitySummary abilities={sheet.abilities} rules={sheet.keywordRules} />
       </div>
     </ScrollArea>
+  )
+}
+
+/** Holds the pane's visual rhythm while a different datasheet is fetched. */
+function DatasheetLoading() {
+  return (
+    <output className="block space-y-4 p-3" aria-label="Loading datasheet">
+      <div className="flex gap-1">
+        <span className="h-5 w-16 animate-pulse bg-raised" />
+        <span className="h-5 w-24 animate-pulse bg-raised" />
+      </div>
+      <div className="grid grid-cols-6 gap-2">
+        {Array.from({ length: 6 }, (_, index) => (
+          <span key={index} className="h-10 animate-pulse bg-raised" />
+        ))}
+      </div>
+      {Array.from({ length: 3 }, (_, index) => (
+        <div key={index} className="space-y-2 border-t border-edge pt-2">
+          <span className="block h-3 w-28 animate-pulse bg-raised" />
+          <span className="block h-20 animate-pulse bg-card" />
+        </div>
+      ))}
+      <span className="sr-only">Loading datasheet…</span>
+    </output>
   )
 }
 

@@ -9,6 +9,3 @@ export const ROSTER_SOURCE_LABELS: Record<RosterSource, string> = {
   battlebase: 'BattleBase import',
   'roster-file': 'Roster file import',
 }
-
-export const ROSTER_TAGS_MAX = 8
-export const ROSTER_TAG_MAX_LENGTH = 32

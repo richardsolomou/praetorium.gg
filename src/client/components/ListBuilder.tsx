@@ -53,7 +53,6 @@ type Props = {
     disposition: string | null
     limit: number
     picks: Omit<Pick, 'key'>[]
-    tags: string[]
     visibility: RosterVisibility
     source: RosterSource
   }
@@ -84,7 +83,6 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
   const [detachmentIds, setDetachmentIds] = useState<string[]>(initial?.detachmentIds ?? [])
   const [disposition, setDisposition] = useState<string | null>(initial?.disposition ?? null)
   const [name, setName] = useState(initial?.name ?? '')
-  const [tags, setTags] = useState(initial?.tags ?? [])
   const [visibility, setVisibility] = useState<RosterVisibility>(initial?.visibility ?? 'private')
   const [source, setSource] = useState<RosterSource>(initial?.source ?? 'editable')
   const [selected, setSelected] = useState<number | null>(null)
@@ -118,7 +116,6 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
     setDetachmentIds(list.detachmentIds)
     setDisposition(list.disposition)
     setLimit(list.limit)
-    setTags(list.tags)
     setVisibility(list.visibility)
     setSource(list.source)
     setPicked(list.picks.map((pick, at) => ({ ...pick, key: at })))
@@ -158,7 +155,6 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
             attachedTo: attachedTo === undefined ? undefined : picked.findIndex((pick) => pick.key === attachedTo),
           })),
           prep,
-          tags,
           visibility,
           source,
         },
@@ -177,7 +173,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
     // The mutation reads the complete rendered draft. A later render queues behind
     // this one, so the final request always contains the newest state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [catalogueId, detachmentIds, disposition, limit, listName, picked, prep, savedId, source, tags, visibility])
+  }, [catalogueId, detachmentIds, disposition, limit, listName, picked, prep, savedId, source, visibility])
 
   /** Hands the list to another tool, in the format every one of them reads. */
   const take = useMutation({
@@ -533,7 +529,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem
-                  onClick={() => setSetupDraft({ name: listName, catalogueId, detachmentIds, disposition, limit, tags, visibility })}
+                  onClick={() => setSetupDraft({ name: listName, catalogueId, detachmentIds, disposition, limit, visibility })}
                 >
                   <Pencil /> Edit roster setup
                 </DropdownMenuItem>
@@ -561,7 +557,6 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
               setDetachmentIds(setup.detachmentIds)
               setDisposition(setup.disposition)
               setLimit(setup.limit)
-              setTags(setup.tags)
               setVisibility(setup.visibility)
               if (changedFaction) {
                 setPicked([])

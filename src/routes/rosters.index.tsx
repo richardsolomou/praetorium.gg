@@ -113,7 +113,6 @@ function RosterLibrary() {
         detachmentIds: roster.detachmentIds,
         disposition: roster.disposition,
         limit: roster.limit,
-        tags: roster.tags,
         visibility: roster.visibility,
       },
     })
@@ -131,7 +130,6 @@ function RosterLibrary() {
           limit: roster.limit,
           picks: roster.picks,
           prep: roster.prep,
-          tags: roster.tags,
           visibility: roster.visibility,
           source: roster.source,
         },
@@ -188,7 +186,6 @@ function RosterLibrary() {
           ...setup,
           picks: setup.catalogueId === roster.catalogueId ? roster.picks : [],
           prep: roster.prep,
-          tags: setup.tags,
           visibility: setup.visibility,
           source: roster.source,
         },
@@ -263,11 +260,6 @@ function RosterLibrary() {
                         {detachments.map((name) => (
                           <span key={name} className="chip">
                             {name}
-                          </span>
-                        ))}
-                        {roster.tags.map((tag) => (
-                          <span key={tag} className="chip text-azure">
-                            {tag}
                           </span>
                         ))}
                       </span>
@@ -388,7 +380,6 @@ function RosterLibrary() {
               detachmentIds: editing.detachmentIds,
               disposition: editing.disposition,
               limit: editing.limit,
-              tags: editing.tags,
               visibility: editing.visibility,
             }
           }

@@ -13,7 +13,7 @@ import {
   KOTC_LIMIT,
   ROSTER_NAME_MAX_LENGTH,
 } from '../../core/battle'
-import { ROSTER_TAG_MAX_LENGTH, ROSTER_TAGS_MAX, type RosterVisibility } from '../../core/savedRoster'
+import type { RosterVisibility } from '../../core/savedRoster'
 import { DetachmentReference } from './DetachmentReference'
 import { SearchableSelect } from './SearchableSelect'
 import { shelve, shortName } from './builder/factions'
@@ -35,7 +35,6 @@ export type RosterSetup = {
   detachmentIds: string[]
   disposition: string | null
   limit: number
-  tags: string[]
   visibility: RosterVisibility
 }
 
@@ -63,7 +62,6 @@ export function RosterSetupDialog({
   pending = false,
 }: Props) {
   const [draft, setDraft] = useState(value)
-  const [tagText, setTagText] = useState(value.tags.join(', '))
   const [reference, setReference] = useState<{ catalogueId: string; slug: string; name: string } | null>(null)
 
   const changeDraft = (next: RosterSetup) => {
@@ -94,21 +92,6 @@ export function RosterSetupDialog({
     label: shelf.lineage,
     items: shelf.factions.map((entry) => ({ label: shortName(entry.name), value: entry.id })),
   }))
-  const tags = [
-    ...new Map(
-      tagText
-        .split(',')
-        .map((tag) => tag.trim())
-        .filter(Boolean)
-        .map((tag) => [tag.toLocaleLowerCase(), tag]),
-    ).values(),
-  ]
-  const tagsError =
-    tags.length > ROSTER_TAGS_MAX
-      ? `Use no more than ${ROSTER_TAGS_MAX} tags.`
-      : tags.find((tag) => tag.length > ROSTER_TAG_MAX_LENGTH)
-        ? `Keep each tag to ${ROSTER_TAG_MAX_LENGTH} characters.`
-        : null
 
   const toggleDetachment = (id: string) => {
     const ids = draft.detachmentIds.includes(id)
@@ -299,40 +282,24 @@ export function RosterSetupDialog({
               />
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <Label className="rubric block" htmlFor="setup-tags">
-                  Tags
-                </Label>
-                <Input
-                  id="setup-tags"
-                  value={tagText}
-                  onChange={(event) => setTagText(event.target.value)}
-                  placeholder="Tournament, painted"
-                  aria-describedby="setup-tags-help"
-                  className="mt-2 h-11 rounded-none border-edge bg-sunken"
-                />
-                <p id="setup-tags-help" className={`mt-1 text-xs ${tagsError ? 'text-destructive' : 'text-faint'}`}>
-                  {tagsError ?? `Separate up to ${ROSTER_TAGS_MAX} tags with commas.`}
-                </p>
-              </div>
-              <div>
-                <Label className="rubric block" htmlFor="setup-visibility">
-                  Access
-                </Label>
-                <Select
-                  value={draft.visibility}
-                  onValueChange={(visibility: RosterVisibility | null) => changeDraft({ ...draft, visibility: visibility ?? 'private' })}
-                >
-                  <SelectTrigger id="setup-visibility" className="mt-2 h-11 w-full rounded-none border-edge bg-sunken">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="private">Private — only you</SelectItem>
-                    <SelectItem value="unlisted">Unlisted — anyone with the link</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+            <div>
+              <Label className="rubric block" htmlFor="setup-visibility">
+                Access
+              </Label>
+              <Select
+                value={draft.visibility}
+                onValueChange={(visibility: RosterVisibility | null) => changeDraft({ ...draft, visibility: visibility ?? 'private' })}
+              >
+                <SelectTrigger id="setup-visibility" className="mt-2 h-11 w-full rounded-none border-edge bg-sunken">
+                  <SelectValue>
+                    {(visibility: unknown) => (visibility === 'unlisted' ? 'Unlisted — anyone with the link' : 'Private — only you')}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="private">Private — only you</SelectItem>
+                  <SelectItem value="unlisted">Unlisted — anyone with the link</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             {hasUnits && (factionChanged || detachmentsChanged) ? (
@@ -356,10 +323,9 @@ export function RosterSetupDialog({
                 !draft.catalogueId ||
                 !draft.detachmentIds.length ||
                 (dispositions.length > 1 && !selectedDisposition) ||
-                Boolean(pointsError) ||
-                Boolean(tagsError)
+                Boolean(pointsError)
               }
-              onClick={() => onSave({ ...draft, name: draft.name.trim(), disposition: selectedDisposition, tags })}
+              onClick={() => onSave({ ...draft, name: draft.name.trim(), disposition: selectedDisposition })}
             >
               {pending ? (mode === 'create' ? 'Creating…' : 'Saving…') : mode === 'create' ? 'Create roster' : 'Save changes'}
             </Button>

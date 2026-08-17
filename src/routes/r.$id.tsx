@@ -58,15 +58,6 @@ function SharedRoster() {
             {priced?.detachments.map((detachment) => detachment.name).join(' · ') || 'No detachment'} · {roster.picks.length} units ·{' '}
             {ROSTER_SOURCE_LABELS[roster.source]}
           </p>
-          {roster.tags.length ? (
-            <p className="mt-2 flex flex-wrap gap-1">
-              {roster.tags.map((tag) => (
-                <span key={tag} className="chip text-azure">
-                  {tag}
-                </span>
-              ))}
-            </p>
-          ) : null}
         </div>
         <div className="flex items-center gap-3">
           <span className="readout text-2xl font-bold">

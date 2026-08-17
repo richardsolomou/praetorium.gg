@@ -59,7 +59,10 @@ function readLivePages(directory: string) {
         .trim()
       if (!detachment) return
       const key = routeSlug(detachment)
-      const columns = $(element).children('.Columns2')
+      // Newer faction pages wrap some sections (including Cursed Legion's
+      // stratagems) in another layout layer, while older pages put Columns2
+      // directly under the detachment. Both belong to this detachment block.
+      const columns = $(element).find('.Columns2')
 
       const rules: DetachmentAbility[] = []
       columns.children('.BreakInsideAvoid').each((__, section) => {

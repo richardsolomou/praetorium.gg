@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { GAME_SIZES, ROSTER_NAME_MAX_LENGTH, SECONDARIES_MAX, STRATAGEM_CP_MAX, STRATAGEM_LIMITS, STRATAGEMS_MAX } from '../core/battle'
 import { commandSchema } from '../core/commands'
-import { ROSTER_SOURCES, ROSTER_TAG_MAX_LENGTH, ROSTER_TAGS_MAX, ROSTER_VISIBILITIES } from '../core/savedRoster'
+import { ROSTER_SOURCES, ROSTER_VISIBILITIES } from '../core/savedRoster'
 
 const id = z.string().min(1).max(64)
 const token = id
@@ -89,8 +89,6 @@ const prepSchema = z.object({
   secondaries: z.array(z.object({ key: id, name: z.string().min(1).max(ROSTER_NAME_MAX_LENGTH) })).max(SECONDARIES_MAX),
 })
 
-export const rosterTagsSchema = z.array(z.string().trim().min(1).max(ROSTER_TAG_MAX_LENGTH)).max(ROSTER_TAGS_MAX)
-
 export const saveRosterSchema = z.object({
   id: id.optional(),
   name: z.string().trim().min(1, 'name the list').max(ROSTER_NAME_MAX_LENGTH),
@@ -100,7 +98,6 @@ export const saveRosterSchema = z.object({
   limit: rosterLimit,
   picks: z.array(pickSchema).max(100),
   prep: prepSchema.nullable(),
-  tags: rosterTagsSchema.default([]),
   visibility: z.enum(ROSTER_VISIBILITIES).default('private'),
   source: z.enum(ROSTER_SOURCES).default('editable'),
 })
