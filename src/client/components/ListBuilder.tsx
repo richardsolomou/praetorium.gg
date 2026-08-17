@@ -35,6 +35,7 @@ import { Pane } from './builder/Pane'
 import { UnitCard } from './builder/UnitCard'
 import { SearchableSelect } from './SearchableSelect'
 import { RosterSetupDialog, type RosterSetup } from './RosterSetupDialog'
+import { RosterExportDialog } from './RosterExportDialog'
 import { readWorkspaceState, writeWorkspaceState } from './workspaceState'
 
 type Props = {
@@ -89,6 +90,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
   const [selected, setSelected] = useState<number | null>(null)
   const [preview, setPreview] = useState<{ catalogueId: string; entryId: string } | null>(null)
   const [showing, setShowing] = useState<'picker' | 'loadout' | 'datasheet' | null>(null)
+  const [exportText, setExportText] = useState<string | null>(null)
   const workspacePath = initial?.id ? `/rosters/${initial.id}/edit` : '/rosters/new'
   const [setupDraft, setSetupDraftState] = useState<RosterSetup | null>(null)
   const editingSetup = setupDraft !== null
@@ -198,14 +200,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
           })),
         },
       }),
-    onSuccess: ({ filename, xml }) => {
-      const url = URL.createObjectURL(new Blob([xml], { type: 'application/xml' }))
-      const anchor = document.createElement('a')
-      anchor.href = url
-      anchor.download = filename
-      anchor.click()
-      URL.revokeObjectURL(url)
-    },
+    onSuccess: ({ text }) => setExportText(text),
   })
 
   const remove = useMutation({
@@ -541,6 +536,9 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
                 >
                   Edit roster setup
                 </DropdownMenuItem>
+                <DropdownMenuItem disabled={take.isPending || !units.length} onClick={() => take.mutate()}>
+                  <Download /> Export GW text
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -872,18 +870,12 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
         </Button>
 
         <span className="ml-auto flex flex-wrap items-center gap-2">
-          <output className="inline-flex items-center gap-1 text-xs text-dim" aria-live="polite">
-            {save.isPending ? (
+          {save.isPending ? (
+            <output className="inline-flex items-center gap-1 text-xs text-dim" aria-live="polite">
               <LoaderCircle className="size-3 animate-spin" aria-hidden />
-            ) : (
-              <Check className="size-3 text-achieved" aria-hidden />
-            )}
-            {save.isPending ? 'Saving' : savedId ? 'Saved automatically' : 'Autosaves after the first unit'}
-          </output>
-          <Button variant="outline" size="sm" disabled={take.isPending || !units.length} onClick={() => take.mutate()}>
-            <Download />
-            Export
-          </Button>
+              Saving
+            </output>
+          ) : null}
           {onAttach ? (
             <Button
               size="sm"
@@ -906,6 +898,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
           ) : null}
         </span>
       </footer>
+      <RosterExportDialog text={exportText} onClose={() => setExportText(null)} />
     </div>
   )
 }

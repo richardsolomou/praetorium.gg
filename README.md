@@ -28,7 +28,7 @@ Along the way:
 - Scoring controls use the values defined by each mission card.
 - A player can undo their latest command.
 - Finished battles can record a concession, be corrected, or be reopened without rewriting history.
-- Saved lists can be tagged, reused, printed, and exported as `.ros` files. They stay private unless their owner creates an unlisted sharing link.
+- Saved lists can be tagged, reused, printed, and exported as Games Workshop-style text. They stay private unless their owner creates an unlisted sharing link.
 
 ## Shared battle state 🔒
 

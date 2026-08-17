@@ -1,9 +1,12 @@
 import { attachmentOf } from '../core/attach'
 import { fromBattleBaseText, type BattleBaseUnit } from '../core/battlebase'
 import { nameOf } from '../core/catalogue'
-import { evaluate, type Selection } from '../core/evaluate'
+import type { Selection } from '../core/evaluate'
 import { buildUnit, modelCountOf, unitChoices, unitToggles } from '../core/roster'
-import { fromRosterXml, toRosterXml } from '../core/rosz'
+import { fromRosterXml } from '../core/rosz'
+import { toGwText } from '../core/gwText'
+import { GAME_SIZES } from '../core/battle'
+import { factionDisplayName } from './factionNames'
 import { isDatasheetId, type LoadedCatalogue } from './catalogueIndex'
 import { parseXml, rosterXml } from './rosz'
 import type { ExportRosterInput, ImportRosterInput } from './schemas'
@@ -155,44 +158,37 @@ function battleBasePick(unit: BattleBaseUnit, entryId: string, catalogueId: stri
   }
 }
 
-export function exportRosterFile(data: ExportRosterInput, loaded: LoadedCatalogue) {
-  const built = data.units.map((wanted) => {
-    const result = buildUnit(wanted.entryId, loaded.index, wanted.models, wanted.choices, {
-      primaryCatalogueId: data.catalogueId,
-      spreads: wanted.spreads,
-      toggles: wanted.toggles,
-    })
-    return result?.selection ?? null
-  })
-  const selections = built.filter((selection): selection is Selection => selection !== null)
-  const detachmentSelection = data.detachmentIds.map((id): Selection => ({ id, count: 1 }))
-  const points = evaluate([...detachmentSelection, ...selections], loaded.index, { primaryCatalogueId: data.catalogueId }).points
-  const exported: Selection[] = []
-  for (const selection of selections) exported.push({ ...selection, selections: [...(selection.selections ?? [])] })
-  data.units.forEach((unit, index) => {
-    if (unit.attachedTo === undefined || unit.attachedTo === index) return
-    const child = exported[index]
-    const parent = exported[unit.attachedTo]
-    if (!child || !parent) return
-    parent.selections = [...(parent.selections ?? []), child]
-  })
-  const nested = exported.filter((_, index) => !data.units.some((unit, child) => child === index && unit.attachedTo !== undefined))
-  const forceSelections = new Map<string, Selection[]>([[data.catalogueId, [...detachmentSelection]]])
-  nested.forEach((selection) => {
-    const unit = data.units[exported.indexOf(selection)]
-    const owner = unit?.catalogueId ?? loaded.index.catalogueOf.get(selection.id) ?? data.catalogueId
-    const force = forceSelections.get(owner) ?? []
-    force.push(selection)
-    forceSelections.set(owner, force)
-  })
-  const forces = [...forceSelections].map(([catalogueId, force]) => ({ catalogueId, selections: force }))
-
+export function exportRosterFile(
+  data: ExportRosterInput,
+  loaded: LoadedCatalogue,
+  priced: {
+    points: number
+    disposition: string | null
+    detachments: { name: string; points: number | null }[]
+    units: {
+      name: string
+      points: number
+      group: 'character' | 'battleline' | 'transport' | 'other'
+      enhancements: string[]
+      wargear: { name: string; count: number }[]
+    }[]
+  },
+  dispositionName: string | null,
+) {
+  const faction = loaded.index.catalogues.get(data.catalogueId)?.name ?? data.catalogueId
   return {
-    filename: `${data.name.replaceAll(/[^\w -]/g, '')}.ros`,
-    xml: toRosterXml(
-      { name: data.name, catalogueId: data.catalogueId, selections: forces[0]?.selections ?? [], forces },
-      loaded.index,
-      points,
-    ),
+    text: toGwText({
+      name: data.name,
+      faction: factionDisplayName(faction),
+      detachments: priced.detachments,
+      disposition: dispositionName,
+      size: GAME_SIZES.find((size) => size.limit === data.limit)?.name ?? 'Battle',
+      limit: data.limit,
+      points: priced.points,
+      units: priced.units.map((unit, index) => ({
+        ...unit,
+        warlord: Object.values(data.units[index]?.toggles ?? {}).some((count) => count > 0),
+      })),
+    }),
   }
 }

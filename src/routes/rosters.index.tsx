@@ -17,6 +17,7 @@ import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { CreateRoster } from '../client/components/CreateRoster'
 import { RosterImport } from '../client/components/RosterImport'
+import { RosterExportDialog } from '../client/components/RosterExportDialog'
 import { RosterSetupDialog, type RosterSetup } from '../client/components/RosterSetupDialog'
 import { readWorkspaceState, writeWorkspaceState } from '../client/components/workspaceState'
 import { factionsQuery, priceQuery, savedRostersQuery } from '../client/queries'
@@ -92,6 +93,7 @@ function RosterLibrary() {
   const [menuFor, setMenuFor] = useState<string | null>(null)
   const [copiedFor, setCopiedFor] = useState<string | null>(null)
   const [shareProblem, setShareProblem] = useState<string | null>(null)
+  const [exportText, setExportText] = useState<string | null>(null)
   const [deleting, setDeleting] = useState<(typeof saved)[number] | null>(null)
   const [editingSession, setEditingSession] = useState<EditingSession | null>(null)
   const editing = saved.find((roster) => roster.id === editingSession?.rosterId) ?? null
@@ -154,14 +156,7 @@ function RosterLibrary() {
           units: roster.picks,
         },
       }),
-    onSuccess: ({ filename, xml }) => {
-      const url = URL.createObjectURL(new Blob([xml], { type: 'application/xml' }))
-      const anchor = document.createElement('a')
-      anchor.href = url
-      anchor.download = filename
-      anchor.click()
-      URL.revokeObjectURL(url)
-    },
+    onSuccess: ({ text }) => setExportText(text),
   })
   const share = async (roster: (typeof saved)[number]) => {
     const promoted = roster.visibility === 'private'
@@ -315,7 +310,7 @@ function RosterLibrary() {
                           </DropdownMenuItem>
                         ) : null}
                         <DropdownMenuItem disabled={take.isPending} onClick={() => take.mutate(roster)}>
-                          <Download /> Export .ros
+                          <Download /> Export GW text
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => edit(roster)}>
                           <Pencil /> Edit setup
@@ -337,7 +332,7 @@ function RosterLibrary() {
                       <Link2 /> {roster.visibility === 'private' ? 'Share unlisted link' : 'Copy link'}
                     </ContextMenuItem>
                     <ContextMenuItem disabled={take.isPending} onClick={() => take.mutate(roster)}>
-                      <Download /> Export .ros
+                      <Download /> Export GW text
                     </ContextMenuItem>
                     <ContextMenuItem onClick={() => edit(roster)}>
                       <Pencil /> Edit setup
@@ -403,6 +398,7 @@ function RosterLibrary() {
           onSave={(setup) => update.mutate({ roster: editing, setup })}
         />
       ) : null}
+      <RosterExportDialog text={exportText} onClose={() => setExportText(null)} />
     </main>
   )
 }
