@@ -144,7 +144,7 @@ export function Loadout({ catalogueId, unit, detachmentIds, picks, pickIndex, on
                 <span>Wargear options</span>
                 <span className="readout">{unit.choices.length}</span>
               </p>
-              <div className="mt-3 space-y-4">
+              <div className="mt-3 grid gap-5">
                 {unit.choices.map((choice) =>
                   choice.name.toLowerCase().includes('enhancement')
                     ? enhancement(choice, onChoose, unit.name)
