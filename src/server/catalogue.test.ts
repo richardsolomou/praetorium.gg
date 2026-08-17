@@ -459,6 +459,39 @@ describe('a datasheet', () => {
     expect(datasheetIn(book, 'cat', 'captain', context)?.profiles.map((profile) => profile.name)).toEqual(['Blade'])
   })
 
+  it('uses the carried wargear quantity for weapon profiles', () => {
+    const book = bookOf({
+      selectionEntries: [
+        {
+          id: 'squad',
+          name: 'Squad',
+          type: 'unit',
+          selectionEntries: [
+            {
+              id: 'models',
+              name: 'Troopers',
+              type: 'model',
+              selectionEntries: [
+                {
+                  id: 'rifle-entry',
+                  name: 'Bolt rifle',
+                  type: 'upgrade',
+                  profiles: [{ id: 'rifle', name: 'Bolt rifle', typeName: 'Ranged Weapons', characteristics: [{ name: 'A', $text: '2' }] }],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    })
+    const context = {
+      selections: [{ id: 'squad', selections: [{ id: 'models', count: 4, selections: [{ id: 'rifle-entry', count: 1 }] }] }],
+      unitSelectionIndex: 0,
+    }
+
+    expect(datasheetIn(book, 'cat', 'squad', context)?.profiles).toMatchObject([{ name: 'Bolt rifle', count: 4 }])
+  })
+
   it('applies profile modifiers from the selected detachment and preserves their source', () => {
     const book = bookOf({
       selectionEntries: [

@@ -1,5 +1,6 @@
 import { type Definition, type InfoGroup, type InfoLink, nameOf, type Profile, targetOf } from '../core/catalogue'
 import { profileModifiers, type ProfileModifier, type Selection } from '../core/evaluate'
+import { wargearOf } from '../core/roster'
 import { bracketedRuleReferences, ruleReferenceMatches } from '../core/ruleReference'
 import { datasheetSlug, datasheetsOf, type LoadedCatalogue } from './catalogueIndex'
 import { priceOf } from './cataloguePicker'
@@ -62,6 +63,7 @@ export function datasheetIn(
     selection.selections?.forEach(collectSelected)
   }
   if (selectedUnit) collectSelected(selectedUnit)
+  const wargearCounts = new Map(selectedUnit ? wargearOf(selectedUnit, loaded.index).map(({ name, count }) => [name, count]) : [])
   const profiles = new Map<string, { profile: Profile; lineage: string[]; owner: string[] }>()
   const abilities = new Map<string, Datasheet['abilities'][number]>()
   const keywordRules = new Map<string, Datasheet['keywordRules'][number]>()
@@ -147,7 +149,9 @@ export function datasheetIn(
           id: profile.id,
           name: annotation ? `${changedName.value} (${annotation})` : changedName.value,
           type: profileType,
-          ...(weapon && selectedUnit ? { count: Math.max(1, ...owner.map((id) => selectedCounts.get(id) ?? 0)) } : {}),
+          ...(weapon && selectedUnit
+            ? { count: wargearCounts.get(profile.name) ?? Math.max(1, ...owner.map((id) => selectedCounts.get(id) ?? 0)) }
+            : {}),
           values: (profile.characteristics ?? []).flatMap((value) => {
             if (!value.name || !value.$text) return []
             const changed = modifiedProfileField(value.$text, value.typeId, profileType, profileLineage, owner, modifiers)
