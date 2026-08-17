@@ -19,7 +19,7 @@ import { Input } from '@/components/ui/input'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import type { Roster, Secondary, Stratagem } from '../../core/battle'
-import { DEFAULT_GAME_LIMIT, GAME_SIZES, KOTC_LIMIT, ROSTER_NAME_MAX_LENGTH } from '../../core/battle'
+import { DEFAULT_GAME_LIMIT, detachmentLimit, GAME_SIZES, KOTC_LIMIT, ROSTER_NAME_MAX_LENGTH } from '../../core/battle'
 import type { RosterPick } from '../../core/roster'
 import type { RosterSource, RosterVisibility } from '../../core/savedRoster'
 import { deleteRoster, exportRoster, saveRoster } from '../../server/functions'
@@ -263,7 +263,13 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
 
   const toggleDetachment = (id: string, checked: boolean) => {
     setDetachmentIds((current) => {
-      const next = checked ? (current.includes(id) ? current : [...current, id]) : current.filter((entry) => entry !== id)
+      const next = checked
+        ? current.includes(id)
+          ? current
+          : limit === KOTC_LIMIT
+            ? [id]
+            : [...current, id].slice(0, detachmentLimit(limit))
+        : current.filter((entry) => entry !== id)
       if (next[0] !== current[0]) setDisposition(null)
       return next
     })
@@ -620,7 +626,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
                         </div>
                       )
                     })}
-                    {detachmentIds.length < 3 ? (
+                    {detachmentIds.length < detachmentLimit(limit) ? (
                       <DropdownMenu>
                         <DropdownMenuTrigger
                           aria-label="Add detachment"
@@ -658,7 +664,15 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
                 <Label className="eyebrow block" htmlFor="size">
                   Battle size
                 </Label>
-                <Select value={String(limit)} onValueChange={(value: string | null) => setLimit(Number(value ?? DEFAULT_GAME_LIMIT))}>
+                <Select
+                  value={String(limit)}
+                  onValueChange={(value: string | null) => {
+                    const next = Number(value ?? DEFAULT_GAME_LIMIT)
+                    setLimit(next)
+                    setDetachmentIds((current) => current.slice(0, detachmentLimit(next)))
+                    setDisposition(null)
+                  }}
+                >
                   <SelectTrigger id="size" className="h-6 w-full border-0 bg-transparent px-0 font-semibold uppercase">
                     <SelectValue>
                       {(value: unknown) => GAME_SIZES.find((entry) => String(entry.limit) === value)?.name ?? 'Pick a size'}

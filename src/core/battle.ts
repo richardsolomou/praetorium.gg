@@ -183,6 +183,7 @@ export const GAME_SIZES = [
 ] as const
 
 export const detachmentPointBudget = (limit: number) => GAME_SIZES.find((size) => size.limit === limit)?.detachmentPoints ?? null
+export const detachmentLimit = (limit: number) => (limit === KOTC_LIMIT ? 1 : 3)
 export const battleRoundLimit = (limit: number | null) => (limit === KOTC_LIMIT ? KOTC_ROUNDS : BATTLE_ROUNDS)
 
 export function detachmentPointsError(detachments: readonly { points: number | null }[], allowance: number | null): string | null {

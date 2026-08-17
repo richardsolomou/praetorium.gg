@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import { BATTLE_ROUNDS, battleReport, battleView, type Command, type LoggedCommand, reduceBattle, validate } from './battle'
+import {
+  BATTLE_ROUNDS,
+  battleReport,
+  battleView,
+  type Command,
+  detachmentLimit,
+  type LoggedCommand,
+  reduceBattle,
+  validate,
+} from './battle'
 
 const ALICE = 'alice'
 const BOB = 'bob'
@@ -45,6 +54,11 @@ const started = (): [string, Command][] => [
 const turns = (count: number, by: string): [string, Command][] => Array.from({ length: count }, () => [by, advance()])
 
 describe('setup', () => {
+  it('limits King of the Colosseum to one detachment', () => {
+    expect(detachmentLimit(600)).toBe(1)
+    expect(detachmentLimit(2000)).toBe(3)
+  })
+
   it('has no active player before the battle begins', () => {
     expect(reduceBattle(PLAYERS, log()).activePlayerId).toBeNull()
   })
