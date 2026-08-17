@@ -60,13 +60,14 @@ test('enhancement choices show descriptions when rule and catalogue names differ
     .first()
     .click()
 
-  const disclosure = page.locator('details').filter({ hasText: 'Enhancements' })
-  await expect(disclosure).toHaveJSProperty('open', false)
-  await disclosure.locator('summary').click()
   const enhancements = page.getByRole('group', { name: /Skorpekh Lord Enhancements/ })
   const mark = enhancements.getByRole('button', { name: 'Select Mark of the Nekrosor' })
-  await expect(mark.locator('..')).toContainText('add 1 to the Hit roll')
-  await mark.locator('..').screenshot({ path: 'test-results/nekrosor-enhancement.png' })
+  await expect(mark).toBeVisible()
+  const option = mark.locator('xpath=ancestor::article')
+  await expect(option.getByText('add 1 to the Hit roll')).toBeHidden()
+  await option.getByText('Description', { exact: true }).click()
+  await expect(option).toContainText('add 1 to the Hit roll')
+  await option.screenshot({ path: 'test-results/nekrosor-enhancement.png' })
 })
 
 test('wargear abilities are explained beside their choices', async ({ page }) => {
