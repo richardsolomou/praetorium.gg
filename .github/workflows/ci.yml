@@ -20,7 +20,12 @@ jobs:
       command: just check
       just-version: '1.58.0'
 
-  e2e:
+  e2e-shard:
+    name: E2E shard ${{ matrix.shard }} of 2
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -60,13 +65,24 @@ jobs:
           tags: praetorium-e2e
           cache-from: type=gha,scope=e2e-image
           cache-to: type=gha,mode=min,scope=e2e-image
-      - run: just e2e-run
+      # Separate runners give each shard its own CPU, container, and database.
+      - name: Run E2E shard
+        run: pnpm exec playwright test --shard=${{ matrix.shard }}/2
       - if: failure()
         uses: actions/upload-artifact@v7
         with:
-          name: playwright-results
+          name: playwright-results-${{ matrix.shard }}
           path: test-results
           retention-days: 7
+
+  # Keep one stable required check while the expensive work runs in parallel.
+  e2e:
+    if: always()
+    needs: [e2e-shard]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every E2E shard
+        run: test '${{ needs.e2e-shard.result }}' = success
 
   points:
     runs-on: ubuntu-latest

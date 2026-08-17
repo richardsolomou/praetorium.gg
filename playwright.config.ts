@@ -13,7 +13,7 @@ const container = `praetorium-e2e-${port}`
 
 export default defineConfig({
   testDir: './e2e',
-  outputDir: 'test-results',
+  outputDir: process.env.PLAYWRIGHT_OUTPUT_DIR ?? 'test-results',
   fullyParallel: false,
   // Every test shares one container and one SQLite file, so past a couple of
   // workers the runner buys contention rather than speed: four made sign-ups and

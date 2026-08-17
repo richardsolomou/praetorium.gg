@@ -102,6 +102,8 @@ export async function chooseBattlefield(page: Page) {
 
 export async function startBattle(page: Page, firstPlayer?: string) {
   await chooseBattlefield(page)
+  await setupStep(page, 'Cards')
+  await expect(page.locator('[data-secondary-deck-ready]')).toHaveAttribute('data-secondary-deck-ready', 'true')
   await setupStep(page, 'Start')
   if (firstPlayer) {
     const section = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Attacker and first turn' }) })

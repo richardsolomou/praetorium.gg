@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test'
 import { createRoster, signUp } from './account'
 
 test('a list can be copied as Games Workshop text', async ({ browser }) => {
-  const page = await (await browser.newContext()).newPage()
+  const page = await (await browser.newContext({ permissions: ['clipboard-read', 'clipboard-write'] })).newPage()
 
   await signUp(page, 'Alice')
 
