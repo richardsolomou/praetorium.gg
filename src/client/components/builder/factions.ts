@@ -10,9 +10,7 @@
 export const shortName = (name: string) => {
   const parts = name.split(' - ')
   const last = parts.at(-1)
-  const leaf = last?.toLowerCase() === 'library' ? parts.at(-2) : last
-  const imperial = leaf?.match(/^(.+) of the Imperium$/i)
-  return imperial ? `Imperial ${imperial[1]}` : (leaf ?? name)
+  return last?.toLowerCase() === 'library' ? (parts.at(-2) ?? name) : (last ?? name)
 }
 
 const lineageOf = (name: string) => name.split(' - ').slice(0, -1).at(-1) ?? ''
