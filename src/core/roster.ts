@@ -294,7 +294,7 @@ export function buildUnit(
   const composed =
     models === undefined ? chosen : withModelComposition(entryId, chosen, models, new Set(Object.keys(choices ?? {})), index, context)
   // Then the spreads, which say how many of each option rather than which one.
-  const spread = Object.entries(context?.spreads ?? {}).reduce((tree, [key, counts]) => withSpread(tree, key, counts), composed)
+  const spread = Object.entries(context?.spreads ?? {}).reduce((tree, [key, counts]) => withUnitSpread(tree, key, counts, index), composed)
   const toggled = withCounts(
     spread,
     Object.entries(context?.toggles ?? {}).map(([key, count]) => ({ path: key.split('/'), count })),
@@ -598,13 +598,17 @@ export function unitChoices(
         const choosable = childrenOf(inner, index).filter(
           (option) => visible(option.definition) && resolve(option.definition, index).type !== undefined,
         )
-        const scale = scaleOf(child.definition, index, carriers)
+        const repeating = repeatableModelOn(trail, index)
+        const scale = repeating
+          ? effectiveCount(selection, repeating.path, repeating.definition, index, options)
+          : scaleOf(child.definition, index, carriers)
         const capacity = maximumCount(child.definition, index)
         const room = capacity === null ? occupantRoom(choosable, index) : capacity * scale
         const fixed = choosable.some((option) => requiredCount(option.definition, index) > 0)
         const adjustable = fixed ? choosable.filter((option) => requiredCount(option.definition, index) === 0) : choosable
-        const group = at(selection, here)
-        const held = group?.selections ?? []
+        const held = repeating
+          ? repeatedOptions(selection, repeating.path, here.slice(repeating.path.length))
+          : allAt(selection, here).flatMap((group) => group.selections ?? [])
         const adjustableRoom = fixed
           ? adjustable.reduce((total, option) => total + (held.find((item) => item.id === option.id)?.count ?? 0), 0)
           : room
@@ -621,7 +625,7 @@ export function unitChoices(
               name: resolve(option.definition, index).name ?? option.id,
               points: pointsOf(option, index),
               count: held.find((present) => present.id === option.id)?.count ?? 0,
-              max: legalMaximum(selection, here, option, adjustable, adjustableRoom, index, options),
+              max: repeating ? adjustableRoom : legalMaximum(selection, here, option, adjustable, adjustableRoom, index, options),
             })),
           })
         }
@@ -634,6 +638,55 @@ export function unitChoices(
 
   walk(entry, [], depth, new Set(), 1)
   return choices
+}
+
+function repeatedOptions(selection: Selection, modelPath: readonly string[], groupPath: readonly string[]): Selection[] {
+  const totals = new Map<string, number>()
+  for (const model of allAt(selection, modelPath)) {
+    const group = at(model, groupPath)
+    for (const option of group?.selections ?? []) {
+      totals.set(option.id, (totals.get(option.id) ?? 0) + (option.count ?? 1) * (model.count ?? 1))
+    }
+  }
+  return [...totals].map(([id, count]) => ({ id, count }))
+}
+
+function repeatableModelOn(path: readonly string[], index: CatalogueIndex): { path: string[]; definition: Definition } | null {
+  for (let length = path.length; length > 0; length--) {
+    const id = path[length - 1]
+    const definition = id ? index.definitions.get(id) : undefined
+    if (!definition || resolve(definition, index).type !== 'model') continue
+    if (requiredCount(definition, index) === 0 && maximumCount(definition, index) !== null) {
+      return { path: path.slice(0, length), definition }
+    }
+  }
+  return null
+}
+
+function effectiveCount(
+  selection: Selection,
+  path: readonly string[],
+  definition: Definition,
+  index: CatalogueIndex,
+  context: { primaryCatalogueId?: string; roster?: readonly Selection[] },
+): number {
+  const targetId = resolve(definition, index).id
+  const ceiling = Math.max(1, modelCountOf(selection, index))
+  const size = sizeOf(selection, index)
+  const existing = allAt(selection, path).reduce((total, model) => total + (model.count ?? 1), 0)
+  for (let count = Math.max(1, existing + 1); count <= ceiling; count++) {
+    let candidate = withCounts(selection, [{ path, count }])
+    if (size.path.length && size.path.join('/') !== path.join('/')) {
+      const resized = countAt(candidate, size.path) - (count - existing)
+      if (resized < 0) return count - 1
+      candidate = withCounts(candidate, [{ path: size.path, count: resized }])
+    }
+    const result = evaluate([...(context.roster ?? []), candidate], index, { primaryCatalogueId: context.primaryCatalogueId })
+    if (result.errors.some((error) => error.entryId === targetId && error.message.startsWith('allows at most'))) {
+      return Math.max(existing, count - 1)
+    }
+  }
+  return ceiling
 }
 
 /** The effective cap after conditional catalogue modifiers have been applied. */
@@ -711,11 +764,46 @@ export function withSpread(selection: Selection, key: string, counts: Readonly<R
   )
 }
 
+/** Repeated specialist models need one model branch per nested option. */
+function withUnitSpread(selection: Selection, key: string, counts: Readonly<Record<string, number>>, index: CatalogueIndex): Selection {
+  const path = key.split('/')
+  const repeating = repeatableModelOn(path, index)
+  if (!repeating) return withSpread(selection, key, counts)
+
+  const modelId = repeating.path.at(-1)
+  if (!modelId) return selection
+  const withinModel = path.slice(repeating.path.length)
+  const variants = Object.entries(counts)
+    .filter(([, count]) => count > 0)
+    .map(([optionId, count]) => {
+      const base = expand(modelId, repeating.definition, index, MAX_DEPTH, count, new Set(), 1)
+      return withChoice(base, withinModel.join('/'), optionId, index)
+    })
+  return replaceAt(selection, repeating.path.slice(0, -1), modelId, variants)
+}
+
+function replaceAt(selection: Selection, path: readonly string[], id: string, replacements: readonly Selection[]): Selection {
+  const [next, ...rest] = path
+  if (next === undefined) {
+    return { ...selection, selections: [...(selection.selections ?? []).filter((child) => child.id !== id), ...replacements] }
+  }
+  return {
+    ...selection,
+    selections: (selection.selections ?? []).map((child) => (child.id === next ? replaceAt(child, rest, id, replacements) : child)),
+  }
+}
+
 function at(selection: Selection, path: readonly string[]): Selection | null {
   const [next, ...rest] = path
   if (next === undefined) return selection
   const child = (selection.selections ?? []).find((candidate) => candidate.id === next)
   return child ? at(child, rest) : null
+}
+
+function allAt(selection: Selection, path: readonly string[]): Selection[] {
+  const [next, ...rest] = path
+  if (next === undefined) return [selection]
+  return (selection.selections ?? []).filter((candidate) => candidate.id === next).flatMap((child) => allAt(child, rest))
 }
 
 /**

@@ -253,6 +253,102 @@ describe('mixed model composition', () => {
   })
 })
 
+describe('repeated specialist models', () => {
+  const index = indexOf({
+    sharedSelectionEntries: [
+      {
+        id: 'squad',
+        name: 'Squad',
+        type: 'unit',
+        selectionEntryGroups: [
+          {
+            id: 'models',
+            name: 'Models',
+            defaultSelectionEntryId: 'veteran',
+            constraints: [
+              { id: 'models-min', type: 'min', value: 5, field: 'selections', scope: 'parent' },
+              { id: 'models-max', type: 'max', value: 10, field: 'selections', scope: 'parent' },
+            ],
+            selectionEntries: [
+              {
+                id: 'veteran',
+                name: 'Veteran',
+                type: 'model',
+                constraints: [{ id: 'veteran-max', type: 'max', value: 9, field: 'selections', scope: 'parent' }],
+                selectionEntries: [{ id: 'rifle', name: 'Rifle', type: 'upgrade', constraints: mandatory('rifle-min') }],
+              },
+              {
+                id: 'sergeant',
+                name: 'Sergeant',
+                type: 'model',
+                constraints: [
+                  ...mandatory('sergeant-min'),
+                  { id: 'sergeant-max', type: 'max', value: 1, field: 'selections', scope: 'parent' },
+                ],
+              },
+              {
+                id: 'gunner',
+                name: 'Gunner',
+                type: 'model',
+                constraints: [{ id: 'gunner-max', type: 'max', value: 1, field: 'selections', scope: 'parent' }],
+                modifiers: [
+                  {
+                    type: 'increment',
+                    value: 1,
+                    field: 'gunner-max',
+                    conditions: [{ type: 'equalTo', value: 10, field: 'selections', scope: 'squad', childId: 'models' }],
+                  },
+                ],
+                selectionEntryGroups: [
+                  {
+                    id: 'heavy-weapon',
+                    name: 'Heavy weapon',
+                    constraints: [
+                      { id: 'weapon-min', type: 'min', value: 1, field: 'selections', scope: 'parent' },
+                      { id: 'weapon-max', type: 'max', value: 1, field: 'selections', scope: 'parent' },
+                    ],
+                    selectionEntries: [
+                      { id: 'heavy-bolter', name: 'Heavy bolter', type: 'upgrade' },
+                      { id: 'pyrecannon', name: 'Pyrecannon', type: 'upgrade' },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  })
+  const key = 'models/gunner/heavy-weapon'
+
+  it('raises the nested choice capacity with its carrier model limit', () => {
+    expect(buildUnit('squad', index, 5)?.choices.find((choice) => choice.key === key)?.room).toBe(1)
+    expect(buildUnit('squad', index, 10)?.choices.find((choice) => choice.key === key)?.room).toBe(2)
+  })
+
+  it('can split repeated specialists between their nested choices', () => {
+    const built = buildUnit('squad', index, 10, undefined, {
+      spreads: { [key]: { 'heavy-bolter': 1, pyrecannon: 1 } },
+    })!
+    expect(modelCountOf(built.selection, index)).toBe(10)
+    expect(wargearOf(built.selection, index)).toEqual([
+      { name: 'Rifle', count: 7 },
+      { name: 'Heavy bolter', count: 1 },
+      { name: 'Pyrecannon', count: 1 },
+    ])
+  })
+
+  it('round-trips two specialists with the same nested choice', () => {
+    const built = buildUnit('squad', index, 10, undefined, {
+      spreads: { [key]: { 'heavy-bolter': 2, pyrecannon: 0 } },
+    })!
+    const choice = built.choices.find((candidate) => candidate.key === key)
+    expect(choice?.options.find((option) => option.id === 'heavy-bolter')?.count).toBe(2)
+    expect(wargearOf(built.selection, index)).toContainEqual({ name: 'Heavy bolter', count: 2 })
+  })
+})
+
 describe('laying counts over a selection', () => {
   const tree = { id: 'squad', count: 1, selections: [{ id: 'troopers', count: 1, selections: [{ id: 'trooper', count: 1 }] }] }
 
