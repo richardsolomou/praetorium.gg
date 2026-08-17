@@ -14,9 +14,7 @@ const container = `praetorium-e2e-${port}`
 export default defineConfig({
   testDir: './e2e',
   outputDir: process.env.PLAYWRIGHT_OUTPUT_DIR ?? 'test-results',
-  // CI shards use separate containers and databases, while each shard stays at
-  // the two-worker concurrency this database has proven able to sustain.
-  fullyParallel: true,
+  fullyParallel: false,
   // Every test shares one container and one SQLite file, so past a couple of
   // workers the runner buys contention rather than speed: four made sign-ups and
   // phase advances time out on tests that pass alone.
