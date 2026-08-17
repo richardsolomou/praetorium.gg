@@ -1,5 +1,5 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import { Eye, Heart, ListFilter, Plus } from 'lucide-react'
+import { Heart, ListFilter, Plus } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -49,12 +49,14 @@ export function Picker({ catalogueId, onAdd, onPreview, inRoster, room }: Props)
       return next
     })
 
-  const shown = (found ?? []).filter((unit) => {
-    if (active.has('fit') && room !== null && unit.points !== null && unit.points > room) return false
-    if (active.has('limit') && unit.limit !== null && (inRoster[unit.id] ?? 0) >= unit.limit) return false
-    if (active.has('owned') && !collection.has(unit.id)) return false
-    return true
-  })
+  const shown = (found ?? [])
+    .filter((unit) => {
+      if (active.has('fit') && room !== null && unit.points !== null && unit.points > room) return false
+      if (active.has('limit') && unit.limit !== null && (inRoster[unit.id] ?? 0) >= unit.limit) return false
+      if (active.has('owned') && !collection.has(unit.id)) return false
+      return true
+    })
+    .sort((left, right) => Number(collection.has(right.id)) - Number(collection.has(left.id)))
 
   return (
     <div className="flex h-full flex-col">
@@ -113,7 +115,6 @@ export function Picker({ catalogueId, onAdd, onPreview, inRoster, room }: Props)
                             </span>
                           ) : null}
                         </span>
-                        <Eye className="size-3.5 shrink-0 text-faint" aria-hidden />
                       </button>
                       <Toggle
                         variant="default"
