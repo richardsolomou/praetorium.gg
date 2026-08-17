@@ -2,4 +2,4 @@
 'praetorium': patch
 ---
 
-Keep roster creation controls reachable on shorter screens.
+Keep modal controls reachable on shorter screens.

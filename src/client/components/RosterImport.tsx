@@ -69,7 +69,7 @@ export function RosterImport() {
         <FileUp /> Import roster
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-none border border-edge bg-panel text-bone ring-0 sm:max-w-2xl">
+        <DialogContent className="rounded-none border border-edge bg-panel text-bone ring-0 sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle className="text-xl uppercase">Import roster</DialogTitle>
             <DialogDescription className="text-dim">

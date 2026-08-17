@@ -108,7 +108,7 @@ function MissionPackPage() {
       <p className="mt-6 border-t border-edge pt-3 text-xs text-dim">{data.attribution}</p>
 
       <Dialog open={Boolean(secondary)} onOpenChange={(open) => !open && setSecondaryId(null)}>
-        <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-none border border-edge bg-panel text-bone ring-0 sm:max-w-2xl">
+        <DialogContent className="rounded-none border border-edge bg-panel text-bone ring-0 sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle className="text-2xl uppercase">{secondary?.name}</DialogTitle>
             <DialogDescription>Secondary mission</DialogDescription>
