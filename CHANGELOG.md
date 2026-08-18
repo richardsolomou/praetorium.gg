@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.5.2
+
+### Patch Changes
+
+- f6ed4d0: Improve datasheet readability and show accurate composition, profile, and attachment options.
+
 ## 0.5.1
 
 ### Patch Changes
