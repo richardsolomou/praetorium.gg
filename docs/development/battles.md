@@ -15,7 +15,7 @@ Undo appends an `undo` command that names the latest active command. It does not
 
 Setup settings, roster replacements, formation choices, painted-army bonuses, concessions, reopening, and setup resets are commands too. A reset clears rosters and battlefield choices without erasing the audit trail or the configured game size, mission pack or solo format. A finished battle remains reopenable; deletion is the only destructive operation and is restricted to the account that created the battle.
 
-`correct-player`, `pause-clock` and `resume-clock` are no longer offered anywhere and no new one can be made. They stay in `commandSchema` because `Repository.log` parses every stored command through it, so removing a kind would make an older battle unreadable rather than merely unchanged.
+The interface no longer offers `correct-player`, `pause-clock`, or `resume-clock`. The command schema and domain still accept them because `Repository.log` parses every stored command. Removing a command kind would make an older battle unreadable.
 
 Deployment and terrain are one battlefield choice. The three layouts for the armies' force dispositions each bind a deployment pattern to exact terrain geometry; `set-battlefield` records both IDs atomically. The setup and live tracker render that same plan, and a selected layout without its pinned geometry cannot start.
 

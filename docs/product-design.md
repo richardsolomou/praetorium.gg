@@ -8,7 +8,7 @@ Praetorium includes:
 
 - Catalogue-backed roster construction, validation, import, and export.
 - Compact roster presentation and battle tracking.
-- One synchronized battle shared by two signed-in players.
+- One synchronized solo or two-player battle between signed-in players.
 
 It does not include rankings, events, leagues, locations, friends, public battle discovery, chat, matchmaking, a rules encyclopedia, model positions, or wound allocation.
 
@@ -28,17 +28,17 @@ Keep screenshots that contain roster or battle data outside version control.
 
 ## Current coverage
 
-| Area              | Coverage                                                                                                                                 |
-| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| Accounts          | Email and password work without provider configuration. Google and Discord are optional.                                                 |
-| Battles           | Shared or solo setup drafts, server-side legality, clocks, corrections, concessions, reopening, presence, and live updates.              |
-| Turn tracker      | Five rounds, six phases, command points, victory points, painted bonuses, tactical decks, stratagems, formations, and battle completion. |
-| Rosters           | Build, import, save, copy, rename, private or unlisted share, print, export, and attach.                                                 |
-| Catalogue         | Factions, detachments, units, model counts, loadouts, enhancements, attachments, and points limits.                                      |
-| Validation        | Constraints, modifiers, conditions, categories, force scope, attachments, and catalogue-sensitive costs.                                 |
-| Missions          | Force dispositions, deployment zones, objectives, mission cards, and scoring awards.                                                     |
-| Battle review     | Per-round scoring, command points, clocks, result reasons, stratagems, unit outcomes, timestamped events, and corrections.               |
-| Responsive design | Three desktop panes and one mobile roster with movable picker and loadout sheets.                                                        |
+| Area              | Coverage                                                                                                                                                                              |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Accounts          | Email and password work without provider configuration. Google and Discord are optional.                                                                                              |
+| Battles           | Shared or solo setup drafts, server-side legality, clocks, corrections, concessions, reopening, presence, and live updates.                                                           |
+| Turn tracker      | Five standard rounds, three King of the Colosseum rounds, six phases, command points, victory points, painted bonuses, tactical decks, stratagems, formations, and battle completion. |
+| Rosters           | Build, import, save, copy, rename, private or unlisted share, print, export, and attach.                                                                                              |
+| Catalogue         | Factions, detachments, units, model counts, loadouts, enhancements, attachments, and points limits.                                                                                   |
+| Validation        | Constraints, modifiers, conditions, categories, force scope, attachments, and catalogue-sensitive costs.                                                                              |
+| Missions          | Force dispositions, deployment zones, objectives, mission cards, and scoring awards.                                                                                                  |
+| Battle review     | Per-round scoring, command points, clocks, result reasons, stratagems, unit outcomes, timestamped events, and corrections.                                                            |
+| Responsive design | Three desktop panes and one mobile roster with movable picker and loadout sheets.                                                                                                     |
 
 ## Known data limits
 
@@ -46,7 +46,7 @@ Keep screenshots that contain roster or battle data outside version control.
 
 The fetched sources do not provide every mission-pack restriction or every prose replacement rule as structured data. Praetorium reports missing semantics instead of reconstructing them from memory.
 
-The current sources do not provide structured twist decks or enough transport relationships to automate embarking. Battle photos remain outside the product boundary even though the hosted service operates shared object storage; infrastructure availability does not expand the product's scope. Those features stay absent rather than becoming local-only or guessed state.
+The current sources do not provide structured twist decks or enough transport relationships to automate embarking. Battle photos also remain outside the product boundary. These features stay absent rather than becoming local-only or guessed state.
 
 ## Verification
 
@@ -55,7 +55,7 @@ The browser suite covers the main workflow:
 1. Build or import a roster.
 2. Validate and save it.
 3. Attach two rosters to a battle.
-4. Complete setup and all five rounds from two browser contexts.
+4. Complete setup and all five standard rounds from two browser contexts.
 5. Review the finished battle and event history.
 
 Also verify these interface details:

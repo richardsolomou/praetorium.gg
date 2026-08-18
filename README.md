@@ -50,7 +50,7 @@ The evaluator reads the community [BSData](https://github.com/BSData/wh40k-11e) 
 
 The hosted service at [praetorium.gg](https://praetorium.gg) is the primary way to use Praetorium. It includes updates, persistent storage, and the community catalogue sync.
 
-An account stores your lists and battle history. Email and password works without extra configuration or email verification. Google and Discord appear when their credentials are configured.
+An account stores your lists and battle history. Email and password authentication works without extra configuration or email verification. Google and Discord appear when their credentials are configured.
 
 Praetorium is open source under the AGPL. Experienced operators can run a private instance; see the [self-hosting notes](docs/deployment.md) for its storage and network requirements. **This repository contains no game data.**
 
