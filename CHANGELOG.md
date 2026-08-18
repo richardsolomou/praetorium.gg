@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.5.0
+
+### Minor Changes
+
+- 5de00a8: Show each faction with its own icon and colour, and sync faction favourites across devices.
+
 ## 0.4.6
 
 ### Patch Changes
