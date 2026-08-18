@@ -303,6 +303,12 @@ describe('detachment enhancements', () => {
     ).toBe('Living Relic text')
   })
 
+  it('matches an aura suffix supplied by the rules source', () => {
+    expect(
+      detail({ id: 'relic', name: 'Living Relic (Aura)', type: 'upgrade', profiles: [ability('relic-rule', 'Living Relic')] })?.description,
+    ).toBe('Living Relic text')
+  })
+
   it('prefers the entry named for the detachment', () => {
     expect(
       detail(
