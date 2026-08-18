@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { Check, Crown, Minus, Plus } from 'lucide-react'
+import type { ReactNode } from 'react'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -194,6 +195,40 @@ function LoadoutLoading() {
   )
 }
 
+function ChoiceOption({
+  option,
+  selected,
+  onSelect,
+  children,
+}: {
+  option: LoadoutChoice['options'][number]
+  selected: boolean
+  onSelect: () => void
+  children: ReactNode
+}) {
+  return (
+    <article className={`relative border ${selected ? 'border-azure bg-azure/10' : 'border-edge bg-card hover:border-dim'}`}>
+      <button
+        type="button"
+        aria-pressed={selected}
+        aria-label={`Select ${option.name}`}
+        onClick={onSelect}
+        className="absolute inset-0 z-0 w-full cursor-pointer hover:bg-raised"
+      />
+      <div className="pointer-events-none relative z-10 [&_button]:pointer-events-auto">
+        <div className="flex w-full items-center justify-between gap-2 px-2.5 py-2 text-left">
+          <span className="text-sm font-semibold text-bone">{option.name}</span>
+          <span className="flex shrink-0 items-center gap-1.5">
+            {option.points ? <span className="chip">+{option.points} pts</span> : null}
+            {selected ? <Check className="size-3.5 text-azure" aria-hidden /> : null}
+          </span>
+        </div>
+        {children}
+      </div>
+    </article>
+  )
+}
+
 function specialChoice(choice: LoadoutChoice, onChoose: Props['onChoose'], unitName: string) {
   const label = choice.kind === 'upgrade' ? 'upgrade' : 'enhancement'
   const heading = choice.kind === 'upgrade' ? 'Unit upgrades' : choice.name
@@ -217,32 +252,13 @@ function specialChoice(choice: LoadoutChoice, onChoose: Props['onChoose'], unitN
         {choice.options.map((option) => {
           const selected = choice.chosen === option.id
           return (
-            <article
-              key={option.id}
-              className={`relative border ${selected ? 'border-azure bg-azure/10' : 'border-edge bg-card hover:border-dim'}`}
-            >
-              <button
-                type="button"
-                aria-pressed={selected}
-                aria-label={`Select ${option.name}`}
-                onClick={() => onChoose(choice.key, option.id)}
-                className="absolute inset-0 z-0 w-full cursor-pointer hover:bg-raised"
-              />
-              <div className="pointer-events-none relative z-10 [&_button]:pointer-events-auto">
-                <div className="flex w-full items-center justify-between gap-2 px-2.5 py-2 text-left">
-                  <span className="text-sm font-semibold text-bone">{option.name}</span>
-                  <span className="flex shrink-0 items-center gap-1.5">
-                    {option.points ? <span className="chip">+{option.points} pts</span> : null}
-                    {selected ? <Check className="size-3.5 text-azure" aria-hidden /> : null}
-                  </span>
+            <ChoiceOption key={option.id} option={option} selected={selected} onSelect={() => onChoose(choice.key, option.id)}>
+              {option.description ? (
+                <div className="border-t border-edge px-2.5 pb-2">
+                  <RuleText text={option.description} rules={option.keywordRules} />
                 </div>
-                {option.description ? (
-                  <div className="border-t border-edge px-2.5 pb-2">
-                    <RuleText text={option.description} rules={option.keywordRules} />
-                  </div>
-                ) : null}
-              </div>
-            </article>
+              ) : null}
+            </ChoiceOption>
           )
         })}
       </div>
@@ -372,34 +388,15 @@ function either(
         {choice.options.map((option) => {
           const selected = choice.chosen === option.id
           return (
-            <article
-              key={option.id}
-              className={`relative border ${selected ? 'border-azure bg-azure/10' : 'border-edge bg-card hover:border-dim'}`}
-            >
-              <button
-                type="button"
-                aria-pressed={selected}
-                aria-label={`Select ${option.name}`}
-                onClick={() => onChoose(choice.key, option.id)}
-                className="absolute inset-0 z-0 w-full cursor-pointer hover:bg-raised"
-              />
-              <div className="pointer-events-none relative z-10 [&_button]:pointer-events-auto">
-                <div className="flex w-full items-center justify-between gap-2 px-2.5 py-2 text-left">
-                  <span className="text-sm font-semibold text-bone">{option.name}</span>
-                  <span className="flex shrink-0 items-center gap-1.5">
-                    {option.points ? <span className="chip">+{option.points} pts</span> : null}
-                    {selected ? <Check className="size-3.5 text-azure" aria-hidden /> : null}
-                  </span>
+            <ChoiceOption key={option.id} option={option} selected={selected} onSelect={() => onChoose(choice.key, option.id)}>
+              <OptionProfiles optionName={option.name} weapons={weapons} rules={rules} />
+              <OptionAbilities optionName={option.name} abilities={abilities} rules={rules} />
+              {option.description ? (
+                <div className="border-t border-edge px-2.5 pb-2">
+                  <RuleText text={option.description} rules={option.keywordRules ?? rules} />
                 </div>
-                <OptionProfiles optionName={option.name} weapons={weapons} rules={rules} />
-                <OptionAbilities optionName={option.name} abilities={abilities} rules={rules} />
-                {option.description ? (
-                  <div className="border-t border-edge px-2.5 pb-2">
-                    <RuleText text={option.description} rules={option.keywordRules ?? rules} />
-                  </div>
-                ) : null}
-              </div>
-            </article>
+              ) : null}
+            </ChoiceOption>
           )
         })}
       </div>
