@@ -3,7 +3,14 @@ import type { ReactNode } from 'react'
 import { useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 
-type Props = { variant: 'picker' | 'loadout' | 'datasheet'; open: boolean; title: string; onClose: () => void; children: ReactNode }
+type Props = {
+  variant: 'picker' | 'loadout' | 'datasheet'
+  open: boolean
+  title: string
+  onClose: () => void
+  actions?: ReactNode
+  children: ReactNode
+}
 
 /**
  * A side pane where there is room for one, the same pane over the roster where
@@ -24,7 +31,7 @@ const VARIANTS = {
 
 const CLOSERS = { picker: 'lg:hidden', loadout: 'lg:hidden', datasheet: 'min-[1440px]:hidden' } as const
 
-export function Pane({ variant, open, title, onClose, children }: Props) {
+export function Pane({ variant, open, title, onClose, actions, children }: Props) {
   useEffect(() => {
     if (!open) return
     const escape = (event: KeyboardEvent) => event.key === 'Escape' && onClose()
@@ -39,9 +46,12 @@ export function Pane({ variant, open, title, onClose, children }: Props) {
     >
       <div className={`flex items-center justify-between border-b border-edge px-3 py-2 ${CLOSERS[variant]}`}>
         <h2 className="text-base">{title}</h2>
-        <Button variant="ghost" size="icon-sm" aria-label="Close" onClick={onClose}>
-          <X />
-        </Button>
+        <div className="flex items-center gap-1">
+          {actions}
+          <Button variant="ghost" size="icon-sm" aria-label="Close" onClick={onClose}>
+            <X />
+          </Button>
+        </div>
       </div>
       <div className="flex min-h-0 flex-1 flex-col">{children}</div>
     </aside>
