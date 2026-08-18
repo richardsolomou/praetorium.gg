@@ -10,3 +10,10 @@ export function compositionCount(composition: readonly string[]) {
   const count = minimum === maximum ? String(minimum) : `${minimum}–${maximum}`
   return `${count} ${maximum === 1 ? 'model' : 'models'}`
 }
+
+type Ability = { name: string; kind: string }
+
+export function displayAbilities<T extends Ability>(abilities: readonly T[], hasLeaderAttachments: boolean): T[] {
+  if (!hasLeaderAttachments) return [...abilities]
+  return abilities.filter((ability) => !['datasheet', 'rule'].includes(ability.kind) || ability.name.toLocaleLowerCase() !== 'leader')
+}

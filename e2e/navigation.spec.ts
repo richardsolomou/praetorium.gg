@@ -40,6 +40,18 @@ test('server-rendered reference pages keep route-shaped payloads', async ({ requ
   expect(missionPack.byteLength).toBeLessThan(250_000)
 })
 
+test('a datasheet lists leader attachment targets once', async ({ page }) => {
+  await page.goto('/factions/necrons/datasheets/overlord')
+
+  await expect(page.getByRole('heading', { name: 'Attachments' })).toBeVisible()
+  await expect(page.getByText('Can lead', { exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Leader', exact: true })).toHaveCount(0)
+  await page.screenshot({ path: 'test-results/datasheet-leader-attachments.png', fullPage: true })
+
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.screenshot({ path: 'test-results/datasheet-leader-attachments-phone.png', fullPage: true })
+})
+
 test('saving a faction asks signed-out visitors to sign in', async ({ page }) => {
   await page.goto('/factions')
   await page.getByRole('link', { name: 'Sign in to add Necrons to favourites' }).click()

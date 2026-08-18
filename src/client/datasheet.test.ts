@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { compositionCount } from './datasheet'
+import { compositionCount, displayAbilities } from './datasheet'
 
 describe('datasheet composition count', () => {
   it('adds fixed and ranged model groups', () => {
@@ -8,5 +8,23 @@ describe('datasheet composition count', () => {
 
   it('keeps a single-model datasheet singular', () => {
     expect(compositionCount(['**1 Overlord**'])).toBe('1 model')
+  })
+})
+
+describe('datasheet abilities', () => {
+  it('replaces a unit Leader ability with parsed attachment targets', () => {
+    const abilities = [
+      { name: 'Leader', kind: 'core' },
+      { name: 'Leader', kind: 'rule' },
+      { name: 'My Will Be Done', kind: 'datasheet' },
+    ]
+
+    expect(displayAbilities(abilities, true)).toEqual([abilities[0], abilities[2]])
+  })
+
+  it('keeps a Leader ability when no attachment targets were parsed', () => {
+    const abilities = [{ name: 'Leader', kind: 'rule' }]
+
+    expect(displayAbilities(abilities, false)).toEqual(abilities)
   })
 })
