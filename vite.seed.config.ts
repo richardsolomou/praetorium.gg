@@ -6,7 +6,7 @@ export default defineConfig({
     ssr: 'scripts/seedPreview.ts',
     outDir: '.output/server',
     emptyOutDir: false,
-    rollupOptions: {
+    rolldownOptions: {
       external: ['better-sqlite3'],
       output: { entryFileNames: 'seed-preview.mjs' },
     },
