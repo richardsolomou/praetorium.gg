@@ -458,6 +458,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
   )
 
   const loadoutCatalogueId = selected === null ? catalogueId : (picked[selected]?.catalogueId ?? catalogueId)
+  const datasheetCatalogueId = preview?.catalogueId ?? loadoutCatalogueId
   const loadout = (
     <Loadout
       catalogueId={loadoutCatalogueId}
@@ -473,7 +474,8 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
   )
   const datasheet = (
     <DatasheetPanel
-      catalogueId={preview?.catalogueId ?? loadoutCatalogueId}
+      catalogueId={datasheetCatalogueId}
+      factionSlug={available?.factions.find((entry) => entry.id === datasheetCatalogueId)?.slug ?? ''}
       entryId={preview?.entryId ?? selectedUnit?.entryId ?? null}
       detachmentIds={detachmentIds}
       picks={picked}

@@ -1,9 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
+import { Link } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import type { RosterPick } from '../../../core/roster'
 import type { Datasheet } from '../../../server/catalogue'
-import { compositionCount } from '../../datasheet'
 import { datasheetQuery } from '../../queries'
 import { HoverTooltip } from '../HoverTooltip'
 import { Keyword, KEYWORD_TAG_CLASS, KeywordList } from '../Keyword'
@@ -11,6 +11,7 @@ import { RuleText } from '../RuleText'
 
 type Props = {
   catalogueId: string
+  factionSlug: string
   entryId: string | null
   detachmentIds: readonly string[]
   picks: readonly RosterPick[]
@@ -18,7 +19,7 @@ type Props = {
   showWeapons?: boolean
 }
 
-export function DatasheetPanel({ catalogueId, entryId, detachmentIds, picks, pickIndex, showWeapons = false }: Props) {
+export function DatasheetPanel({ catalogueId, factionSlug, entryId, detachmentIds, picks, pickIndex, showWeapons = false }: Props) {
   const [context, setContext] = useState({ detachmentIds, picks, pickIndex })
   useEffect(() => {
     const timeout = window.setTimeout(() => setContext({ detachmentIds, picks, pickIndex }), 150)
@@ -44,21 +45,22 @@ export function DatasheetPanel({ catalogueId, entryId, detachmentIds, picks, pic
   return (
     <ScrollArea className="h-full [&_[data-slot=scroll-area-viewport]]:p-3">
       <div className="space-y-4">
-        <header className="border-b border-edge pb-3">
-          <p className="eyebrow">Datasheet</p>
-          <div className="mt-0.5 flex flex-wrap items-start justify-between gap-2">
-            <h2 className="min-w-0 flex-1 text-xl">{sheet.name}</h2>
-            <div className="flex shrink-0 flex-wrap justify-end gap-1">
-              {sheet.composition.length ? <span className="chip">{compositionCount(sheet.composition)}</span> : null}
-              {sheet.points === null ? null : <span className="chip">{sheet.points} pts</span>}
-            </div>
-          </div>
-          <div className="mt-2 flex flex-wrap gap-1">
+        <div className="flex items-start gap-2">
+          <div className="flex min-w-0 flex-1 flex-wrap gap-1">
             {sheet.keywords.map((keyword) => (
               <Keyword key={keyword} name={keyword} rules={sheet.keywordRules} className={KEYWORD_TAG_CLASS} />
             ))}
           </div>
-        </header>
+          {factionSlug ? (
+            <Link
+              to="/factions/$catalogueId/datasheets/$entryId"
+              params={{ catalogueId: factionSlug, entryId: sheet.slug }}
+              className="eyebrow shrink-0 py-1 text-azure hover:text-bone"
+            >
+              Full datasheet
+            </Link>
+          ) : null}
+        </div>
         {model ? <UnitProfile profile={model} /> : null}
         {showWeapons && ranged.length ? <WeaponSummary title="Ranged weapons" weapons={ranged} rules={sheet.keywordRules} /> : null}
         {showWeapons && melee.length ? <WeaponSummary title="Melee weapons" weapons={melee} rules={sheet.keywordRules} /> : null}
@@ -99,7 +101,7 @@ function UnitProfile({ profile }: { profile: Profile }) {
   const values = profile.values.filter((value) => value.name !== 'InSv')
   return (
     <section data-slot="unit-profile">
-      <div className="grid grid-cols-3 gap-1.5">
+      <div className="grid grid-cols-6 gap-1">
         {values.map((value) => (
           <div key={value.name} className="border border-edge bg-card px-2 py-1.5 text-center">
             <p className="eyebrow">{value.name}</p>
