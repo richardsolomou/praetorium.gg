@@ -14,14 +14,10 @@ test('two phones complete all five rounds in step', async ({ browser }) => {
   await setupBattle(alice, bob, { opponent: bobName, hostRoster: aliceRoster, guestRoster: bobRoster })
 
   for (let round = 1; round <= 5; round += 1) {
-    // eslint-disable-next-line no-await-in-loop
     await playTurn(alice)
-    // eslint-disable-next-line no-await-in-loop
     await expect(action(bob)).toBeEnabled()
-    // eslint-disable-next-line no-await-in-loop
     await playTurn(bob)
     if (round < 5) {
-      // eslint-disable-next-line no-await-in-loop
       await expect(alice.locator('[data-stat="round"]')).toHaveText(String(round + 1))
     }
   }

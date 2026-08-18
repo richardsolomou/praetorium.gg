@@ -6,9 +6,7 @@ test('opening a battle is operable from the keyboard', async ({ page }) => {
   await page.goto('/battles')
 
   for (let tabs = 0; tabs < 10; tabs++) {
-    // eslint-disable-next-line no-await-in-loop
     if (await page.getByRole('button', { name: 'New battle' }).evaluate((element) => element === document.activeElement)) break
-    // eslint-disable-next-line no-await-in-loop
     await page.keyboard.press('Tab')
   }
   const newBattle = page.getByRole('button', { name: 'New battle' })
