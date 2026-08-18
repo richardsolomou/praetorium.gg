@@ -84,7 +84,7 @@ function datasheetDetails(value: unknown): DatasheetDetails {
     composition: localizedList(value, 'composition'),
     loadout: localizedField(value, 'loadout'),
     wargear: localizedList(value, 'wargear'),
-    baseSize: localizedField(value, 'baseSize'),
+    baseSize: displayBaseSize(localizedField(value, 'baseSize')),
     points: records(value, 'points').flatMap((point) => {
       const models = stringField(point, 'models')
       const cost = stringField(point, 'cost')
@@ -108,6 +108,12 @@ function datasheetDetails(value: unknown): DatasheetDetails {
     leaders: [],
     supporters: [],
   }
+}
+
+function displayBaseSize(baseSize: string | null): string | null {
+  if (baseSize === 'Large Flying Base') return 'Large Flying Base (Ø60mm)'
+  if (baseSize === 'Small Flying Base') return 'Small Flying Base (Ø32mm)'
+  return baseSize
 }
 
 function records(value: unknown, field: string): Record<string, unknown>[] {

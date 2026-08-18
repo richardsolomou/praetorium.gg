@@ -66,3 +66,24 @@ it('indexes the faction-owned datasheets and detachments', () => {
     detachments: new Set(['Inner Circle Task Force', 'Unforgiven Task Force']),
   })
 })
+
+it('adds the diameter to named flying bases', () => {
+  directory = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-datacards-'))
+  fs.writeFileSync(
+    path.join(directory, 'aeldari.json'),
+    JSON.stringify({
+      name: 'Aeldari',
+      datasheets: [
+        { name: { en: 'Falcon' }, baseSize: { en: 'Large Flying Base' } },
+        { name: { en: 'Farseer Skyrunner' }, baseSize: { en: 'Small Flying Base' } },
+      ],
+      detachments: [],
+    }),
+  )
+
+  const details = loadFactionContents(directory).get('aeldari')?.datasheetDetails
+  expect([details?.get('Falcon')?.baseSize, details?.get('Farseer Skyrunner')?.baseSize]).toEqual([
+    'Large Flying Base (Ø60mm)',
+    'Small Flying Base (Ø32mm)',
+  ])
+})

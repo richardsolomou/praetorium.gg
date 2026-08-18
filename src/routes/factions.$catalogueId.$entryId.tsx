@@ -6,8 +6,6 @@ import { RuleText } from '../client/components/RuleText'
 import { factionFor } from '../client/factions'
 import { datasheetSlugQuery, factionsQuery } from '../client/queries'
 import { FactionMark, factionColour } from '../client/components/FactionMark'
-import { ChevronDown } from 'lucide-react'
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import type { Datasheet } from '../server/catalogue'
 import { routeSlug } from '../core/slug'
 
@@ -98,7 +96,6 @@ export function DatasheetPage() {
       <Abilities abilities={sheet.abilities} rules={sheet.keywordRules} />
       <UnitConfiguration sheet={sheet} rules={sheet.keywordRules} />
       <Relationships sheet={sheet} factionSlug={faction.slug} />
-      <Detachments detachments={sheet.detachments} factionSlug={faction.slug} />
       {sheet.attribution ? <p className="border-t border-edge pt-4 text-xs text-dim">{sheet.attribution}.</p> : null}
     </main>
   )
@@ -128,7 +125,7 @@ function Abilities({ abilities, rules }: { abilities: DisplayAbility[]; rules: K
         ))}
       </div>
     )
-    if (kind === 'core') {
+    if (kind === 'core' || kind === 'faction') {
       return (
         <section key={kind}>
           <h2 className="rubric">
@@ -204,7 +201,7 @@ function UnitConfiguration({ sheet, rules }: { sheet: DatasheetDisplay; rules: K
         </div>
         {sheet.loadout ? (
           <div className="border-t border-edge p-3">
-            <RuleText text={sheet.loadout} rules={rules} />
+            <RuleText text={sheet.loadout} rules={rules} className="mt-0" />
           </div>
         ) : null}
         {sheet.wargearOptions.length ? (
@@ -255,65 +252,6 @@ function Relationships({ sheet, factionSlug }: { sheet: DatasheetDisplay; factio
         ))}
       </div>
     </section>
-  )
-}
-
-type DetachmentDisplay = DatasheetDisplay['detachments'][number]
-
-function Detachments({ detachments, factionSlug }: { detachments: DetachmentDisplay[]; factionSlug: string }) {
-  if (!detachments.length) return null
-  return (
-    <section>
-      <h2 className="rubric">
-        Detachments <span className="readout text-faint">{detachments.length}</span>
-      </h2>
-      <div className="mt-2 divide-y divide-edge border border-edge bg-panel">
-        {detachments.map((detachment) => (
-          <Collapsible key={detachment.id}>
-            <CollapsibleTrigger className="group flex w-full cursor-pointer flex-col items-start justify-between gap-1 p-3 text-left sm:flex-row sm:items-center sm:gap-3">
-              <span className="font-semibold uppercase">{detachment.name}</span>
-              <span className="flex shrink-0 items-center gap-1.5 text-xs text-dim sm:text-right">
-                {detachment.rules.length} {detachment.rules.length === 1 ? 'rule' : 'rules'} · {detachment.enhancements.length}{' '}
-                {detachment.enhancements.length === 1 ? 'enhancement' : 'enhancements'}
-                <ChevronDown className="size-4 transition-transform group-data-panel-open:rotate-180" aria-hidden />
-              </span>
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <div className="space-y-3 border-t border-edge p-3">
-                <RuleTags title="Detachment abilities" entries={detachment.rules} />
-                <RuleTags title="Enhancements" entries={detachment.enhancements} />
-                <Link
-                  to="/factions/$catalogueId/detachments/$detachmentId"
-                  params={{ catalogueId: factionSlug, detachmentId: routeSlug(detachment.name) }}
-                  className="text-xs font-semibold uppercase text-azure hover:text-bone"
-                >
-                  View detachment
-                </Link>
-              </div>
-            </CollapsibleContent>
-          </Collapsible>
-        ))}
-      </div>
-    </section>
-  )
-}
-
-function RuleTags({ title, entries }: { title: string; entries: { name: string; description: string | null }[] }) {
-  if (!entries.length) return null
-  return (
-    <div>
-      <h3 className="eyebrow mb-1.5">{title}</h3>
-      <div className="flex flex-wrap gap-1">
-        {entries.map((entry) => (
-          <Keyword
-            key={entry.name}
-            name={entry.name}
-            rules={entry.description ? [{ name: entry.name, description: entry.description }] : []}
-            className={KEYWORD_TAG_CLASS}
-          />
-        ))}
-      </div>
-    </div>
   )
 }
 
