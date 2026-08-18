@@ -634,6 +634,30 @@ test('a smaller desktop keeps the picker, roster and loadout visible', async ({ 
   await datasheet.screenshot({ path: 'test-results/builder-datasheet-footer.png' })
 })
 
+test('mobile roster sheets move directly between units, loadout and datasheet', async ({ page }) => {
+  await openBuilder(page)
+  await add(page, 'Immortals')
+  await page.setViewportSize({ width: 390, height: 844 })
+
+  await page.locator('[data-unit="Immortals"]').getByRole('button', { name: 'Immortals', exact: true }).click()
+  const loadout = page.locator('aside[aria-label="Loadout"]')
+  const datasheet = page.locator('aside[aria-label="Datasheet"]')
+  const picker = page.locator('aside[aria-label="Add units"]')
+
+  await loadout.getByRole('button', { name: 'Datasheet' }).click()
+  await expect(datasheet.getByText('Infantry', { exact: true })).toBeVisible()
+  await datasheet.getByRole('button', { name: 'Loadout' }).click()
+  await expect(loadout.getByRole('heading', { name: 'Immortals' })).toBeVisible()
+
+  await loadout.getByRole('button', { name: 'Units' }).click()
+  await picker.getByLabel('Add a unit').fill('Imotekh the Stormlord')
+  await picker.getByRole('button', { name: 'View Imotekh the Stormlord datasheet' }).click()
+  await expect(datasheet.getByText('Character', { exact: true })).toBeVisible()
+  await datasheet.getByRole('button', { name: 'Units' }).click()
+  await expect(picker.getByLabel('Add a unit')).toHaveValue('Imotekh the Stormlord')
+  await picker.screenshot({ path: 'test-results/mobile-roster-sheet-navigation.png' })
+})
+
 test('making a new warlord removes the previous one', async ({ page }) => {
   await openBuilder(page)
   await add(page, 'Overlord')

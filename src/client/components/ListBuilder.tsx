@@ -1,6 +1,21 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { Check, Copy, Download, EllipsisVertical, Eye, Layers3, Pencil, Plus, Trash2, TriangleAlert, X } from 'lucide-react'
+import {
+  BookOpen,
+  Check,
+  Copy,
+  Download,
+  EllipsisVertical,
+  Eye,
+  Layers3,
+  ListPlus,
+  Pencil,
+  Plus,
+  SlidersHorizontal,
+  Trash2,
+  TriangleAlert,
+  X,
+} from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
@@ -90,6 +105,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
   const [selected, setSelected] = useState<number | null>(null)
   const [preview, setPreview] = useState<{ catalogueId: string; entryId: string } | null>(null)
   const [showing, setShowing] = useState<'picker' | 'loadout' | 'datasheet' | null>(null)
+  const [datasheetReturn, setDatasheetReturn] = useState<'picker' | 'loadout' | null>(null)
   const [exportText, setExportText] = useState<string | null>(null)
   const workspacePath = initial?.id ? `/rosters/${initial.id}/edit` : '/rosters/new'
   const [setupDraft, setSetupDraftState] = useState<RosterSetup | null>(null)
@@ -445,6 +461,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
           onAdd={add}
           onPreview={(entryId) => {
             setPreview({ catalogueId, entryId })
+            setDatasheetReturn('picker')
             setShowing('datasheet')
           }}
           inRoster={held}
@@ -783,7 +800,26 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
       </header>
 
       <div className="flex min-h-0 flex-1">
-        <Pane variant="picker" open={showing === 'picker'} title="Add units" onClose={() => setShowing(null)}>
+        <Pane
+          variant="picker"
+          open={showing === 'picker'}
+          title="Add units"
+          onClose={() => setShowing(null)}
+          actions={
+            selectedUnit ? (
+              <Button
+                variant="ghost"
+                size="xs"
+                onClick={() => {
+                  setPreview(null)
+                  setShowing('loadout')
+                }}
+              >
+                <SlidersHorizontal /> Loadout
+              </Button>
+            ) : null
+          }
+        >
           {picker}
         </Pane>
 
@@ -828,11 +864,47 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
           )}
         </div>
 
-        <Pane variant="loadout" open={showing === 'loadout' && Boolean(selectedUnit)} title="Loadout" onClose={() => setShowing(null)}>
+        <Pane
+          variant="loadout"
+          open={showing === 'loadout' && Boolean(selectedUnit)}
+          title="Loadout"
+          onClose={() => setShowing(null)}
+          actions={
+            <>
+              <Button variant="ghost" size="xs" onClick={() => setShowing('picker')}>
+                <ListPlus /> Units
+              </Button>
+              <Button
+                variant="ghost"
+                size="xs"
+                onClick={() => {
+                  setPreview(null)
+                  setDatasheetReturn('loadout')
+                  setShowing('datasheet')
+                }}
+              >
+                <BookOpen /> Datasheet
+              </Button>
+            </>
+          }
+        >
           {loadout}
         </Pane>
 
-        <Pane variant="datasheet" open={showing === 'datasheet'} title="Datasheet" onClose={() => setShowing(null)}>
+        <Pane
+          variant="datasheet"
+          open={showing === 'datasheet'}
+          title="Datasheet"
+          onClose={() => setShowing(datasheetReturn)}
+          actions={
+            datasheetReturn ? (
+              <Button variant="ghost" size="xs" onClick={() => setShowing(datasheetReturn)}>
+                {datasheetReturn === 'picker' ? <ListPlus /> : <SlidersHorizontal />}
+                {datasheetReturn === 'picker' ? 'Units' : 'Loadout'}
+              </Button>
+            ) : null
+          }
+        >
           {datasheet}
         </Pane>
       </div>
