@@ -28,7 +28,14 @@ type Detachment = {
   reference?: { points: number | null } | null
 }
 
-export type RosterSetupFaction = { id: string; slug: string; name: string; displayName: string; detachments: Detachment[] }
+export type RosterSetupFaction = {
+  id: string
+  slug: string
+  name: string
+  displayName: string
+  icon: string | null
+  detachments: Detachment[]
+}
 
 export type RosterSetup = {
   name: string

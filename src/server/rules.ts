@@ -83,7 +83,7 @@ type RawMatchup = { disposition: string; opponent_disposition: string; mission_i
 
 type RawDisposition = { id: string; name: string; text?: string }
 
-type RawFaction = { id: string; name: string; logo_url?: string }
+type RawFaction = { id: string; name: string; aliases?: string[]; logo_url?: string }
 
 type RawDetachment = {
   id: string
@@ -345,10 +345,9 @@ export function loadRules(
         factionNames.set(found.id, found.name)
         const icon = path.join(iconDirectory, `${found.id}.svg`)
         if (found.logo_url) {
-          factionIcons.set(
-            found.id,
-            fs.existsSync(icon) ? `data:image/svg+xml;base64,${fs.readFileSync(icon).toString('base64')}` : found.logo_url,
-          )
+          const source = fs.existsSync(icon) ? `data:image/svg+xml;base64,${fs.readFileSync(icon).toString('base64')}` : found.logo_url
+          factionIcons.set(found.id, source)
+          for (const alias of found.aliases ?? []) factionIcons.set(routeSlug(alias), source)
         }
       }
     }

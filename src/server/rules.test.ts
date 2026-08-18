@@ -40,7 +40,7 @@ beforeEach(() => {
     { id: 'virulent-carapace', name: 'Virulent Carapace (Upgrade)', detachment_id: 'flyblown-host', cost: 15 },
   ])
   write(path.join(core, 'factions.json'), [
-    { id: 'death-guard', name: 'Death Guard', logo_url: 'https://cdn.jsdelivr.net/example/death-guard.svg' },
+    { id: 'death-guard', name: 'Death Guard', aliases: ['Plague Marines'], logo_url: 'https://cdn.jsdelivr.net/example/death-guard.svg' },
     { id: 'orks', name: 'Orks', logo_url: 'https://cdn.jsdelivr.net/example/orks.svg' },
   ])
   const icons = path.join(directory, 'faction-icons')
@@ -125,6 +125,10 @@ describe('stratagems', () => {
 
   it('keeps the local faction icon path', () => {
     expect(load().factionIcons.get('death-guard')).toMatch(/^data:image\/svg\+xml;base64,/)
+  })
+
+  it('uses a faction icon for its aliases', () => {
+    expect(load().factionIcons.get('plague-marines')).toBe(load().factionIcons.get('death-guard'))
   })
 
   it('uses the pinned upstream icon while an older snapshot has no local copy', () => {

@@ -29,17 +29,25 @@ export function shelve<T extends { name: string }>(factions: readonly T[]): Fact
   return shelves
 }
 
-export function factionSelectGroups<T extends { id: string; name: string }>(factions: readonly T[], favourites: ReadonlySet<string>) {
+export function factionSelectGroups<T extends { id: string; name: string; slug?: string; displayName?: string; icon?: string | null }>(
+  factions: readonly T[],
+  favourites: ReadonlySet<string>,
+) {
+  const option = (entry: T) => ({
+    label: shortName(entry.name),
+    value: entry.id,
+    faction: entry.slug
+      ? { slug: entry.slug, displayName: entry.displayName ?? shortName(entry.name), icon: entry.icon ?? null }
+      : undefined,
+  })
   const favourite = favouritesFirst(
     factions.filter((entry) => favourites.has(entry.id)),
     favourites,
   )
   const groups = shelve(factions.filter((entry) => !favourites.has(entry.id))).map((shelf) => ({
     label: shelf.lineage,
-    items: shelf.factions.map((entry) => ({ label: shortName(entry.name), value: entry.id })),
+    items: shelf.factions.map(option),
   }))
-  return favourite.length
-    ? [{ label: 'Favourites', items: favourite.map((entry) => ({ label: shortName(entry.name), value: entry.id })) }, ...groups]
-    : groups
+  return favourite.length ? [{ label: 'Favourites', items: favourite.map(option) }, ...groups] : groups
 }
 import { favouritesFirst } from '../../favouriteFactions'
