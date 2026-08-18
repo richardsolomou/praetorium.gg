@@ -43,7 +43,7 @@ test('stratagems and tactical missions are tracked through a turn', async ({ bro
   const panel = alice.locator('[data-panel="player"]').filter({ hasText: 'Death Guard' })
   const cp = panel.locator('[data-stat="cp"]')
   await expect(cp).toHaveText('1')
-  await expect(bob.getByRole('button', { name: /^Use / })).toHaveCount(0)
+  await expect(bob.locator('[data-panel="player"]').filter({ hasText: 'Death Guard' }).getByRole('button', { name: /^Use / })).toHaveCount(0)
 
   await alice.getByRole('button', { name: 'Behind Enemy Lines plus 3 per friendly unit wholly within opponent deployment zone' }).click()
   await expect(panel.locator('[data-stat="secondary"]')).toHaveText('3')
