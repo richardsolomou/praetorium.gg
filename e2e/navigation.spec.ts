@@ -11,11 +11,25 @@ test('primary navigation keeps every scoped destination on phones', async ({ pag
   await expect(primary.getByRole('link', { name: 'Battles' })).toBeVisible()
   await expect(primary.getByRole('link', { name: 'Rosters' })).toBeVisible()
   await expect(primary.getByRole('link', { name: 'Factions' })).toBeVisible()
+  await expect(primary.getByText('Rules', { exact: true })).toHaveCount(0)
   await expect(page.locator('header')).toHaveJSProperty(
     'scrollWidth',
     await page.locator('header').evaluate((header) => header.clientWidth),
   )
   await page.screenshot({ path: 'test-results/navigation-phone.png', fullPage: true })
+})
+
+test('public reference data renders without client JavaScript', async ({ browser }) => {
+  const context = await browser.newContext({ javaScriptEnabled: false })
+  const page = await context.newPage()
+
+  await page.goto('/factions')
+  await expect(page.locator('[data-faction="Chaos Daemons"]')).toBeVisible()
+  await page.goto('/mission-packs')
+  await expect(page).toHaveURL(/\/mission-packs\/.+/)
+  await expect(page.getByRole('heading', { name: 'Chapter Approved 2026-2027' })).toBeVisible()
+
+  await context.close()
 })
 
 test('terrain layouts show their labels and measurement guides', async ({ page }) => {
@@ -36,6 +50,8 @@ test('a player can enter through the roster library and browse the product', asy
   await page.goto('/rosters')
 
   await expect(page.getByRole('heading', { name: 'My rosters' })).toBeVisible()
+  const rendered = await page.request.get('/rosters')
+  expect(await rendered.text()).toContain('My rosters')
   await expect(page.getByText('No rosters yet. Create one or bring one from another app.')).toBeVisible()
   await page.getByRole('button', { name: /Incursion/ }).click()
   await expect(page).toHaveURL('/rosters?limit=1000')

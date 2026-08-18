@@ -8,7 +8,6 @@ import barlow700 from '@fontsource/barlow-semi-condensed/files/barlow-semi-conde
 import rules400 from '@fontsource/barlow/files/barlow-latin-400-normal.woff2?url'
 import rules600 from '@fontsource/barlow/files/barlow-latin-600-normal.woff2?url'
 import { Button } from '@/components/ui/button'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { postHogEnvironment } from 'ras-stack/posthog'
 import { PostHogBetterAuthIdentity, PostHogIntegration } from 'ras-stack/posthog/react'
 import { authClient } from '../client/authClient'
@@ -123,12 +122,9 @@ function RootComponent() {
                   <Link to="/factions" className="eyebrow hover:text-azure" activeProps={{ className: 'text-azure' }}>
                     Factions
                   </Link>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger className="eyebrow hidden hover:text-azure sm:inline-flex">Rules</DropdownMenuTrigger>
-                    <DropdownMenuContent align="start">
-                      <DropdownMenuItem render={<Link to="/mission-packs" />}>Mission packs</DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  <Link to="/mission-packs" className="eyebrow hidden hover:text-azure sm:inline" activeProps={{ className: 'text-azure' }}>
+                    Mission packs
+                  </Link>
                 </nav>
                 <Account />
               </div>
