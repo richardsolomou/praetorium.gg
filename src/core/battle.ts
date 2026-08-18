@@ -75,7 +75,7 @@ type SubmittedUnit = {
 }
 
 export const UNIT_FORMATIONS = ['battlefield', 'strategic-reserves', 'deep-strike', 'embarked'] as const
-export type UnitFormation = (typeof UNIT_FORMATIONS)[number]
+type UnitFormation = (typeof UNIT_FORMATIONS)[number]
 
 /** A unit's standing in the battle. Attached rosters begin on the battlefield. */
 type UnitState = SubmittedUnit & {
@@ -131,7 +131,7 @@ export type SecondaryMode = 'fixed' | 'tactical'
 
 export const SECONDARY_MODES: SecondaryMode[] = ['fixed', 'tactical']
 
-export type BattlePrep = {
+type BattlePrep = {
   stratagems: Stratagem[]
   secondaries: Secondary[]
   secondaryDeck?: Secondary[]
@@ -139,9 +139,9 @@ export type BattlePrep = {
   secondaryMode: SecondaryMode
 }
 
-export type BattleEndReason = 'completed' | 'finished-early' | 'conceded'
+type BattleEndReason = 'completed' | 'finished-early' | 'conceded'
 
-export type BattleSettings = {
+type BattleSettings = {
   limit: number | null
   missionPackId: string | null
   terrainLayoutId: string | null
@@ -171,8 +171,8 @@ const SECONDARY_GUIDE = 40
 const PAINTED_ARMY_POINTS = 10
 
 /** The matched-play game sizes, smallest first. */
-export const KOTC_LIMITS = [500, 600] as const
-export const KOTC_ROUNDS = 3
+const KOTC_LIMITS = [500, 600] as const
+const KOTC_ROUNDS = 3
 export const DEFAULT_GAME_LIMIT = 2000
 
 export const GAME_SIZES = [
@@ -185,7 +185,7 @@ export const GAME_SIZES = [
 export const detachmentPointBudget = (limit: number) => GAME_SIZES.find((size) => size.limit === limit)?.detachmentPoints ?? null
 export const isKotcLimit = (limit: number | null): boolean => limit !== null && KOTC_LIMITS.some((candidate) => candidate === limit)
 export const detachmentLimit = (limit: number) => (isKotcLimit(limit) ? 1 : 3)
-export const battleRoundLimit = (limit: number | null) => (isKotcLimit(limit) ? KOTC_ROUNDS : BATTLE_ROUNDS)
+const battleRoundLimit = (limit: number | null) => (isKotcLimit(limit) ? KOTC_ROUNDS : BATTLE_ROUNDS)
 
 /** The format-specific cap for copies of one datasheet, before catalogue limits are applied. */
 export const formatDatasheetLimit = (limit: number, repeatable: boolean) => (isKotcLimit(limit) ? (repeatable ? 2 : 1) : null)

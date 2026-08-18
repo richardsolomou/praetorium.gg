@@ -166,7 +166,7 @@ type CategoryEntry = {
 }
 
 /** `$text` is where the JSON puts a characteristic's words. */
-export type Characteristic = { name?: string; typeId?: string; $text?: string }
+type Characteristic = { name?: string; typeId?: string; $text?: string }
 
 export type Profile = {
   id: string

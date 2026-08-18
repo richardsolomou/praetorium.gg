@@ -19,7 +19,7 @@ import {
  * that licence rather than a courtesy, so `ATTRIBUTION` goes on screen wherever
  * this data does.
  */
-export const ATTRIBUTION = 'Stratagems and mission cards by the Tabletop Developer Consortium, CC BY 4.0'
+const ATTRIBUTION = 'Stratagems and mission cards by the Tabletop Developer Consortium, CC BY 4.0'
 const BATTLEMASTER_ATTRIBUTION = 'Terrain geometry provided by Battlemaster'
 
 /** How the dataset words a usage limit, mapped onto what the battle enforces. */
