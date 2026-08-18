@@ -474,6 +474,14 @@ describe('optional wargear on repeated models', () => {
     expect(modelCountOf(removed.selection, index)).toBe(3)
   })
 
+  it('keeps the unit resizable after splitting an optional group', () => {
+    const six = buildUnit('unit', index, 6, undefined, { spreads: { 'model/wargear': { loom: 2, scope: 0 } } })!
+    expect(six.size).toMatchObject({ min: 3, max: 6, models: 6 })
+
+    const five = buildUnit('unit', index, 5, undefined, { spreads: { 'model/wargear': { loom: 2, scope: 0 } } })!
+    expect(five.size).toMatchObject({ min: 3, max: 6, models: 5 })
+  })
+
   it('lets each model carry a different weapon', () => {
     const built = buildUnit('unit', index, 3, undefined, {
       spreads: {

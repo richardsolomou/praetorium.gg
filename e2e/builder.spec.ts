@@ -224,6 +224,20 @@ test('wargear abilities are explained beside their choices', async ({ page }) =>
   await loadout.getByRole('button', { name: 'Fewer models in Tomb Blades' }).click()
   await expect(loadout.getByLabel('Tomb Blades models')).toHaveText('3')
 
+  for (const models of ['4', '5', '6']) {
+    await loadout.getByRole('button', { name: 'More models in Tomb Blades' }).click()
+    await expect(loadout.getByLabel('Tomb Blades models')).toHaveText(models)
+  }
+  await loadout.getByRole('button', { name: 'More Shadowloom' }).click()
+  await loadout.getByRole('button', { name: 'More Shadowloom' }).click()
+  await expect(loadout.getByLabel('Shadowloom count')).toHaveText('2')
+  await expect(page.locator('[data-roster-builder]')).toHaveAttribute('data-saving', 'false')
+  await loadout.getByRole('button', { name: 'Fewer models in Tomb Blades' }).click()
+  await expect(loadout.getByLabel('Tomb Blades models')).toHaveText('5')
+  await loadout.getByRole('button', { name: 'Fewer models in Tomb Blades' }).click()
+  await loadout.getByRole('button', { name: 'Fewer models in Tomb Blades' }).click()
+  await expect(loadout.getByLabel('Tomb Blades models')).toHaveText('3')
+
   await loadout.getByRole('button', { name: 'More Particle beamer' }).click()
   await loadout.getByRole('button', { name: 'More Twin tesla carbine' }).click()
   await expect(loadout.getByLabel('Twin gauss blaster count')).toHaveText('1')

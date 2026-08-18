@@ -298,13 +298,14 @@ export function buildUnit(
   const chosen = Object.entries(choices ?? {}).reduce((tree, [key, optionId]) => withChoice(tree, key, optionId, index), base)
   const composed =
     models === undefined ? chosen : withModelComposition(entryId, chosen, models, new Set(Object.keys(choices ?? {})), index, context)
+  const composedSize = sizeOf(composed, index)
   // Then the spreads, which say how many of each option rather than which one.
   const spread = Object.entries(context?.spreads ?? {}).reduce((tree, [key, counts]) => withUnitSpread(tree, key, counts, index), composed)
   const toggled = withCounts(
     spread,
     Object.entries(context?.toggles ?? {}).map(([key, count]) => ({ path: key.split('/'), count })),
   )
-  const size = sizeOf(toggled, index)
+  const size = modelCountOf(toggled, index) === modelCountOf(composed, index) ? composedSize : sizeOf(toggled, index)
 
   if (models === undefined || !size.path.length || models === size.models) {
     const fitted = refit(toggled, index, 1)
