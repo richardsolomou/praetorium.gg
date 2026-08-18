@@ -1,5 +1,5 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import { Search } from 'lucide-react'
+import { ChevronRight, Search } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Command, CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
@@ -74,10 +74,16 @@ export function GlobalSearch() {
               return (
                 <CommandGroup key={group} heading={group}>
                   {items.map((result) => (
-                    <CommandItem key={result.id} value={`${result.label} ${result.detail}`} onSelect={() => go(result.href)}>
+                    <CommandItem
+                      key={result.id}
+                      value={`${result.label} ${result.detail}`}
+                      onSelect={() => go(result.href)}
+                      className="border-l-2 border-transparent data-[selected=true]:border-azure data-[selected=true]:bg-azure data-[selected=true]:text-azure-ink data-[selected=true]:[&_.result-detail]:text-azure-ink/70"
+                    >
+                      <ChevronRight className="size-4 opacity-0 group-data-[selected=true]/command-item:opacity-100" aria-hidden />
                       <span className="min-w-0 flex-1">
                         <span className="block truncate font-semibold uppercase">{result.label}</span>
-                        <span className="block truncate text-xs text-dim">{result.detail}</span>
+                        <span className="result-detail block truncate text-xs text-dim">{result.detail}</span>
                       </span>
                     </CommandItem>
                   ))}
@@ -85,6 +91,17 @@ export function GlobalSearch() {
               )
             })}
           </CommandList>
+          <div className="flex items-center justify-end gap-3 border-t border-edge px-3 py-2 text-[0.625rem] text-dim" aria-hidden>
+            <span>
+              <kbd>↑</kbd> <kbd>↓</kbd> navigate
+            </span>
+            <span>
+              <kbd>↵</kbd> open
+            </span>
+            <span>
+              <kbd>esc</kbd> close
+            </span>
+          </div>
         </Command>
       </CommandDialog>
     </>
