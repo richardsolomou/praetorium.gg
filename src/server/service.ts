@@ -124,37 +124,15 @@ export class PraetoriumService {
   /** A player's own saved lists, newest first. Their picks come back parsed. */
   savedRosters(playerId: string) {
     return this.repository.rostersByPlayer(playerId).map((row) => ({
-      id: row.id,
-      name: row.name,
-      catalogueId: row.catalogueId,
-      detachmentIds: detachmentIds(row.detachmentId),
-      disposition: row.disposition,
-      limit: row.limit,
-      updatedAt: row.updatedAt,
-      picks: picksSchema.parse(JSON.parse(row.picks)),
+      ...rosterFromRow(row),
       prep: row.prep ? savedPrepSchema.parse(JSON.parse(row.prep)) : null,
-      visibility: row.visibility,
-      source: row.source,
     }))
   }
 
   /** An unlisted roster, or its owner's private roster, without exposing owner identity. */
   sharedRoster(id: string, playerId: string | null = null) {
     const row = this.repository.roster(id)
-    return row && (row.visibility === 'unlisted' || row.playerId === playerId)
-      ? {
-          id: row.id,
-          name: row.name,
-          catalogueId: row.catalogueId,
-          detachmentIds: detachmentIds(row.detachmentId),
-          disposition: row.disposition,
-          limit: row.limit,
-          updatedAt: row.updatedAt,
-          picks: picksSchema.parse(JSON.parse(row.picks)),
-          visibility: row.visibility,
-          source: row.source,
-        }
-      : null
+    return row && (row.visibility === 'unlisted' || row.playerId === playerId) ? rosterFromRow(row) : null
   }
 
   setRosterVisibility(playerId: string, id: string, visibility: 'private' | 'unlisted') {
@@ -319,6 +297,21 @@ export class PraetoriumService {
     const seats = this.repository.battleByToken(token)
     if (!seats) throw new Response('no such battle', { status: 404 })
     return seats
+  }
+}
+
+function rosterFromRow(row: NonNullable<ReturnType<Repository['roster']>>) {
+  return {
+    id: row.id,
+    name: row.name,
+    catalogueId: row.catalogueId,
+    detachmentIds: detachmentIds(row.detachmentId),
+    disposition: row.disposition,
+    limit: row.limit,
+    updatedAt: row.updatedAt,
+    picks: picksSchema.parse(JSON.parse(row.picks)),
+    visibility: row.visibility,
+    source: row.source,
   }
 }
 
