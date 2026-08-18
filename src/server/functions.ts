@@ -7,7 +7,7 @@ import { buildUnit } from '../core/roster'
 import { datasheetIn, datasheetInBySlug } from './catalogue'
 import { describeDatasheetAbilities } from './datasheetDescriptions'
 import { detachmentReference } from './detachmentReference'
-import { detachmentCatalogueDetail } from './catalogueDescriptions'
+import { factionIndexFor, factionsFor } from './factionReferences'
 import { factionDisplayName } from './factionNames'
 import { unitsIn } from './cataloguePicker'
 import { slug } from './rules'
@@ -165,58 +165,7 @@ export const factions = createServerFn({ method: 'GET' }).handler(() =>
   rpc(() => {
     const loaded = app().catalogue()
     if (!loaded) return null
-    const rules = app().rules()
-    return {
-      revision: loaded.index.revision,
-      factions: loaded.factions.map((faction) => {
-        const displayName = factionDisplayName(faction.name, rules?.factionNames)
-        const content = loaded.factionContents.get(routeSlug(displayName))
-        const detachments = loaded.detachments.get(faction.id)?.options ?? []
-        const referenceDetachments = detachments.filter(
-          (detachment) => !content || [...content.detachments].some((name) => slug(name) === slug(detachment.name)),
-        )
-        return {
-          id: faction.id,
-          slug: routeSlug(displayName),
-          name: faction.name,
-          displayName,
-          icon: rules?.factionIcons.has(routeSlug(displayName)) ? `/api/faction-icons/${routeSlug(displayName)}` : null,
-          armyRule: rules?.factionRules.get(routeSlug(displayName)) ?? null,
-          references: faction.references.map((reference) => ({
-            ...reference,
-            datasheets: content?.datasheets.size ?? reference.datasheets,
-            detachments: referenceDetachments.length,
-          })),
-          referenceDetachmentIds: referenceDetachments.map((detachment) => detachment.id),
-          detachments: detachments.map((detachment) => {
-            const reference = rules?.detachmentReferences.get(slug(faction.name))?.get(slug(detachment.name))
-            const detail = rules?.detachmentDetails.get(slug(faction.name))?.get(slug(detachment.name))
-            const forced = detachmentCatalogueDetail(loaded, faction.id, detachment.id, [])?.forcedEnhancements ?? []
-            return {
-              id: detachment.id,
-              slug: slug(detachment.name),
-              name: detachment.name,
-              disposition: detachment.disposition,
-              dispositions: reference?.dispositions.length
-                ? reference.dispositions.map((id) => ({ id, name: rules?.dispositions.get(id) ?? id }))
-                : detachment.disposition
-                  ? [{ id: detachment.disposition, name: rules?.dispositions.get(detachment.disposition) ?? detachment.disposition }]
-                  : [],
-              reference: reference
-                ? {
-                    ...reference,
-                    enhancements: new Set([
-                      ...(detail?.enhancements.map((enhancement) => enhancement.name) ?? []),
-                      ...forced.map((entry) => entry.name),
-                    ]).size,
-                    dispositions: reference.dispositions.map((disposition) => rules?.dispositions.get(disposition) ?? disposition),
-                  }
-                : null,
-            }
-          }),
-        }
-      }),
-    }
+    return factionsFor(loaded, app().rules())
   }),
 )
 
@@ -224,30 +173,7 @@ export const factionIndex = createServerFn({ method: 'GET' }).handler(() =>
   rpc(() => {
     const loaded = app().catalogue()
     if (!loaded) return null
-    const rules = app().rules()
-    return {
-      revision: loaded.index.revision,
-      factions: loaded.factions.map((faction) => {
-        const displayName = factionDisplayName(faction.name, rules?.factionNames)
-        const slugId = routeSlug(displayName)
-        const content = loaded.factionContents.get(slugId)
-        const referenceDetachments = (loaded.detachments.get(faction.id)?.options ?? []).filter(
-          (detachment) => !content || [...content.detachments].some((name) => slug(name) === slug(detachment.name)),
-        )
-        return {
-          id: faction.id,
-          slug: slugId,
-          name: faction.name,
-          displayName,
-          icon: rules?.factionIcons.has(slugId) ? `/api/faction-icons/${slugId}` : null,
-          references: faction.references.map((reference) => ({
-            ...reference,
-            datasheets: content?.datasheets.size ?? reference.datasheets,
-            detachments: referenceDetachments.length,
-          })),
-        }
-      }),
-    }
+    return factionIndexFor(loaded, app().rules())
   }),
 )
 
