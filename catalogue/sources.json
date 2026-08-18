@@ -17,6 +17,13 @@
     "attribution": "Data by the Tabletop Developer Consortium, CC BY 4.0",
     "description": "Stratagems by detachment and secondary mission cards. Licensed under CC BY 4.0."
   },
+  "datacards": {
+    "repository": "game-datacards/datasources",
+    "branch": "main",
+    "path": "11th/gdc",
+    "attribution": "Data provided by game-datacards",
+    "description": "Game Datacards data for Warhammer 40,000 11th edition, including factions, core rules, missions, and layouts."
+  },
   "battlemaster": {
     "baseUrl": "https://battlemaster.online",
     "owner": "superwutz",

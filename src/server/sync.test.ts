@@ -16,17 +16,19 @@ beforeEach(() => {
     definitions: { ...config.definitions, revision: 'definitions-revision' },
     points: { ...config.points, revision: 'points-revision' },
     rules: { ...config.rules, revision: 'rules-revision' },
+    datacards: { ...config.datacards, revision: 'datacards-revision' },
     battlemaster: { ...config.battlemaster, revision: 'battlemaster-revision' },
     wahapedia: { ...config.wahapedia, revision: 'wahapedia-revision', files: {}, pages: {} },
   }
   directory = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-sync-'))
-  for (const name of ['definitions', 'points', 'rules']) fs.mkdirSync(path.join(directory, name))
+  for (const name of ['definitions', 'points', 'rules', 'datacards']) fs.mkdirSync(path.join(directory, name))
   fs.writeFileSync(
     path.join(directory, 'revision.json'),
     JSON.stringify({
       definitions: sources.definitions.revision,
       points: sources.points.revision,
       rules: sources.rules.revision,
+      datacards: sources.datacards.revision,
     }),
   )
 })
@@ -143,6 +145,26 @@ it('extracts only a source configured subpath', async () => {
 
   expect(fs.existsSync(path.join(directory, 'rules', 'data', 'core', 'faction', 'rules.json'))).toBe(true)
   expect(fs.existsSync(path.join(directory, 'rules', 'tools', 'package.json'))).toBe(false)
+})
+
+it('extracts the Game Datacards 11th edition data without other editions', async () => {
+  const revisions = JSON.parse(fs.readFileSync(path.join(directory, 'revision.json'), 'utf8'))
+  fs.writeFileSync(path.join(directory, 'revision.json'), JSON.stringify({ ...revisions, datacards: 'old' }))
+  const archive = zipSync({
+    'repository/11th/gdc/core.json': new TextEncoder().encode('{}'),
+    'repository/10th/gdc/core.json': new TextEncoder().encode('{}'),
+  })
+  vi.stubGlobal(
+    'fetch',
+    vi.fn<(url: string) => Promise<Response>>(async (url) =>
+      url.includes('codeload.github.com') ? new Response(archive) : new Response('changed export'),
+    ),
+  )
+
+  await syncSources(directory, sources)
+
+  expect(fs.existsSync(path.join(directory, 'datacards', '11th', 'gdc', 'core.json'))).toBe(true)
+  expect(fs.existsSync(path.join(directory, 'datacards', '10th'))).toBe(false)
 })
 
 it('keeps the current source when an archive lacks its configured subpath', async () => {

@@ -27,6 +27,7 @@ function pinnedRevisions(sources: ResolvedCatalogueSources): Record<SourceName, 
     definitions: sources.definitions.revision,
     points: sources.points.revision,
     rules: sources.rules.revision,
+    datacards: sources.datacards.revision,
   }
 }
 

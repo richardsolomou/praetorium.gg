@@ -29,17 +29,22 @@ export const catalogueSourcesSchema = z.object({
   definitions: repositorySourceSchema,
   points: repositorySourceSchema,
   rules: repositorySourceSchema,
+  datacards: repositorySourceSchema,
   battlemaster: battlemasterSourceSchema,
   wahapedia: wahapediaSourceSchema,
 })
 
-export const SOURCE_NAMES = ['definitions', 'points', 'rules'] as const
+export const SOURCE_NAMES = ['definitions', 'points', 'rules', 'datacards'] as const
 export type SourceName = (typeof SOURCE_NAMES)[number]
 export type CatalogueSourceConfig = z.infer<typeof catalogueSourcesSchema>
-export type ResolvedCatalogueSources = Omit<CatalogueSourceConfig, 'definitions' | 'points' | 'rules' | 'battlemaster' | 'wahapedia'> & {
+export type ResolvedCatalogueSources = Omit<
+  CatalogueSourceConfig,
+  'definitions' | 'points' | 'rules' | 'datacards' | 'battlemaster' | 'wahapedia'
+> & {
   definitions: CatalogueSourceConfig['definitions'] & { revision: string }
   points: CatalogueSourceConfig['points'] & { revision: string }
   rules: CatalogueSourceConfig['rules'] & { revision: string }
+  datacards: CatalogueSourceConfig['datacards'] & { revision: string }
   battlemaster: CatalogueSourceConfig['battlemaster'] & { revision: string }
   wahapedia: Omit<CatalogueSourceConfig['wahapedia'], 'baseUrl' | 'files' | 'pages'> & {
     baseUrl: string

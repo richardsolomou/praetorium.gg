@@ -37,10 +37,10 @@ function filesUnder(directory: string, relative = ''): string[] {
 
 function requireComplete(directory: string) {
   const revisions = JSON.parse(fs.readFileSync(path.join(directory, 'revision.json'), 'utf8')) as Record<string, string>
-  for (const name of ['definitions', 'points', 'rules', 'battlemaster', 'wahapedia']) {
+  for (const name of ['definitions', 'points', 'rules', 'datacards', 'battlemaster', 'wahapedia']) {
     if (!revisions[name]) throw new Error(`catalogue snapshot has no ${name} revision`)
   }
-  for (const name of ['definitions', 'points', 'rules']) {
+  for (const name of ['definitions', 'points', 'rules', 'datacards']) {
     if (!filesUnder(path.join(directory, name)).length) throw new Error(`catalogue snapshot has no ${name} files`)
   }
   if (!filesUnder(path.join(directory, 'battlemaster', 'layouts')).length) throw new Error('catalogue snapshot has no terrain layouts')

@@ -15,7 +15,7 @@ it('packs and verifies a complete catalogue', () => {
   roots.push(root)
   const catalogue = path.join(root, 'catalogue')
   const archive = path.join(root, 'snapshot.zip')
-  for (const name of ['definitions', 'points', 'rules']) {
+  for (const name of ['definitions', 'points', 'rules', 'datacards']) {
     fs.mkdirSync(path.join(catalogue, name), { recursive: true })
     fs.writeFileSync(path.join(catalogue, name, 'test.json'), '{"catalogue":true}\n')
   }
@@ -29,6 +29,7 @@ it('packs and verifies a complete catalogue', () => {
       definitions: 'definitions-revision',
       points: 'points-revision',
       rules: 'rules-revision',
+      datacards: 'datacards-revision',
       battlemaster: 'battlemaster-revision',
       wahapedia: 'wahapedia-revision',
     })}\n`,
