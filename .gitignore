@@ -6,6 +6,7 @@ dist/
 .env
 .env.local
 data-dev/
+praetorium-data/
 src/routeTree.gen.ts
 .pnpm-store/
 .DS_Store
