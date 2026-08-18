@@ -125,13 +125,14 @@ export function datasheetIn(
       }
     }
   }
-  const visit = (definition: Definition, isRoot = false, ancestors: string[] = []) => {
+  const visit = (definition: Definition, isRoot = false, ancestors: string[] = [], enhancement = false) => {
     if (visited.has(definition.id)) return
     visited.add(definition.id)
     const lineage = [...ancestors, ...definitionTokens(definition)]
-    addProfiles(definition, lineage, 'datasheet', isRoot)
-    definition.selectionEntries?.forEach((entry) => visit(entry, false, lineage))
-    definition.selectionEntryGroups?.forEach((group) => visit(group, false, lineage))
+    const enhancementEntry = enhancement || definition.name === 'Enhancements'
+    if (!enhancementEntry || selected.has(definition.id)) addProfiles(definition, lineage, 'datasheet', isRoot)
+    definition.selectionEntries?.forEach((entry) => visit(entry, false, lineage, enhancementEntry))
+    definition.selectionEntryGroups?.forEach((group) => visit(group, false, lineage, enhancementEntry))
     for (const link of definition.entryLinks ?? []) {
       visit(link, false, lineage)
       const target = loaded.index.definitions.get(link.targetId)

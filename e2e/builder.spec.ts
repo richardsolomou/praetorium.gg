@@ -397,6 +397,7 @@ test('a squad grows from its unit editor', async ({ page }) => {
   await expect(page.locator('html')).not.toHaveAttribute('data-datasheet-reloaded', 'true')
   // And the wargear lines follow the models carrying it.
   await expect(page.getByText('6x Gauss blaster')).toBeVisible()
+  await expect(datasheet.getByRole('heading', { name: 'Tools of Dominion' })).toHaveCount(0)
   await page.screenshot({ path: 'test-results/unit-editor-model-count.png', fullPage: true })
 })
 

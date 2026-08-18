@@ -1010,6 +1010,36 @@ describe('a datasheet', () => {
     ])
   })
 
+  it('shows a unit enhancement ability only when the enhancement is selected', () => {
+    const book = bookOf({
+      selectionEntries: [
+        {
+          id: 'immortals',
+          name: 'Immortals',
+          type: 'unit',
+          profiles: [ability('intrinsic', 'Implacable Eradication')],
+          selectionEntryGroups: [
+            {
+              id: 'enhancements',
+              name: 'Enhancements',
+              selectionEntries: [
+                { id: 'tools', name: 'Tools of Dominion', type: 'upgrade', profiles: [ability('tools-ability', 'Tools of Dominion')] },
+              ],
+            },
+          ],
+        },
+      ],
+    })
+
+    expect(datasheetIn(book, 'cat', 'immortals')?.abilities.map(({ name }) => name)).toEqual(['Implacable Eradication'])
+    expect(
+      datasheetIn(book, 'cat', 'immortals', {
+        selections: [{ id: 'immortals', selections: [{ id: 'enhancements', selections: [{ id: 'tools' }] }] }],
+        unitSelectionIndex: 0,
+      })?.abilities.map(({ name }) => name),
+    ).toEqual(['Implacable Eradication', 'Tools of Dominion'])
+  })
+
   it('classifies game-system rules linked by a datasheet as core abilities', () => {
     const loaded = shelfOf({
       sharedRules: [{ id: 'faction-rule', name: 'Faction rule', description: 'Faction text.' }],
