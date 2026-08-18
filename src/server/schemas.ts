@@ -23,8 +23,6 @@ export const createBattleSchema = z.object({
 })
 export const deleteBattleSchema = z.object({ token })
 
-export const joinBattleSchema = tokenSchema
-
 /**
  * `expectedSeq` is the client's claim about the history it has already seen.
  * Sending it is what makes a command conditional on nothing having happened since.

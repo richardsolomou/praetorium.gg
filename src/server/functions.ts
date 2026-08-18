@@ -25,7 +25,6 @@ import {
   exportRosterSchema,
   favouriteFactionSchema,
   importRosterSchema,
-  joinBattleSchema,
   priceSchema,
   ownedSchema,
   rosterIdSchema,
@@ -95,7 +94,7 @@ export const deleteBattle = createServerFn({ method: 'POST' })
   )
 
 export const joinBattle = createServerFn({ method: 'POST' })
-  .validator(joinBattleSchema)
+  .validator(tokenSchema)
   .handler(({ data }) =>
     mutationRpc(async () => {
       const player = await requirePlayer()
