@@ -221,7 +221,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
       })),
     ),
     placeholderData: (previous, previousQuery) => {
-      return sameUnitSequence(previousQuery?.queryKey[5], picked) ? previous : undefined
+      return appendedUnitSequence(previousQuery?.queryKey.at(-1), picked) ? previous : undefined
     },
   })
 
@@ -294,7 +294,8 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
       current.map((pick, at) => {
         if (at !== index) return pick
         const choices = { ...pick.choices }
-        choices[key] = optionId
+        if (optionId) choices[key] = optionId
+        else delete choices[key]
         return { ...pick, choices }
       }),
     )
@@ -916,8 +917,8 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
   )
 }
 
-function sameUnitSequence(previous: unknown, current: readonly RosterPick[]) {
-  if (!Array.isArray(previous) || previous.length > current.length) return false
+function appendedUnitSequence(previous: unknown, current: readonly RosterPick[]) {
+  if (!Array.isArray(previous) || previous.length >= current.length) return false
   return previous.every(
     (pick, index) =>
       typeof pick === 'object' &&

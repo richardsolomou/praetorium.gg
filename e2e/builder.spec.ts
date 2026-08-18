@@ -1,5 +1,5 @@
 import { expect, type Page, test } from '@playwright/test'
-import { createRoster, signUp } from './account'
+import { createRoster, signUp, waitForRosterSave } from './account'
 
 /**
  * The four things a player coming from another builder reaches for: squad size where
@@ -54,6 +54,7 @@ test('adding a unit keeps the confirmed roster visible while pricing catches up'
   await add(page, 'Skorpekh Destroyers')
 
   await expect(immortals).toBeVisible({ timeout: 250 })
+  await expect(page.locator('[data-unit]')).toHaveCount(1, { timeout: 250 })
   await expect(page.locator('[data-unit="Skorpekh Destroyers"]')).toBeVisible()
   await page.screenshot({ path: 'test-results/roster-visible-while-adding.png', fullPage: true })
 })
@@ -543,6 +544,22 @@ test('a character can be marked as the warlord from its unit editor', async ({ p
   expect(stats).not.toBeNull()
   expect(lastStat).not.toBeNull()
   expect(Math.abs((lastStat?.x ?? 0) + (lastStat?.width ?? 0) - ((stats?.x ?? 0) + (stats?.width ?? 0)))).toBeLessThan(2)
+})
+
+test('an enhancement appears once and can be removed', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 })
+  await openBuilder(page, 'Necrons', /Starshatter Arsenal/)
+  await add(page, 'Overlord')
+  await page.locator('[data-unit="Overlord"]').getByRole('button', { name: 'Overlord', exact: true }).click()
+
+  const loadout = page.locator('aside[aria-label="Loadout"]')
+  await waitForRosterSave(page, () => loadout.getByRole('button', { name: 'Select Demanding Leader' }).click())
+  await expect(page.locator('[data-unit="Overlord"]').getByText('Demanding Leader', { exact: true })).toHaveCount(1)
+
+  await waitForRosterSave(page, () => loadout.getByRole('button', { name: 'No enhancement' }).click())
+  await expect(page.getByText('Your latest changes have not been saved.')).toBeHidden()
+  await expect(page.locator('[data-unit="Overlord"]').getByText('Demanding Leader', { exact: true })).toHaveCount(0)
+  await page.screenshot({ path: 'test-results/enhancement-removed.png', fullPage: true })
 })
 
 test('a smaller desktop keeps the picker, roster and loadout visible', async ({ page }) => {
