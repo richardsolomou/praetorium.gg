@@ -25,6 +25,7 @@ function Factions() {
   const matching = data.factions.filter(
     (entry) => entry.displayName.toLowerCase().includes(wanted) || entry.name.toLowerCase().includes(wanted),
   )
+  const favouriteFactions = matching.filter((entry) => favourites.has(entry.id))
   const groups = matching.reduce((grouped, entry) => {
     const title = entry.name.split(' - ')[0] || 'Other'
     grouped.set(title, [...(grouped.get(title) ?? []), entry])
@@ -39,6 +40,7 @@ function Factions() {
         placeholder="Find a faction"
         aria-label="Find a faction"
       />
+      <FactionShelf title="Favourites" entries={favouriteFactions} favourites={favourites} onFavourite={toggleFavourite} />
       {matching.length ? (
         [...groups.entries()]
           .toSorted(([left], [right]) => left.localeCompare(right))

@@ -298,19 +298,13 @@ export function buildUnit(
   const chosen = Object.entries(choices ?? {}).reduce((tree, [key, optionId]) => withChoice(tree, key, optionId, index), base)
   const composed =
     models === undefined ? chosen : withModelComposition(entryId, chosen, models, new Set(Object.keys(choices ?? {})), index, context)
-  const composedSize = sizeOf(composed, index)
   // Then the spreads, which say how many of each option rather than which one.
   const spread = Object.entries(context?.spreads ?? {}).reduce((tree, [key, counts]) => withUnitSpread(tree, key, counts, index), composed)
   const toggled = withCounts(
     spread,
     Object.entries(context?.toggles ?? {}).map(([key, count]) => ({ path: key.split('/'), count })),
   )
-  const perModelUpgrade = Object.keys(context?.spreads ?? {}).some((key) => {
-    const path = key.split('/')
-    const definition = index.definitions.get(path.at(-1) ?? '')
-    return definition && resolve(definition, index).type === 'upgrade' && repeatedModelOn(path.slice(0, -1), index)
-  })
-  const size = perModelUpgrade || modelCountOf(toggled, index) === modelCountOf(composed, index) ? composedSize : sizeOf(toggled, index)
+  const size = sizeOf(toggled, index)
 
   if (models === undefined || !size.path.length || models === size.models) {
     const fitted = refit(toggled, index, 1)
@@ -617,7 +611,12 @@ export function unitChoices(
       const here = [...trail, child.id]
 
       const repeatingEntry = inner.type === 'upgrade' ? repeatedModelOn(trail, index) : null
-      if (repeatingEntry && requiredCount(child.definition, index) === 0 && maximumCount(child.definition, index) === 1) {
+      if (
+        repeatingEntry &&
+        repeatingEntry.path.length === trail.length &&
+        requiredCount(child.definition, index) === 0 &&
+        maximumCount(child.definition, index) === 1
+      ) {
         const room = effectiveCount(selection, repeatingEntry.path, repeatingEntry.definition, index, options)
         const count = allAt(selection, repeatingEntry.path).reduce(
           (total, model) => total + (at(model, here.slice(repeatingEntry.path.length)) ? (model.count ?? 1) : 0),
@@ -672,7 +671,9 @@ export function unitChoices(
       }
 
       // What is inside an entry is held by however many of it the selection holds.
-      walk(child.definition, here, left - 1, visited, inner.type === undefined ? carriers : (at(selection, here)?.count ?? 1))
+      if (inner.type !== 'upgrade') {
+        walk(child.definition, here, left - 1, visited, inner.type === undefined ? carriers : (at(selection, here)?.count ?? 1))
+      }
     }
   }
 
@@ -869,12 +870,18 @@ function withUnitSpread(selection: Selection, key: string, counts: Readonly<Reco
   const modelId = repeating.path.at(-1)
   if (!modelId) return selection
   const withinModel = path.slice(repeating.path.length)
+  const carriers = allAt(selection, repeating.path).reduce((total, model) => total + (model.count ?? 1), 0)
   const variants = Object.entries(counts)
     .filter(([, count]) => count > 0)
     .map(([optionId, count]) => {
       const base = expand(modelId, repeating.definition, index, MAX_DEPTH, count, new Set(), 1)
       return withChoice(base, withinModel.join('/'), optionId, index)
     })
+  const unassigned = Math.max(0, carriers - variants.reduce((total, variant) => total + (variant.count ?? 1), 0))
+  if (unassigned) {
+    const base = expand(modelId, repeating.definition, index, MAX_DEPTH, unassigned, new Set(), 1)
+    variants.push(withoutSelectionAt(base, withinModel))
+  }
   return replaceAt(selection, repeating.path.slice(0, -1), modelId, variants)
 }
 

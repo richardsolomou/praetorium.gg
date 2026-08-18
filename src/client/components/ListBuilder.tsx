@@ -125,10 +125,19 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
   }
 
   const faction = available?.factions.find((entry) => entry.id === catalogueId)
-  const factionGroups = shelve(available?.factions ?? []).map((shelf) => ({
-    label: shelf.lineage,
-    items: favouritesFirst(shelf.factions, favourites).map((entry) => ({ label: shortName(entry.name), value: entry.id })),
-  }))
+  const favouriteFactions = favouritesFirst(
+    (available?.factions ?? []).filter((entry) => favourites.has(entry.id)),
+    favourites,
+  )
+  const factionGroups = [
+    ...(favouriteFactions.length
+      ? [{ label: 'Favourites', items: favouriteFactions.map((entry) => ({ label: shortName(entry.name), value: entry.id })) }]
+      : []),
+    ...shelve((available?.factions ?? []).filter((entry) => !favourites.has(entry.id))).map((shelf) => ({
+      label: shelf.lineage,
+      items: shelf.factions.map((entry) => ({ label: shortName(entry.name), value: entry.id })),
+    })),
+  ]
   const suggested = faction
     ? [shortName(faction.name), faction.detachments.find((entry) => entry.id === detachmentIds[0])?.name].filter(Boolean).join(' — ')
     : ''

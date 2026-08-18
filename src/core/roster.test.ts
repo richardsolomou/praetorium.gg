@@ -419,6 +419,15 @@ describe('optional wargear on repeated models', () => {
             ],
             selectionEntryGroups: [
               {
+                id: 'wargear',
+                name: 'Wargear',
+                constraints: [{ id: 'wargear-max', type: 'max', value: 1, field: 'selections', scope: 'parent' }],
+                selectionEntries: [
+                  { id: 'loom', name: 'Shadowloom', type: 'upgrade' },
+                  { id: 'scope', name: 'Nebuloscope', type: 'upgrade' },
+                ],
+              },
+              {
                 id: 'weapon',
                 name: 'Weapon',
                 defaultSelectionEntryId: 'blaster',
@@ -455,6 +464,14 @@ describe('optional wargear on repeated models', () => {
     expect(wargearOf(built.selection, index)).toContainEqual({ name: 'Shieldvanes', count: 2 })
     expect(built.choices.find((choice) => choice.key === 'model/shield')?.options[0]?.count).toBe(2)
     expect(built.size.models).toBe(3)
+  })
+
+  it('keeps unequipped models when a repeated optional group changes', () => {
+    const equipped = buildUnit('unit', index, 3, undefined, { spreads: { 'model/wargear': { loom: 1, scope: 0 } } })!
+    expect(modelCountOf(equipped.selection, index)).toBe(3)
+
+    const removed = buildUnit('unit', index, 3, undefined, { spreads: { 'model/wargear': { loom: 0, scope: 0 } } })!
+    expect(modelCountOf(removed.selection, index)).toBe(3)
   })
 
   it('lets each model carry a different weapon', () => {

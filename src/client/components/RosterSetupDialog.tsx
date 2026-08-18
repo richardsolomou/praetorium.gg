@@ -90,10 +90,19 @@ export function RosterSetupDialog({
     }) ?? []
   const factionChanged = value.catalogueId !== draft.catalogueId
   const detachmentsChanged = value.detachmentIds.toSorted().join() !== draft.detachmentIds.toSorted().join()
-  const groups = shelve(factions).map((shelf) => ({
-    label: shelf.lineage,
-    items: favouritesFirst(shelf.factions, favourites).map((entry) => ({ label: shortName(entry.name), value: entry.id })),
-  }))
+  const favouriteFactions = favouritesFirst(
+    factions.filter((entry) => favourites.has(entry.id)),
+    favourites,
+  )
+  const groups = [
+    ...(favouriteFactions.length
+      ? [{ label: 'Favourites', items: favouriteFactions.map((entry) => ({ label: shortName(entry.name), value: entry.id })) }]
+      : []),
+    ...shelve(factions.filter((entry) => !favourites.has(entry.id))).map((shelf) => ({
+      label: shelf.lineage,
+      items: shelf.factions.map((entry) => ({ label: shortName(entry.name), value: entry.id })),
+    })),
+  ]
 
   const toggleDetachment = (id: string) => {
     const ids = draft.detachmentIds.includes(id)
