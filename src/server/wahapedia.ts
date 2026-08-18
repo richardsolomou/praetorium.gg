@@ -146,6 +146,24 @@ export function findDetachmentAbilities(
 
 export const findAbilityDescription = (descriptions: ReadonlyMap<string, string>, name: string) => descriptions.get(routeSlug(name)) ?? null
 
+export function factionUnitExclusions(descriptions: ReadonlyMap<string, string>) {
+  const exclusions = new Map<string, ReadonlySet<string>>()
+  for (const [faction, description] of descriptions) {
+    const prohibited = description.match(/Your army cannot include any of the following units:\s*([^.]*)/i)?.[1]
+    if (!prohibited) continue
+    exclusions.set(
+      faction,
+      new Set(
+        prohibited
+          .split(';')
+          .map((name) => name.trim().toLowerCase())
+          .filter(Boolean),
+      ),
+    )
+  }
+  return exclusions
+}
+
 function readNamedDescriptions(files: readonly string[]): Map<string, string> {
   const candidates = new Map<string, Set<string>>()
   for (const file of files) {

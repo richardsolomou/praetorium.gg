@@ -2,7 +2,13 @@ import fs from 'node:fs'
 import path from 'node:path'
 import type { Stratagem, StratagemLimit } from '../core/battle'
 import { routeSlug } from '../core/slug'
-import { findDescription, findDetachmentAbilities, loadWahapediaDescriptions, WAHAPEDIA_ATTRIBUTION } from './wahapedia'
+import {
+  factionUnitExclusions,
+  findDescription,
+  findDetachmentAbilities,
+  loadWahapediaDescriptions,
+  WAHAPEDIA_ATTRIBUTION,
+} from './wahapedia'
 
 /**
  * Stratagems and secondary mission cards, from the Tabletop Developer Consortium's
@@ -510,26 +516,12 @@ export function loadRules(
 
   if (!byDetachment.size && !secondaries.length) return null
   const hasBattlemaster = terrainLayouts.some((layout) => layout.geometry)
-  const factionUnitExclusions = new Map<string, ReadonlySet<string>>()
-  for (const [faction, description] of wahapedia?.abilities ?? []) {
-    const prohibited = description.match(/Your army cannot include any of the following units:\s*([^.]*)/i)?.[1]
-    if (!prohibited) continue
-    factionUnitExclusions.set(
-      faction,
-      new Set(
-        prohibited
-          .split(';')
-          .map((name) => name.trim().toLowerCase())
-          .filter(Boolean),
-      ),
-    )
-  }
   return {
     attribution: [ATTRIBUTION, wahapedia ? WAHAPEDIA_ATTRIBUTION : null, hasBattlemaster ? BATTLEMASTER_ATTRIBUTION : null]
       .filter(Boolean)
       .join('. '),
     abilityDescriptions: wahapedia?.abilities ?? new Map(),
-    factionUnitExclusions,
+    factionUnitExclusions: factionUnitExclusions(wahapedia?.abilities ?? new Map()),
     byDetachment,
     detachmentReferences,
     detachmentDetails,

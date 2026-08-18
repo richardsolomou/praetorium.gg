@@ -845,29 +845,42 @@ function withUnitSpread(selection: Selection, key: string, counts: Readonly<Reco
   }
   const repeatedEntry = repeatedModelOn(path.slice(0, -1), index)
   const entry = group ? resolve(group, index) : undefined
-  if (repeatedEntry && entry?.type === 'upgrade') {
-    const modelId = repeatedEntry.path.at(-1)
-    if (!modelId || !groupId) return selection
-    const models = allAt(selection, repeatedEntry.path)
-    const carriers = models.reduce((total, model) => total + (model.count ?? 1), 0)
-    const equipped = Math.min(carriers, Math.max(0, counts[groupId] ?? 0))
-    const withinModel = path.slice(repeatedEntry.path.length)
-    const variants: Selection[] = []
-    let remaining = equipped
-    for (const model of models) {
-      const count = model.count ?? 1
-      const base = withoutSelectionAt(model, withinModel)
-      const taking = Math.min(remaining, count)
-      if (taking) variants.push(withCounts({ ...base, count: taking }, [{ path: withinModel, count: 1 }]))
-      if (taking < count) variants.push({ ...base, count: count - taking })
-      remaining -= taking
-    }
-    return replaceAt(selection, repeatedEntry.path.slice(0, -1), modelId, variants)
+  if (repeatedEntry && entry?.type === 'upgrade' && groupId) {
+    return spreadRepeatedUpgrade(selection, path, counts[groupId] ?? 0, repeatedEntry)
   }
 
   const repeating = repeatedCarrierOn(path, index)
   if (!repeating) return withSpread(selection, key, counts)
 
+  return spreadRepeatedGroup(selection, path, counts, repeating, index)
+}
+
+function spreadRepeatedUpgrade(selection: Selection, path: readonly string[], requested: number, repeating: { path: string[] }) {
+  const modelId = repeating.path.at(-1)
+  if (!modelId) return selection
+  const models = allAt(selection, repeating.path)
+  const carriers = models.reduce((total, model) => total + (model.count ?? 1), 0)
+  const withinModel = path.slice(repeating.path.length)
+  const variants: Selection[] = []
+  let remaining = Math.min(carriers, Math.max(0, requested))
+  for (const model of models) {
+    const count = model.count ?? 1
+    const base = withoutSelectionAt(model, withinModel)
+    const taking = Math.min(remaining, count)
+    if (taking) variants.push(withCounts({ ...base, count: taking }, [{ path: withinModel, count: 1 }]))
+    if (taking < count) variants.push({ ...base, count: count - taking })
+    remaining -= taking
+  }
+  return replaceAt(selection, repeating.path.slice(0, -1), modelId, variants)
+}
+
+function spreadRepeatedGroup(
+  selection: Selection,
+  path: readonly string[],
+  counts: Readonly<Record<string, number>>,
+  repeating: { path: string[]; definition: Definition },
+  index: CatalogueIndex,
+) {
   const modelId = repeating.path.at(-1)
   if (!modelId) return selection
   const withinModel = path.slice(repeating.path.length)

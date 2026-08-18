@@ -26,7 +26,7 @@ import { deleteRoster, exportRoster, saveRoster } from '../../server/functions'
 import { collectionQuery, factionsQuery, priceQuery, savedRostersQuery } from '../queries'
 import { useCollectionMutation } from '../useCollection'
 import { DatasheetPanel } from './builder/DatasheetPanel'
-import { shelve, shortName } from './builder/factions'
+import { factionSelectGroups, shortName } from './builder/factions'
 import { GROUPS } from './builder/groups'
 import { Loadout } from './builder/Loadout'
 import { Picker } from './builder/Picker'
@@ -37,7 +37,7 @@ import { SearchableSelect } from './SearchableSelect'
 import { RosterSetupDialog, type RosterSetup } from './RosterSetupDialog'
 import { RosterExportDialog } from './RosterExportDialog'
 import { readWorkspaceState, writeWorkspaceState } from './workspaceState'
-import { favouritesFirst, useFavouriteFactions } from '../favouriteFactions'
+import { useFavouriteFactions } from '../favouriteFactions'
 
 type Props = {
   onAttach?: (roster: Roster) => void
@@ -125,19 +125,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
   }
 
   const faction = available?.factions.find((entry) => entry.id === catalogueId)
-  const favouriteFactions = favouritesFirst(
-    (available?.factions ?? []).filter((entry) => favourites.has(entry.id)),
-    favourites,
-  )
-  const factionGroups = [
-    ...(favouriteFactions.length
-      ? [{ label: 'Favourites', items: favouriteFactions.map((entry) => ({ label: shortName(entry.name), value: entry.id })) }]
-      : []),
-    ...shelve((available?.factions ?? []).filter((entry) => !favourites.has(entry.id))).map((shelf) => ({
-      label: shelf.lineage,
-      items: shelf.factions.map((entry) => ({ label: shortName(entry.name), value: entry.id })),
-    })),
-  ]
+  const factionGroups = factionSelectGroups(available?.factions ?? [], favourites)
   const suggested = faction
     ? [shortName(faction.name), faction.detachments.find((entry) => entry.id === detachmentIds[0])?.name].filter(Boolean).join(' — ')
     : ''
@@ -232,19 +220,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
       })),
     ),
     placeholderData: (previous, previousQuery) => {
-      const previousPicks = previousQuery?.queryKey[5]
-      if (!Array.isArray(previousPicks) || previousPicks.length > picked.length) return undefined
-      return previousPicks.every(
-        (pick, index) =>
-          typeof pick === 'object' &&
-          pick !== null &&
-          'entryId' in pick &&
-          'catalogueId' in pick &&
-          pick.entryId === picked[index]?.entryId &&
-          pick.catalogueId === picked[index]?.catalogueId,
-      )
-        ? previous
-        : undefined
+      return sameUnitSequence(previousQuery?.queryKey[5], picked) ? previous : undefined
     },
   })
 
@@ -936,5 +912,18 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
       </footer>
       <RosterExportDialog text={exportText} onClose={() => setExportText(null)} />
     </div>
+  )
+}
+
+function sameUnitSequence(previous: unknown, current: readonly RosterPick[]) {
+  if (!Array.isArray(previous) || previous.length > current.length) return false
+  return previous.every(
+    (pick, index) =>
+      typeof pick === 'object' &&
+      pick !== null &&
+      'entryId' in pick &&
+      'catalogueId' in pick &&
+      pick.entryId === current[index]?.entryId &&
+      pick.catalogueId === current[index]?.catalogueId,
   )
 }

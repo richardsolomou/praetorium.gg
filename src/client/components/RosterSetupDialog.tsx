@@ -16,9 +16,9 @@ import {
 import type { RosterVisibility } from '../../core/savedRoster'
 import { DetachmentReference } from './DetachmentReference'
 import { SearchableSelect } from './SearchableSelect'
-import { shelve, shortName } from './builder/factions'
+import { factionSelectGroups } from './builder/factions'
 import { dispositionsFor, dispositionTone } from './rosterSetup'
-import { favouritesFirst, useFavouriteFactions } from '../favouriteFactions'
+import { useFavouriteFactions } from '../favouriteFactions'
 
 type Detachment = {
   id: string
@@ -90,19 +90,7 @@ export function RosterSetupDialog({
     }) ?? []
   const factionChanged = value.catalogueId !== draft.catalogueId
   const detachmentsChanged = value.detachmentIds.toSorted().join() !== draft.detachmentIds.toSorted().join()
-  const favouriteFactions = favouritesFirst(
-    factions.filter((entry) => favourites.has(entry.id)),
-    favourites,
-  )
-  const groups = [
-    ...(favouriteFactions.length
-      ? [{ label: 'Favourites', items: favouriteFactions.map((entry) => ({ label: shortName(entry.name), value: entry.id })) }]
-      : []),
-    ...shelve(factions.filter((entry) => !favourites.has(entry.id))).map((shelf) => ({
-      label: shelf.lineage,
-      items: shelf.factions.map((entry) => ({ label: shortName(entry.name), value: entry.id })),
-    })),
-  ]
+  const groups = factionSelectGroups(factions, favourites)
 
   const toggleDetachment = (id: string) => {
     const ids = draft.detachmentIds.includes(id)
