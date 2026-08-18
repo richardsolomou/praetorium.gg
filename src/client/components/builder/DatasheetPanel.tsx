@@ -45,26 +45,26 @@ export function DatasheetPanel({ catalogueId, factionSlug, entryId, detachmentId
   return (
     <ScrollArea className="h-full [&_[data-slot=scroll-area-viewport]]:p-3">
       <div className="space-y-4">
-        <div className="flex items-start gap-2">
-          <div className="flex min-w-0 flex-1 flex-wrap gap-1">
-            {sheet.keywords.map((keyword) => (
-              <Keyword key={keyword} name={keyword} rules={sheet.keywordRules} className={KEYWORD_TAG_CLASS} />
-            ))}
-          </div>
-          {factionSlug ? (
-            <Link
-              to="/factions/$catalogueId/datasheets/$entryId"
-              params={{ catalogueId: factionSlug, entryId: sheet.slug }}
-              className="eyebrow shrink-0 py-1 text-azure hover:text-bone"
-            >
-              Full datasheet
-            </Link>
-          ) : null}
+        <div className="flex flex-wrap gap-1">
+          {sheet.keywords.map((keyword) => (
+            <Keyword key={keyword} name={keyword} rules={sheet.keywordRules} className={KEYWORD_TAG_CLASS} />
+          ))}
         </div>
         {model ? <UnitProfile profile={model} /> : null}
         {showWeapons && ranged.length ? <WeaponSummary title="Ranged weapons" weapons={ranged} rules={sheet.keywordRules} /> : null}
         {showWeapons && melee.length ? <WeaponSummary title="Melee weapons" weapons={melee} rules={sheet.keywordRules} /> : null}
         <AbilitySummary abilities={sheet.abilities} rules={sheet.keywordRules} />
+        {factionSlug ? (
+          <div className="flex justify-end border-t border-edge pt-3">
+            <Link
+              to="/factions/$catalogueId/datasheets/$entryId"
+              params={{ catalogueId: factionSlug, entryId: sheet.slug }}
+              className="eyebrow text-azure hover:text-bone"
+            >
+              Full datasheet
+            </Link>
+          </div>
+        ) : null}
       </div>
     </ScrollArea>
   )
