@@ -17,7 +17,15 @@ type LoadoutChoice = {
   optional: boolean
   room: number
   kind?: 'enhancement' | 'upgrade'
-  options: { id: string; name: string; points: number; count: number; max: number; description?: string | null }[]
+  options: {
+    id: string
+    name: string
+    points: number
+    count: number
+    max: number
+    description?: string | null
+    keywordRules?: Datasheet['keywordRules']
+  }[]
 }
 
 type LoadoutUnit = {
@@ -230,7 +238,7 @@ function specialChoice(choice: LoadoutChoice, onChoose: Props['onChoose'], unitN
                     Description
                   </summary>
                   <div className="px-2.5 pb-2">
-                    <RuleText text={option.description} />
+                    <RuleText text={option.description} rules={option.keywordRules} />
                   </div>
                 </details>
               ) : null}
@@ -387,7 +395,7 @@ function either(
                 <OptionAbilities optionName={option.name} abilities={abilities} rules={rules} />
                 {option.description ? (
                   <div className="border-t border-edge px-2.5 pb-2">
-                    <RuleText text={option.description} />
+                    <RuleText text={option.description} rules={option.keywordRules ?? rules} />
                   </div>
                 ) : null}
               </div>

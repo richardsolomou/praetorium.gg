@@ -3,7 +3,7 @@ import { detachmentPointBudget, detachmentPointsError, formatDatasheetLimit, KOT
 import { evaluate, evaluateForces, type Selection } from '../core/evaluate'
 import { buildUnit, wargearOf } from '../core/roster'
 import { app } from './app'
-import { datasheetIn } from './catalogue'
+import { datasheetIn, rulesReferencedIn } from './catalogue'
 import { detachmentCatalogueDetail } from './catalogueDescriptions'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { groupOfEntry } from './cataloguePicker'
@@ -139,10 +139,10 @@ export function calculateRosterPrice(data: PriceInput) {
         return {
           ...choice,
           kind,
-          options: choice.options.map((option) => ({
-            ...option,
-            description: findEnhancementDescription(enhancementDescriptions, chosen, option.name),
-          })),
+          options: choice.options.map((option) => {
+            const description = findEnhancementDescription(enhancementDescriptions, chosen, option.name)
+            return { ...option, description, keywordRules: rulesReferencedIn(loaded, [description]) }
+          }),
         }
       })
       const specialChoices = new Set(
