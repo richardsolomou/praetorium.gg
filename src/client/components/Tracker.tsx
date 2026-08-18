@@ -1,7 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
+import type { ComponentProps } from 'react'
 import { useState } from 'react'
-import { EllipsisVertical, RotateCcw, Undo2, Zap } from 'lucide-react'
+import { EllipsisVertical, RotateCcw, Undo2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   AlertDialog,
@@ -29,9 +30,11 @@ import {
   terrainReferencesQuery,
 } from '../queries'
 import { errorMessage } from '../queryClient'
-import type { BattleView, Command, Phase } from '../../core/battle'
+import { hiddenThisPhase, stratagemVisibleNow } from '../stratagemVisibility'
+import type { BattleView, Command } from '../../core/battle'
 import type { PresentPlayer } from '../useLiveBattle'
 import { Disclosure } from './Disclosure'
+import { MissionCardReference } from './MissionCardReference'
 import { Report, type ReportPlayer } from './Report'
 
 type Props = {
@@ -55,7 +58,7 @@ const MOBILE_TABS = ['info', 'events'] as const
 const HEADING = 'text-xs font-bold tracking-[0.08em] text-bone uppercase'
 const CARD = 'rounded-sm border border-edge bg-sunken px-2.5 py-1.5'
 const CARD_NAME = 'text-sm leading-tight font-bold text-azure uppercase'
-const CP_PILL = 'readout shrink-0 rounded-sm bg-azure/15 px-1.5 py-px text-[0.6875rem] font-bold text-azure uppercase'
+const CP_PILL = 'readout shrink-0 rounded-sm bg-azure px-1.5 py-px text-[0.6875rem] font-bold text-void uppercase'
 
 export function Tracker({ view, mission, present, send, pending, problem }: Props) {
   const [mobileTab, setMobileTab] = useState<'info' | 'events'>('info')
@@ -89,6 +92,7 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
     ([...(rules?.secondaries ?? []), ...(rules?.primaries ?? [])].find((card) => card.key === key)?.awards ?? []).filter(
       (award) => !award.mode || !mode || award.mode === mode,
     )
+  const referenceFor = (key: string) => [...(rules?.primaries ?? []), ...(rules?.secondaries ?? [])].find((card) => card.key === key)
 
   /** Why this payout is not available right now, or null when it is. */
   const blocked = (award: Award): string | null => {
@@ -246,7 +250,7 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
                   </p>
                   {player.primaryCard ? (
                     <div className={`${CARD} space-y-1.5`}>
-                      <p className={CARD_NAME}>{player.primaryCard.name}</p>
+                      <MissionReference name={player.primaryCard.name} card={referenceFor(player.primaryCard.key)} type="Primary mission" />
                       {player.isViewer && !finished ? (
                         <div className="flex flex-wrap gap-1">
                           {pick(awardsFor(player.primaryCard.key)).map((award) => (
@@ -280,8 +284,8 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
                   {player.secondaries.map((secondary) => (
                     <div key={secondary.key} data-secondary={secondary.key} className={`${CARD} space-y-1 text-sm`}>
                       <span className="flex items-baseline gap-2">
-                        <span className={`min-w-0 flex-1 ${CARD_NAME}`}>
-                          {secondary.name}
+                        <span className="min-w-0 flex-1">
+                          <MissionReference name={secondary.name} card={referenceFor(secondary.key)} type="Secondary mission" />
                           {secondary.secret ? (
                             <span className="ml-1.5 text-[0.625rem] font-semibold text-azure uppercase">
                               {secondary.revealed ? 'revealed' : 'secret'}
@@ -426,7 +430,9 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
                 {player.stratagems.length ? (
                   <div className="space-y-3 border-t border-edge pt-3">
                     {stratagemGroups(player.stratagems, coreKeys).map((group) => {
-                      const shown = allPhases ? group.items : group.items.filter((stratagem) => playableIn(stratagem, view.phase))
+                      const shown = group.items.filter((stratagem) =>
+                        stratagemVisibleNow(stratagem, view.phase, player.isActive, allPhases),
+                      )
                       if (!shown.length) return null
                       return (
                         <div key={group.label} className="space-y-1.5">
@@ -444,9 +450,9 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
                         </div>
                       )
                     })}
-                    {hiddenThisPhase(player.stratagems, view.phase) && !allPhases ? (
+                    {hiddenThisPhase(player.stratagems, view.phase, player.isActive) && !allPhases ? (
                       <Button variant="ghost" size="xs" className="text-azure" onClick={() => setAllPhases(true)}>
-                        Show {hiddenThisPhase(player.stratagems, view.phase)} for other phases
+                        Show {hiddenThisPhase(player.stratagems, view.phase, player.isActive)} for other phases
                       </Button>
                     ) : null}
                     {allPhases ? (
@@ -717,6 +723,25 @@ function ReportDetails({ token, players, hiddenOnMobile }: { token: string; play
 }
 
 type ViewStratagem = BattleView['players'][number]['stratagems'][number]
+type MissionReferenceCard = ComponentProps<typeof MissionCardReference>['card']
+
+function MissionReference({ name, card, type }: { name: string; card?: MissionReferenceCard; type: string }) {
+  if (!card) return <span className={CARD_NAME}>{name}</span>
+  return (
+    <Dialog>
+      <DialogTrigger render={<button type="button" aria-label={`Read ${name}`} className={`${CARD_NAME} text-left hover:underline`} />}>
+        {name}
+      </DialogTrigger>
+      <DialogContent className="max-h-[85dvh] overflow-y-auto border border-edge bg-panel text-bone sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle className="uppercase">{name}</DialogTitle>
+          <DialogDescription className="text-dim">What this mission asks you to do and when it scores.</DialogDescription>
+        </DialogHeader>
+        <MissionCardReference card={card} type={type} />
+      </DialogContent>
+    </Dialog>
+  )
+}
 
 /** The printed price, and the neighbouring ones a board state can move it to. */
 function costChoices(printed: number) {
@@ -767,7 +792,6 @@ function StratagemCard({
           {stratagem.refusal ? <p className="text-sm text-discarded">{stratagem.refusal}</p> : null}
         </DialogContent>
       </Dialog>
-      <span className={`${CP_PILL} ${stratagem.refusal ? 'bg-edge text-dim' : ''}`}>{stratagem.cp} CP</span>
       {actionable ? (
         <>
           {/* Some stratagems cost more or less depending on what is on the board, so the price is a choice. */}
@@ -786,29 +810,22 @@ function StratagemCard({
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
-          <Button
-            variant="outline"
-            size="icon-sm"
+          <button
+            type="button"
+            className={`${CP_PILL} min-w-12 py-1.5 text-sm ${stratagem.refusal ? 'bg-edge text-dim' : 'hover:bg-azure/80'}`}
             disabled={pending || stratagem.refusal !== null}
             title={stratagem.refusal ?? undefined}
             aria-label={`Use ${stratagem.name}`}
             onClick={() => onUse()}
           >
-            <Zap />
-          </Button>
+            {stratagem.cp} CP
+          </button>
         </>
-      ) : null}
+      ) : (
+        <span className={`${CP_PILL} ${stratagem.refusal ? 'bg-edge text-dim' : ''}`}>{stratagem.cp} CP</span>
+      )}
     </div>
   )
-}
-
-/** A stratagem with no phases named is one that can be played whenever its other timing allows. */
-function playableIn(stratagem: ViewStratagem, phase: Phase) {
-  return !stratagem.phases?.length || stratagem.phases.includes(phase)
-}
-
-function hiddenThisPhase(stratagems: readonly ViewStratagem[], phase: Phase) {
-  return stratagems.filter((stratagem) => !playableIn(stratagem, phase)).length
 }
 
 function stratagemGroups(stratagems: readonly ViewStratagem[], coreKeys: ReadonlySet<string>) {

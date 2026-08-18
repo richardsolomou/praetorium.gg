@@ -11,6 +11,7 @@ Praetorium uses a compact, dark visual system. See [the product design guide](..
 - Show allied picker shelves with their short faction name and keep them collapsed until a player needs them.
 - Use `data-unit` to find unit cards in tests. CSS changes the displayed case, so visible-text selectors do not match the source text reliably.
 - Keep battle setup in five visible sections: Battle, Armies, Battlefield, Your army, and Start. The section rail always shows shared progress; formations and cards stay together because both prepare the viewer's side for play.
+- In the live tracker, show only stratagems valid for the current turn and phase. The CP badge spends the printed cost; the overflow menu handles modified costs. Mission names open their full timing and scoring requirements.
 
 ## Components and styles
 
