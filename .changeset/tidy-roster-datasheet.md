@@ -2,4 +2,4 @@
 'praetorium': patch
 ---
 
-Improve datasheet readability with consistent compact styling, accurate composition totals, and unique profile rows.
+Improve datasheet readability and show accurate composition, profile, and attachment options.

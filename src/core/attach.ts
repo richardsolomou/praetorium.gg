@@ -1,4 +1,4 @@
-import { type CatalogueIndex, type Definition, type InfoGroup, type Profile, targetOf } from './catalogue'
+import { type CatalogueIndex, type Definition, type InfoGroup, nameOf, type Profile, targetOf } from './catalogue'
 import type { EvaluationError } from './evaluate'
 
 /**
@@ -21,6 +21,11 @@ const BULLETED = /■\s*([^\n]+)/g
 /** `^^**Immortals, Lychguard**^^` inline, which is the other. */
 const EMPHASISED = /\^\^\*\*(.+?)\*\*\^\^/s
 
+const GENERIC_SUBSTITUTION =
+  /if a character unit from your army with the leader ability can be attached to (?:an?|the) (.+?), it can be attached to this unit instead/gi
+
+const substitutionCache = new WeakMap<CatalogueIndex, ReadonlyMap<string, readonly string[]>>()
+
 /**
  * Which units this entry may be attached to, read out of its own ability text.
  *
@@ -36,9 +41,47 @@ export function attachmentOf(definition: Definition, index: CatalogueIndex): Att
     if (!text.toLowerCase().includes(CLAIM)) continue
     const named = names(text)
     if (!named.length) continue
-    return { kind: title.trim().toLowerCase() === 'leader' ? 'leader' : 'support', targets: named }
+    const substitutions = attachmentSubstitutions(index)
+    const targets = named.flatMap((name) => [name, ...(substitutions.get(normalizedName(name)) ?? [])])
+    return { kind: title.trim().toLowerCase() === 'leader' ? 'leader' : 'support', targets: uniqueNames(targets) }
   }
   return null
+}
+
+function attachmentSubstitutions(index: CatalogueIndex) {
+  const cached = substitutionCache.get(index)
+  if (cached) return cached
+
+  const found = new Map<string, string[]>()
+  for (const definition of index.definitions.values()) {
+    const target = targetOf(definition, index.definitions)
+    if (definition.type !== 'unit' && target.type !== 'unit') continue
+    const substitute = nameOf(definition, index.definitions)
+    for (const [, text] of statements(definition, index)) {
+      const readable = text.replaceAll(/[\^*]/g, '').replaceAll('\u00a0', ' ').replaceAll(/\s+/g, ' ')
+      for (const match of readable.matchAll(GENERIC_SUBSTITUTION)) {
+        const base = match[1]?.replace(/\s+unit$/i, '').trim()
+        if (!base) continue
+        const substitutes = found.get(normalizedName(base)) ?? []
+        if (!substitutes.some((name) => normalizedName(name) === normalizedName(substitute))) substitutes.push(substitute)
+        found.set(normalizedName(base), substitutes)
+      }
+    }
+  }
+  substitutionCache.set(index, found)
+  return found
+}
+
+const normalizedName = (name: string) => name.toLocaleLowerCase()
+
+function uniqueNames(values: readonly string[]) {
+  const seen = new Set<string>()
+  return values.filter((name) => {
+    const normalized = normalizedName(name)
+    if (seen.has(normalized)) return false
+    seen.add(normalized)
+    return true
+  })
 }
 
 export function attachmentErrors(units: readonly { entryId: string; attachedTo?: number }[], index: CatalogueIndex): EvaluationError[] {

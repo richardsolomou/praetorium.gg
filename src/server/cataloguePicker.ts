@@ -41,6 +41,13 @@ export function groupOfEntry(index: CatalogueIndex, entryId: string): UnitGroup 
 /** Non-matched-play variants are marked only by a suffix in the community data. */
 const NON_MATCHED_PLAY = /\[(?:legends|crucible)\]/i
 
+export function isMatchedPlayDatasheet(index: CatalogueIndex, entry: Definition) {
+  const target = targetOf(entry, index.definitions)
+  if (entry.hidden || target.hidden || NON_MATCHED_PLAY.test(nameOf(entry, index.definitions))) return false
+  const ownerId = index.catalogueOf.get(target.id)
+  return !ownerId || index.catalogues.get(ownerId)?.name !== 'Unaligned Forces'
+}
+
 /**
  * The pickable datasheets in a book, with the price of the smallest legal version
  * of each. Points are derived here and never stored: the data revision is what a
@@ -67,15 +74,12 @@ export function unitsIn(
   for (const id of datasheetsOf(loaded.index, catalogueId)) {
     const entry = loaded.index.definitions.get(id)
     if (!entry) continue
+    if (!isMatchedPlayDatasheet(loaded.index, entry)) continue
     const target = targetOf(entry, loaded.index.definitions)
-    if (entry.hidden || target.hidden) continue
     const name = nameOf(entry, loaded.index.definitions)
     if (includeNames && !includeNames.has(name)) continue
-    if (NON_MATCHED_PLAY.test(name)) continue
     const keywords = [...(entry.categoryLinks ?? []), ...(target.categoryLinks ?? [])].flatMap((link) => (link.name ? [link.name] : []))
     if (restricted(name, keywords, restrictions)) continue
-    const ownerId = loaded.index.catalogueOf.get(target.id)
-    if (ownerId && loaded.index.catalogues.get(ownerId)?.name === 'Unaligned Forces') continue
     // Unaligned Forces is the shared shelf for Legends fortifications and
     // mission-only battlefield assets. A few assets (including Sentry Gun) lack
     // the suffix even though they are not matched-play roster choices.

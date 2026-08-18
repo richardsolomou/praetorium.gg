@@ -1,9 +1,10 @@
 import { type Definition, type InfoGroup, type InfoLink, nameOf, type Profile, targetOf } from '../core/catalogue'
+import { attachmentOf } from '../core/attach'
 import { infoLinkHiddenByRules, profileModifiers, type ProfileModifier, type Selection } from '../core/evaluate'
 import { defaultSelection, unitChoices, wargearOf } from '../core/roster'
 import { bracketedRuleReferences, ruleReferenceMatches } from '../core/ruleReference'
 import { datasheetSlug, datasheetsOf, type LoadedCatalogue } from './catalogueIndex'
-import { priceOf } from './cataloguePicker'
+import { isMatchedPlayDatasheet, priceOf } from './cataloguePicker'
 import type { DatasheetDetails } from './datacards'
 
 export type Datasheet = {
@@ -151,6 +152,8 @@ export function datasheetIn(
   const keywords = [...(root.categoryLinks ?? []), ...(sheet === root ? [] : (sheet.categoryLinks ?? []))]
   const name = nameOf(root, loaded.index.definitions)
   const details = datacardDetails(loaded, name)
+  const attachment = attachmentOf(root, loaded.index)
+  const relationships = relationshipsFor(loaded, catalogueId, root.id, name)
   const selection = selectedUnit ?? defaultSelection(root.id, loaded.index, { primaryCatalogueId: catalogueId })
   const catalogueOptions = selection
     ? unitChoices(root.id, selection, loaded.index, { primaryCatalogueId: catalogueId }).map((choice) => ({
@@ -203,11 +206,26 @@ export function datasheetIn(
     baseSize: details?.baseSize ?? null,
     transport: details?.transport ?? null,
     costs: details?.points ?? [],
-    attachments: details?.attachesTo ?? [],
-    leaders: details?.leaders ?? [],
-    supporters: details?.supporters ?? [],
+    attachments: attachment?.targets.map((target) => ({ kind: attachment.kind, name: target })) ?? [],
+    leaders: relationships.leaders,
+    supporters: relationships.supporters,
     keywordRules: [...keywordRules.values()],
   }
+}
+
+function relationshipsFor(loaded: LoadedCatalogue, catalogueId: string, entryId: string, name: string) {
+  const leaders = new Set<string>()
+  const supporters = new Set<string>()
+  for (const candidateId of datasheetsOf(loaded.index, catalogueId)) {
+    if (candidateId === entryId) continue
+    const candidate = loaded.index.definitions.get(candidateId)
+    if (!candidate || !isMatchedPlayDatasheet(loaded.index, candidate)) continue
+    const attachment = attachmentOf(candidate, loaded.index)
+    if (!attachment?.targets.some((target) => target.localeCompare(name, undefined, { sensitivity: 'accent' }) === 0)) continue
+    const found = attachment.kind === 'leader' ? leaders : supporters
+    found.add(nameOf(candidate, loaded.index.definitions))
+  }
+  return { leaders: [...leaders], supporters: [...supporters] }
 }
 
 function uniqueProfiles(profiles: Datasheet['profiles']) {
