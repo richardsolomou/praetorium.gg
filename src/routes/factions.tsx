@@ -62,6 +62,7 @@ type Faction = {
   displayName: string
   icon: string | null
   references: { id: string; name: string; datasheets: number; detachments: number }[]
+  referenceDetachmentIds: string[]
   detachments: {
     id: string
     name: string
@@ -103,7 +104,7 @@ function FactionShelf({
                 <FactionMark id={entry.slug} icon={entry.icon} />
                 <span className="min-w-0">
                   <span className="block truncate font-bold uppercase">{entry.displayName}</span>
-                  <span className="text-xs text-dim">{entry.detachments.length} detachments</span>
+                  <span className="text-xs text-dim">{entry.references[0]?.detachments ?? entry.detachments.length} detachments</span>
                 </span>
               </Link>
               <Toggle

@@ -170,7 +170,8 @@ export const factions = createServerFn({ method: 'GET' }).handler(() =>
       factions: loaded.factions.map((faction) => {
         const displayName = factionDisplayName(faction.name, rules?.factionNames)
         const content = loaded.factionContents.get(routeSlug(displayName))
-        const detachments = (loaded.detachments.get(faction.id)?.options ?? []).filter(
+        const detachments = loaded.detachments.get(faction.id)?.options ?? []
+        const referenceDetachments = detachments.filter(
           (detachment) => !content || [...content.detachments].some((name) => slug(name) === slug(detachment.name)),
         )
         return {
@@ -183,8 +184,9 @@ export const factions = createServerFn({ method: 'GET' }).handler(() =>
           references: faction.references.map((reference) => ({
             ...reference,
             datasheets: content?.datasheets.size ?? reference.datasheets,
-            detachments: detachments.length,
+            detachments: referenceDetachments.length,
           })),
+          referenceDetachmentIds: referenceDetachments.map((detachment) => detachment.id),
           detachments: detachments.map((detachment) => {
             const reference = rules?.detachmentReferences.get(slug(faction.name))?.get(slug(detachment.name))
             const detail = rules?.detachmentDetails.get(slug(faction.name))?.get(slug(detachment.name))

@@ -23,6 +23,7 @@ function FactionPage() {
   const faction = factionFor(data, catalogueId)
   if (!faction) return null
   const reference = faction.references[0]
+  const detachments = faction.detachments.filter((detachment) => faction.referenceDetachmentIds.includes(detachment.id))
 
   return (
     <main className="mx-auto w-full max-w-5xl px-4 py-8">
@@ -61,10 +62,10 @@ function FactionPage() {
       <section className="mt-6">
         <p className="rubric flex items-baseline justify-between border-b border-edge pb-2">
           <span>Detachments</span>
-          <span className="readout">{faction.detachments.length}</span>
+          <span className="readout">{detachments.length}</span>
         </p>
         <div className="mt-2 divide-y divide-edge border border-edge bg-panel">
-          {faction.detachments.map((detachment) => (
+          {detachments.map((detachment) => (
             <Link
               key={detachment.id}
               to="/factions/$catalogueId/reference/detachments/$detachmentId"
