@@ -1,7 +1,7 @@
 import { createFileRoute, notFound } from '@tanstack/react-router'
+import { FactionDetachment } from '../client/components/FactionDetachment'
 import { factionFor } from '../client/factions'
 import { detachmentDetailQuery, factionsQuery } from '../client/queries'
-import { DetachmentPage } from './factions.$catalogueId.reference.detachments.$detachmentId'
 
 export const Route = createFileRoute('/factions/$catalogueId/detachments/$detachmentId')({
   loader: async ({ context, params }) => {
@@ -11,5 +11,5 @@ export const Route = createFileRoute('/factions/$catalogueId/detachments/$detach
       throw notFound()
     }
   },
-  component: DetachmentPage,
+  component: FactionDetachment,
 })
