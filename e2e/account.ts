@@ -15,7 +15,7 @@ export async function signUp(page: Page, name: string) {
   await page.getByLabel('Email').fill(`${name.toLowerCase()}-${crypto.randomUUID()}@example.test`)
   await page.getByLabel('Password').fill('a-long-enough-password')
   await page.getByRole('button', { name: 'Create the account' }).click()
-  await page.getByRole('button', { name: new RegExp(`${name} · sign out`) }).waitFor()
+  await page.getByRole('button', { name: `Account menu for ${name}` }).waitFor()
 }
 
 export function uniqueName(base: string) {
@@ -23,8 +23,14 @@ export function uniqueName(base: string) {
 }
 
 export async function befriend(requester: Page, recipient: Page) {
-  const requesterName = (await requester.locator('button[aria-label$="· sign out"]').getAttribute('aria-label'))?.replace(' · sign out', '')
-  const recipientName = (await recipient.locator('button[aria-label$="· sign out"]').getAttribute('aria-label'))?.replace(' · sign out', '')
+  const requesterName = (await requester.locator('button[aria-label^="Account menu for "]').getAttribute('aria-label'))?.replace(
+    'Account menu for ',
+    '',
+  )
+  const recipientName = (await recipient.locator('button[aria-label^="Account menu for "]').getAttribute('aria-label'))?.replace(
+    'Account menu for ',
+    '',
+  )
   if (!requesterName || !recipientName) throw new Error('Both players must be signed in before becoming friends.')
   await requester.goto('/friends')
   await requester.getByPlaceholder('Search by account name').fill(recipientName)
@@ -32,6 +38,9 @@ export async function befriend(requester: Page, recipient: Page) {
   await recipient.goto('/friends')
   const request = recipient.locator('section').filter({ hasText: 'Friend requests' }).filter({ hasText: requesterName })
   await request.getByRole('button', { name: 'Accept' }).click()
+  await expect(recipient.locator('section').filter({ hasText: 'Friends' }).filter({ hasText: requesterName })).toBeVisible()
+  await requester.goto('/friends')
+  await expect(requester.locator('section').filter({ hasText: 'Friends' }).filter({ hasText: recipientName })).toBeVisible()
 }
 
 export async function waitForRosterSave(page: Page, action: () => Promise<unknown>, expectedText?: string) {

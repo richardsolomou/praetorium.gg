@@ -83,6 +83,7 @@ test('a tactical player is asked to draw at the top of their command phase', asy
   await attachRoster(alice, aliceRoster)
   await setupStep(bob, 'Armies')
   await attachRoster(bob, bobRoster)
+  await expect(alice.getByText(bobRoster, { exact: true })).toBeVisible()
   await startBattle(alice)
 
   // The prompt is the point: it stands open in the panel rather than waiting to be found.
