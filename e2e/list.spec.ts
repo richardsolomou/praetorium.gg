@@ -44,7 +44,7 @@ test('a built list is priced, deployed and tracked', async ({ browser }) => {
   await attachRoster(alice, aliceRoster)
   await bob.goto(link)
   await attachRoster(bob, bobRoster)
-  await expect(alice.getByText(`${bobName} is ready.`)).toBeVisible()
+  await expect(alice.getByText(bobRoster, { exact: true })).toBeVisible()
   await chooseBattlefield(alice)
   await setupStep(alice, 'Your army')
   await alice.getByRole('button', { name: 'Battle ready army · +10 VP' }).click()
