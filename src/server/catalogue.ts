@@ -159,39 +159,41 @@ export function datasheetIn(
       }))
     : []
 
+  const displayProfiles = [...profiles.values()].flatMap(({ profile, lineage, owner }) => {
+    if (!profile.name || !profile.typeName) return []
+    const profileType = profile.typeName
+    const weapon = profileType === 'Ranged Weapons' || profileType === 'Melee Weapons'
+    const intrinsic = owner.includes(root.id) || owner.includes(sheet.id)
+    if (selectedUnit && weapon && !intrinsic && !owner.some((id) => selected.has(id))) return []
+    const profileLineage = [...lineage, profile.id]
+    const hidden = modifiedProfileField(String(profile.hidden ?? false), 'hidden', profileType, profileLineage, owner, modifiers).value
+    if (hidden === 'true') return []
+    const changedName = modifiedProfileField(profile.name, 'name', profileType, profileLineage, owner, modifiers)
+    const annotation = modifiedProfileField('', 'annotation', profileType, profileLineage, owner, modifiers).value
+    return [
+      {
+        id: profile.id,
+        name: annotation ? `${changedName.value} (${annotation})` : changedName.value,
+        type: profileType,
+        ...(weapon && selectedUnit
+          ? { count: wargearCounts.get(profile.name) ?? Math.max(1, ...owner.map((id) => selectedCounts.get(id) ?? 0)) }
+          : {}),
+        values: (profile.characteristics ?? []).flatMap((value) => {
+          if (!value.name || !value.$text) return []
+          const changed = modifiedProfileField(value.$text, value.typeId, profileType, profileLineage, owner, modifiers)
+          return [{ name: value.name, ...changed }]
+        }),
+      },
+    ]
+  })
+
   return {
     id: root.id,
     slug: datasheetSlug(loaded, catalogueId, root.id),
     name,
     points: priceOf(loaded, catalogueId, entryId),
     keywords: [...new Set(keywords.map((link) => link.name).filter((keyword): keyword is string => Boolean(keyword)))].toSorted(),
-    profiles: [...profiles.values()].flatMap(({ profile, lineage, owner }) => {
-      if (!profile.name || !profile.typeName) return []
-      const profileType = profile.typeName
-      const weapon = profileType === 'Ranged Weapons' || profileType === 'Melee Weapons'
-      const intrinsic = owner.includes(root.id) || owner.includes(sheet.id)
-      if (selectedUnit && weapon && !intrinsic && !owner.some((id) => selected.has(id))) return []
-      const profileLineage = [...lineage, profile.id]
-      const hidden = modifiedProfileField(String(profile.hidden ?? false), 'hidden', profileType, profileLineage, owner, modifiers).value
-      if (hidden === 'true') return []
-      const changedName = modifiedProfileField(profile.name, 'name', profileType, profileLineage, owner, modifiers)
-      const annotation = modifiedProfileField('', 'annotation', profileType, profileLineage, owner, modifiers).value
-      return [
-        {
-          id: profile.id,
-          name: annotation ? `${changedName.value} (${annotation})` : changedName.value,
-          type: profileType,
-          ...(weapon && selectedUnit
-            ? { count: wargearCounts.get(profile.name) ?? Math.max(1, ...owner.map((id) => selectedCounts.get(id) ?? 0)) }
-            : {}),
-          values: (profile.characteristics ?? []).flatMap((value) => {
-            if (!value.name || !value.$text) return []
-            const changed = modifiedProfileField(value.$text, value.typeId, profileType, profileLineage, owner, modifiers)
-            return [{ name: value.name, ...changed }]
-          }),
-        },
-      ]
-    }),
+    profiles: uniqueProfiles(displayProfiles),
     abilities: [...abilities.values()],
     composition: details?.composition ?? [],
     loadout: details?.loadout ?? null,
@@ -206,6 +208,21 @@ export function datasheetIn(
     supporters: details?.supporters ?? [],
     keywordRules: [...keywordRules.values()],
   }
+}
+
+function uniqueProfiles(profiles: Datasheet['profiles']) {
+  const seen = new Set<string>()
+  return profiles.filter((profile) => {
+    const signature = JSON.stringify({
+      name: profile.name.toLocaleLowerCase(),
+      type: profile.type,
+      count: profile.count,
+      values: profile.values,
+    })
+    if (seen.has(signature)) return false
+    seen.add(signature)
+    return true
+  })
 }
 
 function datacardDetails(loaded: LoadedCatalogue, name: string): DatasheetDetails | null {

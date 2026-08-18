@@ -2,4 +2,4 @@
 'praetorium': patch
 ---
 
-Match the roster editor datasheet panel more closely to the full datasheet page.
+Improve datasheet readability with consistent compact styling, accurate composition totals, and unique profile rows.
