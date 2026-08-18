@@ -2,8 +2,8 @@ import { useQuery } from '@tanstack/react-query'
 import { Check, Shuffle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { BattleView, Command } from '../../core/battle'
-import { TerrainBoard } from '../../routes/mission-matchups.$packId.$you.$opponent'
 import { deploymentsQuery, terrainMatchupIds, terrainReferencesQuery } from '../queries'
+import { TerrainBoard } from './TerrainBoard'
 
 type Props = { view: BattleView; send: (command: Command) => void; pending: boolean; allowedIds?: string[] }
 
