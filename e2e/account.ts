@@ -122,9 +122,10 @@ export async function attachRoster(page: Page, name: string) {
 }
 
 export async function chooseBattlefield(page: Page) {
+  const battlefieldStep = page.getByRole('navigation', { name: 'Setup sections' }).getByRole('button', { name: /Battlefield/ })
+  if ((await battlefieldStep.innerText()).trimStart().startsWith('✓')) return
   await setupStep(page, 'Battlefield')
   const selected = page.getByRole('button', { name: /^Selected layout/ })
-  if (await selected.count()) return
   // By position, not by name: which layouts a matchup offers follows the pinned rules data.
   await page
     .getByRole('button', { name: /^Select layout / })
