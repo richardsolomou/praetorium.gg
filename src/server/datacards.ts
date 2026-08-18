@@ -7,6 +7,7 @@ export type DatasheetDetails = {
   loadout: string | null
   wargear: string[]
   baseSize: string | null
+  transport: string | null
   points: { models: string; cost: string; keyword: string | null; faction: string | null; detachment: string | null }[]
   attachesTo: { kind: 'leader' | 'support'; name: string }[]
   leaders: string[]
@@ -85,6 +86,7 @@ function datasheetDetails(value: unknown): DatasheetDetails {
     loadout: localizedField(value, 'loadout'),
     wargear: localizedList(value, 'wargear'),
     baseSize: displayBaseSize(localizedField(value, 'baseSize')),
+    transport: localizedField(value, 'transport'),
     points: records(value, 'points').flatMap((point) => {
       const models = stringField(point, 'models')
       const cost = stringField(point, 'cost')

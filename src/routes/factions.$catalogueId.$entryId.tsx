@@ -95,6 +95,14 @@ export function DatasheetPage() {
       {melee.length ? <ProfileTable title="Melee weapons" profiles={melee} keywordRules={sheet.keywordRules} /> : null}
       <Abilities abilities={sheet.abilities} rules={sheet.keywordRules} />
       <UnitConfiguration sheet={sheet} rules={sheet.keywordRules} />
+      {sheet.transport ? (
+        <section>
+          <h2 className="rubric">Transport</h2>
+          <div className="mt-2 border border-edge bg-panel p-3">
+            <RuleText text={sheet.transport} rules={sheet.keywordRules} className="mt-0" />
+          </div>
+        </section>
+      ) : null}
       <Relationships sheet={sheet} factionSlug={faction.slug} />
       {sheet.attribution ? <p className="border-t border-edge pt-4 text-xs text-dim">{sheet.attribution}.</p> : null}
     </main>
