@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, notFound, redirect, useParams } from '@tanstack/react-router'
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbSeparator } from '@/components/ui/breadcrumb'
-import { Keyword, KeywordList, type KeywordRule } from '../client/components/Keyword'
+import { Keyword, KEYWORD_TAG_CLASS, KeywordList, type KeywordRule } from '../client/components/Keyword'
 import { RuleText } from '../client/components/RuleText'
 import { factionFor } from '../client/factions'
 import { datasheetSlugQuery, factionsQuery } from '../client/queries'
@@ -62,7 +62,7 @@ export function DatasheetPage() {
         </div>
         <div className="mt-2 flex flex-wrap gap-1">
           {sheet.keywords.map((keyword) => (
-            <Keyword key={keyword} name={keyword} rules={sheet.keywordRules} className="chip" />
+            <Keyword key={keyword} name={keyword} rules={sheet.keywordRules} className={KEYWORD_TAG_CLASS} />
           ))}
         </div>
       </header>
@@ -163,7 +163,11 @@ function ProfileTable({
                 {columns.map((column) => (
                   <td key={column} className="readout px-3 py-2 text-center text-dim">
                     {column === 'Keywords' && profile.values.find((value) => value.name === column)?.value ? (
-                      <KeywordList value={profile.values.find((value) => value.name === column)!.value} rules={keywordRules} />
+                      <KeywordList
+                        value={profile.values.find((value) => value.name === column)!.value}
+                        rules={keywordRules}
+                        className="text-bone"
+                      />
                     ) : (
                       (profile.values.find((value) => value.name === column)?.value ?? '—')
                     )}

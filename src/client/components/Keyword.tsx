@@ -2,6 +2,8 @@ import { ruleReferenceMatches } from '../../core/ruleReference'
 import { HoverTooltip } from './HoverTooltip'
 
 export type KeywordRule = { name: string; description: string }
+export const KEYWORD_TAG_CLASS =
+  'chip inline-flex min-h-6 items-center justify-center border-azure/50 bg-azure/10 py-0.5 leading-none text-azure'
 
 export function Keyword({ name, rules, className = '' }: { name: string; rules: KeywordRule[]; className?: string }) {
   const rule = rules
@@ -11,7 +13,7 @@ export function Keyword({ name, rules, className = '' }: { name: string; rules: 
 
   return (
     <HoverTooltip
-      className={className}
+      className={`${className} text-azure hover:text-bone`}
       content={
         <>
           <strong className="block font-semibold">{rule.name}</strong>

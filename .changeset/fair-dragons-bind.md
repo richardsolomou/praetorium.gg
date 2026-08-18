@@ -2,4 +2,4 @@
 'praetorium': patch
 ---
 
-Add forced detachment enhancements to their required units and points totals.
+Add forced detachment enhancements to required units and preserve complete, readable datasheet rules.

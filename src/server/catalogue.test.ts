@@ -977,6 +977,65 @@ describe('a datasheet', () => {
     ])
   })
 
+  it('applies values appended to core rule names', () => {
+    const book = bookOf({
+      sharedRules: [
+        { id: 'feel-no-pain', name: 'Feel No Pain', description: 'Ignore wounds.' },
+        { id: 'deadly-demise', name: 'Deadly Demise', description: 'Explode.' },
+      ],
+      selectionEntries: [
+        {
+          id: 'ctan',
+          name: "C'tan Shard",
+          type: 'model',
+          infoLinks: [
+            {
+              id: 'feel-no-pain-link',
+              targetId: 'feel-no-pain',
+              name: 'Feel No Pain',
+              type: 'rule',
+              modifiers: [{ type: 'append', field: 'name', value: '5+' }],
+            },
+            {
+              id: 'deadly-demise-link',
+              targetId: 'deadly-demise',
+              name: 'Deadly Demise',
+              type: 'rule',
+              modifiers: [{ type: 'append', field: 'name', value: 'D6' }],
+            },
+          ],
+        },
+      ],
+    })
+
+    expect(datasheetIn(book, 'cat', 'ctan')?.abilities.map((rule) => rule.name)).toEqual(['Feel No Pain 5+', 'Deadly Demise D6'])
+  })
+
+  it('keeps an upgrade name when its embedded ability has a different title', () => {
+    const book = bookOf({
+      selectionEntries: [
+        {
+          id: 'deceiver',
+          name: "C'tan Shard of the Deceiver",
+          type: 'model',
+          selectionEntries: [
+            {
+              id: 'matrix',
+              name: 'Singularity Matrix',
+              type: 'upgrade',
+              profiles: [ability('deceit', 'Lord of Deceit (Aura)')],
+            },
+          ],
+        },
+      ],
+    })
+
+    expect(datasheetIn(book, 'cat', 'deceiver')?.abilities[0]).toMatchObject({
+      name: 'Lord of Deceit (Aura)',
+      source: 'Singularity Matrix',
+    })
+  })
+
   it('keeps definitions for linked weapon keywords', () => {
     const book = bookOf({
       sharedRules: [{ id: 'devastating', name: 'Devastating Wounds', description: 'Critical wounds inflict mortal wounds.' }],
