@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.5.1
+
+### Patch Changes
+
+- 8f3e7ab: Remove enhancements cleanly, show each selected enhancement once, and keep the roster visible while adding units.
+- 4899109: Show complete datasheets with correctly classified abilities, unit composition, loadout, and wargear options.
+
 ## 0.5.0
 
 ### Minor Changes
