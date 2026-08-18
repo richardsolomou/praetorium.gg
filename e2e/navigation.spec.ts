@@ -330,7 +330,7 @@ test('a player can enter through the roster library and browse the product', asy
   await page.screenshot({ path: 'test-results/datasheet.png', fullPage: true })
   await page.goto('/factions/necrons/datasheets/overlord-with-translocation-shroud')
   await expect(page.getByRole('heading', { name: 'Overlord with Translocation Shroud', exact: true })).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'Invulnerable save' })).toBeVisible()
+  await expect(page.getByText('Invulnerable save', { exact: true })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Translocation Shroud', exact: true })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Resurrection Orb' })).toBeVisible()
   await page.screenshot({ path: 'test-results/translocation-shroud.png', fullPage: true })
