@@ -40,6 +40,12 @@ test('server-rendered reference pages keep route-shaped payloads', async ({ requ
   expect(missionPack.byteLength).toBeLessThan(250_000)
 })
 
+test('saving a faction asks signed-out visitors to sign in', async ({ page }) => {
+  await page.goto('/factions')
+  await page.getByRole('link', { name: 'Sign in to add Necrons to favourites' }).click()
+  await expect(page).toHaveURL('/signin?next=%2Ffactions')
+})
+
 test('faction routes keep a stable content width', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 })
   const widths: number[] = []

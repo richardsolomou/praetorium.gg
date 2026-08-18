@@ -4,7 +4,7 @@ import { ChevronRight, Heart } from 'lucide-react'
 import { useState } from 'react'
 import { Input } from '@/components/ui/input'
 import { Toggle } from '@/components/ui/toggle'
-import { factionIndexQuery } from '../client/queries'
+import { factionIndexQuery, meQuery } from '../client/queries'
 import { useFavouriteFactions } from '../client/favouriteFactions'
 import { FactionMark, factionColour } from '../client/components/FactionMark'
 
@@ -22,6 +22,7 @@ function Factions() {
 
 function FactionIndex() {
   const { data } = useQuery(factionIndexQuery())
+  const { data: me } = useQuery(meQuery())
   const [factionQueryText, setFactionQueryText] = useState('')
   const { favourites, toggleFavourite } = useFavouriteFactions()
   if (!data) return <main className="mx-auto max-w-5xl px-4 py-8 text-sm text-dim">Catalogue data is still syncing.</main>
@@ -45,12 +46,18 @@ function FactionIndex() {
         placeholder="Find a faction"
         aria-label="Find a faction"
       />
-      <FactionShelf title="Favourites" entries={favouriteFactions} favourites={favourites} onFavourite={toggleFavourite} />
+      <FactionShelf title="Favourites" entries={favouriteFactions} favourites={favourites} onFavourite={me ? toggleFavourite : undefined} />
       {matching.length ? (
         [...groups.entries()]
           .toSorted(([left], [right]) => left.localeCompare(right))
           .map(([title, entries]) => (
-            <FactionShelf key={title} title={title} entries={entries} favourites={favourites} onFavourite={toggleFavourite} />
+            <FactionShelf
+              key={title}
+              title={title}
+              entries={entries}
+              favourites={favourites}
+              onFavourite={me ? toggleFavourite : undefined}
+            />
           ))
       ) : (
         <p className="mt-6 border border-edge bg-panel p-6 text-center text-sm text-dim">No factions match.</p>
@@ -77,7 +84,7 @@ function FactionShelf({
   title: string
   entries: Faction[]
   favourites: Set<string>
-  onFavourite: (id: string) => void
+  onFavourite?: (id: string) => void
 }) {
   return (
     <section data-shelf={title} className="mt-6">
@@ -105,16 +112,27 @@ function FactionShelf({
                   <span className="text-xs text-dim">{entry.references[0]?.detachments ?? 0} detachments</span>
                 </span>
               </Link>
-              <Toggle
-                variant="default"
-                size="sm"
-                className="m-1 size-7 bg-transparent p-0"
-                aria-label={`${favourites.has(entry.id) ? 'Remove' : 'Add'} ${entry.displayName} ${favourites.has(entry.id) ? 'from' : 'to'} favourites`}
-                pressed={favourites.has(entry.id)}
-                onPressedChange={() => onFavourite(entry.id)}
-              >
-                <Heart className={`size-4 ${favourites.has(entry.id) ? 'fill-azure text-azure' : 'text-dim'}`} />
-              </Toggle>
+              {onFavourite ? (
+                <Toggle
+                  variant="default"
+                  size="sm"
+                  className="m-1 size-7 bg-transparent p-0"
+                  aria-label={`${favourites.has(entry.id) ? 'Remove' : 'Add'} ${entry.displayName} ${favourites.has(entry.id) ? 'from' : 'to'} favourites`}
+                  pressed={favourites.has(entry.id)}
+                  onPressedChange={() => onFavourite(entry.id)}
+                >
+                  <Heart className={`size-4 ${favourites.has(entry.id) ? 'fill-azure text-azure' : 'text-dim'}`} />
+                </Toggle>
+              ) : (
+                <Link
+                  to="/signin"
+                  search={{ next: '/factions' }}
+                  className="m-1 grid size-7 place-items-center"
+                  aria-label={`Sign in to add ${entry.displayName} to favourites`}
+                >
+                  <Heart className="size-4 text-dim" />
+                </Link>
+              )}
               <ChevronRight className="mr-2 size-4 text-dim" aria-hidden />
             </div>
           ))}
