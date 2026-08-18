@@ -127,7 +127,7 @@ export function findDescription(descriptions: ReadonlyMap<string, string>, detac
   return matches.length === 1 ? matches[0][1] : null
 }
 
-const comparableName = (name: string) => routeSlug(name).replace(/-upgrade$/, '')
+const comparableName = (name: string) => routeSlug(name).replace(/-(?:aura|upgrade)$/, '')
 
 export function findDetachmentAbilities(
   abilities: ReadonlyMap<string, readonly DetachmentAbility[]>,

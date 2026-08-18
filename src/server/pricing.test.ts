@@ -17,6 +17,12 @@ describe('force disposition', () => {
 })
 
 describe('enhancement descriptions', () => {
+  it('matches an aura suffix supplied by the rules source', () => {
+    const descriptions = new Map([[descriptionKey('Awakened Dynasty', 'Phasal Subjugator (Aura)'), 'Improve nearby attacks.']])
+
+    expect(findEnhancementDescription(descriptions, [{ name: 'Awakened Dynasty' }], 'Phasal Subjugator')).toBe('Improve nearby attacks.')
+  })
+
   it('matches a minor name correction within the selected detachment', () => {
     const descriptions = new Map([
       [descriptionKey('Cursed Legion', 'Mask of the Nekrosor'), 'Each time this unit attacks, add 1 to the Hit roll.'],
