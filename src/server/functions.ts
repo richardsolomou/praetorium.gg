@@ -5,13 +5,12 @@ import { SOCIAL_PROVIDERS } from '../authConfig'
 import { routeSlug } from '../core/slug'
 import { buildUnit } from '../core/roster'
 import { datasheetIn, datasheetInBySlug, rulesReferencedIn } from './catalogue'
+import { describeDatasheetAbilities } from './datasheetDescriptions'
 import { factionDisplayName } from './factionNames'
 import { detachmentCatalogueDetail } from './catalogueDescriptions'
-import type { LoadedCatalogue } from './catalogueIndex'
 import { unitsIn } from './cataloguePicker'
 import { slug } from './rules'
 import { gameReferencesFor } from './gameReferences'
-import { findAbilityDescription, WAHAPEDIA_ATTRIBUTION } from './wahapedia'
 import { mutationRpc, rpc } from './rpc'
 import { calculateRosterPrice, rosterDetachments } from './pricing'
 import { exportRosterFile, importRosterFile } from './rosterFiles'
@@ -302,7 +301,7 @@ export const datasheet = createServerFn({ method: 'GET' })
       })
       const selected = builtUnits.findIndex((unit) => unit.index === data.pickIndex)
       const selections = [...detachments, ...builtUnits.map((unit) => unit.selection)]
-      return describeAbilities(
+      return describeDatasheetAbilities(
         loaded,
         data.catalogueId,
         datasheetIn(
@@ -311,6 +310,7 @@ export const datasheet = createServerFn({ method: 'GET' })
           data.entryId,
           selected < 0 ? undefined : { selections, unitSelectionIndex: detachments.length + selected },
         ),
+        app().rules(),
       )
     }),
   )
@@ -320,51 +320,11 @@ export const datasheetBySlug = createServerFn({ method: 'GET' })
   .handler(({ data }) =>
     rpc(() => {
       const loaded = app().catalogue()
-      return loaded ? describeAbilities(loaded, data.catalogueId, datasheetInBySlug(loaded, data.catalogueId, data.slug)) : null
+      return loaded
+        ? describeDatasheetAbilities(loaded, data.catalogueId, datasheetInBySlug(loaded, data.catalogueId, data.slug), app().rules())
+        : null
     }),
   )
-
-function describeAbilities(loaded: LoadedCatalogue, catalogueId: string, sheet: ReturnType<typeof datasheetIn>) {
-  if (!sheet) return null
-  const loadedRules = app().rules()
-  const descriptions = loadedRules?.abilityDescriptions
-  const supplied = descriptions
-    ? sheet.abilities.some((ability) => !ability.description && findAbilityDescription(descriptions, ability.name))
-    : false
-  const abilities = sheet.abilities.map((ability) => ({
-    ...ability,
-    description: ability.description ?? (descriptions ? findAbilityDescription(descriptions, ability.name) : null),
-  }))
-  const faction = loaded.index.catalogues.get(catalogueId)
-  const keywords = new Set(sheet.keywords.map((keyword) => slug(keyword.replace(/^faction:\s*/i, ''))))
-  const character = keywords.has('character')
-  const detachments = faction
-    ? [...(loadedRules?.detachmentDetails.get(slug(faction.name))?.values() ?? [])].map((detachment) => ({
-        id: detachment.id,
-        name: detachment.name,
-        rules: detachment.rules,
-        enhancements: character
-          ? detachment.enhancements.filter((enhancement) => enhancement.keywordRestrictions.every((keyword) => keywords.has(slug(keyword))))
-          : [],
-      }))
-    : []
-  const suppliedDetachmentDescriptions = detachments.some((detachment) =>
-    [...detachment.rules, ...detachment.enhancements].some((entry) => entry.description),
-  )
-  return {
-    ...sheet,
-    abilities,
-    keywordRules: mergeKeywordRules(
-      rulesReferencedIn(
-        loaded,
-        abilities.map((ability) => ability.description),
-      ),
-      sheet.keywordRules,
-    ),
-    detachments,
-    attribution: supplied || suppliedDetachmentDescriptions ? WAHAPEDIA_ATTRIBUTION : null,
-  }
-}
 
 /**
  * Prices a list in progress and says what is wrong with it.
@@ -534,10 +494,6 @@ function mergeDetachmentRules(
 ) {
   if (rules.length || !catalogueRule) return rules
   return [catalogueRule]
-}
-
-function mergeKeywordRules<T extends { name: string }>(preferred: readonly T[], fallback: readonly T[]) {
-  return [...new Map([...fallback, ...preferred].map((rule) => [rule.name.toLocaleLowerCase(), rule])).values()]
 }
 
 /** The battlefields on offer, as polygons, so the interface can draw one. */
