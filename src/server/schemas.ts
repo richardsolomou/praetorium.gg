@@ -34,6 +34,8 @@ export const unitsSchema = z.object({
   query: z.string().max(80).default(''),
 })
 
+export const globalSearchSchema = z.object({ query: z.string().trim().min(2).max(80) })
+
 /**
  * A list is sent as the entries the player picked and how many models they want
  * in each; the server expands every one to a legal selection.

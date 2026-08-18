@@ -14,6 +14,7 @@ import {
   factionIndex,
   favouriteFactions,
   gameReferences,
+  globalSearch,
   me,
   myBattles,
   openBattle,
@@ -44,6 +45,14 @@ export const favouriteFactionsQuery = () =>
   queryOptions({ queryKey: ['favourite-factions'], queryFn: () => favouriteFactions(), staleTime: SSR_STALE_TIME })
 export const gameReferencesQuery = () =>
   queryOptions({ queryKey: ['game-references'], queryFn: () => gameReferences(), staleTime: Infinity })
+
+export const globalSearchQuery = (query: string) =>
+  queryOptions({
+    queryKey: ['global-search', query],
+    queryFn: () => globalSearch({ data: { query } }),
+    enabled: query.trim().length >= 2,
+    staleTime: 30_000,
+  })
 
 export const terrainMatchupIds = (dispositions: readonly string[], solo = false) => {
   const matchup = dispositions.length === 2 ? dispositions : solo && dispositions[0] ? [dispositions[0], dispositions[0]] : []

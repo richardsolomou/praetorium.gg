@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button'
 import { postHogEnvironment } from 'ras-stack/posthog'
 import { PostHogBetterAuthIdentity, PostHogIntegration } from 'ras-stack/posthog/react'
 import { authClient } from '../client/authClient'
+import { GlobalSearch } from '../client/components/GlobalSearch'
 import { favouriteFactionsQuery, meQuery } from '../client/queries'
 import appCss from '../styles.css?url'
 
@@ -120,13 +121,14 @@ function RootComponent() {
                   <Link to="/rosters" className="eyebrow hover:text-azure" activeProps={{ className: 'text-azure' }}>
                     Rosters
                   </Link>
-                  <Link to="/factions" className="eyebrow hover:text-azure" activeProps={{ className: 'text-azure' }}>
+                  <Link to="/factions" className="eyebrow hidden hover:text-azure sm:inline" activeProps={{ className: 'text-azure' }}>
                     Factions
                   </Link>
                   <Link to="/mission-packs" className="eyebrow hidden hover:text-azure sm:inline" activeProps={{ className: 'text-azure' }}>
                     Mission packs
                   </Link>
                 </nav>
+                <GlobalSearch />
                 <Account />
               </div>
             </header>
