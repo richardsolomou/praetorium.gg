@@ -1,4 +1,4 @@
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { Check, Copy, Download, EllipsisVertical, Eye, Layers3, Pencil, Plus, Trash2, TriangleAlert, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
@@ -220,7 +220,21 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
         toggles,
       })),
     ),
-    placeholderData: keepPreviousData,
+    placeholderData: (previous, previousQuery) => {
+      const previousPicks = previousQuery?.queryKey[5]
+      if (!Array.isArray(previousPicks) || previousPicks.length !== picked.length) return undefined
+      return previousPicks.every(
+        (pick, index) =>
+          typeof pick === 'object' &&
+          pick !== null &&
+          'entryId' in pick &&
+          'catalogueId' in pick &&
+          pick.entryId === picked[index]?.entryId &&
+          pick.catalogueId === picked[index]?.catalogueId,
+      )
+        ? previous
+        : undefined
+    },
   })
 
   if (!available) {
@@ -241,6 +255,26 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
   const overDetachmentPoints = Boolean(priced?.detachmentPointsOver)
   const units = priced?.units ?? []
   const selectedUnit = selected === null ? null : (units[selected] ?? null)
+  const selectedPick = selected === null ? null : (picked[selected] ?? null)
+  const optimisticUnit =
+    selectedUnit && selectedPick
+      ? {
+          ...selectedUnit,
+          size: { ...selectedUnit.size, models: selectedPick.models ?? selectedUnit.size.models },
+          choices: selectedUnit.choices.map((choice) => ({
+            ...choice,
+            chosen: Object.hasOwn(selectedPick.choices ?? {}, choice.key) ? (selectedPick.choices?.[choice.key] ?? '') : choice.chosen,
+            options: choice.options.map((option) => ({
+              ...option,
+              count: selectedPick.spreads?.[choice.key]?.[option.id] ?? option.count,
+            })),
+          })),
+          toggles: selectedUnit.toggles.map((toggle) => ({
+            ...toggle,
+            selected: Object.hasOwn(selectedPick.toggles ?? {}, toggle.key) ? Boolean(selectedPick.toggles?.[toggle.key]) : toggle.selected,
+          })),
+        }
+      : selectedUnit
 
   const held: Record<string, number> = {}
   for (const pick of picked) held[pick.entryId] = (held[pick.entryId] ?? 0) + 1
@@ -272,8 +306,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
       current.map((pick, at) => {
         if (at !== index) return pick
         const choices = { ...pick.choices }
-        if (optionId) choices[key] = optionId
-        else delete choices[key]
+        choices[key] = optionId
         return { ...pick, choices }
       }),
     )
@@ -432,7 +465,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
   const loadout = (
     <Loadout
       catalogueId={loadoutCatalogueId}
-      unit={selectedUnit}
+      unit={optimisticUnit}
       detachmentIds={detachmentIds}
       picks={picked}
       pickIndex={selected}
@@ -454,7 +487,12 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
   )
 
   return (
-    <div data-roster-builder data-saving={save.isPending} className="flex min-h-0 flex-1 flex-col border border-edge bg-sunken">
+    <div
+      data-roster-builder
+      data-saving={save.isPending}
+      data-save-error={save.isError}
+      className="flex min-h-0 flex-1 flex-col border border-edge bg-sunken"
+    >
       <header className="border-b border-edge px-3 py-2">
         <Input
           id="listname"
@@ -844,6 +882,18 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
             ) : null}
           </span>
         </div>
+        {save.isError ? (
+          <div
+            role="alert"
+            className="mt-2 flex items-center gap-2 border border-destructive/40 bg-destructive/5 p-2.5 text-xs text-destructive"
+          >
+            <TriangleAlert className="size-4 shrink-0" aria-hidden />
+            <span className="min-w-0 flex-1">Your latest changes have not been saved.</span>
+            <Button variant="outline" size="xs" onClick={() => savedId && save.mutate(savedId)} disabled={!savedId || save.isPending}>
+              Try again
+            </Button>
+          </div>
+        ) : null}
         {priced?.errors.length ? (
           <ul className="mt-2 space-y-1 border border-destructive/40 bg-destructive/5 p-2.5 text-xs text-destructive">
             {priced.errors.slice(0, 8).map((error) => (

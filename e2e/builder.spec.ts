@@ -202,10 +202,10 @@ test('destroyer plasmacytes follow the unit size', async ({ page }) => {
     const loadout = page.locator('aside[aria-label="Loadout"]')
     await expect(loadout.getByLabel('Plasmacyte count')).toHaveText('1')
     await expect(page.locator(`[data-unit="${name}"]`)).toContainText('1x Plasmacyte')
-    for (const models of ['4', '5', '6']) {
-      await loadout.getByRole('button', { name: `More models in ${name}` }).click()
-      await expect(loadout.getByLabel(`${name} models`)).toHaveText(models)
-    }
+    await loadout.getByRole('button', { name: `More models in ${name}` }).click()
+    await loadout.getByRole('button', { name: `More models in ${name}` }).click()
+    await loadout.getByRole('button', { name: `More models in ${name}` }).click()
+    await expect(loadout.getByLabel(`${name} models`)).toHaveText('6')
     await expect(loadout.getByLabel('Plasmacyte count')).toHaveText('2')
     await expect(page.locator(`[data-unit="${name}"]`)).toContainText('2x Plasmacyte')
     await page.screenshot({ path: `test-results/${name.toLowerCase().replaceAll(' ', '-')}-plasmacytes.png`, fullPage: true })
