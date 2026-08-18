@@ -294,7 +294,8 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
       current.map((pick, at) => {
         if (at !== index) return pick
         const choices = { ...pick.choices }
-        choices[key] = optionId
+        if (optionId) choices[key] = optionId
+        else delete choices[key]
         return { ...pick, choices }
       }),
     )

@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { deploymentRules, factionRestrictionViolations, findEnhancementDescription, kotcViolations, resolveDisposition } from './pricing'
+import {
+  deploymentRules,
+  factionRestrictionViolations,
+  findEnhancementDescription,
+  kotcViolations,
+  resolveDisposition,
+  uniqueNames,
+} from './pricing'
 import { descriptionKey } from './wahapedia'
 
 describe('force disposition', () => {
@@ -17,6 +24,10 @@ describe('force disposition', () => {
 })
 
 describe('enhancement descriptions', () => {
+  it('lists an enhancement once when the choice and built wargear both contain it', () => {
+    expect(uniqueNames(['Demanding Leader', 'Demanding Leader'])).toEqual(['Demanding Leader'])
+  })
+
   it('matches a minor detachment name correction', () => {
     const descriptions = new Map([[descriptionKey('Brood Brother Auxilia', 'Martial Espionage'), 'Exploit weak points.']])
 

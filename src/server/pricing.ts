@@ -165,12 +165,12 @@ export function calculateRosterPrice(data: PriceInput) {
         ...deployment,
         choices,
         toggles: unit.toggles,
-        enhancements: [
+        enhancements: uniqueNames([
           ...choices
             .filter((choice) => choice.kind === 'enhancement')
             .flatMap((choice) => choice.options.filter((option) => option.count > 0).map((option) => option.name)),
           ...automaticEnhancements,
-        ],
+        ]),
         upgrades: choices
           .filter((choice) => choice.kind === 'upgrade')
           .flatMap((choice) => choice.options.filter((option) => option.count > 0).map((option) => option.name)),
@@ -180,6 +180,16 @@ export function calculateRosterPrice(data: PriceInput) {
       }
     }),
   }
+}
+
+export function uniqueNames(names: readonly string[]): string[] {
+  const seen = new Set<string>()
+  return names.filter((name) => {
+    const key = slug(name)
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
 }
 
 type KotcUnit = { entryId: string; name: string; keywords: readonly string[]; toughness: number | null; warlord: boolean }
