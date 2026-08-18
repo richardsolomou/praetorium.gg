@@ -91,6 +91,15 @@ function SharedRoster() {
                 </li>
               ))}
             </ul>
+            {[
+              ...unit.enhancements.map((name) => ({ kind: 'Enhancement', name })),
+              ...unit.upgrades.map((name) => ({ kind: 'Upgrade', name })),
+            ].map((entry) => (
+              <div key={`${entry.kind}-${entry.name}`} className="mt-2 flex items-center gap-2 border-t border-edge pt-2">
+                <span className="chip text-achieved">{entry.kind}</span>
+                <span className="text-xs font-semibold">{entry.name}</span>
+              </div>
+            ))}
           </article>
         ))}
       </div>

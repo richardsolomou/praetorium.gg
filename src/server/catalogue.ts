@@ -18,7 +18,7 @@ export type Datasheet = {
     count?: number
     values: { name: string; value: string; baseValue?: string; modifiers?: string[] }[]
   }[]
-  abilities: { id: string; name: string; description: string | null; kind: AbilityKind }[]
+  abilities: { id: string; name: string; source?: string; description: string | null; kind: AbilityKind }[]
   keywordRules: { name: string; description: string }[]
 }
 
@@ -68,9 +68,9 @@ export function datasheetIn(
   const abilities = new Map<string, Datasheet['abilities'][number]>()
   const keywordRules = new Map<string, Datasheet['keywordRules'][number]>()
   const visited = new Set<string>()
-  const addProfile = (profile: Profile, kind: AbilityKind, lineage: string[], owner: string[]) => {
+  const addProfile = (profile: Profile, kind: AbilityKind, lineage: string[], owner: string[], source?: string) => {
     if (profile.typeName === 'Abilities' && profile.name && !profile.hidden) {
-      abilities.set(`${kind}:${profile.id}`, { id: profile.id, name: profile.name, description: abilityDescription(profile), kind })
+      abilities.set(`${kind}:${profile.id}`, { id: profile.id, name: profile.name, source, description: abilityDescription(profile), kind })
     } else {
       profiles.set(profile.id, { profile, lineage, owner })
     }
@@ -78,7 +78,7 @@ export function datasheetIn(
   const addRule = (link: InfoLink, kind: AbilityKind) => {
     if (link.hidden || link.type !== 'rule') return
     const rule = loaded.index.rules.get(link.targetId)
-    const name = link.name ?? rule?.name
+    const name = displayRuleName(link, link.name ?? rule?.name)
     if (name && !rule?.hidden) abilities.set(`${kind}:${link.id}`, { id: link.id, name, description: rule?.description ?? null, kind })
   }
   const addGroup = (group: InfoGroup, lineage: string[]) => {
@@ -88,7 +88,15 @@ export function datasheetIn(
   }
   const addProfiles = (definition: Definition, lineage: string[], kind: AbilityKind = 'datasheet', ownRules = false) => {
     const owner = definitionTokens(definition)
-    definition.profiles?.forEach((profile) => addProfile(profile, kind, lineage, owner))
+    definition.profiles?.forEach((profile) =>
+      addProfile(
+        profile,
+        kind,
+        lineage,
+        owner,
+        definition.type === 'upgrade' && definition.name !== profile.name ? definition.name : undefined,
+      ),
+    )
     definition.infoGroups?.forEach((group) => addGroup(group, lineage))
     for (const link of definition.infoLinks ?? []) {
       const linkedRule = link.type === 'rule' ? loaded.index.rules.get(link.targetId) : undefined
@@ -198,7 +206,7 @@ function modifiedProfileField(
   let value = baseValue
   const sources: string[] = []
   for (const modifier of applied.toSorted((left, right) => modifierOrder(left.type) - modifierOrder(right.type))) {
-    const changed = applyProfileModifier(value, modifier)
+    const changed = applyDisplayModifier(value, modifier)
     if (changed === value) continue
     value = changed
     sources.push(modifier.source)
@@ -214,7 +222,9 @@ function profileInModifierScope(modifier: ProfileModifier, lineage: readonly str
   return (modifier.includeSelf && ownsProfile) || containsOrigin
 }
 
-const MODIFIER_ORDER: Partial<Record<ProfileModifier['type'], number>> = {
+type DisplayModifier = Pick<ProfileModifier, 'type' | 'value' | 'arg' | 'position' | 'join' | 'skipIfPresent' | 'times'>
+
+const MODIFIER_ORDER: Partial<Record<DisplayModifier['type'], number>> = {
   set: 0,
   append: 1,
   prepend: 1,
@@ -234,9 +244,21 @@ const MODIFIER_ORDER: Partial<Record<ProfileModifier['type'], number>> = {
   replace: 4,
 }
 
-const modifierOrder = (type: ProfileModifier['type']) => MODIFIER_ORDER[type] ?? Number.MAX_SAFE_INTEGER
+const modifierOrder = (type: DisplayModifier['type']) => MODIFIER_ORDER[type] ?? Number.MAX_SAFE_INTEGER
 
-function applyProfileModifier(current: string, modifier: ProfileModifier) {
+function displayRuleName(link: InfoLink, base: string | undefined) {
+  if (!base) return undefined
+  const modifiers = (link.modifiers ?? [])
+    .filter(
+      (modifier) =>
+        modifier.field === 'name' && !modifier.conditions?.length && !modifier.conditionGroups?.length && !modifier.repeats?.length,
+    )
+    .map((modifier) => ({ ...modifier, times: 1 }))
+    .toSorted((left, right) => modifierOrder(left.type) - modifierOrder(right.type))
+  return modifiers.reduce((name, modifier) => applyDisplayModifier(name, modifier), base)
+}
+
+function applyDisplayModifier(current: string, modifier: DisplayModifier) {
   const value = modifier.value
   const text = modifierText(value)
   switch (modifier.type) {
@@ -304,7 +326,7 @@ const modifierText = (value: unknown) =>
 
 const NUMBER = /-?\d+(?:\.\d+)?/g
 
-function modifyNumbers(current: string, modifier: ProfileModifier, change: (value: number) => number) {
+function modifyNumbers(current: string, modifier: DisplayModifier, change: (value: number) => number) {
   if (!Number.isFinite(Number(modifier.value))) return current
   if (!current) return String(change(0))
   return replaceAt(current, NUMBER, modifier.position, (found) => String(change(Number(found))))

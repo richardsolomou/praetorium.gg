@@ -34,36 +34,38 @@ export function calculateRosterPrice(data: PriceInput) {
     name: option.name,
     points: references?.get(slug(option.name))?.points ?? null,
   }))
+  const detachmentSpecials = chosen.map((option) => {
+    const detail = rules?.detachmentDetails.get(factionSlug)?.get(slug(option.name))
+    const named = [...(detail?.enhancements ?? []), ...(detail?.upgrades ?? [])]
+    const catalogue = detachmentCatalogueDetail(
+      loaded,
+      data.catalogueId,
+      option.id,
+      named.map((enhancement) => enhancement.name),
+    )
+    return { option, detail, named, catalogue }
+  })
   const enhancementDescriptions = new Map(
-    chosen.flatMap((option) =>
-      (() => {
-        const detail = rules?.detachmentDetails.get(factionSlug)?.get(slug(option.name))
-        const enhancements = [...(detail?.enhancements ?? []), ...(detail?.upgrades ?? [])]
-        const catalogueDetail = detachmentCatalogueDetail(
-          loaded,
-          data.catalogueId,
-          option.id,
-          enhancements.map((enhancement) => enhancement.name),
-        )
-        return enhancements.flatMap((enhancement) => {
-          const description =
-            catalogueDetail?.enhancements.find((candidate) => candidate.name.toLocaleLowerCase() === enhancement.name.toLocaleLowerCase())
-              ?.description ?? enhancement.description
-          return description ? [[descriptionKey(option.name, enhancement.name), description] as const] : []
-        })
-      })(),
-    ),
+    detachmentSpecials.flatMap(({ option, named, catalogue }) => [
+      ...named.flatMap((enhancement) => {
+        const description =
+          catalogue?.enhancements.find((candidate) => candidate.name.toLocaleLowerCase() === enhancement.name.toLocaleLowerCase())
+            ?.description ?? enhancement.description
+        return description ? [[descriptionKey(option.name, enhancement.name), description] as const] : []
+      }),
+      ...(catalogue?.forcedEnhancements.flatMap((enhancement) =>
+        enhancement.description ? [[descriptionKey(option.name, enhancement.name), enhancement.description] as const] : [],
+      ) ?? []),
+    ]),
   )
   const budget = detachmentPointBudget(data.limit)
   const spent = purchased.reduce((total, option) => total + (option.points ?? 0), 0)
-  const upgradeNames = new Set(
-    chosen.flatMap(
-      (option) =>
-        rules?.detachmentDetails
-          .get(factionSlug)
-          ?.get(slug(option.name))
-          ?.upgrades.map((upgrade) => slug(upgrade.name)) ?? [],
-    ),
+  const upgradeNames = new Set(detachmentSpecials.flatMap(({ detail }) => detail?.upgrades.map((upgrade) => slug(upgrade.name)) ?? []))
+  const enhancementNames = new Set(
+    detachmentSpecials.flatMap(({ detail, catalogue }) => [
+      ...(detail?.enhancements.map((enhancement) => slug(enhancement.name)) ?? []),
+      ...(catalogue?.forcedEnhancements.map((enhancement) => slug(enhancement.name)) ?? []),
+    ]),
   )
   const detachmentError = detachmentPointsError(purchased, budget)
 
@@ -150,6 +152,9 @@ export function calculateRosterPrice(data: PriceInput) {
           .filter((choice) => choice.kind)
           .flatMap((choice) => choice.options.filter((option) => option.count > 0).map((option) => slug(option.name))),
       )
+      const wargear = wargearOf(unit.selection, loaded.index)
+      const automaticEnhancements = wargear.filter((piece) => enhancementNames.has(slug(piece.name))).map((piece) => piece.name)
+      const specialSelections = new Set([...specialChoices, ...automaticEnhancements.map(slug)])
       return {
         key: unit.key,
         entryId: unit.entryId,
@@ -159,13 +164,16 @@ export function calculateRosterPrice(data: PriceInput) {
         ...deployment,
         choices,
         toggles: unit.toggles,
-        enhancements: choices
-          .filter((choice) => choice.kind === 'enhancement')
-          .flatMap((choice) => choice.options.filter((option) => option.count > 0).map((option) => option.name)),
+        enhancements: [
+          ...choices
+            .filter((choice) => choice.kind === 'enhancement')
+            .flatMap((choice) => choice.options.filter((option) => option.count > 0).map((option) => option.name)),
+          ...automaticEnhancements,
+        ],
         upgrades: choices
           .filter((choice) => choice.kind === 'upgrade')
           .flatMap((choice) => choice.options.filter((option) => option.count > 0).map((option) => option.name)),
-        wargear: wargearOf(unit.selection, loaded.index).filter((piece) => !specialChoices.has(slug(piece.name))),
+        wargear: wargear.filter((piece) => !specialSelections.has(slug(piece.name))),
         group: groupOfEntry(loaded.index, unit.entryId),
         attachment: attachmentOf(loaded.index.definitions.get(unit.entryId) ?? { id: unit.entryId }, loaded.index),
       }

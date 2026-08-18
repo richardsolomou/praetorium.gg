@@ -5,7 +5,7 @@ import type { RosterPick } from '../../../core/roster'
 import type { Datasheet } from '../../../server/catalogue'
 import { datasheetQuery } from '../../queries'
 import { HoverTooltip } from '../HoverTooltip'
-import { Keyword, KeywordList } from '../Keyword'
+import { Keyword, KEYWORD_TAG_CLASS, KeywordList } from '../Keyword'
 import { RuleText } from '../RuleText'
 
 type Props = {
@@ -45,7 +45,7 @@ export function DatasheetPanel({ catalogueId, entryId, detachmentIds, picks, pic
       <div className="space-y-4">
         <div className="flex flex-wrap gap-1">
           {sheet.keywords.map((keyword) => (
-            <Keyword key={keyword} name={keyword} rules={sheet.keywordRules} className="chip" />
+            <Keyword key={keyword} name={keyword} rules={sheet.keywordRules} className={KEYWORD_TAG_CLASS} />
           ))}
         </div>
         {model ? <UnitProfile profile={model} /> : null}
@@ -146,7 +146,7 @@ export function WeaponProfile({
           ))}
       </div>
       {weapon.values.find((value) => value.name === 'Keywords')?.value ? (
-        <p className="mt-1 text-[0.6875rem] text-faint">
+        <p className="mt-1 text-xs text-bone">
           <KeywordList value={weapon.values.find((value) => value.name === 'Keywords')!.value} rules={rules} />
         </p>
       ) : null}
@@ -176,7 +176,7 @@ function AbilitySummary({ abilities, rules }: { abilities: Datasheet['abilities'
           <p className="eyebrow border-b border-edge pb-1">{title}</p>
           <div className="mt-1.5 flex flex-wrap gap-1">
             {found.map((ability) => (
-              <Keyword key={ability.id} name={ability.name} rules={described} className="chip" />
+              <Keyword key={ability.id} name={ability.name} rules={described} className={KEYWORD_TAG_CLASS} />
             ))}
           </div>
         </section>
@@ -191,7 +191,8 @@ function AbilitySummary({ abilities, rules }: { abilities: Datasheet['abilities'
         <div className="mt-1.5 space-y-1.5">
           {found.map((ability) => (
             <article key={ability.id} className="border border-edge bg-card px-2 py-1.5">
-              <h3 className="text-xs">{ability.name}</h3>
+              <h3 className="text-xs">{ability.source ?? ability.name}</h3>
+              {ability.source ? <p className="eyebrow mt-1">{ability.name}</p> : null}
               {ability.description ? <RuleText text={ability.description} rules={rules} /> : null}
             </article>
           ))}

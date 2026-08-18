@@ -1,9 +1,10 @@
-import type { SelectionEntry } from '../core/catalogue'
+import type { Condition, ModifierGroup, SelectionEntry } from '../core/catalogue'
 import type { LoadedCatalogue } from './catalogueIndex'
 
 export type DetachmentCatalogueDetail = {
   rule: { name: string; description: string | null } | null
   enhancements: { name: string; points: number | null; description: string | null }[]
+  forcedEnhancements: { name: string; points: number | null; description: string | null }[]
 }
 
 export function detachmentCatalogueDetail(
@@ -36,11 +37,48 @@ export function detachmentCatalogueDetail(
       }
     })
     .toSorted((left, right) => left.name.localeCompare(right.name))
+  const forcedEnhancements = upgrades
+    .filter((entry) => loaded.index.catalogueOf.get(entry.id) === catalogueId && forcedBy(entry, detachmentId))
+    .map((entry) => ({
+      name: entry.name ?? entry.id,
+      points: entry.costs?.find((cost) => cost.typeId === loaded.index.pointsTypeId)?.value ?? null,
+      description: descriptionOf(entry),
+    }))
+    .toSorted((left, right) => left.name.localeCompare(right.name))
 
   return {
     rule: rule?.name ? { name: rule.name, description: rule.description ?? null } : null,
     enhancements,
+    forcedEnhancements,
   }
+}
+
+function forcedBy(entry: SelectionEntry, detachmentId: string) {
+  const minimums = new Set(
+    (entry.constraints ?? [])
+      .filter((constraint) => constraint.type === 'min' && constraint.field === 'selections')
+      .map((constraint) => constraint.id),
+  )
+  if (!minimums.size) return false
+
+  const visit = (group: ModifierGroup, inherited: readonly Condition[]): boolean => {
+    const conditions = [...inherited, ...(group.conditions ?? [])]
+    const selected = conditions.some(
+      (condition) =>
+        condition.childId === detachmentId &&
+        condition.field === 'selections' &&
+        (condition.scope === 'force' || condition.scope === 'roster'),
+    )
+    if (
+      selected &&
+      (group.modifiers ?? []).some((modifier) => minimums.has(modifier.field) && Number(modifier.value) > 0 && modifier.type === 'set')
+    ) {
+      return true
+    }
+    return (group.modifierGroups ?? []).some((nested) => visit(nested, conditions))
+  }
+
+  return (entry.modifierGroups ?? []).some((group) => visit(group, []))
 }
 
 const comparableName = (name: string | undefined) =>

@@ -326,6 +326,40 @@ describe('detachment enhancements', () => {
       )?.description,
     ).toBeNull()
   })
+
+  it('finds an enhancement the detachment makes mandatory on its bearer', () => {
+    const loaded = bookOf({
+      sharedSelectionEntries: [
+        {
+          id: 'wrapper',
+          name: 'Detachment',
+          type: 'upgrade',
+          selectionEntryGroups: [
+            { id: 'choices', name: 'Detachment', selectionEntries: [{ id: 'host', name: 'Pantheon', type: 'upgrade' }] },
+          ],
+        },
+        {
+          id: 'binding',
+          name: 'Singularity Matrix',
+          type: 'upgrade',
+          hidden: true,
+          costs: points(45),
+          constraints: [{ id: 'binding-min', type: 'min', value: 0, field: 'selections', scope: 'parent' }],
+          profiles: [ability('binding-rule', 'Singularity Matrix')],
+          modifierGroups: [
+            {
+              conditions: [{ type: 'atLeast', value: 1, field: 'selections', scope: 'force', childId: 'host' }],
+              modifiers: [{ type: 'set', field: 'binding-min', value: 1 }],
+            },
+          ],
+        },
+      ],
+    })
+
+    expect(detachmentCatalogueDetail(loaded, 'cat', 'host', [])?.forcedEnhancements).toEqual([
+      { name: 'Singularity Matrix', points: 45, description: 'Singularity Matrix text' },
+    ])
+  })
 })
 
 describe('detachments', () => {
@@ -941,6 +975,65 @@ describe('a datasheet', () => {
       ['My Will Be Done', 'datasheet'],
       ['Resurrection Orb', 'wargear'],
     ])
+  })
+
+  it('applies values appended to core rule names', () => {
+    const book = bookOf({
+      sharedRules: [
+        { id: 'feel-no-pain', name: 'Feel No Pain', description: 'Ignore wounds.' },
+        { id: 'deadly-demise', name: 'Deadly Demise', description: 'Explode.' },
+      ],
+      selectionEntries: [
+        {
+          id: 'ctan',
+          name: "C'tan Shard",
+          type: 'model',
+          infoLinks: [
+            {
+              id: 'feel-no-pain-link',
+              targetId: 'feel-no-pain',
+              name: 'Feel No Pain',
+              type: 'rule',
+              modifiers: [{ type: 'append', field: 'name', value: '5+' }],
+            },
+            {
+              id: 'deadly-demise-link',
+              targetId: 'deadly-demise',
+              name: 'Deadly Demise',
+              type: 'rule',
+              modifiers: [{ type: 'append', field: 'name', value: 'D6' }],
+            },
+          ],
+        },
+      ],
+    })
+
+    expect(datasheetIn(book, 'cat', 'ctan')?.abilities.map((rule) => rule.name)).toEqual(['Feel No Pain 5+', 'Deadly Demise D6'])
+  })
+
+  it('keeps an upgrade name when its embedded ability has a different title', () => {
+    const book = bookOf({
+      selectionEntries: [
+        {
+          id: 'deceiver',
+          name: "C'tan Shard of the Deceiver",
+          type: 'model',
+          selectionEntries: [
+            {
+              id: 'matrix',
+              name: 'Singularity Matrix',
+              type: 'upgrade',
+              profiles: [ability('deceit', 'Lord of Deceit (Aura)')],
+            },
+          ],
+        },
+      ],
+    })
+
+    expect(datasheetIn(book, 'cat', 'deceiver')?.abilities[0]).toMatchObject({
+      name: 'Lord of Deceit (Aura)',
+      source: 'Singularity Matrix',
+    })
   })
 
   it('keeps definitions for linked weapon keywords', () => {

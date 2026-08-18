@@ -68,6 +68,50 @@ test('enhancement choices show descriptions when rule and catalogue names differ
   await option.screenshot({ path: 'test-results/nekrosor-enhancement.png' })
 })
 
+test("Pantheon of Woe adds a C'tan shard's required enhancement", async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 })
+  await openBuilder(page, 'Necrons', /Pantheon of Woe/)
+  await add(page, "C'tan Shard of the Deceiver")
+
+  const card = page.locator('[data-unit="C\'tan Shard of the Deceiver"]')
+  await expect(card).toContainText('375 pts')
+  await expect(card).toContainText('Enhancement')
+  await expect(card).toContainText('Singularity Matrix')
+  await expect(card.getByText('1x Singularity Matrix', { exact: true })).toHaveCount(0)
+  await card.screenshot({ path: 'test-results/pantheon-forced-enhancement.png' })
+
+  await page
+    .getByRole('button', { name: /^C'tan Shard of the Deceiver/ })
+    .first()
+    .click()
+  const datasheet = page.locator('aside[aria-label="Datasheet"]')
+  await expect(datasheet.getByRole('button', { name: 'Feel No Pain 5+' })).toBeVisible()
+  await expect(datasheet.getByRole('button', { name: 'Deadly Demise D6' })).toBeVisible()
+  await datasheet.screenshot({ path: 'test-results/pantheon-datasheet-abilities.png' })
+  const matrix = datasheet.getByRole('heading', { name: 'Singularity Matrix' }).locator('..')
+  await expect(matrix).toContainText('Lord of Deceit (Aura)')
+  await matrix.screenshot({ path: 'test-results/pantheon-singularity-matrix.png' })
+
+  await page.getByLabel('Add a unit').fill('Imotekh the Stormlord')
+  await page.getByRole('button', { name: 'View Imotekh the Stormlord datasheet' }).click()
+  const leader = datasheet.getByRole('button', { name: 'Leader', exact: true }).first()
+  const noble = datasheet.getByText('Noble', { exact: true })
+  await expect(noble).toHaveCSS('color', 'rgb(61, 155, 245)')
+  await expect(datasheet.getByText('Character', { exact: true })).toHaveCSS('color', 'rgb(61, 155, 245)')
+  expect(Math.abs((await leader.boundingBox())!.height - (await noble.boundingBox())!.height)).toBeLessThan(1)
+  await expect(datasheet.getByRole('button', { name: 'Ignores Cover', exact: true })).toHaveCSS('font-size', '14.25px')
+  await datasheet.screenshot({ path: 'test-results/imotekh-datasheet-tags.png' })
+  await page.setViewportSize({ width: 390, height: 844 })
+  await expect(noble).toBeVisible()
+  await datasheet.screenshot({ path: 'test-results/imotekh-datasheet-tags-phone.png' })
+
+  await page.setViewportSize({ width: 1600, height: 900 })
+  await page.goto('/factions/necrons/datasheets/imotekh-the-stormlord')
+  const referenceHeader = page.locator('main > header')
+  await expect(referenceHeader.getByText('Noble', { exact: true })).toHaveCSS('color', 'rgb(61, 155, 245)')
+  await referenceHeader.screenshot({ path: 'test-results/imotekh-reference-tags.png' })
+})
+
 test('unit upgrades stay separate from character enhancements', async ({ page }) => {
   await openBuilder(page, 'Necrons', /Skyshroud Spearhead/)
   await add(page, 'Lokhust Destroyers')

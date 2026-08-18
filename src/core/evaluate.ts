@@ -69,7 +69,7 @@ class Census {
   }
 }
 
-type EvaluateOptions = {
+export type EvaluateOptions = {
   /**
    * The catalogue the list is being built from. Chapter-specific pricing asks for
    * it directly — a Blood Angels captain costs five points more than the same
@@ -372,34 +372,37 @@ export function evaluateForces(
  */
 export function hiddenByRules(definition: Definition, index: CatalogueIndex, options: EvaluateOptions = {}): boolean {
   const census = new Census()
-  const counter = { next: 0 }
-  const root: Node = {
-    target: { id: 'roster' },
-    order: counter.next++,
-    catalogueId: options.primaryCatalogueId,
-    link: null,
-    id: 'roster',
-    count: 1,
-    parent: null,
-    children: [],
-  }
-  const link = isLink(definition) ? definition : null
-  const target = link ? (index.definitions.get(link.targetId) ?? definition) : definition
-  // The rest of the list is built first, so roster-scoped gates can see it and the
-  // candidate takes its place after what is already there.
-  root.children = (options.roster ?? [])
-    .map((selection) => build(selection, root, index, census, counter))
-    .filter((each): each is Node => each !== null)
-  const node: Node = { target, order: counter.next++, link, id: definition.id, count: 1, parent: root, children: [] }
-  root.children = [...root.children, node]
+  const { root, node } = candidateContext(definition, index, options, census)
 
-  let hidden = Boolean(definition.hidden || target.hidden)
+  let hidden = Boolean(definition.hidden || node.target.hidden)
   for (const modifier of modifiersOf(node)) {
     if (modifier.field !== 'hidden') continue
     if (repeatCount(modifier, node, root, index, census) === 0) continue
     if (modifier.type === 'set') hidden = modifier.value === true
   }
   return hidden
+}
+
+/** Selection-count bounds after roster-dependent modifiers have been applied. */
+export function selectionCountBounds(
+  definition: Definition,
+  index: CatalogueIndex,
+  options: EvaluateOptions = {},
+): { minimum: number; maximum: number | null } {
+  const census = new Census()
+  const { root, node } = candidateContext(definition, index, options, census)
+  let minimum = 0
+  let maximum: number | null = null
+
+  for (const constraint of sourcesOf(node).flatMap((source) => source.constraints ?? [])) {
+    if (constraint.field !== 'selections') continue
+    const value = constraintValue(constraint, node, root, index, census)
+    if (constraint.type === 'min' && (constraint.scope === 'parent' || constraint.scope === 'self')) {
+      minimum = Math.max(minimum, value)
+    }
+    if (constraint.type === 'max' && value >= 0) maximum = maximum === null ? value : Math.min(maximum, value)
+  }
+  return { minimum, maximum }
 }
 
 /**
@@ -417,24 +420,8 @@ export function hiddenByRules(definition: Definition, index: CatalogueIndex, opt
  */
 export function rosterLimit(definition: Definition, index: CatalogueIndex, options: EvaluateOptions = {}): number | null {
   const census = new Census()
-  const counter = { next: 0 }
-  const root: Node = {
-    target: { id: 'roster' },
-    order: counter.next++,
-    catalogueId: options.primaryCatalogueId,
-    link: null,
-    id: 'roster',
-    count: 1,
-    parent: null,
-    children: [],
-  }
-  const link = isLink(definition) ? definition : null
-  const target = link ? (index.definitions.get(link.targetId) ?? definition) : definition
-  root.children = (options.roster ?? [])
-    .map((selection) => build(selection, root, index, census, counter))
-    .filter((each): each is Node => each !== null)
-  const node: Node = { target, order: counter.next++, link, id: definition.id, count: 1, parent: root, children: [] }
-  root.children = [...root.children, node]
+  const { root, node } = candidateContext(definition, index, options, census)
+  const target = node.target
 
   let limit: number | null = null
   const consider = (constraint: Constraint, extra: readonly Modifier[] = []) => {
@@ -461,6 +448,28 @@ export function rosterLimit(definition: Definition, index: CatalogueIndex, optio
     for (const constraint of category.constraints ?? []) consider(constraint, extra)
   }
   return limit
+}
+
+function candidateContext(definition: Definition, index: CatalogueIndex, options: EvaluateOptions, census: Census) {
+  const counter = { next: 0 }
+  const root: Node = {
+    target: { id: 'roster' },
+    order: counter.next++,
+    catalogueId: options.primaryCatalogueId,
+    link: null,
+    id: 'roster',
+    count: 1,
+    parent: null,
+    children: [],
+  }
+  const link = isLink(definition) ? definition : null
+  const target = link ? (index.definitions.get(link.targetId) ?? definition) : definition
+  root.children = (options.roster ?? [])
+    .map((selection) => build(selection, root, index, census, counter))
+    .filter((each): each is Node => each !== null)
+  const node: Node = { target, order: counter.next++, link, id: definition.id, count: 1, parent: root, children: [] }
+  root.children = [...root.children, node]
+  return { root, node }
 }
 
 function build(selection: Selection, parent: Node, index: CatalogueIndex, census: Census, counter: { next: number }): Node | null {

@@ -21,7 +21,7 @@ export function HoverTooltip({
   const above = bounds ? bounds.bottom + 200 > window.innerHeight : false
 
   return (
-    <span className="inline-block">
+    <span className="inline-flex align-baseline">
       <button
         ref={trigger}
         type="button"
@@ -32,7 +32,7 @@ export function HoverTooltip({
         onMouseLeave={() => setHovered(false)}
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
-        className={`${className} cursor-help underline decoration-dotted underline-offset-2`}
+        className={`${className} inline-flex items-center justify-center cursor-help underline decoration-dotted underline-offset-2`}
       >
         {children}
       </button>
