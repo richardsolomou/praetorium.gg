@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.4.3
+
+### Patch Changes
+
+- 5d2713b: Show unit upgrades separately from character enhancements.
+
 ## 0.4.2
 
 ### Patch Changes
