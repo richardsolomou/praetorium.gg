@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.4.2
+
+### Patch Changes
+
+- 57a040d: Show available enhancement rules and preserve mandatory wargear when changing a unit's loadout.
+
 ## 0.4.1
 
 ### Patch Changes
