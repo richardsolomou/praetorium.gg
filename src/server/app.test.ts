@@ -6,7 +6,7 @@ afterEach(() => vi.useRealTimers())
 it('warms catalogue data after yielding startup', async () => {
   vi.useFakeTimers()
   const loaded: string[] = []
-  warm({
+  const ready = warm({
     catalogue: () => {
       loaded.push('catalogue')
       return null
@@ -18,5 +18,6 @@ it('warms catalogue data after yielding startup', async () => {
   })
   const beforeYield = [...loaded]
   await vi.runAllTimersAsync()
+  await ready
   expect({ beforeYield, loaded }).toEqual({ beforeYield: [], loaded: ['catalogue', 'rules'] })
 })

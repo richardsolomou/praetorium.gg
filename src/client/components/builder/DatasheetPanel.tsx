@@ -84,17 +84,16 @@ function DatasheetLoading() {
 type Profile = Datasheet['profiles'][number]
 
 function UnitProfile({ profile }: { profile: Profile }) {
+  const invulnerable = profile.values.find((value) => value.name === 'InSv')?.value
+  const values = profile.values.filter((value) => value.name !== 'InSv')
   return (
-    <div
-      data-slot="unit-profile"
-      className="grid gap-1"
-      style={{ gridTemplateColumns: `repeat(${profile.values.length}, minmax(0, 1fr))` }}
-    >
-      {profile.values.map((value) => (
+    <div data-slot="unit-profile" className="grid gap-1" style={{ gridTemplateColumns: `repeat(${values.length}, minmax(0, 1fr))` }}>
+      {values.map((value) => (
         <div key={value.name} className="text-center">
-          <p className="eyebrow">{value.name}</p>
+          <p className="eyebrow">{value.name === 'Sv' && invulnerable ? 'Sv / Inv' : value.name}</p>
           <p className="readout text-sm">
             <ProfileValue value={value} />
+            {value.name === 'Sv' && invulnerable ? ` / ${invulnerable}+` : null}
           </p>
         </div>
       ))}
