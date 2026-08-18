@@ -382,7 +382,7 @@ export const detachmentDetail = createServerFn({ method: 'GET' })
         catalogue,
         data.catalogueId,
         option.id,
-        detail.enhancements.map((enhancement) => enhancement.name),
+        [...detail.enhancements, ...detail.upgrades].map((enhancement) => enhancement.name),
       )
       const detachmentRuleCards = mergeDetachmentRules(catalogueDetail?.rule ?? null, detail.rules)
       const enhancements = detail.enhancements.map((enhancement) => ({
@@ -392,14 +392,23 @@ export const detachmentDetail = createServerFn({ method: 'GET' })
           catalogueDetail?.enhancements.find((candidate) => candidate.name.toLocaleLowerCase() === enhancement.name.toLocaleLowerCase())
             ?.description ?? enhancement.description,
       }))
+      const upgrades = detail.upgrades.map((upgrade) => ({
+        name: upgrade.name,
+        points: upgrade.points,
+        description:
+          catalogueDetail?.enhancements.find((candidate) => candidate.name.toLocaleLowerCase() === upgrade.name.toLocaleLowerCase())
+            ?.description ?? upgrade.description,
+      }))
       return {
         ...detail,
         dispositions: detail.dispositions.map((disposition) => rules.dispositions.get(disposition) ?? disposition),
         rules: detachmentRuleCards,
         enhancements,
+        upgrades,
         keywordRules: rulesReferencedIn(catalogue, [
           ...detachmentRuleCards.map((rule) => rule.description),
           ...enhancements.map((enhancement) => enhancement.description),
+          ...upgrades.map((upgrade) => upgrade.description),
           ...detail.stratagems.map((stratagem) => stratagem.description),
         ]),
         attribution: rules.attribution,

@@ -28,7 +28,7 @@ beforeEach(() => {
     {
       id: 'flyblown-host',
       name: 'Flyblown Host',
-      enhancement_ids: ['living-plague', 'rejuvenating-swarm'],
+      enhancement_ids: ['living-plague', 'rejuvenating-swarm', 'virulent-carapace'],
       stratagem_ids: ['grim-reapers', 'mortarions-teachings'],
       detachment_points: 2,
       force_dispositions: ['disruption'],
@@ -37,6 +37,7 @@ beforeEach(() => {
   write(path.join(core, 'enhancements.json'), [
     { id: 'living-plague', name: 'Living Plague', detachment_id: 'flyblown-host', cost: 20 },
     { id: 'rejuvenating-swarm', name: 'Rejuvenating Swarm', detachment_id: 'flyblown-host', cost: 10 },
+    { id: 'virulent-carapace', name: 'Virulent Carapace (Upgrade)', detachment_id: 'flyblown-host', cost: 15 },
   ])
   write(path.join(core, 'factions.json'), [{ id: 'death-guard', name: 'Death Guard' }])
   const wahapedia = path.join(directory, 'wahapedia')
@@ -52,7 +53,7 @@ beforeEach(() => {
   )
   fs.writeFileSync(
     path.join(wahapedia, 'Enhancements.csv'),
-    'name|detachment|description|\nLiving Plague|Flyblown Host|<b>Spread the plague.</b>|\nRejuvinating Swarm|Flyblown Host|Return models.|\n',
+    'name|detachment|description|\nLiving Plague|Flyblown Host|<b>Spread the plague.</b>|\nRejuvinating Swarm|Flyblown Host|Return models.|\nVirulent Carapace (Upgrade)|Flyblown Host|Improve the unit.|\n',
   )
   write(path.join(root, 'stratagems.json'), [{ id: 'command-re-roll', name: 'COMMAND RE-ROLL', cp_cost: 1, timing: 'once-per-battle' }])
   write(path.join(root, 'secondary-cards.json'), [
@@ -109,6 +110,7 @@ describe('stratagems', () => {
   it('keeps the reference metadata for each detachment', () => {
     expect(load().detachmentReferences.get('death-guard')?.get('flyblown-host')).toEqual({
       enhancements: 2,
+      upgrades: 1,
       stratagems: 2,
       points: 2,
       dispositions: ['disruption'],
@@ -122,6 +124,7 @@ describe('stratagems', () => {
         { name: 'Living Plague', points: 20, description: 'Spread the plague.' },
         { name: 'Rejuvenating Swarm', points: 10, description: 'Return models.' },
       ],
+      upgrades: [{ name: 'Virulent Carapace', points: 15, description: 'Improve the unit.' }],
       stratagems: expect.arrayContaining([expect.objectContaining({ name: 'Grim Reapers', cp: 1, description: 'Cut them down.' })]),
     })
   })

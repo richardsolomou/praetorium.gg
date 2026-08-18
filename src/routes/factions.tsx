@@ -80,7 +80,7 @@ type Faction = {
   detachments: {
     id: string
     name: string
-    reference: { enhancements: number; stratagems: number; points: number | null; dispositions: string[] } | null
+    reference: { enhancements: number; upgrades: number; stratagems: number; points: number | null; dispositions: string[] } | null
   }[]
 }
 

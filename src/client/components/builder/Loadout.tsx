@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { Check, ChevronRight, Crown, Minus, Plus } from 'lucide-react'
+import { Check, Crown, Minus, Plus } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -16,7 +16,16 @@ type LoadoutChoice = {
   chosen: string
   optional: boolean
   room: number
-  options: { id: string; name: string; points: number; count: number; max: number; description?: string | null }[]
+  kind?: 'enhancement' | 'upgrade'
+  options: {
+    id: string
+    name: string
+    points: number
+    count: number
+    max: number
+    description?: string | null
+    keywordRules?: Datasheet['keywordRules']
+  }[]
 }
 
 type LoadoutUnit = {
@@ -146,8 +155,8 @@ export function Loadout({ catalogueId, unit, detachmentIds, picks, pickIndex, on
               </p>
               <div className="mt-3 grid gap-5">
                 {unit.choices.map((choice) =>
-                  choice.name.toLowerCase().includes('enhancement')
-                    ? enhancement(choice, onChoose, unit.name)
+                  choice.kind
+                    ? specialChoice(choice, onChoose, unit.name)
                     : choice.room > 1
                       ? spread(choice, onSpread, availableWeapons, availableSheet.abilities, rules)
                       : either(choice, onChoose, unit.name, availableWeapons, availableSheet.abilities, rules),
@@ -185,10 +194,12 @@ function LoadoutLoading() {
   )
 }
 
-function enhancement(choice: LoadoutChoice, onChoose: Props['onChoose'], unitName: string) {
+function specialChoice(choice: LoadoutChoice, onChoose: Props['onChoose'], unitName: string) {
+  const label = choice.kind === 'upgrade' ? 'upgrade' : 'enhancement'
+  const heading = choice.kind === 'upgrade' ? 'Unit upgrades' : choice.name
   return (
-    <fieldset key={choice.key} aria-label={`${unitName} ${choice.name}`} className="m-0 min-w-0 border-0">
-      <legend className="eyebrow mb-1.5">{choice.name}</legend>
+    <fieldset key={choice.key} aria-label={`${unitName} ${heading}`} className="m-0 min-w-0 border-0">
+      <legend className="eyebrow mb-1.5">{heading}</legend>
       <div className="space-y-1.5">
         {choice.optional ? (
           <button
@@ -199,38 +210,38 @@ function enhancement(choice: LoadoutChoice, onChoose: Props['onChoose'], unitNam
               choice.chosen ? 'border-edge bg-card text-dim hover:border-dim hover:text-bone' : 'border-azure bg-azure/10 text-azure'
             }`}
           >
-            No enhancement
+            No {label}
             {!choice.chosen ? <Check className="size-3.5" aria-hidden /> : null}
           </button>
         ) : null}
         {choice.options.map((option) => {
           const selected = choice.chosen === option.id
           return (
-            <article key={option.id} className={`border ${selected ? 'border-azure bg-azure/10' : 'border-edge bg-card'}`}>
+            <article
+              key={option.id}
+              className={`relative border ${selected ? 'border-azure bg-azure/10' : 'border-edge bg-card hover:border-dim'}`}
+            >
               <button
                 type="button"
                 aria-pressed={selected}
                 aria-label={`Select ${option.name}`}
                 onClick={() => onChoose(choice.key, option.id)}
-                className="flex w-full items-center justify-between gap-2 px-2.5 py-2 text-left hover:bg-raised"
-              >
-                <span className="text-sm font-semibold text-bone">{option.name}</span>
-                <span className="flex shrink-0 items-center gap-1.5">
-                  {option.points ? <span className="chip">+{option.points} pts</span> : null}
-                  {selected ? <Check className="size-3.5 text-azure" aria-hidden /> : null}
-                </span>
-              </button>
-              {option.description ? (
-                <details className="group border-t border-edge">
-                  <summary className="eyebrow flex cursor-pointer list-none items-center gap-1.5 px-2.5 py-1.5 text-faint marker:hidden">
-                    <ChevronRight className="size-3.5 transition-transform group-open:rotate-90" aria-hidden />
-                    Description
-                  </summary>
-                  <div className="px-2.5 pb-2">
-                    <RuleText text={option.description} />
+                className="absolute inset-0 z-0 w-full cursor-pointer hover:bg-raised"
+              />
+              <div className="pointer-events-none relative z-10 [&_button]:pointer-events-auto">
+                <div className="flex w-full items-center justify-between gap-2 px-2.5 py-2 text-left">
+                  <span className="text-sm font-semibold text-bone">{option.name}</span>
+                  <span className="flex shrink-0 items-center gap-1.5">
+                    {option.points ? <span className="chip">+{option.points} pts</span> : null}
+                    {selected ? <Check className="size-3.5 text-azure" aria-hidden /> : null}
+                  </span>
+                </div>
+                {option.description ? (
+                  <div className="border-t border-edge px-2.5 pb-2">
+                    <RuleText text={option.description} rules={option.keywordRules} />
                   </div>
-                </details>
-              ) : null}
+                ) : null}
+              </div>
             </article>
           )
         })}
@@ -384,7 +395,7 @@ function either(
                 <OptionAbilities optionName={option.name} abilities={abilities} rules={rules} />
                 {option.description ? (
                   <div className="border-t border-edge px-2.5 pb-2">
-                    <RuleText text={option.description} />
+                    <RuleText text={option.description} rules={option.keywordRules ?? rules} />
                   </div>
                 ) : null}
               </div>

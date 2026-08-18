@@ -16,6 +16,7 @@ type BuiltUnit = {
   wargear: { name: string; count: number }[]
   attachment: Attachment | null
   enhancements: string[]
+  upgrades: string[]
 }
 
 /** Who this unit is joined to, in whichever direction the card is showing. */
@@ -116,6 +117,13 @@ export function UnitCard({
         <div key={enhancement} className="flex items-center gap-2 border-t border-edge bg-raised px-2.5 py-1">
           <span className="chip text-achieved">Enhancement</span>
           <span className="text-xs font-semibold">{enhancement}</span>
+        </div>
+      ))}
+
+      {unit.upgrades.map((upgrade) => (
+        <div key={upgrade} className="flex items-center gap-2 border-t border-edge bg-raised px-2.5 py-1">
+          <span className="chip text-achieved">Upgrade</span>
+          <span className="text-xs font-semibold">{upgrade}</span>
         </div>
       ))}
 

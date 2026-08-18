@@ -54,6 +54,23 @@ export function DetachmentReference({ catalogueId, slug }: { catalogueId: string
         </div>
       </section>
 
+      {detachment.upgrades.length ? (
+        <section>
+          <SectionTitle title="Unit upgrades" count={detachment.upgrades.length} />
+          <div className="mt-2 grid gap-2 md:grid-cols-2">
+            {detachment.upgrades.map((upgrade) => (
+              <article key={upgrade.name} className="border border-edge bg-panel p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <h2 className="text-base">{upgrade.name}</h2>
+                  {upgrade.points === null ? null : <span className="chip shrink-0">{upgrade.points} pts</span>}
+                </div>
+                {upgrade.description ? <RuleText text={upgrade.description} rules={detachment.keywordRules} /> : <Unavailable />}
+              </article>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
       <section>
         <SectionTitle title="Stratagems" count={detachment.stratagems.length} />
         {detachment.stratagems.some((stratagem) => !stratagem.description) ? (

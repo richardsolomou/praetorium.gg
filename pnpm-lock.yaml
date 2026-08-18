@@ -11,6 +11,9 @@ importers:
       '@base-ui/react':
         specifier: ^1.7.0
         version: 1.7.0(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@fontsource/barlow':
+        specifier: 5.3.0
+        version: 5.3.0
       '@fontsource/barlow-semi-condensed':
         specifier: 5.3.0
         version: 5.3.0
@@ -969,6 +972,9 @@ packages:
 
   '@fontsource/barlow-semi-condensed@5.3.0':
     resolution: {integrity: sha512-EdpQ1GlLMofGqDsQhEw+g6DonNKmzt21p8y/oNbTl4BFzEkqYkFyE2fj25YGxmZBL/LZZGAxe74FlvEWcgc31w==}
+
+  '@fontsource/barlow@5.3.0':
+    resolution: {integrity: sha512-tGR0y6QObRtKv71MOth44222+mdNFM/ZWFWDV1VLzNbG4oK9PNRlyJzmkck4vHAi9ibHBXgt4SlY51amFP55CA==}
 
   '@hono/node-server@2.1.0':
     resolution: {integrity: sha512-XovyyCCnBzW+zKu+z/zq8hwNs4KOR5rEMAOxo2f40Q5xoOI37IMm6MIg2COOUtUApo0i6850MTBKH2u4QLGIqg==}
@@ -5499,6 +5505,8 @@ snapshots:
   '@floating-ui/utils@0.2.12': {}
 
   '@fontsource/barlow-semi-condensed@5.3.0': {}
+
+  '@fontsource/barlow@5.3.0': {}
 
   '@hono/node-server@2.1.0(hono@4.13.1)':
     dependencies:

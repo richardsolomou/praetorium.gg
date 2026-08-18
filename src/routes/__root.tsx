@@ -1,14 +1,12 @@
 import type { QueryClient } from '@tanstack/react-query'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { createRootRouteWithContext, HeadContent, Link, Outlet, Scripts, useLocation, useNavigate } from '@tanstack/react-router'
-import '@fontsource/barlow-semi-condensed/latin-400.css'
-import '@fontsource/barlow-semi-condensed/latin-500.css'
-import '@fontsource/barlow-semi-condensed/latin-600.css'
-import '@fontsource/barlow-semi-condensed/latin-700.css'
 import barlow400 from '@fontsource/barlow-semi-condensed/files/barlow-semi-condensed-latin-400-normal.woff2?url'
 import barlow500 from '@fontsource/barlow-semi-condensed/files/barlow-semi-condensed-latin-500-normal.woff2?url'
 import barlow600 from '@fontsource/barlow-semi-condensed/files/barlow-semi-condensed-latin-600-normal.woff2?url'
 import barlow700 from '@fontsource/barlow-semi-condensed/files/barlow-semi-condensed-latin-700-normal.woff2?url'
+import rules400 from '@fontsource/barlow/files/barlow-latin-400-normal.woff2?url'
+import rules600 from '@fontsource/barlow/files/barlow-latin-600-normal.woff2?url'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { postHogEnvironment } from 'ras-stack/posthog'
@@ -43,7 +41,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     ],
     links: [
       { rel: 'stylesheet', href: appCss },
-      ...[barlow400, barlow500, barlow600, barlow700].map((href) => ({
+      ...[barlow400, barlow500, barlow600, barlow700, rules400, rules600].map((href) => ({
         rel: 'preload' as const,
         href,
         as: 'font' as const,

@@ -61,6 +61,7 @@ function FactionPage() {
                 {detachment.reference ? (
                   <span className="text-xs text-dim">
                     {detachment.reference.stratagems} stratagems · {detachment.reference.enhancements} enhancements
+                    {detachment.reference.upgrades ? ` · ${detachment.reference.upgrades} unit upgrades` : ''}
                   </span>
                 ) : null}
               </span>
