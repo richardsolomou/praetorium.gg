@@ -393,6 +393,85 @@ describe('repeated specialist models', () => {
   })
 })
 
+describe('optional wargear on repeated models', () => {
+  const index = indexOf({
+    sharedSelectionEntries: [
+      {
+        id: 'unit',
+        name: 'Unit',
+        type: 'unit',
+        selectionEntries: [
+          {
+            id: 'model',
+            name: 'Model',
+            type: 'model',
+            constraints: [
+              { id: 'model-min', type: 'min', value: 3, field: 'selections', scope: 'parent' },
+              { id: 'model-max', type: 'max', value: 6, field: 'selections', scope: 'parent' },
+            ],
+            selectionEntries: [
+              {
+                id: 'shield',
+                name: 'Shieldvanes',
+                type: 'upgrade',
+                constraints: [{ id: 'shield-max', type: 'max', value: 1, field: 'selections', scope: 'parent' }],
+              },
+            ],
+            selectionEntryGroups: [
+              {
+                id: 'weapon',
+                name: 'Weapon',
+                defaultSelectionEntryId: 'blaster',
+                constraints: [
+                  { id: 'weapon-min', type: 'min', value: 1, field: 'selections', scope: 'parent' },
+                  { id: 'weapon-max', type: 'max', value: 1, field: 'selections', scope: 'parent' },
+                ],
+                selectionEntries: [
+                  { id: 'blaster', name: 'Blaster', type: 'upgrade' },
+                  { id: 'beamer', name: 'Beamer', type: 'upgrade' },
+                  { id: 'carbine', name: 'Carbine', type: 'upgrade' },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  })
+
+  it('offers one optional upgrade for each model', () => {
+    expect(buildUnit('unit', index)?.choices).toContainEqual({
+      key: 'model/shield',
+      name: 'Shieldvanes',
+      chosen: '',
+      optional: true,
+      room: 3,
+      options: [{ id: 'shield', name: 'Shieldvanes', points: 0, count: 0, max: 3 }],
+    })
+  })
+
+  it('equips the upgrade on only the requested models', () => {
+    const built = buildUnit('unit', index, 3, undefined, { spreads: { 'model/shield': { shield: 2 } } })!
+    expect(wargearOf(built.selection, index)).toContainEqual({ name: 'Shieldvanes', count: 2 })
+    expect(built.choices.find((choice) => choice.key === 'model/shield')?.options[0]?.count).toBe(2)
+  })
+
+  it('lets each model carry a different weapon', () => {
+    const built = buildUnit('unit', index, 3, undefined, {
+      spreads: {
+        'model/weapon': { blaster: 1, beamer: 1, carbine: 1 },
+        'model/shield': { shield: 2 },
+      },
+    })!
+    expect(wargearOf(built.selection, index)).toEqual([
+      { name: 'Blaster', count: 1 },
+      { name: 'Shieldvanes', count: 2 },
+      { name: 'Beamer', count: 1 },
+      { name: 'Carbine', count: 1 },
+    ])
+  })
+})
+
 describe('laying counts over a selection', () => {
   const tree = { id: 'squad', count: 1, selections: [{ id: 'troopers', count: 1, selections: [{ id: 'trooper', count: 1 }] }] }
 

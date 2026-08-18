@@ -164,6 +164,7 @@ test('unit upgrades stay separate from character enhancements', async ({ page })
 })
 
 test('wargear abilities are explained beside their choices', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 })
   await openBuilder(page)
   await add(page, 'Tomb Blades')
   await page
@@ -173,9 +174,24 @@ test('wargear abilities are explained beside their choices', async ({ page }) =>
 
   const loadout = page.locator('aside[aria-label="Loadout"]')
   for (const name of ['Shadowloom', 'Nebuloscope']) {
-    const option = loadout.getByRole('button', { name: `Select ${name}` }).locator('..')
+    const option = loadout.getByRole('listitem').filter({ hasText: name })
     await expect(option.locator('[data-slot="option-abilities"] p')).not.toHaveCount(0)
   }
+
+  await loadout.getByRole('button', { name: 'More Particle beamer' }).click()
+  await loadout.getByRole('button', { name: 'More Twin tesla carbine' }).click()
+  await expect(loadout.getByLabel('Twin gauss blaster count')).toHaveText('1')
+  await expect(loadout.getByLabel('Particle beamer count')).toHaveText('1')
+  await expect(loadout.getByLabel('Twin tesla carbine count')).toHaveText('1')
+
+  await expect(loadout.getByLabel('Shieldvanes count')).toHaveText('0')
+  for (const count of ['1', '2', '3']) {
+    await loadout.getByRole('button', { name: 'More Shieldvanes' }).click()
+    await expect(loadout.getByLabel('Shieldvanes count')).toHaveText(count)
+  }
+  await expect(page.getByRole('button', { name: /M 8", modified from 12"/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: /Sv 3\+, modified from 4\+/ })).toBeVisible()
+  await page.screenshot({ path: 'test-results/tomb-blades-shieldvanes.png', fullPage: true })
 })
 
 test('Cursed Legion does not modify Immortals without an eligible leader', async ({ page }) => {

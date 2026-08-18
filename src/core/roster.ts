@@ -597,6 +597,23 @@ export function unitChoices(
       const inner = resolve(child.definition, index)
       const here = [...trail, child.id]
 
+      const repeatingEntry = inner.type === 'upgrade' ? repeatedModelOn(trail, index) : null
+      if (repeatingEntry && requiredCount(child.definition, index) === 0 && maximumCount(child.definition, index) === 1) {
+        const room = effectiveCount(selection, repeatingEntry.path, repeatingEntry.definition, index, options)
+        const count = allAt(selection, repeatingEntry.path).reduce(
+          (total, model) => total + (at(model, here.slice(repeatingEntry.path.length)) ? (model.count ?? 1) : 0),
+          0,
+        )
+        choices.push({
+          key: here.join('/'),
+          name: inner.name ?? child.id,
+          chosen: count ? child.id : '',
+          optional: true,
+          room,
+          options: [{ id: child.id, name: inner.name ?? child.id, points: pointsOf(child, index), count, max: room }],
+        })
+      }
+
       if (inner.type === undefined) {
         const choosable = childrenOf(inner, index).filter(
           (option) => visible(option.definition) && resolve(option.definition, index).type !== undefined,
@@ -667,11 +684,22 @@ function repeatableModelOn(path: readonly string[], index: CatalogueIndex): { pa
   return null
 }
 
+function repeatedModelOn(path: readonly string[], index: CatalogueIndex): { path: string[]; definition: Definition } | null {
+  for (let length = path.length; length > 0; length--) {
+    const id = path[length - 1]
+    const definition = id ? index.definitions.get(id) : undefined
+    if (!definition || resolve(definition, index).type !== 'model') continue
+    if ((maximumCount(definition, index) ?? 1) > 1) return { path: path.slice(0, length), definition }
+  }
+  return null
+}
+
 function repeatedCarrierOn(groupPath: readonly string[], index: CatalogueIndex) {
   const groupId = groupPath.at(-1)
   const group = groupId ? index.definitions.get(groupId) : undefined
   if (!group || childrenOf(resolve(group, index), index).some((option) => isCollective(option.definition, index))) return null
-  return repeatableModelOn(groupPath.slice(0, -1), index)
+  const modelPath = groupPath.slice(0, -1)
+  return repeatedModelOn(modelPath, index) ?? repeatableModelOn(modelPath, index)
 }
 
 function effectiveCount(
@@ -794,6 +822,28 @@ function withUnitSpread(selection: Selection, key: string, counts: Readonly<Reco
       ],
     }))
   }
+  const repeatedEntry = repeatedModelOn(path.slice(0, -1), index)
+  const entry = group ? resolve(group, index) : undefined
+  if (repeatedEntry && entry?.type === 'upgrade') {
+    const modelId = repeatedEntry.path.at(-1)
+    if (!modelId || !groupId) return selection
+    const models = allAt(selection, repeatedEntry.path)
+    const carriers = models.reduce((total, model) => total + (model.count ?? 1), 0)
+    const equipped = Math.min(carriers, Math.max(0, counts[groupId] ?? 0))
+    const withinModel = path.slice(repeatedEntry.path.length)
+    const variants: Selection[] = []
+    let remaining = equipped
+    for (const model of models) {
+      const count = model.count ?? 1
+      const base = withoutSelectionAt(model, withinModel)
+      const taking = Math.min(remaining, count)
+      if (taking) variants.push(withCounts({ ...base, count: taking }, [{ path: withinModel, count: 1 }]))
+      if (taking < count) variants.push({ ...base, count: count - taking })
+      remaining -= taking
+    }
+    return replaceAt(selection, repeatedEntry.path.slice(0, -1), modelId, variants)
+  }
+
   const repeating = repeatedCarrierOn(path, index)
   if (!repeating) return withSpread(selection, key, counts)
 
@@ -817,6 +867,16 @@ function replaceAt(selection: Selection, path: readonly string[], id: string, re
   return {
     ...selection,
     selections: (selection.selections ?? []).map((child) => (child.id === next ? replaceAt(child, rest, id, replacements) : child)),
+  }
+}
+
+function withoutSelectionAt(selection: Selection, path: readonly string[]): Selection {
+  const [next, ...rest] = path
+  if (next === undefined) return selection
+  if (!rest.length) return { ...selection, selections: selection.selections?.filter((child) => child.id !== next) }
+  return {
+    ...selection,
+    selections: selection.selections?.map((child) => (child.id === next ? withoutSelectionAt(child, rest) : child)),
   }
 }
 
