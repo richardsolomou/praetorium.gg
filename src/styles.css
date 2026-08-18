@@ -4,7 +4,8 @@
  * BattleBase's typeface is ITC Conduit, which is Monotype's to license and cannot
  * ship here. Barlow Semi Condensed is the closest open face: same squared
  * grotesque with a tall x-height, and it takes uppercase tracking the same way.
- * Swapping in a licensed Conduit means changing `--font-sans` and nothing else.
+ * Source Sans 3 keeps paragraph-length rules legible without changing that
+ * compact display hierarchy.
  */
 /*
  * One palette, two vocabularies: the named colours the app writes by hand, and
@@ -20,6 +21,7 @@
  */
 @theme {
   --font-sans: 'Barlow Semi Condensed', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-rules: 'Source Sans 3', ui-sans-serif, system-ui, -apple-system, sans-serif;
   --font-mono: ui-monospace, 'SF Mono', Menlo, monospace;
 
   --color-void: #0a0b0d;

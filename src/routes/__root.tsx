@@ -9,6 +9,10 @@ import barlow400 from '@fontsource/barlow-semi-condensed/files/barlow-semi-conde
 import barlow500 from '@fontsource/barlow-semi-condensed/files/barlow-semi-condensed-latin-500-normal.woff2?url'
 import barlow600 from '@fontsource/barlow-semi-condensed/files/barlow-semi-condensed-latin-600-normal.woff2?url'
 import barlow700 from '@fontsource/barlow-semi-condensed/files/barlow-semi-condensed-latin-700-normal.woff2?url'
+import '@fontsource/source-sans-3/latin-400.css'
+import '@fontsource/source-sans-3/latin-600.css'
+import sourceSans400 from '@fontsource/source-sans-3/files/source-sans-3-latin-400-normal.woff2?url'
+import sourceSans600 from '@fontsource/source-sans-3/files/source-sans-3-latin-600-normal.woff2?url'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { postHogEnvironment } from 'ras-stack/posthog'
@@ -43,7 +47,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     ],
     links: [
       { rel: 'stylesheet', href: appCss },
-      ...[barlow400, barlow500, barlow600, barlow700].map((href) => ({
+      ...[barlow400, barlow500, barlow600, barlow700, sourceSans400, sourceSans600].map((href) => ({
         rel: 'preload' as const,
         href,
         as: 'font' as const,

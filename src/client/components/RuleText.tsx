@@ -18,7 +18,7 @@ export function RuleText({ text, rules = noRules }: { text: string; rules?: Keyw
   const markdown = cleaned.replaceAll(/(?<!\*)\[([\p{L}\p{N} +'"’\p{Pd}]+)\](?!\*)/gu, '**[$1]**')
   return (
     <Rules value={rules}>
-      <div className="mt-2 space-y-2 text-sm text-dim">
+      <div className="mt-2 space-y-2 font-rules text-sm text-dim">
         <Markdown components={components}>{markdown}</Markdown>
       </div>
     </Rules>
