@@ -69,6 +69,22 @@
           }
         ]
       }
+    },
+    {
+      "files": ["src/adapters/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "regex": "^(?:\\.\\./)+(?:client|db|routes|server)/",
+                "message": "Adapters must not depend on application layers."
+              }
+            ]
+          }
+        ]
+      }
     }
   ],
   "ignorePatterns": ["src/routeTree.gen.ts", ".output/**", "node_modules/**", "src/components/ui/**"],

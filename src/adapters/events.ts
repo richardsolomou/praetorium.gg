@@ -1,5 +1,5 @@
 import { CentrifugoPublisher } from 'ras-stack/realtime'
-import { battleChannel } from '../server/realtime'
+import { battleChannel } from './realtime'
 
 export type BattleEvents = {
   publish: (battleId: string) => void

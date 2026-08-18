@@ -10,7 +10,7 @@ import type { SyncState } from './sync'
 import { databasePath, type PraetoriumDatabase, openDatabase } from '../db/connection'
 import { Repository } from '../db/repository'
 import { createAuth } from './auth'
-import { realtimeConfig } from './realtime'
+import { realtimeConfig } from '../adapters/realtime'
 import { PraetoriumService } from './service'
 
 type App = {
