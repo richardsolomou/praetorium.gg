@@ -17,6 +17,12 @@ describe('force disposition', () => {
 })
 
 describe('enhancement descriptions', () => {
+  it('matches a minor detachment name correction', () => {
+    const descriptions = new Map([[descriptionKey('Brood Brother Auxilia', 'Martial Espionage'), 'Exploit weak points.']])
+
+    expect(findEnhancementDescription(descriptions, [{ name: 'Brood Brothers Auxilia' }], 'Martial Espionage')).toBe('Exploit weak points.')
+  })
+
   it('matches an aura suffix supplied by the rules source', () => {
     const descriptions = new Map([[descriptionKey('Awakened Dynasty', 'Phasal Subjugator (Aura)'), 'Improve nearby attacks.']])
 

@@ -25,6 +25,7 @@ const toText = compile({
     { selector: 'a', options: { ignoreHref: true } },
     { selector: 'img', format: 'skip' },
     { selector: 'table.customTable', format: 'dataTable', options: { colSpacing: 2, maxColumnWidth: 80 } },
+    { selector: 'table.wTable', format: 'dataTable', options: { colSpacing: 2, maxColumnWidth: 80 } },
   ],
 })
 
@@ -79,13 +80,9 @@ function readLivePages(directory: string) {
         const title = $(list).find('li > span').first().clone()
         const upgrade = title.find('.EnhUpgrade').remove().length > 0
         const name = `${title.text().trim()}${upgrade ? ' (Upgrade)' : ''}`
-        const content = $(list).closest('.td_w').children('p').not('.ShowFluff')
-        const description = toText(
-          content
-            .toArray()
-            .map((node) => $.html(node))
-            .join('<br><br>'),
-        ).trim()
+        const content = $(list).closest('.td_w').clone()
+        content.find('ul.EnhancementsPts, .ShowFluff, .faqErrataStrat').remove()
+        const description = toText(content.html() ?? '').trim()
         if (name && description) enhancements.set(descriptionKey(detachment, name), description)
       })
 
@@ -118,16 +115,21 @@ export function findDescription(descriptions: ReadonlyMap<string, string>, detac
   const exact = descriptions.get(descriptionKey(detachment, name))
   if (exact) return exact
 
-  const prefix = `${routeSlug(detachment)}|`
+  const detachmentTarget = routeSlug(detachment)
   const target = comparableName(name)
-  const maximumDistance = Math.min(3, Math.max(1, Math.floor(target.length * 0.15)))
-  const matches = [...descriptions].filter(
-    ([key]) => key.startsWith(prefix) && distance(target, comparableName(key.slice(prefix.length))) <= maximumDistance,
-  )
+  const matches = [...descriptions].filter(([key]) => {
+    const separator = key.indexOf('|')
+    const candidateDetachment = key.slice(0, separator)
+    const candidateName = key.slice(separator + 1)
+    return near(detachmentTarget, candidateDetachment) && near(target, comparableName(candidateName))
+  })
   return matches.length === 1 ? matches[0][1] : null
 }
 
 const comparableName = (name: string) => routeSlug(name).replace(/-(?:aura|upgrade)$/, '')
+
+const near = (target: string, candidate: string) =>
+  distance(target, candidate) <= Math.min(3, Math.max(1, Math.floor(target.length * 0.15)))
 
 export function findDetachmentAbilities(
   abilities: ReadonlyMap<string, readonly DetachmentAbility[]>,

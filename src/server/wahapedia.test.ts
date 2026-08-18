@@ -38,6 +38,18 @@ it('reads current descriptions from a pinned faction page', () => {
   })
 })
 
+it('reads an enhancement whose rule includes a table instead of a paragraph', () => {
+  fs.mkdirSync(path.join(directory, 'pages'))
+  write(
+    'pages/mechanicus.html',
+    '<div class="clFl"><h2 class="outline_header">Lords of the Forge1DP</h2><div class="Columns2"><div class="td_w"><ul class="EnhancementsPts"><li><span>TL-4Ø9</span></li></ul><p class="ShowFluff">Fluff.</p><span>Model only. This model has the following weapon:</span><table class="wTable"><tr><td>RANGE</td><td>A</td></tr><tr><td>24&quot;</td><td>3</td></tr></table><div class="faqErrataStrat">Old text.</div></div></div></div>',
+  )
+
+  expect(loadWahapediaDescriptions(directory)?.enhancements.get(descriptionKey('Lords of the Forge', 'TL-4Ø9'))).toBe(
+    'Model only. This model has the following weapon:\n\nRANGE  A\n24"    3',
+  )
+})
+
 it('reads stratagems nested inside a detachment layout block', () => {
   fs.mkdirSync(path.join(directory, 'pages'))
   write(
@@ -101,6 +113,14 @@ it('does not choose between similar names', () => {
 it('does not match across detachments', () => {
   const descriptions = new Map([[descriptionKey('Other Legion', 'Mark of the Nekrosor'), 'Wrong detachment']])
   expect(findDescription(descriptions, 'Cursed Legion', 'Mask of the Nekrosor')).toBeNull()
+})
+
+it('does not choose between similar detachments', () => {
+  const descriptions = new Map([
+    [descriptionKey('Brood Brother Auxilia', 'Martial Espionage'), 'First'],
+    [descriptionKey('Brood Brothers Auxiliaa', 'Martial Espionage'), 'Second'],
+  ])
+  expect(findDescription(descriptions, 'Brood Brothers Auxilia', 'Martial Espionage')).toBeNull()
 })
 
 const write = (name: string, contents: string) => fs.writeFileSync(path.join(directory, name), contents)
