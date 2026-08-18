@@ -17,7 +17,7 @@ export function FactionDatasheet() {
   const { data: sheet } = useQuery(datasheetSlugQuery(faction?.id ?? '', params.entryId ?? ''))
   if (!sheet || !faction) return null
   const profiles = (type: string) => sheet.profiles.filter((profile) => profile.type === type)
-  const unit = profiles('Unit')
+  const unit = uniqueCharacteristicProfiles(profiles('Unit'))
   const invulnerable = unit.flatMap((profile) => {
     const value = profile.values.find((characteristic) => characteristic.name === 'InSv')?.value
     return value ? [{ name: profile.name, value }] : []
@@ -275,6 +275,16 @@ function UnitCharacteristics({ profile }: { profile: DisplayProfile }) {
       ) : null}
     </section>
   )
+}
+
+function uniqueCharacteristicProfiles(profiles: DisplayProfile[]) {
+  const seen = new Set<string>()
+  return profiles.filter((profile) => {
+    const signature = JSON.stringify(profile.values.map(({ name, value }) => ({ name, value })))
+    if (seen.has(signature)) return false
+    seen.add(signature)
+    return true
+  })
 }
 
 const noColumns: string[] = []
