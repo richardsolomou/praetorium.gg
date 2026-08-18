@@ -360,3 +360,21 @@ test('a player can enter through the roster library and browse the product', asy
   await expect(page.getByRole('heading', { name: 'Resurrection Orb' })).toBeVisible()
   await page.screenshot({ path: 'test-results/translocation-shroud.png', fullPage: true })
 })
+
+test('a dense squad datasheet remains readable at desktop and phone widths', async ({ page }) => {
+  await page.goto('/factions/dark-angels/datasheets/deathwing-terminator-squad')
+  await expect(page.getByRole('heading', { name: 'Deathwing Terminator Squad', exact: true })).toBeVisible()
+  await expect(page.getByText('5–10 models', { exact: true })).toBeVisible()
+  await expect(page.getByText('Models', { exact: true })).toHaveCount(0)
+  await expect(page.getByText('Invulnerable save', { exact: true })).toBeVisible()
+  await expect(page.getByText('4+', { exact: true }).first()).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Ranged weapons 7', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Melee weapons 3', exact: true })).toBeVisible()
+  await expect(page.getByText('Captain in Terminator Armour', { exact: true })).toBeVisible()
+  await expect(page.getByText('Ancient in Terminator Armor', { exact: true })).toBeVisible()
+  await expect(page.getByText(/Legends/)).toHaveCount(0)
+  await page.screenshot({ path: 'test-results/deathwing-terminator-datasheet.png', fullPage: true })
+
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.screenshot({ path: 'test-results/deathwing-terminator-datasheet-phone.png', fullPage: true })
+})

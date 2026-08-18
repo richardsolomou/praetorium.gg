@@ -584,6 +584,30 @@ describe('a datasheet', () => {
     })
   })
 
+  it('shows duplicate available profiles once', () => {
+    const profile = (id: string, name = 'Storm bolter') => ({
+      id,
+      name,
+      typeName: 'Ranged Weapons',
+      characteristics: [{ name: 'A', $text: '2' }],
+    })
+    const book = bookOf({
+      selectionEntries: [
+        {
+          id: 'squad',
+          name: 'Squad',
+          type: 'unit',
+          selectionEntries: [
+            { id: 'first-bolter', name: 'Storm bolter', type: 'upgrade', profiles: [profile('first-profile')] },
+            { id: 'second-bolter', name: 'Storm Bolter', type: 'upgrade', profiles: [profile('second-profile', 'Storm Bolter')] },
+          ],
+        },
+      ],
+    })
+
+    expect(datasheetIn(book, 'cat', 'squad')?.profiles.map(({ name }) => name)).toEqual(['Storm bolter'])
+  })
+
   it('shows only weapons carried by the selected unit when roster context is present', () => {
     const book = bookOf({
       selectionEntries: [

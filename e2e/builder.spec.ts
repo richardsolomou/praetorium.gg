@@ -529,10 +529,10 @@ test('a character can be marked as the warlord from its unit editor', async ({ p
   const pane = page.locator('aside[aria-label="Datasheet"]')
   const loadout = page.locator('aside[aria-label="Loadout"]')
   await expect(pane.getByText('Sv', { exact: true })).toBeVisible()
-  await expect(pane.getByText('Inv', { exact: true })).toBeVisible()
+  await expect(pane.getByText('Invulnerable save', { exact: true })).toBeVisible()
   await expect(pane.getByText('2+', { exact: true })).toBeVisible()
-  await expect(pane.getByText('4++', { exact: true })).toBeVisible()
-  await pane.locator('[data-slot="unit-profile"]').screenshot({ path: 'test-results/invulnerable-save-under-save.png' })
+  await expect(pane.getByText('4+', { exact: true })).toBeVisible()
+  await pane.locator('[data-slot="unit-profile"]').screenshot({ path: 'test-results/invulnerable-save-row.png' })
   await expect(loadout.getByText('Tachyon arrow', { exact: true })).toBeVisible()
   await expect(loadout.getByText("Overlord's blade", { exact: true })).toBeVisible()
   await expect(loadout.getByText('Voidscythe', { exact: true })).toBeVisible()
@@ -604,6 +604,17 @@ test('a smaller desktop keeps the picker, roster and loadout visible', async ({ 
 
   await page.setViewportSize({ width: 1440, height: 900 })
   await expect(datasheet).toBeVisible()
+  await expect(datasheet.getByRole('heading', { name: "C'tan Shard of the Deceiver", exact: true })).toHaveCount(0)
+  await expect(datasheet.getByText('330 pts', { exact: true })).toHaveCount(0)
+  await expect(datasheet.getByText('Monster', { exact: true })).toBeVisible()
+  await expect(datasheet.getByRole('link', { name: 'Full datasheet' })).toHaveAttribute('href', /\/factions\/necrons\/datasheets\//)
+  await expect(datasheet.getByText('Invulnerable save', { exact: true })).toBeVisible()
+  expect(
+    await datasheet
+      .locator('[data-slot="unit-profile"] > div')
+      .first()
+      .evaluate((profile) => getComputedStyle(profile).gridTemplateColumns.split(' ').length),
+  ).toBe(6)
   await expect(datasheet.getByText('Datasheet abilities')).toBeVisible()
   await expect(loadout.getByText('Equipped ranged weapons', { exact: true })).toBeVisible()
   await expect(datasheet.getByText('Grand Illusion', { exact: true })).toBeVisible()
@@ -617,6 +628,10 @@ test('a smaller desktop keeps the picker, roster and loadout visible', async ({ 
   await factionAbility.hover()
   await expect(page.getByRole('tooltip')).toContainText('activates its Reanimation Protocols')
   await page.screenshot({ path: 'test-results/builder-four-columns.png', fullPage: true })
+  await page.mouse.move(800, 100)
+  await datasheet.locator('[data-slot="scroll-area-viewport"]').evaluate((viewport) => (viewport.scrollTop = viewport.scrollHeight))
+  await expect(datasheet.getByRole('link', { name: 'Full datasheet' })).toBeVisible()
+  await datasheet.screenshot({ path: 'test-results/builder-datasheet-footer.png' })
 })
 
 test('making a new warlord removes the previous one', async ({ page }) => {

@@ -1,9 +1,10 @@
 import { type Definition, type InfoGroup, type InfoLink, nameOf, type Profile, targetOf } from '../core/catalogue'
+import { attachmentOf } from '../core/attach'
 import { infoLinkHiddenByRules, profileModifiers, type ProfileModifier, type Selection } from '../core/evaluate'
 import { defaultSelection, unitChoices, wargearOf } from '../core/roster'
 import { bracketedRuleReferences, ruleReferenceMatches } from '../core/ruleReference'
 import { datasheetSlug, datasheetsOf, type LoadedCatalogue } from './catalogueIndex'
-import { priceOf } from './cataloguePicker'
+import { isMatchedPlayDatasheet, priceOf } from './cataloguePicker'
 import type { DatasheetDetails } from './datacards'
 
 export type Datasheet = {
@@ -151,6 +152,8 @@ export function datasheetIn(
   const keywords = [...(root.categoryLinks ?? []), ...(sheet === root ? [] : (sheet.categoryLinks ?? []))]
   const name = nameOf(root, loaded.index.definitions)
   const details = datacardDetails(loaded, name)
+  const attachment = attachmentOf(root, loaded.index)
+  const relationships = relationshipsFor(loaded, catalogueId, root.id, name)
   const selection = selectedUnit ?? defaultSelection(root.id, loaded.index, { primaryCatalogueId: catalogueId })
   const catalogueOptions = selection
     ? unitChoices(root.id, selection, loaded.index, { primaryCatalogueId: catalogueId }).map((choice) => ({
@@ -159,39 +162,41 @@ export function datasheetIn(
       }))
     : []
 
+  const displayProfiles = [...profiles.values()].flatMap(({ profile, lineage, owner }) => {
+    if (!profile.name || !profile.typeName) return []
+    const profileType = profile.typeName
+    const weapon = profileType === 'Ranged Weapons' || profileType === 'Melee Weapons'
+    const intrinsic = owner.includes(root.id) || owner.includes(sheet.id)
+    if (selectedUnit && weapon && !intrinsic && !owner.some((id) => selected.has(id))) return []
+    const profileLineage = [...lineage, profile.id]
+    const hidden = modifiedProfileField(String(profile.hidden ?? false), 'hidden', profileType, profileLineage, owner, modifiers).value
+    if (hidden === 'true') return []
+    const changedName = modifiedProfileField(profile.name, 'name', profileType, profileLineage, owner, modifiers)
+    const annotation = modifiedProfileField('', 'annotation', profileType, profileLineage, owner, modifiers).value
+    return [
+      {
+        id: profile.id,
+        name: annotation ? `${changedName.value} (${annotation})` : changedName.value,
+        type: profileType,
+        ...(weapon && selectedUnit
+          ? { count: wargearCounts.get(profile.name) ?? Math.max(1, ...owner.map((id) => selectedCounts.get(id) ?? 0)) }
+          : {}),
+        values: (profile.characteristics ?? []).flatMap((value) => {
+          if (!value.name || !value.$text) return []
+          const changed = modifiedProfileField(value.$text, value.typeId, profileType, profileLineage, owner, modifiers)
+          return [{ name: value.name, ...changed }]
+        }),
+      },
+    ]
+  })
+
   return {
     id: root.id,
     slug: datasheetSlug(loaded, catalogueId, root.id),
     name,
     points: priceOf(loaded, catalogueId, entryId),
     keywords: [...new Set(keywords.map((link) => link.name).filter((keyword): keyword is string => Boolean(keyword)))].toSorted(),
-    profiles: [...profiles.values()].flatMap(({ profile, lineage, owner }) => {
-      if (!profile.name || !profile.typeName) return []
-      const profileType = profile.typeName
-      const weapon = profileType === 'Ranged Weapons' || profileType === 'Melee Weapons'
-      const intrinsic = owner.includes(root.id) || owner.includes(sheet.id)
-      if (selectedUnit && weapon && !intrinsic && !owner.some((id) => selected.has(id))) return []
-      const profileLineage = [...lineage, profile.id]
-      const hidden = modifiedProfileField(String(profile.hidden ?? false), 'hidden', profileType, profileLineage, owner, modifiers).value
-      if (hidden === 'true') return []
-      const changedName = modifiedProfileField(profile.name, 'name', profileType, profileLineage, owner, modifiers)
-      const annotation = modifiedProfileField('', 'annotation', profileType, profileLineage, owner, modifiers).value
-      return [
-        {
-          id: profile.id,
-          name: annotation ? `${changedName.value} (${annotation})` : changedName.value,
-          type: profileType,
-          ...(weapon && selectedUnit
-            ? { count: wargearCounts.get(profile.name) ?? Math.max(1, ...owner.map((id) => selectedCounts.get(id) ?? 0)) }
-            : {}),
-          values: (profile.characteristics ?? []).flatMap((value) => {
-            if (!value.name || !value.$text) return []
-            const changed = modifiedProfileField(value.$text, value.typeId, profileType, profileLineage, owner, modifiers)
-            return [{ name: value.name, ...changed }]
-          }),
-        },
-      ]
-    }),
+    profiles: uniqueProfiles(displayProfiles),
     abilities: [...abilities.values()],
     composition: details?.composition ?? [],
     loadout: details?.loadout ?? null,
@@ -201,11 +206,41 @@ export function datasheetIn(
     baseSize: details?.baseSize ?? null,
     transport: details?.transport ?? null,
     costs: details?.points ?? [],
-    attachments: details?.attachesTo ?? [],
-    leaders: details?.leaders ?? [],
-    supporters: details?.supporters ?? [],
+    attachments: attachment?.targets.map((target) => ({ kind: attachment.kind, name: target })) ?? [],
+    leaders: relationships.leaders,
+    supporters: relationships.supporters,
     keywordRules: [...keywordRules.values()],
   }
+}
+
+function relationshipsFor(loaded: LoadedCatalogue, catalogueId: string, entryId: string, name: string) {
+  const leaders = new Set<string>()
+  const supporters = new Set<string>()
+  for (const candidateId of datasheetsOf(loaded.index, catalogueId)) {
+    if (candidateId === entryId) continue
+    const candidate = loaded.index.definitions.get(candidateId)
+    if (!candidate || !isMatchedPlayDatasheet(loaded.index, candidate)) continue
+    const attachment = attachmentOf(candidate, loaded.index)
+    if (!attachment?.targets.some((target) => target.localeCompare(name, undefined, { sensitivity: 'accent' }) === 0)) continue
+    const found = attachment.kind === 'leader' ? leaders : supporters
+    found.add(nameOf(candidate, loaded.index.definitions))
+  }
+  return { leaders: [...leaders], supporters: [...supporters] }
+}
+
+function uniqueProfiles(profiles: Datasheet['profiles']) {
+  const seen = new Set<string>()
+  return profiles.filter((profile) => {
+    const signature = JSON.stringify({
+      name: profile.name.toLocaleLowerCase(),
+      type: profile.type,
+      count: profile.count,
+      values: profile.values,
+    })
+    if (seen.has(signature)) return false
+    seen.add(signature)
+    return true
+  })
 }
 
 function datacardDetails(loaded: LoadedCatalogue, name: string): DatasheetDetails | null {

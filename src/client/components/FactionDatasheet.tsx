@@ -3,6 +3,7 @@ import { Link, useParams } from '@tanstack/react-router'
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbSeparator } from '@/components/ui/breadcrumb'
 import { routeSlug } from '../../core/slug'
 import type { Datasheet } from '../../server/catalogue'
+import { compositionCount } from '../datasheet'
 import { factionFor } from '../factions'
 import { datasheetSlugQuery, factionsQuery } from '../queries'
 import { FactionMark, factionColour } from './FactionMark'
@@ -16,7 +17,7 @@ export function FactionDatasheet() {
   const { data: sheet } = useQuery(datasheetSlugQuery(faction?.id ?? '', params.entryId ?? ''))
   if (!sheet || !faction) return null
   const profiles = (type: string) => sheet.profiles.filter((profile) => profile.type === type)
-  const unit = profiles('Unit')
+  const unit = uniqueCharacteristicProfiles(profiles('Unit'))
   const invulnerable = unit.flatMap((profile) => {
     const value = profile.values.find((characteristic) => characteristic.name === 'InSv')?.value
     return value ? [{ name: profile.name, value }] : []
@@ -251,15 +252,6 @@ function Relationships({ sheet, factionSlug }: { sheet: DatasheetDisplay; factio
   )
 }
 
-function compositionCount(composition: string[]) {
-  const count = composition
-    .join(' ')
-    .match(/\d+(?:\s*[-–]\s*\d+)?/)?.[0]
-    ?.replace(/\s+/g, '')
-  const value = count ?? String(composition.length)
-  return `${value} ${value === '1' ? 'model' : 'models'}`
-}
-
 type DisplayProfile = { id: string; name: string; values: { name: string; value: string }[] }
 
 function UnitCharacteristics({ profile }: { profile: DisplayProfile }) {
@@ -283,6 +275,16 @@ function UnitCharacteristics({ profile }: { profile: DisplayProfile }) {
       ) : null}
     </section>
   )
+}
+
+function uniqueCharacteristicProfiles(profiles: DisplayProfile[]) {
+  const seen = new Set<string>()
+  return profiles.filter((profile) => {
+    const signature = JSON.stringify(profile.values.map(({ name, value }) => ({ name, value })))
+    if (seen.has(signature)) return false
+    seen.add(signature)
+    return true
+  })
 }
 
 const noColumns: string[] = []

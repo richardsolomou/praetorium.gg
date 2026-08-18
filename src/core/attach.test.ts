@@ -81,6 +81,70 @@ describe('a character that can join a unit', () => {
     expect(attachmentOf(index.definitions.get('lord')!, index)?.targets).toEqual(['IMMORTALS'])
   })
 
+  it('includes units that explicitly substitute for a named attachment target', () => {
+    const index = indexOf({
+      sharedSelectionEntries: [
+        {
+          id: 'captain',
+          name: 'Captain in Terminator Armour',
+          type: 'model',
+          infoGroups: [
+            {
+              id: 'leader-group',
+              name: 'Leader',
+              profiles: [ability('Leader', 'This model can be attached to the following units:\n■ TERMINATOR SQUAD')],
+            },
+          ],
+        },
+        {
+          id: 'deathwing',
+          name: 'Deathwing Terminator Squad',
+          type: 'unit',
+          profiles: [
+            ability(
+              'Attached Unit',
+              'If a Character unit from your army with the Leader ability can be attached to a Terminator Squad, it can be attached to this unit instead.',
+            ),
+          ],
+        },
+      ],
+    })
+
+    expect(attachmentOf(index.definitions.get('captain')!, index)?.targets).toEqual(['TERMINATOR SQUAD', 'Deathwing Terminator Squad'])
+  })
+
+  it('does not broaden substitutions limited to a named kind of character', () => {
+    const index = indexOf({
+      sharedSelectionEntries: [
+        {
+          id: 'captain',
+          name: 'Captain',
+          type: 'model',
+          infoGroups: [
+            {
+              id: 'leader-group',
+              name: 'Leader',
+              profiles: [ability('Leader', 'This model can be attached to the following units:\n■ TACTICAL SQUAD')],
+            },
+          ],
+        },
+        {
+          id: 'death-company',
+          name: 'Death Company Marines',
+          type: 'unit',
+          profiles: [
+            ability(
+              'Attached Unit',
+              'If a Chaplain model from your army with the Leader ability can be attached to a Tactical Squad, it can be attached to this unit instead.',
+            ),
+          ],
+        },
+      ],
+    })
+
+    expect(attachmentOf(index.definitions.get('captain')!, index)?.targets).toEqual(['TACTICAL SQUAD'])
+  })
+
   it('is nothing at all for a character whose ability says no such thing', () => {
     const index = indexOf({
       sharedSelectionEntries: [
