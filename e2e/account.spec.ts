@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { createBattle, createRoster, signUp, uniqueName, waitForRosterSave } from './account'
+import { befriend, createBattle, createRoster, signUp, uniqueName, waitForRosterSave } from './account'
 
 /**
  * An account is who you are here, so this covers both halves of that: nothing is
@@ -68,10 +68,11 @@ test('a seated battle signs the opponent in and drops them back into setup', asy
   await guest.getByLabel('Password').fill('a-long-enough-password')
   await guest.getByRole('button', { name: 'Create the account' }).click()
   await guest.getByRole('button', { name: new RegExp(`${bobName} · sign out`) }).waitFor()
+  await signUp(host, aliceName)
+  await befriend(host, guest)
   await guest.getByRole('button', { name: new RegExp(`${bobName} · sign out`) }).click()
   await expect(guest.getByRole('link', { name: 'Sign in' }).first()).toBeVisible()
 
-  await signUp(host, aliceName)
   const link = await createBattle(host, { opponent: bobName })
 
   await guest.goto(link)

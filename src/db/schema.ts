@@ -133,6 +133,25 @@ export const battlePlayers = sqliteTable(
   (table) => [primaryKey({ columns: [table.battleId, table.playerId] }), index('battle_players_player_id_index').on(table.playerId)],
 )
 
+/** A mutual connection, beginning as a request from one player to another. */
+export const friendships = sqliteTable(
+  'friendships',
+  {
+    requesterId: text('requester_id')
+      .notNull()
+      .references(() => players.id, { onDelete: 'cascade' }),
+    addresseeId: text('addressee_id')
+      .notNull()
+      .references(() => players.id, { onDelete: 'cascade' }),
+    requestedAt: integer('requested_at').notNull(),
+    acceptedAt: integer('accepted_at'),
+  },
+  (table) => [
+    primaryKey({ columns: [table.requesterId, table.addresseeId] }),
+    index('friendships_addressee_id_index').on(table.addresseeId),
+  ],
+)
+
 /**
  * The battle's whole history, and the only record of its state — nothing derived
  * is stored, so there is no second copy of the score to disagree with this one.
@@ -238,6 +257,7 @@ export const schema = {
   players,
   battles,
   battlePlayers,
+  friendships,
   commands,
   rosters,
   collection,

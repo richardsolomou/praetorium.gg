@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, ne } from 'drizzle-orm'
+import { and, asc, desc, eq, isNull, ne, or } from 'drizzle-orm'
 import {
   type Command,
   type LoggedCommand,
@@ -10,7 +10,7 @@ import {
 } from '../core/battle'
 import { commandSchema } from '../core/commands'
 import type { PraetoriumDatabase } from './connection'
-import { battlePlayers, battles, collection, commands, favouriteFactions, players, rosters } from './schema'
+import { battlePlayers, battles, collection, commands, favouriteFactions, friendships, players, rosters } from './schema'
 
 type BattleRecord = { id: string; token: string; createdAt: number }
 type BattlePlayer = { id: string; name: string; side: number }
@@ -84,7 +84,58 @@ export class Repository {
       .from(players)
       .where(ne(players.id, playerId))
       .orderBy(asc(players.name))
+      .limit(100)
       .all()
+  }
+
+  friendships(playerId: string) {
+    return this.database
+      .select()
+      .from(friendships)
+      .where(or(eq(friendships.requesterId, playerId), eq(friendships.addresseeId, playerId)))
+      .all()
+  }
+
+  requestFriend(requesterId: string, addresseeId: string, now: number) {
+    return this.database.transaction((tx) => {
+      const existing = tx
+        .select()
+        .from(friendships)
+        .where(
+          or(
+            and(eq(friendships.requesterId, requesterId), eq(friendships.addresseeId, addresseeId)),
+            and(eq(friendships.requesterId, addresseeId), eq(friendships.addresseeId, requesterId)),
+          ),
+        )
+        .get()
+      if (existing) return false
+      tx.insert(friendships).values({ requesterId, addresseeId, requestedAt: now }).run()
+      return true
+    })
+  }
+
+  acceptFriend(requesterId: string, addresseeId: string, now: number) {
+    return (
+      this.database
+        .update(friendships)
+        .set({ acceptedAt: now })
+        .where(and(eq(friendships.requesterId, requesterId), eq(friendships.addresseeId, addresseeId), isNull(friendships.acceptedAt)))
+        .run().changes > 0
+    )
+  }
+
+  removeFriend(leftId: string, rightId: string) {
+    return (
+      this.database
+        .delete(friendships)
+        .where(
+          or(
+            and(eq(friendships.requesterId, leftId), eq(friendships.addresseeId, rightId)),
+            and(eq(friendships.requesterId, rightId), eq(friendships.addresseeId, leftId)),
+          ),
+        )
+        .run().changes > 0
+    )
   }
 
   battleByToken(token: string): BattleSeats | undefined {

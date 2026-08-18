@@ -168,7 +168,44 @@ export class PraetoriumService {
   }
 
   opponents(playerId: string) {
-    return this.repository.playersExcept(playerId)
+    return this.friendships(playerId).friends
+  }
+
+  friendships(playerId: string) {
+    const relationships = this.repository.friendships(playerId)
+    const related = new Set(relationships.flatMap((row) => [row.requesterId, row.addresseeId]))
+    const named = (id: string) => {
+      const player = this.repository.playerById(id)
+      return player ? { id: player.id, name: player.name } : null
+    }
+    return {
+      friends: relationships
+        .filter((row) => row.acceptedAt !== null)
+        .map((row) => named(row.requesterId === playerId ? row.addresseeId : row.requesterId))
+        .filter((player): player is NonNullable<typeof player> => player !== null),
+      incoming: relationships
+        .filter((row) => row.acceptedAt === null && row.addresseeId === playerId)
+        .map((row) => named(row.requesterId))
+        .filter((player): player is NonNullable<typeof player> => player !== null),
+      outgoing: relationships
+        .filter((row) => row.acceptedAt === null && row.requesterId === playerId)
+        .map((row) => named(row.addresseeId))
+        .filter((player): player is NonNullable<typeof player> => player !== null),
+      people: this.repository.playersExcept(playerId).filter((player) => !related.has(player.id)),
+    }
+  }
+
+  requestFriend(playerId: string, friendId: string) {
+    if (friendId === playerId || !this.repository.playerById(friendId)) throw new Response('choose another player', { status: 400 })
+    if (!this.repository.requestFriend(playerId, friendId, this.clock())) throw new Response('a connection already exists', { status: 409 })
+  }
+
+  acceptFriend(playerId: string, requesterId: string) {
+    if (!this.repository.acceptFriend(requesterId, playerId, this.clock())) throw new Response('no such friend request', { status: 404 })
+  }
+
+  removeFriend(playerId: string, friendId: string) {
+    if (!this.repository.removeFriend(playerId, friendId)) throw new Response('no such friendship', { status: 404 })
   }
 
   createBattle(
@@ -180,6 +217,8 @@ export class PraetoriumService {
     if (new Set(opponentIds).size !== opponentIds.length || opponentIds.some((id) => id === playerId || !this.repository.playerById(id))) {
       throw new Response('choose an opponent', { status: 400 })
     }
+    const friendIds = new Set(this.opponents(playerId).map((friend) => friend.id))
+    if (opponentIds.some((id) => !friendIds.has(id))) throw new Response('battle opponents must be your friends', { status: 403 })
     if (settings && !settings.solo && !opponentIds.length) throw new Response('choose an opponent or a practice battle', { status: 400 })
     const token = randomToken()
     const id = randomId()
@@ -220,6 +259,10 @@ export class PraetoriumService {
       seats.players.map((player) => player.side),
     )
     if (state.settings.solo) return 'full'
+    const opener = seats.players.find((player) => player.side === 0)
+    if (!opener || !this.opponents(opener.id).some((friend) => friend.id === playerId)) {
+      throw new Response('battle opponents must be friends', { status: 403 })
+    }
     const result = this.repository.join({ battleId: seats.battle.id, playerId, now: this.clock() })
     if (result === 'joined') this.events.publish(seats.battle.id)
     return result

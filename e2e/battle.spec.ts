@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 import {
   attachRoster,
+  befriend,
   createBattle,
   createRoster,
   setupBattle,
@@ -72,10 +73,11 @@ test('a tactical player is asked to draw at the top of their command phase', asy
   await signUp(alice, aliceName)
   const aliceRoster = await createRoster(alice, { faction: 'Death Guard', detachment: /Shamblerot Vectorium/, name: 'Death Guard' })
   // Tactical is the default, so nothing is chosen up front and the deck is the only source.
+  await befriend(alice, bob)
   const url = await createBattle(alice, { opponent: bobName })
   await bob.goto(url)
   await attachRoster(alice, aliceRoster)
-  await setupStep(bob, 'Army')
+  await setupStep(bob, 'Armies')
   await attachRoster(bob, bobRoster)
   await startBattle(alice)
 

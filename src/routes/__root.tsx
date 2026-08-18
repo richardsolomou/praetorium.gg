@@ -157,6 +157,9 @@ function RootComponent() {
                   <Link to="/rosters" className="eyebrow hover:text-azure" activeProps={{ className: 'text-azure' }}>
                     Rosters
                   </Link>
+                  <Link to="/friends" className="eyebrow hover:text-azure" activeProps={{ className: 'text-azure' }}>
+                    Friends
+                  </Link>
                   <Link to="/factions" className="eyebrow hidden hover:text-azure sm:inline" activeProps={{ className: 'text-azure' }}>
                     Factions
                   </Link>

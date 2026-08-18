@@ -10,6 +10,7 @@ Praetorium uses a compact, dark visual system. See [the product design guide](..
 - Render each picker or loadout pane once. `src/client/components/builder/Pane.tsx` moves the same instance between a desktop sidebar and a mobile sheet. Two instances create duplicate form controls and accessibility labels.
 - Show allied picker shelves with their short faction name and keep them collapsed until a player needs them.
 - Use `data-unit` to find unit cards in tests. CSS changes the displayed case, so visible-text selectors do not match the source text reliably.
+- Keep battle setup in five visible sections: Battle, Armies, Battlefield, Your army, and Start. The section rail always shows shared progress; formations and cards stay together because both prepare the viewer's side for play.
 
 ## Components and styles
 

@@ -13,6 +13,7 @@ import {
   factionDatasheets,
   factionIndex,
   favouriteFactions,
+  friendships,
   gameReferences,
   globalSearch,
   me,
@@ -34,6 +35,7 @@ export const meQuery = () => queryOptions({ queryKey: ['me'], queryFn: () => me(
 
 export const battlesQuery = () => queryOptions({ queryKey: ['battles'], queryFn: () => myBattles(), staleTime: SSR_STALE_TIME })
 export const opponentsQuery = () => queryOptions({ queryKey: ['opponents'], queryFn: () => opponents(), staleTime: SSR_STALE_TIME })
+export const friendshipsQuery = () => queryOptions({ queryKey: ['friendships'], queryFn: () => friendships(), staleTime: SSR_STALE_TIME })
 
 // No polling: `useLiveBattle` refetches this when the server says the battle changed.
 export const battleQuery = (token: string) =>

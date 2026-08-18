@@ -12,7 +12,7 @@
 
 ## Who is it for? 👋
 
-Praetorium is for friends who want one shared battle record instead of paper scores or separate trackers. Play 1v1 or put two allied 1,000-point armies against one 2,000-point army in a 2v1 battle.
+Praetorium is for friends who want one shared battle record instead of paper scores or separate trackers. Connect with another account before starting a private battle, then play 1v1 or put two allied 1,000-point armies against one 2,000-point army in a 2v1 battle.
 
 ## How it works ✨
 

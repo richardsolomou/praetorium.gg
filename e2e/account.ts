@@ -22,6 +22,18 @@ export function uniqueName(base: string) {
   return `${base}-${crypto.randomUUID().slice(0, 8)}`
 }
 
+export async function befriend(requester: Page, recipient: Page) {
+  const requesterName = (await requester.locator('button[aria-label$="· sign out"]').getAttribute('aria-label'))?.replace(' · sign out', '')
+  const recipientName = (await recipient.locator('button[aria-label$="· sign out"]').getAttribute('aria-label'))?.replace(' · sign out', '')
+  if (!requesterName || !recipientName) throw new Error('Both players must be signed in before becoming friends.')
+  await requester.goto('/friends')
+  await requester.getByPlaceholder('Search by account name').fill(recipientName)
+  await requester.getByRole('button', { name: 'Add friend' }).click()
+  await recipient.goto('/friends')
+  const request = recipient.locator('section').filter({ hasText: 'Friend requests' }).filter({ hasText: requesterName })
+  await request.getByRole('button', { name: 'Accept' }).click()
+}
+
 export async function waitForRosterSave(page: Page, action: () => Promise<unknown>, expectedText?: string) {
   // Autosaves are serialized. Let an earlier render finish before deciding which
   // response belongs to this action, otherwise a fast setup save can satisfy the
@@ -86,7 +98,7 @@ export async function setupStep(page: Page, label: string) {
 }
 
 export async function attachRoster(page: Page, name: string) {
-  await setupStep(page, 'Army')
+  await setupStep(page, 'Armies')
   await page.getByRole('button', { name: new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`) }).click()
   await expect(page.getByText(name, { exact: true })).toBeVisible()
 }
@@ -102,7 +114,7 @@ export async function chooseBattlefield(page: Page) {
 
 export async function startBattle(page: Page, firstPlayer?: string) {
   await chooseBattlefield(page)
-  await setupStep(page, 'Cards')
+  await setupStep(page, 'Your army')
   await expect(page.locator('[data-secondary-deck-ready]')).toHaveAttribute('data-secondary-deck-ready', 'true')
   await setupStep(page, 'Start')
   if (firstPlayer) {
@@ -123,10 +135,11 @@ export async function setupBattle(
     beforeStart,
   }: { opponent: string; hostRoster: string; guestRoster: string; beforeStart?: () => Promise<void> },
 ) {
+  await befriend(host, guest)
   const url = await createBattle(host, { opponent })
   await guest.goto(url)
   await attachRoster(host, hostRoster)
-  await setupStep(guest, 'Army')
+  await setupStep(guest, 'Armies')
   await expect(guest.getByText(/ is ready\.$/)).toBeVisible()
   await attachRoster(guest, guestRoster)
   await expect(host.getByText(`${opponent} is ready.`)).toBeVisible()
@@ -134,7 +147,7 @@ export async function setupBattle(
   // and the wizard only reaches that step once the battlefield is settled.
   if (beforeStart) {
     await chooseBattlefield(host)
-    await setupStep(host, 'Cards')
+    await setupStep(host, 'Your army')
     await beforeStart()
   }
   await startBattle(host)

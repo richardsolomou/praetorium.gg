@@ -9,8 +9,9 @@ Praetorium includes:
 - Catalogue-backed roster construction, validation, import, and export.
 - Compact roster presentation and battle tracking.
 - One synchronized solo, 1v1, or 2v1 battle between signed-in players.
+- Mutual friendships for choosing private battle opponents.
 
-It does not include rankings, events, leagues, locations, friends, public battle discovery, chat, matchmaking, a rules encyclopedia, model positions, or wound allocation.
+It does not include rankings, events, leagues, locations, public battle discovery, chat, matchmaking, a rules encyclopedia, model positions, or wound allocation.
 
 ## Interface
 
@@ -23,6 +24,8 @@ Use these patterns consistently:
 - A persistent points total while editing a roster.
 
 On phones, Praetorium keeps the roster visible and moves the picker or loadout into one sheet. The battle tracker uses one scrolling column with a fixed two-side scoreboard.
+
+Battle setup uses five sections with a persistent progress summary. It separates shared table decisions from each player's army preparation, then shows both sides together before the battle starts.
 
 Keep screenshots that contain roster or battle data outside version control.
 

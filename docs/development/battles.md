@@ -52,6 +52,8 @@ A read never claims a battle seat. `PraetoriumService.screen` returns an invitat
 
 An account maps to one `players` row through `playerForUser`. The command log uses the stable player ID, so an account name can change without changing history.
 
+Shared battles can only be created with mutually confirmed friends. Friend requests are directional until the recipient accepts; either player can later remove the connection. Solo battles need no friendship.
+
 Better Auth owns the `user`, `session`, `account`, `verification`, and `rateLimit` tables. Add product data to Praetorium tables instead of changing those schemas.
 
 ## Concurrency limit

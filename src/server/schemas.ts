@@ -22,6 +22,7 @@ export const createBattleSchema = z.object({
   missionPackId: id.nullable().default(null),
 })
 export const deleteBattleSchema = z.object({ token })
+export const friendSchema = z.object({ playerId: id })
 
 /**
  * `expectedSeq` is the client's claim about the history it has already seen.
