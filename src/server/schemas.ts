@@ -116,6 +116,8 @@ export const rosterIdSchema = z.object({ id })
 export const rosterVisibilitySchema = z.object({ id, visibility: z.enum(ROSTER_VISIBILITIES) })
 
 export const ownedSchema = z.object({ entryId: id, owned: z.boolean() })
+export const favouriteFactionSchema = z.object({ catalogueId: id, favourite: z.boolean() })
+export const terrainReferencesSchema = z.object({ matchupIds: z.array(slug).min(1).max(2) })
 
 /** Saved rows are read back through these, so a hand-edited one fails loudly. */
 export const picksSchema = z.array(pickSchema).max(100)

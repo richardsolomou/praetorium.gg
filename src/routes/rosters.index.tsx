@@ -19,6 +19,7 @@ import { CreateRoster } from '../client/components/CreateRoster'
 import { RosterImport } from '../client/components/RosterImport'
 import { RosterExportDialog } from '../client/components/RosterExportDialog'
 import { RosterSetupDialog, type RosterSetup } from '../client/components/RosterSetupDialog'
+import { FactionLabel } from '../client/components/FactionMark'
 import { readWorkspaceState, writeWorkspaceState } from '../client/components/workspaceState'
 import { factionsQuery, priceQuery, savedRostersQuery } from '../client/queries'
 import { errorMessage } from '../client/queryClient'
@@ -256,7 +257,7 @@ function RosterLibrary() {
                     <Link to="/rosters/$id/edit" params={{ id: roster.id }} className="min-w-0 flex-1 p-1 text-left">
                       <span className="block truncate font-bold uppercase">{roster.name}</span>
                       <span className="mt-1 flex flex-wrap gap-1">
-                        {faction ? <span className="chip">{faction.displayName}</span> : null}
+                        {faction ? <FactionLabel faction={faction} chip /> : null}
                         {detachments.map((name) => (
                           <span key={name} className="chip">
                             {name}

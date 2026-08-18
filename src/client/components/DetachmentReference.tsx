@@ -1,28 +1,36 @@
 import { useQuery } from '@tanstack/react-query'
 import { detachmentDetailQuery } from '../queries'
 import { RuleText } from './RuleText'
+import { dispositionTone } from './rosterSetup'
+import { FactionMark, factionColour, type FactionPresentation } from './FactionMark'
 
-export function DetachmentReference({ catalogueId, slug }: { catalogueId: string; slug: string }) {
+export function DetachmentReference({ catalogueId, slug, faction }: { catalogueId: string; slug: string; faction?: FactionPresentation }) {
   const { data: detachment } = useQuery(detachmentDetailQuery(catalogueId, slug))
   if (!detachment) return <p className="p-6 text-sm text-dim">Loading detachment…</p>
 
   return (
     <div className="space-y-6">
-      <header className="border-b border-edge pb-4">
-        <p className="eyebrow">Detachment</p>
-        <div className="flex items-start justify-between gap-4">
-          <h1 className="text-3xl">{detachment.name}</h1>
-          {detachment.points === null ? null : <span className="chip shrink-0">{detachment.points} DP</span>}
-        </div>
-        {detachment.dispositions.length ? (
-          <div className="mt-2 flex flex-wrap gap-1">
-            {detachment.dispositions.map((disposition) => (
-              <span key={disposition} className="chip">
-                {disposition}
-              </span>
-            ))}
+      <header
+        className="flex items-start gap-3 border-b pb-4"
+        style={{ borderBottomColor: faction ? factionColour(faction.slug) : undefined }}
+      >
+        {faction ? <FactionMark id={faction.slug} icon={faction.icon} /> : null}
+        <div className="min-w-0 flex-1">
+          <p className="eyebrow">{faction ? `${faction.displayName} · Detachment` : 'Detachment'}</p>
+          <div className="flex items-start justify-between gap-4">
+            <h1 className="text-3xl">{detachment.name}</h1>
+            {detachment.dispositions.length || detachment.points !== null ? (
+              <div className="flex shrink-0 flex-wrap justify-end gap-1 pt-1">
+                {detachment.dispositions.map((disposition) => (
+                  <span key={disposition} className={`chip ${dispositionTone(disposition)}`}>
+                    {disposition}
+                  </span>
+                ))}
+                {detachment.points === null ? null : <span className="chip">{detachment.points} DP</span>}
+              </div>
+            ) : null}
           </div>
-        ) : null}
+        </div>
       </header>
 
       {detachment.rules.length ? (

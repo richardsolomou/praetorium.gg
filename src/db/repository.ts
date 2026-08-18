@@ -2,7 +2,7 @@ import { and, asc, desc, eq, ne } from 'drizzle-orm'
 import { type Command, type LoggedCommand, PLAYERS_PER_BATTLE, reduceBattle, validate } from '../core/battle'
 import { commandSchema } from '../core/commands'
 import type { PraetoriumDatabase } from './connection'
-import { battlePlayers, battles, collection, commands, players, rosters } from './schema'
+import { battlePlayers, battles, collection, commands, favouriteFactions, players, rosters } from './schema'
 
 type BattleRecord = { id: string; token: string; createdAt: number }
 type BattlePlayer = { id: string; name: string; side: number }
@@ -212,6 +212,25 @@ export class Repository {
     this.database
       .delete(collection)
       .where(and(eq(collection.playerId, playerId), eq(collection.entryId, entryId)))
+      .run()
+  }
+
+  favouriteFactionsByPlayer(playerId: string) {
+    return this.database.select().from(favouriteFactions).where(eq(favouriteFactions.playerId, playerId)).all()
+  }
+
+  addFavouriteFaction(input: { playerId: string; catalogueId: string; now: number }) {
+    this.database
+      .insert(favouriteFactions)
+      .values({ ...input, at: input.now })
+      .onConflictDoNothing()
+      .run()
+  }
+
+  removeFavouriteFaction(playerId: string, catalogueId: string) {
+    this.database
+      .delete(favouriteFactions)
+      .where(and(eq(favouriteFactions.playerId, playerId), eq(favouriteFactions.catalogueId, catalogueId)))
       .run()
   }
 

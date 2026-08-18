@@ -3,6 +3,9 @@ import { createFileRoute, Link, notFound, Outlet, useRouterState } from '@tansta
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { factionFor } from '../client/factions'
 import { factionsQuery } from '../client/queries'
+import { FactionMark, factionColour } from '../client/components/FactionMark'
+import { dispositionTone } from '../client/components/rosterSetup'
+import { RuleText } from '../client/components/RuleText'
 
 export const Route = createFileRoute('/factions/$catalogueId')({
   loader: async ({ context, params }) => {
@@ -20,15 +23,19 @@ function FactionPage() {
   const faction = factionFor(data, catalogueId)
   if (!faction) return null
   const reference = faction.references[0]
+  const detachments = faction.detachments.filter((detachment) => faction.referenceDetachmentIds.includes(detachment.id))
 
   return (
     <main className="mx-auto w-full max-w-5xl px-4 py-8">
       <Link to="/factions" className="eyebrow flex items-center gap-1 text-azure hover:text-bone">
         <ChevronLeft className="size-3.5" /> Factions
       </Link>
-      <header className="mt-4 border-b border-edge pb-4">
-        <p className="eyebrow">Faction</p>
-        <h1 className="text-3xl">{faction.displayName}</h1>
+      <header className="mt-4 flex items-center gap-4 border-b pb-4" style={{ borderBottomColor: factionColour(faction.slug) }}>
+        <FactionMark id={faction.slug} icon={faction.icon} size="lg" />
+        <span>
+          <p className="eyebrow">Faction</p>
+          <h1 className="text-3xl">{faction.displayName}</h1>
+        </span>
       </header>
       <section className="mt-5">
         <Link
@@ -43,34 +50,47 @@ function FactionPage() {
           </span>
         </Link>
       </section>
+      {faction.armyRule ? (
+        <section className="mt-6">
+          <p className="rubric border-b border-edge pb-2">Army rule</p>
+          <article className="mt-2 border border-edge bg-panel p-4">
+            <h2 className="text-lg">{faction.armyRule.name}</h2>
+            <RuleText text={faction.armyRule.description} />
+          </article>
+        </section>
+      ) : null}
       <section className="mt-6">
         <p className="rubric flex items-baseline justify-between border-b border-edge pb-2">
           <span>Detachments</span>
-          <span className="readout">{faction.detachments.length}</span>
+          <span className="readout">{detachments.length}</span>
         </p>
         <div className="mt-2 divide-y divide-edge border border-edge bg-panel">
-          {faction.detachments.map((detachment) => (
+          {detachments.map((detachment) => (
             <Link
               key={detachment.id}
               to="/factions/$catalogueId/reference/detachments/$detachmentId"
               params={{ catalogueId: faction.slug, detachmentId: detachment.slug }}
               className="flex items-center justify-between gap-4 px-3 py-2.5 hover:bg-raised"
             >
-              <span className="min-w-0">
+              <span className="min-w-0 flex-1">
                 <span className="block truncate text-sm font-bold uppercase">{detachment.name}</span>
                 {detachment.reference ? (
-                  <span className="text-xs text-dim">
-                    {detachment.reference.stratagems} stratagems · {detachment.reference.enhancements} enhancements
-                    {detachment.reference.upgrades ? ` · ${detachment.reference.upgrades} unit upgrades` : ''}
-                  </span>
+                  <>
+                    <span className="text-xs text-dim">
+                      {detachment.reference.stratagems} stratagems · {detachment.reference.enhancements} enhancements
+                      {detachment.reference.upgrades ? ` · ${detachment.reference.upgrades} unit upgrades` : ''}
+                    </span>
+                  </>
                 ) : null}
               </span>
-              {detachment.reference ? (
-                <span className="shrink-0 text-right">
-                  {detachment.reference.points === null ? null : <span className="chip">{detachment.reference.points} DP</span>}
-                  {detachment.reference.dispositions.length ? (
-                    <span className="eyebrow mt-1 block">{detachment.reference.dispositions.join(' · ')}</span>
-                  ) : null}
+              {detachment.reference && (detachment.reference.dispositions.length || detachment.reference.points !== null) ? (
+                <span className="flex shrink-0 flex-wrap justify-end gap-1">
+                  {detachment.reference?.dispositions.map((disposition) => (
+                    <span key={disposition} className={`chip ${dispositionTone(disposition)}`}>
+                      {disposition}
+                    </span>
+                  ))}
+                  {detachment.reference?.points == null ? null : <span className="chip">{detachment.reference.points} DP</span>}
                 </span>
               ) : null}
               <ChevronRight className="size-4 shrink-0 text-dim" aria-hidden />

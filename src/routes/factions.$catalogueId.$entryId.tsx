@@ -5,6 +5,7 @@ import { Keyword, KEYWORD_TAG_CLASS, KeywordList, type KeywordRule } from '../cl
 import { RuleText } from '../client/components/RuleText'
 import { factionFor } from '../client/factions'
 import { datasheetSlugQuery, factionsQuery } from '../client/queries'
+import { FactionMark, factionColour } from '../client/components/FactionMark'
 
 export const Route = createFileRoute('/factions/$catalogueId/$entryId')({
   beforeLoad: ({ params }) => {
@@ -34,7 +35,7 @@ export function DatasheetPage() {
   const melee = profiles('Melee Weapons')
 
   return (
-    <main className="mx-auto w-full max-w-6xl space-y-6 px-4 py-8">
+    <main className="mx-auto w-full max-w-5xl space-y-6 px-4 py-8">
       <Breadcrumb>
         <BreadcrumbList className="eyebrow gap-1 text-azure">
           <BreadcrumbItem>
@@ -54,21 +55,25 @@ export function DatasheetPage() {
           </BreadcrumbItem>
         </BreadcrumbList>
       </Breadcrumb>
-      <header className="border-b border-edge pb-4">
-        <p className="eyebrow">Datasheet</p>
-        <div className="flex items-center justify-between gap-4">
-          <h1 className="text-3xl">{sheet.name}</h1>
-          {sheet.points === null ? null : <span className="chip shrink-0">{sheet.points} pts</span>}
-        </div>
-        <div className="mt-2 flex flex-wrap gap-1">
-          {sheet.keywords.map((keyword) => (
-            <Keyword key={keyword} name={keyword} rules={sheet.keywordRules} className={KEYWORD_TAG_CLASS} />
-          ))}
+      <header className="flex items-start gap-3 border-b pb-4" style={{ borderBottomColor: factionColour(faction.slug) }}>
+        <FactionMark id={faction.slug} icon={faction.icon} />
+        <div className="min-w-0 flex-1">
+          <p className="eyebrow">{faction.displayName} · Datasheet</p>
+          <div className="flex items-center justify-between gap-4">
+            <h1 className="text-3xl">{sheet.name}</h1>
+            {sheet.points === null ? null : <span className="chip shrink-0">{sheet.points} pts</span>}
+          </div>
+          <div className="mt-2 flex flex-wrap gap-1">
+            {sheet.keywords.map((keyword) => (
+              <Keyword key={keyword} name={keyword} rules={sheet.keywordRules} className={KEYWORD_TAG_CLASS} />
+            ))}
+          </div>
         </div>
       </header>
 
-      {unit.length ? <ProfileTable title="Models" profiles={unit} omit={['InSv']} keywordRules={sheet.keywordRules} /> : null}
-      {invulnerable.length ? (
+      {unit.length === 1 && unit[0] ? <UnitCharacteristics profile={unit[0]} /> : null}
+      {unit.length > 1 ? <ProfileTable title="Models" profiles={unit} omit={['InSv']} keywordRules={sheet.keywordRules} /> : null}
+      {unit.length > 1 && invulnerable.length ? (
         <section>
           <h2 className="rubric">Invulnerable save</h2>
           <div className="mt-2 flex flex-wrap gap-2">
@@ -122,6 +127,29 @@ function Abilities({ abilities, rules }: { abilities: DisplayAbility[]; rules: K
 }
 
 type DisplayProfile = { id: string; name: string; values: { name: string; value: string }[] }
+
+function UnitCharacteristics({ profile }: { profile: DisplayProfile }) {
+  const invulnerable = profile.values.find((value) => value.name === 'InSv')?.value
+  const values = profile.values.filter((value) => value.name !== 'InSv')
+  return (
+    <section>
+      <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
+        {values.map((value) => (
+          <div key={value.name} className="border border-edge bg-panel px-3 py-2 text-center">
+            <p className="eyebrow">{value.name}</p>
+            <p className="readout mt-1 text-lg">{value.value}</p>
+          </div>
+        ))}
+      </div>
+      {invulnerable ? (
+        <div className="mt-2 flex items-center justify-between border border-edge bg-panel px-3 py-2">
+          <span className="font-bold uppercase">Invulnerable save</span>
+          <span className="readout text-lg">{invulnerable}</span>
+        </div>
+      ) : null}
+    </section>
+  )
+}
 
 const noColumns: string[] = []
 

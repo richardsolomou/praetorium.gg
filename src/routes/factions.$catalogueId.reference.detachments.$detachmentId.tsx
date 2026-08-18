@@ -23,7 +23,7 @@ export function DetachmentPage() {
   if (!faction) return null
 
   return (
-    <main className="mx-auto w-full max-w-6xl space-y-6 px-4 py-8">
+    <main className="mx-auto w-full max-w-5xl space-y-6 px-4 py-8">
       <Breadcrumb>
         <BreadcrumbList className="eyebrow gap-1 text-azure">
           <BreadcrumbItem>
@@ -42,7 +42,7 @@ export function DetachmentPage() {
         </BreadcrumbList>
       </Breadcrumb>
 
-      <DetachmentReference catalogueId={faction.id} slug={params.detachmentId ?? ''} />
+      <DetachmentReference catalogueId={faction.id} slug={params.detachmentId ?? ''} faction={faction} />
     </main>
   )
 }

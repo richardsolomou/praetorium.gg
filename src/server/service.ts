@@ -176,6 +176,15 @@ export class PraetoriumService {
     else this.repository.removeFromCollection(playerId, entryId)
   }
 
+  favouriteFactions(playerId: string) {
+    return this.repository.favouriteFactionsByPlayer(playerId).map((row) => row.catalogueId)
+  }
+
+  setFavouriteFaction(playerId: string, catalogueId: string, favourite: boolean) {
+    if (favourite) this.repository.addFavouriteFaction({ playerId, catalogueId, now: this.clock() })
+    else this.repository.removeFavouriteFaction(playerId, catalogueId)
+  }
+
   opponents(playerId: string) {
     return this.repository.playersExcept(playerId)
   }

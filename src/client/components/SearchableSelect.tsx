@@ -12,8 +12,9 @@ import {
   ComboboxValue,
 } from '@/components/ui/combobox'
 import { cn } from '@/lib/utils'
+import { FactionLabel, type FactionPresentation } from './FactionMark'
 
-export type SearchableOption = { label: string; value: string }
+export type SearchableOption = { label: string; value: string; faction?: FactionPresentation }
 export type SearchableGroup = { label: string; items: SearchableOption[] }
 
 type Props = {
@@ -58,7 +59,9 @@ export function SearchableSelect({
           className,
         )}
       >
-        <ComboboxValue placeholder={placeholder} />
+        <ComboboxValue placeholder={placeholder}>
+          {selected?.faction ? <FactionLabel faction={selected.faction} /> : selected?.label}
+        </ComboboxValue>
       </ComboboxTrigger>
       <ComboboxContent className="rounded-none border border-edge bg-panel text-bone ring-0 transition-none">
         <ComboboxInput className="rounded-none" placeholder={searchPlaceholder} showTrigger={false} />
@@ -70,7 +73,7 @@ export function SearchableSelect({
               <ComboboxCollection>
                 {(option: SearchableOption) => (
                   <ComboboxItem key={option.value} value={option} className="rounded-none data-highlighted:bg-edge">
-                    {option.label}
+                    {option.faction ? <FactionLabel faction={option.faction} /> : option.label}
                   </ComboboxItem>
                 )}
               </ComboboxCollection>

@@ -9,7 +9,7 @@ import {
   type TerrainPiece,
   type TerrainTemplate,
 } from '../../routes/mission-matchups.$packId.$you.$opponent'
-import { deploymentsQuery, gameReferencesQuery } from '../queries'
+import { deploymentsQuery, terrainMatchupIds, terrainReferencesQuery } from '../queries'
 
 type Props = { view: BattleView; send: (command: Command) => void; pending: boolean; allowedIds?: string[] }
 type Deployment = {
@@ -29,19 +29,18 @@ type Terrain = {
 
 export function Battlefield({ view, send, pending, allowedIds }: Props) {
   const { data: allPatterns } = useQuery(deploymentsQuery())
-  const { data: references } = useQuery(gameReferencesQuery())
   const dispositions = view.players.map((player) => player.roster?.built?.disposition).filter((value): value is string => Boolean(value))
-  const matchup = dispositions.length === 2 ? dispositions : view.settings.solo && dispositions[0] ? [dispositions[0], dispositions[0]] : []
-  const matchupIds = new Set(matchup.length === 2 ? [`${matchup[0]}-vs-${matchup[1]}`, `${matchup[1]}-vs-${matchup[0]}`] : [])
+  const matchupIds = terrainMatchupIds(dispositions, view.settings.solo)
+  const { data: references } = useQuery(terrainReferencesQuery(matchupIds))
   const options =
-    references?.terrainLayouts.flatMap((terrain) => {
+    references?.layouts.flatMap((terrain) => {
       const deployment = allPatterns?.find((pattern) => pattern.id === terrain.deploymentId)
-      if (!matchupIds.has(terrain.matchupId) || !deployment || (allowedIds?.length && !allowedIds.includes(deployment.id))) return []
+      if (!deployment || (allowedIds?.length && !allowedIds.includes(deployment.id))) return []
       return [{ terrain, deployment }]
     }) ?? []
   const available = options.filter((option) => option.terrain.geometry)
 
-  if (!matchup.length) return <p className="text-sm text-dim">Both armies determine the three deployment and terrain layouts.</p>
+  if (!matchupIds.length) return <p className="text-sm text-dim">Both armies determine the three deployment and terrain layouts.</p>
   if (!options.length) return <p className="text-sm text-dim">No combined battlefield layouts match these armies and mission.</p>
 
   return (
@@ -78,7 +77,7 @@ export function Battlefield({ view, send, pending, allowedIds }: Props) {
               <TerrainBoard
                 layout={terrain}
                 deployment={deployment}
-                templates={references?.terrainTemplates ?? []}
+                templates={references?.templates ?? []}
                 className="mt-2 w-full"
                 detailed
                 ariaLabel={`Layout ${label}: ${deployment.name} battlefield with ${terrain.name}`}

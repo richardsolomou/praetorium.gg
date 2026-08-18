@@ -10,6 +10,9 @@ import {
   detachmentRules,
   detachmentDetail,
   factions,
+  factionDatasheets,
+  factionIndex,
+  favouriteFactions,
   gameReferences,
   me,
   myBattles,
@@ -20,6 +23,7 @@ import {
   savedRosterPrice,
   sharedRoster,
   signInOptions,
+  terrainReferences,
   units,
 } from '../server/functions'
 
@@ -35,8 +39,24 @@ export const battleQuery = (token: string) =>
   queryOptions({ queryKey: ['battle', token], queryFn: () => openBattle({ data: { token } }), staleTime: SSR_STALE_TIME })
 
 export const factionsQuery = () => queryOptions({ queryKey: ['factions'], queryFn: () => factions(), staleTime: Infinity })
+export const factionIndexQuery = () => queryOptions({ queryKey: ['faction-index'], queryFn: () => factionIndex(), staleTime: Infinity })
+export const favouriteFactionsQuery = () =>
+  queryOptions({ queryKey: ['favourite-factions'], queryFn: () => favouriteFactions(), staleTime: SSR_STALE_TIME })
 export const gameReferencesQuery = () =>
   queryOptions({ queryKey: ['game-references'], queryFn: () => gameReferences(), staleTime: Infinity })
+
+export const terrainMatchupIds = (dispositions: readonly string[], solo = false) => {
+  const matchup = dispositions.length === 2 ? dispositions : solo && dispositions[0] ? [dispositions[0], dispositions[0]] : []
+  return matchup.length === 2 ? [...new Set([`${matchup[0]}-vs-${matchup[1]}`, `${matchup[1]}-vs-${matchup[0]}`])].toSorted() : []
+}
+
+export const terrainReferencesQuery = (matchupIds: readonly string[]) =>
+  queryOptions({
+    queryKey: ['terrain-references', ...matchupIds],
+    queryFn: () => terrainReferences({ data: { matchupIds: [...matchupIds] } }),
+    enabled: Boolean(matchupIds.length),
+    staleTime: Infinity,
+  })
 
 /** The datasheets the player owns models for, so the picker can filter on it. */
 export const collectionQuery = () => queryOptions({ queryKey: ['collection'], queryFn: () => collection(), staleTime: SSR_STALE_TIME })
@@ -45,6 +65,14 @@ export const unitsQuery = (catalogueId: string, query: string) =>
   queryOptions({
     queryKey: ['units', catalogueId, query],
     queryFn: () => units({ data: { catalogueId, query } }),
+    enabled: Boolean(catalogueId),
+    staleTime: SSR_STALE_TIME,
+  })
+
+export const factionDatasheetsQuery = (catalogueId: string, query: string) =>
+  queryOptions({
+    queryKey: ['faction-datasheets', catalogueId, query],
+    queryFn: () => factionDatasheets({ data: { catalogueId, query } }),
     enabled: Boolean(catalogueId),
     staleTime: SSR_STALE_TIME,
   })

@@ -69,6 +69,20 @@ function view(token: string, playerId: string) {
   return screen.view
 }
 
+describe('favourite factions', () => {
+  it('keeps each player favourites separate', () => {
+    service.setFavouriteFaction('alice', 'dark-angels', true)
+    expect(service.favouriteFactions('alice')).toEqual(['dark-angels'])
+    expect(service.favouriteFactions('bob')).toEqual([])
+  })
+
+  it('removes a faction from favourites', () => {
+    service.setFavouriteFaction('alice', 'dark-angels', true)
+    service.setFavouriteFaction('alice', 'dark-angels', false)
+    expect(service.favouriteFactions('alice')).toEqual([])
+  })
+})
+
 describe('seats', () => {
   it('preserves an opponent-only legacy creation request', () => {
     const { token } = service.createBattle('alice', createBattleSchema.parse({ opponentId: 'bob' }))

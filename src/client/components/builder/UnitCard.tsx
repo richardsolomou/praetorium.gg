@@ -8,6 +8,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import type { Attachment } from '../../../core/attach'
+import { FactionLabel, type FactionPresentation } from '../FactionMark'
 
 type BuiltUnit = {
   entryId: string
@@ -24,7 +25,7 @@ type Joined = { label: string; name: string; action: string; onAct: () => void }
 
 type Props = {
   unit: BuiltUnit
-  alliedFaction?: string
+  alliedFaction?: FactionPresentation
   selected: boolean
   onSelect: () => void
   onRemove: () => void
@@ -71,7 +72,11 @@ export function UnitCard({
         <div className="pointer-events-none min-w-0 flex-1 text-left">
           <span className="w-full min-w-0">
             <span className="block text-[0.9375rem] leading-tight font-bold tracking-[0.02em] uppercase">{unit.name}</span>
-            {alliedFaction ? <span className="eyebrow mt-0.5 block text-azure">Allied unit · {alliedFaction}</span> : null}
+            {alliedFaction ? (
+              <span className="eyebrow mt-1 flex items-center gap-1 text-azure">
+                Allied unit · <FactionLabel faction={alliedFaction} />
+              </span>
+            ) : null}
           </span>
           {unit.wargear.length ? (
             <ul className="mt-1 w-full min-w-0 space-y-px">

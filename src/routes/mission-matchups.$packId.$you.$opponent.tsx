@@ -4,7 +4,7 @@ import { useId } from 'react'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { MissionCardReference } from '../client/components/MissionCardReference'
 import { dispositionTone } from '../client/components/rosterSetup'
-import { gameReferencesQuery } from '../client/queries'
+import { gameReferencesQuery, terrainMatchupIds, terrainReferencesQuery } from '../client/queries'
 
 export const Route = createFileRoute('/mission-matchups/$packId/$you/$opponent')({
   loader: async ({ context, params }) => {
@@ -14,6 +14,7 @@ export const Route = createFileRoute('/mission-matchups/$packId/$you/$opponent')
       mission.matchups.some((pair) => pair[0]?.id === params.you && pair[1]?.id === params.opponent),
     )
     if (!valid) throw notFound()
+    await context.queryClient.ensureQueryData(terrainReferencesQuery(terrainMatchupIds([params.you, params.opponent])))
   },
   component: MissionMatchupPage,
 })
@@ -21,13 +22,13 @@ export const Route = createFileRoute('/mission-matchups/$packId/$you/$opponent')
 function MissionMatchupPage() {
   const { packId, you, opponent } = Route.useParams()
   const { data } = useQuery(gameReferencesQuery())
+  const { data: terrain } = useQuery(terrainReferencesQuery(terrainMatchupIds([you, opponent])))
   const pack = data?.packs.find((entry) => entry.id === packId)
   const yours = pack?.missions.find((mission) => mission.matchups.some((pair) => pair[0]?.id === you && pair[1]?.id === opponent))
   const theirs = pack?.missions.find((mission) => mission.matchups.some((pair) => pair[0]?.id === opponent && pair[1]?.id === you))
   const yourDisposition = data?.dispositions.find((entry) => entry.id === you)
   const opponentDisposition = data?.dispositions.find((entry) => entry.id === opponent)
-  const matchupIds = new Set([`${you}-vs-${opponent}`, `${opponent}-vs-${you}`])
-  const layouts = data?.terrainLayouts.filter((layout) => matchupIds.has(layout.matchupId)) ?? []
+  const layouts = terrain?.layouts ?? []
   if (!data || !pack || !yours || !theirs || !yourDisposition || !opponentDisposition) return null
 
   return (
@@ -74,7 +75,7 @@ function MissionMatchupPage() {
                 key={layout.id}
                 layout={layout}
                 deployment={data.deployments.find((entry) => entry.id === layout.deploymentId)}
-                templates={data.terrainTemplates ?? []}
+                templates={terrain?.templates ?? []}
                 label={String.fromCharCode(65 + index)}
               />
             ))}

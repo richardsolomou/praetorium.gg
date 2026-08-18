@@ -19,7 +19,15 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { STRATAGEM_CP_MAX } from '../../core/battle'
 import { deleteBattle } from '../../server/functions'
-import { battleQuery, battlesQuery, deploymentsQuery, detachmentRulesQuery, gameReferencesQuery } from '../queries'
+import {
+  battleQuery,
+  battlesQuery,
+  deploymentsQuery,
+  detachmentRulesQuery,
+  gameReferencesQuery,
+  terrainMatchupIds,
+  terrainReferencesQuery,
+} from '../queries'
 import { errorMessage } from '../queryClient'
 import type { BattleView, Command, Phase } from '../../core/battle'
 import type { PresentPlayer } from '../useLiveBattle'
@@ -60,9 +68,11 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
   const { data: rules } = useQuery(detachmentRulesQuery(built?.catalogueId ?? '', detachmentNames))
   const { data: deployments } = useQuery(deploymentsQuery())
   const { data: references } = useQuery(gameReferencesQuery())
+  const dispositions = view.players.map((player) => player.roster?.built?.disposition).filter((value): value is string => Boolean(value))
+  const { data: terrainReferences } = useQuery(terrainReferencesQuery(terrainMatchupIds(dispositions, view.settings.solo)))
   const deployment = deployments?.find((entry) => entry.id === view.deploymentId)
   const missionPack = references?.packs.find((entry) => entry.id === view.settings.missionPackId)
-  const terrain = references?.terrainLayouts.find((entry) => entry.id === view.settings.terrainLayoutId)
+  const terrain = terrainReferences?.layouts.find((entry) => entry.id === view.settings.terrainLayoutId)
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const remove = useMutation({

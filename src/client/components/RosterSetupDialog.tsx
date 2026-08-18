@@ -28,7 +28,14 @@ type Detachment = {
   reference?: { points: number | null } | null
 }
 
-export type RosterSetupFaction = { id: string; slug: string; name: string; displayName: string; detachments: Detachment[] }
+export type RosterSetupFaction = {
+  id: string
+  slug: string
+  name: string
+  displayName: string
+  icon: string | null
+  detachments: Detachment[]
+}
 
 export type RosterSetup = {
   name: string
@@ -337,7 +344,15 @@ export function RosterSetupDialog({
             <DialogTitle>{reference?.name ?? 'Detachment reference'}</DialogTitle>
             <DialogDescription>Detachment rules, enhancements, and stratagems.</DialogDescription>
           </DialogHeader>
-          <div className="p-5">{reference ? <DetachmentReference catalogueId={reference.catalogueId} slug={reference.slug} /> : null}</div>
+          <div className="p-5">
+            {reference ? (
+              <DetachmentReference
+                catalogueId={reference.catalogueId}
+                slug={reference.slug}
+                faction={factions.find((entry) => entry.id === reference.catalogueId)}
+              />
+            ) : null}
+          </div>
         </DialogContent>
       </Dialog>
     </>

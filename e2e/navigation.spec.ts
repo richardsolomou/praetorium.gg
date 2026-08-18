@@ -11,11 +11,56 @@ test('primary navigation keeps every scoped destination on phones', async ({ pag
   await expect(primary.getByRole('link', { name: 'Battles' })).toBeVisible()
   await expect(primary.getByRole('link', { name: 'Rosters' })).toBeVisible()
   await expect(primary.getByRole('link', { name: 'Factions' })).toBeVisible()
+  await expect(primary.getByText('Rules', { exact: true })).toHaveCount(0)
   await expect(page.locator('header')).toHaveJSProperty(
     'scrollWidth',
     await page.locator('header').evaluate((header) => header.clientWidth),
   )
   await page.screenshot({ path: 'test-results/navigation-phone.png', fullPage: true })
+})
+
+test('public reference data renders without client JavaScript', async ({ browser }) => {
+  const context = await browser.newContext({ javaScriptEnabled: false })
+  const page = await context.newPage()
+
+  await page.goto('/factions')
+  await expect(page.locator('[data-faction="Chaos Daemons"]')).toBeVisible()
+  await page.goto('/mission-packs')
+  await expect(page).toHaveURL(/\/mission-packs\/.+/)
+  await expect(page.getByRole('heading', { name: 'Chapter Approved 2026-2027' })).toBeVisible()
+
+  await context.close()
+})
+
+test('server-rendered reference pages keep route-shaped payloads', async ({ request }) => {
+  const factions = await (await request.get('/factions')).body()
+  const missionPack = await (await request.get('/mission-packs/chapter-approved-2026-2027')).body()
+
+  expect(factions.byteLength).toBeLessThan(250_000)
+  expect(missionPack.byteLength).toBeLessThan(250_000)
+})
+
+test('saving a faction asks signed-out visitors to sign in', async ({ page }) => {
+  await page.goto('/factions')
+  await page.getByRole('link', { name: 'Sign in to add Necrons to favourites' }).click()
+  await expect(page).toHaveURL('/signin?next=%2Ffactions')
+})
+
+test('faction routes keep a stable content width', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 })
+  const widths: number[] = []
+  for (const path of [
+    '/factions',
+    '/factions/necrons',
+    '/factions/necrons/datasheets',
+    '/factions/necrons/datasheets/lokhust-lord',
+    '/factions/necrons/detachments/cryptek-conclave',
+  ]) {
+    await page.goto(path)
+    widths.push((await page.locator('main').boundingBox())?.width ?? 0)
+  }
+  expect(new Set(widths).size).toBe(1)
+  expect(widths[0]).toBeGreaterThan(0)
 })
 
 test('terrain layouts show their labels and measurement guides', async ({ page }) => {
@@ -36,6 +81,8 @@ test('a player can enter through the roster library and browse the product', asy
   await page.goto('/rosters')
 
   await expect(page.getByRole('heading', { name: 'My rosters' })).toBeVisible()
+  const rendered = await page.request.get('/rosters')
+  expect(await rendered.text()).toContain('My rosters')
   await expect(page.getByText('No rosters yet. Create one or bring one from another app.')).toBeVisible()
   await page.getByRole('button', { name: /Incursion/ }).click()
   await expect(page).toHaveURL('/rosters?limit=1000')
@@ -154,9 +201,36 @@ test('a player can enter through the roster library and browse the product', asy
   await expect(page.locator('[data-shelf="Chaos"]')).toBeVisible()
   await expect(page.locator('[data-shelf="Imperium"]')).toBeVisible()
   await expect(page.locator('[data-shelf="Xenos"]')).toBeVisible()
+  await page.goto('/factions/dark-angels')
+  const darkAngelsDatasheets = page.getByRole('link', { name: /Datasheets/ })
+  await expect(darkAngelsDatasheets).toContainText('16')
+  await expect(page.getByText('Detachments', { exact: true }).locator('..')).toContainText('8')
+  await expect(page.getByText('Gladius Task Force', { exact: true })).toHaveCount(0)
+  await page.screenshot({ path: 'test-results/dark-angels-faction-content.png', fullPage: true })
+  await darkAngelsDatasheets.click()
+  await expect(page.locator('main > header [data-faction-mark="dark-angels"]')).toBeVisible()
+  await expect(page.getByRole('link', { name: /Asmodai/ })).toBeVisible()
+  await expect(page.getByRole('link', { name: /Intercessor Squad/ })).toHaveCount(0)
+  await page.goto('/rosters')
+  await page.getByRole('button', { name: 'Create editable roster' }).click()
+  const darkAngelsSetup = page.getByRole('dialog', { name: 'Create roster' })
+  await darkAngelsSetup.getByRole('combobox', { name: 'Faction' }).click()
+  await page.getByPlaceholder('Search factions…').fill('Dark Angels')
+  await page.getByRole('option', { name: 'Dark Angels', exact: true }).click()
+  await expect(darkAngelsSetup.getByRole('button', { name: 'Select Gladius Task Force' })).toBeVisible()
+  await page.keyboard.press('Escape')
+  await page.goto('/factions')
   const necrons = page.locator('[data-shelf="Xenos"] [data-faction="Necrons"]')
+  const favouriteSaved = page.waitForResponse(
+    (response) =>
+      response.ok() && response.request().method() === 'POST' && Boolean(response.request().postData()?.includes('catalogueId')),
+  )
   await necrons.getByRole('button', { name: 'Add Necrons to favourites' }).click()
+  await favouriteSaved
   await expect(page.locator('[data-shelf="Favourites"] [data-faction]').first()).toHaveAttribute('data-faction', 'Necrons')
+  await expect(page.locator('[data-shelf="Xenos"] [data-faction]').first()).toHaveAttribute('data-faction', 'Aeldari')
+  const serverRenderedFavourites = await (await page.request.get('/factions')).text()
+  expect(serverRenderedFavourites).toMatch(/data-shelf="Favourites"[\s\S]+data-faction="Necrons"/)
   await page.screenshot({ path: 'test-results/faction-index.png', fullPage: true })
   await page.getByRole('link', { name: 'Rosters' }).click()
   await page.getByRole('button', { name: 'Create editable roster' }).click()
@@ -164,12 +238,19 @@ test('a player can enter through the roster library and browse the product', asy
   const favourites = page.getByRole('group').filter({ has: page.getByText('Favourites', { exact: true }) })
   await expect(favourites.getByRole('option').first()).toHaveText('Necrons')
   await expect(page.getByRole('option').first()).toHaveText('Necrons')
+  await expect(page.getByRole('option').first().locator('[data-faction-mark]')).toBeVisible()
+  await page.getByRole('option').first().click()
+  await expect(
+    page.getByRole('dialog', { name: 'Create roster' }).getByRole('combobox', { name: 'Faction' }).locator('[data-faction-mark]'),
+  ).toBeVisible()
+  await page.getByRole('dialog', { name: 'Create roster' }).getByRole('combobox', { name: 'Faction' }).click()
   await page.keyboard.press('Escape')
   await page.keyboard.press('Escape')
   await page.getByRole('link', { name: 'Factions' }).click()
   await necrons.getByRole('link').click()
   await expect(page).toHaveURL('/factions/necrons')
   await expect(page.getByRole('link', { name: /Datasheets/ })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Reanimation Protocols' })).toBeVisible()
   const cryptek = page.getByText('Cryptek Conclave').locator('../..')
   await expect(cryptek).toContainText('6 stratagems · 4 enhancements')
   await expect(cryptek).toContainText('2 DP')
@@ -196,6 +277,7 @@ test('a player can enter through the roster library and browse the product', asy
   await page.getByRole('link', { name: 'Necrons' }).click()
   await page.getByRole('link', { name: /Cryptek Conclave/ }).click()
   await expect(page).toHaveURL('/factions/necrons/detachments/cryptek-conclave')
+  await expect(page.locator('main [data-faction-mark="necrons"]')).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Cryptek Conclave', exact: true })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Technosorcerous Augmentations' })).toBeVisible()
   await expect(page.getByRole('heading', { name: /Enhancements/ })).toContainText('4')
@@ -254,7 +336,7 @@ test('a player can enter through the roster library and browse the product', asy
   await page.screenshot({ path: 'test-results/datasheet.png', fullPage: true })
   await page.goto('/factions/necrons/datasheets/overlord-with-translocation-shroud')
   await expect(page.getByRole('heading', { name: 'Overlord with Translocation Shroud', exact: true })).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'Invulnerable save' })).toBeVisible()
+  await expect(page.getByText('Invulnerable save', { exact: true })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Translocation Shroud', exact: true })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Resurrection Orb' })).toBeVisible()
   await page.screenshot({ path: 'test-results/translocation-shroud.png', fullPage: true })

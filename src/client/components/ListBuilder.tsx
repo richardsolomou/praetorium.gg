@@ -38,6 +38,7 @@ import { RosterSetupDialog, type RosterSetup } from './RosterSetupDialog'
 import { RosterExportDialog } from './RosterExportDialog'
 import { readWorkspaceState, writeWorkspaceState } from './workspaceState'
 import { useFavouriteFactions } from '../favouriteFactions'
+import { FactionLabel } from './FactionMark'
 
 type Props = {
   onAttach?: (roster: Roster) => void
@@ -500,7 +501,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
         {initial && faction ? (
           <div className="flex min-w-0 items-center gap-2 text-xs text-dim">
             <Link to="/factions/$catalogueId" params={{ catalogueId: faction.slug }} className="truncate text-azure hover:text-bone">
-              {faction.displayName}
+              <FactionLabel faction={faction} />
             </Link>
             <span aria-hidden>·</span>
             <Link to="/rosters" search={{ limit }} className="shrink-0 hover:text-bone">
@@ -798,7 +799,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
                       alliedFaction={
                         picked[index]?.catalogueId === catalogueId
                           ? undefined
-                          : available.factions.find((entry) => entry.id === picked[index]?.catalogueId)?.name
+                          : available.factions.find((entry) => entry.id === picked[index]?.catalogueId)
                       }
                       selected={selected === index}
                       onSelect={() => {
