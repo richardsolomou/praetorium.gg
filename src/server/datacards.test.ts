@@ -17,13 +17,34 @@ it('indexes the faction-owned datasheets and detachments', () => {
     JSON.stringify({
       id: 'dark-angels',
       name: 'Dark Angels',
-      datasheets: [{ name: { en: 'Asmodai' } }, { name: { en: 'Azrael' } }],
+      datasheets: [
+        {
+          name: { en: 'Asmodai' },
+          composition: [{ en: '**1 Asmodai**' }],
+          loadout: { en: '**This model is equipped with:** Crozius arcanum.' },
+          wargear: [{ en: 'This model cannot replace its wargear.' }],
+          baseSize: { en: '50mm' },
+        },
+        { name: { en: 'Azrael' } },
+      ],
       detachments: [{ name: { en: 'Inner Circle Task Force' } }, { name: { en: 'Unforgiven Task Force' } }],
     }),
   )
 
   expect(loadFactionContents(directory).get('dark-angels')).toEqual({
     datasheets: new Set(['Asmodai', 'Azrael']),
+    datasheetDetails: new Map([
+      [
+        'Asmodai',
+        {
+          composition: ['**1 Asmodai**'],
+          loadout: '**This model is equipped with:** Crozius arcanum.',
+          wargear: ['This model cannot replace its wargear.'],
+          baseSize: '50mm',
+        },
+      ],
+      ['Azrael', { composition: [], loadout: null, wargear: [], baseSize: null }],
+    ]),
     detachments: new Set(['Inner Circle Task Force', 'Unforgiven Task Force']),
   })
 })

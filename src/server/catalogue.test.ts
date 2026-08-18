@@ -1056,7 +1056,7 @@ describe('a datasheet', () => {
       ],
     })
 
-    expect(datasheetIn(book, 'cat', 'unit')?.wargearOptions).toEqual([{ id: 'weapons', name: 'Weapons', options: ['Rifle', 'Pistol'] }])
+    expect(datasheetIn(book, 'cat', 'unit')?.wargearOptions).toEqual(['**Weapons:** Rifle; Pistol.'])
   })
 
   it('applies values appended to core rule names', () => {

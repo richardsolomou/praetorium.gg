@@ -63,7 +63,10 @@ export function DatasheetPage() {
           <p className="eyebrow">{faction.displayName} · Datasheet</p>
           <div className="flex items-center justify-between gap-4">
             <h1 className="text-3xl">{sheet.name}</h1>
-            {sheet.points === null ? null : <span className="chip shrink-0">{sheet.points} pts</span>}
+            <div className="flex shrink-0 gap-1">
+              {sheet.composition.length ? <span className="chip">{compositionCount(sheet.composition)}</span> : null}
+              {sheet.points === null ? null : <span className="chip">{sheet.points} pts</span>}
+            </div>
           </div>
           <div className="mt-2 flex flex-wrap gap-1">
             {sheet.keywords.map((keyword) => (
@@ -90,8 +93,9 @@ export function DatasheetPage() {
       ) : null}
       {ranged.length ? <ProfileTable title="Ranged weapons" profiles={ranged} keywordRules={sheet.keywordRules} /> : null}
       {melee.length ? <ProfileTable title="Melee weapons" profiles={melee} keywordRules={sheet.keywordRules} /> : null}
-      <WargearOptions options={sheet.wargearOptions} />
       <Abilities abilities={sheet.abilities} rules={sheet.keywordRules} />
+      <Composition composition={sheet.composition} loadout={sheet.loadout} baseSize={sheet.baseSize} rules={sheet.keywordRules} />
+      <WargearOptions options={sheet.wargearOptions} rules={sheet.keywordRules} />
       {sheet.attribution ? <p className="border-t border-edge pt-4 text-xs text-dim">{sheet.attribution}.</p> : null}
     </main>
   )
@@ -145,9 +149,7 @@ function Abilities({ abilities, rules }: { abilities: DisplayAbility[]; rules: K
   })
 }
 
-type WargearOption = { id: string; name: string; options: string[] }
-
-function WargearOptions({ options }: { options: WargearOption[] }) {
+function WargearOptions({ options, rules }: { options: string[]; rules: KeywordRule[] }) {
   if (!options.length) return null
   return (
     <section>
@@ -156,18 +158,54 @@ function WargearOptions({ options }: { options: WargearOption[] }) {
       </h2>
       <div className="mt-2 grid gap-2 md:grid-cols-2">
         {options.map((option) => (
-          <article key={option.id} className="border border-edge bg-panel p-3">
-            <h3 className="text-sm">{option.name}</h3>
-            <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-dim">
-              {option.options.map((name) => (
-                <li key={name}>{name}</li>
-              ))}
-            </ul>
+          <article key={option} className="border border-edge bg-panel p-3">
+            <RuleText text={option} rules={rules} />
           </article>
         ))}
       </div>
     </section>
   )
+}
+
+function Composition({
+  composition,
+  loadout,
+  baseSize,
+  rules,
+}: {
+  composition: string[]
+  loadout: string | null
+  baseSize: string | null
+  rules: KeywordRule[]
+}) {
+  if (!composition.length && !loadout && !baseSize) return null
+  return (
+    <section>
+      <h2 className="rubric">Unit composition</h2>
+      <div className="mt-2 grid gap-2 md:grid-cols-2">
+        <article className="border border-edge bg-panel p-3">
+          {composition.map((line) => (
+            <RuleText key={line} text={line} rules={rules} />
+          ))}
+          {baseSize ? <p className="mt-2 text-sm text-dim">Base size: {baseSize}</p> : null}
+        </article>
+        {loadout ? (
+          <article className="border border-edge bg-panel p-3">
+            <RuleText text={loadout} rules={rules} />
+          </article>
+        ) : null}
+      </div>
+    </section>
+  )
+}
+
+function compositionCount(composition: string[]) {
+  const count = composition
+    .join(' ')
+    .match(/\d+(?:\s*[-–]\s*\d+)?/)?.[0]
+    ?.replace(/\s+/g, '')
+  const value = count ?? String(composition.length)
+  return `${value} ${value === '1' ? 'model' : 'models'}`
 }
 
 type DisplayProfile = { id: string; name: string; values: { name: string; value: string }[] }

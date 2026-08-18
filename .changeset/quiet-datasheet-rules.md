@@ -2,4 +2,4 @@
 'praetorium': patch
 ---
 
-Classify generic abilities correctly, collapse their details, and show datasheet wargear options.
+Show complete datasheets with correctly classified abilities, unit composition, loadout, and wargear options.

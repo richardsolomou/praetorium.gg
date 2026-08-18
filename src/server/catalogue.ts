@@ -4,6 +4,7 @@ import { defaultSelection, unitChoices, wargearOf } from '../core/roster'
 import { bracketedRuleReferences, ruleReferenceMatches } from '../core/ruleReference'
 import { datasheetSlug, datasheetsOf, type LoadedCatalogue } from './catalogueIndex'
 import { priceOf } from './cataloguePicker'
+import type { DatasheetDetails } from './datacards'
 
 export type Datasheet = {
   id: string
@@ -19,7 +20,10 @@ export type Datasheet = {
     values: { name: string; value: string; baseValue?: string; modifiers?: string[] }[]
   }[]
   abilities: { id: string; name: string; source?: string; description: string | null; kind: AbilityKind }[]
-  wargearOptions: { id: string; name: string; options: string[] }[]
+  composition: string[]
+  loadout: string | null
+  wargearOptions: string[]
+  baseSize: string | null
   keywordRules: { name: string; description: string }[]
 }
 
@@ -138,21 +142,22 @@ export function datasheetIn(
   if (sheet !== root) visit(sheet, true, [root.id])
 
   const keywords = [...(root.categoryLinks ?? []), ...(sheet === root ? [] : (sheet.categoryLinks ?? []))]
+  const name = nameOf(root, loaded.index.definitions)
+  const details = datacardDetails(loaded, name)
   const selection = selectedUnit ?? defaultSelection(root.id, loaded.index, { primaryCatalogueId: catalogueId })
-  const wargearOptions = selection
+  const catalogueOptions = selection
     ? unitChoices(root.id, selection, loaded.index, { primaryCatalogueId: catalogueId }).map((choice) => ({
-        id: choice.key,
         name: choice.name,
-        options: choice.options.map((option) => option.name),
+        options: choice.options.map((option) => option.name).join('; '),
       }))
     : []
 
   return {
     id: root.id,
     slug: datasheetSlug(loaded, catalogueId, root.id),
-    name: nameOf(root, loaded.index.definitions),
+    name,
     points: priceOf(loaded, catalogueId, entryId),
-    keywords: [...new Set(keywords.map((link) => link.name).filter((name): name is string => Boolean(name)))].toSorted(),
+    keywords: [...new Set(keywords.map((link) => link.name).filter((keyword): keyword is string => Boolean(keyword)))].toSorted(),
     profiles: [...profiles.values()].flatMap(({ profile, lineage, owner }) => {
       if (!profile.name || !profile.typeName) return []
       const profileType = profile.typeName
@@ -181,9 +186,22 @@ export function datasheetIn(
       ]
     }),
     abilities: [...abilities.values()],
-    wargearOptions,
+    composition: details?.composition ?? [],
+    loadout: details?.loadout ?? null,
+    wargearOptions: details?.wargear.length
+      ? details.wargear
+      : catalogueOptions.map(({ name: optionName, options }) => `**${optionName}:** ${options}.`),
+    baseSize: details?.baseSize ?? null,
     keywordRules: [...keywordRules.values()],
   }
+}
+
+function datacardDetails(loaded: LoadedCatalogue, name: string): DatasheetDetails | null {
+  for (const content of loaded.factionContents.values()) {
+    const details = content.datasheetDetails.get(name)
+    if (details) return details
+  }
+  return null
 }
 
 export function datasheetInBySlug(loaded: LoadedCatalogue, catalogueId: string, slug: string) {
