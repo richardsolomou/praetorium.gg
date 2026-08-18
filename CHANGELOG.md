@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.4.5
+
+### Patch Changes
+
+- 4ef4500: Add forced detachment enhancements to required units and preserve complete, readable datasheet rules.
+
 ## 0.4.4
 
 ### Patch Changes
