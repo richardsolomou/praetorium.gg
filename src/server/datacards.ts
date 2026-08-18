@@ -115,6 +115,7 @@ function datasheetDetails(value: unknown): DatasheetDetails {
 function displayBaseSize(baseSize: string | null): string | null {
   if (baseSize === 'Large Flying Base') return 'Large Flying Base (Ø60mm)'
   if (baseSize === 'Small Flying Base') return 'Small Flying Base (Ø32mm)'
+  if (baseSize === 'Aircraft Flying Base') return 'Aircraft Flying Base (120 × 92 mm oval)'
   return baseSize
 }
 
