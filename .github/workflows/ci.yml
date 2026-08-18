@@ -58,7 +58,7 @@ jobs:
           cache-to: type=gha,mode=min,scope=e2e-image
       # Separate runners give each shard its own CPU, container, and database.
       - name: Run E2E shard
-        run: pnpm exec playwright test --fully-parallel --shard=${{ matrix.shard }}/4
+        run: pnpm exec playwright test --fully-parallel --workers=1 --shard=${{ matrix.shard }}/4
       - if: failure()
         uses: actions/upload-artifact@v7
         with:
