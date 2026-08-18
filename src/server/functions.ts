@@ -9,7 +9,8 @@ import { factionDisplayName } from './factionNames'
 import { detachmentCatalogueDetail } from './catalogueDescriptions'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { unitsIn } from './cataloguePicker'
-import { type LoadedRules, slug } from './rules'
+import { slug } from './rules'
+import { gameReferencesFor } from './gameReferences'
 import { findAbilityDescription, WAHAPEDIA_ATTRIBUTION } from './wahapedia'
 import { mutationRpc, rpc } from './rpc'
 import { calculateRosterPrice, rosterDetachments } from './pricing'
@@ -547,64 +548,11 @@ export const deployments = createServerFn({ method: 'GET' }).handler(() =>
   }),
 )
 
-function buildGameReferences(rules: LoadedRules) {
-  const missions = [
-    ...new Map([...rules.missions.values()].map((mission) => [`${mission.packId ?? 'legacy'}:${mission.id}`, mission])).values(),
-  ]
-  const matchupEntries = [
-    ...new Map(
-      [...rules.missions.entries()].map(([key, mission]) => {
-        const parts = key.split('|')
-        const pair = parts.slice(-2).join('|')
-        return [`${mission.packId ?? 'legacy'}:${pair}`, [pair, mission] as const]
-      }),
-    ).values(),
-  ]
-  const primaryByKey = new Map(rules.primaries.map((card) => [card.key, card]))
-  const matchupsByMission = new Map<string, string[]>()
-  for (const [pair, mission] of matchupEntries) {
-    const missionKey = `${mission.packId ?? 'legacy'}:${mission.id}`
-    matchupsByMission.set(missionKey, [...(matchupsByMission.get(missionKey) ?? []), pair])
-  }
-  const missionsByPack = new Map<string, typeof missions>()
-  for (const mission of missions) {
-    if (!mission.source) continue
-    missionsByPack.set(mission.source, [...(missionsByPack.get(mission.source) ?? []), mission])
-  }
-  const packs = [...missionsByPack].map(([name, packMissions]) => ({
-    id: routeSlug(name),
-    name,
-    missions: packMissions.map((mission) => ({
-      ...mission,
-      card: primaryByKey.get(mission.id) ?? null,
-      matchups: (matchupsByMission.get(`${mission.packId ?? 'legacy'}:${mission.id}`) ?? []).map((pair) =>
-        pair.split('|').map((id) => ({ id, name: rules.dispositions.get(id) ?? id })),
-      ),
-    })),
-  }))
-  const dispositionDetails = rules.dispositionDetails ?? [...rules.dispositions].map(([id, name]) => ({ id, name, text: null }))
-  return {
-    dispositions: dispositionDetails.map((disposition) => ({
-      ...disposition,
-    })),
-    packs,
-    secondaries: rules.secondaries,
-    deployments: rules.deployments,
-    attribution: rules.attribution,
-  }
-}
-
-const gameReferencesCache = new WeakMap<LoadedRules, ReturnType<typeof buildGameReferences>>()
-
 export const gameReferences = createServerFn({ method: 'GET' }).handler(() =>
   rpc(() => {
     const rules = app().rules()
     if (!rules) return null
-    const cached = gameReferencesCache.get(rules)
-    if (cached) return cached
-    const references = buildGameReferences(rules)
-    gameReferencesCache.set(rules, references)
-    return references
+    return gameReferencesFor(rules)
   }),
 )
 
