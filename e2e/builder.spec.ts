@@ -194,6 +194,26 @@ test('wargear abilities are explained beside their choices', async ({ page }) =>
   await page.screenshot({ path: 'test-results/tomb-blades-shieldvanes.png', fullPage: true })
 })
 
+test('destroyer plasmacytes follow the unit size', async ({ page }) => {
+  await openBuilder(page)
+  for (const name of ['Skorpekh Destroyers', 'Ophydian Destroyers']) {
+    await add(page, name)
+    await page.locator(`[data-unit="${name}"]`).getByRole('button', { name, exact: true }).click()
+    const loadout = page.locator('aside[aria-label="Loadout"]')
+    await expect(loadout.getByLabel('Plasmacyte count')).toHaveText('1')
+    await expect(page.locator(`[data-unit="${name}"]`)).toContainText('1x Plasmacyte')
+    for (const models of ['4', '5', '6']) {
+      await loadout.getByRole('button', { name: `More models in ${name}` }).click()
+      await expect(loadout.getByLabel(`${name} models`)).toHaveText(models)
+    }
+    await expect(loadout.getByLabel('Plasmacyte count')).toHaveText('2')
+    await expect(page.locator(`[data-unit="${name}"]`)).toContainText('2x Plasmacyte')
+    await page.screenshot({ path: `test-results/${name.toLowerCase().replaceAll(' ', '-')}-plasmacytes.png`, fullPage: true })
+    await loadout.getByRole('button', { name: 'Fewer Plasmacyte' }).click()
+    await expect(loadout.getByLabel('Plasmacyte count')).toHaveText('1')
+  }
+})
+
 test('Cursed Legion does not modify Immortals without an eligible leader', async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 900 })
   await openBuilder(page, 'Necrons', /Cursed Legion/)

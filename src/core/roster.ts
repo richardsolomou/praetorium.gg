@@ -45,6 +45,13 @@ export type RosterPick = {
   attachedTo?: number
 }
 
+type BuildContext = {
+  primaryCatalogueId?: string
+  roster?: readonly Selection[]
+  spreads?: Readonly<Record<string, Record<string, number>>>
+  toggles?: Readonly<Record<string, number>>
+}
+
 /**
  * The smallest legal selection of an entry, or null when the id is unknown.
  *
@@ -282,12 +289,7 @@ export function buildUnit(
   index: CatalogueIndex,
   models?: number,
   choices?: Readonly<Record<string, string>>,
-  context?: {
-    primaryCatalogueId?: string
-    roster?: readonly Selection[]
-    spreads?: Readonly<Record<string, Record<string, number>>>
-    toggles?: Readonly<Record<string, number>>
-  },
+  context?: BuildContext,
 ): BuiltUnit | null {
   const base = defaultSelection(entryId, index, context)
   if (!base) return null
@@ -306,18 +308,29 @@ export function buildUnit(
   const size = sizeOf(toggled, index)
   if (models === undefined || !size.path.length || models === size.models) {
     const fitted = refit(toggled, index, 1)
-    return { selection: fitted, size, choices: unitChoices(entryId, fitted, index, context), toggles: unitToggles(entryId, fitted, index) }
+    return finishUnit(entryId, fitted, size, index, context)
   }
 
   const wanted = Math.min(Math.max(models, size.min), size.max)
   const current = countAt(toggled, size.path)
   const resized = withCounts(toggled, [{ path: size.path, count: Math.max(0, current + (wanted - size.models)) }])
   const selection = refit(resized, index, 1)
+  return finishUnit(entryId, selection, { ...size, models: wanted }, index, context)
+}
+
+function finishUnit(entryId: string, selection: Selection, size: UnitSize, index: CatalogueIndex, context?: BuildContext): BuiltUnit {
+  const choices = unitChoices(entryId, selection, index, context)
+  const completed = choices.reduce((tree, choice) => {
+    const [option] = choice.options
+    const defaulted = choice.name.trim().toLowerCase() === 'unit composition' && choice.optional && choice.options.length === 1
+    if (!defaulted || !option || option.points !== 0 || context?.spreads?.[choice.key] !== undefined) return tree
+    return withUnitSpread(tree, choice.key, { [option.id]: option.max }, index)
+  }, selection)
   return {
-    selection,
-    size: { ...size, models: wanted },
-    choices: unitChoices(entryId, selection, index, context),
-    toggles: unitToggles(entryId, selection, index),
+    selection: completed,
+    size,
+    choices: unitChoices(entryId, completed, index, context),
+    toggles: unitToggles(entryId, completed, index),
   }
 }
 

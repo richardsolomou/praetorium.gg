@@ -472,6 +472,82 @@ describe('optional wargear on repeated models', () => {
   })
 })
 
+describe('optional unit composition defaults', () => {
+  const index = indexOf({
+    sharedSelectionEntries: [
+      {
+        id: 'unit',
+        name: 'Unit',
+        type: 'unit',
+        selectionEntryGroups: [
+          {
+            id: 'composition',
+            name: 'Unit Composition',
+            selectionEntryGroups: [
+              {
+                id: 'models',
+                name: 'Models',
+                selectionEntries: [
+                  {
+                    id: 'model',
+                    name: 'Model',
+                    type: 'model',
+                    constraints: [
+                      { id: 'model-min', type: 'min', value: 3, field: 'selections', scope: 'parent' },
+                      { id: 'model-max', type: 'max', value: 6, field: 'selections', scope: 'parent' },
+                    ],
+                  },
+                ],
+              },
+            ],
+            selectionEntries: [
+              {
+                id: 'token',
+                name: 'Token',
+                type: 'upgrade',
+                constraints: [{ id: 'token-max', type: 'max', value: 2, field: 'selections', scope: 'parent' }],
+                modifiers: [
+                  {
+                    type: 'decrement',
+                    value: 1,
+                    field: 'token-max',
+                    conditions: [
+                      {
+                        type: 'lessThan',
+                        value: 6,
+                        field: 'selections',
+                        scope: 'unit',
+                        childId: 'model',
+                        includeChildSelections: true,
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  })
+
+  it('includes the available ancillary and keeps it editable', () => {
+    const built = buildUnit('unit', index)!
+    expect(wargearOf(built.selection, index)).toContainEqual({ name: 'Token', count: 1 })
+    expect(built.choices.find((choice) => choice.name === 'Unit Composition')?.options[0]?.count).toBe(1)
+  })
+
+  it('follows the ancillary allowance when the unit grows', () => {
+    expect(wargearOf(buildUnit('unit', index, 6)!.selection, index)).toContainEqual({ name: 'Token', count: 2 })
+  })
+
+  it('preserves an explicit decline when the unit grows', () => {
+    const built = buildUnit('unit', index, 6, undefined, { spreads: { composition: { token: 0 } } })!
+    expect(wargearOf(built.selection, index)).not.toContainEqual({ name: 'Token', count: 2 })
+    expect(built.choices.find((choice) => choice.name === 'Unit Composition')?.options[0]?.count).toBe(0)
+  })
+})
+
 describe('laying counts over a selection', () => {
   const tree = { id: 'squad', count: 1, selections: [{ id: 'troopers', count: 1, selections: [{ id: 'trooper', count: 1 }] }] }
 

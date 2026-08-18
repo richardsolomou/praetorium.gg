@@ -279,7 +279,7 @@ function spread(
 
   const less = (option: LoadoutChoice['options'][number]) => {
     if (option.count <= 0) return null
-    if (taken < choice.room) return { [option.id]: option.count - 1 }
+    if (choice.optional || taken < choice.room) return { [option.id]: option.count - 1 }
     const receiving = choice.options
       .filter((candidate) => candidate.id !== option.id)
       .toSorted((left, right) => right.count - left.count)[0]
