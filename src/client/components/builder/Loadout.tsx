@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { Check, ChevronRight, Crown, Minus, Plus } from 'lucide-react'
+import { Check, Crown, Minus, Plus } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -232,15 +232,9 @@ function specialChoice(choice: LoadoutChoice, onChoose: Props['onChoose'], unitN
                 </span>
               </button>
               {option.description ? (
-                <details className="group border-t border-edge">
-                  <summary className="eyebrow flex cursor-pointer list-none items-center gap-1.5 px-2.5 py-1.5 text-faint marker:hidden">
-                    <ChevronRight className="size-3.5 transition-transform group-open:rotate-90" aria-hidden />
-                    Description
-                  </summary>
-                  <div className="px-2.5 pb-2">
-                    <RuleText text={option.description} rules={option.keywordRules} />
-                  </div>
-                </details>
+                <div className="border-t border-edge px-2.5 py-2">
+                  <RuleText text={option.description} rules={option.keywordRules} />
+                </div>
               ) : null}
             </article>
           )
