@@ -52,19 +52,27 @@ export type FactionPresentation = { slug: string; displayName: string; icon: str
 export function FactionMark({ id, icon, size = 'md' }: { id: string; icon: string | null; size?: 'sm' | 'md' | 'lg' }) {
   const colour = factionColour(id)
   const source = icon ?? FALLBACK_ICONS[id]
+  const mask = source ? `url(${JSON.stringify(source)})` : undefined
+  const style = {
+    backgroundColor: colour,
+    maskImage: mask,
+    WebkitMaskImage: mask,
+    maskPosition: 'center',
+    WebkitMaskPosition: 'center',
+    maskRepeat: 'no-repeat',
+    WebkitMaskRepeat: 'no-repeat',
+    maskSize: 'contain',
+    WebkitMaskSize: 'contain',
+    clipPath: source ? undefined : 'polygon(50% 0, 100% 50%, 50% 100%, 0 50%)',
+  } as CSSProperties
 
   return (
     <span
       aria-hidden
-      style={{ borderColor: colour, backgroundColor: `color-mix(in srgb, ${colour} 16%, transparent)` }}
-      className={`${size === 'lg' ? 'size-14 p-2' : size === 'sm' ? 'size-5 p-0.5' : 'size-9 p-1.5'} flex shrink-0 items-center justify-center rounded-full border`}
-    >
-      {source ? (
-        <img src={source} alt="" className="size-full object-contain invert" />
-      ) : (
-        <span className="size-2 rounded-full" style={{ backgroundColor: colour }} />
-      )}
-    </span>
+      data-faction-mark={id}
+      style={style}
+      className={`${size === 'lg' ? 'size-14' : size === 'sm' ? 'size-5' : 'size-9'} inline-block shrink-0`}
+    />
   )
 }
 
@@ -79,3 +87,4 @@ export function FactionLabel({ faction, chip = false }: { faction: FactionPresen
     </span>
   )
 }
+import type { CSSProperties } from 'react'
