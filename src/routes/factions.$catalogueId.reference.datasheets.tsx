@@ -5,6 +5,7 @@ import { useState } from 'react'
 import { Input } from '@/components/ui/input'
 import { factionFor } from '../client/factions'
 import { factionDatasheetsQuery, factionsQuery } from '../client/queries'
+import { FactionMark, factionColour } from '../client/components/FactionMark'
 
 export const Route = createFileRoute('/factions/$catalogueId/reference/datasheets')({
   loader: async ({ context, params }) => {
@@ -35,9 +36,12 @@ export function DatasheetsPage() {
       >
         <ChevronLeft className="size-3.5" /> {faction.references[0]?.name ?? faction.displayName}
       </Link>
-      <header className="mt-4 border-b border-edge pb-4">
-        <p className="eyebrow">Reference</p>
-        <h1 className="text-3xl">Datasheets</h1>
+      <header className="mt-4 flex items-center gap-3 border-b pb-4" style={{ borderBottomColor: factionColour(faction.slug) }}>
+        <FactionMark id={faction.slug} icon={faction.icon} />
+        <span>
+          <p className="eyebrow">{faction.displayName} · Reference</p>
+          <h1 className="text-3xl">Datasheets</h1>
+        </span>
       </header>
       <Input
         className="mt-5"

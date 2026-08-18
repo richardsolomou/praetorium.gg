@@ -42,7 +42,7 @@ export function DetachmentPage() {
         </BreadcrumbList>
       </Breadcrumb>
 
-      <DetachmentReference catalogueId={faction.id} slug={params.detachmentId ?? ''} />
+      <DetachmentReference catalogueId={faction.id} slug={params.detachmentId ?? ''} faction={faction} />
     </main>
   )
 }

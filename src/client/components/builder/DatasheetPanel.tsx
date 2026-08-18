@@ -90,11 +90,16 @@ function UnitProfile({ profile }: { profile: Profile }) {
     <div data-slot="unit-profile" className="grid gap-1" style={{ gridTemplateColumns: `repeat(${values.length}, minmax(0, 1fr))` }}>
       {values.map((value) => (
         <div key={value.name} className="text-center">
-          <p className="eyebrow">{value.name === 'Sv' && invulnerable ? 'Sv / Inv' : value.name}</p>
+          <p className="eyebrow">{value.name}</p>
           <p className="readout text-sm">
             <ProfileValue value={value} />
-            {value.name === 'Sv' && invulnerable ? ` / ${invulnerable}+` : null}
           </p>
+          {value.name === 'Sv' && invulnerable ? (
+            <span className="mt-1 block border-t border-edge pt-1">
+              <span className="eyebrow block">Inv</span>
+              <span className="readout block text-sm">{invulnerable}+</span>
+            </span>
+          ) : null}
         </div>
       ))}
     </div>

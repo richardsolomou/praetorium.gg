@@ -5,6 +5,7 @@ import { Keyword, KEYWORD_TAG_CLASS, KeywordList, type KeywordRule } from '../cl
 import { RuleText } from '../client/components/RuleText'
 import { factionFor } from '../client/factions'
 import { datasheetSlugQuery, factionsQuery } from '../client/queries'
+import { FactionMark, factionColour } from '../client/components/FactionMark'
 
 export const Route = createFileRoute('/factions/$catalogueId/$entryId')({
   beforeLoad: ({ params }) => {
@@ -54,16 +55,19 @@ export function DatasheetPage() {
           </BreadcrumbItem>
         </BreadcrumbList>
       </Breadcrumb>
-      <header className="border-b border-edge pb-4">
-        <p className="eyebrow">Datasheet</p>
-        <div className="flex items-center justify-between gap-4">
-          <h1 className="text-3xl">{sheet.name}</h1>
-          {sheet.points === null ? null : <span className="chip shrink-0">{sheet.points} pts</span>}
-        </div>
-        <div className="mt-2 flex flex-wrap gap-1">
-          {sheet.keywords.map((keyword) => (
-            <Keyword key={keyword} name={keyword} rules={sheet.keywordRules} className={KEYWORD_TAG_CLASS} />
-          ))}
+      <header className="flex items-start gap-3 border-b pb-4" style={{ borderBottomColor: factionColour(faction.slug) }}>
+        <FactionMark id={faction.slug} icon={faction.icon} />
+        <div className="min-w-0 flex-1">
+          <p className="eyebrow">{faction.displayName} · Datasheet</p>
+          <div className="flex items-center justify-between gap-4">
+            <h1 className="text-3xl">{sheet.name}</h1>
+            {sheet.points === null ? null : <span className="chip shrink-0">{sheet.points} pts</span>}
+          </div>
+          <div className="mt-2 flex flex-wrap gap-1">
+            {sheet.keywords.map((keyword) => (
+              <Keyword key={keyword} name={keyword} rules={sheet.keywordRules} className={KEYWORD_TAG_CLASS} />
+            ))}
+          </div>
         </div>
       </header>
 
