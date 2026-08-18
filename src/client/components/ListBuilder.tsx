@@ -221,7 +221,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
       })),
     ),
     placeholderData: (previous, previousQuery) => {
-      return sameUnitSequence(previousQuery?.queryKey.at(-1), picked) ? previous : undefined
+      return appendedUnitSequence(previousQuery?.queryKey.at(-1), picked) ? previous : undefined
     },
   })
 
@@ -917,8 +917,8 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
   )
 }
 
-function sameUnitSequence(previous: unknown, current: readonly RosterPick[]) {
-  if (!Array.isArray(previous) || previous.length > current.length) return false
+function appendedUnitSequence(previous: unknown, current: readonly RosterPick[]) {
+  if (!Array.isArray(previous) || previous.length >= current.length) return false
   return previous.every(
     (pick, index) =>
       typeof pick === 'object' &&
