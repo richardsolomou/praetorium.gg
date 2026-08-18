@@ -11,17 +11,19 @@ export function DetachmentReference({ catalogueId, slug }: { catalogueId: string
     <div className="space-y-6">
       <header className="border-b border-edge pb-4">
         <p className="eyebrow">Detachment</p>
-        <h1 className="text-3xl">{detachment.name}</h1>
-        {detachment.dispositions.length || detachment.points !== null ? (
-          <div className="mt-2 flex flex-wrap gap-1">
-            {detachment.dispositions.map((disposition) => (
-              <span key={disposition} className={`chip ${dispositionTone(disposition)}`}>
-                {disposition}
-              </span>
-            ))}
-            {detachment.points === null ? null : <span className="chip">{detachment.points} DP</span>}
-          </div>
-        ) : null}
+        <div className="flex items-start justify-between gap-4">
+          <h1 className="text-3xl">{detachment.name}</h1>
+          {detachment.dispositions.length || detachment.points !== null ? (
+            <div className="flex shrink-0 flex-wrap justify-end gap-1 pt-1">
+              {detachment.dispositions.map((disposition) => (
+                <span key={disposition} className={`chip ${dispositionTone(disposition)}`}>
+                  {disposition}
+                </span>
+              ))}
+              {detachment.points === null ? null : <span className="chip">{detachment.points} DP</span>}
+            </div>
+          ) : null}
+        </div>
       </header>
 
       {detachment.rules.length ? (

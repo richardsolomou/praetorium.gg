@@ -83,7 +83,7 @@ type RawMatchup = { disposition: string; opponent_disposition: string; mission_i
 
 type RawDisposition = { id: string; name: string; text?: string }
 
-type RawFaction = { id: string; name: string; aliases?: string[]; logo_url?: string }
+type RawFaction = { id: string; name: string; aliases?: string[]; faction_rule_id?: string; logo_url?: string }
 
 type RawDetachment = {
   id: string
@@ -268,6 +268,7 @@ export type LoadedRules = {
   /** Player-facing faction names, separate from BSData's technical catalogue labels. */
   factionNames: Map<string, string>
   factionIcons: Map<string, string>
+  factionRules: Map<string, { name: string; description: string }>
   /** Stratagems every army has, offered alongside whatever the detachment brings. */
   core: Stratagem[]
   secondaries: MissionCard[]
@@ -334,6 +335,7 @@ export function loadRules(
   const detachmentDetails = new Map<string, Map<string, DetachmentRulesDetail>>()
   const factionNames = new Map<string, string>()
   const factionIcons = new Map<string, string>()
+  const factionRules = new Map<string, { name: string; description: string }>()
   let dataslate: string | null = null
 
   for (const faction of fs.readdirSync(core, { withFileTypes: true })) {
@@ -348,6 +350,15 @@ export function loadRules(
           const source = fs.existsSync(icon) ? `data:image/svg+xml;base64,${fs.readFileSync(icon).toString('base64')}` : found.logo_url
           factionIcons.set(found.id, source)
           for (const alias of found.aliases ?? []) factionIcons.set(routeSlug(alias), source)
+        }
+        const description = found.faction_rule_id ? wahapedia?.abilities.get(found.faction_rule_id) : null
+        if (found.faction_rule_id && description) {
+          const name = titleCase(found.faction_rule_id.replaceAll('-', ' ')).replace(/\s(Of|The|And|For|From|In|To)\b/g, (word) =>
+            word.toLowerCase(),
+          )
+          const rule = { name, description }
+          factionRules.set(found.id, rule)
+          for (const alias of found.aliases ?? []) factionRules.set(routeSlug(alias), rule)
         }
       }
     }
@@ -538,6 +549,7 @@ export function loadRules(
     detachmentDetails,
     factionNames,
     factionIcons,
+    factionRules,
     core: coreStratagems,
     secondaries,
     primaries,

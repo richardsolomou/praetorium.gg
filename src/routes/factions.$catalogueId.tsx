@@ -5,6 +5,7 @@ import { factionFor } from '../client/factions'
 import { factionsQuery } from '../client/queries'
 import { FactionMark, factionColour } from '../client/components/FactionMark'
 import { dispositionTone } from '../client/components/rosterSetup'
+import { RuleText } from '../client/components/RuleText'
 
 export const Route = createFileRoute('/factions/$catalogueId')({
   loader: async ({ context, params }) => {
@@ -48,6 +49,15 @@ function FactionPage() {
           </span>
         </Link>
       </section>
+      {faction.armyRule ? (
+        <section className="mt-6">
+          <p className="rubric border-b border-edge pb-2">Army rule</p>
+          <article className="mt-2 border border-edge bg-panel p-4">
+            <h2 className="text-lg">{faction.armyRule.name}</h2>
+            <RuleText text={faction.armyRule.description} />
+          </article>
+        </section>
+      ) : null}
       <section className="mt-6">
         <p className="rubric flex items-baseline justify-between border-b border-edge pb-2">
           <span>Detachments</span>
@@ -61,7 +71,7 @@ function FactionPage() {
               params={{ catalogueId: faction.slug, detachmentId: detachment.slug }}
               className="flex items-center justify-between gap-4 px-3 py-2.5 hover:bg-raised"
             >
-              <span className="min-w-0">
+              <span className="min-w-0 flex-1">
                 <span className="block truncate text-sm font-bold uppercase">{detachment.name}</span>
                 {detachment.reference ? (
                   <>
@@ -69,19 +79,19 @@ function FactionPage() {
                       {detachment.reference.stratagems} stratagems · {detachment.reference.enhancements} enhancements
                       {detachment.reference.upgrades ? ` · ${detachment.reference.upgrades} unit upgrades` : ''}
                     </span>
-                    {detachment.reference.dispositions.length || detachment.reference.points !== null ? (
-                      <span className="mt-1.5 flex flex-wrap gap-1">
-                        {detachment.reference.dispositions.map((disposition) => (
-                          <span key={disposition} className={`chip ${dispositionTone(disposition)}`}>
-                            {disposition}
-                          </span>
-                        ))}
-                        {detachment.reference.points === null ? null : <span className="chip">{detachment.reference.points} DP</span>}
-                      </span>
-                    ) : null}
                   </>
                 ) : null}
               </span>
+              {detachment.reference && (detachment.reference.dispositions.length || detachment.reference.points !== null) ? (
+                <span className="flex shrink-0 flex-wrap justify-end gap-1">
+                  {detachment.reference?.dispositions.map((disposition) => (
+                    <span key={disposition} className={`chip ${dispositionTone(disposition)}`}>
+                      {disposition}
+                    </span>
+                  ))}
+                  {detachment.reference?.points == null ? null : <span className="chip">{detachment.reference.points} DP</span>}
+                </span>
+              ) : null}
               <ChevronRight className="size-4 shrink-0 text-dim" aria-hidden />
             </Link>
           ))}

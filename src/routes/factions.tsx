@@ -5,7 +5,7 @@ import { useState } from 'react'
 import { Input } from '@/components/ui/input'
 import { Toggle } from '@/components/ui/toggle'
 import { factionsQuery } from '../client/queries'
-import { favouritesFirst, useFavouriteFactions } from '../client/favouriteFactions'
+import { useFavouriteFactions } from '../client/favouriteFactions'
 import { FactionMark, factionColour } from '../client/components/FactionMark'
 
 export const Route = createFileRoute('/factions')({
@@ -46,13 +46,7 @@ function Factions() {
         [...groups.entries()]
           .toSorted(([left], [right]) => left.localeCompare(right))
           .map(([title, entries]) => (
-            <FactionShelf
-              key={title}
-              title={title}
-              entries={favouritesFirst(entries, favourites)}
-              favourites={favourites}
-              onFavourite={toggleFavourite}
-            />
+            <FactionShelf key={title} title={title} entries={entries} favourites={favourites} onFavourite={toggleFavourite} />
           ))
       ) : (
         <p className="mt-6 border border-edge bg-panel p-6 text-center text-sm text-dim">No factions match.</p>
