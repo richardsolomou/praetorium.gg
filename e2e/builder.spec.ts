@@ -99,6 +99,18 @@ test('unit upgrades stay separate from character enhancements', async ({ page })
   await expect(card.getByText('1x Deepening Madness', { exact: true })).toHaveCount(0)
   await card.screenshot({ path: 'test-results/deepening-madness-upgrade.png' })
 
+  await add(page, 'Lokhust Heavy Destroyers')
+  await page
+    .getByRole('button', { name: /^Lokhust Heavy Destroyers/ })
+    .first()
+    .click()
+  await page
+    .getByRole('group', { name: 'Lokhust Heavy Destroyers Unit upgrades' })
+    .getByRole('button', { name: 'Select Deepening Madness' })
+    .click()
+  await expect(page.getByText('Could not validate every catalogue rule')).toHaveCount(0)
+  await page.screenshot({ path: 'test-results/shared-deepening-madness.png', fullPage: true })
+
   await page.goto('/factions/necrons/reference/detachments/skyshroud-spearhead')
   const unitUpgrades = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Unit upgrades' }) })
   await expect(unitUpgrades).toContainText('Deepening Madness')

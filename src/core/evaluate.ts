@@ -559,6 +559,7 @@ function costsOf(node: Node, root: Node, index: CatalogueIndex, census: Census):
     else if (modifier.type === 'increment') base.set(modifier.field, current + value * times)
     else if (modifier.type === 'decrement') base.set(modifier.field, current - value * times)
     else if (modifier.type === 'multiply') base.set(modifier.field, current * value ** times)
+    else if (modifier.type === 'divide') base.set(modifier.field, value === 0 ? 0 : current / value ** times)
     else census.note(`cost modifier type ${modifier.type}`)
   }
 

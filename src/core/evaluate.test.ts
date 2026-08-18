@@ -3,13 +3,17 @@ import { buildIndex, type Catalogue, type CatalogueFile } from './catalogue'
 import { evaluate, evaluateForces, rosterLimit, type Selection } from './evaluate'
 
 const PTS = 'cost-pts'
+const ENHANCEMENTS = 'cost-enhancements'
 
 /** A game system carrying only what a points question needs, plus its kinds of force. */
 const system: CatalogueFile = {
   gameSystem: {
     id: 'gs',
     name: 'Test',
-    costTypes: [{ id: PTS, name: 'pts' }],
+    costTypes: [
+      { id: PTS, name: 'pts' },
+      { id: ENHANCEMENTS, name: 'Enhancements' },
+    ],
     forceEntries: [
       { id: 'army-roster', name: 'Army Roster' },
       { id: 'crusade-force', name: 'Crusade Force' },
@@ -71,6 +75,46 @@ describe('costs', () => {
       },
     )
     expect(result.points).toBe(120)
+  })
+
+  it('divides a shared allowance between matching selections', () => {
+    const upgrade = {
+      id: 'upgrade',
+      name: 'Upgrade',
+      type: 'upgrade' as const,
+      costs: [{ name: 'Enhancements', typeId: ENHANCEMENTS, value: 1 }],
+      modifiers: [
+        {
+          type: 'divide' as const,
+          field: ENHANCEMENTS,
+          value: 2,
+          conditions: [
+            {
+              type: 'equalTo' as const,
+              value: 2,
+              field: 'selections',
+              scope: 'roster',
+              childId: 'upgrade',
+              includeChildSelections: true,
+            },
+          ],
+        },
+      ],
+    }
+    const result = evaluate(
+      [
+        { id: 'unit-one', selections: [{ id: 'upgrade' }] },
+        { id: 'unit-two', selections: [{ id: 'upgrade' }] },
+      ],
+      indexOf({
+        sharedSelectionEntries: [
+          { id: 'unit-one', name: 'Unit one', type: 'unit', selectionEntries: [upgrade] },
+          { id: 'unit-two', name: 'Unit two', type: 'unit', selectionEntries: [upgrade] },
+        ],
+      }),
+    )
+
+    expect({ cost: result.costs.Enhancements, unhandled: result.unhandled }).toEqual({ cost: 1, unhandled: [] })
   })
 })
 
