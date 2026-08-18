@@ -5,23 +5,17 @@ import { Button } from '@/components/ui/button'
 import { Command, CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
 import type { GlobalSearchResult } from '../../server/functions'
 import { globalSearchQuery } from '../queries'
+import { matchingPages } from './globalSearchPages'
 import { isSearchShortcut } from './globalSearchShortcut'
 
-const pages: GlobalSearchResult[] = [
-  { id: 'page:battles', group: 'Your battles', label: 'Battles', detail: 'Your current and finished games', href: '/battles' },
-  { id: 'page:rosters', group: 'Your rosters', label: 'Rosters', detail: 'Build and manage army lists', href: '/rosters' },
-  { id: 'page:factions', group: 'Factions', label: 'Factions', detail: 'Datasheets and detachment references', href: '/factions' },
-  { id: 'page:missions', group: 'Missions', label: 'Mission packs', detail: 'Missions, scoring and deployments', href: '/mission-packs' },
-]
-
-const groups: GlobalSearchResult['group'][] = ['Factions', 'Datasheets', 'Detachments', 'Missions', 'Your rosters', 'Your battles']
+const groups: GlobalSearchResult['group'][] = ['Pages', 'Factions', 'Datasheets', 'Detachments', 'Missions', 'Your rosters', 'Your battles']
 
 export function GlobalSearch() {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const trimmed = query.trim()
   const { data = [], isFetching } = useQuery({ ...globalSearchQuery(trimmed), placeholderData: keepPreviousData })
-  const results = trimmed ? data : pages
+  const results = [...matchingPages(trimmed), ...data]
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -60,12 +54,11 @@ export function GlobalSearch() {
         }}
         title="Search Praetorium"
         description="Search pages, factions, datasheets, detachments, missions, rosters and battles."
-        className="top-[15vh] max-w-xl translate-y-0 rounded-none! border border-edge bg-panel"
+        className="top-1/2 max-w-xl -translate-y-1/2 rounded-none! border border-edge bg-panel"
       >
         <Command>
           <CommandInput value={query} onValueChange={setQuery} placeholder="Search everything…" />
           <CommandList className="max-h-[min(60vh,30rem)]">
-            {trimmed.length === 1 ? <p className="py-6 text-center text-sm text-dim">Type one more character.</p> : null}
             {trimmed.length >= 2 && isFetching ? <p className="py-6 text-center text-sm text-dim">Searching…</p> : null}
             {trimmed.length >= 2 && !isFetching ? <CommandEmpty>No results found.</CommandEmpty> : null}
             {groups.map((group) => {
@@ -78,7 +71,7 @@ export function GlobalSearch() {
                       key={result.id}
                       value={`${result.label} ${result.detail}`}
                       onSelect={() => go(result.href)}
-                      className="border-l-2 border-transparent data-[selected=true]:border-azure data-[selected=true]:bg-azure data-[selected=true]:text-azure-ink data-[selected=true]:[&_.result-detail]:text-azure-ink/70"
+                      className="border-l-2 border-transparent data-[selected=true]:border-azure data-[selected=true]:bg-azure/15 data-[selected=true]:text-bone data-[selected=true]:[&_.result-detail]:text-dim"
                     >
                       <ChevronRight className="size-4 opacity-0 group-data-[selected=true]/command-item:opacity-100" aria-hidden />
                       <span className="min-w-0 flex-1">

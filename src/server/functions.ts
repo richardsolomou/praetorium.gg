@@ -182,7 +182,7 @@ export const factionIndex = createServerFn({ method: 'GET' }).handler(() =>
 
 export type GlobalSearchResult = {
   id: string
-  group: 'Factions' | 'Datasheets' | 'Detachments' | 'Missions' | 'Your rosters' | 'Your battles'
+  group: 'Pages' | 'Factions' | 'Datasheets' | 'Detachments' | 'Missions' | 'Your rosters' | 'Your battles'
   label: string
   detail: string
   href: string
