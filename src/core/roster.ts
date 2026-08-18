@@ -612,7 +612,8 @@ export function unitChoices(
         const adjustableRoom = fixed
           ? adjustable.reduce((total, option) => total + (held.find((item) => item.id === option.id)?.count ?? 0), 0)
           : room
-        if (adjustable.length > 1 && adjustableRoom >= 1 && adjustableRoom !== UNBOUNDED) {
+        const optionalSingle = !fixed && adjustable.length === 1 && requiredCount(child.definition, index) === 0
+        if ((adjustable.length > 1 || optionalSingle) && adjustableRoom >= 1 && adjustableRoom !== UNBOUNDED) {
           const taken = held.find((present) => (present.count ?? 1) > 0 && adjustable.some((option) => option.id === present.id))
           choices.push({
             key: here.join('/'),
@@ -774,6 +775,22 @@ export function withSpread(selection: Selection, key: string, counts: Readonly<R
 /** Repeated specialist models need one model branch per nested option. */
 function withUnitSpread(selection: Selection, key: string, counts: Readonly<Record<string, number>>, index: CatalogueIndex): Selection {
   const path = key.split('/')
+  const groupId = path.at(-1)
+  const group = groupId ? index.definitions.get(groupId) : undefined
+  const occupants = group ? childrenOf(resolve(group, index), index) : []
+  if (occupants.some((option) => resolve(option.definition, index).type === 'model')) {
+    const optionIds = new Set(occupants.map((option) => option.id))
+    return updateSelection(selection, path, (held) => ({
+      ...held,
+      selections: [
+        ...(held.selections ?? []).filter((child) => !optionIds.has(child.id)),
+        ...occupants.flatMap((option) => {
+          const count = counts[option.id] ?? 0
+          return count > 0 ? [expand(option.id, option.definition, index, MAX_DEPTH, count, new Set(), 1)] : []
+        }),
+      ],
+    }))
+  }
   const repeating = repeatedCarrierOn(path, index)
   if (!repeating) return withSpread(selection, key, counts)
 

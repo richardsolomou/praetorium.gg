@@ -2,4 +2,4 @@
 'praetorium': patch
 ---
 
-Show descriptions for enhancements whose source name includes an aura suffix.
+Show available enhancement rules and preserve mandatory wargear when changing a unit's loadout.

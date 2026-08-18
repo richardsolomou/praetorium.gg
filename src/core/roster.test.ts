@@ -668,11 +668,12 @@ describe('options the data restricts by keyword', () => {
     ])
   })
 
-  it('withholds an option from a holder that lacks the keyword', () => {
+  it('offers the sole eligible option in an optional group', () => {
     const index = indexOf(catalogue())
     const built = buildUnit('grunt', index)!
-    // Only one option survives, so there is no longer a choice to offer.
-    expect(built.choices).toEqual([])
+    expect(built.choices.map((choice) => ({ name: choice.name, options: choice.options.map((option) => option.name) }))).toEqual([
+      { name: 'Enhancements', options: ['Banner'] },
+    ])
   })
 
   it('takes an option and can put it back', () => {
@@ -948,6 +949,75 @@ describe('a group a squad divides between options', () => {
     const built = buildUnit('squad', index, undefined, undefined, { spreads: { 'body/guns': { cheap: 1, dear: 1 } } })!
     expect(evaluate([built.selection], index).points).toBe(25)
   })
+})
+
+it('expands mandatory wargear when a squad spreads between model variants', () => {
+  const index = indexOf({
+    sharedSelectionEntries: [
+      {
+        id: 'squad',
+        name: 'Heavy squad',
+        type: 'unit',
+        selectionEntryGroups: [
+          {
+            id: 'models',
+            name: '1-3 models',
+            defaultSelectionEntryId: 'rifle-model',
+            constraints: [
+              { id: 'models-min', type: 'min', value: 1, field: 'selections', scope: 'parent' },
+              { id: 'models-max', type: 'max', value: 3, field: 'selections', scope: 'parent' },
+            ],
+            selectionEntries: [
+              {
+                id: 'rifle-model',
+                name: 'Model with rifle',
+                type: 'model',
+                selectionEntries: [
+                  {
+                    id: 'rifle',
+                    name: 'Rifle',
+                    type: 'upgrade',
+                    constraints: [{ id: 'rifle-min', type: 'min', value: 1, field: 'selections', scope: 'parent' }],
+                  },
+                  {
+                    id: 'blade',
+                    name: 'Close combat weapon',
+                    type: 'upgrade',
+                    constraints: [{ id: 'blade-min', type: 'min', value: 1, field: 'selections', scope: 'parent' }],
+                  },
+                ],
+              },
+              {
+                id: 'cannon-model',
+                name: 'Model with cannon',
+                type: 'model',
+                selectionEntries: [
+                  {
+                    id: 'cannon',
+                    name: 'Cannon',
+                    type: 'upgrade',
+                    constraints: [{ id: 'cannon-min', type: 'min', value: 1, field: 'selections', scope: 'parent' }],
+                  },
+                  {
+                    id: 'blade-2',
+                    name: 'Close combat weapon',
+                    type: 'upgrade',
+                    constraints: [{ id: 'blade-2-min', type: 'min', value: 1, field: 'selections', scope: 'parent' }],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  })
+
+  const built = buildUnit('squad', index, 1, undefined, { spreads: { models: { 'rifle-model': 0, 'cannon-model': 1 } } })!
+  expect(wargearOf(built.selection, index)).toEqual([
+    { name: 'Cannon', count: 1 },
+    { name: 'Close combat weapon', count: 1 },
+  ])
 })
 
 describe('per-model wargear when a squad changes size', () => {
