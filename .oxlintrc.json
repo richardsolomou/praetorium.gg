@@ -21,6 +21,22 @@
           }
         ]
       }
+    },
+    {
+      "files": ["src/core/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "regex": "^(node:|@tanstack/|react(?:/|$)|\\.\\./(?:adapters|client|db|routes|server)/)",
+                "message": "Core modules must remain free of IO and framework dependencies."
+              }
+            ]
+          }
+        ]
+      }
     }
   ],
   "ignorePatterns": ["src/routeTree.gen.ts", ".output/**", "node_modules/**", "src/components/ui/**"],
