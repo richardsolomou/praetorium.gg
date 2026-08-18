@@ -343,7 +343,7 @@ export function loadRules(
     const file = path.join(core, faction.name, 'stratagems.json')
     const factionFile = path.join(core, faction.name, 'factions.json')
     if (fs.existsSync(factionFile)) {
-      for (const found of readFactions(factionFile)) {
+      for (const found of readJson<RawFaction[]>(factionFile)) {
         factionNames.set(found.id, found.name)
         const icon = path.join(iconDirectory, `${found.id}.svg`)
         if (found.logo_url) {
@@ -365,9 +365,9 @@ export function loadRules(
     const referenceFile = path.join(core, faction.name, 'detachments.json')
     const enhancementFile = path.join(core, faction.name, 'enhancements.json')
     if (fs.existsSync(referenceFile)) {
-      const rawDetachments = readDetachments(referenceFile)
-      const enhancements = fs.existsSync(enhancementFile) ? readEnhancements(enhancementFile) : []
-      const rawStratagems = fs.existsSync(file) ? readStratagems(file) : []
+      const rawDetachments = readJson<RawDetachment[]>(referenceFile)
+      const enhancements = fs.existsSync(enhancementFile) ? readJson<RawEnhancement[]>(enhancementFile) : []
+      const rawStratagems = fs.existsSync(file) ? readJson<RawStratagem[]>(file) : []
       detachmentReferences.set(
         faction.name,
         new Map(
@@ -432,7 +432,7 @@ export function loadRules(
     if (!fs.existsSync(file)) continue
 
     const detachments = new Map<string, Stratagem[]>()
-    for (const raw of readStratagems(file)) {
+    for (const raw of readOptionalList<RawStratagem>(file)) {
       dataslate ??= raw.game_version?.dataslate ?? null
       if (!raw.detachment_id) continue
       const existing = detachments.get(raw.detachment_id) ?? []
@@ -442,8 +442,8 @@ export function loadRules(
     if (detachments.size) byDetachment.set(faction.name, detachments)
   }
 
-  const coreStratagems = readStratagems(path.join(core, 'stratagems.json')).map(toStratagem)
-  const cards = readCards(path.join(core, 'secondary-cards.json'))
+  const coreStratagems = readOptionalList<RawStratagem>(path.join(core, 'stratagems.json')).map(toStratagem)
+  const cards = readOptionalList<RawCard>(path.join(core, 'secondary-cards.json'))
   const secondaries = cards
     .filter((card) => card.card_type !== 'primary')
     .map(toCard)
@@ -454,8 +454,8 @@ export function loadRules(
     .toSorted(byName)
 
   const missions = new Map<string, Mission>()
-  const byId = new Map(readMissions(path.join(core, 'missions.json')).map((mission) => [mission.id, mission]))
-  for (const matchup of readMatchups(path.join(core, 'mission-matchups.json'))) {
+  const byId = new Map(readOptionalList<RawMission>(path.join(core, 'missions.json')).map((mission) => [mission.id, mission]))
+  for (const matchup of readOptionalList<RawMatchup>(path.join(core, 'mission-matchups.json'))) {
     const mission = byId.get(matchup.mission_id)
     if (!mission) continue
     const resolved = {
@@ -472,13 +472,13 @@ export function loadRules(
     if (resolved.packId) missions.set(`${resolved.packId}|${pair}`, resolved)
   }
 
-  const dispositionDetails = readDispositions(path.join(core, 'force-dispositions.json')).map((entry) => ({
+  const dispositionDetails = readOptionalList<RawDisposition>(path.join(core, 'force-dispositions.json')).map((entry) => ({
     id: entry.id,
     name: entry.name,
     text: entry.text ?? null,
   }))
   const dispositions = new Map(dispositionDetails.map((entry) => [entry.id, entry.name]))
-  const deployments = readPatterns(path.join(core, 'deployment-patterns.json'))
+  const deployments = readOptionalList<RawPattern>(path.join(core, 'deployment-patterns.json'))
     .map((pattern) => ({
       id: pattern.id,
       name: pattern.name,
@@ -500,7 +500,7 @@ export function loadRules(
     }))
     .filter((pattern) => pattern.zones.length)
     .toSorted((left, right) => left.name.localeCompare(right.name))
-  const terrainLayouts = readTerrainLayouts(path.join(core, 'terrain-layouts.json'))
+  const terrainLayouts = readOptionalList<RawTerrainLayout>(path.join(core, 'terrain-layouts.json'))
     .filter((layout) => layout.mission_matchup_id)
     .map((layout) => ({
       id: layout.id,
@@ -523,7 +523,7 @@ export function loadRules(
           parentAreaId: piece.parent_area_id ?? null,
         })),
     }))
-  const terrainTemplates = readTerrainTemplates(path.join(core, 'terrain-templates.json')).map((template) => ({
+  const terrainTemplates = readOptionalList<RawTerrainTemplate>(path.join(core, 'terrain-templates.json')).map((template) => ({
     id: template.id,
     name: template.name,
     kind: template.kind,
@@ -583,40 +583,12 @@ export function missionFor(
   return rules.missions.get(`${one}|${two}`) ?? rules.missions.get(`${two}|${one}`) ?? null
 }
 
-function readStratagems(file: string): RawStratagem[] {
-  if (!fs.existsSync(file)) return []
-  const parsed: RawStratagem[] = JSON.parse(fs.readFileSync(file, 'utf8'))
-  return parsed
+function readJson<T>(file: string): T {
+  return JSON.parse(fs.readFileSync(file, 'utf8'))
 }
 
-function readMissions(file: string): RawMission[] {
-  if (!fs.existsSync(file)) return []
-  const parsed: RawMission[] = JSON.parse(fs.readFileSync(file, 'utf8'))
-  return parsed
-}
-
-function readMatchups(file: string): RawMatchup[] {
-  if (!fs.existsSync(file)) return []
-  const parsed: RawMatchup[] = JSON.parse(fs.readFileSync(file, 'utf8'))
-  return parsed
-}
-
-function readPatterns(file: string): RawPattern[] {
-  if (!fs.existsSync(file)) return []
-  const parsed: RawPattern[] = JSON.parse(fs.readFileSync(file, 'utf8'))
-  return parsed
-}
-
-function readTerrainLayouts(file: string): RawTerrainLayout[] {
-  if (!fs.existsSync(file)) return []
-  const parsed: RawTerrainLayout[] = JSON.parse(fs.readFileSync(file, 'utf8'))
-  return parsed
-}
-
-function readTerrainTemplates(file: string): RawTerrainTemplate[] {
-  if (!fs.existsSync(file)) return []
-  const parsed: RawTerrainTemplate[] = JSON.parse(fs.readFileSync(file, 'utf8'))
-  return parsed
+function readOptionalList<T>(file: string): T[] {
+  return fs.existsSync(file) ? readJson<T[]>(file) : []
 }
 
 function battlemasterGeometry(directory: string, description: string | undefined): TerrainGeometry | null {
@@ -743,33 +715,6 @@ function pointsOf(shape: { points?: Point[]; width?: number; height?: number } |
     ]
   }
   return []
-}
-
-function readDispositions(file: string): RawDisposition[] {
-  if (!fs.existsSync(file)) return []
-  const parsed: RawDisposition[] = JSON.parse(fs.readFileSync(file, 'utf8'))
-  return parsed
-}
-
-function readDetachments(file: string): RawDetachment[] {
-  const parsed: RawDetachment[] = JSON.parse(fs.readFileSync(file, 'utf8'))
-  return parsed
-}
-
-function readEnhancements(file: string): RawEnhancement[] {
-  const parsed: RawEnhancement[] = JSON.parse(fs.readFileSync(file, 'utf8'))
-  return parsed
-}
-
-function readFactions(file: string): RawFaction[] {
-  const parsed: RawFaction[] = JSON.parse(fs.readFileSync(file, 'utf8'))
-  return parsed
-}
-
-function readCards(file: string): RawCard[] {
-  if (!fs.existsSync(file)) return []
-  const parsed: RawCard[] = JSON.parse(fs.readFileSync(file, 'utf8'))
-  return parsed
 }
 
 const byName = (left: { name: string }, right: { name: string }) => left.name.localeCompare(right.name)
