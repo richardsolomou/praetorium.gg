@@ -237,7 +237,7 @@ function specialChoice(choice: LoadoutChoice, onChoose: Props['onChoose'], unitN
                   </span>
                 </div>
                 {option.description ? (
-                  <div className="border-t border-edge px-2.5 py-2">
+                  <div className="border-t border-edge px-2.5 pb-2">
                     <RuleText text={option.description} rules={option.keywordRules} />
                   </div>
                 ) : null}

@@ -15,7 +15,7 @@ Praetorium uses a compact, dark visual system. See [the product design guide](..
 
 - `src/components/ui` contains generated shadcn Base UI components. Add or replace them with the shadcn CLI. Do not edit them by hand.
 - `src/styles.css` maps root tokens to Tailwind color utilities through `@theme inline`. Generated components depend on that mapping.
-- Barlow Semi Condensed handles the compact display hierarchy; Source Sans 3 handles paragraph-length rules text. Both OFL-licensed faces are imported through Fontsource in the root route so the initial document can preload every used weight. Do not add a font without its license or hide it behind client-side loading.
+- Barlow Semi Condensed handles the compact display hierarchy; regular Barlow handles paragraph-length rules text. Both OFL-licensed faces are registered in the main stylesheet and preloaded by the root route. Do not add a font without its license or hide it behind client-side loading.
 
 ## Verification
 

@@ -1,11 +1,17 @@
 @import 'tailwindcss' source('./');
+@import '@fontsource/barlow-semi-condensed/latin-400.css';
+@import '@fontsource/barlow-semi-condensed/latin-500.css';
+@import '@fontsource/barlow-semi-condensed/latin-600.css';
+@import '@fontsource/barlow-semi-condensed/latin-700.css';
+@import '@fontsource/barlow/latin-400.css';
+@import '@fontsource/barlow/latin-600.css';
 
 /*
  * BattleBase's typeface is ITC Conduit, which is Monotype's to license and cannot
  * ship here. Barlow Semi Condensed is the closest open face: same squared
  * grotesque with a tall x-height, and it takes uppercase tracking the same way.
- * Source Sans 3 keeps paragraph-length rules legible without changing that
- * compact display hierarchy.
+ * Regular Barlow gives paragraph-length rules more room without changing the
+ * family or the compact display hierarchy.
  */
 /*
  * One palette, two vocabularies: the named colours the app writes by hand, and
@@ -21,7 +27,7 @@
  */
 @theme {
   --font-sans: 'Barlow Semi Condensed', ui-sans-serif, system-ui, -apple-system, sans-serif;
-  --font-rules: 'Source Sans 3', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-rules: 'Barlow', ui-sans-serif, system-ui, -apple-system, sans-serif;
   --font-mono: ui-monospace, 'SF Mono', Menlo, monospace;
 
   --color-void: #0a0b0d;
