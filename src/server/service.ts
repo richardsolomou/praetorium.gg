@@ -51,8 +51,11 @@ export class PraetoriumService {
       const state = reduceBattle(
         seats.players.map((player) => player.id),
         log,
+        seats.players.map((player) => player.side),
       )
-      const dispositions = state.players.map((player) => player.roster?.built?.disposition ?? null)
+      const dispositions = [...new Set(state.players.map((player) => player.side))].map(
+        (side) => state.players.find((player) => player.side === side)?.roster?.built?.disposition ?? null,
+      )
       return {
         token: seats.battle.token,
         createdAt: seats.battle.createdAt,
@@ -170,21 +173,21 @@ export class PraetoriumService {
 
   createBattle(
     playerId: string,
-    input?: string | { opponentId?: string; solo: boolean; limit?: number; missionPackId: string | null; clockLimitMinutes: number | null },
+    input?: string | { opponentId?: string; opponentIds?: string[]; solo: boolean; limit?: number; missionPackId: string | null },
   ) {
     const settings = typeof input === 'object' && input.limit !== undefined ? { ...input, limit: input.limit } : null
-    const opponentId = typeof input === 'string' ? input : input?.opponentId
-    if (opponentId && (opponentId === playerId || !this.repository.playerById(opponentId))) {
+    const opponentIds = typeof input === 'string' ? [input] : (input?.opponentIds ?? (input?.opponentId ? [input.opponentId] : []))
+    if (new Set(opponentIds).size !== opponentIds.length || opponentIds.some((id) => id === playerId || !this.repository.playerById(id))) {
       throw new Response('choose an opponent', { status: 400 })
     }
-    if (settings && !settings.solo && !opponentId) throw new Response('choose an opponent or a practice battle', { status: 400 })
+    if (settings && !settings.solo && !opponentIds.length) throw new Response('choose an opponent or a practice battle', { status: 400 })
     const token = randomToken()
     const id = randomId()
     this.repository.createBattle({
       id,
       token,
       playerId,
-      opponentId,
+      opponentIds,
       initialCommand: settings
         ? {
             kind: 'configure-battle',
@@ -193,7 +196,8 @@ export class PraetoriumService {
             terrainLayoutId: null,
             twistId: null,
             solo: settings.solo,
-            clockLimitMinutes: settings.clockLimitMinutes,
+            teamBattle: opponentIds.length === 2,
+            clockLimitMinutes: null,
           }
         : undefined,
       now: this.clock(),
@@ -213,6 +217,7 @@ export class PraetoriumService {
     const state = reduceBattle(
       seats.players.map((player) => player.id),
       this.repository.log(seats.battle.id),
+      seats.players.map((player) => player.side),
     )
     if (state.settings.solo) return 'full'
     const result = this.repository.join({ battleId: seats.battle.id, playerId, now: this.clock() })
@@ -230,8 +235,10 @@ export class PraetoriumService {
       const state = reduceBattle(
         seats.players.map((player) => player.id),
         this.repository.log(seats.battle.id),
+        seats.players.map((player) => player.side),
       )
-      return { kind: 'invitation', free: !state.settings.solo && seats.players.length < PLAYERS_PER_BATTLE }
+      const capacity = state.settings.teamBattle ? 3 : PLAYERS_PER_BATTLE
+      return { kind: 'invitation', free: !state.settings.solo && seats.players.length < capacity }
     }
     return this.seatedScreen(seats, playerId, rules)
   }
@@ -244,6 +251,7 @@ export class PraetoriumService {
       this.repository.log(seats.battle.id),
       seats.players.map((player) => player.id),
       playerId,
+      seats.players.map((player) => player.side),
     )
   }
 
@@ -275,11 +283,14 @@ export class PraetoriumService {
     const state = reduceBattle(
       seats.players.map((player) => player.id),
       this.repository.log(seats.battle.id),
+      seats.players.map((player) => player.side),
     )
     const view = battleView(seats.battle, seats.players, state, playerId, this.clock())
     // Eleventh edition takes the mission from the two armies' dispositions rather
     // than from either player, so it is derived and never stored.
-    const [one, two] = view.players.map((player) => player.roster?.built?.disposition ?? null)
+    const [one, two] = [...new Set(view.players.map((player) => player.side))].map(
+      (side) => view.players.find((player) => player.side === side)?.roster?.built?.disposition ?? null,
+    )
     // A solo army has no opponent to pair with, so it plays its own disposition and still gets a mission.
     const facing = state.settings.solo ? (one ?? null) : (two ?? null)
     return { kind: 'battle', view, mission: rules ? missionFor(rules, one ?? null, facing, state.settings.missionPackId) : null }

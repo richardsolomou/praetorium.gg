@@ -20,7 +20,7 @@ export function Invitation({ token, free }: { token: string; free: boolean }) {
         title={free ? 'You have been invited to a battle' : 'Sign in to open this battle'}
         explanation={
           free
-            ? 'Sign in to take the second seat. Your name on the scoreboard is the one on your account.'
+            ? 'Sign in to take an open seat. Your name on the scoreboard is the one on your account.'
             : 'If you are one of the seated players, signing in will open the battle.'
         }
         next={`/b/${token}`}
@@ -32,7 +32,7 @@ export function Invitation({ token, free }: { token: string; free: boolean }) {
     return (
       <main className="mx-auto w-full max-w-md px-4 py-12 text-center">
         <h1 className="text-2xl">This battle is full</h1>
-        <p className="mt-2 text-sm text-dim">Two players are already in it.</p>
+        <p className="mt-2 text-sm text-dim">Every seat is already taken.</p>
       </main>
     )
   }
@@ -40,7 +40,7 @@ export function Invitation({ token, free }: { token: string; free: boolean }) {
   return (
     <main className="mx-auto w-full max-w-md px-4 py-12">
       <h1 className="text-2xl">You have been invited to a battle</h1>
-      <p className="mt-3 text-sm text-dim">Take the second seat as {me.name}.</p>
+      <p className="mt-3 text-sm text-dim">Take an open seat as {me.name}.</p>
       <Button onClick={() => join.mutate()} disabled={join.isPending} className="mt-8 h-11 w-full text-base">
         Join the battle
       </Button>

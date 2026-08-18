@@ -68,7 +68,9 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
   const { data: rules } = useQuery(detachmentRulesQuery(built?.catalogueId ?? '', detachmentNames))
   const { data: deployments } = useQuery(deploymentsQuery())
   const { data: references } = useQuery(gameReferencesQuery())
-  const dispositions = view.players.map((player) => player.roster?.built?.disposition).filter((value): value is string => Boolean(value))
+  const dispositions = [...new Set(view.players.map((player) => player.side))]
+    .map((side) => view.players.find((player) => player.side === side)?.roster?.built?.disposition)
+    .filter((value): value is string => Boolean(value))
   const { data: terrainReferences } = useQuery(terrainReferencesQuery(terrainMatchupIds(dispositions, view.settings.solo)))
   const deployment = deployments?.find((entry) => entry.id === view.deploymentId)
   const missionPack = references?.packs.find((entry) => entry.id === view.settings.missionPackId)
@@ -91,7 +93,7 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
   /** Why this payout is not available right now, or null when it is. */
   const blocked = (award: Award): string | null => {
     const trigger = award.trigger
-    if (trigger.playerTurn === 'your-turn' && view.activePlayerId !== view.viewerId) return 'on your own turn'
+    if (trigger.playerTurn === 'your-turn' && !you?.isActive) return 'on your own turn'
     if (trigger.phase && trigger.phase !== view.phase) return `in the ${trigger.phase} phase`
     if (trigger.roundMin !== null && view.round < trigger.roundMin) return `from round ${trigger.roundMin}`
     if (trigger.roundMax !== null && view.round > trigger.roundMax) return `up to round ${trigger.roundMax}`
@@ -101,12 +103,12 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
   // separates them from the ones a detachment brought — on either player's panel.
   const coreKeys = new Set((rules?.core ?? []).map((stratagem) => stratagem.key))
   // Seats are ordered by side, so both devices agree on which player is which colour.
-  const reportPlayers: ReportPlayer[] = view.players.map((player, index) => ({
+  const reportPlayers: ReportPlayer[] = view.players.map((player) => ({
     id: player.id,
     name: player.name,
-    className: SIDES[index]?.value ?? '',
+    className: SIDES[player.side]?.value ?? '',
   }))
-  const yourTurn = view.activePlayerId === view.viewerId
+  const yourTurn = Boolean(you?.isActive)
   const active = view.players.find((player) => player.isActive)
   const finished = view.status === 'finished'
 
@@ -139,13 +141,13 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
           <section
             key={player.id}
             data-panel="player"
-            className={`${mobileTab === 'events' ? 'hidden lg:block' : ''} space-y-3 rounded-lg border border-edge border-l-2 bg-panel p-4 lg:row-start-1 ${index === 0 ? 'lg:col-start-1' : 'lg:col-start-3'} ${SIDES[index]?.accent ?? ''} ${
+            className={`${mobileTab === 'events' ? 'hidden lg:block' : ''} space-y-3 rounded-lg border border-edge border-l-2 bg-panel p-4 ${index < 2 ? 'lg:row-start-1' : 'lg:row-start-2'} ${player.side === 0 ? 'lg:col-start-1' : 'lg:col-start-3'} ${SIDES[player.side]?.accent ?? ''} ${
               player.isActive ? 'ring-2 ring-azure/50' : ''
             }`}
           >
             <div className="flex items-center justify-between gap-2">
               <div className="min-w-0">
-                <p className={`truncate text-xl leading-tight font-bold uppercase ${SIDES[index]?.value ?? ''}`}>
+                <p className={`truncate text-xl leading-tight font-bold uppercase ${SIDES[player.side]?.value ?? ''}`}>
                   {player.name}
                   {player.isViewer ? <span className="ml-1.5 text-xs font-normal normal-case text-dim">you</span> : null}
                 </p>
@@ -531,7 +533,7 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
               <EndBattleDialog
                 pending={pending}
                 label="Concede battle"
-                description="This records that you conceded and ends the battle for both players."
+                description="This records that you conceded and ends the battle for every player."
                 onConfirm={() => send({ kind: 'end-battle', reason: 'conceded', concededBy: view.viewerId })}
               />
             </div>
@@ -642,6 +644,7 @@ function DeleteBattleDialog({ pending, onConfirm }: { pending: boolean; onConfir
 }
 
 function MobileScoreboard({ view }: { view: BattleView }) {
+  const sides = [0, 1].map((side) => view.players.filter((player) => player.side === side)).filter((players) => players.length)
   return (
     <aside
       className="fixed inset-x-0 bottom-0 z-40 border-t border-edge bg-panel/98 px-3 py-2 backdrop-blur lg:hidden"
@@ -649,15 +652,20 @@ function MobileScoreboard({ view }: { view: BattleView }) {
     >
       <div className="mx-auto grid max-w-xl grid-cols-[1fr_auto_1fr] items-center gap-3">
         {/* min-w-0 on each cell, or a long list name widens the track instead of truncating. */}
-        {view.players.map((player, index) => (
-          <div key={player.id} className={`min-w-0 ${index ? 'order-3 text-right' : 'order-1'}`}>
-            <p className={`truncate text-xs font-bold uppercase ${SIDES[index]?.value}`}>{player.name}</p>
-            <p className="truncate text-[0.625rem] text-dim">{player.roster?.name ?? 'List not attached'}</p>
-            <p className="readout text-xl">
-              {player.total} <span className="text-xs text-dim">VP · {player.cp} CP</span>
+        {sides.map((players, index) => (
+          <div key={players[0].side} className={`min-w-0 ${index ? 'order-3 text-right' : 'order-1'}`}>
+            <p className={`truncate text-xs font-bold uppercase ${SIDES[index]?.value}`}>
+              {players.map((player) => player.name).join(' & ')}
             </p>
-            <div className="mt-1 flex gap-0.5" aria-label={`${player.name} rounds`}>
-              {player.rounds.map((round) => (
+            <p className="truncate text-[0.625rem] text-dim">
+              {players.map((player) => player.roster?.name ?? 'List not attached').join(' & ')}
+            </p>
+            <p className="readout text-xl">
+              {players[0].primary + players[0].secondary + players.reduce((total, player) => total + player.paintedPoints, 0)}{' '}
+              <span className="text-xs text-dim">VP · {players[0].cp} CP</span>
+            </p>
+            <div className="mt-1 flex gap-0.5" aria-label={`${players.map((player) => player.name).join(' and ')} rounds`}>
+              {players[0].rounds.map((round) => (
                 <span
                   key={round.round}
                   className={`h-1 flex-1 ${round.round <= view.round ? (index ? 'bg-side-b' : 'bg-side-a') : 'bg-edge-strong'}`}
@@ -824,14 +832,23 @@ function rosterLine(roster: BattleView['players'][number]['roster']) {
 }
 
 function outcome(view: BattleView) {
+  const sides = [0, 1].map((side) => ({
+    players: view.players.filter((player) => player.side === side),
+    total: view.players.find((player) => player.side === side)?.primary ?? 0,
+  }))
+  for (const side of sides)
+    side.total += (side.players[0]?.secondary ?? 0) + side.players.reduce((total, player) => total + player.paintedPoints, 0)
   if (view.result?.reason === 'conceded') {
-    const winner = view.players.find((player) => player.id !== view.result?.concededBy)
-    return winner ? `${winner.name} wins by concession` : 'Battle conceded'
+    const concededSide = view.players.find((player) => player.id === view.result?.concededBy)?.side
+    const winner = sides.find((side) => side.players[0]?.side !== concededSide)
+    return winner ? `${winner.players.map((player) => player.name).join(' & ')} win by concession` : 'Battle conceded'
   }
-  const [first, second] = view.players.toSorted((left, right) => right.total - left.total)
+  const [first, second] = sides.toSorted((left, right) => right.total - left.total)
   if (!first) return 'No result'
   if (!second) return `Final score ${first.total}`
-  return first.total === second.total ? `Drawn at ${first.total}` : `${first.name} wins ${first.total}–${second.total}`
+  return first.total === second.total
+    ? `Drawn at ${first.total}`
+    : `${first.players.map((player) => player.name).join(' & ')} win ${first.total}–${second.total}`
 }
 
 function resultLabel(view: BattleView) {

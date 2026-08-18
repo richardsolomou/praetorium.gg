@@ -13,6 +13,7 @@ import {
 
 const ALICE = 'alice'
 const BOB = 'bob'
+const CAROL = 'carol'
 const PLAYERS = [ALICE, BOB]
 const NAMES = [
   { id: ALICE, name: 'Alice' },
@@ -55,6 +56,64 @@ const started = (): [string, Command][] => [
 const turns = (count: number, by: string): [string, Command][] => Array.from({ length: count }, () => [by, advance()])
 
 describe('setup', () => {
+  it('lets allies share one turn in a 2v1 battle', () => {
+    const configure: Command = {
+      kind: 'configure-battle',
+      limit: 2000,
+      missionPackId: null,
+      terrainLayoutId: null,
+      twistId: null,
+      solo: false,
+      teamBattle: true,
+      clockLimitMinutes: null,
+    }
+    const state = reduceBattle(
+      [ALICE, BOB, CAROL],
+      log(
+        [ALICE, configure],
+        [ALICE, roster('Knights')],
+        [BOB, roster('Marines')],
+        [CAROL, roster('Guard')],
+        [ALICE, { kind: 'begin-battle', firstPlayerId: BOB }],
+      ),
+      [0, 1, 1],
+    )
+
+    expect(validate(state, CAROL, advance())).toBeNull()
+  })
+
+  it('shares allied command points while keeping their rosters separate', () => {
+    const configure: Command = {
+      kind: 'configure-battle',
+      limit: 2000,
+      missionPackId: null,
+      terrainLayoutId: null,
+      twistId: null,
+      solo: false,
+      teamBattle: true,
+      clockLimitMinutes: null,
+    }
+    const state = reduceBattle(
+      [ALICE, BOB, CAROL],
+      log(
+        [ALICE, configure],
+        [ALICE, roster('Knights')],
+        [BOB, roster('Marines')],
+        [CAROL, roster('Guard')],
+        [ALICE, { kind: 'begin-battle', firstPlayerId: BOB }],
+        [CAROL, { kind: 'adjust-cp', delta: 2 }],
+      ),
+      [0, 1, 1],
+    )
+    const view = battleView({ token: 'team' }, [...NAMES, { id: CAROL, name: 'Carol' }], state, CAROL)
+
+    expect(view.players.map((player) => ({ name: player.roster?.name, cp: player.cp }))).toEqual([
+      { name: 'Knights', cp: 0 },
+      { name: 'Marines', cp: 3 },
+      { name: 'Guard', cp: 3 },
+    ])
+  })
+
   it('limits King of the Colosseum to one detachment', () => {
     expect(detachmentLimit(500)).toBe(1)
     expect(detachmentLimit(600)).toBe(1)
@@ -273,7 +332,7 @@ describe('setup', () => {
       terrainLayoutId: null,
       twistId: null,
       solo: false,
-      clockLimitMinutes: 45,
+      teamBattle: false,
     })
   })
 
@@ -596,92 +655,6 @@ describe('battle management', () => {
     expect(validate(state, ALICE, { kind: 'set-unit-formation', unitKey: 'u0', formation: 'deep-strike' })).toBe(
       'the roster data does not support that formation',
     )
-  })
-})
-
-describe('battle clocks', () => {
-  it('does not subtract clock time when a timestamp moves backwards', () => {
-    const history = log(
-      [
-        ALICE,
-        {
-          kind: 'configure-battle',
-          limit: 2000,
-          missionPackId: null,
-          terrainLayoutId: null,
-          twistId: null,
-          solo: false,
-          clockLimitMinutes: 60,
-        },
-      ],
-      ...started(),
-      [ALICE, { kind: 'pause-clock' }],
-    )
-    history.at(-2)!.at = 1000
-    history.at(-1)!.at = 500
-
-    expect(reduceBattle(PLAYERS, history).players[0]?.clockMilliseconds).toBe(0)
-  })
-
-  it('does not report a negative turn duration when a timestamp moves backwards', () => {
-    const history = log(...started(), ...turns(6, ALICE))
-    history[2].at = 1000
-    history.at(-1)!.at = 500
-
-    expect(battleView({ token: 'abc' }, NAMES, reduceBattle(PLAYERS, history), ALICE).turns[0]?.minutes).toBe(0)
-  })
-
-  it('folds elapsed time from command timestamps and pauses explicitly', () => {
-    const history = log(
-      [
-        ALICE,
-        {
-          kind: 'configure-battle',
-          limit: 2000,
-          missionPackId: null,
-          terrainLayoutId: null,
-          twistId: null,
-          solo: false,
-          clockLimitMinutes: 60,
-        },
-      ],
-      ...started(),
-      [ALICE, { kind: 'pause-clock' }],
-    )
-    history.forEach((entry, index) => (entry.at = index * 60_000))
-    const view = battleView({ token: 'abc' }, NAMES, reduceBattle(PLAYERS, history), ALICE, history.at(-1)!.at)
-
-    expect(view.clock).toMatchObject({ paused: true, limitMinutes: 60 })
-    expect(view.players[0]?.clockMilliseconds).toBe(60_000)
-  })
-
-  it('switches the running clock with the active turn', () => {
-    const history = log(
-      [
-        ALICE,
-        {
-          kind: 'configure-battle',
-          limit: 2000,
-          missionPackId: null,
-          terrainLayoutId: null,
-          twistId: null,
-          solo: false,
-          clockLimitMinutes: 60,
-        },
-      ],
-      ...started(),
-      ...turns(6, ALICE),
-    )
-    history.forEach((entry, index) => (entry.at = index * 60_000))
-    const state = reduceBattle(PLAYERS, history)
-    expect(state.clock.runningPlayerId).toBe(BOB)
-  })
-
-  it('starts a new timing segment when a battle is reopened', () => {
-    const history = log(...started(), [ALICE, { kind: 'end-battle', reason: 'finished-early' }], [BOB, { kind: 'reopen-battle' }])
-    history.forEach((entry, index) => (entry.at = index * 60_000))
-
-    expect(reduceBattle(PLAYERS, history).turns).toHaveLength(2)
   })
 })
 

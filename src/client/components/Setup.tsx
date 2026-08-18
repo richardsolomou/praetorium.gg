@@ -20,9 +20,11 @@ type Props = {
 
 export function Setup({ view, mission, send, pending, problem }: Props) {
   const you = view.players.find((player) => player.isViewer)!
-  const opponent = view.players.find((player) => !player.isViewer)
+  const opponents = view.players.filter((player) => player.side !== you.side)
   const { data: saved = [] } = useQuery(savedRostersQuery())
-  const eligible = view.settings.limit === null ? saved : saved.filter((roster) => roster.limit === view.settings.limit)
+  const teammates = view.players.filter((player) => player.side === you.side).length
+  const rosterLimit = view.settings.limit === null ? null : view.settings.limit / teammates
+  const eligible = rosterLimit === null ? saved : saved.filter((roster) => roster.limit === rosterLimit)
   const { data: references } = useQuery(gameReferencesQuery())
   const [choosingRoster, setChoosingRoster] = useState(!you.roster)
   const [step, setStep] = useState(0)
@@ -47,7 +49,8 @@ export function Setup({ view, mission, send, pending, problem }: Props) {
       terrainLayoutId: view.settings.terrainLayoutId,
       twistId: view.settings.twistId,
       solo: view.settings.solo,
-      clockLimitMinutes: view.settings.clockLimitMinutes,
+      teamBattle: view.settings.teamBattle,
+      clockLimitMinutes: null,
       ...settings,
     })
   const remove = useMutation({
@@ -76,7 +79,9 @@ export function Setup({ view, mission, send, pending, problem }: Props) {
       <header className="border-b border-edge pb-4">
         <p className="eyebrow">Battle setup</p>
         <h1 className="mt-1 text-2xl">
-          {view.settings.solo ? `${you.name} practice battle` : `${you.name} versus ${opponent?.name ?? 'open seat'}`}
+          {view.settings.solo
+            ? `${you.name} practice battle`
+            : `${you.name} versus ${opponents.map((player) => player.name).join(' & ') || 'open seat'}`}
         </h1>
         <p className="mt-2 text-sm text-dim">One step at a time. Every choice is saved as soon as you make it.</p>
       </header>
@@ -191,11 +196,11 @@ export function Setup({ view, mission, send, pending, problem }: Props) {
             </section>
           )}
 
-          {opponent ? (
-            <p className="text-sm text-dim">
+          {opponents.map((opponent) => (
+            <p key={opponent.id} className="text-sm text-dim">
               {opponent.roster ? `${opponent.name} is ready.` : `Waiting for ${opponent.name} to choose a roster.`}
             </p>
-          ) : null}
+          ))}
         </>
       ) : null}
 
@@ -294,7 +299,12 @@ export function Setup({ view, mission, send, pending, problem }: Props) {
           </section>
         ) : (
           <p className="border border-edge bg-panel p-4 text-sm text-dim">
-            Waiting for {opponent?.name ?? 'the other player'} to choose a roster before starting.
+            Waiting for{' '}
+            {opponents
+              .filter((player) => !player.roster)
+              .map((player) => player.name)
+              .join(' & ') || 'the other side'}{' '}
+            to choose a roster before starting.
           </p>
         )
       ) : null}

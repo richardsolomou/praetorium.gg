@@ -106,7 +106,7 @@ export const players = sqliteTable(
   (table) => [index('players_user_id_index').on(table.userId)],
 )
 
-/** One game between two players. Its token is the link they share. */
+/** One game between opposing sides. Its token is the link they share. */
 export const battles = sqliteTable(
   'battles',
   {

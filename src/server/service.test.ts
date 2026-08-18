@@ -83,6 +83,27 @@ describe('favourite factions', () => {
 })
 
 describe('seats', () => {
+  it('creates a 2v1 battle with two allied opponents', () => {
+    const { token } = service.createBattle(
+      'alice',
+      createBattleSchema.parse({
+        opponentIds: ['bob', 'carol'],
+        solo: false,
+        limit: 2000,
+        missionPackId: null,
+      }),
+    )
+
+    expect(view(token, 'alice')).toMatchObject({
+      settings: { teamBattle: true },
+      players: [
+        { id: 'alice', side: 0 },
+        { id: 'bob', side: 1 },
+        { id: 'carol', side: 1 },
+      ],
+    })
+  })
+
   it('preserves an opponent-only legacy creation request', () => {
     const { token } = service.createBattle('alice', createBattleSchema.parse({ opponentId: 'bob' }))
 
@@ -94,10 +115,9 @@ describe('seats', () => {
       solo: true,
       limit: 2000,
       missionPackId: null,
-      clockLimitMinutes: 45,
     })
 
-    expect(view(token, 'alice')).toMatchObject({ settings: { solo: true, clockLimitMinutes: 45 } })
+    expect(view(token, 'alice')).toMatchObject({ settings: { solo: true } })
     expect(service.screen(token, 'bob')).toEqual({ kind: 'invitation', free: false })
     expect(service.join(token, 'bob')).toBe('full')
   })
@@ -199,7 +219,6 @@ describe('battle setup references', () => {
       solo: false,
       limit: 2000,
       missionPackId: 'pack-a',
-      clockLimitMinutes: null,
     })
     let seq = 1
     const attach = (by: string, name: string, disposition: string) => {

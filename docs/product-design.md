@@ -1,6 +1,6 @@
 # Product design
 
-Praetorium uses a compact, dark interface designed for two players at a table. The roster builder favors information density. The battle tracker favors clear ownership and large controls.
+Praetorium uses a compact, dark interface designed for opposing sides at a table. The roster builder favors information density. The battle tracker favors clear ownership and large controls.
 
 ## Scope
 
@@ -8,7 +8,7 @@ Praetorium includes:
 
 - Catalogue-backed roster construction, validation, import, and export.
 - Compact roster presentation and battle tracking.
-- One synchronized solo or two-player battle between signed-in players.
+- One synchronized solo, 1v1, or 2v1 battle between signed-in players.
 
 It does not include rankings, events, leagues, locations, friends, public battle discovery, chat, matchmaking, a rules encyclopedia, model positions, or wound allocation.
 
@@ -22,7 +22,7 @@ Use these patterns consistently:
 - Red and blue player ownership throughout the battle tracker.
 - A persistent points total while editing a roster.
 
-On phones, Praetorium keeps the roster visible and moves the picker or loadout into one sheet. The battle tracker uses one scrolling column with a fixed two-player scoreboard.
+On phones, Praetorium keeps the roster visible and moves the picker or loadout into one sheet. The battle tracker uses one scrolling column with a fixed two-side scoreboard.
 
 Keep screenshots that contain roster or battle data outside version control.
 
@@ -31,13 +31,13 @@ Keep screenshots that contain roster or battle data outside version control.
 | Area              | Coverage                                                                                                                                                                              |
 | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Accounts          | Email and password work without provider configuration. Google and Discord are optional.                                                                                              |
-| Battles           | Shared or solo setup drafts, server-side legality, clocks, corrections, concessions, reopening, presence, and live updates.                                                           |
+| Battles           | Shared, 2v1, or solo setup drafts, server-side legality, corrections, concessions, reopening, presence, and live updates.                                                             |
 | Turn tracker      | Five standard rounds, three King of the Colosseum rounds, six phases, command points, victory points, painted bonuses, tactical decks, stratagems, formations, and battle completion. |
 | Rosters           | Build, import, save, copy, rename, private or unlisted share, print, export, and attach.                                                                                              |
 | Catalogue         | Factions, detachments, units, model counts, loadouts, enhancements, attachments, and points limits.                                                                                   |
 | Validation        | Constraints, modifiers, conditions, categories, force scope, attachments, and catalogue-sensitive costs.                                                                              |
 | Missions          | Force dispositions, deployment zones, objectives, mission cards, and scoring awards.                                                                                                  |
-| Battle review     | Per-round scoring, command points, clocks, result reasons, stratagems, unit outcomes, timestamped events, and corrections.                                                            |
+| Battle review     | Per-round scoring, command points, result reasons, stratagems, unit outcomes, timestamped events, and corrections.                                                                    |
 | Responsive design | Three desktop panes and one mobile roster with movable picker and loadout sheets.                                                                                                     |
 
 ## Known data limits

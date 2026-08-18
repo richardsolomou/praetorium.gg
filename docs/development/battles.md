@@ -19,6 +19,8 @@ Deployment and terrain are one battlefield choice. The three layouts for the arm
 
 Solo practice battles have one signed-in participant and do not invent a guest or duplicate player identity. That participant remains the active player when a turn ends. Their link has no joinable seat.
 
+A 2v1 battle has one player on the first side and two allied players on the second. Allies share a turn, command points, mission cards, and victory points. Each ally still attaches and controls a separate roster and its units.
+
 ## Cards
 
 What an army brings is not a choice a player makes twice. The stratagems are the detachment's own plus the core ones every army has, and the primary is whatever the two force dispositions play — both are recorded by `set-prep` as soon as they are known rather than offered as a picker. A solo battle pairs its one disposition against itself so that it still has a mission to score.

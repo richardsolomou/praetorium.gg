@@ -54,6 +54,7 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
     terrainLayoutId: id.nullable(),
     twistId: id.nullable(),
     solo: z.boolean(),
+    teamBattle: z.boolean().optional(),
     clockLimitMinutes: z.number().int().min(5).max(300).nullable(),
   }),
   z.object({ kind: z.literal('reset-setup') }),

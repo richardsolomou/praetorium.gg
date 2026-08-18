@@ -22,6 +22,7 @@ export const BATTLE_ROUNDS = 5
 const COMMAND_PHASE_CP = 1
 
 export const PLAYERS_PER_BATTLE = 2
+export const TEAM_BATTLE_PLAYERS = 3
 export const ROSTER_NAME_MAX_LENGTH = 80
 export const ROSTER_MAX_LENGTH = 20_000
 
@@ -147,7 +148,7 @@ type BattleSettings = {
   terrainLayoutId: string | null
   twistId: string | null
   solo: boolean
-  clockLimitMinutes: number | null
+  teamBattle: boolean
 }
 
 const DEFAULT_SETTINGS: BattleSettings = {
@@ -156,7 +157,7 @@ const DEFAULT_SETTINGS: BattleSettings = {
   terrainLayoutId: null,
   twistId: null,
   solo: false,
-  clockLimitMinutes: null,
+  teamBattle: false,
 }
 
 /**
@@ -206,6 +207,7 @@ export type Command =
       terrainLayoutId: string | null
       twistId: string | null
       solo: boolean
+      teamBattle?: boolean
       clockLimitMinutes: number | null
     }
   | { kind: 'reset-setup' }
@@ -250,6 +252,7 @@ export type LoggedCommand = { seq: number; by: PlayerId; at: number; command: Co
 
 type PlayerState = {
   id: PlayerId
+  side: number
   cp: number
   cpGained: number
   cpSpent: number
@@ -277,7 +280,6 @@ type PlayerState = {
   secretSecondary: string | null
   secretRevealed: boolean
   painted: boolean
-  clockMilliseconds: number
   corrections: { cp: number; primary: number; secondary: number }
   correctionByRound: { primary: number[]; secondary: number[] }
 }
@@ -297,7 +299,6 @@ type BattleState = {
   deploymentId: string | null
   settings: BattleSettings
   result: { reason: BattleEndReason; concededBy: PlayerId | null } | null
-  clock: { paused: boolean; runningPlayerId: PlayerId | null; startedAt: number | null }
   players: PlayerState[]
   turns: { playerId: PlayerId; round: number; startedAt: number; endedAt: number | null }[]
   /**
@@ -313,7 +314,7 @@ type BattleState = {
  * Folds the log into current state. Undo is itself a command, so history is only
  * ever appended to; a command it names is skipped by the fold rather than removed.
  */
-export function reduceBattle(playerIds: readonly PlayerId[], log: readonly LoggedCommand[]): BattleState {
+export function reduceBattle(playerIds: readonly PlayerId[], log: readonly LoggedCommand[], playerSides?: readonly number[]): BattleState {
   const state: BattleState = {
     status: 'setup',
     round: 0,
@@ -325,9 +326,9 @@ export function reduceBattle(playerIds: readonly PlayerId[], log: readonly Logge
     deploymentId: null,
     settings: { ...DEFAULT_SETTINGS },
     result: null,
-    clock: { paused: true, runningPlayerId: null, startedAt: null },
-    players: playerIds.map((id) => ({
+    players: playerIds.map((id, index) => ({
       id,
+      side: playerSides?.[index] ?? index,
       cp: 0,
       cpGained: 0,
       cpSpent: 0,
@@ -350,7 +351,6 @@ export function reduceBattle(playerIds: readonly PlayerId[], log: readonly Logge
       secretSecondary: null,
       secretRevealed: false,
       painted: false,
-      clockMilliseconds: 0,
       corrections: { cp: 0, primary: 0, secondary: 0 },
       correctionByRound: { primary: Array(BATTLE_ROUNDS).fill(0), secondary: Array(BATTLE_ROUNDS).fill(0) },
     })),
@@ -369,7 +369,6 @@ export function reduceBattle(playerIds: readonly PlayerId[], log: readonly Logge
     if (entry.command.kind === 'undo' || undone.has(entry.seq)) continue
     const activeBefore = state.activePlayerId
     const roundBefore = state.round
-    advanceClock(state, entry.at)
     apply(state, entry.by, entry.command)
     if (entry.command.kind === 'begin-battle') {
       if (state.activePlayerId) state.turns.push({ playerId: state.activePlayerId, round: state.round, startedAt: entry.at, endedAt: null })
@@ -383,20 +382,10 @@ export function reduceBattle(playerIds: readonly PlayerId[], log: readonly Logge
     } else if (entry.command.kind === 'reopen-battle' && state.activePlayerId) {
       state.turns.push({ playerId: state.activePlayerId, round: state.round, startedAt: entry.at, endedAt: null })
     }
-    if (!state.clock.paused && state.clock.runningPlayerId && state.clock.startedAt === null) state.clock.startedAt = entry.at
     state.undoable = { seq: entry.seq, by: entry.by }
   }
 
   return state
-}
-
-function advanceClock(state: BattleState, at: number) {
-  const startedAt = state.clock.startedAt
-  const running = state.clock.runningPlayerId
-  if (startedAt === null || !running || state.clock.paused) return
-  const player = state.players.find((candidate) => candidate.id === running)
-  if (player) player.clockMilliseconds += Math.max(0, at - startedAt)
-  state.clock.startedAt = at
 }
 
 /**
@@ -406,19 +395,14 @@ function advanceClock(state: BattleState, at: number) {
  * calls it before appending; the UI calls it to decide what to render enabled.
  */
 export function validate(state: BattleState, by: PlayerId, command: Command): string | null {
-  const player = state.players.find((candidate) => candidate.id === by)
-  if (!player) return 'you are not in this battle'
+  const actor = state.players.find((candidate) => candidate.id === by)
+  if (!actor) return 'you are not in this battle'
+  const player = armyCommand(command) ? actor : sideCaptain(state, actor.side)
 
   switch (command.kind) {
     case 'configure-battle': {
       if (state.status !== 'setup') return 'the battle has started'
       if (!GAME_SIZES.some((size) => size.limit === command.limit)) return 'choose a supported battle size'
-      if (
-        command.clockLimitMinutes !== null &&
-        (!Number.isInteger(command.clockLimitMinutes) || command.clockLimitMinutes < 5 || command.clockLimitMinutes > 300)
-      ) {
-        return 'the clock limit must be between 5 and 300 minutes'
-      }
       return null
     }
     case 'reset-setup':
@@ -433,7 +417,7 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
       if (!command.roster.text.trim()) return 'paste your list'
       if (command.roster.text.length > ROSTER_MAX_LENGTH) return 'that list is too long'
       const built = command.roster.built
-      if (state.settings.limit !== null && built && built.limit !== state.settings.limit)
+      if (state.settings.limit !== null && built && built.limit !== rosterLimit(state, player))
         return 'that roster does not match the battle size'
       if (built?.detachmentPointBudget !== undefined) {
         const detachmentError = detachmentPointsError(built.detachments ?? [], built.detachmentPointBudget)
@@ -447,14 +431,16 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
     }
     case 'begin-battle': {
       if (state.status !== 'setup') return 'the battle has started'
-      if (!state.settings.solo && state.players.length < PLAYERS_PER_BATTLE) return 'waiting for an opponent'
-      if (state.players.some((candidate) => !candidate.roster)) return 'both armies need a list'
+      const requiredPlayers = state.settings.teamBattle ? TEAM_BATTLE_PLAYERS : PLAYERS_PER_BATTLE
+      if (!state.settings.solo && state.players.length < requiredPlayers) return 'waiting for an opponent'
+      if (state.players.some((candidate) => !candidate.roster))
+        return state.settings.teamBattle ? 'every army needs a list' : 'both armies need a list'
       if (!state.players.some((candidate) => candidate.id === command.firstPlayerId)) return 'that player is not in this battle'
       if (command.attackerId && !state.players.some((candidate) => candidate.id === command.attackerId))
         return 'that attacker is not in this battle'
       if (
         state.settings.limit !== null &&
-        state.players.some((candidate) => candidate.roster?.built && candidate.roster.built.limit !== state.settings.limit)
+        state.players.some((candidate) => candidate.roster?.built && candidate.roster.built.limit !== rosterLimit(state, candidate))
       ) {
         return 'every roster must match the battle size'
       }
@@ -477,8 +463,9 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
     }
     case 'correct-player': {
       if (state.status === 'setup') return 'the battle has not started'
-      const target = state.players.find((candidate) => candidate.id === command.playerId)
-      if (!target) return 'that player is not in this battle'
+      const namedTarget = state.players.find((candidate) => candidate.id === command.playerId)
+      if (!namedTarget) return 'that player is not in this battle'
+      const target = sideCaptain(state, namedTarget.side)
       if (!Number.isInteger(command.delta) || command.delta === 0) return 'corrections move in whole steps'
       if (target[command.resource] + command.delta < 0) return 'that would go below zero'
       return null
@@ -487,7 +474,7 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
       if (state.status !== 'playing') return 'the battle is not running'
       // The only rule that depends on turn order: a phase ends when the player
       // playing it says so, and never when their opponent does.
-      if (state.activePlayerId !== by) return 'it is not your turn'
+      if (!sameSide(state, state.activePlayerId, by)) return 'it is not your turn'
       return null
     }
     case 'end-battle': {
@@ -553,8 +540,9 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
       const stratagem = player.stratagems.find((candidate) => candidate.key === command.key)
       if (!stratagem) return 'that is not one of your stratagems'
       if (stratagem.phases?.length && !stratagem.phases.includes(state.phase)) return `${stratagem.name} cannot be used in this phase`
-      if (stratagem.turn === 'your-turn' && state.activePlayerId !== by) return `${stratagem.name} is used on your turn`
-      if (stratagem.turn === 'opponent-turn' && state.activePlayerId === by) return `${stratagem.name} is used on your opponent’s turn`
+      if (stratagem.turn === 'your-turn' && !sameSide(state, state.activePlayerId, by)) return `${stratagem.name} is used on your turn`
+      if (stratagem.turn === 'opponent-turn' && sameSide(state, state.activePlayerId, by))
+        return `${stratagem.name} is used on your opponent’s turn`
       const cost = command.cp ?? stratagem.cp
       if (!Number.isInteger(cost) || cost < 0 || cost > STRATAGEM_CP_MAX) return 'that is not a possible cost'
       if (player.cp < cost) return 'not enough command points'
@@ -601,16 +589,10 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
       return null
     }
     case 'pause-clock': {
-      if (state.status !== 'playing') return 'the battle is not running'
-      if (state.settings.clockLimitMinutes === null) return 'this battle has no clock'
-      if (state.clock.paused) return 'the clock is already paused'
-      return null
+      return 'battle clocks are no longer supported'
     }
     case 'resume-clock': {
-      if (state.status !== 'playing') return 'the battle is not running'
-      if (state.settings.clockLimitMinutes === null) return 'this battle has no clock'
-      if (!state.clock.paused) return 'the clock is already running'
-      return null
+      return 'battle clocks are no longer supported'
     }
     case 'undo': {
       if (!state.undoable) return 'there is nothing to undo'
@@ -627,8 +609,9 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
 }
 
 function apply(state: BattleState, by: PlayerId, command: Command) {
-  const player = state.players.find((candidate) => candidate.id === by)
-  if (!player) return
+  const actor = state.players.find((candidate) => candidate.id === by)
+  if (!actor) return
+  const player = armyCommand(command) ? actor : sideCaptain(state, actor.side)
 
   switch (command.kind) {
     case 'configure-battle': {
@@ -639,7 +622,7 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
         terrainLayoutId: command.terrainLayoutId,
         twistId: command.twistId,
         solo: command.solo,
-        clockLimitMinutes: command.clockLimitMinutes,
+        teamBattle: command.teamBattle ?? false,
       }
       if (missionPackChanged) {
         state.deploymentId = null
@@ -767,7 +750,6 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
       state.attackerId = command.attackerId ?? command.firstPlayerId
       state.result = null
       enterTurn(state, command.firstPlayerId)
-      setRunningClock(state, command.firstPlayerId)
       return
     }
     case 'adjust-cp': {
@@ -784,8 +766,9 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
       return
     }
     case 'correct-player': {
-      const target = state.players.find((candidate) => candidate.id === command.playerId)
-      if (!target) return
+      const namedTarget = state.players.find((candidate) => candidate.id === command.playerId)
+      if (!namedTarget) return
+      const target = sideCaptain(state, namedTarget.side)
       target[command.resource] += command.delta
       target.corrections[command.resource] += command.delta
       if (command.resource === 'cp') {
@@ -805,11 +788,10 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
         state.phase = PHASES[next]!
         return
       }
-      const opponent = state.players.find((candidate) => candidate.id !== by)
+      const opponent = state.players.find((candidate) => !sameSide(state, candidate.id, by))
       // The player who did not go first ending their turn is what ends the round.
       if (by === state.firstPlayerId && opponent) {
         enterTurn(state, opponent.id)
-        setRunningClock(state, opponent.id)
         return
       }
       if (state.round === battleRoundLimit(state.settings.limit)) {
@@ -817,13 +799,11 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
         state.result = { reason: 'completed', concededBy: null }
         state.resumePlayerId = state.activePlayerId
         state.activePlayerId = null
-        stopClock(state)
         return
       }
       state.round++
       if (state.firstPlayerId) {
         enterTurn(state, state.firstPlayerId)
-        setRunningClock(state, state.firstPlayerId)
       }
       return
     }
@@ -832,24 +812,18 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
       state.result = { reason: command.reason ?? 'finished-early', concededBy: command.concededBy ?? null }
       state.resumePlayerId = state.activePlayerId
       state.activePlayerId = null
-      stopClock(state)
       return
     }
     case 'reopen-battle': {
       state.status = 'playing'
       state.result = null
       state.activePlayerId = state.resumePlayerId ?? state.firstPlayerId
-      if (state.activePlayerId) setRunningClock(state, state.activePlayerId)
       return
     }
     case 'pause-clock': {
-      state.clock.paused = true
-      state.clock.runningPlayerId = null
-      state.clock.startedAt = null
       return
     }
     case 'resume-clock': {
-      if (state.activePlayerId) setRunningClock(state, state.activePlayerId)
       return
     }
     case 'undo': {
@@ -886,7 +860,6 @@ function resetPlayer(player: PlayerState) {
   player.secretSecondary = null
   player.secretRevealed = false
   player.painted = false
-  player.clockMilliseconds = 0
   player.corrections = { cp: 0, primary: 0, secondary: 0 }
   player.correctionByRound = { primary: Array(BATTLE_ROUNDS).fill(0), secondary: Array(BATTLE_ROUNDS).fill(0) }
 }
@@ -931,19 +904,6 @@ function applyPrep(player: PlayerState, prep: BattlePrep | null | undefined) {
   )
 }
 
-function setRunningClock(state: BattleState, playerId: PlayerId) {
-  if (state.settings.clockLimitMinutes === null) return
-  state.clock.paused = false
-  state.clock.runningPlayerId = playerId
-  state.clock.startedAt = null
-}
-
-function stopClock(state: BattleState) {
-  state.clock.paused = true
-  state.clock.runningPlayerId = null
-  state.clock.startedAt = null
-}
-
 /** Whether a stratagem's allowance is spent for now. `turn` and `phase` reset as play moves on. */
 function limitReached(player: PlayerState, stratagem: Stratagem, state: BattleState): boolean {
   if (stratagem.limit === 'unlimited') return false
@@ -962,12 +922,32 @@ const titled = (slug: string) =>
 function enterTurn(state: BattleState, playerId: PlayerId) {
   state.activePlayerId = playerId
   state.phase = 'command'
-  const player = state.players.find((candidate) => candidate.id === playerId)
+  const activeSide = state.players.find((candidate) => candidate.id === playerId)?.side
+  const player = activeSide === undefined ? undefined : sideCaptain(state, activeSide)
   if (player) {
     player.cp += COMMAND_PHASE_CP
     player.cpGained += COMMAND_PHASE_CP
     player.cpByRound[state.round - 1] = player.cp
   }
+}
+
+function sideCaptain(state: BattleState, side: number): PlayerState {
+  return state.players.find((player) => player.side === side)!
+}
+
+function armyCommand(command: Command): boolean {
+  return ['attach-roster', 'set-unit', 'wound-unit', 'deploy-unit', 'set-unit-formation', 'set-painted'].includes(command.kind)
+}
+
+function sameSide(state: BattleState, left: PlayerId | null, right: PlayerId): boolean {
+  const leftSide = state.players.find((player) => player.id === left)?.side
+  return leftSide !== undefined && leftSide === state.players.find((player) => player.id === right)?.side
+}
+
+function rosterLimit(state: BattleState, player: PlayerState): number | null {
+  if (state.settings.limit === null || !state.settings.teamBattle) return state.settings.limit
+  const teammates = state.players.filter((candidate) => candidate.side === player.side).length
+  return state.settings.limit / teammates
 }
 
 /** One thing that happened, in the words a player would use about it. */
@@ -985,9 +965,10 @@ export function battleReport(
   log: readonly LoggedCommand[],
   playerIds: readonly PlayerId[] = players.map((player) => player.id),
   viewerId?: PlayerId,
+  playerSides?: readonly number[],
 ): ReportEntry[] {
   const named = new Map(players.map((player) => [player.id, player.name]))
-  const state = reduceBattle(playerIds, [])
+  const state = reduceBattle(playerIds, [], playerSides)
   const undone = new Set(log.flatMap((entry) => (entry.command.kind === 'undo' ? [entry.command.target] : [])))
   const entries: ReportEntry[] = []
 
@@ -1025,7 +1006,7 @@ function describe(
 
   switch (command.kind) {
     case 'configure-battle':
-      return `${who} sets a ${command.limit}-point${command.solo ? ' practice' : ''} battle${command.clockLimitMinutes ? ` with ${command.clockLimitMinutes}-minute clocks` : ''}`
+      return `${who} sets a ${command.limit}-point${command.solo ? ' practice' : ''} battle`
     case 'reset-setup':
       return `${who} resets battle setup`
     case 'attach-roster': {
@@ -1108,9 +1089,8 @@ function describe(
       return command.delta < 0 ? `${who} loses ${count} ${models} from ${name}` : `${who} returns ${count} ${models} to ${name}`
     }
     case 'pause-clock':
-      return `${who} pauses the battle clock`
     case 'resume-clock':
-      return `${who} resumes the battle clock`
+      return null
     case 'end-battle':
       return command.reason === 'conceded' ? `${who} concedes` : `${who} calls the battle early`
     case 'reopen-battle':
@@ -1136,6 +1116,7 @@ export type BattleView = {
   result: { reason: BattleEndReason; concededBy: PlayerId | null } | null
   players: {
     id: PlayerId
+    side: number
     name: string
     isViewer: boolean
     isActive: boolean
@@ -1148,8 +1129,6 @@ export type BattleView = {
     total: number
     painted: boolean
     paintedPoints: number
-    clockMilliseconds: number
-    clockRemainingMilliseconds: number | null
     rounds: { round: number; primary: number; secondary: number; total: number }[]
     roster: Roster | null
     units: UnitState[]
@@ -1184,7 +1163,6 @@ export type BattleView = {
   guides: { primary: number; secondary: number }
   deploymentId: string | null
   turns: { playerId: PlayerId; playerName: string; round: number; minutes: number | null }[]
-  clock: { paused: boolean; runningPlayerId: PlayerId | null; limitMinutes: number | null }
   advancePrompt: string | null
   /** Present only when the viewer is the one who may take it back. */
   undoable: number | null
@@ -1203,7 +1181,7 @@ export function battleView(
   players: readonly { id: PlayerId; name: string }[],
   state: BattleState,
   viewerId: PlayerId,
-  now = Date.now(),
+  _now = Date.now(),
 ): BattleView {
   const named = new Map(players.map((player) => [player.id, player.name]))
   return {
@@ -1219,70 +1197,69 @@ export function battleView(
     attackerId: state.attackerId,
     settings: state.settings,
     result: state.result,
-    players: state.players.map((player) => ({
-      id: player.id,
-      name: named.get(player.id) ?? 'Unknown',
-      isViewer: player.id === viewerId,
-      isActive: player.id === state.activePlayerId,
-      cp: player.cp,
-      cpGained: player.cpGained,
-      cpSpent: player.cpSpent,
-      cpByRound: player.cpByRound,
-      primary: player.primary,
-      secondary: player.secondary,
-      total: player.primary + player.secondary + (player.painted ? PAINTED_ARMY_POINTS : 0),
-      painted: player.painted,
-      paintedPoints: player.painted ? PAINTED_ARMY_POINTS : 0,
-      clockMilliseconds:
-        player.clockMilliseconds +
-        (state.clock.runningPlayerId === player.id && !state.clock.paused && state.clock.startedAt !== null
-          ? Math.max(0, now - state.clock.startedAt)
-          : 0),
-      clockRemainingMilliseconds:
-        state.settings.clockLimitMinutes === null
-          ? null
-          : Math.max(
-              0,
-              state.settings.clockLimitMinutes * 60_000 -
-                player.clockMilliseconds -
-                (state.clock.runningPlayerId === player.id && !state.clock.paused && state.clock.startedAt !== null
-                  ? Math.max(0, now - state.clock.startedAt)
-                  : 0),
-            ),
-      rounds: Array.from({ length: battleRoundLimit(state.settings.limit) }, (_, round) => ({
-        round: round + 1,
-        primary: player.primaryByRound[round] ?? 0,
-        secondary: player.secondaryByRound[round] ?? 0,
-        total: (player.primaryByRound[round] ?? 0) + (player.secondaryByRound[round] ?? 0),
-      })),
-      roster: player.roster,
-      units: player.units,
-      standing: player.units.filter((unit) => !unit.destroyed).length,
-      deployed: player.units.filter((unit) => unit.deployed && !unit.destroyed).length,
-      stratagems: player.stratagems.map((stratagem) => ({
-        ...stratagem,
-        uses: player.uses.filter((use) => use.key === stratagem.key).length,
-        // The same rule the server enforces, so the interface never offers what
-        // would be refused.
-        refusal: validate(state, player.id, { kind: 'use-stratagem', key: stratagem.key }),
-      })),
-      primaryCard: player.primaryCard,
-      secondaryMode: player.secondaryMode,
-      remainingSecondaries:
-        player.id === viewerId
-          ? (player.secondaryDeck ?? []).filter((candidate) => !player.secondaries.some((secondary) => secondary.key === candidate.key))
-          : [],
-      secondaries: player.secondaries.map((secondary) => ({
-        key: player.secretSecondary === secondary.key && !player.secretRevealed && player.id !== viewerId ? 'secret' : secondary.key,
-        name:
-          player.secretSecondary === secondary.key && !player.secretRevealed && player.id !== viewerId ? 'Secret mission' : secondary.name,
-        points: player.scored[secondary.key] ?? 0,
-        rounds: (player.scoredByRound[secondary.key] ?? Array(BATTLE_ROUNDS).fill(0)).slice(0, battleRoundLimit(state.settings.limit)),
-        status: player.secondaryStatus[secondary.key] ?? 'active',
-        secret: player.secretSecondary === secondary.key,
-        revealed: player.secretSecondary !== secondary.key || player.secretRevealed,
-      })),
-    })),
+    players: state.players.map((player) => {
+      const resources = sideCaptain(state, player.side)
+      return {
+        id: player.id,
+        side: player.side,
+        name: named.get(player.id) ?? 'Unknown',
+        isViewer: player.id === viewerId,
+        isActive: sameSide(state, state.activePlayerId, player.id),
+        cp: resources.cp,
+        cpGained: resources.cpGained,
+        cpSpent: resources.cpSpent,
+        cpByRound: resources.cpByRound,
+        primary: resources.primary,
+        secondary: resources.secondary,
+        total: resources.primary + resources.secondary + (player.painted ? PAINTED_ARMY_POINTS : 0),
+        painted: player.painted,
+        paintedPoints: player.painted ? PAINTED_ARMY_POINTS : 0,
+        rounds: Array.from({ length: battleRoundLimit(state.settings.limit) }, (_, round) => ({
+          round: round + 1,
+          primary: resources.primaryByRound[round] ?? 0,
+          secondary: resources.secondaryByRound[round] ?? 0,
+          total: (resources.primaryByRound[round] ?? 0) + (resources.secondaryByRound[round] ?? 0),
+        })),
+        roster: player.roster,
+        units: player.units,
+        standing: player.units.filter((unit) => !unit.destroyed).length,
+        deployed: player.units.filter((unit) => unit.deployed && !unit.destroyed).length,
+        stratagems: resources.stratagems.map((stratagem) => ({
+          ...stratagem,
+          uses: resources.uses.filter((use) => use.key === stratagem.key).length,
+          // The same rule the server enforces, so the interface never offers what
+          // would be refused.
+          refusal: validate(state, player.id, { kind: 'use-stratagem', key: stratagem.key }),
+        })),
+        primaryCard: resources.primaryCard,
+        secondaryMode: resources.secondaryMode,
+        remainingSecondaries:
+          player.id === viewerId
+            ? (resources.secondaryDeck ?? []).filter(
+                (candidate) => !resources.secondaries.some((secondary) => secondary.key === candidate.key),
+              )
+            : [],
+        secondaries: resources.secondaries.map((secondary) => ({
+          key:
+            resources.secretSecondary === secondary.key &&
+            !resources.secretRevealed &&
+            player.side !== state.players.find((candidate) => candidate.id === viewerId)?.side
+              ? 'secret'
+              : secondary.key,
+          name:
+            resources.secretSecondary === secondary.key &&
+            !resources.secretRevealed &&
+            player.side !== state.players.find((candidate) => candidate.id === viewerId)?.side
+              ? 'Secret mission'
+              : secondary.name,
+          points: resources.scored[secondary.key] ?? 0,
+          rounds: (resources.scoredByRound[secondary.key] ?? Array(BATTLE_ROUNDS).fill(0)).slice(0, battleRoundLimit(state.settings.limit)),
+          status: resources.secondaryStatus[secondary.key] ?? 'active',
+          secret: resources.secretSecondary === secondary.key,
+          revealed: resources.secretSecondary !== secondary.key || resources.secretRevealed,
+        })),
+      }
+    }),
     guides: { primary: PRIMARY_GUIDE, secondary: SECONDARY_GUIDE },
     deploymentId: state.deploymentId,
     turns: state.turns.map((turn) => ({
@@ -1291,12 +1268,7 @@ export function battleView(
       round: turn.round,
       minutes: turn.endedAt === null ? null : Math.max(0, Math.round((turn.endedAt - turn.startedAt) / 60_000)),
     })),
-    clock: {
-      paused: state.clock.paused,
-      runningPlayerId: state.clock.runningPlayerId,
-      limitMinutes: state.settings.clockLimitMinutes,
-    },
-    advancePrompt: state.activePlayerId === viewerId ? scoringPrompt(state) : null,
+    advancePrompt: sameSide(state, state.activePlayerId, viewerId) ? scoringPrompt(state, viewerId) : null,
     undoable: state.undoable?.by === viewerId ? state.undoable.seq : null,
   }
 }
@@ -1325,8 +1297,9 @@ function validatePrep(prep: BattlePrep): string | null {
   return null
 }
 
-function scoringPrompt(state: BattleState): string | null {
-  const active = state.players.find((player) => player.id === state.activePlayerId)
+function scoringPrompt(state: BattleState, playerId: PlayerId): string | null {
+  const viewer = state.players.find((player) => player.id === playerId)
+  const active = viewer ? sideCaptain(state, viewer.side) : undefined
   if (!active || state.phase !== 'end') return null
   const unscored = active.secondaries.filter(
     (secondary) =>

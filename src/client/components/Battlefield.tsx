@@ -9,7 +9,9 @@ type Props = { view: BattleView; send: (command: Command) => void; pending: bool
 
 export function Battlefield({ view, send, pending, allowedIds }: Props) {
   const { data: allPatterns } = useQuery(deploymentsQuery())
-  const dispositions = view.players.map((player) => player.roster?.built?.disposition).filter((value): value is string => Boolean(value))
+  const dispositions = [...new Set(view.players.map((player) => player.side))]
+    .map((side) => view.players.find((player) => player.side === side)?.roster?.built?.disposition)
+    .filter((value): value is string => Boolean(value))
   const matchupIds = terrainMatchupIds(dispositions, view.settings.solo)
   const { data: references } = useQuery(terrainReferencesQuery(matchupIds))
   const options =
