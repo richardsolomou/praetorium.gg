@@ -52,6 +52,21 @@ test('a datasheet lists leader attachment targets once', async ({ page }) => {
   await page.screenshot({ path: 'test-results/datasheet-leader-attachments-phone.png', fullPage: true })
 })
 
+test('the faction page shows its army rule in full', async ({ page }) => {
+  await page.goto('/factions/necrons')
+
+  const armyRule = page.getByRole('heading', { name: 'Reanimation Protocols', exact: true }).locator('..')
+  await expect(armyRule).toContainText('activates its Reanimation Protocols')
+  await expect(page.getByRole('button', { name: 'Reanimation Protocols', exact: true })).toHaveCount(0)
+  await page.screenshot({ path: 'test-results/faction-army-rule.png', fullPage: true })
+
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.screenshot({ path: 'test-results/faction-army-rule-phone.png', fullPage: true })
+
+  await page.goto('/factions/necrons/datasheets/overlord')
+  await expect(page.getByRole('button', { name: 'Reanimation Protocols', exact: true })).toBeVisible()
+})
+
 test('saving a faction asks signed-out visitors to sign in', async ({ page }) => {
   await page.goto('/factions')
   await page.getByRole('link', { name: 'Sign in to add Necrons to favourites' }).click()
