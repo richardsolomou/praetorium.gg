@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.4.4
+
+### Patch Changes
+
+- 428cb87: Validate shared upgrades and conditional catalogue pricing without showing unsupported rule warnings.
+
 ## 0.4.3
 
 ### Patch Changes
