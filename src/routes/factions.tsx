@@ -24,7 +24,7 @@ function FactionIndex() {
   const { data } = useQuery(factionIndexQuery())
   const [factionQueryText, setFactionQueryText] = useState('')
   const { favourites, toggleFavourite } = useFavouriteFactions()
-  if (!data) return <main className="mx-auto max-w-4xl px-4 py-8 text-sm text-dim">Catalogue data is still syncing.</main>
+  if (!data) return <main className="mx-auto max-w-5xl px-4 py-8 text-sm text-dim">Catalogue data is still syncing.</main>
 
   const wanted = factionQueryText.trim().toLowerCase()
   const matching = data.factions.filter(
@@ -38,7 +38,7 @@ function FactionIndex() {
   }, new Map<string, Faction[]>())
 
   return (
-    <main className="mx-auto w-full max-w-3xl px-4 py-8">
+    <main className="mx-auto w-full max-w-5xl px-4 py-8">
       <Input
         value={factionQueryText}
         onChange={(event) => setFactionQueryText(event.target.value)}

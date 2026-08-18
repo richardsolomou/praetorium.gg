@@ -35,7 +35,7 @@ export function DatasheetPage() {
   const melee = profiles('Melee Weapons')
 
   return (
-    <main className="mx-auto w-full max-w-6xl space-y-6 px-4 py-8">
+    <main className="mx-auto w-full max-w-5xl space-y-6 px-4 py-8">
       <Breadcrumb>
         <BreadcrumbList className="eyebrow gap-1 text-azure">
           <BreadcrumbItem>
@@ -71,8 +71,9 @@ export function DatasheetPage() {
         </div>
       </header>
 
-      {unit.length ? <ProfileTable title="Models" profiles={unit} omit={['InSv']} keywordRules={sheet.keywordRules} /> : null}
-      {invulnerable.length ? (
+      {unit.length === 1 && unit[0] ? <UnitCharacteristics profile={unit[0]} /> : null}
+      {unit.length > 1 ? <ProfileTable title="Models" profiles={unit} omit={['InSv']} keywordRules={sheet.keywordRules} /> : null}
+      {unit.length > 1 && invulnerable.length ? (
         <section>
           <h2 className="rubric">Invulnerable save</h2>
           <div className="mt-2 flex flex-wrap gap-2">
@@ -126,6 +127,29 @@ function Abilities({ abilities, rules }: { abilities: DisplayAbility[]; rules: K
 }
 
 type DisplayProfile = { id: string; name: string; values: { name: string; value: string }[] }
+
+function UnitCharacteristics({ profile }: { profile: DisplayProfile }) {
+  const invulnerable = profile.values.find((value) => value.name === 'InSv')?.value
+  const values = profile.values.filter((value) => value.name !== 'InSv')
+  return (
+    <section>
+      <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
+        {values.map((value) => (
+          <div key={value.name} className="border border-edge bg-panel px-3 py-2 text-center">
+            <p className="eyebrow">{value.name}</p>
+            <p className="readout mt-1 text-lg">{value.value}</p>
+          </div>
+        ))}
+      </div>
+      {invulnerable ? (
+        <div className="mt-2 flex items-center justify-between border border-edge bg-panel px-3 py-2">
+          <span className="font-bold uppercase">Invulnerable save</span>
+          <span className="readout text-lg">{invulnerable}</span>
+        </div>
+      ) : null}
+    </section>
+  )
+}
 
 const noColumns: string[] = []
 

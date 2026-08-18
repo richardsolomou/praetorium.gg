@@ -40,6 +40,23 @@ test('server-rendered reference pages keep route-shaped payloads', async ({ requ
   expect(missionPack.byteLength).toBeLessThan(250_000)
 })
 
+test('faction routes keep a stable content width', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 })
+  const widths: number[] = []
+  for (const path of [
+    '/factions',
+    '/factions/necrons',
+    '/factions/necrons/datasheets',
+    '/factions/necrons/datasheets/lokhust-lord',
+    '/factions/necrons/detachments/cryptek-conclave',
+  ]) {
+    await page.goto(path)
+    widths.push((await page.locator('main').boundingBox())?.width ?? 0)
+  }
+  expect(new Set(widths).size).toBe(1)
+  expect(widths[0]).toBeGreaterThan(0)
+})
+
 test('terrain layouts show their labels and measurement guides', async ({ page }) => {
   await page.goto('/mission-matchups/chapter-approved-2026-2027/purge-the-foe/take-and-hold')
   await page.getByRole('button', { name: 'Enlarge terrain layout A: Sweeping Engagement' }).click()

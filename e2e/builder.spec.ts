@@ -160,6 +160,12 @@ test("Pantheon of Woe adds a C'tan shard's required enhancement", async ({ page 
   await expect(referenceHeader.locator('[data-faction-mark="necrons"]')).toBeVisible()
   await expect(referenceHeader.getByText('Noble', { exact: true })).toHaveCSS('color', 'rgb(61, 155, 245)')
   await referenceHeader.screenshot({ path: 'test-results/imotekh-reference-tags.png' })
+  await page.goto('/factions/necrons/datasheets/lokhust-lord')
+  const lokhustProfile = page.locator('main section').first()
+  await expect(page.getByText('Models', { exact: true })).toHaveCount(0)
+  await expect(lokhustProfile.getByText('Invulnerable save', { exact: true })).toBeVisible()
+  await expect(lokhustProfile.getByText('4+', { exact: true })).toBeVisible()
+  await lokhustProfile.screenshot({ path: 'test-results/lokhust-lord-characteristics.png' })
 })
 
 test('unit upgrades stay separate from character enhancements', async ({ page }) => {
