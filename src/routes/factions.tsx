@@ -1,48 +1,30 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, Outlet, useRouterState } from '@tanstack/react-router'
 import { ChevronRight, Heart } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Input } from '@/components/ui/input'
 import { Toggle } from '@/components/ui/toggle'
 import { factionsQuery } from '../client/queries'
+import { favouritesFirst, useFavouriteFactions } from '../client/favouriteFactions'
 
 export const Route = createFileRoute('/factions')({
   loader: ({ context }) => context.queryClient.ensureQueryData(factionsQuery()),
   component: Factions,
 })
 
-const FAVOURITES = 'praetorium:favourite-factions'
-
 function Factions() {
   const path = useRouterState({ select: (state) => state.location.pathname })
   const { data } = useQuery(factionsQuery())
   const [factionQueryText, setFactionQueryText] = useState('')
-  const [favourites, setFavourites] = useState<Set<string>>(new Set())
-
-  useEffect(() => {
-    const stored = localStorage.getItem(FAVOURITES)
-    if (stored) {
-      const parsed: unknown = JSON.parse(stored)
-      if (Array.isArray(parsed)) setFavourites(new Set(parsed.filter((value): value is string => typeof value === 'string')))
-    }
-  }, [])
+  const { favourites, toggleFavourite } = useFavouriteFactions()
 
   if (path !== '/factions') return <Outlet />
   if (!data) return <main className="mx-auto max-w-4xl px-4 py-8 text-sm text-dim">Catalogue data is still syncing.</main>
 
-  const toggleFavourite = (id: string) => {
-    setFavourites((current) => {
-      const next = new Set(current)
-      if (!next.delete(id)) next.add(id)
-      localStorage.setItem(FAVOURITES, JSON.stringify([...next]))
-      return next
-    })
-  }
   const wanted = factionQueryText.trim().toLowerCase()
   const matching = data.factions.filter(
     (entry) => entry.displayName.toLowerCase().includes(wanted) || entry.name.toLowerCase().includes(wanted),
   )
-  const favouriteFactions = matching.filter((entry) => favourites.has(entry.id))
   const groups = matching.reduce((grouped, entry) => {
     const title = entry.name.split(' - ')[0] || 'Other'
     grouped.set(title, [...(grouped.get(title) ?? []), entry])
@@ -57,12 +39,17 @@ function Factions() {
         placeholder="Find a faction"
         aria-label="Find a faction"
       />
-      <FactionShelf title="Favourites" entries={favouriteFactions} favourites={favourites} onFavourite={toggleFavourite} />
       {matching.length ? (
         [...groups.entries()]
           .toSorted(([left], [right]) => left.localeCompare(right))
           .map(([title, entries]) => (
-            <FactionShelf key={title} title={title} entries={entries} favourites={favourites} onFavourite={toggleFavourite} />
+            <FactionShelf
+              key={title}
+              title={title}
+              entries={favouritesFirst(entries, favourites)}
+              favourites={favourites}
+              onFavourite={toggleFavourite}
+            />
           ))
       ) : (
         <p className="mt-6 border border-edge bg-panel p-6 text-center text-sm text-dim">No factions match.</p>
@@ -124,9 +111,7 @@ function FactionShelf({
           ))}
         </div>
       ) : (
-        <p className="mt-2 text-sm text-dim">
-          {title === 'Favourites' ? 'Tap a heart on a faction to add it here.' : 'No factions match.'}
-        </p>
+        <p className="mt-2 text-sm text-dim">No factions match.</p>
       )}
     </section>
   )

@@ -37,6 +37,7 @@ import { SearchableSelect } from './SearchableSelect'
 import { RosterSetupDialog, type RosterSetup } from './RosterSetupDialog'
 import { RosterExportDialog } from './RosterExportDialog'
 import { readWorkspaceState, writeWorkspaceState } from './workspaceState'
+import { favouritesFirst, useFavouriteFactions } from '../favouriteFactions'
 
 type Props = {
   onAttach?: (roster: Roster) => void
@@ -103,6 +104,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
   const { data: owned } = useQuery(collectionQuery())
   const collection = new Set(owned ?? [])
   const own = useCollectionMutation()
+  const { favourites } = useFavouriteFactions()
 
   useEffect(() => setSetupDraftState(readWorkspaceState<RosterSetup>(workspacePath, 'roster-setup')), [workspacePath])
   const refreshSaved = () => queryClient.invalidateQueries({ queryKey: savedRostersQuery().queryKey })
@@ -125,7 +127,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
   const faction = available?.factions.find((entry) => entry.id === catalogueId)
   const factionGroups = shelve(available?.factions ?? []).map((shelf) => ({
     label: shelf.lineage,
-    items: shelf.factions.map((entry) => ({ label: shortName(entry.name), value: entry.id })),
+    items: favouritesFirst(shelf.factions, favourites).map((entry) => ({ label: shortName(entry.name), value: entry.id })),
   }))
   const suggested = faction
     ? [shortName(faction.name), faction.detachments.find((entry) => entry.id === detachmentIds[0])?.name].filter(Boolean).join(' — ')
@@ -222,7 +224,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
     ),
     placeholderData: (previous, previousQuery) => {
       const previousPicks = previousQuery?.queryKey[5]
-      if (!Array.isArray(previousPicks) || previousPicks.length !== picked.length) return undefined
+      if (!Array.isArray(previousPicks) || previousPicks.length > picked.length) return undefined
       return previousPicks.every(
         (pick, index) =>
           typeof pick === 'object' &&
@@ -315,7 +317,13 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
   const spread = (index: number, key: string, counts: Record<string, number>) =>
     setPicked((current) =>
       current.map((pick, at) =>
-        at === index ? { ...pick, spreads: { ...pick.spreads, [key]: { ...pick.spreads?.[key], ...counts } } } : pick,
+        at === index
+          ? {
+              ...pick,
+              models: pick.models ?? units[index]?.size.models,
+              spreads: { ...pick.spreads, [key]: { ...pick.spreads?.[key], ...counts } },
+            }
+          : pick,
       ),
     )
 
@@ -792,7 +800,10 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
         <div className="min-h-0 flex-1 overflow-y-auto px-3">
           {units.length || faction ? (
             GROUPS.map(({ id, plural, empty }) => {
-              const rows = units.map((unit, index) => ({ unit, index })).filter(({ unit }) => unit.group === id)
+              const rows = units
+                .map((unit, index) => ({ unit, index }))
+                .filter(({ unit }) => unit.group === id)
+                .toSorted((left, right) => Number(collection.has(right.unit.entryId)) - Number(collection.has(left.unit.entryId)))
               return (
                 <Section key={id} title={plural} count={rows.length} empty={empty}>
                   {rows.map(({ unit, index }) => (

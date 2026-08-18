@@ -104,7 +104,9 @@ export function Picker({ catalogueId, onAdd, onPreview, inRoster, room, battleSi
       <ScrollArea className="min-h-0 flex-1 [&_[data-slot=scroll-area-viewport]]:px-2.5">
         {shown.length ? (
           sections.map(({ id, plural, alliedFaction }) => {
-            const rows = shown.filter((unit) => (alliedFaction ? unit.alliedFaction === alliedFaction : !unit.allied && unit.group === id))
+            const rows = shown
+              .filter((unit) => (alliedFaction ? unit.alliedFaction === alliedFaction : !unit.allied && unit.group === id))
+              .toSorted((left, right) => Number(collection.has(right.id)) - Number(collection.has(left.id)))
             return rows.length ? (
               <Fragment key={id}>
                 {alliedFaction === alliedFactions[0] ? <h2 className="rubric pt-1.5">Allied units</h2> : null}
@@ -116,7 +118,11 @@ export function Picker({ catalogueId, onAdd, onPreview, inRoster, room, battleSi
                     const full = effectiveLimit !== null && held >= effectiveLimit
                     const formatFull = formatLimit !== null && held >= formatLimit
                     return (
-                      <div key={unit.id} className="flex items-center gap-1.5 border border-edge bg-card px-2.5 py-1.5">
+                      <div
+                        key={unit.id}
+                        data-picker-unit={unit.name}
+                        className="flex items-center gap-1.5 border border-edge bg-card px-2.5 py-1.5"
+                      >
                         <button
                           type="button"
                           className="flex min-w-0 flex-1 items-center gap-1.5 text-left hover:text-azure"

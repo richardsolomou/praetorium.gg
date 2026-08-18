@@ -18,6 +18,7 @@ import { DetachmentReference } from './DetachmentReference'
 import { SearchableSelect } from './SearchableSelect'
 import { shelve, shortName } from './builder/factions'
 import { dispositionsFor, dispositionTone } from './rosterSetup'
+import { favouritesFirst, useFavouriteFactions } from '../favouriteFactions'
 
 type Detachment = {
   id: string
@@ -63,6 +64,7 @@ export function RosterSetupDialog({
 }: Props) {
   const [draft, setDraft] = useState(value)
   const [reference, setReference] = useState<{ catalogueId: string; slug: string; name: string } | null>(null)
+  const { favourites } = useFavouriteFactions()
 
   const changeDraft = (next: RosterSetup) => {
     setDraft(next)
@@ -90,7 +92,7 @@ export function RosterSetupDialog({
   const detachmentsChanged = value.detachmentIds.toSorted().join() !== draft.detachmentIds.toSorted().join()
   const groups = shelve(factions).map((shelf) => ({
     label: shelf.lineage,
-    items: shelf.factions.map((entry) => ({ label: shortName(entry.name), value: entry.id })),
+    items: favouritesFirst(shelf.factions, favourites).map((entry) => ({ label: shortName(entry.name), value: entry.id })),
   }))
 
   const toggleDetachment = (id: string) => {

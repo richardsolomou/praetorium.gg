@@ -24,6 +24,36 @@ test('the unit picker stays within the roster faction', async ({ page }) => {
   await expect(page.getByRole('combobox', { name: 'Force' })).toHaveCount(0)
 })
 
+test('adding a unit keeps the confirmed roster visible while pricing catches up', async ({ page }) => {
+  await openBuilder(page)
+  await add(page, 'Immortals')
+  const immortals = page.locator('[data-unit="Immortals"]')
+  await expect(immortals).toBeVisible()
+
+  await page.route('**/_serverFn/**', async (route) => {
+    if (route.request().method() === 'POST') await new Promise((resolve) => setTimeout(resolve, 1000))
+    await route.continue()
+  })
+  await add(page, 'Skorpekh Destroyers')
+
+  await expect(immortals).toBeVisible({ timeout: 250 })
+  await expect(page.locator('[data-unit="Skorpekh Destroyers"]')).toBeVisible()
+  await page.screenshot({ path: 'test-results/roster-visible-while-adding.png', fullPage: true })
+})
+
+test('owned units rise to the top of their roster and picker groups', async ({ page }) => {
+  await openBuilder(page)
+  await add(page, 'Necron Warriors')
+  await add(page, 'Immortals')
+
+  await page.locator('[data-unit="Immortals"]').getByLabel('Unit actions for Immortals').click()
+  await page.getByRole('menuitemcheckbox', { name: 'Add to collection' }).click()
+
+  await expect(page.locator('[data-unit]').first()).toHaveAttribute('data-unit', 'Immortals')
+  await expect(page.locator('aside[aria-label="Add units"] [data-picker-unit]').first()).toHaveAttribute('data-picker-unit', 'Immortals')
+  await page.screenshot({ path: 'test-results/owned-units-first.png', fullPage: true })
+})
+
 test('King of the Colosseum creation keeps exactly one detachment selected', async ({ page }) => {
   await signUp(page, 'Richard')
   await page.goto('/rosters')
@@ -177,6 +207,14 @@ test('wargear abilities are explained beside their choices', async ({ page }) =>
     const option = loadout.getByRole('listitem').filter({ hasText: name })
     await expect(option.locator('[data-slot="option-abilities"] p')).not.toHaveCount(0)
   }
+
+  await expect(loadout.getByLabel('Tomb Blades models')).toHaveText('3')
+  await loadout.getByRole('button', { name: 'More Shadowloom' }).click()
+  await expect(loadout.getByLabel('Shadowloom count')).toHaveText('1')
+  await expect(loadout.getByLabel('Tomb Blades models')).toHaveText('3')
+  await expect(page.locator('[data-roster-builder]')).toHaveAttribute('data-saving', 'false')
+  await expect(loadout.getByLabel('Tomb Blades models')).toHaveText('3')
+  await expect(page.locator('[data-unit="Tomb Blades"]')).toBeVisible()
 
   await loadout.getByRole('button', { name: 'More Particle beamer' }).click()
   await loadout.getByRole('button', { name: 'More Twin tesla carbine' }).click()

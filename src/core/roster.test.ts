@@ -454,6 +454,7 @@ describe('optional wargear on repeated models', () => {
     const built = buildUnit('unit', index, 3, undefined, { spreads: { 'model/shield': { shield: 2 } } })!
     expect(wargearOf(built.selection, index)).toContainEqual({ name: 'Shieldvanes', count: 2 })
     expect(built.choices.find((choice) => choice.key === 'model/shield')?.options[0]?.count).toBe(2)
+    expect(built.size.models).toBe(3)
   })
 
   it('lets each model carry a different weapon', () => {
