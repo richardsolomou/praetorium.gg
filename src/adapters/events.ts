@@ -1,5 +1,5 @@
 import { CentrifugoPublisher } from 'ras-stack/realtime'
-import { battleChannel } from '../server/realtime'
+import { battleChannel } from './realtime'
 
 export type BattleEvents = {
   publish: (battleId: string) => void
@@ -23,5 +23,3 @@ export class RealtimePublisher implements BattleEvents {
     this.publisher?.publish(battleChannel(battleId), { changed: battleId })
   }
 }
-
-export const createBattleEvents = (): BattleEvents => ({ publish: () => {} })

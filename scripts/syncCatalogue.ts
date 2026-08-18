@@ -43,14 +43,12 @@ async function resolve(config: CatalogueSourceConfig): Promise<ResolvedCatalogue
   let wahapediaRevision = ''
   for (const name of config.wahapedia.files) {
     // Deliberately sequential: this updater runs hourly and should not burst at public sources.
-    // eslint-disable-next-line no-await-in-loop
     const bytes = await responseBytes(`${config.wahapedia.baseUrl}/${name}`)
     files[name] = hash(bytes)
     if (name === 'Last_update.csv') wahapediaRevision = new TextDecoder().decode(bytes).split('\n')[1]?.replace('|', '').trim() ?? ''
   }
   const pages: Record<string, string> = {}
   for (const name of config.wahapedia.pages) {
-    // eslint-disable-next-line no-await-in-loop
     pages[name] = hash(await responseBytes(`${config.wahapedia.baseUrl}/factions/${name}/`))
   }
   if (!wahapediaRevision) throw new Error('Wahapedia export has no revision')

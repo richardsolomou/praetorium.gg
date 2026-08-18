@@ -1,7 +1,7 @@
 import { createFileRoute, notFound } from '@tanstack/react-router'
+import { FactionDatasheet } from '../client/components/FactionDatasheet'
 import { factionFor } from '../client/factions'
 import { datasheetSlugQuery, factionsQuery } from '../client/queries'
-import { DatasheetPage } from './factions.$catalogueId.$entryId'
 
 export const Route = createFileRoute('/factions/$catalogueId/datasheets/$entryId')({
   loader: async ({ context, params }) => {
@@ -9,5 +9,5 @@ export const Route = createFileRoute('/factions/$catalogueId/datasheets/$entryId
     const faction = factionFor(data, params.catalogueId)
     if (!faction || !(await context.queryClient.ensureQueryData(datasheetSlugQuery(faction.id, params.entryId)))) throw notFound()
   },
-  component: DatasheetPage,
+  component: FactionDatasheet,
 })

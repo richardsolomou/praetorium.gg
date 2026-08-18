@@ -1,5 +1,5 @@
 import { and, asc, desc, eq, ne } from 'drizzle-orm'
-import { type Command, type LoggedCommand, PLAYERS_PER_BATTLE, reduceBattle, validate } from '../core/battle'
+import { type Command, type LoggedCommand, PLAYERS_PER_BATTLE, reduceBattle, type SubmitResult, validate } from '../core/battle'
 import { commandSchema } from '../core/commands'
 import type { PraetoriumDatabase } from './connection'
 import { battlePlayers, battles, collection, commands, favouriteFactions, players, rosters } from './schema'
@@ -9,12 +9,6 @@ type BattlePlayer = { id: string; name: string; side: number }
 export type BattleSeats = { battle: BattleRecord; players: BattlePlayer[] }
 
 export type JoinResult = 'joined' | 'already-in' | 'full'
-
-/**
- * `stale` carries the seq the caller should have had, so a client that lost a
- * race refetches rather than guessing. `refused` is the domain's own wording.
- */
-export type SubmitResult = { outcome: 'appended'; seq: number } | { outcome: 'stale'; seq: number } | { outcome: 'refused'; reason: string }
 
 export class Repository {
   constructor(private readonly database: PraetoriumDatabase) {}

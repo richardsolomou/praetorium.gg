@@ -42,7 +42,7 @@ Keep screenshots that contain roster or battle data outside version control.
 
 ## Known data limits
 
-`just points` currently matches 100% of 1,862 reference checks. Keep new mismatches out of the baseline.
+`just points` currently matches 100% of 1,861 reference checks. Keep new mismatches out of the baseline.
 
 The fetched sources do not provide every mission-pack restriction or every prose replacement rule as structured data. Praetorium reports missing semantics instead of reconstructing them from memory.
 

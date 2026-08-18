@@ -9,9 +9,10 @@ import {
   reduceBattle,
   type Secondary,
   type Stratagem,
+  type SubmitResult,
 } from '../core/battle'
 import type { RosterPick } from '../core/roster'
-import type { BattleSeats, JoinResult, Repository, SubmitResult } from '../db/repository'
+import type { BattleSeats, JoinResult, Repository } from '../db/repository'
 import { type Mission, missionFor } from './rules'
 import { picksSchema, savedPrepSchema } from './schemas'
 
@@ -123,37 +124,15 @@ export class PraetoriumService {
   /** A player's own saved lists, newest first. Their picks come back parsed. */
   savedRosters(playerId: string) {
     return this.repository.rostersByPlayer(playerId).map((row) => ({
-      id: row.id,
-      name: row.name,
-      catalogueId: row.catalogueId,
-      detachmentIds: detachmentIds(row.detachmentId),
-      disposition: row.disposition,
-      limit: row.limit,
-      updatedAt: row.updatedAt,
-      picks: picksSchema.parse(JSON.parse(row.picks)),
+      ...rosterFromRow(row),
       prep: row.prep ? savedPrepSchema.parse(JSON.parse(row.prep)) : null,
-      visibility: row.visibility,
-      source: row.source,
     }))
   }
 
   /** An unlisted roster, or its owner's private roster, without exposing owner identity. */
   sharedRoster(id: string, playerId: string | null = null) {
     const row = this.repository.roster(id)
-    return row && (row.visibility === 'unlisted' || row.playerId === playerId)
-      ? {
-          id: row.id,
-          name: row.name,
-          catalogueId: row.catalogueId,
-          detachmentIds: detachmentIds(row.detachmentId),
-          disposition: row.disposition,
-          limit: row.limit,
-          updatedAt: row.updatedAt,
-          picks: picksSchema.parse(JSON.parse(row.picks)),
-          visibility: row.visibility,
-          source: row.source,
-        }
-      : null
+    return row && (row.visibility === 'unlisted' || row.playerId === playerId) ? rosterFromRow(row) : null
   }
 
   setRosterVisibility(playerId: string, id: string, visibility: 'private' | 'unlisted') {
@@ -223,8 +202,7 @@ export class PraetoriumService {
   }
 
   deleteBattle(token: string, playerId: string) {
-    const seats = this.mustFind(token)
-    if (!this.seated(seats, playerId)) throw new Response('you are not in this battle', { status: 403 })
+    const seats = this.mustSeat(token, playerId)
     if (!this.repository.deleteBattle(seats.battle.id, playerId))
       throw new Response('only the battle creator can delete it', { status: 403 })
     this.events.publish(seats.battle.id)
@@ -260,8 +238,7 @@ export class PraetoriumService {
 
   /** A readable account of the battle. Derived from the log, so nothing is stored for it. */
   report(token: string, playerId: string) {
-    const seats = this.mustFind(token)
-    if (!this.seated(seats, playerId)) throw new Response('you are not in this battle', { status: 403 })
+    const seats = this.mustSeat(token, playerId)
     return battleReport(
       seats.players,
       this.repository.log(seats.battle.id),
@@ -277,8 +254,7 @@ export class PraetoriumService {
     command: Command,
     rules?: Parameters<typeof missionFor>[0] | null,
   ): SubmitAnswer {
-    const seats = this.mustFind(token)
-    if (!this.seated(seats, playerId)) throw new Response('you are not in this battle', { status: 403 })
+    const seats = this.mustSeat(token, playerId)
     const result = this.repository.submit({ battleId: seats.battle.id, playerId, expectedSeq, command, now: this.clock() }, (state) =>
       command.kind === 'begin-battle' && rules ? setupReferenceError(state, rules) : null,
     )
@@ -290,8 +266,7 @@ export class PraetoriumService {
 
   /** The stream is for players, so opening one is an authorization decision. */
   playerBattleId(token: string, playerId: string) {
-    const seats = this.mustFind(token)
-    if (!this.seated(seats, playerId)) throw new Response('you are not in this battle', { status: 403 })
+    const seats = this.mustSeat(token, playerId)
     return seats.battle.id
   }
 
@@ -314,10 +289,31 @@ export class PraetoriumService {
     return seats.players.some((player) => player.id === playerId)
   }
 
+  private mustSeat(token: string, playerId: string) {
+    const seats = this.mustFind(token)
+    if (!this.seated(seats, playerId)) throw new Response('you are not in this battle', { status: 403 })
+    return seats
+  }
+
   private mustFind(token: string): BattleSeats {
     const seats = this.repository.battleByToken(token)
     if (!seats) throw new Response('no such battle', { status: 404 })
     return seats
+  }
+}
+
+function rosterFromRow(row: NonNullable<ReturnType<Repository['roster']>>) {
+  return {
+    id: row.id,
+    name: row.name,
+    catalogueId: row.catalogueId,
+    detachmentIds: detachmentIds(row.detachmentId),
+    disposition: row.disposition,
+    limit: row.limit,
+    updatedAt: row.updatedAt,
+    picks: picksSchema.parse(JSON.parse(row.picks)),
+    visibility: row.visibility,
+    source: row.source,
   }
 }
 

@@ -33,6 +33,7 @@ import { Picker } from './builder/Picker'
 import { Section } from './builder/Section'
 import { Pane } from './builder/Pane'
 import { UnitCard } from './builder/UnitCard'
+import { preservesUnitSequence } from './builder/pricePlaceholder'
 import { SearchableSelect } from './SearchableSelect'
 import { RosterSetupDialog, type RosterSetup } from './RosterSetupDialog'
 import { RosterExportDialog } from './RosterExportDialog'
@@ -221,7 +222,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
       })),
     ),
     placeholderData: (previous, previousQuery) => {
-      return appendedUnitSequence(previousQuery?.queryKey.at(-1), picked) ? previous : undefined
+      return preservesUnitSequence(previousQuery?.queryKey.at(-1), picked) ? previous : undefined
     },
   })
 
@@ -914,18 +915,5 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
       </footer>
       <RosterExportDialog text={exportText} onClose={() => setExportText(null)} />
     </div>
-  )
-}
-
-function appendedUnitSequence(previous: unknown, current: readonly RosterPick[]) {
-  if (!Array.isArray(previous) || previous.length >= current.length) return false
-  return previous.every(
-    (pick, index) =>
-      typeof pick === 'object' &&
-      pick !== null &&
-      'entryId' in pick &&
-      'catalogueId' in pick &&
-      pick.entryId === current[index]?.entryId &&
-      pick.catalogueId === current[index]?.catalogueId,
   )
 }

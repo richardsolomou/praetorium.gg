@@ -5,7 +5,7 @@ import { Repository } from '../src/db/repository'
 import { createAuth } from '../src/server/auth'
 
 export const PREVIEW_EMAIL = 'preview@praetorium.gg'
-export const PREVIEW_PASSWORD = 'preview-preview-preview'
+const PREVIEW_PASSWORD = 'preview-preview-preview'
 const PREVIEW_PLAYER_ID = 'preview-player'
 export const PREVIEW_ROSTER = {
   id: 'preview-necrons-cursed-skyshroud',

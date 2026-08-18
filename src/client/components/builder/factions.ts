@@ -18,7 +18,7 @@ const lineageOf = (name: string) => name.split(' - ').slice(0, -1).at(-1) ?? ''
 export type FactionShelf<T> = { lineage: string; factions: T[] }
 
 /** The books grouped under their lineage, each keeping the order it arrived in. */
-export function shelve<T extends { name: string }>(factions: readonly T[]): FactionShelf<T>[] {
+function shelve<T extends { name: string }>(factions: readonly T[]): FactionShelf<T>[] {
   const shelves: FactionShelf<T>[] = []
   for (const faction of factions) {
     const lineage = lineageOf(faction.name)

@@ -1,12 +1,105 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
   "extends": ["./node_modules/ras-stack/config/oxlint/application.json", "./node_modules/ras-stack/config/oxlint/tanstack.json"],
+  "rules": {
+    "typescript/no-deprecated": "error"
+  },
   "overrides": [
     {
       "files": ["scripts/**"],
       "rules": {
-        "no-await-in-loop": "off",
         "typescript/no-unsafe-type-assertion": "off"
+      }
+    },
+    {
+      "files": ["src/routes/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [{ "regex": "^\\./[^.]", "message": "Route modules must not import sibling route modules." }]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["src/core/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "regex": "^(node:|@tanstack/|react(?:/|$)|\\.\\./(?:adapters|client|db|routes|server)/)",
+                "message": "Core modules must remain free of IO and framework dependencies."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["src/server/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "regex": "^(?:\\.\\./)+(?:client|routes)/",
+                "message": "Server modules must not depend on client or route modules."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["src/client/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "regex": "^(?:\\.\\./)+(?:adapters|db|routes)/",
+                "message": "Client modules must not depend on adapters, database, or route modules."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["src/adapters/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "regex": "^(?:\\.\\./)+(?:client|db|routes|server)/",
+                "message": "Adapters must not depend on application layers."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["src/db/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "regex": "^(?:\\.\\./)+(?:adapters|client|routes|server)/",
+                "message": "Database modules must depend only on core contracts and persistence code."
+              }
+            ]
+          }
+        ]
       }
     }
   ],

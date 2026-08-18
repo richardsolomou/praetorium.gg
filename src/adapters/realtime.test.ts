@@ -6,7 +6,7 @@ const secret = 'test-realtime-secret'
 const key = new TextEncoder().encode(secret)
 const verification = { currentDate: new Date(100_000) }
 
-describe('realtime tokens', () => {
+describe('realtime adapter', () => {
   it('signs connection identity with a short expiry', async () => {
     const { payload, protectedHeader } = await jwtVerify(await connectionToken('player-1', secret, 100), key, verification)
 

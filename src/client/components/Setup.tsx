@@ -329,7 +329,7 @@ export function Setup({ view, mission, send, pending, problem }: Props) {
   )
 }
 
-export function battleRoster(
+function battleRoster(
   saved: Awaited<ReturnType<NonNullable<ReturnType<typeof savedRostersQuery>['queryFn']>>>[number],
   priced: NonNullable<Awaited<ReturnType<typeof savedRosterPrice>>>,
 ): Roster {

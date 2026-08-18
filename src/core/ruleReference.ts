@@ -1,6 +1,6 @@
 const BRACKETED_RULE = /\[([\p{L}\p{N} +'"’\p{Pd}]+)\]/gu
 
-export function normalizeRuleReference(value: string) {
+function normalizeRuleReference(value: string) {
   return value
     .replace(/^\[|\]$/g, '')
     .replaceAll(/\^\^|\*/g, '')

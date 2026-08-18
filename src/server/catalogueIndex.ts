@@ -14,9 +14,9 @@ import { hiddenByRules } from '../core/evaluate'
 import { routeSlug } from '../core/slug'
 import { type FactionContent, loadFactionContents } from './datacards'
 
-export type CatalogueReference = { id: string; name: string; datasheets: number; detachments: number }
+type CatalogueReference = { id: string; name: string; datasheets: number; detachments: number }
 export type DetachmentOptions = { wrapperId: string; groupId: string; options: DetachmentOption[] }
-export type DetachmentOption = { id: string; name: string; disposition: string | null }
+type DetachmentOption = { id: string; name: string; disposition: string | null }
 
 export type LoadedCatalogue = {
   index: CatalogueIndex

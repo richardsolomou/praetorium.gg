@@ -31,9 +31,7 @@ test('a built list is priced, deployed and tracked', async ({ browser }) => {
     .click()
   const grow = alice.getByRole('button', { name: /More models in Plague Marines/ })
   for (let models = 6; models <= 10; models += 1) {
-    // eslint-disable-next-line no-await-in-loop
     await grow.click()
-    // eslint-disable-next-line no-await-in-loop
     await expect(alice.getByLabel('Plague Marines models')).toHaveText(String(models))
   }
   expect(Number.parseInt(await total.innerText(), 10)).toBeGreaterThan(atFive)

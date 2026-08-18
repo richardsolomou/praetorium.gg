@@ -10,7 +10,9 @@ import { signRealtimeToken } from 'ras-stack/realtime'
  */
 const TOKEN_TTL_SECONDS = 5 * 60
 
-export const battleChannel = (battleId: string) => `battle:${battleId}`
+export function battleChannel(battleId: string) {
+  return `battle:${battleId}`
+}
 
 export function realtimeConfig(environment: NodeJS.ProcessEnv = process.env) {
   // The container writes one into /data on first boot. The fallback is for `pnpm

@@ -26,7 +26,7 @@ const CLOSERS = { picker: 'lg:hidden', loadout: 'lg:hidden', datasheet: 'min-[14
 
 export function Pane({ variant, open, title, onClose, children }: Props) {
   useEffect(() => {
-    if (!open) return undefined
+    if (!open) return
     const escape = (event: KeyboardEvent) => event.key === 'Escape' && onClose()
     document.addEventListener('keydown', escape)
     return () => document.removeEventListener('keydown', escape)

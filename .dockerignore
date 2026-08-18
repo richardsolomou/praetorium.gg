@@ -6,3 +6,11 @@ node_modules
 .env
 .env.local
 data-dev
+praetorium-data
+catalogue-data
+catalogue-current.json
+catalogue-snapshot.zip
+test-results
+.pnpm-store
+dist
+.DS_Store

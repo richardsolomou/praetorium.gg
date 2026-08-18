@@ -440,7 +440,6 @@ test('the filters narrow the book to what is worth taking', async ({ page }) => 
   // Unit limit: three Lychguard is as many as the data allows.
   // One at a time on purpose: each click re-prices the list, and the next click's
   // effect is only meaningful once the previous one has landed.
-  // eslint-disable-next-line no-await-in-loop
   for (let taken = 0; taken < 3; taken++) await lychguard.click()
   await expect(page.getByText('3/3 in roster')).toBeVisible()
   await page.locator('[data-unit="Lychguard"]').first().getByLabel('Unit actions for Lychguard').click()
@@ -457,7 +456,6 @@ test('the filters narrow the book to what is worth taking', async ({ page }) => 
   await setup.getByRole('combobox', { name: 'Battle size' }).click()
   await page.getByRole('option', { name: /Incursion/ }).click()
   await setup.getByRole('button', { name: 'Save changes' }).click()
-  // eslint-disable-next-line no-await-in-loop
   for (let taken = 0; taken < 6; taken++) await lychguard.click()
   await expect(page.locator('[data-stat="points"]')).toHaveText('720/1000')
 
@@ -643,9 +641,7 @@ test('a squad divides its weapons between two options', async ({ page }) => {
 
   // Ten bodies, so there are ten guns to divide.
   for (let models = 6; models <= 10; models++) {
-    // eslint-disable-next-line no-await-in-loop
     await page.getByRole('button', { name: 'More models in Immortals' }).click()
-    // eslint-disable-next-line no-await-in-loop
     await expect(page.getByLabel('Immortals models')).toHaveText(String(models))
   }
   await expect(page.getByText('10x Gauss blaster')).toBeVisible()
@@ -658,9 +654,7 @@ test('a squad divides its weapons between two options', async ({ page }) => {
 
   // The group is always full, so taking a carbine takes a blaster off a model.
   for (let swapped = 1; swapped <= 3; swapped++) {
-    // eslint-disable-next-line no-await-in-loop
     await loadout.getByRole('button', { name: 'More Tesla carbine' }).click()
-    // eslint-disable-next-line no-await-in-loop
     await expect(page.getByLabel('Tesla carbine count')).toHaveText(String(swapped))
   }
   await expect(page.getByLabel('Tesla carbine count')).toHaveText('3')

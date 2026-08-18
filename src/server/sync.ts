@@ -100,7 +100,6 @@ export async function syncSources(
     // well past what a small instance has.
     const source = sources[name]
     report(`${name}: fetching ${source.repository} at ${source.revision.slice(0, 10)}`)
-    // eslint-disable-next-line no-await-in-loop
     await fetchInto(source.repository, source.revision, target, 'path' in source ? source.path : undefined)
   }
   fs.writeFileSync(path.join(directory, REVISION_FILE), `${JSON.stringify(pinned, null, 2)}\n`)
@@ -138,10 +137,8 @@ async function syncFactionIcons(directory: string, report: (message: string) => 
     if (url.hostname !== 'cdn.jsdelivr.net' || !url.pathname.includes('/gh/Certseeds/wh40k-icon@')) {
       throw new Error(`untrusted faction icon for ${faction.id}`)
     }
-    // eslint-disable-next-line no-await-in-loop
     const response = await fetch(url)
     if (!response.ok) throw new Error(`${faction.id} icon answered ${response.status}`)
-    // eslint-disable-next-line no-await-in-loop
     const bytes = new Uint8Array(await response.arrayBuffer())
     if (bytes.length > MAX_FACTION_ICON_BYTES) throw new Error(`${faction.id} icon exceeds ${MAX_FACTION_ICON_BYTES} bytes`)
     const svg = new TextDecoder().decode(bytes)
@@ -216,10 +213,8 @@ async function fetchBattlemasterInto(source: BattlemasterSource, target: string)
     const detailUrl = new URL(`/v1/public/data/layouts/${entry.owner}/${entry.id}`, source.baseUrl)
     // Deliberately sequential: the public API and small production instances should
     // not absorb a 45-request burst for data that changes only when the pin moves.
-    // eslint-disable-next-line no-await-in-loop
     const detailResponse = await fetch(detailUrl)
     if (!detailResponse.ok) throw new Error(`${entry.id} answered ${detailResponse.status}`)
-    // eslint-disable-next-line no-await-in-loop
     const bytes = new Uint8Array(await detailResponse.arrayBuffer())
     if (bytes.length > MAX_BATTLEMASTER_FILE_BYTES) throw new Error(`${entry.id} exceeds ${MAX_BATTLEMASTER_FILE_BYTES} bytes`)
     total += bytes.length
@@ -284,10 +279,8 @@ async function fetchWahapediaInto(source: WahapediaSource, target: string) {
   const unavailable: string[] = []
   for (const [name, expected] of Object.entries(source.files)) {
     try {
-      // eslint-disable-next-line no-await-in-loop
       const response = await fetch(`${source.baseUrl}/${name}`)
       if (!response.ok) throw new Error(`answered ${response.status}`)
-      // eslint-disable-next-line no-await-in-loop
       const bytes = new Uint8Array(await response.arrayBuffer())
       if (bytes.length > MAX_EXPORT_BYTES) throw new Error(`exceeds ${MAX_EXPORT_BYTES} bytes`)
       const actual = createHash('sha256').update(bytes).digest('hex')
@@ -307,10 +300,8 @@ async function fetchWahapediaInto(source: WahapediaSource, target: string) {
   fs.mkdirSync(pages)
   for (const [name, expected] of Object.entries(source.pages)) {
     try {
-      // eslint-disable-next-line no-await-in-loop
       const response = await fetch(`${source.baseUrl}/factions/${name}/`)
       if (!response.ok) throw new Error(`answered ${response.status}`)
-      // eslint-disable-next-line no-await-in-loop
       const bytes = new Uint8Array(await response.arrayBuffer())
       if (bytes.length > MAX_EXPORT_BYTES) throw new Error(`exceeds ${MAX_EXPORT_BYTES} bytes`)
       const actual = createHash('sha256').update(bytes).digest('hex')

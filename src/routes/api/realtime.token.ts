@@ -2,7 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { z } from 'zod'
 import { app } from '../../server/app'
 import { currentPlayer } from '../../server/playerSession'
-import { battleChannel, connectionToken, realtimeConfig, subscriptionToken } from '../../server/realtime'
+import { battleChannel, connectionToken, realtimeConfig, subscriptionToken } from '../../adapters/realtime'
 
 /**
  * What a browser needs to watch a battle: who it is, and permission for one

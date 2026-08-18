@@ -1,5 +1,4 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { createBattleEvents } from '../adapters/events'
 import { closeDatabase, type PraetoriumDatabase, openDatabase } from '../db/connection'
 import { Repository } from '../db/repository'
 import { user } from '../db/schema'
@@ -14,7 +13,7 @@ let now = 0
 beforeEach(() => {
   database = openDatabase(':memory:')
   now = 0
-  service = new PraetoriumService(new Repository(database), () => ++now, createBattleEvents())
+  service = new PraetoriumService(new Repository(database), () => ++now, { publish: () => {} })
   enrol('alice', 'Alice')
   enrol('bob', 'Bob')
   enrol('carol', 'Carol')

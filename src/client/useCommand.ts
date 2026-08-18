@@ -1,7 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
-import type { Command } from '../core/battle'
-import type { SubmitResult } from '../db/repository'
+import type { Command, SubmitResult } from '../core/battle'
 import { submit } from '../server/functions'
 import { battleQuery } from './queries'
 import { errorMessage } from './queryClient'
