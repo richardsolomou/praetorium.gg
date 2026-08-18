@@ -171,23 +171,24 @@ const SECONDARY_GUIDE = 40
 const PAINTED_ARMY_POINTS = 10
 
 /** The matched-play game sizes, smallest first. */
-export const KOTC_LIMIT = 600
+export const KOTC_LIMITS = [500, 600] as const
 export const KOTC_ROUNDS = 3
 export const DEFAULT_GAME_LIMIT = 2000
 
 export const GAME_SIZES = [
-  { name: 'King of the Colosseum', limit: KOTC_LIMIT, detachmentPoints: null },
+  ...KOTC_LIMITS.map((limit) => ({ name: `King of the Colosseum (${limit})`, limit, detachmentPoints: null })),
   { name: 'Incursion', limit: 1000, detachmentPoints: 2 },
   { name: 'Strike Force', limit: 2000, detachmentPoints: 3 },
   { name: 'Onslaught', limit: 3000, detachmentPoints: null },
 ] as const
 
 export const detachmentPointBudget = (limit: number) => GAME_SIZES.find((size) => size.limit === limit)?.detachmentPoints ?? null
-export const detachmentLimit = (limit: number) => (limit === KOTC_LIMIT ? 1 : 3)
-export const battleRoundLimit = (limit: number | null) => (limit === KOTC_LIMIT ? KOTC_ROUNDS : BATTLE_ROUNDS)
+export const isKotcLimit = (limit: number | null): boolean => limit !== null && KOTC_LIMITS.some((candidate) => candidate === limit)
+export const detachmentLimit = (limit: number) => (isKotcLimit(limit) ? 1 : 3)
+export const battleRoundLimit = (limit: number | null) => (isKotcLimit(limit) ? KOTC_ROUNDS : BATTLE_ROUNDS)
 
 /** The format-specific cap for copies of one datasheet, before catalogue limits are applied. */
-export const formatDatasheetLimit = (limit: number, repeatable: boolean) => (limit === KOTC_LIMIT ? (repeatable ? 2 : 1) : null)
+export const formatDatasheetLimit = (limit: number, repeatable: boolean) => (isKotcLimit(limit) ? (repeatable ? 2 : 1) : null)
 
 export function detachmentPointsError(detachments: readonly { points: number | null }[], allowance: number | null): string | null {
   if (detachments.length <= 1 || allowance === null) return null
@@ -540,7 +541,7 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
       // What an army brings is settled before the first turn, so the log cannot be
       // rewritten mid-game to a different set of cards.
       if (state.status === 'playing') return 'cards are settled before the battle begins'
-      if (state.settings.limit === KOTC_LIMIT && command.secondaryMode !== 'tactical')
+      if (isKotcLimit(state.settings.limit) && command.secondaryMode !== 'tactical')
         return 'King of the Colosseum requires tactical secondaries'
       return validatePrep(command)
     }

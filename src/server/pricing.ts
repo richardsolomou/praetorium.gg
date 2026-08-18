@@ -1,5 +1,5 @@
 import { attachmentErrors, attachmentOf } from '../core/attach'
-import { detachmentPointBudget, detachmentPointsError, formatDatasheetLimit, KOTC_LIMIT } from '../core/battle'
+import { detachmentPointBudget, detachmentPointsError, formatDatasheetLimit, isKotcLimit } from '../core/battle'
 import { evaluate, evaluateForces, type Selection } from '../core/evaluate'
 import { buildUnit, wargearOf } from '../core/roster'
 import { app } from './app'
@@ -112,7 +112,7 @@ export function calculateRosterPrice(data: PriceInput) {
         !(chosen.length > 1 && error.entryName.toLowerCase().includes('detachment') && error.message.includes('allows at most 1, has ')),
     ),
     ...attachmentErrors(data.units, loaded.index),
-    ...(data.limit === KOTC_LIMIT ? kotcViolations(chosen.length, kotcUnits) : []),
+    ...(isKotcLimit(data.limit) ? kotcViolations(chosen.length, kotcUnits, data.limit) : []),
   ]
 
   return {
@@ -184,7 +184,7 @@ export function calculateRosterPrice(data: PriceInput) {
 type KotcUnit = { entryId: string; name: string; keywords: readonly string[]; toughness: number | null; warlord: boolean }
 
 /** Prototype KOTC 2.0 army-construction changes layered over normal Incursion legality. */
-export function kotcViolations(detachments: number, units: readonly KotcUnit[]) {
+export function kotcViolations(detachments: number, units: readonly KotcUnit[], limit = 600) {
   const errors: { entryId: string; entryName: string; message: string }[] = []
   const add = (message: string, unit?: KotcUnit) =>
     errors.push({ entryId: unit?.entryId ?? 'kotc', entryName: unit?.name ?? 'King of the Colosseum', message })
@@ -202,7 +202,7 @@ export function kotcViolations(detachments: number, units: readonly KotcUnit[]) 
   for (const unit of units) byDatasheet.set(unit.entryId, [...(byDatasheet.get(unit.entryId) ?? []), unit])
   for (const copies of byDatasheet.values()) {
     const allowance = formatDatasheetLimit(
-      KOTC_LIMIT,
+      limit,
       copies.some((unit) => hasKeyword(unit, 'battleline') || hasKeyword(unit, 'dedicated transport')),
     )!
     if (copies.length > allowance) add(`allows at most ${allowance} of this datasheet, has ${copies.length}`, copies[0])

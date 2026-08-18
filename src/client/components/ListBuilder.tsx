@@ -19,7 +19,7 @@ import { Input } from '@/components/ui/input'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import type { Roster, Secondary, Stratagem } from '../../core/battle'
-import { DEFAULT_GAME_LIMIT, detachmentLimit, GAME_SIZES, KOTC_LIMIT, ROSTER_NAME_MAX_LENGTH } from '../../core/battle'
+import { DEFAULT_GAME_LIMIT, detachmentLimit, GAME_SIZES, isKotcLimit, ROSTER_NAME_MAX_LENGTH } from '../../core/battle'
 import type { RosterPick } from '../../core/roster'
 import type { RosterSource, RosterVisibility } from '../../core/savedRoster'
 import { deleteRoster, exportRoster, saveRoster } from '../../server/functions'
@@ -236,7 +236,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
   }
 
   const over = Boolean(priced && priced.points > limit)
-  const illegal = limit === KOTC_LIMIT && Boolean(priced?.errors.length)
+  const illegal = isKotcLimit(limit) && Boolean(priced?.errors.length)
   // A list without one is not a legal army, so it cannot be attached.
   const needsDetachment = Boolean(faction?.detachments.length) && !detachmentIds.length
   const overDetachmentPoints = Boolean(priced?.detachmentPointsOver)
@@ -276,7 +276,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
       const next = checked
         ? current.includes(id)
           ? current
-          : limit === KOTC_LIMIT
+          : isKotcLimit(limit)
             ? [id]
             : [...current, id].slice(0, detachmentLimit(limit))
         : current.filter((entry) => entry !== id)

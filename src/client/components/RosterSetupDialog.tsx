@@ -10,7 +10,7 @@ import {
   detachmentPointsError,
   detachmentPointBudget,
   GAME_SIZES,
-  KOTC_LIMIT,
+  isKotcLimit,
   ROSTER_NAME_MAX_LENGTH,
 } from '../../core/battle'
 import type { RosterVisibility } from '../../core/savedRoster'
@@ -84,7 +84,7 @@ export function RosterSetupDialog({
   const availableDetachments =
     faction?.detachments.filter((detachment) => {
       if (draft.detachmentIds.includes(detachment.id)) return true
-      if (draft.detachmentIds.length >= detachmentLimit(draft.limit) && draft.limit !== KOTC_LIMIT) return false
+      if (draft.detachmentIds.length >= detachmentLimit(draft.limit) && !isKotcLimit(draft.limit)) return false
       if (!selected.length || allowance === null || detachment.reference?.points == null) return true
       return spent + detachment.reference.points <= allowance
     }) ?? []
@@ -95,7 +95,7 @@ export function RosterSetupDialog({
   const toggleDetachment = (id: string) => {
     const ids = draft.detachmentIds.includes(id)
       ? draft.detachmentIds.filter((candidate) => candidate !== id)
-      : draft.limit === KOTC_LIMIT
+      : isKotcLimit(draft.limit)
         ? [id]
         : [...draft.detachmentIds, id].slice(0, detachmentLimit(draft.limit))
     const offered = dispositionsFor(faction?.detachments ?? [], ids)

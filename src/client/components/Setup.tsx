@@ -3,7 +3,7 @@ import { useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import type { BattleView, Command, Roster } from '../../core/battle'
-import { GAME_SIZES, KOTC_LIMIT, UNIT_FORMATIONS } from '../../core/battle'
+import { GAME_SIZES, isKotcLimit, UNIT_FORMATIONS } from '../../core/battle'
 import { battleQuery, battlesQuery, gameReferencesQuery, savedRostersQuery } from '../queries'
 import { errorMessage } from '../queryClient'
 import { deleteBattle, savedRosterPrice } from '../../server/functions'
@@ -132,7 +132,7 @@ export function Setup({ view, mission, send, pending, problem }: Props) {
             </div>
           ) : null}
           <p className="text-xs text-dim">
-            {view.settings.limit === KOTC_LIMIT
+            {isKotcLimit(view.settings.limit)
               ? 'The synced rules source does not yet provide the KOTC 2.0 battlefield or structured twists. Use the prototype pack for setup; Praetorium will not substitute the older 9-inch deployment.'
               : 'The synced rules source does not currently provide structured twist cards, so none are invented here.'}
           </p>

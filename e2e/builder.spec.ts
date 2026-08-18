@@ -70,7 +70,9 @@ test('King of the Colosseum creation keeps exactly one detachment selected', asy
   await page.getByPlaceholder('Search factions…').fill('Necrons')
   await page.getByRole('option', { name: 'Necrons', exact: true }).click()
   await dialog.getByRole('combobox', { name: 'Battle size' }).click()
-  await page.getByRole('option', { name: /King of the Colosseum/ }).click()
+  await expect(page.getByRole('option', { name: /King of the Colosseum/ })).toHaveCount(2)
+  await page.screenshot({ path: 'test-results/kotc-size-options.png', fullPage: true })
+  await page.getByRole('option', { name: /King of the Colosseum \(600\)/ }).click()
 
   const awakened = dialog.getByRole('button', { name: 'Select Awakened Dynasty' })
   const cryptek = dialog.getByRole('button', { name: 'Select Cryptek Conclave' })

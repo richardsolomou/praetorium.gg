@@ -56,11 +56,14 @@ const turns = (count: number, by: string): [string, Command][] => Array.from({ l
 
 describe('setup', () => {
   it('limits King of the Colosseum to one detachment', () => {
+    expect(detachmentLimit(500)).toBe(1)
     expect(detachmentLimit(600)).toBe(1)
     expect(detachmentLimit(2000)).toBe(3)
   })
 
   it('applies King of the Colosseum datasheet caps', () => {
+    expect(formatDatasheetLimit(500, false)).toBe(1)
+    expect(formatDatasheetLimit(500, true)).toBe(2)
     expect(formatDatasheetLimit(600, false)).toBe(1)
     expect(formatDatasheetLimit(600, true)).toBe(2)
     expect(formatDatasheetLimit(2000, false)).toBeNull()
@@ -409,12 +412,12 @@ describe('the turn sequence', () => {
     expect(state.status).toBe('finished')
   })
 
-  it('finishes King of the Colosseum after three rounds', () => {
+  it.each([500, 600])('finishes %i-point King of the Colosseum after three rounds', (limit) => {
     const configured: [string, Command] = [
       ALICE,
       {
         kind: 'configure-battle',
-        limit: 600,
+        limit,
         missionPackId: null,
         terrainLayoutId: null,
         twistId: null,

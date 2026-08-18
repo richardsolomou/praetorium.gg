@@ -4,7 +4,7 @@ import { useEffect, useRef } from 'react'
 import { Label } from '@/components/ui/label'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import type { BattleView, Command, Secondary, SecondaryMode } from '../../core/battle'
-import { KOTC_LIMIT, SECONDARIES_MAX, SECONDARY_MODES, STRATAGEMS_MAX } from '../../core/battle'
+import { isKotcLimit, SECONDARIES_MAX, SECONDARY_MODES, STRATAGEMS_MAX } from '../../core/battle'
 import { detachmentRulesQuery } from '../queries'
 
 type Props = { view: BattleView; missionId: string | null; send: (command: Command) => void; pending: boolean }
@@ -25,7 +25,7 @@ export function Prep({ view, missionId, send, pending }: Props) {
   const stratagems = rules ? [...rules.stratagems, ...rules.core].slice(0, STRATAGEMS_MAX) : []
   const primaryCard = rules?.primaries.find((card) => card.key === missionId)
   const primary: Secondary | null = primaryCard ? { key: primaryCard.key, name: primaryCard.name } : null
-  const tacticalOnly = view.settings.limit === KOTC_LIMIT
+  const tacticalOnly = isKotcLimit(view.settings.limit)
   const storedMode: SecondaryMode = you?.secondaryMode ?? 'tactical'
   const mode: SecondaryMode = tacticalOnly ? 'tactical' : storedMode
   const chosen = you?.secondaries.map(({ key, name }) => ({ key, name })) ?? []
