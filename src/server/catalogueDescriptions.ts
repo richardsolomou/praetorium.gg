@@ -7,6 +7,10 @@ export type DetachmentCatalogueDetail = {
   forcedEnhancements: { name: string; points: number | null; description: string | null }[]
 }
 
+type EnhancementIndex = { upgrades: SelectionEntry[]; forced: Map<string, SelectionEntry[]> }
+
+const enhancementIndexes = new WeakMap<LoadedCatalogue, EnhancementIndex>()
+
 export function detachmentCatalogueDetail(
   loaded: LoadedCatalogue,
   catalogueId: string,
@@ -22,7 +26,8 @@ export function detachmentCatalogueDetail(
   const inlineRule = definition?.rules?.find((candidate) => !candidate.hidden)
   const rule = linkedRule ?? inlineRule
 
-  const upgrades = [...loaded.index.definitions.values()].filter((entry): entry is SelectionEntry => entry.type === 'upgrade')
+  const indexed = enhancementIndex(loaded)
+  const upgrades = indexed.upgrades
   const enhancements = enhancementNames
     .map((name) => {
       const candidates = upgrades.filter((entry) => comparableName(entry.name) === comparableName(name))
@@ -37,8 +42,7 @@ export function detachmentCatalogueDetail(
       }
     })
     .toSorted((left, right) => left.name.localeCompare(right.name))
-  const forcedEnhancements = upgrades
-    .filter((entry) => loaded.index.catalogueOf.get(entry.id) === catalogueId && forcedBy(entry, detachmentId))
+  const forcedEnhancements = (indexed.forced.get(`${catalogueId}:${detachmentId}`) ?? [])
     .map((entry) => ({
       name: entry.name ?? entry.id,
       points: entry.costs?.find((cost) => cost.typeId === loaded.index.pointsTypeId)?.value ?? null,
@@ -53,32 +57,51 @@ export function detachmentCatalogueDetail(
   }
 }
 
-function forcedBy(entry: SelectionEntry, detachmentId: string) {
+function enhancementIndex(loaded: LoadedCatalogue): EnhancementIndex {
+  const existing = enhancementIndexes.get(loaded)
+  if (existing) return existing
+
+  const upgrades = [...loaded.index.definitions.values()].filter((entry): entry is SelectionEntry => entry.type === 'upgrade')
+  const forced = new Map<string, SelectionEntry[]>()
+  for (const entry of upgrades) {
+    const catalogueId = loaded.index.catalogueOf.get(entry.id)
+    if (!catalogueId) continue
+    for (const detachmentId of forcedFor(entry)) {
+      const key = `${catalogueId}:${detachmentId}`
+      forced.set(key, [...(forced.get(key) ?? []), entry])
+    }
+  }
+  const indexed = { upgrades, forced }
+  enhancementIndexes.set(loaded, indexed)
+  return indexed
+}
+
+function forcedFor(entry: SelectionEntry): Set<string> {
   const minimums = new Set(
     (entry.constraints ?? [])
       .filter((constraint) => constraint.type === 'min' && constraint.field === 'selections')
       .map((constraint) => constraint.id),
   )
-  if (!minimums.size) return false
+  if (!minimums.size) return new Set()
 
-  const visit = (group: ModifierGroup, inherited: readonly Condition[]): boolean => {
+  const found = new Set<string>()
+  const visit = (group: ModifierGroup, inherited: readonly Condition[]) => {
     const conditions = [...inherited, ...(group.conditions ?? [])]
-    const selected = conditions.some(
-      (condition) =>
-        condition.childId === detachmentId &&
-        condition.field === 'selections' &&
-        (condition.scope === 'force' || condition.scope === 'roster'),
+    const required = (group.modifiers ?? []).some(
+      (modifier) => minimums.has(modifier.field) && Number(modifier.value) > 0 && modifier.type === 'set',
     )
-    if (
-      selected &&
-      (group.modifiers ?? []).some((modifier) => minimums.has(modifier.field) && Number(modifier.value) > 0 && modifier.type === 'set')
-    ) {
-      return true
+    if (required) {
+      for (const condition of conditions) {
+        if (condition.childId && condition.field === 'selections' && (condition.scope === 'force' || condition.scope === 'roster')) {
+          found.add(condition.childId)
+        }
+      }
     }
-    return (group.modifierGroups ?? []).some((nested) => visit(nested, conditions))
+    for (const nested of group.modifierGroups ?? []) visit(nested, conditions)
   }
 
-  return (entry.modifierGroups ?? []).some((group) => visit(group, []))
+  for (const group of entry.modifierGroups ?? []) visit(group, [])
+  return found
 }
 
 const comparableName = (name: string | undefined) =>
