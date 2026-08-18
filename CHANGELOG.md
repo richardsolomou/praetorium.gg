@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.4.6
+
+### Patch Changes
+
+- 99f4eda: Improve wargear defaults and per-model choices, enforce faction restrictions, clarify invulnerable saves, and speed up catalogue-backed pages.
+
 ## 0.4.5
 
 ### Patch Changes
