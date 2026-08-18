@@ -3,13 +3,15 @@ import { app } from './app'
 import { configuredProviders } from 'ras-stack/auth'
 import { SOCIAL_PROVIDERS } from '../authConfig'
 import { routeSlug } from '../core/slug'
+import { nameOf } from '../core/catalogue'
 import { buildUnit } from '../core/roster'
 import { datasheetIn, datasheetInBySlug } from './catalogue'
+import { datasheetSlug, datasheetsOf } from './catalogueIndex'
 import { describeDatasheetAbilities } from './datasheetDescriptions'
 import { detachmentReference } from './detachmentReference'
 import { factionIndexFor, factionsFor } from './factionReferences'
 import { factionDisplayName } from './factionNames'
-import { unitsIn } from './cataloguePicker'
+import { isMatchedPlayDatasheet, unitsIn } from './cataloguePicker'
 import { slug } from './rules'
 import { gameReferencesFor } from './gameReferences'
 import { mutationRpc, rpc } from './rpc'
@@ -25,6 +27,7 @@ import {
   detachmentDetailSchema,
   exportRosterSchema,
   favouriteFactionSchema,
+  globalSearchSchema,
   importRosterSchema,
   priceSchema,
   ownedSchema,
@@ -176,6 +179,132 @@ export const factionIndex = createServerFn({ method: 'GET' }).handler(() =>
     return factionIndexFor(loaded, app().rules())
   }),
 )
+
+export type GlobalSearchResult = {
+  id: string
+  group: 'Pages' | 'Factions' | 'Datasheets' | 'Detachments' | 'Missions' | 'Your rosters' | 'Your battles'
+  label: string
+  detail: string
+  href: string
+}
+
+export const globalSearch = createServerFn({ method: 'GET' })
+  .validator(globalSearchSchema)
+  .handler(({ data }) =>
+    rpc(async () => {
+      const wanted = data.query.toLowerCase()
+      const results: GlobalSearchResult[] = []
+      const loaded = app().catalogue()
+      const rules = app().rules()
+
+      if (loaded) {
+        const available = factionsFor(loaded, rules)
+        for (const faction of available.factions) {
+          const factionMatches = `${faction.displayName} ${faction.name}`.toLowerCase().includes(wanted)
+          if (factionMatches) {
+            results.push({
+              id: `faction:${faction.id}`,
+              group: 'Factions',
+              label: faction.displayName,
+              detail: 'Faction reference',
+              href: `/factions/${faction.slug}`,
+            })
+          }
+          for (const detachment of faction.detachments) {
+            if (!detachment.name.toLowerCase().includes(wanted)) continue
+            results.push({
+              id: `detachment:${faction.id}:${detachment.id}`,
+              group: 'Detachments',
+              label: detachment.name,
+              detail: faction.displayName,
+              href: `/factions/${faction.slug}/reference/detachments/${detachment.slug}`,
+            })
+          }
+          for (const entryId of datasheetsOf(loaded.index, faction.id)) {
+            const entry = loaded.index.definitions.get(entryId)
+            if (!entry || !isMatchedPlayDatasheet(loaded.index, entry)) continue
+            const name = nameOf(entry, loaded.index.definitions)
+            if (!name.toLowerCase().includes(wanted)) continue
+            results.push({
+              id: `datasheet:${faction.id}:${entryId}`,
+              group: 'Datasheets',
+              label: name,
+              detail: faction.displayName,
+              href: `/factions/${faction.slug}/datasheets/${datasheetSlug(loaded, faction.id, entryId)}`,
+            })
+          }
+        }
+      }
+
+      if (rules) {
+        const references = gameReferencesFor(rules)
+        for (const pack of references.packs) {
+          if (pack.name.toLowerCase().includes(wanted)) {
+            results.push({
+              id: `pack:${pack.id}`,
+              group: 'Missions',
+              label: pack.name,
+              detail: 'Mission pack',
+              href: `/mission-packs/${pack.id}`,
+            })
+          }
+          for (const mission of pack.missions) {
+            if (!mission.name.toLowerCase().includes(wanted)) continue
+            results.push({
+              id: `mission:${pack.id}:${mission.id}`,
+              group: 'Missions',
+              label: mission.name,
+              detail: pack.name,
+              href: `/mission-packs/${pack.id}`,
+            })
+          }
+        }
+        const firstPack = references.packs[0]
+        if (firstPack) {
+          for (const mission of references.secondaries) {
+            if (!mission.name.toLowerCase().includes(wanted)) continue
+            results.push({
+              id: `secondary:${mission.key}`,
+              group: 'Missions',
+              label: mission.name,
+              detail: 'Secondary mission',
+              href: `/mission-packs/${firstPack.id}`,
+            })
+          }
+        }
+      }
+
+      const playerId = await currentPlayerId()
+      if (playerId) {
+        for (const roster of app().service.savedRosters(playerId)) {
+          if (!roster.name.toLowerCase().includes(wanted)) continue
+          results.push({
+            id: `roster:${roster.id}`,
+            group: 'Your rosters',
+            label: roster.name,
+            detail: `${roster.limit} points`,
+            href: `/rosters/${roster.id}/edit`,
+          })
+        }
+        for (const battle of app().service.battles(playerId, rules)) {
+          const label = battle.armies.filter(Boolean).join(' vs ') || battle.players.join(' vs ')
+          const searchable = `${label} ${battle.players.join(' ')} ${battle.mission?.name ?? ''}`.toLowerCase()
+          if (!searchable.includes(wanted)) continue
+          results.push({
+            id: `battle:${battle.token}`,
+            group: 'Your battles',
+            label,
+            detail: battle.mission?.name ?? battle.status,
+            href: `/b/${battle.token}`,
+          })
+        }
+      }
+
+      return ['Factions', 'Datasheets', 'Detachments', 'Missions', 'Your rosters', 'Your battles'].flatMap((group) =>
+        results.filter((result) => result.group === group).slice(0, 12),
+      )
+    }),
+  )
 
 export const units = createServerFn({ method: 'GET' })
   .validator(unitsSchema)
