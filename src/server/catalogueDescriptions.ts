@@ -45,7 +45,7 @@ export function detachmentCatalogueDetail(
 
 const comparableName = (name: string | undefined) =>
   name
-    ?.replace(/\s*\(upgrade\)\s*$/i, '')
+    ?.replace(/\s*\((?:aura|upgrade)\)\s*$/i, '')
     .trim()
     .toLocaleLowerCase()
 
