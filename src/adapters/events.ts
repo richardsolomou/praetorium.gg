@@ -23,5 +23,3 @@ export class RealtimePublisher implements BattleEvents {
     this.publisher?.publish(battleChannel(battleId), { changed: battleId })
   }
 }
-
-export const createBattleEvents = (): BattleEvents => ({ publish: () => {} })
