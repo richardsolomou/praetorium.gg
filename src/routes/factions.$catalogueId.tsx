@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { factionFor } from '../client/factions'
 import { factionsQuery } from '../client/queries'
 import { FactionMark, factionColour } from '../client/components/FactionMark'
+import { dispositionTone } from '../client/components/rosterSetup'
 
 export const Route = createFileRoute('/factions/$catalogueId')({
   loader: async ({ context, params }) => {
@@ -63,20 +64,24 @@ function FactionPage() {
               <span className="min-w-0">
                 <span className="block truncate text-sm font-bold uppercase">{detachment.name}</span>
                 {detachment.reference ? (
-                  <span className="text-xs text-dim">
-                    {detachment.reference.stratagems} stratagems · {detachment.reference.enhancements} enhancements
-                    {detachment.reference.upgrades ? ` · ${detachment.reference.upgrades} unit upgrades` : ''}
-                  </span>
+                  <>
+                    <span className="text-xs text-dim">
+                      {detachment.reference.stratagems} stratagems · {detachment.reference.enhancements} enhancements
+                      {detachment.reference.upgrades ? ` · ${detachment.reference.upgrades} unit upgrades` : ''}
+                    </span>
+                    {detachment.reference.dispositions.length || detachment.reference.points !== null ? (
+                      <span className="mt-1.5 flex flex-wrap gap-1">
+                        {detachment.reference.dispositions.map((disposition) => (
+                          <span key={disposition} className={`chip ${dispositionTone(disposition)}`}>
+                            {disposition}
+                          </span>
+                        ))}
+                        {detachment.reference.points === null ? null : <span className="chip">{detachment.reference.points} DP</span>}
+                      </span>
+                    ) : null}
+                  </>
                 ) : null}
               </span>
-              {detachment.reference ? (
-                <span className="shrink-0 text-right">
-                  {detachment.reference.points === null ? null : <span className="chip">{detachment.reference.points} DP</span>}
-                  {detachment.reference.dispositions.length ? (
-                    <span className="eyebrow mt-1 block">{detachment.reference.dispositions.join(' · ')}</span>
-                  ) : null}
-                </span>
-              ) : null}
               <ChevronRight className="size-4 shrink-0 text-dim" aria-hidden />
             </Link>
           ))}

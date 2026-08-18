@@ -1,5 +1,9 @@
 import { expect, it } from 'vitest'
-import { dispositionsFor } from './rosterSetup'
+import { dispositionsFor, dispositionTone } from './rosterSetup'
+
+it('colors a display name like its disposition id', () => {
+  expect(dispositionTone('Take and Hold')).toBe(dispositionTone('take-and-hold'))
+})
 
 it('offers the dispositions of every selected detachment once', () => {
   expect(

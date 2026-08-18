@@ -9,7 +9,11 @@ const dispositionTones: Record<string, { quiet: string; strong: string }> = {
 }
 
 export function dispositionTone(id: string, selected = false) {
-  const tone = dispositionTones[id]
+  const key = id
+    .toLowerCase()
+    .replaceAll(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+  const tone = dispositionTones[key]
   return tone ? (selected ? tone.strong : tone.quiet) : selected ? 'border-azure bg-raised text-bone' : 'border-edge bg-sunken text-dim'
 }
 
