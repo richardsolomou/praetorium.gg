@@ -24,6 +24,53 @@ test('the unit picker stays within the roster faction', async ({ page }) => {
   await expect(page.getByRole('combobox', { name: 'Force' })).toHaveCount(0)
 })
 
+test('Deathwatch excludes Scouts from its unit picker', async ({ page }) => {
+  await openBuilder(page, 'Deathwatch', /Black Spear Task Force/)
+  await page.getByLabel('Add a unit').fill('Scout')
+  await expect(page.getByText('Nothing by that name.')).toBeVisible()
+  await expect(page.getByRole('button', { name: /Add Scout/ })).toHaveCount(0)
+})
+
+test('Black Templars exclude prohibited datasheets and Psykers from their unit picker', async ({ page }) => {
+  await openBuilder(page, 'Black Templars', /Companions of Vehemence/)
+  for (const name of ['Gladiator Lancer', 'Librarian']) {
+    await page.getByLabel('Add a unit').fill(name)
+    await expect(page.getByText('Nothing by that name.')).toBeVisible()
+    await expect(page.getByRole('button', { name: `Add ${name}`, exact: true })).toHaveCount(0)
+  }
+  await page.screenshot({ path: 'test-results/black-templars-restrictions.png', fullPage: true })
+})
+
+test('adding a unit keeps the confirmed roster visible while pricing catches up', async ({ page }) => {
+  await openBuilder(page)
+  await add(page, 'Immortals')
+  const immortals = page.locator('[data-unit="Immortals"]')
+  await expect(immortals).toBeVisible()
+
+  await page.route('**/_serverFn/**', async (route) => {
+    if (route.request().method() === 'POST') await new Promise((resolve) => setTimeout(resolve, 1000))
+    await route.continue()
+  })
+  await add(page, 'Skorpekh Destroyers')
+
+  await expect(immortals).toBeVisible({ timeout: 250 })
+  await expect(page.locator('[data-unit="Skorpekh Destroyers"]')).toBeVisible()
+  await page.screenshot({ path: 'test-results/roster-visible-while-adding.png', fullPage: true })
+})
+
+test('owned units rise to the top of their roster and picker groups', async ({ page }) => {
+  await openBuilder(page)
+  await add(page, 'Necron Warriors')
+  await add(page, 'Immortals')
+
+  await page.locator('[data-unit="Immortals"]').getByLabel('Unit actions for Immortals').click()
+  await page.getByRole('menuitemcheckbox', { name: 'Add to collection' }).click()
+
+  await expect(page.locator('[data-unit]').first()).toHaveAttribute('data-unit', 'Immortals')
+  await expect(page.locator('aside[aria-label="Add units"] [data-picker-unit]').first()).toHaveAttribute('data-picker-unit', 'Immortals')
+  await page.screenshot({ path: 'test-results/owned-units-first.png', fullPage: true })
+})
+
 test('King of the Colosseum creation keeps exactly one detachment selected', async ({ page }) => {
   await signUp(page, 'Richard')
   await page.goto('/rosters')
@@ -33,7 +80,9 @@ test('King of the Colosseum creation keeps exactly one detachment selected', asy
   await page.getByPlaceholder('Search factions…').fill('Necrons')
   await page.getByRole('option', { name: 'Necrons', exact: true }).click()
   await dialog.getByRole('combobox', { name: 'Battle size' }).click()
-  await page.getByRole('option', { name: /King of the Colosseum/ }).click()
+  await expect(page.getByRole('option', { name: /King of the Colosseum/ })).toHaveCount(2)
+  await page.screenshot({ path: 'test-results/kotc-size-options.png', fullPage: true })
+  await page.getByRole('option', { name: /King of the Colosseum \(600\)/ }).click()
 
   const awakened = dialog.getByRole('button', { name: 'Select Awakened Dynasty' })
   const cryptek = dialog.getByRole('button', { name: 'Select Cryptek Conclave' })
@@ -164,6 +213,7 @@ test('unit upgrades stay separate from character enhancements', async ({ page })
 })
 
 test('wargear abilities are explained beside their choices', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 })
   await openBuilder(page)
   await add(page, 'Tomb Blades')
   await page
@@ -173,8 +223,73 @@ test('wargear abilities are explained beside their choices', async ({ page }) =>
 
   const loadout = page.locator('aside[aria-label="Loadout"]')
   for (const name of ['Shadowloom', 'Nebuloscope']) {
-    const option = loadout.getByRole('button', { name: `Select ${name}` }).locator('..')
+    const option = loadout.getByRole('listitem').filter({ hasText: name })
     await expect(option.locator('[data-slot="option-abilities"] p')).not.toHaveCount(0)
+  }
+
+  await expect(loadout.getByLabel('Tomb Blades models')).toHaveText('3')
+  await loadout.getByRole('button', { name: 'More Shadowloom' }).click()
+  await expect(loadout.getByLabel('Shadowloom count')).toHaveText('1')
+  await expect(loadout.getByLabel('Tomb Blades models')).toHaveText('3')
+  await expect(page.locator('[data-roster-builder]')).toHaveAttribute('data-saving', 'false')
+  await expect(loadout.getByLabel('Tomb Blades models')).toHaveText('3')
+  await expect(page.locator('[data-unit="Tomb Blades"]')).toBeVisible()
+  await loadout.getByRole('button', { name: 'Fewer Shadowloom' }).click()
+  await expect(loadout.getByLabel('Shadowloom count')).toHaveText('0')
+  await expect(page.locator('[data-roster-builder]')).toHaveAttribute('data-saving', 'false')
+  await expect(loadout.getByLabel('Tomb Blades models')).toHaveText('3')
+  await loadout.getByRole('button', { name: 'More models in Tomb Blades' }).click()
+  await expect(loadout.getByLabel('Tomb Blades models')).toHaveText('4')
+  await loadout.getByRole('button', { name: 'Fewer models in Tomb Blades' }).click()
+  await expect(loadout.getByLabel('Tomb Blades models')).toHaveText('3')
+
+  for (const models of ['4', '5', '6']) {
+    await loadout.getByRole('button', { name: 'More models in Tomb Blades' }).click()
+    await expect(loadout.getByLabel('Tomb Blades models')).toHaveText(models)
+  }
+  await loadout.getByRole('button', { name: 'More Shadowloom' }).click()
+  await loadout.getByRole('button', { name: 'More Shadowloom' }).click()
+  await expect(loadout.getByLabel('Shadowloom count')).toHaveText('2')
+  await expect(page.locator('[data-roster-builder]')).toHaveAttribute('data-saving', 'false')
+  await loadout.getByRole('button', { name: 'Fewer models in Tomb Blades' }).click()
+  await expect(loadout.getByLabel('Tomb Blades models')).toHaveText('5')
+  await loadout.getByRole('button', { name: 'Fewer models in Tomb Blades' }).click()
+  await loadout.getByRole('button', { name: 'Fewer models in Tomb Blades' }).click()
+  await expect(loadout.getByLabel('Tomb Blades models')).toHaveText('3')
+
+  await loadout.getByRole('button', { name: 'More Particle beamer' }).click()
+  await loadout.getByRole('button', { name: 'More Twin tesla carbine' }).click()
+  await expect(loadout.getByLabel('Twin gauss blaster count')).toHaveText('1')
+  await expect(loadout.getByLabel('Particle beamer count')).toHaveText('1')
+  await expect(loadout.getByLabel('Twin tesla carbine count')).toHaveText('1')
+
+  await expect(loadout.getByLabel('Shieldvanes count')).toHaveText('0')
+  for (const count of ['1', '2', '3']) {
+    await loadout.getByRole('button', { name: 'More Shieldvanes' }).click()
+    await expect(loadout.getByLabel('Shieldvanes count')).toHaveText(count)
+  }
+  await expect(page.getByRole('button', { name: /M 8", modified from 12"/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: /Sv 3\+, modified from 4\+/ })).toBeVisible()
+  await page.screenshot({ path: 'test-results/tomb-blades-shieldvanes.png', fullPage: true })
+})
+
+test('destroyer plasmacytes follow the unit size', async ({ page }) => {
+  await openBuilder(page)
+  for (const name of ['Skorpekh Destroyers', 'Ophydian Destroyers']) {
+    await add(page, name)
+    await page.locator(`[data-unit="${name}"]`).getByRole('button', { name, exact: true }).click()
+    const loadout = page.locator('aside[aria-label="Loadout"]')
+    await expect(loadout.getByLabel('Plasmacyte count')).toHaveText('1')
+    await expect(page.locator(`[data-unit="${name}"]`)).toContainText('1x Plasmacyte')
+    await loadout.getByRole('button', { name: `More models in ${name}` }).click()
+    await loadout.getByRole('button', { name: `More models in ${name}` }).click()
+    await loadout.getByRole('button', { name: `More models in ${name}` }).click()
+    await expect(loadout.getByLabel(`${name} models`)).toHaveText('6')
+    await expect(loadout.getByLabel('Plasmacyte count')).toHaveText('2')
+    await expect(page.locator(`[data-unit="${name}"]`)).toContainText('2x Plasmacyte')
+    await page.screenshot({ path: `test-results/${name.toLowerCase().replaceAll(' ', '-')}-plasmacytes.png`, fullPage: true })
+    await loadout.getByRole('button', { name: 'Fewer Plasmacyte' }).click()
+    await expect(loadout.getByLabel('Plasmacyte count')).toHaveText('1')
   }
 })
 
@@ -404,8 +519,8 @@ test('a character can be marked as the warlord from its unit editor', async ({ p
     .click()
   const pane = page.locator('aside[aria-label="Datasheet"]')
   const loadout = page.locator('aside[aria-label="Loadout"]')
-  await expect(pane.getByText('InSv')).toBeVisible()
-  await expect(pane.getByText('4+')).toBeVisible()
+  await expect(pane.getByText('Sv / Inv')).toBeVisible()
+  await expect(pane.getByText('2+ / 4++')).toBeVisible()
   await expect(loadout.getByText('Tachyon arrow', { exact: true })).toBeVisible()
   await expect(loadout.getByText("Overlord's blade", { exact: true })).toBeVisible()
   await expect(loadout.getByText('Voidscythe', { exact: true })).toBeVisible()

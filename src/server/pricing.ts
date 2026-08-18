@@ -1,5 +1,5 @@
 import { attachmentErrors, attachmentOf } from '../core/attach'
-import { detachmentPointBudget, detachmentPointsError, formatDatasheetLimit, KOTC_LIMIT } from '../core/battle'
+import { detachmentPointBudget, detachmentPointsError, formatDatasheetLimit, isKotcLimit } from '../core/battle'
 import { evaluate, evaluateForces, type Selection } from '../core/evaluate'
 import { buildUnit, wargearOf } from '../core/roster'
 import { app } from './app'
@@ -9,7 +9,7 @@ import type { LoadedCatalogue } from './catalogueIndex'
 import { groupOfEntry } from './cataloguePicker'
 import { slug } from './rules'
 import type { PriceInput } from './schemas'
-import { descriptionKey, findDescription } from './wahapedia'
+import { descriptionKey, findDescription, type FactionRestrictions } from './wahapedia'
 
 export function calculateRosterPrice(data: PriceInput) {
   const loaded = app().catalogue()
@@ -112,7 +112,8 @@ export function calculateRosterPrice(data: PriceInput) {
         !(chosen.length > 1 && error.entryName.toLowerCase().includes('detachment') && error.message.includes('allows at most 1, has ')),
     ),
     ...attachmentErrors(data.units, loaded.index),
-    ...(data.limit === KOTC_LIMIT ? kotcViolations(chosen.length, kotcUnits) : []),
+    ...factionRestrictionViolations(rules?.factionRestrictions.get(factionSlug), kotcUnits),
+    ...(isKotcLimit(data.limit) ? kotcViolations(chosen.length, kotcUnits, data.limit) : []),
   ]
 
   return {
@@ -183,8 +184,18 @@ export function calculateRosterPrice(data: PriceInput) {
 
 type KotcUnit = { entryId: string; name: string; keywords: readonly string[]; toughness: number | null; warlord: boolean }
 
+export function factionRestrictionViolations(restrictions: FactionRestrictions | undefined, units: readonly KotcUnit[]) {
+  if (!restrictions) return []
+  return units.flatMap((unit) => {
+    const name = unit.name.trim().toLowerCase()
+    const keyword = unit.keywords.find((candidate) => restrictions.excludedKeywords.has(candidate.trim().toLowerCase()))
+    if (!restrictions.excludedNames.has(name) && !keyword) return []
+    return [{ entryId: unit.entryId, entryName: unit.name, message: `is not allowed in this faction${keyword ? ` (${keyword})` : ''}` }]
+  })
+}
+
 /** Prototype KOTC 2.0 army-construction changes layered over normal Incursion legality. */
-export function kotcViolations(detachments: number, units: readonly KotcUnit[]) {
+export function kotcViolations(detachments: number, units: readonly KotcUnit[], limit = 600) {
   const errors: { entryId: string; entryName: string; message: string }[] = []
   const add = (message: string, unit?: KotcUnit) =>
     errors.push({ entryId: unit?.entryId ?? 'kotc', entryName: unit?.name ?? 'King of the Colosseum', message })
@@ -202,7 +213,7 @@ export function kotcViolations(detachments: number, units: readonly KotcUnit[]) 
   for (const unit of units) byDatasheet.set(unit.entryId, [...(byDatasheet.get(unit.entryId) ?? []), unit])
   for (const copies of byDatasheet.values()) {
     const allowance = formatDatasheetLimit(
-      KOTC_LIMIT,
+      limit,
       copies.some((unit) => hasKeyword(unit, 'battleline') || hasKeyword(unit, 'dedicated transport')),
     )!
     if (copies.length > allowance) add(`allows at most ${allowance} of this datasheet, has ${copies.length}`, copies[0])

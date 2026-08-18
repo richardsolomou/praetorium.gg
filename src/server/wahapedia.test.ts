@@ -2,7 +2,13 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, expect, it } from 'vitest'
-import { descriptionKey, findDescription, loadWahapediaDescriptions } from './wahapedia'
+import {
+  descriptionKey,
+  factionRestrictionCoverageIssues,
+  factionRestrictions,
+  findDescription,
+  loadWahapediaDescriptions,
+} from './wahapedia'
 
 let directory: string
 
@@ -78,6 +84,34 @@ it('reads unambiguous datasheet ability descriptions', () => {
   write('Abilities.csv', 'name|description|\nOath of Moment|Re-roll Hit rolls.|\n')
   write('Datasheets_abilities.csv', 'name|description|\nOath of Moment|Re-roll Hit rolls.|\n')
   expect(loadWahapediaDescriptions(directory)?.abilities.get('oath-of-moment')).toBe('Re-roll Hit rolls.')
+})
+
+it('assigns combined Space Marine restrictions to each named faction', () => {
+  const restrictions = factionRestrictions(
+    new Map([
+      [
+        'space-marine-chapters',
+        'If your army includes one or more BLACK TEMPLARS units, it cannot include any Adeptus Astartes Psyker models, and cannot include any of the following models: Gladiator Lancer; Repulsor. If your army includes one or more DEATHWATCH units, it cannot include any of the following units: Scout Squad. If your army includes one or more SPACE WOLVES units, it cannot include any of the following units: Apothecary.',
+      ],
+    ]),
+  )
+  expect(Object.fromEntries([...restrictions].map(([faction, rule]) => [faction, [...rule.excludedNames]]))).toEqual({
+    'black-templars': ['gladiator lancer', 'repulsor'],
+    deathwatch: ['scout squad'],
+    'space-wolves': ['apothecary'],
+  })
+  expect(restrictions.get('black-templars')?.excludedKeywords).toEqual(new Set(['psyker']))
+})
+
+it('reports named army exclusions that no typed restriction captured', () => {
+  expect(
+    factionRestrictionCoverageIssues(
+      new Map([
+        ['deathwatch', 'Your army cannot include any of the following units: Scouts.'],
+        ['changed-rule', 'If your army includes one or more SPACE WOLVES units, it cannot include these following units: Scouts.'],
+      ]),
+    ),
+  ).toEqual(['changed-rule: scouts'])
 })
 
 it('drops datasheet ability names with conflicting descriptions', () => {

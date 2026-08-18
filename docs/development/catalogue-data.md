@@ -63,11 +63,13 @@ Server catalogue code is split by responsibility:
 - `instanceOf` compares the current selection for `self` scope and searches the scoped contents for container scopes.
 - Treat category links as keywords when matching conditions.
 - Call `hiddenByRules` with the current roster. Visibility can depend on its detachment and force type.
+- Parse prose-only army exclusions into typed faction restrictions. Roster legality and picker visibility consume the same restrictions; `just points` fails when a named exclusion in the synced rules was not captured.
+- Treat conditional modifiers targeting the catalogue `error` field as legality errors. These carry cross-unit and loadout restrictions that cannot be represented as numeric constraints.
 - Read available choices from the datasheet definition, not only from the built selection. Optional groups are absent from the default selection.
 - Add detachments before units during evaluation. Enhancements and unit limits can depend on them.
 - Apply profile modifiers against the complete roster selection. Support the catalogue's ordered text, numeric, rounding, cumulative, name, annotation, and visibility operations. Keep the base value and each selected rule that changed it so the interface can explain every derived value.
 - Eleventh-edition detachments are ordered purchases. A roster can use any force disposition offered by a purchased detachment and keeps the player's choice. All purchased detachments contribute their detachment-point cost and stratagems.
-- King of the Colosseum layers its prototype construction rules over Incursion: 600 points, exactly one detachment, at least two Infantry units, a Warlord, no Epic Heroes, at most one Toughness 9 unit and none tougher, and format-specific datasheet caps. Derive these facts from the selected catalogue entries and profiles.
+- King of the Colosseum layers its prototype construction rules over Incursion at the selected 500- or 600-point limit: exactly one detachment, at least two Infantry units, a Warlord, no Epic Heroes, at most one Toughness 9 unit and none tougher, and format-specific datasheet caps. Derive these facts from the selected catalogue entries and profiles.
 
 ## Points ratchet
 

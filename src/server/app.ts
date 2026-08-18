@@ -25,6 +25,8 @@ type App = {
   sync: () => SyncState
   auth: ReturnType<typeof createAuth>
   telemetry: ReturnType<typeof serverTelemetry>
+  /** Resolves after installed catalogue data has paid its one-time parse cost. */
+  ready: () => Promise<void>
 }
 
 /** Parsing the whole catalogue takes seconds, so it happens once and only if asked for. */
@@ -74,14 +76,17 @@ const sync = {
 }
 
 /** Pays the one-time parse cost after startup, before a player opens the catalogue. */
-export function warm(instance: Pick<App, 'catalogue' | 'rules'>) {
-  setImmediate(() => {
-    try {
-      instance.catalogue()
-      instance.rules()
-    } catch (error) {
-      sync.state = { status: 'failed', detail: error instanceof Error ? error.message : 'the catalogue could not be loaded' }
-    }
+export function warm(instance: Pick<App, 'catalogue' | 'rules'>): Promise<void> {
+  return new Promise((resolve) => {
+    setImmediate(() => {
+      try {
+        instance.catalogue()
+        instance.rules()
+      } catch (error) {
+        sync.state = { status: 'failed', detail: error instanceof Error ? error.message : 'the catalogue could not be loaded' }
+      }
+      resolve()
+    })
   })
 }
 
@@ -92,6 +97,7 @@ export function app(): App {
     const database = openDatabase(file)
     const realtime = realtimeConfig()
     const events = new RealtimePublisher(realtime.apiUrl, realtime.apiKey)
+    let ready = Promise.resolve()
     const instance: App = {
       database,
       service: new PraetoriumService(new Repository(database), Date.now, events),
@@ -101,25 +107,26 @@ export function app(): App {
       rules: memoize(loadRules),
       sync: () => sync.state,
       telemetry,
+      ready: () => ready,
     }
     // Fetched in the background rather than at boot: an instance must start and
     // serve battles whether or not it has the catalogues yet.
     sync.begin(catalogueDirectory(path.dirname(file)), () => {
       instance.catalogue = memoize(loadCatalogue)
       instance.rules = memoize(loadRules)
-      warm(instance)
+      ready = warm(instance)
     })
     const catalogueRefresh = setInterval(
       () =>
         sync.begin(catalogueDirectory(path.dirname(file)), () => {
           instance.catalogue = memoize(loadCatalogue)
           instance.rules = memoize(loadRules)
-          warm(instance)
+          ready = warm(instance)
         }),
       60 * 60 * 1000,
     )
     catalogueRefresh.unref()
-    if (sync.state.status === 'ready') warm(instance)
+    if (sync.state.status === 'ready') ready = warm(instance)
     return instance
   })
 }

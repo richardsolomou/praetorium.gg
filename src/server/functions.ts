@@ -195,8 +195,12 @@ export const units = createServerFn({ method: 'GET' })
     rpc(() => {
       const loaded = app().catalogue()
       if (!loaded) return []
-      const names = app().rules()?.factionNames
-      return unitsIn(loaded, data.catalogueId, data.query).map((unit) => ({
+      const rules = app().rules()
+      const names = rules?.factionNames
+      const faction = loaded.factions.find((entry) => entry.id === data.catalogueId)
+      const displayName = faction ? factionDisplayName(faction.name, names) : ''
+      const restrictions = rules?.factionRestrictions.get(routeSlug(displayName))
+      return unitsIn(loaded, data.catalogueId, data.query, { restrictions }).map((unit) => ({
         ...unit,
         alliedFaction: unit.alliedFaction ? factionDisplayName(unit.alliedFaction, names) : null,
       }))

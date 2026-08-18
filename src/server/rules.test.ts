@@ -46,7 +46,10 @@ beforeEach(() => {
     path.join(wahapedia, 'Detachment_abilities.csv'),
     'name|detachment|description|\nVirulent Vectorium|Flyblown Host|<b>Spread disease.</b>|\n',
   )
-  fs.writeFileSync(path.join(wahapedia, 'Abilities.csv'), 'name|description|\nOath of Moment|Re-roll Hit rolls.|\n')
+  fs.writeFileSync(
+    path.join(wahapedia, 'Abilities.csv'),
+    'name|description|\nOath of Moment|Re-roll Hit rolls.|\nDeathwatch|Your army cannot include any of the following units: Scout Squad; Tactical Squad.|\n',
+  )
   fs.writeFileSync(
     path.join(wahapedia, 'Stratagems.csv'),
     'name|detachment|description|\nGRIM REAPERS|Flyblown Host|<b>Cut them down.</b>|\n',
@@ -105,6 +108,13 @@ describe('stratagems', () => {
 
   it('keeps the player-facing faction name', () => {
     expect(load().factionNames.get('death-guard')).toBe('Death Guard')
+  })
+
+  it('reads faction restrictions from army rules', () => {
+    expect(load().factionRestrictions.get('deathwatch')).toEqual({
+      excludedNames: new Set(['scout squad', 'tactical squad']),
+      excludedKeywords: new Set(),
+    })
   })
 
   it('keeps the reference metadata for each detachment', () => {

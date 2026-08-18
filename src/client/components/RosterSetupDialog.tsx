@@ -10,14 +10,15 @@ import {
   detachmentPointsError,
   detachmentPointBudget,
   GAME_SIZES,
-  KOTC_LIMIT,
+  isKotcLimit,
   ROSTER_NAME_MAX_LENGTH,
 } from '../../core/battle'
 import type { RosterVisibility } from '../../core/savedRoster'
 import { DetachmentReference } from './DetachmentReference'
 import { SearchableSelect } from './SearchableSelect'
-import { shelve, shortName } from './builder/factions'
+import { factionSelectGroups } from './builder/factions'
 import { dispositionsFor, dispositionTone } from './rosterSetup'
+import { useFavouriteFactions } from '../favouriteFactions'
 
 type Detachment = {
   id: string
@@ -63,6 +64,7 @@ export function RosterSetupDialog({
 }: Props) {
   const [draft, setDraft] = useState(value)
   const [reference, setReference] = useState<{ catalogueId: string; slug: string; name: string } | null>(null)
+  const { favourites } = useFavouriteFactions()
 
   const changeDraft = (next: RosterSetup) => {
     setDraft(next)
@@ -82,21 +84,18 @@ export function RosterSetupDialog({
   const availableDetachments =
     faction?.detachments.filter((detachment) => {
       if (draft.detachmentIds.includes(detachment.id)) return true
-      if (draft.detachmentIds.length >= detachmentLimit(draft.limit) && draft.limit !== KOTC_LIMIT) return false
+      if (draft.detachmentIds.length >= detachmentLimit(draft.limit) && !isKotcLimit(draft.limit)) return false
       if (!selected.length || allowance === null || detachment.reference?.points == null) return true
       return spent + detachment.reference.points <= allowance
     }) ?? []
   const factionChanged = value.catalogueId !== draft.catalogueId
   const detachmentsChanged = value.detachmentIds.toSorted().join() !== draft.detachmentIds.toSorted().join()
-  const groups = shelve(factions).map((shelf) => ({
-    label: shelf.lineage,
-    items: shelf.factions.map((entry) => ({ label: shortName(entry.name), value: entry.id })),
-  }))
+  const groups = factionSelectGroups(factions, favourites)
 
   const toggleDetachment = (id: string) => {
     const ids = draft.detachmentIds.includes(id)
       ? draft.detachmentIds.filter((candidate) => candidate !== id)
-      : draft.limit === KOTC_LIMIT
+      : isKotcLimit(draft.limit)
         ? [id]
         : [...draft.detachmentIds, id].slice(0, detachmentLimit(draft.limit))
     const offered = dispositionsFor(faction?.detachments ?? [], ids)

@@ -305,3 +305,13 @@ if (showSkipped) {
 
 console.log(`\n## catalogue features the evaluator did not act on (${census.size})`)
 for (const note of [...census].toSorted()) console.log(`  ${note}`)
+
+const allowedUnhandled = new Set([
+  'scope primary-catalogue without a catalogue to compare',
+  // Imported links can carry a unit-scoped error from a sibling definition. The
+  // condition fails closed because that unit is not an ancestor of this pick.
+  'unresolved scope 212d-f302-aaaf-5c12',
+  'unresolved scope 9e9c-bf4d-2d40-be82',
+])
+const unexpectedUnhandled = [...census].filter((note) => !allowedUnhandled.has(note))
+if (unexpectedUnhandled.length) process.exitCode = 1

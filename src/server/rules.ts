@@ -2,7 +2,13 @@ import fs from 'node:fs'
 import path from 'node:path'
 import type { Stratagem, StratagemLimit } from '../core/battle'
 import { routeSlug } from '../core/slug'
-import { findDescription, findDetachmentAbilities, loadWahapediaDescriptions, WAHAPEDIA_ATTRIBUTION } from './wahapedia'
+import {
+  factionRestrictions,
+  findDescription,
+  findDetachmentAbilities,
+  loadWahapediaDescriptions,
+  WAHAPEDIA_ATTRIBUTION,
+} from './wahapedia'
 
 /**
  * Stratagems and secondary mission cards, from the Tabletop Developer Consortium's
@@ -252,6 +258,8 @@ type DetachmentRulesDetail = {
 export type LoadedRules = {
   attribution: string
   abilityDescriptions: ReadonlyMap<string, string>
+  /** Army-construction restrictions keyed by the player-facing faction slug. */
+  factionRestrictions: ReturnType<typeof factionRestrictions>
   /** Faction slug then detachment slug, so a chosen detachment maps straight to its six. */
   byDetachment: Map<string, Map<string, Stratagem[]>>
   /** Display metadata for each detachment, from the same licensed source as its stratagems. */
@@ -513,6 +521,7 @@ export function loadRules(
       .filter(Boolean)
       .join('. '),
     abilityDescriptions: wahapedia?.abilities ?? new Map(),
+    factionRestrictions: factionRestrictions(wahapedia?.abilities ?? new Map()),
     byDetachment,
     detachmentReferences,
     detachmentDetails,

@@ -7,7 +7,13 @@ import { app } from '../../server/app'
 export const Route = createFileRoute('/api/health')({
   server: {
     handlers: {
-      GET: tanStackHealthHandler(() => app().database.get(sql`SELECT 1`), { failure: databaseHealthFailure }),
+      GET: tanStackHealthHandler(
+        async () => {
+          await app().ready()
+          return app().database.get(sql`SELECT 1`)
+        },
+        { failure: databaseHealthFailure },
+      ),
     },
   },
 })

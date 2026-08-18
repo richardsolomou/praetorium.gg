@@ -1,4 +1,4 @@
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { Check, Copy, Download, EllipsisVertical, Eye, Layers3, Pencil, Plus, Trash2, TriangleAlert, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
@@ -19,14 +19,14 @@ import { Input } from '@/components/ui/input'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import type { Roster, Secondary, Stratagem } from '../../core/battle'
-import { DEFAULT_GAME_LIMIT, detachmentLimit, GAME_SIZES, KOTC_LIMIT, ROSTER_NAME_MAX_LENGTH } from '../../core/battle'
+import { DEFAULT_GAME_LIMIT, detachmentLimit, GAME_SIZES, isKotcLimit, ROSTER_NAME_MAX_LENGTH } from '../../core/battle'
 import type { RosterPick } from '../../core/roster'
 import type { RosterSource, RosterVisibility } from '../../core/savedRoster'
 import { deleteRoster, exportRoster, saveRoster } from '../../server/functions'
 import { collectionQuery, factionsQuery, priceQuery, savedRostersQuery } from '../queries'
 import { useCollectionMutation } from '../useCollection'
 import { DatasheetPanel } from './builder/DatasheetPanel'
-import { shelve, shortName } from './builder/factions'
+import { factionSelectGroups, shortName } from './builder/factions'
 import { GROUPS } from './builder/groups'
 import { Loadout } from './builder/Loadout'
 import { Picker } from './builder/Picker'
@@ -37,6 +37,7 @@ import { SearchableSelect } from './SearchableSelect'
 import { RosterSetupDialog, type RosterSetup } from './RosterSetupDialog'
 import { RosterExportDialog } from './RosterExportDialog'
 import { readWorkspaceState, writeWorkspaceState } from './workspaceState'
+import { useFavouriteFactions } from '../favouriteFactions'
 
 type Props = {
   onAttach?: (roster: Roster) => void
@@ -103,6 +104,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
   const { data: owned } = useQuery(collectionQuery())
   const collection = new Set(owned ?? [])
   const own = useCollectionMutation()
+  const { favourites } = useFavouriteFactions()
 
   useEffect(() => setSetupDraftState(readWorkspaceState<RosterSetup>(workspacePath, 'roster-setup')), [workspacePath])
   const refreshSaved = () => queryClient.invalidateQueries({ queryKey: savedRostersQuery().queryKey })
@@ -123,10 +125,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
   }
 
   const faction = available?.factions.find((entry) => entry.id === catalogueId)
-  const factionGroups = shelve(available?.factions ?? []).map((shelf) => ({
-    label: shelf.lineage,
-    items: shelf.factions.map((entry) => ({ label: shortName(entry.name), value: entry.id })),
-  }))
+  const factionGroups = factionSelectGroups(available?.factions ?? [], favourites)
   const suggested = faction
     ? [shortName(faction.name), faction.detachments.find((entry) => entry.id === detachmentIds[0])?.name].filter(Boolean).join(' — ')
     : ''
@@ -220,7 +219,9 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
         toggles,
       })),
     ),
-    placeholderData: keepPreviousData,
+    placeholderData: (previous, previousQuery) => {
+      return sameUnitSequence(previousQuery?.queryKey[5], picked) ? previous : undefined
+    },
   })
 
   if (!available) {
@@ -235,12 +236,32 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
   }
 
   const over = Boolean(priced && priced.points > limit)
-  const illegal = limit === KOTC_LIMIT && Boolean(priced?.errors.length)
+  const illegal = isKotcLimit(limit) && Boolean(priced?.errors.length)
   // A list without one is not a legal army, so it cannot be attached.
   const needsDetachment = Boolean(faction?.detachments.length) && !detachmentIds.length
   const overDetachmentPoints = Boolean(priced?.detachmentPointsOver)
   const units = priced?.units ?? []
   const selectedUnit = selected === null ? null : (units[selected] ?? null)
+  const selectedPick = selected === null ? null : (picked[selected] ?? null)
+  const optimisticUnit =
+    selectedUnit && selectedPick
+      ? {
+          ...selectedUnit,
+          size: { ...selectedUnit.size, models: selectedPick.models ?? selectedUnit.size.models },
+          choices: selectedUnit.choices.map((choice) => ({
+            ...choice,
+            chosen: Object.hasOwn(selectedPick.choices ?? {}, choice.key) ? (selectedPick.choices?.[choice.key] ?? '') : choice.chosen,
+            options: choice.options.map((option) => ({
+              ...option,
+              count: selectedPick.spreads?.[choice.key]?.[option.id] ?? option.count,
+            })),
+          })),
+          toggles: selectedUnit.toggles.map((toggle) => ({
+            ...toggle,
+            selected: Object.hasOwn(selectedPick.toggles ?? {}, toggle.key) ? Boolean(selectedPick.toggles?.[toggle.key]) : toggle.selected,
+          })),
+        }
+      : selectedUnit
 
   const held: Record<string, number> = {}
   for (const pick of picked) held[pick.entryId] = (held[pick.entryId] ?? 0) + 1
@@ -255,7 +276,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
       const next = checked
         ? current.includes(id)
           ? current
-          : limit === KOTC_LIMIT
+          : isKotcLimit(limit)
             ? [id]
             : [...current, id].slice(0, detachmentLimit(limit))
         : current.filter((entry) => entry !== id)
@@ -272,8 +293,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
       current.map((pick, at) => {
         if (at !== index) return pick
         const choices = { ...pick.choices }
-        if (optionId) choices[key] = optionId
-        else delete choices[key]
+        choices[key] = optionId
         return { ...pick, choices }
       }),
     )
@@ -282,7 +302,13 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
   const spread = (index: number, key: string, counts: Record<string, number>) =>
     setPicked((current) =>
       current.map((pick, at) =>
-        at === index ? { ...pick, spreads: { ...pick.spreads, [key]: { ...pick.spreads?.[key], ...counts } } } : pick,
+        at === index
+          ? {
+              ...pick,
+              models: pick.models ?? units[index]?.size.models,
+              spreads: { ...pick.spreads, [key]: { ...pick.spreads?.[key], ...counts } },
+            }
+          : pick,
       ),
     )
 
@@ -432,7 +458,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
   const loadout = (
     <Loadout
       catalogueId={loadoutCatalogueId}
-      unit={selectedUnit}
+      unit={optimisticUnit}
       detachmentIds={detachmentIds}
       picks={picked}
       pickIndex={selected}
@@ -454,7 +480,12 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
   )
 
   return (
-    <div data-roster-builder data-saving={save.isPending} className="flex min-h-0 flex-1 flex-col border border-edge bg-sunken">
+    <div
+      data-roster-builder
+      data-saving={save.isPending}
+      data-save-error={save.isError}
+      className="flex min-h-0 flex-1 flex-col border border-edge bg-sunken"
+    >
       <header className="border-b border-edge px-3 py-2">
         <Input
           id="listname"
@@ -754,7 +785,10 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
         <div className="min-h-0 flex-1 overflow-y-auto px-3">
           {units.length || faction ? (
             GROUPS.map(({ id, plural, empty }) => {
-              const rows = units.map((unit, index) => ({ unit, index })).filter(({ unit }) => unit.group === id)
+              const rows = units
+                .map((unit, index) => ({ unit, index }))
+                .filter(({ unit }) => unit.group === id)
+                .toSorted((left, right) => Number(collection.has(right.unit.entryId)) - Number(collection.has(left.unit.entryId)))
               return (
                 <Section key={id} title={plural} count={rows.length} empty={empty}>
                   {rows.map(({ unit, index }) => (
@@ -844,6 +878,18 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
             ) : null}
           </span>
         </div>
+        {save.isError ? (
+          <div
+            role="alert"
+            className="mt-2 flex items-center gap-2 border border-destructive/40 bg-destructive/5 p-2.5 text-xs text-destructive"
+          >
+            <TriangleAlert className="size-4 shrink-0" aria-hidden />
+            <span className="min-w-0 flex-1">Your latest changes have not been saved.</span>
+            <Button variant="outline" size="xs" onClick={() => savedId && save.mutate(savedId)} disabled={!savedId || save.isPending}>
+              Try again
+            </Button>
+          </div>
+        ) : null}
         {priced?.errors.length ? (
           <ul className="mt-2 space-y-1 border border-destructive/40 bg-destructive/5 p-2.5 text-xs text-destructive">
             {priced.errors.slice(0, 8).map((error) => (
@@ -866,5 +912,18 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
       </footer>
       <RosterExportDialog text={exportText} onClose={() => setExportText(null)} />
     </div>
+  )
+}
+
+function sameUnitSequence(previous: unknown, current: readonly RosterPick[]) {
+  if (!Array.isArray(previous) || previous.length > current.length) return false
+  return previous.every(
+    (pick, index) =>
+      typeof pick === 'object' &&
+      pick !== null &&
+      'entryId' in pick &&
+      'catalogueId' in pick &&
+      pick.entryId === current[index]?.entryId &&
+      pick.catalogueId === current[index]?.catalogueId,
   )
 }

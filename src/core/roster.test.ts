@@ -393,6 +393,187 @@ describe('repeated specialist models', () => {
   })
 })
 
+describe('optional wargear on repeated models', () => {
+  const index = indexOf({
+    sharedSelectionEntries: [
+      {
+        id: 'unit',
+        name: 'Unit',
+        type: 'unit',
+        selectionEntries: [
+          {
+            id: 'model',
+            name: 'Model',
+            type: 'model',
+            constraints: [
+              { id: 'model-min', type: 'min', value: 3, field: 'selections', scope: 'parent' },
+              { id: 'model-max', type: 'max', value: 6, field: 'selections', scope: 'parent' },
+            ],
+            selectionEntries: [
+              {
+                id: 'shield',
+                name: 'Shieldvanes',
+                type: 'upgrade',
+                constraints: [{ id: 'shield-max', type: 'max', value: 1, field: 'selections', scope: 'parent' }],
+              },
+            ],
+            selectionEntryGroups: [
+              {
+                id: 'wargear',
+                name: 'Wargear',
+                constraints: [{ id: 'wargear-max', type: 'max', value: 1, field: 'selections', scope: 'parent' }],
+                selectionEntries: [
+                  { id: 'loom', name: 'Shadowloom', type: 'upgrade' },
+                  { id: 'scope', name: 'Nebuloscope', type: 'upgrade' },
+                ],
+              },
+              {
+                id: 'weapon',
+                name: 'Weapon',
+                defaultSelectionEntryId: 'blaster',
+                constraints: [
+                  { id: 'weapon-min', type: 'min', value: 1, field: 'selections', scope: 'parent' },
+                  { id: 'weapon-max', type: 'max', value: 1, field: 'selections', scope: 'parent' },
+                ],
+                selectionEntries: [
+                  { id: 'blaster', name: 'Blaster', type: 'upgrade' },
+                  { id: 'beamer', name: 'Beamer', type: 'upgrade' },
+                  { id: 'carbine', name: 'Carbine', type: 'upgrade' },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  })
+
+  it('offers one optional upgrade for each model', () => {
+    expect(buildUnit('unit', index)?.choices).toContainEqual({
+      key: 'model/shield',
+      name: 'Shieldvanes',
+      chosen: '',
+      optional: true,
+      room: 3,
+      options: [{ id: 'shield', name: 'Shieldvanes', points: 0, count: 0, max: 3 }],
+    })
+  })
+
+  it('equips the upgrade on only the requested models', () => {
+    const built = buildUnit('unit', index, 3, undefined, { spreads: { 'model/shield': { shield: 2 } } })!
+    expect(wargearOf(built.selection, index)).toContainEqual({ name: 'Shieldvanes', count: 2 })
+    expect(built.choices.find((choice) => choice.key === 'model/shield')?.options[0]?.count).toBe(2)
+    expect(built.size.models).toBe(3)
+  })
+
+  it('keeps unequipped models when a repeated optional group changes', () => {
+    const equipped = buildUnit('unit', index, 3, undefined, { spreads: { 'model/wargear': { loom: 1, scope: 0 } } })!
+    expect(modelCountOf(equipped.selection, index)).toBe(3)
+
+    const removed = buildUnit('unit', index, 3, undefined, { spreads: { 'model/wargear': { loom: 0, scope: 0 } } })!
+    expect(modelCountOf(removed.selection, index)).toBe(3)
+  })
+
+  it('keeps the unit resizable after splitting an optional group', () => {
+    const six = buildUnit('unit', index, 6, undefined, { spreads: { 'model/wargear': { loom: 2, scope: 0 } } })!
+    expect(six.size).toMatchObject({ min: 3, max: 6, models: 6 })
+
+    const five = buildUnit('unit', index, 5, undefined, { spreads: { 'model/wargear': { loom: 2, scope: 0 } } })!
+    expect(five.size).toMatchObject({ min: 3, max: 6, models: 5 })
+  })
+
+  it('lets each model carry a different weapon', () => {
+    const built = buildUnit('unit', index, 3, undefined, {
+      spreads: {
+        'model/weapon': { blaster: 1, beamer: 1, carbine: 1 },
+        'model/shield': { shield: 2 },
+      },
+    })!
+    expect(wargearOf(built.selection, index)).toEqual([
+      { name: 'Blaster', count: 1 },
+      { name: 'Shieldvanes', count: 2 },
+      { name: 'Beamer', count: 1 },
+      { name: 'Carbine', count: 1 },
+    ])
+  })
+})
+
+describe('optional unit composition defaults', () => {
+  const index = indexOf({
+    sharedSelectionEntries: [
+      {
+        id: 'unit',
+        name: 'Unit',
+        type: 'unit',
+        selectionEntryGroups: [
+          {
+            id: 'composition',
+            name: 'Unit Composition',
+            selectionEntryGroups: [
+              {
+                id: 'models',
+                name: 'Models',
+                selectionEntries: [
+                  {
+                    id: 'model',
+                    name: 'Model',
+                    type: 'model',
+                    constraints: [
+                      { id: 'model-min', type: 'min', value: 3, field: 'selections', scope: 'parent' },
+                      { id: 'model-max', type: 'max', value: 6, field: 'selections', scope: 'parent' },
+                    ],
+                  },
+                ],
+              },
+            ],
+            selectionEntries: [
+              {
+                id: 'token',
+                name: 'Token',
+                type: 'upgrade',
+                constraints: [{ id: 'token-max', type: 'max', value: 2, field: 'selections', scope: 'parent' }],
+                modifiers: [
+                  {
+                    type: 'decrement',
+                    value: 1,
+                    field: 'token-max',
+                    conditions: [
+                      {
+                        type: 'lessThan',
+                        value: 6,
+                        field: 'selections',
+                        scope: 'unit',
+                        childId: 'model',
+                        includeChildSelections: true,
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  })
+
+  it('includes the available ancillary and keeps it editable', () => {
+    const built = buildUnit('unit', index)!
+    expect(wargearOf(built.selection, index)).toContainEqual({ name: 'Token', count: 1 })
+    expect(built.choices.find((choice) => choice.name === 'Unit Composition')?.options[0]?.count).toBe(1)
+  })
+
+  it('follows the ancillary allowance when the unit grows', () => {
+    expect(wargearOf(buildUnit('unit', index, 6)!.selection, index)).toContainEqual({ name: 'Token', count: 2 })
+  })
+
+  it('preserves an explicit decline when the unit grows', () => {
+    const built = buildUnit('unit', index, 6, undefined, { spreads: { composition: { token: 0 } } })!
+    expect(wargearOf(built.selection, index)).not.toContainEqual({ name: 'Token', count: 2 })
+    expect(built.choices.find((choice) => choice.name === 'Unit Composition')?.options[0]?.count).toBe(0)
+  })
+})
+
 describe('laying counts over a selection', () => {
   const tree = { id: 'squad', count: 1, selections: [{ id: 'troopers', count: 1, selections: [{ id: 'trooper', count: 1 }] }] }
 
