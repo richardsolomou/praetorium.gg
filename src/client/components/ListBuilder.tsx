@@ -221,7 +221,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
       })),
     ),
     placeholderData: (previous, previousQuery) => {
-      return sameUnitSequence(previousQuery?.queryKey[5], picked) ? previous : undefined
+      return sameUnitSequence(previousQuery?.queryKey.at(-1), picked) ? previous : undefined
     },
   })
 

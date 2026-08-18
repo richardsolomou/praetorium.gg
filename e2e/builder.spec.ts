@@ -54,6 +54,7 @@ test('adding a unit keeps the confirmed roster visible while pricing catches up'
   await add(page, 'Skorpekh Destroyers')
 
   await expect(immortals).toBeVisible({ timeout: 250 })
+  await expect(page.locator('[data-unit]')).toHaveCount(1, { timeout: 250 })
   await expect(page.locator('[data-unit="Skorpekh Destroyers"]')).toBeVisible()
   await page.screenshot({ path: 'test-results/roster-visible-while-adding.png', fullPage: true })
 })
