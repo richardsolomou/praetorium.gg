@@ -649,6 +649,13 @@ function groupHolds(group: ConditionGroup, node: Node, root: Node, index: Catalo
   if (group.type === 'atLeast') return met >= (group.value ?? 1)
   if (group.type === 'atMost') return met <= (group.value ?? 0)
   if (group.type === 'equalTo') return met === (group.value ?? 0)
+  if (group.type === 'count') {
+    if (group.min === undefined && group.max === undefined) {
+      census.note('count condition group without bounds')
+      return false
+    }
+    return met >= (group.min ?? 0) && met <= (group.max ?? Number.POSITIVE_INFINITY)
+  }
   census.note(`condition group type ${String(group.type)}`)
   return false
 }

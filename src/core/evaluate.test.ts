@@ -237,6 +237,51 @@ describe('per-model costs', () => {
 })
 
 describe('gates', () => {
+  it.each([
+    { selected: ['alpha'], points: 100 },
+    { selected: ['alpha', 'bravo'], points: 115 },
+    { selected: ['alpha', 'bravo', 'charlie', 'delta'], points: 100 },
+  ])('applies a count group within its minimum and maximum bounds for $selected', ({ selected, points: expected }) => {
+    const options = ['alpha', 'bravo', 'charlie', 'delta']
+    const result = evaluateOne(
+      { id: 'tank', selections: selected.map((id) => ({ id })) },
+      {
+        sharedSelectionEntries: [
+          {
+            id: 'tank',
+            name: 'Tank',
+            type: 'unit',
+            costs: points(100),
+            modifiers: [
+              {
+                type: 'increment',
+                field: PTS,
+                value: 15,
+                conditionGroups: [
+                  {
+                    type: 'count',
+                    min: 2,
+                    max: 3,
+                    conditions: options.map((childId) => ({
+                      type: 'atLeast',
+                      value: 1,
+                      field: 'selections',
+                      scope: 'self',
+                      childId,
+                    })),
+                  },
+                ],
+              },
+            ],
+            selectionEntries: options.map((id) => ({ id, name: id, type: 'upgrade' })),
+          },
+        ],
+      },
+    )
+
+    expect({ points: result.points, unhandled: result.unhandled }).toEqual({ points: expected, unhandled: [] })
+  })
+
   it('refuse a condition group whose contents were not understood', () => {
     // Failing closed matters: a gate the evaluator cannot read must not be able
     // to add points, which is what an empty `and` did when read as satisfied.
