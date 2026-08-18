@@ -1034,6 +1034,38 @@ describe('a datasheet', () => {
     ])
   })
 
+  it('hides core abilities that require an attachment when no attachment is present', () => {
+    const loaded = shelfOf({
+      selectionEntries: [
+        {
+          id: 'unit',
+          name: 'Unit',
+          type: 'unit',
+          infoLinks: [
+            {
+              id: 'conditional-link',
+              targetId: 'core-rule',
+              name: 'Conditional rule',
+              type: 'rule',
+              modifiers: [
+                {
+                  type: 'set',
+                  field: 'hidden',
+                  value: true,
+                  conditions: [{ type: 'lessThan', field: 'associations', scope: 'self', childId: 'leader', value: 1 }],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    })
+    loaded.index.rules.set('core-rule', { id: 'core-rule', name: 'Conditional rule', description: 'Conditional text.' })
+    loaded.index.ruleCatalogueOf.set('core-rule', 'gs')
+
+    expect(datasheetIn(loaded, 'cat', 'unit')?.abilities).toEqual([])
+  })
+
   it('lists the choices available on a datasheet as wargear options', () => {
     const book = bookOf({
       selectionEntries: [

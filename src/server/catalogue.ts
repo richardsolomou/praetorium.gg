@@ -1,5 +1,5 @@
 import { type Definition, type InfoGroup, type InfoLink, nameOf, type Profile, targetOf } from '../core/catalogue'
-import { profileModifiers, type ProfileModifier, type Selection } from '../core/evaluate'
+import { infoLinkHiddenByRules, profileModifiers, type ProfileModifier, type Selection } from '../core/evaluate'
 import { defaultSelection, unitChoices, wargearOf } from '../core/roster'
 import { bracketedRuleReferences, ruleReferenceMatches } from '../core/ruleReference'
 import { datasheetSlug, datasheetsOf, type LoadedCatalogue } from './catalogueIndex'
@@ -85,7 +85,8 @@ export function datasheetIn(
     }
   }
   const addRule = (link: InfoLink, kind: AbilityKind) => {
-    if (link.hidden || link.type !== 'rule') return
+    if (link.type !== 'rule' || infoLinkHiddenByRules(link, loaded.index, { primaryCatalogueId: catalogueId, roster: context?.selections }))
+      return
     const rule = loaded.index.rules.get(link.targetId)
     const name = displayRuleName(link, link.name ?? rule?.name)
     const owner = loaded.index.ruleCatalogueOf.get(link.targetId)
