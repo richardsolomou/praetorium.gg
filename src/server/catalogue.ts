@@ -1,9 +1,10 @@
 import { type Definition, type InfoGroup, type InfoLink, nameOf, type Profile, targetOf } from '../core/catalogue'
-import { profileModifiers, type ProfileModifier, type Selection } from '../core/evaluate'
-import { wargearOf } from '../core/roster'
+import { infoLinkHiddenByRules, profileModifiers, type ProfileModifier, type Selection } from '../core/evaluate'
+import { defaultSelection, unitChoices, wargearOf } from '../core/roster'
 import { bracketedRuleReferences, ruleReferenceMatches } from '../core/ruleReference'
 import { datasheetSlug, datasheetsOf, type LoadedCatalogue } from './catalogueIndex'
 import { priceOf } from './cataloguePicker'
+import type { DatasheetDetails } from './datacards'
 
 export type Datasheet = {
   id: string
@@ -19,6 +20,15 @@ export type Datasheet = {
     values: { name: string; value: string; baseValue?: string; modifiers?: string[] }[]
   }[]
   abilities: { id: string; name: string; source?: string; description: string | null; kind: AbilityKind }[]
+  composition: string[]
+  loadout: string | null
+  wargearOptions: string[]
+  baseSize: string | null
+  transport: string | null
+  costs: DatasheetDetails['points']
+  attachments: DatasheetDetails['attachesTo']
+  leaders: string[]
+  supporters: string[]
   keywordRules: { name: string; description: string }[]
 }
 
@@ -76,10 +86,14 @@ export function datasheetIn(
     }
   }
   const addRule = (link: InfoLink, kind: AbilityKind) => {
-    if (link.hidden || link.type !== 'rule') return
+    if (link.type !== 'rule' || infoLinkHiddenByRules(link, loaded.index, { primaryCatalogueId: catalogueId, roster: context?.selections }))
+      return
     const rule = loaded.index.rules.get(link.targetId)
     const name = displayRuleName(link, link.name ?? rule?.name)
-    if (name && !rule?.hidden) abilities.set(`${kind}:${link.id}`, { id: link.id, name, description: rule?.description ?? null, kind })
+    const owner = loaded.index.ruleCatalogueOf.get(link.targetId)
+    const ruleKind = owner && loaded.index.catalogues.get(owner)?.gameSystem ? 'core' : kind
+    if (name && !rule?.hidden)
+      abilities.set(`${ruleKind}:${link.id}`, { id: link.id, name, description: rule?.description ?? null, kind: ruleKind })
   }
   const addGroup = (group: InfoGroup, lineage: string[]) => {
     if (group.hidden) return
@@ -111,13 +125,14 @@ export function datasheetIn(
       }
     }
   }
-  const visit = (definition: Definition, isRoot = false, ancestors: string[] = []) => {
+  const visit = (definition: Definition, isRoot = false, ancestors: string[] = [], enhancement = false) => {
     if (visited.has(definition.id)) return
     visited.add(definition.id)
     const lineage = [...ancestors, ...definitionTokens(definition)]
-    addProfiles(definition, lineage, 'datasheet', isRoot)
-    definition.selectionEntries?.forEach((entry) => visit(entry, false, lineage))
-    definition.selectionEntryGroups?.forEach((group) => visit(group, false, lineage))
+    const enhancementEntry = enhancement || definition.name === 'Enhancements'
+    if (!enhancementEntry || selected.has(definition.id)) addProfiles(definition, lineage, 'datasheet', isRoot)
+    definition.selectionEntries?.forEach((entry) => visit(entry, false, lineage, enhancementEntry))
+    definition.selectionEntryGroups?.forEach((group) => visit(group, false, lineage, enhancementEntry))
     for (const link of definition.entryLinks ?? []) {
       visit(link, false, lineage)
       const target = loaded.index.definitions.get(link.targetId)
@@ -134,13 +149,22 @@ export function datasheetIn(
   if (sheet !== root) visit(sheet, true, [root.id])
 
   const keywords = [...(root.categoryLinks ?? []), ...(sheet === root ? [] : (sheet.categoryLinks ?? []))]
+  const name = nameOf(root, loaded.index.definitions)
+  const details = datacardDetails(loaded, name)
+  const selection = selectedUnit ?? defaultSelection(root.id, loaded.index, { primaryCatalogueId: catalogueId })
+  const catalogueOptions = selection
+    ? unitChoices(root.id, selection, loaded.index, { primaryCatalogueId: catalogueId }).map((choice) => ({
+        name: choice.name,
+        options: choice.options.map((option) => option.name).join('; '),
+      }))
+    : []
 
   return {
     id: root.id,
     slug: datasheetSlug(loaded, catalogueId, root.id),
-    name: nameOf(root, loaded.index.definitions),
+    name,
     points: priceOf(loaded, catalogueId, entryId),
-    keywords: [...new Set(keywords.map((link) => link.name).filter((name): name is string => Boolean(name)))].toSorted(),
+    keywords: [...new Set(keywords.map((link) => link.name).filter((keyword): keyword is string => Boolean(keyword)))].toSorted(),
     profiles: [...profiles.values()].flatMap(({ profile, lineage, owner }) => {
       if (!profile.name || !profile.typeName) return []
       const profileType = profile.typeName
@@ -169,8 +193,27 @@ export function datasheetIn(
       ]
     }),
     abilities: [...abilities.values()],
+    composition: details?.composition ?? [],
+    loadout: details?.loadout ?? null,
+    wargearOptions: details?.wargear.length
+      ? details.wargear
+      : catalogueOptions.map(({ name: optionName, options }) => `**${optionName}:** ${options}.`),
+    baseSize: details?.baseSize ?? null,
+    transport: details?.transport ?? null,
+    costs: details?.points ?? [],
+    attachments: details?.attachesTo ?? [],
+    leaders: details?.leaders ?? [],
+    supporters: details?.supporters ?? [],
     keywordRules: [...keywordRules.values()],
   }
+}
+
+function datacardDetails(loaded: LoadedCatalogue, name: string): DatasheetDetails | null {
+  for (const content of loaded.factionContents.values()) {
+    const details = content.datasheetDetails.get(name)
+    if (details) return details
+  }
+  return null
 }
 
 export function datasheetInBySlug(loaded: LoadedCatalogue, catalogueId: string, slug: string) {

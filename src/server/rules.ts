@@ -242,7 +242,7 @@ type DetachmentRulesDetail = {
   points: number | null
   dispositions: string[]
   rules: { name: string; description: string }[]
-  enhancements: { name: string; points: number | null; description: string | null }[]
+  enhancements: { name: string; points: number | null; description: string | null; keywordRestrictions: string[] }[]
   upgrades: { name: string; points: number | null; description: string | null }[]
   stratagems: {
     id: string
@@ -403,6 +403,7 @@ export function loadRules(
                   name: enhancement.name,
                   points: enhancement.cost ?? null,
                   description: wahapedia ? findDescription(wahapedia.enhancements, detachment.name, enhancement.name) : null,
+                  keywordRestrictions: enhancement.keyword_restrictions ?? [],
                 })),
               upgrades: enhancements
                 .filter((enhancement) => enhancement.detachment_id === detachment.id && isUnitUpgrade(enhancement.name))

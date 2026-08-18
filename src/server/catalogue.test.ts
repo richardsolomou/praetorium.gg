@@ -1010,6 +1010,117 @@ describe('a datasheet', () => {
     ])
   })
 
+  it('shows a unit enhancement ability only when the enhancement is selected', () => {
+    const book = bookOf({
+      selectionEntries: [
+        {
+          id: 'immortals',
+          name: 'Immortals',
+          type: 'unit',
+          profiles: [ability('intrinsic', 'Implacable Eradication')],
+          selectionEntryGroups: [
+            {
+              id: 'enhancements',
+              name: 'Enhancements',
+              selectionEntries: [
+                { id: 'tools', name: 'Tools of Dominion', type: 'upgrade', profiles: [ability('tools-ability', 'Tools of Dominion')] },
+              ],
+            },
+          ],
+        },
+      ],
+    })
+
+    expect(datasheetIn(book, 'cat', 'immortals')?.abilities.map(({ name }) => name)).toEqual(['Implacable Eradication'])
+    expect(
+      datasheetIn(book, 'cat', 'immortals', {
+        selections: [{ id: 'immortals', selections: [{ id: 'enhancements', selections: [{ id: 'tools' }] }] }],
+        unitSelectionIndex: 0,
+      })?.abilities.map(({ name }) => name),
+    ).toEqual(['Implacable Eradication', 'Tools of Dominion'])
+  })
+
+  it('classifies game-system rules linked by a datasheet as core abilities', () => {
+    const loaded = shelfOf({
+      sharedRules: [{ id: 'faction-rule', name: 'Faction rule', description: 'Faction text.' }],
+      selectionEntries: [
+        {
+          id: 'unit',
+          name: 'Unit',
+          type: 'unit',
+          infoLinks: [
+            { id: 'core-link', targetId: 'core-rule', name: 'Core rule', type: 'rule' },
+            { id: 'faction-link', targetId: 'faction-rule', name: 'Faction rule', type: 'rule' },
+          ],
+        },
+      ],
+    })
+    loaded.index.rules.set('core-rule', { id: 'core-rule', name: 'Core rule', description: 'Core text.' })
+    loaded.index.ruleCatalogueOf.set('core-rule', 'gs')
+
+    expect(datasheetIn(loaded, 'cat', 'unit')?.abilities.map(({ name, kind }) => [name, kind])).toEqual([
+      ['Core rule', 'core'],
+      ['Faction rule', 'faction'],
+    ])
+  })
+
+  it('hides core abilities that require an attachment when no attachment is present', () => {
+    const loaded = shelfOf({
+      selectionEntries: [
+        {
+          id: 'unit',
+          name: 'Unit',
+          type: 'unit',
+          infoLinks: [
+            {
+              id: 'conditional-link',
+              targetId: 'core-rule',
+              name: 'Conditional rule',
+              type: 'rule',
+              modifiers: [
+                {
+                  type: 'set',
+                  field: 'hidden',
+                  value: true,
+                  conditions: [{ type: 'lessThan', field: 'associations', scope: 'self', childId: 'leader', value: 1 }],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    })
+    loaded.index.rules.set('core-rule', { id: 'core-rule', name: 'Conditional rule', description: 'Conditional text.' })
+    loaded.index.ruleCatalogueOf.set('core-rule', 'gs')
+
+    expect(datasheetIn(loaded, 'cat', 'unit')?.abilities).toEqual([])
+  })
+
+  it('lists the choices available on a datasheet as wargear options', () => {
+    const book = bookOf({
+      selectionEntries: [
+        {
+          id: 'unit',
+          name: 'Unit',
+          type: 'unit',
+          selectionEntryGroups: [
+            {
+              id: 'weapons',
+              name: 'Weapons',
+              constraints: [{ id: 'weapons-max', type: 'max', scope: 'parent', field: 'selections', value: 1 }],
+              selectionEntries: [
+                { id: 'rifle', name: 'Rifle', type: 'upgrade' },
+                { id: 'pistol', name: 'Pistol', type: 'upgrade' },
+              ],
+            },
+          ],
+        },
+      ],
+    })
+
+    expect(datasheetIn(book, 'cat', 'unit')?.wargearOptions).toEqual(['**Weapons:** Rifle; Pistol.'])
+  })
+
   it('applies values appended to core rule names', () => {
     const book = bookOf({
       sharedRules: [

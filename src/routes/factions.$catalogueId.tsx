@@ -5,7 +5,7 @@ import { factionFor } from '../client/factions'
 import { factionsQuery } from '../client/queries'
 import { FactionMark, factionColour } from '../client/components/FactionMark'
 import { dispositionTone } from '../client/components/rosterSetup'
-import { RuleText } from '../client/components/RuleText'
+import { Keyword, KEYWORD_TAG_CLASS } from '../client/components/Keyword'
 
 export const Route = createFileRoute('/factions/$catalogueId')({
   loader: async ({ context, params }) => {
@@ -52,11 +52,14 @@ function FactionPage() {
       </section>
       {faction.armyRule ? (
         <section className="mt-6">
-          <p className="rubric border-b border-edge pb-2">Army rule</p>
-          <article className="mt-2 border border-edge bg-panel p-4">
-            <h2 className="text-lg">{faction.armyRule.name}</h2>
-            <RuleText text={faction.armyRule.description} />
-          </article>
+          <p className="rubric border-b border-edge pb-2">Faction abilities</p>
+          <div className="mt-2 flex flex-wrap gap-1">
+            <Keyword
+              name={faction.armyRule.name}
+              rules={[{ name: faction.armyRule.name, description: faction.armyRule.description }]}
+              className={KEYWORD_TAG_CLASS}
+            />
+          </div>
         </section>
       ) : null}
       <section className="mt-6">

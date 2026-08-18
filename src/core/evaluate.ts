@@ -18,6 +18,7 @@ import type {
   Cost,
   Definition,
   EntryLink,
+  InfoLink,
   LocalConditionGroup,
   Modifier,
   ModifierGroup,
@@ -395,6 +396,20 @@ export function hiddenByRules(definition: Definition, index: CatalogueIndex, opt
     if (modifier.type === 'set') hidden = modifier.value === true
   }
   return hidden
+}
+
+/** Whether a display-only rule link is hidden in the current roster context. */
+export function infoLinkHiddenByRules(link: InfoLink, index: CatalogueIndex, options: EvaluateOptions = {}): boolean {
+  return hiddenByRules(
+    {
+      id: link.id,
+      hidden: link.hidden,
+      modifiers: link.modifiers,
+      modifierGroups: link.modifierGroups,
+    },
+    index,
+    options,
+  )
 }
 
 /** Selection-count bounds after roster-dependent modifiers have been applied. */

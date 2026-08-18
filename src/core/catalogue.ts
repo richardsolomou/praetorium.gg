@@ -301,6 +301,8 @@ export type CatalogueIndex = {
   shared: Map<string, Profile | InfoGroup>
   /** Rules are display text, kept separately from profiles so links remain typed. */
   rules: Map<string, Rule>
+  /** The catalogue defining each rule, so game-system rules stay distinct from faction rules. */
+  ruleCatalogueOf: Map<string, string>
   /** Categories by id, because that is where a datasheet's roster cap is written. */
   categories: Map<string, CategoryEntry>
   /** The data revision every roster and battle must pin, so two clients agree on legality. */
@@ -324,6 +326,7 @@ export function buildIndex(files: readonly CatalogueFile[], revision: string): C
   const books = new Map<string, Catalogue>()
   const shared = new Map<string, Profile | InfoGroup>()
   const rules = new Map<string, Rule>()
+  const ruleCatalogueOf = new Map<string, string>()
   const categories = new Map<string, CategoryEntry>()
 
   let owner = ''
@@ -355,7 +358,10 @@ export function buildIndex(files: readonly CatalogueFile[], revision: string): C
     for (const force of root.forceEntries ?? []) forces.push({ id: force.id, name: force.name ?? force.id })
     for (const profile of root.sharedProfiles ?? []) shared.set(profile.id, profile)
     for (const group of root.sharedInfoGroups ?? []) shared.set(group.id, group)
-    for (const rule of root.sharedRules ?? []) rules.set(rule.id, rule)
+    for (const rule of root.sharedRules ?? []) {
+      rules.set(rule.id, rule)
+      ruleCatalogueOf.set(rule.id, root.id)
+    }
     for (const category of root.categoryEntries ?? []) categories.set(category.id, category)
     if (file.catalogue) books.set(root.id, root)
     owner = root.id
@@ -382,6 +388,7 @@ export function buildIndex(files: readonly CatalogueFile[], revision: string): C
     forces,
     shared,
     rules,
+    ruleCatalogueOf,
     categories,
     revision,
   }
