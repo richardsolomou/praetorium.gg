@@ -382,10 +382,10 @@ test('a squad grows from its unit editor', async ({ page }) => {
   await expect(datasheet.getByText('Battleline', { exact: true })).toBeVisible()
   const profile = datasheet.locator('[data-slot="unit-profile"]')
   await expect(profile).toBeVisible()
-  await profile.evaluate((existing) => {
+  await datasheet.evaluate((pane) => {
     new MutationObserver(() => {
-      if (!document.contains(existing)) document.documentElement.dataset.profileRefreshed = 'true'
-    }).observe(document.body, { childList: true, subtree: true })
+      if (pane.querySelector('[aria-label="Loading datasheet"]')) document.documentElement.dataset.datasheetReloaded = 'true'
+    }).observe(pane, { childList: true, subtree: true })
   })
 
   const total = page.locator('[data-stat="points"]')
@@ -394,7 +394,7 @@ test('a squad grows from its unit editor', async ({ page }) => {
   await page.getByRole('button', { name: 'More models in Immortals' }).click()
   await expect(page.getByLabel('Immortals models')).toHaveText('6')
   await expect(total).not.toHaveText('125/2000')
-  await expect(page.locator('html')).not.toHaveAttribute('data-profile-refreshed', 'true')
+  await expect(page.locator('html')).not.toHaveAttribute('data-datasheet-reloaded', 'true')
   // And the wargear lines follow the models carrying it.
   await expect(page.getByText('6x Gauss blaster')).toBeVisible()
   await page.screenshot({ path: 'test-results/unit-editor-model-count.png', fullPage: true })
