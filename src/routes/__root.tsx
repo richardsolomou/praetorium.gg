@@ -8,6 +8,16 @@ import barlow700 from '@fontsource/barlow-semi-condensed/files/barlow-semi-conde
 import rules400 from '@fontsource/barlow/files/barlow-latin-400-normal.woff2?url'
 import rules600 from '@fontsource/barlow/files/barlow-latin-600-normal.woff2?url'
 import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { CircleUserRound, LogIn, LogOut, ScrollText, Swords } from 'lucide-react'
 import { postHogEnvironment } from 'ras-stack/posthog'
 import { PostHogBetterAuthIdentity, PostHogIntegration } from 'ras-stack/posthog/react'
 import { authClient } from '../client/authClient'
@@ -60,35 +70,61 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   ),
 })
 
-/** Who you are, and the way to stop being them. */
 function Account() {
   const { data: me } = useQuery(meQuery())
   const queryClient = useQueryClient()
   const navigate = useNavigate()
 
-  if (me) {
-    return (
-      <Button
-        variant="ghost"
-        className="eyebrow ml-auto h-auto px-0 hover:bg-transparent hover:text-azure"
-        aria-label={`${me.name} · sign out`}
-        onClick={async () => {
-          await authClient.signOut()
-          await queryClient.invalidateQueries()
-          await navigate({ to: '/' })
-        }}
-      >
-        <span className="max-w-16 truncate sm:max-w-none">{me.name}</span>
-        <span className="hidden sm:inline">· sign out</span>
-      </Button>
-    )
-  }
-
-  // One label whatever is cached: the page itself explains what an account is for.
   return (
-    <Link to="/signin" search={{ next: undefined }} className="eyebrow ml-auto hover:text-azure">
-      Sign in
-    </Link>
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="shrink-0 text-dim hover:bg-raised hover:text-azure"
+            aria-label={me ? `Account menu for ${me.name}` : 'Account menu'}
+          />
+        }
+      >
+        <CircleUserRound className="size-5" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-52 rounded-none border border-edge bg-panel">
+        <DropdownMenuGroup>
+          <DropdownMenuLabel className="px-2 py-2">
+            <span className="eyebrow block">{me ? 'Profile' : 'Account'}</span>
+            <span className="mt-0.5 block truncate text-sm font-semibold text-bone">{me?.name ?? 'Not signed in'}</span>
+          </DropdownMenuLabel>
+        </DropdownMenuGroup>
+        <DropdownMenuSeparator />
+        {me ? (
+          <>
+            <DropdownMenuItem render={<Link to="/battles" />}>
+              <Swords /> My battles
+            </DropdownMenuItem>
+            <DropdownMenuItem render={<Link to="/rosters" />}>
+              <ScrollText /> My rosters
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={() => {
+                void (async () => {
+                  await authClient.signOut()
+                  await queryClient.invalidateQueries()
+                  await navigate({ to: '/' })
+                })()
+              }}
+            >
+              <LogOut /> Sign out
+            </DropdownMenuItem>
+          </>
+        ) : (
+          <DropdownMenuItem render={<Link to="/signin" search={{ next: undefined }} />}>
+            <LogIn /> Sign in
+          </DropdownMenuItem>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }
 
