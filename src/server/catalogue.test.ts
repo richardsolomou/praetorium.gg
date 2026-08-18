@@ -17,7 +17,12 @@ function shelfOf(...catalogues: Partial<Catalogue>[]): LoadedCatalogue {
     catalogue: { id: at ? `cat-${at}` : 'cat', name: at ? `Book ${at}` : 'Test catalogue', ...catalogue },
   }))
   const index = buildIndex([system, ...files], 'test-revision')
-  return { index, factions: factionsIn(index, detachmentsOf(files, index)), detachments: detachmentsOf(files, index) }
+  return {
+    index,
+    factions: factionsIn(index, detachmentsOf(files, index)),
+    detachments: detachmentsOf(files, index),
+    factionContents: new Map(),
+  }
 }
 
 /** A book of datasheets, as the picker sees one. */

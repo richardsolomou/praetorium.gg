@@ -170,10 +170,27 @@ test('a player can enter through the roster library and browse the product', asy
   await expect(page.locator('[data-shelf="Chaos"]')).toBeVisible()
   await expect(page.locator('[data-shelf="Imperium"]')).toBeVisible()
   await expect(page.locator('[data-shelf="Xenos"]')).toBeVisible()
+  await page.goto('/factions/dark-angels')
+  const darkAngelsDatasheets = page.getByRole('link', { name: /Datasheets/ })
+  await expect(darkAngelsDatasheets).toContainText('16')
+  await expect(page.getByText('Detachments', { exact: true }).locator('..')).toContainText('8')
+  await expect(page.getByText('Gladius Task Force', { exact: true })).toHaveCount(0)
+  await page.screenshot({ path: 'test-results/dark-angels-faction-content.png', fullPage: true })
+  await darkAngelsDatasheets.click()
+  await expect(page.getByRole('link', { name: /Asmodai/ })).toBeVisible()
+  await expect(page.getByRole('link', { name: /Intercessor Squad/ })).toHaveCount(0)
+  await page.goto('/factions')
   const necrons = page.locator('[data-shelf="Xenos"] [data-faction="Necrons"]')
+  const favouriteSaved = page.waitForResponse(
+    (response) =>
+      response.ok() && response.request().method() === 'POST' && Boolean(response.request().postData()?.includes('catalogueId')),
+  )
   await necrons.getByRole('button', { name: 'Add Necrons to favourites' }).click()
+  await favouriteSaved
   await expect(page.locator('[data-shelf="Favourites"] [data-faction]').first()).toHaveAttribute('data-faction', 'Necrons')
   await expect(page.locator('[data-shelf="Xenos"] [data-faction]').first()).toHaveAttribute('data-faction', 'Aeldari')
+  const serverRenderedFavourites = await (await page.request.get('/factions')).text()
+  expect(serverRenderedFavourites).toMatch(/data-shelf="Favourites"[\s\S]+data-faction="Necrons"/)
   await page.screenshot({ path: 'test-results/faction-index.png', fullPage: true })
   await page.getByRole('link', { name: 'Rosters' }).click()
   await page.getByRole('button', { name: 'Create editable roster' }).click()

@@ -12,6 +12,7 @@ import {
 } from '../core/catalogue'
 import { hiddenByRules } from '../core/evaluate'
 import { routeSlug } from '../core/slug'
+import { type FactionContent, loadFactionContents } from './datacards'
 
 export type CatalogueReference = { id: string; name: string; datasheets: number; detachments: number }
 export type DetachmentOptions = { wrapperId: string; groupId: string; options: DetachmentOption[] }
@@ -21,6 +22,7 @@ export type LoadedCatalogue = {
   index: CatalogueIndex
   factions: { id: string; name: string; references: CatalogueReference[] }[]
   detachments: Map<string, DetachmentOptions>
+  factionContents: Map<string, FactionContent>
 }
 
 const DISPOSITIONS = new Set(['take-and-hold', 'disruption', 'purge-the-foe', 'priority-assets', 'reconnaissance'])
@@ -46,7 +48,8 @@ export function loadCatalogue(directory = catalogueDirectory()): LoadedCatalogue
 
   const index = buildIndex(files, revision.definitions)
   const detachments = detachmentsOf(files, index)
-  return { index, factions: factionsIn(index, detachments), detachments }
+  const factionContents = loadFactionContents(path.join(directory, 'datacards', '11th', 'gdc'))
+  return { index, factions: factionsIn(index, detachments), detachments, factionContents }
 }
 
 export function factionsIn(index: CatalogueIndex, detachments: Map<string, DetachmentOptions>) {

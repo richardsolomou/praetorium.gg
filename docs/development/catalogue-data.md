@@ -39,6 +39,7 @@ Server catalogue code is split by responsibility:
 - Unit upgrades marked by the rules source stay separate from character enhancements in detachment references and unit loadouts.
 - A datasheet roster cap usually lives on its same-named category. `rosterLimit` reads that cap for display and filtering. `violations` remains the legality authority.
 - The collection stores one membership row per player and datasheet. It does not store model quantities.
+- Faction favourites are account-backed and preloaded during SSR so faction shelves and selectors agree across devices on first render.
 
 ## Building units
 

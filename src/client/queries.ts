@@ -10,6 +10,8 @@ import {
   detachmentRules,
   detachmentDetail,
   factions,
+  factionDatasheets,
+  favouriteFactions,
   gameReferences,
   me,
   myBattles,
@@ -35,6 +37,8 @@ export const battleQuery = (token: string) =>
   queryOptions({ queryKey: ['battle', token], queryFn: () => openBattle({ data: { token } }), staleTime: SSR_STALE_TIME })
 
 export const factionsQuery = () => queryOptions({ queryKey: ['factions'], queryFn: () => factions(), staleTime: Infinity })
+export const favouriteFactionsQuery = () =>
+  queryOptions({ queryKey: ['favourite-factions'], queryFn: () => favouriteFactions(), staleTime: SSR_STALE_TIME })
 export const gameReferencesQuery = () =>
   queryOptions({ queryKey: ['game-references'], queryFn: () => gameReferences(), staleTime: Infinity })
 
@@ -45,6 +49,14 @@ export const unitsQuery = (catalogueId: string, query: string) =>
   queryOptions({
     queryKey: ['units', catalogueId, query],
     queryFn: () => units({ data: { catalogueId, query } }),
+    enabled: Boolean(catalogueId),
+    staleTime: SSR_STALE_TIME,
+  })
+
+export const factionDatasheetsQuery = (catalogueId: string, query: string) =>
+  queryOptions({
+    queryKey: ['faction-datasheets', catalogueId, query],
+    queryFn: () => factionDatasheets({ data: { catalogueId, query } }),
     enabled: Boolean(catalogueId),
     staleTime: SSR_STALE_TIME,
   })

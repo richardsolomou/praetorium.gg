@@ -4,14 +4,14 @@ import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useState } from 'react'
 import { Input } from '@/components/ui/input'
 import { factionFor } from '../client/factions'
-import { factionsQuery, unitsQuery } from '../client/queries'
+import { factionDatasheetsQuery, factionsQuery } from '../client/queries'
 
 export const Route = createFileRoute('/factions/$catalogueId/reference/datasheets')({
   loader: async ({ context, params }) => {
     const data = await context.queryClient.ensureQueryData(factionsQuery())
     const faction = factionFor(data, params.catalogueId)
     if (!faction) throw notFound()
-    await context.queryClient.ensureQueryData(unitsQuery(faction.id, ''))
+    await context.queryClient.ensureQueryData(factionDatasheetsQuery(faction.id, ''))
   },
   component: DatasheetsPage,
 })
@@ -22,7 +22,7 @@ export function DatasheetsPage() {
   const { data } = useQuery(factionsQuery())
   const faction = factionFor(data, catalogueId ?? '')
   const [query, setQuery] = useState('')
-  const { data: units = [] } = useQuery({ ...unitsQuery(faction?.id ?? '', query), placeholderData: keepPreviousData })
+  const { data: units = [] } = useQuery({ ...factionDatasheetsQuery(faction?.id ?? '', query), placeholderData: keepPreviousData })
   if (path !== `/factions/${catalogueId}/datasheets`) return <Outlet />
   if (!faction) return null
 

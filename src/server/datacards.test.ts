@@ -1,0 +1,29 @@
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
+import { afterEach, expect, it } from 'vitest'
+import { loadFactionContents } from './datacards'
+
+let directory: string | null = null
+
+afterEach(() => {
+  if (directory) fs.rmSync(directory, { recursive: true })
+})
+
+it('indexes the faction-owned datasheets and detachments', () => {
+  directory = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-datacards-'))
+  fs.writeFileSync(
+    path.join(directory, 'darkangels.json'),
+    JSON.stringify({
+      id: 'dark-angels',
+      name: 'Dark Angels',
+      datasheets: [{ name: { en: 'Asmodai' } }, { name: { en: 'Azrael' } }],
+      detachments: [{ name: { en: 'Inner Circle Task Force' } }, { name: { en: 'Unforgiven Task Force' } }],
+    }),
+  )
+
+  expect(loadFactionContents(directory).get('dark-angels')).toEqual({
+    datasheets: new Set(['Asmodai', 'Azrael']),
+    detachments: new Set(['Inner Circle Task Force', 'Unforgiven Task Force']),
+  })
+})

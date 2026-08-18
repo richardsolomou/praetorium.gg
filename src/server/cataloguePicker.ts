@@ -54,7 +54,11 @@ export function unitsIn(
   loaded: LoadedCatalogue,
   catalogueId: string,
   query: string,
-  { limit = 60, restrictions }: { limit?: number; restrictions?: FactionRestrictions } = {},
+  {
+    limit = 60,
+    restrictions,
+    includeNames,
+  }: { limit?: number; restrictions?: FactionRestrictions; includeNames?: ReadonlySet<string> } = {},
 ): UnitSummary[] {
   const wanted = query.trim().toLowerCase()
   const found: { id: string; name: string; group: UnitGroup; alliedFaction: string | null; alliedOrder: number }[] = []
@@ -66,6 +70,7 @@ export function unitsIn(
     const target = targetOf(entry, loaded.index.definitions)
     if (entry.hidden || target.hidden) continue
     const name = nameOf(entry, loaded.index.definitions)
+    if (includeNames && !includeNames.has(name)) continue
     if (NON_MATCHED_PLAY.test(name)) continue
     const keywords = [...(entry.categoryLinks ?? []), ...(target.categoryLinks ?? [])].flatMap((link) => (link.name ? [link.name] : []))
     if (restricted(name, keywords, restrictions)) continue

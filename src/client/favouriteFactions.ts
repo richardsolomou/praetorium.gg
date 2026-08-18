@@ -1,27 +1,28 @@
-import { useEffect, useState } from 'react'
-
-const STORAGE_KEY = 'praetorium:favourite-factions'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { setFavouriteFaction } from '../server/functions'
+import { favouriteFactionsQuery } from './queries'
 
 export function useFavouriteFactions() {
-  const [favourites, setFavourites] = useState<Set<string>>(new Set())
-
-  useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY)
-    if (!stored) return
-    const parsed: unknown = JSON.parse(stored)
-    if (Array.isArray(parsed)) setFavourites(new Set(parsed.filter((value): value is string => typeof value === 'string')))
-  }, [])
-
-  const toggleFavourite = (id: string) => {
-    setFavourites((current) => {
-      const next = new Set(current)
-      if (!next.delete(id)) next.add(id)
-      localStorage.setItem(STORAGE_KEY, JSON.stringify([...next]))
-      return next
-    })
-  }
-
-  return { favourites, toggleFavourite }
+  const query = favouriteFactionsQuery()
+  const queryClient = useQueryClient()
+  const { data = [] } = useQuery(query)
+  const mutation = useMutation({
+    mutationFn: ({ catalogueId, favourite }: { catalogueId: string; favourite: boolean }) =>
+      setFavouriteFaction({ data: { catalogueId, favourite } }),
+    onMutate: async ({ catalogueId, favourite }) => {
+      await queryClient.cancelQueries({ queryKey: query.queryKey })
+      const previous = queryClient.getQueryData<string[]>(query.queryKey) ?? []
+      queryClient.setQueryData<string[]>(
+        query.queryKey,
+        favourite ? [...new Set([...previous, catalogueId])] : previous.filter((id) => id !== catalogueId),
+      )
+      return { previous }
+    },
+    onError: (_error, _input, context) => queryClient.setQueryData(query.queryKey, context?.previous ?? []),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: query.queryKey }),
+  })
+  const favourites = new Set(data)
+  return { favourites, toggleFavourite: (catalogueId: string) => mutation.mutate({ catalogueId, favourite: !favourites.has(catalogueId) }) }
 }
 
 export const favouritesFirst = <T extends { id: string }>(entries: readonly T[], favourites: ReadonlySet<string>) =>

@@ -9,7 +9,7 @@ import { factionDisplayName } from './factionNames'
 import { detachmentCatalogueDetail } from './catalogueDescriptions'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { unitsIn } from './cataloguePicker'
-import { slug } from './rules'
+import { type LoadedRules, slug } from './rules'
 import { findAbilityDescription, WAHAPEDIA_ATTRIBUTION } from './wahapedia'
 import { mutationRpc, rpc } from './rpc'
 import { calculateRosterPrice, rosterDetachments } from './pricing'
@@ -23,6 +23,7 @@ import {
   detachmentRulesSchema,
   detachmentDetailSchema,
   exportRosterSchema,
+  favouriteFactionSchema,
   importRosterSchema,
   joinBattleSchema,
   priceSchema,
@@ -138,6 +139,23 @@ export const setOwned = createServerFn({ method: 'POST' })
     }),
   )
 
+export const favouriteFactions = createServerFn({ method: 'GET' }).handler(() =>
+  rpc(async () => {
+    const id = await currentPlayerId()
+    return id ? app().service.favouriteFactions(id) : []
+  }),
+)
+
+export const setFavouriteFaction = createServerFn({ method: 'POST' })
+  .validator(favouriteFactionSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const player = await requirePlayer()
+      app().service.setFavouriteFaction(player.id, data.catalogueId, data.favourite)
+      return null
+    }),
+  )
+
 /** How the community data is doing, so a fresh instance can say so rather than look broken. */
 export const catalogueStatus = createServerFn({ method: 'GET' }).handler(() => rpc(() => app().sync()))
 
@@ -151,6 +169,10 @@ export const factions = createServerFn({ method: 'GET' }).handler(() =>
       revision: loaded.index.revision,
       factions: loaded.factions.map((faction) => {
         const displayName = factionDisplayName(faction.name, rules?.factionNames)
+        const content = loaded.factionContents.get(routeSlug(displayName))
+        const detachments = (loaded.detachments.get(faction.id)?.options ?? []).filter(
+          (detachment) => !content || [...content.detachments].some((name) => slug(name) === slug(detachment.name)),
+        )
         return {
           id: faction.id,
           slug: routeSlug(displayName),
@@ -158,8 +180,12 @@ export const factions = createServerFn({ method: 'GET' }).handler(() =>
           displayName,
           icon: rules?.factionIcons.get(routeSlug(displayName)) ?? null,
           armyRule: rules?.factionRules.get(routeSlug(displayName)) ?? null,
-          references: faction.references,
-          detachments: (loaded.detachments.get(faction.id)?.options ?? []).map((detachment) => {
+          references: faction.references.map((reference) => ({
+            ...reference,
+            datasheets: content?.datasheets.size ?? reference.datasheets,
+            detachments: detachments.length,
+          })),
+          detachments: detachments.map((detachment) => {
             const reference = rules?.detachmentReferences.get(slug(faction.name))?.get(slug(detachment.name))
             const detail = rules?.detachmentDetails.get(slug(faction.name))?.get(slug(detachment.name))
             const forced = detachmentCatalogueDetail(loaded, faction.id, detachment.id, [])?.forcedEnhancements ?? []
@@ -206,6 +232,21 @@ export const units = createServerFn({ method: 'GET' })
         ...unit,
         alliedFaction: unit.alliedFaction ? factionDisplayName(unit.alliedFaction, names) : null,
       }))
+    }),
+  )
+
+export const factionDatasheets = createServerFn({ method: 'GET' })
+  .validator(unitsSchema)
+  .handler(({ data }) =>
+    rpc(() => {
+      const loaded = app().catalogue()
+      if (!loaded) return []
+      const names = loaded.factionContents.get(
+        routeSlug(
+          factionDisplayName(loaded.factions.find((entry) => entry.id === data.catalogueId)?.name ?? '', app().rules()?.factionNames),
+        ),
+      )?.datasheets
+      return unitsIn(loaded, data.catalogueId, data.query, { includeNames: names, limit: Number.POSITIVE_INFINITY })
     }),
   )
 
@@ -453,55 +494,75 @@ export const deployments = createServerFn({ method: 'GET' }).handler(() =>
   }),
 )
 
+function buildGameReferences(rules: LoadedRules) {
+  const missions = [
+    ...new Map([...rules.missions.values()].map((mission) => [`${mission.packId ?? 'legacy'}:${mission.id}`, mission])).values(),
+  ]
+  const matchupEntries = [
+    ...new Map(
+      [...rules.missions.entries()].map(([key, mission]) => {
+        const parts = key.split('|')
+        const pair = parts.slice(-2).join('|')
+        return [`${mission.packId ?? 'legacy'}:${pair}`, [pair, mission] as const]
+      }),
+    ).values(),
+  ]
+  const primaryByKey = new Map(rules.primaries.map((card) => [card.key, card]))
+  const matchupsByMission = new Map<string, string[]>()
+  const dispositionMatchups = new Map<string, { opponent: string; mission: (typeof matchupEntries)[number][1] }[]>()
+  for (const [pair, mission] of matchupEntries) {
+    const missionKey = `${mission.packId ?? 'legacy'}:${mission.id}`
+    matchupsByMission.set(missionKey, [...(matchupsByMission.get(missionKey) ?? []), pair])
+    const ids = pair.split('|')
+    for (const id of ids) {
+      dispositionMatchups.set(id, [
+        ...(dispositionMatchups.get(id) ?? []),
+        { opponent: ids.find((candidate) => candidate !== id) ?? id, mission },
+      ])
+    }
+  }
+  const missionsByPack = new Map<string, typeof missions>()
+  for (const mission of missions) {
+    if (!mission.source) continue
+    missionsByPack.set(mission.source, [...(missionsByPack.get(mission.source) ?? []), mission])
+  }
+  const packs = [...missionsByPack].map(([name, packMissions]) => ({
+    id: routeSlug(name),
+    name,
+    missions: packMissions.map((mission) => ({
+      ...mission,
+      card: primaryByKey.get(mission.id) ?? null,
+      matchups: (matchupsByMission.get(`${mission.packId ?? 'legacy'}:${mission.id}`) ?? []).map((pair) =>
+        pair.split('|').map((id) => ({ id, name: rules.dispositions.get(id) ?? id })),
+      ),
+    })),
+  }))
+  const dispositionDetails = rules.dispositionDetails ?? [...rules.dispositions].map(([id, name]) => ({ id, name, text: null }))
+  return {
+    dispositions: dispositionDetails.map((disposition) => ({
+      ...disposition,
+      matchups: dispositionMatchups.get(disposition.id) ?? [],
+    })),
+    packs,
+    secondaries: rules.secondaries,
+    deployments: rules.deployments,
+    terrainLayouts: rules.terrainLayouts ?? [],
+    terrainTemplates: rules.terrainTemplates ?? [],
+    attribution: rules.attribution,
+  }
+}
+
+const gameReferencesCache = new WeakMap<LoadedRules, ReturnType<typeof buildGameReferences>>()
+
 export const gameReferences = createServerFn({ method: 'GET' }).handler(() =>
   rpc(() => {
     const rules = app().rules()
     if (!rules) return null
-    const missions = [
-      ...new Map([...rules.missions.values()].map((mission) => [`${mission.packId ?? 'legacy'}:${mission.id}`, mission])).values(),
-    ]
-    const matchupEntries = [
-      ...new Map(
-        [...rules.missions.entries()].map(([key, mission]) => {
-          const parts = key.split('|')
-          const pair = parts.slice(-2).join('|')
-          return [`${mission.packId ?? 'legacy'}:${pair}`, [pair, mission] as const]
-        }),
-      ).values(),
-    ]
-    const packs = [...new Set(missions.map((mission) => mission.source).filter((source): source is string => Boolean(source)))].map(
-      (name) => ({
-        id: routeSlug(name),
-        name,
-        missions: missions
-          .filter((mission) => mission.source === name)
-          .map((mission) => ({
-            ...mission,
-            card: rules.primaries.find((card) => card.key === mission.id) ?? null,
-            matchups: matchupEntries
-              .filter(([, candidate]) => candidate.id === mission.id && candidate.packId === mission.packId)
-              .map(([pair]) => pair.split('|').map((id) => ({ id, name: rules.dispositions.get(id) ?? id }))),
-          })),
-      }),
-    )
-    const dispositionDetails = rules.dispositionDetails ?? [...rules.dispositions].map(([id, name]) => ({ id, name, text: null }))
-    return {
-      dispositions: dispositionDetails.map((disposition) => ({
-        ...disposition,
-        matchups: matchupEntries
-          .filter(([pair]) => pair.split('|').includes(disposition.id))
-          .map(([pair, mission]) => ({
-            opponent: pair.split('|').find((id) => id !== disposition.id) ?? disposition.id,
-            mission,
-          })),
-      })),
-      packs,
-      secondaries: rules.secondaries,
-      deployments: rules.deployments,
-      terrainLayouts: rules.terrainLayouts ?? [],
-      terrainTemplates: rules.terrainTemplates ?? [],
-      attribution: rules.attribution,
-    }
+    const cached = gameReferencesCache.get(rules)
+    if (cached) return cached
+    const references = buildGameReferences(rules)
+    gameReferencesCache.set(rules, references)
+    return references
   }),
 )
 

@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button'
 import { postHogEnvironment } from 'ras-stack/posthog'
 import { PostHogBetterAuthIdentity, PostHogIntegration } from 'ras-stack/posthog/react'
 import { authClient } from '../client/authClient'
-import { meQuery } from '../client/queries'
+import { favouriteFactionsQuery, meQuery } from '../client/queries'
 import appCss from '../styles.css?url'
 
 const TITLE = 'Praetorium'
@@ -22,7 +22,8 @@ const posthog = postHogEnvironment({
 })
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
-  loader: ({ context }) => context.queryClient.ensureQueryData(meQuery()),
+  loader: ({ context }) =>
+    Promise.all([context.queryClient.ensureQueryData(meQuery()), context.queryClient.ensureQueryData(favouriteFactionsQuery())]),
   head: () => ({
     meta: [
       { charSet: 'utf-8' },

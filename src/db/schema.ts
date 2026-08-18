@@ -216,6 +216,19 @@ export const collection = sqliteTable(
   (table) => [primaryKey({ columns: [table.playerId, table.entryId] })],
 )
 
+/** Factions a player keeps at the top of faction pickers. */
+export const favouriteFactions = sqliteTable(
+  'favourite_factions',
+  {
+    playerId: text('player_id')
+      .notNull()
+      .references(() => players.id, { onDelete: 'cascade' }),
+    catalogueId: text('catalogue_id').notNull(),
+    at: integer('at').notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.playerId, table.catalogueId] })],
+)
+
 export const schema = {
   user,
   session,
@@ -228,4 +241,5 @@ export const schema = {
   commands,
   rosters,
   collection,
+  favouriteFactions,
 }
