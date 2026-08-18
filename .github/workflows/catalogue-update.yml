@@ -31,7 +31,7 @@ jobs:
       - name: Resolve and validate every upstream source
         run: |
           pnpm catalogue:sync --refresh
-          just descriptions
+          pnpm catalogue:descriptions
       - name: Build and publish the immutable snapshot
         run: |
           test -n "$SNAPSHOT_BUCKET"
