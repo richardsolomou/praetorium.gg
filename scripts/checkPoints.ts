@@ -96,6 +96,8 @@ const normalise = (name: string) =>
     .replaceAll(/\s+/g, ' ')
     .trim()
 
+const isLegends = (entry: SelectionEntry) => /\[legends\]/i.test(entry.name ?? '')
+
 const byName = new Map<string, SelectionEntry[]>()
 const bySingularName = new Map<string, SelectionEntry[]>()
 // Every datasheet any book offers, resolved through the link that offers it: the
@@ -215,7 +217,7 @@ for (const faction of factions) {
       faction.slug === 'imperial-agents' && unit.groupTitle?.toLowerCase().includes('every model has the imperium keyword')
         ? catalogueBySlug.get('adeptus-astartes')
         : primaryCatalogueId
-    const candidates = resolve(unit.name, primaryCatalogueId)
+    const candidates = resolve(unit.name, primaryCatalogueId).filter((entry) => isLegends(entry) === Boolean(unit.legends))
     const tiers = (firstCopyRange(unit)?.costs ?? []).filter((cost) => !cost.addon)
     if (!tiers.length) continue
     if (!candidates.length) {

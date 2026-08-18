@@ -71,9 +71,9 @@ Server catalogue code is split by responsibility:
 
 ## Points ratchet
 
-`just points` builds units with the same `buildUnit` function as the app and compares them with the points reference. It currently matches 99.6% of 1,863 checks.
+`just points` builds units with the same `buildUnit` function as the app and compares them with the points reference. It currently matches 100% of 1,862 checks.
 
-The remaining differences are upstream prices for Deathwatch Terminators, Fortis Kill Teams, Indomitor Kill Teams, and Spectrus Kill Teams. A lower match rate is a regression unless the generated check set changed and the new baseline is explained.
+Legends reference entries are compared only with catalogue entries explicitly marked as Legends. A current datasheet with the same name is not evidence for an older Legends price. A lower match rate is a regression unless the generated check set changed and the new baseline is explained.
 
 Inspect the generated selection before changing evaluator logic. A mismatch can come from the evaluator, the catalogue, or the check harness.
 
