@@ -1010,6 +1010,55 @@ describe('a datasheet', () => {
     ])
   })
 
+  it('classifies game-system rules linked by a datasheet as core abilities', () => {
+    const loaded = shelfOf({
+      sharedRules: [{ id: 'faction-rule', name: 'Faction rule', description: 'Faction text.' }],
+      selectionEntries: [
+        {
+          id: 'unit',
+          name: 'Unit',
+          type: 'unit',
+          infoLinks: [
+            { id: 'core-link', targetId: 'core-rule', name: 'Core rule', type: 'rule' },
+            { id: 'faction-link', targetId: 'faction-rule', name: 'Faction rule', type: 'rule' },
+          ],
+        },
+      ],
+    })
+    loaded.index.rules.set('core-rule', { id: 'core-rule', name: 'Core rule', description: 'Core text.' })
+    loaded.index.ruleCatalogueOf.set('core-rule', 'gs')
+
+    expect(datasheetIn(loaded, 'cat', 'unit')?.abilities.map(({ name, kind }) => [name, kind])).toEqual([
+      ['Core rule', 'core'],
+      ['Faction rule', 'faction'],
+    ])
+  })
+
+  it('lists the choices available on a datasheet as wargear options', () => {
+    const book = bookOf({
+      selectionEntries: [
+        {
+          id: 'unit',
+          name: 'Unit',
+          type: 'unit',
+          selectionEntryGroups: [
+            {
+              id: 'weapons',
+              name: 'Weapons',
+              constraints: [{ id: 'weapons-max', type: 'max', scope: 'parent', field: 'selections', value: 1 }],
+              selectionEntries: [
+                { id: 'rifle', name: 'Rifle', type: 'upgrade' },
+                { id: 'pistol', name: 'Pistol', type: 'upgrade' },
+              ],
+            },
+          ],
+        },
+      ],
+    })
+
+    expect(datasheetIn(book, 'cat', 'unit')?.wargearOptions).toEqual([{ id: 'weapons', name: 'Weapons', options: ['Rifle', 'Pistol'] }])
+  })
+
   it('applies values appended to core rule names', () => {
     const book = bookOf({
       sharedRules: [

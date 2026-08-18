@@ -1,6 +1,6 @@
 import { type Definition, type InfoGroup, type InfoLink, nameOf, type Profile, targetOf } from '../core/catalogue'
 import { profileModifiers, type ProfileModifier, type Selection } from '../core/evaluate'
-import { wargearOf } from '../core/roster'
+import { defaultSelection, unitChoices, wargearOf } from '../core/roster'
 import { bracketedRuleReferences, ruleReferenceMatches } from '../core/ruleReference'
 import { datasheetSlug, datasheetsOf, type LoadedCatalogue } from './catalogueIndex'
 import { priceOf } from './cataloguePicker'
@@ -19,6 +19,7 @@ export type Datasheet = {
     values: { name: string; value: string; baseValue?: string; modifiers?: string[] }[]
   }[]
   abilities: { id: string; name: string; source?: string; description: string | null; kind: AbilityKind }[]
+  wargearOptions: { id: string; name: string; options: string[] }[]
   keywordRules: { name: string; description: string }[]
 }
 
@@ -79,7 +80,10 @@ export function datasheetIn(
     if (link.hidden || link.type !== 'rule') return
     const rule = loaded.index.rules.get(link.targetId)
     const name = displayRuleName(link, link.name ?? rule?.name)
-    if (name && !rule?.hidden) abilities.set(`${kind}:${link.id}`, { id: link.id, name, description: rule?.description ?? null, kind })
+    const owner = loaded.index.ruleCatalogueOf.get(link.targetId)
+    const ruleKind = owner && loaded.index.catalogues.get(owner)?.gameSystem ? 'core' : kind
+    if (name && !rule?.hidden)
+      abilities.set(`${ruleKind}:${link.id}`, { id: link.id, name, description: rule?.description ?? null, kind: ruleKind })
   }
   const addGroup = (group: InfoGroup, lineage: string[]) => {
     if (group.hidden) return
@@ -134,6 +138,14 @@ export function datasheetIn(
   if (sheet !== root) visit(sheet, true, [root.id])
 
   const keywords = [...(root.categoryLinks ?? []), ...(sheet === root ? [] : (sheet.categoryLinks ?? []))]
+  const selection = selectedUnit ?? defaultSelection(root.id, loaded.index, { primaryCatalogueId: catalogueId })
+  const wargearOptions = selection
+    ? unitChoices(root.id, selection, loaded.index, { primaryCatalogueId: catalogueId }).map((choice) => ({
+        id: choice.key,
+        name: choice.name,
+        options: choice.options.map((option) => option.name),
+      }))
+    : []
 
   return {
     id: root.id,
@@ -169,6 +181,7 @@ export function datasheetIn(
       ]
     }),
     abilities: [...abilities.values()],
+    wargearOptions,
     keywordRules: [...keywordRules.values()],
   }
 }

@@ -6,6 +6,8 @@ import { RuleText } from '../client/components/RuleText'
 import { factionFor } from '../client/factions'
 import { datasheetSlugQuery, factionsQuery } from '../client/queries'
 import { FactionMark, factionColour } from '../client/components/FactionMark'
+import { ChevronDown } from 'lucide-react'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 
 export const Route = createFileRoute('/factions/$catalogueId/$entryId')({
   beforeLoad: ({ params }) => {
@@ -88,6 +90,7 @@ export function DatasheetPage() {
       ) : null}
       {ranged.length ? <ProfileTable title="Ranged weapons" profiles={ranged} keywordRules={sheet.keywordRules} /> : null}
       {melee.length ? <ProfileTable title="Melee weapons" profiles={melee} keywordRules={sheet.keywordRules} /> : null}
+      <WargearOptions options={sheet.wargearOptions} />
       <Abilities abilities={sheet.abilities} rules={sheet.keywordRules} />
       {sheet.attribution ? <p className="border-t border-edge pt-4 text-xs text-dim">{sheet.attribution}.</p> : null}
     </main>
@@ -108,22 +111,63 @@ function Abilities({ abilities, rules }: { abilities: DisplayAbility[]; rules: K
   return abilitySections.map(({ kind, title }) => {
     const found = abilities.filter((ability) => ability.kind === kind)
     if (!found.length) return null
+    const cards = (
+      <div className="mt-2 grid gap-2 md:grid-cols-2">
+        {found.map((ability) => (
+          <article key={ability.id} className="border border-edge bg-panel p-3">
+            <h3 className="text-sm">{ability.name}</h3>
+            {ability.description ? <RuleText text={ability.description} rules={rules} /> : null}
+          </article>
+        ))}
+      </div>
+    )
+    if (kind === 'core') {
+      return (
+        <Collapsible key={kind} render={<section />}>
+          <CollapsibleTrigger className="group flex w-full cursor-pointer items-center justify-between">
+            <h2 className="rubric">
+              {title} <span className="readout text-faint">{found.length}</span>
+            </h2>
+            <ChevronDown className="size-4 text-faint transition-transform group-data-panel-open:rotate-180" aria-hidden />
+          </CollapsibleTrigger>
+          <CollapsibleContent>{cards}</CollapsibleContent>
+        </Collapsible>
+      )
+    }
     return (
       <section key={kind}>
         <h2 className="rubric">
           {title} <span className="readout text-faint">{found.length}</span>
         </h2>
-        <div className="mt-2 grid gap-2 md:grid-cols-2">
-          {found.map((ability) => (
-            <article key={ability.id} className="border border-edge bg-panel p-3">
-              <h3 className="text-sm">{ability.name}</h3>
-              {ability.description ? <RuleText text={ability.description} rules={rules} /> : null}
-            </article>
-          ))}
-        </div>
+        {cards}
       </section>
     )
   })
+}
+
+type WargearOption = { id: string; name: string; options: string[] }
+
+function WargearOptions({ options }: { options: WargearOption[] }) {
+  if (!options.length) return null
+  return (
+    <section>
+      <h2 className="rubric">
+        Wargear options <span className="readout text-faint">{options.length}</span>
+      </h2>
+      <div className="mt-2 grid gap-2 md:grid-cols-2">
+        {options.map((option) => (
+          <article key={option.id} className="border border-edge bg-panel p-3">
+            <h3 className="text-sm">{option.name}</h3>
+            <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-dim">
+              {option.options.map((name) => (
+                <li key={name}>{name}</li>
+              ))}
+            </ul>
+          </article>
+        ))}
+      </div>
+    </section>
+  )
 }
 
 type DisplayProfile = { id: string; name: string; values: { name: string; value: string }[] }
