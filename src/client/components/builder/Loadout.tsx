@@ -60,13 +60,13 @@ type Props = {
  * option. Nothing is typed either way: every option and every price is the data's.
  */
 export function Loadout({ catalogueId, unit, detachmentIds, picks, pickIndex, onChoose, onSpread, onToggle, onResize }: Props) {
-  const [context, setContext] = useState({ detachmentIds, picks, pickIndex })
+  const [context, setContext] = useState({ detachmentIds, picks })
   useEffect(() => {
-    const timeout = window.setTimeout(() => setContext({ detachmentIds, picks, pickIndex }), 150)
+    const timeout = window.setTimeout(() => setContext({ detachmentIds, picks }), 150)
     return () => window.clearTimeout(timeout)
-  }, [detachmentIds, picks, pickIndex])
+  }, [detachmentIds, picks])
   const { data: sheet } = useQuery({
-    ...datasheetQuery(catalogueId, unit?.entryId ?? '', context.detachmentIds, context.picks, context.pickIndex),
+    ...datasheetQuery(catalogueId, unit?.entryId ?? '', context.detachmentIds, context.picks, pickIndex),
     placeholderData: (previous, previousQuery) => (previousQuery?.queryKey[2] === unit?.entryId ? previous : undefined),
   })
   const { data: availableSheet } = useQuery(datasheetQuery(catalogueId, unit?.entryId ?? '', detachmentIds))
