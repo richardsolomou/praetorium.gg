@@ -54,6 +54,50 @@ describe('the default selection for a unit', () => {
     expect(defaultSelection('captain', index)?.selections).toBeUndefined()
   })
 
+  it('includes a hidden upgrade made mandatory by the selected detachment', () => {
+    const index = indexOf({
+      sharedSelectionEntries: [
+        { id: 'pantheon', name: 'Pantheon of Woe', type: 'upgrade' },
+        {
+          id: 'ctan',
+          name: "C'tan Shard",
+          type: 'model',
+          costs: [{ name: 'pts', typeId: PTS, value: 330 }],
+          selectionEntries: [
+            {
+              id: 'binding',
+              name: 'Singularity Matrix',
+              type: 'upgrade',
+              hidden: true,
+              costs: [{ name: 'pts', typeId: PTS, value: 45 }],
+              constraints: [
+                { id: 'binding-min', type: 'min', value: 0, field: 'selections', scope: 'parent' },
+                { id: 'binding-max', type: 'max', value: 0, field: 'selections', scope: 'parent' },
+              ],
+              modifierGroups: [
+                {
+                  conditions: [{ type: 'atLeast', value: 1, field: 'selections', scope: 'force', childId: 'pantheon' }],
+                  modifiers: [
+                    { type: 'set', field: 'hidden', value: false },
+                    { type: 'set', field: 'binding-min', value: 1 },
+                    { type: 'set', field: 'binding-max', value: 1 },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    })
+
+    const built = buildUnit('ctan', index, undefined, undefined, { roster: [{ id: 'pantheon' }] })!
+
+    expect({ wargear: wargearOf(built.selection, index), points: evaluate([built.selection], index).points }).toEqual({
+      wargear: [{ name: 'Singularity Matrix', count: 1 }],
+      points: 375,
+    })
+  })
+
   it('takes as many as the minimum asks for', () => {
     const index = indexOf({
       sharedSelectionEntries: [

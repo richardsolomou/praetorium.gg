@@ -68,6 +68,18 @@ test('enhancement choices show descriptions when rule and catalogue names differ
   await option.screenshot({ path: 'test-results/nekrosor-enhancement.png' })
 })
 
+test("Pantheon of Woe adds a C'tan shard's required enhancement", async ({ page }) => {
+  await openBuilder(page, 'Necrons', /Pantheon of Woe/)
+  await add(page, "C'tan Shard of the Deceiver")
+
+  const card = page.locator('[data-unit="C\'tan Shard of the Deceiver"]')
+  await expect(card).toContainText('375 pts')
+  await expect(card).toContainText('Enhancement')
+  await expect(card).toContainText('Singularity Matrix')
+  await expect(card.getByText('1x Singularity Matrix', { exact: true })).toHaveCount(0)
+  await card.screenshot({ path: 'test-results/pantheon-forced-enhancement.png' })
+})
+
 test('unit upgrades stay separate from character enhancements', async ({ page }) => {
   await openBuilder(page, 'Necrons', /Skyshroud Spearhead/)
   await add(page, 'Lokhust Destroyers')

@@ -326,6 +326,40 @@ describe('detachment enhancements', () => {
       )?.description,
     ).toBeNull()
   })
+
+  it('finds an enhancement the detachment makes mandatory on its bearer', () => {
+    const loaded = bookOf({
+      sharedSelectionEntries: [
+        {
+          id: 'wrapper',
+          name: 'Detachment',
+          type: 'upgrade',
+          selectionEntryGroups: [
+            { id: 'choices', name: 'Detachment', selectionEntries: [{ id: 'host', name: 'Pantheon', type: 'upgrade' }] },
+          ],
+        },
+        {
+          id: 'binding',
+          name: 'Singularity Matrix',
+          type: 'upgrade',
+          hidden: true,
+          costs: points(45),
+          constraints: [{ id: 'binding-min', type: 'min', value: 0, field: 'selections', scope: 'parent' }],
+          profiles: [ability('binding-rule', 'Singularity Matrix')],
+          modifierGroups: [
+            {
+              conditions: [{ type: 'atLeast', value: 1, field: 'selections', scope: 'force', childId: 'host' }],
+              modifiers: [{ type: 'set', field: 'binding-min', value: 1 }],
+            },
+          ],
+        },
+      ],
+    })
+
+    expect(detachmentCatalogueDetail(loaded, 'cat', 'host', [])?.forcedEnhancements).toEqual([
+      { name: 'Singularity Matrix', points: 45, description: 'Singularity Matrix text' },
+    ])
+  })
 })
 
 describe('detachments', () => {

@@ -159,6 +159,8 @@ export const factions = createServerFn({ method: 'GET' }).handler(() =>
           references: faction.references,
           detachments: (loaded.detachments.get(faction.id)?.options ?? []).map((detachment) => {
             const reference = rules?.detachmentReferences.get(slug(faction.name))?.get(slug(detachment.name))
+            const detail = rules?.detachmentDetails.get(slug(faction.name))?.get(slug(detachment.name))
+            const forced = detachmentCatalogueDetail(loaded, faction.id, detachment.id, [])?.forcedEnhancements ?? []
             return {
               id: detachment.id,
               slug: slug(detachment.name),
@@ -172,6 +174,10 @@ export const factions = createServerFn({ method: 'GET' }).handler(() =>
               reference: reference
                 ? {
                     ...reference,
+                    enhancements: new Set([
+                      ...(detail?.enhancements.map((enhancement) => enhancement.name) ?? []),
+                      ...forced.map((entry) => entry.name),
+                    ]).size,
                     dispositions: reference.dispositions.map((disposition) => rules?.dispositions.get(disposition) ?? disposition),
                   }
                 : null,
@@ -385,13 +391,18 @@ export const detachmentDetail = createServerFn({ method: 'GET' })
         [...detail.enhancements, ...detail.upgrades].map((enhancement) => enhancement.name),
       )
       const detachmentRuleCards = mergeDetachmentRules(catalogueDetail?.rule ?? null, detail.rules)
-      const enhancements = detail.enhancements.map((enhancement) => ({
-        name: enhancement.name,
-        points: enhancement.points,
-        description:
-          catalogueDetail?.enhancements.find((candidate) => candidate.name.toLocaleLowerCase() === enhancement.name.toLocaleLowerCase())
-            ?.description ?? enhancement.description,
-      }))
+      const enhancements = [
+        ...detail.enhancements.map((enhancement) => ({
+          name: enhancement.name,
+          points: enhancement.points,
+          description:
+            catalogueDetail?.enhancements.find((candidate) => candidate.name.toLocaleLowerCase() === enhancement.name.toLocaleLowerCase())
+              ?.description ?? enhancement.description,
+        })),
+        ...(catalogueDetail?.forcedEnhancements.filter(
+          (forced) => !detail.enhancements.some((enhancement) => enhancement.name.toLocaleLowerCase() === forced.name.toLocaleLowerCase()),
+        ) ?? []),
+      ].toSorted((left, right) => left.name.localeCompare(right.name))
       const upgrades = detail.upgrades.map((upgrade) => ({
         name: upgrade.name,
         points: upgrade.points,

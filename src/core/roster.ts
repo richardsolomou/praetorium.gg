@@ -11,13 +11,13 @@
  */
 
 import { type CatalogueIndex, type Constraint, type Definition, targetOf } from './catalogue'
-import { evaluate, hiddenByRules } from './evaluate'
+import { evaluate, hiddenByRules, selectionCountBounds, type EvaluateOptions } from './evaluate'
 import type { Selection } from './evaluate'
 
 /** Crusade and campaign subtrees run deep and none of it is mandatory. */
 const MAX_DEPTH = 4
 
-type DefaultOptions = { maxDepth?: number }
+type DefaultOptions = EvaluateOptions & { maxDepth?: number }
 
 /**
  * What a player picked, in the form a saved list keeps.
@@ -54,7 +54,7 @@ export type RosterPick = {
 export function defaultSelection(entryId: string, index: CatalogueIndex, options: DefaultOptions = {}): Selection | null {
   const definition = index.definitions.get(entryId)
   if (!definition) return null
-  return expand(entryId, definition, index, options.maxDepth ?? MAX_DEPTH, 1, new Set(), 1)
+  return expand(entryId, definition, index, options.maxDepth ?? MAX_DEPTH, 1, new Set(), 1, options)
 }
 
 function expand(
@@ -65,12 +65,13 @@ function expand(
   count: number,
   seen: Set<string>,
   carriers: number,
+  options: DefaultOptions = {},
 ): Selection {
   const target = resolve(definition, index)
   if (depth <= 0 || seen.has(target.id)) return { id, count }
 
   const visited = new Set(seen).add(target.id)
-  const options = childrenOf(target, index).filter((child) => !child.definition.hidden)
+  const available = childrenOf(target, index).filter((child) => !hiddenByRules(child.definition, index, options))
 
   // A group holds no count of its own: "at least four selections of this group"
   // is satisfied by what goes inside it, so the requirement passes to a child.
@@ -84,26 +85,26 @@ function expand(
     // Reserve room for options with their own minimum before the declared default
     // consumes the group's allowance. Mixed squads commonly put the ordinary
     // model first and a required sergeant later in the catalogue.
-    const reserved = options.reduce(
-      (total, child) => total + requiredCount(child.definition, index) * scaleOf(child.definition, index, carriers),
+    const reserved = available.reduce(
+      (total, child) => total + requiredCount(child.definition, index, options) * scaleOf(child.definition, index, carriers),
       0,
     )
     let remaining = Math.max(0, count - reserved)
-    for (const child of ordered(target, options, index)) {
+    for (const child of ordered(target, available, index)) {
       const scale = scaleOf(child.definition, index, carriers)
-      const cap = maximumCount(child.definition, index)
+      const cap = maximumCount(child.definition, index, options)
       const room = cap === null ? null : cap * scale
       const share = remaining > 0 ? (room === null ? remaining : Math.min(remaining, room)) : 0
       // A child's own minimum applies whatever the group asks for, so a group with
       // no requirement still yields what its contents demand.
-      const take = Math.max(share, requiredCount(child.definition, index) * scale)
+      const take = Math.max(share, requiredCount(child.definition, index, options) * scale)
       if (take <= 0 && resolve(child.definition, index).type === undefined) {
-        const built = expand(child.id, child.definition, index, depth - 1, 0, visited, carriers)
+        const built = expand(child.id, child.definition, index, depth - 1, 0, visited, carriers, options)
         if (built.selections?.length) inside.push(built)
         continue
       }
       if (take <= 0) continue
-      inside.push(expand(child.id, child.definition, index, depth - 1, take, visited, carriers))
+      inside.push(expand(child.id, child.definition, index, depth - 1, take, visited, carriers, options))
       remaining -= Math.min(remaining, take)
     }
     return inside.length ? { id, count: 1, selections: inside } : { id, count: 1 }
@@ -113,18 +114,18 @@ function expand(
   // What this entry holds is held by `count` of it, which is what a per-model
   // requirement inside is counted against.
   const held = Math.max(1, count)
-  for (const child of options) {
-    const required = requiredCount(child.definition, index) * scaleOf(child.definition, index, held)
+  for (const child of available) {
+    const required = requiredCount(child.definition, index, options) * scaleOf(child.definition, index, held)
     if (resolve(child.definition, index).type === undefined) {
       // Always look inside a group. One with no minimum of its own can still hold
       // entries that insist on themselves — which is how most squads are written —
       // and skipping it leaves the unit with a sergeant and nobody to lead.
-      const built = expand(child.id, child.definition, index, depth - 1, required, visited, held)
+      const built = expand(child.id, child.definition, index, depth - 1, required, visited, held, options)
       if (built.selections?.length) children.push(built)
       continue
     }
     if (required <= 0) continue
-    children.push(expand(child.id, child.definition, index, depth - 1, required, visited, held))
+    children.push(expand(child.id, child.definition, index, depth - 1, required, visited, held, options))
   }
 
   return children.length ? { id, count, selections: children } : { id, count }
@@ -185,7 +186,8 @@ function scaleOf(definition: Definition, index: CatalogueIndex, carriers: number
 }
 
 /** The binding cap on how many of this may be taken, or null when nothing limits it. */
-function maximumCount(definition: Definition, index: CatalogueIndex): number | null {
+function maximumCount(definition: Definition, index: CatalogueIndex, options?: EvaluateOptions): number | null {
+  if (options) return selectionCountBounds(definition, index, options).maximum
   const target = resolve(definition, index)
   const constraints = [...(definition.constraints ?? []), ...(target === definition ? [] : (target.constraints ?? []))]
   const caps = constraints
@@ -196,7 +198,8 @@ function maximumCount(definition: Definition, index: CatalogueIndex): number | n
 }
 
 /** How many of this child the data insists on: its own minimum, or a group's. */
-function requiredCount(definition: Definition, index: CatalogueIndex): number {
+function requiredCount(definition: Definition, index: CatalogueIndex, options?: EvaluateOptions): number {
+  if (options) return selectionCountBounds(definition, index, options).minimum
   const target = resolve(definition, index)
   const constraints = [...(definition.constraints ?? []), ...(target === definition ? [] : (target.constraints ?? []))]
   const minimums = constraints.filter(isSelectionMinimum).map((constraint) => constraint.value)
@@ -286,7 +289,7 @@ export function buildUnit(
     toggles?: Readonly<Record<string, number>>
   },
 ): BuiltUnit | null {
-  const base = defaultSelection(entryId, index)
+  const base = defaultSelection(entryId, index, context)
   if (!base) return null
 
   // Choices first: an option can bring its own bodies, so sizing has to see them.
