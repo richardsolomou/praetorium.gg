@@ -110,8 +110,11 @@ describe('stratagems', () => {
     expect(load().factionNames.get('death-guard')).toBe('Death Guard')
   })
 
-  it('reads faction unit exclusions from the faction rule', () => {
-    expect(load().factionUnitExclusions.get('deathwatch')).toEqual(new Set(['scout squad', 'tactical squad']))
+  it('reads faction restrictions from army rules', () => {
+    expect(load().factionRestrictions.get('deathwatch')).toEqual({
+      excludedNames: new Set(['scout squad', 'tactical squad']),
+      excludedKeywords: new Set(),
+    })
   })
 
   it('keeps the reference metadata for each detachment', () => {

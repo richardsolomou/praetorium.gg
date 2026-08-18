@@ -346,6 +346,7 @@ export function evaluateForces(
       totals.set(typeId, (totals.get(typeId) ?? 0) + value * node.count)
     }
     errors.push(...violations(node, root, index, census))
+    errors.push(...modifierErrors(node, root, index, census))
   }
 
   const costs: Record<string, number> = {}
@@ -355,6 +356,19 @@ export function evaluateForces(
   }
 
   return { costs, points: totals.get(index.pointsTypeId) ?? 0, errors, unhandled: census.list }
+}
+
+function modifierErrors(node: Node, root: Node, index: CatalogueIndex, census: Census): EvaluationError[] {
+  if (node === root) return []
+  const name = node.target.name ?? node.target.id
+  return modifiersOf(node).flatMap((modifier) => {
+    if (modifier.field !== 'error' || repeatCount(modifier, node, root, index, census) === 0) return []
+    if (modifier.type !== 'add' || typeof modifier.value !== 'string') {
+      census.note(`error modifier ${modifier.type} without text`)
+      return []
+    }
+    return [{ entryId: node.target.id, entryName: name, message: modifier.value.replaceAll('{this}', name) }]
+  })
 }
 
 /**

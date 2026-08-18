@@ -403,6 +403,37 @@ describe('legality', () => {
     )
     expect(result.errors).toEqual([])
   })
+
+  it('reports a conditional catalogue error modifier', () => {
+    const result = evaluate(
+      [{ id: 'farsight' }, { id: 'ethereal' }],
+      indexOf({
+        sharedSelectionEntries: [
+          {
+            id: 'farsight',
+            name: 'Commander Farsight',
+            type: 'model',
+            modifiers: [
+              {
+                type: 'add',
+                field: 'error',
+                value: 'Cannot take Commander Farsight and an Ethereal in the same army.',
+                conditions: [{ type: 'atLeast', value: 1, field: 'selections', scope: 'roster', childId: 'ethereal' }],
+              },
+            ],
+          },
+          { id: 'ethereal', name: 'Ethereal', type: 'model' },
+        ],
+      }),
+    )
+    expect(result.errors).toEqual([
+      {
+        entryId: 'farsight',
+        entryName: 'Commander Farsight',
+        message: 'Cannot take Commander Farsight and an Ethereal in the same army.',
+      },
+    ])
+  })
 })
 
 describe('a surcharge that depends on the book the list is from', () => {

@@ -31,6 +31,16 @@ test('Deathwatch excludes Scouts from its unit picker', async ({ page }) => {
   await expect(page.getByRole('button', { name: /Add Scout/ })).toHaveCount(0)
 })
 
+test('Black Templars exclude prohibited datasheets and Psykers from their unit picker', async ({ page }) => {
+  await openBuilder(page, 'Black Templars', /Companions of Vehemence/)
+  for (const name of ['Gladiator Lancer', 'Librarian']) {
+    await page.getByLabel('Add a unit').fill(name)
+    await expect(page.getByText('Nothing by that name.')).toBeVisible()
+    await expect(page.getByRole('button', { name: `Add ${name}`, exact: true })).toHaveCount(0)
+  }
+  await page.screenshot({ path: 'test-results/black-templars-restrictions.png', fullPage: true })
+})
+
 test('adding a unit keeps the confirmed roster visible while pricing catches up', async ({ page }) => {
   await openBuilder(page)
   await add(page, 'Immortals')

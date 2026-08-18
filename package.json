@@ -32,7 +32,7 @@
     "catalogue:sync": "tsx scripts/syncCatalogue.ts",
     "catalogue:snapshot": "tsx scripts/catalogueSnapshot.ts",
     "catalogue:update": "tsx scripts/syncCatalogue.ts --update",
-    "catalogue:points": "node --max-old-space-size=8192 --import tsx scripts/checkPoints.ts"
+    "catalogue:points": "node --max-old-space-size=8192 --import tsx scripts/checkPoints.ts && tsx scripts/checkRestrictions.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",

@@ -63,6 +63,8 @@ Server catalogue code is split by responsibility:
 - `instanceOf` compares the current selection for `self` scope and searches the scoped contents for container scopes.
 - Treat category links as keywords when matching conditions.
 - Call `hiddenByRules` with the current roster. Visibility can depend on its detachment and force type.
+- Parse prose-only army exclusions into typed faction restrictions. Roster legality and picker visibility consume the same restrictions; `just points` fails when a named exclusion in the synced rules was not captured.
+- Treat conditional modifiers targeting the catalogue `error` field as legality errors. These carry cross-unit and loadout restrictions that cannot be represented as numeric constraints.
 - Read available choices from the datasheet definition, not only from the built selection. Optional groups are absent from the default selection.
 - Add detachments before units during evaluation. Enhancements and unit limits can depend on them.
 - Apply profile modifiers against the complete roster selection. Support the catalogue's ordered text, numeric, rounding, cumulative, name, annotation, and visibility operations. Keep the base value and each selected rule that changed it so the interface can explain every derived value.

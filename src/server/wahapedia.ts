@@ -19,6 +19,11 @@ export type WahapediaDescriptions = {
 
 export type DetachmentAbility = { name: string; description: string }
 
+export type FactionRestrictions = {
+  excludedNames: ReadonlySet<string>
+  excludedKeywords: ReadonlySet<string>
+}
+
 const toText = compile({
   wordwrap: false,
   selectors: [
@@ -146,23 +151,62 @@ export function findDetachmentAbilities(
 
 export const findAbilityDescription = (descriptions: ReadonlyMap<string, string>, name: string) => descriptions.get(routeSlug(name)) ?? null
 
-export function factionUnitExclusions(descriptions: ReadonlyMap<string, string>) {
-  const exclusions = new Map<string, ReadonlySet<string>>()
-  for (const [faction, description] of descriptions) {
-    const prohibited = description.match(/Your army cannot include any of the following units:\s*([^.]*)/i)?.[1]
-    if (!prohibited) continue
-    exclusions.set(
-      faction,
-      new Set(
-        prohibited
-          .split(';')
-          .map((name) => name.trim().toLowerCase())
-          .filter(Boolean),
-      ),
-    )
+export function factionRestrictions(descriptions: ReadonlyMap<string, string>) {
+  const restrictions = new Map<string, { excludedNames: Set<string>; excludedKeywords: Set<string> }>()
+  const forFaction = (faction: string) => {
+    const key = routeSlug(faction)
+    const found = restrictions.get(key) ?? { excludedNames: new Set<string>(), excludedKeywords: new Set<string>() }
+    restrictions.set(key, found)
+    return found
   }
-  return exclusions
+  for (const [faction, description] of descriptions) {
+    const describedFaction = description.match(/from the ([A-Za-z ]+) Chapter/i)?.[1] ?? faction
+    for (const match of description.matchAll(
+      /Your army cannot include (?:any of )?the following (?:units|models|datasheets[^:]*):\s*([^.]*)/gi,
+    )) {
+      addNames(forFaction(describedFaction).excludedNames, match[1])
+    }
+    for (const match of description.matchAll(
+      /If your army includes one or more ([A-Z][A-Z ]+) units, it cannot include[^.]*?the following (?:units|models):\s*([^.]*)/g,
+    )) {
+      addNames(forFaction(match[1]).excludedNames, match[2])
+    }
+    if (/BLACK TEMPLARS units[^.]*cannot include any Adeptus Astartes Psyker models/i.test(description)) {
+      forFaction('Black Templars').excludedKeywords.add('psyker')
+    }
+  }
+  return restrictions
 }
+
+export function factionRestrictionCoverageIssues(descriptions: ReadonlyMap<string, string>) {
+  const parsed = factionRestrictions(descriptions)
+  const issues: string[] = []
+  for (const [rule, description] of descriptions) {
+    for (const match of description.matchAll(/cannot include[^.]*?following (?:units|models|datasheets[^:]*):\s*([^.]*)/gi)) {
+      const before = description.slice(0, match.index)
+      const conditionalFaction = [...before.matchAll(/If your army includes one or more ([A-Z][A-Z ]+) units,/g)].at(-1)?.[1]
+      const describedFaction = description.match(/from the ([A-Za-z ]+) Chapter/i)?.[1]
+      const faction = routeSlug(conditionalFaction ?? describedFaction ?? rule)
+      const names = new Set<string>()
+      addNames(names, match[1])
+      const missing = [...names].filter((name) => !parsed.get(faction)?.excludedNames.has(name))
+      if (missing.length) issues.push(`${rule}: ${missing.join(', ')}`)
+    }
+  }
+  return issues
+}
+
+const addNames = (target: Set<string>, names: string | undefined) =>
+  names
+    ?.split(';')
+    .map((name) =>
+      name
+        .replace(/^[^:]+:\s*/, '')
+        .trim()
+        .toLowerCase(),
+    )
+    .filter(Boolean)
+    .forEach((name) => target.add(name))
 
 function readNamedDescriptions(files: readonly string[]): Map<string, string> {
   const candidates = new Map<string, Set<string>>()

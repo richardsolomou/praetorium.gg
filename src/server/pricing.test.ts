@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { deploymentRules, findEnhancementDescription, kotcViolations, resolveDisposition } from './pricing'
+import { deploymentRules, factionRestrictionViolations, findEnhancementDescription, kotcViolations, resolveDisposition } from './pricing'
 import { descriptionKey } from './wahapedia'
 
 describe('force disposition', () => {
@@ -50,6 +50,17 @@ describe('catalogue-backed deployment rules', () => {
 
   it('does not invent deployment options without matching abilities', () => {
     expect(deploymentRules(['Leader', 'Stealth'])).toEqual({ formationOptions: [], prebattleRules: [] })
+  })
+})
+
+describe('faction army restrictions', () => {
+  it('reports prohibited datasheets and keywords through roster legality', () => {
+    const restrictions = { excludedNames: new Set(['scout squad']), excludedKeywords: new Set(['psyker']) }
+    const units = [
+      { entryId: 'scouts', name: 'Scout Squad', keywords: ['Infantry'], toughness: 4, warlord: false },
+      { entryId: 'librarian', name: 'Librarian', keywords: ['Character', 'Psyker'], toughness: 4, warlord: false },
+    ]
+    expect(factionRestrictionViolations(restrictions, units).map((error) => error.entryId)).toEqual(['scouts', 'librarian'])
   })
 })
 

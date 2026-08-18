@@ -9,7 +9,7 @@ import type { LoadedCatalogue } from './catalogueIndex'
 import { groupOfEntry } from './cataloguePicker'
 import { slug } from './rules'
 import type { PriceInput } from './schemas'
-import { descriptionKey, findDescription } from './wahapedia'
+import { descriptionKey, findDescription, type FactionRestrictions } from './wahapedia'
 
 export function calculateRosterPrice(data: PriceInput) {
   const loaded = app().catalogue()
@@ -112,6 +112,7 @@ export function calculateRosterPrice(data: PriceInput) {
         !(chosen.length > 1 && error.entryName.toLowerCase().includes('detachment') && error.message.includes('allows at most 1, has ')),
     ),
     ...attachmentErrors(data.units, loaded.index),
+    ...factionRestrictionViolations(rules?.factionRestrictions.get(factionSlug), kotcUnits),
     ...(isKotcLimit(data.limit) ? kotcViolations(chosen.length, kotcUnits, data.limit) : []),
   ]
 
@@ -182,6 +183,16 @@ export function calculateRosterPrice(data: PriceInput) {
 }
 
 type KotcUnit = { entryId: string; name: string; keywords: readonly string[]; toughness: number | null; warlord: boolean }
+
+export function factionRestrictionViolations(restrictions: FactionRestrictions | undefined, units: readonly KotcUnit[]) {
+  if (!restrictions) return []
+  return units.flatMap((unit) => {
+    const name = unit.name.trim().toLowerCase()
+    const keyword = unit.keywords.find((candidate) => restrictions.excludedKeywords.has(candidate.trim().toLowerCase()))
+    if (!restrictions.excludedNames.has(name) && !keyword) return []
+    return [{ entryId: unit.entryId, entryName: unit.name, message: `is not allowed in this faction${keyword ? ` (${keyword})` : ''}` }]
+  })
+}
 
 /** Prototype KOTC 2.0 army-construction changes layered over normal Incursion legality. */
 export function kotcViolations(detachments: number, units: readonly KotcUnit[], limit = 600) {

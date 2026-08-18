@@ -3,7 +3,7 @@ import path from 'node:path'
 import type { Stratagem, StratagemLimit } from '../core/battle'
 import { routeSlug } from '../core/slug'
 import {
-  factionUnitExclusions,
+  factionRestrictions,
   findDescription,
   findDetachmentAbilities,
   loadWahapediaDescriptions,
@@ -258,8 +258,8 @@ type DetachmentRulesDetail = {
 export type LoadedRules = {
   attribution: string
   abilityDescriptions: ReadonlyMap<string, string>
-  /** Datasheets a faction rule explicitly forbids, keyed by the faction rule's slug. */
-  factionUnitExclusions: ReadonlyMap<string, ReadonlySet<string>>
+  /** Army-construction restrictions keyed by the player-facing faction slug. */
+  factionRestrictions: ReturnType<typeof factionRestrictions>
   /** Faction slug then detachment slug, so a chosen detachment maps straight to its six. */
   byDetachment: Map<string, Map<string, Stratagem[]>>
   /** Display metadata for each detachment, from the same licensed source as its stratagems. */
@@ -521,7 +521,7 @@ export function loadRules(
       .filter(Boolean)
       .join('. '),
     abilityDescriptions: wahapedia?.abilities ?? new Map(),
-    factionUnitExclusions: factionUnitExclusions(wahapedia?.abilities ?? new Map()),
+    factionRestrictions: factionRestrictions(wahapedia?.abilities ?? new Map()),
     byDetachment,
     detachmentReferences,
     detachmentDetails,

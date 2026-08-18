@@ -2,6 +2,7 @@ import { type CatalogueIndex, type Definition, nameOf, targetOf } from '../core/
 import { evaluate, rosterLimit } from '../core/evaluate'
 import { buildUnit } from '../core/roster'
 import { datasheetSlug, datasheetsOf, type LoadedCatalogue } from './catalogueIndex'
+import type { FactionRestrictions } from './wahapedia'
 
 export type UnitGroup = 'character' | 'battleline' | 'transport' | 'other'
 
@@ -53,7 +54,7 @@ export function unitsIn(
   loaded: LoadedCatalogue,
   catalogueId: string,
   query: string,
-  { limit = 60, excludedNames = new Set<string>() }: { limit?: number; excludedNames?: ReadonlySet<string> } = {},
+  { limit = 60, restrictions }: { limit?: number; restrictions?: FactionRestrictions } = {},
 ): UnitSummary[] {
   const wanted = query.trim().toLowerCase()
   const found: { id: string; name: string; group: UnitGroup; alliedFaction: string | null; alliedOrder: number }[] = []
@@ -66,7 +67,8 @@ export function unitsIn(
     if (entry.hidden || target.hidden) continue
     const name = nameOf(entry, loaded.index.definitions)
     if (NON_MATCHED_PLAY.test(name)) continue
-    if (excludedNames.has(name.trim().toLowerCase())) continue
+    const keywords = [...(entry.categoryLinks ?? []), ...(target.categoryLinks ?? [])].flatMap((link) => (link.name ? [link.name] : []))
+    if (restricted(name, keywords, restrictions)) continue
     const ownerId = loaded.index.catalogueOf.get(target.id)
     if (ownerId && loaded.index.catalogues.get(ownerId)?.name === 'Unaligned Forces') continue
     // Unaligned Forces is the shared shelf for Legends fortifications and
@@ -94,6 +96,11 @@ export function unitsIn(
     limit: limitOf(loaded, catalogueId, unit.id),
   }))
 }
+
+const restricted = (name: string, keywords: readonly string[], restrictions?: FactionRestrictions) =>
+  restrictions !== undefined &&
+  (restrictions.excludedNames.has(name.trim().toLowerCase()) ||
+    keywords.some((keyword) => restrictions.excludedKeywords.has(keyword.trim().toLowerCase())))
 
 /** How many of one datasheet the roster may hold, or null when nothing limits it. */
 function limitOf(loaded: LoadedCatalogue, catalogueId: string, entryId: string) {

@@ -106,7 +106,25 @@ describe('the picker', () => {
         { id: 'excluded', name: 'Scout Squad', type: 'unit', costs: points(70) },
       ],
     })
-    expect(unitsIn(book, 'cat', '', { excludedNames: new Set(['scout squad']) }).map((unit) => unit.name)).toEqual(['Intercessor Squad'])
+    expect(
+      unitsIn(book, 'cat', '', {
+        restrictions: { excludedNames: new Set(['scout squad']), excludedKeywords: new Set() },
+      }).map((unit) => unit.name),
+    ).toEqual(['Intercessor Squad'])
+  })
+
+  it('omits datasheets excluded by a faction keyword rule', () => {
+    const book = bookOf({
+      selectionEntries: [
+        { id: 'marshal', name: 'Marshal', type: 'model', costs: points(80), categoryLinks: categories('Character') },
+        { id: 'librarian', name: 'Librarian', type: 'model', costs: points(90), categoryLinks: categories('Character', 'Psyker') },
+      ],
+    })
+    expect(
+      unitsIn(book, 'cat', '', {
+        restrictions: { excludedNames: new Set(), excludedKeywords: new Set(['psyker']) },
+      }).map((unit) => unit.name),
+    ).toEqual(['Marshal'])
   })
 
   it('prices the smallest legal version of each datasheet', () => {
