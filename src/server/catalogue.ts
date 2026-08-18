@@ -290,7 +290,7 @@ const MODIFIER_ORDER: Partial<Record<DisplayModifier['type'], number>> = {
 const modifierOrder = (type: DisplayModifier['type']) => MODIFIER_ORDER[type] ?? Number.MAX_SAFE_INTEGER
 
 function displayRuleName(link: InfoLink, base: string | undefined) {
-  if (!base) return undefined
+  if (!base) return
   const modifiers = (link.modifiers ?? [])
     .filter(
       (modifier) =>
