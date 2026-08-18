@@ -3,6 +3,7 @@ import { Link, useParams } from '@tanstack/react-router'
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbSeparator } from '@/components/ui/breadcrumb'
 import { routeSlug } from '../../core/slug'
 import type { Datasheet } from '../../server/catalogue'
+import { compositionCount } from '../datasheet'
 import { factionFor } from '../factions'
 import { datasheetSlugQuery, factionsQuery } from '../queries'
 import { FactionMark, factionColour } from './FactionMark'
@@ -249,15 +250,6 @@ function Relationships({ sheet, factionSlug }: { sheet: DatasheetDisplay; factio
       </div>
     </section>
   )
-}
-
-function compositionCount(composition: string[]) {
-  const count = composition
-    .join(' ')
-    .match(/\d+(?:\s*[-–]\s*\d+)?/)?.[0]
-    ?.replace(/\s+/g, '')
-  const value = count ?? String(composition.length)
-  return `${value} ${value === '1' ? 'model' : 'models'}`
 }
 
 type DisplayProfile = { id: string; name: string; values: { name: string; value: string }[] }

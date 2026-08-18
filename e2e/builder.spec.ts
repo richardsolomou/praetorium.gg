@@ -604,6 +604,15 @@ test('a smaller desktop keeps the picker, roster and loadout visible', async ({ 
 
   await page.setViewportSize({ width: 1440, height: 900 })
   await expect(datasheet).toBeVisible()
+  await expect(datasheet.getByRole('heading', { name: "C'tan Shard of the Deceiver", exact: true })).toBeVisible()
+  await expect(datasheet.getByText('330 pts', { exact: true })).toBeVisible()
+  await expect(datasheet.getByText('Invulnerable save', { exact: true })).toBeVisible()
+  expect(
+    await datasheet
+      .locator('[data-slot="unit-profile"] > div')
+      .first()
+      .evaluate((profile) => getComputedStyle(profile).gridTemplateColumns.split(' ').length),
+  ).toBe(3)
   await expect(datasheet.getByText('Datasheet abilities')).toBeVisible()
   await expect(loadout.getByText('Equipped ranged weapons', { exact: true })).toBeVisible()
   await expect(datasheet.getByText('Grand Illusion', { exact: true })).toBeVisible()

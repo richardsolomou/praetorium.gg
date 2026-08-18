@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import type { RosterPick } from '../../../core/roster'
 import type { Datasheet } from '../../../server/catalogue'
+import { compositionCount } from '../../datasheet'
 import { datasheetQuery } from '../../queries'
 import { HoverTooltip } from '../HoverTooltip'
 import { Keyword, KEYWORD_TAG_CLASS, KeywordList } from '../Keyword'
@@ -43,11 +44,21 @@ export function DatasheetPanel({ catalogueId, entryId, detachmentIds, picks, pic
   return (
     <ScrollArea className="h-full [&_[data-slot=scroll-area-viewport]]:p-3">
       <div className="space-y-4">
-        <div className="flex flex-wrap gap-1">
-          {sheet.keywords.map((keyword) => (
-            <Keyword key={keyword} name={keyword} rules={sheet.keywordRules} className={KEYWORD_TAG_CLASS} />
-          ))}
-        </div>
+        <header className="border-b border-edge pb-3">
+          <p className="eyebrow">Datasheet</p>
+          <div className="mt-0.5 flex flex-wrap items-start justify-between gap-2">
+            <h2 className="min-w-0 flex-1 text-xl">{sheet.name}</h2>
+            <div className="flex shrink-0 flex-wrap justify-end gap-1">
+              {sheet.composition.length ? <span className="chip">{compositionCount(sheet.composition)}</span> : null}
+              {sheet.points === null ? null : <span className="chip">{sheet.points} pts</span>}
+            </div>
+          </div>
+          <div className="mt-2 flex flex-wrap gap-1">
+            {sheet.keywords.map((keyword) => (
+              <Keyword key={keyword} name={keyword} rules={sheet.keywordRules} className={KEYWORD_TAG_CLASS} />
+            ))}
+          </div>
+        </header>
         {model ? <UnitProfile profile={model} /> : null}
         {showWeapons && ranged.length ? <WeaponSummary title="Ranged weapons" weapons={ranged} rules={sheet.keywordRules} /> : null}
         {showWeapons && melee.length ? <WeaponSummary title="Melee weapons" weapons={melee} rules={sheet.keywordRules} /> : null}
@@ -87,22 +98,24 @@ function UnitProfile({ profile }: { profile: Profile }) {
   const invulnerable = profile.values.find((value) => value.name === 'InSv')?.value
   const values = profile.values.filter((value) => value.name !== 'InSv')
   return (
-    <div data-slot="unit-profile" className="grid gap-1" style={{ gridTemplateColumns: `repeat(${values.length}, minmax(0, 1fr))` }}>
-      {values.map((value) => (
-        <div key={value.name} className="text-center">
-          <p className="eyebrow">{value.name}</p>
-          <p className="readout text-sm">
-            <ProfileValue value={value} />
-          </p>
-          {value.name === 'Sv' && invulnerable ? (
-            <span className="mt-1 block border-t border-edge pt-1">
-              <span className="eyebrow block">Inv</span>
-              <span className="readout block text-sm">{invulnerable}+</span>
-            </span>
-          ) : null}
+    <section data-slot="unit-profile">
+      <div className="grid grid-cols-3 gap-1.5">
+        {values.map((value) => (
+          <div key={value.name} className="border border-edge bg-card px-2 py-1.5 text-center">
+            <p className="eyebrow">{value.name}</p>
+            <p className="readout mt-0.5 text-base">
+              <ProfileValue value={value} />
+            </p>
+          </div>
+        ))}
+      </div>
+      {invulnerable ? (
+        <div className="mt-1.5 flex items-center justify-between border border-edge bg-card px-2 py-1.5">
+          <span className="text-xs font-bold uppercase">Invulnerable save</span>
+          <span className="readout text-base">{invulnerable}</span>
         </div>
-      ))}
-    </div>
+      ) : null}
+    </section>
   )
 }
 
@@ -110,11 +123,11 @@ export function WeaponSummary({ title, weapons, rules }: { title: string; weapon
   const count = weapons.reduce((total, weapon) => total + (weapon.count ?? 1), 0)
   return (
     <section>
-      <p className="eyebrow flex items-baseline justify-between border-b border-edge pb-1">
+      <h2 className="rubric flex items-baseline justify-between">
         <span>{title}</span>
-        <span className="readout">{count}</span>
-      </p>
-      <div className="mt-1.5 space-y-1.5">
+        <span className="readout text-faint">{count}</span>
+      </h2>
+      <div className="mt-2 space-y-1.5">
         {weapons.map((weapon) => (
           <WeaponProfile key={weapon.id} weapon={weapon} rules={rules} />
         ))}
@@ -177,8 +190,10 @@ function AbilitySummary({ abilities, rules }: { abilities: Datasheet['abilities'
       ]
       return (
         <section key={kind}>
-          <p className="eyebrow border-b border-edge pb-1">{title}</p>
-          <div className="mt-1.5 flex flex-wrap gap-1">
+          <h2 className="rubric">
+            {title} <span className="readout text-faint">{found.length}</span>
+          </h2>
+          <div className="mt-2 flex flex-wrap gap-1">
             {found.map((ability) => (
               <Keyword key={ability.id} name={ability.name} rules={described} className={KEYWORD_TAG_CLASS} />
             ))}
@@ -188,11 +203,10 @@ function AbilitySummary({ abilities, rules }: { abilities: Datasheet['abilities'
     }
     return (
       <section key={kind}>
-        <p className="eyebrow flex items-baseline justify-between border-b border-edge pb-1">
-          <span>{title}</span>
-          <span className="readout">{found.length}</span>
-        </p>
-        <div className="mt-1.5 space-y-1.5">
+        <h2 className="rubric">
+          {title} <span className="readout text-faint">{found.length}</span>
+        </h2>
+        <div className="mt-2 space-y-1.5">
           {found.map((ability) => (
             <article key={ability.id} className="border border-edge bg-card px-2 py-1.5">
               <h3 className="text-xs">{ability.source ?? ability.name}</h3>
