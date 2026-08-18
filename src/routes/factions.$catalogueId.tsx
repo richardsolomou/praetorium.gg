@@ -3,6 +3,7 @@ import { createFileRoute, Link, notFound, Outlet, useRouterState } from '@tansta
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { factionFor } from '../client/factions'
 import { factionsQuery } from '../client/queries'
+import { FactionMark, factionColour } from '../client/components/FactionMark'
 
 export const Route = createFileRoute('/factions/$catalogueId')({
   loader: async ({ context, params }) => {
@@ -26,9 +27,12 @@ function FactionPage() {
       <Link to="/factions" className="eyebrow flex items-center gap-1 text-azure hover:text-bone">
         <ChevronLeft className="size-3.5" /> Factions
       </Link>
-      <header className="mt-4 border-b border-edge pb-4">
-        <p className="eyebrow">Faction</p>
-        <h1 className="text-3xl">{faction.displayName}</h1>
+      <header className="mt-4 flex items-center gap-4 border-b pb-4" style={{ borderBottomColor: factionColour(faction.slug) }}>
+        <FactionMark id={faction.slug} icon={faction.icon} size="lg" />
+        <span>
+          <p className="eyebrow">Faction</p>
+          <h1 className="text-3xl">{faction.displayName}</h1>
+        </span>
       </header>
       <section className="mt-5">
         <Link

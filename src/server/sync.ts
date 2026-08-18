@@ -80,6 +80,7 @@ export async function syncSources(
   report: (message: string) => void = () => {},
 ): Promise<void> {
   if (isCurrent(directory, sources)) {
+    await syncFactionIcons(directory, report)
     await syncBattlemaster(directory, report, sources.battlemaster)
     await syncWahapedia(directory, report, sources.wahapedia)
     report('catalogue is already at the pinned revisions')
@@ -103,9 +104,52 @@ export async function syncSources(
     await fetchInto(source.repository, source.revision, target, 'path' in source ? source.path : undefined)
   }
   fs.writeFileSync(path.join(directory, REVISION_FILE), `${JSON.stringify(pinned, null, 2)}\n`)
+  await syncFactionIcons(directory, report)
   await syncBattlemaster(directory, report, sources.battlemaster)
   await syncWahapedia(directory, report, sources.wahapedia)
   report('catalogue is ready')
+}
+
+const MAX_FACTION_ICON_BYTES = 256 * 1024
+
+async function syncFactionIcons(directory: string, report: (message: string) => void) {
+  const core = path.join(directory, 'rules', 'data', 'core')
+  if (!fs.existsSync(core)) return
+  const factions = fs
+    .readdirSync(core, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory() && !entry.name.startsWith('_'))
+    .flatMap((entry) => {
+      const file = path.join(core, entry.name, 'factions.json')
+      if (!fs.existsSync(file)) return []
+      return (JSON.parse(fs.readFileSync(file, 'utf8')) as { id?: string; logo_url?: string }[]).filter(
+        (faction): faction is { id: string; logo_url: string } => Boolean(faction.id && faction.logo_url),
+      )
+    })
+  const target = path.join(directory, 'faction-icons')
+  if (factions.length && factions.every((faction) => fs.existsSync(path.join(target, `${faction.id}.svg`)))) return
+
+  report('faction icons: fetching licensed artwork')
+  const staging = `${target}.incoming`
+  fs.rmSync(staging, { recursive: true, force: true })
+  fs.mkdirSync(staging, { recursive: true })
+  for (const faction of factions) {
+    if (!/^[a-z0-9-]+$/.test(faction.id)) throw new Error(`unsafe faction id ${faction.id}`)
+    const url = new URL(faction.logo_url)
+    if (url.hostname !== 'cdn.jsdelivr.net' || !url.pathname.includes('/gh/Certseeds/wh40k-icon@')) {
+      throw new Error(`untrusted faction icon for ${faction.id}`)
+    }
+    // eslint-disable-next-line no-await-in-loop
+    const response = await fetch(url)
+    if (!response.ok) throw new Error(`${faction.id} icon answered ${response.status}`)
+    // eslint-disable-next-line no-await-in-loop
+    const bytes = new Uint8Array(await response.arrayBuffer())
+    if (bytes.length > MAX_FACTION_ICON_BYTES) throw new Error(`${faction.id} icon exceeds ${MAX_FACTION_ICON_BYTES} bytes`)
+    const svg = new TextDecoder().decode(bytes)
+    if (!/<svg[\s>]/.test(svg) || /<script[\s>]/i.test(svg)) throw new Error(`${faction.id} icon is not a safe SVG`)
+    fs.writeFileSync(path.join(staging, `${faction.id}.svg`), bytes)
+  }
+  fs.rmSync(target, { recursive: true, force: true })
+  fs.renameSync(staging, target)
 }
 
 type BattlemasterCatalog = {

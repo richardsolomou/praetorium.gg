@@ -83,7 +83,7 @@ type RawMatchup = { disposition: string; opponent_disposition: string; mission_i
 
 type RawDisposition = { id: string; name: string; text?: string }
 
-type RawFaction = { id: string; name: string }
+type RawFaction = { id: string; name: string; logo_url?: string }
 
 type RawDetachment = {
   id: string
@@ -267,6 +267,7 @@ export type LoadedRules = {
   detachmentDetails: Map<string, Map<string, DetachmentRulesDetail>>
   /** Player-facing faction names, separate from BSData's technical catalogue labels. */
   factionNames: Map<string, string>
+  factionIcons: Map<string, string>
   /** Stratagems every army has, offered alongside whatever the detachment brings. */
   core: Stratagem[]
   secondaries: MissionCard[]
@@ -322,6 +323,7 @@ export function loadRules(
   directory = rulesDirectory(),
   wahapediaDirectory = path.join(path.dirname(directory), 'wahapedia'),
   battlemasterDirectory = path.join(path.dirname(directory), 'battlemaster'),
+  iconDirectory = path.join(path.dirname(directory), 'faction-icons'),
 ): LoadedRules | null {
   const core = path.join(directory, 'data', 'core')
   if (!fs.existsSync(core)) return null
@@ -331,6 +333,7 @@ export function loadRules(
   const detachmentReferences = new Map<string, Map<string, DetachmentReference>>()
   const detachmentDetails = new Map<string, Map<string, DetachmentRulesDetail>>()
   const factionNames = new Map<string, string>()
+  const factionIcons = new Map<string, string>()
   let dataslate: string | null = null
 
   for (const faction of fs.readdirSync(core, { withFileTypes: true })) {
@@ -338,7 +341,16 @@ export function loadRules(
     const file = path.join(core, faction.name, 'stratagems.json')
     const factionFile = path.join(core, faction.name, 'factions.json')
     if (fs.existsSync(factionFile)) {
-      for (const found of readFactions(factionFile)) factionNames.set(found.id, found.name)
+      for (const found of readFactions(factionFile)) {
+        factionNames.set(found.id, found.name)
+        const icon = path.join(iconDirectory, `${found.id}.svg`)
+        if (found.logo_url) {
+          factionIcons.set(
+            found.id,
+            fs.existsSync(icon) ? `data:image/svg+xml;base64,${fs.readFileSync(icon).toString('base64')}` : found.logo_url,
+          )
+        }
+      }
     }
     const referenceFile = path.join(core, faction.name, 'detachments.json')
     const enhancementFile = path.join(core, faction.name, 'enhancements.json')
@@ -526,6 +538,7 @@ export function loadRules(
     detachmentReferences,
     detachmentDetails,
     factionNames,
+    factionIcons,
     core: coreStratagems,
     secondaries,
     primaries,

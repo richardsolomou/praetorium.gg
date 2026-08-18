@@ -156,6 +156,7 @@ export const factions = createServerFn({ method: 'GET' }).handler(() =>
           slug: routeSlug(displayName),
           name: faction.name,
           displayName,
+          icon: rules?.factionIcons.get(routeSlug(displayName)) ?? null,
           references: faction.references,
           detachments: (loaded.detachments.get(faction.id)?.options ?? []).map((detachment) => {
             const reference = rules?.detachmentReferences.get(slug(faction.name))?.get(slug(detachment.name))

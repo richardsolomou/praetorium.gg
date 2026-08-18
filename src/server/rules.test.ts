@@ -39,7 +39,13 @@ beforeEach(() => {
     { id: 'rejuvenating-swarm', name: 'Rejuvenating Swarm', detachment_id: 'flyblown-host', cost: 10 },
     { id: 'virulent-carapace', name: 'Virulent Carapace (Upgrade)', detachment_id: 'flyblown-host', cost: 15 },
   ])
-  write(path.join(core, 'factions.json'), [{ id: 'death-guard', name: 'Death Guard' }])
+  write(path.join(core, 'factions.json'), [
+    { id: 'death-guard', name: 'Death Guard', logo_url: 'https://cdn.jsdelivr.net/example/death-guard.svg' },
+    { id: 'orks', name: 'Orks', logo_url: 'https://cdn.jsdelivr.net/example/orks.svg' },
+  ])
+  const icons = path.join(directory, 'faction-icons')
+  fs.mkdirSync(icons)
+  fs.writeFileSync(path.join(icons, 'death-guard.svg'), '<svg xmlns="http://www.w3.org/2000/svg"/>')
   const wahapedia = path.join(directory, 'wahapedia')
   fs.mkdirSync(wahapedia)
   fs.writeFileSync(
@@ -99,7 +105,7 @@ const box = (width: number, height: number) => [
   { x: 0, y: height },
 ]
 
-const load = () => loadRules(directory, path.join(directory, 'wahapedia'))!
+const load = () => loadRules(directory, path.join(directory, 'wahapedia'), undefined, path.join(directory, 'faction-icons'))!
 
 describe('stratagems', () => {
   it('keeps descriptions that supplement datasheet abilities', () => {
@@ -115,6 +121,14 @@ describe('stratagems', () => {
       excludedNames: new Set(['scout squad', 'tactical squad']),
       excludedKeywords: new Set(),
     })
+  })
+
+  it('keeps the local faction icon path', () => {
+    expect(load().factionIcons.get('death-guard')).toMatch(/^data:image\/svg\+xml;base64,/)
+  })
+
+  it('uses the pinned upstream icon while an older snapshot has no local copy', () => {
+    expect(load().factionIcons.get('orks')).toBe('https://cdn.jsdelivr.net/example/orks.svg')
   })
 
   it('keeps the reference metadata for each detachment', () => {

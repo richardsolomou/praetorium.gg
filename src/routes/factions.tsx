@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Toggle } from '@/components/ui/toggle'
 import { factionsQuery } from '../client/queries'
 import { favouritesFirst, useFavouriteFactions } from '../client/favouriteFactions'
+import { FactionMark, factionColour } from '../client/components/FactionMark'
 
 export const Route = createFileRoute('/factions')({
   loader: ({ context }) => context.queryClient.ensureQueryData(factionsQuery()),
@@ -65,6 +66,7 @@ type Faction = {
   slug: string
   name: string
   displayName: string
+  icon: string | null
   references: { id: string; name: string; datasheets: number; detachments: number }[]
   detachments: {
     id: string
@@ -93,10 +95,22 @@ function FactionShelf({
       {entries.length ? (
         <div className="mt-2 divide-y divide-edge border border-edge bg-panel">
           {entries.map((entry) => (
-            <div key={entry.id} data-faction={entry.displayName} className="flex items-center">
-              <Link to="/factions/$catalogueId" params={{ catalogueId: entry.slug }} className="min-w-0 flex-1 px-3 py-2 text-left">
-                <span className="block truncate font-bold uppercase">{entry.displayName}</span>
-                <span className="text-xs text-dim">{entry.detachments.length} detachments</span>
+            <div
+              key={entry.id}
+              data-faction={entry.displayName}
+              className="flex items-center border-l-2"
+              style={{ borderLeftColor: factionColour(entry.slug) }}
+            >
+              <Link
+                to="/factions/$catalogueId"
+                params={{ catalogueId: entry.slug }}
+                className="flex min-w-0 flex-1 items-center gap-3 px-3 py-2 text-left"
+              >
+                <FactionMark id={entry.slug} icon={entry.icon} />
+                <span className="min-w-0">
+                  <span className="block truncate font-bold uppercase">{entry.displayName}</span>
+                  <span className="text-xs text-dim">{entry.detachments.length} detachments</span>
+                </span>
               </Link>
               <Toggle
                 variant="default"
