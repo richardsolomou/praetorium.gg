@@ -243,6 +243,9 @@ export type Command =
   | { kind: 'reopen-battle' }
   | { kind: 'undo'; target: number }
 
+/** `stale` carries the sequence the caller should have had; `refused` carries the domain reason. */
+export type SubmitResult = { outcome: 'appended'; seq: number } | { outcome: 'stale'; seq: number } | { outcome: 'refused'; reason: string }
+
 export type LoggedCommand = { seq: number; by: PlayerId; at: number; command: Command }
 
 type PlayerState = {

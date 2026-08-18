@@ -9,9 +9,10 @@ import {
   reduceBattle,
   type Secondary,
   type Stratagem,
+  type SubmitResult,
 } from '../core/battle'
 import type { RosterPick } from '../core/roster'
-import type { BattleSeats, JoinResult, Repository, SubmitResult } from '../db/repository'
+import type { BattleSeats, JoinResult, Repository } from '../db/repository'
 import { type Mission, missionFor } from './rules'
 import { picksSchema, savedPrepSchema } from './schemas'
 

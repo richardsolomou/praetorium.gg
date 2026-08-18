@@ -37,6 +37,38 @@
           }
         ]
       }
+    },
+    {
+      "files": ["src/server/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "regex": "^(?:\\.\\./)+(?:client|routes)/",
+                "message": "Server modules must not depend on client or route modules."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["src/client/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "regex": "^(?:\\.\\./)+(?:adapters|db|routes)/",
+                "message": "Client modules must not depend on adapters, database, or route modules."
+              }
+            ]
+          }
+        ]
+      }
     }
   ],
   "ignorePatterns": ["src/routeTree.gen.ts", ".output/**", "node_modules/**", "src/components/ui/**"],
