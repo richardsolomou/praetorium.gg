@@ -8,6 +8,8 @@ import { datasheetSlugQuery, factionsQuery } from '../client/queries'
 import { FactionMark, factionColour } from '../client/components/FactionMark'
 import { ChevronDown } from 'lucide-react'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
+import type { Datasheet } from '../server/catalogue'
+import { routeSlug } from '../core/slug'
 
 export const Route = createFileRoute('/factions/$catalogueId/$entryId')({
   beforeLoad: ({ params }) => {
@@ -94,8 +96,9 @@ export function DatasheetPage() {
       {ranged.length ? <ProfileTable title="Ranged weapons" profiles={ranged} keywordRules={sheet.keywordRules} /> : null}
       {melee.length ? <ProfileTable title="Melee weapons" profiles={melee} keywordRules={sheet.keywordRules} /> : null}
       <Abilities abilities={sheet.abilities} rules={sheet.keywordRules} />
-      <Composition composition={sheet.composition} loadout={sheet.loadout} baseSize={sheet.baseSize} rules={sheet.keywordRules} />
-      <WargearOptions options={sheet.wargearOptions} rules={sheet.keywordRules} />
+      <UnitConfiguration sheet={sheet} rules={sheet.keywordRules} />
+      <Relationships sheet={sheet} factionSlug={faction.slug} />
+      <Detachments detachments={sheet.detachments} factionSlug={faction.slug} />
       {sheet.attribution ? <p className="border-t border-edge pt-4 text-xs text-dim">{sheet.attribution}.</p> : null}
     </main>
   )
@@ -127,15 +130,21 @@ function Abilities({ abilities, rules }: { abilities: DisplayAbility[]; rules: K
     )
     if (kind === 'core') {
       return (
-        <Collapsible key={kind} render={<section />}>
-          <CollapsibleTrigger className="group flex w-full cursor-pointer items-center justify-between">
-            <h2 className="rubric">
-              {title} <span className="readout text-faint">{found.length}</span>
-            </h2>
-            <ChevronDown className="size-4 text-faint transition-transform group-data-panel-open:rotate-180" aria-hidden />
-          </CollapsibleTrigger>
-          <CollapsibleContent>{cards}</CollapsibleContent>
-        </Collapsible>
+        <section key={kind}>
+          <h2 className="rubric">
+            {title} <span className="readout text-faint">{found.length}</span>
+          </h2>
+          <div className="mt-2 flex flex-wrap gap-1">
+            {found.map((ability) => (
+              <Keyword
+                key={ability.id}
+                name={ability.name}
+                rules={ability.description ? [{ name: ability.name, description: ability.description }] : []}
+                className={KEYWORD_TAG_CLASS}
+              />
+            ))}
+          </div>
+        </section>
       )
     }
     return (
@@ -149,53 +158,162 @@ function Abilities({ abilities, rules }: { abilities: DisplayAbility[]; rules: K
   })
 }
 
-function WargearOptions({ options, rules }: { options: string[]; rules: KeywordRule[] }) {
-  if (!options.length) return null
+type DatasheetDisplay = Datasheet & {
+  detachments: {
+    id: string
+    name: string
+    rules: { name: string; description: string }[]
+    enhancements: { name: string; description: string | null }[]
+  }[]
+}
+
+function UnitConfiguration({ sheet, rules }: { sheet: DatasheetDisplay; rules: KeywordRule[] }) {
+  if (!sheet.composition.length && !sheet.loadout && !sheet.wargearOptions.length && !sheet.costs.length) return null
   return (
     <section>
-      <h2 className="rubric">
-        Wargear options <span className="readout text-faint">{options.length}</span>
-      </h2>
+      <h2 className="rubric">Unit configuration</h2>
+      <div className="mt-2 overflow-hidden border border-edge bg-panel">
+        <div className="grid md:grid-cols-2 md:divide-x md:divide-edge">
+          <div className="space-y-2 p-3">
+            <h3 className="eyebrow">Composition</h3>
+            {sheet.composition.map((line) => (
+              <RuleText key={line} text={line} rules={rules} />
+            ))}
+            {sheet.baseSize ? <p className="text-sm text-dim">Base size: {sheet.baseSize}</p> : null}
+          </div>
+          <div className="border-t border-edge p-3 md:border-t-0">
+            <h3 className="eyebrow mb-2">Points</h3>
+            <div className="divide-y divide-edge">
+              {sheet.costs
+                .toSorted((left, right) => Number(left.models) - Number(right.models))
+                .map((cost) => (
+                  <div key={JSON.stringify(cost)} className="flex items-baseline justify-between gap-3 py-1.5 text-sm">
+                    <span className="min-w-0">
+                      {cost.models} {cost.models === '1' ? 'model' : 'models'}
+                      {[cost.keyword, cost.faction, cost.detachment].filter(Boolean).length ? (
+                        <span className="ml-1 text-xs text-dim">
+                          · {[cost.keyword, cost.faction, cost.detachment].filter(Boolean).join(' · ')}
+                        </span>
+                      ) : null}
+                    </span>
+                    <span className="readout text-azure">{cost.cost} pts</span>
+                  </div>
+                ))}
+            </div>
+          </div>
+        </div>
+        {sheet.loadout ? (
+          <div className="border-t border-edge p-3">
+            <RuleText text={sheet.loadout} rules={rules} />
+          </div>
+        ) : null}
+        {sheet.wargearOptions.length ? (
+          <div className="border-t border-edge p-3">
+            <h3 className="eyebrow mb-2">Wargear options</h3>
+            <ul className="list-disc space-y-1.5 pl-5 text-sm text-dim">
+              {sheet.wargearOptions.map((option) => (
+                <li key={option}>
+                  <RuleText text={option} rules={rules} />
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+      </div>
+    </section>
+  )
+}
+
+function Relationships({ sheet, factionSlug }: { sheet: DatasheetDisplay; factionSlug: string }) {
+  const groups = [
+    { title: 'Can lead', names: sheet.attachments.filter((entry) => entry.kind === 'leader').map((entry) => entry.name) },
+    { title: 'Can support', names: sheet.attachments.filter((entry) => entry.kind === 'support').map((entry) => entry.name) },
+    { title: 'Can be led by', names: sheet.leaders },
+    { title: 'Can be supported by', names: sheet.supporters },
+  ].filter(({ names }) => names.length)
+  if (!groups.length) return null
+  return (
+    <section>
+      <h2 className="rubric">Attachments</h2>
       <div className="mt-2 grid gap-2 md:grid-cols-2">
-        {options.map((option) => (
-          <article key={option} className="border border-edge bg-panel p-3">
-            <RuleText text={option} rules={rules} />
-          </article>
+        {groups.map(({ title, names }) => (
+          <div key={title} className="border border-edge bg-panel p-3">
+            <h3 className="eyebrow mb-2">{title}</h3>
+            <div className="flex flex-wrap gap-1">
+              {names.map((name) => (
+                <Link
+                  key={name}
+                  to="/factions/$catalogueId/datasheets/$entryId"
+                  params={{ catalogueId: factionSlug, entryId: routeSlug(name) }}
+                  className={KEYWORD_TAG_CLASS}
+                >
+                  {name}
+                </Link>
+              ))}
+            </div>
+          </div>
         ))}
       </div>
     </section>
   )
 }
 
-function Composition({
-  composition,
-  loadout,
-  baseSize,
-  rules,
-}: {
-  composition: string[]
-  loadout: string | null
-  baseSize: string | null
-  rules: KeywordRule[]
-}) {
-  if (!composition.length && !loadout && !baseSize) return null
+type DetachmentDisplay = DatasheetDisplay['detachments'][number]
+
+function Detachments({ detachments, factionSlug }: { detachments: DetachmentDisplay[]; factionSlug: string }) {
+  if (!detachments.length) return null
   return (
     <section>
-      <h2 className="rubric">Unit composition</h2>
-      <div className="mt-2 grid gap-2 md:grid-cols-2">
-        <article className="border border-edge bg-panel p-3">
-          {composition.map((line) => (
-            <RuleText key={line} text={line} rules={rules} />
-          ))}
-          {baseSize ? <p className="mt-2 text-sm text-dim">Base size: {baseSize}</p> : null}
-        </article>
-        {loadout ? (
-          <article className="border border-edge bg-panel p-3">
-            <RuleText text={loadout} rules={rules} />
-          </article>
-        ) : null}
+      <h2 className="rubric">
+        Detachments <span className="readout text-faint">{detachments.length}</span>
+      </h2>
+      <div className="mt-2 divide-y divide-edge border border-edge bg-panel">
+        {detachments.map((detachment) => (
+          <Collapsible key={detachment.id}>
+            <CollapsibleTrigger className="group flex w-full cursor-pointer flex-col items-start justify-between gap-1 p-3 text-left sm:flex-row sm:items-center sm:gap-3">
+              <span className="font-semibold uppercase">{detachment.name}</span>
+              <span className="flex shrink-0 items-center gap-1.5 text-xs text-dim sm:text-right">
+                {detachment.rules.length} {detachment.rules.length === 1 ? 'rule' : 'rules'} · {detachment.enhancements.length}{' '}
+                {detachment.enhancements.length === 1 ? 'enhancement' : 'enhancements'}
+                <ChevronDown className="size-4 transition-transform group-data-panel-open:rotate-180" aria-hidden />
+              </span>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <div className="space-y-3 border-t border-edge p-3">
+                <RuleTags title="Detachment abilities" entries={detachment.rules} />
+                <RuleTags title="Enhancements" entries={detachment.enhancements} />
+                <Link
+                  to="/factions/$catalogueId/detachments/$detachmentId"
+                  params={{ catalogueId: factionSlug, detachmentId: routeSlug(detachment.name) }}
+                  className="text-xs font-semibold uppercase text-azure hover:text-bone"
+                >
+                  View detachment
+                </Link>
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
+        ))}
       </div>
     </section>
+  )
+}
+
+function RuleTags({ title, entries }: { title: string; entries: { name: string; description: string | null }[] }) {
+  if (!entries.length) return null
+  return (
+    <div>
+      <h3 className="eyebrow mb-1.5">{title}</h3>
+      <div className="flex flex-wrap gap-1">
+        {entries.map((entry) => (
+          <Keyword
+            key={entry.name}
+            name={entry.name}
+            rules={entry.description ? [{ name: entry.name, description: entry.description }] : []}
+            className={KEYWORD_TAG_CLASS}
+          />
+        ))}
+      </div>
+    </div>
   )
 }
 

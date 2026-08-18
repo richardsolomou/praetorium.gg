@@ -24,6 +24,10 @@ export type Datasheet = {
   loadout: string | null
   wargearOptions: string[]
   baseSize: string | null
+  costs: DatasheetDetails['points']
+  attachments: DatasheetDetails['attachesTo']
+  leaders: string[]
+  supporters: string[]
   keywordRules: { name: string; description: string }[]
 }
 
@@ -192,6 +196,10 @@ export function datasheetIn(
       ? details.wargear
       : catalogueOptions.map(({ name: optionName, options }) => `**${optionName}:** ${options}.`),
     baseSize: details?.baseSize ?? null,
+    costs: details?.points ?? [],
+    attachments: details?.attachesTo ?? [],
+    leaders: details?.leaders ?? [],
+    supporters: details?.supporters ?? [],
     keywordRules: [...keywordRules.values()],
   }
 }

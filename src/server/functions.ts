@@ -304,6 +304,7 @@ export const datasheet = createServerFn({ method: 'GET' })
       const selections = [...detachments, ...builtUnits.map((unit) => unit.selection)]
       return describeAbilities(
         loaded,
+        data.catalogueId,
         datasheetIn(
           loaded,
           data.catalogueId,
@@ -319,19 +320,37 @@ export const datasheetBySlug = createServerFn({ method: 'GET' })
   .handler(({ data }) =>
     rpc(() => {
       const loaded = app().catalogue()
-      return loaded ? describeAbilities(loaded, datasheetInBySlug(loaded, data.catalogueId, data.slug)) : null
+      return loaded ? describeAbilities(loaded, data.catalogueId, datasheetInBySlug(loaded, data.catalogueId, data.slug)) : null
     }),
   )
 
-function describeAbilities(loaded: LoadedCatalogue, sheet: ReturnType<typeof datasheetIn>) {
+function describeAbilities(loaded: LoadedCatalogue, catalogueId: string, sheet: ReturnType<typeof datasheetIn>) {
   if (!sheet) return null
-  const descriptions = app().rules()?.abilityDescriptions
-  if (!descriptions) return { ...sheet, attribution: null }
-  const supplied = sheet.abilities.some((ability) => !ability.description && findAbilityDescription(descriptions, ability.name))
+  const loadedRules = app().rules()
+  const descriptions = loadedRules?.abilityDescriptions
+  const supplied = descriptions
+    ? sheet.abilities.some((ability) => !ability.description && findAbilityDescription(descriptions, ability.name))
+    : false
   const abilities = sheet.abilities.map((ability) => ({
     ...ability,
-    description: ability.description ?? findAbilityDescription(descriptions, ability.name),
+    description: ability.description ?? (descriptions ? findAbilityDescription(descriptions, ability.name) : null),
   }))
+  const faction = loaded.index.catalogues.get(catalogueId)
+  const keywords = new Set(sheet.keywords.map((keyword) => slug(keyword.replace(/^faction:\s*/i, ''))))
+  const character = keywords.has('character')
+  const detachments = faction
+    ? [...(loadedRules?.detachmentDetails.get(slug(faction.name))?.values() ?? [])].map((detachment) => ({
+        id: detachment.id,
+        name: detachment.name,
+        rules: detachment.rules,
+        enhancements: character
+          ? detachment.enhancements.filter((enhancement) => enhancement.keywordRestrictions.every((keyword) => keywords.has(slug(keyword))))
+          : [],
+      }))
+    : []
+  const suppliedDetachmentDescriptions = detachments.some((detachment) =>
+    [...detachment.rules, ...detachment.enhancements].some((entry) => entry.description),
+  )
   return {
     ...sheet,
     abilities,
@@ -342,7 +361,8 @@ function describeAbilities(loaded: LoadedCatalogue, sheet: ReturnType<typeof dat
       ),
       sheet.keywordRules,
     ),
-    attribution: supplied ? WAHAPEDIA_ATTRIBUTION : null,
+    detachments,
+    attribution: supplied || suppliedDetachmentDescriptions ? WAHAPEDIA_ATTRIBUTION : null,
   }
 }
 

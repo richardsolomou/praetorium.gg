@@ -7,6 +7,10 @@ export type DatasheetDetails = {
   loadout: string | null
   wargear: string[]
   baseSize: string | null
+  points: { models: string; cost: string; keyword: string | null; faction: string | null; detachment: string | null }[]
+  attachesTo: { kind: 'leader' | 'support'; name: string }[]
+  leaders: string[]
+  supporters: string[]
 }
 
 export type FactionContent = {
@@ -32,9 +36,18 @@ export function loadFactionContents(directory: string): Map<string, FactionConte
       const datasheetName = localizedField(entry, 'name')
       return datasheetName ? [{ name: datasheetName, details: datasheetDetails(entry) }] : []
     })
+    const datasheetDetailsByName = new Map(datasheets.map(({ name: datasheetName, details }) => [datasheetName, details]))
+    for (const { name: sourceName, details } of datasheets) {
+      for (const attachment of details.attachesTo) {
+        const target = datasheetDetailsByName.get(attachment.name)
+        if (!target) continue
+        const list = attachment.kind === 'leader' ? target.leaders : target.supporters
+        if (!list.includes(sourceName)) list.push(sourceName)
+      }
+    }
     found.set(routeSlug(parsed.name), {
       datasheets: new Set(datasheets.map(({ name: datasheetName }) => datasheetName)),
-      datasheetDetails: new Map(datasheets.map(({ name: datasheetName, details }) => [datasheetName, details])),
+      datasheetDetails: datasheetDetailsByName,
       detachments: new Set(
         parsed.detachments.flatMap((entry) => {
           if (!entry || typeof entry !== 'object' || !('name' in entry)) return []
@@ -72,5 +85,44 @@ function datasheetDetails(value: unknown): DatasheetDetails {
     loadout: localizedField(value, 'loadout'),
     wargear: localizedList(value, 'wargear'),
     baseSize: localizedField(value, 'baseSize'),
+    points: records(value, 'points').flatMap((point) => {
+      const models = stringField(point, 'models')
+      const cost = stringField(point, 'cost')
+      return models && cost
+        ? [
+            {
+              models,
+              cost,
+              keyword: nullableStringField(point, 'keyword'),
+              faction: nullableStringField(point, 'faction'),
+              detachment: nullableStringField(point, 'detachment'),
+            },
+          ]
+        : []
+    }),
+    attachesTo: records(value, 'attachesTo').flatMap((attachment) => {
+      const kind = stringField(attachment, 'type')
+      const name = stringField(attachment, 'target')
+      return (kind === 'leader' || kind === 'support') && name ? [{ kind, name }] : []
+    }),
+    leaders: [],
+    supporters: [],
   }
+}
+
+function records(value: unknown, field: string): Record<string, unknown>[] {
+  if (!value || typeof value !== 'object') return []
+  const entries: unknown = (value as Record<string, unknown>)[field]
+  return Array.isArray(entries)
+    ? entries.filter((entry): entry is Record<string, unknown> => Boolean(entry && typeof entry === 'object'))
+    : []
+}
+
+function stringField(value: Record<string, unknown>, field: string): string | null {
+  const found = value[field]
+  return typeof found === 'string' ? found : typeof found === 'number' ? String(found) : null
+}
+
+function nullableStringField(value: Record<string, unknown>, field: string): string | null {
+  return value[field] === null || value[field] === undefined ? null : stringField(value, field)
 }
