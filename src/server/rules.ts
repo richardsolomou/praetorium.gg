@@ -252,6 +252,8 @@ type DetachmentRulesDetail = {
 export type LoadedRules = {
   attribution: string
   abilityDescriptions: ReadonlyMap<string, string>
+  /** Datasheets a faction rule explicitly forbids, keyed by the faction rule's slug. */
+  factionUnitExclusions: ReadonlyMap<string, ReadonlySet<string>>
   /** Faction slug then detachment slug, so a chosen detachment maps straight to its six. */
   byDetachment: Map<string, Map<string, Stratagem[]>>
   /** Display metadata for each detachment, from the same licensed source as its stratagems. */
@@ -508,11 +510,26 @@ export function loadRules(
 
   if (!byDetachment.size && !secondaries.length) return null
   const hasBattlemaster = terrainLayouts.some((layout) => layout.geometry)
+  const factionUnitExclusions = new Map<string, ReadonlySet<string>>()
+  for (const [faction, description] of wahapedia?.abilities ?? []) {
+    const prohibited = description.match(/Your army cannot include any of the following units:\s*([^.]*)/i)?.[1]
+    if (!prohibited) continue
+    factionUnitExclusions.set(
+      faction,
+      new Set(
+        prohibited
+          .split(';')
+          .map((name) => name.trim().toLowerCase())
+          .filter(Boolean),
+      ),
+    )
+  }
   return {
     attribution: [ATTRIBUTION, wahapedia ? WAHAPEDIA_ATTRIBUTION : null, hasBattlemaster ? BATTLEMASTER_ATTRIBUTION : null]
       .filter(Boolean)
       .join('. '),
     abilityDescriptions: wahapedia?.abilities ?? new Map(),
+    factionUnitExclusions,
     byDetachment,
     detachmentReferences,
     detachmentDetails,

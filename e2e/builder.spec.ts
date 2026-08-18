@@ -24,6 +24,13 @@ test('the unit picker stays within the roster faction', async ({ page }) => {
   await expect(page.getByRole('combobox', { name: 'Force' })).toHaveCount(0)
 })
 
+test('Deathwatch excludes Scouts from its unit picker', async ({ page }) => {
+  await openBuilder(page, 'Deathwatch', /Black Spear Task Force/)
+  await page.getByLabel('Add a unit').fill('Scout')
+  await expect(page.getByText('Nothing by that name.')).toBeVisible()
+  await expect(page.getByRole('button', { name: /Add Scout/ })).toHaveCount(0)
+})
+
 test('adding a unit keeps the confirmed roster visible while pricing catches up', async ({ page }) => {
   await openBuilder(page)
   await add(page, 'Immortals')

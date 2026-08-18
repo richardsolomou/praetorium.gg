@@ -53,7 +53,7 @@ export function unitsIn(
   loaded: LoadedCatalogue,
   catalogueId: string,
   query: string,
-  { limit = 60 }: { limit?: number } = {},
+  { limit = 60, excludedNames = new Set<string>() }: { limit?: number; excludedNames?: ReadonlySet<string> } = {},
 ): UnitSummary[] {
   const wanted = query.trim().toLowerCase()
   const found: { id: string; name: string; group: UnitGroup; alliedFaction: string | null; alliedOrder: number }[] = []
@@ -66,6 +66,7 @@ export function unitsIn(
     if (entry.hidden || target.hidden) continue
     const name = nameOf(entry, loaded.index.definitions)
     if (NON_MATCHED_PLAY.test(name)) continue
+    if (excludedNames.has(name.trim().toLowerCase())) continue
     const ownerId = loaded.index.catalogueOf.get(target.id)
     if (ownerId && loaded.index.catalogues.get(ownerId)?.name === 'Unaligned Forces') continue
     // Unaligned Forces is the shared shelf for Legends fortifications and

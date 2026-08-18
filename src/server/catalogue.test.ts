@@ -99,6 +99,16 @@ describe('the picker', () => {
     expect(unitsIn(book, 'cat', '')[0]?.group).toBe('other')
   })
 
+  it('omits datasheets excluded by faction rules', () => {
+    const book = bookOf({
+      selectionEntries: [
+        { id: 'allowed', name: 'Intercessor Squad', type: 'unit', costs: points(80) },
+        { id: 'excluded', name: 'Scout Squad', type: 'unit', costs: points(70) },
+      ],
+    })
+    expect(unitsIn(book, 'cat', '', { excludedNames: new Set(['scout squad']) }).map((unit) => unit.name)).toEqual(['Intercessor Squad'])
+  })
+
   it('prices the smallest legal version of each datasheet', () => {
     const book = bookOf({
       selectionEntries: [
