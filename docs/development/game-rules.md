@@ -10,14 +10,14 @@ Praetorium reads structured stratagem and mission data from [40kdc-data](https:/
 - A pasted roster has no structured faction or detachment. It cannot provide catalogue-backed stratagems or mission cards.
 - `set-prep` stores stratagems and secondaries in one command. Splitting the action would make the second command stale.
 - Tactical setup stores the configured deck with the initially drawn cards. Remaining cards are derived from that deck and its history; a replacement cannot name a card outside an authoritative deck.
-- King of the Colosseum lasts three rounds and requires tactical secondaries. Its 2.0 battlefield and twists remain absent until an upstream source supplies the current structured data; do not expose the older 9-inch deployment as the prototype's 8-inch deployment.
+- King of the Colosseum lasts three rounds and requires tactical secondaries. Its 2.0 battlefield and twists stay unavailable until an upstream source supplies the structured data. Do not substitute another deployment.
 
 ## Scoring
 
 - Use each card's award values for scoring controls. Use `FALLBACK_AWARDS` only when the source has no award data.
 - Show mission scoring caps as guidance. Do not reject a score that exceeds them.
 - Prompt before passing a turn with an unresolved active card, but leave the final decision to the player because the source cannot infer objective control.
-- Derive the mission from both rosters' force dispositions and the configured mission pack in `PraetoriumService.screen`. Old logs without a pack retain the unqualified matchup fallback; a selected modern pack must never fall through to another pack.
+- Derive the mission from both rosters' force dispositions and the configured mission pack in `PraetoriumService.screen`. Settings without a mission pack use the unqualified matchup fallback. A selected mission pack must never fall through to another pack.
 - Validate mission, deployment, and terrain references together inside the repository submission transaction before beginning play. Twists remain absent when the source has no structured twist data.
 
 ## Deployment patterns

@@ -24,7 +24,7 @@ The repository uses oxlint and oxfmt. Lint warnings fail the check.
 
 ## Tests
 
-- `just test` runs Vitest for `src`.
+- `just test` runs the Vitest unit tests.
 - `just e2e` builds the production container and runs Playwright. Use `just e2e-run` to reuse the image, `just e2e-trace` to record a trace, and `just e2e-install` to install Chromium.
 - `just points` runs the points ratchet. It is not part of `just check`.
 

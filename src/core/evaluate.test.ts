@@ -3,13 +3,17 @@ import { buildIndex, type Catalogue, type CatalogueFile } from './catalogue'
 import { evaluate, evaluateForces, rosterLimit, type Selection } from './evaluate'
 
 const PTS = 'cost-pts'
+const ENHANCEMENTS = 'cost-enhancements'
 
 /** A game system carrying only what a points question needs, plus its kinds of force. */
 const system: CatalogueFile = {
   gameSystem: {
     id: 'gs',
     name: 'Test',
-    costTypes: [{ id: PTS, name: 'pts' }],
+    costTypes: [
+      { id: PTS, name: 'pts' },
+      { id: ENHANCEMENTS, name: 'Enhancements' },
+    ],
     forceEntries: [
       { id: 'army-roster', name: 'Army Roster' },
       { id: 'crusade-force', name: 'Crusade Force' },
@@ -71,6 +75,46 @@ describe('costs', () => {
       },
     )
     expect(result.points).toBe(120)
+  })
+
+  it('divides a shared allowance between matching selections', () => {
+    const upgrade = {
+      id: 'upgrade',
+      name: 'Upgrade',
+      type: 'upgrade' as const,
+      costs: [{ name: 'Enhancements', typeId: ENHANCEMENTS, value: 1 }],
+      modifiers: [
+        {
+          type: 'divide' as const,
+          field: ENHANCEMENTS,
+          value: 2,
+          conditions: [
+            {
+              type: 'equalTo' as const,
+              value: 2,
+              field: 'selections',
+              scope: 'roster',
+              childId: 'upgrade',
+              includeChildSelections: true,
+            },
+          ],
+        },
+      ],
+    }
+    const result = evaluate(
+      [
+        { id: 'unit-one', selections: [{ id: 'upgrade' }] },
+        { id: 'unit-two', selections: [{ id: 'upgrade' }] },
+      ],
+      indexOf({
+        sharedSelectionEntries: [
+          { id: 'unit-one', name: 'Unit one', type: 'unit', selectionEntries: [upgrade] },
+          { id: 'unit-two', name: 'Unit two', type: 'unit', selectionEntries: [upgrade] },
+        ],
+      }),
+    )
+
+    expect({ cost: result.costs.Enhancements, unhandled: result.unhandled }).toEqual({ cost: 1, unhandled: [] })
   })
 })
 
@@ -193,6 +237,51 @@ describe('per-model costs', () => {
 })
 
 describe('gates', () => {
+  it.each([
+    { selected: ['alpha'], points: 100 },
+    { selected: ['alpha', 'bravo'], points: 115 },
+    { selected: ['alpha', 'bravo', 'charlie', 'delta'], points: 100 },
+  ])('applies a count group within its minimum and maximum bounds for $selected', ({ selected, points: expected }) => {
+    const options = ['alpha', 'bravo', 'charlie', 'delta']
+    const result = evaluateOne(
+      { id: 'tank', selections: selected.map((id) => ({ id })) },
+      {
+        sharedSelectionEntries: [
+          {
+            id: 'tank',
+            name: 'Tank',
+            type: 'unit',
+            costs: points(100),
+            modifiers: [
+              {
+                type: 'increment',
+                field: PTS,
+                value: 15,
+                conditionGroups: [
+                  {
+                    type: 'count',
+                    min: 2,
+                    max: 3,
+                    conditions: options.map((childId) => ({
+                      type: 'atLeast',
+                      value: 1,
+                      field: 'selections',
+                      scope: 'self',
+                      childId,
+                    })),
+                  },
+                ],
+              },
+            ],
+            selectionEntries: options.map((id) => ({ id, name: id, type: 'upgrade' })),
+          },
+        ],
+      },
+    )
+
+    expect({ points: result.points, unhandled: result.unhandled }).toEqual({ points: expected, unhandled: [] })
+  })
+
   it('refuse a condition group whose contents were not understood', () => {
     // Failing closed matters: a gate the evaluator cannot read must not be able
     // to add points, which is what an empty `and` did when read as satisfied.

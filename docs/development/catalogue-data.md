@@ -71,9 +71,9 @@ Server catalogue code is split by responsibility:
 
 ## Points ratchet
 
-`just points` builds units with the same `buildUnit` function as the app and compares them with the points reference. It currently matches 99.6% of 1,863 checks.
+`just points` builds units with the same `buildUnit` function as the app and compares them with the points reference. It currently matches 100% of 1,862 checks.
 
-The remaining differences are upstream prices for Deathwatch Terminators, Fortis Kill Teams, Indomitor Kill Teams, and Spectrus Kill Teams. A lower match rate is a regression unless the generated check set changed and the new baseline is explained.
+Legends reference entries are compared only with catalogue entries explicitly marked as Legends. Active and Legends datasheets with the same name are distinct entries. A lower match rate is a regression unless the generated check set changed and the new baseline is explained.
 
 Inspect the generated selection before changing evaluator logic. A mismatch can come from the evaluator, the catalogue, or the check harness.
 
@@ -88,7 +88,7 @@ Inspect the generated selection before changing evaluator logic. A mismatch can 
 ## Saved lists and interchange
 
 - Save `RosterPick` values instead of expanded selections. Rebuild them against the current catalogue when pricing a saved list.
-- New saved lists are private. Making one unlisted lets anyone holding its opaque URL read it; switching it back to private invalidates that public access without changing the URL. Existing lists remain unlisted across the access-control migration so previously shared links keep working.
+- New saved lists are private. Making one unlisted lets anyone holding its opaque URL read it. Switching it back to private invalidates that public access without changing the URL.
 - Keep import provenance with the saved list so the library can distinguish an editable Praetorium roster, a BattleBase text import, and a `.ros` or `.rosz` file import.
 - Freeze `built.units` when a roster is attached. Battle commands refer to those stable unit keys.
 - Import roster entries by catalogue ID. Resolve joined link paths from their final ID. Use a name match only as a fallback.

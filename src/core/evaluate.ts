@@ -559,6 +559,7 @@ function costsOf(node: Node, root: Node, index: CatalogueIndex, census: Census):
     else if (modifier.type === 'increment') base.set(modifier.field, current + value * times)
     else if (modifier.type === 'decrement') base.set(modifier.field, current - value * times)
     else if (modifier.type === 'multiply') base.set(modifier.field, current * value ** times)
+    else if (modifier.type === 'divide') base.set(modifier.field, value === 0 ? 0 : current / value ** times)
     else census.note(`cost modifier type ${modifier.type}`)
   }
 
@@ -648,6 +649,13 @@ function groupHolds(group: ConditionGroup, node: Node, root: Node, index: Catalo
   if (group.type === 'atLeast') return met >= (group.value ?? 1)
   if (group.type === 'atMost') return met <= (group.value ?? 0)
   if (group.type === 'equalTo') return met === (group.value ?? 0)
+  if (group.type === 'count') {
+    if (group.min === undefined && group.max === undefined) {
+      census.note('count condition group without bounds')
+      return false
+    }
+    return met >= (group.min ?? 0) && met <= (group.max ?? Number.POSITIVE_INFINITY)
+  }
   census.note(`condition group type ${String(group.type)}`)
   return false
 }

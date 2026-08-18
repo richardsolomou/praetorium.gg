@@ -37,11 +37,14 @@ export type Condition = {
   includeChildForces?: boolean
 }
 
-type ConditionGroupType = 'and' | 'or' | 'atLeast' | 'atMost' | 'equalTo'
+type LogicalConditionGroupType = 'and' | 'or' | 'atLeast' | 'atMost' | 'equalTo'
+type ConditionGroupType = LogicalConditionGroupType | 'count'
 
 export type ConditionGroup = {
   type: ConditionGroupType
   value?: number
+  min?: number
+  max?: number
   conditions?: Condition[]
   conditionGroups?: ConditionGroup[]
   localConditionGroups?: LocalConditionGroup[]
@@ -54,7 +57,7 @@ export type ConditionGroup = {
  * count decides which copy this one is.
  */
 export type LocalConditionGroup = {
-  type: ConditionGroupType
+  type: LogicalConditionGroupType
   value?: number
   field: string
   scope: string

@@ -15,8 +15,6 @@ Undo appends an `undo` command that names the latest active command. It does not
 
 Setup settings, roster replacements, formation choices, painted-army bonuses, concessions, reopening, and setup resets are commands too. A reset clears rosters and battlefield choices without erasing the audit trail or the configured game size, mission pack or solo format. A finished battle remains reopenable; deletion is the only destructive operation and is restricted to the account that created the battle.
 
-`correct-player`, `pause-clock` and `resume-clock` are no longer offered anywhere and no new one can be made. They stay in `commandSchema` because `Repository.log` parses every stored command through it, so removing a kind would make an older battle unreadable rather than merely unchanged.
-
 Deployment and terrain are one battlefield choice. The three layouts for the armies' force dispositions each bind a deployment pattern to exact terrain geometry; `set-battlefield` records both IDs atomically. The setup and live tracker render that same plan, and a selected layout without its pinned geometry cannot start.
 
 Solo practice battles have one signed-in participant and do not invent a guest or duplicate player identity. That participant remains the active player when a turn ends. Their link has no joinable seat.
@@ -60,4 +58,4 @@ Better Auth owns the `user`, `session`, `account`, `verification`, and `rateLimi
 
 ## Tests
 
-`src/core/battle.test.ts` covers turn order, ownership, visibility, undo, solo play, resets, concessions, reopening, stratagem costs including the ones the board makes dearer, tactical decks, and legacy logs whose battle size predates explicit settings. `src/server/service.test.ts` covers persistence, deletion permissions, and concurrent submissions against SQLite.
+`src/core/battle.test.ts` covers turn order, ownership, visibility, undo, solo play, resets, concessions, reopening, stratagem costs including the ones the board makes dearer, tactical decks, and battle settings. `src/server/service.test.ts` covers persistence, deletion permissions, and concurrent submissions against SQLite.

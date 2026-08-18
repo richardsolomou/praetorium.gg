@@ -16,7 +16,7 @@ docker compose up -d
 - `praetorium.sqlite` stores accounts, lists, battles, and command logs.
 - `auth.secret` signs account sessions. Replacing it signs everyone out but does not delete their data.
 - `realtime-secret` signs Centrifugo tokens. Replacing it disconnects active realtime clients.
-- `catalogue/` caches about 90MB of verified community data from the snapshot service.
+- `catalogue/` caches verified community data from the snapshot service.
 
 Back up `praetorium.sqlite` and `auth.secret` together. The app can fetch the catalogue again.
 
