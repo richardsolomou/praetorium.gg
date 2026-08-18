@@ -1,8 +1,11 @@
 import { execFileSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, expect, it } from 'vitest'
+import { zipSync } from 'fflate'
+import { fetchCurrentSnapshot } from '../src/server/catalogueSnapshot'
 
 const roots: string[] = []
 
@@ -15,7 +18,7 @@ it('packs and verifies a complete catalogue', () => {
   roots.push(root)
   const catalogue = path.join(root, 'catalogue')
   const archive = path.join(root, 'snapshot.zip')
-  for (const name of ['definitions', 'points', 'rules']) {
+  for (const name of ['definitions', 'points', 'rules', 'datacards']) {
     fs.mkdirSync(path.join(catalogue, name), { recursive: true })
     fs.writeFileSync(path.join(catalogue, name, 'test.json'), '{"catalogue":true}\n')
   }
@@ -29,6 +32,7 @@ it('packs and verifies a complete catalogue', () => {
       definitions: 'definitions-revision',
       points: 'points-revision',
       rules: 'rules-revision',
+      datacards: 'datacards-revision',
       battlemaster: 'battlemaster-revision',
       wahapedia: 'wahapedia-revision',
     })}\n`,
@@ -51,4 +55,47 @@ it('rejects a snapshot built for different source pins', () => {
       stdio: 'pipe',
     }),
   ).toThrow()
+})
+
+it('installs the previous snapshot format during the source rollout', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-snapshot-'))
+  roots.push(root)
+  const files = {
+    'revision.json': JSON.stringify({
+      definitions: 'definitions-revision',
+      points: 'points-revision',
+      rules: 'rules-revision',
+      battlemaster: 'battlemaster-revision',
+      wahapedia: 'wahapedia-revision',
+    }),
+    'definitions/test.json': '{}',
+    'points/test.json': '{}',
+    'rules/test.json': '{}',
+    'battlemaster/layouts/test.json': '{}',
+    'wahapedia/test.csv': 'test',
+  }
+  const sha256 = (value: Uint8Array | string) => createHash('sha256').update(value).digest('hex')
+  const manifest = new TextEncoder().encode(
+    JSON.stringify({
+      format: 'praetorium.catalogue.v1',
+      revisions: JSON.parse(files['revision.json']),
+      files: Object.fromEntries(Object.entries(files).map(([name, contents]) => [name, sha256(contents)])),
+    }),
+  )
+  const archive = zipSync({
+    'manifest.json': manifest,
+    ...Object.fromEntries(Object.entries(files).map(([name, contents]) => [`catalogue/${name}`, new TextEncoder().encode(contents)])),
+  })
+  const pointer = { format: 'praetorium.catalogue-pointer.v1', id: sha256(manifest), archiveSha256: sha256(archive) }
+  const originalFetch = globalThis.fetch
+  globalThis.fetch = async (url) => {
+    const requestUrl = url instanceof Request ? url.url : url.toString()
+    return new Response(requestUrl.endsWith('/current.json') ? JSON.stringify(pointer) : archive)
+  }
+
+  try {
+    await expect(fetchCurrentSnapshot(path.join(root, 'catalogue'), 'https://example.test')).resolves.toBe(true)
+  } finally {
+    globalThis.fetch = originalFetch
+  }
 })

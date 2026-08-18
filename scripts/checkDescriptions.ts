@@ -1,4 +1,5 @@
 import path from 'node:path'
+import fs from 'node:fs'
 import { detachmentCatalogueDetail } from '../src/server/catalogueDescriptions'
 import { loadCatalogue } from '../src/server/catalogueIndex'
 import { loadRules, slug } from '../src/server/rules'
@@ -54,6 +55,59 @@ const missing = {
       .filter((stratagem) => !stratagem.description)
       .map((stratagem) => ({ faction, detachment: detail.name, name: stratagem.name })),
   ),
+}
+
+type Localized = { en?: string }
+type DatacardsFaction = {
+  rules?: { detachment?: { detachment?: string; rules?: { rules?: { text?: Localized }[] }[] }[] }
+  enhancements?: { detachment?: string; name?: Localized; description?: Localized }[]
+  stratagems?: { detachment?: string; name?: Localized; effect?: Localized }[]
+}
+
+const datacardsDirectory = path.join(directory, 'datacards', '11th', 'gdc')
+if (fs.existsSync(datacardsDirectory)) {
+  const jsonFiles = (root: string): string[] =>
+    fs.readdirSync(root, { withFileTypes: true }).flatMap((entry) => {
+      const file = path.join(root, entry.name)
+      if (entry.isDirectory()) return jsonFiles(file)
+      return entry.isFile() && entry.name.endsWith('.json') ? [file] : []
+    })
+  const datacards = jsonFiles(datacardsDirectory).map((file) => JSON.parse(fs.readFileSync(file, 'utf8')) as DatacardsFaction)
+  const hasText = (value: string | undefined) => Boolean(value?.trim())
+  const covered = {
+    detachmentRules: missing.detachmentRules.filter(({ detail }) =>
+      datacards.some((faction) =>
+        faction.rules?.detachment?.some(
+          (candidate) =>
+            slug(candidate.detachment ?? '') === slug(detail.name) &&
+            candidate.rules?.some((rule) => rule.rules?.some((part) => hasText(part.text?.en))),
+        ),
+      ),
+    ),
+    enhancements: missing.enhancements.filter((entry) =>
+      datacards.some((faction) =>
+        faction.enhancements?.some(
+          (candidate) =>
+            slug(candidate.detachment ?? '') === slug(entry.detachment) &&
+            slug(candidate.name?.en ?? '') === slug(entry.name) &&
+            hasText(candidate.description?.en),
+        ),
+      ),
+    ),
+    stratagems: missing.stratagems.filter((entry) =>
+      datacards.some((faction) =>
+        faction.stratagems?.some(
+          (candidate) =>
+            slug(candidate.detachment ?? '') === slug(entry.detachment) &&
+            slug(candidate.name?.en ?? '') === slug(entry.name) &&
+            hasText(candidate.effect?.en),
+        ),
+      ),
+    ),
+  }
+  console.log(`Game Datacards coverage of missing detachment rules: ${covered.detachmentRules.length}/${missing.detachmentRules.length}`)
+  console.log(`Game Datacards coverage of missing enhancements: ${covered.enhancements.length}/${missing.enhancements.length}`)
+  console.log(`Game Datacards coverage of missing stratagems: ${covered.stratagems.length}/${missing.stratagems.length}`)
 }
 
 console.log(`detachment rules without descriptions: ${missing.detachmentRules.length}`)

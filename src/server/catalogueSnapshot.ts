@@ -3,7 +3,8 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { unzipSync, zipSync, type Zippable } from 'fflate'
 
-const FORMAT = 'praetorium.catalogue.v1'
+const LEGACY_FORMAT = 'praetorium.catalogue.v1'
+const FORMAT = 'praetorium.catalogue.v2'
 const POINTER_FORMAT = 'praetorium.catalogue-pointer.v1'
 const MAX_ARCHIVE_BYTES = 256 * 1024 * 1024
 const MAX_EXTRACTED_BYTES = 1024 * 1024 * 1024
@@ -12,7 +13,7 @@ const MAX_EXTRACTED_BYTES = 1024 * 1024 * 1024
 export const DEFAULT_CATALOGUE_SNAPSHOT_BASE_URL = 'https://s3.praetorium.gg/praetorium-catalogue'
 
 type SnapshotManifest = {
-  format: typeof FORMAT
+  format: typeof FORMAT | typeof LEGACY_FORMAT
   revisions: Record<string, string>
   files: Record<string, string>
 }
@@ -35,12 +36,13 @@ function filesUnder(directory: string, relative = ''): string[] {
     .toSorted()
 }
 
-function requireComplete(directory: string) {
+function requireComplete(directory: string, requireDatacards = false) {
   const revisions = JSON.parse(fs.readFileSync(path.join(directory, 'revision.json'), 'utf8')) as Record<string, string>
-  for (const name of ['definitions', 'points', 'rules', 'battlemaster', 'wahapedia']) {
+  const repositories = requireDatacards ? ['definitions', 'points', 'rules', 'datacards'] : ['definitions', 'points', 'rules']
+  for (const name of [...repositories, 'battlemaster', 'wahapedia']) {
     if (!revisions[name]) throw new Error(`catalogue snapshot has no ${name} revision`)
   }
-  for (const name of ['definitions', 'points', 'rules']) {
+  for (const name of repositories) {
     if (!filesUnder(path.join(directory, name)).length) throw new Error(`catalogue snapshot has no ${name} files`)
   }
   if (!filesUnder(path.join(directory, 'battlemaster', 'layouts')).length) throw new Error('catalogue snapshot has no terrain layouts')
@@ -49,7 +51,7 @@ function requireComplete(directory: string) {
 }
 
 function manifestBytes(directory: string) {
-  const revisions = requireComplete(directory)
+  const revisions = requireComplete(directory, true)
   const files = Object.fromEntries(
     filesUnder(directory)
       .filter((name) => name !== '.snapshot.json')
@@ -86,7 +88,7 @@ function installArchive(directory: string, archive: Uint8Array, expected: Snapsh
   const rawManifest = entries['manifest.json']
   if (!rawManifest || sha256(rawManifest) !== expected.id) throw new Error('catalogue snapshot manifest does not match its id')
   const manifest = JSON.parse(new TextDecoder().decode(rawManifest)) as SnapshotManifest
-  if (manifest.format !== FORMAT) throw new Error('catalogue snapshot format is unsupported')
+  if (manifest.format !== FORMAT && manifest.format !== LEGACY_FORMAT) throw new Error('catalogue snapshot format is unsupported')
   let extracted = 0
   for (const [name, hash] of Object.entries(manifest.files)) {
     const bytes = entries[`catalogue/${name}`]
@@ -107,7 +109,7 @@ function installArchive(directory: string, archive: Uint8Array, expected: Snapsh
     fs.mkdirSync(path.dirname(target), { recursive: true })
     fs.writeFileSync(target, entries[`catalogue/${name}`])
   }
-  requireComplete(staging)
+  requireComplete(staging, manifest.format === FORMAT)
   fs.writeFileSync(path.join(staging, '.snapshot.json'), `${JSON.stringify(expected, null, 2)}\n`)
   fs.rmSync(directory, { recursive: true, force: true })
   fs.renameSync(staging, directory)

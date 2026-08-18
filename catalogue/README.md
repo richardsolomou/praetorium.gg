@@ -9,6 +9,7 @@ No game data is committed to this repository.
 - `definitions` uses [BSData/wh40k-11e](https://github.com/BSData/wh40k-11e) for faction entries, constraints, modifiers, and costs.
 - `points` uses [BSData/wh40k-11e-mfm](https://github.com/BSData/wh40k-11e-mfm) as an independent points reference.
 - `rules` uses [40kdc-data](https://github.com/tabletop-developer-consortium/40kdc-data) for stratagems, missions, and scoring data under CC BY 4.0.
+- `datacards` uses the 11th-edition export from [game-datacards/datasources](https://github.com/game-datacards/datasources) for factions, core rules, missions, and layouts.
 
 The points source checks the evaluator. It is not loaded by the product. When a comparison fails, inspect the generated selection, the definitions, and the points source before changing evaluation logic.
 
