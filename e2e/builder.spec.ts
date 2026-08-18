@@ -378,7 +378,9 @@ test('a squad grows from its unit editor', async ({ page }) => {
   await add(page, 'Flayed Ones')
   await card.click({ position: { x: 4, y: 4 } })
   await expect(page.locator('aside[aria-label="Loadout"]').getByRole('heading', { name: 'Immortals' })).toBeVisible()
-  const profile = page.locator('aside[aria-label="Datasheet"] [data-slot="unit-profile"]')
+  const datasheet = page.locator('aside[aria-label="Datasheet"]')
+  await expect(datasheet.getByText('Battleline', { exact: true })).toBeVisible()
+  const profile = datasheet.locator('[data-slot="unit-profile"]')
   await expect(profile).toBeVisible()
   await profile.evaluate((existing) => {
     new MutationObserver(() => {
