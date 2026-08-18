@@ -88,12 +88,18 @@ export async function createBattle(page: Page, { opponent, solo = false }: { opp
 export async function setupStep(page: Page, label: string) {
   const chip = page.getByRole('navigation', { name: 'Setup sections' }).getByRole('button', { name: label })
   const active = page.locator('[aria-current="step"]')
-  if ((await active.innerText()).toLowerCase().includes(label.toLowerCase())) return
-  if (!(await chip.isEnabled())) {
+  for (let guard = 0; guard < 5; guard += 1) {
+    if ((await chip.getAttribute('aria-current')) === 'step') return
+    if (await chip.isEnabled()) {
+      await chip.click()
+      await expect(active).toContainText(label, { ignoreCase: true })
+      return
+    }
+    const previous = await active.innerText()
     await page.getByRole('button', { name: 'Next', exact: true }).click()
-    await expect(chip).toBeEnabled()
+    await expect.poll(() => active.innerText()).not.toBe(previous)
   }
-  await chip.click()
+  throw new Error(`Setup never reached the ${label} step`)
 }
 
 export async function attachRoster(page: Page, name: string) {
