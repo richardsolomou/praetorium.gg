@@ -202,8 +202,7 @@ export class PraetoriumService {
   }
 
   deleteBattle(token: string, playerId: string) {
-    const seats = this.mustFind(token)
-    if (!this.seated(seats, playerId)) throw new Response('you are not in this battle', { status: 403 })
+    const seats = this.mustSeat(token, playerId)
     if (!this.repository.deleteBattle(seats.battle.id, playerId))
       throw new Response('only the battle creator can delete it', { status: 403 })
     this.events.publish(seats.battle.id)
@@ -239,8 +238,7 @@ export class PraetoriumService {
 
   /** A readable account of the battle. Derived from the log, so nothing is stored for it. */
   report(token: string, playerId: string) {
-    const seats = this.mustFind(token)
-    if (!this.seated(seats, playerId)) throw new Response('you are not in this battle', { status: 403 })
+    const seats = this.mustSeat(token, playerId)
     return battleReport(
       seats.players,
       this.repository.log(seats.battle.id),
@@ -256,8 +254,7 @@ export class PraetoriumService {
     command: Command,
     rules?: Parameters<typeof missionFor>[0] | null,
   ): SubmitAnswer {
-    const seats = this.mustFind(token)
-    if (!this.seated(seats, playerId)) throw new Response('you are not in this battle', { status: 403 })
+    const seats = this.mustSeat(token, playerId)
     const result = this.repository.submit({ battleId: seats.battle.id, playerId, expectedSeq, command, now: this.clock() }, (state) =>
       command.kind === 'begin-battle' && rules ? setupReferenceError(state, rules) : null,
     )
@@ -269,8 +266,7 @@ export class PraetoriumService {
 
   /** The stream is for players, so opening one is an authorization decision. */
   playerBattleId(token: string, playerId: string) {
-    const seats = this.mustFind(token)
-    if (!this.seated(seats, playerId)) throw new Response('you are not in this battle', { status: 403 })
+    const seats = this.mustSeat(token, playerId)
     return seats.battle.id
   }
 
@@ -291,6 +287,12 @@ export class PraetoriumService {
 
   private seated(seats: BattleSeats, playerId: string) {
     return seats.players.some((player) => player.id === playerId)
+  }
+
+  private mustSeat(token: string, playerId: string) {
+    const seats = this.mustFind(token)
+    if (!this.seated(seats, playerId)) throw new Response('you are not in this battle', { status: 403 })
+    return seats
   }
 
   private mustFind(token: string): BattleSeats {
