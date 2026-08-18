@@ -32,6 +32,14 @@ test('public reference data renders without client JavaScript', async ({ browser
   await context.close()
 })
 
+test('server-rendered reference pages keep route-shaped payloads', async ({ request }) => {
+  const factions = await (await request.get('/factions')).body()
+  const missionPack = await (await request.get('/mission-packs/chapter-approved-2026-2027')).body()
+
+  expect(factions.byteLength).toBeLessThan(250_000)
+  expect(missionPack.byteLength).toBeLessThan(250_000)
+})
+
 test('terrain layouts show their labels and measurement guides', async ({ page }) => {
   await page.goto('/mission-matchups/chapter-approved-2026-2027/purge-the-foe/take-and-hold')
   await page.getByRole('button', { name: 'Enlarge terrain layout A: Sweeping Engagement' }).click()

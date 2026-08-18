@@ -12,6 +12,8 @@ import {
   factionsQuery,
   gameReferencesQuery,
   savedRostersQuery,
+  terrainMatchupIds,
+  terrainReferencesQuery,
 } from '../client/queries'
 import { useCommand } from '../client/useCommand'
 import { useLiveBattle } from '../client/useLiveBattle'
@@ -31,6 +33,11 @@ export const Route = createFileRoute('/b/$token')({
         context.queryClient.ensureQueryData(collectionQuery()),
       ])
       const built = screen.view.players.find((player) => player.isViewer)?.roster?.built
+      const dispositions = screen.view.players
+        .map((player) => player.roster?.built?.disposition)
+        .filter((value): value is string => Boolean(value))
+      const matchupIds = terrainMatchupIds(dispositions, screen.view.settings.solo)
+      if (matchupIds.length) await context.queryClient.ensureQueryData(terrainReferencesQuery(matchupIds))
       const detachmentNames = built?.detachments?.map((detachment) => detachment.name) ?? (built?.detachment ? [built.detachment] : [])
       if (built?.catalogueId && detachmentNames.length) {
         await context.queryClient.ensureQueryData(detachmentRulesQuery(built.catalogueId, detachmentNames))

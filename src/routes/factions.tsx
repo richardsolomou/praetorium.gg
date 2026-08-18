@@ -4,22 +4,26 @@ import { ChevronRight, Heart } from 'lucide-react'
 import { useState } from 'react'
 import { Input } from '@/components/ui/input'
 import { Toggle } from '@/components/ui/toggle'
-import { factionsQuery } from '../client/queries'
+import { factionIndexQuery } from '../client/queries'
 import { useFavouriteFactions } from '../client/favouriteFactions'
 import { FactionMark, factionColour } from '../client/components/FactionMark'
 
 export const Route = createFileRoute('/factions')({
-  loader: ({ context }) => context.queryClient.ensureQueryData(factionsQuery()),
+  loader: ({ context, location }) =>
+    location.pathname === '/factions' ? context.queryClient.ensureQueryData(factionIndexQuery()) : undefined,
   component: Factions,
 })
 
 function Factions() {
   const path = useRouterState({ select: (state) => state.location.pathname })
-  const { data } = useQuery(factionsQuery())
+  if (path !== '/factions') return <Outlet />
+  return <FactionIndex />
+}
+
+function FactionIndex() {
+  const { data } = useQuery(factionIndexQuery())
   const [factionQueryText, setFactionQueryText] = useState('')
   const { favourites, toggleFavourite } = useFavouriteFactions()
-
-  if (path !== '/factions') return <Outlet />
   if (!data) return <main className="mx-auto max-w-4xl px-4 py-8 text-sm text-dim">Catalogue data is still syncing.</main>
 
   const wanted = factionQueryText.trim().toLowerCase()
@@ -62,12 +66,6 @@ type Faction = {
   displayName: string
   icon: string | null
   references: { id: string; name: string; datasheets: number; detachments: number }[]
-  referenceDetachmentIds: string[]
-  detachments: {
-    id: string
-    name: string
-    reference: { enhancements: number; upgrades: number; stratagems: number; points: number | null; dispositions: string[] } | null
-  }[]
 }
 
 function FactionShelf({
@@ -104,7 +102,7 @@ function FactionShelf({
                 <FactionMark id={entry.slug} icon={entry.icon} />
                 <span className="min-w-0">
                   <span className="block truncate font-bold uppercase">{entry.displayName}</span>
-                  <span className="text-xs text-dim">{entry.references[0]?.detachments ?? entry.detachments.length} detachments</span>
+                  <span className="text-xs text-dim">{entry.references[0]?.detachments ?? 0} detachments</span>
                 </span>
               </Link>
               <Toggle

@@ -32,6 +32,7 @@ import {
   saveRosterSchema,
   rosterVisibilitySchema,
   submitSchema,
+  terrainReferencesSchema,
   tokenSchema,
   unitsSchema,
 } from './schemas'
@@ -179,7 +180,7 @@ export const factions = createServerFn({ method: 'GET' }).handler(() =>
           slug: routeSlug(displayName),
           name: faction.name,
           displayName,
-          icon: rules?.factionIcons.get(routeSlug(displayName)) ?? null,
+          icon: rules?.factionIcons.has(routeSlug(displayName)) ? `/api/faction-icons/${routeSlug(displayName)}` : null,
           armyRule: rules?.factionRules.get(routeSlug(displayName)) ?? null,
           references: faction.references.map((reference) => ({
             ...reference,
@@ -213,6 +214,37 @@ export const factions = createServerFn({ method: 'GET' }).handler(() =>
                 : null,
             }
           }),
+        }
+      }),
+    }
+  }),
+)
+
+export const factionIndex = createServerFn({ method: 'GET' }).handler(() =>
+  rpc(() => {
+    const loaded = app().catalogue()
+    if (!loaded) return null
+    const rules = app().rules()
+    return {
+      revision: loaded.index.revision,
+      factions: loaded.factions.map((faction) => {
+        const displayName = factionDisplayName(faction.name, rules?.factionNames)
+        const slugId = routeSlug(displayName)
+        const content = loaded.factionContents.get(slugId)
+        const referenceDetachments = (loaded.detachments.get(faction.id)?.options ?? []).filter(
+          (detachment) => !content || [...content.detachments].some((name) => slug(name) === slug(detachment.name)),
+        )
+        return {
+          id: faction.id,
+          slug: slugId,
+          name: faction.name,
+          displayName,
+          icon: rules?.factionIcons.has(slugId) ? `/api/faction-icons/${slugId}` : null,
+          references: faction.references.map((reference) => ({
+            ...reference,
+            datasheets: content?.datasheets.size ?? reference.datasheets,
+            detachments: referenceDetachments.length,
+          })),
         }
       }),
     }
@@ -511,17 +543,9 @@ function buildGameReferences(rules: LoadedRules) {
   ]
   const primaryByKey = new Map(rules.primaries.map((card) => [card.key, card]))
   const matchupsByMission = new Map<string, string[]>()
-  const dispositionMatchups = new Map<string, { opponent: string; mission: (typeof matchupEntries)[number][1] }[]>()
   for (const [pair, mission] of matchupEntries) {
     const missionKey = `${mission.packId ?? 'legacy'}:${mission.id}`
     matchupsByMission.set(missionKey, [...(matchupsByMission.get(missionKey) ?? []), pair])
-    const ids = pair.split('|')
-    for (const id of ids) {
-      dispositionMatchups.set(id, [
-        ...(dispositionMatchups.get(id) ?? []),
-        { opponent: ids.find((candidate) => candidate !== id) ?? id, mission },
-      ])
-    }
   }
   const missionsByPack = new Map<string, typeof missions>()
   for (const mission of missions) {
@@ -543,13 +567,10 @@ function buildGameReferences(rules: LoadedRules) {
   return {
     dispositions: dispositionDetails.map((disposition) => ({
       ...disposition,
-      matchups: dispositionMatchups.get(disposition.id) ?? [],
     })),
     packs,
     secondaries: rules.secondaries,
     deployments: rules.deployments,
-    terrainLayouts: rules.terrainLayouts ?? [],
-    terrainTemplates: rules.terrainTemplates ?? [],
     attribution: rules.attribution,
   }
 }
@@ -567,6 +588,20 @@ export const gameReferences = createServerFn({ method: 'GET' }).handler(() =>
     return references
   }),
 )
+
+export const terrainReferences = createServerFn({ method: 'GET' })
+  .validator(terrainReferencesSchema)
+  .handler(({ data }) =>
+    rpc(() => {
+      const rules = app().rules()
+      if (!rules) return { layouts: [], templates: [] }
+      const wanted = new Set(data.matchupIds)
+      return {
+        layouts: rules.terrainLayouts.filter((layout) => wanted.has(layout.matchupId)),
+        templates: rules.terrainTemplates,
+      }
+    }),
+  )
 
 /** Fetched only when someone opens the account of the battle, not on every nudge. */
 export const battleReport = createServerFn({ method: 'GET' })
