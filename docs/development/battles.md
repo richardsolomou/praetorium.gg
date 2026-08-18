@@ -15,6 +15,8 @@ Undo appends an `undo` command that names the latest active command. It does not
 
 Setup settings, roster replacements, formation choices, painted-army bonuses, concessions, reopening, and setup resets are commands too. A reset clears rosters and battlefield choices without erasing the audit trail or the configured game size, mission pack or solo format. A finished battle remains reopenable; deletion is the only destructive operation and is restricted to the account that created the battle.
 
+The current setup section is also a command-derived shared value. When one seated player moves forward or back, realtime updates move every device to that section; setup navigation is never private browser state.
+
 Deployment and terrain are one battlefield choice. The three layouts for the armies' force dispositions each bind a deployment pattern to exact terrain geometry; `set-battlefield` records both IDs atomically. The setup and live tracker render that same plan, and a selected layout without its pinned geometry cannot start.
 
 Solo practice battles have one signed-in participant and do not invent a guest or duplicate player identity. That participant remains the active player when a turn ends. Their link has no joinable seat.

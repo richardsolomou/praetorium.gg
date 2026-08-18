@@ -82,5 +82,5 @@ test('a seated battle signs the opponent in and drops them back into setup', asy
   await guest.getByRole('button', { name: 'Sign in', exact: true }).click()
 
   await guest.waitForURL(/\/b\//)
-  await expect(guest.getByRole('heading', { name: `${bobName} versus ${aliceName}` })).toBeVisible()
+  await expect(guest.getByRole('heading', { name: `${aliceName} versus ${bobName}` })).toBeVisible()
 })

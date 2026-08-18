@@ -1,12 +1,14 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useNavigate } from '@tanstack/react-router'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import type { BattleView, Command, Roster } from '../../core/battle'
 import { GAME_SIZES, isKotcLimit, UNIT_FORMATIONS } from '../../core/battle'
-import { battleQuery, battlesQuery, gameReferencesQuery, savedRostersQuery } from '../queries'
+import { gameReferencesQuery, savedRostersQuery } from '../queries'
 import { errorMessage } from '../queryClient'
-import { deleteBattle, savedRosterPrice } from '../../server/functions'
+import { savedRosterPrice } from '../../server/functions'
 import { Battlefield } from './Battlefield'
 import { Prep } from './Prep'
 
@@ -26,12 +28,10 @@ export function Setup({ view, mission, send, pending, problem }: Props) {
   const rosterLimit = view.settings.limit === null ? null : view.settings.limit / teammates
   const eligible = rosterLimit === null ? saved : saved.filter((roster) => roster.limit === rosterLimit)
   const { data: references } = useQuery(gameReferencesQuery())
-  const [choosingRoster, setChoosingRoster] = useState(!you.roster)
-  const [step, setStep] = useState(0)
+  const [choosingRoster, setChoosingRoster] = useState(false)
+  const step = view.setupStep
   const [firstPlayerId, setFirstPlayerId] = useState(view.players[0]?.id ?? view.viewerId)
   const [attackerId, setAttackerId] = useState(view.players[0]?.id ?? view.viewerId)
-  const navigate = useNavigate()
-  const queryClient = useQueryClient()
   const ready = view.players.every((player) => player.roster)
   const sides = [...new Set(view.players.map((player) => player.side))].map((side) => view.players.filter((player) => player.side === side))
   const sideName = (players: typeof view.players) => players.map((player) => player.name).join(' & ')
@@ -69,14 +69,6 @@ export function Setup({ view, mission, send, pending, problem }: Props) {
       clockLimitMinutes: null,
       ...settings,
     })
-  const remove = useMutation({
-    mutationFn: () => deleteBattle({ data: { token: view.token } }),
-    onSuccess: async () => {
-      queryClient.removeQueries({ queryKey: battleQuery(view.token).queryKey })
-      await queryClient.invalidateQueries({ queryKey: battlesQuery().queryKey })
-      await navigate({ to: '/battles' })
-    },
-  })
   const attach = useMutation({
     mutationFn: async (savedRoster: (typeof saved)[number]) => {
       const priced = await savedRosterPrice({ data: { id: savedRoster.id } })
@@ -107,13 +99,13 @@ export function Setup({ view, mission, send, pending, problem }: Props) {
               className="h-auto min-h-14 justify-start rounded-none px-3 py-2 text-left"
               disabled={at > step}
               aria-current={at === step ? 'step' : undefined}
-              onClick={() => setStep(at)}
+              onClick={() => send({ kind: 'set-setup-step', step: at })}
             >
               <span className="flex min-w-0 items-center gap-2">
                 <span className="readout text-xs">{complete ? '✓' : at + 1}</span>
                 <span className="min-w-0">
                   <span className="block font-bold uppercase">{name}</span>
-                  <span className="block truncate text-xs font-normal text-dim">{detail}</span>
+                  <span className={`block truncate text-xs font-normal ${at === step ? 'text-void/75' : 'text-dim'}`}>{detail}</span>
                 </span>
               </span>
             </Button>
@@ -127,18 +119,30 @@ export function Setup({ view, mission, send, pending, problem }: Props) {
                 <h2 className="mt-1 text-xl">Choose how you are playing</h2>
                 <p className="mt-1 text-sm text-dim">The total points apply to each side. In 2v1, the allied side splits them evenly.</p>
               </div>
-              <div className="flex flex-wrap gap-2">
-                {GAME_SIZES.map((size) => (
-                  <Button
-                    key={size.limit}
-                    variant={view.settings.limit === size.limit ? 'default' : 'outline'}
-                    size="sm"
-                    disabled={pending}
-                    onClick={() => configure({ limit: size.limit })}
-                  >
-                    {size.name} · {size.limit}
-                  </Button>
-                ))}
+              <div>
+                <Label htmlFor="battle-size" className="eyebrow">
+                  Battle size
+                </Label>
+                <Select
+                  value={view.settings.limit === null ? null : String(view.settings.limit)}
+                  onValueChange={(value) => value && configure({ limit: Number(value) })}
+                >
+                  <SelectTrigger id="battle-size" className="mt-1 h-11 w-full rounded-none border-edge bg-sunken font-semibold uppercase">
+                    <SelectValue placeholder="Choose a battle size">
+                      {(value: unknown) => {
+                        const size = GAME_SIZES.find((candidate) => String(candidate.limit) === value)
+                        return size ? `${size.name} · ${size.limit}` : 'Choose a battle size'
+                      }}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {GAME_SIZES.map((size) => (
+                      <SelectItem key={size.limit} value={String(size.limit)}>
+                        {size.name} · {size.limit}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               {references?.packs.length ? (
                 <div className="flex flex-wrap gap-2">
@@ -164,67 +168,52 @@ export function Setup({ view, mission, send, pending, problem }: Props) {
           ) : null}
 
           {step === 1 ? (
-            <>
-              {choosingRoster ? (
-                <section>
-                  <div className="flex items-end justify-between gap-3 border-b border-edge pb-2">
-                    <div>
-                      <p className="eyebrow">2 of 5 · Armies</p>
-                      <h2 className="text-xl">Choose your roster</h2>
-                      <p className="mt-1 text-sm text-dim">Your friends choose their own armies from their devices.</p>
+            <section className="space-y-4">
+              <div className="border-b border-edge pb-2">
+                <p className="eyebrow">2 of 5 · Armies</p>
+                <h2 className="text-xl">Choose the armies</h2>
+                <p className="mt-1 text-sm text-dim">Everyone chooses their own roster. Every attached army is visible here immediately.</p>
+              </div>
+              <div className="space-y-2">
+                {view.players.map((player) => (
+                  <article key={player.id} className="flex items-center gap-3 border border-edge bg-panel p-3">
+                    <div className="min-w-0 flex-1">
+                      <span className="block text-xs font-semibold text-dim uppercase">{player.name}</span>
+                      <span className="block truncate font-bold uppercase">{player.roster?.name ?? 'No roster selected'}</span>
+                      <span className="mt-1 block text-xs text-dim">
+                        {player.roster?.built?.units.length
+                          ? `${player.roster.built.units.length} units · ${player.roster.built.limit} points`
+                          : player.roster
+                            ? 'Imported roster'
+                            : 'Waiting for this player'}
+                      </span>
                     </div>
-                    {you.roster ? (
-                      <Button variant="ghost" size="sm" onClick={() => setChoosingRoster(false)}>
-                        Keep current roster
+                    {player.isViewer ? (
+                      <Button variant="outline" size="sm" onClick={() => setChoosingRoster(true)}>
+                        {player.roster ? 'Change roster' : 'Choose roster'}
                       </Button>
-                    ) : null}
-                  </div>
-                  {eligible.length ? (
-                    <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                      {eligible.map((roster) => (
-                        <Button
-                          key={roster.id}
-                          variant="outline"
-                          className="h-auto justify-between rounded-none border-edge bg-panel p-4 text-left"
-                          disabled={pending || attach.isPending}
-                          onClick={() => attach.mutate(roster)}
-                        >
-                          <span className="min-w-0">
-                            <span className="block truncate font-bold uppercase">{roster.name}</span>
-                            <span className="mt-1 block text-xs font-normal text-dim">{roster.picks.length} units</span>
-                          </span>
-                          <span className="chip shrink-0">{roster.limit} pts</span>
-                        </Button>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="mt-3 border border-edge bg-panel p-4 text-sm text-dim">
-                      {saved.length ? 'No saved roster matches this battle size.' : 'You do not have a saved roster yet.'}
-                    </p>
-                  )}
-                  {attach.error ? <p className="mt-3 text-sm text-destructive">{errorMessage(attach.error)}</p> : null}
-                </section>
-              ) : (
-                <section className="flex items-center justify-between gap-4 border border-edge bg-panel p-4">
-                  <div className="min-w-0">
-                    <p className="eyebrow">2 of 5 · Your roster</p>
-                    <p className="truncate font-bold uppercase">{you.roster?.name}</p>
-                  </div>
-                  <Button variant="outline" size="sm" onClick={() => setChoosingRoster(true)}>
-                    Change roster
-                  </Button>
-                </section>
-              )}
-
-              {opponents.map((opponent) => (
-                <p key={opponent.id} className="text-sm text-dim">
-                  {opponent.roster ? `${opponent.name} is ready.` : `Waiting for ${opponent.name} to choose a roster.`}
-                </p>
-              ))}
-            </>
+                    ) : (
+                      <span className={`chip shrink-0 ${player.roster ? 'text-achieved' : 'text-dim'}`}>
+                        {player.roster ? 'Ready' : 'Waiting'}
+                      </span>
+                    )}
+                  </article>
+                ))}
+              </div>
+              <RosterChooser
+                open={choosingRoster}
+                onOpenChange={setChoosingRoster}
+                rosters={eligible}
+                allRosters={saved}
+                selectedName={you.roster?.name}
+                pending={pending || attach.isPending}
+                onChoose={(roster) => attach.mutate(roster)}
+                error={attach.error ? errorMessage(attach.error) : null}
+              />
+            </section>
           ) : null}
 
-          {step === 2 && you.roster && !choosingRoster ? (
+          {step === 2 && you.roster ? (
             <section className="space-y-5 border border-edge bg-panel p-4">
               <div>
                 <p className="eyebrow">3 of 5 · Battlefield</p>
@@ -240,43 +229,76 @@ export function Setup({ view, mission, send, pending, problem }: Props) {
             <div className="space-y-4">
               <section className="space-y-3 border border-edge bg-panel p-4">
                 <div>
-                  <p className="eyebrow">4 of 5 · Your army</p>
-                  <h2 className="mt-1 text-lg">Place your units</h2>
-                  <p className="mt-1 text-sm text-dim">These choices only affect your roster. Your allies prepare their own units.</p>
+                  <p className="eyebrow">4 of 5 · Armies</p>
+                  <h2 className="mt-1 text-lg">Prepare every army</h2>
+                  <p className="mt-1 text-sm text-dim">
+                    Everyone can see formations, Scouts, and pre-battle rules. You control your own units.
+                  </p>
                 </div>
-                {you.units.map((unit) => (
-                  <div key={unit.key} className="flex flex-wrap items-center justify-between gap-2 border-t border-edge pt-2 text-sm">
-                    <span>
-                      {unit.name}
-                      {unit.prebattleRules?.length ? (
-                        <span className="ml-2 text-xs text-azure">{unit.prebattleRules.join(' · ')}</span>
-                      ) : null}
-                    </span>
-                    <div className="flex flex-wrap gap-1">
-                      {UNIT_FORMATIONS.filter(
-                        (formation) =>
-                          formation === 'battlefield' || formation === 'strategic-reserves' || unit.formationOptions?.includes(formation),
-                      ).map((formation) => (
-                        <Button
-                          key={formation}
-                          variant={unit.formation === formation ? 'default' : 'outline'}
-                          size="xs"
-                          disabled={pending}
-                          onClick={() => send({ kind: 'set-unit-formation', unitKey: unit.key, formation })}
-                        >
-                          {formation.replaceAll('-', ' ')}
-                        </Button>
+                {view.players.map((player) => (
+                  <div key={player.id} className="border-t border-edge pt-3">
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <div>
+                        <p className="font-bold uppercase">{player.name}</p>
+                        <p className="text-xs text-dim">{player.roster?.name ?? 'No roster selected'}</p>
+                      </div>
+                      <span className="chip">{player.units.length} units</span>
+                    </div>
+                    <div className="space-y-2">
+                      {player.units.map((unit) => (
+                        <div key={unit.key} className="flex flex-wrap items-center justify-between gap-2 bg-sunken p-2 text-sm">
+                          <span className="min-w-0">
+                            <span className="font-semibold">{unit.name}</span>
+                            {unit.prebattleRules?.length ? (
+                              <span className="mt-0.5 block text-xs text-azure">{unit.prebattleRules.join(' · ')}</span>
+                            ) : null}
+                            {unit.formationOptions?.length ? (
+                              <span className="mt-0.5 block text-xs text-dim">
+                                Can start in {unit.formationOptions.map((formation) => formation.replaceAll('-', ' ')).join(' or ')}
+                              </span>
+                            ) : null}
+                          </span>
+                          {player.isViewer ? (
+                            <div className="flex flex-wrap gap-1">
+                              {UNIT_FORMATIONS.filter(
+                                (formation) =>
+                                  formation === 'battlefield' ||
+                                  formation === 'strategic-reserves' ||
+                                  unit.formationOptions?.includes(formation),
+                              ).map((formation) => (
+                                <Button
+                                  key={formation}
+                                  variant={unit.formation === formation ? 'default' : 'outline'}
+                                  size="xs"
+                                  disabled={pending}
+                                  onClick={() => send({ kind: 'set-unit-formation', unitKey: unit.key, formation })}
+                                >
+                                  {formation.replaceAll('-', ' ')}
+                                </Button>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="chip shrink-0">{unit.formation.replaceAll('-', ' ')}</span>
+                          )}
+                        </div>
                       ))}
                     </div>
+                    {player.isViewer ? (
+                      <Button
+                        className="mt-2"
+                        variant={player.painted ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => send({ kind: 'set-painted', painted: !player.painted })}
+                      >
+                        Battle ready army · +10 VP
+                      </Button>
+                    ) : (
+                      <p className="mt-2 text-xs text-dim">
+                        {player.painted ? 'Battle ready bonus selected.' : 'Battle ready bonus not selected.'}
+                      </p>
+                    )}
                   </div>
                 ))}
-                <Button
-                  variant={you.painted ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => send({ kind: 'set-painted', painted: !you.painted })}
-                >
-                  Battle ready army · +10 VP
-                </Button>
               </section>
               <section className="space-y-3 border border-edge bg-panel p-4">
                 <div>
@@ -354,39 +376,95 @@ export function Setup({ view, mission, send, pending, problem }: Props) {
           {problem ? <p className="text-sm text-destructive">{problem}</p> : null}
 
           <div className="flex items-center justify-between gap-3 border-t border-edge pt-4">
-            <Button variant="outline" disabled={step === 0} onClick={() => setStep((at) => Math.max(0, at - 1))}>
+            <Button
+              variant="outline"
+              disabled={step === 0 || pending}
+              onClick={() => send({ kind: 'set-setup-step', step: Math.max(0, step - 1) })}
+            >
               Back
             </Button>
             {blocked ? <p className="text-xs text-dim">{blocked}</p> : null}
             <Button
-              disabled={step === steps.length - 1 || blocked !== null}
-              onClick={() => setStep((at) => Math.min(steps.length - 1, at + 1))}
+              disabled={step === steps.length - 1 || blocked !== null || pending}
+              onClick={() => send({ kind: 'set-setup-step', step: Math.min(steps.length - 1, step + 1) })}
             >
               Next
             </Button>
           </div>
-
-          <div className="flex justify-between border-t border-edge pt-4">
-            <Button variant="outline" disabled={pending} onClick={() => send({ kind: 'reset-setup' })}>
-              Reset setup
-            </Button>
-            {view.creatorId === view.viewerId ? (
-              <Button variant="destructive" disabled={remove.isPending} onClick={() => remove.mutate()}>
-                Delete battle
-              </Button>
-            ) : null}
-          </div>
-          {remove.error ? <p className="text-sm text-destructive">{errorMessage(remove.error)}</p> : null}
         </div>
       </div>
     </main>
   )
 }
 
-function battleRoster(
-  saved: Awaited<ReturnType<NonNullable<ReturnType<typeof savedRostersQuery>['queryFn']>>>[number],
-  priced: NonNullable<Awaited<ReturnType<typeof savedRosterPrice>>>,
-): Roster {
+type SavedRoster = Awaited<ReturnType<NonNullable<ReturnType<typeof savedRostersQuery>['queryFn']>>>[number]
+
+function RosterChooser({
+  open,
+  onOpenChange,
+  rosters,
+  allRosters,
+  selectedName,
+  pending,
+  onChoose,
+  error,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  rosters: SavedRoster[]
+  allRosters: SavedRoster[]
+  selectedName?: string
+  pending: boolean
+  onChoose: (roster: SavedRoster) => void
+  error: string | null
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[85dvh] overflow-y-auto rounded-none border border-edge bg-panel text-bone sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle className="text-2xl uppercase">Choose your roster</DialogTitle>
+          <DialogDescription className="text-dim">Rosters are shown in the same order as your roster library.</DialogDescription>
+        </DialogHeader>
+        <p className="rubric flex items-baseline justify-between border-b border-edge pb-2">
+          <span>Rosters</span>
+          <span className="readout">{rosters.length}</span>
+        </p>
+        <div className="space-y-2">
+          {rosters.length ? (
+            rosters.map((roster) => (
+              <button
+                key={roster.id}
+                type="button"
+                disabled={pending}
+                onClick={() => onChoose(roster)}
+                className="flex w-full items-center gap-3 border border-edge bg-sunken p-3 text-left hover:border-azure disabled:opacity-60"
+              >
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate font-bold uppercase">{roster.name}</span>
+                  <span className="mt-1 block text-xs text-dim">
+                    11th edition · {GAME_SIZES.find((size) => size.limit === roster.limit)?.name ?? `${roster.limit} points`} ·{' '}
+                    {roster.picks.length} units
+                  </span>
+                </span>
+                <span className="shrink-0 text-right">
+                  <span className="chip block">{roster.limit} pts</span>
+                  {selectedName === roster.name ? <span className="mt-1 block text-xs text-achieved">Selected</span> : null}
+                </span>
+              </button>
+            ))
+          ) : (
+            <p className="border border-edge bg-sunken p-4 text-sm text-dim">
+              {allRosters.length ? 'No saved roster matches this battle size.' : 'You do not have a saved roster yet.'}
+            </p>
+          )}
+        </div>
+        {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function battleRoster(saved: SavedRoster, priced: NonNullable<Awaited<ReturnType<typeof savedRosterPrice>>>): Roster {
   return {
     name: saved.name,
     text: [

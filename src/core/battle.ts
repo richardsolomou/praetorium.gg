@@ -211,6 +211,7 @@ export type Command =
       clockLimitMinutes: number | null
     }
   | { kind: 'reset-setup' }
+  | { kind: 'set-setup-step'; step: number }
   | { kind: 'attach-roster'; roster: Roster; prep?: BattlePrep | null }
   | { kind: 'set-unit'; unitKey: string; destroyed: boolean }
   | { kind: 'wound-unit'; unitKey: string; delta: number }
@@ -288,6 +289,8 @@ type StratagemUse = { key: string; round: number; phase: Phase; turn: PlayerId |
 
 type BattleState = {
   status: 'setup' | 'playing' | 'finished'
+  /** The shared setup section shown on every seated device. */
+  setupStep: number
   /** 0 during setup, then 1 through `BATTLE_ROUNDS`. */
   round: number
   phase: Phase
@@ -317,6 +320,7 @@ type BattleState = {
 export function reduceBattle(playerIds: readonly PlayerId[], log: readonly LoggedCommand[], playerSides?: readonly number[]): BattleState {
   const state: BattleState = {
     status: 'setup',
+    setupStep: 0,
     round: 0,
     phase: 'command',
     activePlayerId: null,
@@ -407,6 +411,9 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
     }
     case 'reset-setup':
       return state.status === 'setup' ? null : 'the battle has started'
+    case 'set-setup-step':
+      if (state.status !== 'setup') return 'the battle has started'
+      return Number.isInteger(command.step) && command.step >= 0 && command.step <= 4 ? null : 'choose a setup section'
     case 'attach-roster': {
       if (state.status === 'finished') return 'the battle is over'
       // Correcting a list mid-battle stays allowed; bringing a different set of cards with it does not.
@@ -631,9 +638,14 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
       return
     }
     case 'reset-setup': {
+      state.setupStep = 0
       state.deploymentId = null
       state.settings = { ...state.settings, terrainLayoutId: null, twistId: null }
       state.players.forEach(resetPlayer)
+      return
+    }
+    case 'set-setup-step': {
+      state.setupStep = command.step
       return
     }
     case 'attach-roster': {
@@ -1009,6 +1021,8 @@ function describe(
       return `${who} sets a ${command.limit}-point${command.solo ? ' practice' : ''} battle`
     case 'reset-setup':
       return `${who} resets battle setup`
+    case 'set-setup-step':
+      return null
     case 'attach-roster': {
       const detachment = command.roster.built?.detachment
       return `${who} brought ${command.roster.name}${detachment && !command.roster.name.includes(detachment) ? ` (${detachment})` : ''}`
@@ -1103,6 +1117,7 @@ function describe(
 export type BattleView = {
   token: string
   status: BattleState['status']
+  setupStep: number
   round: number
   phase: Phase
   rounds: number
@@ -1187,6 +1202,7 @@ export function battleView(
   return {
     token: battle.token,
     status: state.status,
+    setupStep: state.setupStep,
     round: state.round,
     phase: state.phase,
     rounds: battleRoundLimit(state.settings.limit),

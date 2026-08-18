@@ -56,6 +56,12 @@ const started = (): [string, Command][] => [
 const turns = (count: number, by: string): [string, Command][] => Array.from({ length: count }, () => [by, advance()])
 
 describe('setup', () => {
+  it('shares the current setup section with every player', () => {
+    const state = reduceBattle(PLAYERS, log([BOB, { kind: 'set-setup-step', step: 2 }]))
+
+    expect(battleView({ token: 'shared-step' }, NAMES, state, ALICE).setupStep).toBe(2)
+  })
+
   it('lets allies share one turn in a 2v1 battle', () => {
     const configure: Command = {
       kind: 'configure-battle',

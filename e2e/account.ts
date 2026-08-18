@@ -86,20 +86,23 @@ export async function createBattle(page: Page, { opponent, solo = false }: { opp
 
 /** Setup shows one step at a time, so a helper has to walk to the step it needs. */
 export async function setupStep(page: Page, label: string) {
-  const chip = page.getByRole('button', { name: new RegExp(`^\\d+ · ${label}$`) })
-  for (let guard = 0; guard < 8; guard += 1) {
-    if (await chip.isEnabled()) {
-      await chip.click()
-      return
-    }
+  const chip = page.getByRole('navigation', { name: 'Setup sections' }).getByRole('button', { name: label })
+  const active = page.locator('[aria-current="step"]')
+  if ((await active.innerText()).toLowerCase().includes(label.toLowerCase())) return
+  if (!(await chip.isEnabled())) {
     await page.getByRole('button', { name: 'Next', exact: true }).click()
+    await expect(chip).toBeEnabled()
   }
-  throw new Error(`Setup never reached the ${label} step`)
+  await chip.click()
 }
 
 export async function attachRoster(page: Page, name: string) {
   await setupStep(page, 'Armies')
-  await page.getByRole('button', { name: new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`) }).click()
+  await page.getByRole('button', { name: /Choose roster|Change roster/ }).click()
+  await page
+    .getByRole('dialog', { name: 'Choose your roster' })
+    .getByRole('button', { name: new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`) })
+    .click()
   await expect(page.getByText(name, { exact: true })).toBeVisible()
 }
 
@@ -108,7 +111,10 @@ export async function chooseBattlefield(page: Page) {
   const selected = page.getByRole('button', { name: /^Selected layout/ })
   if (await selected.count()) return
   // By position, not by name: which layouts a matchup offers follows the pinned rules data.
-  await page.getByRole('button', { name: /^Select layout A:/ }).click()
+  await page
+    .getByRole('button', { name: /^Select layout / })
+    .first()
+    .click()
   await expect(selected).toBeVisible()
 }
 
@@ -140,9 +146,9 @@ export async function setupBattle(
   await guest.goto(url)
   await attachRoster(host, hostRoster)
   await setupStep(guest, 'Armies')
-  await expect(guest.getByText(/ is ready\.$/)).toBeVisible()
+  await expect(guest.getByText(hostRoster, { exact: true })).toBeVisible()
   await attachRoster(guest, guestRoster)
-  await expect(host.getByText(`${opponent} is ready.`)).toBeVisible()
+  await expect(host.getByText(guestRoster, { exact: true })).toBeVisible()
   // Cards are chosen while the battle is still being set up, not once it is running,
   // and the wizard only reaches that step once the battlefield is settled.
   if (beforeStart) {
