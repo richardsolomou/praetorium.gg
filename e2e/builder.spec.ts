@@ -70,6 +70,31 @@ test('enhancement choices show descriptions when rule and catalogue names differ
   await option.screenshot({ path: 'test-results/nekrosor-enhancement.png' })
 })
 
+test('unit upgrades stay separate from character enhancements', async ({ page }) => {
+  await openBuilder(page, 'Necrons', /Skyshroud Spearhead/)
+  await add(page, 'Lokhust Destroyers')
+  await page
+    .getByRole('button', { name: /^Lokhust Destroyers/ })
+    .first()
+    .click()
+
+  const upgrades = page.getByRole('group', { name: 'Lokhust Destroyers Unit upgrades' })
+  await expect(upgrades.getByRole('button', { name: 'Select Deepening Madness' })).toBeVisible()
+  await upgrades.getByRole('button', { name: 'Select Deepening Madness' }).click()
+  const card = page.locator('[data-unit="Lokhust Destroyers"]')
+  await expect(card).toContainText('Upgrade')
+  await expect(card).toContainText('Deepening Madness')
+  await expect(card.getByText('1x Deepening Madness', { exact: true })).toHaveCount(0)
+  await card.screenshot({ path: 'test-results/deepening-madness-upgrade.png' })
+
+  await page.goto('/factions/necrons/reference/detachments/skyshroud-spearhead')
+  const unitUpgrades = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Unit upgrades' }) })
+  await expect(unitUpgrades).toContainText('Deepening Madness')
+  const enhancements = page.locator('section').filter({ has: page.getByText('Enhancements', { exact: true }) })
+  await expect(enhancements).not.toContainText('Deepening Madness')
+  await page.screenshot({ path: 'test-results/skyshroud-unit-upgrades.png', fullPage: true })
+})
+
 test('wargear abilities are explained beside their choices', async ({ page }) => {
   await openBuilder(page)
   await add(page, 'Tomb Blades')

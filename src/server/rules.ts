@@ -89,6 +89,7 @@ type RawDetachment = {
 }
 
 type RawEnhancement = { id: string; name: string; detachment_id?: string; cost?: number; keyword_restrictions?: string[] }
+const isUnitUpgrade = (name: string) => /\s*\(upgrade\)\s*$/i.test(name)
 
 type Point = { x: number; y: number }
 
@@ -223,6 +224,7 @@ type MissionCard = { key: string; name: string; text: string | null; awards: Awa
 
 type DetachmentReference = {
   enhancements: number
+  upgrades: number
   stratagems: number
   points: number | null
   dispositions: string[]
@@ -235,6 +237,7 @@ type DetachmentRulesDetail = {
   dispositions: string[]
   rules: { name: string; description: string }[]
   enhancements: { name: string; points: number | null; description: string | null }[]
+  upgrades: { name: string; points: number | null; description: string | null }[]
   stratagems: {
     id: string
     name: string
@@ -341,7 +344,11 @@ export function loadRules(
           rawDetachments.map((detachment) => [
             detachment.id,
             {
-              enhancements: detachment.enhancement_ids?.length ?? 0,
+              enhancements: enhancements.filter(
+                (enhancement) => enhancement.detachment_id === detachment.id && !isUnitUpgrade(enhancement.name),
+              ).length,
+              upgrades: enhancements.filter((enhancement) => enhancement.detachment_id === detachment.id && isUnitUpgrade(enhancement.name))
+                .length,
               stratagems: detachment.stratagem_ids?.length ?? 0,
               points: detachment.detachment_points ?? null,
               dispositions: detachment.force_dispositions ?? [],
@@ -361,9 +368,16 @@ export function loadRules(
               dispositions: detachment.force_dispositions ?? [],
               rules: wahapedia ? [...findDetachmentAbilities(wahapedia.detachmentAbilities, detachment.name)] : [],
               enhancements: enhancements
-                .filter((enhancement) => enhancement.detachment_id === detachment.id)
+                .filter((enhancement) => enhancement.detachment_id === detachment.id && !isUnitUpgrade(enhancement.name))
                 .map((enhancement) => ({
                   name: enhancement.name,
+                  points: enhancement.cost ?? null,
+                  description: wahapedia ? findDescription(wahapedia.enhancements, detachment.name, enhancement.name) : null,
+                })),
+              upgrades: enhancements
+                .filter((enhancement) => enhancement.detachment_id === detachment.id && isUnitUpgrade(enhancement.name))
+                .map((enhancement) => ({
+                  name: enhancement.name.replace(/\s*\(upgrade\)\s*$/i, ''),
                   points: enhancement.cost ?? null,
                   description: wahapedia ? findDescription(wahapedia.enhancements, detachment.name, enhancement.name) : null,
                 })),

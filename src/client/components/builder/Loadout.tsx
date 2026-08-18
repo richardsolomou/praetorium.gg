@@ -16,6 +16,7 @@ type LoadoutChoice = {
   chosen: string
   optional: boolean
   room: number
+  kind?: 'enhancement' | 'upgrade'
   options: { id: string; name: string; points: number; count: number; max: number; description?: string | null }[]
 }
 
@@ -146,8 +147,8 @@ export function Loadout({ catalogueId, unit, detachmentIds, picks, pickIndex, on
               </p>
               <div className="mt-3 grid gap-5">
                 {unit.choices.map((choice) =>
-                  choice.name.toLowerCase().includes('enhancement')
-                    ? enhancement(choice, onChoose, unit.name)
+                  choice.kind
+                    ? specialChoice(choice, onChoose, unit.name)
                     : choice.room > 1
                       ? spread(choice, onSpread, availableWeapons, availableSheet.abilities, rules)
                       : either(choice, onChoose, unit.name, availableWeapons, availableSheet.abilities, rules),
@@ -185,10 +186,12 @@ function LoadoutLoading() {
   )
 }
 
-function enhancement(choice: LoadoutChoice, onChoose: Props['onChoose'], unitName: string) {
+function specialChoice(choice: LoadoutChoice, onChoose: Props['onChoose'], unitName: string) {
+  const label = choice.kind === 'upgrade' ? 'upgrade' : 'enhancement'
+  const heading = choice.kind === 'upgrade' ? 'Unit upgrades' : choice.name
   return (
-    <fieldset key={choice.key} aria-label={`${unitName} ${choice.name}`} className="m-0 min-w-0 border-0">
-      <legend className="eyebrow mb-1.5">{choice.name}</legend>
+    <fieldset key={choice.key} aria-label={`${unitName} ${heading}`} className="m-0 min-w-0 border-0">
+      <legend className="eyebrow mb-1.5">{heading}</legend>
       <div className="space-y-1.5">
         {choice.optional ? (
           <button
@@ -199,7 +202,7 @@ function enhancement(choice: LoadoutChoice, onChoose: Props['onChoose'], unitNam
               choice.chosen ? 'border-edge bg-card text-dim hover:border-dim hover:text-bone' : 'border-azure bg-azure/10 text-azure'
             }`}
           >
-            No enhancement
+            No {label}
             {!choice.chosen ? <Check className="size-3.5" aria-hidden /> : null}
           </button>
         ) : null}

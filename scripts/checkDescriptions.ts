@@ -26,7 +26,7 @@ const detachments = Array.from(rules.detachmentDetails, ([faction, details]) =>
         catalogue,
         book.id,
         option.id,
-        detail.enhancements.map((enhancement) => enhancement.name),
+        [...detail.enhancements, ...detail.upgrades].map((enhancement) => enhancement.name),
       )
       return found ? [found] : []
     })
@@ -38,7 +38,7 @@ const missing = {
     ({ detail, catalogueDetails }) => !detail.rules.length && !catalogueDetails.some((candidate) => candidate.rule?.description),
   ),
   enhancements: detachments.flatMap(({ faction, detail, catalogueDetails }) =>
-    detail.enhancements
+    [...detail.enhancements, ...detail.upgrades]
       .filter(
         (enhancement) =>
           !enhancement.description &&

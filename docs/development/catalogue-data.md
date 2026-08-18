@@ -36,6 +36,7 @@ Server catalogue code is split by responsibility:
 - Legends datasheets are not legal roster choices and are never returned by the picker.
 - A detachment has a wrapper, a group, and its choices. Any layer can be inline or linked. Match wrapper names by the `Detachment` prefix.
 - Enhancement names and points come from the rules source. Description text prefers the catalogue, then the pinned Wahapedia export; leave conflicting matches blank.
+- Unit upgrades marked by the rules source stay separate from character enhancements in detachment references and unit loadouts.
 - A datasheet roster cap usually lives on its same-named category. `rosterLimit` reads that cap for display and filtering. `violations` remains the legality authority.
 - The collection stores one membership row per player and datasheet. It does not store model quantities.
 
