@@ -55,9 +55,9 @@ export class PraetoriumService {
         log,
         seats.players.map((player) => player.side),
       )
-      const dispositions = [...new Set(state.players.map((player) => player.side))].map(
-        (side) => state.players.find((player) => player.side === side)?.roster?.built?.disposition ?? null,
-      )
+      const viewerSide = state.players.find((player) => player.id === playerId)?.side
+      const ownDisposition = state.players.find((player) => player.side === viewerSide)?.roster?.built?.disposition ?? null
+      const opposingDisposition = state.players.find((player) => player.side !== viewerSide)?.roster?.built?.disposition ?? null
       return {
         token: seats.battle.token,
         createdAt: seats.battle.createdAt,
@@ -73,7 +73,9 @@ export class PraetoriumService {
         scores: state.players.map(
           (player) => player.primary + player.secondary + (state.status === 'finished' && player.painted ? PAINTED_ARMY_POINTS : 0),
         ),
-        mission: rules ? missionFor(rules, dispositions[0] ?? null, soloOpponent(state, dispositions), state.settings.missionPackId) : null,
+        mission: rules
+          ? missionFor(rules, ownDisposition, state.settings.solo ? ownDisposition : opposingDisposition, state.settings.missionPackId)
+          : null,
         deploymentId: state.deploymentId,
         settings: state.settings,
         result: state.result,
@@ -373,14 +375,25 @@ export class PraetoriumService {
       seats.players.map((player) => player.side),
     )
     const view = battleView(seats.battle, seats.players, state, playerId, this.clock())
-    // Eleventh edition takes the mission from the two armies' dispositions rather
-    // than from either player, so it is derived and never stored.
-    const [one, two] = [...new Set(view.players.map((player) => player.side))].map(
-      (side) => view.players.find((player) => player.side === side)?.roster?.built?.disposition ?? null,
-    )
-    // A solo army has no opponent to pair with, so it plays its own disposition and still gets a mission.
-    const facing = state.settings.solo ? (one ?? null) : (two ?? null)
-    return { kind: 'battle', view, mission: rules ? missionFor(rules, one ?? null, facing, state.settings.missionPackId) : null }
+    const missionForSide = (side: number) => {
+      const ownDisposition = view.players.find((player) => player.side === side)?.roster?.built?.disposition ?? null
+      const opposingDisposition = view.players.find((player) => player.side !== side)?.roster?.built?.disposition ?? null
+      return rules
+        ? missionFor(rules, ownDisposition, state.settings.solo ? ownDisposition : opposingDisposition, state.settings.missionPackId)
+        : null
+    }
+    if (state.status !== 'setup') {
+      for (const player of view.players) {
+        const primary = missionForSide(player.side)
+        player.primaryCard = primary ? { key: primary.id, name: primary.name } : null
+      }
+    }
+    const viewerSide = view.players.find((player) => player.id === playerId)?.side
+    return {
+      kind: 'battle',
+      view,
+      mission: viewerSide === undefined ? null : missionForSide(viewerSide),
+    }
   }
 
   private seated(seats: BattleSeats, playerId: string) {
@@ -415,18 +428,19 @@ function rosterFromRow(row: NonNullable<ReturnType<Repository['roster']>>) {
   }
 }
 
-/** Solo practice pairs an army against itself; a real battle waits for the other list. */
-function soloOpponent(state: { settings: { solo: boolean } }, dispositions: (string | null)[]) {
-  return state.settings.solo ? (dispositions[0] ?? null) : (dispositions[1] ?? null)
-}
-
 function setupReferenceError(state: ReturnType<typeof reduceBattle>, rules: NonNullable<Parameters<typeof missionFor>[0]>): string | null {
   const [one, two] = state.players.map((player) => player.roster?.built?.disposition ?? null)
-  const mission = missionFor(rules, one ?? null, two ?? null, state.settings.missionPackId)
-  if (one && two && state.settings.missionPackId && !mission) return 'the selected mission pack does not contain this matchup'
-  if (!state.deploymentId) return 'choose a deployment'
-  if (!rules.deployments.some((deployment) => deployment.id === state.deploymentId)) return 'that deployment is not available'
-  if (mission?.deploymentIds.length && !mission.deploymentIds.includes(state.deploymentId))
+  const missions = [
+    missionFor(rules, one ?? null, two ?? null, state.settings.missionPackId),
+    missionFor(rules, two ?? null, one ?? null, state.settings.missionPackId),
+  ]
+  if (one && two && state.settings.missionPackId && missions.some((mission) => !mission)) {
+    return 'the selected mission pack does not contain this matchup'
+  }
+  const deploymentId = state.deploymentId
+  if (!deploymentId) return 'choose a deployment'
+  if (!rules.deployments.some((deployment) => deployment.id === deploymentId)) return 'that deployment is not available'
+  if (missions.some((mission) => mission?.deploymentIds.length && !mission.deploymentIds.includes(deploymentId)))
     return 'that deployment does not match the mission'
   if (!state.settings.terrainLayoutId) return null
   const terrain = rules.terrainLayouts.find((layout) => layout.id === state.settings.terrainLayoutId)
