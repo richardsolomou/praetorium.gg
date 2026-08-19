@@ -1,0 +1,102 @@
+import { describe, expect, it } from 'vitest'
+import type { BattleView } from '../core/battle'
+import { facingSides, sideName, sides } from './sides'
+
+type ViewPlayer = BattleView['players'][number]
+
+function player(overrides: Partial<ViewPlayer> & Pick<ViewPlayer, 'id' | 'side'>): ViewPlayer {
+  return {
+    name: overrides.id,
+    isViewer: false,
+    isActive: false,
+    cp: 0,
+    cpGained: 0,
+    cpSpent: 0,
+    cpByRound: [],
+    primary: 0,
+    secondary: 0,
+    total: 0,
+    painted: false,
+    paintedPoints: 0,
+    rounds: [],
+    roster: null,
+    units: [],
+    standing: 0,
+    deployed: 0,
+    stratagems: [],
+    secondaries: [],
+    primaryCard: null,
+    secondaryMode: 'tactical',
+    remainingSecondaries: [],
+    ...overrides,
+  }
+}
+
+const view = (players: ViewPlayer[]) => ({ players }) as BattleView
+
+describe('battle sides', () => {
+  it('folds a 2v1 allied pair into one side', () => {
+    expect(sides(view([player({ id: 'solo', side: 0 }), player({ id: 'ally', side: 1 }), player({ id: 'other', side: 1 })]))).toHaveLength(
+      2,
+    )
+  })
+
+  it('reads shared command points from the side rather than each ally', () => {
+    const battle = view([player({ id: 'ally', side: 1, cp: 4 }), player({ id: 'other', side: 1, cp: 4 })])
+    expect(sides(battle)[0]?.cp).toBe(4)
+  })
+
+  it('adds the battle-ready bonus of every army on a side', () => {
+    const battle = view([
+      player({ id: 'ally', side: 0, painted: true, paintedPoints: 10 }),
+      player({ id: 'other', side: 0, painted: true, paintedPoints: 10 }),
+    ])
+    expect(sides(battle)[0]?.paintedPoints).toBe(20)
+  })
+
+  it('totals a side once from its shared score and both bonuses', () => {
+    const battle = view([
+      player({ id: 'ally', side: 0, primary: 20, secondary: 12, painted: true, paintedPoints: 10 }),
+      player({ id: 'other', side: 0, primary: 20, secondary: 12, painted: true, paintedPoints: 10 }),
+    ])
+    expect(sides(battle)[0]?.total).toBe(52)
+  })
+
+  it('orders sides by seat so both devices agree on the tints', () => {
+    expect(sides(view([player({ id: 'second', side: 1 }), player({ id: 'first', side: 0 })])).map((side) => side.index)).toEqual([0, 1])
+  })
+
+  it('puts the viewer’s own side first when facing the table', () => {
+    const battle = view([player({ id: 'them', side: 0 }), player({ id: 'you', side: 1, isViewer: true })])
+    expect(facingSides(battle).yours?.index).toBe(1)
+  })
+
+  it('names an allied side after both players', () => {
+    const battle = view([player({ id: 'ally', name: 'Ally', side: 0 }), player({ id: 'other', name: 'Other', side: 0 })])
+    expect(sides(battle).map(sideName)).toEqual(['Ally & Other'])
+  })
+
+  it('prices an army from the units it submitted', () => {
+    const roster = {
+      name: 'List',
+      text: '',
+      built: {
+        catalogueId: 'catalogue',
+        revision: 'revision',
+        limit: 2000,
+        detachment: null,
+        disposition: null,
+        selections: [],
+        units: [
+          { key: 'a', name: 'A', points: 120, models: 1 },
+          { key: 'b', name: 'B', points: 95, models: 5 },
+        ],
+      },
+    } satisfies ViewPlayer['roster']
+    expect(sides(view([player({ id: 'you', side: 0, roster })]))[0]?.armies[0]?.points).toBe(215)
+  })
+
+  it('leaves an army unpriced when no list is attached', () => {
+    expect(sides(view([player({ id: 'you', side: 0 })]))[0]?.armies[0]?.points).toBeNull()
+  })
+})

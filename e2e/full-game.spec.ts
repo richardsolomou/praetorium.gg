@@ -22,14 +22,19 @@ test('two phones complete all five rounds in step', async ({ browser }) => {
     }
   }
 
-  await expect(alice.getByText('Battle over')).toBeVisible()
-  await expect(bob.getByText('Battle over')).toBeVisible()
-  await expect(alice.getByRole('complementary', { name: 'Battle scoreboard' })).toContainText('Round5')
-  await expect(bob.getByRole('complementary', { name: 'Battle scoreboard' })).toContainText('Round5')
+  // The scoreboard swaps the round for the result, and both phones read the same one.
+  await expect(scoreboard(alice)).toContainText('Result')
+  await expect(scoreboard(bob)).toContainText('Result')
+  const outcome = await scoreboard(alice).getByRole('heading').textContent()
+  await expect(scoreboard(bob).getByRole('heading')).toHaveText(outcome ?? '')
 })
 
 function action(page: Page) {
   return page.getByRole('button', { name: /^(End the .+ phase|Pass the turn)$/ })
+}
+
+function scoreboard(page: Page) {
+  return page.getByRole('region', { name: 'Battle scoreboard' })
 }
 
 async function playTurn(page: Page, phase = 0): Promise<void> {

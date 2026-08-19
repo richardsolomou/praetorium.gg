@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
 import { attachRoster, createBattle, createRoster, setupStep, signUp, uniqueName, waitForRosterSave } from './account'
 
 test('solo battle controls survive completion, reopen and deletion', async ({ page }) => {
@@ -12,23 +12,22 @@ test('solo battle controls survive completion, reopen and deletion', async ({ pa
   await setupStep(page, 'Battlefield')
   await page.getByRole('button', { name: 'Select layout A: Tipping Point' }).click()
   await expect(page.getByRole('button', { name: 'Selected layout A: Tipping Point' })).toBeVisible()
-  await setupStep(page, 'Start')
+  await setupStep(page, 'First turn')
   await page.getByRole('button', { name: 'Start battle' }).click()
   await expect(page.getByRole('heading', { name: 'command phase' })).toBeVisible()
-  await page.getByRole('button', { name: 'Finish early' }).click()
-  await page.getByRole('button', { name: 'Finish early' }).last().click()
-  await expect(page.getByText('Battle over')).toBeVisible()
-  await page.getByRole('button', { name: 'Reopen battle' }).click()
+  await endBattle(page, 'Finish early')
+  await expect(page.getByRole('heading', { name: /Final score/ })).toBeVisible()
+  await page.getByRole('button', { name: 'Battle options' }).click()
+  await page.getByRole('menuitem', { name: 'Reopen battle' }).click()
   await expect(page.getByRole('button', { name: /End the .+ phase/ })).toBeVisible()
 
   for (let step = 0; step < 30; step++) {
     await page.getByRole('button', { name: /End the .+ phase|Pass the turn/ }).click()
   }
-  await expect(page.getByText('Final result', { exact: true })).toBeVisible()
-  await expect(page.getByText(/attacking · Completed$/)).toBeVisible()
+  await expect(page.getByText('Result', { exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: /Final score/ })).toBeVisible()
 
-  await page.getByRole('button', { name: 'Delete battle' }).click()
-  await page.getByRole('button', { name: 'Delete battle' }).last().click()
+  await endBattle(page, 'Delete battle')
   await expect(page).toHaveURL('/battles')
   await expect(page.getByText('No battles yet.')).toBeVisible()
 })
@@ -56,3 +55,10 @@ test('a private roster can be shared and made private again', async ({ browser }
   await anonymous.reload()
   await expect(anonymous.getByRole('heading', { name: 'Nothing here' })).toBeVisible()
 })
+
+/** Ending and deleting live behind the battle menu, each behind its own confirmation. */
+async function endBattle(page: Page, label: string) {
+  await page.getByRole('button', { name: 'Battle options' }).click()
+  await page.getByRole('menuitem', { name: label }).click()
+  await page.getByRole('alertdialog').getByRole('button', { name: label }).click()
+}

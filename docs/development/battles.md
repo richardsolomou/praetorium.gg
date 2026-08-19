@@ -64,4 +64,4 @@ Better Auth owns the `user`, `session`, `account`, `verification`, and `rateLimi
 
 ## Tests
 
-`src/core/battle.test.ts` covers turn order, ownership, visibility, undo, solo play, resets, concessions, reopening, stratagem costs including the ones the board makes dearer, tactical decks, and battle settings. `src/server/service.test.ts` covers persistence, deletion permissions, and concurrent submissions against SQLite.
+`src/core/battle.test.ts` covers turn order, ownership, visibility, undo, solo play, resets, concessions, reopening, stratagem costs including the ones the board makes dearer, tactical decks, and battle settings. `src/server/service.test.ts` covers persistence, deletion permissions, and concurrent submissions against SQLite. `src/client/sides.test.ts` covers the fold from seats to sides, and `e2e/team-battle.spec.ts` drives three devices through a 2v1 to prove the allied pair shares one pool.

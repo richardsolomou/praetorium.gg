@@ -84,5 +84,8 @@ test('a seated battle signs the opponent in and drops them back into setup', asy
   await guest.getByRole('button', { name: 'Sign in', exact: true }).click()
 
   await guest.waitForURL(/\/b\//)
-  await expect(guest.getByRole('heading', { name: `${aliceName} versus ${bobName}` })).toBeVisible()
+  await expect(guest.getByRole('heading', { name: 'Set the table' })).toBeVisible()
+  // The table strip names both sides, which is how the guest knows it is the battle they were invited to.
+  await expect(guest.getByRole('main')).toContainText(aliceName)
+  await expect(guest.getByRole('main')).toContainText(bobName)
 })

@@ -44,10 +44,10 @@ test('a built list is priced, deployed and tracked', async ({ browser }) => {
   await attachRoster(alice, aliceRoster)
   await bob.goto(link)
   await attachRoster(bob, bobRoster)
-  await expect(alice.getByText(bobRoster, { exact: true })).toBeVisible()
+  await expect(alice.getByText(bobRoster, { exact: true }).first()).toBeVisible()
   await chooseBattlefield(alice)
-  await setupStep(alice, 'Your army')
-  await alice.getByRole('button', { name: 'Battle ready army · +10 VP' }).click()
+  await setupStep(alice, 'Pre-battle')
+  await alice.getByRole('button', { name: /^Add the battle ready bonus for Death Guard/ }).click()
   await startBattle(alice)
   await expect(bob.getByRole('heading', { name: 'command phase' })).toBeVisible()
 

@@ -10,9 +10,13 @@ Praetorium uses a compact, dark visual system. See [the product design guide](..
 - Render each picker or loadout pane once. `src/client/components/builder/Pane.tsx` moves the same instance between a desktop sidebar and a mobile sheet. Two instances create duplicate form controls and accessibility labels.
 - Show allied picker shelves with their short faction name and keep them collapsed until a player needs them.
 - Use `data-unit` to find unit cards in tests. CSS changes the displayed case, so visible-text selectors do not match the source text reliably.
-- Keep battle setup in five visible sections: Battle, Armies, Battlefield, Your army, and Start. The active section is folded from the battle log so every seated device moves together. Show every attached roster and every army's formation choices, but only let a player change their own roster and units.
+- Keep battle setup in five visible sections: Format, Armies, Battlefield, Pre-battle, and First turn. The active section is folded from the battle log so every seated device moves together. Show every attached roster and every army's formation choices, but only let a player change their own roster and units.
 - Choose saved rosters in a dialog ordered like the roster library. Keep battlefield selection stable while its command saves, and open each battlefield in a full-size dialog without changing the selection.
 - In the live tracker, show only stratagems valid for the current turn and phase. The CP badge spends the printed cost; the overflow menu handles modified costs. Mission names open their full timing and scoring requirements.
+- Lay both setup and the tracker out by side, never by seat. `src/client/sides.ts` folds `BattleView.players` into sides; read command points, victory points, mission cards and stratagems from there. A 2v1 ally is a second army inside one side panel, not a third column.
+- Draw one scoreboard at every width. It carries both sides' scores, the round and phase, and the battle menu that holds finishing, conceding and deleting. Keep destructive actions in that menu and behind a confirmation.
+- Keep the phase control reachable at every width. One instance moves by CSS between the centre column and a bottom bar on narrow screens, as `builder/Pane.tsx` does for the roster panes.
+- Open long card lists in a dialog rather than laying dozens of buttons into a panel, and close the dialog on the pick.
 
 ## Components and styles
 

@@ -13,6 +13,13 @@ import { createBattle } from '../server/functions'
 
 type Battle = Awaited<ReturnType<NonNullable<ReturnType<typeof battlesQuery>['queryFn']>>>[number]
 
+/** The three shapes a battle can take. A 2v1 splits the points across the allied pair. */
+const FORMATS = [
+  { key: 'duel', name: '1v1', detail: 'One army each' },
+  { key: 'team', name: '2v1', detail: 'Two allies share a side' },
+  { key: 'solo', name: 'Solo', detail: 'Practice on your own' },
+] as const
+
 export const Route = createFileRoute('/battles')({
   loader: ({ context }) =>
     Promise.all([
@@ -87,34 +94,36 @@ function CreateBattle() {
           <DialogTitle className="text-xl uppercase">Start a battle</DialogTitle>
           <DialogDescription>Choose a shared battle or a private solo practice game.</DialogDescription>
         </DialogHeader>
-        <div className="grid grid-cols-3 gap-2">
-          <Button
-            variant={!solo && !teamBattle ? 'default' : 'outline'}
-            onClick={() => {
-              setSolo(false)
-              setTeamBattle(false)
-              setOpponentIds((ids) => ids.slice(0, 1))
-            }}
-          >
-            1v1
-          </Button>
-          <Button
-            variant={!solo && teamBattle ? 'default' : 'outline'}
-            onClick={() => {
-              setSolo(false)
-              setTeamBattle(true)
-            }}
-          >
-            2v1
-          </Button>
-          <Button variant={solo ? 'default' : 'outline'} onClick={() => setSolo(true)}>
-            Solo practice
-          </Button>
-        </div>
+        <fieldset>
+          <legend className="eyebrow">Format</legend>
+          <div className="mt-1 grid grid-cols-3 gap-2">
+            {FORMATS.map((format) => {
+              const chosen = format.key === (solo ? 'solo' : teamBattle ? 'team' : 'duel')
+              return (
+                <Button
+                  key={format.key}
+                  variant={chosen ? 'default' : 'outline'}
+                  aria-pressed={chosen}
+                  className="h-auto flex-col items-start gap-0.5 px-2.5 py-2 text-left"
+                  onClick={() => {
+                    setSolo(format.key === 'solo')
+                    setTeamBattle(format.key === 'team')
+                    if (format.key !== 'team') setOpponentIds((ids) => ids.slice(0, 1))
+                  }}
+                >
+                  <span className="font-bold uppercase">{format.name}</span>
+                  <span className={`text-[0.625rem] leading-tight font-normal whitespace-normal ${chosen ? 'text-void/75' : 'text-dim'}`}>
+                    {format.detail}
+                  </span>
+                </Button>
+              )
+            })}
+          </div>
+        </fieldset>
         {!solo && opponents.length ? (
           <div>
             <Label htmlFor="battle-opponent" className="eyebrow">
-              Opponent
+              {teamBattle ? 'Opponents' : 'Opponent'}
             </Label>
             <Select value={opponentIds[0] ?? null} onValueChange={(id) => id && setOpponentIds((current) => [id, ...current.slice(1)])}>
               <SelectTrigger id="battle-opponent" className="mt-1 h-11 w-full rounded-none border-edge bg-sunken">
@@ -138,7 +147,7 @@ function CreateBattle() {
                 disabled={!opponentIds[0]}
                 onValueChange={(id) => id && setOpponentIds((current) => (current[0] ? [current[0], id] : current))}
               >
-                <SelectTrigger className="mt-2 h-11 w-full rounded-none border-edge bg-sunken">
+                <SelectTrigger aria-label="Their ally" className="mt-2 h-11 w-full rounded-none border-edge bg-sunken">
                   <SelectValue placeholder="Choose their ally">
                     {(value: unknown) => opponents.find((opponent) => opponent.id === value)?.name ?? 'Choose their ally'}
                   </SelectValue>

@@ -12,7 +12,7 @@ import type { Selection } from './evaluate'
  */
 
 /** The phases of a battle round, in the order 11th edition plays them. */
-const PHASES = ['command', 'movement', 'shooting', 'charge', 'fight', 'end'] as const
+export const PHASES = ['command', 'movement', 'shooting', 'charge', 'fight', 'end'] as const
 
 export type Phase = (typeof PHASES)[number]
 

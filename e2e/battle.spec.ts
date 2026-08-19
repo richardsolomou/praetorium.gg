@@ -29,9 +29,8 @@ test('stratagems and tactical missions are tracked through a turn', async ({ bro
   await drawSecondary(alice, 'Behind Enemy Lines', 'behind-enemy-lines')
   await drawSecondary(alice, 'Assassination', 'assassination')
 
-  const secret = alice.getByText('Select secret mission').locator('..')
-  await secret.getByRole('button', { name: 'Select secret mission' }).click()
-  await secret.getByRole('button', { name: 'Bring It Down', exact: true }).click()
+  await alice.getByRole('button', { name: 'Select secret mission' }).click()
+  await alice.getByRole('dialog', { name: 'Select a secret mission' }).getByRole('button', { name: 'Bring It Down', exact: true }).click()
   await expect(alice.locator('[data-secondary="bring-it-down"]')).toContainText('Bring It Down')
   await expect(bob.locator('[data-secondary="secret"]')).toContainText('Secret mission')
   await expect(
@@ -56,7 +55,7 @@ test('stratagems and tactical missions are tracked through a turn', async ({ bro
   await expect(bob.getByText('discarded', { exact: true })).toBeVisible()
   await alice.locator('[data-secondary="assassination"]').getByRole('button', { name: 'Discard' }).click()
   await expect(alice.getByText('Draw a replacement')).toBeVisible()
-  await alice.getByRole('button', { name: 'A Grievous Blow', exact: true }).click()
+  await drawSecondary(alice, 'A Grievous Blow', 'a-grievous-blow')
   await expect(bob.locator('[data-secondary="a-grievous-blow"]')).toContainText('A Grievous Blow')
 
   await expect(alice.getByText(new RegExp(`${aliceName} brought Death Guard`))).toBeVisible()
@@ -83,24 +82,23 @@ test('a tactical player is asked to draw at the top of their command phase', asy
   await attachRoster(alice, aliceRoster)
   await setupStep(bob, 'Armies')
   await attachRoster(bob, bobRoster)
-  await expect(alice.getByText(bobRoster, { exact: true })).toBeVisible()
+  await expect(alice.getByText(bobRoster, { exact: true }).first()).toBeVisible()
   await startBattle(alice)
 
   // The prompt is the point: it stands open in the panel rather than waiting to be found.
   const prompt = alice.locator('[data-panel="player"]').filter({ hasText: 'Death Guard' }).getByText('Draw a mission')
   await expect(prompt).toBeVisible()
-  await alice.getByRole('button', { name: 'A Grievous Blow', exact: true }).click()
-  await alice.getByRole('button', { name: 'Beacon', exact: true }).click()
+  await drawSecondary(alice, 'A Grievous Blow', 'a-grievous-blow')
+  await drawSecondary(alice, 'Beacon', 'beacon')
   // Two in hand is a full hand, so it stops asking.
   await expect(prompt).toBeHidden()
   await expect(alice.locator('[data-secondary="a-grievous-blow"]')).toContainText('A Grievous Blow')
   await expect(bob.locator('[data-secondary="a-grievous-blow"]')).toContainText('A Grievous Blow')
 })
 
-/** A tactical hand starts empty, so a named card has to be taken from the deck. */
+/** A tactical hand starts empty, so a named card has to be taken from the deck the draw prompt opens. */
 async function drawSecondary(page: Page, name: string, key: string) {
-  const card = page.getByRole('button', { name, exact: true })
-  await card.scrollIntoViewIfNeeded()
-  await card.click()
+  await page.getByRole('button', { name: 'Choose a card' }).click()
+  await page.getByRole('dialog', { name: 'Draw a secondary mission' }).getByRole('button', { name, exact: true }).click()
   await expect(page.locator(`[data-secondary="${key}"]`)).toContainText(name)
 }
