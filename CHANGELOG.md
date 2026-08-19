@@ -1,5 +1,16 @@
 # praetorium
 
+## 0.8.0
+
+### Minor Changes
+
+- 9bdf3c9: Edit your display name and profile picture from the account menu.
+- 171f874: Import pasted New Recruit roster exports.
+
+### Patch Changes
+
+- 9bdf3c9: Use a compact navigation menu below 815 pixels.
+
 ## 0.7.0
 
 ### Minor Changes
