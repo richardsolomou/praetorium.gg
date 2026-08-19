@@ -263,6 +263,9 @@ test('a player can enter through the roster library and browse the product', asy
   await page.screenshot({ path: 'test-results/dark-angels-faction-content.png', fullPage: true })
   await darkAngelsDatasheets.click()
   await expect(page.locator('main > header [data-faction-mark="dark-angels"]')).toBeVisible()
+  await expect(page.getByRole('button', { name: /Epic heroes \d+/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: /Characters \d+/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: /Infantry \d+/ })).toBeVisible()
   await expect(page.getByRole('link', { name: /Asmodai/ })).toBeVisible()
   await expect(page.getByRole('link', { name: /Intercessor Squad/ })).toHaveCount(0)
   await page.goto('/rosters')
@@ -366,6 +369,7 @@ test('a player can enter through the roster library and browse the product', asy
   await expect(page.getByLabel('Find a datasheet')).toBeVisible()
   await page.getByLabel('Find a datasheet').fill('Overlord')
   await expect(page.getByRole('link', { name: /Overlord/ }).first()).toBeVisible()
+  await expect(page.locator('main > p.rubric')).toContainText('2')
   await page.screenshot({ path: 'test-results/faction-datasheets.png', fullPage: true })
   await page
     .getByRole('link', { name: /Overlord/ })

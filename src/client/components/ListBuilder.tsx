@@ -835,14 +835,14 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
         ) : null}
 
         <div className="min-h-0 flex-1 overflow-y-auto px-3">
-          {units.length || faction ? (
-            GROUPS.map(({ id, plural, empty }) => {
+          {units.length ? (
+            GROUPS.map(({ id, plural }) => {
               const rows = units
                 .map((unit, index) => ({ unit, index }))
                 .filter(({ unit }) => unit.group === id)
                 .toSorted((left, right) => Number(collection.has(right.unit.entryId)) - Number(collection.has(left.unit.entryId)))
-              return (
-                <Section key={id} title={plural} count={rows.length} empty={empty}>
+              return rows.length ? (
+                <Section key={id} title={plural} count={rows.length}>
                   {rows.map(({ unit, index }) => (
                     <UnitCard
                       key={picked[index]?.key ?? unit.entryId}
@@ -869,8 +869,10 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
                     />
                   ))}
                 </Section>
-              )
+              ) : null
             })
+          ) : faction ? (
+            <p className="py-6 text-sm text-faint">{editable ? 'Pick a unit to start building.' : 'This roster has no units.'}</p>
           ) : (
             <p className="py-6 text-sm text-faint">Pick a book to start building.</p>
           )}

@@ -30,7 +30,7 @@ const bookOf = (catalogue: Partial<Catalogue>) => shelfOf(catalogue)
 
 const offered = (loaded: LoadedCatalogue) => unitsIn(loaded, 'cat', '').map((unit) => unit.name)
 
-const categories = (...names: string[]) => names.map((name, at) => ({ id: `link-${at}`, targetId: `cat-${at}`, name }))
+const categories = (...names: string[]) => names.map((name, at) => ({ id: `link-${at}`, targetId: `cat-${at}`, name, primary: at === 0 }))
 
 const ability = (id: string, name: string) => ({
   id,
@@ -82,26 +82,50 @@ describe('the picker', () => {
     expect(datasheetInBySlug(book, 'cat', units[0]?.slug ?? '')?.id).toBe('first-sheet')
   })
 
-  it('shelves a datasheet by the role its keywords claim', () => {
+  it('shelves every datasheet by its primary category', () => {
     const book = bookOf({
       selectionEntries: [
-        { id: 'lord', name: 'Lord', type: 'model', costs: points(90), categoryLinks: categories('Infantry', 'Character') },
+        { id: 'hero', name: 'Hero', type: 'model', costs: points(100), categoryLinks: categories('Epic Hero', 'Character', 'Infantry') },
+        { id: 'lord', name: 'Lord', type: 'model', costs: points(90), categoryLinks: categories('Character', 'Infantry') },
         { id: 'grunts', name: 'Grunts', type: 'unit', costs: points(70), categoryLinks: categories('Battleline') },
-        { id: 'ride', name: 'Ride', type: 'unit', costs: points(60), categoryLinks: categories('Dedicated Transport') },
+        { id: 'troops', name: 'Troops', type: 'unit', costs: points(80), categoryLinks: categories('Infantry') },
+        { id: 'critters', name: 'Critters', type: 'unit', costs: points(30), categoryLinks: categories('Swarm') },
+        { id: 'riders', name: 'Riders', type: 'unit', costs: points(75), categoryLinks: categories('Mounted') },
+        { id: 'hounds', name: 'Hounds', type: 'unit', costs: points(65), categoryLinks: categories('Beast') },
+        { id: 'giant', name: 'Giant', type: 'unit', costs: points(175), categoryLinks: categories('Monster') },
         { id: 'tank', name: 'Tank', type: 'unit', costs: points(150), categoryLinks: categories('Vehicle') },
+        { id: 'drone', name: 'Drone', type: 'unit', costs: points(50), categoryLinks: categories('Drone') },
+        { id: 'ride', name: 'Ride', type: 'unit', costs: points(60), categoryLinks: categories('Dedicated Transport', 'Vehicle') },
+        { id: 'wall', name: 'Wall', type: 'unit', costs: points(85), categoryLinks: categories('Fortification') },
       ],
     })
     expect(Object.fromEntries(unitsIn(book, 'cat', '').map((unit) => [unit.name, unit.group]))).toEqual({
+      Hero: 'epic-hero',
       Lord: 'character',
       Grunts: 'battleline',
+      Troops: 'infantry',
+      Critters: 'swarm',
+      Riders: 'mounted',
+      Hounds: 'beast',
+      Giant: 'monster',
+      Tank: 'vehicle',
+      Drone: 'drone',
       Ride: 'transport',
-      Tank: 'other',
+      Wall: 'fortification',
     })
   })
 
-  it('shelves a datasheet claiming no role at all under other', () => {
-    const book = bookOf({ selectionEntries: [{ id: 'thing', name: 'Thing', type: 'unit', costs: points(10) }] })
-    expect(unitsIn(book, 'cat', '')[0]?.group).toBe('other')
+  it('shelves a datasheet with no recognised primary category under other', () => {
+    const book = bookOf({
+      selectionEntries: [
+        { id: 'missing', name: 'Missing', type: 'unit', costs: points(10) },
+        { id: 'unsupported', name: 'Unsupported', type: 'unit', costs: points(20), categoryLinks: categories('Pilot', 'Infantry') },
+      ],
+    })
+    expect(Object.fromEntries(unitsIn(book, 'cat', '').map((unit) => [unit.name, unit.group]))).toEqual({
+      Missing: 'other',
+      Unsupported: 'other',
+    })
   })
 
   it('omits datasheets excluded by faction rules', () => {

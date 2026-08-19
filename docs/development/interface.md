@@ -8,6 +8,7 @@ Praetorium uses a compact, dark visual system. See [the product design guide](..
 - Keep player tints on scores and controls. The tint identifies ownership across the table.
 - Edit squad size on the roster card. Do not add a second squad-size control to the loadout pane.
 - Render each picker or loadout pane once. `src/client/components/builder/Pane.tsx` moves the same instance between a desktop sidebar and a mobile sheet. Two instances create duplicate form controls and accessibility labels.
+- Split unit lists into collapsible primary-category shelves and omit empty shelves. Use the same shelf order on rosters, in the picker and on faction datasheet pages.
 - Show allied picker shelves with their short faction name and keep them collapsed until a player needs them.
 - Use `data-unit` to find unit cards in tests. CSS changes the displayed case, so visible-text selectors do not match the source text reliably.
 - Keep battle setup in five visible sections: Format, Armies, Battlefield, Pre-battle, and First turn. The active section is folded from the battle log so every seated device moves together. Show every attached roster, and let anyone at the table set reserves and the battle-ready bonus for any army while the table is being set. A roster stays the choice of the player who owns it.

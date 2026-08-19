@@ -1,10 +1,9 @@
 import { type CatalogueIndex, type Definition, nameOf, targetOf } from '../core/catalogue'
 import { evaluate, rosterLimit } from '../core/evaluate'
 import { buildUnit } from '../core/roster'
+import type { UnitGroup } from '../core/unitGroups'
 import { datasheetSlug, datasheetsOf, type LoadedCatalogue } from './catalogueIndex'
 import type { FactionRestrictions } from './wahapedia'
-
-export type UnitGroup = 'character' | 'battleline' | 'transport' | 'other'
 
 type UnitSummary = {
   id: string
@@ -18,18 +17,24 @@ type UnitSummary = {
 }
 
 const GROUP_BY_CATEGORY = new Map<string, UnitGroup>([
+  ['epic hero', 'epic-hero'],
   ['character', 'character'],
   ['battleline', 'battleline'],
+  ['infantry', 'infantry'],
+  ['swarm', 'swarm'],
+  ['mounted', 'mounted'],
+  ['beast', 'beast'],
+  ['monster', 'monster'],
+  ['vehicle', 'vehicle'],
+  ['drone', 'drone'],
   ['dedicated transport', 'transport'],
+  ['fortification', 'fortification'],
 ])
 
-/** The keywords are on the datasheet, so a link is read together with what it points at. */
+/** The primary category is on the datasheet, so a link is read together with what it points at. */
 function groupOf(entry: Definition, target: Definition): UnitGroup {
-  for (const link of [...(entry.categoryLinks ?? []), ...(target.categoryLinks ?? [])]) {
-    const group = GROUP_BY_CATEGORY.get((link.name ?? '').trim().toLowerCase())
-    if (group) return group
-  }
-  return 'other'
+  const primary = [...(entry.categoryLinks ?? []), ...(target.categoryLinks ?? [])].find((link) => link.primary)
+  return primary ? (GROUP_BY_CATEGORY.get((primary.name ?? '').trim().toLowerCase()) ?? 'other') : 'other'
 }
 
 /** The same shelf by entry id, so a roster and the picker cannot sort a unit differently. */
