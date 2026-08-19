@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.11.0
+
+### Minor Changes
+
+- 0795eb7: Show user profile pictures and links in the battle tracker.
+
 ## 0.10.0
 
 ### Minor Changes
