@@ -4,6 +4,7 @@ import { Link } from '@tanstack/react-router'
 import type { BattleView } from '../../../core/battle'
 import { factionFor } from '../../factions'
 import { factionsQuery } from '../../queries'
+import { PlayerAvatar } from '../PlayerAvatar'
 import type { Army, Side } from '../../sides'
 import { FactionMark } from '../FactionMark'
 import { tint } from './tints'
@@ -73,8 +74,13 @@ function SideScore({ side, round, token, align }: { side: Side; round: number; t
           {side.armies.map((army, at) => (
             <span key={army.playerId}>
               {at ? <span className="text-dim"> & </span> : null}
-              <Link to="/players/$playerId" params={{ playerId: army.playerId }} className="hover:underline">
-                {army.playerName}
+              <Link
+                to="/users/$userId"
+                params={{ userId: army.playerId }}
+                className="inline-flex items-center gap-1 align-middle hover:underline"
+              >
+                <PlayerAvatar name={army.playerName} image={army.playerImage} className="size-5 text-[0.625rem]" />
+                <span>{army.playerName}</span>
               </Link>
             </span>
           ))}

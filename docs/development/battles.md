@@ -54,7 +54,7 @@ A read never claims a battle seat. `PraetoriumService.screen` returns an invitat
 
 ## Accounts
 
-An account maps to one `players` row through `playerForUser`. The command log uses the stable player ID, so an account name can change without changing history.
+Battle seats, commands, saved lists, collections, and friendships reference `user.id` directly. Names and profile pictures remain account data, so profile edits appear everywhere without synchronizing a second identity.
 
 Shared battles can only be created with mutually confirmed friends. Friend requests are directional until the recipient accepts; either player can later remove the connection. Solo battles need no friendship.
 
