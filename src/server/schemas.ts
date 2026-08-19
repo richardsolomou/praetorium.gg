@@ -24,7 +24,8 @@ export const createBattleSchema = z.object({
   missionPackId: id.nullable().default(null),
 })
 export const deleteBattleSchema = z.object({ token })
-export const friendSchema = z.object({ playerId: id })
+export const playerSchema = z.object({ playerId: id })
+export const friendSchema = playerSchema
 
 /**
  * `expectedSeq` is the client's claim about the history it has already seen.
@@ -105,7 +106,7 @@ export const saveRosterSchema = z.object({
   source: z.enum(ROSTER_SOURCES).default('editable'),
 })
 
-/** A `.ros`, base64 `.rosz`, or BattleBase plain-text export. */
+/** A `.ros`, base64 `.rosz`, BattleBase, or NewRecruit export. */
 export const importRosterSchema = z.object({ file: z.string().min(1).max(4_000_000), name: z.string().max(120).optional() })
 export type ImportRosterInput = z.infer<typeof importRosterSchema>
 

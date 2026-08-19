@@ -32,6 +32,7 @@ import {
   importRosterSchema,
   priceSchema,
   ownedSchema,
+  playerSchema,
   rosterIdSchema,
   rosterInBattleSchema,
   saveRosterSchema,
@@ -53,6 +54,15 @@ function orNull<T>(work: () => T) {
 }
 
 export const me = createServerFn({ method: 'GET' }).handler(() => rpc(() => currentPlayer()))
+
+export const playerProfile = createServerFn({ method: 'GET' })
+  .validator(playerSchema)
+  .handler(({ data }) =>
+    rpc(async () => {
+      const viewerId = await currentPlayerId()
+      return viewerId ? app().service.playerProfile(viewerId, data.playerId) : null
+    }),
+  )
 
 export const myBattles = createServerFn({ method: 'GET' }).handler(() =>
   rpc(async () => {
@@ -566,7 +576,7 @@ export const battleReport = createServerFn({ method: 'GET' })
   .handler(({ data }) => rpc(async () => app().service.report(data.token, await requirePlayerId())))
 
 /**
- * Reads a `.ros`, `.rosz`, or BattleBase text export into picks this instance can price.
+ * Reads a `.ros`, `.rosz`, BattleBase, or NewRecruit export into picks this instance can price.
  *
  * Both sides read the same community catalogues, so an entry id from another tool
  * is the same id here. Anything that cannot be placed is named in the answer rather

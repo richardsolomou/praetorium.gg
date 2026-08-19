@@ -1,22 +1,39 @@
 import { expect, test } from '@playwright/test'
 import { signUp } from './account'
 
-test('primary navigation keeps every scoped destination on phones', async ({ page }) => {
+test('primary navigation collapses below 815 pixels', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto('/')
 
   await expect(page.locator('head link[rel="preload"][as="font"]')).toHaveCount(6)
   expect(await page.evaluate(() => document.fonts.check('400 16px "Barlow Semi Condensed"'))).toBe(true)
-  const primary = page.getByRole('navigation', { name: 'Primary' })
+  const primary = page.locator('#primary-navigation')
+  await expect(primary).toBeHidden()
+  await page.getByRole('button', { name: 'Open primary navigation' }).click()
   await expect(primary.getByRole('link', { name: 'Battles' })).toBeVisible()
   await expect(primary.getByRole('link', { name: 'Rosters' })).toBeVisible()
   await expect(primary.getByRole('link', { name: 'Factions' })).toBeVisible()
+  await expect(primary.getByRole('link', { name: 'Mission packs' })).toBeVisible()
   await expect(primary.getByText('Rules', { exact: true })).toHaveCount(0)
   await expect(page.locator('header')).toHaveJSProperty(
     'scrollWidth',
     await page.locator('header').evaluate((header) => header.clientWidth),
   )
   await page.screenshot({ path: 'test-results/navigation-phone.png', fullPage: true })
+  await primary.getByRole('link', { name: 'Mission packs' }).click()
+  await expect(page).toHaveURL(/\/mission-packs\//)
+  await expect(primary).toBeHidden()
+
+  await page.setViewportSize({ width: 814, height: 844 })
+  await expect(page.getByRole('button', { name: 'Open primary navigation' })).toBeVisible()
+  await expect(primary).toBeHidden()
+  await page.setViewportSize({ width: 815, height: 844 })
+  await expect(page.getByRole('button', { name: 'Open primary navigation' })).toBeHidden()
+  await expect(primary).toBeVisible()
+  await expect(page.locator('header')).toHaveJSProperty(
+    'scrollWidth',
+    await page.locator('header').evaluate((header) => header.clientWidth),
+  )
 })
 
 test('public reference data renders without client JavaScript', async ({ browser }) => {

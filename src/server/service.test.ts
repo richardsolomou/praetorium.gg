@@ -107,6 +107,19 @@ describe('friends', () => {
   })
 })
 
+describe('player profiles', () => {
+  it('shows a profile after the viewer has shared a battle with that player', () => {
+    expect(service.playerProfile('alice', 'bob')).toBeNull()
+    service.createBattle('alice', { opponentId: 'bob', solo: false, limit: 2000, missionPackId: null })
+
+    expect(service.playerProfile('alice', 'bob')).toEqual({ id: 'bob', name: 'Bob', image: null })
+  })
+
+  it('shows a player their own profile before their first battle', () => {
+    expect(service.playerProfile('alice', 'alice')).toEqual({ id: 'alice', name: 'Alice', image: null })
+  })
+})
+
 describe('seats', () => {
   it('refuses to create a battle with someone who is not a friend', () => {
     enrol('dave', 'Dave')

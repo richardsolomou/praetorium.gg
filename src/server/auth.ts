@@ -1,9 +1,11 @@
 import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
+import { APIError } from 'better-auth/api'
 import { configuredProviderOptions, standardRateLimitOptions, standardSessionOptions, trustedOrigins } from 'ras-stack/auth'
 import { PASSWORD_MIN_LENGTH, SOCIAL_PROVIDERS } from '../authConfig'
 import type { PraetoriumDatabase } from '../db/connection'
 import { schema } from '../db/schema'
+import { profileUpdate } from './profile'
 
 export function createAuth(database: PraetoriumDatabase, secret: string) {
   return betterAuth({
@@ -17,6 +19,18 @@ export function createAuth(database: PraetoriumDatabase, secret: string) {
     // Signing in with Google to an account made with a password should land on the
     // same account, not a second one.
     account: { accountLinking: { enabled: true, trustedProviders: [...SOCIAL_PROVIDERS] } },
+    databaseHooks: {
+      user: {
+        update: {
+          before: async (data, context) => {
+            if (context?.path !== '/update-user') return
+            const result = profileUpdate(data)
+            if (!result.ok) throw new APIError('BAD_REQUEST', { message: result.error })
+            return { data: result.data }
+          },
+        },
+      },
+    },
     /*
      * Limits are per IP, and two people at the same table share one: a pair signing
      * up in the same room must not lock each other out. Generous enough for that,

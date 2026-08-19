@@ -100,6 +100,15 @@ export class PraetoriumService {
     return id
   }
 
+  playerProfile(viewerId: string, playerId: string) {
+    const profile = this.repository.profileByPlayerId(playerId)
+    if (!profile) return null
+    if (viewerId === playerId) return profile
+    return this.repository.battlesByPlayer(viewerId).some((battle) => battle.players.some((player) => player.id === playerId))
+      ? profile
+      : null
+  }
+
   saveRoster(
     playerId: string,
     roster: {

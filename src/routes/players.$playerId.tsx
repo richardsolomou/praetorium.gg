@@ -1,11 +1,16 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { SignInRequired } from '../client/components/SignInRequired'
-import { battlesQuery, meQuery } from '../client/queries'
+import { PlayerAvatar } from '../client/components/PlayerAvatar'
+import { battlesQuery, meQuery, playerProfileQuery } from '../client/queries'
 
 export const Route = createFileRoute('/players/$playerId')({
-  loader: ({ context }) =>
-    Promise.all([context.queryClient.ensureQueryData(meQuery()), context.queryClient.ensureQueryData(battlesQuery())]),
+  loader: ({ context, params }) =>
+    Promise.all([
+      context.queryClient.ensureQueryData(meQuery()),
+      context.queryClient.ensureQueryData(battlesQuery()),
+      context.queryClient.ensureQueryData(playerProfileQuery(params.playerId)),
+    ]),
   component: PlayerProfile,
 })
 
@@ -22,11 +27,11 @@ function PlayerProfile() {
   const { playerId } = Route.useParams()
   const { data: me } = useQuery(meQuery())
   const { data: battles = [] } = useQuery(battlesQuery())
+  const { data: profile } = useQuery(playerProfileQuery(playerId))
   if (!me) return <SignInRequired title="Player" explanation="Sign in to see the players you have shared a battle with." />
 
   const shared = battles.filter((battle) => battle.playerIds.includes(playerId))
-  const name = shared.flatMap((battle) => nameOf(battle, playerId)).find(Boolean)
-  if (!name) {
+  if (!profile) {
     return (
       <main className="mx-auto w-full max-w-2xl px-4 py-12 text-center">
         <h1 className="text-2xl">Nothing here</h1>
@@ -48,16 +53,19 @@ function PlayerProfile() {
 
   return (
     <main className="mx-auto w-full max-w-3xl space-y-6 px-4 py-8">
-      <header className="border-b border-edge pb-4">
-        <p className="eyebrow">{yourself ? 'You' : 'Player'}</p>
-        <h1 className="text-2xl">{name}</h1>
-        <p className="mt-2 text-sm text-dim">
-          {yourself
-            ? `${shared.length} ${shared.length === 1 ? 'battle' : 'battles'} played.`
-            : `${shared.length} ${shared.length === 1 ? 'battle' : 'battles'} with you${
-                together ? `, ${together} of them on the same side` : ''
-              }.`}
-        </p>
+      <header className="flex items-center gap-4 border-b border-edge pb-4">
+        <PlayerAvatar name={profile.name} image={profile.image} className="size-20 text-2xl" />
+        <div className="min-w-0">
+          <p className="eyebrow">{yourself ? 'You' : 'Player'}</p>
+          <h1 className="truncate text-2xl">{profile.name}</h1>
+          <p className="mt-2 text-sm text-dim">
+            {yourself
+              ? `${shared.length} ${shared.length === 1 ? 'battle' : 'battles'} played.`
+              : `${shared.length} ${shared.length === 1 ? 'battle' : 'battles'} with you${
+                  together ? `, ${together} of them on the same side` : ''
+                }.`}
+          </p>
+        </div>
       </header>
 
       <section>
@@ -109,11 +117,6 @@ function Tally({ label, value, className }: { label: string; value: number; clas
       <p className={`readout text-3xl leading-none font-bold ${className}`}>{value}</p>
     </div>
   )
-}
-
-const nameOf = (battle: Battle, playerId: string) => {
-  const at = battle.playerIds.indexOf(playerId)
-  return at === -1 ? [] : [battle.players[at]]
 }
 
 const sideOf = (battle: Battle, playerId: string) => {

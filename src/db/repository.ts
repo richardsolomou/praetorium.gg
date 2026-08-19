@@ -11,7 +11,7 @@ import {
 import { commandSchema } from '../core/commands'
 import type { RosterSource } from '../core/savedRoster'
 import type { PraetoriumDatabase } from './connection'
-import { battlePlayers, battles, collection, commands, favouriteFactions, friendships, players, rosters } from './schema'
+import { battlePlayers, battles, collection, commands, favouriteFactions, friendships, players, rosters, user } from './schema'
 
 type BattleRecord = { id: string; token: string; createdAt: number }
 type BattlePlayer = { id: string; name: string; side: number }
@@ -77,6 +77,15 @@ export class Repository {
 
   playerById(id: string) {
     return this.database.select().from(players).where(eq(players.id, id)).get()
+  }
+
+  profileByPlayerId(id: string) {
+    return this.database
+      .select({ id: players.id, name: players.name, image: user.image })
+      .from(players)
+      .innerJoin(user, eq(user.id, players.userId))
+      .where(eq(players.id, id))
+      .get()
   }
 
   playersExcept(playerId: string) {
