@@ -135,7 +135,6 @@ export function Setup({ view, mission, send, pending, problem }: Props) {
                       key={pack.id}
                       variant={view.settings.missionPackId === pack.id ? 'default' : 'outline'}
                       size="sm"
-                      disabled={pending}
                       onClick={() => configure({ missionPackId: pack.id })}
                     >
                       {pack.name}
@@ -171,16 +170,12 @@ export function Setup({ view, mission, send, pending, problem }: Props) {
       </section>
 
       <footer className="flex items-center justify-between gap-3 border-t border-edge pt-4">
-        <Button
-          variant="outline"
-          disabled={at === 0 || pending}
-          onClick={() => send({ kind: 'set-setup-step', step: Math.max(0, at - 1) })}
-        >
+        <Button variant="outline" disabled={at === 0} onClick={() => send({ kind: 'set-setup-step', step: Math.max(0, at - 1) })}>
           Back
         </Button>
         {blocked ? <p className="text-xs text-dim">{blocked}</p> : null}
         {at === steps.length - 1 ? null : (
-          <Button disabled={blocked !== null || pending} onClick={() => send({ kind: 'set-setup-step', step: at + 1 })}>
+          <Button disabled={blocked !== null} onClick={() => send({ kind: 'set-setup-step', step: at + 1 })}>
             Next
           </Button>
         )}

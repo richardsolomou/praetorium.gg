@@ -43,8 +43,10 @@ test('a tactical hand is dealt rather than chosen, and pays out when the card sa
     0,
   )
 
-  // Nothing is scoreable mid-turn: the ask arrives with the moment the card names.
+  // Nothing is scoreable mid-turn, and a mission cannot be completed early either:
+  // both arrive with the moment the card names.
   await expect(alice.getByRole('button', { name: /plus \d/ })).toHaveCount(0)
+  await expect(alice.getByRole('button', { name: 'Achieve' })).toHaveCount(0)
   for (const phase of ['command', 'movement', 'shooting', 'charge', 'fight']) {
     await alice.getByRole('button', { name: `End the ${phase} phase` }).click()
     await expect(alice.getByRole('heading', { name: new RegExp(`${phase} phase`) })).toHaveCount(0)
@@ -52,14 +54,19 @@ test('a tactical hand is dealt rather than chosen, and pays out when the card sa
 
   // Passing the turn is the moment an end-of-turn card pays, so that is when it is offered.
   await alice.getByRole('button', { name: 'Pass the turn' }).click()
-  const scoring = alice.getByRole('dialog', { name: /^Score as you pass the turn/ })
+  const scoring = alice.getByRole('dialog', { name: /^Scoring end of turn points/ })
   await expect(scoring).toBeVisible()
-  // Whichever cards the matchup dealt, the payouts on offer are the card's own numbers.
-  const award = scoring.getByRole('button', { name: / plus \d/ }).first()
-  const scored = Number((await award.innerText()).replace(/[^0-9]/g, ''))
-  await award.click()
-  await expect(panel.locator('[data-stat="vp"]')).toHaveText(String(scored))
+  // Whichever cards the matchup dealt, a flat payout is a yes or no rather than
+  // something that can be pressed twice for double the points.
+  const answer = scoring.getByRole('button', { name: /plus \d+$/ }).first()
+  const scored = Number((await answer.innerText()).replace(/[^0-9]/g, ''))
+  await answer.click()
+  await expect(scoring).toContainText(`Scoring ${scored} VP`)
+  await answer.click()
+  await expect(scoring).toContainText('Scoring 0 VP')
+  await answer.click()
   await scoring.getByRole('button', { name: 'Pass the turn' }).click()
+  await expect(panel.locator('[data-stat="vp"]')).toHaveText(String(scored))
   await expect(bob.locator('[data-panel="player"]').filter({ hasText: 'Death Guard' }).locator('[data-stat="vp"]')).toHaveText(
     String(scored),
   )

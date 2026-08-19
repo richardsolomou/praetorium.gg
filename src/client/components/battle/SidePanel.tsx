@@ -98,7 +98,6 @@ export function SidePanel({
                 variant="secondary"
                 size="xs"
                 title="Gain one additional command point"
-                disabled={pending}
                 onClick={() => send({ kind: 'adjust-cp', delta: 1 })}
               >
                 +1 CP

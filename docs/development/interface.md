@@ -14,7 +14,9 @@ Praetorium uses a compact, dark visual system. See [the product design guide](..
 - Choose saved rosters in a dialog ordered like the roster library. Keep battlefield selection stable while its command saves, and open each battlefield in a full-size dialog without changing the selection.
 - In the live tracker, show only stratagems valid for the current turn and phase. The CP badge spends the printed cost; the overflow menu handles modified costs. A stratagem opens the same text the detachment page prints, from `detachmentRules`.
 - Keep missions and stratagems side by side in a side panel. Both are read constantly, so neither is worth scrolling for, and neither carries a per-round breakdown.
-- Ask for a card's points only as the phase or turn its own data names comes to an end. `src/client/scoring.ts` decides which cards are due; the controls exist only in that prompt, never in the panel.
+- Ask for a card's points only as the phase or turn its own data names comes to an end. `src/client/scoring.ts` decides which cards are due; the controls exist only in that prompt, never in the panel. Completing a mission is asked there too, for the same reason.
+- Word the prompt as the card does: its own text, then one row per condition with what meeting it pays, and a row for scoring nothing. The rows a card marks as one group are alternatives, so picking one clears the others and a flat payout cannot be taken twice. A counted payout is a count, bounded by the ceiling the card sets.
+- A card that pays on the opponent's turn is settled on the device that holds it, as the turn comes back. The shared prompts belong to the seat that owns a side's cards, so a 2v1 cannot answer them twice.
 - Deal a tactical hand rather than offering the deck. The prompt opens at the top of the player's turn, draws at random, and offers a card back only where `whenDrawn` says the rules allow it.
 - Record the battle-ready bonus during setup and add it to the score only once the battle is finished.
 - Link a player's name to their profile and their list to `/r/$id` with the battle token, which is what entitles a seated opponent to read it.
@@ -25,6 +27,7 @@ Praetorium uses a compact, dark visual system. See [the product design guide](..
 
 ## Components and styles
 
+- Do not disable controls while a command is in flight. `useCommand` sends them in order, so a player's own taps cannot race each other and nothing has to go dead to prevent it.
 - `src/components/ui` contains generated shadcn Base UI components. Add or replace them with the shadcn CLI. Do not edit them by hand.
 - `src/styles.css` maps root tokens to Tailwind color utilities through `@theme inline`. Generated components depend on that mapping.
 - Barlow Semi Condensed handles the compact display hierarchy; regular Barlow handles paragraph-length rules text. Both OFL-licensed faces are registered in the main stylesheet and preloaded by the root route. Do not add a font without its license or hide it behind client-side loading.

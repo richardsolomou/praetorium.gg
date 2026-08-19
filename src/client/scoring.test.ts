@@ -1,8 +1,22 @@
 import { describe, expect, it } from 'vitest'
-import { type AwardTrigger, cardsDue, dueNow, momentsPassed } from './scoring'
+import type { MissionAward } from './missionText'
+import { type AwardTrigger, cardsDue, cardsDueFromTheirTurn, dueNow, momentsPassed } from './scoring'
 
 const ANY: AwardTrigger = { timing: null, phase: null, playerTurn: null, roundMin: null, roundMax: null }
 const trigger = (overrides: Partial<AwardTrigger>): AwardTrigger => ({ ...ANY, ...overrides })
+const payout = (vp: number, on: Partial<AwardTrigger>): MissionAward => ({
+  vp,
+  per: null,
+  mode: null,
+  when: null,
+  max: null,
+  parameters: {},
+  operator: null,
+  operands: [],
+  group: null,
+  cumulative: false,
+  trigger: trigger(on),
+})
 const at = (phase: string, round = 1, rounds = 5) => ({ phase, round, rounds }) as Parameters<typeof dueNow>[1]
 
 describe('when a mission is asked about', () => {
@@ -64,7 +78,7 @@ describe('when a mission is asked about', () => {
         key: 'later',
         name: 'Later',
         category: 'secondary' as const,
-        awards: [{ vp: 3, per: null, mode: null, when: null, trigger: trigger({ timing: 'end-of-turn' }) }],
+        awards: [payout(3, { timing: 'end-of-turn' })],
       },
     ]
     expect(cardsDue(at('command'), true, cards)).toEqual([])
@@ -76,12 +90,53 @@ describe('when a mission is asked about', () => {
         key: 'mixed',
         name: 'Mixed',
         category: 'primary' as const,
-        awards: [
-          { vp: 2, per: null, mode: null, when: null, trigger: trigger({ timing: 'end-of-turn' }) },
-          { vp: 3, per: null, mode: null, when: null, trigger: trigger({ timing: 'end-of-phase', phase: 'command' }) },
-        ],
+        awards: [payout(2, { timing: 'end-of-turn' }), payout(3, { timing: 'end-of-phase', phase: 'command' })],
       },
     ]
     expect(cardsDue(at('command'), true, cards)[0]?.awards.map((award) => award.vp)).toEqual([3])
+  })
+
+  it('settles what the opponent’s turn owed a card that pays on it', () => {
+    const cards = [
+      {
+        key: 'guard',
+        name: 'Guard',
+        category: 'secondary' as const,
+        awards: [payout(2, { timing: 'end-of-turn', playerTurn: 'opponent-turn' })],
+      },
+    ]
+    expect(cardsDueFromTheirTurn(1, cards)).toHaveLength(1)
+  })
+
+  it('settles an either-turn card from their turn as well as your own', () => {
+    const cards = [
+      { key: 'kills', name: 'Kills', category: 'secondary' as const, awards: [payout(2, { timing: 'end-of-turn', playerTurn: 'either' })] },
+    ]
+    expect(cardsDueFromTheirTurn(1, cards)).toHaveLength(1)
+  })
+
+  it('leaves your own-turn cards to your own turn', () => {
+    const cards = [
+      {
+        key: 'mine',
+        name: 'Mine',
+        category: 'secondary' as const,
+        awards: [payout(3, { timing: 'end-of-turn', playerTurn: 'your-turn' })],
+      },
+    ]
+    expect(cardsDueFromTheirTurn(1, cards)).toEqual([])
+  })
+
+  it('judges their turn against the round it was played in', () => {
+    const cards = [
+      {
+        key: 'late',
+        name: 'Late',
+        category: 'secondary' as const,
+        awards: [payout(3, { timing: 'end-of-turn', playerTurn: 'opponent-turn', roundMin: 2 })],
+      },
+    ]
+    expect(cardsDueFromTheirTurn(1, cards)).toEqual([])
+    expect(cardsDueFromTheirTurn(2, cards)).toHaveLength(1)
   })
 })

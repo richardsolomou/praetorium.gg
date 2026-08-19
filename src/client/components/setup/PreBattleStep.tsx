@@ -22,7 +22,7 @@ export function PreBattleStep({ view, sides, missionId, send, pending }: Props) 
           <section key={side.index} className={`space-y-3 rounded-sm border border-edge border-t-2 bg-panel p-3 ${tint(side.index).edge}`}>
             <p className={`text-sm font-bold uppercase ${tint(side.index).text}`}>{sideName(side)}</p>
             {side.armies.map((army) => (
-              <ArmySetup key={army.playerId} army={army} multiple={side.armies.length > 1} pending={pending} send={send} />
+              <ArmySetup key={army.playerId} army={army} multiple={side.armies.length > 1} send={send} />
             ))}
           </section>
         ))}
@@ -44,17 +44,7 @@ export function PreBattleStep({ view, sides, missionId, send, pending }: Props) 
   )
 }
 
-function ArmySetup({
-  army,
-  multiple,
-  pending,
-  send,
-}: {
-  army: Army
-  multiple: boolean
-  pending: boolean
-  send: (command: Command) => void
-}) {
+function ArmySetup({ army, multiple, send }: { army: Army; multiple: boolean; send: (command: Command) => void }) {
   return (
     <article className="space-y-2">
       <div className="flex items-baseline justify-between gap-2 border-b border-edge pb-1">
@@ -84,7 +74,6 @@ function ArmySetup({
                 variant={unit.formation === formation ? 'default' : 'outline'}
                 size="xs"
                 aria-label={`Start ${unit.name} in ${formationLabel(formation)}`}
-                disabled={pending}
                 onClick={() => send({ kind: 'set-unit-formation', unitKey: unit.key, formation, playerId: army.playerId })}
               >
                 {formationLabel(formation)}
@@ -101,7 +90,6 @@ function ArmySetup({
           variant={army.painted ? 'default' : 'outline'}
           size="xs"
           aria-label={`${army.painted ? 'Remove' : 'Add'} the battle ready bonus for ${army.roster?.name ?? army.playerName}`}
-          disabled={pending}
           onClick={() => send({ kind: 'set-painted', painted: !army.painted, playerId: army.playerId })}
         >
           {army.painted ? 'Remove' : 'Add'} bonus

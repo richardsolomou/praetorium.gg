@@ -113,7 +113,7 @@ export function Prep({ view, missionId, send, pending }: Props) {
           size="sm"
         >
           {SECONDARY_MODES.filter((entry) => !tacticalOnly || entry === 'tactical').map((entry) => (
-            <ToggleGroupItem key={entry} value={entry} disabled={pending}>
+            <ToggleGroupItem key={entry} value={entry}>
               {entry === 'fixed' ? 'Fixed' : 'Tactical'}
             </ToggleGroupItem>
           ))}
@@ -131,7 +131,6 @@ export function Prep({ view, missionId, send, pending }: Props) {
         <SecondaryPicker
           cards={rules.secondaries}
           chosen={chosen}
-          pending={pending}
           onToggle={(card) => {
             const held = chosen.some((entry) => entry.key === card.key)
             const secondaries = held
@@ -154,12 +153,10 @@ export function Prep({ view, missionId, send, pending }: Props) {
 function SecondaryPicker({
   cards,
   chosen,
-  pending,
   onToggle,
 }: {
   cards: readonly { key: string; name: string }[]
   chosen: readonly Secondary[]
-  pending: boolean
   onToggle: (card: { key: string; name: string }) => void
 }) {
   const scroller = useRef<HTMLDivElement>(null)
@@ -181,7 +178,6 @@ function SecondaryPicker({
             <button
               key={card.key}
               type="button"
-              disabled={pending}
               aria-pressed={held}
               onClick={() => onToggle(card)}
               className={`absolute top-0 left-0 flex w-full items-center justify-between gap-2 rounded-sm border px-2.5 py-1.5 text-left ${

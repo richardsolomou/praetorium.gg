@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { deleteBattle } from '../../server/functions'
 import { battleQuery, battlesQuery, deploymentsQuery, detachmentRulesQuery, gameReferencesQuery } from '../queries'
@@ -12,7 +12,7 @@ import { BattleMenu } from './battle/BattleMenu'
 import { DrawDialog, type WhenDrawn } from './battle/DrawDialog'
 import type { Award, ReferenceCard, StratagemText } from './battle/MissionCards'
 import { Scoreboard } from './battle/Scoreboard'
-import { dueForAdvance, ScoringDialog } from './battle/ScoringDialog'
+import { dueForAdvance, dueFromTheirTurn, ScoringDialog } from './battle/ScoringDialog'
 import { SidePanel } from './battle/SidePanel'
 import { HEADING } from './battle/tints'
 import { TurnControl } from './battle/TurnControl'
@@ -96,12 +96,28 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
   // Only what the card itself says pays out at this moment, so the ask arrives with the phase that ends.
   const due = yours && !finished ? dueForAdvance(view, yours, awardsFor) : []
   const advance = () => (due.length ? setScoring(true) : send({ kind: 'advance' }))
+  // Shared cards are written by one seat, the way prep is, so a 2v1 cannot draw twice
+  // or score its one hand twice from two devices.
+  const keeper = yours?.captain.id === view.viewerId
+  // A card that pays on the opponent's turn comes due while they hold the controls, so
+  // this side is asked about it as the turn comes back rather than never.
+  const seen = useRef({ round: view.round, active: view.activePlayerId })
+  const [owed, setOwed] = useState<{ round: number; at: string } | null>(null)
+  useEffect(() => {
+    const before = seen.current
+    seen.current = { round: view.round, active: view.activePlayerId }
+    if (view.status !== 'playing' || before.active === view.activePlayerId || before.active === null) return
+    const theirs = view.players.find((player) => player.id === before.active)?.side !== yours?.index
+    if (theirs && keeper) setOwed({ round: before.round, at: `${before.round}-${before.active}` })
+  }, [view.activePlayerId, view.round, view.status, view.players, yours?.index, keeper])
+  const owedCards = owed && yours && !finished ? dueFromTheirTurn(owed.round, yours, awardsFor) : []
   // A tactical hand is dealt at the top of your own turn, and only once for it.
   const turnKey = `${view.round}-${view.activePlayerId ?? ''}`
   const handShort =
     !finished &&
-    Boolean(yours?.isActive) &&
-    yours?.secondaryMode === 'tactical' &&
+    keeper &&
+    yours?.isActive &&
+    yours.secondaryMode === 'tactical' &&
     view.phase === 'command' &&
     yours.secondaries.filter((card) => card.status === 'active').length < 2 &&
     yours.remainingSecondaries.length > 0
@@ -213,9 +229,10 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
 
       {scoring && yours ? (
         <ScoringDialog
-          view={view}
           side={yours}
           due={due}
+          moment={view.phase === 'end' ? 'end of turn' : `end of ${view.phase} phase`}
+          confirmLabel={view.phase === 'end' ? 'Pass the turn' : 'End the phase'}
           pending={pending}
           send={send}
           referenceFor={referenceFor}
@@ -224,6 +241,20 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
             setScoring(false)
             send({ kind: 'advance' })
           }}
+        />
+      ) : null}
+
+      {owedCards.length && yours ? (
+        <ScoringDialog
+          side={yours}
+          due={owedCards}
+          moment="end of their turn"
+          confirmLabel="Take the turn"
+          pending={pending}
+          send={send}
+          referenceFor={referenceFor}
+          onCancel={() => setOwed(null)}
+          onDone={() => setOwed(null)}
         />
       ) : null}
 

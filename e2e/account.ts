@@ -164,19 +164,34 @@ export async function chooseBattlefield(page: Page) {
 export const advanceButton = (page: Page) => page.getByRole('button', { name: /^(End the .+ phase|Pass the turn)$/ })
 
 const drawPrompt = (page: Page) => page.getByRole('dialog', { name: 'Your secondary missions' })
+/** What the turn the other side just finished owed this one, asked as the turn arrives. */
+const owedPrompt = (page: Page) => page.getByRole('dialog', { name: /^Scoring end of their turn/ })
 
-/** Clears the hand a tactical turn opens with, if it is on screen. */
+/**
+ * Clears whatever a turn opens with: what their turn owed, and the hand this one deals.
+ *
+ * Raced against the board rather than waited for: both prompts are modal, so the board
+ * only reaches the accessibility tree when nothing is covering it, and whichever
+ * arrives first is the answer.
+ */
 export async function takeTheTurn(page: Page) {
-  const drawn = drawPrompt(page)
-  if (
-    !(await drawn
-      .waitFor({ state: 'visible', timeout: 4000 })
-      .then(() => true)
-      .catch(() => false))
-  )
-    return
-  await drawn.getByRole('button', { name: 'Take the turn' }).click()
-  await expect(drawn).toBeHidden()
+  for (let guard = 0; guard < 3; guard += 1) {
+    const seen = await Promise.race([
+      owedPrompt(page)
+        .waitFor({ state: 'visible', timeout: 8_000 })
+        .then(() => 'owed'),
+      drawPrompt(page)
+        .waitFor({ state: 'visible', timeout: 8_000 })
+        .then(() => 'drawn'),
+      advanceButton(page)
+        .waitFor({ state: 'visible', timeout: 8_000 })
+        .then(() => 'board'),
+    ]).catch(() => 'board')
+    if (seen === 'board') return
+    const prompt = seen === 'owed' ? owedPrompt(page) : drawPrompt(page)
+    await prompt.getByRole('button', { name: 'Take the turn' }).click()
+    await expect(prompt).toBeHidden()
+  }
 }
 
 /**
@@ -188,10 +203,10 @@ export async function takeTheTurn(page: Page) {
  */
 export async function advance(page: Page) {
   for (let guard = 0; guard < 3; guard += 1) {
-    const drawn = drawPrompt(page)
-    if (await drawn.isVisible().catch(() => false)) {
-      await drawn.getByRole('button', { name: 'Take the turn' }).click()
-      await expect(drawn).toBeHidden()
+    for (const prompt of [owedPrompt(page), drawPrompt(page)]) {
+      if (!(await prompt.isVisible().catch(() => false))) continue
+      await prompt.getByRole('button', { name: 'Take the turn' }).click()
+      await expect(prompt).toBeHidden()
     }
     const clicked = await advanceButton(page)
       .click({ timeout: 5_000 })
@@ -200,7 +215,7 @@ export async function advance(page: Page) {
     if (clicked) break
     if (guard === 2) throw new Error('Never reached the button that ends the phase')
   }
-  const scoring = page.getByRole('dialog', { name: /^Score / })
+  const scoring = page.getByRole('dialog', { name: /^Scoring end of (turn|command|movement|shooting|charge|fight) / })
   if (await scoring.isVisible().catch(() => false)) {
     await scoring.getByRole('button', { name: /^(Pass the turn|End the phase)$/ }).click()
     await expect(scoring).toBeHidden()

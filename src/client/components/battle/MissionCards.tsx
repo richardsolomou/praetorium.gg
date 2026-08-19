@@ -6,13 +6,9 @@ import type { Side } from '../../sides'
 import { MissionCardReference } from '../MissionCardReference'
 import { CARD, CARD_NAME, HEADING } from './tints'
 
-export type Award = {
-  vp: number
-  per: string | null
-  mode: string | null
-  when: string | null
-  trigger: { timing: string | null; phase: string | null; playerTurn: string | null; roundMin: number | null; roundMax: number | null }
-}
+import type { MissionAward as Award } from '../../missionText'
+
+export type { MissionAward as Award } from '../../missionText'
 
 export type ReferenceCard = ComponentProps<typeof MissionCardReference>['card']
 
@@ -71,23 +67,10 @@ export function SecondaryMissions({ side, actionable, pending, send, referenceFo
             </span>
             <span className="readout shrink-0 font-bold">{secondary.points}</span>
           </div>
-          {actionable && secondary.status === 'active' ? (
-            <div className="flex flex-wrap gap-1">
-              <Button
-                variant="ghost"
-                size="xs"
-                className="text-achieved"
-                disabled={pending}
-                onClick={() => send({ kind: 'set-secondary-status', key: secondary.key, status: 'achieved' })}
-              >
-                Achieve
-              </Button>
-              {secondary.secret && !secondary.revealed ? (
-                <Button variant="ghost" size="xs" className="text-azure" disabled={pending} onClick={() => send({ kind: 'reveal-secret' })}>
-                  Reveal
-                </Button>
-              ) : null}
-            </div>
+          {actionable && secondary.secret && !secondary.revealed ? (
+            <Button variant="ghost" size="xs" className="text-azure" onClick={() => send({ kind: 'reveal-secret' })}>
+              Reveal
+            </Button>
           ) : null}
         </div>
       ))}

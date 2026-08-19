@@ -1,5 +1,5 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Command, SubmitResult } from '../core/battle'
 import { submit } from '../server/functions'
 import { battleQuery } from './queries'
@@ -14,28 +14,65 @@ function explain(result: SubmitResult) {
 }
 
 /**
- * Sends one command, conditional on the history the page is currently showing.
+ * Sends commands one at a time, each conditional on the history the last one left.
  *
  * A refusal and a lost race are both answers rather than failures: the domain's
  * own wording goes on screen, and the answer carries the battle as it now stands,
- * so the page is never left acting on what it has already changed. Waiting for a
- * refetch to say so is a round trip during which the page holds a view older than
- * its own last command — which sent a stale seq, and named the wrong command to
- * undo. Invisible on localhost; the ordinary case across the internet, where
- * setting a battle up is several commands in a row.
+ * so the page is never left acting on what it has already changed.
+ *
+ * They queue rather than block. `expectedSeq` covers the whole log, so two of a
+ * player's own taps would otherwise race each other, and the only way to stop that
+ * was to disable every control on the page until each round trip came back —
+ * which made the whole battle flicker on every press. Sending in order removes the
+ * race instead of hiding it, and leaves a stale answer meaning what it says: the
+ * opponent moved.
  */
 export function useCommand(token: string, seq: number) {
   const queryClient = useQueryClient()
   const [problem, setProblem] = useState<string | null>(null)
-  const mutation = useMutation({
-    mutationFn: (command: Command) => submit({ data: { token, expectedSeq: seq, command } }),
-    onSuccess: ({ result, screen }) => {
-      setProblem(explain(result))
-      queryClient.setQueryData(battleQuery(token).queryKey, screen)
-      void queryClient.invalidateQueries({ queryKey: ['report', token] })
-    },
-    onError: (error) => setProblem(errorMessage(error)),
-  })
+  const [pending, setPending] = useState(false)
+  /** The history this hook last saw, which runs ahead of props between renders. */
+  const seen = useRef(seq)
+  const queued = useRef<Command[]>([])
+  const draining = useRef(false)
 
-  return { send: mutation.mutate, problem, pending: mutation.isPending }
+  useEffect(() => {
+    seen.current = Math.max(seen.current, seq)
+  }, [seq])
+
+  const drain = useCallback(async () => {
+    if (draining.current) return
+    draining.current = true
+    try {
+      while (queued.current.length) {
+        const command = queued.current.shift()
+        if (!command) break
+        try {
+          const { result, screen } = await submit({ data: { token, expectedSeq: seen.current, command } })
+          setProblem(explain(result))
+          queryClient.setQueryData(battleQuery(token).queryKey, screen)
+          if (screen?.kind === 'battle') seen.current = Math.max(seen.current, screen.view.seq)
+          void queryClient.invalidateQueries({ queryKey: ['report', token] })
+        } catch (error) {
+          // Whatever was behind this one was written against a history that never happened.
+          setProblem(errorMessage(error))
+          queued.current = []
+        }
+      }
+    } finally {
+      draining.current = false
+      setPending(false)
+    }
+  }, [queryClient, token])
+
+  const send = useCallback(
+    (command: Command) => {
+      queued.current.push(command)
+      setPending(true)
+      void drain()
+    },
+    [drain],
+  )
+
+  return { send, problem, pending }
 }

@@ -1,20 +1,14 @@
 import type { BattleView, Phase } from '../core/battle'
 
-export type AwardTrigger = {
-  timing: string | null
-  phase: string | null
-  playerTurn: string | null
-  roundMin: number | null
-  roundMax: number | null
-}
+import type { MissionAward } from './missionText'
 
-export type ScoringAward = { vp: number; per: string | null; mode: string | null; when: string | null; trigger: AwardTrigger }
+export type AwardTrigger = MissionAward['trigger']
 
 export type DueCard = {
   key: string
   name: string
   category: 'primary' | 'secondary'
-  awards: ScoringAward[]
+  awards: MissionAward[]
 }
 
 /**
@@ -44,11 +38,40 @@ export function dueNow(trigger: AwardTrigger, view: Pick<BattleView, 'phase' | '
   return true
 }
 
+/**
+ * What the turn that has just ended owes a side that was not taking it.
+ *
+ * A card that pays on the opponent's turn comes due while the other player holds
+ * the controls, so it can never be settled by the advance that ends your own. The
+ * round is the one the ended turn was in, which is not always the current one: the
+ * second player passing the turn starts the next round.
+ */
+export function cardsDueFromTheirTurn(
+  round: number,
+  cards: readonly { key: string; name: string; category: 'primary' | 'secondary'; awards: readonly MissionAward[] }[],
+): DueCard[] {
+  return cards
+    .map((card) => ({
+      key: card.key,
+      name: card.name,
+      category: card.category,
+      awards: card.awards.filter((award) => {
+        const trigger = award.trigger
+        if (trigger.timing !== 'end-of-turn') return false
+        if (trigger.playerTurn !== 'opponent-turn' && trigger.playerTurn !== 'either') return false
+        if (trigger.roundMin !== null && round < trigger.roundMin) return false
+        if (trigger.roundMax !== null && round > trigger.roundMax) return false
+        return true
+      }),
+    }))
+    .filter((card) => card.awards.length > 0)
+}
+
 /** Every card with a payout due at this advance, and only the payouts that are due. */
 export function cardsDue(
   view: Pick<BattleView, 'phase' | 'round' | 'rounds'>,
   yourTurn: boolean,
-  cards: readonly { key: string; name: string; category: 'primary' | 'secondary'; awards: readonly ScoringAward[] }[],
+  cards: readonly { key: string; name: string; category: 'primary' | 'secondary'; awards: readonly MissionAward[] }[],
 ): DueCard[] {
   return cards
     .map((card) => ({

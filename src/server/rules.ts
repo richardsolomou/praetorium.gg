@@ -62,10 +62,17 @@ type RuleParameter = string | number | boolean | null | { side?: string; window?
 type RawAward = {
   vp?: number
   vp_per?: number
+  vp_max?: number
   per?: string
   mode?: string
   cumulative?: boolean
-  when?: { type?: string; parameters?: Record<string, RuleParameter> }
+  when?: {
+    type?: string
+    parameters?: Record<string, RuleParameter>
+    operator?: string
+    operands?: { type?: string; parameters?: Record<string, RuleParameter> }[]
+  }
+  exclusive_group?: string
   trigger?: RawTrigger
 }
 
@@ -211,7 +218,14 @@ type Award = {
   per: string | null
   mode: string | null
   when: string | null
+  /** The most a per-something payout may pay in total, when the card caps it. */
+  max: number | null
   parameters: Record<string, RuleParameter>
+  /** How the parts of a compound condition combine, when the card states one. */
+  operator: string | null
+  operands: { type: string; parameters: Record<string, RuleParameter> }[]
+  /** Payouts sharing a group are alternatives: the card pays one of them, not both. */
+  group: string | null
   cumulative: boolean
   trigger: Trigger
 }
@@ -753,9 +767,15 @@ function toCard(raw: RawCard): MissionCard {
     .map((award) => ({
       vp: award.vp ?? award.vp_per ?? 0,
       per: award.vp_per ? (award.per ?? 'each') : null,
+      max: award.vp_max ?? null,
       mode: award.mode ?? null,
       when: award.when?.type ?? null,
       parameters: award.when?.parameters ?? {},
+      operator: award.when?.operator ?? null,
+      operands: (award.when?.operands ?? []).flatMap((operand) =>
+        operand.type ? [{ type: operand.type, parameters: operand.parameters ?? {} }] : [],
+      ),
+      group: award.exclusive_group ?? null,
       cumulative: award.cumulative ?? false,
       trigger: {
         timing: award.trigger?.timing ?? null,
@@ -799,7 +819,7 @@ function dedupe(awards: Award[]): Award[] {
   for (const award of awards) {
     const trigger = award.trigger
     seen.set(
-      `${award.vp}/${award.per}/${award.mode}/${award.when}/${JSON.stringify(award.parameters)}/${award.cumulative}/${trigger.timing}/${trigger.phase}/${trigger.playerTurn}/${trigger.roundMin}/${trigger.roundMax}`,
+      `${award.vp}/${award.per}/${award.max}/${award.mode}/${award.when}/${JSON.stringify(award.parameters)}/${JSON.stringify(award.operands)}/${award.group}/${award.cumulative}/${trigger.timing}/${trigger.phase}/${trigger.playerTurn}/${trigger.roundMin}/${trigger.roundMax}`,
       award,
     )
   }
