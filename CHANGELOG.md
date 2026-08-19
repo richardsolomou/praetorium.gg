@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.10.0
+
+### Minor Changes
+
+- 0c66b6a: Show faction icons and faction and detachment links on battle scoreboards.
+
 ## 0.9.0
 
 ### Minor Changes
