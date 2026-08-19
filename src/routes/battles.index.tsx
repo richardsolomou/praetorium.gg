@@ -1,16 +1,29 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
+import { EllipsisVertical, Eye, Trash2 } from 'lucide-react'
 import { useState } from 'react'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
+import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu'
 import { GAME_SIZES } from '../core/battle'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { SignInRequired } from '../client/components/SignInRequired'
 import { battlesQuery, gameReferencesQuery, meQuery, opponentsQuery } from '../client/queries'
 import { useLiveBattles } from '../client/useLiveBattle'
 import { errorMessage } from '../client/queryClient'
-import { createBattle } from '../server/functions'
+import { createBattle, deleteBattle } from '../server/functions'
 
 type Battle = Awaited<ReturnType<NonNullable<ReturnType<typeof battlesQuery>['queryFn']>>>[number]
 
@@ -35,6 +48,12 @@ export const Route = createFileRoute('/battles/')({
 function Battles() {
   const { data: me } = useQuery(meQuery())
   const { data: battles = [] } = useQuery(battlesQuery())
+  const [deleting, setDeleting] = useState<Battle | null>(null)
+  const queryClient = useQueryClient()
+  const remove = useMutation({
+    mutationFn: (token: string) => deleteBattle({ data: { token } }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: battlesQuery().queryKey }),
+  })
   // Being added to a battle happens on someone else's device, so this page is told.
   useLiveBattles(Boolean(me))
   if (!me) return <SignInRequired title="Your battles" explanation="Sign in to see the battles you have played and the ones still going." />
@@ -50,13 +69,51 @@ function Battles() {
       </div>
       {battles.length ? (
         <div className="mt-5 space-y-6">
-          <BattleShelf title="Active" battles={battles.filter((battle) => battle.status === 'playing')} />
-          <BattleShelf title="Setup" battles={battles.filter((battle) => battle.status === 'setup')} />
-          <BattleShelf title="Finished" battles={battles.filter((battle) => battle.status === 'finished')} />
+          <BattleShelf
+            title="Active"
+            battles={battles.filter((battle) => battle.status === 'playing')}
+            viewerId={me.id}
+            onDelete={setDeleting}
+          />
+          <BattleShelf
+            title="Setup"
+            battles={battles.filter((battle) => battle.status === 'setup')}
+            viewerId={me.id}
+            onDelete={setDeleting}
+          />
+          <BattleShelf
+            title="Finished"
+            battles={battles.filter((battle) => battle.status === 'finished')}
+            viewerId={me.id}
+            onDelete={setDeleting}
+          />
         </div>
       ) : (
         <p className="mt-4 border border-edge bg-panel p-6 text-sm text-dim">No battles yet.</p>
       )}
+      <AlertDialog open={Boolean(deleting)} onOpenChange={(open) => !open && setDeleting(null)}>
+        <AlertDialogContent className="rounded-none border border-edge bg-panel text-bone ring-0">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="uppercase">Delete battle?</AlertDialogTitle>
+            <AlertDialogDescription className="text-dim">
+              The battle and its full command history will be permanently deleted.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="rounded-none border-edge bg-sunken">
+            <AlertDialogCancel>Keep battle</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={remove.isPending}
+              onClick={() => {
+                if (deleting) remove.mutate(deleting.token)
+                setDeleting(null)
+              }}
+            >
+              Delete battle
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </main>
   )
 }
@@ -216,7 +273,17 @@ function CreateBattle() {
   )
 }
 
-function BattleShelf({ title, battles }: { title: string; battles: Battle[] }) {
+function BattleShelf({
+  title,
+  battles,
+  viewerId,
+  onDelete,
+}: {
+  title: string
+  battles: Battle[]
+  viewerId: string
+  onDelete: (battle: Battle) => void
+}) {
   if (!battles.length) return null
   return (
     <section data-battle-shelf={title}>
@@ -225,44 +292,83 @@ function BattleShelf({ title, battles }: { title: string; battles: Battle[] }) {
         <span className="readout">{battles.length}</span>
       </p>
       <div className="mt-2 space-y-2">
-        {battles.map((battle) => (
-          <Link
-            key={battle.token}
-            to="/battles/$token"
-            params={{ token: battle.token }}
-            className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 border border-edge bg-panel p-3 hover:border-edge-strong"
-          >
-            <BattleSide
-              player={battle.players[0]}
-              army={battle.armies[0]}
-              detachments={battle.detachments[0]}
-              score={battle.scores[0]}
-              side="a"
-            />
-            <span className="text-center">
-              <span className="eyebrow block">{battle.status === 'playing' ? `Round ${battle.round}` : battle.status}</span>
-              <span className="block text-xs text-dim">
-                {battle.status === 'playing' ? `${battle.phase} phase · ` : ''}
-                {new Date(battle.lastActivity).toLocaleDateString()}
-              </span>
-              <span className="mt-1 block text-[0.625rem] text-faint">
-                {battle.settings.limit ? `${battle.settings.limit} pts` : 'Legacy format'}
-                {battle.mission ? ` · ${battle.mission.name}` : ''}
-                {battle.deploymentId ? ` · ${battle.deploymentId.replaceAll('-', ' ')}` : ''}
-                {battle.result?.reason ? ` · ${battle.result.reason.replaceAll('-', ' ')}` : ''}
-              </span>
-            </span>
-            <BattleSide
-              player={battle.players.slice(1).join(' & ') || undefined}
-              army={battle.armies.slice(1).filter(Boolean).join(' & ') || null}
-              detachments={battle.detachments.slice(1).flat()}
-              score={battle.scores[1]}
-              side="b"
-              emptyLabel={battle.settings.solo ? 'Solo practice' : 'Open seat'}
-              emptyArmy={battle.settings.solo ? 'Private battle' : 'Waiting for an opponent'}
-            />
-          </Link>
-        ))}
+        {battles.map((battle) => {
+          const canDelete = battle.playerIds[0] === viewerId
+          const label = battle.settings.solo ? 'Solo practice' : battle.players.join(' versus ')
+          const actions = (
+            <>
+              <DropdownMenuItem render={<Link to="/battles/$token" params={{ token: battle.token }} />}>
+                <Eye /> Open battle
+              </DropdownMenuItem>
+              {canDelete ? (
+                <DropdownMenuItem variant="destructive" onClick={() => onDelete(battle)}>
+                  <Trash2 /> Delete battle
+                </DropdownMenuItem>
+              ) : null}
+            </>
+          )
+          return (
+            <ContextMenu key={battle.token}>
+              <ContextMenuTrigger render={<article className="flex items-center border border-edge bg-panel hover:border-edge-strong" />}>
+                <Link
+                  to="/battles/$token"
+                  params={{ token: battle.token }}
+                  className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 p-3"
+                >
+                  <BattleSide
+                    player={battle.players[0]}
+                    army={battle.armies[0]}
+                    detachments={battle.detachments[0]}
+                    score={battle.scores[0]}
+                    side="a"
+                  />
+                  <span className="text-center">
+                    <span className="eyebrow block">{battle.status === 'playing' ? `Round ${battle.round}` : battle.status}</span>
+                    <span className="block text-xs text-dim">
+                      {battle.status === 'playing' ? `${battle.phase} phase · ` : ''}
+                      {new Date(battle.lastActivity).toLocaleDateString()}
+                    </span>
+                    <span className="mt-1 block text-[0.625rem] text-faint">
+                      {battle.settings.limit ? `${battle.settings.limit} pts` : 'Legacy format'}
+                      {battle.mission ? ` · ${battle.mission.name}` : ''}
+                      {battle.deploymentId ? ` · ${battle.deploymentId.replaceAll('-', ' ')}` : ''}
+                      {battle.result?.reason ? ` · ${battle.result.reason.replaceAll('-', ' ')}` : ''}
+                    </span>
+                  </span>
+                  <BattleSide
+                    player={battle.players.slice(1).join(' & ') || undefined}
+                    army={battle.armies.slice(1).filter(Boolean).join(' & ') || null}
+                    detachments={battle.detachments.slice(1).flat()}
+                    score={battle.scores[1]}
+                    side="b"
+                    emptyLabel={battle.settings.solo ? 'Solo practice' : 'Open seat'}
+                    emptyArmy={battle.settings.solo ? 'Private battle' : 'Waiting for an opponent'}
+                  />
+                </Link>
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    render={<Button variant="ghost" size="icon-sm" className="mr-2" aria-label={`Actions for ${label}`} />}
+                  >
+                    <EllipsisVertical />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="rounded-none border border-edge bg-panel text-bone">
+                    {actions}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </ContextMenuTrigger>
+              <ContextMenuContent className="rounded-none border border-edge bg-panel text-bone">
+                <ContextMenuItem render={<Link to="/battles/$token" params={{ token: battle.token }} />}>
+                  <Eye /> Open battle
+                </ContextMenuItem>
+                {canDelete ? (
+                  <ContextMenuItem variant="destructive" onClick={() => onDelete(battle)}>
+                    <Trash2 /> Delete battle
+                  </ContextMenuItem>
+                ) : null}
+              </ContextMenuContent>
+            </ContextMenu>
+          )
+        })}
       </div>
     </section>
   )

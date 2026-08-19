@@ -240,6 +240,10 @@ test('a player can enter through the roster library and browse the product', asy
   await expect(page.locator('[data-battle-shelf="Setup"]')).toBeVisible()
   await expect(page.getByText('Solo practice')).toBeVisible()
   await page.screenshot({ path: 'test-results/battle-library.png', fullPage: true })
+  await page.getByRole('article').click({ button: 'right' })
+  await page.getByRole('menuitem', { name: 'Delete battle' }).click()
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Delete battle' }).click()
+  await expect(page.getByText('No battles yet.')).toBeVisible()
 
   await page.getByRole('link', { name: 'Factions' }).click()
   await expect(page.locator('[data-shelf="Chaos"]')).toBeVisible()

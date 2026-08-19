@@ -594,10 +594,7 @@ export function loadRules(
   }
 }
 
-/**
- * The mission two armies play, which 11th edition takes from their force
- * dispositions rather than from either player's choice. Order is not significant.
- */
+/** The primary an army plays, derived from its disposition and the one opposing it. */
 export function missionFor(
   rules: LoadedRules,
   one: string | null,
@@ -606,11 +603,11 @@ export function missionFor(
 ): Mission | null {
   if (!one || !two) return null
   if (missionPackId) {
-    const selected = rules.missions.get(`${missionPackId}|${one}|${two}`) ?? rules.missions.get(`${missionPackId}|${two}|${one}`)
+    const selected = rules.missions.get(`${missionPackId}|${one}|${two}`)
     if (selected) return selected
     if ([...rules.missions.keys()].some((key) => key.split('|').length === 3)) return null
   }
-  return rules.missions.get(`${one}|${two}`) ?? rules.missions.get(`${two}|${one}`) ?? null
+  return rules.missions.get(`${one}|${two}`) ?? null
 }
 
 function readJson<T>(file: string): T {

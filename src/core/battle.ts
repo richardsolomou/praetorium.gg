@@ -272,7 +272,7 @@ type PlayerState = {
   /** Every use, with when it happened, so a limit can be judged against the log. */
   uses: StratagemUse[]
   secondaries: Secondary[]
-  /** The primary mission being played, so both devices score against the same one. */
+  /** This side's primary mission for its ordered disposition matchup. */
   primaryCard: Secondary | null
   secondaryMode: SecondaryMode
   secondaryDeck: Secondary[] | null
@@ -611,7 +611,6 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
     case 'undo': {
       if (!state.undoable) return 'there is nothing to undo'
       if (state.undoable.seq !== command.target) return 'only the last action can be undone'
-      if (state.undoable.by !== by) return 'that was your opponent’s action'
       return null
     }
     // A new command kind breaks this assignment rather than being quietly allowed.
@@ -1314,7 +1313,7 @@ export function battleView(
       minutes: turn.endedAt === null ? null : Math.max(0, Math.round((turn.endedAt - turn.startedAt) / 60_000)),
     })),
     advancePrompt: sameSide(state, state.activePlayerId, viewerId) ? scoringPrompt(state, viewerId) : null,
-    undoable: state.undoable?.by === viewerId ? state.undoable.seq : null,
+    undoable: state.undoable?.seq ?? null,
   }
 }
 
