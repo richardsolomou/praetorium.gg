@@ -21,7 +21,7 @@ Praetorium uses a compact, dark visual system. See [the product design guide](..
 - Deal a tactical hand rather than offering the deck. The prompt opens at the top of the player's turn, draws at random, and offers a card back only where `whenDrawn` says the rules allow it.
 - Record the battle-ready bonus during setup and add it to the score only once the battle is finished.
 - Link a player's name and picture to `/users/$userId`, and their list to `/rosters/$id` with the battle token, which is what entitles a seated opponent to read it. Link each catalogue-backed army's faction mark, faction name, and detachments to their reference pages.
-- `/rosters/$id` is the one roster surface. Its owner gets the builder controls; every other entitled reader gets the same roster cards without mutation controls.
+- `/rosters/$id` is the one roster surface. Its owner gets the builder controls; every other entitled reader gets the same roster cards and loadout details without mutation controls.
 - Lay both setup and the tracker out by side, never by seat. `src/client/sides.ts` folds `BattleView.players` into sides; read command points, victory points, mission cards and stratagems from there. A 2v1 ally is a second army inside one side panel, not a third column.
 - Draw one scoreboard at every width. It carries both sides' scores, the round and phase, and the battle menu that holds finishing, conceding and deleting. Keep destructive actions in that menu and behind a confirmation.
 - Keep the phase control reachable at every width. One instance moves by CSS between the centre column and a bottom bar on narrow screens, as `builder/Pane.tsx` does for the roster panes.

@@ -48,6 +48,7 @@ type Props = {
   onSpread: (key: string, counts: Record<string, number>) => void
   onToggle: (key: string, name: string, selected: boolean) => void
   onResize: (models: number) => void
+  editable?: boolean
 }
 
 /**
@@ -59,7 +60,18 @@ type Props = {
  * carbines, which a single answer cannot say; that one gets a count against each
  * option. Nothing is typed either way: every option and every price is the data's.
  */
-export function Loadout({ catalogueId, unit, detachmentIds, picks, pickIndex, onChoose, onSpread, onToggle, onResize }: Props) {
+export function Loadout({
+  catalogueId,
+  unit,
+  detachmentIds,
+  picks,
+  pickIndex,
+  onChoose,
+  onSpread,
+  onToggle,
+  onResize,
+  editable = true,
+}: Props) {
   const [context, setContext] = useState({ detachmentIds, picks })
   useEffect(() => {
     const timeout = window.setTimeout(() => setContext({ detachmentIds, picks }), 150)
@@ -74,7 +86,7 @@ export function Loadout({ catalogueId, unit, detachmentIds, picks, pickIndex, on
   if (!unit) {
     return (
       <div className="flex h-full items-center justify-center p-6">
-        <p className="max-w-52 text-center text-xs text-faint">Select a unit from the roster to edit its loadout.</p>
+        <p className="max-w-52 text-center text-xs text-faint">Select a unit from the roster to see its loadout.</p>
       </div>
     )
   }
@@ -96,7 +108,7 @@ export function Loadout({ catalogueId, unit, detachmentIds, picks, pickIndex, on
         <h2 className="text-sm leading-tight">{unit.name}</h2>
         <div className="mt-1.5 flex flex-wrap items-center gap-2">
           <span className="chip">{unit.points} pts</span>
-          {unit.size.resizable ? (
+          {unit.size.resizable && editable ? (
             <span className="grid grid-cols-[1.5rem_2rem_1.5rem] items-center gap-1">
               <Button
                 variant="outline"
@@ -122,6 +134,10 @@ export function Loadout({ catalogueId, unit, detachmentIds, picks, pickIndex, on
                 <Plus />
               </Button>
             </span>
+          ) : unit.size.resizable ? (
+            <span className="chip normal-case" aria-label={`${unit.name} models`}>
+              {unit.size.models} models
+            </span>
           ) : null}
           {unit.toggles.map((toggle) => (
             <Toggle
@@ -130,6 +146,7 @@ export function Loadout({ catalogueId, unit, detachmentIds, picks, pickIndex, on
               size="sm"
               aria-label={`${toggle.selected ? 'Remove' : 'Make'} ${unit.name} ${toggle.name}`}
               pressed={toggle.selected}
+              disabled={!editable}
               className={
                 toggle.selected
                   ? 'border-azure bg-azure/15 text-azure hover:bg-azure/20 hover:text-azure'
@@ -157,10 +174,10 @@ export function Loadout({ catalogueId, unit, detachmentIds, picks, pickIndex, on
               <div className="mt-3 grid gap-5">
                 {unit.choices.map((choice) =>
                   choice.kind
-                    ? specialChoice(choice, onChoose, unit.name)
+                    ? specialChoice(choice, onChoose, unit.name, editable)
                     : choice.room > 1
-                      ? spread(choice, onSpread, availableWeapons, availableSheet.abilities, rules)
-                      : either(choice, onChoose, unit.name, availableWeapons, availableSheet.abilities, rules),
+                      ? spread(choice, onSpread, availableWeapons, availableSheet.abilities, rules, editable)
+                      : either(choice, onChoose, unit.name, availableWeapons, availableSheet.abilities, rules, editable),
                 )}
               </div>
             </section>
@@ -203,18 +220,22 @@ function ChoiceOption({
 }: {
   option: LoadoutChoice['options'][number]
   selected: boolean
-  onSelect: () => void
+  onSelect?: () => void
   children: ReactNode
 }) {
   return (
-    <article className={`relative border ${selected ? 'border-azure bg-azure/10' : 'border-edge bg-card hover:border-dim'}`}>
-      <button
-        type="button"
-        aria-pressed={selected}
-        aria-label={`Select ${option.name}`}
-        onClick={onSelect}
-        className="absolute inset-0 z-0 w-full cursor-pointer hover:bg-raised"
-      />
+    <article
+      className={`relative border ${selected ? 'border-azure bg-azure/10' : `border-edge bg-card ${onSelect ? 'hover:border-dim' : ''}`}`}
+    >
+      {onSelect ? (
+        <button
+          type="button"
+          aria-pressed={selected}
+          aria-label={`Select ${option.name}`}
+          onClick={onSelect}
+          className="absolute inset-0 z-0 w-full cursor-pointer hover:bg-raised"
+        />
+      ) : null}
       <div className="pointer-events-none relative z-10 [&_button]:pointer-events-auto">
         <div className="flex w-full items-center justify-between gap-2 px-2.5 py-2 text-left">
           <span className="text-sm font-semibold text-bone">{option.name}</span>
@@ -229,7 +250,7 @@ function ChoiceOption({
   )
 }
 
-function specialChoice(choice: LoadoutChoice, onChoose: Props['onChoose'], unitName: string) {
+function specialChoice(choice: LoadoutChoice, onChoose: Props['onChoose'], unitName: string, editable: boolean) {
   const label = choice.kind === 'upgrade' ? 'upgrade' : 'enhancement'
   const heading = choice.kind === 'upgrade' ? 'Unit upgrades' : choice.name
   return (
@@ -240,6 +261,7 @@ function specialChoice(choice: LoadoutChoice, onChoose: Props['onChoose'], unitN
           <button
             type="button"
             aria-pressed={!choice.chosen}
+            disabled={!editable}
             onClick={() => onChoose(choice.key, '')}
             className={`flex w-full items-center justify-between border px-2.5 py-2 text-left text-xs font-semibold uppercase ${
               choice.chosen ? 'border-edge bg-card text-dim hover:border-dim hover:text-bone' : 'border-azure bg-azure/10 text-azure'
@@ -252,7 +274,12 @@ function specialChoice(choice: LoadoutChoice, onChoose: Props['onChoose'], unitN
         {choice.options.map((option) => {
           const selected = choice.chosen === option.id
           return (
-            <ChoiceOption key={option.id} option={option} selected={selected} onSelect={() => onChoose(choice.key, option.id)}>
+            <ChoiceOption
+              key={option.id}
+              option={option}
+              selected={selected}
+              onSelect={editable ? () => onChoose(choice.key, option.id) : undefined}
+            >
               {option.description ? (
                 <div className="border-t border-edge px-2.5 pb-2">
                   <RuleText text={option.description} rules={option.keywordRules} />
@@ -279,6 +306,7 @@ function spread(
   weapons: WeaponProfileData[],
   abilities: Datasheet['abilities'],
   rules: Datasheet['keywordRules'],
+  editable: boolean,
 ) {
   const taken = choice.options.reduce((total, option) => total + option.count, 0)
   const room = choice.room - taken
@@ -318,37 +346,43 @@ function spread(
                 <span className="block text-xs font-semibold">{option.name}</span>
                 {option.points ? <span className="readout text-[0.6875rem] text-faint">+{option.points} each</span> : null}
               </span>
-              <span className="grid shrink-0 grid-cols-[1.5rem_2rem_1.5rem] items-center gap-1">
-                <Button
-                  variant="outline"
-                  size="icon-sm"
-                  className="size-6"
-                  aria-label={`Fewer ${option.name}`}
-                  disabled={!less(option)}
-                  onClick={() => {
-                    const next = less(option)
-                    if (next) onSpread(choice.key, next)
-                  }}
-                >
-                  <Minus />
-                </Button>
-                <span className="readout text-center text-sm tabular-nums" aria-label={`${option.name} count`}>
+              {editable ? (
+                <span className="grid shrink-0 grid-cols-[1.5rem_2rem_1.5rem] items-center gap-1">
+                  <Button
+                    variant="outline"
+                    size="icon-sm"
+                    className="size-6"
+                    aria-label={`Fewer ${option.name}`}
+                    disabled={!less(option)}
+                    onClick={() => {
+                      const next = less(option)
+                      if (next) onSpread(choice.key, next)
+                    }}
+                  >
+                    <Minus />
+                  </Button>
+                  <span className="readout text-center text-sm tabular-nums" aria-label={`${option.name} count`}>
+                    {option.count}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="icon-sm"
+                    className="size-6"
+                    aria-label={`More ${option.name}`}
+                    disabled={!more(option)}
+                    onClick={() => {
+                      const next = more(option)
+                      if (next) onSpread(choice.key, next)
+                    }}
+                  >
+                    <Plus />
+                  </Button>
+                </span>
+              ) : (
+                <span className="chip readout" aria-label={`${option.name} count`}>
                   {option.count}
                 </span>
-                <Button
-                  variant="outline"
-                  size="icon-sm"
-                  className="size-6"
-                  aria-label={`More ${option.name}`}
-                  disabled={!more(option)}
-                  onClick={() => {
-                    const next = more(option)
-                    if (next) onSpread(choice.key, next)
-                  }}
-                >
-                  <Plus />
-                </Button>
-              </span>
+              )}
             </div>
             <OptionProfiles optionName={option.name} weapons={weapons} rules={rules} />
             <OptionAbilities optionName={option.name} abilities={abilities} rules={rules} />
@@ -367,6 +401,7 @@ function either(
   weapons: WeaponProfileData[],
   abilities: Datasheet['abilities'],
   rules: Datasheet['keywordRules'],
+  editable: boolean,
 ) {
   return (
     <fieldset key={choice.key} aria-label={`${unitName} ${choice.name}`} className="m-0 min-w-0 border-0 p-0">
@@ -376,6 +411,7 @@ function either(
           <button
             type="button"
             aria-pressed={!choice.chosen}
+            disabled={!editable}
             onClick={() => onChoose(choice.key, '')}
             className={`flex w-full items-center justify-between border px-2.5 py-2 text-left text-xs font-semibold uppercase ${
               choice.chosen ? 'border-edge bg-card text-dim hover:border-dim hover:text-bone' : 'border-azure bg-azure/10 text-azure'
@@ -388,7 +424,12 @@ function either(
         {choice.options.map((option) => {
           const selected = choice.chosen === option.id
           return (
-            <ChoiceOption key={option.id} option={option} selected={selected} onSelect={() => onChoose(choice.key, option.id)}>
+            <ChoiceOption
+              key={option.id}
+              option={option}
+              selected={selected}
+              onSelect={editable ? () => onChoose(choice.key, option.id) : undefined}
+            >
               <OptionProfiles optionName={option.name} weapons={weapons} rules={rules} />
               <OptionAbilities optionName={option.name} abilities={abilities} rules={rules} />
               {option.description ? (

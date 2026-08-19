@@ -488,6 +488,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
       onSpread={(key, counts) => selected !== null && spread(selected, key, counts)}
       onToggle={(key, toggleName, enabled) => selected !== null && toggle(selected, key, toggleName, enabled)}
       onResize={(models) => selected !== null && resize(selected, models)}
+      editable={editable}
     />
   )
   const datasheet = (
@@ -856,7 +857,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
                       onSelect={() => {
                         setPreview(null)
                         setSelected(index)
-                        setShowing(editable ? 'loadout' : 'datasheet')
+                        setShowing('loadout')
                       }}
                       onRemove={() => drop(index)}
                       onDuplicate={() => duplicate(index)}
@@ -876,34 +877,34 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
           )}
         </div>
 
-        {editable ? (
-          <Pane
-            variant="loadout"
-            open={showing === 'loadout' && Boolean(selectedUnit)}
-            title="Loadout"
-            onClose={() => setShowing(null)}
-            actions={
-              <>
+        <Pane
+          variant="loadout"
+          open={showing === 'loadout' && Boolean(selectedUnit)}
+          title="Loadout"
+          onClose={() => setShowing(null)}
+          actions={
+            <>
+              {editable ? (
                 <Button variant="ghost" size="xs" onClick={() => setShowing('picker')}>
                   <ListPlus /> Units
                 </Button>
-                <Button
-                  variant="ghost"
-                  size="xs"
-                  onClick={() => {
-                    setPreview(null)
-                    setDatasheetReturn('loadout')
-                    setShowing('datasheet')
-                  }}
-                >
-                  <BookOpen /> Datasheet
-                </Button>
-              </>
-            }
-          >
-            {loadout}
-          </Pane>
-        ) : null}
+              ) : null}
+              <Button
+                variant="ghost"
+                size="xs"
+                onClick={() => {
+                  setPreview(null)
+                  setDatasheetReturn('loadout')
+                  setShowing('datasheet')
+                }}
+              >
+                <BookOpen /> Datasheet
+              </Button>
+            </>
+          }
+        >
+          {loadout}
+        </Pane>
 
         <Pane
           variant="datasheet"
