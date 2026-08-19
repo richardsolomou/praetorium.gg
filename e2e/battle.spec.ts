@@ -198,22 +198,28 @@ test('a card the rules let you put back is offered back as it is drawn', async (
   await expect(prompt.getByRole('button', { name: 'Choose a card' })).toHaveCount(0)
   // A card that may go back says why, and putting it back deals another.
   const returnable = prompt.getByRole('button', { name: 'Put back and draw another' })
-  if (
-    await returnable
-      .first()
-      .isVisible()
-      .catch(() => false)
-  ) {
+  const returned = await returnable
+    .first()
+    .isVisible()
+    .catch(() => false)
+  if (returned) {
     const before = await prompt.locator('[data-drawn]').evaluateAll((cards) => cards.map((card) => card.getAttribute('data-drawn')))
     await returnable.first().click()
     await expect
       .poll(() => prompt.locator('[data-drawn]').evaluateAll((c) => c.map((d) => d.getAttribute('data-drawn'))))
       .not.toEqual(before)
   }
-  await prompt.getByRole('button', { name: 'Undo latest action' }).click()
+  const undoDraw = prompt.getByRole('button', { name: 'Undo latest action' })
+  await undoDraw.click()
   await expect(prompt.locator('[data-drawn]')).toHaveCount(1)
   await expect(prompt.getByRole('button', { name: 'Resume drawing' })).toBeVisible()
-  await prompt.getByRole('button', { name: 'Undo latest action' }).click()
+  await undoDraw.click()
+  if (returned) {
+    await expect(prompt.locator('[data-drawn]')).toHaveCount(2)
+    await undoDraw.click()
+    await expect(prompt.locator('[data-drawn]')).toHaveCount(1)
+    await undoDraw.click()
+  }
   await expect(prompt.locator('[data-drawn]')).toHaveCount(0)
   await prompt.getByRole('button', { name: 'Resume drawing' }).click()
   await expect(prompt.locator('[data-drawn]')).toHaveCount(2)
