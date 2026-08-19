@@ -7,6 +7,7 @@ import { buildUnit, defaultSelection, modelCountOf, unitChoices, unitToggles, wa
 import { fromRosterXml } from '../core/rosz'
 import type { TextRoster, TextRosterUnit } from '../core/textRoster'
 import { toGwText } from '../core/gwText'
+import type { UnitGroup } from '../core/unitGroups'
 import { GAME_SIZES } from '../core/battle'
 import { factionDisplayName } from './factionNames'
 import { isDatasheetId, type LoadedCatalogue } from './catalogueIndex'
@@ -248,7 +249,7 @@ export function exportRosterFile(
     units: {
       name: string
       points: number
-      group: 'character' | 'battleline' | 'transport' | 'other'
+      group: UnitGroup
       enhancements: string[]
       wargear: { name: string; count: number }[]
     }[]
@@ -267,8 +268,15 @@ export function exportRosterFile(
       points: priced.points,
       units: priced.units.map((unit, index) => ({
         ...unit,
+        group: exportGroup(unit.group),
         warlord: Object.values(data.units[index]?.toggles ?? {}).some((count) => count > 0),
       })),
     }),
   }
+}
+
+function exportGroup(group: UnitGroup): 'character' | 'battleline' | 'transport' | 'other' {
+  if (group === 'epic-hero' || group === 'character') return 'character'
+  if (group === 'battleline' || group === 'transport') return group
+  return 'other'
 }
