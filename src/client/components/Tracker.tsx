@@ -1,6 +1,6 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { deleteBattle } from '../../server/functions'
 import { battleQuery, battlesQuery, deploymentsQuery, detachmentRulesQuery, gameReferencesQuery } from '../queries'
@@ -32,6 +32,7 @@ type Props = {
 /** Narrow screens cannot hold three columns, so they hold one at a time. */
 const VIEWS = ['yours', 'battle', 'theirs'] as const
 type Focus = (typeof VIEWS)[number]
+type ScoringContext = Pick<BattleView, 'seq' | 'round' | 'phase' | 'activePlayerId'>
 
 /**
  * The live battle, laid out as the table is: a side, the battle, the other side.
@@ -42,17 +43,24 @@ type Focus = (typeof VIEWS)[number]
  */
 export function Tracker({ view, mission, present, send, pending, problem }: Props) {
   const [focus, setFocus] = useState<Focus>('yours')
-  const [scoring, setScoring] = useState(false)
+  const [scoring, setScoring] = useState<ScoringContext | null>(null)
   // Which turn the draw is open for, and which turn has already been taken past it.
   const [drawTurn, setDrawTurn] = useState<string | null>(null)
   const [drawnFor, setDrawnFor] = useState<string | null>(null)
   const table = sides(view)
   const yours = table.find((side) => side.isViewer)
-  const built = yours?.armies.find((army) => army.isViewer)?.roster?.built
-  // The cards say what they pay out, so the interface can offer the figure instead
-  // of asking a player to work it out.
-  const detachmentNames = built?.detachments?.map((detachment) => detachment.name) ?? (built?.detachment ? [built.detachment] : [])
-  const { data: rules } = useQuery(detachmentRulesQuery(built?.catalogueId ?? '', detachmentNames))
+  const active = table.find((side) => side.isActive)
+  const ruleRequests = table.flatMap((side) =>
+    side.armies.flatMap((army) => {
+      const built = army.roster?.built
+      if (!built) return []
+      const detachmentNames = built.detachments?.map((detachment) => detachment.name) ?? (built.detachment ? [built.detachment] : [])
+      return [{ side: side.index, catalogueId: built.catalogueId, detachmentNames }]
+    }),
+  )
+  const ruleResults = useQueries({
+    queries: ruleRequests.map((request) => detachmentRulesQuery(request.catalogueId, request.detachmentNames)),
+  })
   const { data: deployments } = useQuery(deploymentsQuery())
   const { data: references } = useQuery(gameReferencesQuery())
   const deployment = deployments?.find((entry) => entry.id === view.deploymentId)
@@ -67,20 +75,28 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
       await navigate({ to: '/battles' })
     },
   })
-  const awardsFor = (key: string, mode?: string): Award[] =>
-    ([...(rules?.secondaries ?? []), ...(rules?.primaries ?? [])].find((card) => card.key === key)?.awards ?? []).filter(
-      (award) => !award.mode || !mode || award.mode === mode,
-    )
-  const referenceFor = (key: string): ReferenceCard | undefined =>
-    [...(rules?.primaries ?? []), ...(rules?.secondaries ?? [])].find((card) => card.key === key)
-  const writtenFor = (key: string): StratagemText | undefined => {
+  const rulesFor = (side: Side) =>
+    ruleResults.flatMap((result, index) => (ruleRequests[index]?.side === side.index && result.data ? [result.data] : []))
+  const awardsFor = (side: Side, key: string, mode?: string): Award[] =>
+    (
+      rulesFor(side)
+        .flatMap((rules) => [...rules.secondaries, ...rules.primaries])
+        .find((card) => card.key === key)?.awards ?? []
+    ).filter((award) => !award.mode || !mode || award.mode === mode)
+  const referenceFor = (side: Side, key: string): ReferenceCard | undefined =>
+    rulesFor(side)
+      .flatMap((rules) => [...rules.primaries, ...rules.secondaries])
+      .find((card) => card.key === key)
+  const writtenFor = (side: Side, key: string): StratagemText | undefined => {
+    const rules = rulesFor(side).find((candidate) => candidate.written.some((entry) => entry.key === key))
     const written = rules?.written.find((entry) => entry.key === key)
     return written ? { ...written, keywordRules: rules?.keywordRules ?? [] } : undefined
   }
-  const whenDrawnFor = (key: string): WhenDrawn | undefined => rules?.secondaries.find((card) => card.key === key)?.whenDrawn ?? undefined
-  // Core stratagems are the same for every army, so membership of that list is what
-  // separates them from the ones a detachment brought — on either side's panel.
-  const coreKeys = new Set((rules?.core ?? []).map((stratagem) => stratagem.key))
+  const whenDrawnFor = (side: Side, key: string): WhenDrawn | undefined =>
+    rulesFor(side)
+      .flatMap((rules) => rules.secondaries)
+      .find((card) => card.key === key)?.whenDrawn ?? undefined
+  const coreKeysFor = (side: Side) => new Set(rulesFor(side).flatMap((rules) => rules.core.map((stratagem) => stratagem.key)))
   // Seats are ordered by side, so both devices agree on which player is which colour.
   const reportPlayers: ReportPlayer[] = view.players.map((player) => ({
     id: player.id,
@@ -95,25 +111,43 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
   const shown = (side: Side) => (side.isViewer ? 'yours' : 'theirs')
 
   // Only what the card itself says pays out at this moment, so the ask arrives with the phase that ends.
-  const due = yours && !finished ? dueForAdvance(view, yours, awardsFor) : []
-  const advance = () => (due.length ? setScoring(true) : send({ kind: 'advance' }))
+  const due = active && !finished ? dueForAdvance(view, active, (key, mode) => awardsFor(active, key, mode)) : []
+  const helperBlockReason = view.advancePrompt && !yours?.isActive ? view.advancePrompt : null
+  const activeNeedsRules = Boolean(active?.primaryCard || active?.secondaries.some((card) => card.status === 'active'))
+  const activeRuleResults = ruleResults.filter((_, index) => ruleRequests[index]?.side === active?.index)
+  const rulesBlockReason =
+    activeNeedsRules && !activeRuleResults.some((result) => result.data) && activeRuleResults.some((result) => result.isPending)
+      ? 'Loading the active side’s rules…'
+      : null
+  const blockReason = helperBlockReason ?? rulesBlockReason
+  const advanceBlocked = Boolean(blockReason)
+  const advance = () => {
+    if (advanceBlocked || !active) return
+    if (due.length) {
+      setScoring({ seq: view.seq, round: view.round, phase: view.phase, activePlayerId: view.activePlayerId })
+      return
+    }
+    send({ kind: 'advance', playerId: active.captain.id })
+  }
+  const scoringCurrent =
+    scoring?.seq === view.seq &&
+    scoring.round === view.round &&
+    scoring.phase === view.phase &&
+    scoring.activePlayerId === view.activePlayerId
   // Shared cards are written by one seat, the way prep is, so a 2v1 cannot draw twice
   // or score its one hand twice from two devices.
   const keeper = yours?.captain.id === view.viewerId
-  // A card that pays on the opponent's turn comes due while they hold the controls, so
-  // this side is asked about it as the turn comes back rather than never.
-  const seen = useRef({ round: view.round, active: view.activePlayerId, hand: heldKeys(yours) })
-  const [owed, setOwed] = useState<{ round: number; hand: string[] } | null>(null)
+  const settlementRound = keeper ? view.settlementRound : null
+  const settlementRuleResults = ruleResults.filter((_, index) => ruleRequests[index]?.side === yours?.index)
+  const settlementRulesPending = settlementRuleResults.some((result) => result.isPending)
+  const owedCards =
+    settlementRound !== null && yours && !finished
+      ? dueFromTheirTurn(settlementRound, yours, (key, mode) => awardsFor(yours, key, mode), heldKeys(yours))
+      : []
   useEffect(() => {
-    const before = seen.current
-    seen.current = { round: view.round, active: view.activePlayerId, hand: heldKeys(yours) }
-    if (view.status !== 'playing' || before.active === view.activePlayerId || before.active === null) return
-    const theirs = view.players.find((player) => player.id === before.active)?.side !== yours?.index
-    // The hand as it stood when their turn ended: a card dealt afterwards was not in
-    // play for it, so it is not owed anything by it.
-    if (theirs && keeper) setOwed({ round: before.round, hand: before.hand })
-  }, [view.activePlayerId, view.round, view.status, view.players, yours, keeper])
-  const owedCards = owed && yours && !finished ? dueFromTheirTurn(owed.round, yours, awardsFor, owed.hand) : []
+    if (settlementRound === null || settlementRulesPending || owedCards.length || pending) return
+    send({ kind: 'settle-opponent-turn' })
+  }, [owedCards.length, pending, send, settlementRound, settlementRulesPending])
   // A tactical hand is dealt at the top of your own turn, and only once for it.
   const turnKey = `${view.round}-${view.activePlayerId ?? ''}`
   const handShort =
@@ -129,7 +163,7 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
   useEffect(() => {
     if (handShort && drawnFor !== turnKey) setDrawTurn(turnKey)
   }, [handShort, drawnFor, turnKey])
-  const prompt = turnPrompt(owedCards.length, drawTurn === turnKey && drawnFor !== turnKey)
+  const prompt = settlementRound !== null ? (owedCards.length ? 'owed' : null) : turnPrompt(0, drawTurn === turnKey && drawnFor !== turnKey)
 
   return (
     <main className={`w-full space-y-3 px-3 lg:pb-8 ${finished ? 'pb-8' : 'pb-32'}`}>
@@ -172,7 +206,7 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
             view={view}
             side={side}
             present={present}
-            coreKeys={coreKeys}
+            coreKeys={coreKeysFor(side)}
             pending={pending}
             send={send}
             awardsFor={awardsFor}
@@ -192,10 +226,10 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
           {finished ? null : (
             <TurnControl
               view={view}
-              yours={yours}
               send={send}
               pending={pending}
               onAdvance={advance}
+              blockReason={blockReason}
               className="fixed inset-x-0 bottom-0 z-40 border-t border-edge bg-panel/98 px-3 py-2 backdrop-blur lg:static lg:rounded-lg lg:border lg:bg-panel lg:p-3 lg:backdrop-filter-none"
             />
           )}
@@ -230,19 +264,19 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
         </div>
       </div>
 
-      {scoring && yours ? (
+      {scoringCurrent && active ? (
         <ScoringDialog
-          side={yours}
+          side={active}
           due={due}
           moment={view.phase === 'end' ? 'end of turn' : `end of ${view.phase} phase`}
           confirmLabel={view.phase === 'end' ? 'Pass the turn' : 'End the phase'}
           pending={pending}
           send={send}
-          referenceFor={referenceFor}
-          onCancel={() => setScoring(false)}
+          referenceFor={(key) => referenceFor(active, key)}
+          onCancel={() => setScoring(null)}
           onDone={() => {
-            setScoring(false)
-            send({ kind: 'advance' })
+            setScoring(null)
+            send({ kind: 'advance', playerId: active.captain.id })
           }}
         />
       ) : null}
@@ -255,9 +289,8 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
           confirmLabel="Take the turn"
           pending={pending}
           send={send}
-          referenceFor={referenceFor}
-          onCancel={() => setOwed(null)}
-          onDone={() => setOwed(null)}
+          referenceFor={(key) => referenceFor(yours, key)}
+          onDone={() => send({ kind: 'settle-opponent-turn' })}
         />
       ) : null}
 
@@ -265,11 +298,12 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
         <DrawDialog
           key={turnKey}
           side={yours}
+          seq={view.seq}
           round={view.round}
           pending={pending}
           send={send}
-          referenceFor={referenceFor}
-          whenDrawnFor={whenDrawnFor}
+          referenceFor={(key) => referenceFor(yours, key)}
+          whenDrawnFor={(key) => whenDrawnFor(yours, key)}
           onDone={() => setDrawnFor(turnKey)}
         />
       ) : null}

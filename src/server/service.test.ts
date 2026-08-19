@@ -524,6 +524,15 @@ describe('the answer to a command', () => {
     expect(answer.screen.view.undoable).toBe(answer.screen.view.seq)
   })
 
+  it('lets a seated player submit an action for another participant', () => {
+    const { token, seq } = started()
+    const answer = service.submit(token, 'bob', seq(), { kind: 'advance', playerId: 'alice' })
+
+    expect(answer.result.outcome).toBe('appended')
+    expect(answer.screen.view.phase).toBe('movement')
+    expect(service.report(token, 'alice').at(-1)).toMatchObject({ by: 'bob', text: 'Bob ends the command phase for Alice' })
+  })
+
   it('corrects a sender that had fallen behind', () => {
     const { token, send, seq } = started()
     const shared = seq()

@@ -33,7 +33,7 @@ export function useCommand(token: string, seq: number) {
   const [pending, setPending] = useState(false)
   /** The history this hook last saw, which runs ahead of props between renders. */
   const seen = useRef(seq)
-  const queued = useRef<Command[]>([])
+  const queued = useRef<{ command: Command; basedOn: number }[]>([])
   const draining = useRef(false)
 
   useEffect(() => {
@@ -45,14 +45,20 @@ export function useCommand(token: string, seq: number) {
     draining.current = true
     try {
       while (queued.current.length) {
-        const command = queued.current.shift()
-        if (!command) break
+        const item = queued.current.shift()
+        if (!item) break
         try {
-          const { result, screen } = await submit({ data: { token, expectedSeq: seen.current, command } })
+          const { result, screen } = await submit({ data: { token, expectedSeq: seen.current, command: item.command } })
           setProblem(explain(result))
           queryClient.setQueryData(battleQuery(token).queryKey, screen)
           if (screen?.kind === 'battle') seen.current = Math.max(seen.current, screen.view.seq)
           void queryClient.invalidateQueries({ queryKey: ['report', token] })
+          if (result.outcome !== 'appended') {
+            const authoritativeSeq = screen?.kind === 'battle' ? screen.view.seq : item.basedOn
+            queued.current = queued.current.filter(
+              (candidate) => candidate.basedOn !== item.basedOn && candidate.basedOn >= authoritativeSeq,
+            )
+          }
         } catch (error) {
           // Whatever was behind this one was written against a history that never happened.
           setProblem(errorMessage(error))
@@ -67,11 +73,11 @@ export function useCommand(token: string, seq: number) {
 
   const send = useCallback(
     (command: Command) => {
-      queued.current.push(command)
+      queued.current.push({ command, basedOn: seq })
       setPending(true)
       void drain()
     },
-    [drain],
+    [drain, seq],
   )
 
   return { send, problem, pending }

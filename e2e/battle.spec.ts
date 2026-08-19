@@ -46,10 +46,18 @@ test('a tactical hand is dealt rather than chosen, and pays out when the card sa
   await expect(scoreboard.getByRole('link', { name: aliceRoster })).toHaveAttribute('href', /^\/rosters\/[^/?]+\?battle=/)
 
   const panel = alice.locator('[data-panel="player"]').filter({ hasText: 'Death Guard' })
+  const opponentPanel = bob.locator('[data-panel="player"]').filter({ hasText: 'Death Guard' })
   await expect(panel.locator('[data-stat="cp"]')).toHaveText('1')
-  await expect(bob.locator('[data-panel="player"]').filter({ hasText: 'Death Guard' }).getByRole('button', { name: /^Use / })).toHaveCount(
-    0,
-  )
+  const opponentUse = opponentPanel.locator('button[aria-label^="Use "]:not([disabled])').first()
+  await expect(opponentUse).toBeVisible()
+  const stratagem = (await opponentUse.getAttribute('aria-label'))?.replace(/^Use /, '') ?? ''
+  await opponentUse.click()
+  await expect(opponentPanel.locator('[data-stat="cp"]')).toHaveText('0')
+  await expect(panel.locator('[data-stat="cp"]')).toHaveText('0')
+  await opponentPanel.getByRole('button', { name: `About ${stratagem}` }).click()
+  await expect(bob.getByRole('dialog', { name: stratagem })).toContainText('used 1x this battle')
+  await bob.keyboard.press('Escape')
+  await expect(alice.getByText(`${bobName} uses ${aliceName}’s ${stratagem} for 1 CP`)).toBeVisible()
 
   // Nothing is scoreable mid-turn, and a mission cannot be completed early either:
   // both arrive with the moment the card names.
@@ -73,7 +81,42 @@ test('a tactical hand is dealt rather than chosen, and pays out when the card sa
   await answer.click()
   await expect(scoring).toContainText('Scoring 0 VP')
   await answer.click()
-  await scoring.getByRole('button', { name: 'Pass the turn' }).click()
+
+  // Hold Bob's first submission so Alice deterministically wins this race.
+  await bob.getByRole('button', { name: 'Pass the turn' }).click()
+  const bobScoring = bob.getByRole('dialog', { name: /^Scoring end of turn points/ })
+  const answerName = await answer.getAttribute('aria-label')
+  await bobScoring.getByRole('button', { name: answerName ?? '', exact: true }).click()
+  let releaseBob = () => {}
+  let sawBobSubmit = () => {}
+  const held = new Promise<void>((resolve) => {
+    releaseBob = resolve
+  })
+  const submitted = new Promise<void>((resolve) => {
+    sawBobSubmit = resolve
+  })
+  let holding = true
+  await bob.route('**/*', async (route) => {
+    if (holding && route.request().method() === 'POST') {
+      holding = false
+      sawBobSubmit()
+      await held
+    }
+    await route.continue()
+  })
+  const bobConfirmation = bobScoring.getByRole('button', { name: 'Pass the turn' }).click()
+  await submitted
+  try {
+    await scoring.getByRole('button', { name: 'Pass the turn' }).click()
+    await expect(alice.getByRole('heading', { name: 'command phase' })).toBeVisible()
+  } finally {
+    releaseBob()
+  }
+  await bobConfirmation
+  await bob.unroute('**/*')
+  await takeTheTurn(bob)
+  await expect(alice.getByText(new RegExp(`${bobName} draws `)).first()).toBeVisible()
+  await expect(alice.getByText(new RegExp(`${bobName} marks `))).toHaveCount(0)
   await expect(panel.locator('[data-stat="vp"]')).toHaveText(String(scored))
   // Nothing is ticked to finish a card: no control for it exists.
   await expect(alice.getByText('take it out of the hand')).toHaveCount(0)

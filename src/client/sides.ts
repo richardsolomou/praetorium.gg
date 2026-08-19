@@ -3,7 +3,7 @@ import type { BattleView } from '../core/battle'
 type ViewPlayer = BattleView['players'][number]
 
 /**
- * One army on the table, and the one player who may change it.
+ * One army on the table and the player it belongs to.
  *
  * A 2v1 side fields two of these. Everything here is the player's own: their list,
  * their units, and their battle-ready bonus. Everything a side shares lives on the

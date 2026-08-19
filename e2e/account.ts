@@ -210,17 +210,29 @@ export async function advance(page: Page) {
       await prompt.getByRole('button', { name: 'Take the turn' }).click({ timeout: 15_000 })
       await expect(prompt).toBeHidden()
     }
+    const phase = page.getByRole('region', { name: 'Battle scoreboard' }).getByRole('heading')
+    const before = await phase.textContent()
     const clicked = await advanceButton(page)
       .click({ timeout: 5_000 })
       .then(() => true)
       .catch(() => false)
-    if (clicked) break
+    if (clicked) {
+      const scoring = page.getByRole('dialog', { name: /^Scoring end of (turn|command|movement|shooting|charge|fight) / })
+      await expect
+        .poll(async () =>
+          (await scoring.isVisible().catch(() => false)) ? 'scoring' : (await phase.textContent()) === before ? 'waiting' : 'advanced',
+        )
+        .not.toBe('waiting')
+      if (await scoring.isVisible().catch(() => false)) {
+        await scoring
+          .getByRole('button', { name: /^(Pass the turn|End the phase)$/ })
+          .click({ timeout: 3_000 })
+          .catch(() => undefined)
+      }
+      await expect.poll(() => phase.textContent()).not.toBe(before)
+      break
+    }
     if (guard === 2) throw new Error('Never reached the button that ends the phase')
-  }
-  const scoring = page.getByRole('dialog', { name: /^Scoring end of (turn|command|movement|shooting|charge|fight) / })
-  if (await scoring.isVisible().catch(() => false)) {
-    await scoring.getByRole('button', { name: /^(Pass the turn|End the phase)$/ }).click()
-    await expect(scoring).toBeHidden()
   }
 }
 

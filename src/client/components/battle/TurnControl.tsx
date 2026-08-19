@@ -1,14 +1,13 @@
 import { Undo2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { PHASES, type BattleView, type Command } from '../../../core/battle'
-import type { Side } from '../../sides'
 import { tint } from './tints'
 
 type Props = {
   view: BattleView
-  yours: Side | undefined
   send: (command: Command) => void
   pending: boolean
+  blockReason: string | null
   /** Opens the scoring prompt when this advance settles a card, and advances when it does not. */
   onAdvance: () => void
   className?: string
@@ -21,10 +20,9 @@ type Props = {
  * panels stay the same shape and their numbers line up across the table whichever
  * side is taking the turn.
  */
-export function TurnControl({ view, yours, send, pending, onAdvance, className = '' }: Props) {
+export function TurnControl({ view, send, pending, blockReason, onAdvance, className = '' }: Props) {
   const active = view.players.find((player) => player.isActive)
   const activeSide = active?.side ?? 0
-  const yourTurn = Boolean(yours?.isActive)
   const at = PHASES.indexOf(view.phase)
   const label = view.phase === 'end' ? 'Pass the turn' : `End the ${view.phase} phase`
 
@@ -45,13 +43,7 @@ export function TurnControl({ view, yours, send, pending, onAdvance, className =
         ))}
       </ol>
       <div className="flex items-stretch gap-2">
-        <Button
-          variant={yourTurn ? 'default' : 'outline'}
-          className="h-11 min-w-0 flex-1 text-base"
-          disabled={!yourTurn || pending}
-          title={yourTurn ? undefined : 'Only the side taking the turn can end a phase'}
-          onClick={onAdvance}
-        >
+        <Button variant="default" className="h-11 min-w-0 flex-1 text-base" disabled={pending || Boolean(blockReason)} onClick={onAdvance}>
           {label}
         </Button>
         <Button
@@ -65,9 +57,7 @@ export function TurnControl({ view, yours, send, pending, onAdvance, className =
           <Undo2 />
         </Button>
       </div>
-      {yourTurn ? null : (
-        <p className="text-center text-xs text-dim">Waiting for {active?.name ?? 'the other side'} to finish the phase.</p>
-      )}
+      {blockReason ? <p className="text-center text-xs text-dim">{blockReason}</p> : null}
     </section>
   )
 }

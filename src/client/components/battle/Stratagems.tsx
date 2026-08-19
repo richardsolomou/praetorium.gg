@@ -44,7 +44,9 @@ export function Stratagems({ side, phase, coreKeys, actionable, pending, send, w
                 actionable={actionable}
                 pending={pending}
                 available={side.cp}
-                onUse={(cp) => send({ kind: 'use-stratagem', key: stratagem.key, ...(cp === undefined ? {} : { cp }) })}
+                onUse={(cp) =>
+                  send({ kind: 'use-stratagem', key: stratagem.key, playerId: side.captain.id, ...(cp === undefined ? {} : { cp }) })
+                }
               />
             ))}
           </div>
