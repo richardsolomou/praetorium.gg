@@ -314,7 +314,7 @@ export const globalSearch = createServerFn({ method: 'GET' })
             group: 'Your rosters',
             label: roster.name,
             detail: `${roster.limit} points`,
-            href: `/rosters/${roster.id}/edit`,
+            href: `/rosters/${roster.id}`,
           })
         }
         for (const battle of app().service.battles(playerId, rules)) {

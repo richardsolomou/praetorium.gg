@@ -725,9 +725,19 @@ describe('undo', () => {
     expect(validate(state, ALICE, { kind: 'undo', target: 1 })).toBe('only the last action can be undone')
   })
 
-  it('is refused to the player who did not issue the command', () => {
+  it('lets either player undo the latest command', () => {
     const state = reduceBattle(PLAYERS, log(...started(), [ALICE, { kind: 'score', category: 'primary', delta: 5 }]))
-    expect(validate(state, BOB, { kind: 'undo', target: state.undoable?.seq ?? 0 })).toBe('that was your opponent’s action')
+    expect(validate(state, BOB, { kind: 'undo', target: state.undoable?.seq ?? 0 })).toBeNull()
+  })
+
+  it('keeps rewinding across player turns', () => {
+    const history = log(...started(), [ALICE, { kind: 'advance' }], [BOB, { kind: 'score', category: 'primary', delta: 5 }])
+    const firstUndo = reduceBattle(PLAYERS, [
+      ...history,
+      { seq: history.length + 1, by: ALICE, at: 9, command: { kind: 'undo', target: history.length } },
+    ])
+
+    expect(validate(firstUndo, BOB, { kind: 'undo', target: firstUndo.undoable?.seq ?? 0 })).toBeNull()
   })
 
   it('still counts towards the concurrency token, so a stale client is caught', () => {
@@ -741,9 +751,9 @@ describe('undo', () => {
 })
 
 describe('the view', () => {
-  it('offers undo only to the player who acted', () => {
+  it('offers the latest undo to both players', () => {
     const state = reduceBattle(PLAYERS, log(...started(), [ALICE, { kind: 'score', category: 'primary', delta: 5 }]))
-    expect(battleView({ token: 'abc' }, NAMES, state, BOB).undoable).toBeNull()
+    expect(battleView({ token: 'abc' }, NAMES, state, BOB).undoable).toBe(state.undoable?.seq)
   })
 
   it('totals a player’s victory points', () => {

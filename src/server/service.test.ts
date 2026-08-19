@@ -230,6 +230,18 @@ describe('battle setup references', () => {
             deploymentIds: ['valid-deployment'],
           },
         ],
+        [
+          'pack-a|disruption|reconnaissance',
+          {
+            id: 'mission-b',
+            name: 'Mission B',
+            roundCap: null,
+            gameCap: null,
+            source: 'Pack A',
+            packId: 'pack-a',
+            deploymentIds: ['valid-deployment'],
+          },
+        ],
       ]),
       deployments: [
         { id: 'valid-deployment', name: 'Valid', description: null, zones: [], objectives: [] },
@@ -312,6 +324,28 @@ describe('battle setup references', () => {
     })
   })
 
+  it('gives each side its directional primary mission', () => {
+    const battle = configured()
+    const alice = service.screen(battle.token, 'alice', rules())
+    const bob = service.screen(battle.token, 'bob', rules())
+
+    expect(alice.kind === 'battle' ? alice.mission?.name : null).toBe('Mission A')
+    expect(bob.kind === 'battle' ? bob.mission?.name : null).toBe('Mission B')
+  })
+
+  it('corrects primaries recorded before directional ownership was enforced', () => {
+    const battle = configured()
+    let result = battle.send('alice', { kind: 'set-deployment', patternId: 'valid-deployment' })
+    if (result.outcome === 'appended') battle.setSeq(result.seq)
+    result = battle.send('alice', { kind: 'begin-battle', firstPlayerId: 'alice' })
+    if (result.outcome === 'appended') battle.setSeq(result.seq)
+
+    const alice = service.screen(battle.token, 'alice', rules())
+    const bob = service.screen(battle.token, 'bob', rules())
+    expect(alice.kind === 'battle' ? alice.view.players.find((player) => player.id === 'alice')?.primaryCard?.name : null).toBe('Mission A')
+    expect(bob.kind === 'battle' ? bob.view.players.find((player) => player.id === 'bob')?.primaryCard?.name : null).toBe('Mission B')
+  })
+
   it('refuses terrain that belongs to another deployment', () => {
     const battle = configured()
     let result = battle.send('alice', { kind: 'set-deployment', patternId: 'valid-deployment' })
@@ -376,6 +410,10 @@ describe('saved rosters', () => {
       visibility: 'private',
       source: 'editable',
     })
+  })
+
+  it('mints a compact URL-safe id', () => {
+    expect(save().id).toMatch(/^[A-Za-z0-9_-]{11}$/)
   })
 
   it('hides a private roster from another player', () => {

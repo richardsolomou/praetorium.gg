@@ -1,5 +1,22 @@
 # praetorium
 
+## 0.9.0
+
+### Minor Changes
+
+- 3ff636b: Use one roster page for editing and sharing, with changes available only to its owner.
+
+### Patch Changes
+
+- d61574d: Preserve compound weapon loadouts when importing text rosters.
+
+## 0.8.1
+
+### Patch Changes
+
+- bcbbf31: Add battle actions to the battle library's context and overflow menus.
+- bcbbf31: Assign primary missions to the correct side and allow either player to rewind battle actions across turns.
+
 ## 0.8.0
 
 ### Minor Changes

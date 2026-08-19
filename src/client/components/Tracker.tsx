@@ -89,7 +89,7 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
   }))
   const finished = view.status === 'finished'
   const solo = table.length < 2
-  // The pack can play to a lower ceiling than the conventional one, and both sides read the same one.
+  // The viewer's primary can use a lower ceiling than the conventional one.
   const guides = { primary: mission?.gameCap ?? view.guides.primary, secondary: view.guides.secondary }
   /** Which panel a narrow screen is showing, in the order the columns sit on a wide one. */
   const shown = (side: Side) => (side.isViewer ? 'yours' : 'theirs')

@@ -83,9 +83,13 @@ beforeEach(() => {
     },
     { id: 'battlefield-dominance', name: 'Battlefield Dominance', card_type: 'primary', awards: [{ vp: 2 }] },
   ])
-  write(path.join(root, 'missions.json'), [{ id: 'death-trap', name: 'Death Trap', vp_per_round_cap: 15, vp_per_game_cap: 45 }])
+  write(path.join(root, 'missions.json'), [
+    { id: 'death-trap', name: 'Death Trap', vp_per_round_cap: 15, vp_per_game_cap: 45 },
+    { id: 'vital-link', name: 'Vital Link', vp_per_round_cap: 15, vp_per_game_cap: 45 },
+  ])
   write(path.join(root, 'mission-matchups.json'), [
     { disposition: 'disruption', opponent_disposition: 'take-and-hold', mission_id: 'death-trap' },
+    { disposition: 'take-and-hold', opponent_disposition: 'disruption', mission_id: 'vital-link' },
   ])
   write(path.join(root, 'force-dispositions.json'), [{ id: 'disruption', name: 'Disruption' }])
   write(path.join(root, 'deployment-patterns.json'), [
@@ -207,8 +211,8 @@ describe('mission cards', () => {
 })
 
 describe('the mission', () => {
-  it('comes from the pair of dispositions, in either order', () => {
-    expect(missionFor(load(), 'take-and-hold', 'disruption')?.name).toBe('Death Trap')
+  it('belongs to the army whose disposition comes first', () => {
+    expect(missionFor(load(), 'take-and-hold', 'disruption')?.name).toBe('Vital Link')
   })
 
   it('carries the caps the mission itself states', () => {

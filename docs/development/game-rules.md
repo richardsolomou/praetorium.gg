@@ -27,7 +27,7 @@ Praetorium reads structured stratagem and mission data from [40kdc-data](https:/
 - The battle-ready bonus is recorded before the first turn and joins the score only when the battle is finished.
 - Show mission scoring caps as guidance. Do not reject a score that exceeds them.
 - Prompt before passing a turn with an unresolved active card, but leave the final decision to the player because the source cannot infer objective control.
-- Derive the mission from both rosters' force dispositions and the configured mission pack in `PraetoriumService.screen`. Settings without a mission pack use the unqualified matchup fallback. A selected mission pack must never fall through to another pack.
+- Derive each side's primary mission from its own force disposition followed by the opposing disposition and the configured mission pack in `PraetoriumService.screen`. Matchup order determines ownership. Settings without a mission pack use the unqualified matchup fallback. A selected mission pack must never fall through to another pack.
 - Validate mission, deployment, and terrain references together inside the repository submission transaction before beginning play. Twists remain absent when the source has no structured twist data.
 
 ## Deployment patterns

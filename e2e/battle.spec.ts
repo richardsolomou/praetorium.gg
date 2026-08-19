@@ -43,7 +43,14 @@ test('a tactical hand is dealt rather than chosen, and pays out when the card sa
   // list they brought, which a seated opponent reads through the battle token.
   const scoreboard = alice.getByRole('region', { name: 'Battle scoreboard' })
   await expect(scoreboard.getByRole('link', { name: aliceName })).toHaveAttribute('href', /^\/players\/[^/?]+$/)
-  await expect(scoreboard.getByRole('link', { name: aliceRoster })).toHaveAttribute('href', /^\/rosters\/[^/?]+\?battle=/)
+  await expect(scoreboard.getByRole('link', { name: aliceRoster, exact: true })).toHaveAttribute('href', /^\/rosters\/[^/?]+\?battle=/)
+  const faction = scoreboard.getByRole('link', { name: 'Death Guard faction' })
+  await expect(faction).toHaveAttribute('href', '/factions/death-guard')
+  await expect(faction.locator('[data-faction-mark="death-guard"]')).toBeVisible()
+  await expect(scoreboard.getByRole('link', { name: 'Shamblerot Vectorium' })).toHaveAttribute(
+    'href',
+    '/factions/death-guard/detachments/shamblerot-vectorium',
+  )
 
   const panel = alice.locator('[data-panel="player"]').filter({ hasText: 'Death Guard' })
   await expect(panel.locator('[data-stat="cp"]')).toHaveText('1')
@@ -85,6 +92,10 @@ test('a tactical hand is dealt rather than chosen, and pays out when the card sa
   await expect(alice.getByText(/The battlefield is /)).toBeVisible()
   await expect(alice.getByText(/draws /).first()).toBeVisible()
   await alice.screenshot({ path: 'test-results/battle.png', fullPage: true })
+  await alice.setViewportSize({ width: 390, height: 844 })
+  await expect(faction).toBeVisible()
+  await expect(scoreboard.getByRole('link', { name: 'Shamblerot Vectorium' })).toBeVisible()
+  await alice.screenshot({ path: 'test-results/battle-phone.png', fullPage: true })
 })
 
 test('a card the rules let you put back is offered back as it is drawn', async ({ browser }) => {

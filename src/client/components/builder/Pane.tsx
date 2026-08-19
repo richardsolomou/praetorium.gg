@@ -41,6 +41,7 @@ export function Pane({ variant, open, title, onClose, actions, children }: Props
 
   return (
     <aside
+      data-print-hide
       className={`flex-col border-edge bg-panel ${VARIANTS[variant]} ${open ? 'fixed inset-0 z-40 flex' : 'hidden'}`}
       aria-label={title}
     >
