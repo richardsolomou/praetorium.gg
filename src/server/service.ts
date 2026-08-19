@@ -265,6 +265,9 @@ export class PraetoriumService {
         : undefined,
       now: this.clock(),
     })
+    // The opponents are told before they have the battle open, which is what puts it
+    // on their list without a reload.
+    this.events.publish(id, [playerId, ...opponentIds])
     return { token }
   }
 
@@ -272,7 +275,10 @@ export class PraetoriumService {
     const seats = this.mustSeat(token, playerId)
     if (!this.repository.deleteBattle(seats.battle.id, playerId))
       throw new Response('only the battle creator can delete it', { status: 403 })
-    this.events.publish(seats.battle.id)
+    this.events.publish(
+      seats.battle.id,
+      seats.players.map((player) => player.id),
+    )
   }
 
   join(token: string, playerId: string): JoinResult {
@@ -288,7 +294,7 @@ export class PraetoriumService {
       throw new Response('battle opponents must be friends', { status: 403 })
     }
     const result = this.repository.join({ battleId: seats.battle.id, playerId, now: this.clock() })
-    if (result === 'joined') this.events.publish(seats.battle.id)
+    if (result === 'joined') this.events.publish(seats.battle.id, [...seats.players.map((player) => player.id), playerId])
     return result
   }
 
@@ -333,7 +339,11 @@ export class PraetoriumService {
     const result = this.repository.submit({ battleId: seats.battle.id, playerId, expectedSeq, command, now: this.clock() }, (state) =>
       command.kind === 'begin-battle' && rules ? setupReferenceError(state, rules) : null,
     )
-    if (result.outcome === 'appended') this.events.publish(seats.battle.id)
+    if (result.outcome === 'appended')
+      this.events.publish(
+        seats.battle.id,
+        seats.players.map((player) => player.id),
+      )
     // Read after the write, so a refusal and a lost race answer with the state
     // that refused them rather than the one the caller was already holding.
     return { result, screen: this.seatedScreen(seats, playerId, rules) }

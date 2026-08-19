@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { SignInRequired } from '../client/components/SignInRequired'
 import { battlesQuery, gameReferencesQuery, meQuery, opponentsQuery } from '../client/queries'
+import { useLiveBattles } from '../client/useLiveBattle'
 import { errorMessage } from '../client/queryClient'
 import { createBattle } from '../server/functions'
 
@@ -34,6 +35,8 @@ export const Route = createFileRoute('/battles/')({
 function Battles() {
   const { data: me } = useQuery(meQuery())
   const { data: battles = [] } = useQuery(battlesQuery())
+  // Being added to a battle happens on someone else's device, so this page is told.
+  useLiveBattles(Boolean(me))
   if (!me) return <SignInRequired title="Your battles" explanation="Sign in to see the battles you have played and the ones still going." />
 
   return (

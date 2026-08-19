@@ -14,6 +14,16 @@ export function battleChannel(battleId: string) {
   return `battle:${battleId}`
 }
 
+/**
+ * One channel per player, for the list of battles rather than any one battle.
+ *
+ * A player is told their battles changed before they have any of them open, which is
+ * the only way being added to one can reach a page that is not watching it.
+ */
+export function playerChannel(playerId: string) {
+  return `player:${playerId}`
+}
+
 export function realtimeConfig(environment: NodeJS.ProcessEnv = process.env) {
   // The container writes one into /data on first boot. The fallback is for `pnpm
   // dev`, where `pnpm realtime` runs Centrifugo with the same well-known string;

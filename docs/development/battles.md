@@ -40,6 +40,8 @@ A read never claims a battle seat. `PraetoriumService.screen` returns an invitat
 - Realtime messages contain only the battle ID. The client refetches the battle through the normal read path.
 - `/api/realtime/token` requires an account and a seat in the requested battle.
 - Realtime channels use the internal battle ID, not the invitation token.
+- A second channel is named after a player, so the list of battles hears about a battle the player has not opened yet.
+- Every channel prefix needs a namespace in `realtime.json`. Centrifugo rejects a subscription to a prefix it was not configured with.
 - Centrifugo subscription state provides presence. Do not store presence in SQLite.
 - Caddy and the Vite development proxy serve Centrifugo on the app origin. Keep `connect-src 'self'`.
 
