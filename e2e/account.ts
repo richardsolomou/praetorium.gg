@@ -105,7 +105,7 @@ export async function createBattle(
     }
   }
   await page.getByRole('button', { name: 'Create battle' }).click()
-  await page.waitForURL(/\/b\//)
+  await page.waitForURL(/\/battles\/[^/]+$/)
   return page.url()
 }
 

@@ -316,7 +316,7 @@ export const globalSearch = createServerFn({ method: 'GET' })
             group: 'Your battles',
             label,
             detail: battle.mission?.name ?? battle.status,
-            href: `/b/${battle.token}`,
+            href: `/battles/${battle.token}`,
           })
         }
       }

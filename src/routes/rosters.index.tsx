@@ -21,7 +21,8 @@ import { RosterExportDialog } from '../client/components/RosterExportDialog'
 import { RosterSetupDialog, type RosterSetup } from '../client/components/RosterSetupDialog'
 import { FactionLabel } from '../client/components/FactionMark'
 import { readWorkspaceState, writeWorkspaceState } from '../client/components/workspaceState'
-import { factionsQuery, priceQuery, savedRostersQuery } from '../client/queries'
+import { SignInRequired } from '../client/components/SignInRequired'
+import { factionsQuery, meQuery, priceQuery, savedRostersQuery } from '../client/queries'
 import { errorMessage } from '../client/queryClient'
 import { useOrigin } from '../client/useOrigin'
 import { GAME_SIZES, ROSTER_NAME_MAX_LENGTH } from '../core/battle'
@@ -87,6 +88,7 @@ export const Route = createFileRoute('/rosters/')({
 })
 
 function RosterLibrary() {
+  const { data: me } = useQuery(meQuery())
   const { data: saved = [] } = useQuery(savedRostersQuery())
   const { data: available } = useQuery(factionsQuery())
   const { limit } = Route.useSearch()
@@ -162,7 +164,7 @@ function RosterLibrary() {
     setShareProblem(null)
     try {
       if (promoted) await access.mutateAsync({ id: roster.id, visibility: 'unlisted' })
-      await navigator.clipboard.writeText(`${origin}/r/${roster.id}`)
+      await navigator.clipboard.writeText(`${origin}/rosters/${roster.id}`)
       setCopiedFor(roster.id)
     } catch (error) {
       let problem = errorMessage(error)
@@ -177,7 +179,7 @@ function RosterLibrary() {
     }
   }
   const print = (id: string) => {
-    window.open(`/r/${id}?print=true`, '_blank')
+    window.open(`/rosters/${id}?print=true`, '_blank')
   }
   const update = useMutation({
     mutationFn: ({ roster, setup }: { roster: (typeof saved)[number]; setup: RosterSetup }) =>
@@ -196,6 +198,8 @@ function RosterLibrary() {
       setSetupDraft(null)
     },
   })
+
+  if (!me) return <SignInRequired title="Your rosters" explanation="Sign in to build a list and keep it between battles." />
 
   return (
     <main className="mx-auto w-full max-w-5xl px-4 py-8">
@@ -284,7 +288,7 @@ function RosterLibrary() {
                         <EllipsisVertical />
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="rounded-none border border-edge bg-panel text-bone">
-                        <DropdownMenuItem render={<Link to="/r/$id" params={{ id: roster.id }} target="_blank" />}>
+                        <DropdownMenuItem render={<Link to="/rosters/$id" params={{ id: roster.id }} target="_blank" />}>
                           <Eye /> View
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => print(roster.id)}>

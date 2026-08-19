@@ -743,7 +743,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
                         {list.name}
                       </Button>
                       <Button
-                        render={<Link to="/r/$id" params={{ id: list.id }} />}
+                        render={<Link to="/rosters/$id" params={{ id: list.id }} />}
                         nativeButton={false}
                         variant="ghost"
                         size="icon-sm"

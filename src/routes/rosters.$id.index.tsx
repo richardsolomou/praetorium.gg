@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { priceQuery, savedRosterPriceQuery, sharedRosterQuery } from '../client/queries'
 import { ROSTER_SOURCE_LABELS } from '../core/savedRoster'
 
-export const Route = createFileRoute('/r/$id')({
+export const Route = createFileRoute('/rosters/$id/')({
   // A battle token is what lets a seated opponent open a list that is otherwise private.
   validateSearch: (search: Record<string, unknown>): { battle?: string } =>
     typeof search.battle === 'string' ? { battle: search.battle } : {},

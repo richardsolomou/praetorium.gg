@@ -43,7 +43,7 @@ test('a private roster can be shared and made private again', async ({ browser }
   await page.getByRole('menuitem', { name: 'Share unlisted link' }).click()
   await expect(page.getByText('Unlisted')).toBeVisible()
   const sharedUrl = await page.evaluate(() => navigator.clipboard.readText())
-  expect(sharedUrl).toMatch(/\/r\//)
+  expect(sharedUrl).toMatch(/\/rosters\/[^/]+$/)
   const anonymous = await (await browser.newContext()).newPage()
   await anonymous.goto(sharedUrl)
   await expect(anonymous.getByRole('heading', { name: 'Shareable roster' })).toBeVisible()

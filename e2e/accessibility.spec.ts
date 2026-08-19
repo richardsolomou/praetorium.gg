@@ -15,7 +15,7 @@ test('opening a battle is operable from the keyboard', async ({ page }) => {
   await expect(page.getByRole('dialog', { name: 'Start a battle' })).toBeVisible()
   await page.getByRole('button', { name: 'Solo practice' }).click()
   await page.getByRole('button', { name: 'Create battle' }).click()
-  await expect(page).toHaveURL(/\/b\//)
+  await expect(page).toHaveURL(/\/battles\/[^/]+$/)
 })
 
 test('reduced motion removes meaningful transitions', async ({ page }) => {

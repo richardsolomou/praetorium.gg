@@ -3,7 +3,7 @@ import { createFileRoute, Link } from '@tanstack/react-router'
 import { SignInRequired } from '../client/components/SignInRequired'
 import { battlesQuery, meQuery } from '../client/queries'
 
-export const Route = createFileRoute('/p/$playerId')({
+export const Route = createFileRoute('/players/$playerId')({
   loader: ({ context }) =>
     Promise.all([context.queryClient.ensureQueryData(meQuery()), context.queryClient.ensureQueryData(battlesQuery())]),
   component: PlayerProfile,
@@ -81,7 +81,7 @@ function PlayerProfile() {
           {shared.map((battle) => (
             <Link
               key={battle.token}
-              to="/b/$token"
+              to="/battles/$token"
               params={{ token: battle.token }}
               className="flex items-center justify-between gap-3 border border-edge bg-panel p-3 hover:border-edge-strong"
             >

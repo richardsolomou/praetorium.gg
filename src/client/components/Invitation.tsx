@@ -23,7 +23,7 @@ export function Invitation({ token, free }: { token: string; free: boolean }) {
             ? 'Sign in to take an open seat. Your name on the scoreboard is the one on your account.'
             : 'If you are one of the seated players, signing in will open the battle.'
         }
-        next={`/b/${token}`}
+        next={`/battles/${token}`}
       />
     )
   }

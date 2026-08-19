@@ -68,7 +68,7 @@ function SideScore({ side, round, token, align }: { side: Side; round: number; t
           {side.armies.map((army, at) => (
             <span key={army.playerId}>
               {at ? <span className="text-dim"> & </span> : null}
-              <Link to="/p/$playerId" params={{ playerId: army.playerId }} className="hover:underline">
+              <Link to="/players/$playerId" params={{ playerId: army.playerId }} className="hover:underline">
                 {army.playerName}
               </Link>
             </span>
@@ -104,7 +104,7 @@ function ArmyLink({ army, token }: { army: Army; token: string }) {
   if (!army.roster) return <span className="text-faint">No list</span>
   if (!army.rosterId) return <span>{army.roster.name}</span>
   return (
-    <Link to="/r/$id" params={{ id: army.rosterId }} search={{ battle: token }} className="hover:underline">
+    <Link to="/rosters/$id" params={{ id: army.rosterId }} search={{ battle: token }} className="hover:underline">
       {army.roster.name}
     </Link>
   )

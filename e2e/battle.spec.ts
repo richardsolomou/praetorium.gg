@@ -37,6 +37,12 @@ test('a tactical hand is dealt rather than chosen, and pays out when the card sa
   const drawn = await hand.evaluateAll((cards) => cards.map((card) => card.getAttribute('data-secondary')))
   for (const key of drawn) await expect(bob.locator(`[data-secondary="${key}"]`)).toBeVisible()
 
+  // The scoreboard is the way out of a battle: to whoever is playing it, and to the
+  // list they brought, which a seated opponent reads through the battle token.
+  const scoreboard = alice.getByRole('region', { name: 'Battle scoreboard' })
+  await expect(scoreboard.getByRole('link', { name: aliceName })).toHaveAttribute('href', /^\/players\/[^/?]+$/)
+  await expect(scoreboard.getByRole('link', { name: aliceRoster })).toHaveAttribute('href', /^\/rosters\/[^/?]+\?battle=/)
+
   const panel = alice.locator('[data-panel="player"]').filter({ hasText: 'Death Guard' })
   await expect(panel.locator('[data-stat="cp"]')).toHaveText('1')
   await expect(bob.locator('[data-panel="player"]').filter({ hasText: 'Death Guard' }).getByRole('button', { name: /^Use / })).toHaveCount(
