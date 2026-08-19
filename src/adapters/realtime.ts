@@ -15,13 +15,13 @@ export function battleChannel(battleId: string) {
 }
 
 /**
- * One channel per player, for the list of battles rather than any one battle.
+ * One channel per user, for the list of battles rather than any one battle.
  *
  * A player is told their battles changed before they have any of them open, which is
  * the only way being added to one can reach a page that is not watching it.
  */
-export function playerChannel(playerId: string) {
-  return `player:${playerId}`
+export function userChannel(userId: string) {
+  return `user:${userId}`
 }
 
 export function realtimeConfig(environment: NodeJS.ProcessEnv = process.env) {
@@ -38,8 +38,8 @@ export function realtimeConfig(environment: NodeJS.ProcessEnv = process.env) {
 }
 
 /** Proves who the connection is. It grants no channels by itself. */
-export async function connectionToken(playerId: string, secret: string, now = Math.floor(Date.now() / 1000)) {
-  return signRealtimeToken(playerId, {}, { secret, now, ttlSeconds: TOKEN_TTL_SECONDS })
+export async function connectionToken(userId: string, secret: string, now = Math.floor(Date.now() / 1000)) {
+  return signRealtimeToken(userId, {}, { secret, now, ttlSeconds: TOKEN_TTL_SECONDS })
 }
 
 /**
@@ -50,14 +50,10 @@ export async function connectionToken(playerId: string, secret: string, now = Ma
  * `info` is what the other player's screen shows as presence.
  */
 export async function subscriptionToken(
-  player: { id: string; name: string },
+  user: { id: string; name: string },
   channel: string,
   secret: string,
   now = Math.floor(Date.now() / 1000),
 ) {
-  return signRealtimeToken(
-    player.id,
-    { channel, info: { playerId: player.id, name: player.name } },
-    { secret, now, ttlSeconds: TOKEN_TTL_SECONDS },
-  )
+  return signRealtimeToken(user.id, { channel, info: { userId: user.id, name: user.name } }, { secret, now, ttlSeconds: TOKEN_TTL_SECONDS })
 }

@@ -90,7 +90,7 @@ export function useLiveBattle(token: string, enabled: boolean) {
 /**
  * Keeps the list of battles current.
  *
- * The same nudge-then-refetch as an open battle, on a channel named after the player
+ * The same nudge-then-refetch as an open battle, on a channel named after the user
  * rather than a battle: being added to one has to reach a page that is not watching
  * it yet, and the list is exactly that page.
  */
@@ -102,7 +102,7 @@ export function useLiveBattles(enabled: boolean) {
   )
   const createClient = useCallback(async () => {
     const { token: connection, channel } = await ask()
-    if (!channel) throw new Error('Realtime ticket did not include a player channel')
+    if (!channel) throw new Error('Realtime ticket did not include a user channel')
     const client = createSameOriginRealtimeClient({ token: connection, getToken: async () => (await ask()).token })
     clientChannels.set(client, channel)
     return client

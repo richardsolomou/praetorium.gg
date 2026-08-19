@@ -26,9 +26,9 @@ function Friends() {
       queryClient.invalidateQueries({ queryKey: opponentsQuery().queryKey }),
     ])
   }
-  const request = useMutation({ mutationFn: (playerId: string) => requestFriend({ data: { playerId } }), onSuccess: refresh })
-  const accept = useMutation({ mutationFn: (playerId: string) => acceptFriend({ data: { playerId } }), onSuccess: refresh })
-  const remove = useMutation({ mutationFn: (playerId: string) => removeFriend({ data: { playerId } }), onSuccess: refresh })
+  const request = useMutation({ mutationFn: (userId: string) => requestFriend({ data: { userId } }), onSuccess: refresh })
+  const accept = useMutation({ mutationFn: (userId: string) => acceptFriend({ data: { userId } }), onSuccess: refresh })
+  const remove = useMutation({ mutationFn: (userId: string) => removeFriend({ data: { userId } }), onSuccess: refresh })
   if (!me) return <SignInRequired title="Your friends" explanation="Sign in to connect with the people you play against." />
   const people = data.people.filter((person) => person.name.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()))
 

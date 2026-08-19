@@ -2,35 +2,29 @@ import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { SignInRequired } from '../client/components/SignInRequired'
 import { PlayerAvatar } from '../client/components/PlayerAvatar'
-import { battlesQuery, meQuery, playerProfileQuery } from '../client/queries'
+import { battlesQuery, meQuery, userProfileQuery } from '../client/queries'
 
-export const Route = createFileRoute('/players/$playerId')({
+export const Route = createFileRoute('/users/$userId')({
   loader: ({ context, params }) =>
     Promise.all([
       context.queryClient.ensureQueryData(meQuery()),
       context.queryClient.ensureQueryData(battlesQuery()),
-      context.queryClient.ensureQueryData(playerProfileQuery(params.playerId)),
+      context.queryClient.ensureQueryData(userProfileQuery(params.userId)),
     ]),
   component: PlayerProfile,
 })
 
 type Battle = Awaited<ReturnType<NonNullable<ReturnType<typeof battlesQuery>['queryFn']>>>[number]
 
-/**
- * Who someone is, told entirely from the battles you have shared.
- *
- * Nothing here is a new disclosure: every fact on the page comes from a battle the
- * reader already sits in, so a profile cannot become a way to learn about a player
- * you have never faced.
- */
+/** Every fact comes from a battle the viewer already sits in. */
 function PlayerProfile() {
-  const { playerId } = Route.useParams()
+  const { userId } = Route.useParams()
   const { data: me } = useQuery(meQuery())
   const { data: battles = [] } = useQuery(battlesQuery())
-  const { data: profile } = useQuery(playerProfileQuery(playerId))
-  if (!me) return <SignInRequired title="Player" explanation="Sign in to see the players you have shared a battle with." />
+  const { data: profile } = useQuery(userProfileQuery(userId))
+  if (!me) return <SignInRequired title="User" explanation="Sign in to see the users you have shared a battle with." />
 
-  const shared = battles.filter((battle) => battle.playerIds.includes(playerId))
+  const shared = battles.filter((battle) => battle.playerIds.includes(userId))
   if (!profile) {
     return (
       <main className="mx-auto w-full max-w-2xl px-4 py-12 text-center">
@@ -40,16 +34,16 @@ function PlayerProfile() {
     )
   }
 
-  const yourself = playerId === me.id
+  const yourself = userId === me.id
   const finished = shared.filter((battle) => battle.status === 'finished')
   // Your own page counts every battle you finished; someone else's counts the ones you played against them.
-  const outcomes = finished.map((battle) => (yourself ? ownResult(battle, me.id) : resultFor(battle, me.id, playerId)))
+  const outcomes = finished.map((battle) => (yourself ? ownResult(battle, me.id) : resultFor(battle, me.id, userId)))
   const record = {
     won: outcomes.filter((outcome) => outcome === 'won').length,
     lost: outcomes.filter((outcome) => outcome === 'lost').length,
     drawn: outcomes.filter((outcome) => outcome === 'drawn').length,
   }
-  const together = yourself ? 0 : shared.filter((battle) => sideOf(battle, me.id) === sideOf(battle, playerId)).length
+  const together = yourself ? 0 : shared.filter((battle) => sideOf(battle, me.id) === sideOf(battle, userId)).length
 
   return (
     <main className="mx-auto w-full max-w-3xl space-y-6 px-4 py-8">
