@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.12.1
+
+### Patch Changes
+
+- be41610: Show selected loadouts when viewing another player's roster.
+
 ## 0.12.0
 
 ### Minor Changes
