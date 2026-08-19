@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test'
 import {
+  advance,
+  advanceButton,
   attachRoster,
   befriend,
   createBattle,
@@ -127,4 +129,47 @@ test('a card the rules let you put back is offered back as it is drawn', async (
   }
   await takeTheTurn(bob)
   await expect(prompt).toBeHidden()
+})
+
+test('a card names its own condition, and what their turn owed is asked as the turn comes back', async ({ browser }) => {
+  const alice = await (await browser.newContext()).newPage()
+  const bob = await (await browser.newContext()).newPage()
+  const bobName = uniqueName('Bob')
+
+  await signUp(bob, bobName)
+  const bobRoster = await createRoster(bob, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Necrons' })
+  await signUp(alice, uniqueName('Alice'))
+  const aliceRoster = await createRoster(alice, { faction: 'Death Guard', detachment: /Shamblerot Vectorium/, name: 'Death Guard' })
+  await setupBattle(alice, bob, {
+    opponent: bobName,
+    hostRoster: aliceRoster,
+    guestRoster: bobRoster,
+    // Fixed play, so the two cards under test are certain: Outflank pays in tiers the
+    // source describes only in prose, and Assassination pays on either player's turn.
+    beforeStart: async () => {
+      await alice.getByRole('button', { name: 'Fixed' }).click()
+      for (const card of ['Assassination', 'Outflank']) {
+        await alice.getByRole('button', { name: card }).click()
+        await expect(alice.getByRole('button', { name: card })).toHaveAttribute('aria-pressed', 'true')
+      }
+    },
+  })
+
+  for (let phase = 0; phase < 5; phase += 1) await advance(alice)
+  await advanceButton(alice).click()
+  const scoring = alice.getByRole('dialog', { name: /^Scoring end of turn points/ })
+  const outflank = scoring.locator('[data-due="outflank"]')
+  // Two tiers of one thing rather than two payouts, and the card's own words for what each asks.
+  await expect(outflank).toContainText('or')
+  await expect(outflank).toContainText('The lower payout')
+  await expect(outflank).toContainText('The higher payout')
+  await expect(outflank).toContainText('score the lower amount while one or more friendly units')
+  await scoring.getByRole('button', { name: 'Pass the turn' }).click()
+
+  // Assassination pays at the end of either turn, and the opponent's is a turn Alice
+  // cannot press anything through, so it is settled as the turn comes back.
+  for (let phase = 0; phase < 6; phase += 1) await advance(bob)
+  const owed = alice.getByRole('dialog', { name: /^Scoring end of their turn points/ })
+  await expect(owed).toBeVisible()
+  await expect(owed.locator('[data-due="assassination"]')).toContainText('For each enemy CHARACTER model destroyed this turn.')
 })

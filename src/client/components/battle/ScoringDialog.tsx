@@ -3,7 +3,7 @@ import { Minus, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import type { BattleView, Command } from '../../../core/battle'
-import { alternatives, awardLimit, awardTotal, conditionLabel, counted, type MissionAward } from '../../missionText'
+import { alternatives, awardLimit, awardTotal, conditionLabel, counted, type MissionAward, payoutLabel } from '../../missionText'
 import { cardsDue, cardsDueFromTheirTurn, type DueCard, finishesOnScore } from '../../scoring'
 import type { Side } from '../../sides'
 import { MissionName, type ReferenceCard } from './MissionCards'
@@ -152,8 +152,7 @@ function AwardRow({
   onAnswer: (times: number) => void
 }) {
   const limit = awardLimit(award)
-  // A payout the source described only in the card's own words is named by what it pays.
-  const label = conditionLabel(award) ?? `Scores ${award.vp} VP${counted(award) ? ' each' : ''}`
+  const label = conditionLabel(award) ?? payoutLabel(award, card.awards)
 
   return (
     <div className="flex items-center gap-3 px-3 py-2">
@@ -239,9 +238,20 @@ export function dueForAdvance(view: BattleView, side: Side, awardsFor: (key: str
   return cardsDue(view, side.isActive, playable(side, awardsFor))
 }
 
-/** What the turn the other side just finished owes this one. */
-export function dueFromTheirTurn(round: number, side: Side, awardsFor: (key: string, mode?: string) => MissionAward[]): DueCard[] {
-  return cardsDueFromTheirTurn(round, playable(side, awardsFor))
+/**
+ * What the turn the other side just finished owes this one.
+ *
+ * `hand` is what this side was holding when that turn ended. A card dealt after it was
+ * not in play for it, so it is not asked about — otherwise the prompt opens about a
+ * card the player has not even been shown yet.
+ */
+export function dueFromTheirTurn(
+  round: number,
+  side: Side,
+  awardsFor: (key: string, mode?: string) => MissionAward[],
+  hand: readonly string[],
+): DueCard[] {
+  return cardsDueFromTheirTurn(round, playable(side, awardsFor), hand)
 }
 
 /** A side's primary and whatever is still live in its hand, with the payouts each carries. */

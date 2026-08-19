@@ -12,6 +12,7 @@ import { BattleMenu } from './battle/BattleMenu'
 import { DrawDialog, type WhenDrawn } from './battle/DrawDialog'
 import type { Award, ReferenceCard, StratagemText } from './battle/MissionCards'
 import { Scoreboard } from './battle/Scoreboard'
+import { turnPrompt } from '../scoring'
 import { dueForAdvance, dueFromTheirTurn, ScoringDialog } from './battle/ScoringDialog'
 import { SidePanel } from './battle/SidePanel'
 import { HEADING } from './battle/tints'
@@ -101,16 +102,18 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
   const keeper = yours?.captain.id === view.viewerId
   // A card that pays on the opponent's turn comes due while they hold the controls, so
   // this side is asked about it as the turn comes back rather than never.
-  const seen = useRef({ round: view.round, active: view.activePlayerId })
-  const [owed, setOwed] = useState<{ round: number; at: string } | null>(null)
+  const seen = useRef({ round: view.round, active: view.activePlayerId, hand: heldKeys(yours) })
+  const [owed, setOwed] = useState<{ round: number; hand: string[] } | null>(null)
   useEffect(() => {
     const before = seen.current
-    seen.current = { round: view.round, active: view.activePlayerId }
+    seen.current = { round: view.round, active: view.activePlayerId, hand: heldKeys(yours) }
     if (view.status !== 'playing' || before.active === view.activePlayerId || before.active === null) return
     const theirs = view.players.find((player) => player.id === before.active)?.side !== yours?.index
-    if (theirs && keeper) setOwed({ round: before.round, at: `${before.round}-${before.active}` })
-  }, [view.activePlayerId, view.round, view.status, view.players, yours?.index, keeper])
-  const owedCards = owed && yours && !finished ? dueFromTheirTurn(owed.round, yours, awardsFor) : []
+    // The hand as it stood when their turn ended: a card dealt afterwards was not in
+    // play for it, so it is not owed anything by it.
+    if (theirs && keeper) setOwed({ round: before.round, hand: before.hand })
+  }, [view.activePlayerId, view.round, view.status, view.players, yours, keeper])
+  const owedCards = owed && yours && !finished ? dueFromTheirTurn(owed.round, yours, awardsFor, owed.hand) : []
   // A tactical hand is dealt at the top of your own turn, and only once for it.
   const turnKey = `${view.round}-${view.activePlayerId ?? ''}`
   const handShort =
@@ -126,7 +129,7 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
   useEffect(() => {
     if (handShort && drawnFor !== turnKey) setDrawTurn(turnKey)
   }, [handShort, drawnFor, turnKey])
-  const drawing = drawTurn === turnKey && drawnFor !== turnKey
+  const prompt = turnPrompt(owedCards.length, drawTurn === turnKey && drawnFor !== turnKey)
 
   return (
     <main className={`w-full space-y-3 px-3 lg:pb-8 ${finished ? 'pb-8' : 'pb-32'}`}>
@@ -244,7 +247,7 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
         />
       ) : null}
 
-      {owedCards.length && yours ? (
+      {prompt === 'owed' && yours ? (
         <ScoringDialog
           side={yours}
           due={owedCards}
@@ -258,8 +261,7 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
         />
       ) : null}
 
-      {/* One prompt at a time: what their turn owed is settled before this one is dealt. */}
-      {drawing && yours && !owedCards.length ? (
+      {prompt === 'draw' && yours ? (
         <DrawDialog
           key={turnKey}
           side={yours}
@@ -313,3 +315,6 @@ function resultLabel(view: BattleView) {
   }
   return view.result.reason === 'finished-early' ? 'Finished early.' : 'Played to the last round.'
 }
+
+/** The cards a side was holding, as keys, so a later hand can be told from this one. */
+const heldKeys = (side: Side | undefined) => (side?.secondaries ?? []).filter((card) => card.status === 'active').map((card) => card.key)

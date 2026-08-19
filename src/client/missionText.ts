@@ -23,6 +23,23 @@ export type MissionAward = {
 }
 
 /**
+ * What to call a payout the source described only in the card's own words.
+ *
+ * Nothing is invented for it. Payouts in one group are tiers of the same thing, so
+ * the one that pays less is the lower tier, and that much follows from the numbers.
+ * What each tier asks for is in the card's text, which is the only place the source
+ * says it, so the text is shown alongside.
+ */
+export function payoutLabel(award: MissionAward, siblings: readonly MissionAward[]): string {
+  const tiers = siblings.filter((other) => alternatives(award, other) && conditionLabel(other) === null)
+  if (tiers.length === 2) {
+    const [lower] = tiers.toSorted((left, right) => left.vp - right.vp)
+    return award === lower ? 'The lower payout.' : 'The higher payout.'
+  }
+  return 'As the card describes.'
+}
+
+/**
  * Whether picking one payout on a card rules another out.
  *
  * The source says so directly: payouts it puts in one group are tiers of the same

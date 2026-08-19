@@ -49,8 +49,11 @@ export function dueNow(trigger: AwardTrigger, view: Pick<BattleView, 'phase' | '
 export function cardsDueFromTheirTurn(
   round: number,
   cards: readonly { key: string; name: string; category: 'primary' | 'secondary'; awards: readonly MissionAward[] }[],
+  /** The hand as it stood when that turn ended. A card dealt since was not in play for it. */
+  hand: readonly string[],
 ): DueCard[] {
   return cards
+    .filter((card) => card.category === 'primary' || hand.includes(card.key))
     .map((card) => ({
       key: card.key,
       name: card.name,
@@ -118,4 +121,16 @@ export function nextDraw<T extends { key: string }>(
  */
 export function finishesOnScore(category: 'primary' | 'secondary', mode: 'fixed' | 'tactical', scored: number) {
   return category === 'secondary' && mode === 'tactical' && scored > 0
+}
+
+/**
+ * Which prompt a turn opens with.
+ *
+ * What the opponent's turn owed is settled before the hand this one deals: both are
+ * modal, and a player asked about a card while a second prompt is being dealt over
+ * the top of it cannot read either.
+ */
+export function turnPrompt(owed: number, drawing: boolean): 'owed' | 'draw' | null {
+  if (owed > 0) return 'owed'
+  return drawing ? 'draw' : null
 }

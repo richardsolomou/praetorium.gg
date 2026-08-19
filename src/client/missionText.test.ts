@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { alternatives, awardLimit, awardTotal, conditionLabel, counted, type MissionAward } from './missionText'
+import { alternatives, awardLimit, awardTotal, conditionLabel, counted, type MissionAward, payoutLabel } from './missionText'
 
 const per = (vp: number, max: number | null) => ({ vp, max, per: 'enemy-unit-destroyed-this-turn' })
 
@@ -85,5 +85,41 @@ describe('how a card pays', () => {
 
   it('asks which tier rather than how many when the card grouped them', () => {
     expect(counted(tier('beacon-position', 'beacon-unit-on-battlefield-not-in-own-territory'))).toBe(false)
+  })
+})
+
+describe('naming a payout the source left unstructured', () => {
+  const bare = (vp: number, group: string | null): MissionAward => ({
+    vp,
+    per: null,
+    mode: null,
+    when: null,
+    max: null,
+    parameters: {},
+    operator: null,
+    operands: [],
+    group,
+    cumulative: false,
+    trigger: { timing: 'end-of-turn', phase: null, playerTurn: 'your-turn', roundMin: null, roundMax: null },
+  })
+
+  it('calls the cheaper of two tiers the lower payout', () => {
+    const tiers = [bare(3, 'centre-hold'), bare(5, 'centre-hold')]
+    expect(payoutLabel(tiers[0], tiers)).toBe('The lower payout.')
+  })
+
+  it('calls the dearer of two tiers the higher payout', () => {
+    const tiers = [bare(3, 'centre-hold'), bare(5, 'centre-hold')]
+    expect(payoutLabel(tiers[1], tiers)).toBe('The higher payout.')
+  })
+
+  it('points at the card when a payout stands alone', () => {
+    const only = [bare(5, null)]
+    expect(payoutLabel(only[0], only)).toBe('As the card describes.')
+  })
+
+  it('leaves a payout the source did describe to its own condition', () => {
+    const described: MissionAward = { ...bare(5, null), when: 'objective-majority' }
+    expect(conditionLabel(described)).toBe('You control more objectives than your opponent.')
   })
 })

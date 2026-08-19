@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { MissionAward } from './missionText'
-import { type AwardTrigger, cardsDue, cardsDueFromTheirTurn, dueNow, finishesOnScore, momentsPassed, nextDraw } from './scoring'
+import { type AwardTrigger, cardsDue, cardsDueFromTheirTurn, dueNow, finishesOnScore, momentsPassed, nextDraw, turnPrompt } from './scoring'
 
 const ANY: AwardTrigger = { timing: null, phase: null, playerTurn: null, roundMin: null, roundMax: null }
 const trigger = (overrides: Partial<AwardTrigger>): AwardTrigger => ({ ...ANY, ...overrides })
@@ -105,14 +105,14 @@ describe('when a mission is asked about', () => {
         awards: [payout(2, { timing: 'end-of-turn', playerTurn: 'opponent-turn' })],
       },
     ]
-    expect(cardsDueFromTheirTurn(1, cards)).toHaveLength(1)
+    expect(cardsDueFromTheirTurn(1, cards, ['guard'])).toHaveLength(1)
   })
 
   it('settles an either-turn card from their turn as well as your own', () => {
     const cards = [
       { key: 'kills', name: 'Kills', category: 'secondary' as const, awards: [payout(2, { timing: 'end-of-turn', playerTurn: 'either' })] },
     ]
-    expect(cardsDueFromTheirTurn(1, cards)).toHaveLength(1)
+    expect(cardsDueFromTheirTurn(1, cards, ['kills'])).toHaveLength(1)
   })
 
   it('leaves your own-turn cards to your own turn', () => {
@@ -124,7 +124,7 @@ describe('when a mission is asked about', () => {
         awards: [payout(3, { timing: 'end-of-turn', playerTurn: 'your-turn' })],
       },
     ]
-    expect(cardsDueFromTheirTurn(1, cards)).toEqual([])
+    expect(cardsDueFromTheirTurn(1, cards, ['mine'])).toEqual([])
   })
 
   it('judges their turn against the round it was played in', () => {
@@ -136,8 +136,20 @@ describe('when a mission is asked about', () => {
         awards: [payout(3, { timing: 'end-of-turn', playerTurn: 'opponent-turn', roundMin: 2 })],
       },
     ]
-    expect(cardsDueFromTheirTurn(1, cards)).toEqual([])
-    expect(cardsDueFromTheirTurn(2, cards)).toHaveLength(1)
+    expect(cardsDueFromTheirTurn(1, cards, ['late'])).toEqual([])
+    expect(cardsDueFromTheirTurn(2, cards, ['late'])).toHaveLength(1)
+  })
+
+  it('never asks about a card dealt after that turn had already ended', () => {
+    const cards = [
+      {
+        key: 'fresh',
+        name: 'Fresh',
+        category: 'secondary' as const,
+        awards: [payout(2, { timing: 'end-of-turn', playerTurn: 'either' })],
+      },
+    ]
+    expect(cardsDueFromTheirTurn(1, cards, [])).toEqual([])
   })
 })
 
@@ -188,5 +200,19 @@ describe('when scoring finishes a card', () => {
 
   it('never finishes the primary, which is played all battle', () => {
     expect(finishesOnScore('primary', 'tactical', 5)).toBe(false)
+  })
+})
+
+describe('what a turn opens with', () => {
+  it('deals the hand when their turn owed nothing', () => {
+    expect(turnPrompt(0, true)).toBe('draw')
+  })
+
+  it('settles what their turn owed before dealing anything over it', () => {
+    expect(turnPrompt(1, true)).toBe('owed')
+  })
+
+  it('opens with nothing when neither is waiting', () => {
+    expect(turnPrompt(0, false)).toBeNull()
   })
 })

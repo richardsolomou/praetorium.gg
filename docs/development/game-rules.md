@@ -20,6 +20,8 @@ Praetorium reads structured stratagem and mission data from [40kdc-data](https:/
 - Read `vp_max` for the ceiling on a counted payout. A ceiling clamps the total; it does not stop the count one short of it.
 - A tactical secondary is played once: scoring it finishes it, and the hand fills back to two at the top of the next turn. A fixed hand is chosen for the whole battle and is not finished by being scored.
 - Read compound conditions from `when.operator` and `when.operands`. Where an award carries no condition at all, show the card's own text rather than inventing one.
+- A payout on the opponent's turn is settled as the turn comes back, judged against the round that turn was in and against the hand as it stood when it ended. A card dealt afterwards was not in play for that turn and is never asked about for it.
+- What their turn owed comes before the hand this one deals. Both prompts are modal, so only one is shown at a time.
 - Draw a tactical hand at random. `when_drawn` says when a freshly drawn card may go back: a `battle_round` bound and a paired `card_ids` list the battle can check itself, and a board-state `condition` is stated for the player because the source cannot see the table.
 - The battle-ready bonus is recorded before the first turn and joins the score only when the battle is finished.
 - Show mission scoring caps as guidance. Do not reject a score that exceeds them.

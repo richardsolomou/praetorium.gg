@@ -1,5 +1,5 @@
 import { Plus } from 'lucide-react'
-import { conditionLabel, groupKey, type MissionAward as Award, roundLabel, timingLabel, title } from '../missionText'
+import { conditionLabel, groupKey, type MissionAward as Award, payoutLabel, roundLabel, timingLabel, title } from '../missionText'
 import { RuleText } from './RuleText'
 
 export function MissionCardReference({ card, type }: { card: { name: string; text: string | null; awards: Award[] }; type: string }) {
@@ -53,7 +53,7 @@ function ScoringBlock({ awards }: { awards: Award[] }) {
           <div key={`${award.vp}-${award.per}-${award.when}`} className="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0">
             <p className="text-base text-bone">
               {award.cumulative ? <Plus className="mr-2 inline size-4" /> : null}
-              {conditionLabel(award) ?? 'As the card describes.'}
+              {conditionLabel(award) ?? payoutLabel(award, awards)}
             </p>
             <span className="chip shrink-0 text-lg text-bone">
               {award.cumulative ? '+' : ''}
