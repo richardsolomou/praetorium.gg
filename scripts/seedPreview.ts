@@ -32,7 +32,26 @@ export const PREVIEW_ROSTER = {
   ],
   prep: null,
 } as const
-export const PREVIEW_OPPONENT_ROSTER = { ...PREVIEW_ROSTER, id: 'preview-opponent-necrons', name: 'Opponent Cursed Skyshroud 2K' } as const
+export const PREVIEW_OPPONENT_ROSTER = {
+  id: 'preview-opponent-orks',
+  name: 'Taktikal Stompa 2K',
+  catalogueId: 'a55f-b7b3-6c65-a05f',
+  detachmentIds: ['fdd5-9868-a9ee-e9f1'],
+  disposition: 'reconnaissance',
+  limit: 2000,
+  picks: [
+    { entryId: '4dc0-5822-5cfb-6a02' },
+    { entryId: '473e-73f9-493d-6a0a' },
+    { entryId: '5267-f96c-4491-eebe' },
+    { entryId: 'c5a3-4245-9b6a-fb8' },
+    { entryId: '9af5-6820-1ff2-6c01' },
+    { entryId: '6c12-6df4-9d3a-2cc' },
+    { entryId: '6c12-6df4-9d3a-2cc' },
+    { entryId: '8a76-5b36-455d-2c49' },
+    { entryId: 'bd8-4180-6880-1f45' },
+  ],
+  prep: null,
+} as const
 
 export async function seedPreview() {
   const database = openDatabase(databasePath())

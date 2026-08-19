@@ -1,10 +1,11 @@
-import { useEffect, useRef } from 'react'
+import { Undo2 } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import type { Command, Secondary } from '../../../core/battle'
 import { HAND_SIZE, nextDraw } from '../../scoring'
 import type { Side } from '../../sides'
-import { MissionName, type ReferenceCard } from './MissionCards'
+import { MissionDetailsDialog, MissionName, type MissionDetails, type ReferenceCard } from './MissionCards'
 import { CARD } from './tints'
 
 /** What the rules say about putting a card back the moment it is drawn. */
@@ -19,6 +20,8 @@ type Props = {
   side: Side
   seq: number
   round: number
+  undoable: number | null
+  initiallyPaused: boolean
   pending: boolean
   send: (command: Command) => void
   referenceFor: (key: string) => ReferenceCard | undefined
@@ -33,8 +36,10 @@ type Props = {
  * are dealt is not a move the game has. Putting one back is, but only where the
  * card itself says so, which is why each offer names the condition it rests on.
  */
-export function DrawDialog({ side, seq, round, pending, send, referenceFor, whenDrawnFor, onDone }: Props) {
+export function DrawDialog({ side, seq, round, undoable, initiallyPaused, pending, send, referenceFor, whenDrawnFor, onDone }: Props) {
   const held = side.secondaries.filter((card) => card.status === 'active')
+  const [paused, setPaused] = useState(initiallyPaused)
+  const [inspected, setInspected] = useState<MissionDetails | null>(null)
   /**
    * What this prompt has already asked the deck for.
    *
@@ -58,60 +63,84 @@ export function DrawDialog({ side, seq, round, pending, send, referenceFor, when
   // decided here rather than during a render: two renders can be prepared before
   // either effect runs, and both would read the same tally and ask the deck twice.
   useEffect(() => {
+    if (paused) return
     const card = nextDraw(side.secondaries, asked.current, shuffled(side.remainingSecondaries))
     if (!card) return
     asked.current.add(card.key)
     send({ kind: 'draw-secondary', secondary: card })
-  }, [side.secondaries, side.remainingSecondaries, send])
+  }, [paused, side.secondaries, side.remainingSecondaries, send])
 
   return (
-    // No way out but taking the hand: dismissing it would skip the one chance to see
-    // what was dealt and to put a card back, and the turn only deals once.
-    <Dialog open>
-      <DialogContent
-        showCloseButton={false}
-        className="max-h-[85dvh] overflow-y-auto rounded-none border border-edge bg-panel text-bone sm:max-w-lg"
-      >
-        <DialogHeader>
-          <DialogTitle className="uppercase">Your secondary missions</DialogTitle>
-          <DialogDescription className="text-dim">
-            Drawn at random from the deck, {side.remainingSecondaries.length} cards left. Some cards may be put back the moment they are
-            drawn.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="space-y-2">
-          {held.map((card) => {
-            const rule = whenDrawnFor(card.key)
-            const offer = redrawOffer(rule, round, held)
-            return (
-              <div key={card.key} data-drawn={card.key} className={`${CARD} space-y-1.5`}>
-                <MissionName name={card.name} card={referenceFor(card.key)} type="Secondary mission" />
-                {offer ? (
-                  <>
-                    <p className="text-[0.6875rem] text-dim">{offer}</p>
-                    <Button
-                      variant="outline"
-                      size="xs"
-                      className="text-discarded"
-                      disabled={pending || !side.remainingSecondaries.length}
-                      onClick={() => send({ kind: 'set-secondary-status', key: card.key, status: 'discarded', playerId: side.captain.id })}
-                    >
-                      Put back and draw another
-                    </Button>
-                  </>
-                ) : null}
-              </div>
-            )
-          })}
-          {held.length < HAND_SIZE ? <p className="text-sm text-dim">Drawing…</p> : null}
-        </div>
-        <DialogFooter className="rounded-none border-edge bg-sunken">
-          <Button disabled={pending || held.length < HAND_SIZE} onClick={onDone}>
-            Take the turn
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <>
+      <Dialog open>
+        <DialogContent
+          showCloseButton={false}
+          className="max-h-[85dvh] overflow-y-auto rounded-none border border-edge bg-panel text-bone sm:max-w-lg"
+        >
+          <DialogHeader>
+            <DialogTitle className="uppercase">Your secondary missions</DialogTitle>
+            <DialogDescription className="text-dim">
+              Drawn at random from the deck, {side.remainingSecondaries.length} cards left. Some cards may be put back the moment they are
+              drawn.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            {held.map((card) => {
+              const rule = whenDrawnFor(card.key)
+              const offer = redrawOffer(rule, round, held)
+              return (
+                <div key={card.key} data-drawn={card.key} className={`${CARD} space-y-1.5`}>
+                  <MissionName name={card.name} card={referenceFor(card.key)} type="Secondary mission" onRead={setInspected} />
+                  {offer ? (
+                    <>
+                      <p className="text-[0.6875rem] text-dim">{offer}</p>
+                      <Button
+                        variant="outline"
+                        size="xs"
+                        className="text-discarded"
+                        disabled={pending || !side.remainingSecondaries.length}
+                        onClick={() =>
+                          send({ kind: 'set-secondary-status', key: card.key, status: 'discarded', playerId: side.captain.id })
+                        }
+                      >
+                        Put back and draw another
+                      </Button>
+                    </>
+                  ) : null}
+                </div>
+              )
+            })}
+            {paused && held.length < HAND_SIZE ? <p className="text-sm text-dim">Drawing paused while you undo.</p> : null}
+            {!paused && held.length < HAND_SIZE ? <p className="text-sm text-dim">Drawing…</p> : null}
+          </div>
+          <DialogFooter className="rounded-none border-edge bg-sunken">
+            <Button
+              variant="outline"
+              disabled={pending || undoable === null}
+              onClick={() => {
+                if (undoable === null) return
+                setPaused(true)
+                send({ kind: 'undo', target: undoable })
+              }}
+            >
+              <Undo2 />
+              Undo latest action
+            </Button>
+            {paused && held.length < HAND_SIZE ? (
+              <Button disabled={pending} onClick={() => setPaused(false)}>
+                Resume drawing
+              </Button>
+            ) : (
+              <Button disabled={pending || held.length < HAND_SIZE} onClick={onDone}>
+                Take the turn
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* Base UI treats nested dialogs as one dismissible region, so details must be a sibling. */}
+      {inspected ? <MissionDetailsDialog details={inspected} onOpenChange={(open) => !open && setInspected(null)} /> : null}
+    </>
   )
 }
 

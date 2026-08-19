@@ -53,16 +53,22 @@ test('a tactical hand is dealt rather than chosen, and pays out when the card sa
   // The scoreboard is the way out of a battle: to whoever is playing it, and to the
   // list they brought, which a seated opponent reads through the battle token.
   const scoreboard = alice.getByRole('region', { name: 'Battle scoreboard' })
-  await expect(scoreboard.getByRole('link', { name: aliceName })).toHaveAttribute('href', /^\/users\/[^/?]+$/)
-  await expect(scoreboard.getByRole('link', { name: aliceName }).locator('img')).toHaveAttribute('src', /^data:image\/webp;base64,/)
+  const playerLink = scoreboard.getByRole('link', { name: aliceName })
+  await expect(playerLink).toHaveAttribute('href', /^\/users\/[^/?]+$/)
+  await expect(playerLink.locator('img')).toHaveAttribute('src', /^data:image\/webp;base64,/)
+  await playerLink.hover()
+  await expect(playerLink).toHaveCSS('text-decoration-line', 'none')
+  await expect(playerLink.getByText(aliceName, { exact: true })).toHaveCSS('text-decoration-line', 'underline')
+  await expect(playerLink.locator('[aria-hidden="true"]')).toHaveCSS('text-decoration-line', 'none')
   await expect(scoreboard.getByRole('link', { name: aliceRoster, exact: true })).toHaveAttribute('href', /^\/rosters\/[^/?]+\?battle=/)
   const faction = scoreboard.getByRole('link', { name: 'Death Guard faction' })
   await expect(faction).toHaveAttribute('href', '/factions/death-guard')
   await expect(faction.locator('[data-faction-mark="death-guard"]')).toBeVisible()
-  await expect(scoreboard.getByRole('link', { name: 'Shamblerot Vectorium' })).toHaveAttribute(
-    'href',
-    '/factions/death-guard/detachments/shamblerot-vectorium',
-  )
+  const detachment = scoreboard.getByRole('link', { name: 'Shamblerot Vectorium' })
+  await expect(detachment).toHaveAttribute('href', '/factions/death-guard/detachments/shamblerot-vectorium')
+  const rosterPosition = await scoreboard.getByRole('link', { name: aliceRoster, exact: true }).boundingBox()
+  const detachmentPosition = await detachment.boundingBox()
+  expect(rosterPosition?.y).toBeGreaterThan(detachmentPosition?.y ?? Number.POSITIVE_INFINITY)
   const panel = alice.locator('[data-panel="player"]').filter({ hasText: 'Death Guard' })
   const opponentPanel = bob.locator('[data-panel="player"]').filter({ hasText: 'Death Guard' })
   await expect(panel.locator('[data-stat="cp"]')).toHaveText('1')
@@ -179,6 +185,15 @@ test('a card the rules let you put back is offered back as it is drawn', async (
   const prompt = bob.getByRole('dialog', { name: 'Your secondary missions' })
   await expect(prompt).toBeVisible()
   await expect(prompt.locator('[data-drawn]')).toHaveCount(2)
+  const firstCard = prompt.locator('[data-drawn]').first()
+  const readCard = firstCard.getByRole('button', { name: /^Read / })
+  const cardName = (await readCard.getAttribute('aria-label'))?.replace(/^Read /, '') ?? ''
+  await readCard.click()
+  const reference = bob.getByRole('dialog', { name: cardName })
+  await expect(reference).toBeVisible()
+  await bob.mouse.click(8, 400)
+  await expect(reference).toBeHidden()
+  await expect(prompt).toBeVisible()
   // Whatever was dealt, the deck itself is never on offer.
   await expect(prompt.getByRole('button', { name: 'Choose a card' })).toHaveCount(0)
   // A card that may go back says why, and putting it back deals another.
@@ -195,6 +210,13 @@ test('a card the rules let you put back is offered back as it is drawn', async (
       .poll(() => prompt.locator('[data-drawn]').evaluateAll((c) => c.map((d) => d.getAttribute('data-drawn'))))
       .not.toEqual(before)
   }
+  await prompt.getByRole('button', { name: 'Undo latest action' }).click()
+  await expect(prompt.locator('[data-drawn]')).toHaveCount(1)
+  await expect(prompt.getByRole('button', { name: 'Resume drawing' })).toBeVisible()
+  await prompt.getByRole('button', { name: 'Undo latest action' }).click()
+  await expect(prompt.locator('[data-drawn]')).toHaveCount(0)
+  await prompt.getByRole('button', { name: 'Resume drawing' }).click()
+  await expect(prompt.locator('[data-drawn]')).toHaveCount(2)
   // The hand is not something to dismiss: it is the one chance to see what was dealt.
   await bob.mouse.click(8, 400)
   await expect(prompt).toBeVisible()
@@ -204,6 +226,10 @@ test('a card the rules let you put back is offered back as it is drawn', async (
 
   await takeTheTurn(bob)
   await expect(prompt).toBeHidden()
+  await bob.getByRole('button', { name: 'Undo latest action' }).click()
+  await expect(prompt).toBeVisible()
+  await expect(prompt.locator('[data-drawn]')).toHaveCount(1)
+  await expect(prompt.getByRole('button', { name: 'Resume drawing' })).toBeVisible()
 })
 
 test('a card names its own condition, and what their turn owed is asked as the turn comes back', async ({ browser }) => {

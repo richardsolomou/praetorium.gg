@@ -47,6 +47,7 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
   // Which turn the draw is open for, and which turn has already been taken past it.
   const [drawTurn, setDrawTurn] = useState<string | null>(null)
   const [drawnFor, setDrawnFor] = useState<string | null>(null)
+  const [drawPaused, setDrawPaused] = useState(false)
   const table = sides(view)
   const yours = table.find((side) => side.isViewer)
   const active = table.find((side) => side.isActive)
@@ -161,7 +162,11 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
   // Latched, because the hand stops being short the moment it is dealt and the player
   // still has to see what they drew and whether a card may go back.
   useEffect(() => {
-    if (handShort && drawnFor !== turnKey) setDrawTurn(turnKey)
+    if (!handShort) return
+    const reopening = drawnFor === turnKey
+    setDrawPaused(reopening)
+    if (reopening) setDrawnFor(null)
+    setDrawTurn(turnKey)
   }, [handShort, drawnFor, turnKey])
   const prompt = settlementRound !== null ? (owedCards.length ? 'owed' : null) : turnPrompt(0, drawTurn === turnKey && drawnFor !== turnKey)
 
@@ -300,11 +305,16 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
           side={yours}
           seq={view.seq}
           round={view.round}
+          undoable={view.undoable}
+          initiallyPaused={drawPaused}
           pending={pending}
           send={send}
           referenceFor={(key) => referenceFor(yours, key)}
           whenDrawnFor={(key) => whenDrawnFor(yours, key)}
-          onDone={() => setDrawnFor(turnKey)}
+          onDone={() => {
+            setDrawPaused(false)
+            setDrawnFor(turnKey)
+          }}
         />
       ) : null}
     </main>
