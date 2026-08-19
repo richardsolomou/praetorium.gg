@@ -1,5 +1,15 @@
 # praetorium
 
+## 0.9.0
+
+### Minor Changes
+
+- 3ff636b: Use one roster page for editing and sharing, with changes available only to its owner.
+
+### Patch Changes
+
+- d61574d: Preserve compound weapon loadouts when importing text rosters.
+
 ## 0.8.1
 
 ### Patch Changes
