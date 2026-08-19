@@ -7,6 +7,7 @@ type ViewPlayer = BattleView['players'][number]
 function player(overrides: Partial<ViewPlayer> & Pick<ViewPlayer, 'id' | 'side'>): ViewPlayer {
   return {
     name: overrides.id,
+    image: null,
     isViewer: false,
     isActive: false,
     cp: 0,

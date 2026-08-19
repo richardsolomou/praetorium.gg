@@ -12,6 +12,7 @@ type ViewPlayer = BattleView['players'][number]
 export type Army = {
   playerId: string
   playerName: string
+  playerImage: string | null
   isViewer: boolean
   roster: ViewPlayer['roster']
   /** The saved list this army came from, when it came from one. */
@@ -119,6 +120,7 @@ function toArmy(player: ViewPlayer): Army {
   return {
     playerId: player.id,
     playerName: player.name,
+    playerImage: player.image,
     isViewer: player.isViewer,
     roster: player.roster,
     rosterId: player.roster?.id ?? null,

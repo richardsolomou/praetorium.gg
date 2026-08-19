@@ -1,27 +1,24 @@
 import { getRequest } from '@tanstack/react-start/server'
 import { app } from './app'
 
-export async function currentPlayer(request = getRequest()) {
+export async function currentUser(request = getRequest()) {
   const session = await app().auth.api.getSession({ headers: request.headers })
   if (!session) return null
-  const id = app().service.playerForUser(session.user.id, session.user.name)
-  return { id, name: session.user.name, image: session.user.image ?? null, email: session.user.email }
+  return { id: session.user.id, name: session.user.name, image: session.user.image ?? null, email: session.user.email }
 }
 
-export async function currentPlayerId(request = getRequest()) {
-  return (await currentPlayer(request))?.id ?? null
+export async function currentUserId(request = getRequest()) {
+  return (await currentUser(request))?.id ?? null
 }
 
-export async function requirePlayerId(request = getRequest()) {
-  const id = await currentPlayerId(request)
+export async function requireUserId(request = getRequest()) {
+  const id = await currentUserId(request)
   if (!id) throw new Response('sign in first', { status: 401 })
   return id
 }
 
-export async function requirePlayer(request = getRequest()) {
-  const player = await currentPlayer(request)
-  if (!player) throw new Response('sign in first', { status: 401 })
-  const session = await app().auth.api.getSession({ headers: request.headers })
-  if (!session) throw new Response('sign in first', { status: 401 })
-  return { ...player, userId: session.user.id }
+export async function requireUser(request = getRequest()) {
+  const user = await currentUser(request)
+  if (!user) throw new Response('sign in first', { status: 401 })
+  return user
 }
