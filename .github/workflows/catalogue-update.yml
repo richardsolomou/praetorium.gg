@@ -27,7 +27,7 @@ jobs:
       CATALOGUE_SNAPSHOT_POINTER_FILE: /tmp/catalogue-current.json
     steps:
       - uses: actions/checkout@v7
-      - uses: richardsolomou/ras-stack/actions/setup-js@v0.39.3
+      - uses: richardsolomou/ras-stack/actions/setup-js@v0.41.1
       - name: Resolve and validate every upstream source
         run: |
           pnpm catalogue:sync --refresh
