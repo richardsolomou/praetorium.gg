@@ -1,3 +1,3 @@
-export function isSearchShortcut(event: Pick<KeyboardEvent, 'key' | 'metaKey' | 'ctrlKey'>) {
-  return event.key.toLowerCase() === 'k' && (event.metaKey || event.ctrlKey)
+export function isSearchShortcut(event: Pick<KeyboardEvent, 'metaKey' | 'ctrlKey'> & { key?: string }) {
+  return event.key?.toLowerCase() === 'k' && (event.metaKey || event.ctrlKey)
 }
