@@ -24,7 +24,7 @@ test('solo battle controls survive completion, reopen and deletion', async ({ pa
   for (let step = 0; step < 30; step++) {
     await page.getByRole('button', { name: /End the .+ phase|Pass the turn/ }).click()
   }
-  await expect(page.getByRole('heading', { name: /Final score/ })).toBeVisible()
+  await expect(page.getByText('Final result', { exact: true })).toBeVisible()
   await expect(page.getByText(/attacking · Completed$/)).toBeVisible()
 
   await page.getByRole('button', { name: 'Delete battle' }).click()

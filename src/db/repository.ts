@@ -1,8 +1,16 @@
-import { and, asc, desc, eq, ne } from 'drizzle-orm'
-import { type Command, type LoggedCommand, PLAYERS_PER_BATTLE, reduceBattle, type SubmitResult, validate } from '../core/battle'
+import { and, asc, desc, eq, isNull, ne, or } from 'drizzle-orm'
+import {
+  type Command,
+  type LoggedCommand,
+  PLAYERS_PER_BATTLE,
+  reduceBattle,
+  TEAM_BATTLE_PLAYERS,
+  type SubmitResult,
+  validate,
+} from '../core/battle'
 import { commandSchema } from '../core/commands'
 import type { PraetoriumDatabase } from './connection'
-import { battlePlayers, battles, collection, commands, favouriteFactions, players, rosters } from './schema'
+import { battlePlayers, battles, collection, commands, favouriteFactions, friendships, players, rosters } from './schema'
 
 type BattleRecord = { id: string; token: string; createdAt: number }
 type BattlePlayer = { id: string; name: string; side: number }
@@ -25,15 +33,23 @@ export class Repository {
     return this.database.select().from(players).where(eq(players.userId, userId)).orderBy(desc(players.createdAt)).get()
   }
 
-  createBattle(input: { id: string; token: string; playerId: string; opponentId?: string; initialCommand?: Command; now: number }) {
+  createBattle(input: { id: string; token: string; playerId: string; opponentIds?: string[]; initialCommand?: Command; now: number }) {
     this.database.transaction((tx) => {
       tx.insert(battles).values({ id: input.id, token: input.token, createdAt: input.now }).run()
       tx.insert(battlePlayers).values({ battleId: input.id, playerId: input.playerId, side: 0, joinedAt: input.now }).run()
-      if (input.opponentId) {
-        tx.insert(battlePlayers).values({ battleId: input.id, playerId: input.opponentId, side: 1, joinedAt: input.now }).run()
-      }
+      input.opponentIds?.forEach((opponentId, index) =>
+        tx
+          .insert(battlePlayers)
+          .values({ battleId: input.id, playerId: opponentId, side: 1, joinedAt: input.now + index })
+          .run(),
+      )
       if (input.initialCommand) {
-        const state = reduceBattle([input.playerId, ...(input.opponentId ? [input.opponentId] : [])], [])
+        const ids = [input.playerId, ...(input.opponentIds ?? [])]
+        const state = reduceBattle(
+          ids,
+          [],
+          ids.map((_, index) => (index ? 1 : 0)),
+        )
         const refusal = validate(state, input.playerId, input.initialCommand)
         if (refusal) throw new Error(`new battle settings were refused: ${refusal}`)
         tx.insert(commands)
@@ -68,7 +84,58 @@ export class Repository {
       .from(players)
       .where(ne(players.id, playerId))
       .orderBy(asc(players.name))
+      .limit(100)
       .all()
+  }
+
+  friendships(playerId: string) {
+    return this.database
+      .select()
+      .from(friendships)
+      .where(or(eq(friendships.requesterId, playerId), eq(friendships.addresseeId, playerId)))
+      .all()
+  }
+
+  requestFriend(requesterId: string, addresseeId: string, now: number) {
+    return this.database.transaction((tx) => {
+      const existing = tx
+        .select()
+        .from(friendships)
+        .where(
+          or(
+            and(eq(friendships.requesterId, requesterId), eq(friendships.addresseeId, addresseeId)),
+            and(eq(friendships.requesterId, addresseeId), eq(friendships.addresseeId, requesterId)),
+          ),
+        )
+        .get()
+      if (existing) return false
+      tx.insert(friendships).values({ requesterId, addresseeId, requestedAt: now }).run()
+      return true
+    })
+  }
+
+  acceptFriend(requesterId: string, addresseeId: string, now: number) {
+    return (
+      this.database
+        .update(friendships)
+        .set({ acceptedAt: now })
+        .where(and(eq(friendships.requesterId, requesterId), eq(friendships.addresseeId, addresseeId), isNull(friendships.acceptedAt)))
+        .run().changes > 0
+    )
+  }
+
+  removeFriend(leftId: string, rightId: string) {
+    return (
+      this.database
+        .delete(friendships)
+        .where(
+          or(
+            and(eq(friendships.requesterId, leftId), eq(friendships.addresseeId, rightId)),
+            and(eq(friendships.requesterId, rightId), eq(friendships.addresseeId, leftId)),
+          ),
+        )
+        .run().changes > 0
+    )
   }
 
   battleByToken(token: string): BattleSeats | undefined {
@@ -88,14 +155,20 @@ export class Repository {
       .map((battle) => ({ battle, players: this.playersByBattle(battle.id) }))
   }
 
-  /** Takes the second seat, if it is still free. */
+  /** Takes an opposing seat, if one is still free. */
   join(input: { battleId: string; playerId: string; now: number }): JoinResult {
     return this.database.transaction((tx) => {
       const seated = this.playersByBattle(input.battleId, tx)
       if (seated.some((player) => player.id === input.playerId)) return 'already-in'
-      if (seated.length >= PLAYERS_PER_BATTLE) return 'full'
-      const side = Math.max(-1, ...seated.map((player) => player.side)) + 1
-      tx.insert(battlePlayers).values({ battleId: input.battleId, playerId: input.playerId, side, joinedAt: input.now }).run()
+      const log = this.logQuery(input.battleId, tx)
+      const state = reduceBattle(
+        seated.map((player) => player.id),
+        log,
+        seated.map((player) => player.side),
+      )
+      const capacity = state.settings.teamBattle ? TEAM_BATTLE_PLAYERS : PLAYERS_PER_BATTLE
+      if (seated.length >= capacity) return 'full'
+      tx.insert(battlePlayers).values({ battleId: input.battleId, playerId: input.playerId, side: 1, joinedAt: input.now }).run()
       return 'joined'
     })
   }
@@ -123,6 +196,7 @@ export class Repository {
       const state = reduceBattle(
         seated.map((player) => player.id),
         this.logQuery(input.battleId, tx),
+        seated.map((player) => player.side),
       )
       if (input.expectedSeq !== state.seq) return { outcome: 'stale', seq: state.seq }
       const refusal = validate(state, input.playerId, input.command)
@@ -251,7 +325,7 @@ export class Repository {
       .from(battlePlayers)
       .innerJoin(players, eq(players.id, battlePlayers.playerId))
       .where(eq(battlePlayers.battleId, battleId))
-      .orderBy(asc(battlePlayers.side))
+      .orderBy(asc(battlePlayers.side), asc(battlePlayers.joinedAt))
       .all()
   }
 }

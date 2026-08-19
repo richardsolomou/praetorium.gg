@@ -1,6 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
-import { Check, Shuffle } from 'lucide-react'
+import { Check, Eye, Shuffle } from 'lucide-react'
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import type { BattleView, Command } from '../../core/battle'
 import { deploymentsQuery, terrainMatchupIds, terrainReferencesQuery } from '../queries'
 import { TerrainBoard } from './TerrainBoard'
@@ -8,8 +10,11 @@ import { TerrainBoard } from './TerrainBoard'
 type Props = { view: BattleView; send: (command: Command) => void; pending: boolean; allowedIds?: string[] }
 
 export function Battlefield({ view, send, pending, allowedIds }: Props) {
+  const [inspecting, setInspecting] = useState<string | null>(null)
   const { data: allPatterns } = useQuery(deploymentsQuery())
-  const dispositions = view.players.map((player) => player.roster?.built?.disposition).filter((value): value is string => Boolean(value))
+  const dispositions = [...new Set(view.players.map((player) => player.side))]
+    .map((side) => view.players.find((player) => player.side === side)?.roster?.built?.disposition)
+    .filter((value): value is string => Boolean(value))
   const matchupIds = terrainMatchupIds(dispositions, view.settings.solo)
   const { data: references } = useQuery(terrainReferencesQuery(matchupIds))
   const options =
@@ -19,6 +24,7 @@ export function Battlefield({ view, send, pending, allowedIds }: Props) {
       return [{ terrain, deployment }]
     }) ?? []
   const available = options.filter((option) => option.terrain.geometry)
+  const inspected = options.find((option) => option.terrain.id === inspecting)
 
   if (!matchupIds.length) return <p className="text-sm text-dim">Both armies determine the three deployment and terrain layouts.</p>
   if (!options.length) return <p className="text-sm text-dim">No combined battlefield layouts match these armies and mission.</p>
@@ -44,14 +50,9 @@ export function Battlefield({ view, send, pending, allowedIds }: Props) {
           const selected = view.settings.terrainLayoutId === terrain.id && view.deploymentId === deployment.id
           const label = String.fromCharCode(65 + index)
           return (
-            <button
+            <article
               key={terrain.id}
-              type="button"
-              disabled={pending || !terrain.geometry}
-              aria-pressed={selected}
-              aria-label={`${selected ? 'Selected' : 'Select'} layout ${label}: ${deployment.name}`}
-              onClick={() => send({ kind: 'set-battlefield', patternId: deployment.id, terrainLayoutId: terrain.id })}
-              className="group border border-edge bg-sunken p-2 text-left transition-colors enabled:hover:border-azure disabled:opacity-60 aria-pressed:border-azure aria-pressed:ring-1 aria-pressed:ring-azure"
+              className={`border bg-sunken p-2 transition-colors ${selected ? 'border-azure ring-1 ring-azure' : 'border-edge'}`}
             >
               <span className="block text-center text-lg font-bold">{label}</span>
               <TerrainBoard
@@ -63,13 +64,24 @@ export function Battlefield({ view, send, pending, allowedIds }: Props) {
                 ariaLabel={`Layout ${label}: ${deployment.name} battlefield with ${terrain.name}`}
               />
               <span className="mt-2 block text-xs font-bold uppercase text-bone">{deployment.name}</span>
-              <span
-                className={`mt-2 flex items-center justify-center gap-1 border-t border-edge pt-2 text-sm font-bold uppercase ${selected ? 'text-achieved' : 'text-azure'}`}
-              >
-                {selected ? <Check className="size-4" /> : null}
-                {selected ? 'Selected' : terrain.geometry ? 'Select' : 'Terrain data syncing'}
-              </span>
-            </button>
+              <div className="mt-2 grid grid-cols-2 gap-1 border-t border-edge pt-2">
+                <Button variant="ghost" size="sm" onClick={() => setInspecting(terrain.id)}>
+                  <Eye /> View
+                </Button>
+                <Button
+                  variant={selected ? 'secondary' : 'ghost'}
+                  size="sm"
+                  disabled={!terrain.geometry}
+                  aria-label={`${selected ? 'Selected' : 'Select'} layout ${label}: ${deployment.name}`}
+                  onClick={() => {
+                    if (!pending) send({ kind: 'set-battlefield', patternId: deployment.id, terrainLayoutId: terrain.id })
+                  }}
+                >
+                  {selected ? <Check /> : null}
+                  {selected ? 'Selected' : terrain.geometry ? 'Select' : 'Syncing'}
+                </Button>
+              </div>
+            </article>
           )
         })}
       </div>
@@ -78,6 +90,26 @@ export function Battlefield({ view, send, pending, allowedIds }: Props) {
           Exact terrain labels and measurements are still syncing. Those layouts cannot be selected yet.
         </p>
       ) : null}
+      <Dialog open={Boolean(inspected)} onOpenChange={(open) => !open && setInspecting(null)}>
+        <DialogContent className="max-h-[92dvh] overflow-y-auto rounded-none border border-edge bg-panel text-bone sm:max-w-4xl">
+          {inspected ? (
+            <>
+              <DialogHeader>
+                <DialogTitle className="text-2xl uppercase">{inspected.deployment.name}</DialogTitle>
+                <DialogDescription className="text-dim">{inspected.terrain.name} terrain and deployment zones.</DialogDescription>
+              </DialogHeader>
+              <TerrainBoard
+                layout={inspected.terrain}
+                deployment={inspected.deployment}
+                templates={references?.templates ?? []}
+                className="mx-auto max-h-[70dvh] w-full max-w-xl"
+                detailed
+                ariaLabel={`${inspected.deployment.name} battlefield with ${inspected.terrain.name}`}
+              />
+            </>
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </section>
   )
 }

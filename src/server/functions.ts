@@ -28,6 +28,7 @@ import {
   exportRosterSchema,
   favouriteFactionSchema,
   globalSearchSchema,
+  friendSchema,
   importRosterSchema,
   priceSchema,
   ownedSchema,
@@ -65,6 +66,25 @@ export const opponents = createServerFn({ method: 'GET' }).handler(() =>
     return id ? app().service.opponents(id) : []
   }),
 )
+
+export const friendships = createServerFn({ method: 'GET' }).handler(() =>
+  rpc(async () => {
+    const id = await currentPlayerId()
+    return id ? app().service.friendships(id) : { friends: [], incoming: [], outgoing: [], people: [] }
+  }),
+)
+
+export const requestFriend = createServerFn({ method: 'POST' })
+  .validator(friendSchema)
+  .handler(({ data }) => mutationRpc(async () => app().service.requestFriend(await requirePlayerId(), data.playerId)))
+
+export const acceptFriend = createServerFn({ method: 'POST' })
+  .validator(friendSchema)
+  .handler(({ data }) => mutationRpc(async () => app().service.acceptFriend(await requirePlayerId(), data.playerId)))
+
+export const removeFriend = createServerFn({ method: 'POST' })
+  .validator(friendSchema)
+  .handler(({ data }) => mutationRpc(async () => app().service.removeFriend(await requirePlayerId(), data.playerId)))
 
 export const openBattle = createServerFn({ method: 'GET' })
   .validator(tokenSchema)

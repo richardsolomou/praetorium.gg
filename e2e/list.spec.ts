@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test'
 import {
   attachRoster,
+  befriend,
   chooseBattlefield,
   createBattle,
   createRoster,
@@ -38,13 +39,14 @@ test('a built list is priced, deployed and tracked', async ({ browser }) => {
   await alice.getByLabel('Add a unit').fill('Lord of Virulence')
   await waitForRosterSave(alice, () => alice.getByRole('button', { name: 'Add Lord of Virulence', exact: true }).first().click())
 
+  await befriend(alice, bob)
   const link = await createBattle(alice, { opponent: bobName })
   await attachRoster(alice, aliceRoster)
   await bob.goto(link)
   await attachRoster(bob, bobRoster)
-  await expect(alice.getByText(`${bobName} is ready.`)).toBeVisible()
+  await expect(alice.getByText(bobRoster, { exact: true })).toBeVisible()
   await chooseBattlefield(alice)
-  await setupStep(alice, 'Formations')
+  await setupStep(alice, 'Your army')
   await alice.getByRole('button', { name: 'Battle ready army · +10 VP' }).click()
   await startBattle(alice)
   await expect(bob.getByRole('heading', { name: 'command phase' })).toBeVisible()

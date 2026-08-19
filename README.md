@@ -2,7 +2,7 @@
 
 # Praetorium
 
-**Build a Warhammer 40,000 army list, then track the game live from both players' phones.**
+**Build a Warhammer 40,000 army list, then track the game live from every player's phone.**
 
 [praetorium.gg](https://praetorium.gg)
 
@@ -12,15 +12,15 @@
 
 ## Who is it for? 👋
 
-Praetorium is for two players who want one shared battle record instead of paper scores or separate trackers. Open a battle, send the link, and your opponent signs in to take the second seat.
+Praetorium is for friends who want one shared battle record instead of paper scores or separate trackers. Connect with another account before starting a private battle, then play 1v1 or put two allied 1,000-point armies against one 2,000-point army in a 2v1 battle.
 
 ## How it works ✨
 
 1. **Build or import a list** with its faction, detachments, units, loadouts, enhancements, and points limit. Imports support `.ros` and `.rosz` files.
-2. **Open a shared or solo practice battle** with its size, mission pack, optional player clock, and saved setup draft.
+2. **Open a shared, 2v1, or solo practice battle** with its size, mission pack, and saved setup draft.
 3. **Attach the lists.** Praetorium derives the mission from their force dispositions and offers matching deployment and terrain data.
 4. **Complete battle setup** by choosing formations, deployment, stratagems, mission cards, attacker, and first player.
-5. **Play the game** while every screen shows the same round, phase, clocks, command points, victory points, and unit state.
+5. **Play the game** while every screen shows the same round, phase, command points, victory points, and unit state.
 
 Along the way:
 

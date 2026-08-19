@@ -106,7 +106,7 @@ export const players = sqliteTable(
   (table) => [index('players_user_id_index').on(table.userId)],
 )
 
-/** One game between two players. Its token is the link they share. */
+/** One game between opposing sides. Its token is the link they share. */
 export const battles = sqliteTable(
   'battles',
   {
@@ -131,6 +131,25 @@ export const battlePlayers = sqliteTable(
     joinedAt: integer('joined_at').notNull(),
   },
   (table) => [primaryKey({ columns: [table.battleId, table.playerId] }), index('battle_players_player_id_index').on(table.playerId)],
+)
+
+/** A mutual connection, beginning as a request from one player to another. */
+export const friendships = sqliteTable(
+  'friendships',
+  {
+    requesterId: text('requester_id')
+      .notNull()
+      .references(() => players.id, { onDelete: 'cascade' }),
+    addresseeId: text('addressee_id')
+      .notNull()
+      .references(() => players.id, { onDelete: 'cascade' }),
+    requestedAt: integer('requested_at').notNull(),
+    acceptedAt: integer('accepted_at'),
+  },
+  (table) => [
+    primaryKey({ columns: [table.requesterId, table.addresseeId] }),
+    index('friendships_addressee_id_index').on(table.addresseeId),
+  ],
 )
 
 /**
@@ -238,6 +257,7 @@ export const schema = {
   players,
   battles,
   battlePlayers,
+  friendships,
   commands,
   rosters,
   collection,

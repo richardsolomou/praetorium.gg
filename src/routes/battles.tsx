@@ -55,7 +55,8 @@ function CreateBattle() {
   const { data: opponents = [] } = useQuery(opponentsQuery())
   const { data: references } = useQuery(gameReferencesQuery())
   const [open, setOpen] = useState(false)
-  const [opponentId, setOpponentId] = useState<string | null>(null)
+  const [opponentIds, setOpponentIds] = useState<string[]>([])
+  const [teamBattle, setTeamBattle] = useState(false)
   const [solo, setSolo] = useState(false)
   const [limit, setLimit] = useState(2000)
   const [missionPackId, setMissionPackId] = useState<string | null>(references?.packs[0]?.id ?? null)
@@ -65,11 +66,10 @@ function CreateBattle() {
     mutationFn: () =>
       createBattle({
         data: {
-          ...(opponentId && !solo ? { opponentId } : {}),
+          ...(!solo ? { opponentIds } : {}),
           solo,
           limit,
           missionPackId,
-          clockLimitMinutes: null,
         },
       }),
     onSuccess: async ({ token }) => {
@@ -82,14 +82,30 @@ function CreateBattle() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger render={<Button />}>New battle</DialogTrigger>
-      <DialogContent className="rounded-none border-edge bg-panel sm:max-w-md">
+      <DialogContent className="w-[calc(100%-2rem)] rounded-none border-edge bg-panel p-4 sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="text-xl uppercase">Start a battle</DialogTitle>
           <DialogDescription>Choose a shared battle or a private solo practice game.</DialogDescription>
         </DialogHeader>
-        <div className="grid grid-cols-2 gap-2">
-          <Button variant={!solo ? 'default' : 'outline'} onClick={() => setSolo(false)}>
-            Real battle
+        <div className="grid grid-cols-3 gap-2">
+          <Button
+            variant={!solo && !teamBattle ? 'default' : 'outline'}
+            onClick={() => {
+              setSolo(false)
+              setTeamBattle(false)
+              setOpponentIds((ids) => ids.slice(0, 1))
+            }}
+          >
+            1v1
+          </Button>
+          <Button
+            variant={!solo && teamBattle ? 'default' : 'outline'}
+            onClick={() => {
+              setSolo(false)
+              setTeamBattle(true)
+            }}
+          >
+            2v1
           </Button>
           <Button variant={solo ? 'default' : 'outline'} onClick={() => setSolo(true)}>
             Solo practice
@@ -100,27 +116,51 @@ function CreateBattle() {
             <Label htmlFor="battle-opponent" className="eyebrow">
               Opponent
             </Label>
-            <Select value={opponentId} onValueChange={setOpponentId}>
+            <Select value={opponentIds[0] ?? null} onValueChange={(id) => id && setOpponentIds((current) => [id, ...current.slice(1)])}>
               <SelectTrigger id="battle-opponent" className="mt-1 h-11 w-full rounded-none border-edge bg-sunken">
                 <SelectValue placeholder="Choose a player">
                   {(value: unknown) => opponents.find((opponent) => opponent.id === value)?.name ?? 'Choose a player'}
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                {opponents.map((opponent) => (
-                  <SelectItem key={opponent.id} value={opponent.id}>
-                    {opponent.name}
-                  </SelectItem>
-                ))}
+                {opponents
+                  .filter((opponent) => opponent.id !== opponentIds[1])
+                  .map((opponent) => (
+                    <SelectItem key={opponent.id} value={opponent.id}>
+                      {opponent.name}
+                    </SelectItem>
+                  ))}
               </SelectContent>
             </Select>
+            {teamBattle ? (
+              <Select
+                value={opponentIds[1] ?? null}
+                disabled={!opponentIds[0]}
+                onValueChange={(id) => id && setOpponentIds((current) => (current[0] ? [current[0], id] : current))}
+              >
+                <SelectTrigger className="mt-2 h-11 w-full rounded-none border-edge bg-sunken">
+                  <SelectValue placeholder="Choose their ally">
+                    {(value: unknown) => opponents.find((opponent) => opponent.id === value)?.name ?? 'Choose their ally'}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {opponents
+                    .filter((opponent) => opponent.id !== opponentIds[0])
+                    .map((opponent) => (
+                      <SelectItem key={opponent.id} value={opponent.id}>
+                        {opponent.name}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            ) : null}
           </div>
         ) : !solo ? (
           <p className="border border-edge bg-sunken p-3 text-sm text-dim">No other players have an account on this instance yet.</p>
         ) : null}
         <div>
           <Label className="eyebrow">Battle size</Label>
-          <div className="mt-1 flex gap-1">
+          <div className="mt-1 flex flex-wrap gap-1">
             {GAME_SIZES.map((size) => (
               <Button
                 key={size.limit}
@@ -155,7 +195,7 @@ function CreateBattle() {
           <Button variant="outline" onClick={() => setOpen(false)}>
             Cancel
           </Button>
-          <Button disabled={(!solo && !opponentId) || create.isPending} onClick={() => create.mutate()}>
+          <Button disabled={(!solo && opponentIds.length < (teamBattle ? 2 : 1)) || create.isPending} onClick={() => create.mutate()}>
             {create.isPending ? 'Creating…' : 'Create battle'}
           </Button>
         </DialogFooter>
@@ -201,9 +241,9 @@ function BattleShelf({ title, battles }: { title: string; battles: Battle[] }) {
               </span>
             </span>
             <BattleSide
-              player={battle.players[1]}
-              army={battle.armies[1]}
-              detachments={battle.detachments[1]}
+              player={battle.players.slice(1).join(' & ') || undefined}
+              army={battle.armies.slice(1).filter(Boolean).join(' & ') || null}
+              detachments={battle.detachments.slice(1).flat()}
               score={battle.scores[1]}
               side="b"
               emptyLabel={battle.settings.solo ? 'Solo practice' : 'Open seat'}

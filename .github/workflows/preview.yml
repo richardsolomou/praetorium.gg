@@ -22,5 +22,5 @@ jobs:
       local-image: praetorium.gg
       domain: praetorium.gg
       marker: <!-- praetorium-preview -->
-      note: Sign in with `preview@praetorium.gg` / `preview-preview-preview`. Preview data is disposable and resets on every deployment.
+      note: Test battles with `preview@praetorium.gg` / `preview-preview-preview` and `opponent@praetorium.gg` / `opponent-opponent-opponent`. Preview data is disposable and resets on every deployment.
       cache-scope: praetorium-preview

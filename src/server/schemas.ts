@@ -12,6 +12,7 @@ const rosterLimit = z.number().int().min(0).max(10_000)
 export const tokenSchema = z.object({ token })
 export const createBattleSchema = z.object({
   opponentId: id.optional(),
+  opponentIds: z.array(id).min(1).max(2).optional(),
   solo: z.boolean().default(false),
   limit: z
     .number()
@@ -19,9 +20,9 @@ export const createBattleSchema = z.object({
     .refine((value) => GAME_SIZES.some((size) => size.limit === value))
     .optional(),
   missionPackId: id.nullable().default(null),
-  clockLimitMinutes: z.number().int().min(5).max(300).nullable().default(null),
 })
 export const deleteBattleSchema = z.object({ token })
+export const friendSchema = z.object({ playerId: id })
 
 /**
  * `expectedSeq` is the client's claim about the history it has already seen.

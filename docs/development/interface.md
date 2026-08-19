@@ -10,6 +10,9 @@ Praetorium uses a compact, dark visual system. See [the product design guide](..
 - Render each picker or loadout pane once. `src/client/components/builder/Pane.tsx` moves the same instance between a desktop sidebar and a mobile sheet. Two instances create duplicate form controls and accessibility labels.
 - Show allied picker shelves with their short faction name and keep them collapsed until a player needs them.
 - Use `data-unit` to find unit cards in tests. CSS changes the displayed case, so visible-text selectors do not match the source text reliably.
+- Keep battle setup in five visible sections: Battle, Armies, Battlefield, Your army, and Start. The active section is folded from the battle log so every seated device moves together. Show every attached roster and every army's formation choices, but only let a player change their own roster and units.
+- Choose saved rosters in a dialog ordered like the roster library. Keep battlefield selection stable while its command saves, and open each battlefield in a full-size dialog without changing the selection.
+- In the live tracker, show only stratagems valid for the current turn and phase. The CP badge spends the printed cost; the overflow menu handles modified costs. Mission names open their full timing and scoring requirements.
 
 ## Components and styles
 

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { createBattle, createRoster, signUp, uniqueName, waitForRosterSave } from './account'
+import { befriend, createBattle, createRoster, signUp, uniqueName, waitForRosterSave } from './account'
 
 /**
  * An account is who you are here, so this covers both halves of that: nothing is
@@ -23,7 +23,7 @@ test('a list saved under an account is there on another device', async ({ browse
   await page.getByLabel('Email').fill(email)
   await page.getByLabel('Password').fill('a-long-enough-password')
   await page.getByRole('button', { name: 'Create the account' }).click()
-  await expect(page.getByRole('button', { name: /Alice · sign out/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Account menu for Alice' })).toBeVisible()
 
   await createRoster(page, { faction: 'Death Guard', detachment: /Shamblerot Vectorium/, name: 'Kept list' })
   await page.getByLabel('Add a unit').fill('Plague Marines')
@@ -37,7 +37,7 @@ test('a list saved under an account is there on another device', async ({ browse
   await elsewhere.getByLabel('Password').fill('a-long-enough-password')
   await elsewhere.getByRole('button', { name: 'Sign in', exact: true }).click()
   await elsewhere.waitForURL('/rosters')
-  await expect(elsewhere.getByRole('button', { name: /Alice · sign out/ })).toBeVisible()
+  await expect(elsewhere.getByRole('button', { name: 'Account menu for Alice' })).toBeVisible()
 
   await elsewhere.goto('/rosters')
   await expect(elsewhere.getByRole('link', { name: /Kept list/ })).toBeVisible()
@@ -67,11 +67,14 @@ test('a seated battle signs the opponent in and drops them back into setup', asy
   await guest.getByLabel('Email').fill(bobEmail)
   await guest.getByLabel('Password').fill('a-long-enough-password')
   await guest.getByRole('button', { name: 'Create the account' }).click()
-  await guest.getByRole('button', { name: new RegExp(`${bobName} · sign out`) }).waitFor()
-  await guest.getByRole('button', { name: new RegExp(`${bobName} · sign out`) }).click()
+  const accountMenu = guest.getByRole('button', { name: `Account menu for ${bobName}` })
+  await accountMenu.waitFor()
+  await signUp(host, aliceName)
+  await befriend(host, guest)
+  await accountMenu.click()
+  await guest.getByRole('menuitem', { name: 'Sign out' }).click()
   await expect(guest.getByRole('link', { name: 'Sign in' }).first()).toBeVisible()
 
-  await signUp(host, aliceName)
   const link = await createBattle(host, { opponent: bobName })
 
   await guest.goto(link)
@@ -81,5 +84,5 @@ test('a seated battle signs the opponent in and drops them back into setup', asy
   await guest.getByRole('button', { name: 'Sign in', exact: true }).click()
 
   await guest.waitForURL(/\/b\//)
-  await expect(guest.getByRole('heading', { name: `${bobName} versus ${aliceName}` })).toBeVisible()
+  await expect(guest.getByRole('heading', { name: `${aliceName} versus ${bobName}` })).toBeVisible()
 })

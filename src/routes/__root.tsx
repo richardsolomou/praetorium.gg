@@ -148,7 +148,8 @@ function RootComponent() {
             <header className="sticky top-0 z-30 border-b border-edge bg-panel/95 backdrop-blur">
               <div className="flex h-12 items-center gap-2 px-0.5 sm:gap-5 sm:px-4">
                 <Link to="/" className="text-base leading-none font-bold tracking-[0.02em] text-bone uppercase hover:text-azure sm:text-lg">
-                  Praetorium
+                  <span className="sm:hidden">P</span>
+                  <span className="hidden sm:inline">Praetorium</span>
                 </Link>
                 <nav className="flex items-center gap-2 sm:gap-4" aria-label="Primary">
                   <Link to="/battles" className="eyebrow hover:text-azure" activeProps={{ className: 'text-azure' }}>
@@ -157,7 +158,10 @@ function RootComponent() {
                   <Link to="/rosters" className="eyebrow hover:text-azure" activeProps={{ className: 'text-azure' }}>
                     Rosters
                   </Link>
-                  <Link to="/factions" className="eyebrow hidden hover:text-azure sm:inline" activeProps={{ className: 'text-azure' }}>
+                  <Link to="/friends" className="eyebrow hover:text-azure" activeProps={{ className: 'text-azure' }}>
+                    Friends
+                  </Link>
+                  <Link to="/factions" className="eyebrow hover:text-azure" activeProps={{ className: 'text-azure' }}>
                     Factions
                   </Link>
                   <Link to="/mission-packs" className="eyebrow hidden hover:text-azure sm:inline" activeProps={{ className: 'text-azure' }}>

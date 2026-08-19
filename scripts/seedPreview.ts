@@ -7,6 +7,9 @@ import { createAuth } from '../src/server/auth'
 export const PREVIEW_EMAIL = 'preview@praetorium.gg'
 const PREVIEW_PASSWORD = 'preview-preview-preview'
 const PREVIEW_PLAYER_ID = 'preview-player'
+export const PREVIEW_OPPONENT_EMAIL = 'opponent@praetorium.gg'
+const PREVIEW_OPPONENT_PASSWORD = 'opponent-opponent-opponent'
+const PREVIEW_OPPONENT_PLAYER_ID = 'preview-opponent'
 export const PREVIEW_ROSTER = {
   id: 'preview-necrons-cursed-skyshroud',
   name: 'Cursed Skyshroud 2K',
@@ -31,31 +34,49 @@ export const PREVIEW_ROSTER = {
   ],
   prep: null,
 } as const
+export const PREVIEW_OPPONENT_ROSTER = { ...PREVIEW_ROSTER, id: 'preview-opponent-necrons', name: 'Opponent Cursed Skyshroud 2K' } as const
 
 export async function seedPreview() {
   const database = openDatabase(databasePath())
   try {
-    let preview = database.select({ id: user.id }).from(user).where(eq(user.email, PREVIEW_EMAIL)).get()
-    if (!preview) {
-      const auth = createAuth(database, 'praetorium-disposable-preview-secret')
-      await auth.api.signUpEmail({ body: { email: PREVIEW_EMAIL, password: PREVIEW_PASSWORD, name: 'Preview Player' } })
-      preview = database.select({ id: user.id }).from(user).where(eq(user.email, PREVIEW_EMAIL)).get()
-    }
-    if (!preview) throw new Error('preview account was not created')
-
+    const auth = createAuth(database, 'praetorium-disposable-preview-secret')
     const repository = new Repository(database)
-    const player = repository.playerByUserId(preview.id)
-    if (!player) repository.upsertPlayer({ id: PREVIEW_PLAYER_ID, name: 'Preview Player', userId: preview.id, now: Date.now() })
-    if (!repository.roster(PREVIEW_ROSTER.id)) {
+    const previewPlayerId = await ensurePreviewPlayer(PREVIEW_EMAIL, PREVIEW_PASSWORD, 'Preview Player', PREVIEW_PLAYER_ID)
+    const opponentPlayerId = await ensurePreviewPlayer(
+      PREVIEW_OPPONENT_EMAIL,
+      PREVIEW_OPPONENT_PASSWORD,
+      'Preview Opponent',
+      PREVIEW_OPPONENT_PLAYER_ID,
+    )
+    saveRoster(PREVIEW_ROSTER, previewPlayerId)
+    saveRoster(PREVIEW_OPPONENT_ROSTER, opponentPlayerId)
+    repository.requestFriend(previewPlayerId, opponentPlayerId, Date.now())
+    const friendship = repository.friendships(previewPlayerId).find((row) => row.addresseeId === opponentPlayerId)
+    if (friendship?.acceptedAt === null) repository.acceptFriend(previewPlayerId, opponentPlayerId, Date.now())
+
+    async function ensurePreviewPlayer(email: string, password: string, name: string, playerId: string) {
+      let account = database.select({ id: user.id }).from(user).where(eq(user.email, email)).get()
+      if (!account) {
+        await auth.api.signUpEmail({ body: { email, password, name } })
+        account = database.select({ id: user.id }).from(user).where(eq(user.email, email)).get()
+      }
+      if (!account) throw new Error(`${name} account was not created`)
+      const player = repository.playerByUserId(account.id)
+      if (!player) repository.upsertPlayer({ id: playerId, name, userId: account.id, now: Date.now() })
+      return player?.id ?? playerId
+    }
+
+    function saveRoster(roster: typeof PREVIEW_ROSTER | typeof PREVIEW_OPPONENT_ROSTER, playerId: string) {
+      if (repository.roster(roster.id)) return
       repository.saveRoster({
-        id: PREVIEW_ROSTER.id,
-        name: PREVIEW_ROSTER.name,
-        catalogueId: PREVIEW_ROSTER.catalogueId,
-        disposition: PREVIEW_ROSTER.disposition,
-        limit: PREVIEW_ROSTER.limit,
-        playerId: player?.id ?? PREVIEW_PLAYER_ID,
-        detachmentId: JSON.stringify(PREVIEW_ROSTER.detachmentIds),
-        picks: JSON.stringify(PREVIEW_ROSTER.picks),
+        id: roster.id,
+        name: roster.name,
+        catalogueId: roster.catalogueId,
+        disposition: roster.disposition,
+        limit: roster.limit,
+        playerId,
+        detachmentId: JSON.stringify(roster.detachmentIds),
+        picks: JSON.stringify(roster.picks),
         prep: null,
         tags: '[]',
         visibility: 'private',

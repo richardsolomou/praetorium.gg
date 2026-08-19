@@ -1,7 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
+import type { ComponentProps } from 'react'
 import { useState } from 'react'
-import { EllipsisVertical, RotateCcw, Undo2, Zap } from 'lucide-react'
+import { EllipsisVertical, RotateCcw, Undo2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   AlertDialog,
@@ -29,9 +30,11 @@ import {
   terrainReferencesQuery,
 } from '../queries'
 import { errorMessage } from '../queryClient'
-import type { BattleView, Command, Phase } from '../../core/battle'
+import { hiddenThisPhase, stratagemVisibleNow } from '../stratagemVisibility'
+import type { BattleView, Command } from '../../core/battle'
 import type { PresentPlayer } from '../useLiveBattle'
 import { Disclosure } from './Disclosure'
+import { MissionCardReference } from './MissionCardReference'
 import { Report, type ReportPlayer } from './Report'
 
 type Props = {
@@ -55,7 +58,7 @@ const MOBILE_TABS = ['info', 'events'] as const
 const HEADING = 'text-xs font-bold tracking-[0.08em] text-bone uppercase'
 const CARD = 'rounded-sm border border-edge bg-sunken px-2.5 py-1.5'
 const CARD_NAME = 'text-sm leading-tight font-bold text-azure uppercase'
-const CP_PILL = 'readout shrink-0 rounded-sm bg-azure/15 px-1.5 py-px text-[0.6875rem] font-bold text-azure uppercase'
+const CP_PILL = 'readout shrink-0 rounded-sm bg-azure px-1.5 py-px text-[0.6875rem] font-bold text-void uppercase'
 
 export function Tracker({ view, mission, present, send, pending, problem }: Props) {
   const [mobileTab, setMobileTab] = useState<'info' | 'events'>('info')
@@ -68,7 +71,9 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
   const { data: rules } = useQuery(detachmentRulesQuery(built?.catalogueId ?? '', detachmentNames))
   const { data: deployments } = useQuery(deploymentsQuery())
   const { data: references } = useQuery(gameReferencesQuery())
-  const dispositions = view.players.map((player) => player.roster?.built?.disposition).filter((value): value is string => Boolean(value))
+  const dispositions = [...new Set(view.players.map((player) => player.side))]
+    .map((side) => view.players.find((player) => player.side === side)?.roster?.built?.disposition)
+    .filter((value): value is string => Boolean(value))
   const { data: terrainReferences } = useQuery(terrainReferencesQuery(terrainMatchupIds(dispositions, view.settings.solo)))
   const deployment = deployments?.find((entry) => entry.id === view.deploymentId)
   const missionPack = references?.packs.find((entry) => entry.id === view.settings.missionPackId)
@@ -87,11 +92,12 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
     ([...(rules?.secondaries ?? []), ...(rules?.primaries ?? [])].find((card) => card.key === key)?.awards ?? []).filter(
       (award) => !award.mode || !mode || award.mode === mode,
     )
+  const referenceFor = (key: string) => [...(rules?.primaries ?? []), ...(rules?.secondaries ?? [])].find((card) => card.key === key)
 
   /** Why this payout is not available right now, or null when it is. */
   const blocked = (award: Award): string | null => {
     const trigger = award.trigger
-    if (trigger.playerTurn === 'your-turn' && view.activePlayerId !== view.viewerId) return 'on your own turn'
+    if (trigger.playerTurn === 'your-turn' && !you?.isActive) return 'on your own turn'
     if (trigger.phase && trigger.phase !== view.phase) return `in the ${trigger.phase} phase`
     if (trigger.roundMin !== null && view.round < trigger.roundMin) return `from round ${trigger.roundMin}`
     if (trigger.roundMax !== null && view.round > trigger.roundMax) return `up to round ${trigger.roundMax}`
@@ -101,12 +107,12 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
   // separates them from the ones a detachment brought — on either player's panel.
   const coreKeys = new Set((rules?.core ?? []).map((stratagem) => stratagem.key))
   // Seats are ordered by side, so both devices agree on which player is which colour.
-  const reportPlayers: ReportPlayer[] = view.players.map((player, index) => ({
+  const reportPlayers: ReportPlayer[] = view.players.map((player) => ({
     id: player.id,
     name: player.name,
-    className: SIDES[index]?.value ?? '',
+    className: SIDES[player.side]?.value ?? '',
   }))
-  const yourTurn = view.activePlayerId === view.viewerId
+  const yourTurn = Boolean(you?.isActive)
   const active = view.players.find((player) => player.isActive)
   const finished = view.status === 'finished'
 
@@ -139,13 +145,13 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
           <section
             key={player.id}
             data-panel="player"
-            className={`${mobileTab === 'events' ? 'hidden lg:block' : ''} space-y-3 rounded-lg border border-edge border-l-2 bg-panel p-4 lg:row-start-1 ${index === 0 ? 'lg:col-start-1' : 'lg:col-start-3'} ${SIDES[index]?.accent ?? ''} ${
+            className={`${mobileTab === 'events' ? 'hidden lg:block' : ''} space-y-3 rounded-lg border border-edge border-l-2 bg-panel p-4 ${index < 2 ? 'lg:row-start-1' : 'lg:row-start-2'} ${player.side === 0 ? 'lg:col-start-1' : 'lg:col-start-3'} ${SIDES[player.side]?.accent ?? ''} ${
               player.isActive ? 'ring-2 ring-azure/50' : ''
             }`}
           >
             <div className="flex items-center justify-between gap-2">
               <div className="min-w-0">
-                <p className={`truncate text-xl leading-tight font-bold uppercase ${SIDES[index]?.value ?? ''}`}>
+                <p className={`truncate text-xl leading-tight font-bold uppercase ${SIDES[player.side]?.value ?? ''}`}>
                   {player.name}
                   {player.isViewer ? <span className="ml-1.5 text-xs font-normal normal-case text-dim">you</span> : null}
                 </p>
@@ -244,7 +250,7 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
                   </p>
                   {player.primaryCard ? (
                     <div className={`${CARD} space-y-1.5`}>
-                      <p className={CARD_NAME}>{player.primaryCard.name}</p>
+                      <MissionReference name={player.primaryCard.name} card={referenceFor(player.primaryCard.key)} type="Primary mission" />
                       {player.isViewer && !finished ? (
                         <div className="flex flex-wrap gap-1">
                           {pick(awardsFor(player.primaryCard.key)).map((award) => (
@@ -278,8 +284,8 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
                   {player.secondaries.map((secondary) => (
                     <div key={secondary.key} data-secondary={secondary.key} className={`${CARD} space-y-1 text-sm`}>
                       <span className="flex items-baseline gap-2">
-                        <span className={`min-w-0 flex-1 ${CARD_NAME}`}>
-                          {secondary.name}
+                        <span className="min-w-0 flex-1">
+                          <MissionReference name={secondary.name} card={referenceFor(secondary.key)} type="Secondary mission" />
                           {secondary.secret ? (
                             <span className="ml-1.5 text-[0.625rem] font-semibold text-azure uppercase">
                               {secondary.revealed ? 'revealed' : 'secret'}
@@ -424,7 +430,9 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
                 {player.stratagems.length ? (
                   <div className="space-y-3 border-t border-edge pt-3">
                     {stratagemGroups(player.stratagems, coreKeys).map((group) => {
-                      const shown = allPhases ? group.items : group.items.filter((stratagem) => playableIn(stratagem, view.phase))
+                      const shown = group.items.filter((stratagem) =>
+                        stratagemVisibleNow(stratagem, view.phase, player.isActive, allPhases),
+                      )
                       if (!shown.length) return null
                       return (
                         <div key={group.label} className="space-y-1.5">
@@ -442,9 +450,9 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
                         </div>
                       )
                     })}
-                    {hiddenThisPhase(player.stratagems, view.phase) && !allPhases ? (
+                    {hiddenThisPhase(player.stratagems, view.phase, player.isActive) && !allPhases ? (
                       <Button variant="ghost" size="xs" className="text-azure" onClick={() => setAllPhases(true)}>
-                        Show {hiddenThisPhase(player.stratagems, view.phase)} for other phases
+                        Show {hiddenThisPhase(player.stratagems, view.phase, player.isActive)} for other phases
                       </Button>
                     ) : null}
                     {allPhases ? (
@@ -531,7 +539,7 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
               <EndBattleDialog
                 pending={pending}
                 label="Concede battle"
-                description="This records that you conceded and ends the battle for both players."
+                description="This records that you conceded and ends the battle for every player."
                 onConfirm={() => send({ kind: 'end-battle', reason: 'conceded', concededBy: view.viewerId })}
               />
             </div>
@@ -642,6 +650,7 @@ function DeleteBattleDialog({ pending, onConfirm }: { pending: boolean; onConfir
 }
 
 function MobileScoreboard({ view }: { view: BattleView }) {
+  const sides = [0, 1].map((side) => view.players.filter((player) => player.side === side)).filter((players) => players.length)
   return (
     <aside
       className="fixed inset-x-0 bottom-0 z-40 border-t border-edge bg-panel/98 px-3 py-2 backdrop-blur lg:hidden"
@@ -649,15 +658,20 @@ function MobileScoreboard({ view }: { view: BattleView }) {
     >
       <div className="mx-auto grid max-w-xl grid-cols-[1fr_auto_1fr] items-center gap-3">
         {/* min-w-0 on each cell, or a long list name widens the track instead of truncating. */}
-        {view.players.map((player, index) => (
-          <div key={player.id} className={`min-w-0 ${index ? 'order-3 text-right' : 'order-1'}`}>
-            <p className={`truncate text-xs font-bold uppercase ${SIDES[index]?.value}`}>{player.name}</p>
-            <p className="truncate text-[0.625rem] text-dim">{player.roster?.name ?? 'List not attached'}</p>
-            <p className="readout text-xl">
-              {player.total} <span className="text-xs text-dim">VP · {player.cp} CP</span>
+        {sides.map((players, index) => (
+          <div key={players[0].side} className={`min-w-0 ${index ? 'order-3 text-right' : 'order-1'}`}>
+            <p className={`truncate text-xs font-bold uppercase ${SIDES[index]?.value}`}>
+              {players.map((player) => player.name).join(' & ')}
             </p>
-            <div className="mt-1 flex gap-0.5" aria-label={`${player.name} rounds`}>
-              {player.rounds.map((round) => (
+            <p className="truncate text-[0.625rem] text-dim">
+              {players.map((player) => player.roster?.name ?? 'List not attached').join(' & ')}
+            </p>
+            <p className="readout text-xl">
+              {players[0].primary + players[0].secondary + players.reduce((total, player) => total + player.paintedPoints, 0)}{' '}
+              <span className="text-xs text-dim">VP · {players[0].cp} CP</span>
+            </p>
+            <div className="mt-1 flex gap-0.5" aria-label={`${players.map((player) => player.name).join(' and ')} rounds`}>
+              {players[0].rounds.map((round) => (
                 <span
                   key={round.round}
                   className={`h-1 flex-1 ${round.round <= view.round ? (index ? 'bg-side-b' : 'bg-side-a') : 'bg-edge-strong'}`}
@@ -709,6 +723,25 @@ function ReportDetails({ token, players, hiddenOnMobile }: { token: string; play
 }
 
 type ViewStratagem = BattleView['players'][number]['stratagems'][number]
+type MissionReferenceCard = ComponentProps<typeof MissionCardReference>['card']
+
+function MissionReference({ name, card, type }: { name: string; card?: MissionReferenceCard; type: string }) {
+  if (!card) return <span className={CARD_NAME}>{name}</span>
+  return (
+    <Dialog>
+      <DialogTrigger render={<button type="button" aria-label={`Read ${name}`} className={`${CARD_NAME} text-left hover:underline`} />}>
+        {name}
+      </DialogTrigger>
+      <DialogContent className="max-h-[85dvh] overflow-y-auto border border-edge bg-panel text-bone sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle className="uppercase">{name}</DialogTitle>
+          <DialogDescription className="text-dim">What this mission asks you to do and when it scores.</DialogDescription>
+        </DialogHeader>
+        <MissionCardReference card={card} type={type} />
+      </DialogContent>
+    </Dialog>
+  )
+}
 
 /** The printed price, and the neighbouring ones a board state can move it to. */
 function costChoices(printed: number) {
@@ -759,7 +792,6 @@ function StratagemCard({
           {stratagem.refusal ? <p className="text-sm text-discarded">{stratagem.refusal}</p> : null}
         </DialogContent>
       </Dialog>
-      <span className={`${CP_PILL} ${stratagem.refusal ? 'bg-edge text-dim' : ''}`}>{stratagem.cp} CP</span>
       {actionable ? (
         <>
           {/* Some stratagems cost more or less depending on what is on the board, so the price is a choice. */}
@@ -778,29 +810,22 @@ function StratagemCard({
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
-          <Button
-            variant="outline"
-            size="icon-sm"
+          <button
+            type="button"
+            className={`${CP_PILL} min-w-12 py-1.5 text-sm ${stratagem.refusal ? 'bg-edge text-dim' : 'hover:bg-azure/80'}`}
             disabled={pending || stratagem.refusal !== null}
             title={stratagem.refusal ?? undefined}
             aria-label={`Use ${stratagem.name}`}
             onClick={() => onUse()}
           >
-            <Zap />
-          </Button>
+            {stratagem.cp} CP
+          </button>
         </>
-      ) : null}
+      ) : (
+        <span className={`${CP_PILL} ${stratagem.refusal ? 'bg-edge text-dim' : ''}`}>{stratagem.cp} CP</span>
+      )}
     </div>
   )
-}
-
-/** A stratagem with no phases named is one that can be played whenever its other timing allows. */
-function playableIn(stratagem: ViewStratagem, phase: Phase) {
-  return !stratagem.phases?.length || stratagem.phases.includes(phase)
-}
-
-function hiddenThisPhase(stratagems: readonly ViewStratagem[], phase: Phase) {
-  return stratagems.filter((stratagem) => !playableIn(stratagem, phase)).length
 }
 
 function stratagemGroups(stratagems: readonly ViewStratagem[], coreKeys: ReadonlySet<string>) {
@@ -824,14 +849,23 @@ function rosterLine(roster: BattleView['players'][number]['roster']) {
 }
 
 function outcome(view: BattleView) {
+  const sides = [0, 1].map((side) => ({
+    players: view.players.filter((player) => player.side === side),
+    total: view.players.find((player) => player.side === side)?.primary ?? 0,
+  }))
+  for (const side of sides)
+    side.total += (side.players[0]?.secondary ?? 0) + side.players.reduce((total, player) => total + player.paintedPoints, 0)
   if (view.result?.reason === 'conceded') {
-    const winner = view.players.find((player) => player.id !== view.result?.concededBy)
-    return winner ? `${winner.name} wins by concession` : 'Battle conceded'
+    const concededSide = view.players.find((player) => player.id === view.result?.concededBy)?.side
+    const winner = sides.find((side) => side.players[0]?.side !== concededSide)
+    return winner ? `${winner.players.map((player) => player.name).join(' & ')} win by concession` : 'Battle conceded'
   }
-  const [first, second] = view.players.toSorted((left, right) => right.total - left.total)
+  const [first, second] = sides.toSorted((left, right) => right.total - left.total)
   if (!first) return 'No result'
   if (!second) return `Final score ${first.total}`
-  return first.total === second.total ? `Drawn at ${first.total}` : `${first.name} wins ${first.total}–${second.total}`
+  return first.total === second.total
+    ? `Drawn at ${first.total}`
+    : `${first.players.map((player) => player.name).join(' & ')} win ${first.total}–${second.total}`
 }
 
 function resultLabel(view: BattleView) {

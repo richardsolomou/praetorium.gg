@@ -15,11 +15,32 @@ export async function signUp(page: Page, name: string) {
   await page.getByLabel('Email').fill(`${name.toLowerCase()}-${crypto.randomUUID()}@example.test`)
   await page.getByLabel('Password').fill('a-long-enough-password')
   await page.getByRole('button', { name: 'Create the account' }).click()
-  await page.getByRole('button', { name: new RegExp(`${name} · sign out`) }).waitFor()
+  await page.getByRole('button', { name: `Account menu for ${name}` }).waitFor()
 }
 
 export function uniqueName(base: string) {
   return `${base}-${crypto.randomUUID().slice(0, 8)}`
+}
+
+export async function befriend(requester: Page, recipient: Page) {
+  const requesterName = (await requester.locator('button[aria-label^="Account menu for "]').getAttribute('aria-label'))?.replace(
+    'Account menu for ',
+    '',
+  )
+  const recipientName = (await recipient.locator('button[aria-label^="Account menu for "]').getAttribute('aria-label'))?.replace(
+    'Account menu for ',
+    '',
+  )
+  if (!requesterName || !recipientName) throw new Error('Both players must be signed in before becoming friends.')
+  await requester.goto('/friends')
+  await requester.getByPlaceholder('Search by account name').fill(recipientName)
+  await requester.getByRole('button', { name: 'Add friend' }).click()
+  await recipient.goto('/friends')
+  const request = recipient.locator('section').filter({ hasText: 'Friend requests' }).filter({ hasText: requesterName })
+  await request.getByRole('button', { name: 'Accept' }).click()
+  await expect(recipient.locator('section').filter({ hasText: 'Friends' }).filter({ hasText: requesterName })).toBeVisible()
+  await requester.goto('/friends')
+  await expect(requester.locator('section').filter({ hasText: 'Friends' }).filter({ hasText: recipientName })).toBeVisible()
 }
 
 export async function waitForRosterSave(page: Page, action: () => Promise<unknown>, expectedText?: string) {
@@ -74,35 +95,48 @@ export async function createBattle(page: Page, { opponent, solo = false }: { opp
 
 /** Setup shows one step at a time, so a helper has to walk to the step it needs. */
 export async function setupStep(page: Page, label: string) {
-  const chip = page.getByRole('button', { name: new RegExp(`^\\d+ · ${label}$`) })
-  for (let guard = 0; guard < 8; guard += 1) {
+  const chip = page.getByRole('navigation', { name: 'Setup sections' }).getByRole('button', { name: label })
+  const active = page.locator('[aria-current="step"]')
+  for (let guard = 0; guard < 5; guard += 1) {
+    if ((await chip.getAttribute('aria-current')) === 'step') return
     if (await chip.isEnabled()) {
       await chip.click()
+      await expect(active).toContainText(label, { ignoreCase: true })
       return
     }
+    const previous = await active.innerText()
     await page.getByRole('button', { name: 'Next', exact: true }).click()
+    await expect.poll(() => active.innerText()).not.toBe(previous)
   }
   throw new Error(`Setup never reached the ${label} step`)
 }
 
 export async function attachRoster(page: Page, name: string) {
-  await setupStep(page, 'Army')
-  await page.getByRole('button', { name: new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`) }).click()
+  await setupStep(page, 'Armies')
+  await page.getByRole('button', { name: /Choose roster|Change roster/ }).click()
+  await page
+    .getByRole('dialog', { name: 'Choose your roster' })
+    .getByRole('button', { name: new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`) })
+    .click()
   await expect(page.getByText(name, { exact: true })).toBeVisible()
 }
 
 export async function chooseBattlefield(page: Page) {
+  const battlefieldStep = page.getByRole('navigation', { name: 'Setup sections' }).getByRole('button', { name: /Battlefield/ })
+  if ((await battlefieldStep.innerText()).trimStart().startsWith('✓')) return
   await setupStep(page, 'Battlefield')
   const selected = page.getByRole('button', { name: /^Selected layout/ })
-  if (await selected.count()) return
   // By position, not by name: which layouts a matchup offers follows the pinned rules data.
-  await page.getByRole('button', { name: /^Select layout A:/ }).click()
+  await page
+    .getByRole('button', { name: /^Select layout / })
+    .first()
+    .click()
   await expect(selected).toBeVisible()
 }
 
 export async function startBattle(page: Page, firstPlayer?: string) {
   await chooseBattlefield(page)
-  await setupStep(page, 'Cards')
+  await setupStep(page, 'Your army')
   await expect(page.locator('[data-secondary-deck-ready]')).toHaveAttribute('data-secondary-deck-ready', 'true')
   await setupStep(page, 'Start')
   if (firstPlayer) {
@@ -123,18 +157,19 @@ export async function setupBattle(
     beforeStart,
   }: { opponent: string; hostRoster: string; guestRoster: string; beforeStart?: () => Promise<void> },
 ) {
+  await befriend(host, guest)
   const url = await createBattle(host, { opponent })
   await guest.goto(url)
   await attachRoster(host, hostRoster)
-  await setupStep(guest, 'Army')
-  await expect(guest.getByText(/ is ready\.$/)).toBeVisible()
+  await setupStep(guest, 'Armies')
+  await expect(guest.getByText(hostRoster, { exact: true })).toBeVisible()
   await attachRoster(guest, guestRoster)
-  await expect(host.getByText(`${opponent} is ready.`)).toBeVisible()
+  await expect(host.getByText(guestRoster, { exact: true })).toBeVisible()
   // Cards are chosen while the battle is still being set up, not once it is running,
   // and the wizard only reaches that step once the battlefield is settled.
   if (beforeStart) {
     await chooseBattlefield(host)
-    await setupStep(host, 'Cards')
+    await setupStep(host, 'Your army')
     await beforeStart()
   }
   await startBattle(host)

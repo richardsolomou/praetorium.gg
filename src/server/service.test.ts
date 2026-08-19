@@ -17,6 +17,8 @@ beforeEach(() => {
   enrol('alice', 'Alice')
   enrol('bob', 'Bob')
   enrol('carol', 'Carol')
+  befriend('alice', 'bob')
+  befriend('alice', 'carol')
 })
 
 /**
@@ -32,6 +34,11 @@ function enrol(id: string, name: string) {
     .values({ id: `user-${id}`, name, email: `${id}@example.test`, emailVerified: false, createdAt: at, updatedAt: at })
     .run()
   new Repository(database).upsertPlayer({ id, name, userId: `user-${id}`, now: ++now })
+}
+
+function befriend(left: string, right: string) {
+  service.requestFriend(left, right)
+  service.acceptFriend(right, left)
 }
 
 afterEach(() => closeDatabase(database))
@@ -82,7 +89,54 @@ describe('favourite factions', () => {
   })
 })
 
+describe('friends', () => {
+  it('requires the recipient to accept a request before the sender becomes a friend', () => {
+    enrol('dave', 'Dave')
+    service.requestFriend('alice', 'dave')
+
+    expect(service.friendships('alice').outgoing).toEqual([{ id: 'dave', name: 'Dave' }])
+    service.acceptFriend('dave', 'alice')
+    expect(service.opponents('alice')).toContainEqual({ id: 'dave', name: 'Dave' })
+  })
+
+  it('does not let another player accept someone else’s request', () => {
+    enrol('dave', 'Dave')
+    service.requestFriend('alice', 'dave')
+
+    expect(() => service.acceptFriend('bob', 'alice')).toThrow(expect.objectContaining({ status: 404 }))
+  })
+})
+
 describe('seats', () => {
+  it('refuses to create a battle with someone who is not a friend', () => {
+    enrol('dave', 'Dave')
+
+    expect(() => service.createBattle('alice', { opponentId: 'dave', solo: false, limit: 2000, missionPackId: null })).toThrow(
+      expect.objectContaining({ status: 403 }),
+    )
+  })
+
+  it('creates a 2v1 battle with two allied opponents', () => {
+    const { token } = service.createBattle(
+      'alice',
+      createBattleSchema.parse({
+        opponentIds: ['bob', 'carol'],
+        solo: false,
+        limit: 2000,
+        missionPackId: null,
+      }),
+    )
+
+    expect(view(token, 'alice')).toMatchObject({
+      settings: { teamBattle: true },
+      players: [
+        { id: 'alice', side: 0 },
+        { id: 'bob', side: 1 },
+        { id: 'carol', side: 1 },
+      ],
+    })
+  })
+
   it('preserves an opponent-only legacy creation request', () => {
     const { token } = service.createBattle('alice', createBattleSchema.parse({ opponentId: 'bob' }))
 
@@ -94,10 +148,9 @@ describe('seats', () => {
       solo: true,
       limit: 2000,
       missionPackId: null,
-      clockLimitMinutes: 45,
     })
 
-    expect(view(token, 'alice')).toMatchObject({ settings: { solo: true, clockLimitMinutes: 45 } })
+    expect(view(token, 'alice')).toMatchObject({ settings: { solo: true } })
     expect(service.screen(token, 'bob')).toEqual({ kind: 'invitation', free: false })
     expect(service.join(token, 'bob')).toBe('full')
   })
@@ -199,7 +252,6 @@ describe('battle setup references', () => {
       solo: false,
       limit: 2000,
       missionPackId: 'pack-a',
-      clockLimitMinutes: null,
     })
     let seq = 1
     const attach = (by: string, name: string, disposition: string) => {

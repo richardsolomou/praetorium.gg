@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 import {
   attachRoster,
+  befriend,
   createBattle,
   createRoster,
   setupBattle,
@@ -33,14 +34,18 @@ test('stratagems and tactical missions are tracked through a turn', async ({ bro
   await secret.getByRole('button', { name: 'Bring It Down', exact: true }).click()
   await expect(alice.locator('[data-secondary="bring-it-down"]')).toContainText('Bring It Down')
   await expect(bob.locator('[data-secondary="secret"]')).toContainText('Secret mission')
-  await expect(bob.getByText('Bring It Down', { exact: true })).toHaveCount(0)
+  await expect(
+    bob.locator('[data-panel="player"]').filter({ hasText: 'Death Guard' }).getByText('Bring It Down', { exact: true }),
+  ).toHaveCount(0)
   await alice.getByRole('button', { name: 'Reveal' }).click()
   await expect(bob.locator('[data-secondary="bring-it-down"]')).toContainText('Bring It Down')
 
   const panel = alice.locator('[data-panel="player"]').filter({ hasText: 'Death Guard' })
   const cp = panel.locator('[data-stat="cp"]')
   await expect(cp).toHaveText('1')
-  await expect(bob.getByRole('button', { name: /^Use / })).toHaveCount(0)
+  await expect(bob.locator('[data-panel="player"]').filter({ hasText: 'Death Guard' }).getByRole('button', { name: /^Use / })).toHaveCount(
+    0,
+  )
 
   await alice.getByRole('button', { name: 'Behind Enemy Lines plus 3 per friendly unit wholly within opponent deployment zone' }).click()
   await expect(panel.locator('[data-stat="secondary"]')).toHaveText('3')
@@ -72,11 +77,13 @@ test('a tactical player is asked to draw at the top of their command phase', asy
   await signUp(alice, aliceName)
   const aliceRoster = await createRoster(alice, { faction: 'Death Guard', detachment: /Shamblerot Vectorium/, name: 'Death Guard' })
   // Tactical is the default, so nothing is chosen up front and the deck is the only source.
+  await befriend(alice, bob)
   const url = await createBattle(alice, { opponent: bobName })
   await bob.goto(url)
   await attachRoster(alice, aliceRoster)
-  await setupStep(bob, 'Army')
+  await setupStep(bob, 'Armies')
   await attachRoster(bob, bobRoster)
+  await expect(alice.getByText(bobRoster, { exact: true })).toBeVisible()
   await startBattle(alice)
 
   // The prompt is the point: it stands open in the panel rather than waiting to be found.
