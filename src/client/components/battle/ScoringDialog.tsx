@@ -3,8 +3,8 @@ import { Minus, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import type { BattleView, Command } from '../../../core/battle'
-import { awardLimit, awardTotal, conditionLabel, type MissionAward } from '../../missionText'
-import { cardsDue, cardsDueFromTheirTurn, type DueCard } from '../../scoring'
+import { alternatives, awardLimit, awardTotal, conditionLabel, counted, type MissionAward } from '../../missionText'
+import { cardsDue, cardsDueFromTheirTurn, type DueCard, finishesOnScore } from '../../scoring'
 import type { Side } from '../../sides'
 import { MissionName, type ReferenceCard } from './MissionCards'
 
@@ -28,25 +28,17 @@ type Answers = Record<string, number[]>
 /**
  * What each card asks, at the moment it asks it.
  *
- * A card states its conditions and what meeting each one pays. The player picks the
- * one the board actually met, or says it scored nothing, and the points follow. The
- * conditions on a card are alternatives unless the card marks one as cumulative, so
- * picking one clears the others and a payout can never be taken twice.
+ * A card states its conditions and what meeting each one pays, and the player answers
+ * for the board. Which of those answers can stand together is the card's to say: it
+ * groups the payouts that are tiers of one thing, and only the better tier scores.
+ * Everything it leaves ungrouped a card can pay at the same time.
  */
 export function ScoringDialog({ side, due, moment, confirmLabel, pending, send, referenceFor, onDone, onCancel }: Props) {
   const [answers, setAnswers] = useState<Answers>({})
-  const [finished, setFinished] = useState<Record<string, boolean>>({})
   const answerFor = (card: DueCard) => answers[card.key] ?? card.awards.map(() => 0)
   const scoredFor = (card: DueCard) => card.awards.reduce((total, award, at) => total + awardTotal(award, answerFor(card)[at] ?? 0), 0)
   const total = due.reduce((sum, card) => sum + scoredFor(card), 0)
 
-  /**
-   * Alternatives clear each other; a cumulative payout sits on top of whichever was picked.
-   *
-   * The card says which payouts are alternatives through the group it puts them in.
-   * Where it names no group, the payouts on a card are still one choice unless the
-   * card marks one as stacking, which is what "or" on a printed card means.
-   */
   const answer = (card: DueCard, at: number, times: number) =>
     setAnswers((current) => {
       const taken = current[card.key] ?? card.awards.map(() => 0)
@@ -61,12 +53,9 @@ export function ScoringDialog({ side, due, moment, confirmLabel, pending, send, 
   const confirm = () => {
     for (const card of due) {
       const delta = scoredFor(card)
-      if (delta) {
-        send(
-          card.category === 'primary' ? { kind: 'score', category: 'primary', delta } : { kind: 'score-secondary', key: card.key, delta },
-        )
-      }
-      if (card.category === 'secondary' && finished[card.key]) {
+      if (!delta) continue
+      send(card.category === 'primary' ? { kind: 'score', category: 'primary', delta } : { kind: 'score-secondary', key: card.key, delta })
+      if (finishesOnScore(card.category, side.secondaryMode, delta)) {
         send({ kind: 'set-secondary-status', key: card.key, status: 'achieved' })
       }
     }
@@ -79,14 +68,13 @@ export function ScoringDialog({ side, due, moment, confirmLabel, pending, send, 
         <DialogHeader className="text-center">
           <p className="eyebrow">Now</p>
           <DialogTitle className="uppercase">Scoring {moment} points</DialogTitle>
-          <DialogDescription className="text-dim">Pick what the board actually did on each card.</DialogDescription>
+          <DialogDescription className="text-dim">Press what the board actually paid on each card.</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-3">
           {due.map((card) => {
             const taken = answerFor(card)
             const scored = scoredFor(card)
-            const nothing = taken.every((times) => times === 0)
             const reference = referenceFor(card.key)
             return (
               <section key={card.key} data-due={card.key} className="border border-edge">
@@ -107,37 +95,26 @@ export function ScoringDialog({ side, due, moment, confirmLabel, pending, send, 
                 <div className="divide-y divide-edge">
                   {card.awards.map((award, at) => (
                     <AwardRow
-                      key={`${award.vp}-${award.per ?? ''}-${award.when ?? ''}-${award.cumulative}`}
+                      key={`${award.vp}-${award.per ?? ''}-${award.when ?? ''}-${award.group ?? ''}-${JSON.stringify(award.parameters)}`}
                       card={card}
                       award={award}
-                      first={at === 0}
+                      tier={at > 0 && alternatives(award, card.awards[at - 1] ?? award)}
                       times={taken[at] ?? 0}
                       pending={pending}
                       onAnswer={(times) => answer(card, at, times)}
                     />
                   ))}
-                  <Row
-                    label="Did not score (or chose not to)"
-                    alternative
-                    chosen={nothing}
-                    disabled={pending}
-                    ariaLabel={`${card.name} scored nothing`}
-                    onChoose={() => setAnswers((current) => ({ ...current, [card.key]: card.awards.map(() => 0) }))}
-                  >
-                    <span className="chip shrink-0 border-edge-strong text-dim">0 VP</span>
-                  </Row>
-                </div>
-                {card.category === 'secondary' ? (
-                  <label className="flex cursor-pointer items-center gap-2 border-t border-edge px-3 py-2 text-xs text-dim">
-                    <input
-                      type="checkbox"
-                      className="size-3.5 accent-azure"
-                      checked={finished[card.key] ?? false}
-                      onChange={(event) => setFinished((current) => ({ ...current, [card.key]: event.target.checked }))}
+                  <div className="flex items-center gap-3 px-3 py-2">
+                    <span className="min-w-0 flex-1 text-sm text-dim">Did not score (or chose not to)</span>
+                    <Chip
+                      label="0 VP"
+                      chosen={taken.every((times) => times === 0)}
+                      pending={pending}
+                      ariaLabel={`${card.name} scored nothing`}
+                      onPress={() => setAnswers((current) => ({ ...current, [card.key]: card.awards.map(() => 0) }))}
                     />
-                    This mission is finished — take it out of the hand
-                  </label>
-                ) : null}
+                  </div>
+                </div>
               </section>
             )
           })}
@@ -157,119 +134,102 @@ export function ScoringDialog({ side, due, moment, confirmLabel, pending, send, 
   )
 }
 
-/** Whether picking one payout rules the other out. */
-function alternatives(chosen: MissionAward, other: MissionAward) {
-  if (chosen.cumulative || other.cumulative) return false
-  if (chosen.group || other.group) return chosen.group === other.group
-  return true
-}
-
 /** One condition, and what meeting it pays. A counted one carries how many times. */
 function AwardRow({
   card,
   award,
-  first,
+  tier,
   times,
   pending,
   onAnswer,
 }: {
   card: DueCard
   award: MissionAward
-  first: boolean
+  /** Another way the same thing pays, so it reads as an alternative to the row above. */
+  tier: boolean
   times: number
   pending: boolean
   onAnswer: (times: number) => void
 }) {
   const limit = awardLimit(award)
   // A payout the source described only in the card's own words is named by what it pays.
-  const label = conditionLabel(award) ?? `Scores ${award.vp} VP${award.per ? ' each' : ''}`
-
-  if (!award.per) {
-    return (
-      <Row
-        label={label}
-        alternative={!first && !award.cumulative}
-        cumulative={award.cumulative}
-        chosen={times > 0}
-        disabled={pending}
-        ariaLabel={`${card.name} plus ${award.vp}`}
-        onChoose={() => onAnswer(times > 0 ? 0 : 1)}
-      >
-        <span className={`chip shrink-0 ${times > 0 ? 'border-azure text-azure' : 'border-edge-strong'}`}>
-          {award.cumulative ? '+' : ''}
-          {award.vp} VP
-        </span>
-      </Row>
-    )
-  }
+  const label = conditionLabel(award) ?? `Scores ${award.vp} VP${counted(award) ? ' each' : ''}`
 
   return (
     <div className="flex items-center gap-3 px-3 py-2">
-      {!first && !award.cumulative ? <span className="chip shrink-0 border-edge-strong px-1 text-faint">or</span> : null}
+      {tier ? <span className="chip shrink-0 border-edge-strong px-1 text-faint">or</span> : null}
       <span className="min-w-0 flex-1 text-sm">
         {label}
-        <span className="mt-0.5 block text-[0.625rem] text-faint">
-          {award.vp} VP each{award.max === null ? '' : `, up to ${award.max} VP`}
-        </span>
+        {counted(award) ? (
+          <span className="mt-0.5 block text-[0.625rem] text-faint">
+            {award.vp} VP each{award.max === null ? '' : `, up to ${award.max} VP`}
+          </span>
+        ) : null}
       </span>
-      <div className="flex shrink-0 items-center gap-1">
-        <Button
-          variant="outline"
-          size="icon-xs"
-          aria-label={`One fewer for ${card.name}`}
-          disabled={pending || times === 0}
-          onClick={() => onAnswer(times - 1)}
-        >
-          <Minus />
-        </Button>
-        <span className="readout min-w-5 text-center text-sm font-bold">{times}</span>
-        <Button
-          variant="outline"
-          size="icon-xs"
-          aria-label={`${card.name} plus ${award.vp} per ${award.per.replaceAll('-', ' ')}`}
-          disabled={pending || (limit !== null && times >= limit)}
-          onClick={() => onAnswer(times + 1)}
-        >
-          <Plus />
-        </Button>
-      </div>
-      <span className={`chip shrink-0 ${times > 0 ? 'border-azure text-azure' : 'border-edge-strong'}`}>{awardTotal(award, times)} VP</span>
+      {counted(award) ? (
+        <>
+          <div className="flex shrink-0 items-center gap-1">
+            <Button
+              variant="outline"
+              size="icon-xs"
+              aria-label={`One fewer for ${card.name}`}
+              disabled={pending || times === 0}
+              onClick={() => onAnswer(times - 1)}
+            >
+              <Minus />
+            </Button>
+            <span className="readout min-w-5 text-center text-sm font-bold">{times}</span>
+            <Button
+              variant="outline"
+              size="icon-xs"
+              aria-label={`${card.name} plus ${award.vp} per ${award.per?.replaceAll('-', ' ')}`}
+              disabled={pending || (limit !== null && times >= limit)}
+              onClick={() => onAnswer(times + 1)}
+            >
+              <Plus />
+            </Button>
+          </div>
+          <span className={`chip shrink-0 ${times > 0 ? 'border-azure text-azure' : 'border-edge-strong'}`}>
+            {awardTotal(award, times)} VP
+          </span>
+        </>
+      ) : (
+        <Chip
+          label={`${award.vp} VP`}
+          chosen={times > 0}
+          pending={pending}
+          ariaLabel={`${card.name} plus ${award.vp}`}
+          onPress={() => onAnswer(times > 0 ? 0 : 1)}
+        />
+      )}
     </div>
   )
 }
 
-function Row({
+/** The payout itself is the control: pressing the number is how it is claimed. */
+function Chip({
   label,
-  alternative,
-  cumulative,
   chosen,
-  disabled,
+  pending,
   ariaLabel,
-  onChoose,
-  children,
+  onPress,
 }: {
   label: string
-  alternative?: boolean
-  cumulative?: boolean
   chosen: boolean
-  disabled: boolean
+  pending: boolean
   ariaLabel: string
-  onChoose: () => void
-  children: React.ReactNode
+  onPress: () => void
 }) {
   return (
     <button
       type="button"
       aria-pressed={chosen}
       aria-label={ariaLabel}
-      disabled={disabled}
-      onClick={onChoose}
-      className={`flex w-full items-center gap-3 px-3 py-2 text-left ${chosen ? 'bg-azure/10' : 'hover:bg-sunken'}`}
+      disabled={pending}
+      onClick={onPress}
+      className={`chip shrink-0 px-2 py-1 ${chosen ? 'border-azure bg-azure/15 text-azure' : 'border-edge-strong hover:border-azure hover:text-azure'}`}
     >
-      {alternative ? <span className="chip shrink-0 border-edge-strong px-1 text-faint">or</span> : null}
-      {cumulative ? <span className="chip shrink-0 border-edge-strong px-1 text-faint">and</span> : null}
-      <span className="min-w-0 flex-1 text-sm">{label}</span>
-      {children}
+      {label}
     </button>
   )
 }

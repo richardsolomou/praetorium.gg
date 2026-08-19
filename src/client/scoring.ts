@@ -85,3 +85,37 @@ export function cardsDue(
 
 /** The phase the card data names, so a label can say which one is being settled. */
 export const phaseLabel = (phase: Phase) => `${phase} phase`
+
+/** A tactical hand is two cards. */
+export const HAND_SIZE = 2
+
+/**
+ * The next card to ask the deck for, or null when the hand is accounted for.
+ *
+ * `asked` is what has been requested and not yet come back. Counting it is the whole
+ * point: a request is in flight for a moment before the hand it fills arrives, and
+ * without it a hand of one gets dealt back up to three. A card already played is
+ * never dealt again, whatever the deck still lists.
+ */
+export function nextDraw<T extends { key: string }>(
+  held: readonly { key: string; status: string }[],
+  asked: ReadonlySet<string>,
+  deck: readonly T[],
+): T | null {
+  const active = held.filter((card) => card.status === 'active').length
+  const outstanding = [...asked].filter((key) => !held.some((card) => card.key === key)).length
+  if (active + outstanding >= HAND_SIZE) return null
+  return deck.find((card) => !asked.has(card.key) && !held.some((entry) => entry.key === card.key)) ?? null
+}
+
+/**
+ * Whether scoring a card is what finishes it.
+ *
+ * A tactical card is played once: it comes off the deck, pays, and is done, which is
+ * what leaves a gap for the next turn to fill. A fixed hand is chosen for the whole
+ * battle and scores as often as the card allows, so nothing about it is finished by
+ * being scored.
+ */
+export function finishesOnScore(category: 'primary' | 'secondary', mode: 'fixed' | 'tactical', scored: number) {
+  return category === 'secondary' && mode === 'tactical' && scored > 0
+}

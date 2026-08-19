@@ -258,8 +258,10 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
         />
       ) : null}
 
-      {drawing && yours ? (
+      {/* One prompt at a time: what their turn owed is settled before this one is dealt. */}
+      {drawing && yours && !owedCards.length ? (
         <DrawDialog
+          key={turnKey}
           side={yours}
           round={view.round}
           pending={pending}

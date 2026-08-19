@@ -16,7 +16,9 @@ Praetorium reads structured stratagem and mission data from [40kdc-data](https:/
 
 - Use each card's award values for scoring controls.
 - Ask for a payout only at the moment its `trigger.timing` names: `end-of-phase` with its phase, `end-of-turn`, or `end-of-battle`. A card the source gave no timing for is never put on a schedule.
-- Read `exclusive_group` for which payouts on a card are alternatives, `cumulative` for the one that stacks, and `vp_max` for the ceiling on a counted payout. A ceiling clamps the total; it does not stop the count one short of it.
+- Read `exclusive_group` for which payouts on a card are tiers of one thing: picking one rules out the rest of its group. Payouts the card leaves ungrouped are independent, and a card can pay several of them at once. A payout per something inside a group is a tier rather than a count.
+- Read `vp_max` for the ceiling on a counted payout. A ceiling clamps the total; it does not stop the count one short of it.
+- A tactical secondary is played once: scoring it finishes it, and the hand fills back to two at the top of the next turn. A fixed hand is chosen for the whole battle and is not finished by being scored.
 - Read compound conditions from `when.operator` and `when.operands`. Where an award carries no condition at all, show the card's own text rather than inventing one.
 - Draw a tactical hand at random. `when_drawn` says when a freshly drawn card may go back: a `battle_round` bound and a paired `card_ids` list the battle can check itself, and a board-state `condition` is stated for the player because the source cannot see the table.
 - The battle-ready bonus is recorded before the first turn and joins the score only when the battle is finished.

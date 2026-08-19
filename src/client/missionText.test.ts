@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { awardLimit, awardTotal, conditionLabel, type MissionAward } from './missionText'
+import { alternatives, awardLimit, awardTotal, conditionLabel, counted, type MissionAward } from './missionText'
 
 const per = (vp: number, max: number | null) => ({ vp, max, per: 'enemy-unit-destroyed-this-turn' })
 
@@ -61,5 +61,29 @@ describe('what a card asks for', () => {
 
   it('says nothing when the source described no condition', () => {
     expect(conditionLabel(award({}))).toBeNull()
+  })
+})
+
+describe('how a card pays', () => {
+  const tier = (group: string | null, each: string | null = null) => ({ group, per: each })
+
+  it('treats payouts the card grouped together as tiers of one thing', () => {
+    expect(alternatives(tier('centre-hold'), tier('centre-hold'))).toBe(true)
+  })
+
+  it('lets a card pay two things it never grouped', () => {
+    expect(alternatives(tier(null), tier(null))).toBe(false)
+  })
+
+  it('keeps payouts in different groups independent', () => {
+    expect(alternatives(tier('fronts-fixed'), tier('fronts-tactical'))).toBe(false)
+  })
+
+  it('counts a payout per something the card left ungrouped', () => {
+    expect(counted(tier(null, 'controlled-objective'))).toBe(true)
+  })
+
+  it('asks which tier rather than how many when the card grouped them', () => {
+    expect(counted(tier('beacon-position', 'beacon-unit-on-battlefield-not-in-own-territory'))).toBe(false)
   })
 })

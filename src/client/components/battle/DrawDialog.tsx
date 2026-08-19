@@ -1,7 +1,8 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import type { Command, Secondary } from '../../../core/battle'
+import { HAND_SIZE, nextDraw } from '../../scoring'
 import type { Side } from '../../sides'
 import { MissionName, type ReferenceCard } from './MissionCards'
 import { CARD } from './tints'
@@ -24,8 +25,6 @@ type Props = {
   onDone: () => void
 }
 
-const HAND_SIZE = 2
-
 /**
  * The tactical hand, drawn at the top of a turn.
  *
@@ -35,15 +34,25 @@ const HAND_SIZE = 2
  */
 export function DrawDialog({ side, round, pending, send, referenceFor, whenDrawnFor, onDone }: Props) {
   const held = side.secondaries.filter((card) => card.status === 'active')
-  const short = HAND_SIZE - held.length
+  /**
+   * What this prompt has already asked the deck for.
+   *
+   * A request is in flight for a moment before the hand it fills comes back, and the
+   * effect can run again inside that moment. Counting the asks rather than watching a
+   * request flag is what stops a hand of one being dealt back up to three.
+   */
+  const asked = useRef(new Set<string>())
 
   // Drawing is not a decision, so it happens as soon as the hand is short rather than
-  // waiting behind a button that has only one thing it can do.
+  // waiting behind a button that has only one thing it can do. What to ask for is
+  // decided here rather than during a render: two renders can be prepared before
+  // either effect runs, and both would read the same tally and ask the deck twice.
   useEffect(() => {
-    if (pending || short <= 0) return
-    const card = randomEntry(side.remainingSecondaries)
-    if (card) send({ kind: 'draw-secondary', secondary: card })
-  }, [pending, short, side.remainingSecondaries, send])
+    const card = nextDraw(side.secondaries, asked.current, shuffled(side.remainingSecondaries))
+    if (!card) return
+    asked.current.add(card.key)
+    send({ kind: 'draw-secondary', secondary: card })
+  }, [side.secondaries, side.remainingSecondaries, send])
 
   return (
     <Dialog open onOpenChange={(open) => !open && onDone()}>
@@ -79,10 +88,10 @@ export function DrawDialog({ side, round, pending, send, referenceFor, whenDrawn
               </div>
             )
           })}
-          {short > 0 ? <p className="text-sm text-dim">Drawing…</p> : null}
+          {held.length < HAND_SIZE ? <p className="text-sm text-dim">Drawing…</p> : null}
         </div>
         <DialogFooter className="rounded-none border-edge bg-sunken">
-          <Button disabled={pending || short > 0} onClick={onDone}>
+          <Button disabled={pending || held.length < HAND_SIZE} onClick={onDone}>
             Take the turn
           </Button>
         </DialogFooter>
@@ -109,11 +118,16 @@ export function redrawOffer(rule: WhenDrawn | undefined, round: number, held: re
   return rule.condition ? `You may put this back if ${rule.condition}.` : null
 }
 
-function randomEntry<T>(entries: readonly T[]): T | undefined {
-  if (!entries.length) return undefined
-  const value = new Uint32Array(1)
-  crypto.getRandomValues(value)
-  return entries[(value[0] ?? 0) % entries.length]
+/** The deck in a random order, so the card that comes off it is not the one at the top. */
+function shuffled<T>(deck: readonly T[]): T[] {
+  const cards = [...deck]
+  const draws = new Uint32Array(cards.length)
+  crypto.getRandomValues(draws)
+  for (let at = cards.length - 1; at > 0; at -= 1) {
+    const swap = (draws[at] ?? 0) % (at + 1)
+    ;[cards[at], cards[swap]] = [cards[swap], cards[at]]
+  }
+  return cards
 }
 
 export type DrawableCard = Secondary

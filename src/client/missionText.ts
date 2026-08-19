@@ -23,6 +23,27 @@ export type MissionAward = {
 }
 
 /**
+ * Whether picking one payout on a card rules another out.
+ *
+ * The source says so directly: payouts it puts in one group are tiers of the same
+ * thing, and only the better tier scores. Anything it leaves ungrouped is a payout
+ * in its own right, and a card can pay several of them in the same breath.
+ */
+export function alternatives(chosen: Pick<MissionAward, 'group'>, other: Pick<MissionAward, 'group'>) {
+  return chosen.group !== null && chosen.group === other.group
+}
+
+/**
+ * Whether a payout is counted rather than answered yes or no.
+ *
+ * A payout per something is a count, unless the card made it a tier: a tier is one
+ * of several ways the same thing pays, so the question is which tier, not how many.
+ */
+export function counted(award: Pick<MissionAward, 'per' | 'group'>) {
+  return award.per !== null && award.group === null
+}
+
+/**
  * How many times a per-something payout is worth taking, or null when nothing bounds it.
  *
  * Rounded up, not down: a card paying 2 VP each up to 5 still pays on the third one,

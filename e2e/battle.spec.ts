@@ -67,6 +67,8 @@ test('a tactical hand is dealt rather than chosen, and pays out when the card sa
   await answer.click()
   await scoring.getByRole('button', { name: 'Pass the turn' }).click()
   await expect(panel.locator('[data-stat="vp"]')).toHaveText(String(scored))
+  // Nothing is ticked to finish a card: no control for it exists.
+  await expect(alice.getByText('take it out of the hand')).toHaveCount(0)
   await expect(bob.locator('[data-panel="player"]').filter({ hasText: 'Death Guard' }).locator('[data-stat="vp"]')).toHaveText(
     String(scored),
   )

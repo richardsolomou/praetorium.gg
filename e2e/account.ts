@@ -189,7 +189,9 @@ export async function takeTheTurn(page: Page) {
     ]).catch(() => 'board')
     if (seen === 'board') return
     const prompt = seen === 'owed' ? owedPrompt(page) : drawPrompt(page)
-    await prompt.getByRole('button', { name: 'Take the turn' }).click()
+    // Bounded: the prompt waits on the deck, and a hung wait should fail here rather
+    // than hold the whole test open on one click.
+    await prompt.getByRole('button', { name: 'Take the turn' }).click({ timeout: 15_000 })
     await expect(prompt).toBeHidden()
   }
 }
@@ -205,7 +207,7 @@ export async function advance(page: Page) {
   for (let guard = 0; guard < 3; guard += 1) {
     for (const prompt of [owedPrompt(page), drawPrompt(page)]) {
       if (!(await prompt.isVisible().catch(() => false))) continue
-      await prompt.getByRole('button', { name: 'Take the turn' }).click()
+      await prompt.getByRole('button', { name: 'Take the turn' }).click({ timeout: 15_000 })
       await expect(prompt).toBeHidden()
     }
     const clicked = await advanceButton(page)

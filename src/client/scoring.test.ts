@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { MissionAward } from './missionText'
-import { type AwardTrigger, cardsDue, cardsDueFromTheirTurn, dueNow, momentsPassed } from './scoring'
+import { type AwardTrigger, cardsDue, cardsDueFromTheirTurn, dueNow, finishesOnScore, momentsPassed, nextDraw } from './scoring'
 
 const ANY: AwardTrigger = { timing: null, phase: null, playerTurn: null, roundMin: null, roundMax: null }
 const trigger = (overrides: Partial<AwardTrigger>): AwardTrigger => ({ ...ANY, ...overrides })
@@ -138,5 +138,55 @@ describe('when a mission is asked about', () => {
     ]
     expect(cardsDueFromTheirTurn(1, cards)).toEqual([])
     expect(cardsDueFromTheirTurn(2, cards)).toHaveLength(1)
+  })
+})
+
+describe('filling a tactical hand', () => {
+  const card = (key: string, status = 'active') => ({ key, status })
+  const deck = [{ key: 'a' }, { key: 'b' }, { key: 'c' }]
+
+  it('asks for a card when the hand is empty', () => {
+    expect(nextDraw([], new Set(), deck)?.key).toBe('a')
+  })
+
+  it('does not ask twice for the one already in flight', () => {
+    expect(nextDraw([], new Set(['a']), deck)?.key).toBe('b')
+  })
+
+  it('stops once enough are in flight to fill the hand', () => {
+    expect(nextDraw([], new Set(['a', 'b']), deck)).toBeNull()
+  })
+
+  it('stops once the hand itself is full', () => {
+    expect(nextDraw([card('a'), card('b')], new Set(['a', 'b']), deck)).toBeNull()
+  })
+
+  it('fills the one gap a scored card left, and only that one', () => {
+    const held = [card('a', 'achieved'), card('b')]
+    const first = nextDraw(held, new Set(), deck)
+    expect(first?.key).toBe('c')
+    expect(nextDraw(held, new Set([first?.key ?? '']), deck)).toBeNull()
+  })
+
+  it('asks for nothing once the deck is empty', () => {
+    expect(nextDraw([], new Set(), [])).toBeNull()
+  })
+})
+
+describe('when scoring finishes a card', () => {
+  it('finishes a tactical secondary that paid out', () => {
+    expect(finishesOnScore('secondary', 'tactical', 3)).toBe(true)
+  })
+
+  it('leaves a tactical secondary that paid nothing in the hand', () => {
+    expect(finishesOnScore('secondary', 'tactical', 0)).toBe(false)
+  })
+
+  it('leaves a fixed secondary to score again', () => {
+    expect(finishesOnScore('secondary', 'fixed', 3)).toBe(false)
+  })
+
+  it('never finishes the primary, which is played all battle', () => {
+    expect(finishesOnScore('primary', 'tactical', 5)).toBe(false)
   })
 })
