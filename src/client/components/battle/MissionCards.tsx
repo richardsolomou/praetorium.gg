@@ -159,7 +159,3 @@ export function MissionName({ name, card, type }: { name: string; card?: Referen
     </Dialog>
   )
 }
-
-export const awardTitle = (award: Award) =>
-  [award.mode, award.when?.replaceAll('-', ' '), award.per ? `per ${award.per.replaceAll('-', ' ')}` : null].filter(Boolean).join(' · ') ||
-  undefined

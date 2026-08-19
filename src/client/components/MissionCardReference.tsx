@@ -49,11 +49,11 @@ function ScoringBlock({ awards }: { awards: Award[] }) {
         </p>
       ) : null}
       <div className="mt-3 divide-y divide-edge">
-        {awards.map((award) => (
-          <div key={`${award.vp}-${award.per}-${award.when}`} className="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0">
+        {awards.map((award, at) => (
+          <div key={`${award.vp}-${award.criteria ?? at}`} className="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0">
             <p className="text-base text-bone">
               {award.cumulative ? <Plus className="mr-2 inline size-4" /> : null}
-              {conditionLabel(award) ?? payoutLabel(award, awards)}
+              <RuleText text={conditionLabel(award) ?? payoutLabel(award, awards)} className="mt-0 inline text-base text-bone" />
             </p>
             <span className="chip shrink-0 text-lg text-bone">
               {award.cumulative ? '+' : ''}

@@ -25,6 +25,29 @@ Lokhust Destroyers (170 Points)
 
 Exported with BattleBase, Data Version: v20260812`
 
+const kingOfTheColosseumExport = `SA 500 (500 Points)
+
+Necrons
+Starshatter Arsenal (3 Detachment Points)
+Force Dispositions: Priority Assets
+King of the Colosseum (500 Points)
+
+CHARACTERS
+
+Lokhust Lord (80 Points)
+    • Warlord
+    • 1x Lord's blade
+    • 1x Resurrection Orb
+    • Enhancement: Demanding Leader
+
+BATTLELINE
+
+Immortals (70 Points)
+    • 5x Close combat weapon
+    • 5x Gauss blaster
+
+Exported with BattleBase, Data Version: v20260812`
+
 describe('BattleBase text import', () => {
   it('reads list setup and units', () => {
     expect(fromBattleBaseText(exportText)).toEqual({
@@ -58,5 +81,9 @@ describe('BattleBase text import', () => {
 
   it('does not claim unrelated text', () => {
     expect(fromBattleBaseText('Necrons\nLokhust Lord')).toBeNull()
+  })
+
+  it('does not read a named game format as a unit', () => {
+    expect(fromBattleBaseText(kingOfTheColosseumExport)?.units.map((unit) => unit.name)).toEqual(['Lokhust Lord', 'Immortals'])
   })
 })

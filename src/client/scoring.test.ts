@@ -8,13 +8,10 @@ const payout = (vp: number, on: Partial<AwardTrigger>): MissionAward => ({
   vp,
   per: null,
   mode: null,
-  when: null,
   max: null,
-  parameters: {},
-  operator: null,
-  operands: [],
   group: null,
   cumulative: false,
+  criteria: null,
   trigger: trigger(on),
 })
 const at = (phase: string, round = 1, rounds = 5) => ({ phase, round, rounds }) as Parameters<typeof dueNow>[1]

@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import type { Stratagem, StratagemLimit } from '../core/battle'
 import { routeSlug } from '../core/slug'
+import { criteriaKey, loadMissionCriteria, pairCriteria, type Payout } from './missionCriteria'
 import {
   factionRestrictions,
   findDescription,
@@ -57,8 +58,6 @@ type RawCard = {
   }
 }
 
-type RuleParameter = string | number | boolean | null | { side?: string; window?: string }
-
 type RawAward = {
   vp?: number
   vp_per?: number
@@ -66,12 +65,6 @@ type RawAward = {
   per?: string
   mode?: string
   cumulative?: boolean
-  when?: {
-    type?: string
-    parameters?: Record<string, RuleParameter>
-    operator?: string
-    operands?: { type?: string; parameters?: Record<string, RuleParameter> }[]
-  }
   exclusive_group?: string
   trigger?: RawTrigger
 }
@@ -217,16 +210,13 @@ type Award = {
   vp: number
   per: string | null
   mode: string | null
-  when: string | null
   /** The most a per-something payout may pay in total, when the card caps it. */
   max: number | null
-  parameters: Record<string, RuleParameter>
-  /** How the parts of a compound condition combine, when the card states one. */
-  operator: string | null
-  operands: { type: string; parameters: Record<string, RuleParameter> }[]
   /** Payouts sharing a group are alternatives: the card pays one of them, not both. */
   group: string | null
   cumulative: boolean
+  /** What the mission pack says this payout asks for, when the two sources pair up. */
+  criteria: string | null
   trigger: Trigger
 }
 
@@ -361,6 +351,7 @@ export function loadRules(
   wahapediaDirectory = path.join(path.dirname(directory), 'wahapedia'),
   battlemasterDirectory = path.join(path.dirname(directory), 'battlemaster'),
   iconDirectory = path.join(path.dirname(directory), 'faction-icons'),
+  datacardsDirectory = path.join(path.dirname(directory), 'datacards', '11th', 'gdc'),
 ): LoadedRules | null {
   const core = path.join(directory, 'data', 'core')
   if (!fs.existsSync(core)) return null
@@ -480,13 +471,16 @@ export function loadRules(
 
   const coreStratagems = readOptionalList<RawStratagem>(path.join(core, 'stratagems.json')).map(toStratagem)
   const cards = readOptionalList<RawCard>(path.join(core, 'secondary-cards.json'))
+  // What a payout asks for is the mission pack's to say; when it is due is this file's.
+  const criteria = loadMissionCriteria(datacardsDirectory)
+  const card = (raw: RawCard) => toCard(raw, criteria.get(criteriaKey(raw.name)) ?? [])
   const secondaries = cards
-    .filter((card) => card.card_type !== 'primary')
-    .map(toCard)
+    .filter((entry) => entry.card_type !== 'primary')
+    .map(card)
     .toSorted(byName)
   const primaries = cards
-    .filter((card) => card.card_type === 'primary')
-    .map(toCard)
+    .filter((entry) => entry.card_type === 'primary')
+    .map(card)
     .toSorted(byName)
 
   const missions = new Map<string, Mission>()
@@ -762,21 +756,16 @@ const byName = (left: { name: string }, right: { name: string }) => left.name.lo
  * counting; one that pays a flat amount does not. Anything with no number at all is
  * dropped: a button that scores nothing is worse than no button.
  */
-function toCard(raw: RawCard): MissionCard {
+function toCard(raw: RawCard, payouts: Payout[]): MissionCard {
   const awards = (raw.awards ?? [])
     .map((award) => ({
       vp: award.vp ?? award.vp_per ?? 0,
       per: award.vp_per ? (award.per ?? 'each') : null,
       max: award.vp_max ?? null,
       mode: award.mode ?? null,
-      when: award.when?.type ?? null,
-      parameters: award.when?.parameters ?? {},
-      operator: award.when?.operator ?? null,
-      operands: (award.when?.operands ?? []).flatMap((operand) =>
-        operand.type ? [{ type: operand.type, parameters: operand.parameters ?? {} }] : [],
-      ),
       group: award.exclusive_group ?? null,
       cumulative: award.cumulative ?? false,
+      criteria: null as string | null,
       trigger: {
         timing: award.trigger?.timing ?? null,
         phase: award.trigger?.phase ?? null,
@@ -786,7 +775,11 @@ function toCard(raw: RawCard): MissionCard {
       },
     }))
     .filter((award) => award.vp > 0)
-  return { key: raw.id, name: raw.name, text: raw.text ?? null, awards: dedupe(awards), whenDrawn: toWhenDrawn(raw.when_drawn) }
+  // Paired before anything is folded together, because the pack lists a card's payouts
+  // as printed and a fold would leave the two sides counting different things.
+  const criteria = pairCriteria(awards, payouts)
+  const described = awards.map((award, at) => ({ ...award, criteria: criteria[at] ?? null }))
+  return { key: raw.id, name: raw.name, text: raw.text ?? null, awards: dedupe(described), whenDrawn: toWhenDrawn(raw.when_drawn) }
 }
 
 function toWhenDrawn(raw: RawCard['when_drawn']): WhenDrawn | null {
@@ -819,7 +812,7 @@ function dedupe(awards: Award[]): Award[] {
   for (const award of awards) {
     const trigger = award.trigger
     seen.set(
-      `${award.vp}/${award.per}/${award.max}/${award.mode}/${award.when}/${JSON.stringify(award.parameters)}/${JSON.stringify(award.operands)}/${award.group}/${award.cumulative}/${trigger.timing}/${trigger.phase}/${trigger.playerTurn}/${trigger.roundMin}/${trigger.roundMax}`,
+      `${award.vp}/${award.per}/${award.max}/${award.mode}/${award.criteria}/${award.group}/${award.cumulative}/${trigger.timing}/${trigger.phase}/${trigger.playerTurn}/${trigger.roundMin}/${trigger.roundMax}`,
       award,
     )
   }

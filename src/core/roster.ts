@@ -884,17 +884,32 @@ function spreadRepeatedGroup(
   const modelId = repeating.path.at(-1)
   if (!modelId) return selection
   const withinModel = path.slice(repeating.path.length)
-  const carriers = allAt(selection, repeating.path).reduce((total, model) => total + (model.count ?? 1), 0)
-  const variants = Object.entries(counts)
+  const models = allAt(selection, repeating.path)
+  const requested = Object.entries(counts)
     .filter(([, count]) => count > 0)
-    .map(([optionId, count]) => {
-      const base = expand(modelId, repeating.definition, index, MAX_DEPTH, count, new Set(), 1)
-      return withChoice(base, withinModel.join('/'), optionId, index)
-    })
-  const unassigned = Math.max(0, carriers - variants.reduce((total, variant) => total + (variant.count ?? 1), 0))
-  if (unassigned) {
-    const base = expand(modelId, repeating.definition, index, MAX_DEPTH, unassigned, new Set(), 1)
-    variants.push(withoutSelectionAt(base, withinModel))
+    .map(([optionId, count]) => ({ optionId, remaining: count }))
+  const variants: Selection[] = []
+  let requestAt = 0
+
+  for (const model of models) {
+    const base = withoutSelectionAt(model, withinModel)
+    let remaining = model.count ?? 1
+    while (remaining > 0 && requestAt < requested.length) {
+      const request = requested[requestAt]
+      if (!request) break
+      const count = Math.min(remaining, request.remaining)
+      variants.push(withChoice({ ...base, count }, withinModel.join('/'), request.optionId, index))
+      remaining -= count
+      request.remaining -= count
+      if (request.remaining === 0) requestAt += 1
+    }
+    if (remaining > 0) variants.push({ ...base, count: remaining })
+  }
+  for (; requestAt < requested.length; requestAt += 1) {
+    const request = requested[requestAt]
+    if (!request || request.remaining <= 0) continue
+    const base = expand(modelId, repeating.definition, index, MAX_DEPTH, request.remaining, new Set(), 1)
+    variants.push(withChoice(base, withinModel.join('/'), request.optionId, index))
   }
   return replaceAt(selection, repeating.path.slice(0, -1), modelId, variants)
 }

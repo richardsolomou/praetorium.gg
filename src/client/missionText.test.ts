@@ -35,31 +35,21 @@ describe('what a card asks for', () => {
     vp: 5,
     per: null,
     mode: null,
-    when: null,
     max: null,
-    parameters: {},
-    operator: null,
-    operands: [],
     group: null,
     cumulative: false,
+    criteria: null,
     trigger: { timing: null, phase: null, playerTurn: null, roundMin: null, roundMax: null },
     ...overrides,
   })
 
-  it('reads a condition the card states in two alternative parts as one sentence', () => {
-    const label = conditionLabel(
-      award({
-        operator: 'or',
-        operands: [
-          { type: 'controls-objective', parameters: { count_min: 1, objective: 'opponent-home' } },
-          { type: 'controls-objective', parameters: { count_min: 1, objective_role: 'expansion' } },
-        ],
-      }),
+  it('asks for what the mission pack printed on the card', () => {
+    expect(conditionLabel(award({ criteria: 'You control your opponent’s home objective.' }))).toBe(
+      'You control your opponent’s home objective.',
     )
-    expect(label).toBe('You control your opponent’s home objective, or you control an expansion objective.')
   })
 
-  it('says nothing when the source described no condition', () => {
+  it('says nothing when the pack did not pair a sentence to this payout', () => {
     expect(conditionLabel(award({}))).toBeNull()
   })
 })
@@ -93,13 +83,10 @@ describe('naming a payout the source left unstructured', () => {
     vp,
     per: null,
     mode: null,
-    when: null,
     max: null,
-    parameters: {},
-    operator: null,
-    operands: [],
     group,
     cumulative: false,
+    criteria: null,
     trigger: { timing: 'end-of-turn', phase: null, playerTurn: 'your-turn', roundMin: null, roundMax: null },
   })
 
@@ -118,8 +105,8 @@ describe('naming a payout the source left unstructured', () => {
     expect(payoutLabel(only[0], only)).toBe('As the card describes.')
   })
 
-  it('leaves a payout the source did describe to its own condition', () => {
-    const described: MissionAward = { ...bare(5, null), when: 'objective-majority' }
+  it('leaves a payout the pack did describe to its own sentence', () => {
+    const described: MissionAward = { ...bare(5, null), criteria: 'You control more objectives than your opponent.' }
     expect(conditionLabel(described)).toBe('You control more objectives than your opponent.')
   })
 })

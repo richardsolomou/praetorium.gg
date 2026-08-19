@@ -39,21 +39,24 @@ export function fromBattleBaseText(input: string): BattleBaseRoster | null {
   const sizeLine = lines.find((line) => /\([\d,]+ Points?\)$/i.test(line.trim()) && line.trim() !== title)?.trim()
   const units: BattleBaseUnit[] = []
   let current: BattleBaseUnit | null = null
+  let unitSection = false
 
   for (const line of lines.slice(factionAt + 1)) {
     const trimmed = line.trim()
+    if (trimmed && trimmed === trimmed.toUpperCase() && !/[():]/.test(trimmed)) {
+      current = null
+      unitSection = true
+      continue
+    }
     const header = trimmed.match(unitHeader)
-    if (header && !/Detachment Points?\)$/i.test(trimmed) && !/^(Combat Patrol|Incursion|Strike Force|Onslaught)\b/i.test(trimmed)) {
+    if (unitSection && header) {
       current = { name: header[1].trim(), selections: [], leading: null, warlord: false }
       units.push(current)
       continue
     }
     if (!current) continue
     const picked = line.match(selection)
-    if (!picked) {
-      if (trimmed && trimmed === trimmed.toUpperCase()) current = null
-      continue
-    }
+    if (!picked) continue
     const name = picked[2].trim()
     if (/^Warlord$/i.test(name)) current.warlord = true
     else if (/^Leading:/i.test(name)) current.leading = name.replace(/^Leading:\s*/i, '').trim()

@@ -55,8 +55,13 @@ export function DrawDialog({ side, round, pending, send, referenceFor, whenDrawn
   }, [side.secondaries, side.remainingSecondaries, send])
 
   return (
-    <Dialog open onOpenChange={(open) => !open && onDone()}>
-      <DialogContent className="max-h-[85dvh] overflow-y-auto rounded-none border border-edge bg-panel text-bone sm:max-w-lg">
+    // No way out but taking the hand: dismissing it would skip the one chance to see
+    // what was dealt and to put a card back, and the turn only deals once.
+    <Dialog open>
+      <DialogContent
+        showCloseButton={false}
+        className="max-h-[85dvh] overflow-y-auto rounded-none border border-edge bg-panel text-bone sm:max-w-lg"
+      >
         <DialogHeader>
           <DialogTitle className="uppercase">Your secondary missions</DialogTitle>
           <DialogDescription className="text-dim">

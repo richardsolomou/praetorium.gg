@@ -127,6 +127,13 @@ test('a card the rules let you put back is offered back as it is drawn', async (
       .poll(() => prompt.locator('[data-drawn]').evaluateAll((c) => c.map((d) => d.getAttribute('data-drawn'))))
       .not.toEqual(before)
   }
+  // The hand is not something to dismiss: it is the one chance to see what was dealt.
+  await bob.mouse.click(8, 400)
+  await expect(prompt).toBeVisible()
+  await bob.keyboard.press('Escape')
+  await expect(prompt).toBeVisible()
+  await expect(prompt.getByRole('button', { name: 'Close' })).toHaveCount(0)
+
   await takeTheTurn(bob)
   await expect(prompt).toBeHidden()
 })
@@ -159,11 +166,13 @@ test('a card names its own condition, and what their turn owed is asked as the t
   await advanceButton(alice).click()
   const scoring = alice.getByRole('dialog', { name: /^Scoring end of turn points/ })
   const outflank = scoring.locator('[data-due="outflank"]')
-  // Two tiers of one thing rather than two payouts, and the card's own words for what each asks.
+  // Two tiers of one thing rather than two payouts, each asking in the mission pack's own words.
   await expect(outflank).toContainText('or')
-  await expect(outflank).toContainText('The lower payout')
-  await expect(outflank).toContainText('The higher payout')
-  await expect(outflank).toContainText('score the lower amount while one or more friendly units')
+  await expect(outflank).toContainText('are within 6" of one or more battlefield edges and not within your territory')
+  await expect(outflank).toContainText('are within 6" of opposite battlefield edges')
+  // The keywords the pack marks up are drawn as keywords rather than printed with their asterisks.
+  await expect(outflank.getByText('AIRCRAFT').first()).toBeVisible()
+  await expect(outflank).not.toContainText('**')
   await scoring.getByRole('button', { name: 'Pass the turn' }).click()
 
   // Assassination pays at the end of either turn, and the opponent's is a turn Alice

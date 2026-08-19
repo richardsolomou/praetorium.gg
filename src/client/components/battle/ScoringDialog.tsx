@@ -6,6 +6,7 @@ import type { BattleView, Command } from '../../../core/battle'
 import { alternatives, awardLimit, awardTotal, conditionLabel, counted, type MissionAward, payoutLabel } from '../../missionText'
 import { cardsDue, cardsDueFromTheirTurn, type DueCard, finishesOnScore } from '../../scoring'
 import type { Side } from '../../sides'
+import { RuleText } from '../RuleText'
 import { MissionName, type ReferenceCard } from './MissionCards'
 
 type Props = {
@@ -89,13 +90,11 @@ export function ScoringDialog({ side, due, moment, confirmLabel, pending, send, 
                       {scored ? `+${scored} VP` : `${scoredSoFar(side, card)} so far`}
                     </span>
                   </div>
-                  {/* The card's own words, which say what a payout the source left unstructured is for. */}
-                  {reference?.text ? <p className="mt-1 font-rules text-xs text-dim">{reference.text}</p> : null}
                 </div>
                 <div className="divide-y divide-edge">
                   {card.awards.map((award, at) => (
                     <AwardRow
-                      key={`${award.vp}-${award.per ?? ''}-${award.when ?? ''}-${award.group ?? ''}-${JSON.stringify(award.parameters)}`}
+                      key={`${award.vp}-${award.criteria ?? at}`}
                       card={card}
                       award={award}
                       tier={at > 0 && alternatives(award, card.awards[at - 1] ?? award)}
@@ -158,7 +157,8 @@ function AwardRow({
     <div className="flex items-center gap-3 px-3 py-2">
       {tier ? <span className="chip shrink-0 border-edge-strong px-1 text-faint">or</span> : null}
       <span className="min-w-0 flex-1 text-sm">
-        {label}
+        {/* The pack's own sentence, so the keywords it marks up read as keywords here too. */}
+        <RuleText text={label} className="mt-0 space-y-1 text-sm text-bone" />
         {counted(award) ? (
           <span className="mt-0.5 block text-[0.625rem] text-faint">
             {award.vp} VP each{award.max === null ? '' : `, up to ${award.max} VP`}
