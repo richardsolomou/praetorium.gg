@@ -2,8 +2,8 @@ name: PR preview deploy
 
 on:
   workflow_run:
-    workflows: [PR preview build]
-    types: [requested, in_progress, completed]
+    workflows: [CI]
+    types: [requested, completed]
   pull_request_target:
     types: [closed]
 
@@ -13,6 +13,7 @@ concurrency:
 
 jobs:
   preview:
+    if: github.event_name == 'pull_request_target' || github.event.workflow_run.event == 'pull_request'
     permissions:
       actions: read
       contents: read

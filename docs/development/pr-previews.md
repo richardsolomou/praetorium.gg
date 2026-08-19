@@ -1,6 +1,6 @@
 # Pull request previews
 
-Every pull request from a branch in this repository gets a disposable Praetorium instance. The preview workflows build a commit-specific image and deploy it to the URL in the pull request comment. The comment identifies the commit that the preview serves.
+Every pull request from a branch in this repository gets a disposable Praetorium instance. CI builds a commit-specific image once, tests that image, and deploys it to the URL in the pull request comment. The comment identifies the commit that the preview serves.
 
 One pull request comment shows the current state:
 

@@ -1,8 +1,6 @@
 name: CI
 
 on:
-  push:
-    branches: [main]
   pull_request:
   workflow_dispatch:
 
@@ -18,61 +16,157 @@ env:
 
 jobs:
   check:
-    uses: richardsolomou/ras-stack/.github/workflows/check-js.yml@v0.41.1
-    with:
-      command: just check
-      just-version: '1.58.0'
-
-  e2e-shard:
-    name: E2E shard ${{ matrix.shard }} of 4
-    strategy:
-      fail-fast: false
-      matrix:
-        shard: [1, 2, 3, 4]
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: write
+      checks: write
+      issues: write
+      pull-requests: write
     steps:
       - uses: actions/checkout@v7
       - uses: richardsolomou/ras-stack/actions/setup-js@v0.41.1
       - uses: richardsolomou/ras-stack/actions/setup-just@v0.41.1
         with:
           version: '1.58.0'
-      - run: just catalogue-sync
+      - name: Mark preview as deploying
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          COMMIT_SHA: ${{ github.event.pull_request.head.sha }}
+          PREVIEW_MARKER: <!-- praetorium-preview -->
+          PREVIEW_NOTE: Test battles with `preview@praetorium.gg` / `preview-preview-preview` and `opponent@praetorium.gg` / `opponent-opponent-opponent`. Preview data is disposable and resets on every deployment.
+          PREVIEW_URL: https://pr-${{ github.event.pull_request.number }}.praetorium.gg
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: pnpm exec ras preview building
+      - name: Run checks
+        run: just check
+
+  e2e-image:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      artifact-name: ${{ steps.image.outputs.artifact-name }}
+      local-image: ${{ steps.image.outputs.local-image }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+      - name: Name the image
+        id: image
+        env:
+          HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" == pull_request ]]; then
+            echo "local-image=praetorium.gg:preview-pr-$PR_NUMBER-sha-$PR_SHA" >> "$GITHUB_OUTPUT"
+            if [[ "$HEAD_REPOSITORY" != "$GITHUB_REPOSITORY" ]]; then
+              echo "artifact-name=preview-image-$PR_NUMBER" >> "$GITHUB_OUTPUT"
+            else
+              echo "artifact-name=e2e-image-$GITHUB_RUN_ID" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "local-image=praetorium-e2e:sha-$GITHUB_SHA" >> "$GITHUB_OUTPUT"
+            echo "artifact-name=e2e-image-$GITHUB_RUN_ID" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Build the application image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          tags: ${{ steps.image.outputs.local-image }}
+          outputs: type=docker,dest=${{ runner.temp }}/preview-image.tar
+          cache-from: type=gha,scope=e2e-image
+          cache-to: type=gha,mode=max,scope=e2e-image
+      - name: Publish the preview image
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          GH_TOKEN: ${{ github.token }}
+          LOCAL_IMAGE: ${{ steps.image.outputs.local-image }}
+          PREVIEW_IMAGE: ghcr.io/${{ github.repository_owner }}/praetorium.gg:preview-pr-${{ github.event.pull_request.number }}-sha-${{ github.event.pull_request.head.sha }}
+        run: |
+          docker load --input "$RUNNER_TEMP/preview-image.tar"
+          docker tag "$LOCAL_IMAGE" "$PREVIEW_IMAGE"
+          echo "$GH_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+          docker push "$PREVIEW_IMAGE"
+      - name: Store the application image
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.image.outputs.artifact-name }}
+          path: ${{ runner.temp }}/preview-image.tar
+          retention-days: 1
+          compression-level: 1
+
+  e2e-shard:
+    name: E2E runner ${{ matrix.runner }} of 4
+    needs: [e2e-image]
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [1, 2, 3, 4]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - uses: richardsolomou/ras-stack/actions/setup-js@v0.41.1
+      - run: pnpm catalogue:sync
       - name: Require the terrain geometry
         run: |
           set -euo pipefail
           test -n "$(ls -A catalogue-data/battlemaster/layouts 2>/dev/null || true)" \
             || { echo 'catalogue-data/battlemaster/layouts is empty; re-run the catalogue sync'; exit 1; }
-      - run: just descriptions
-      - run: just e2e-install
-      - uses: docker/setup-buildx-action@v4
-      - name: Build the application image
-        uses: docker/build-push-action@v7
+      - run: pnpm exec playwright install chromium --only-shell
+      - uses: actions/download-artifact@v8
         with:
-          context: .
-          load: true
-          tags: praetorium-e2e
-          cache-from: type=gha,scope=e2e-image
-          cache-to: type=gha,mode=min,scope=e2e-image
-      # Separate runners give each shard its own CPU, container, and database.
-      - name: Run E2E shard
-        run: pnpm exec playwright test --fully-parallel --workers=1 --shard=${{ matrix.shard }}/4
+          name: ${{ needs.e2e-image.outputs.artifact-name }}
+          path: ${{ runner.temp }}/praetorium-e2e-image
+      - name: Load the application image
+        env:
+          LOCAL_IMAGE: ${{ needs.e2e-image.outputs.local-image }}
+        run: |
+          docker load --input "$RUNNER_TEMP/praetorium-e2e-image/preview-image.tar"
+          docker tag "$LOCAL_IMAGE" praetorium-e2e
+      - name: Run two isolated E2E shards
+        env:
+          E2E_RUNNER: ${{ matrix.runner }}
+        run: |
+          set -euo pipefail
+          first=$((E2E_RUNNER * 2 - 1))
+          second=$((first + 1))
+          mkdir -p test-results
+          run_shard() {
+            shard="$1"
+            port=$((4170 + shard))
+            PLAYWRIGHT_PORT="$port" \
+              PLAYWRIGHT_DATA_ROOT="/tmp/praetorium-e2e-$shard" \
+              PLAYWRIGHT_OUTPUT_DIR="test-results-$shard" \
+              pnpm exec playwright test --fully-parallel --workers=1 --shard="$shard/8"
+          }
+          run_shard "$first" &
+          first_pid=$!
+          run_shard "$second" &
+          second_pid=$!
+          exit_code=0
+          wait "$first_pid" || exit_code=$?
+          wait "$second_pid" || exit_code=$?
+          exit "$exit_code"
       - if: failure()
         uses: actions/upload-artifact@v7
         with:
-          name: playwright-results-${{ matrix.shard }}
-          path: test-results
+          name: playwright-results-${{ matrix.runner }}
+          path: |
+            test-results
+            test-results-*
           retention-days: 7
 
-  # Keep one stable required check while the expensive work runs in parallel.
   e2e:
     if: always()
     needs: [e2e-shard]
     runs-on: ubuntu-latest
     steps:
-      - name: Require every E2E shard
+      - name: Require every E2E runner
         run: test '${{ needs.e2e-shard.result }}' = success
 
   points:
@@ -80,12 +174,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: richardsolomou/ras-stack/actions/setup-js@v0.41.1
-      - uses: richardsolomou/ras-stack/actions/setup-just@v0.41.1
-        with:
-          version: '1.58.0'
-      - run: just catalogue-sync
-      # The points reference match rate must not fall.
-      - run: just points | tee points.txt
+      - run: pnpm catalogue:sync
+      - run: pnpm catalogue:descriptions
+      - run: pnpm catalogue:points | tee points.txt
       - name: Require complete agreement
         run: |
           set -euo pipefail
@@ -94,53 +185,3 @@ jobs:
           echo "$matched of $checked"
           test "$checked" -ge 1500
           test "$matched" -eq "$checked"
-
-  release:
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    needs: [check, e2e, points]
-    permissions:
-      contents: write
-    uses: richardsolomou/ras-stack/.github/workflows/release-changesets.yml@v0.41.1
-    secrets: inherit
-
-  production-image:
-    if: needs.release.outputs.created == 'true'
-    needs: [release]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          ref: ${{ needs.release.outputs.sha }}
-      - uses: richardsolomou/ras-stack/actions/setup-js@v0.41.1
-      - uses: richardsolomou/ras-stack/actions/setup-just@v0.41.1
-        with:
-          version: '1.58.0'
-      - run: just catalogue-sync
-      - name: Require the terrain geometry
-        run: |
-          set -euo pipefail
-          test -n "$(ls -A catalogue-data/battlemaster/layouts 2>/dev/null || true)" \
-            || { echo 'catalogue-data/battlemaster/layouts is empty; re-run the catalogue sync'; exit 1; }
-      - run: just descriptions
-      - name: Build and publish production image
-        id: image
-        uses: richardsolomou/ras-stack/actions/publish-production-image@v0.41.1
-        with:
-          image: ghcr.io/${{ github.repository }}
-          sha: ${{ needs.release.outputs.sha }}
-          release-tag: ${{ needs.release.outputs.tag }}
-          token: ${{ github.token }}
-          build-args: |
-            VITE_POSTHOG_HOST=${{ vars.VITE_POSTHOG_HOST }}
-            VITE_POSTHOG_PROJECT_TOKEN=${{ vars.VITE_POSTHOG_PROJECT_TOKEN }}
-      - name: Deploy production image
-        if: vars.DOKPLOY_IMAGE_DEPLOY == 'true'
-        uses: richardsolomou/ras-stack/actions/deploy-dokploy-image@v0.41.1
-        with:
-          url: ${{ secrets.DOKPLOY_URL }}
-          api-key: ${{ secrets.DOKPLOY_API_KEY }}
-          application-id: ${{ secrets.DOKPLOY_APPLICATION_ID }}
-          image: ${{ steps.image.outputs.reference }}
