@@ -1,5 +1,18 @@
 # praetorium
 
+## 0.6.0
+
+### Minor Changes
+
+- 46f8e96: Add friend-only 2v1 battles with separate allied armies, shared team resources, and collaborative setup.
+- 488d597: Search pages, game references, rosters, and battles from anywhere.
+
+### Patch Changes
+
+- 6750113: Make roster editing sidebars easier to navigate on mobile and expose unit datasheets.
+- 53ae105: Show each unit's attachment targets only once on its datasheet.
+- a5239de: Show each faction's full army rule on its faction page.
+
 ## 0.5.2
 
 ### Patch Changes
