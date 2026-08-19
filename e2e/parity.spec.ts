@@ -46,7 +46,7 @@ test('a private roster can be shared and made private again', async ({ browser }
   expect(sharedUrl).toMatch(/\/rosters\/[^/]+$/)
   const anonymous = await (await browser.newContext()).newPage()
   await anonymous.goto(sharedUrl)
-  await expect(anonymous.getByRole('heading', { name: 'Shareable roster' })).toBeVisible()
+  await expect(anonymous.getByRole('textbox', { name: 'List name' })).toHaveValue('Shareable roster')
 
   await page.getByRole('button', { name: 'Actions for Shareable roster' }).click()
   await page.getByRole('menuitem', { name: 'Make private' }).click()

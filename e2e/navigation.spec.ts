@@ -112,8 +112,14 @@ test('terrain layouts show their labels and measurement guides', async ({ page }
   await page.getByRole('button', { name: 'Enlarge terrain layout A: Sweeping Engagement' }).click()
 
   const layout = page.getByRole('dialog').locator('svg')
-  expect(await layout.locator('text').allTextContents()).toEqual(expect.arrayContaining(['AB', 'OBJECTIVE']))
-  expect(await layout.locator('line[marker-end]').count()).toBeGreaterThan(0)
+  await expect(layout.locator('text').filter({ hasText: /^AB$/ }).first()).toBeVisible()
+  await expect(
+    layout
+      .locator('text')
+      .filter({ hasText: /^OBJECTIVE$/ })
+      .first(),
+  ).toBeVisible()
+  await expect(layout.locator('line[marker-end]').first()).toHaveAttribute('marker-end', /-arrow\)$/)
 })
 
 test('a player can enter through the roster library and browse the product', async ({ page }) => {

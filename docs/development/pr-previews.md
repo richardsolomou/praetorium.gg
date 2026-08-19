@@ -1,13 +1,13 @@
 # Pull request previews
 
-Every pull request from a branch in this repository gets a disposable Praetorium instance. CI builds a commit-specific image once, tests that image, and deploys it to the URL in the pull request comment. The comment identifies the commit that the preview serves.
+Every pull request gets a disposable Praetorium instance. A dedicated workflow builds a commit-specific image once. The preview deploys that image as soon as it is ready while CI tests the same image in parallel. The comment identifies the commit that the preview serves.
 
 One pull request comment shows the current state:
 
 - 🔄 A new version is building. The current preview stays available until deployment finishes.
 - ⏸️ A preview from a fork is waiting for a maintainer to approve its build.
 - ✅ The preview serves the listed commit.
-- ❌ Deployment failed; the link goes to the workflow run.
+- ❌ The image, deployment, or CI failed; the link goes to the workflow run.
 - 🗑️ The pull request closed, and the preview was deleted.
 
 The `PR preview deploy` check shows the same state.
@@ -18,6 +18,6 @@ Closing or merging removes the instance and its preview images. A weekly prune r
 
 Previews and their shared login are public. Do not store sensitive data in them.
 
-Fork builds do not receive deployment secrets. They upload an image artifact. The trusted `preview-deploy.yml` workflow publishes it after maintainer approval.
+Fork builds do not receive deployment secrets. They upload an image artifact. The trusted `preview-deploy.yml` workflow publishes it after maintainer approval. Internal pull requests publish directly to the container registry, and CI runners pull that exact image instead of transferring a second copy.
 
 Push again or rerun the workflow to redeploy.
