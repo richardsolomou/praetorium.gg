@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.8.1
+
+### Patch Changes
+
+- bcbbf31: Add battle actions to the battle library's context and overflow menus.
+- bcbbf31: Assign primary missions to the correct side and allow either player to rewind battle actions across turns.
+
 ## 0.8.0
 
 ### Minor Changes
