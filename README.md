@@ -26,7 +26,7 @@ Along the way:
 
 - Detachment stratagems include their command-point cost and usage limit.
 - Scoring controls use the values defined by each mission card.
-- A player can undo their latest command.
+- Every seated player can record actions for either side and undo the latest command.
 - Finished battles can record a concession, be corrected, or be reopened without rewriting history.
 - Saved lists can be tagged, reused, printed, and exported as Games Workshop-style text. They stay private unless their owner creates an unlisted sharing link.
 

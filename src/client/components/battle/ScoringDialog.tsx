@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import type { BattleView, Command } from '../../../core/battle'
 import { alternatives, awardLimit, awardTotal, conditionLabel, counted, type MissionAward, payoutLabel } from '../../missionText'
 import { cardsDue, cardsDueFromTheirTurn, type DueCard, finishesOnScore } from '../../scoring'
-import type { Side } from '../../sides'
+import { type Side, sideName } from '../../sides'
 import { RuleText } from '../RuleText'
 import { MissionName, type ReferenceCard } from './MissionCards'
 
@@ -18,7 +18,7 @@ type Props = {
   send: (command: Command) => void
   referenceFor: (key: string) => ReferenceCard | undefined
   onDone: () => void
-  onCancel: () => void
+  onCancel?: () => void
   /** What pressing through the prompt does next. */
   confirmLabel: string
 }
@@ -55,21 +55,27 @@ export function ScoringDialog({ side, due, moment, confirmLabel, pending, send, 
     for (const card of due) {
       const delta = scoredFor(card)
       if (!delta) continue
-      send(card.category === 'primary' ? { kind: 'score', category: 'primary', delta } : { kind: 'score-secondary', key: card.key, delta })
+      send(
+        card.category === 'primary'
+          ? { kind: 'score', category: 'primary', delta, playerId: side.captain.id }
+          : { kind: 'score-secondary', key: card.key, delta, playerId: side.captain.id },
+      )
       if (finishesOnScore(card.category, side.secondaryMode, delta)) {
-        send({ kind: 'set-secondary-status', key: card.key, status: 'achieved' })
+        send({ kind: 'set-secondary-status', key: card.key, status: 'achieved', playerId: side.captain.id })
       }
     }
     onDone()
   }
 
   return (
-    <Dialog open onOpenChange={(open) => !open && onCancel()}>
+    <Dialog open onOpenChange={(open) => !open && onCancel?.()}>
       <DialogContent className="max-h-[85dvh] overflow-y-auto rounded-none border border-edge bg-panel text-bone sm:max-w-2xl">
         <DialogHeader className="text-center">
           <p className="eyebrow">Now</p>
           <DialogTitle className="uppercase">Scoring {moment} points</DialogTitle>
-          <DialogDescription className="text-dim">Press what the board actually paid on each card.</DialogDescription>
+          <DialogDescription className="text-dim">
+            Recording points for {sideName(side)}. Press what the board actually paid on each card.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-3">
@@ -123,10 +129,14 @@ export function ScoringDialog({ side, due, moment, confirmLabel, pending, send, 
           <span className="readout mr-auto text-sm text-dim">
             Scoring <span className="font-bold text-bone">{total}</span> VP
           </span>
-          <Button variant="outline" disabled={pending} onClick={onCancel}>
-            Go back
+          {onCancel ? (
+            <Button variant="outline" disabled={pending} onClick={onCancel}>
+              Go back
+            </Button>
+          ) : null}
+          <Button disabled={pending} onClick={confirm}>
+            {confirmLabel}
           </Button>
-          <Button onClick={confirm}>{confirmLabel}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

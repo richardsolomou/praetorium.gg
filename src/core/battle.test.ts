@@ -556,9 +556,175 @@ describe('the turn sequence', () => {
     expect(state.turns.map((turn) => turn.round)).toEqual([1, 2, 3, 4, 5])
   })
 
-  it('refuses to end a phase for the player whose turn it is not', () => {
+  it('requires an opponent to name the active player when ending their phase', () => {
     const state = reduceBattle(PLAYERS, log(...started()))
     expect(validate(state, BOB, advance())).toBe('it is not your turn')
+  })
+
+  it('lets an opponent end the active player’s phase for them', () => {
+    const history = log(...started(), [BOB, { kind: 'advance', playerId: ALICE }])
+
+    expect(validate(reduceBattle(PLAYERS, log(...started())), BOB, { kind: 'advance', playerId: ALICE })).toBeNull()
+    expect(reduceBattle(PLAYERS, history).phase).toBe('movement')
+  })
+
+  it('waits for the active side to draw its private tactical hand', () => {
+    const history = log(
+      [ALICE, roster('Ultramarines')],
+      [BOB, roster('Death Guard')],
+      [
+        ALICE,
+        {
+          kind: 'set-prep',
+          stratagems: [],
+          secondaries: [],
+          secondaryDeck: [{ key: 'a', name: 'Area Denial' }],
+          primary: null,
+          secondaryMode: 'tactical',
+        },
+      ],
+      [ALICE, { kind: 'begin-battle', firstPlayerId: ALICE }],
+    )
+
+    expect(validate(reduceBattle(PLAYERS, history), BOB, { kind: 'advance', playerId: ALICE })).toBe(
+      'the active side has an action to settle',
+    )
+  })
+
+  it('waits for the active side captain to settle the previous turn before a helper advances', () => {
+    const history = log(...started(), ...turns(6, ALICE))
+    const pending = reduceBattle(PLAYERS, history)
+
+    expect(validate(pending, ALICE, { kind: 'advance', playerId: BOB })).toBe('the active side has an action to settle')
+    expect(validate(pending, BOB, { kind: 'settle-opponent-turn' })).toBeNull()
+
+    const settled = reduceBattle(PLAYERS, log(...started(), ...turns(6, ALICE), [BOB, { kind: 'settle-opponent-turn' }]))
+    expect(validate(settled, ALICE, { kind: 'advance', playerId: BOB })).toBeNull()
+  })
+
+  it('shows pending opponent-turn scoring only to the side captain', () => {
+    const state = reduceBattle(PLAYERS, log(...started(), ...turns(6, ALICE)))
+
+    expect(battleView({ token: 'abc' }, NAMES, state, BOB).settlementRound).toBe(1)
+    expect(battleView({ token: 'abc' }, NAMES, state, ALICE).settlementRound).toBeNull()
+  })
+
+  it('treats an existing owner advance as settling the previous turn', () => {
+    const state = reduceBattle(PLAYERS, log(...started(), ...turns(6, ALICE), [BOB, advance()]))
+
+    expect(state.phase).toBe('movement')
+    expect(battleView({ token: 'abc' }, NAMES, state, BOB).settlementRound).toBeNull()
+  })
+
+  it('does not let an ally settle the side captain’s previous turn', () => {
+    const configure: Command = {
+      kind: 'configure-battle',
+      limit: 2000,
+      missionPackId: null,
+      terrainLayoutId: null,
+      twistId: null,
+      solo: false,
+      teamBattle: true,
+      clockLimitMinutes: null,
+    }
+    const state = reduceBattle(
+      [ALICE, BOB, CAROL],
+      log(
+        [ALICE, configure],
+        [ALICE, roster('Knights')],
+        [BOB, roster('Marines')],
+        [CAROL, roster('Guard')],
+        [ALICE, { kind: 'begin-battle', firstPlayerId: ALICE }],
+        ...turns(6, ALICE),
+      ),
+      [0, 1, 1],
+    )
+
+    expect(validate(state, CAROL, { kind: 'settle-opponent-turn' })).toBe('only the side captain can settle the previous turn')
+  })
+
+  it('keeps settlement bookkeeping out of the report and undo target', () => {
+    const history = log(...started(), ...turns(6, ALICE), [BOB, { kind: 'settle-opponent-turn' }])
+    const state = reduceBattle(PLAYERS, history)
+
+    expect(battleView({ token: 'abc' }, NAMES, state, BOB).undoable).toBe(history.at(-2)?.seq)
+    expect(battleReport(NAMES, history).some((entry) => entry.commandKind === 'settle-opponent-turn')).toBe(false)
+  })
+
+  it('waits for the side captain when an ally cannot see the private tactical deck', () => {
+    const configure: Command = {
+      kind: 'configure-battle',
+      limit: 2000,
+      missionPackId: null,
+      terrainLayoutId: null,
+      twistId: null,
+      solo: false,
+      teamBattle: true,
+      clockLimitMinutes: null,
+    }
+    const history = log(
+      [ALICE, configure],
+      [ALICE, roster('Knights')],
+      [BOB, roster('Marines')],
+      [CAROL, roster('Guard')],
+      [
+        BOB,
+        {
+          kind: 'set-prep',
+          stratagems: [],
+          secondaries: [],
+          secondaryDeck: [{ key: 'a', name: 'Area Denial' }],
+          primary: null,
+          secondaryMode: 'tactical',
+        },
+      ],
+      [ALICE, { kind: 'begin-battle', firstPlayerId: BOB }],
+    )
+
+    expect(validate(reduceBattle([ALICE, BOB, CAROL], history, [0, 1, 1]), CAROL, { kind: 'advance', playerId: BOB })).toBe(
+      'the active side has an action to settle',
+    )
+  })
+
+  it('waits for the active side to settle its hidden mission before passing the turn', () => {
+    const history = log(
+      ...started(),
+      [ALICE, { kind: 'select-secret', secondary: { key: 'secret-a', name: 'Hold the Line' } }],
+      ...turns(5, ALICE),
+    )
+
+    expect(validate(reduceBattle(PLAYERS, history), BOB, { kind: 'advance', playerId: ALICE })).toBe(
+      'the active side has an action to settle',
+    )
+  })
+
+  it('preserves target-less team advances already stored in the log', () => {
+    const configure: Command = {
+      kind: 'configure-battle',
+      limit: 2000,
+      missionPackId: null,
+      terrainLayoutId: null,
+      twistId: null,
+      solo: false,
+      teamBattle: true,
+      clockLimitMinutes: null,
+    }
+    const history = log(
+      [ALICE, configure],
+      [ALICE, roster('Knights')],
+      [BOB, roster('Marines')],
+      [CAROL, roster('Guard')],
+      [ALICE, { kind: 'begin-battle', firstPlayerId: ALICE }],
+      ...turns(6, BOB),
+    )
+    const state = reduceBattle([ALICE, BOB, CAROL], history, [0, 0, 1])
+
+    expect({ round: state.round, active: state.activePlayerId }).toEqual({ round: 2, active: ALICE })
+  })
+
+  it('refuses to advance for a player outside the battle', () => {
+    const state = reduceBattle(PLAYERS, log(...started()))
+    expect(validate(state, BOB, { kind: 'advance', playerId: 'mallory' })).toBe('that player is not in this battle')
   })
 })
 
@@ -577,6 +743,15 @@ describe('command points', () => {
   it('are spent from the spender, not the active player', () => {
     const state = reduceBattle(PLAYERS, log(...started(), [ALICE, { kind: 'adjust-cp', delta: -1 }]))
     expect(state.players.find((player) => player.id === ALICE)?.cp).toBe(0)
+  })
+
+  it('can be changed by another participant on the player’s behalf', () => {
+    const command: Command = { kind: 'adjust-cp', delta: 2, playerId: ALICE }
+    const state = reduceBattle(PLAYERS, log(...started(), [BOB, command]))
+
+    expect(validate(reduceBattle(PLAYERS, log(...started())), BOB, command)).toBeNull()
+    expect(state.players.find((player) => player.id === ALICE)?.cp).toBe(3)
+    expect(state.players.find((player) => player.id === BOB)?.cp).toBe(0)
   })
 
   it('report gained, used and remaining separately', () => {
@@ -674,11 +849,18 @@ describe('battle management', () => {
     expect(state.players[1]?.units[0]?.formation).toBe('strategic-reserves')
   })
 
-  it('refuses to arrange another army once the battle has started', () => {
-    const state = reduceBattle(PLAYERS, log([BOB, builtRoster('Death Guard', ['Plague Marines'])], ...started()))
-    expect(validate(state, ALICE, { kind: 'set-unit-formation', unitKey: 'u0', formation: 'strategic-reserves', playerId: BOB })).toBe(
-      'only your own units once the battle has started',
+  it('lets one participant arrange another army after the battle starts', () => {
+    const history = log(
+      [ALICE, builtRoster('Ultramarines', ['Intercessors'])],
+      [BOB, builtRoster('Death Guard', ['Plague Marines'])],
+      [ALICE, { kind: 'begin-battle', firstPlayerId: ALICE }],
     )
+    const command: Command = { kind: 'set-unit-formation', unitKey: 'u0', formation: 'strategic-reserves', playerId: BOB }
+
+    expect(validate(reduceBattle(PLAYERS, history), ALICE, command)).toBeNull()
+    expect(
+      reduceBattle(PLAYERS, [...history, { seq: history.length + 1, by: ALICE, at: 9, command }]).players[1]?.units[0]?.formation,
+    ).toBe('strategic-reserves')
   })
 
   it('tracks unit formation states without inventing model positions', () => {
@@ -805,9 +987,17 @@ describe('units on the table', () => {
     expect(battleView({ token: 'abc' }, NAMES, state, ALICE).players.find((player) => player.isViewer)?.standing).toBe(1)
   })
 
-  it('belong to their own player', () => {
+  it('require another participant to name the army they are changing', () => {
     const state = reduceBattle(PLAYERS, log(...withUnits()))
     expect(validate(state, BOB, { kind: 'set-unit', unitKey: 'u0', destroyed: true })).toBe('that is not one of your units')
+  })
+
+  it('can be changed by another participant on the owner’s behalf', () => {
+    const command: Command = { kind: 'set-unit', unitKey: 'u0', destroyed: true, playerId: ALICE }
+    const state = reduceBattle(PLAYERS, log(...withUnits(), [BOB, command]))
+
+    expect(validate(reduceBattle(PLAYERS, log(...withUnits())), BOB, command)).toBeNull()
+    expect(state.players.find((player) => player.id === ALICE)?.units[0]?.destroyed).toBe(true)
   })
 
   it('are replaced wholesale when a list is', () => {
@@ -902,6 +1092,14 @@ describe('stratagems', () => {
   it('belong to the player who wrote them down', () => {
     const state = reduceBattle(PLAYERS, log(...armed()))
     expect(validate(state, BOB, { kind: 'use-stratagem', key: 's1' })).toBe('that is not one of your stratagems')
+  })
+
+  it('can be used by another participant on the player’s behalf', () => {
+    const command: Command = { kind: 'use-stratagem', key: 's1', playerId: ALICE }
+    const state = reduceBattle(PLAYERS, log(...armed(), [BOB, command]))
+
+    expect(validate(reduceBattle(PLAYERS, log(...armed())), BOB, command)).toBeNull()
+    expect(alice(state)).toMatchObject({ cp: 3, uses: [{ key: 's1' }] })
   })
 
   it('are offered to the interface with the reason they cannot be used', () => {
@@ -1019,6 +1217,37 @@ describe('secondaries', () => {
     expect(text(battleReport(NAMES, history, PLAYERS, BOB)).join(' ')).not.toContain('Hold the Line')
   })
 
+  it('keep an opponent from revealing a secret mission', () => {
+    const state = reduceBattle(
+      PLAYERS,
+      log(...started(), [ALICE, { kind: 'select-secret', secondary: { key: 'secret-a', name: 'Hold the Line' } }]),
+    )
+
+    expect(validate(state, BOB, { kind: 'reveal-secret', playerId: ALICE })).toBe('that is not one of your secondaries')
+  })
+
+  it('give the same answer when an opponent guesses a hidden or absent secondary key', () => {
+    const state = reduceBattle(
+      PLAYERS,
+      log(...started(), [ALICE, { kind: 'select-secret', secondary: { key: 'secret-a', name: 'Hold the Line' } }]),
+    )
+    const hidden = validate(state, BOB, { kind: 'score-secondary', key: 'secret-a', delta: 5, playerId: ALICE })
+    const absent = validate(state, BOB, { kind: 'score-secondary', key: 'secret-b', delta: 5, playerId: ALICE })
+
+    expect(hidden).toBe(absent)
+  })
+
+  it('hide secondary status keys from an opponent too', () => {
+    const state = reduceBattle(
+      PLAYERS,
+      log(...started(), [ALICE, { kind: 'select-secret', secondary: { key: 'secret-a', name: 'Hold the Line' } }]),
+    )
+    const hidden = validate(state, BOB, { kind: 'set-secondary-status', key: 'secret-a', status: 'achieved', playerId: ALICE })
+    const absent = validate(state, BOB, { kind: 'set-secondary-status', key: 'secret-b', status: 'achieved', playerId: ALICE })
+
+    expect(hidden).toBe(absent)
+  })
+
   it('draw replacements only for tactical missions', () => {
     const tactical: [string, Command] = [
       ALICE,
@@ -1087,13 +1316,56 @@ describe('secondaries', () => {
     expect(battleView({ token: 'abc' }, NAMES, state, BOB).players[0]?.remainingSecondaries).toEqual([])
   })
 
-  it('withholds a secret scoring prompt from the opponent', () => {
+  it('withholds the side captain’s remaining tactical deck from an ally', () => {
+    const configure: Command = {
+      kind: 'configure-battle',
+      limit: 2000,
+      missionPackId: null,
+      terrainLayoutId: null,
+      twistId: null,
+      solo: false,
+      teamBattle: true,
+      clockLimitMinutes: null,
+    }
+    const cards = [
+      { key: 'a', name: 'Behind Enemy Lines' },
+      { key: 'b', name: 'Bring It Down' },
+    ]
+    const state = reduceBattle(
+      [ALICE, BOB, CAROL],
+      log(
+        [ALICE, configure],
+        [ALICE, roster('Knights')],
+        [BOB, roster('Marines')],
+        [CAROL, roster('Guard')],
+        [
+          BOB,
+          {
+            kind: 'set-prep',
+            stratagems: [],
+            primary: null,
+            secondaryMode: 'tactical',
+            secondaries: cards.slice(0, 1),
+            secondaryDeck: cards,
+          },
+        ],
+      ),
+      [0, 1, 1],
+    )
+
+    const ally = battleView({ token: 'abc' }, [...NAMES, { id: CAROL, name: 'Carol' }], state, CAROL).players.find(
+      (player) => player.id === CAROL,
+    )
+    expect(ally?.remainingSecondaries).toEqual([])
+  })
+
+  it('withholds secret scoring details from the opponent', () => {
     const state = reduceBattle(
       PLAYERS,
       log(...started(), [ALICE, { kind: 'select-secret', secondary: { key: 'secret-a', name: 'Hold the Line' } }], ...turns(5, ALICE)),
     )
 
-    expect(battleView({ token: 'abc' }, NAMES, state, BOB).advancePrompt).toBeNull()
+    expect(battleView({ token: 'abc' }, NAMES, state, BOB).advancePrompt).toBe('The active side has an action to settle.')
   })
 
   it('lets legacy tactical battles continue without an authoritative deck', () => {
@@ -1133,6 +1405,30 @@ describe('secondaries', () => {
     expect(validate(state, ALICE, { kind: 'draw-secondary', secondary: { key: 'b', name: 'Bring It Down' } })).toBe(
       'that secondary is not in your deck',
     )
+  })
+
+  it('refuses to draw past a full tactical hand', () => {
+    const cards = [
+      { key: 'a', name: 'Behind Enemy Lines' },
+      { key: 'b', name: 'Bring It Down' },
+      { key: 'c', name: 'Area Denial' },
+    ]
+    const state = reduceBattle(
+      PLAYERS,
+      log(...started(), [
+        ALICE,
+        {
+          kind: 'set-prep',
+          stratagems: [],
+          primary: null,
+          secondaryMode: 'tactical',
+          secondaries: cards.slice(0, 2),
+          secondaryDeck: cards,
+        },
+      ]),
+    )
+
+    expect(validate(state, ALICE, { kind: 'draw-secondary', secondary: cards[2] })).toBe('your tactical hand is full')
   })
 
   it('refuses a secret outside the authoritative deck', () => {
@@ -1406,6 +1702,48 @@ describe('the account of the battle', () => {
     expect(text(battleReport(NAMES, history))).toContain('Alice uses Grenade for 1 CP')
   })
 
+  it('names both players when one records an action for another', () => {
+    const history = log(...started(), [BOB, { kind: 'adjust-cp', delta: 2, playerId: ALICE }])
+
+    expect(text(battleReport(NAMES, history))).toContain('Bob adds 2 CP for Alice')
+  })
+
+  it('uses shared side details when a teammate is named as the target', () => {
+    const configure: Command = {
+      kind: 'configure-battle',
+      limit: 2000,
+      missionPackId: null,
+      terrainLayoutId: null,
+      twistId: null,
+      solo: false,
+      teamBattle: true,
+      clockLimitMinutes: null,
+    }
+    const history = log(
+      [ALICE, configure],
+      [ALICE, roster('Knights')],
+      [BOB, roster('Marines')],
+      [CAROL, roster('Guard')],
+      [
+        BOB,
+        {
+          kind: 'set-prep',
+          stratagems: [{ key: 's1', name: 'Grenade', cp: 1, limit: 'turn' }],
+          secondaries: [],
+          primary: null,
+          secondaryMode: 'fixed',
+        },
+      ],
+      [ALICE, { kind: 'begin-battle', firstPlayerId: ALICE }],
+      [BOB, { kind: 'adjust-cp', delta: 1 }],
+      [ALICE, { kind: 'use-stratagem', key: 's1', playerId: CAROL }],
+    )
+
+    expect(text(battleReport([...NAMES, { id: CAROL, name: 'Carol' }], history, [ALICE, BOB, CAROL], ALICE, [0, 1, 1]))).toContain(
+      'Alice uses Carol’s Grenade for 1 CP',
+    )
+  })
+
   it('leaves out what was undone, because it did not happen', () => {
     const history = log(...started(), [ALICE, { kind: 'score', category: 'primary', delta: 5 }])
     const withUndo = [...history, { seq: history.length + 1, by: ALICE, at: 9, command: { kind: 'undo' as const, target: history.length } }]
@@ -1470,6 +1808,12 @@ describe('models within a unit', () => {
   it('read as a loss in the account when the last model goes', () => {
     const history = log(...inPlay(), [ALICE, { kind: 'wound-unit', unitKey: 'u0', delta: -5 }])
     expect(text(battleReport(NAMES, history))).toContain('Alice loses Intercessors')
+  })
+
+  it('name the recorder and owner when another player removes the last model', () => {
+    const history = log(...inPlay(), [BOB, { kind: 'wound-unit', unitKey: 'u0', delta: -5, playerId: ALICE }])
+
+    expect(text(battleReport(NAMES, history))).toContain('Bob removes the last model from Alice’s Intercessors')
   })
 
   it('read as models in the account otherwise', () => {

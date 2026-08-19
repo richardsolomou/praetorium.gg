@@ -15,11 +15,12 @@ test('a player tapping twice in a row does not lose the race to themselves', asy
 
   await takeTheTurn(alice)
   await slowRefetch(alice, token(link))
-  const score = alice.getByRole('button', { name: '+1 CP' })
+  const panel = alice.locator('[data-panel="player"]').filter({ hasText: 'Necrons' })
+  const score = panel.getByRole('button', { name: '+1 CP' })
   await score.click()
   await score.click()
 
-  const cp = alice.locator('[data-panel="player"]').filter({ hasText: 'Necrons' }).locator('[data-stat="cp"]')
+  const cp = panel.locator('[data-stat="cp"]')
   await expect(alice.getByText('Your opponent got there first. Try that again.')).toBeHidden()
   await expect(cp).toHaveText('3')
   await alice.getByRole('button', { name: 'Undo latest action' }).click()

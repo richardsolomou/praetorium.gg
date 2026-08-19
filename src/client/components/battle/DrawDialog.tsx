@@ -17,6 +17,7 @@ export type WhenDrawn = {
 
 type Props = {
   side: Side
+  seq: number
   round: number
   pending: boolean
   send: (command: Command) => void
@@ -32,7 +33,7 @@ type Props = {
  * are dealt is not a move the game has. Putting one back is, but only where the
  * card itself says so, which is why each offer names the condition it rests on.
  */
-export function DrawDialog({ side, round, pending, send, referenceFor, whenDrawnFor, onDone }: Props) {
+export function DrawDialog({ side, seq, round, pending, send, referenceFor, whenDrawnFor, onDone }: Props) {
   const held = side.secondaries.filter((card) => card.status === 'active')
   /**
    * What this prompt has already asked the deck for.
@@ -42,6 +43,15 @@ export function DrawDialog({ side, round, pending, send, referenceFor, whenDrawn
    * request flag is what stops a hand of one being dealt back up to three.
    */
   const asked = useRef(new Set<string>())
+  const seen = useRef(seq)
+
+  useEffect(() => {
+    if (seen.current === seq) return
+    seen.current = seq
+    for (const key of asked.current) {
+      if (!side.secondaries.some((card) => card.key === key)) asked.current.delete(key)
+    }
+  }, [seq, side.secondaries])
 
   // Drawing is not a decision, so it happens as soon as the hand is short rather than
   // waiting behind a button that has only one thing it can do. What to ask for is
@@ -84,7 +94,7 @@ export function DrawDialog({ side, round, pending, send, referenceFor, whenDrawn
                       size="xs"
                       className="text-discarded"
                       disabled={pending || !side.remainingSecondaries.length}
-                      onClick={() => send({ kind: 'set-secondary-status', key: card.key, status: 'discarded' })}
+                      onClick={() => send({ kind: 'set-secondary-status', key: card.key, status: 'discarded', playerId: side.captain.id })}
                     >
                       Put back and draw another
                     </Button>

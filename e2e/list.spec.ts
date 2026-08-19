@@ -48,6 +48,7 @@ test('a built list is priced, deployed and tracked', async ({ browser }) => {
   await chooseBattlefield(alice)
   await setupStep(alice, 'Pre-battle')
   await alice.getByRole('button', { name: /^Add the battle ready bonus for Death Guard/ }).click()
+  await expect(alice.getByRole('button', { name: /^Remove the battle ready bonus for Death Guard/ })).toBeVisible()
   await startBattle(alice)
   await expect(bob.getByRole('heading', { name: 'command phase' })).toBeVisible()
 

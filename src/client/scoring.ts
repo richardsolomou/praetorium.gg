@@ -1,4 +1,4 @@
-import type { BattleView, Phase } from '../core/battle'
+import { type BattleView, type Phase, TACTICAL_HAND_SIZE } from '../core/battle'
 
 import type { MissionAward } from './missionText'
 
@@ -90,7 +90,7 @@ export function cardsDue(
 export const phaseLabel = (phase: Phase) => `${phase} phase`
 
 /** A tactical hand is two cards. */
-export const HAND_SIZE = 2
+export { TACTICAL_HAND_SIZE as HAND_SIZE }
 
 /**
  * The next card to ask the deck for, or null when the hand is accounted for.
@@ -107,7 +107,7 @@ export function nextDraw<T extends { key: string }>(
 ): T | null {
   const active = held.filter((card) => card.status === 'active').length
   const outstanding = [...asked].filter((key) => !held.some((card) => card.key === key)).length
-  if (active + outstanding >= HAND_SIZE) return null
+  if (active + outstanding >= TACTICAL_HAND_SIZE) return null
   return deck.find((card) => !asked.has(card.key) && !held.some((entry) => entry.key === card.key)) ?? null
 }
 

@@ -32,16 +32,17 @@ export const Route = createFileRoute('/battles/$token')({
         context.queryClient.ensureQueryData(savedRostersQuery()),
         context.queryClient.ensureQueryData(collectionQuery()),
       ])
-      const built = screen.view.players.find((player) => player.isViewer)?.roster?.built
       const dispositions = screen.view.players
         .map((player) => player.roster?.built?.disposition)
         .filter((value): value is string => Boolean(value))
       const matchupIds = terrainMatchupIds(dispositions, screen.view.settings.solo)
       if (matchupIds.length) await context.queryClient.ensureQueryData(terrainReferencesQuery(matchupIds))
-      const detachmentNames = built?.detachments?.map((detachment) => detachment.name) ?? (built?.detachment ? [built.detachment] : [])
-      if (built?.catalogueId && detachmentNames.length) {
-        await context.queryClient.ensureQueryData(detachmentRulesQuery(built.catalogueId, detachmentNames))
-      }
+      const ruleQueries = screen.view.players.flatMap((player) => {
+        const built = player.roster?.built
+        const detachmentNames = built?.detachments?.map((detachment) => detachment.name) ?? (built?.detachment ? [built.detachment] : [])
+        return built?.catalogueId && detachmentNames.length ? [detachmentRulesQuery(built.catalogueId, detachmentNames)] : []
+      })
+      await Promise.all(ruleQueries.map((query) => context.queryClient.ensureQueryData(query)))
     }
   },
   component: BattlePage,
@@ -49,6 +50,10 @@ export const Route = createFileRoute('/battles/$token')({
 
 function BattlePage() {
   const { token } = Route.useParams()
+  return <BattleSession key={token} token={token} />
+}
+
+function BattleSession({ token }: { token: string }) {
   const { data: screen } = useQuery(battleQuery(token))
   const seated = screen?.kind === 'battle'
   const present = useLiveBattle(token, seated)

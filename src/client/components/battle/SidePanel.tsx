@@ -13,9 +13,9 @@ type Props = {
   coreKeys: ReadonlySet<string>
   pending: boolean
   send: (command: Command) => void
-  awardsFor: (key: string, mode?: string) => Award[]
-  referenceFor: (key: string) => ReferenceCard | undefined
-  writtenFor: (key: string) => StratagemText | undefined
+  awardsFor: (side: Side, key: string, mode?: string) => Award[]
+  referenceFor: (side: Side, key: string) => ReferenceCard | undefined
+  writtenFor: (side: Side, key: string) => StratagemText | undefined
   /** The ceilings this mission actually plays to, which the pack can lower. */
   guides: { primary: number; secondary: number }
   className?: string
@@ -43,8 +43,17 @@ export function SidePanel({
 }: Props) {
   const colours = tint(side.index)
   const finished = view.status === 'finished'
-  const actionable = side.isViewer && !finished
-  const cards = { view, side, actionable, pending, send, awardsFor, referenceFor, guides }
+  const actionable = !finished
+  const cards = {
+    view,
+    side,
+    actionable,
+    pending,
+    send,
+    awardsFor: (key: string, mode?: string) => awardsFor(side, key, mode),
+    referenceFor: (key: string) => referenceFor(side, key),
+    guides,
+  }
   const bonus = side.armies.filter((army) => army.painted)
 
   return (
@@ -98,7 +107,7 @@ export function SidePanel({
                 variant="secondary"
                 size="xs"
                 title="Gain one additional command point"
-                onClick={() => send({ kind: 'adjust-cp', delta: 1 })}
+                onClick={() => send({ kind: 'adjust-cp', delta: 1, playerId: side.captain.id })}
               >
                 +1 CP
               </Button>
@@ -121,7 +130,7 @@ export function SidePanel({
             actionable={actionable}
             pending={pending}
             send={send}
-            writtenFor={writtenFor}
+            writtenFor={(key) => writtenFor(side, key)}
           />
         </div>
       </div>

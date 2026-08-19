@@ -13,6 +13,8 @@
 
 Undo appends an `undo` command that names the latest active command. It does not delete history. Either player can undo the latest command, then continue rewinding active commands across turn boundaries.
 
+Live commands may name the player or army they affect, so anyone seated at the table can keep either side moving. The log still records the player who submitted the command, and reports name both players when they differ. Concessions remain personal. Undealt tactical cards and hidden missions remain private. When a turn changes hands, the incoming side captain settles any scoring owed by the previous turn before another player can advance their command phase; that acknowledgement is coordination metadata rather than a report entry or undo target.
+
 Setup settings, roster replacements, formation choices, painted-army bonuses, concessions, reopening, and setup resets are commands too. A reset clears rosters and battlefield choices without erasing the audit trail or the configured game size, mission pack or solo format. A finished battle remains reopenable; deletion is the only destructive operation and is restricted to the account that created the battle.
 
 The current setup section is also a command-derived shared value. When one seated player moves forward or back, realtime updates move every device to that section; setup navigation is never private browser state.
@@ -62,9 +64,9 @@ Better Auth owns the `user`, `session`, `account`, `verification`, and `rateLimi
 
 ## Concurrency limit
 
-Starting the battle is not undoable: `begin-battle` leaves nothing for `undo` to name. `set-unit-formation` and `set-painted` may carry a `playerId`, which lets one device set the table for everyone, and only during setup.
+Starting the battle is not undoable: `begin-battle` leaves nothing for `undo` to name. Player-scoped commands may carry a `playerId`; omitting it retains the submitting player's meaning for existing log entries. Roster selection remains the owner's choice, and concessions cannot be submitted for another player.
 
-`expectedSeq` applies to the full battle log. Independent commands from both players can still race, and one player may need to submit again. Keep this behavior until commands declare narrower dependencies. Do not remove `expectedSeq`.
+`expectedSeq` applies to the full battle log. Independent commands from both players can still race, and one player may need to submit again. A stale or refused command discards the rest of the UI batch built on the same sequence, while commands produced by a newer realtime screen remain queued. Keep this behavior until commands declare narrower dependencies. Do not remove `expectedSeq`.
 
 ## Tests
 

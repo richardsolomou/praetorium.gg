@@ -25,7 +25,8 @@ Praetorium uses a compact, dark visual system. See [the product design guide](..
 - `/rosters/$id` is the one roster surface. Its owner gets the builder controls; every other entitled reader gets the same roster cards and loadout details without mutation controls.
 - Lay both setup and the tracker out by side, never by seat. `src/client/sides.ts` folds `BattleView.players` into sides; read command points, victory points, mission cards and stratagems from there. A 2v1 ally is a second army inside one side panel, not a third column.
 - Draw one scoreboard at every width. It carries both sides' scores, the round and phase, and the battle menu that holds finishing, conceding and deleting. Keep destructive actions in that menu and behind a confirmation.
-- Keep the phase control reachable at every width. One instance moves by CSS between the centre column and a bottom bar on narrow screens, as `builder/Pane.tsx` does for the roster panes.
+- Keep both sides' public controls available to every seated player, including the phase control, command points, scoring and stratagems. A player may help the active side without changing who the log says performed the action. Keep undealt tactical cards and hidden missions private, and disable a helper's phase control with an opaque prompt while the active side has opening mission work or a hidden end-of-turn choice.
+- Keep the phase control reachable at every width. One instance moves by CSS between the centre column and a bottom bar on narrow screens, as `builder/Pane.tsx` does for the roster panes, and always advances the active side.
 - Open long card lists in a dialog rather than laying dozens of buttons into a panel, and close the dialog on the pick.
 
 ## Components and styles

@@ -1,4 +1,4 @@
-import { queryOptions } from '@tanstack/react-query'
+import { queryOptions, replaceEqualDeep } from '@tanstack/react-query'
 import type { RosterPick } from '../core/roster'
 import {
   battleReport,
@@ -43,7 +43,25 @@ export const friendshipsQuery = () => queryOptions({ queryKey: ['friendships'], 
 
 // No polling: `useLiveBattle` refetches this when the server says the battle changed.
 export const battleQuery = (token: string) =>
-  queryOptions({ queryKey: ['battle', token], queryFn: () => openBattle({ data: { token } }), staleTime: SSR_STALE_TIME })
+  queryOptions({
+    queryKey: ['battle', token],
+    queryFn: () => openBattle({ data: { token } }),
+    staleTime: SSR_STALE_TIME,
+    structuralSharing: newestBattleScreen,
+  })
+
+export function newestBattleScreen<T>(oldData: T | undefined, newData: T): T {
+  const oldSeq = battleSequence(oldData)
+  const newSeq = battleSequence(newData)
+  if (oldData !== undefined && oldSeq !== null && newSeq !== null && oldSeq > newSeq) return oldData
+  return replaceEqualDeep(oldData, newData)
+}
+
+function battleSequence(value: unknown): number | null {
+  if (!value || typeof value !== 'object') return null
+  const screen = value as { kind?: unknown; view?: { seq?: unknown } }
+  return screen.kind === 'battle' && typeof screen.view?.seq === 'number' ? screen.view.seq : null
+}
 
 export const factionsQuery = () => queryOptions({ queryKey: ['factions'], queryFn: () => factions(), staleTime: Infinity })
 export const factionIndexQuery = () => queryOptions({ queryKey: ['faction-index'], queryFn: () => factionIndex(), staleTime: Infinity })

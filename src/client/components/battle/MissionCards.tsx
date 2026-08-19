@@ -48,7 +48,11 @@ export function PrimaryMission({ side, referenceFor, guides }: Props) {
 export function SecondaryMissions({ side, actionable, pending, send, referenceFor, guides }: Props) {
   // A tactical deck deals its own cards, so naming one would be choosing what you were dealt.
   const choosingSecret =
-    actionable && side.secondaryMode === 'fixed' && !side.secondaries.some((card) => card.secret) && side.remainingSecondaries.length > 0
+    actionable &&
+    side.isViewer &&
+    side.secondaryMode === 'fixed' &&
+    !side.secondaries.some((card) => card.secret) &&
+    side.remainingSecondaries.length > 0
   return (
     <section className="space-y-1.5">
       <Total label="Secondary missions" scored={side.secondary} cap={guides.secondary} stat="secondary" />
@@ -67,8 +71,13 @@ export function SecondaryMissions({ side, actionable, pending, send, referenceFo
             </span>
             <span className="readout shrink-0 font-bold">{secondary.points}</span>
           </div>
-          {actionable && secondary.secret && !secondary.revealed ? (
-            <Button variant="ghost" size="xs" className="text-azure" onClick={() => send({ kind: 'reveal-secret' })}>
+          {actionable && side.isViewer && secondary.secret && !secondary.revealed ? (
+            <Button
+              variant="ghost"
+              size="xs"
+              className="text-azure"
+              onClick={() => send({ kind: 'reveal-secret', playerId: side.captain.id })}
+            >
               Reveal
             </Button>
           ) : null}

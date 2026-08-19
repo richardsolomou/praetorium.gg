@@ -13,14 +13,14 @@ test('a battle stays in step across two devices', async ({ browser }) => {
   const aliceRoster = await createRoster(alice, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Necrons' })
   await setupBattle(alice, bob, { opponent: bobName, hostRoster: aliceRoster, guestRoster: bobRoster })
 
-  await expect(bob.getByRole('button', { name: 'End the command phase' })).toBeDisabled()
   await takeTheTurn(alice)
-  await alice.getByRole('button', { name: 'End the command phase' }).click()
+  await bob.getByRole('button', { name: 'End the command phase' }).click()
   await expect(bob.getByRole('heading', { name: 'movement phase' })).toBeVisible()
   await expect(panel(bob, 'Necrons').locator('[data-stat="cp"]')).toHaveText('1')
 
-  await alice.getByRole('button', { name: '+1 CP' }).click()
+  await panel(bob, 'Necrons').getByRole('button', { name: '+1 CP' }).click()
   await expect(panel(bob, 'Necrons').locator('[data-stat="cp"]')).toHaveText('2')
+  await expect(panel(alice, 'Necrons').locator('[data-stat="cp"]')).toHaveText('2')
   await bob.getByRole('button', { name: 'Undo latest action' }).click()
   await expect(panel(alice, 'Necrons').locator('[data-stat="cp"]')).toHaveText('1')
 
@@ -33,7 +33,7 @@ test('a battle stays in step across two devices', async ({ browser }) => {
   await expect(scoreboard).toContainText('Death Guard')
   await alice.screenshot({ path: 'test-results/tracker-phone.png', fullPage: true })
   await alice.getByRole('tab', { name: 'Battle' }).click()
-  await expect(alice.getByText(new RegExp(`${aliceName} ends the command phase`))).toBeVisible()
+  await expect(alice.getByText(new RegExp(`${bobName} ends the command phase for ${aliceName}`))).toBeVisible()
   await alice.screenshot({ path: 'test-results/tracker-events.png', fullPage: true })
 
   await alice.getByRole('button', { name: 'Battle options' }).click()
