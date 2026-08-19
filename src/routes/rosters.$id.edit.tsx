@@ -1,9 +1,14 @@
+import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, notFound } from '@tanstack/react-router'
 import { RosterEditor } from '../client/components/RosterEditor'
-import { collectionQuery, factionsQuery, savedRosterPriceQuery, savedRostersQuery, unitsQuery } from '../client/queries'
+import { SignInRequired } from '../client/components/SignInRequired'
+import { collectionQuery, factionsQuery, meQuery, savedRosterPriceQuery, savedRostersQuery, unitsQuery } from '../client/queries'
 
 export const Route = createFileRoute('/rosters/$id/edit')({
   loader: async ({ context, params }) => {
+    // Without an account there are no saved lists to look this one up in, and the
+    // page says so rather than claiming the list does not exist.
+    if (!(await context.queryClient.ensureQueryData(meQuery()))) return
     const [, saved] = await Promise.all([
       context.queryClient.ensureQueryData(factionsQuery()),
       context.queryClient.ensureQueryData(savedRostersQuery()),
@@ -37,5 +42,7 @@ export const Route = createFileRoute('/rosters/$id/edit')({
 
 function EditRoster() {
   const { id } = Route.useParams()
+  const { data: me } = useQuery(meQuery())
+  if (!me) return <SignInRequired title="Your rosters" explanation="Sign in to build a list and keep it between battles." />
   return <RosterEditor rosterId={id} />
 }

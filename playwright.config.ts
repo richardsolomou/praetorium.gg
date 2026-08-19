@@ -15,10 +15,11 @@ export default defineConfig({
   testDir: './e2e',
   outputDir: process.env.PLAYWRIGHT_OUTPUT_DIR ?? 'test-results',
   fullyParallel: false,
-  // Every test shares one container and one SQLite file, so past a couple of
-  // workers the runner buys contention rather than speed: four made sign-ups and
-  // phase advances time out on tests that pass alone.
-  workers: 2,
+  // Every test shares one container and one SQLite file, so the runner buys
+  // contention rather than speed: at two workers the whole suite took as long as it
+  // does here and lost two tests a run to timeouts, once a 2v1 test began driving
+  // three devices at a time.
+  workers: 1,
   retries: 0,
   timeout: 45_000,
   // Both pages settle through Centrifugo rather than by polling, so assertions

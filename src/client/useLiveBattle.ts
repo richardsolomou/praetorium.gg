@@ -86,3 +86,54 @@ export function useLiveBattle(token: string, enabled: boolean) {
     return [...seen.values()]
   }, [clients])
 }
+
+/**
+ * Keeps the list of battles current.
+ *
+ * The same nudge-then-refetch as an open battle, on a channel named after the player
+ * rather than a battle: being added to one has to reach a page that is not watching
+ * it yet, and the list is exactly that page.
+ */
+export function useLiveBattles(enabled: boolean) {
+  const queryClient = useQueryClient()
+  const ask = useCallback(
+    (init?: RequestInit) => requestRealtimeTicket('/api/realtime/token', { init, parse: (value) => TICKET.parse(value) }),
+    [],
+  )
+  const createClient = useCallback(async () => {
+    const { token: connection, channel } = await ask()
+    if (!channel) throw new Error('Realtime ticket did not include a player channel')
+    const client = createSameOriginRealtimeClient({ token: connection, getToken: async () => (await ask()).token })
+    clientChannels.set(client, channel)
+    return client
+  }, [ask])
+  const client = useConnectedRealtimeClient(createClient, enabled, { onError: reportRealtimeError })
+  const refresh = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: battlesQuery().queryKey })
+  }, [queryClient])
+  const options = useMemo<SubscriptionOptions>(
+    () => ({
+      getToken: async ({ channel }) =>
+        (
+          await ask({
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ channel }),
+          })
+        ).token,
+    }),
+    [ask],
+  )
+  const configure = useCallback(
+    (subscription: Subscription) => {
+      subscription.on('publication', refresh)
+      subscription.on('subscribed', refresh)
+      return () => {
+        subscription.off('publication', refresh)
+        subscription.off('subscribed', refresh)
+      }
+    },
+    [refresh],
+  )
+  useRealtimeSubscription({ client, channel: client ? clientChannels.get(client) : undefined, options, configure })
+}

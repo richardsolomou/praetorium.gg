@@ -2,7 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { z } from 'zod'
 import { app } from '../../server/app'
 import { currentPlayer } from '../../server/playerSession'
-import { battleChannel, connectionToken, realtimeConfig, subscriptionToken } from '../../adapters/realtime'
+import { battleChannel, connectionToken, playerChannel, realtimeConfig, subscriptionToken } from '../../adapters/realtime'
 
 /**
  * What a browser needs to watch a battle: who it is, and permission for one
@@ -20,6 +20,11 @@ export const Route = createFileRoute('/api/realtime/token')({
         if (!player) return unauthorised()
         const { secret } = realtimeConfig()
         if (!secret) return new Response('realtime is not configured', { status: 503 })
+        // Naming no battle asks for the player's own channel, which carries nothing but
+        // "your battles moved" and needs no seat to justify it.
+        if (!new URL(request.url).searchParams.get('battle')) {
+          return Response.json({ token: await connectionToken(player.id, secret), channel: playerChannel(player.id) })
+        }
         const battleId = seatedBattleId(request, player.id)
         if (battleId instanceof Response) return battleId
         // The channel is named after the battle rather than the invite token, so
@@ -35,6 +40,12 @@ export const Route = createFileRoute('/api/realtime/token')({
         const asked = z.object({ channel: z.string() }).safeParse(await request.json())
         if (!asked.success) return new Response('channel required', { status: 400 })
         const { channel } = asked.data
+
+        // Your own channel is yours by definition; anyone else's is not.
+        if (channel.startsWith('player:')) {
+          if (channel !== playerChannel(player.id)) return new Response('not your channel', { status: 403 })
+          return Response.json({ token: await subscriptionToken(player, channel, secret) })
+        }
 
         const battleId = seatedBattleId(request, player.id)
         if (battleId instanceof Response) return battleId

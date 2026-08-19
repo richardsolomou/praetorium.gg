@@ -44,15 +44,17 @@ test('a built list is priced, deployed and tracked', async ({ browser }) => {
   await attachRoster(alice, aliceRoster)
   await bob.goto(link)
   await attachRoster(bob, bobRoster)
-  await expect(alice.getByText(bobRoster, { exact: true })).toBeVisible()
+  await expect(alice.getByText(bobRoster, { exact: true }).first()).toBeVisible()
   await chooseBattlefield(alice)
-  await setupStep(alice, 'Your army')
-  await alice.getByRole('button', { name: 'Battle ready army · +10 VP' }).click()
+  await setupStep(alice, 'Pre-battle')
+  await alice.getByRole('button', { name: /^Add the battle ready bonus for Death Guard/ }).click()
   await startBattle(alice)
   await expect(bob.getByRole('heading', { name: 'command phase' })).toBeVisible()
 
   const panel = alice.locator('[data-panel="player"]').filter({ hasText: 'Death Guard' })
-  await expect(panel.locator('[data-stat="vp"]')).toHaveText('10')
+  // The bonus is promised during setup and paid when the battle ends, so the running score is still zero.
+  await expect(panel.locator('[data-stat="vp"]')).toHaveText('0')
+  await expect(panel).toContainText('+10 battle ready at the end')
   await expect(
     bob
       .locator('[data-panel="player"]')

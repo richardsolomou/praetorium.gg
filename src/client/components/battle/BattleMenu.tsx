@@ -1,0 +1,109 @@
+import { useState } from 'react'
+import { EllipsisVertical } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+
+type Ending = { label: string; description: string; destructive: boolean; act: () => void }
+
+type Props = {
+  finished: boolean
+  canDelete: boolean
+  pending: boolean
+  onFinishEarly: () => void
+  onConcede: () => void
+  onReopen: () => void
+  onDelete: () => void
+}
+
+/**
+ * The ways a battle stops.
+ *
+ * Each is rare, and none is undone by pressing the same button again, so they sit
+ * behind a menu and a confirmation rather than in reach of a thumb all game.
+ */
+export function BattleMenu({ finished, canDelete, pending, onFinishEarly, onConcede, onReopen, onDelete }: Props) {
+  const [confirming, setConfirming] = useState<Ending | null>(null)
+  // Reopening is undone by finishing again, so it asks for nothing. Ending and deleting cannot be.
+  const endings: Ending[] = finished
+    ? [{ label: 'Reopen battle', description: '', destructive: false, act: onReopen }]
+    : [
+        {
+          label: 'Finish early',
+          description: 'This records the current score as final. You can reopen the battle afterward.',
+          destructive: true,
+          act: onFinishEarly,
+        },
+        {
+          label: 'Concede battle',
+          description: 'This records that you conceded and ends the battle for every player.',
+          destructive: true,
+          act: onConcede,
+        },
+      ]
+
+  return (
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label="Battle options" disabled={pending} />}>
+          <EllipsisVertical />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          {endings.map((ending) => (
+            <DropdownMenuItem
+              key={ending.label}
+              variant={ending.destructive ? 'destructive' : undefined}
+              onClick={() => (ending.destructive ? setConfirming(ending) : ending.act())}
+            >
+              {ending.label}
+            </DropdownMenuItem>
+          ))}
+          {canDelete ? (
+            <DropdownMenuItem
+              variant="destructive"
+              onClick={() =>
+                setConfirming({
+                  label: 'Delete battle',
+                  description: 'The battle and its full command history will be permanently deleted.',
+                  destructive: true,
+                  act: onDelete,
+                })
+              }
+            >
+              Delete battle
+            </DropdownMenuItem>
+          ) : null}
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <AlertDialog open={confirming !== null} onOpenChange={(open) => !open && setConfirming(null)}>
+        <AlertDialogContent className="rounded-none border border-edge bg-panel text-bone ring-0">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="uppercase">{confirming?.label}?</AlertDialogTitle>
+            <AlertDialogDescription className="text-dim">{confirming?.description}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="rounded-none border-edge bg-sunken">
+            <AlertDialogCancel>Keep playing</AlertDialogCancel>
+            <AlertDialogAction
+              variant={confirming?.destructive ? 'destructive' : 'default'}
+              onClick={() => {
+                confirming?.act()
+                setConfirming(null)
+              }}
+            >
+              {confirming?.label}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  )
+}

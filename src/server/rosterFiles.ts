@@ -8,6 +8,7 @@ import { toGwText } from '../core/gwText'
 import { GAME_SIZES } from '../core/battle'
 import { factionDisplayName } from './factionNames'
 import { isDatasheetId, type LoadedCatalogue } from './catalogueIndex'
+import { rosterDetachments } from './rosterDetachments'
 import { parseXml, rosterXml } from './rosz'
 import type { ExportRosterInput, ImportRosterInput } from './schemas'
 
@@ -89,10 +90,10 @@ function importBattleBaseRoster(parsed: NonNullable<ReturnType<typeof fromBattle
   }
 
   const detachmentName = parsed.detachment
-  const detachment = detachmentName
-    ? loaded.detachments.get(faction.id)?.options.find((candidate) => normalized(candidate.name) === normalized(detachmentName))
-    : undefined
-  const unknown = detachment || !detachmentName ? [] : [detachmentName]
+  const detachments = detachmentName ? detachmentsNamed(detachmentName, loaded.detachments.get(faction.id)?.options ?? []) : []
+  const unknown = detachments.length || !detachmentName ? [] : [detachmentName]
+  const detachmentIds = detachments.map((detachment) => detachment.id)
+  const detachmentSelections = rosterDetachments(loaded, faction.id, detachmentIds).selections
   const sourceToImported = new Map<number, number>()
   const units = parsed.units.flatMap((unit, sourceIndex) => {
     const entryId = [...(loaded.index.datasheets.get(faction.id) ?? [])].find((candidate) => {
@@ -104,7 +105,7 @@ function importBattleBaseRoster(parsed: NonNullable<ReturnType<typeof fromBattle
       return []
     }
     sourceToImported.set(sourceIndex, sourceToImported.size)
-    return [battleBasePick(unit, entryId, faction.id, loaded)]
+    return [battleBasePick(unit, entryId, faction.id, detachmentSelections, loaded)]
   })
 
   parsed.units.forEach((unit, sourceIndex) => {
@@ -120,20 +121,43 @@ function importBattleBaseRoster(parsed: NonNullable<ReturnType<typeof fromBattle
     name: parsed.name,
     catalogueId: faction.id,
     catalogueName: faction.name,
-    detachmentIds: detachment ? [detachment.id] : [],
-    disposition: parsed.disposition ? slug(parsed.disposition) : null,
+    detachmentIds,
+    disposition: parsed.disposition && !parsed.disposition.includes(',') ? slug(parsed.disposition) : null,
     limit: parsed.limit,
     units,
     unknown,
   }
 }
 
-function battleBasePick(unit: BattleBaseUnit, entryId: string, catalogueId: string, loaded: LoadedCatalogue) {
-  const stated = new Map(unit.selections.map((selection) => [normalized(selection.name), selection.count]))
+function detachmentsNamed<T extends { id: string; name: string }>(combined: string, options: readonly T[]): T[] {
+  const candidates = options.toSorted((left, right) => normalized(right.name).length - normalized(left.name).length)
+  const visit = (remaining: string, available: readonly T[]): T[] | null => {
+    for (const candidate of available) {
+      const name = normalized(candidate.name)
+      if (remaining === name) return [candidate]
+      for (const separator of [', and ', ' and ', ', ']) {
+        if (!remaining.startsWith(name + separator)) continue
+        const rest = visit(
+          remaining.slice(name.length + separator.length),
+          available.filter((option) => option.id !== candidate.id),
+        )
+        if (rest) return [candidate, ...rest]
+      }
+    }
+    return null
+  }
+  return visit(normalized(combined), candidates) ?? []
+}
+
+function battleBasePick(unit: BattleBaseUnit, entryId: string, catalogueId: string, roster: readonly Selection[], loaded: LoadedCatalogue) {
+  const stated = new Map(
+    unit.selections.map((selection) => [normalized(selection.name.replace(/^(?:Enhancement|Upgrade):\s*/i, '')), selection.count]),
+  )
   const requestedModels = Math.max(1, ...unit.selections.map((selection) => selection.count))
-  const built = buildUnit(entryId, loaded.index, requestedModels, {}, { primaryCatalogueId: catalogueId })
+  const context = { primaryCatalogueId: catalogueId, roster }
+  const built = buildUnit(entryId, loaded.index, requestedModels, {}, context)
   const selection = built?.selection ?? { id: entryId, count: 1 }
-  const choices = unitChoices(entryId, selection, loaded.index, { primaryCatalogueId: catalogueId })
+  const choices = unitChoices(entryId, selection, loaded.index, context)
   const toggles = Object.fromEntries(unitToggles(entryId, selection, loaded.index).map((toggle) => [toggle.key, unit.warlord ? 1 : 0]))
   return {
     entryId,
@@ -148,10 +172,15 @@ function battleBasePick(unit: BattleBaseUnit, entryId: string, catalogueId: stri
     spreads: Object.fromEntries(
       choices
         .filter((choice) => choice.room > 1)
-        .map((choice) => [
-          choice.key,
-          Object.fromEntries(choice.options.map((option) => [option.id, stated.get(normalized(option.name)) ?? option.count])),
-        ]),
+        .map((choice) => {
+          const explicit = choice.options.some((option) => stated.has(normalized(option.name)))
+          return [
+            choice.key,
+            Object.fromEntries(
+              choice.options.map((option) => [option.id, stated.get(normalized(option.name)) ?? (explicit ? 0 : option.count)]),
+            ),
+          ]
+        }),
     ),
     toggles,
     attachedTo: undefined as number | undefined,

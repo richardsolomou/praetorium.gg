@@ -5,11 +5,13 @@ import { buildUnit, wargearOf } from '../core/roster'
 import { app } from './app'
 import { datasheetIn, rulesReferencedIn } from './catalogue'
 import { detachmentCatalogueDetail } from './catalogueDescriptions'
-import type { LoadedCatalogue } from './catalogueIndex'
 import { groupOfEntry } from './cataloguePicker'
+import { rosterDetachments } from './rosterDetachments'
 import { slug } from './rules'
 import type { PriceInput } from './schemas'
 import { descriptionKey, findDescription, type FactionRestrictions } from './wahapedia'
+
+export { rosterDetachments }
 
 export function calculateRosterPrice(data: PriceInput) {
   const loaded = app().catalogue()
@@ -259,29 +261,6 @@ export const findEnhancementDescription = (
   detachments: readonly { name: string }[],
   enhancement: string,
 ) => detachments.map((detachment) => findDescription(descriptions, detachment.name, enhancement)).find(Boolean) ?? null
-
-/** Selected detachments in the catalogue shape that roster-scoped conditions inspect. */
-export function rosterDetachments(loaded: LoadedCatalogue, catalogueId: string, detachmentIds: readonly string[]) {
-  const detachment = loaded.detachments.get(catalogueId)
-  const chosen = detachmentIds.flatMap((id) => {
-    const option = detachment?.options.find((candidate) => candidate.id === id)
-    return option ? [option] : []
-  })
-  const selections: Selection[] = chosen.flatMap((option, index) =>
-    index
-      ? [{ id: option.id, count: 1 }]
-      : detachment
-        ? [
-            {
-              id: detachment.wrapperId,
-              count: 1,
-              selections: [{ id: detachment.groupId, count: 1, selections: [{ id: option.id, count: 1 }] }],
-            },
-          ]
-        : [],
-  )
-  return { chosen, selections }
-}
 
 export function resolveDisposition(allowed: readonly string[], selected: string | null) {
   const disposition = allowed.includes(selected ?? '') ? selected : allowed.length === 1 ? allowed[0] : null

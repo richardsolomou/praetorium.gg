@@ -40,6 +40,8 @@ A read never claims a battle seat. `PraetoriumService.screen` returns an invitat
 - Realtime messages contain only the battle ID. The client refetches the battle through the normal read path.
 - `/api/realtime/token` requires an account and a seat in the requested battle.
 - Realtime channels use the internal battle ID, not the invitation token.
+- A second channel is named after a player, so the list of battles hears about a battle the player has not opened yet.
+- Every channel prefix needs a namespace in `realtime.json`. Centrifugo rejects a subscription to a prefix it was not configured with.
 - Centrifugo subscription state provides presence. Do not store presence in SQLite.
 - Caddy and the Vite development proxy serve Centrifugo on the app origin. Keep `connect-src 'self'`.
 
@@ -60,8 +62,10 @@ Better Auth owns the `user`, `session`, `account`, `verification`, and `rateLimi
 
 ## Concurrency limit
 
+Starting the battle is not undoable: `begin-battle` leaves nothing for `undo` to name. `set-unit-formation` and `set-painted` may carry a `playerId`, which lets one device set the table for everyone, and only during setup.
+
 `expectedSeq` applies to the full battle log. Independent commands from both players can still race, and one player may need to submit again. Keep this behavior until commands declare narrower dependencies. Do not remove `expectedSeq`.
 
 ## Tests
 
-`src/core/battle.test.ts` covers turn order, ownership, visibility, undo, solo play, resets, concessions, reopening, stratagem costs including the ones the board makes dearer, tactical decks, and battle settings. `src/server/service.test.ts` covers persistence, deletion permissions, and concurrent submissions against SQLite.
+`src/core/battle.test.ts` covers turn order, ownership, visibility, undo, solo play, resets, concessions, reopening, stratagem costs including the ones the board makes dearer, tactical decks, and battle settings. `src/server/service.test.ts` covers persistence, deletion permissions, and concurrent submissions against SQLite. `src/client/sides.test.ts` covers the fold from seats to sides, and `e2e/team-battle.spec.ts` drives three devices through a 2v1 to prove the allied pair shares one pool.

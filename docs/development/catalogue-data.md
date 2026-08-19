@@ -6,6 +6,7 @@ Praetorium builds and validates rosters from fetched community data. The domain 
 
 - `catalogue/sources.json` defines each upstream source. Revisions and file hashes live in immutable snapshot manifests outside Git.
 - The Game Datacards source extracts only `11th/gdc`; data for other games and editions is excluded from snapshots.
+- Mission cards are read from both sources: the rules source says when a payout is due and how a card's payouts relate, and the Game Datacards mission pack says what each one asks for.
 - `catalogue-data/` contains fetched data and is gitignored. Do not commit game data or copied rules text.
 - An hourly automation checks upstream revisions and publishes a complete immutable snapshot. It replaces the remote `current.json` pointer only after reading and verifying the published archive.
 - Running instances check that pointer hourly, download a changed snapshot from the shared store, and swap it into place atomically. They never contact an upstream data provider.

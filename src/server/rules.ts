@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import type { Stratagem, StratagemLimit } from '../core/battle'
 import { routeSlug } from '../core/slug'
+import { criteriaKey, loadMissionCriteria, pairCriteria, type Payout } from './missionCriteria'
 import {
   factionRestrictions,
   findDescription,
@@ -49,17 +50,22 @@ type RawCard = {
   card_type?: string
   text?: string
   awards?: RawAward[]
+  when_drawn?: {
+    operation?: string
+    battle_round?: { min?: number; max?: number }
+    card_ids?: string[]
+    condition?: { subject?: string; quantifier?: string; unit_filter?: { wounds_min?: number; model_count_min?: number } }
+  }
 }
-
-type RuleParameter = string | number | boolean | null | { side?: string; window?: string }
 
 type RawAward = {
   vp?: number
   vp_per?: number
+  vp_max?: number
   per?: string
   mode?: string
   cumulative?: boolean
-  when?: { type?: string; parameters?: Record<string, RuleParameter> }
+  exclusive_group?: string
   trigger?: RawTrigger
 }
 
@@ -204,9 +210,13 @@ type Award = {
   vp: number
   per: string | null
   mode: string | null
-  when: string | null
-  parameters: Record<string, RuleParameter>
+  /** The most a per-something payout may pay in total, when the card caps it. */
+  max: number | null
+  /** Payouts sharing a group are alternatives: the card pays one of them, not both. */
+  group: string | null
   cumulative: boolean
+  /** What the mission pack says this payout asks for, when the two sources pair up. */
+  criteria: string | null
   trigger: Trigger
 }
 
@@ -226,7 +236,23 @@ export type Mission = {
   deploymentIds: string[]
 }
 
-type MissionCard = { key: string; name: string; text: string | null; awards: Award[] }
+/**
+ * What the rules say about putting a card back the moment it is drawn.
+ *
+ * `redraw` is unconditional beyond what is stated here; `replace` depends on the
+ * board, which no source can tell this app about. `rounds` and `heldCards` are the
+ * parts a battle can check for itself; `condition` is the part only a player can.
+ */
+type WhenDrawn = {
+  operation: 'redraw' | 'replace'
+  roundMax: number | null
+  /** Redraw is allowed while one of these cards is already in hand. */
+  heldCards: string[]
+  /** Stated for the player to judge, because the app cannot see the table. */
+  condition: string | null
+}
+
+type MissionCard = { key: string; name: string; text: string | null; awards: Award[]; whenDrawn: WhenDrawn | null }
 
 type DetachmentReference = {
   enhancements: number
@@ -325,6 +351,7 @@ export function loadRules(
   wahapediaDirectory = path.join(path.dirname(directory), 'wahapedia'),
   battlemasterDirectory = path.join(path.dirname(directory), 'battlemaster'),
   iconDirectory = path.join(path.dirname(directory), 'faction-icons'),
+  datacardsDirectory = path.join(path.dirname(directory), 'datacards', '11th', 'gdc'),
 ): LoadedRules | null {
   const core = path.join(directory, 'data', 'core')
   if (!fs.existsSync(core)) return null
@@ -444,13 +471,16 @@ export function loadRules(
 
   const coreStratagems = readOptionalList<RawStratagem>(path.join(core, 'stratagems.json')).map(toStratagem)
   const cards = readOptionalList<RawCard>(path.join(core, 'secondary-cards.json'))
+  // What a payout asks for is the mission pack's to say; when it is due is this file's.
+  const criteria = loadMissionCriteria(datacardsDirectory)
+  const card = (raw: RawCard) => toCard(raw, criteria.get(criteriaKey(raw.name)) ?? [])
   const secondaries = cards
-    .filter((card) => card.card_type !== 'primary')
-    .map(toCard)
+    .filter((entry) => entry.card_type !== 'primary')
+    .map(card)
     .toSorted(byName)
   const primaries = cards
-    .filter((card) => card.card_type === 'primary')
-    .map(toCard)
+    .filter((entry) => entry.card_type === 'primary')
+    .map(card)
     .toSorted(byName)
 
   const missions = new Map<string, Mission>()
@@ -726,15 +756,16 @@ const byName = (left: { name: string }, right: { name: string }) => left.name.lo
  * counting; one that pays a flat amount does not. Anything with no number at all is
  * dropped: a button that scores nothing is worse than no button.
  */
-function toCard(raw: RawCard): MissionCard {
+function toCard(raw: RawCard, payouts: Payout[]): MissionCard {
   const awards = (raw.awards ?? [])
     .map((award) => ({
       vp: award.vp ?? award.vp_per ?? 0,
       per: award.vp_per ? (award.per ?? 'each') : null,
+      max: award.vp_max ?? null,
       mode: award.mode ?? null,
-      when: award.when?.type ?? null,
-      parameters: award.when?.parameters ?? {},
+      group: award.exclusive_group ?? null,
       cumulative: award.cumulative ?? false,
+      criteria: null as string | null,
       trigger: {
         timing: award.trigger?.timing ?? null,
         phase: award.trigger?.phase ?? null,
@@ -744,7 +775,35 @@ function toCard(raw: RawCard): MissionCard {
       },
     }))
     .filter((award) => award.vp > 0)
-  return { key: raw.id, name: raw.name, text: raw.text ?? null, awards: dedupe(awards) }
+  // Paired before anything is folded together, because the pack lists a card's payouts
+  // as printed and a fold would leave the two sides counting different things.
+  const criteria = pairCriteria(awards, payouts)
+  const described = awards.map((award, at) => ({ ...award, criteria: criteria[at] ?? null }))
+  return { key: raw.id, name: raw.name, text: raw.text ?? null, awards: dedupe(described), whenDrawn: toWhenDrawn(raw.when_drawn) }
+}
+
+function toWhenDrawn(raw: RawCard['when_drawn']): WhenDrawn | null {
+  if (raw?.operation !== 'redraw' && raw?.operation !== 'replace') return null
+  return {
+    operation: raw.operation,
+    roundMax: raw.battle_round?.max ?? null,
+    heldCards: raw.card_ids ?? [],
+    condition: raw.condition ? describeCondition(raw.condition) : null,
+  }
+}
+
+/** The board state a redraw depends on, in the words a player would check it in. */
+function describeCondition(condition: NonNullable<NonNullable<RawCard['when_drawn']>['condition']>): string {
+  const filter = condition.unit_filter ?? {}
+  const what = filter.wounds_min
+    ? `models with a Wounds characteristic of ${filter.wounds_min} or more`
+    : filter.model_count_min
+      ? `units with a Starting Strength of ${filter.model_count_min} or more`
+      : 'units'
+  const whose = condition.subject === 'opponent' ? 'enemy' : 'friendly'
+  return condition.quantifier === 'none'
+    ? `there are no ${whose} ${what} on the battlefield`
+    : `there are ${whose} ${what} on the battlefield`
 }
 
 /** The same payout written twice is one button, not two. */
@@ -753,7 +812,7 @@ function dedupe(awards: Award[]): Award[] {
   for (const award of awards) {
     const trigger = award.trigger
     seen.set(
-      `${award.vp}/${award.per}/${award.mode}/${award.when}/${JSON.stringify(award.parameters)}/${award.cumulative}/${trigger.timing}/${trigger.phase}/${trigger.playerTurn}/${trigger.roundMin}/${trigger.roundMax}`,
+      `${award.vp}/${award.per}/${award.max}/${award.mode}/${award.criteria}/${award.group}/${award.cumulative}/${trigger.timing}/${trigger.phase}/${trigger.playerTurn}/${trigger.roundMin}/${trigger.roundMax}`,
       award,
     )
   }

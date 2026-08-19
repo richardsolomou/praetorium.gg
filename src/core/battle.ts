@@ -12,7 +12,7 @@ import type { Selection } from './evaluate'
  */
 
 /** The phases of a battle round, in the order 11th edition plays them. */
-const PHASES = ['command', 'movement', 'shooting', 'charge', 'fight', 'end'] as const
+export const PHASES = ['command', 'movement', 'shooting', 'charge', 'fight', 'end'] as const
 
 export type Phase = (typeof PHASES)[number]
 
@@ -38,7 +38,12 @@ export type PlayerId = string
  * the points follow from the selections and the revision, and are worked out on
  * read.
  */
-export type Roster = { name: string; text: string; built?: BuiltRoster }
+export type Roster = {
+  name: string
+  text: string
+  /** The saved list this came from, when it came from one. */ id?: string
+  built?: BuiltRoster
+}
 
 type BuiltRoster = {
   catalogueId: string
@@ -169,7 +174,7 @@ const DEFAULT_SETTINGS: BattleSettings = {
  */
 const PRIMARY_GUIDE = 50
 const SECONDARY_GUIDE = 40
-const PAINTED_ARMY_POINTS = 10
+export const PAINTED_ARMY_POINTS = 10
 
 /** The matched-play game sizes, smallest first. */
 const KOTC_LIMITS = [500, 600] as const
@@ -216,8 +221,8 @@ export type Command =
   | { kind: 'set-unit'; unitKey: string; destroyed: boolean }
   | { kind: 'wound-unit'; unitKey: string; delta: number }
   | { kind: 'deploy-unit'; unitKey: string; deployed: boolean }
-  | { kind: 'set-unit-formation'; unitKey: string; formation: UnitFormation }
-  | { kind: 'set-painted'; painted: boolean }
+  | { kind: 'set-unit-formation'; unitKey: string; formation: UnitFormation; playerId?: PlayerId }
+  | { kind: 'set-painted'; painted: boolean; playerId?: PlayerId }
   | { kind: 'set-deployment'; patternId: string | null }
   | { kind: 'set-battlefield'; patternId: string; terrainLayoutId: string }
   | {
@@ -386,7 +391,7 @@ export function reduceBattle(playerIds: readonly PlayerId[], log: readonly Logge
     } else if (entry.command.kind === 'reopen-battle' && state.activePlayerId) {
       state.turns.push({ playerId: state.activePlayerId, round: state.round, startedAt: entry.at, endedAt: null })
     }
-    state.undoable = { seq: entry.seq, by: entry.by }
+    state.undoable = entry.command.kind === 'begin-battle' ? null : { seq: entry.seq, by: entry.by }
   }
 
   return state
@@ -401,7 +406,7 @@ export function reduceBattle(playerIds: readonly PlayerId[], log: readonly Logge
 export function validate(state: BattleState, by: PlayerId, command: Command): string | null {
   const actor = state.players.find((candidate) => candidate.id === by)
   if (!actor) return 'you are not in this battle'
-  const player = armyCommand(command) ? actor : sideCaptain(state, actor.side)
+  const player = targetArmy(state, actor, command)
 
   switch (command.kind) {
     case 'configure-battle': {
@@ -508,15 +513,17 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
     }
     case 'set-unit-formation': {
       if (state.status === 'finished') return 'the battle is over'
+      if (namesAnotherArmy(command, actor) && state.status !== 'setup') return 'only your own units once the battle has started'
       const unit = player.units.find((candidate) => candidate.key === command.unitKey)
-      if (!unit) return 'that is not one of your units'
+      if (!unit) return namesAnotherArmy(command, actor) ? 'that is not one of their units' : 'that is not one of your units'
       if (!['battlefield', 'strategic-reserves'].includes(command.formation) && !unit.formationOptions?.includes(command.formation)) {
         return 'the roster data does not support that formation'
       }
       return null
     }
+    // The bonus is for a painted army, which is settled before the battle and paid at the end of it.
     case 'set-painted':
-      return null
+      return state.status === 'setup' ? null : 'the battle ready bonus is set before the battle begins'
     case 'wound-unit': {
       if (state.status !== 'playing') return 'the battle is not running'
       const unit = player.units.find((candidate) => candidate.key === command.unitKey)
@@ -618,7 +625,7 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
 function apply(state: BattleState, by: PlayerId, command: Command) {
   const actor = state.players.find((candidate) => candidate.id === by)
   if (!actor) return
-  const player = armyCommand(command) ? actor : sideCaptain(state, actor.side)
+  const player = targetArmy(state, actor, command)
 
   switch (command.kind) {
     case 'configure-battle': {
@@ -947,8 +954,26 @@ function sideCaptain(state: BattleState, side: number): PlayerState {
   return state.players.find((player) => player.side === side)!
 }
 
+/** Whether the command names an army other than the one running it. */
+function namesAnotherArmy(command: Command, actor: PlayerState): boolean {
+  return 'playerId' in command && Boolean(command.playerId) && command.playerId !== actor.id
+}
+
 function armyCommand(command: Command): boolean {
   return ['attach-roster', 'set-unit', 'wound-unit', 'deploy-unit', 'set-unit-formation', 'set-painted'].includes(command.kind)
+}
+
+/**
+ * The army a command acts on.
+ *
+ * Setting the table is done together, often from one device, so a formation or a
+ * battle-ready bonus may name whose army it is for. Everything else is the actor's
+ * own, and a named army only reaches this far because `validate` allowed it.
+ */
+function targetArmy(state: BattleState, actor: PlayerState, command: Command): PlayerState {
+  if (!armyCommand(command)) return sideCaptain(state, actor.side)
+  const named = 'playerId' in command && command.playerId ? command.playerId : null
+  return (named ? state.players.find((candidate) => candidate.id === named) : undefined) ?? actor
 }
 
 function sameSide(state: BattleState, left: PlayerId | null, right: PlayerId): boolean {
@@ -1014,7 +1039,10 @@ function describe(
   viewerId?: PlayerId,
 ): string | null {
   const who = named.get(by) ?? 'Someone'
-  const player = after.players.find((candidate) => candidate.id === by)
+  // Setting the table can be done for someone else, so a line names the army it changed.
+  const targetId = 'playerId' in command && command.playerId ? command.playerId : by
+  const player = after.players.find((candidate) => candidate.id === targetId)
+  const whose = targetId === by ? 'their' : `${named.get(targetId) ?? 'another player'}’s`
 
   switch (command.kind) {
     case 'configure-battle':
@@ -1046,10 +1074,10 @@ function describe(
     }
     case 'set-unit-formation': {
       const unit = player?.units.find((candidate) => candidate.key === command.unitKey)?.name ?? 'a unit'
-      return `${who} places ${unit} in ${titled(command.formation)}`
+      return `${who} places ${whose} ${unit} in ${titled(command.formation)}`
     }
     case 'set-painted':
-      return command.painted ? `${who} marks their army battle ready` : `${who} removes the painted army bonus`
+      return command.painted ? `${who} marks ${whose} army battle ready` : `${who} removes the battle ready bonus from ${whose} army`
     case 'begin-battle':
       return `The battle begins, ${named.get(command.attackerId ?? command.firstPlayerId) ?? 'someone'} attacking and ${named.get(command.firstPlayerId) ?? 'someone'} taking the first turn`
     case 'advance': {
@@ -1227,8 +1255,9 @@ export function battleView(
         cpByRound: resources.cpByRound,
         primary: resources.primary,
         secondary: resources.secondary,
-        total: resources.primary + resources.secondary + (player.painted ? PAINTED_ARMY_POINTS : 0),
+        total: resources.primary + resources.secondary + (state.status === 'finished' && player.painted ? PAINTED_ARMY_POINTS : 0),
         painted: player.painted,
+        /** What the bonus will pay. It joins the total when the battle ends, not before. */
         paintedPoints: player.painted ? PAINTED_ARMY_POINTS : 0,
         rounds: Array.from({ length: battleRoundLimit(state.settings.limit) }, (_, round) => ({
           round: round + 1,

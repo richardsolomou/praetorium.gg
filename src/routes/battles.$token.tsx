@@ -18,7 +18,7 @@ import {
 import { useCommand } from '../client/useCommand'
 import { useLiveBattle } from '../client/useLiveBattle'
 
-export const Route = createFileRoute('/b/$token')({
+export const Route = createFileRoute('/battles/$token')({
   loader: async ({ context, params }) => {
     // Only a loader may throw this: from a render it lands in the error boundary.
     const screen = await context.queryClient.ensureQueryData(battleQuery(params.token))

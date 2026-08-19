@@ -20,9 +20,9 @@ test('battle setup stays in step and shows both players their shared choices', a
   await expect(alice.getByRole('button', { name: 'Delete battle' })).toHaveCount(0)
 
   await attachRoster(alice, aliceRoster)
-  await expect(bob.getByText(aliceRoster, { exact: true })).toBeVisible()
+  await expect(bob.getByText(aliceRoster, { exact: true }).first()).toBeVisible()
   await attachRoster(bob, bobRoster)
-  await expect(alice.getByText(bobRoster, { exact: true })).toBeVisible()
+  await expect(alice.getByText(bobRoster, { exact: true }).first()).toBeVisible()
 
   await alice.getByRole('button', { name: 'Change roster' }).click()
   await expect(alice.getByRole('dialog', { name: 'Choose your roster' })).toBeVisible()
@@ -36,10 +36,11 @@ test('battle setup stays in step and shows both players their shared choices', a
   await alice.screenshot({ path: 'test-results/setup-battlefield-dialog.png', fullPage: true })
   await alice.keyboard.press('Escape')
 
-  await setupStep(bob, 'Your army')
-  await expect(alice.getByText(/4 of 5 · Armies/i)).toBeVisible()
-  await expect(alice.getByRole('main').getByText(aliceName, { exact: true })).toBeVisible()
-  await expect(alice.getByRole('main').getByText(bobName, { exact: true })).toBeVisible()
+  await setupStep(bob, 'Pre-battle')
+  await expect(alice.getByText(/4 of 5 · Pre-battle/i)).toBeVisible()
+  // Both sides are drawn, so each name appears on the table strip and again on its own column.
+  await expect(alice.getByRole('main').getByText(aliceName, { exact: true }).first()).toBeVisible()
+  await expect(alice.getByRole('main').getByText(bobName, { exact: true }).first()).toBeVisible()
   await alice.evaluate(() => window.scrollTo(0, 0))
   await alice.screenshot({ path: 'test-results/setup-armies.png', fullPage: true })
   await alice.setViewportSize({ width: 390, height: 844 })

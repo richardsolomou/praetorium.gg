@@ -1,8 +1,9 @@
 import { CentrifugoPublisher } from 'ras-stack/realtime'
-import { battleChannel } from './realtime'
+import { battleChannel, playerChannel } from './realtime'
 
 export type BattleEvents = {
-  publish: (battleId: string) => void
+  /** `seated` is told the list of battles moved, whether or not they have this one open. */
+  publish: (battleId: string, seated?: readonly string[]) => void
 }
 
 export class RealtimePublisher implements BattleEvents {
@@ -19,7 +20,8 @@ export class RealtimePublisher implements BattleEvents {
     })
   }
 
-  publish(battleId: string) {
+  publish(battleId: string, seated: readonly string[] = []) {
     this.publisher?.publish(battleChannel(battleId), { changed: battleId })
+    for (const playerId of seated) this.publisher?.publish(playerChannel(playerId), { changed: battleId })
   }
 }

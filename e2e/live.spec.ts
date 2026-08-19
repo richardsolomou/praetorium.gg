@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { createRoster, setupBattle, signUp, uniqueName } from './account'
+import { createRoster, setupBattle, signUp, takeTheTurn, uniqueName } from './account'
 
 test('a battle stays in step across two devices', async ({ browser }) => {
   const alice = await (await browser.newContext()).newPage()
@@ -14,34 +14,31 @@ test('a battle stays in step across two devices', async ({ browser }) => {
   await setupBattle(alice, bob, { opponent: bobName, hostRoster: aliceRoster, guestRoster: bobRoster })
 
   await expect(bob.getByRole('button', { name: 'End the command phase' })).toBeDisabled()
+  await takeTheTurn(alice)
   await alice.getByRole('button', { name: 'End the command phase' }).click()
   await expect(bob.getByRole('heading', { name: 'movement phase' })).toBeVisible()
   await expect(panel(bob, 'Necrons').locator('[data-stat="cp"]')).toHaveText('1')
 
-  await alice.getByRole('button', { name: '+1 additional CP' }).click()
+  await alice.getByRole('button', { name: '+1 CP' }).click()
   await expect(panel(bob, 'Necrons').locator('[data-stat="cp"]')).toHaveText('2')
-  await expect(bob.getByRole('button', { name: 'Undo' })).toBeDisabled()
-  await alice.getByRole('button', { name: 'Undo' }).click()
+  await expect(bob.getByRole('button', { name: 'Undo latest action' })).toBeDisabled()
+  await alice.getByRole('button', { name: 'Undo latest action' }).click()
   await expect(panel(bob, 'Necrons').locator('[data-stat="cp"]')).toHaveText('1')
 
   await alice.screenshot({ path: 'test-results/tracker-alice.png', fullPage: true })
   await bob.screenshot({ path: 'test-results/tracker-bob.png', fullPage: true })
   await alice.setViewportSize({ width: 390, height: 844 })
-  const scoreboard = alice.getByRole('complementary', { name: 'Battle scoreboard' })
+  // The same scoreboard as the desktop one, so a phone and a laptop cannot disagree about the score.
+  const scoreboard = alice.getByRole('region', { name: 'Battle scoreboard' })
   await expect(scoreboard).toContainText('Necrons')
   await expect(scoreboard).toContainText('Death Guard')
   await alice.screenshot({ path: 'test-results/tracker-phone.png', fullPage: true })
-  // The last thing on the page must clear the fixed scoreboard rather than sit behind it.
-  const last = alice.getByRole('button', { name: 'Delete battle' })
-  await last.scrollIntoViewIfNeeded()
-  const [lastBox, scoreboardBox] = await Promise.all([last.boundingBox(), scoreboard.boundingBox()])
-  expect(lastBox && scoreboardBox && lastBox.y + lastBox.height <= scoreboardBox.y).toBe(true)
-  await alice.getByRole('button', { name: 'events' }).click()
+  await alice.getByRole('tab', { name: 'Battle' }).click()
   await expect(alice.getByText(new RegExp(`${aliceName} ends the command phase`))).toBeVisible()
   await alice.screenshot({ path: 'test-results/tracker-events.png', fullPage: true })
 
-  await alice.getByRole('button', { name: 'info' }).click()
-  await alice.getByRole('button', { name: 'Finish early' }).click()
+  await alice.getByRole('button', { name: 'Battle options' }).click()
+  await alice.getByRole('menuitem', { name: 'Finish early' }).click()
   await expect(alice.getByRole('alertdialog', { name: 'Finish early?' })).toBeVisible()
   await alice.getByRole('button', { name: 'Keep playing' }).click()
   await expect(alice.getByRole('button', { name: /End the .+ phase/ })).toBeVisible()

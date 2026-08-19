@@ -6,9 +6,13 @@ import { Button } from '@/components/ui/button'
 import { priceQuery, savedRosterPriceQuery, sharedRosterQuery } from '../client/queries'
 import { ROSTER_SOURCE_LABELS } from '../core/savedRoster'
 
-export const Route = createFileRoute('/r/$id')({
-  loader: async ({ context, params }) => {
-    const roster = await context.queryClient.ensureQueryData(sharedRosterQuery(params.id))
+export const Route = createFileRoute('/rosters/$id/')({
+  // A battle token is what lets a seated opponent open a list that is otherwise private.
+  validateSearch: (search: Record<string, unknown>): { battle?: string } =>
+    typeof search.battle === 'string' ? { battle: search.battle } : {},
+  loaderDeps: ({ search }) => ({ battle: search.battle }),
+  loader: async ({ context, params, deps }) => {
+    const roster = await context.queryClient.ensureQueryData(sharedRosterQuery(params.id, deps.battle))
     if (!roster) throw notFound()
     await context.queryClient.ensureQueryData(
       savedRosterPriceQuery(
@@ -25,6 +29,7 @@ export const Route = createFileRoute('/r/$id')({
           spreads,
           toggles,
         })),
+        deps.battle,
       ),
     )
   },
@@ -33,7 +38,8 @@ export const Route = createFileRoute('/r/$id')({
 
 function SharedRoster() {
   const { id } = Route.useParams()
-  const { data: roster } = useQuery(sharedRosterQuery(id))
+  const { battle } = Route.useSearch()
+  const { data: roster } = useQuery(sharedRosterQuery(id, battle))
   const { data: priced } = useQuery(
     priceQuery(
       roster?.catalogueId ?? '',

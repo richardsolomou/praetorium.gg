@@ -65,6 +65,7 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
     roster: z.object({
       name: z.string().max(ROSTER_NAME_MAX_LENGTH),
       text: z.string().max(ROSTER_MAX_LENGTH),
+      id: id.optional(),
       built: z
         .object({
           catalogueId: id,
@@ -103,8 +104,8 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
     ...battlePrep.shape,
   }),
   z.object({ kind: z.literal('deploy-unit'), unitKey: id, deployed: z.boolean() }),
-  z.object({ kind: z.literal('set-unit-formation'), unitKey: id, formation: z.enum(UNIT_FORMATIONS) }),
-  z.object({ kind: z.literal('set-painted'), painted: z.boolean() }),
+  z.object({ kind: z.literal('set-unit-formation'), unitKey: id, formation: z.enum(UNIT_FORMATIONS), playerId: id.optional() }),
+  z.object({ kind: z.literal('set-painted'), painted: z.boolean(), playerId: id.optional() }),
   z.object({ kind: z.literal('wound-unit'), unitKey: id, delta: z.number().int() }),
   z.object({ kind: z.literal('set-deployment'), patternId: id.nullable() }),
   z.object({ kind: z.literal('set-battlefield'), patternId: id, terrainLayoutId: id }),

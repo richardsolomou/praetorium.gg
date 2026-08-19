@@ -1,5 +1,7 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 import {
+  advance,
+  advanceButton,
   attachRoster,
   befriend,
   createBattle,
@@ -8,11 +10,12 @@ import {
   setupStep,
   signUp,
   startBattle,
+  takeTheTurn,
   uniqueName,
   waitForRosterSave,
 } from './account'
 
-test('stratagems and tactical missions are tracked through a turn', async ({ browser }) => {
+test('a tactical hand is dealt rather than chosen, and pays out when the card says', async ({ browser }) => {
   const alice = await (await browser.newContext()).newPage()
   const bob = await (await browser.newContext()).newPage()
   const aliceName = uniqueName('Alice')
@@ -26,47 +29,65 @@ test('stratagems and tactical missions are tracked through a turn', async ({ bro
   await waitForRosterSave(alice, () => alice.getByRole('button', { name: 'Add Lord of Virulence', exact: true }).first().click())
   await setupBattle(alice, bob, { opponent: bobName, hostRoster: aliceRoster, guestRoster: bobRoster })
 
-  await drawSecondary(alice, 'Behind Enemy Lines', 'behind-enemy-lines')
-  await drawSecondary(alice, 'Assassination', 'assassination')
+  // Two cards off the deck, and no way to say which two.
+  const hand = alice.locator('[data-panel="player"]').filter({ hasText: 'Death Guard' }).locator('[data-secondary]')
+  await expect(hand).toHaveCount(2)
+  await expect(alice.getByRole('button', { name: 'Choose a card' })).toHaveCount(0)
+  await expect(alice.getByRole('button', { name: 'Draw at random' })).toHaveCount(0)
+  await expect(alice.getByRole('button', { name: 'Select secret mission' })).toHaveCount(0)
+  // The same two cards on the other device: a hand is public once it is drawn.
+  const drawn = await hand.evaluateAll((cards) => cards.map((card) => card.getAttribute('data-secondary')))
+  for (const key of drawn) await expect(bob.locator(`[data-secondary="${key}"]`)).toBeVisible()
 
-  const secret = alice.getByText('Select secret mission').locator('..')
-  await secret.getByRole('button', { name: 'Select secret mission' }).click()
-  await secret.getByRole('button', { name: 'Bring It Down', exact: true }).click()
-  await expect(alice.locator('[data-secondary="bring-it-down"]')).toContainText('Bring It Down')
-  await expect(bob.locator('[data-secondary="secret"]')).toContainText('Secret mission')
-  await expect(
-    bob.locator('[data-panel="player"]').filter({ hasText: 'Death Guard' }).getByText('Bring It Down', { exact: true }),
-  ).toHaveCount(0)
-  await alice.getByRole('button', { name: 'Reveal' }).click()
-  await expect(bob.locator('[data-secondary="bring-it-down"]')).toContainText('Bring It Down')
+  // The scoreboard is the way out of a battle: to whoever is playing it, and to the
+  // list they brought, which a seated opponent reads through the battle token.
+  const scoreboard = alice.getByRole('region', { name: 'Battle scoreboard' })
+  await expect(scoreboard.getByRole('link', { name: aliceName })).toHaveAttribute('href', /^\/players\/[^/?]+$/)
+  await expect(scoreboard.getByRole('link', { name: aliceRoster })).toHaveAttribute('href', /^\/rosters\/[^/?]+\?battle=/)
 
   const panel = alice.locator('[data-panel="player"]').filter({ hasText: 'Death Guard' })
-  const cp = panel.locator('[data-stat="cp"]')
-  await expect(cp).toHaveText('1')
+  await expect(panel.locator('[data-stat="cp"]')).toHaveText('1')
   await expect(bob.locator('[data-panel="player"]').filter({ hasText: 'Death Guard' }).getByRole('button', { name: /^Use / })).toHaveCount(
     0,
   )
 
-  await alice.getByRole('button', { name: 'Behind Enemy Lines plus 3 per friendly unit wholly within opponent deployment zone' }).click()
-  await expect(panel.locator('[data-stat="secondary"]')).toHaveText('3')
-  await expect(panel.locator('[data-secondary="behind-enemy-lines"]')).toContainText('T1 3')
-  await expect(bob.locator('[data-panel="player"]').filter({ hasText: 'Death Guard' }).locator('[data-stat="secondary"]')).toHaveText('3')
+  // Nothing is scoreable mid-turn, and a mission cannot be completed early either:
+  // both arrive with the moment the card names.
+  await expect(alice.getByRole('button', { name: /plus \d/ })).toHaveCount(0)
+  await expect(alice.getByRole('button', { name: 'Achieve' })).toHaveCount(0)
+  for (const phase of ['command', 'movement', 'shooting', 'charge', 'fight']) {
+    await alice.getByRole('button', { name: `End the ${phase} phase` }).click()
+    await expect(alice.getByRole('heading', { name: new RegExp(`${phase} phase`) })).toHaveCount(0)
+  }
 
-  await alice.locator('[data-secondary="behind-enemy-lines"]').getByRole('button', { name: 'Discard' }).click()
-  await expect(bob.getByText('discarded', { exact: true })).toBeVisible()
-  await alice.locator('[data-secondary="assassination"]').getByRole('button', { name: 'Discard' }).click()
-  await expect(alice.getByText('Draw a replacement')).toBeVisible()
-  await alice.getByRole('button', { name: 'A Grievous Blow', exact: true }).click()
-  await expect(bob.locator('[data-secondary="a-grievous-blow"]')).toContainText('A Grievous Blow')
+  // Passing the turn is the moment an end-of-turn card pays, so that is when it is offered.
+  await alice.getByRole('button', { name: 'Pass the turn' }).click()
+  const scoring = alice.getByRole('dialog', { name: /^Scoring end of turn points/ })
+  await expect(scoring).toBeVisible()
+  // Whichever cards the matchup dealt, a flat payout is a yes or no rather than
+  // something that can be pressed twice for double the points.
+  const answer = scoring.getByRole('button', { name: /plus \d+$/ }).first()
+  const scored = Number((await answer.innerText()).replace(/[^0-9]/g, ''))
+  await answer.click()
+  await expect(scoring).toContainText(`Scoring ${scored} VP`)
+  await answer.click()
+  await expect(scoring).toContainText('Scoring 0 VP')
+  await answer.click()
+  await scoring.getByRole('button', { name: 'Pass the turn' }).click()
+  await expect(panel.locator('[data-stat="vp"]')).toHaveText(String(scored))
+  // Nothing is ticked to finish a card: no control for it exists.
+  await expect(alice.getByText('take it out of the hand')).toHaveCount(0)
+  await expect(bob.locator('[data-panel="player"]').filter({ hasText: 'Death Guard' }).locator('[data-stat="vp"]')).toHaveText(
+    String(scored),
+  )
 
   await expect(alice.getByText(new RegExp(`${aliceName} brought Death Guard`))).toBeVisible()
   await expect(alice.getByText(/The battlefield is /)).toBeVisible()
-  await expect(alice.getByText(/marks Behind Enemy Lines discarded/)).toBeVisible()
-  await expect(alice.getByText(/draws A Grievous Blow/)).toBeVisible()
+  await expect(alice.getByText(/draws /).first()).toBeVisible()
   await alice.screenshot({ path: 'test-results/battle.png', fullPage: true })
 })
 
-test('a tactical player is asked to draw at the top of their command phase', async ({ browser }) => {
+test('a card the rules let you put back is offered back as it is drawn', async ({ browser }) => {
   const alice = await (await browser.newContext()).newPage()
   const bob = await (await browser.newContext()).newPage()
   const aliceName = uniqueName('Alice')
@@ -76,31 +97,88 @@ test('a tactical player is asked to draw at the top of their command phase', asy
   const bobRoster = await createRoster(bob, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Necrons' })
   await signUp(alice, aliceName)
   const aliceRoster = await createRoster(alice, { faction: 'Death Guard', detachment: /Shamblerot Vectorium/, name: 'Death Guard' })
-  // Tactical is the default, so nothing is chosen up front and the deck is the only source.
   await befriend(alice, bob)
   const url = await createBattle(alice, { opponent: bobName })
   await bob.goto(url)
   await attachRoster(alice, aliceRoster)
   await setupStep(bob, 'Armies')
   await attachRoster(bob, bobRoster)
-  await expect(alice.getByText(bobRoster, { exact: true })).toBeVisible()
-  await startBattle(alice)
+  // The battlefield follows from both dispositions, so the host has to have seen both armies.
+  await expect(alice.getByText(bobRoster, { exact: true }).first()).toBeVisible()
+  // Bob takes the first turn, so his is the hand dealt as the battle opens.
+  await startBattle(alice, bobName)
 
-  // The prompt is the point: it stands open in the panel rather than waiting to be found.
-  const prompt = alice.locator('[data-panel="player"]').filter({ hasText: 'Death Guard' }).getByText('Draw a mission')
+  const prompt = bob.getByRole('dialog', { name: 'Your secondary missions' })
   await expect(prompt).toBeVisible()
-  await alice.getByRole('button', { name: 'A Grievous Blow', exact: true }).click()
-  await alice.getByRole('button', { name: 'Beacon', exact: true }).click()
-  // Two in hand is a full hand, so it stops asking.
+  await expect(prompt.locator('[data-drawn]')).toHaveCount(2)
+  // Whatever was dealt, the deck itself is never on offer.
+  await expect(prompt.getByRole('button', { name: 'Choose a card' })).toHaveCount(0)
+  // A card that may go back says why, and putting it back deals another.
+  const returnable = prompt.getByRole('button', { name: 'Put back and draw another' })
+  if (
+    await returnable
+      .first()
+      .isVisible()
+      .catch(() => false)
+  ) {
+    const before = await prompt.locator('[data-drawn]').evaluateAll((cards) => cards.map((card) => card.getAttribute('data-drawn')))
+    await returnable.first().click()
+    await expect
+      .poll(() => prompt.locator('[data-drawn]').evaluateAll((c) => c.map((d) => d.getAttribute('data-drawn'))))
+      .not.toEqual(before)
+  }
+  // The hand is not something to dismiss: it is the one chance to see what was dealt.
+  await bob.mouse.click(8, 400)
+  await expect(prompt).toBeVisible()
+  await bob.keyboard.press('Escape')
+  await expect(prompt).toBeVisible()
+  await expect(prompt.getByRole('button', { name: 'Close' })).toHaveCount(0)
+
+  await takeTheTurn(bob)
   await expect(prompt).toBeHidden()
-  await expect(alice.locator('[data-secondary="a-grievous-blow"]')).toContainText('A Grievous Blow')
-  await expect(bob.locator('[data-secondary="a-grievous-blow"]')).toContainText('A Grievous Blow')
 })
 
-/** A tactical hand starts empty, so a named card has to be taken from the deck. */
-async function drawSecondary(page: Page, name: string, key: string) {
-  const card = page.getByRole('button', { name, exact: true })
-  await card.scrollIntoViewIfNeeded()
-  await card.click()
-  await expect(page.locator(`[data-secondary="${key}"]`)).toContainText(name)
-}
+test('a card names its own condition, and what their turn owed is asked as the turn comes back', async ({ browser }) => {
+  const alice = await (await browser.newContext()).newPage()
+  const bob = await (await browser.newContext()).newPage()
+  const bobName = uniqueName('Bob')
+
+  await signUp(bob, bobName)
+  const bobRoster = await createRoster(bob, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Necrons' })
+  await signUp(alice, uniqueName('Alice'))
+  const aliceRoster = await createRoster(alice, { faction: 'Death Guard', detachment: /Shamblerot Vectorium/, name: 'Death Guard' })
+  await setupBattle(alice, bob, {
+    opponent: bobName,
+    hostRoster: aliceRoster,
+    guestRoster: bobRoster,
+    // Fixed play, so the two cards under test are certain: Outflank pays in tiers the
+    // source describes only in prose, and Assassination pays on either player's turn.
+    beforeStart: async () => {
+      await alice.getByRole('button', { name: 'Fixed' }).click()
+      for (const card of ['Assassination', 'Outflank']) {
+        await alice.getByRole('button', { name: card }).click()
+        await expect(alice.getByRole('button', { name: card })).toHaveAttribute('aria-pressed', 'true')
+      }
+    },
+  })
+
+  for (let phase = 0; phase < 5; phase += 1) await advance(alice)
+  await advanceButton(alice).click()
+  const scoring = alice.getByRole('dialog', { name: /^Scoring end of turn points/ })
+  const outflank = scoring.locator('[data-due="outflank"]')
+  // Two tiers of one thing rather than two payouts, each asking in the mission pack's own words.
+  await expect(outflank).toContainText('or')
+  await expect(outflank).toContainText('are within 6" of one or more battlefield edges and not within your territory')
+  await expect(outflank).toContainText('are within 6" of opposite battlefield edges')
+  // The keywords the pack marks up are drawn as keywords rather than printed with their asterisks.
+  await expect(outflank.getByText('AIRCRAFT').first()).toBeVisible()
+  await expect(outflank).not.toContainText('**')
+  await scoring.getByRole('button', { name: 'Pass the turn' }).click()
+
+  // Assassination pays at the end of either turn, and the opponent's is a turn Alice
+  // cannot press anything through, so it is settled as the turn comes back.
+  for (let phase = 0; phase < 6; phase += 1) await advance(bob)
+  const owed = alice.getByRole('dialog', { name: /^Scoring end of their turn points/ })
+  await expect(owed).toBeVisible()
+  await expect(owed.locator('[data-due="assassination"]')).toContainText('For each enemy CHARACTER model destroyed this turn.')
+})

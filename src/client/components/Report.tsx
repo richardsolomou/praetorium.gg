@@ -6,6 +6,16 @@ import { reportQuery } from '../queries'
 
 export type ReportPlayer = { id: string; name: string; className: string }
 
+/** Short enough for the gutter, and still distinct from every other phase. */
+const PHASE_LABELS: Record<string, string> = {
+  command: 'cmd',
+  movement: 'move',
+  shooting: 'shoot',
+  charge: 'chrg',
+  fight: 'fight',
+  end: 'end',
+}
+
 const NO_PLAYERS: readonly ReportPlayer[] = []
 
 /**
@@ -62,7 +72,7 @@ export function Report({ token, open, players = NO_PLAYERS }: { token: string; o
                   <span className="readout w-20 shrink-0 text-right text-xs text-dim">
                     {new Date(entry.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     <span className="block text-[0.625rem] text-faint">
-                      {entry.round ? `R${entry.round}` : '—'} {entry.phase.slice(0, 3)}
+                      {entry.round ? `R${entry.round}` : '—'} {PHASE_LABELS[entry.phase] ?? entry.phase}
                     </span>
                   </span>
                   <span className="min-w-0 flex-1 text-bone">{colourNames(entry.text, players)}</span>

@@ -5,7 +5,7 @@ import { SOCIAL_PROVIDERS } from '../authConfig'
 import { routeSlug } from '../core/slug'
 import { nameOf } from '../core/catalogue'
 import { buildUnit } from '../core/roster'
-import { datasheetIn, datasheetInBySlug } from './catalogue'
+import { datasheetIn, datasheetInBySlug, rulesReferencedIn } from './catalogue'
 import { datasheetSlug, datasheetsOf } from './catalogueIndex'
 import { describeDatasheetAbilities } from './datasheetDescriptions'
 import { detachmentReference } from './detachmentReference'
@@ -33,6 +33,7 @@ import {
   priceSchema,
   ownedSchema,
   rosterIdSchema,
+  rosterInBattleSchema,
   saveRosterSchema,
   rosterVisibilitySchema,
   submitSchema,
@@ -315,7 +316,7 @@ export const globalSearch = createServerFn({ method: 'GET' })
             group: 'Your battles',
             label,
             detail: battle.mission?.name ?? battle.status,
-            href: `/b/${battle.token}`,
+            href: `/battles/${battle.token}`,
           })
         }
       }
@@ -423,21 +424,21 @@ export const savedRosters = createServerFn({ method: 'GET' }).handler(() =>
 )
 
 export const sharedRoster = createServerFn({ method: 'GET' })
-  .validator(rosterIdSchema)
+  .validator(rosterInBattleSchema)
   .handler(({ data }) =>
     rpc(async () => {
       const playerId = await currentPlayerId()
-      return app().service.sharedRoster(data.id, playerId)
+      return app().service.sharedRoster(data.id, playerId, data.battle ?? null)
     }),
   )
 
 /** SSR pricing for a persisted roster: the URL carries only its opaque public id. */
 export const savedRosterPrice = createServerFn({ method: 'GET' })
-  .validator(rosterIdSchema)
+  .validator(rosterInBattleSchema)
   .handler(({ data }) =>
     rpc(async () => {
       const playerId = await currentPlayerId()
-      const roster = app().service.sharedRoster(data.id, playerId)
+      const roster = app().service.sharedRoster(data.id, playerId, data.battle ?? null)
       return roster
         ? calculateRosterPrice({
             catalogueId: roster.catalogueId,
@@ -498,7 +499,11 @@ export const detachmentRules = createServerFn({ method: 'GET' })
       if (!rules || !catalogue) return null
 
       const faction = catalogue.index.catalogues.get(data.catalogueId)
-      const detachments = faction ? rules.byDetachment.get(slug(faction.name)) : undefined
+      const factionSlug = faction ? slug(faction.name) : null
+      const detachments = factionSlug ? rules.byDetachment.get(factionSlug) : undefined
+      const details = factionSlug ? rules.detachmentDetails.get(factionSlug) : undefined
+      // The same text the detachment page prints, so a stratagem reads the same wherever it is opened.
+      const written = data.detachmentNames.flatMap((name) => details?.get(slug(name))?.stratagems ?? [])
       return {
         attribution: rules.attribution,
         dataslate: rules.dataslate,
@@ -506,6 +511,11 @@ export const detachmentRules = createServerFn({ method: 'GET' })
         core: rules.core,
         secondaries: rules.secondaries,
         primaries: rules.primaries,
+        written: written.map(({ id, type, description }) => ({ key: id, type, description })),
+        keywordRules: rulesReferencedIn(
+          catalogue,
+          written.map((stratagem) => stratagem.description),
+        ),
       }
     }),
   )

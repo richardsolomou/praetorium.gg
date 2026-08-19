@@ -496,6 +496,20 @@ describe('optional wargear on repeated models', () => {
       { name: 'Carbine', count: 1 },
     ])
   })
+
+  it('keeps one repeated choice while applying another', () => {
+    const built = buildUnit('unit', index, 3, undefined, {
+      spreads: {
+        'model/weapon': { blaster: 0, beamer: 3, carbine: 0 },
+        'model/wargear': { loom: 3, scope: 0 },
+      },
+    })!
+
+    expect(wargearOf(built.selection, index)).toEqual([
+      { name: 'Beamer', count: 3 },
+      { name: 'Shadowloom', count: 3 },
+    ])
+  })
 })
 
 describe('optional unit composition defaults', () => {
