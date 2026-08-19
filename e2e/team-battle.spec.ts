@@ -1,5 +1,15 @@
 import { expect, test, type Page } from '@playwright/test'
-import { attachRoster, befriend, chooseBattlefield, createBattle, createRoster, setupStep, signUp, uniqueName } from './account'
+import {
+  attachRoster,
+  befriend,
+  chooseBattlefield,
+  createBattle,
+  createRoster,
+  setupStep,
+  signUp,
+  takeTheTurn,
+  uniqueName,
+} from './account'
 
 /**
  * The whole point of the 2v1 layout: the allied pair is one side.
@@ -60,8 +70,12 @@ test('a 2v1 draws the allied pair as one side with one pool of everything', asyn
   // One seat writes the side's cards. The other is told so, rather than racing it with its own.
   await expect(partner.getByText(new RegExp(`${allyName} sets the cards and stratagems your side plays`))).toBeVisible()
   await expect(partner.getByRole('group', { name: 'Secondary play' })).toHaveCount(0)
+  // Setting the table is done together, so one device can arrange an army it does not own.
+  await host.getByRole('button', { name: new RegExp(`^Add the battle ready bonus for ${allyRoster}$`) }).click()
+  await expect(ally.getByRole('button', { name: new RegExp(`^Remove the battle ready bonus for ${allyRoster}$`) })).toBeVisible()
   await setupStep(host, 'First turn')
   await host.getByRole('button', { name: 'Start battle' }).click()
+  await takeTheTurn(host)
   await expect(host.getByRole('heading', { name: 'command phase' })).toBeVisible()
   await expect(ally.getByRole('heading', { name: 'command phase' })).toBeVisible()
 
@@ -77,10 +91,9 @@ test('a 2v1 draws the allied pair as one side with one pool of everything', asyn
   await expect(side(partner, 1).locator('[data-stat="cp"]')).toHaveText('1')
   await expect(side(host, 1).locator('[data-stat="cp"]')).toHaveText('1')
 
-  // The battle-ready bonus is the one thing each ally owns, so each carries its own control.
-  await ally.getByRole('button', { name: new RegExp(`^Add the battle ready bonus for ${allyRoster}$`) }).click()
-  await expect(side(host, 1).locator('[data-stat="vp"]')).toHaveText('10')
-  await expect(ally.getByRole('button', { name: new RegExp(`bonus for ${partnerRoster}$`) })).toHaveCount(0)
+  // The bonus each ally brings is promised now and paid when the battle ends.
+  await expect(side(host, 1)).toContainText('+10 battle ready at the end')
+  await expect(side(host, 1).locator('[data-stat="vp"]')).toHaveText('0')
 
   await ally.screenshot({ path: 'test-results/team-battle-tracker.png', fullPage: true })
 })

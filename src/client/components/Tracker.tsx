@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { deleteBattle } from '../../server/functions'
 import { battleQuery, battlesQuery, deploymentsQuery, detachmentRulesQuery, gameReferencesQuery } from '../queries'
@@ -9,8 +9,10 @@ import { type Side, sideName, sides } from '../sides'
 import type { BattleView, Command } from '../../core/battle'
 import type { PresentPlayer } from '../useLiveBattle'
 import { BattleMenu } from './battle/BattleMenu'
-import type { Award, ReferenceCard } from './battle/MissionCards'
+import { DrawDialog, type WhenDrawn } from './battle/DrawDialog'
+import type { Award, ReferenceCard, StratagemText } from './battle/MissionCards'
 import { Scoreboard } from './battle/Scoreboard'
+import { dueForAdvance, ScoringDialog } from './battle/ScoringDialog'
 import { SidePanel } from './battle/SidePanel'
 import { HEADING } from './battle/tints'
 import { TurnControl } from './battle/TurnControl'
@@ -39,6 +41,10 @@ type Focus = (typeof VIEWS)[number]
  */
 export function Tracker({ view, mission, present, send, pending, problem }: Props) {
   const [focus, setFocus] = useState<Focus>('yours')
+  const [scoring, setScoring] = useState(false)
+  // Which turn the draw is open for, and which turn has already been taken past it.
+  const [drawTurn, setDrawTurn] = useState<string | null>(null)
+  const [drawnFor, setDrawnFor] = useState<string | null>(null)
   const table = sides(view)
   const yours = table.find((side) => side.isViewer)
   const built = yours?.armies.find((army) => army.isViewer)?.roster?.built
@@ -66,6 +72,11 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
     )
   const referenceFor = (key: string): ReferenceCard | undefined =>
     [...(rules?.primaries ?? []), ...(rules?.secondaries ?? [])].find((card) => card.key === key)
+  const writtenFor = (key: string): StratagemText | undefined => {
+    const written = rules?.written.find((entry) => entry.key === key)
+    return written ? { ...written, keywordRules: rules?.keywordRules ?? [] } : undefined
+  }
+  const whenDrawnFor = (key: string): WhenDrawn | undefined => rules?.secondaries.find((card) => card.key === key)?.whenDrawn ?? undefined
   // Core stratagems are the same for every army, so membership of that list is what
   // separates them from the ones a detachment brought — on either side's panel.
   const coreKeys = new Set((rules?.core ?? []).map((stratagem) => stratagem.key))
@@ -81,6 +92,25 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
   const guides = { primary: mission?.gameCap ?? view.guides.primary, secondary: view.guides.secondary }
   /** Which panel a narrow screen is showing, in the order the columns sit on a wide one. */
   const shown = (side: Side) => (side.isViewer ? 'yours' : 'theirs')
+
+  // Only what the card itself says pays out at this moment, so the ask arrives with the phase that ends.
+  const due = yours && !finished ? dueForAdvance(view, yours, awardsFor) : []
+  const advance = () => (due.length ? setScoring(true) : send({ kind: 'advance' }))
+  // A tactical hand is dealt at the top of your own turn, and only once for it.
+  const turnKey = `${view.round}-${view.activePlayerId ?? ''}`
+  const handShort =
+    !finished &&
+    Boolean(yours?.isActive) &&
+    yours?.secondaryMode === 'tactical' &&
+    view.phase === 'command' &&
+    yours.secondaries.filter((card) => card.status === 'active').length < 2 &&
+    yours.remainingSecondaries.length > 0
+  // Latched, because the hand stops being short the moment it is dealt and the player
+  // still has to see what they drew and whether a card may go back.
+  useEffect(() => {
+    if (handShort && drawnFor !== turnKey) setDrawTurn(turnKey)
+  }, [handShort, drawnFor, turnKey])
+  const drawing = drawTurn === turnKey && drawnFor !== turnKey
 
   return (
     <main className={`w-full space-y-3 px-3 lg:pb-8 ${finished ? 'pb-8' : 'pb-32'}`}>
@@ -128,6 +158,7 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
             send={send}
             awardsFor={awardsFor}
             referenceFor={referenceFor}
+            writtenFor={writtenFor}
             guides={guides}
             className={`${focus === shown(side) ? '' : 'hidden lg:block'} ${side.index === 0 ? 'lg:col-start-1' : 'lg:col-start-3'} lg:row-start-1`}
           />
@@ -145,6 +176,7 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
               yours={yours}
               send={send}
               pending={pending}
+              onAdvance={advance}
               className="fixed inset-x-0 bottom-0 z-40 border-t border-edge bg-panel/98 px-3 py-2 backdrop-blur lg:static lg:rounded-lg lg:border lg:bg-panel lg:p-3 lg:backdrop-filter-none"
             />
           )}
@@ -178,6 +210,34 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
           </section>
         </div>
       </div>
+
+      {scoring && yours ? (
+        <ScoringDialog
+          view={view}
+          side={yours}
+          due={due}
+          pending={pending}
+          send={send}
+          referenceFor={referenceFor}
+          onCancel={() => setScoring(false)}
+          onDone={() => {
+            setScoring(false)
+            send({ kind: 'advance' })
+          }}
+        />
+      ) : null}
+
+      {drawing && yours ? (
+        <DrawDialog
+          side={yours}
+          round={view.round}
+          pending={pending}
+          send={send}
+          referenceFor={referenceFor}
+          whenDrawnFor={whenDrawnFor}
+          onDone={() => setDrawnFor(turnKey)}
+        />
+      ) : null}
     </main>
   )
 }

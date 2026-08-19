@@ -14,7 +14,10 @@ Praetorium reads structured stratagem and mission data from [40kdc-data](https:/
 
 ## Scoring
 
-- Use each card's award values for scoring controls. Use `FALLBACK_AWARDS` only when the source has no award data.
+- Use each card's award values for scoring controls.
+- Ask for a payout only at the moment its `trigger.timing` names: `end-of-phase` with its phase, `end-of-turn`, or `end-of-battle`. A card the source gave no timing for is never put on a schedule.
+- Draw a tactical hand at random. `when_drawn` says when a freshly drawn card may go back: a `battle_round` bound and a paired `card_ids` list the battle can check itself, and a board-state `condition` is stated for the player because the source cannot see the table.
+- The battle-ready bonus is recorded before the first turn and joins the score only when the battle is finished.
 - Show mission scoring caps as guidance. Do not reject a score that exceeds them.
 - Prompt before passing a turn with an unresolved active card, but leave the final decision to the player because the source cannot infer objective control.
 - Derive the mission from both rosters' force dispositions and the configured mission pack in `PraetoriumService.screen`. Settings without a mission pack use the unqualified matchup fallback. A selected mission pack must never fall through to another pack.

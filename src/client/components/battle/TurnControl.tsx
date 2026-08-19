@@ -1,21 +1,18 @@
 import { Undo2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog'
 import { PHASES, type BattleView, type Command } from '../../../core/battle'
 import type { Side } from '../../sides'
 import { tint } from './tints'
 
-type Props = { view: BattleView; yours: Side | undefined; send: (command: Command) => void; pending: boolean; className?: string }
+type Props = {
+  view: BattleView
+  yours: Side | undefined
+  send: (command: Command) => void
+  pending: boolean
+  /** Opens the scoring prompt when this advance settles a card, and advances when it does not. */
+  onAdvance: () => void
+  className?: string
+}
 
 /**
  * Where the battle moves forward.
@@ -24,11 +21,12 @@ type Props = { view: BattleView; yours: Side | undefined; send: (command: Comman
  * panels stay the same shape and their numbers line up across the table whichever
  * side is taking the turn.
  */
-export function TurnControl({ view, yours, send, pending, className = '' }: Props) {
+export function TurnControl({ view, yours, send, pending, onAdvance, className = '' }: Props) {
   const active = view.players.find((player) => player.isActive)
   const activeSide = active?.side ?? 0
   const yourTurn = Boolean(yours?.isActive)
   const at = PHASES.indexOf(view.phase)
+  const label = view.phase === 'end' ? 'Pass the turn' : `End the ${view.phase} phase`
 
   return (
     <section className={`space-y-2 ${className}`}>
@@ -47,7 +45,15 @@ export function TurnControl({ view, yours, send, pending, className = '' }: Prop
         ))}
       </ol>
       <div className="flex items-stretch gap-2">
-        <AdvanceButton view={view} yourTurn={yourTurn} pending={pending} send={send} />
+        <Button
+          variant={yourTurn ? 'default' : 'outline'}
+          className="h-11 min-w-0 flex-1 text-base"
+          disabled={!yourTurn || pending}
+          title={yourTurn ? undefined : 'Only the side taking the turn can end a phase'}
+          onClick={onAdvance}
+        >
+          {label}
+        </Button>
         <Button
           variant="outline"
           className="h-11 shrink-0 px-3"
@@ -63,45 +69,5 @@ export function TurnControl({ view, yours, send, pending, className = '' }: Prop
         <p className="text-center text-xs text-dim">Waiting for {active?.name ?? 'the other side'} to finish the phase.</p>
       )}
     </section>
-  )
-}
-
-function AdvanceButton({
-  view,
-  yourTurn,
-  pending,
-  send,
-}: {
-  view: BattleView
-  yourTurn: boolean
-  pending: boolean
-  send: (command: Command) => void
-}) {
-  const label = view.phase === 'end' ? 'Pass the turn' : `End the ${view.phase} phase`
-  const trigger = (
-    <Button
-      variant={yourTurn ? 'default' : 'outline'}
-      className="h-11 min-w-0 flex-1 text-base"
-      disabled={!yourTurn || pending}
-      title={yourTurn ? undefined : 'Only the side taking the turn can end a phase'}
-    >
-      {label}
-    </Button>
-  )
-  if (!view.advancePrompt) return <Button {...trigger.props} onClick={() => send({ kind: 'advance' })} />
-  return (
-    <AlertDialog>
-      <AlertDialogTrigger render={trigger} />
-      <AlertDialogContent className="rounded-none border border-edge bg-panel text-bone ring-0">
-        <AlertDialogHeader>
-          <AlertDialogTitle className="uppercase">Score before continuing?</AlertDialogTitle>
-          <AlertDialogDescription className="text-dim">{view.advancePrompt}</AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter className="rounded-none border-edge bg-sunken">
-          <AlertDialogCancel>Go back</AlertDialogCancel>
-          <AlertDialogAction onClick={() => send({ kind: 'advance' })}>Continue anyway</AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
   )
 }

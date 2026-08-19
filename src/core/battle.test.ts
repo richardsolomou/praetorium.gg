@@ -630,9 +630,55 @@ describe('battle management', () => {
     expect(state.players[0]?.primary).toBe(5)
   })
 
-  it('adds the painted-army bonus to the total', () => {
-    const state = reduceBattle(PLAYERS, log(...started(), [ALICE, { kind: 'set-painted', painted: true }]))
-    expect(battleView({ token: 'abc' }, NAMES, state, ALICE).players[0]).toMatchObject({ painted: true, paintedPoints: 10, total: 10 })
+  it('holds the painted-army bonus back while the battle is running', () => {
+    const state = reduceBattle(PLAYERS, log([ALICE, { kind: 'set-painted', painted: true }], ...started()))
+    expect(battleView({ token: 'abc' }, NAMES, state, ALICE).players[0]).toMatchObject({ painted: true, paintedPoints: 10, total: 0 })
+  })
+
+  it('adds the painted-army bonus to the total once the battle is over', () => {
+    const state = reduceBattle(
+      PLAYERS,
+      log([ALICE, { kind: 'set-painted', painted: true }], ...started(), [ALICE, { kind: 'end-battle', reason: 'finished-early' }]),
+    )
+    expect(battleView({ token: 'abc' }, NAMES, state, ALICE).players[0]).toMatchObject({ paintedPoints: 10, total: 10 })
+  })
+
+  it('refuses a battle ready bonus once the battle has started', () => {
+    const state = reduceBattle(PLAYERS, log(...started()))
+    expect(validate(state, ALICE, { kind: 'set-painted', painted: true })).toBe('the battle ready bonus is set before the battle begins')
+  })
+
+  it('cannot take back the moment the battle began', () => {
+    const state = reduceBattle(PLAYERS, log(...started()))
+    expect(state.undoable).toBeNull()
+  })
+
+  it('names whose army a battle ready bonus was recorded for', () => {
+    const history = log([BOB, roster('Death Guard')], [ALICE, { kind: 'set-painted', painted: true, playerId: BOB }])
+    expect(text(battleReport(NAMES, history))).toContain('Alice marks Bob’s army battle ready')
+  })
+
+  it('says the army is your own when you record your own bonus', () => {
+    const history = log([ALICE, roster('Ultramarines')], [ALICE, { kind: 'set-painted', painted: true, playerId: ALICE }])
+    expect(text(battleReport(NAMES, history))).toContain('Alice marks their army battle ready')
+  })
+
+  it('lets one device arrange an ally’s reserves while the table is being set', () => {
+    const state = reduceBattle(
+      PLAYERS,
+      log(
+        [BOB, builtRoster('Death Guard', ['Plague Marines'])],
+        [ALICE, { kind: 'set-unit-formation', unitKey: 'u0', formation: 'strategic-reserves', playerId: BOB }],
+      ),
+    )
+    expect(state.players[1]?.units[0]?.formation).toBe('strategic-reserves')
+  })
+
+  it('refuses to arrange another army once the battle has started', () => {
+    const state = reduceBattle(PLAYERS, log([BOB, builtRoster('Death Guard', ['Plague Marines'])], ...started()))
+    expect(validate(state, ALICE, { kind: 'set-unit-formation', unitKey: 'u0', formation: 'strategic-reserves', playerId: BOB })).toBe(
+      'only your own units once the battle has started',
+    )
   })
 
   it('tracks unit formation states without inventing model positions', () => {

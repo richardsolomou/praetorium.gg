@@ -133,17 +133,23 @@ export const savedRosterPriceQuery = (
   disposition: string | null,
   limit: number,
   picked: readonly RosterPick[],
+  battle?: string,
 ) =>
   queryOptions({
     ...priceQuery(catalogueId, detachmentIds, disposition, limit, picked),
-    queryFn: () => savedRosterPrice({ data: { id } }),
+    queryFn: () => savedRosterPrice({ data: { id, ...(battle ? { battle } : {}) } }),
   })
 
 export const savedRostersQuery = () =>
   queryOptions({ queryKey: ['saved-rosters'], queryFn: () => savedRosters(), staleTime: SSR_STALE_TIME })
 
-export const sharedRosterQuery = (id: string) =>
-  queryOptions({ queryKey: ['shared-roster', id], queryFn: () => sharedRoster({ data: { id } }), staleTime: SSR_STALE_TIME })
+/** `battle` is what entitles a seated opponent to read a list that is otherwise private. */
+export const sharedRosterQuery = (id: string, battle?: string) =>
+  queryOptions({
+    queryKey: ['shared-roster', id, battle ?? null],
+    queryFn: () => sharedRoster({ data: { id, ...(battle ? { battle } : {}) } }),
+    staleTime: SSR_STALE_TIME,
+  })
 
 /** Null when the rules source has not been synced, so the interface can offer typing instead. */
 export const detachmentRulesQuery = (catalogueId: string, detachmentNames: readonly string[]) =>

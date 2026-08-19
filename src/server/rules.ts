@@ -49,6 +49,12 @@ type RawCard = {
   card_type?: string
   text?: string
   awards?: RawAward[]
+  when_drawn?: {
+    operation?: string
+    battle_round?: { min?: number; max?: number }
+    card_ids?: string[]
+    condition?: { subject?: string; quantifier?: string; unit_filter?: { wounds_min?: number; model_count_min?: number } }
+  }
 }
 
 type RuleParameter = string | number | boolean | null | { side?: string; window?: string }
@@ -226,7 +232,23 @@ export type Mission = {
   deploymentIds: string[]
 }
 
-type MissionCard = { key: string; name: string; text: string | null; awards: Award[] }
+/**
+ * What the rules say about putting a card back the moment it is drawn.
+ *
+ * `redraw` is unconditional beyond what is stated here; `replace` depends on the
+ * board, which no source can tell this app about. `rounds` and `heldCards` are the
+ * parts a battle can check for itself; `condition` is the part only a player can.
+ */
+type WhenDrawn = {
+  operation: 'redraw' | 'replace'
+  roundMax: number | null
+  /** Redraw is allowed while one of these cards is already in hand. */
+  heldCards: string[]
+  /** Stated for the player to judge, because the app cannot see the table. */
+  condition: string | null
+}
+
+type MissionCard = { key: string; name: string; text: string | null; awards: Award[]; whenDrawn: WhenDrawn | null }
 
 type DetachmentReference = {
   enhancements: number
@@ -744,7 +766,31 @@ function toCard(raw: RawCard): MissionCard {
       },
     }))
     .filter((award) => award.vp > 0)
-  return { key: raw.id, name: raw.name, text: raw.text ?? null, awards: dedupe(awards) }
+  return { key: raw.id, name: raw.name, text: raw.text ?? null, awards: dedupe(awards), whenDrawn: toWhenDrawn(raw.when_drawn) }
+}
+
+function toWhenDrawn(raw: RawCard['when_drawn']): WhenDrawn | null {
+  if (raw?.operation !== 'redraw' && raw?.operation !== 'replace') return null
+  return {
+    operation: raw.operation,
+    roundMax: raw.battle_round?.max ?? null,
+    heldCards: raw.card_ids ?? [],
+    condition: raw.condition ? describeCondition(raw.condition) : null,
+  }
+}
+
+/** The board state a redraw depends on, in the words a player would check it in. */
+function describeCondition(condition: NonNullable<NonNullable<RawCard['when_drawn']>['condition']>): string {
+  const filter = condition.unit_filter ?? {}
+  const what = filter.wounds_min
+    ? `models with a Wounds characteristic of ${filter.wounds_min} or more`
+    : filter.model_count_min
+      ? `units with a Starting Strength of ${filter.model_count_min} or more`
+      : 'units'
+  const whose = condition.subject === 'opponent' ? 'enemy' : 'friendly'
+  return condition.quantifier === 'none'
+    ? `there are no ${whose} ${what} on the battlefield`
+    : `there are ${whose} ${what} on the battlefield`
 }
 
 /** The same payout written twice is one button, not two. */

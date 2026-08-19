@@ -60,6 +60,8 @@ Better Auth owns the `user`, `session`, `account`, `verification`, and `rateLimi
 
 ## Concurrency limit
 
+Starting the battle is not undoable: `begin-battle` leaves nothing for `undo` to name. `set-unit-formation` and `set-painted` may carry a `playerId`, which lets one device set the table for everyone, and only during setup.
+
 `expectedSeq` applies to the full battle log. Independent commands from both players can still race, and one player may need to submit again. Keep this behavior until commands declare narrower dependencies. Do not remove `expectedSeq`.
 
 ## Tests

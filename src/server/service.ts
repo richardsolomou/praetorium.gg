@@ -5,6 +5,7 @@ import {
   battleReport,
   battleView,
   type Command,
+  PAINTED_ARMY_POINTS,
   PLAYERS_PER_BATTLE,
   reduceBattle,
   type Secondary,
@@ -63,9 +64,14 @@ export class PraetoriumService {
         round: state.round,
         phase: state.phase,
         players: seats.players.map((player) => player.name),
+        playerIds: seats.players.map((player) => player.id),
+        sides: state.players.map((player) => player.side),
         armies: state.players.map((player) => player.roster?.name ?? null),
         detachments: state.players.map((player) => player.roster?.built?.detachments?.map((detachment) => detachment.name) ?? []),
-        scores: state.players.map((player) => player.primary + player.secondary + (player.painted ? 10 : 0)),
+        // The painted bonus pays at the end of the battle, so a running score does not carry it yet.
+        scores: state.players.map(
+          (player) => player.primary + player.secondary + (state.status === 'finished' && player.painted ? PAINTED_ARMY_POINTS : 0),
+        ),
         mission: rules ? missionFor(rules, dispositions[0] ?? null, soloOpponent(state, dispositions), state.settings.missionPackId) : null,
         deploymentId: state.deploymentId,
         settings: state.settings,
@@ -132,10 +138,28 @@ export class PraetoriumService {
     }))
   }
 
-  /** An unlisted roster, or its owner's private roster, without exposing owner identity. */
-  sharedRoster(id: string, playerId: string | null = null) {
+  /**
+   * An unlisted roster, its owner's private roster, or a list fielded in a battle the
+   * reader is seated in.
+   *
+   * The last case widens nothing: a battle already shows every seat the opposing army
+   * and its units, so the reader can see this list either way. The battle has to be
+   * named, so the check stays one log rather than a scan of every battle they play.
+   */
+  sharedRoster(id: string, playerId: string | null = null, token: string | null = null) {
     const row = this.repository.roster(id)
-    return row && (row.visibility === 'unlisted' || row.playerId === playerId) ? rosterFromRow(row) : null
+    if (!row) return null
+    if (row.visibility === 'unlisted' || row.playerId === playerId) return rosterFromRow(row)
+    return playerId && token && this.fieldedIn(token, playerId, id) ? rosterFromRow(row) : null
+  }
+
+  /** Whether a reader shares a battle with the list they are asking about. */
+  private fieldedIn(token: string, playerId: string, rosterId: string) {
+    const seats = this.repository.battleByToken(token)
+    if (!seats?.players.some((player) => player.id === playerId)) return false
+    return this.repository
+      .log(seats.battle.id)
+      .some((entry) => entry.command.kind === 'attach-roster' && entry.command.roster.id === rosterId)
   }
 
   setRosterVisibility(playerId: string, id: string, visibility: 'private' | 'unlisted') {

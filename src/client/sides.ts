@@ -14,8 +14,11 @@ export type Army = {
   playerName: string
   isViewer: boolean
   roster: ViewPlayer['roster']
+  /** The saved list this army came from, when it came from one. */
+  rosterId: string | null
   units: ViewPlayer['units']
   painted: boolean
+  /** What the bonus will pay at the end. It is not in the running score. */
   paintedPoints: number
   /** What the list actually costs, summed from the units as submitted. */
   points: number | null
@@ -47,6 +50,7 @@ export type Side = {
   secondary: number
   /** The battle-ready bonus of every army on the side, added together. */
   paintedPoints: number
+  /** The score as it stands. The battle-ready bonus joins it when the battle ends. */
   total: number
   rounds: ViewPlayer['rounds']
   primaryCard: ViewPlayer['primaryCard']
@@ -75,7 +79,7 @@ export function sides(view: BattleView): Side[] {
       primary: captain.primary,
       secondary: captain.secondary,
       paintedPoints,
-      total: captain.primary + captain.secondary + paintedPoints,
+      total: captain.primary + captain.secondary + (view.status === 'finished' ? paintedPoints : 0),
       rounds: captain.rounds,
       primaryCard: captain.primaryCard,
       secondaries: captain.secondaries,
@@ -104,6 +108,7 @@ function toArmy(player: ViewPlayer): Army {
     playerName: player.name,
     isViewer: player.isViewer,
     roster: player.roster,
+    rosterId: player.roster?.id ?? null,
     units: player.units,
     painted: player.painted,
     paintedPoints: player.paintedPoints,

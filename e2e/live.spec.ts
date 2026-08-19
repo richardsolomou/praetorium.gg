@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { createRoster, setupBattle, signUp, uniqueName } from './account'
+import { createRoster, setupBattle, signUp, takeTheTurn, uniqueName } from './account'
 
 test('a battle stays in step across two devices', async ({ browser }) => {
   const alice = await (await browser.newContext()).newPage()
@@ -14,6 +14,7 @@ test('a battle stays in step across two devices', async ({ browser }) => {
   await setupBattle(alice, bob, { opponent: bobName, hostRoster: aliceRoster, guestRoster: bobRoster })
 
   await expect(bob.getByRole('button', { name: 'End the command phase' })).toBeDisabled()
+  await takeTheTurn(alice)
   await alice.getByRole('button', { name: 'End the command phase' }).click()
   await expect(bob.getByRole('heading', { name: 'movement phase' })).toBeVisible()
   await expect(panel(bob, 'Necrons').locator('[data-stat="cp"]')).toHaveText('1')

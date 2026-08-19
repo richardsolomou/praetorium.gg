@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { attachRoster, createBattle, createRoster, setupStep, signUp, uniqueName, waitForRosterSave } from './account'
+import { advance, attachRoster, createBattle, createRoster, setupStep, signUp, takeTheTurn, uniqueName, waitForRosterSave } from './account'
 
 test('solo battle controls survive completion, reopen and deletion', async ({ page }) => {
   const player = uniqueName('Solo')
@@ -14,6 +14,7 @@ test('solo battle controls survive completion, reopen and deletion', async ({ pa
   await expect(page.getByRole('button', { name: 'Selected layout A: Tipping Point' })).toBeVisible()
   await setupStep(page, 'First turn')
   await page.getByRole('button', { name: 'Start battle' }).click()
+  await takeTheTurn(page)
   await expect(page.getByRole('heading', { name: 'command phase' })).toBeVisible()
   await endBattle(page, 'Finish early')
   await expect(page.getByRole('heading', { name: /Final score/ })).toBeVisible()
@@ -21,9 +22,7 @@ test('solo battle controls survive completion, reopen and deletion', async ({ pa
   await page.getByRole('menuitem', { name: 'Reopen battle' }).click()
   await expect(page.getByRole('button', { name: /End the .+ phase/ })).toBeVisible()
 
-  for (let step = 0; step < 30; step++) {
-    await page.getByRole('button', { name: /End the .+ phase|Pass the turn/ }).click()
-  }
+  for (let step = 0; step < 30; step++) await advance(page)
   await expect(page.getByText('Result', { exact: true })).toBeVisible()
   await expect(page.getByRole('heading', { name: /Final score/ })).toBeVisible()
 

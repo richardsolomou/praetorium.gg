@@ -13,6 +13,8 @@ type PricedRoster = NonNullable<Awaited<ReturnType<typeof savedRosterPrice>>>
 export function battleRoster(saved: SavedRoster, priced: PricedRoster): Roster {
   return {
     name: saved.name,
+    // Carried so the battle can link back to the list rather than only naming it.
+    id: saved.id,
     text: [
       `${priced.points} / ${saved.limit} pts`,
       ...priced.detachments.map(

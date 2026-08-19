@@ -6,6 +6,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { type BattleView, type Command, STRATAGEM_CP_MAX } from '../../../core/battle'
 import type { Side } from '../../sides'
 import { hiddenThisPhase, stratagemVisibleNow } from '../../stratagemVisibility'
+import { RuleText } from '../RuleText'
+import type { StratagemText } from './MissionCards'
 import { CARD, CARD_NAME, HEADING } from './tints'
 
 type ViewStratagem = BattleView['players'][number]['stratagems'][number]
@@ -17,10 +19,11 @@ type Props = {
   actionable: boolean
   pending: boolean
   send: (command: Command) => void
+  writtenFor: (key: string) => StratagemText | undefined
 }
 
 /** Only what can be played right now, unless the player asks for the rest. */
-export function Stratagems({ side, phase, coreKeys, actionable, pending, send }: Props) {
+export function Stratagems({ side, phase, coreKeys, actionable, pending, send, writtenFor }: Props) {
   const [allPhases, setAllPhases] = useState(false)
   if (!side.stratagems.length) return null
   const otherPhases = hiddenThisPhase(side.stratagems, phase, side.isActive)
@@ -37,6 +40,7 @@ export function Stratagems({ side, phase, coreKeys, actionable, pending, send }:
               <StratagemCard
                 key={stratagem.key}
                 stratagem={stratagem}
+                written={writtenFor(stratagem.key)}
                 actionable={actionable}
                 pending={pending}
                 available={side.cp}
@@ -63,22 +67,27 @@ export function Stratagems({ side, phase, coreKeys, actionable, pending, send }:
 /** The name opens what the stratagem is for; the button spends the CP. */
 function StratagemCard({
   stratagem,
+  written,
   actionable,
   pending,
   available,
   onUse,
 }: {
   stratagem: ViewStratagem
+  written: StratagemText | undefined
   actionable: boolean
   pending: boolean
   available: number
   onUse: (cp?: number) => void
 }) {
   const timing = [
-    stratagem.phases?.length ? `${stratagem.phases.join(', ')} phase` : 'any phase',
-    stratagem.turn === 'your-turn' ? 'your turn' : stratagem.turn === 'opponent-turn' ? "opponent's turn" : 'either turn',
-    stratagem.limit === 'unlimited' ? 'no use limit' : `once per ${stratagem.limit}`,
-  ].join(' · ')
+    written?.type,
+    stratagem.phases?.length ? `${stratagem.phases.map(title).join(', ')} phase` : 'Any phase',
+    stratagem.turn === 'your-turn' ? 'Your turn' : stratagem.turn === 'opponent-turn' ? 'Opponent’s turn' : 'Either turn',
+    stratagem.limit === 'unlimited' ? 'No use limit' : `Once per ${stratagem.limit}`,
+  ]
+    .filter(Boolean)
+    .join(' · ')
   return (
     <div className={`${CARD} flex items-center gap-1.5`}>
       <Dialog>
@@ -93,15 +102,21 @@ function StratagemCard({
         >
           {stratagem.name}
         </DialogTrigger>
-        <DialogContent className="border border-edge bg-panel text-bone">
+        <DialogContent className="max-h-[85dvh] overflow-y-auto border border-edge bg-panel text-bone sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle className="uppercase">{stratagem.name}</DialogTitle>
-            <DialogDescription className="text-dim">{timing}</DialogDescription>
+            <DialogDescription className="eyebrow">{timing}</DialogDescription>
           </DialogHeader>
-          <p className="readout text-sm text-dim">
-            {stratagem.cp} CP · used {stratagem.uses}x
+          <p className="flex items-baseline justify-between gap-3">
+            <span className="chip">{stratagem.cp} CP</span>
+            <span className="readout text-xs text-dim">used {stratagem.uses}x this battle</span>
           </p>
-          {stratagem.refusal ? <p className="text-sm text-discarded">{stratagem.refusal}</p> : null}
+          {written?.description ? (
+            <RuleText text={written.description} rules={written.keywordRules} />
+          ) : (
+            <p className="mt-2 text-sm text-dim">The synced rules source has no description for this stratagem.</p>
+          )}
+          {stratagem.refusal ? <p className="mt-2 text-sm text-discarded">{stratagem.refusal}</p> : null}
         </DialogContent>
       </Dialog>
       {actionable ? (
@@ -147,6 +162,9 @@ function StratagemCard({
     </div>
   )
 }
+
+/** The source stores phases in lower case; every other name on screen is titled. */
+const title = (value: string) => value.charAt(0).toLocaleUpperCase() + value.slice(1)
 
 /** The printed price, and the neighbouring ones a board state can move it to. */
 function costChoices(printed: number) {

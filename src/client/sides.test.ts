@@ -32,7 +32,7 @@ function player(overrides: Partial<ViewPlayer> & Pick<ViewPlayer, 'id' | 'side'>
   }
 }
 
-const view = (players: ViewPlayer[]) => ({ players }) as BattleView
+const view = (players: ViewPlayer[], status: BattleView['status'] = 'playing') => ({ players, status }) as BattleView
 
 describe('battle sides', () => {
   it('folds a 2v1 allied pair into one side', () => {
@@ -54,11 +54,22 @@ describe('battle sides', () => {
     expect(sides(battle)[0]?.paintedPoints).toBe(20)
   })
 
-  it('totals a side once from its shared score and both bonuses', () => {
+  it('keeps the battle-ready bonus out of a running score', () => {
     const battle = view([
       player({ id: 'ally', side: 0, primary: 20, secondary: 12, painted: true, paintedPoints: 10 }),
       player({ id: 'other', side: 0, primary: 20, secondary: 12, painted: true, paintedPoints: 10 }),
     ])
+    expect(sides(battle)[0]?.total).toBe(32)
+  })
+
+  it('totals a side once from its shared score and both bonuses when the battle is over', () => {
+    const battle = view(
+      [
+        player({ id: 'ally', side: 0, primary: 20, secondary: 12, painted: true, paintedPoints: 10 }),
+        player({ id: 'other', side: 0, primary: 20, secondary: 12, painted: true, paintedPoints: 10 }),
+      ],
+      'finished',
+    )
     expect(sides(battle)[0]?.total).toBe(52)
   })
 

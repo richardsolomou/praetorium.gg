@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { createRoster, setupBattle, signUp, uniqueName } from './account'
+import { createRoster, setupBattle, signUp, takeTheTurn, uniqueName } from './account'
 
 test('a player tapping twice in a row does not lose the race to themselves', async ({ browser }) => {
   const alice = await (await browser.newContext()).newPage()
@@ -13,6 +13,7 @@ test('a player tapping twice in a row does not lose the race to themselves', asy
   const aliceRoster = await createRoster(alice, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Necrons' })
   const link = await setupBattle(alice, bob, { opponent: bobName, hostRoster: aliceRoster, guestRoster: bobRoster })
 
+  await takeTheTurn(alice)
   await slowRefetch(alice, token(link))
   const score = alice.getByRole('button', { name: '+1 CP' })
   await score.click()

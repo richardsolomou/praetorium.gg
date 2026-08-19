@@ -154,6 +154,59 @@ export async function chooseBattlefield(page: Page) {
   await expect(selected).toBeVisible()
 }
 
+/**
+ * Clears the prompts an advance can raise.
+ *
+ * A tactical hand is dealt as a turn opens, and a card that pays at the end of the
+ * phase or turn asks for its points as that moment passes. Both stand between a
+ * press of the advance button and the next phase.
+ */
+export const advanceButton = (page: Page) => page.getByRole('button', { name: /^(End the .+ phase|Pass the turn)$/ })
+
+const drawPrompt = (page: Page) => page.getByRole('dialog', { name: 'Your secondary missions' })
+
+/** Clears the hand a tactical turn opens with, if it is on screen. */
+export async function takeTheTurn(page: Page) {
+  const drawn = drawPrompt(page)
+  if (
+    !(await drawn
+      .waitFor({ state: 'visible', timeout: 4000 })
+      .then(() => true)
+      .catch(() => false))
+  )
+    return
+  await drawn.getByRole('button', { name: 'Take the turn' }).click()
+  await expect(drawn).toBeHidden()
+}
+
+/**
+ * Ends the current phase, clearing whatever stands in front of it.
+ *
+ * A tactical hand is dealt as a turn opens, and a card that pays at the end of the
+ * phase or turn asks for its points as that moment passes. Both are modal, which
+ * takes the board out of the accessibility tree until they are answered.
+ */
+export async function advance(page: Page) {
+  for (let guard = 0; guard < 3; guard += 1) {
+    const drawn = drawPrompt(page)
+    if (await drawn.isVisible().catch(() => false)) {
+      await drawn.getByRole('button', { name: 'Take the turn' }).click()
+      await expect(drawn).toBeHidden()
+    }
+    const clicked = await advanceButton(page)
+      .click({ timeout: 5_000 })
+      .then(() => true)
+      .catch(() => false)
+    if (clicked) break
+    if (guard === 2) throw new Error('Never reached the button that ends the phase')
+  }
+  const scoring = page.getByRole('dialog', { name: /^Score / })
+  if (await scoring.isVisible().catch(() => false)) {
+    await scoring.getByRole('button', { name: /^(Pass the turn|End the phase)$/ }).click()
+    await expect(scoring).toBeHidden()
+  }
+}
+
 export async function startBattle(page: Page, firstSide?: string) {
   await chooseBattlefield(page)
   await setupStep(page, 'Pre-battle')
@@ -163,6 +216,15 @@ export async function startBattle(page: Page, firstSide?: string) {
     await page.getByRole('group', { name: 'First turn' }).getByRole('button', { name: firstSide }).click()
   }
   await page.getByRole('button', { name: 'Start battle' }).click()
+  // The hand is dealt over the board, and a modal hides the board from the accessibility
+  // tree, so the prompt has to be cleared before the phase can be read.
+  await expect(
+    page
+      .getByRole('dialog', { name: 'Your secondary missions' })
+      .or(page.getByRole('heading', { name: 'command phase' }))
+      .first(),
+  ).toBeVisible()
+  await takeTheTurn(page)
   await expect(page.getByRole('heading', { name: 'command phase' })).toBeVisible()
 }
 
