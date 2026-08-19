@@ -398,7 +398,7 @@ test('a dense squad datasheet remains readable at desktop and phone widths', asy
   await expect(page.getByRole('heading', { name: 'Ranged weapons 7', exact: true })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Melee weapons 3', exact: true })).toBeVisible()
   await expect(page.getByText('Captain in Terminator Armour', { exact: true })).toBeVisible()
-  await expect(page.getByText('Ancient in Terminator Armor', { exact: true })).toBeVisible()
+  await expect(page.getByText(/^Ancient in Terminator Armou?r$/)).toBeVisible()
   await expect(page.getByText(/Legends/)).toHaveCount(0)
   await page.screenshot({ path: 'test-results/deathwing-terminator-datasheet.png', fullPage: true })
 

@@ -15,10 +15,7 @@ export default defineConfig({
   testDir: './e2e',
   outputDir: process.env.PLAYWRIGHT_OUTPUT_DIR ?? 'test-results',
   fullyParallel: false,
-  // Every test shares one container and one SQLite file, so the runner buys
-  // contention rather than speed: at two workers the whole suite took as long as it
-  // does here and lost two tests a run to timeouts, once a 2v1 test began driving
-  // three devices at a time.
+  // One worker owns each container and database; CI starts isolated processes for parallelism.
   workers: 1,
   retries: 0,
   timeout: 45_000,
