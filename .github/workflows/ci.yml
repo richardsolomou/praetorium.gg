@@ -17,28 +17,12 @@ env:
 jobs:
   check:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      checks: write
-      issues: write
-      pull-requests: write
     steps:
       - uses: actions/checkout@v7
       - uses: richardsolomou/ras-stack/actions/setup-js@v0.41.1
       - uses: richardsolomou/ras-stack/actions/setup-just@v0.41.1
         with:
           version: '1.58.0'
-      - name: Mark preview as deploying
-        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          COMMIT_SHA: ${{ github.event.pull_request.head.sha }}
-          PREVIEW_MARKER: <!-- praetorium-preview -->
-          PREVIEW_NOTE: Test battles with `preview@praetorium.gg` / `preview-preview-preview` and `opponent@praetorium.gg` / `opponent-opponent-opponent`. Preview data is disposable and resets on every deployment.
-          PREVIEW_URL: https://pr-${{ github.event.pull_request.number }}.praetorium.gg
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        run: pnpm exec ras preview building
       - name: Run checks
         run: just check
 
@@ -46,13 +30,13 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: write
+      packages: read
     outputs:
       artifact-name: ${{ steps.image.outputs.artifact-name }}
       local-image: ${{ steps.image.outputs.local-image }}
+      registry-image: ${{ steps.image.outputs.registry-image }}
+      source: ${{ steps.image.outputs.source }}
     steps:
-      - uses: actions/checkout@v7
-      - uses: docker/setup-buildx-action@v4
       - name: Name the image
         id: image
         env:
@@ -60,37 +44,57 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
-          if [[ "$GITHUB_EVENT_NAME" == pull_request ]]; then
-            echo "local-image=praetorium.gg:preview-pr-$PR_NUMBER-sha-$PR_SHA" >> "$GITHUB_OUTPUT"
-            if [[ "$HEAD_REPOSITORY" != "$GITHUB_REPOSITORY" ]]; then
-              echo "artifact-name=preview-image-$PR_NUMBER" >> "$GITHUB_OUTPUT"
+          {
+            if [[ "$GITHUB_EVENT_NAME" == pull_request ]]; then
+              echo "local-image=praetorium.gg:preview-pr-$PR_NUMBER-sha-$PR_SHA"
+              if [[ "$HEAD_REPOSITORY" != "$GITHUB_REPOSITORY" ]]; then
+                echo "artifact-name=preview-image-$PR_NUMBER"
+                echo "source=artifact"
+              else
+                echo "registry-image=ghcr.io/$GITHUB_REPOSITORY_OWNER/praetorium.gg:preview-pr-$PR_NUMBER-sha-$PR_SHA"
+                echo "source=registry"
+              fi
             else
-              echo "artifact-name=e2e-image-$GITHUB_RUN_ID" >> "$GITHUB_OUTPUT"
+              echo "local-image=praetorium-e2e:sha-$GITHUB_SHA"
+              echo "artifact-name=e2e-image-$GITHUB_RUN_ID"
+              echo "source=artifact"
             fi
-          else
-            echo "local-image=praetorium-e2e:sha-$GITHUB_SHA" >> "$GITHUB_OUTPUT"
-            echo "artifact-name=e2e-image-$GITHUB_RUN_ID" >> "$GITHUB_OUTPUT"
-          fi
+          } >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v7
+        if: steps.image.outputs.source == 'artifact'
+      - uses: docker/setup-buildx-action@v4
+        if: steps.image.outputs.source == 'artifact'
+      - name: Log in to the container registry
+        if: steps.image.outputs.source == 'registry'
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - name: Wait for the preview image
+        if: steps.image.outputs.source == 'registry'
+        env:
+          REGISTRY_IMAGE: ${{ steps.image.outputs.registry-image }}
+        run: |
+          set -euo pipefail
+          for _ in {1..150}; do
+            if docker manifest inspect "$REGISTRY_IMAGE" >/dev/null 2>&1; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Timed out waiting for $REGISTRY_IMAGE"
+          exit 1
       - name: Build the application image
+        if: steps.image.outputs.source == 'artifact'
         uses: docker/build-push-action@v7
         with:
           context: .
           tags: ${{ steps.image.outputs.local-image }}
           outputs: type=docker,dest=${{ runner.temp }}/preview-image.tar
           cache-from: type=gha,scope=e2e-image
-          cache-to: type=gha,mode=max,scope=e2e-image
-      - name: Publish the preview image
-        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
-        env:
-          GH_TOKEN: ${{ github.token }}
-          LOCAL_IMAGE: ${{ steps.image.outputs.local-image }}
-          PREVIEW_IMAGE: ghcr.io/${{ github.repository_owner }}/praetorium.gg:preview-pr-${{ github.event.pull_request.number }}-sha-${{ github.event.pull_request.head.sha }}
-        run: |
-          docker load --input "$RUNNER_TEMP/preview-image.tar"
-          docker tag "$LOCAL_IMAGE" "$PREVIEW_IMAGE"
-          echo "$GH_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
-          docker push "$PREVIEW_IMAGE"
       - name: Store the application image
+        if: steps.image.outputs.source == 'artifact'
         uses: actions/upload-artifact@v7
         with:
           name: ${{ steps.image.outputs.artifact-name }}
@@ -99,59 +103,75 @@ jobs:
           compression-level: 1
 
   e2e-shard:
-    name: E2E runner ${{ matrix.runner }} of 4
+    name: E2E runner ${{ matrix.runner }} of 8
     needs: [e2e-image]
     strategy:
       fail-fast: false
       matrix:
-        runner: [1, 2, 3, 4]
+        runner: [1, 2, 3, 4, 5, 6, 7, 8]
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      packages: read
     steps:
       - uses: actions/checkout@v7
       - uses: richardsolomou/ras-stack/actions/setup-js@v0.41.1
+        with:
+          install: 'false'
+      - name: Restore E2E dependencies
+        id: e2e-dependencies
+        uses: actions/cache/restore@v5
+        with:
+          path: |
+            node_modules
+            ~/.cache/ms-playwright
+          key: ${{ runner.os }}-${{ runner.arch }}-e2e-${{ hashFiles('pnpm-lock.yaml', 'package.json') }}
+      - name: Install E2E dependencies
+        if: steps.e2e-dependencies.outputs.cache-hit != 'true'
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm exec playwright install chromium --only-shell
       - run: pnpm catalogue:sync
       - name: Require the terrain geometry
         run: |
           set -euo pipefail
           test -n "$(ls -A catalogue-data/battlemaster/layouts 2>/dev/null || true)" \
             || { echo 'catalogue-data/battlemaster/layouts is empty; re-run the catalogue sync'; exit 1; }
-      - run: pnpm exec playwright install chromium --only-shell
+      - name: Log in to the container registry
+        if: needs.e2e-image.outputs.source == 'registry'
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
       - uses: actions/download-artifact@v8
+        if: needs.e2e-image.outputs.source == 'artifact'
         with:
           name: ${{ needs.e2e-image.outputs.artifact-name }}
           path: ${{ runner.temp }}/praetorium-e2e-image
       - name: Load the application image
+        if: needs.e2e-image.outputs.source == 'artifact'
         env:
           LOCAL_IMAGE: ${{ needs.e2e-image.outputs.local-image }}
         run: |
           docker load --input "$RUNNER_TEMP/praetorium-e2e-image/preview-image.tar"
           docker tag "$LOCAL_IMAGE" praetorium-e2e
-      - name: Run two isolated E2E shards
+      - name: Pull the application image
+        if: needs.e2e-image.outputs.source == 'registry'
         env:
-          E2E_RUNNER: ${{ matrix.runner }}
+          REGISTRY_IMAGE: ${{ needs.e2e-image.outputs.registry-image }}
+        run: |
+          docker pull "$REGISTRY_IMAGE"
+          docker tag "$REGISTRY_IMAGE" praetorium-e2e
+      - name: Run the E2E shard
+        env:
+          E2E_SHARD: ${{ matrix.runner }}
         run: |
           set -euo pipefail
-          first=$((E2E_RUNNER * 2 - 1))
-          second=$((first + 1))
-          mkdir -p test-results
-          run_shard() {
-            shard="$1"
-            port=$((4170 + shard))
-            PLAYWRIGHT_PORT="$port" \
-              PLAYWRIGHT_DATA_ROOT="/tmp/praetorium-e2e-$shard" \
-              PLAYWRIGHT_OUTPUT_DIR="test-results-$shard" \
-              pnpm exec playwright test --fully-parallel --workers=1 --shard="$shard/8"
-          }
-          run_shard "$first" &
-          first_pid=$!
-          run_shard "$second" &
-          second_pid=$!
-          exit_code=0
-          wait "$first_pid" || exit_code=$?
-          wait "$second_pid" || exit_code=$?
-          exit "$exit_code"
+          PLAYWRIGHT_PORT="$((4170 + E2E_SHARD))" \
+            PLAYWRIGHT_DATA_ROOT="/tmp/praetorium-e2e-$E2E_SHARD" \
+            PLAYWRIGHT_OUTPUT_DIR="test-results-$E2E_SHARD" \
+            pnpm exec playwright test --fully-parallel --workers=1 --shard="$E2E_SHARD/8"
       - if: failure()
         uses: actions/upload-artifact@v7
         with:
