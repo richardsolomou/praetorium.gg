@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.13.0
+
+### Minor Changes
+
+- 5db06cb: Let every seated player record battle actions for either side.
+
 ## 0.12.1
 
 ### Patch Changes
