@@ -33,7 +33,7 @@ export function CreateRoster({ factions }: { factions: RosterSetupFaction[] }) {
       }),
     onSuccess: async ({ id }) => {
       await queryClient.invalidateQueries({ queryKey: savedRostersQuery().queryKey })
-      await navigate({ to: '/rosters/$id/edit', params: { id } })
+      await navigate({ to: '/rosters/$id', params: { id } })
     },
   })
 

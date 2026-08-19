@@ -222,7 +222,7 @@ function PrimaryNavigation({ path }: { path: string }) {
 
 function RootComponent() {
   const path = useLocation({ select: (location) => location.pathname })
-  const immersive = /^\/rosters\/(?:new|import|[^/]+\/edit)$/.test(path)
+  const immersive = /^\/rosters\/(?:new|import|[^/]+(?:\/edit)?)$/.test(path)
   return (
     <html lang="en">
       <head>

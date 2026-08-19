@@ -125,7 +125,6 @@ function RosterLibrary() {
     mutationFn: (roster: (typeof saved)[number]) =>
       saveRoster({
         data: {
-          id: crypto.randomUUID(),
           name: `Copy of ${roster.name}`.slice(0, ROSTER_NAME_MAX_LENGTH),
           catalogueId: roster.catalogueId,
           detachmentIds: roster.detachmentIds,
@@ -258,7 +257,7 @@ function RosterLibrary() {
                   <ContextMenuTrigger
                     render={<article className="flex items-center gap-2 border border-edge bg-panel p-2 hover:border-azure" />}
                   >
-                    <Link to="/rosters/$id/edit" params={{ id: roster.id }} className="min-w-0 flex-1 p-1 text-left">
+                    <Link to="/rosters/$id" params={{ id: roster.id }} className="min-w-0 flex-1 p-1 text-left">
                       <span className="block truncate font-bold uppercase">{roster.name}</span>
                       <span className="mt-1 flex flex-wrap gap-1">
                         {faction ? <FactionLabel faction={faction} chip /> : null}

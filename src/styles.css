@@ -78,6 +78,28 @@
     background: white !important;
     border-color: #999 !important;
   }
+
+  [data-roster-builder],
+  [data-roster-builder] > header,
+  [data-roster-builder] > div,
+  [data-roster-builder] [data-unit],
+  [data-roster-builder] [data-unit] > div {
+    background: white !important;
+    color: black !important;
+    border-color: #999 !important;
+  }
+
+  [data-roster-builder] * {
+    color: black !important;
+  }
+
+  [data-roster-builder] input {
+    -webkit-text-fill-color: black !important;
+  }
+
+  [data-roster-builder] [data-unit] {
+    break-inside: avoid;
+  }
 }
 
 :root {

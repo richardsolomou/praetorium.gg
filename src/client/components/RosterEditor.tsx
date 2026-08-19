@@ -1,34 +1,30 @@
-import { useQuery } from '@tanstack/react-query'
-import { Link } from '@tanstack/react-router'
 import { useState } from 'react'
-import { Button } from '@/components/ui/button'
 import type { Secondary, Stratagem } from '../../core/battle'
-import { savedRostersQuery } from '../queries'
 import { ListBuilder } from './ListBuilder'
 
-type Props = { rosterId?: string }
+type Roster = {
+  id: string
+  name: string
+  catalogueId: string
+  detachmentIds: string[]
+  disposition: string | null
+  limit: number
+  picks: Parameters<typeof ListBuilder>[0]['initial']['picks']
+  prep?: { stratagems: Stratagem[]; secondaries: Secondary[] } | null
+  visibility: Parameters<typeof ListBuilder>[0]['initial']['visibility']
+  source: Parameters<typeof ListBuilder>[0]['initial']['source']
+}
 
-export function RosterEditor({ rosterId }: Props) {
-  const { data: saved = [] } = useQuery(savedRostersQuery())
-  const initial = rosterId ? saved.find((roster) => roster.id === rosterId) : undefined
+type Props = { roster: Roster; editable: boolean }
+
+export function RosterEditor({ roster, editable }: Props) {
   const [prep, setPrep] = useState<{ stratagems: Stratagem[]; secondaries: Secondary[] }>(
-    initial?.prep ?? { stratagems: [], secondaries: [] },
+    roster.prep ?? { stratagems: [], secondaries: [] },
   )
 
   return (
     <main className="flex h-full w-full flex-col">
-      {initial ? null : (
-        <div className="m-4 mb-3 flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="eyebrow">Your rosters</p>
-            <h1 className="text-xl leading-tight sm:text-2xl">Create editable roster</h1>
-          </div>
-          <Button render={<Link to="/rosters" />} variant="outline">
-            Back to rosters
-          </Button>
-        </div>
-      )}
-      <ListBuilder prep={prep} onRestorePrep={setPrep} initial={initial} />
+      <ListBuilder prep={prep} onRestorePrep={setPrep} initial={roster} editable={editable} />
     </main>
   )
 }
