@@ -210,7 +210,7 @@ export async function advance(page: Page) {
       await prompt.getByRole('button', { name: 'Take the turn' }).click({ timeout: 15_000 })
       await expect(prompt).toBeHidden()
     }
-    const phase = page.getByRole('region', { name: 'Battle scoreboard' }).getByRole('heading')
+    const phase = page.locator('[data-scoreboard] h1')
     const before = await phase.textContent()
     const clicked = await advanceButton(page)
       .click({ timeout: 5_000 })

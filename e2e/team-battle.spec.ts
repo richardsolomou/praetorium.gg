@@ -15,8 +15,7 @@ import {
  * The whole point of the 2v1 layout: the allied pair is one side.
  *
  * They share the turn, the command points, the mission cards and the score, so the
- * tracker draws one of each. Only the armies are separate, and only their own player
- * may change one.
+ * tracker draws one of each. Only the armies are separate.
  */
 // Three accounts and three devices, so it needs more room than a duel. Every army comes
 // from one catalogue on purpose: the shared container prices each faction it is shown.
@@ -54,7 +53,9 @@ test('a 2v1 draws the allied pair as one side with one pool of everything', asyn
   await partner.goto(url)
 
   await attachRoster(host, hostRoster)
+  await expect(ally.getByText(hostRoster, { exact: true }).first()).toBeVisible()
   await attachRoster(ally, allyRoster)
+  await expect(partner.getByText(allyRoster, { exact: true }).first()).toBeVisible()
   await attachRoster(partner, partnerRoster)
   // Setup groups the allies under one heading rather than listing three players flat.
   await expect(host.getByRole('main')).toContainText(`${allyName} & ${partnerName}`)
@@ -86,7 +87,7 @@ test('a 2v1 draws the allied pair as one side with one pool of everything', asyn
   await expect(side(ally, 1).locator('[data-stat="cp"]')).toHaveCount(1)
 
   // A command point one ally gains is the same one their partner is holding.
-  await ally.getByRole('button', { name: '+1 CP' }).click()
+  await side(ally, 1).getByRole('button', { name: '+1 CP' }).click()
   await expect(side(ally, 1).locator('[data-stat="cp"]')).toHaveText('1')
   await expect(side(partner, 1).locator('[data-stat="cp"]')).toHaveText('1')
   await expect(side(host, 1).locator('[data-stat="cp"]')).toHaveText('1')

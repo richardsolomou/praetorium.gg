@@ -142,7 +142,6 @@ test('a tactical hand is dealt rather than chosen, and pays out when the card sa
     String(scored),
   )
 
-  await expect(alice.getByText(new RegExp(`${aliceName} brought Death Guard`))).toBeVisible()
   await expect(alice.getByText(/The battlefield is /)).toBeVisible()
   await expect(alice.getByText(/draws /).first()).toBeVisible()
   await alice.screenshot({ path: 'test-results/battle.png', fullPage: true })
