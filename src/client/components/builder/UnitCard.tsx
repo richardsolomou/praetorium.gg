@@ -37,6 +37,7 @@ type Props = {
   /** Units in the roster this one may join, when it may join any. */
   canJoin: { key: number; name: string }[]
   onJoin: (key: number) => void
+  editable?: boolean
 }
 
 /**
@@ -55,6 +56,7 @@ export function UnitCard({
   joined,
   canJoin,
   onJoin,
+  editable = true,
 }: Props) {
   return (
     <div
@@ -91,30 +93,34 @@ export function UnitCard({
         </div>
         <span className="pointer-events-none relative z-10 flex shrink-0 items-center gap-1.5 [&_button]:pointer-events-auto">
           <span className="chip">{unit.points} pts</span>
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              className="flex size-7 cursor-pointer items-center justify-center rounded-sm hover:bg-raised"
-              aria-label={`Unit actions for ${unit.name}`}
-            >
-              <EllipsisVertical className="size-4" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-44 rounded-none border border-edge-strong bg-raised shadow-xl ring-0">
-              <DropdownMenuItem className="rounded-none text-xs font-semibold uppercase focus:bg-edge" onClick={onDuplicate}>
-                <Copy className="size-3.5" /> Duplicate unit
-              </DropdownMenuItem>
-              <DropdownMenuCheckboxItem
-                className="rounded-none text-xs font-semibold uppercase focus:bg-edge"
-                checked={owned}
-                onCheckedChange={onOwned}
-              >
-                <Heart className={`size-3.5 ${owned ? 'fill-azure text-azure' : ''}`} />
-                {owned ? 'Remove from collection' : 'Add to collection'}
-              </DropdownMenuCheckboxItem>
-              <DropdownMenuItem variant="destructive" className="rounded-none text-xs font-semibold uppercase" onClick={onRemove}>
-                <X className="size-3.5" /> Delete unit
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {editable ? (
+            <span data-print-hide>
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  className="flex size-7 cursor-pointer items-center justify-center rounded-sm hover:bg-raised"
+                  aria-label={`Unit actions for ${unit.name}`}
+                >
+                  <EllipsisVertical className="size-4" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-44 rounded-none border border-edge-strong bg-raised shadow-xl ring-0">
+                  <DropdownMenuItem className="rounded-none text-xs font-semibold uppercase focus:bg-edge" onClick={onDuplicate}>
+                    <Copy className="size-3.5" /> Duplicate unit
+                  </DropdownMenuItem>
+                  <DropdownMenuCheckboxItem
+                    className="rounded-none text-xs font-semibold uppercase focus:bg-edge"
+                    checked={owned}
+                    onCheckedChange={onOwned}
+                  >
+                    <Heart className={`size-3.5 ${owned ? 'fill-azure text-azure' : ''}`} />
+                    {owned ? 'Remove from collection' : 'Add to collection'}
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuItem variant="destructive" className="rounded-none text-xs font-semibold uppercase" onClick={onRemove}>
+                    <X className="size-3.5" /> Delete unit
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </span>
+          ) : null}
         </span>
       </div>
 
@@ -136,18 +142,21 @@ export function UnitCard({
         <div key={`${row.label}-${row.name}`} className="flex items-center gap-2 border-t border-edge bg-raised px-2.5 py-1">
           <span className="chip shrink-0">{row.label}</span>
           <span className="min-w-0 flex-1 text-xs">{row.name}</span>
-          <Button
-            variant="ghost"
-            size="xs"
-            className="shrink-0 text-[0.6875rem] tracking-[0.06em] text-azure uppercase"
-            onClick={row.onAct}
-          >
-            {row.action}
-          </Button>
+          {editable ? (
+            <Button
+              data-print-hide
+              variant="ghost"
+              size="xs"
+              className="shrink-0 text-[0.6875rem] tracking-[0.06em] text-azure uppercase"
+              onClick={row.onAct}
+            >
+              {row.action}
+            </Button>
+          ) : null}
         </div>
       ))}
 
-      {canJoin.length ? (
+      {editable && canJoin.length ? (
         <div className="flex flex-wrap items-center gap-1.5 border-t border-edge bg-raised px-2.5 py-1">
           <span className="chip shrink-0">{unit.attachment?.kind === 'leader' ? 'Lead' : 'Support'}</span>
           {canJoin.map((target) => (

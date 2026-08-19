@@ -37,7 +37,7 @@ test('a list is saved and loaded into another battle', async ({ browser }) => {
 
   await page.getByRole('link', { name: 'Rosters' }).click()
   await page.getByRole('link', { name: /Nurgle 2k/ }).click()
-  await expect(page).toHaveURL(/\/rosters\/[^/]+\/edit$/)
+  await expect(page).toHaveURL(/\/rosters\/[^/]+$/)
   const editor = page.getByLabel('Add units').locator('xpath=ancestor::div[contains(@class,"bg-sunken")][1]')
   const editorBounds = await editor.boundingBox()
   expect(editorBounds?.x).toBe(0)
@@ -83,8 +83,8 @@ test('a list is saved and loaded into another battle', async ({ browser }) => {
   const view = page.waitForEvent('popup')
   await page.getByRole('menuitem', { name: 'View' }).click()
   const roster = await view
-  await expect(roster.getByRole('heading', { name: 'Copy of Nurgle 2k' })).toBeVisible()
-  await expect(roster.getByRole('heading', { name: 'Immortals' })).toBeVisible()
+  await expect(roster.getByLabel('List name')).toHaveValue('Copy of Nurgle 2k')
+  await expect(roster.getByRole('button', { name: 'Immortals', exact: true })).toBeVisible()
   await roster.evaluate(() => {
     window.print = () => document.documentElement.setAttribute('data-print-called', 'true')
   })
@@ -92,4 +92,28 @@ test('a list is saved and loaded into another battle', async ({ browser }) => {
   await expect(roster.locator('html')).toHaveAttribute('data-print-called', 'true')
   await roster.emulateMedia({ media: 'print' })
   await roster.screenshot({ path: 'test-results/shared-roster-print.png', fullPage: true })
+  const sharedUrl = roster.url()
+  await roster.close()
+
+  await page.getByRole('button', { name: 'Actions for Copy of Nurgle 2k' }).click()
+  await page.getByRole('menuitem', { name: 'Edit setup' }).click()
+  const setup = page.getByRole('dialog', { name: 'Edit roster setup' })
+  await setup.getByRole('combobox', { name: 'Access' }).click()
+  await page.getByRole('option', { name: 'Unlisted — anyone with the link' }).click()
+  const promoted = page.waitForResponse((response) => response.ok() && Boolean(response.request().postData()?.includes('"unlisted"')))
+  await setup.getByRole('button', { name: 'Save changes' }).click()
+  await promoted
+
+  const guestContext = await browser.newContext()
+  const guest = await guestContext.newPage()
+  await guest.goto(sharedUrl)
+  await expect(guest.getByLabel('List name')).toHaveValue('Copy of Nurgle 2k')
+  await expect(guest.getByLabel('List name')).toHaveAttribute('readonly', '')
+  await expect(guest.getByRole('button', { name: 'Roster actions' })).toHaveCount(0)
+  await expect(guest.getByLabel('Add units')).toHaveCount(0)
+  await expect(guest.getByLabel('Unit actions for Immortals')).toHaveCount(0)
+  await guest.getByRole('button', { name: 'Immortals', exact: true }).click()
+  await expect(guest.locator('aside[aria-label="Datasheet"]').getByText('Implacable Eradication')).toBeVisible()
+  await guest.screenshot({ path: 'test-results/shared-roster-read-only.png', fullPage: true })
+  await guestContext.close()
 })

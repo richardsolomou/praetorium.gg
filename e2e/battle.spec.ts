@@ -24,6 +24,17 @@ test('a tactical hand is dealt rather than chosen, and pays out when the card sa
   await signUp(bob, bobName)
   const bobRoster = await createRoster(bob, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Necrons' })
   await signUp(alice, aliceName)
+  await alice.goto('/profile')
+  await alice.getByLabel('Choose profile picture').setInputFiles({
+    name: 'avatar.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAABAAAAAQAQMAAAAlPW0iAAAAA1BMVEX/W1e1okn/AAAADElEQVQI12NgIA0AAAAwAAHHqoWOAAAAAElFTkSuQmCC',
+      'base64',
+    ),
+  })
+  await alice.getByRole('button', { name: 'Save profile' }).click()
+  await expect(alice.getByText('Profile saved.')).toBeVisible()
   const aliceRoster = await createRoster(alice, { faction: 'Death Guard', detachment: /Shamblerot Vectorium/, name: 'Death Guard' })
   await alice.getByLabel('Add a unit').fill('Lord of Virulence')
   await waitForRosterSave(alice, () => alice.getByRole('button', { name: 'Add Lord of Virulence', exact: true }).first().click())
@@ -42,9 +53,16 @@ test('a tactical hand is dealt rather than chosen, and pays out when the card sa
   // The scoreboard is the way out of a battle: to whoever is playing it, and to the
   // list they brought, which a seated opponent reads through the battle token.
   const scoreboard = alice.getByRole('region', { name: 'Battle scoreboard' })
-  await expect(scoreboard.getByRole('link', { name: aliceName })).toHaveAttribute('href', /^\/players\/[^/?]+$/)
-  await expect(scoreboard.getByRole('link', { name: aliceRoster })).toHaveAttribute('href', /^\/rosters\/[^/?]+\?battle=/)
-
+  await expect(scoreboard.getByRole('link', { name: aliceName })).toHaveAttribute('href', /^\/users\/[^/?]+$/)
+  await expect(scoreboard.getByRole('link', { name: aliceName }).locator('img')).toHaveAttribute('src', /^data:image\/webp;base64,/)
+  await expect(scoreboard.getByRole('link', { name: aliceRoster, exact: true })).toHaveAttribute('href', /^\/rosters\/[^/?]+\?battle=/)
+  const faction = scoreboard.getByRole('link', { name: 'Death Guard faction' })
+  await expect(faction).toHaveAttribute('href', '/factions/death-guard')
+  await expect(faction.locator('[data-faction-mark="death-guard"]')).toBeVisible()
+  await expect(scoreboard.getByRole('link', { name: 'Shamblerot Vectorium' })).toHaveAttribute(
+    'href',
+    '/factions/death-guard/detachments/shamblerot-vectorium',
+  )
   const panel = alice.locator('[data-panel="player"]').filter({ hasText: 'Death Guard' })
   const opponentPanel = bob.locator('[data-panel="player"]').filter({ hasText: 'Death Guard' })
   await expect(panel.locator('[data-stat="cp"]')).toHaveText('1')
@@ -128,6 +146,14 @@ test('a tactical hand is dealt rather than chosen, and pays out when the card sa
   await expect(alice.getByText(/The battlefield is /)).toBeVisible()
   await expect(alice.getByText(/draws /).first()).toBeVisible()
   await alice.screenshot({ path: 'test-results/battle.png', fullPage: true })
+  await alice.setViewportSize({ width: 390, height: 844 })
+  await expect(faction).toBeVisible()
+  await expect(scoreboard.getByRole('link', { name: 'Shamblerot Vectorium' })).toBeVisible()
+  await expect(scoreboard.getByRole('link', { name: aliceName })).toBeVisible()
+  await alice.screenshot({ path: 'test-results/battle-phone.png', fullPage: true })
+  await scoreboard.getByRole('link', { name: aliceName }).click()
+  await expect(alice).toHaveURL(/\/users\/[^/?]+$/)
+  await expect(alice.getByRole('heading', { name: aliceName })).toBeVisible()
 })
 
 test('a card the rules let you put back is offered back as it is drawn', async ({ browser }) => {

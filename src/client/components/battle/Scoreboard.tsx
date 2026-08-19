@@ -1,7 +1,12 @@
+import { useQuery } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
 import { Link } from '@tanstack/react-router'
 import type { BattleView } from '../../../core/battle'
+import { factionFor } from '../../factions'
+import { factionsQuery } from '../../queries'
+import { PlayerAvatar } from '../PlayerAvatar'
 import type { Army, Side } from '../../sides'
+import { FactionMark } from '../FactionMark'
 import { tint } from './tints'
 
 type Props = { view: BattleView; sides: Side[]; outcome: string | null; menu: ReactNode }
@@ -60,6 +65,7 @@ export function Scoreboard({ view, sides, outcome, menu }: Props) {
 function SideScore({ side, round, token, align }: { side: Side; round: number; token: string; align: 'start' | 'end' }) {
   const colours = tint(side.index)
   const end = align === 'end'
+  const { data: factions } = useQuery(factionsQuery())
   return (
     <div data-side-score={side.index} className={`min-w-0 ${end ? 'order-3' : 'order-1'}`}>
       {/* Capped, or the round strip stretches across a wide column and stops reading as five rounds. */}
@@ -68,8 +74,13 @@ function SideScore({ side, round, token, align }: { side: Side; round: number; t
           {side.armies.map((army, at) => (
             <span key={army.playerId}>
               {at ? <span className="text-dim"> & </span> : null}
-              <Link to="/players/$playerId" params={{ playerId: army.playerId }} className="hover:underline">
-                {army.playerName}
+              <Link
+                to="/users/$userId"
+                params={{ userId: army.playerId }}
+                className="inline-flex items-center gap-1 align-middle hover:underline"
+              >
+                <PlayerAvatar name={army.playerName} image={army.playerImage} className="size-5 text-[0.625rem]" />
+                <span>{army.playerName}</span>
               </Link>
             </span>
           ))}
@@ -83,6 +94,55 @@ function SideScore({ side, round, token, align }: { side: Side; round: number; t
             </span>
           ))}
         </p>
+        <div className={`mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[0.6875rem] text-dim ${end ? 'justify-end' : ''}`}>
+          {side.armies.map((army) => {
+            const catalogueId = army.roster?.built?.catalogueId
+            const faction = factionFor(factions, catalogueId ?? '')
+            if (!faction) return null
+            const built = army.roster?.built
+            const detachmentNames =
+              built?.detachments?.map((detachment) => detachment.name) ?? (built?.detachment ? [built.detachment] : [])
+
+            return (
+              <span key={army.playerId} className="inline-flex min-w-0 flex-wrap items-center gap-x-1">
+                <Link
+                  to="/factions/$catalogueId"
+                  params={{ catalogueId: faction.slug }}
+                  aria-label={`${faction.displayName} faction`}
+                  title={faction.displayName}
+                  className="inline-flex min-w-0 items-center gap-1 text-bone hover:text-azure"
+                >
+                  <FactionMark id={faction.slug} icon={faction.icon} size="sm" />
+                  <span aria-hidden className="hidden truncate sm:inline">
+                    {faction.displayName}
+                  </span>
+                </Link>
+                {detachmentNames.map((name, at) => {
+                  const detachment = faction.detachments.find((candidate) => candidate.name === name)
+                  return (
+                    <span key={name} className="inline-flex min-w-0 items-center gap-1">
+                      <span aria-hidden className={at ? '' : 'hidden sm:inline'}>
+                        ·
+                      </span>
+                      {detachment ? (
+                        <Link
+                          to="/factions/$catalogueId/detachments/$detachmentId"
+                          params={{ catalogueId: faction.slug, detachmentId: detachment.slug }}
+                          title={name}
+                          className="truncate hover:text-bone hover:underline"
+                        >
+                          {name}
+                        </Link>
+                      ) : (
+                        <span className="truncate">{name}</span>
+                      )}
+                    </span>
+                  )
+                })}
+              </span>
+            )
+          })}
+        </div>
         <p className={`readout mt-0.5 flex items-baseline gap-1.5 ${end ? 'justify-end' : ''}`}>
           <span className="text-2xl leading-none font-bold sm:text-3xl">{side.total}</span>
           <span className="text-[0.625rem] text-dim uppercase">vp</span>

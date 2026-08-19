@@ -1224,6 +1224,7 @@ export type BattleView = {
     id: PlayerId
     side: number
     name: string
+    image: string | null
     isViewer: boolean
     isActive: boolean
     cp: number
@@ -1284,7 +1285,7 @@ export type BattleView = {
  */
 export function battleView(
   battle: { token: string },
-  players: readonly { id: PlayerId; name: string }[],
+  players: readonly { id: PlayerId; name: string; image?: string | null }[],
   state: BattleState,
   viewerId: PlayerId,
   _now = Date.now(),
@@ -1313,6 +1314,7 @@ export function battleView(
         id: player.id,
         side: player.side,
         name: named.get(player.id) ?? 'Unknown',
+        image: players.find((identity) => identity.id === player.id)?.image ?? null,
         isViewer: player.id === viewerId,
         isActive: sameSide(state, state.activePlayerId, player.id),
         cp: resources.cp,

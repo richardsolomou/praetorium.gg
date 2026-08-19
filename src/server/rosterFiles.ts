@@ -3,7 +3,7 @@ import { fromBattleBaseText } from '../core/battlebase'
 import { nameOf } from '../core/catalogue'
 import type { Selection } from '../core/evaluate'
 import { fromNewRecruitText } from '../core/newRecruit'
-import { buildUnit, modelCountOf, unitChoices, unitToggles } from '../core/roster'
+import { buildUnit, defaultSelection, modelCountOf, unitChoices, unitToggles, wargearOf } from '../core/roster'
 import { fromRosterXml } from '../core/rosz'
 import type { TextRoster, TextRosterUnit } from '../core/textRoster'
 import { toGwText } from '../core/gwText'
@@ -173,6 +173,7 @@ function textRosterPick(unit: TextRosterUnit, entryId: string, catalogueId: stri
   const selection = built?.selection ?? { id: entryId, count: 1 }
   const choices = unitChoices(entryId, selection, loaded.index, context)
   const toggles = Object.fromEntries(unitToggles(entryId, selection, loaded.index).map((toggle) => [toggle.key, unit.warlord ? 1 : 0]))
+  const statedChoiceCounts = new Map(choices.map((choice) => [choice.key, countsForChoice(choice.options, stated, loaded, context)]))
   return {
     entryId,
     catalogueId,
@@ -180,25 +181,61 @@ function textRosterPick(unit: TextRosterUnit, entryId: string, catalogueId: stri
     choices: Object.fromEntries(
       choices
         .filter((choice) => choice.room === 1)
-        .map((choice) => [choice.key, choice.options.find((option) => stated.has(normalized(option.name)))?.id ?? choice.chosen])
+        .map((choice) => [
+          choice.key,
+          choice.options.find((option) => statedChoiceCounts.get(choice.key)?.has(option.id))?.id ?? choice.chosen,
+        ])
         .filter(([, chosen]) => Boolean(chosen)),
     ),
     spreads: Object.fromEntries(
       choices
         .filter((choice) => choice.room > 1)
         .map((choice) => {
-          const explicit = choice.options.some((option) => stated.has(normalized(option.name)))
+          const counts = statedChoiceCounts.get(choice.key) ?? new Map<string, number>()
+          const explicit = counts.size > 0
           return [
             choice.key,
-            Object.fromEntries(
-              choice.options.map((option) => [option.id, stated.get(normalized(option.name)) ?? (explicit ? 0 : option.count)]),
-            ),
+            Object.fromEntries(choice.options.map((option) => [option.id, counts.get(option.id) ?? (explicit ? 0 : option.count)])),
           ]
         }),
     ),
     toggles,
     attachedTo: undefined as number | undefined,
   }
+}
+
+function countsForChoice(
+  options: readonly { id: string; name: string }[],
+  stated: ReadonlyMap<string, number>,
+  loaded: LoadedCatalogue,
+  context: { primaryCatalogueId: string; roster: readonly Selection[] },
+) {
+  const aliases = new Map(
+    options.map((option) => {
+      const selection = defaultSelection(option.id, loaded.index, context)
+      const names = [option.name, ...(selection ? wargearOf(selection, loaded.index).map((piece) => piece.name) : [])]
+      return [option.id, new Set(names.map(normalized))]
+    }),
+  )
+  const owners = new Map<string, number>()
+  for (const names of aliases.values()) for (const name of names) owners.set(name, (owners.get(name) ?? 0) + 1)
+
+  const distinctiveCounts = new Map<string, number>()
+  for (const option of options) {
+    const distinctive = [...(aliases.get(option.id) ?? [])]
+      .filter((name) => owners.get(name) === 1)
+      .map((name) => stated.get(name))
+      .filter((count): count is number => count !== undefined)
+    if (distinctive.length) distinctiveCounts.set(option.id, Math.max(...distinctive))
+  }
+  if (distinctiveCounts.size) return distinctiveCounts
+
+  return new Map(
+    options.flatMap((option) => {
+      const count = stated.get(normalized(option.name))
+      return count === undefined ? [] : [[option.id, count]]
+    }),
+  )
 }
 
 export function exportRosterFile(

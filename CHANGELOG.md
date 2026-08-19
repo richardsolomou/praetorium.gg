@@ -1,5 +1,33 @@
 # praetorium
 
+## 0.11.1
+
+### Patch Changes
+
+- e621751: Stop the global search shortcut from throwing on Android soft keyboards that dispatch key events without a key.
+
+## 0.11.0
+
+### Minor Changes
+
+- 0795eb7: Show user profile pictures and links in the battle tracker.
+
+## 0.10.0
+
+### Minor Changes
+
+- 0c66b6a: Show faction icons and faction and detachment links on battle scoreboards.
+
+## 0.9.0
+
+### Minor Changes
+
+- 3ff636b: Use one roster page for editing and sharing, with changes available only to its owner.
+
+### Patch Changes
+
+- d61574d: Preserve compound weapon loadouts when importing text rosters.
+
 ## 0.8.1
 
 ### Patch Changes

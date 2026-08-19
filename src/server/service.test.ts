@@ -15,25 +15,18 @@ beforeEach(() => {
   now = 0
   service = new PraetoriumService(new Repository(database), () => ++now, { publish: () => {} })
   enrol('alice', 'Alice')
-  enrol('bob', 'Bob')
+  enrol('bob', 'Bob', 'https://example.test/bob.png')
   enrol('carol', 'Carol')
   befriend('alice', 'bob')
   befriend('alice', 'carol')
 })
 
-/**
- * A player with the account behind them, because there is no other kind.
- *
- * The id is fixed so the tests can name who is acting; `playerForUser` mints its
- * own, which is right for the app and useless for reading a test.
- */
-function enrol(id: string, name: string) {
+function enrol(id: string, name: string, image: string | null = null) {
   const at = new Date(0)
   database
     .insert(user)
-    .values({ id: `user-${id}`, name, email: `${id}@example.test`, emailVerified: false, createdAt: at, updatedAt: at })
+    .values({ id, name, email: `${id}@example.test`, emailVerified: false, image, createdAt: at, updatedAt: at })
     .run()
-  new Repository(database).upsertPlayer({ id, name, userId: `user-${id}`, now: ++now })
 }
 
 function befriend(left: string, right: string) {
@@ -109,14 +102,20 @@ describe('friends', () => {
 
 describe('player profiles', () => {
   it('shows a profile after the viewer has shared a battle with that player', () => {
-    expect(service.playerProfile('alice', 'bob')).toBeNull()
+    expect(service.userProfile('alice', 'bob')).toBeNull()
     service.createBattle('alice', { opponentId: 'bob', solo: false, limit: 2000, missionPackId: null })
 
-    expect(service.playerProfile('alice', 'bob')).toEqual({ id: 'bob', name: 'Bob', image: null })
+    expect(service.userProfile('alice', 'bob')).toEqual({ id: 'bob', name: 'Bob', image: 'https://example.test/bob.png' })
   })
 
   it('shows a player their own profile before their first battle', () => {
-    expect(service.playerProfile('alice', 'alice')).toEqual({ id: 'alice', name: 'Alice', image: null })
+    expect(service.userProfile('alice', 'alice')).toEqual({ id: 'alice', name: 'Alice', image: null })
+  })
+
+  it('includes profile pictures in the battle view', () => {
+    const { token } = service.createBattle('alice', { opponentId: 'bob', solo: false, limit: 2000, missionPackId: null })
+
+    expect(view(token, 'alice').players[1]?.image).toBe('https://example.test/bob.png')
   })
 })
 
@@ -410,6 +409,10 @@ describe('saved rosters', () => {
       visibility: 'private',
       source: 'editable',
     })
+  })
+
+  it('mints a compact URL-safe id', () => {
+    expect(save().id).toMatch(/^[A-Za-z0-9_-]{11}$/)
   })
 
   it('hides a private roster from another player', () => {

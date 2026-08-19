@@ -83,29 +83,6 @@ export const rateLimit = sqliteTable(
   (table) => [index('rateLimit_key_idx').on(table.key)],
 )
 
-/** Someone playing. Kept separate from auth-owned users so logs retain stable player ids. */
-export const players = sqliteTable(
-  'players',
-  {
-    id: text('id').primaryKey(),
-    name: text('name').notNull(),
-    /**
-     * The account this player is.
-     *
-     * One per account, mandatory: everything here — a battle, a saved list, a
-     * command in a log — belongs to somebody who signed in. The row is still
-     * separate from `user` because the command log points at `players.id` and
-     * better-auth owns the shape of its own tables.
-     */
-    userId: text('user_id')
-      .notNull()
-      .unique()
-      .references(() => user.id, { onDelete: 'cascade' }),
-    createdAt: integer('created_at').notNull(),
-  },
-  (table) => [index('players_user_id_index').on(table.userId)],
-)
-
 /** One game between opposing sides. Its token is the link they share. */
 export const battles = sqliteTable(
   'battles',
@@ -117,20 +94,20 @@ export const battles = sqliteTable(
   (table) => [uniqueIndex('battles_token_unique').on(table.token)],
 )
 
-export const battlePlayers = sqliteTable(
-  'battle_players',
+export const battleUsers = sqliteTable(
+  'battle_users',
   {
     battleId: text('battle_id')
       .notNull()
       .references(() => battles.id, { onDelete: 'cascade' }),
-    playerId: text('player_id')
+    userId: text('user_id')
       .notNull()
-      .references(() => players.id, { onDelete: 'cascade' }),
+      .references(() => user.id, { onDelete: 'cascade' }),
     /** 0 opened the battle, 1 accepted the link. Fixes the order players are shown in. */
     side: integer('side').notNull(),
     joinedAt: integer('joined_at').notNull(),
   },
-  (table) => [primaryKey({ columns: [table.battleId, table.playerId] }), index('battle_players_player_id_index').on(table.playerId)],
+  (table) => [primaryKey({ columns: [table.battleId, table.userId] }), index('battle_users_user_id_index').on(table.userId)],
 )
 
 /** A mutual connection, beginning as a request from one player to another. */
@@ -139,10 +116,10 @@ export const friendships = sqliteTable(
   {
     requesterId: text('requester_id')
       .notNull()
-      .references(() => players.id, { onDelete: 'cascade' }),
+      .references(() => user.id, { onDelete: 'cascade' }),
     addresseeId: text('addressee_id')
       .notNull()
-      .references(() => players.id, { onDelete: 'cascade' }),
+      .references(() => user.id, { onDelete: 'cascade' }),
     requestedAt: integer('requested_at').notNull(),
     acceptedAt: integer('accepted_at'),
   },
@@ -166,9 +143,9 @@ export const commands = sqliteTable(
       .notNull()
       .references(() => battles.id, { onDelete: 'cascade' }),
     seq: integer('seq').notNull(),
-    playerId: text('player_id')
+    userId: text('user_id')
       .notNull()
-      .references(() => players.id, { onDelete: 'cascade' }),
+      .references(() => user.id, { onDelete: 'cascade' }),
     at: integer('at').notNull(),
     /** A `Command` as JSON, read back through `commandSchema`. */
     body: text('body').notNull(),
@@ -187,9 +164,9 @@ export const rosters = sqliteTable(
   'rosters',
   {
     id: text('id').primaryKey(),
-    playerId: text('player_id')
+    userId: text('user_id')
       .notNull()
-      .references(() => players.id, { onDelete: 'cascade' }),
+      .references(() => user.id, { onDelete: 'cascade' }),
     name: text('name').notNull(),
     catalogueId: text('catalogue_id').notNull(),
     detachmentId: text('detachment_id'),
@@ -211,7 +188,7 @@ export const rosters = sqliteTable(
       .default('legacy'),
     updatedAt: integer('updated_at').notNull(),
   },
-  (table) => [index('rosters_player_id_index').on(table.playerId)],
+  (table) => [index('rosters_user_id_index').on(table.userId)],
 )
 
 /**
@@ -225,27 +202,27 @@ export const rosters = sqliteTable(
 export const collection = sqliteTable(
   'collection',
   {
-    playerId: text('player_id')
+    userId: text('user_id')
       .notNull()
-      .references(() => players.id, { onDelete: 'cascade' }),
+      .references(() => user.id, { onDelete: 'cascade' }),
     /** The catalogue entry id, so a datasheet is owned per book it appears in. */
     entryId: text('entry_id').notNull(),
     at: integer('at').notNull(),
   },
-  (table) => [primaryKey({ columns: [table.playerId, table.entryId] })],
+  (table) => [primaryKey({ columns: [table.userId, table.entryId] })],
 )
 
 /** Factions a player keeps at the top of faction pickers. */
 export const favouriteFactions = sqliteTable(
   'favourite_factions',
   {
-    playerId: text('player_id')
+    userId: text('user_id')
       .notNull()
-      .references(() => players.id, { onDelete: 'cascade' }),
+      .references(() => user.id, { onDelete: 'cascade' }),
     catalogueId: text('catalogue_id').notNull(),
     at: integer('at').notNull(),
   },
-  (table) => [primaryKey({ columns: [table.playerId, table.catalogueId] })],
+  (table) => [primaryKey({ columns: [table.userId, table.catalogueId] })],
 )
 
 export const schema = {
@@ -254,9 +231,8 @@ export const schema = {
   account,
   verification,
   rateLimit,
-  players,
   battles,
-  battlePlayers,
+  battleUsers,
   friendships,
   commands,
   rosters,

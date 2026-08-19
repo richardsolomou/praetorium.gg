@@ -46,16 +46,16 @@ export class PraetoriumService {
     private readonly events: BattleEvents,
   ) {}
 
-  /** A player's battles with their current state folded from each log. */
-  battles(playerId: string, rules?: Parameters<typeof missionFor>[0] | null) {
-    return this.repository.battlesByPlayer(playerId).map((seats) => {
+  /** A user's battles with their current state folded from each log. */
+  battles(userId: string, rules?: Parameters<typeof missionFor>[0] | null) {
+    return this.repository.battlesByUser(userId).map((seats) => {
       const log = this.repository.log(seats.battle.id)
       const state = reduceBattle(
         seats.players.map((player) => player.id),
         log,
         seats.players.map((player) => player.side),
       )
-      const viewerSide = state.players.find((player) => player.id === playerId)?.side
+      const viewerSide = state.players.find((player) => player.id === userId)?.side
       const ownDisposition = state.players.find((player) => player.side === viewerSide)?.roster?.built?.disposition ?? null
       const opposingDisposition = state.players.find((player) => player.side !== viewerSide)?.roster?.built?.disposition ?? null
       return {
@@ -84,35 +84,15 @@ export class PraetoriumService {
     })
   }
 
-  /**
-   * The player behind an account, minted on first sight.
-   *
-   * An account is the only way to be anyone here, so this is the one place a
-   * player comes into existence. The name follows the account: the command log
-   * points at `players.id`, which never changes, so renaming is free.
-   */
-  playerForUser(userId: string, name: string) {
-    const existing = this.repository.playerByUserId(userId)
-    if (existing) {
-      if (existing.name !== name) this.repository.upsertPlayer({ id: existing.id, name, userId, now: this.clock() })
-      return existing.id
-    }
-    const id = randomId()
-    this.repository.upsertPlayer({ id, name, userId, now: this.clock() })
-    return id
-  }
-
-  playerProfile(viewerId: string, playerId: string) {
-    const profile = this.repository.profileByPlayerId(playerId)
+  userProfile(viewerId: string, userId: string) {
+    const profile = this.repository.profileByUserId(userId)
     if (!profile) return null
-    if (viewerId === playerId) return profile
-    return this.repository.battlesByPlayer(viewerId).some((battle) => battle.players.some((player) => player.id === playerId))
-      ? profile
-      : null
+    if (viewerId === userId) return profile
+    return this.repository.battlesByUser(viewerId).some((battle) => battle.players.some((player) => player.id === userId)) ? profile : null
   }
 
   saveRoster(
-    playerId: string,
+    userId: string,
     roster: {
       id?: string
       name: string
@@ -128,12 +108,12 @@ export class PraetoriumService {
   ) {
     const id = roster.id ?? randomId()
     const existing = this.repository.roster(id)
-    if (existing && existing.playerId !== playerId) throw new Response('you do not own this roster', { status: 403 })
+    if (existing && existing.userId !== userId) throw new Response('you do not own this roster', { status: 403 })
     this.repository.saveRoster({
       ...roster,
       detachmentId: JSON.stringify(roster.detachmentIds),
       id,
-      playerId,
+      userId,
       picks: JSON.stringify(roster.picks),
       prep: roster.prep ? JSON.stringify(roster.prep) : null,
       tags: '[]',
@@ -142,9 +122,9 @@ export class PraetoriumService {
     return { id }
   }
 
-  /** A player's own saved lists, newest first. Their picks come back parsed. */
-  savedRosters(playerId: string) {
-    return this.repository.rostersByPlayer(playerId).map((row) => ({
+  /** A user's own saved lists, newest first. Their picks come back parsed. */
+  savedRosters(userId: string) {
+    return this.repository.rostersByUser(userId).map((row) => ({
       ...rosterFromRow(row),
       prep: row.prep ? savedPrepSchema.parse(JSON.parse(row.prep)) : null,
     }))
@@ -158,102 +138,102 @@ export class PraetoriumService {
    * and its units, so the reader can see this list either way. The battle has to be
    * named, so the check stays one log rather than a scan of every battle they play.
    */
-  sharedRoster(id: string, playerId: string | null = null, token: string | null = null) {
+  sharedRoster(id: string, userId: string | null = null, token: string | null = null) {
     const row = this.repository.roster(id)
     if (!row) return null
-    if (row.visibility === 'unlisted' || row.playerId === playerId) return rosterFromRow(row)
-    return playerId && token && this.fieldedIn(token, playerId, id) ? rosterFromRow(row) : null
+    if (row.visibility === 'unlisted' || row.userId === userId) return rosterFromRow(row)
+    return userId && token && this.fieldedIn(token, userId, id) ? rosterFromRow(row) : null
   }
 
   /** Whether a reader shares a battle with the list they are asking about. */
-  private fieldedIn(token: string, playerId: string, rosterId: string) {
+  private fieldedIn(token: string, userId: string, rosterId: string) {
     const seats = this.repository.battleByToken(token)
-    if (!seats?.players.some((player) => player.id === playerId)) return false
+    if (!seats?.players.some((player) => player.id === userId)) return false
     return this.repository
       .log(seats.battle.id)
       .some((entry) => entry.command.kind === 'attach-roster' && entry.command.roster.id === rosterId)
   }
 
-  setRosterVisibility(playerId: string, id: string, visibility: 'private' | 'unlisted') {
-    if (!this.repository.setRosterVisibility(id, playerId, visibility, this.clock())) {
+  setRosterVisibility(userId: string, id: string, visibility: 'private' | 'unlisted') {
+    if (!this.repository.setRosterVisibility(id, userId, visibility, this.clock())) {
       throw new Response('you do not own this roster', { status: 403 })
     }
   }
 
-  deleteRoster(playerId: string, id: string) {
-    this.repository.deleteRoster(id, playerId)
+  deleteRoster(userId: string, id: string) {
+    this.repository.deleteRoster(id, userId)
   }
 
-  /** The datasheets a player owns, as a set the picker can ask about directly. */
-  collection(playerId: string) {
-    return this.repository.collectionByPlayer(playerId).map((row) => row.entryId)
+  /** The datasheets a user owns, as a set the picker can ask about directly. */
+  collection(userId: string) {
+    return this.repository.collectionByUser(userId).map((row) => row.entryId)
   }
 
-  setOwned(playerId: string, entryId: string, owned: boolean) {
-    if (owned) this.repository.addToCollection({ playerId, entryId, now: this.clock() })
-    else this.repository.removeFromCollection(playerId, entryId)
+  setOwned(userId: string, entryId: string, owned: boolean) {
+    if (owned) this.repository.addToCollection({ userId, entryId, now: this.clock() })
+    else this.repository.removeFromCollection(userId, entryId)
   }
 
-  favouriteFactions(playerId: string) {
-    return this.repository.favouriteFactionsByPlayer(playerId).map((row) => row.catalogueId)
+  favouriteFactions(userId: string) {
+    return this.repository.favouriteFactionsByUser(userId).map((row) => row.catalogueId)
   }
 
-  setFavouriteFaction(playerId: string, catalogueId: string, favourite: boolean) {
-    if (favourite) this.repository.addFavouriteFaction({ playerId, catalogueId, now: this.clock() })
-    else this.repository.removeFavouriteFaction(playerId, catalogueId)
+  setFavouriteFaction(userId: string, catalogueId: string, favourite: boolean) {
+    if (favourite) this.repository.addFavouriteFaction({ userId, catalogueId, now: this.clock() })
+    else this.repository.removeFavouriteFaction(userId, catalogueId)
   }
 
-  opponents(playerId: string) {
-    return this.friendships(playerId).friends
+  opponents(userId: string) {
+    return this.friendships(userId).friends
   }
 
-  friendships(playerId: string) {
-    const relationships = this.repository.friendships(playerId)
+  friendships(userId: string) {
+    const relationships = this.repository.friendships(userId)
     const related = new Set(relationships.flatMap((row) => [row.requesterId, row.addresseeId]))
     const named = (id: string) => {
-      const player = this.repository.playerById(id)
-      return player ? { id: player.id, name: player.name } : null
+      const user = this.repository.userById(id)
+      return user ? { id: user.id, name: user.name } : null
     }
     return {
       friends: relationships
         .filter((row) => row.acceptedAt !== null)
-        .map((row) => named(row.requesterId === playerId ? row.addresseeId : row.requesterId))
+        .map((row) => named(row.requesterId === userId ? row.addresseeId : row.requesterId))
         .filter((player): player is NonNullable<typeof player> => player !== null),
       incoming: relationships
-        .filter((row) => row.acceptedAt === null && row.addresseeId === playerId)
+        .filter((row) => row.acceptedAt === null && row.addresseeId === userId)
         .map((row) => named(row.requesterId))
         .filter((player): player is NonNullable<typeof player> => player !== null),
       outgoing: relationships
-        .filter((row) => row.acceptedAt === null && row.requesterId === playerId)
+        .filter((row) => row.acceptedAt === null && row.requesterId === userId)
         .map((row) => named(row.addresseeId))
         .filter((player): player is NonNullable<typeof player> => player !== null),
-      people: this.repository.playersExcept(playerId).filter((player) => !related.has(player.id)),
+      people: this.repository.usersExcept(userId).filter((user) => !related.has(user.id)),
     }
   }
 
-  requestFriend(playerId: string, friendId: string) {
-    if (friendId === playerId || !this.repository.playerById(friendId)) throw new Response('choose another player', { status: 400 })
-    if (!this.repository.requestFriend(playerId, friendId, this.clock())) throw new Response('a connection already exists', { status: 409 })
+  requestFriend(userId: string, friendId: string) {
+    if (friendId === userId || !this.repository.userById(friendId)) throw new Response('choose another player', { status: 400 })
+    if (!this.repository.requestFriend(userId, friendId, this.clock())) throw new Response('a connection already exists', { status: 409 })
   }
 
-  acceptFriend(playerId: string, requesterId: string) {
-    if (!this.repository.acceptFriend(requesterId, playerId, this.clock())) throw new Response('no such friend request', { status: 404 })
+  acceptFriend(userId: string, requesterId: string) {
+    if (!this.repository.acceptFriend(requesterId, userId, this.clock())) throw new Response('no such friend request', { status: 404 })
   }
 
-  removeFriend(playerId: string, friendId: string) {
-    if (!this.repository.removeFriend(playerId, friendId)) throw new Response('no such friendship', { status: 404 })
+  removeFriend(userId: string, friendId: string) {
+    if (!this.repository.removeFriend(userId, friendId)) throw new Response('no such friendship', { status: 404 })
   }
 
   createBattle(
-    playerId: string,
+    userId: string,
     input?: string | { opponentId?: string; opponentIds?: string[]; solo: boolean; limit?: number; missionPackId: string | null },
   ) {
     const settings = typeof input === 'object' && input.limit !== undefined ? { ...input, limit: input.limit } : null
     const opponentIds = typeof input === 'string' ? [input] : (input?.opponentIds ?? (input?.opponentId ? [input.opponentId] : []))
-    if (new Set(opponentIds).size !== opponentIds.length || opponentIds.some((id) => id === playerId || !this.repository.playerById(id))) {
+    if (new Set(opponentIds).size !== opponentIds.length || opponentIds.some((id) => id === userId || !this.repository.userById(id))) {
       throw new Response('choose an opponent', { status: 400 })
     }
-    const friendIds = new Set(this.opponents(playerId).map((friend) => friend.id))
+    const friendIds = new Set(this.opponents(userId).map((friend) => friend.id))
     if (opponentIds.some((id) => !friendIds.has(id))) throw new Response('battle opponents must be your friends', { status: 403 })
     if (settings && !settings.solo && !opponentIds.length) throw new Response('choose an opponent or a practice battle', { status: 400 })
     const token = randomToken()
@@ -261,7 +241,7 @@ export class PraetoriumService {
     this.repository.createBattle({
       id,
       token,
-      playerId,
+      userId,
       opponentIds,
       initialCommand: settings
         ? {
@@ -279,21 +259,20 @@ export class PraetoriumService {
     })
     // The opponents are told before they have the battle open, which is what puts it
     // on their list without a reload.
-    this.events.publish(id, [playerId, ...opponentIds])
+    this.events.publish(id, [userId, ...opponentIds])
     return { token }
   }
 
-  deleteBattle(token: string, playerId: string) {
-    const seats = this.mustSeat(token, playerId)
-    if (!this.repository.deleteBattle(seats.battle.id, playerId))
-      throw new Response('only the battle creator can delete it', { status: 403 })
+  deleteBattle(token: string, userId: string) {
+    const seats = this.mustSeat(token, userId)
+    if (!this.repository.deleteBattle(seats.battle.id, userId)) throw new Response('only the battle creator can delete it', { status: 403 })
     this.events.publish(
       seats.battle.id,
       seats.players.map((player) => player.id),
     )
   }
 
-  join(token: string, playerId: string): JoinResult {
+  join(token: string, userId: string): JoinResult {
     const seats = this.mustFind(token)
     const state = reduceBattle(
       seats.players.map((player) => player.id),
@@ -302,11 +281,11 @@ export class PraetoriumService {
     )
     if (state.settings.solo) return 'full'
     const opener = seats.players.find((player) => player.side === 0)
-    if (!opener || !this.opponents(opener.id).some((friend) => friend.id === playerId)) {
+    if (!opener || !this.opponents(opener.id).some((friend) => friend.id === userId)) {
       throw new Response('battle opponents must be friends', { status: 403 })
     }
-    const result = this.repository.join({ battleId: seats.battle.id, playerId, now: this.clock() })
-    if (result === 'joined') this.events.publish(seats.battle.id, [...seats.players.map((player) => player.id), playerId])
+    const result = this.repository.join({ battleId: seats.battle.id, userId, now: this.clock() })
+    if (result === 'joined') this.events.publish(seats.battle.id, [...seats.players.map((player) => player.id), userId])
     return result
   }
 
@@ -314,9 +293,9 @@ export class PraetoriumService {
    * `rules` is passed in rather than reached for, so the service stays testable
    * without a synced dataset.
    */
-  screen(token: string, playerId: string | null, rules?: Parameters<typeof missionFor>[0] | null): BattleScreen {
+  screen(token: string, userId: string | null, rules?: Parameters<typeof missionFor>[0] | null): BattleScreen {
     const seats = this.mustFind(token)
-    if (!playerId || !this.seated(seats, playerId)) {
+    if (!userId || !this.seated(seats, userId)) {
       const state = reduceBattle(
         seats.players.map((player) => player.id),
         this.repository.log(seats.battle.id),
@@ -325,30 +304,30 @@ export class PraetoriumService {
       const capacity = state.settings.teamBattle ? 3 : PLAYERS_PER_BATTLE
       return { kind: 'invitation', free: !state.settings.solo && seats.players.length < capacity }
     }
-    return this.seatedScreen(seats, playerId, rules)
+    return this.seatedScreen(seats, userId, rules)
   }
 
   /** A readable account of the battle. Derived from the log, so nothing is stored for it. */
-  report(token: string, playerId: string) {
-    const seats = this.mustSeat(token, playerId)
+  report(token: string, userId: string) {
+    const seats = this.mustSeat(token, userId)
     return battleReport(
       seats.players,
       this.repository.log(seats.battle.id),
       seats.players.map((player) => player.id),
-      playerId,
+      userId,
       seats.players.map((player) => player.side),
     )
   }
 
   submit(
     token: string,
-    playerId: string,
+    userId: string,
     expectedSeq: number,
     command: Command,
     rules?: Parameters<typeof missionFor>[0] | null,
   ): SubmitAnswer {
-    const seats = this.mustSeat(token, playerId)
-    const result = this.repository.submit({ battleId: seats.battle.id, playerId, expectedSeq, command, now: this.clock() }, (state) =>
+    const seats = this.mustSeat(token, userId)
+    const result = this.repository.submit({ battleId: seats.battle.id, userId, expectedSeq, command, now: this.clock() }, (state) =>
       command.kind === 'begin-battle' && rules ? setupReferenceError(state, rules) : null,
     )
     if (result.outcome === 'appended')
@@ -358,23 +337,23 @@ export class PraetoriumService {
       )
     // Read after the write, so a refusal and a lost race answer with the state
     // that refused them rather than the one the caller was already holding.
-    return { result, screen: this.seatedScreen(seats, playerId, rules) }
+    return { result, screen: this.seatedScreen(seats, userId, rules) }
   }
 
-  /** The stream is for players, so opening one is an authorization decision. */
-  playerBattleId(token: string, playerId: string) {
-    const seats = this.mustSeat(token, playerId)
+  /** Opening a battle stream is an authorization decision. */
+  userBattleId(token: string, userId: string) {
+    const seats = this.mustSeat(token, userId)
     return seats.battle.id
   }
 
   /** One battle as one player may see it. The only place a seated view is built. */
-  private seatedScreen(seats: BattleSeats, playerId: string, rules?: Parameters<typeof missionFor>[0] | null): SeatedScreen {
+  private seatedScreen(seats: BattleSeats, userId: string, rules?: Parameters<typeof missionFor>[0] | null): SeatedScreen {
     const state = reduceBattle(
       seats.players.map((player) => player.id),
       this.repository.log(seats.battle.id),
       seats.players.map((player) => player.side),
     )
-    const view = battleView(seats.battle, seats.players, state, playerId, this.clock())
+    const view = battleView(seats.battle, seats.players, state, userId, this.clock())
     const missionForSide = (side: number) => {
       const ownDisposition = view.players.find((player) => player.side === side)?.roster?.built?.disposition ?? null
       const opposingDisposition = view.players.find((player) => player.side !== side)?.roster?.built?.disposition ?? null
@@ -388,7 +367,7 @@ export class PraetoriumService {
         player.primaryCard = primary ? { key: primary.id, name: primary.name } : null
       }
     }
-    const viewerSide = view.players.find((player) => player.id === playerId)?.side
+    const viewerSide = view.players.find((player) => player.id === userId)?.side
     return {
       kind: 'battle',
       view,
@@ -396,13 +375,13 @@ export class PraetoriumService {
     }
   }
 
-  private seated(seats: BattleSeats, playerId: string) {
-    return seats.players.some((player) => player.id === playerId)
+  private seated(seats: BattleSeats, userId: string) {
+    return seats.players.some((player) => player.id === userId)
   }
 
-  private mustSeat(token: string, playerId: string) {
+  private mustSeat(token: string, userId: string) {
     const seats = this.mustFind(token)
-    if (!this.seated(seats, playerId)) throw new Response('you are not in this battle', { status: 403 })
+    if (!this.seated(seats, userId)) throw new Response('you are not in this battle', { status: 403 })
     return seats
   }
 

@@ -91,6 +91,7 @@ Inspect the generated selection before changing evaluator logic. A mismatch can 
 
 ## Saved lists and interchange
 
+- Application record IDs are compact URL-safe values minted by `randomId()` on the server. Clients provide an ID only when updating an existing record; share tokens use the longer `randomToken()` format.
 - Save `RosterPick` values instead of expanded selections. Rebuild them against the current catalogue when pricing a saved list.
 - New saved lists are private. Making one unlisted lets anyone holding its opaque URL read it. Switching it back to private invalidates that public access without changing the URL.
 - Keep import provenance with the saved list so the library can distinguish an editable Praetorium roster, BattleBase and New Recruit text imports, and a `.ros` or `.rosz` file import.

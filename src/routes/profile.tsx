@@ -50,7 +50,7 @@ function ProfileForm({ me }: { me: NonNullable<Awaited<ReturnType<NonNullable<Re
       queryClient.invalidateQueries({ queryKey: battlesQuery().queryKey }),
       queryClient.invalidateQueries({ queryKey: friendshipsQuery().queryKey }),
       queryClient.invalidateQueries({ queryKey: opponentsQuery().queryKey }),
-      queryClient.invalidateQueries({ queryKey: ['player-profile'] }),
+      queryClient.invalidateQueries({ queryKey: ['user-profile'] }),
     ])
     setSaved(true)
   }

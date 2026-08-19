@@ -79,7 +79,7 @@ export async function createRoster(
   }
   await dialog.getByRole('button', { name: new RegExp(`^Select (?:${detachment.source})$`, detachment.flags) }).click()
   await dialog.getByRole('button', { name: 'Create roster' }).click()
-  await page.waitForURL(/\/rosters\/.+\/edit/)
+  await page.waitForURL(/\/rosters\/[^/]+$/)
   const rosterName = name ?? `${faction} roster`
   await waitForRosterSave(page, () => page.getByLabel('List name').fill(rosterName), rosterName)
   await page.reload()

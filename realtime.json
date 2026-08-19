@@ -12,7 +12,7 @@
         "force_recovery_mode": "cache"
       },
       {
-        "name": "player"
+        "name": "user"
       }
     ]
   }

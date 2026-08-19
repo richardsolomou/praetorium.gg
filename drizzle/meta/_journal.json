@@ -71,6 +71,13 @@
       "when": 1787083530197,
       "tag": "0009_organic_silverclaw",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1787172911592,
+      "tag": "0010_nosy_spirit",
+      "breakpoints": true
     }
   ]
 }
