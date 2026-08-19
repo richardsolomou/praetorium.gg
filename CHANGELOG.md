@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.12.0
+
+### Minor Changes
+
+- fe1301e: Split unit lists into collapsible datasheet categories.
+
 ## 0.11.1
 
 ### Patch Changes
