@@ -243,6 +243,7 @@ test('a card names its own condition, and what their turn owed is asked as the t
   await expect(outflank.getByText('AIRCRAFT').first()).toBeVisible()
   await expect(outflank).not.toContainText('**')
   await scoring.getByRole('button', { name: 'Pass the turn' }).click()
+  await expect(bob.getByRole('dialog', { name: 'Your secondary missions' })).toBeVisible()
 
   // Assassination pays at the end of either turn, and the opponent's is a turn Alice
   // cannot press anything through, so it is settled as the turn comes back.
