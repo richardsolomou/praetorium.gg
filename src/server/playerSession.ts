@@ -5,7 +5,7 @@ export async function currentPlayer(request = getRequest()) {
   const session = await app().auth.api.getSession({ headers: request.headers })
   if (!session) return null
   const id = app().service.playerForUser(session.user.id, session.user.name)
-  return { id, name: session.user.name }
+  return { id, name: session.user.name, image: session.user.image ?? null, email: session.user.email }
 }
 
 export async function currentPlayerId(request = getRequest()) {

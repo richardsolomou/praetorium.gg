@@ -20,6 +20,7 @@ import {
   myBattles,
   openBattle,
   opponents,
+  playerProfile,
   priceRoster,
   savedRosters,
   savedRosterPrice,
@@ -32,6 +33,9 @@ import {
 const SSR_STALE_TIME = 30_000
 
 export const meQuery = () => queryOptions({ queryKey: ['me'], queryFn: () => me(), staleTime: SSR_STALE_TIME })
+
+export const playerProfileQuery = (playerId: string) =>
+  queryOptions({ queryKey: ['player-profile', playerId], queryFn: () => playerProfile({ data: { playerId } }), staleTime: SSR_STALE_TIME })
 
 export const battlesQuery = () => queryOptions({ queryKey: ['battles'], queryFn: () => myBattles(), staleTime: SSR_STALE_TIME })
 export const opponentsQuery = () => queryOptions({ queryKey: ['opponents'], queryFn: () => opponents(), staleTime: SSR_STALE_TIME })

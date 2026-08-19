@@ -1,19 +1,4 @@
-/** A BattleBase plain-text export, reduced to facts the catalogue can resolve. */
-export type BattleBaseRoster = {
-  name: string
-  faction: string
-  detachment: string | null
-  disposition: string | null
-  limit: number | null
-  units: BattleBaseUnit[]
-}
-
-export type BattleBaseUnit = {
-  name: string
-  selections: { name: string; count: number }[]
-  leading: string | null
-  warlord: boolean
-}
+import type { TextRoster, TextRosterUnit } from './textRoster'
 
 const unitHeader = /^(.*?)\s+\(\d[\d,]* Points?\)$/i
 const selection = /^\s*•\s*(?:(\d+)x\s+)?(.+?)\s*$/
@@ -23,7 +8,7 @@ const selection = /^\s*•\s*(?:(\d+)x\s+)?(.+?)\s*$/
  * may grow over time, so unit headers and indented bullets are the grammar; an
  * all-caps line merely ends the preceding unit.
  */
-export function fromBattleBaseText(input: string): BattleBaseRoster | null {
+export function fromBattleBaseText(input: string): TextRoster | null {
   if (!/Exported with BattleBase/i.test(input)) return null
   const lines = input.replaceAll('\r', '').split('\n')
   const title = lines.find((line) => line.trim())?.trim() ?? 'Imported list'
@@ -37,8 +22,8 @@ export function fromBattleBaseText(input: string): BattleBaseRoster | null {
   const detachmentLine = lines.find((line) => /\(\d+ Detachment Points?\)$/i.test(line.trim()))?.trim()
   const dispositionLine = lines.find((line) => /^Force Dispositions?:/i.test(line.trim()))?.trim()
   const sizeLine = lines.find((line) => /\([\d,]+ Points?\)$/i.test(line.trim()) && line.trim() !== title)?.trim()
-  const units: BattleBaseUnit[] = []
-  let current: BattleBaseUnit | null = null
+  const units: TextRosterUnit[] = []
+  let current: TextRosterUnit | null = null
   let unitSection = false
 
   for (const line of lines.slice(factionAt + 1)) {

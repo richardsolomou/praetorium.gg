@@ -44,7 +44,7 @@ export function RosterImport() {
           picks: imported.units,
           prep: null,
           visibility: 'private',
-          source: typeof source === 'string' ? 'battlebase' : 'roster-file',
+          source: imported.source,
         },
       })
       return id
@@ -72,19 +72,19 @@ export function RosterImport() {
           <DialogHeader>
             <DialogTitle className="text-xl uppercase">Import roster</DialogTitle>
             <DialogDescription className="text-dim">
-              Paste a BattleBase export, or add a BattleScribe or New Recruit roster file.
+              Paste a BattleBase or New Recruit export, or add a BattleScribe or New Recruit roster file.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-2">
-            <Label htmlFor="battlebase-roster" className="eyebrow">
-              BattleBase text
+            <Label htmlFor="roster-text" className="eyebrow">
+              Roster text
             </Label>
             <Textarea
-              id="battlebase-roster"
+              id="roster-text"
               value={text}
               onChange={(event) => setText(event.target.value)}
-              placeholder={'Paste the full export, including “Exported with BattleBase”…'}
+              placeholder={'Paste the full BattleBase or New Recruit export…'}
               className="h-52 min-h-52 field-sizing-fixed resize-none overflow-y-auto rounded-none border-edge bg-sunken font-mono text-xs"
               disabled={bring.isPending}
             />

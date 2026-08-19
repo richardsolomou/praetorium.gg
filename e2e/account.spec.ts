@@ -12,6 +12,36 @@ test('a battle cannot be opened without an account', async ({ page }) => {
   await expect(page.getByRole('link', { name: 'Sign in' }).first()).toBeVisible()
 })
 
+test('a player can edit their display name and profile picture', async ({ page }) => {
+  await signUp(page, uniqueName('Alice'))
+  await page.getByRole('button', { name: /Account menu for/ }).click()
+  await page.getByRole('menuitem', { name: 'Edit profile' }).click()
+
+  await page.getByLabel('Display name').fill('Commander Alice')
+  await page.getByLabel('Choose profile picture').setInputFiles({
+    name: 'avatar.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64'),
+  })
+  await expect(page.getByRole('button', { name: 'Replace picture' })).toBeVisible()
+  await page.getByRole('button', { name: 'Save profile' }).click()
+
+  await expect(page.getByText('Profile saved.')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Account menu for Commander Alice' })).toBeVisible()
+  await page.reload()
+  await expect(page.getByLabel('Display name')).toHaveValue('Commander Alice')
+  await expect(page.locator('main img')).toHaveAttribute('src', /^data:image\/webp;base64,/)
+  await expect(page.getByRole('button', { name: 'Save profile' })).toBeDisabled()
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.screenshot({ path: 'test-results/profile-phone.png', fullPage: true })
+
+  await page.getByRole('button', { name: 'Remove' }).click()
+  await page.getByRole('button', { name: 'Save profile' }).click()
+  await page.reload()
+  await expect(page.getByRole('button', { name: 'Add picture' })).toBeVisible()
+  await expect(page.locator('main img')).toHaveCount(0)
+})
+
 test('a list saved under an account is there on another device', async ({ browser }) => {
   const first = await browser.newContext()
   const page = await first.newPage()

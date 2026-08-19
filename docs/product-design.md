@@ -33,7 +33,7 @@ Keep screenshots that contain roster or battle data outside version control.
 
 | Area              | Coverage                                                                                                                                                                              |
 | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Accounts          | Email and password work without provider configuration. Google and Discord are optional.                                                                                              |
+| Accounts          | Email and password work without provider configuration. Google and Discord are optional. Players can edit their display name and profile picture.                                     |
 | Battles           | Shared, 2v1, or solo setup drafts, server-side legality, corrections, concessions, reopening, presence, and live updates.                                                             |
 | Turn tracker      | Five standard rounds, three King of the Colosseum rounds, six phases, command points, victory points, painted bonuses, tactical decks, stratagems, formations, and battle completion. |
 | Rosters           | Build, import, save, copy, rename, private or unlisted share, print, export, and attach.                                                                                              |

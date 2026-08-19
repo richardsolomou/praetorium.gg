@@ -13,6 +13,7 @@ import {
   type SubmitResult,
 } from '../core/battle'
 import type { RosterPick } from '../core/roster'
+import type { RosterSource } from '../core/savedRoster'
 import type { BattleSeats, JoinResult, Repository } from '../db/repository'
 import { type Mission, missionFor } from './rules'
 import { picksSchema, savedPrepSchema } from './schemas'
@@ -99,6 +100,15 @@ export class PraetoriumService {
     return id
   }
 
+  playerProfile(viewerId: string, playerId: string) {
+    const profile = this.repository.profileByPlayerId(playerId)
+    if (!profile) return null
+    if (viewerId === playerId) return profile
+    return this.repository.battlesByPlayer(viewerId).some((battle) => battle.players.some((player) => player.id === playerId))
+      ? profile
+      : null
+  }
+
   saveRoster(
     playerId: string,
     roster: {
@@ -111,7 +121,7 @@ export class PraetoriumService {
       picks: readonly RosterPick[]
       prep: SavedPrep | null
       visibility: 'private' | 'unlisted'
-      source: 'legacy' | 'editable' | 'battlebase' | 'roster-file'
+      source: RosterSource
     },
   ) {
     const id = roster.id ?? randomId()

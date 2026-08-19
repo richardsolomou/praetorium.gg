@@ -15,8 +15,7 @@ export type Attachment = { kind: 'leader' | 'support'; targets: string[] }
 
 const CLAIM = 'can be attached to the following units'
 
-/** `■ IMMORTALS` on its own line, which is one of the two ways the data writes a list. */
-const BULLETED = /■\s*([^\n]+)/g
+const BULLETED = /(?:^|\n)\s*(?:■|-)\s*([^\n]+)/g
 
 /** `^^**Immortals, Lychguard**^^` inline, which is the other. */
 const EMPHASISED = /\^\^\*\*(.+?)\*\*\^\^/s
@@ -41,8 +40,9 @@ export function attachmentOf(definition: Definition, index: CatalogueIndex): Att
     if (!text.toLowerCase().includes(CLAIM)) continue
     const named = names(text)
     if (!named.length) continue
+    const categorized = named.flatMap((name) => [name, ...categoryTargets(name, index)])
     const substitutions = attachmentSubstitutions(index)
-    const targets = named.flatMap((name) => [name, ...(substitutions.get(normalizedName(name)) ?? [])])
+    const targets = categorized.flatMap((name) => [name, ...(substitutions.get(normalizedName(name)) ?? [])])
     return { kind: title.trim().toLowerCase() === 'leader' ? 'leader' : 'support', targets: uniqueNames(targets) }
   }
   return null
@@ -72,7 +72,25 @@ function attachmentSubstitutions(index: CatalogueIndex) {
   return found
 }
 
-const normalizedName = (name: string) => name.toLocaleLowerCase()
+const normalizedName = (name: string) => name.toLocaleLowerCase().replaceAll('\u00a0', ' ').replaceAll(/\s+/g, ' ').trim()
+
+function categoryTargets(name: string, index: CatalogueIndex) {
+  const required = normalizedName(name).replace('battleliine', 'battleline').split(' ').toSorted()
+  if (required.join(' ') !== 'battleline imperium infantry') return []
+
+  const found: string[] = []
+  for (const definition of index.definitions.values()) {
+    const target = targetOf(definition, index.definitions)
+    if (definition.type !== 'unit' && target.type !== 'unit') continue
+    const categories = new Set(
+      [...(definition.categoryLinks ?? []), ...(target.categoryLinks ?? [])].map((link) =>
+        normalizedName(link.name ?? '').replace(/^faction:\s*/, ''),
+      ),
+    )
+    if (required.every((category) => categories.has(category))) found.push(nameOf(definition, index.definitions))
+  }
+  return uniqueNames(found)
+}
 
 function uniqueNames(values: readonly string[]) {
   const seen = new Set<string>()
@@ -160,8 +178,13 @@ function names(text: string): string[] {
   const bulleted = [...text.matchAll(BULLETED)].map((match) => match[1])
   if (bulleted.length) return bulleted.map(clean).filter(Boolean)
   const emphasised = EMPHASISED.exec(text.slice(text.toLowerCase().indexOf(CLAIM)))
-  if (!emphasised?.[1]) return []
-  return emphasised[1].split(',').map(clean).filter(Boolean)
+  if (emphasised?.[1]) return emphasised[1].split(',').map(clean).filter(Boolean)
+  return text
+    .slice(text.toLowerCase().indexOf(CLAIM) + CLAIM.length)
+    .replace(/^:\s*/, '')
+    .split(',')
+    .map(clean)
+    .filter(Boolean)
 }
 
 /** Strips the markup the text carries and the case it shouts in. */
