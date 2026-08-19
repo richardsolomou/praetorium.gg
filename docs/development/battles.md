@@ -11,7 +11,7 @@
 - Return the updated seated screen with a submitted command. `useCommand` writes that screen to the query cache before another command can use it.
 - Implement every new `Command` kind in both `validate` and `apply`. Their exhaustive checks make missing cases fail the build.
 
-Undo appends an `undo` command that names the latest active command. It does not delete history. Only the original author can undo that command.
+Undo appends an `undo` command that names the latest active command. It does not delete history. Either player can undo the latest command, then continue rewinding active commands across turn boundaries.
 
 Setup settings, roster replacements, formation choices, painted-army bonuses, concessions, reopening, and setup resets are commands too. A reset clears rosters and battlefield choices without erasing the audit trail or the configured game size, mission pack or solo format. A finished battle remains reopenable; deletion is the only destructive operation and is restricted to the account that created the battle.
 
@@ -25,7 +25,7 @@ A 2v1 battle has one player on the first side and two allied players on the seco
 
 ## Cards
 
-What an army brings is not a choice a player makes twice. The stratagems are the detachment's own plus the core ones every army has, and the primary is whatever the two force dispositions play — both are recorded by `set-prep` as soon as they are known rather than offered as a picker. A solo battle pairs its one disposition against itself so that it still has a mission to score.
+What an army brings is not a choice a player makes twice. The stratagems are the detachment's own plus the core ones every army has, and its primary comes from its ordered force-disposition matchup against the opposing side — both are recorded by `set-prep` as soon as they are known rather than offered as a picker. A solo battle pairs its one disposition against itself so that it still has a mission to score.
 
 Secondaries are tactical unless a player says otherwise: the hand starts empty, the deck is the whole pack, and the tracker asks for the draw at the top of that player's command phase. Fixed play is the alternative, and the only case where cards are chosen up front.
 

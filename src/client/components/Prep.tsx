@@ -14,8 +14,8 @@ type Props = { view: BattleView; missionId: string | null; send: (command: Comma
  * The one card decision a player actually makes: how their secondaries are drawn.
  *
  * Everything else follows from what is already on the table. The stratagems are the
- * detachment's plus the core ones every army has, and the primary is whatever the two
- * force dispositions play — so neither is offered as a choice that could be got wrong.
+ * detachment's plus the core ones every army has, and the primary comes from this
+ * side's ordered disposition matchup — so neither is offered as a choice.
  *
  * These belong to the side, not the seat, so only the seat the domain folds a side's
  * resources onto writes them. Letting both allies record their own detachment's
@@ -59,10 +59,10 @@ export function Prep({ view, missionId, send, pending }: Props) {
   useEffect(() => {
     if (!writes || !rules || !you || pending) return
     const missingStratagems = stratagems.length > 0 && you.stratagems.length === 0
-    const missingPrimary = primary !== null && you.primaryCard === null
+    const wrongPrimary = primary?.key !== you.primaryCard?.key
     const missingDeck = mode === 'tactical' && rules.secondaries.length > 0 && you.remainingSecondaries.length === 0
     const invalidMode = tacticalOnly && storedMode !== 'tactical'
-    if (!missingStratagems && !missingPrimary && !missingDeck && !invalidMode) return
+    if (!missingStratagems && !wrongPrimary && !missingDeck && !invalidMode) return
     save({})
     // Re-runs only when one of those two facts changes, and both are satisfied by the save.
     // eslint-disable-next-line react-hooks/exhaustive-deps
