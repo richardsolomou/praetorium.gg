@@ -82,13 +82,26 @@ export function sides(view: BattleView): Side[] {
       total: captain.primary + captain.secondary + (view.status === 'finished' ? paintedPoints : 0),
       rounds: captain.rounds,
       primaryCard: captain.primaryCard,
-      secondaries: captain.secondaries,
+      secondaries: unsettledFirst(captain.secondaries),
       secondaryMode: captain.secondaryMode,
       remainingSecondaries: captain.remainingSecondaries,
       stratagems: captain.stratagems,
     }
   })
 }
+
+/**
+ * The hand with whatever is still in play at the top.
+ *
+ * A card that has been neither scored nor put back is still something to do, and a
+ * list that leaves it wherever it was dealt is a list a player can lose it in. Cards
+ * that are done keep their dealt order underneath, so settling one moves it down
+ * rather than shuffling the rest.
+ */
+const unsettledFirst = (cards: ViewPlayer['secondaries']): ViewPlayer['secondaries'] => [
+  ...cards.filter((card) => card.status === 'active'),
+  ...cards.filter((card) => card.status !== 'active'),
+]
 
 /** The side the viewer plays on first, then the ones they are playing against. */
 export function facingSides(view: BattleView): { yours: Side | undefined; theirs: Side[] } {

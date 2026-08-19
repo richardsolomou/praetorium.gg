@@ -111,3 +111,21 @@ describe('battle sides', () => {
     expect(sides(view([player({ id: 'you', side: 0 })]))[0]?.armies[0]?.points).toBeNull()
   })
 })
+
+describe('the order a hand is drawn in', () => {
+  const card = (key: string, status: 'active' | 'achieved' | 'discarded') =>
+    ({ key, name: key, status, points: 0, secret: false, revealed: false }) as ViewPlayer['secondaries'][number]
+  const hand = (...cards: ViewPlayer['secondaries']) => sides(view([player({ id: 'you', side: 0, secondaries: cards })]))[0]?.secondaries
+
+  it('lifts a card that is still in play above one that is done', () => {
+    expect(hand(card('done', 'achieved'), card('live', 'active'))?.map((entry) => entry.key)).toEqual(['live', 'done'])
+  })
+
+  it('drops a card back among the settled ones once it is scored', () => {
+    expect(hand(card('first', 'achieved'), card('second', 'discarded'))?.map((entry) => entry.key)).toEqual(['first', 'second'])
+  })
+
+  it('leaves a hand of live cards in the order it was dealt', () => {
+    expect(hand(card('one', 'active'), card('two', 'active'))?.map((entry) => entry.key)).toEqual(['one', 'two'])
+  })
+})
