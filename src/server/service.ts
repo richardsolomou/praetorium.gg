@@ -13,6 +13,7 @@ import {
   type SubmitResult,
 } from '../core/battle'
 import type { RosterPick } from '../core/roster'
+import type { RosterSource } from '../core/savedRoster'
 import type { BattleSeats, JoinResult, Repository } from '../db/repository'
 import { type Mission, missionFor } from './rules'
 import { picksSchema, savedPrepSchema } from './schemas'
@@ -111,7 +112,7 @@ export class PraetoriumService {
       picks: readonly RosterPick[]
       prep: SavedPrep | null
       visibility: 'private' | 'unlisted'
-      source: 'legacy' | 'editable' | 'battlebase' | 'roster-file'
+      source: RosterSource
     },
   ) {
     const id = roster.id ?? randomId()

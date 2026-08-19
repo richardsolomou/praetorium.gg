@@ -16,7 +16,7 @@ Praetorium is for friends who want one shared battle record instead of paper sco
 
 ## How it works ✨
 
-1. **Build or import a list** with its faction, detachments, units, loadouts, enhancements, and points limit. Imports support `.ros` and `.rosz` files.
+1. **Build or import a list** with its faction, detachments, units, loadouts, enhancements, and points limit. Imports support BattleBase and New Recruit text plus `.ros` and `.rosz` files.
 2. **Open a shared, 2v1, or solo practice battle** with its size, mission pack, and saved setup draft.
 3. **Attach the lists.** Praetorium derives the mission from their force dispositions and offers matching deployment and terrain data.
 4. **Complete battle setup** by choosing formations, deployment, stratagems, mission cards, attacker, and first player.

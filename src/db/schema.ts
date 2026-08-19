@@ -206,7 +206,7 @@ export const rosters = sqliteTable(
       .notNull()
       .default('unlisted'),
     /** How the list first entered Praetorium, retained through later edits. */
-    source: text('source', { enum: ['legacy', 'editable', 'battlebase', 'roster-file'] })
+    source: text('source', { enum: ['legacy', 'editable', 'battlebase', 'newrecruit', 'roster-file'] })
       .notNull()
       .default('legacy'),
     updatedAt: integer('updated_at').notNull(),

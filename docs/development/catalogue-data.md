@@ -93,7 +93,7 @@ Inspect the generated selection before changing evaluator logic. A mismatch can 
 
 - Save `RosterPick` values instead of expanded selections. Rebuild them against the current catalogue when pricing a saved list.
 - New saved lists are private. Making one unlisted lets anyone holding its opaque URL read it. Switching it back to private invalidates that public access without changing the URL.
-- Keep import provenance with the saved list so the library can distinguish an editable Praetorium roster, a BattleBase text import, and a `.ros` or `.rosz` file import.
+- Keep import provenance with the saved list so the library can distinguish an editable Praetorium roster, BattleBase and New Recruit text imports, and a `.ros` or `.rosz` file import.
 - Freeze `built.units` when a roster is attached. Battle commands refer to those stable unit keys.
 - Import roster entries by catalogue ID. Resolve joined link paths from their final ID. Use a name match only as a fallback.
 - Report entries that cannot be imported instead of dropping them.

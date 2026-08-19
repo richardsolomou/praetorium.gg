@@ -9,6 +9,7 @@ import {
   validate,
 } from '../core/battle'
 import { commandSchema } from '../core/commands'
+import type { RosterSource } from '../core/savedRoster'
 import type { PraetoriumDatabase } from './connection'
 import { battlePlayers, battles, collection, commands, favouriteFactions, friendships, players, rosters } from './schema'
 
@@ -223,7 +224,7 @@ export class Repository {
     prep: string | null
     tags: string
     visibility: 'private' | 'unlisted'
-    source: 'legacy' | 'editable' | 'battlebase' | 'roster-file'
+    source: RosterSource
     now: number
   }) {
     this.database

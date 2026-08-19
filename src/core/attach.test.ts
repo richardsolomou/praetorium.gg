@@ -67,6 +67,52 @@ describe('a character that can join a unit', () => {
     ])
   })
 
+  it('reads hyphenated attachment lists', () => {
+    const index = indexOf({
+      sharedSelectionEntries: [
+        {
+          id: 'captain',
+          name: 'Captain',
+          type: 'model',
+          profiles: [ability('Leader', 'This model can be attached to the following units:\n- Custodian Guard\n- Custodian Wardens')],
+        },
+      ],
+    })
+    expect(attachmentOf(index.definitions.get('captain')!, index)).toEqual({
+      kind: 'leader',
+      targets: ['Custodian Guard', 'Custodian Wardens'],
+    })
+  })
+
+  it('expands inline category targets to matching units', () => {
+    const index = indexOf({
+      sharedSelectionEntries: [
+        {
+          id: 'inquisitor',
+          name: 'Inquisitor',
+          type: 'model',
+          profiles: [ability('Leader', 'This model can be attached to the following units: IMPERIUM BATTLELINE INFANTRY, EXACTION SQUAD')],
+        },
+        {
+          id: 'guard',
+          name: 'Custodian Guard',
+          type: 'unit',
+          categoryLinks: [
+            { id: 'imperium-link', targetId: 'imperium', name: 'Imperium' },
+            { id: 'battleline-link', targetId: 'battleline', name: 'Battleline' },
+            { id: 'infantry-link', targetId: 'infantry', name: 'Infantry' },
+          ],
+        },
+      ],
+    })
+
+    expect(attachmentOf(index.definitions.get('inquisitor')!, index)?.targets).toEqual([
+      'IMPERIUM BATTLELINE INFANTRY',
+      'Custodian Guard',
+      'EXACTION SQUAD',
+    ])
+  })
+
   it('reads an ability the entry links to rather than holds', () => {
     const index = indexOf({
       sharedInfoGroups: [

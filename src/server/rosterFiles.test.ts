@@ -77,6 +77,23 @@ const loaded: LoadedCatalogue = {
 }
 
 describe('BattleBase roster import', () => {
+  it('identifies the imported text source', () => {
+    const imported = importRosterFile(
+      {
+        file: `Blades (70 Points)
+
+Necrons
+Pantheon of Woe (2 Detachment Points)
+Strike Force (2,000 Points)
+
+Exported with BattleBase, Data Version: v20260812`,
+      },
+      loaded,
+    )
+
+    expect(imported.source).toBe('battlebase')
+  })
+
   it('resolves each detachment in a combined purchase label', () => {
     const imported = importRosterFile(
       {
@@ -155,5 +172,38 @@ Exported with BattleBase, Data Version: v20260812`,
     )
 
     expect(imported.units[0]?.choices?.enhancements).toBe('relic')
+  })
+})
+
+describe('NewRecruit roster import', () => {
+  it('resolves setup and grouped model choices', () => {
+    const imported = importRosterFile(
+      {
+        file: `+++++++++++++++++++++++++++++++++++++++++++++++
++ FACTION KEYWORD: Xenos - Necrons
++ DETACHMENT: Pantheon\u00a0of\u00a0Woe, Skyshroud\u00a0Spearhead (Test Rule)
++ FORCE DISPOSITION: Purge the Foe
++ TOTAL ARMY POINTS: 70pts
+++++++++++++++++++++++++++++++++++++++++++++++
+
+3x Tomb Blades (70 pts)
+• 1x Tomb Blade: Twin gauss blaster
+• 2x Tomb Blade: 2 with Particle beamer
+
+Created with newrecruit.eu v35.51`,
+      },
+      loaded,
+    )
+
+    expect(imported).toMatchObject({
+      source: 'newrecruit',
+      name: 'Necrons 70pts',
+      catalogueId: 'necrons',
+      detachmentIds: ['pantheon', 'skyshroud'],
+      disposition: 'purge-the-foe',
+      limit: 500,
+      units: [{ models: 3, spreads: { 'model/weapon': { blaster: 1, beamer: 2 } } }],
+      unknown: [],
+    })
   })
 })

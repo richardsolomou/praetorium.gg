@@ -1,9 +1,11 @@
 import { attachmentOf } from '../core/attach'
-import { fromBattleBaseText, type BattleBaseUnit } from '../core/battlebase'
+import { fromBattleBaseText } from '../core/battlebase'
 import { nameOf } from '../core/catalogue'
 import type { Selection } from '../core/evaluate'
+import { fromNewRecruitText } from '../core/newRecruit'
 import { buildUnit, modelCountOf, unitChoices, unitToggles } from '../core/roster'
 import { fromRosterXml } from '../core/rosz'
+import type { TextRoster, TextRosterUnit } from '../core/textRoster'
 import { toGwText } from '../core/gwText'
 import { GAME_SIZES } from '../core/battle'
 import { factionDisplayName } from './factionNames'
@@ -16,7 +18,9 @@ const allSelections = (selection: Selection): Selection[] => [selection, ...(sel
 
 export function importRosterFile(data: ImportRosterInput, loaded: LoadedCatalogue) {
   const battleBase = fromBattleBaseText(data.file)
-  if (battleBase) return importBattleBaseRoster(battleBase, loaded)
+  if (battleBase) return { ...importTextRoster(battleBase, loaded), source: 'battlebase' as const }
+  const newRecruit = fromNewRecruitText(data.file)
+  if (newRecruit) return { ...importTextRoster(newRecruit, loaded), source: 'newrecruit' as const }
   const parsed = fromRosterXml(rosterXml(data.file), loaded.index, parseXml)
   const catalogueId = parsed.catalogueId && loaded.index.catalogues.has(parsed.catalogueId) ? parsed.catalogueId : null
   const detachment = catalogueId ? loaded.detachments.get(catalogueId) : undefined
@@ -40,6 +44,7 @@ export function importRosterFile(data: ImportRosterInput, loaded: LoadedCatalogu
   }
 
   return {
+    source: 'roster-file' as const,
     name: data.name ?? parsed.name,
     catalogueId,
     catalogueName: parsed.catalogueName,
@@ -74,13 +79,15 @@ const normalized = (value: string) =>
   value
     .trim()
     .toLocaleLowerCase()
+    .replace(/\s+/g, ' ')
+    .replace(/\[\d+\]$/, '')
     .replaceAll(/[’‘]/g, "'")
 const slug = (value: string) =>
   normalized(value)
     .replaceAll(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '')
 
-function importBattleBaseRoster(parsed: NonNullable<ReturnType<typeof fromBattleBaseText>>, loaded: LoadedCatalogue) {
+function importTextRoster(parsed: TextRoster, loaded: LoadedCatalogue) {
   const faction = loaded.factions.find((candidate) => {
     const names = [candidate.name, candidate.name.split(' - ').at(-1) ?? '']
     return names.some((name) => normalized(name) === normalized(parsed.faction))
@@ -105,16 +112,21 @@ function importBattleBaseRoster(parsed: NonNullable<ReturnType<typeof fromBattle
       return []
     }
     sourceToImported.set(sourceIndex, sourceToImported.size)
-    return [battleBasePick(unit, entryId, faction.id, detachmentSelections, loaded)]
+    return [textRosterPick(unit, entryId, faction.id, detachmentSelections, loaded)]
   })
 
   parsed.units.forEach((unit, sourceIndex) => {
-    const leading = unit.leading
     const importedAt = sourceToImported.get(sourceIndex)
-    if (!leading || importedAt === undefined || !units[importedAt]) return
-    const targetSource = parsed.units.findIndex((candidate) => normalized(candidate.name) === normalized(leading))
-    const target = sourceToImported.get(targetSource)
-    if (target !== undefined && units[target]) units[importedAt] = { ...units[importedAt], attachedTo: target }
+    if (unit.leading && importedAt !== undefined && units[importedAt]) {
+      const targetSource = parsed.units.findIndex((candidate) => normalized(candidate.name) === normalized(unit.leading ?? ''))
+      const target = sourceToImported.get(targetSource)
+      if (target !== undefined && units[target]) units[importedAt] = { ...units[importedAt], attachedTo: target }
+    }
+    if (unit.leader && importedAt !== undefined && units[importedAt]) {
+      const leaderSource = parsed.units.findIndex((candidate) => normalized(candidate.name) === normalized(unit.leader ?? ''))
+      const leader = sourceToImported.get(leaderSource)
+      if (leader !== undefined && units[leader]) units[leader] = { ...units[leader], attachedTo: importedAt }
+    }
   })
 
   return {
@@ -149,11 +161,13 @@ function detachmentsNamed<T extends { id: string; name: string }>(combined: stri
   return visit(normalized(combined), candidates) ?? []
 }
 
-function battleBasePick(unit: BattleBaseUnit, entryId: string, catalogueId: string, roster: readonly Selection[], loaded: LoadedCatalogue) {
-  const stated = new Map(
-    unit.selections.map((selection) => [normalized(selection.name.replace(/^(?:Enhancement|Upgrade):\s*/i, '')), selection.count]),
-  )
-  const requestedModels = Math.max(1, ...unit.selections.map((selection) => selection.count))
+function textRosterPick(unit: TextRosterUnit, entryId: string, catalogueId: string, roster: readonly Selection[], loaded: LoadedCatalogue) {
+  const stated = new Map<string, number>()
+  for (const selection of unit.selections) {
+    const name = normalized(selection.name.replace(/^(?:Enhancement|Upgrade):\s*/i, ''))
+    stated.set(name, (stated.get(name) ?? 0) + selection.count)
+  }
+  const requestedModels = unit.models ?? Math.max(1, ...unit.selections.map((selection) => selection.count))
   const context = { primaryCatalogueId: catalogueId, roster }
   const built = buildUnit(entryId, loaded.index, requestedModels, {}, context)
   const selection = built?.selection ?? { id: entryId, count: 1 }
