@@ -11,6 +11,7 @@ import {
   ListPlus,
   Pencil,
   Plus,
+  Printer,
   SlidersHorizontal,
   Trash2,
   TriangleAlert,
@@ -63,7 +64,7 @@ type Props = {
   /** What the player has written down, so a saved list carries it and restores it. */
   prep: { stratagems: Stratagem[]; secondaries: Secondary[] }
   onRestorePrep: (prep: { stratagems: Stratagem[]; secondaries: Secondary[] }) => void
-  initial?: {
+  initial: {
     id: string
     name: string
     catalogueId: string
@@ -74,6 +75,7 @@ type Props = {
     visibility: RosterVisibility
     source: RosterSource
   }
+  editable?: boolean
 }
 
 type Pick = RosterPick & { key: number }
@@ -89,7 +91,7 @@ type Pick = RosterPick & { key: number }
  * The price and the legality both come from the server, because the catalogue is
  * 90MB and the browser has no business holding it.
  */
-export function ListBuilder({ onAttach, pending = false, attached = false, prep, onRestorePrep, initial }: Props) {
+export function ListBuilder({ onAttach, pending = false, attached = false, prep, onRestorePrep, initial, editable = true }: Props) {
   const { data: available } = useQuery(factionsQuery())
   const [catalogueId, setCatalogueId] = useState(initial?.catalogueId ?? '')
   // Picks carry their own key: the same datasheet may legitimately appear twice,
@@ -107,7 +109,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
   const [showing, setShowing] = useState<'picker' | 'loadout' | 'datasheet' | null>(null)
   const [datasheetReturn, setDatasheetReturn] = useState<'picker' | 'loadout' | null>(null)
   const [exportText, setExportText] = useState<string | null>(null)
-  const workspacePath = initial?.id ? `/rosters/${initial.id}/edit` : '/rosters/new'
+  const workspacePath = `/rosters/${initial.id}`
   const [setupDraft, setSetupDraftState] = useState<RosterSetup | null>(null)
   const editingSetup = setupDraft !== null
 
@@ -118,8 +120,8 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
 
   const [savedId, setSavedId] = useState<string | undefined>(initial?.id)
   const queryClient = useQueryClient()
-  const { data: saved } = useQuery(savedRostersQuery())
-  const { data: owned } = useQuery(collectionQuery())
+  const { data: saved } = useQuery({ ...savedRostersQuery(), enabled: editable })
+  const { data: owned } = useQuery({ ...collectionQuery(), enabled: editable })
   const collection = new Set(owned ?? [])
   const own = useCollectionMutation()
   const { favourites } = useFavouriteFactions()
@@ -181,14 +183,12 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
   })
 
   useEffect(() => {
-    if (!catalogueId || (!picked.length && !savedId) || !listName) return
-    const id = savedId ?? crypto.randomUUID()
-    if (!savedId) setSavedId(id)
-    save.mutate(id)
+    if (!editable || !catalogueId || (!picked.length && !savedId) || !listName || !savedId) return
+    save.mutate(savedId)
     // The mutation reads the complete rendered draft. A later render queues behind
     // this one, so the final request always contains the newest state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [catalogueId, detachmentIds, disposition, limit, listName, picked, prep, savedId, source, visibility])
+  }, [catalogueId, detachmentIds, disposition, editable, limit, listName, picked, prep, savedId, source, visibility])
 
   /** Hands the list to another tool, in the format every one of them reads. */
   const take = useMutation({
@@ -453,26 +453,27 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
     })
   }
 
-  const picker = faction ? (
-    <div className="flex h-full flex-col">
-      <div className="min-h-0 flex-1">
-        <Picker
-          catalogueId={catalogueId}
-          onAdd={add}
-          onPreview={(entryId) => {
-            setPreview({ catalogueId, entryId })
-            setDatasheetReturn('picker')
-            setShowing('datasheet')
-          }}
-          inRoster={held}
-          room={priced ? limit - priced.points : null}
-          battleSize={limit}
-        />
+  const picker =
+    editable && faction ? (
+      <div className="flex h-full flex-col">
+        <div className="min-h-0 flex-1">
+          <Picker
+            catalogueId={catalogueId}
+            onAdd={add}
+            onPreview={(entryId) => {
+              setPreview({ catalogueId, entryId })
+              setDatasheetReturn('picker')
+              setShowing('datasheet')
+            }}
+            inRoster={held}
+            room={priced ? limit - priced.points : null}
+            battleSize={limit}
+          />
+        </div>
       </div>
-    </div>
-  ) : (
-    <p className="p-2.5 text-xs text-faint">Pick a book first.</p>
-  )
+    ) : (
+      <p className="p-2.5 text-xs text-faint">Pick a book first.</p>
+    )
 
   const loadoutCatalogueId = selected === null ? catalogueId : (picked[selected]?.catalogueId ?? catalogueId)
   const datasheetCatalogueId = preview?.catalogueId ?? loadoutCatalogueId
@@ -516,6 +517,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
           maxLength={ROSTER_NAME_MAX_LENGTH}
           placeholder={suggested || 'Named from your picks'}
           aria-label="List name"
+          readOnly={!editable}
           className="h-8 border-0 bg-transparent px-0 text-lg font-bold tracking-[0.02em] uppercase focus-visible:ring-0"
         />
 
@@ -554,25 +556,32 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
                 </span>
               </span>
             ) : null}
-            <DropdownMenu>
-              <DropdownMenuTrigger aria-label="Roster actions" className="ml-auto grid size-7 shrink-0 place-items-center hover:text-bone">
-                <EllipsisVertical className="size-4" />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem
-                  onClick={() => setSetupDraft({ name: listName, catalogueId, detachmentIds, disposition, limit, visibility })}
-                >
-                  <Pencil /> Edit roster setup
-                </DropdownMenuItem>
-                <DropdownMenuItem disabled={take.isPending || !units.length} onClick={() => take.mutate()}>
-                  <Download /> Export GW text
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <span className="ml-auto flex shrink-0 items-center gap-1" data-print-hide>
+              <Button variant="ghost" size="xs" onClick={() => window.print()}>
+                <Printer /> Print
+              </Button>
+              {editable ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger aria-label="Roster actions" className="grid size-7 place-items-center hover:text-bone">
+                    <EllipsisVertical className="size-4" />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem
+                      onClick={() => setSetupDraft({ name: listName, catalogueId, detachmentIds, disposition, limit, visibility })}
+                    >
+                      <Pencil /> Edit roster setup
+                    </DropdownMenuItem>
+                    <DropdownMenuItem disabled={take.isPending || !units.length} onClick={() => take.mutate()}>
+                      <Download /> Export GW text
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : null}
+            </span>
           </div>
         ) : null}
 
-        {available && editingSetup ? (
+        {editable && available && editingSetup ? (
           <RosterSetupDialog
             open={editingSetup}
             onOpenChange={(open) => !open && setSetupDraft(null)}
@@ -800,28 +809,30 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
       </header>
 
       <div className="flex min-h-0 flex-1">
-        <Pane
-          variant="picker"
-          open={showing === 'picker'}
-          title="Add units"
-          onClose={() => setShowing(null)}
-          actions={
-            selectedUnit ? (
-              <Button
-                variant="ghost"
-                size="xs"
-                onClick={() => {
-                  setPreview(null)
-                  setShowing('loadout')
-                }}
-              >
-                <SlidersHorizontal /> Loadout
-              </Button>
-            ) : null
-          }
-        >
-          {picker}
-        </Pane>
+        {editable ? (
+          <Pane
+            variant="picker"
+            open={showing === 'picker'}
+            title="Add units"
+            onClose={() => setShowing(null)}
+            actions={
+              selectedUnit ? (
+                <Button
+                  variant="ghost"
+                  size="xs"
+                  onClick={() => {
+                    setPreview(null)
+                    setShowing('loadout')
+                  }}
+                >
+                  <SlidersHorizontal /> Loadout
+                </Button>
+              ) : null
+            }
+          >
+            {picker}
+          </Pane>
+        ) : null}
 
         <div className="min-h-0 flex-1 overflow-y-auto px-3">
           {units.length || faction ? (
@@ -845,7 +856,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
                       onSelect={() => {
                         setPreview(null)
                         setSelected(index)
-                        setShowing('loadout')
+                        setShowing(editable ? 'loadout' : 'datasheet')
                       }}
                       onRemove={() => drop(index)}
                       onDuplicate={() => duplicate(index)}
@@ -854,6 +865,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
                       joined={joinedRows(index)}
                       canJoin={joinable(index)}
                       onJoin={(targetKey) => join(index, targetKey)}
+                      editable={editable}
                     />
                   ))}
                 </Section>
@@ -864,32 +876,34 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
           )}
         </div>
 
-        <Pane
-          variant="loadout"
-          open={showing === 'loadout' && Boolean(selectedUnit)}
-          title="Loadout"
-          onClose={() => setShowing(null)}
-          actions={
-            <>
-              <Button variant="ghost" size="xs" onClick={() => setShowing('picker')}>
-                <ListPlus /> Units
-              </Button>
-              <Button
-                variant="ghost"
-                size="xs"
-                onClick={() => {
-                  setPreview(null)
-                  setDatasheetReturn('loadout')
-                  setShowing('datasheet')
-                }}
-              >
-                <BookOpen /> Datasheet
-              </Button>
-            </>
-          }
-        >
-          {loadout}
-        </Pane>
+        {editable ? (
+          <Pane
+            variant="loadout"
+            open={showing === 'loadout' && Boolean(selectedUnit)}
+            title="Loadout"
+            onClose={() => setShowing(null)}
+            actions={
+              <>
+                <Button variant="ghost" size="xs" onClick={() => setShowing('picker')}>
+                  <ListPlus /> Units
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="xs"
+                  onClick={() => {
+                    setPreview(null)
+                    setDatasheetReturn('loadout')
+                    setShowing('datasheet')
+                  }}
+                >
+                  <BookOpen /> Datasheet
+                </Button>
+              </>
+            }
+          >
+            {loadout}
+          </Pane>
+        ) : null}
 
         <Pane
           variant="datasheet"
@@ -928,9 +942,11 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
             <span className="eyebrow">points</span>
           </span>
 
-          <Button variant="outline" size="sm" className="lg:hidden" onClick={() => setShowing('picker')} disabled={!faction}>
-            Add units
-          </Button>
+          {editable ? (
+            <Button variant="outline" size="sm" className="lg:hidden" onClick={() => setShowing('picker')} disabled={!faction}>
+              Add units
+            </Button>
+          ) : null}
 
           <span className="ml-auto flex flex-wrap items-center gap-2">
             {onAttach ? (
@@ -955,7 +971,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
             ) : null}
           </span>
         </div>
-        {save.isError ? (
+        {editable && save.isError ? (
           <div
             role="alert"
             className="mt-2 flex items-center gap-2 border border-destructive/40 bg-destructive/5 p-2.5 text-xs text-destructive"

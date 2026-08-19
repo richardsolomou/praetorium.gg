@@ -175,7 +175,7 @@ test('a player can enter through the roster library and browse the product', asy
   await dialog.getByRole('combobox', { name: 'Battle size' }).click()
   await page.getByRole('option', { name: /Strike Force/ }).click()
   await dialog.getByRole('button', { name: 'Create roster' }).click()
-  await expect(page).toHaveURL(/\/rosters\/.+\/edit/)
+  await expect(page).toHaveURL(/\/rosters\/[^/]+$/)
   await expect(page.getByRole('heading', { name: /Edit Necrons — Awakened Dynasty/ })).toHaveCount(0)
   await expect(page.getByRole('link', { name: 'Necrons', exact: true })).toBeVisible()
   await expect(page.getByRole('link', { name: 'Awakened Dynasty', exact: true })).toBeVisible()

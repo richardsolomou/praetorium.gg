@@ -32,10 +32,8 @@ export function RosterImport() {
       const imported = await importRoster({ data: { file } })
       if (!imported.catalogueId) throw new Error(`Could not place: ${imported.unknown.join(', ') || imported.catalogueName || 'faction'}`)
       if (imported.unknown.length) throw new Error(`Could not place: ${imported.unknown.join(', ')}`)
-      const id = crypto.randomUUID()
-      await saveRoster({
+      const { id } = await saveRoster({
         data: {
-          id,
           name: imported.name,
           catalogueId: imported.catalogueId,
           detachmentIds: imported.detachmentIds,
@@ -53,7 +51,7 @@ export function RosterImport() {
       await queryClient.invalidateQueries({ queryKey: savedRostersQuery().queryKey })
       setOpen(false)
       setText('')
-      await navigate({ to: '/rosters/$id/edit', params: { id } })
+      await navigate({ to: '/rosters/$id', params: { id } })
     },
   })
 

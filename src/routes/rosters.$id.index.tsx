@@ -1,114 +1,75 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, notFound } from '@tanstack/react-router'
-import { Printer } from 'lucide-react'
 import { useEffect } from 'react'
-import { Button } from '@/components/ui/button'
-import { priceQuery, savedRosterPriceQuery, sharedRosterQuery } from '../client/queries'
-import { ROSTER_SOURCE_LABELS } from '../core/savedRoster'
+import { RosterEditor } from '../client/components/RosterEditor'
+import {
+  collectionQuery,
+  factionsQuery,
+  meQuery,
+  savedRosterPriceQuery,
+  savedRostersQuery,
+  sharedRosterQuery,
+  unitsQuery,
+} from '../client/queries'
 
 export const Route = createFileRoute('/rosters/$id/')({
   // A battle token is what lets a seated opponent open a list that is otherwise private.
-  validateSearch: (search: Record<string, unknown>): { battle?: string } =>
-    typeof search.battle === 'string' ? { battle: search.battle } : {},
+  validateSearch: (search: Record<string, unknown>): { battle?: string; print?: boolean } => ({
+    ...(typeof search.battle === 'string' ? { battle: search.battle } : {}),
+    ...(search.print === true || search.print === 'true' ? { print: true } : {}),
+  }),
   loaderDeps: ({ search }) => ({ battle: search.battle }),
   loader: async ({ context, params, deps }) => {
-    const roster = await context.queryClient.ensureQueryData(sharedRosterQuery(params.id, deps.battle))
+    const me = await context.queryClient.ensureQueryData(meQuery())
+    const [shared, saved] = await Promise.all([
+      context.queryClient.ensureQueryData(sharedRosterQuery(params.id, deps.battle)),
+      me ? context.queryClient.ensureQueryData(savedRostersQuery()) : Promise.resolve([]),
+    ])
+    const owned = saved.find((candidate) => candidate.id === params.id)
+    const roster = owned ?? shared
     if (!roster) throw notFound()
-    await context.queryClient.ensureQueryData(
-      savedRosterPriceQuery(
-        roster.id,
-        roster.catalogueId,
-        roster.detachmentIds,
-        roster.disposition,
-        roster.limit,
-        roster.picks.map(({ entryId, catalogueId, models, choices, spreads, toggles }) => ({
-          entryId,
-          catalogueId,
-          models,
-          choices,
-          spreads,
-          toggles,
-        })),
-        deps.battle,
+
+    await Promise.all([
+      context.queryClient.ensureQueryData(factionsQuery()),
+      context.queryClient.ensureQueryData(
+        savedRosterPriceQuery(
+          roster.id,
+          roster.catalogueId,
+          roster.detachmentIds,
+          roster.disposition,
+          roster.limit,
+          roster.picks.map(({ entryId, catalogueId, models, choices, spreads, toggles }) => ({
+            entryId,
+            catalogueId,
+            models,
+            choices,
+            spreads,
+            toggles,
+          })),
+          deps.battle,
+        ),
       ),
-    )
+      ...(owned
+        ? [context.queryClient.ensureQueryData(collectionQuery()), context.queryClient.ensureQueryData(unitsQuery(roster.catalogueId, ''))]
+        : []),
+    ])
+    return { editable: Boolean(owned) }
   },
-  component: SharedRoster,
+  component: RosterPage,
 })
 
-function SharedRoster() {
+function RosterPage() {
   const { id } = Route.useParams()
-  const { battle } = Route.useSearch()
-  const { data: roster } = useQuery(sharedRosterQuery(id, battle))
-  const { data: priced } = useQuery(
-    priceQuery(
-      roster?.catalogueId ?? '',
-      roster?.detachmentIds ?? [],
-      roster?.disposition ?? null,
-      roster?.limit ?? 0,
-      roster?.picks.map(({ entryId, models, choices, spreads, toggles }) => ({ entryId, models, choices, spreads, toggles })) ?? [],
-    ),
-  )
+  const { battle, print } = Route.useSearch()
+  const { editable } = Route.useLoaderData()
+  const { data: shared } = useQuery(sharedRosterQuery(id, battle))
+  const { data: saved = [] } = useQuery({ ...savedRostersQuery(), enabled: editable })
+  const roster = saved.find((candidate) => candidate.id === id) ?? shared
+
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).get('print') === 'true') window.print()
-  }, [])
+    if (print) window.print()
+  }, [print])
+
   if (!roster) return null
-
-  return (
-    <main className="mx-auto w-full max-w-3xl px-4 py-8">
-      <header className="flex flex-wrap items-end justify-between gap-4 border-b border-edge pb-4">
-        <div>
-          <p className="eyebrow">{roster.visibility === 'private' ? 'Private roster' : 'Unlisted roster'}</p>
-          <h1 className="text-3xl">{roster.name}</h1>
-          <p className="mt-1 text-sm text-dim">
-            {priced?.detachments.map((detachment) => detachment.name).join(' · ') || 'No detachment'} · {roster.picks.length} units ·{' '}
-            {ROSTER_SOURCE_LABELS[roster.source]}
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <span className="readout text-2xl font-bold">
-            {priced?.points ?? '—'}/{roster.limit}
-          </span>
-          <Button variant="outline" size="sm" data-print-hide onClick={() => window.print()}>
-            <Printer /> Print
-          </Button>
-        </div>
-      </header>
-
-      {priced?.errors.length ? (
-        <div className="mt-4 border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
-          This roster has {priced.errors.length} validation {priced.errors.length === 1 ? 'issue' : 'issues'} against the current catalogue
-          revision.
-        </div>
-      ) : null}
-
-      <div className="mt-4 space-y-2">
-        {(priced?.units ?? []).map((unit) => (
-          <article key={unit.key} className="border border-edge bg-panel p-3">
-            <div className="flex items-baseline justify-between gap-3">
-              <h2 className="text-base">{unit.name}</h2>
-              <span className="chip">{unit.points} pts</span>
-            </div>
-            <p className="readout mt-1 text-xs text-dim">{unit.size.models} models</p>
-            <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-dim">
-              {unit.wargear.map((piece) => (
-                <li key={piece.name}>
-                  {piece.count}x {piece.name}
-                </li>
-              ))}
-            </ul>
-            {[
-              ...unit.enhancements.map((name) => ({ kind: 'Enhancement', name })),
-              ...unit.upgrades.map((name) => ({ kind: 'Upgrade', name })),
-            ].map((entry) => (
-              <div key={`${entry.kind}-${entry.name}`} className="mt-2 flex items-center gap-2 border-t border-edge pt-2">
-                <span className="chip text-achieved">{entry.kind}</span>
-                <span className="text-xs font-semibold">{entry.name}</span>
-              </div>
-            ))}
-          </article>
-        ))}
-      </div>
-    </main>
-  )
+  return <RosterEditor roster={roster} editable={editable} />
 }

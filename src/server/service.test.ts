@@ -412,6 +412,10 @@ describe('saved rosters', () => {
     })
   })
 
+  it('mints a compact URL-safe id', () => {
+    expect(save().id).toMatch(/^[A-Za-z0-9_-]{11}$/)
+  })
+
   it('hides a private roster from another player', () => {
     const { id } = save()
     expect(service.sharedRoster(id, 'bob')).toBeNull()
