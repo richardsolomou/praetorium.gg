@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { buildIndex, type CatalogueFile } from '../core/catalogue'
+import { buildUnit, wargearOf } from '../core/roster'
 import { importRosterFile } from './rosterFiles'
 import type { LoadedCatalogue } from './catalogueIndex'
 
@@ -50,6 +51,74 @@ const faction: CatalogueFile = {
             name: 'Enhancements',
             constraints: [{ id: 'enhancement-max', type: 'max', value: 1, field: 'selections', scope: 'parent' }],
             selectionEntries: [{ id: 'relic', name: 'Demanding Leader', type: 'upgrade' }],
+          },
+        ],
+      },
+      {
+        id: 'intercessor-squad',
+        name: 'Intercessor Squad',
+        type: 'unit',
+        selectionEntryGroups: [
+          {
+            id: 'intercessors',
+            name: 'Intercessors',
+            constraints: [
+              { id: 'intercessors-min', type: 'min', value: 5, field: 'selections', scope: 'parent' },
+              { id: 'intercessors-max', type: 'max', value: 10, field: 'selections', scope: 'parent' },
+            ],
+            selectionEntries: [
+              {
+                id: 'sergeant',
+                name: 'Intercessor Sergeant',
+                type: 'model',
+                constraints: [
+                  { id: 'sergeant-min', type: 'min', value: 1, field: 'selections', scope: 'parent' },
+                  { id: 'sergeant-max', type: 'max', value: 1, field: 'selections', scope: 'parent' },
+                ],
+                selectionEntryGroups: [
+                  {
+                    id: 'sergeant-weapon',
+                    name: 'Weapon',
+                    defaultSelectionEntryId: 'sergeant-rifle',
+                    constraints: [
+                      { id: 'sergeant-weapon-min', type: 'min', value: 1, field: 'selections', scope: 'parent' },
+                      { id: 'sergeant-weapon-max', type: 'max', value: 1, field: 'selections', scope: 'parent' },
+                    ],
+                    selectionEntries: [
+                      { id: 'sergeant-rifle', name: 'Bolt rifle', type: 'upgrade' },
+                      {
+                        id: 'sergeant-launcher-loadout',
+                        name: 'Bolt rifle w/ grenade launcher',
+                        type: 'upgrade',
+                        selectionEntries: [
+                          {
+                            id: 'loadout-rifle',
+                            name: 'Bolt rifle',
+                            type: 'upgrade',
+                            constraints: [{ id: 'loadout-rifle-min', type: 'min', value: 1, field: 'selections', scope: 'parent' }],
+                          },
+                          {
+                            id: 'grenade-launcher',
+                            name: 'Astartes grenade launcher',
+                            type: 'upgrade',
+                            constraints: [{ id: 'grenade-launcher-min', type: 'min', value: 1, field: 'selections', scope: 'parent' }],
+                          },
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+              {
+                id: 'intercessor',
+                name: 'Intercessor',
+                type: 'model',
+                constraints: [
+                  { id: 'intercessor-min', type: 'min', value: 4, field: 'selections', scope: 'parent' },
+                  { id: 'intercessor-max', type: 'max', value: 9, field: 'selections', scope: 'parent' },
+                ],
+              },
+            ],
           },
         ],
       },
@@ -176,6 +245,33 @@ Exported with BattleBase, Data Version: v20260812`,
 })
 
 describe('NewRecruit roster import', () => {
+  it('matches a compound loadout by its uniquely exported weapon', () => {
+    const imported = importRosterFile(
+      {
+        file: `+++++++++++++++++++++++++++++++++++++++++++++++
++ FACTION KEYWORD: Xenos - Necrons
++ TOTAL ARMY POINTS: 80pts
+++++++++++++++++++++++++++++++++++++++++++++++
+
+5x Intercessor Squad (80 pts)
+• 1x Intercessor Sergeant: Bolt rifle
+• 4x Intercessor: 4 with Bolt rifle
+  1 with Astartes grenade launcher
+
+Created with newrecruit.eu v35.51`,
+      },
+      loaded,
+    )
+    const unit = imported.units[0]
+    const rebuilt = buildUnit(unit.entryId, loaded.index, unit.models, unit.choices, {
+      primaryCatalogueId: imported.catalogueId ?? undefined,
+      spreads: unit.spreads,
+      toggles: unit.toggles,
+    })!
+
+    expect(wargearOf(rebuilt.selection, loaded.index)).toContainEqual({ name: 'Astartes grenade launcher', count: 1 })
+  })
+
   it('resolves setup and grouped model choices', () => {
     const imported = importRosterFile(
       {
