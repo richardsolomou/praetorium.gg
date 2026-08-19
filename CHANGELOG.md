@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.11.1
+
+### Patch Changes
+
+- e621751: Stop the global search shortcut from throwing on Android soft keyboards that dispatch key events without a key.
+
 ## 0.11.0
 
 ### Minor Changes
