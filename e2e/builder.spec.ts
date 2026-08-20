@@ -256,6 +256,7 @@ test('wargear abilities are explained beside their choices', async ({ page }) =>
     await expect(loadout.getByLabel('Tomb Blades models')).toHaveText(models)
   }
   await loadout.getByRole('button', { name: 'More Shadowloom' }).click()
+  await expect(loadout.getByLabel('Shadowloom count')).toHaveText('1')
   await loadout.getByRole('button', { name: 'More Shadowloom' }).click()
   await expect(loadout.getByLabel('Shadowloom count')).toHaveText('2')
   await expect(page.locator('[data-roster-builder]')).toHaveAttribute('data-saving', 'false')
@@ -265,8 +266,13 @@ test('wargear abilities are explained beside their choices', async ({ page }) =>
   await loadout.getByRole('button', { name: 'Fewer models in Tomb Blades' }).click()
   await expect(loadout.getByLabel('Tomb Blades models')).toHaveText('3')
 
+  // Each press asks the server what the squad now holds, and the next press divides
+  // whatever comes back. Pressing again before the answer arrives divides the old
+  // numbers, so the two are taken one at a time here.
   await loadout.getByRole('button', { name: 'More Particle beamer' }).click()
+  await expect(loadout.getByLabel('Particle beamer count')).toHaveText('1')
   await loadout.getByRole('button', { name: 'More Twin tesla carbine' }).click()
+  await expect(loadout.getByLabel('Twin tesla carbine count')).toHaveText('1')
   await expect(loadout.getByLabel('Twin gauss blaster count')).toHaveText('1')
   await expect(loadout.getByLabel('Particle beamer count')).toHaveText('1')
   await expect(loadout.getByLabel('Twin tesla carbine count')).toHaveText('1')
