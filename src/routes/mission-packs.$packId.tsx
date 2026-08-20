@@ -23,14 +23,16 @@ function MissionPackPage() {
 
   const secondary = data.secondaries.find((entry) => entry.key === secondaryId)
   const primaryCap = Math.max(0, ...pack.missions.map((entry) => entry.gameCap ?? 0))
+  const secondaryCap = Math.max(0, ...pack.missions.map((entry) => entry.secondaryGameCap ?? 0))
 
   return (
     <main className="mx-auto w-full max-w-5xl px-4 py-8">
       <p className="eyebrow">Mission pack</p>
       <h1 className="text-3xl">{pack.name}</h1>
       <p className="mt-2 text-sm text-dim">
-        {primaryCap ? `Up to ${primaryCap} VP from primary missions. ` : ''}Choose your disposition down the left and your opponent’s across
-        the top.
+        {primaryCap ? `Up to ${primaryCap} VP from primary missions. ` : ''}
+        {secondaryCap ? `Up to ${secondaryCap} VP from secondary missions. ` : ''}Choose your disposition down the left and your opponent’s
+        across the top.
       </p>
 
       <section className="mt-7">

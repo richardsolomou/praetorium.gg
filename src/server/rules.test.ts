@@ -84,8 +84,22 @@ beforeEach(() => {
     { id: 'battlefield-dominance', name: 'Battlefield Dominance', card_type: 'primary', awards: [{ vp: 2 }] },
   ])
   write(path.join(root, 'missions.json'), [
-    { id: 'death-trap', name: 'Death Trap', vp_per_round_cap: 15, vp_per_game_cap: 45 },
-    { id: 'vital-link', name: 'Vital Link', vp_per_round_cap: 15, vp_per_game_cap: 45 },
+    {
+      id: 'death-trap',
+      name: 'Death Trap',
+      vp_per_round_cap: 15,
+      vp_per_game_cap: 45,
+      secondary_vp_per_round_cap: 15,
+      secondary_vp_per_game_cap: 45,
+    },
+    {
+      id: 'vital-link',
+      name: 'Vital Link',
+      vp_per_round_cap: 15,
+      vp_per_game_cap: 45,
+      secondary_vp_per_round_cap: 15,
+      secondary_vp_per_game_cap: 45,
+    },
   ])
   write(path.join(root, 'mission-matchups.json'), [
     { disposition: 'disruption', opponent_disposition: 'take-and-hold', mission_id: 'death-trap' },
@@ -216,7 +230,12 @@ describe('the mission', () => {
   })
 
   it('carries the caps the mission itself states', () => {
-    expect(missionFor(load(), 'disruption', 'take-and-hold')).toMatchObject({ roundCap: 15, gameCap: 45 })
+    expect(missionFor(load(), 'disruption', 'take-and-hold')).toMatchObject({
+      roundCap: 15,
+      gameCap: 45,
+      secondaryRoundCap: 15,
+      secondaryGameCap: 45,
+    })
   })
 
   it('is absent until both dispositions are known', () => {

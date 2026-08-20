@@ -6,9 +6,11 @@ import {
   battleView,
   type Command,
   PAINTED_ARMY_POINTS,
+  type PlayerId,
   PLAYERS_PER_BATTLE,
   reduceBattle,
   type Secondary,
+  scoringTarget,
   type Stratagem,
   type SubmitResult,
 } from '../core/battle'
@@ -327,9 +329,12 @@ export class PraetoriumService {
     rules?: Parameters<typeof missionFor>[0] | null,
   ): SubmitAnswer {
     const seats = this.mustSeat(token, userId)
-    const result = this.repository.submit({ battleId: seats.battle.id, userId, expectedSeq, command, now: this.clock() }, (state) =>
-      command.kind === 'begin-battle' && rules ? setupReferenceError(state, rules) : null,
-    )
+    const result = this.repository.submit({ battleId: seats.battle.id, userId, expectedSeq, command, now: this.clock() }, (state) => {
+      if (command.kind === 'begin-battle') return rules ? setupReferenceError(state, rules) : null
+      if (command.kind === 'score' || command.kind === 'score-secondary')
+        return rules ? scoringCapError(state, userId, command, rules) : null
+      return null
+    })
     if (result.outcome === 'appended')
       this.events.publish(
         seats.battle.id,
@@ -428,6 +433,41 @@ function setupReferenceError(state: ReturnType<typeof reduceBattle>, rules: NonN
   if (matchups.size && !matchups.has(terrain.matchupId)) return 'that terrain layout does not match the armies'
   if (terrain.deploymentId && terrain.deploymentId !== state.deploymentId) return 'that terrain layout does not match the deployment'
   if (!terrain.geometry) return 'exact terrain data is not available yet'
+  return null
+}
+
+/**
+ * The matched-play ceilings, refused rather than only shown as guidance.
+ *
+ * Only a score that raises the total is checked: a correction reducing one, or one
+ * made without a resolvable mission, is never guessed at and always allowed through.
+ */
+function scoringCapError(
+  state: ReturnType<typeof reduceBattle>,
+  by: PlayerId,
+  command: Extract<Command, { kind: 'score' } | { kind: 'score-secondary' }>,
+  rules: NonNullable<Parameters<typeof missionFor>[0]>,
+): string | null {
+  if (command.delta <= 0) return null
+  const target = scoringTarget(state, by, command)
+  if (!target) return null
+  const category = command.kind === 'score' ? command.category : 'secondary'
+  const opponentDisposition = state.players.find((player) => player.side !== target.side)?.roster?.built?.disposition ?? null
+  const mission = missionFor(
+    rules,
+    target.disposition,
+    state.settings.solo ? target.disposition : opponentDisposition,
+    state.settings.missionPackId,
+  )
+  if (!mission) return null
+  const roundCap = category === 'primary' ? mission.roundCap : mission.secondaryRoundCap
+  const gameCap = category === 'primary' ? mission.gameCap : mission.secondaryGameCap
+  const roundSoFar = (category === 'primary' ? target.primaryByRound : target.secondaryByRound)[state.round - 1] ?? 0
+  const gameSoFar = category === 'primary' ? target.primary : target.secondary
+  const label = category === 'primary' ? 'primary mission' : 'secondary missions'
+  if (roundCap !== null && roundSoFar + command.delta > roundCap)
+    return `that would score past this round’s ${roundCap} VP cap for ${label}`
+  if (gameCap !== null && gameSoFar + command.delta > gameCap) return `that would score past the battle’s ${gameCap} VP cap for ${label}`
   return null
 }
 

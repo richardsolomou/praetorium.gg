@@ -1001,6 +1001,37 @@ function targetArmy(state: BattleState, actor: PlayerState, command: Command): P
   return armyCommand(command) ? target : sideCaptain(state, target.side)
 }
 
+/**
+ * The side a score command would credit, resolved the same way `validate` does.
+ *
+ * Exported for the score-cap check, which needs the mission pack and so cannot live
+ * in this IO-free file: resolving the target stays made in one place even so.
+ */
+export function scoringTarget(
+  state: BattleState,
+  by: PlayerId,
+  command: Command,
+): {
+  side: number
+  disposition: string | null
+  primary: number
+  secondary: number
+  primaryByRound: number[]
+  secondaryByRound: number[]
+} | null {
+  const actor = state.players.find((candidate) => candidate.id === by)
+  if (!actor) return null
+  const target = targetArmy(state, actor, command)
+  return {
+    side: target.side,
+    disposition: target.roster?.built?.disposition ?? null,
+    primary: target.primary,
+    secondary: target.secondary,
+    primaryByRound: target.primaryByRound,
+    secondaryByRound: target.secondaryByRound,
+  }
+}
+
 function sameSide(state: BattleState, left: PlayerId | null, right: PlayerId): boolean {
   const leftSide = state.players.find((player) => player.id === left)?.side
   return leftSide !== undefined && leftSide === state.players.find((player) => player.id === right)?.side

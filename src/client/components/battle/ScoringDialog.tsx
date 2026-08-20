@@ -21,7 +21,14 @@ type Props = {
   onCancel?: () => void
   /** What pressing through the prompt does next. */
   confirmLabel: string
+  /** What this side has already banked this round, before anything answered here. */
+  roundSoFar: { primary: number; secondary: number }
+  /** The matched-play ceilings this mission states, when it states any. */
+  caps: { primaryRound: number | null; primaryGame: number | null; secondaryRound: number | null; secondaryGame: number | null }
 }
+
+/** How much more a category can take before a stated ceiling refuses it. */
+type Room = { round: number | null; game: number | null }
 
 /** How many times each payout on a card was taken. Zero throughout is "did not score". */
 type Answers = Record<string, number[]>
@@ -34,11 +41,25 @@ type Answers = Record<string, number[]>
  * groups the payouts that are tiers of one thing, and only the better tier scores.
  * Everything it leaves ungrouped a card can pay at the same time.
  */
-export function ScoringDialog({ side, due, moment, confirmLabel, pending, send, referenceFor, onDone, onCancel }: Props) {
+export function ScoringDialog({ side, due, moment, confirmLabel, pending, send, referenceFor, onDone, onCancel, roundSoFar, caps }: Props) {
   const [answers, setAnswers] = useState<Answers>({})
   const answerFor = (card: DueCard) => answers[card.key] ?? card.awards.map(() => 0)
   const scoredFor = (card: DueCard) => card.awards.reduce((total, award, at) => total + awardTotal(award, answerFor(card)[at] ?? 0), 0)
   const total = due.reduce((sum, card) => sum + scoredFor(card), 0)
+
+  // Room left under the mission's own ceilings, not each card's: two secondary cards
+  // due at once draw from the one shared pool, the same way the rules book counts it.
+  const roomFor = (category: 'primary' | 'secondary'): Room => {
+    const roundCap = category === 'primary' ? caps.primaryRound : caps.secondaryRound
+    const gameCap = category === 'primary' ? caps.primaryGame : caps.secondaryGame
+    const bankedRound = category === 'primary' ? roundSoFar.primary : roundSoFar.secondary
+    const bankedGame = category === 'primary' ? side.primary : side.secondary
+    const answeredSoFar = due.filter((card) => card.category === category).reduce((sum, card) => sum + scoredFor(card), 0)
+    return {
+      round: roundCap === null ? null : roundCap - bankedRound - answeredSoFar,
+      game: gameCap === null ? null : gameCap - bankedGame - answeredSoFar,
+    }
+  }
 
   const answer = (card: DueCard, at: number, times: number) =>
     setAnswers((current) => {
@@ -83,6 +104,7 @@ export function ScoringDialog({ side, due, moment, confirmLabel, pending, send, 
             const taken = answerFor(card)
             const scored = scoredFor(card)
             const reference = referenceFor(card.key)
+            const room = roomFor(card.category)
             return (
               <section key={card.key} data-due={card.key} className="border border-edge">
                 <div className="bg-sunken px-3 py-2">
@@ -105,6 +127,7 @@ export function ScoringDialog({ side, due, moment, confirmLabel, pending, send, 
                       award={award}
                       tier={at > 0 && alternatives(award, card.awards[at - 1] ?? award)}
                       times={taken[at] ?? 0}
+                      room={room}
                       pending={pending}
                       onAnswer={(times) => answer(card, at, times)}
                     />
@@ -149,6 +172,7 @@ function AwardRow({
   award,
   tier,
   times,
+  room,
   pending,
   onAnswer,
 }: {
@@ -157,11 +181,21 @@ function AwardRow({
   /** Another way the same thing pays, so it reads as an alternative to the row above. */
   tier: boolean
   times: number
+  room: Room
   pending: boolean
   onAnswer: (times: number) => void
 }) {
   const limit = awardLimit(award)
   const label = conditionLabel(award) ?? payoutLabel(award, card.awards)
+  const marginal = awardTotal(award, times + 1) - awardTotal(award, times)
+  const roundCapped = room.round !== null && marginal > room.round
+  const gameCapped = !roundCapped && room.game !== null && marginal > room.game
+  const missionWord = card.category === 'primary' ? 'primary mission' : 'secondary missions'
+  const capNote = roundCapped
+    ? `This round’s ${missionWord} cap is reached — the rest may still score next round.`
+    : gameCapped
+      ? `The battle’s ${missionWord} cap is reached.`
+      : null
 
   return (
     <div className="flex items-center gap-3 px-3 py-2">
@@ -174,6 +208,7 @@ function AwardRow({
             {award.vp} VP each{award.max === null ? '' : `, up to ${award.max} VP`}
           </span>
         ) : null}
+        {capNote ? <span className="mt-0.5 block text-[0.625rem] text-destructive">{capNote}</span> : null}
       </span>
       {counted(award) ? (
         <>
@@ -192,7 +227,7 @@ function AwardRow({
               variant="outline"
               size="icon-xs"
               aria-label={`${card.name} plus ${award.vp} per ${award.per?.replaceAll('-', ' ')}`}
-              disabled={pending || (limit !== null && times >= limit)}
+              disabled={pending || (limit !== null && times >= limit) || roundCapped || gameCapped}
               onClick={() => onAnswer(times + 1)}
             >
               <Plus />
@@ -207,6 +242,7 @@ function AwardRow({
           label={`${award.vp} VP`}
           chosen={times > 0}
           pending={pending}
+          disabled={times === 0 && (roundCapped || gameCapped)}
           ariaLabel={`${card.name} plus ${award.vp}`}
           onPress={() => onAnswer(times > 0 ? 0 : 1)}
         />
@@ -220,12 +256,14 @@ function Chip({
   label,
   chosen,
   pending,
+  disabled,
   ariaLabel,
   onPress,
 }: {
   label: string
   chosen: boolean
   pending: boolean
+  disabled?: boolean
   ariaLabel: string
   onPress: () => void
 }) {
@@ -234,7 +272,7 @@ function Chip({
       type="button"
       aria-pressed={chosen}
       aria-label={ariaLabel}
-      disabled={pending}
+      disabled={pending || disabled}
       onClick={onPress}
       className={`chip shrink-0 px-2 py-1 ${chosen ? 'border-azure bg-azure/15 text-azure' : 'border-edge-strong hover:border-azure hover:text-azure'}`}
     >
