@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.13.1
+
+### Patch Changes
+
+- 63d0fd7: Improve battle player details and keep tactical mission draws usable while inspecting cards or undoing actions.
+
 ## 0.13.0
 
 ### Minor Changes
