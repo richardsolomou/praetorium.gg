@@ -114,9 +114,14 @@ export function Loadout({
 
   const ranged = sheet.profiles.filter((profile) => profile.type === 'Ranged Weapons')
   const melee = sheet.profiles.filter((profile) => profile.type === 'Melee Weapons')
-  const catalogueWeapons = availableSheet.profiles.filter(
-    (profile) => profile.type === 'Ranged Weapons' || profile.type === 'Melee Weapons',
-  )
+  // What a weapon does in this roster, not on a bare datasheet. The availability
+  // sheet is fetched without the list — that is how it knows what a unit *could*
+  // take — so it cannot see an enhancement that adds to a weapon's Attacks, and a
+  // row drawn from it would disagree with the same weapon in the equipped summary.
+  const carried = new Map(sheet.profiles.map((profile) => [profile.id, profile]))
+  const catalogueWeapons = availableSheet.profiles
+    .filter((profile) => profile.type === 'Ranged Weapons' || profile.type === 'Melee Weapons')
+    .map((profile) => carried.get(profile.id) ?? profile)
   const availableWeapons = [
     ...catalogueWeapons,
     // The rules source is only here to fill gaps. A weapon the catalogue already

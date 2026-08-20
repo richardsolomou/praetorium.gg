@@ -693,6 +693,60 @@ describe('a datasheet', () => {
     expect(datasheetIn(book, 'cat', 'squad', context)?.profiles).toMatchObject([{ name: 'Bolt rifle', count: 4 }])
   })
 
+  /**
+   * An enhancement belongs to the unit that bears it. Every datasheet that may take
+   * one carries the same condition, naming the same shared entry, and a datasheet
+   * sits directly in the force — so reading the force there had each of them ask
+   * whether the *army* held the relic, and one character's ankh sharpened another
+   * character's blade.
+   */
+  it('keeps an enhancement on the unit that bears it', () => {
+    const sheet = (id: string, name: string) => ({
+      id,
+      name,
+      type: 'model' as const,
+      selectionEntries: [
+        {
+          id: `${id}-blade`,
+          name: 'Blade',
+          type: 'upgrade' as const,
+          profiles: [
+            {
+              id: `${id}-blade-profile`,
+              name: 'Blade',
+              typeName: 'Melee Weapons',
+              characteristics: [{ name: 'S', typeId: 'melee-strength', $text: '8' }],
+            },
+          ],
+        },
+      ],
+      entryLinks: [{ id: `${id}-ankh`, name: 'Destroyer Ankh', targetId: 'ankh', type: 'selectionEntry' as const }],
+      modifierGroups: [
+        {
+          conditions: [
+            { type: 'atLeast' as const, value: 1, field: 'selections', scope: 'parent', childId: 'ankh', includeChildSelections: true },
+          ],
+          modifiers: [
+            { type: 'increment' as const, value: 2, field: 'melee-strength', affects: 'self.entries.recursive.profiles.Melee Weapons' },
+          ],
+        },
+      ],
+    })
+    const book = bookOf({
+      selectionEntries: [sheet('overlord', 'Overlord'), sheet('lord', 'Lord')],
+      sharedSelectionEntries: [{ id: 'ankh', name: 'Destroyer Ankh', type: 'upgrade' }],
+    })
+    const selections = [
+      { id: 'overlord', selections: [{ id: 'overlord-blade' }, { id: 'overlord-ankh' }] },
+      { id: 'lord', selections: [{ id: 'lord-blade' }] },
+    ]
+
+    const bearer = datasheetIn(book, 'cat', 'overlord', { selections, unitSelectionIndex: 0 })
+    expect(bearer?.profiles[0]?.values[0]).toEqual({ name: 'S', value: '10', baseValue: '8', modifiers: ['Destroyer Ankh'] })
+    const other = datasheetIn(book, 'cat', 'lord', { selections, unitSelectionIndex: 1 })
+    expect(other?.profiles[0]?.values[0]).toEqual({ name: 'S', value: '8' })
+  })
+
   it('applies profile modifiers from the selected detachment and preserves their source', () => {
     const book = bookOf({
       selectionEntries: [

@@ -302,6 +302,34 @@ test('destroyer plasmacytes follow the unit size', async ({ page }) => {
 })
 
 /**
+ * An enhancement changes what the bearer's weapons do, and the loadout has to say so:
+ * its weapon rows were drawn from the sheet fetched to learn what a unit *could*
+ * take, which is fetched without the list and so cannot see an enhancement at all.
+ */
+test('an enhancement changes the weapons of the model bearing it', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 })
+  await openBuilder(page, 'Necrons', /Cursed Legion/)
+  await add(page, 'Overlord')
+  await page
+    .locator('[data-unit="Overlord"]')
+    .getByRole('button', { name: /^Overlord/ })
+    .click()
+
+  const loadout = page.locator('aside[aria-label="Loadout"]')
+  await expect(loadout.getByText("Overlord's blade")).not.toHaveCount(0)
+  await expect(page.getByRole('button', { name: /A 6, modified from 4/ })).toHaveCount(0)
+
+  await loadout.getByRole('button', { name: 'Select Destroyer Ankh' }).click()
+  await expect(page.locator('[data-roster-builder]')).toHaveAttribute('data-saving', 'false')
+
+  // The ankh adds two to the Move of the bearer's unit and two to the Attacks of the
+  // melee weapons it carries, and says as much on both.
+  await expect(page.getByRole('button', { name: /M 7", modified from 5" by Destroyer Ankh/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: /A 6, modified from 4 by Destroyer Ankh/ }).first()).toBeVisible()
+  await page.screenshot({ path: 'test-results/destroyer-ankh.png', fullPage: true })
+})
+
+/**
  * Two sources name the same weapon: the catalogue prints a staff of light as two
  * rows, and the rules source spells the same two as "Staff of light (Ranged)" and
  * "(Melee)". Both drawn, a character appeared to carry the staff twice over.

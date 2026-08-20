@@ -147,7 +147,10 @@ export function profileModifiers(
       ? indexed
       : descendants(force).find((node) => node.id === unitId || node.target.id === unitId)
   if (!unit) return []
-  const selectedIds = new Set(descendants(root).map((node) => node.id))
+  // A condition names the shared entry it is about, and a selection reaches that
+  // entry through a link with an id of its own. Both are the same thing, so a
+  // modifier can be credited to the enhancement rather than to the datasheet.
+  const selectedIds = new Set(descendants(root).flatMap((node) => [node.id, node.target.id]))
   const unitNodes = new Set(descendants(unit))
   const found = new Map<string, ProfileModifier>()
 
@@ -842,7 +845,11 @@ function resolveScope(scope: string, node: Node, root: Node, census: Census): No
     case 'self':
       return [node]
     case 'parent':
-      return node.parent ? [node.parent] : []
+      // A datasheet sits directly in the force, and what it asks about its parent it
+      // means about itself: an enhancement is a child of the unit that bears it, so
+      // reading the force here let one character's relic change another's weapons.
+      if (!node.parent || node.parent.force || node.parent === root) return [node]
+      return [node.parent]
     case 'roster':
       return [root]
     case 'force': {
