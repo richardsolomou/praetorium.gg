@@ -327,6 +327,28 @@ test('an enhancement changes the weapons of the model bearing it', async ({ page
   await expect(page.getByRole('button', { name: /M 7", modified from 5" by Destroyer Ankh/ })).toBeVisible()
   await expect(page.getByRole('button', { name: /A 6, modified from 4 by Destroyer Ankh/ }).first()).toBeVisible()
   await page.screenshot({ path: 'test-results/destroyer-ankh.png', fullPage: true })
+
+  // A weapon the Overlord could take rather than the one it holds says what it would
+  // do in this list, which is the point of showing it before the choice is made.
+  await expect(loadout.getByText('Staff of light')).not.toHaveCount(0)
+  await expect(page.getByRole('button', { name: /S 7, modified from 5 by Destroyer Ankh/ }).first()).toBeVisible()
+
+  // Attached, the two are one unit: the ankh moves the models it has joined, and
+  // leaves their weapons alone.
+  await add(page, 'Immortals')
+  await page.locator('[data-unit="Overlord"]').getByRole('button', { name: 'Immortals', exact: true }).click()
+  await expect(page.locator('[data-roster-builder]')).toHaveAttribute('data-saving', 'false')
+  await expect(page.locator('[data-unit="Overlord"]')).toContainText('Leading')
+  await page.locator('[data-unit="Immortals"]').getByRole('button', { name: 'Immortals', exact: true }).click()
+  await expect(page.getByRole('button', { name: /M 7", modified from 5" by Destroyer Ankh/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: /modified from 2 by Destroyer Ankh/ })).toHaveCount(0)
+  await page.screenshot({ path: 'test-results/destroyer-ankh-attached.png', fullPage: true })
+
+  // And a unit is led by one character, so the second Overlord is not offered it.
+  await add(page, 'Overlord')
+  const second = page.locator('[data-unit="Overlord"]').nth(1)
+  await expect(second).toBeVisible()
+  await expect(second.getByRole('button', { name: 'Immortals', exact: true })).toHaveCount(0)
 })
 
 /**

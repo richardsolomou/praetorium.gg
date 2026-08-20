@@ -43,14 +43,34 @@ export function datasheetIn(
   loaded: LoadedCatalogue,
   catalogueId: string,
   entryId: string,
-  context?: { selections: readonly Selection[]; unitSelectionIndex?: number },
+  context?: {
+    selections: readonly Selection[]
+    unitSelectionIndex?: number
+    /**
+     * Whether to keep weapons the unit is not carrying.
+     *
+     * The loadout asks for these: a player choosing between two guns wants to see
+     * what each would do in *this* list, enhancement and all, rather than what the
+     * bare datasheet prints.
+     */
+    everyWeapon?: boolean
+    /** The units that count as this one, by position: a character and what it leads. */
+    companions?: readonly number[]
+  },
 ): Datasheet | null {
   if (!datasheetsOf(loaded.index, catalogueId).has(entryId)) return null
   const root = loaded.index.definitions.get(entryId)
   if (!root) return null
 
   const modifiers = context
-    ? profileModifiers(context.selections, entryId, loaded.index, { primaryCatalogueId: catalogueId }, context.unitSelectionIndex)
+    ? profileModifiers(
+        context.selections,
+        entryId,
+        loaded.index,
+        { primaryCatalogueId: catalogueId },
+        context.unitSelectionIndex,
+        context.companions ?? [],
+      )
     : []
   const selected = new Set<string>()
   const selectedCounts = new Map<string, number>()
@@ -167,7 +187,7 @@ export function datasheetIn(
     const profileType = profile.typeName
     const weapon = profileType === 'Ranged Weapons' || profileType === 'Melee Weapons'
     const intrinsic = owner.includes(root.id) || owner.includes(sheet.id)
-    if (selectedUnit && weapon && !intrinsic && !owner.some((id) => selected.has(id))) return []
+    if (selectedUnit && weapon && !context?.everyWeapon && !intrinsic && !owner.some((id) => selected.has(id))) return []
     const profileLineage = [...lineage, profile.id]
     const hidden = modifiedProfileField(String(profile.hidden ?? false), 'hidden', profileType, profileLineage, owner, modifiers).value
     if (hidden === 'true') return []

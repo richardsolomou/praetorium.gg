@@ -73,6 +73,8 @@ export const datasheetSchema = z.object({
   detachmentIds: z.array(id).max(3).default([]),
   picks: z.array(pickSchema).max(100).default([]),
   pickIndex: z.number().int().min(0).max(99).nullable().default(null),
+  /** Keep weapons the unit is not carrying, so options read as this list would make them. */
+  everyWeapon: z.boolean().default(false),
 })
 export const datasheetSlugSchema = z.object({ catalogueId, slug })
 

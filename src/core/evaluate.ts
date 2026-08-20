@@ -113,6 +113,14 @@ export function profileModifiers(
   index: CatalogueIndex,
   options: EvaluateOptions = {},
   unitSelectionIndex?: number,
+  /**
+   * The other units that count as this one, by position.
+   *
+   * A character attached to a bodyguard unit makes one unit with it, so a relic that
+   * speaks of the bearer's unit reaches the models it has joined. Only the whole-unit
+   * modifiers travel: what the bearer's own weapons do stays with the bearer.
+   */
+  companionIndexes: readonly number[] = [],
 ): ProfileModifier[] {
   const census = new Census()
   const counter = { next: 0 }
@@ -151,7 +159,12 @@ export function profileModifiers(
   // entry through a link with an id of its own. Both are the same thing, so a
   // modifier can be credited to the enhancement rather than to the datasheet.
   const selectedIds = new Set(descendants(root).flatMap((node) => [node.id, node.target.id]))
-  const unitNodes = new Set(descendants(unit))
+  const own = new Set(descendants(unit))
+  const companions = companionIndexes.flatMap((at) => {
+    const node = force.children[at]
+    return node && node !== unit ? descendants(node) : []
+  })
+  const unitNodes = new Set([...own, ...companions])
   const found = new Map<string, ProfileModifier>()
 
   const add = (node: Node, modifier: Modifier, exact?: { id: string; type: string }) => {
@@ -206,7 +219,9 @@ export function profileModifiers(
         includeSelf: target.includeSelf,
         includeEntries: target.includeEntries,
         recursive: target.recursive,
-        global: target.forces || origin === root || Boolean(origin.force),
+        // A whole-unit modifier from the unit this one is attached to belongs to
+        // every model here, which is what being one unit means.
+        global: target.forces || origin === root || Boolean(origin.force) || (target.group && !own.has(origin)),
         profileType,
       }
       found.set(JSON.stringify(applied), applied)
@@ -291,6 +306,11 @@ function parseProfileAffects(affects: string) {
     includeEntries,
     recursive: selection.includes('recursive'),
     forces,
+    // The whole group the modifier sits in, which for wargear on a model is the unit
+    // it belongs to. A Destroyer Ankh adds to the Move of every model in the bearer's
+    // unit and to the Attacks of only the bearer's own melee weapons, and this is the
+    // difference the data draws between the two.
+    group: selection.includes('group'),
     filters: selection.filter((part) => !controls.has(part)),
   }
 }

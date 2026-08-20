@@ -694,6 +694,106 @@ describe('a datasheet', () => {
   })
 
   /**
+   * A character attached to a bodyguard unit is one unit with it, so a relic that
+   * speaks of "models in the bearer's unit" reaches the models it has joined. What
+   * the bearer's own weapons do stays with the bearer, and the data draws the
+   * difference itself: the whole-unit modifier says `group` and the other does not.
+   */
+  it('carries a whole-unit enhancement across to the unit a character leads', () => {
+    const profiles = (id: string) => [
+      { id: `${id}-unit`, name: id, typeName: 'Unit', characteristics: [{ name: 'M', typeId: 'unit-move', $text: '5"' }] },
+      {
+        id: `${id}-blade`,
+        name: 'Blade',
+        typeName: 'Melee Weapons',
+        characteristics: [{ name: 'A', typeId: 'melee-attacks', $text: '4' }],
+      },
+    ]
+    const book = bookOf({
+      selectionEntries: [
+        {
+          id: 'overlord',
+          name: 'Overlord',
+          type: 'model',
+          profiles: profiles('overlord'),
+          selectionEntryGroups: [
+            {
+              id: 'enhancements',
+              name: 'Enhancements',
+              selectionEntries: [
+                {
+                  id: 'ankh',
+                  name: 'Destroyer Ankh',
+                  type: 'upgrade',
+                  modifiers: [
+                    { type: 'increment' as const, value: 2, field: 'unit-move', affects: 'self.entries.group.recursive.profiles.Unit' },
+                    {
+                      type: 'increment' as const,
+                      value: 2,
+                      field: 'melee-attacks',
+                      affects: 'self.entries.recursive.profiles.Melee Weapons',
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+        { id: 'squad', name: 'Squad', type: 'unit', profiles: profiles('squad') },
+      ],
+    })
+    const selections = [{ id: 'overlord', selections: [{ id: 'ankh' }] }, { id: 'squad' }]
+    const values = (entryId: string, unitSelectionIndex: number, companions: number[]) =>
+      datasheetIn(book, 'cat', entryId, { selections, unitSelectionIndex, companions })?.profiles.map((profile) => ({
+        name: profile.name,
+        values: profile.values.map((value) => `${value.name} ${value.value}`),
+      }))
+
+    // The Move reaches the models the bearer has joined; what the bearer's own blade
+    // does is the bearer's alone.
+    expect(values('squad', 1, [0])).toEqual([
+      { name: 'squad', values: ['M 7"'] },
+      { name: 'Blade', values: ['A 4'] },
+    ])
+    // And without the attachment it stays where it is.
+    expect(values('squad', 1, [])).toEqual([
+      { name: 'squad', values: ['M 5"'] },
+      { name: 'Blade', values: ['A 4'] },
+    ])
+  })
+
+  it('keeps every weapon when the loadout asks for the ones not carried', () => {
+    const book = bookOf({
+      selectionEntries: [
+        {
+          id: 'captain',
+          name: 'Captain',
+          type: 'unit',
+          selectionEntries: [
+            {
+              id: 'blade-entry',
+              name: 'Blade',
+              type: 'upgrade',
+              profiles: [{ id: 'blade', name: 'Blade', typeName: 'Melee Weapons', characteristics: [{ name: 'S', $text: '5' }] }],
+            },
+            {
+              id: 'spear-entry',
+              name: 'Spear',
+              type: 'upgrade',
+              profiles: [{ id: 'spear', name: 'Spear', typeName: 'Melee Weapons', characteristics: [{ name: 'S', $text: '6' }] }],
+            },
+          ],
+        },
+      ],
+    })
+    const context = { selections: [{ id: 'captain', selections: [{ id: 'blade-entry', count: 1 }] }], unitSelectionIndex: 0 }
+    expect(datasheetIn(book, 'cat', 'captain', { ...context, everyWeapon: true })?.profiles.map((profile) => profile.name)).toEqual([
+      'Blade',
+      'Spear',
+    ])
+  })
+
+  /**
    * An enhancement belongs to the unit that bears it. Every datasheet that may take
    * one carries the same condition, naming the same shared entry, and a datasheet
    * sits directly in the force — so reading the force there had each of them ask

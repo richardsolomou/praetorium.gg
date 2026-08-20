@@ -101,7 +101,12 @@ export function Loadout({
     ...datasheetQuery(catalogueId, unit?.entryId ?? '', context.detachmentIds, context.picks, pickIndex),
     placeholderData: (previous, previousQuery) => (previousQuery?.queryKey[2] === unit?.entryId ? previous : undefined),
   })
-  const { data: availableSheet } = useQuery(datasheetQuery(catalogueId, unit?.entryId ?? '', detachmentIds))
+  // Every weapon the unit could take, priced and modified as this list would have
+  // it: an enhancement that adds to a weapon's Attacks is part of the choice, so it
+  // has to be visible before the choice is made rather than after.
+  const { data: availableSheet } = useQuery(
+    datasheetQuery(catalogueId, unit?.entryId ?? '', context.detachmentIds, context.picks, pickIndex, true),
+  )
 
   if (!unit) {
     return (
@@ -114,14 +119,9 @@ export function Loadout({
 
   const ranged = sheet.profiles.filter((profile) => profile.type === 'Ranged Weapons')
   const melee = sheet.profiles.filter((profile) => profile.type === 'Melee Weapons')
-  // What a weapon does in this roster, not on a bare datasheet. The availability
-  // sheet is fetched without the list — that is how it knows what a unit *could*
-  // take — so it cannot see an enhancement that adds to a weapon's Attacks, and a
-  // row drawn from it would disagree with the same weapon in the equipped summary.
-  const carried = new Map(sheet.profiles.map((profile) => [profile.id, profile]))
-  const catalogueWeapons = availableSheet.profiles
-    .filter((profile) => profile.type === 'Ranged Weapons' || profile.type === 'Melee Weapons')
-    .map((profile) => carried.get(profile.id) ?? profile)
+  const catalogueWeapons = availableSheet.profiles.filter(
+    (profile) => profile.type === 'Ranged Weapons' || profile.type === 'Melee Weapons',
+  )
   const availableWeapons = [
     ...catalogueWeapons,
     // The rules source is only here to fill gaps. A weapon the catalogue already

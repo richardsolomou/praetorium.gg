@@ -17,7 +17,7 @@ import {
   TriangleAlert,
   X,
 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
   AlertDialog,
@@ -105,6 +105,22 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
   const [visibility, setVisibility] = useState<RosterVisibility>(initial?.visibility ?? 'private')
   const [source, setSource] = useState<RosterSource>(initial?.source ?? 'editable')
   const [selected, setSelected] = useState<number | null>(null)
+  /**
+   * The picks as anything outside this component reads them.
+   *
+   * `attachedTo` is a key while a list is being edited, because the same datasheet may
+   * be in it twice; everything the picks are sent to counts positions instead, the
+   * price and the datasheet alike.
+   */
+  const positioned = useMemo(
+    () =>
+      picked.map((pick) => {
+        if (pick.attachedTo === undefined) return pick
+        const at = picked.findIndex((candidate) => candidate.key === pick.attachedTo)
+        return { ...pick, attachedTo: at < 0 ? undefined : at }
+      }),
+    [picked],
+  )
   const [preview, setPreview] = useState<{ catalogueId: string; entryId: string } | null>(null)
   const [showing, setShowing] = useState<'picker' | 'loadout' | 'datasheet' | null>(null)
   const [datasheetReturn, setDatasheetReturn] = useState<'picker' | 'loadout' | null>(null)
@@ -423,14 +439,27 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
    * The units in the list this one may join: named by its own rules, present in the
    * roster, and not already holding it. A unit it is already attached to is not
    * offered again, which is what stops the row and the offer both being on screen.
+   *
+   * A unit already led is not offered to a second Leader either. `attachmentErrors`
+   * is what decides that, and says so about a list however it was built; this only
+   * keeps the offer from being made when the answer is already known.
    */
   const joinable = (index: number) => {
     const pick = picked[index]
     const unit = units[index]
     if (!pick || !unit?.attachment || pick.attachedTo !== undefined) return []
     const wanted = new Set(unit.attachment.targets.map((target) => target.trim().toLowerCase()))
+    const led = new Set(
+      picked.flatMap((candidate, at) =>
+        candidate.attachedTo !== undefined && units[at]?.attachment?.kind === 'leader' ? [candidate.attachedTo] : [],
+      ),
+    )
     return picked.flatMap((candidate, at) =>
-      at !== index && wanted.has((units[at]?.name ?? '').trim().toLowerCase()) ? [{ key: candidate.key, name: units[at]?.name ?? '' }] : [],
+      at !== index &&
+      wanted.has((units[at]?.name ?? '').trim().toLowerCase()) &&
+      !(unit.attachment?.kind === 'leader' && led.has(candidate.key))
+        ? [{ key: candidate.key, name: units[at]?.name ?? '' }]
+        : [],
     )
   }
 
@@ -497,7 +526,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
       catalogueId={loadoutCatalogueId}
       unit={optimisticUnit}
       detachmentIds={detachmentIds}
-      picks={picked}
+      picks={positioned}
       pickIndex={selected}
       onChoose={(key, optionId) => selected !== null && choose(selected, key, optionId)}
       onSpread={(key, counts) => selected !== null && spread(selected, key, counts)}
@@ -513,7 +542,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
       factionSlug={available?.factions.find((entry) => entry.id === datasheetCatalogueId)?.slug ?? ''}
       entryId={preview?.entryId ?? selectedUnit?.entryId ?? null}
       detachmentIds={detachmentIds}
-      picks={picked}
+      picks={positioned}
       pickIndex={preview ? null : selected}
       showWeapons={Boolean(preview)}
     />
