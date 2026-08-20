@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.16.1
+
+### Patch Changes
+
+- 32a3867: Fix the unit loadout panel flashing blank while wargear or enhancement choices reprice.
+
 ## 0.16.0
 
 ### Minor Changes
