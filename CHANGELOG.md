@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.15.1
+
+### Patch Changes
+
+- 9cffb21: Keep the list builder working when a unit choice arrives without its options, so points and legality still calculate instead of failing.
+
 ## 0.15.0
 
 ### Minor Changes
