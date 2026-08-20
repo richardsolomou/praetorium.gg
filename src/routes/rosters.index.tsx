@@ -286,7 +286,7 @@ function RosterLibrary() {
                       <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label={`Actions for ${roster.name}`} />}>
                         <EllipsisVertical />
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="rounded-none border border-edge bg-panel text-bone">
+                      <DropdownMenuContent align="end" className="w-56 rounded-none border border-edge bg-panel text-bone">
                         <DropdownMenuItem render={<Link to="/rosters/$id" params={{ id: roster.id }} target="_blank" />}>
                           <Eye /> View
                         </DropdownMenuItem>
