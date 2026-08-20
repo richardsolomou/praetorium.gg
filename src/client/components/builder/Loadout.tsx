@@ -359,9 +359,11 @@ function ModelCard({
       .filter((entry) => entry !== taker && entry.option.count > 0)
       .toSorted((one, other) => other.option.count - one.option.count)[0]
     if (giver) return move([giver], [taker])
-    // A kind made only of carriers has no squadmate to ask, because the model is
-    // what joins the squad rather than something a body already there picks up.
-    return !full && taker.choice.carried ? move([], [taker]) : null
+    // A kind with nobody to ask can still be armed while its group has room: the
+    // model is what joins the squad rather than something a body already there picks
+    // up, and where it joins the squad's own ranks a squadmate gives up their place
+    // for it. The Plague Marine holding the meltagun is one of the five.
+    return full ? null : move([], [taker])
   }
 
   const free = (giver: (typeof shared)[number]) => {

@@ -1068,3 +1068,32 @@ test('a chapter reaches the whole Codex range, not just its own datasheets', asy
   await add(page, 'Intercessor Squad')
   await expect(page.locator('[data-unit="Intercessor Squad"]')).toBeVisible()
 })
+
+/**
+ * A Plague Marine's meltagun is filed as a model of its own, apart from the marines
+ * it is drawn from, so the panel drew it on a card with no squadmate to take a body
+ * from and left the control disabled. The squad it joins is where the body comes from.
+ */
+test('a specialist filed apart from its squad can still be armed', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 })
+  await openBuilder(page, 'Death Guard', /Champions of Contagion/)
+  await add(page, 'Plague Marines')
+  await page
+    .locator('[data-unit="Plague Marines"]')
+    .getByRole('button', { name: /^Plague Marines/ })
+    .first()
+    .click()
+
+  const loadout = page.locator('aside[aria-label="Loadout"]')
+  await loadout.getByRole('button', { name: 'More Meltagun' }).click()
+  await expect(loadout.getByLabel('Meltagun count')).toHaveText('1')
+
+  // The marine carrying it is one of the five, so the squad is the size it was and
+  // costs what it did: a boltgun marine gave up his place rather than a sixth joining.
+  await expect(page.getByText('1x Meltagun')).toBeVisible()
+  await expect(page.getByText('4x Boltgun')).toBeVisible()
+  await expect(page.getByLabel('Plague Marines models')).toHaveText('5')
+  await expect(page.locator('[data-unit="Plague Marines"]')).toContainText('90 pts')
+  await expect(page.getByText('Within the points limit')).toBeAttached()
+  await page.screenshot({ path: 'test-results/specialist-filed-apart.png', fullPage: true })
+})

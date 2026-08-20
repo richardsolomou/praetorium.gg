@@ -1207,7 +1207,7 @@ function withUnitSpread(selection: Selection, key: string, counts: Readonly<Reco
         ],
       }
     })
-    return withinSquad(filled, path, index)
+    return keepingTheSquad(selection, filled, path, index)
   }
   const repeatedEntry = repeatedModelOn(path.slice(0, -1), index)
   const entry = group ? resolve(group, index) : undefined
@@ -1296,35 +1296,40 @@ function spreadRepeatedGroup(
   const after = variants.reduce((total, variant) => total + (variant.count ?? 1), 0)
   // The squadmate may stand a group further out than the carrier does, where the
   // catalogue files its specialists apart from the squad they are drawn from, so what
-  // the holder cannot pay for is asked of the group holding the holder.
-  if (after > before) return withinSquad(spendBodies(replaced, holder, modelId, after - before, index), holder, index)
+  // the holder cannot pay for is asked of the squad around it.
+  if (after > before) return keepingTheSquad(selection, spendBodies(replaced, holder, modelId, after - before, index), path, index)
   // And a body no longer needed goes back to the squadmate who lent it, so putting
   // a heavy bolter down leaves the unit the size the player asked for.
-  if (after < before) return refundBodies(replaced, holder, modelId, before - after, index)
+  if (after < before) return keepingTheSquad(selection, refundBodies(replaced, holder, modelId, before - after, index), path, index)
   return replaced
 }
 
 /**
- * The squad kept to the size its data allows, after a request put a model inside it.
+ * The squad the size it was, after a request armed something inside it.
  *
- * A model in a group the squad's own group holds is one of the squad — the heavy
- * weapon is a warrior carrying it, not an eleventh warrior — so once that group is
- * full the body comes from a squadmate, the way a specialist's does. A group with
- * room left is not full, and grows: what the catalogue permits is the answer, and
- * `2-5 Bikers` means a third biker is a squad of three rather than a swap.
+ * How many models a squad fields is the size the player set, and asking for a weapon
+ * is not asking for that to change: a magna-rail rifle is one of the ten warriors
+ * carrying it, and a Chaos Biker's flamer is taken *instead of* his combi-bolter. So
+ * a model brought into the squad's own group costs a squadmate their place, and one
+ * put down hands the place back.
+ *
+ * Only inside that group. A drone, a plasmacyte or a pack of hunting wolves is filed
+ * outside the group whose bounds are the squad's size, because it is an addition to
+ * the squad rather than one of its models, and taking one has to make the unit bigger.
  */
-function withinSquad(selection: Selection, path: readonly string[], index: CatalogueIndex): Selection {
-  let tree = selection
-  for (let length = path.length - 1; length > 0; length--) {
-    const enclosing = path.slice(0, length)
-    const definition = index.definitions.get(enclosing.at(-1) ?? '')
-    const capacity = definition ? maximumCount(definition, index) : null
-    if (capacity === null || capacity === UNBOUNDED) continue
-    const held = at(tree, enclosing)
-    const over = held ? modelCountOf(held, index) - capacity : 0
-    if (over > 0) tree = spendBodies(tree, enclosing, path[length] ?? '', over, index)
+function keepingTheSquad(before: Selection, after: Selection, path: readonly string[], index: CatalogueIndex): Selection {
+  const squad = sizeOf(before, index).path.slice(0, -1)
+  const inside = squad.length > 0 && path.length > squad.length && squad.every((step, depth) => path[depth] === step)
+  if (!inside) return after
+  const fielded = (tree: Selection) => {
+    const held = at(tree, squad)
+    return held ? modelCountOf(held, index) : 0
   }
-  return tree
+  const grew = fielded(after) - fielded(before)
+  const carrier = path[squad.length] ?? ''
+  if (grew > 0) return spendBodies(after, squad, carrier, grew, index)
+  if (grew < 0) return refundBodies(after, squad, carrier, -grew, index)
+  return after
 }
 
 /** Bodies handed back to the squad, the inverse of one being spent to arm a carrier. */
