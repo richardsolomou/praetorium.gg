@@ -1,5 +1,18 @@
 # praetorium
 
+## 0.15.0
+
+### Minor Changes
+
+- 41868d2: Show a unit's wargear a model at a time, with each kind of model named as its datasheet names it and every weapon it may carry listed beneath it — a count against each, so the ten veterans of a squad can divide a pair of special weapons between them. Datasheets the community catalogue describes no model kinds for now read from the rules source instead, which is what lets a Deathwatch kill team show all of its weapons and offer the free swaps its datasheet allows. The roster card counts the same models the panel draws, so a free swap shows up there too rather than leaving the card naming a weapon that was traded away. Anything interchangeable is listed together: a swap sits beside the weapon it replaces, and the options of one group stay side by side. Also keeps a squad honest as it is armed: the body for a specialist comes from a squadmate rather than the model the datasheet insists on, goes back to one when that specialist puts its weapon down, no longer comes out of the weapons the player has just asked for — a squad wanting five combi-weapons and a pyrecannon used to come back with three — and a choice the data has closed behind another is let go of rather than reported as a broken rule.
+- 682ac7a: Carry an enhancement that speaks of the bearer's unit across to the unit a character leads, so a Destroyer Ankh moves the models it has joined and not only its bearer. Show what every weapon a unit could take would do in this list rather than on a bare datasheet, so a choice between two guns can be made knowing what an enhancement does to each. And say plainly when a second character is given a unit that is already led: one leads, and others may still be attached alongside.
+
+### Patch Changes
+
+- 57a6e3b: Keep an enhancement's effect on the model bearing it, and show that effect where the unit's weapons are listed. A Destroyer Ankh now adds to the Attacks of its own bearer's melee weapons rather than leaving them as the bare datasheet prints them, and no longer changes the weapons of a second character who has no ankh of their own.
+- 97df53d: Say when the same enhancement has been given to two characters. The catalogue limits a relic to one per army and always did; a unit built by the catalogue itself is excused its own composition, and that excuse was covering the player's choices inside it as well. A limit is also reported once now rather than once per selection that breaks it.
+- 4f96173: Apply the enhancements and datasheet rules that were written against a scope the catalogue reads and this app did not: a Master Artisan now adds to its bearer's Wounds as well as to the Toughness of the unit around it, and a Kroot Trail Shaper moves the Kroot it leads. Four such scopes went unresolved, so around a hundred and fifty stat changes across every book quietly did nothing.
+
 ## 0.14.1
 
 ### Patch Changes
