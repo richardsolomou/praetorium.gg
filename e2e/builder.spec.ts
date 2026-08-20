@@ -962,6 +962,35 @@ test('a kind of model filed under two groups is still one card', async ({ page }
 })
 
 /**
+ * The heavy weapon is filed in a group of its own, empty until a player asks for one,
+ * and a request could not reach a group that was not in the list yet. Pressing for a
+ * magna-rail rifle did nothing at all.
+ */
+test('a squad can take the heavy weapon its datasheet offers', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 })
+  await openBuilder(page, 'Leagues of Votann', /Hearthband/)
+  await add(page, 'Hearthkyn Warriors')
+  await page.locator('[data-unit="Hearthkyn Warriors"]').getByRole('button', { name: 'Hearthkyn Warriors', exact: true }).click()
+
+  const loadout = page.locator('aside[aria-label="Loadout"]')
+  const warriors = loadout.locator('section').filter({ has: page.getByLabel('Hearthkyn Warrior models') })
+  await warriors.getByRole('button', { name: 'More Magna-rail rifle' }).click()
+  await expect(warriors.getByLabel('Magna-rail rifle count')).toHaveText('1')
+
+  // The warrior carrying it is one of the ten, not an eleventh.
+  await expect(warriors.getByLabel('Autoch-pattern bolter count')).toHaveText('8')
+  await expect(warriors.getByLabel('Hearthkyn Warrior models')).toHaveText('9')
+  await expect(page.getByText('1x Magna-rail rifle')).toBeVisible()
+  await expect(page.getByText('Within the points limit')).toBeAttached()
+  await page.screenshot({ path: 'test-results/heavy-weapon-taken.png', fullPage: true })
+
+  // And putting it down gives the warrior his gun back.
+  await warriors.getByRole('button', { name: 'Fewer Magna-rail rifle' }).click()
+  await expect(warriors.getByLabel('Magna-rail rifle count')).toHaveText('0')
+  await expect(warriors.getByLabel('Hearthkyn Warrior models')).toHaveText('9')
+})
+
+/**
  * Six wraiths, each a pairing of claws or coils with a gun the player cannot break
  * apart, so each keeps a card of its own — and the card is then where the squad says
  * how many of that pairing it has, rather than repeating all six underneath.
