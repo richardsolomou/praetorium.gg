@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.14.1
+
+### Patch Changes
+
+- 715f5c9: Fix a secondary put back into the deck showing up in your hand as a discarded card, by tracking it as returned and no longer listing it.
+
 ## 0.14.0
 
 ### Minor Changes
