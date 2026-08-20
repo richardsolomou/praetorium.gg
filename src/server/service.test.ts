@@ -224,6 +224,8 @@ describe('battle setup references', () => {
             name: 'Mission A',
             roundCap: null,
             gameCap: null,
+            secondaryRoundCap: null,
+            secondaryGameCap: null,
             source: 'Pack A',
             packId: 'pack-a',
             deploymentIds: ['valid-deployment'],
@@ -236,6 +238,8 @@ describe('battle setup references', () => {
             name: 'Mission B',
             roundCap: null,
             gameCap: null,
+            secondaryRoundCap: null,
+            secondaryGameCap: null,
             source: 'Pack A',
             packId: 'pack-a',
             deploymentIds: ['valid-deployment'],
@@ -385,6 +389,97 @@ describe('battle setup references', () => {
       outcome: 'refused',
       reason: 'exact terrain data is not available yet',
     })
+  })
+})
+
+describe('scoring caps', () => {
+  const rules = (): LoadedRules =>
+    ({
+      missions: new Map([
+        [
+          'pack-a|reconnaissance|reconnaissance',
+          {
+            id: 'mission-a',
+            name: 'Mission A',
+            roundCap: 5,
+            gameCap: 8,
+            secondaryRoundCap: 3,
+            secondaryGameCap: 6,
+            source: 'Pack A',
+            packId: 'pack-a',
+            deploymentIds: [],
+          },
+        ],
+      ]),
+      deployments: [{ id: 'valid-deployment', name: 'Valid', description: null, zones: [], objectives: [] }],
+      terrainLayouts: [],
+    }) as unknown as LoadedRules
+
+  const configured = () => {
+    const { token } = service.createBattle('alice', { solo: true, limit: 2000, missionPackId: 'pack-a' })
+    let seq = 1
+    const send = (command: Parameters<PraetoriumService['submit']>[3]) => {
+      const answer = service.submit(token, 'alice', seq, command, rules())
+      if (answer.result.outcome === 'appended') seq = answer.result.seq
+      return answer.result
+    }
+    send({
+      kind: 'attach-roster',
+      roster: {
+        name: 'Alice army',
+        text: 'Alice army',
+        built: {
+          catalogueId: 'cat',
+          revision: 'rev',
+          limit: 2000,
+          detachment: null,
+          disposition: 'reconnaissance',
+          selections: [],
+          units: [],
+        },
+      },
+    })
+    send({ kind: 'set-deployment', patternId: 'valid-deployment' })
+    send({ kind: 'begin-battle', firstPlayerId: 'alice' })
+    return { send }
+  }
+
+  it('refuses a primary score that would pass this round’s cap', () => {
+    const battle = configured()
+    expect(battle.send({ kind: 'score', category: 'primary', delta: 6, playerId: 'alice' })).toEqual({
+      outcome: 'refused',
+      reason: 'that would score past this round’s 5 VP cap for primary mission',
+    })
+  })
+
+  it('refuses a secondary score that would pass this round’s cap', () => {
+    const battle = configured()
+    expect(battle.send({ kind: 'score', category: 'secondary', delta: 4, playerId: 'alice' })).toEqual({
+      outcome: 'refused',
+      reason: 'that would score past this round’s 3 VP cap for secondary missions',
+    })
+  })
+
+  it('allows a score that stays within both caps', () => {
+    const battle = configured()
+    expect(battle.send({ kind: 'score', category: 'primary', delta: 5, playerId: 'alice' }).outcome).toBe('appended')
+  })
+
+  it('refuses a score that stays under the round cap but would pass the game cap', () => {
+    const battle = configured()
+    battle.send({ kind: 'score', category: 'primary', delta: 5, playerId: 'alice' })
+    for (let i = 0; i < 6; i += 1) battle.send({ kind: 'advance', playerId: 'alice' })
+
+    expect(battle.send({ kind: 'score', category: 'primary', delta: 4, playerId: 'alice' })).toEqual({
+      outcome: 'refused',
+      reason: 'that would score past the battle’s 8 VP cap for primary mission',
+    })
+  })
+
+  it('never refuses a correction that reduces a score', () => {
+    const battle = configured()
+    battle.send({ kind: 'score', category: 'primary', delta: 5, playerId: 'alice' })
+    expect(battle.send({ kind: 'score', category: 'primary', delta: -2, playerId: 'alice' }).outcome).toBe('appended')
   })
 })
 

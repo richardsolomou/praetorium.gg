@@ -18,7 +18,6 @@ export type WhenDrawn = {
 
 type Props = {
   side: Side
-  seq: number
   round: number
   undoable: number | null
   initiallyPaused: boolean
@@ -36,7 +35,7 @@ type Props = {
  * are dealt is not a move the game has. Putting one back is, but only where the
  * card itself says so, which is why each offer names the condition it rests on.
  */
-export function DrawDialog({ side, seq, round, undoable, initiallyPaused, pending, send, referenceFor, whenDrawnFor, onDone }: Props) {
+export function DrawDialog({ side, round, undoable, initiallyPaused, pending, send, referenceFor, whenDrawnFor, onDone }: Props) {
   const held = side.secondaries.filter((card) => card.status === 'active')
   const [paused, setPaused] = useState(initiallyPaused)
   const [inspected, setInspected] = useState<MissionDetails | null>(null)
@@ -48,15 +47,17 @@ export function DrawDialog({ side, seq, round, undoable, initiallyPaused, pendin
    * request flag is what stops a hand of one being dealt back up to three.
    */
   const asked = useRef(new Set<string>())
-  const seen = useRef(seq)
 
+  // A refused ask — the hand filled from elsewhere before this one landed — never
+  // appears in `side.secondaries`, so nothing about the view changes to prompt a
+  // cleanup. The round trip finishing is the only reliable signal that it is safe
+  // to check whether an ask paid off or was refused.
   useEffect(() => {
-    if (seen.current === seq) return
-    seen.current = seq
+    if (pending) return
     for (const key of asked.current) {
       if (!side.secondaries.some((card) => card.key === key)) asked.current.delete(key)
     }
-  }, [seq, side.secondaries])
+  }, [pending, side.secondaries])
 
   // Drawing is not a decision, so it happens as soon as the hand is short rather than
   // waiting behind a button that has only one thing it can do. What to ask for is

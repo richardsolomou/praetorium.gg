@@ -22,7 +22,14 @@ import { Report, type ReportPlayer } from './Report'
 type Props = {
   view: BattleView
   /** Derived from both armies' dispositions, so it is the same on both devices. */
-  mission: { id: string; name: string; roundCap: number | null; gameCap: number | null } | null
+  mission: {
+    id: string
+    name: string
+    roundCap: number | null
+    gameCap: number | null
+    secondaryRoundCap: number | null
+    secondaryGameCap: number | null
+  } | null
   present: PresentPlayer[]
   send: (command: Command) => void
   pending: boolean
@@ -107,7 +114,14 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
   const finished = view.status === 'finished'
   const solo = table.length < 2
   // The viewer's primary can use a lower ceiling than the conventional one.
-  const guides = { primary: mission?.gameCap ?? view.guides.primary, secondary: view.guides.secondary }
+  const guides = { primary: mission?.gameCap ?? view.guides.primary, secondary: mission?.secondaryGameCap ?? view.guides.secondary }
+  // Never guessed: a ceiling only refuses a score when the mission itself states it.
+  const caps = {
+    primaryRound: mission?.roundCap ?? null,
+    primaryGame: mission?.gameCap ?? null,
+    secondaryRound: mission?.secondaryRoundCap ?? null,
+    secondaryGame: mission?.secondaryGameCap ?? null,
+  }
   /** Which panel a narrow screen is showing, in the order the columns sit on a wide one. */
   const shown = (side: Side) => (side.isViewer ? 'yours' : 'theirs')
 
@@ -278,6 +292,8 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
           pending={pending}
           send={send}
           referenceFor={(key) => referenceFor(active, key)}
+          roundSoFar={active.rounds[view.round - 1] ?? { primary: 0, secondary: 0 }}
+          caps={caps}
           onCancel={() => setScoring(null)}
           onDone={() => {
             setScoring(null)
@@ -295,6 +311,8 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
           pending={pending}
           send={send}
           referenceFor={(key) => referenceFor(yours, key)}
+          roundSoFar={yours.rounds[(settlementRound ?? view.round) - 1] ?? { primary: 0, secondary: 0 }}
+          caps={caps}
           onDone={() => send({ kind: 'settle-opponent-turn' })}
         />
       ) : null}
@@ -303,7 +321,6 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
         <DrawDialog
           key={turnKey}
           side={yours}
-          seq={view.seq}
           round={view.round}
           undoable={view.undoable}
           initiallyPaused={drawPaused}

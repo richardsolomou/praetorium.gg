@@ -81,6 +81,8 @@ type RawMission = {
   name: string
   vp_per_round_cap?: number
   vp_per_game_cap?: number
+  secondary_vp_per_round_cap?: number
+  secondary_vp_per_game_cap?: number
   deployment_pattern_ids?: string[]
   source?: string
 }
@@ -231,6 +233,8 @@ export type Mission = {
   name: string
   roundCap: number | null
   gameCap: number | null
+  secondaryRoundCap: number | null
+  secondaryGameCap: number | null
   source: string | null
   packId: string | null
   deploymentIds: string[]
@@ -493,6 +497,8 @@ export function loadRules(
       name: mission.name,
       roundCap: mission.vp_per_round_cap ?? null,
       gameCap: mission.vp_per_game_cap ?? null,
+      secondaryRoundCap: mission.secondary_vp_per_round_cap ?? null,
+      secondaryGameCap: mission.secondary_vp_per_game_cap ?? null,
       source: mission.source ?? null,
       packId: mission.source ? routeSlug(mission.source) : null,
       deploymentIds: mission.deployment_pattern_ids ?? [],
