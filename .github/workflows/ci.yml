@@ -19,8 +19,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: richardsolomou/ras-stack/actions/setup-js@v0.41.1
-      - uses: richardsolomou/ras-stack/actions/setup-just@v0.41.1
+      - uses: richardsolomou/ras-stack/actions/setup-js@v0.44.0
+      - uses: richardsolomou/ras-stack/actions/setup-just@v0.44.0
         with:
           version: '1.58.0'
       - name: Run checks
@@ -115,7 +115,7 @@ jobs:
       packages: read
     steps:
       - uses: actions/checkout@v7
-      - uses: richardsolomou/ras-stack/actions/setup-js@v0.41.1
+      - uses: richardsolomou/ras-stack/actions/setup-js@v0.44.0
         with:
           install: 'false'
       - name: Restore E2E dependencies
@@ -193,7 +193,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: richardsolomou/ras-stack/actions/setup-js@v0.41.1
+      - uses: richardsolomou/ras-stack/actions/setup-js@v0.44.0
       - run: pnpm catalogue:sync
       - run: pnpm catalogue:descriptions
       - run: pnpm catalogue:points | tee points.txt
