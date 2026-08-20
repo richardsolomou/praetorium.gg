@@ -1,5 +1,18 @@
-import { expect, type Page, test } from '@playwright/test'
+import { expect, type Locator, type Page, test } from '@playwright/test'
 import { createRoster, signUp, waitForRosterSave } from './account'
+
+/**
+ * A picture of one element, taken again if the page moved under it.
+ *
+ * A panel re-renders as its deferred pricing arrives, which replaces the node a
+ * locator resolved to a moment before — so on a cold first run the element a passing
+ * assertion just read could be gone by the time it is photographed.
+ */
+async function shot(element: Locator, path: string) {
+  await expect(async () => {
+    await element.screenshot({ path })
+  }).toPass({ timeout: 10_000 })
+}
 
 /**
  * The four things a player coming from another builder reaches for: squad size where
@@ -115,7 +128,7 @@ test('enhancement choices show descriptions when rule and catalogue names differ
   await expect(mark).toBeVisible()
   const option = mark.locator('xpath=ancestor::article')
   await expect(option).toContainText('add 1 to the Hit roll')
-  await option.screenshot({ path: 'test-results/nekrosor-enhancement.png' })
+  await shot(option, 'test-results/nekrosor-enhancement.png')
 })
 
 test("Pantheon of Woe adds a C'tan shard's required enhancement", async ({ page }) => {
@@ -128,7 +141,7 @@ test("Pantheon of Woe adds a C'tan shard's required enhancement", async ({ page 
   await expect(card).toContainText('Enhancement')
   await expect(card).toContainText('Singularity Matrix')
   await expect(card.getByText('1x Singularity Matrix', { exact: true })).toHaveCount(0)
-  await card.screenshot({ path: 'test-results/pantheon-forced-enhancement.png' })
+  await shot(card, 'test-results/pantheon-forced-enhancement.png')
 
   await page
     .getByRole('button', { name: /^C'tan Shard of the Deceiver/ })
@@ -137,10 +150,10 @@ test("Pantheon of Woe adds a C'tan shard's required enhancement", async ({ page 
   const datasheet = page.locator('aside[aria-label="Datasheet"]')
   await expect(datasheet.getByRole('button', { name: 'Feel No Pain 5+' })).toBeVisible()
   await expect(datasheet.getByRole('button', { name: 'Deadly Demise D6' })).toBeVisible()
-  await datasheet.screenshot({ path: 'test-results/pantheon-datasheet-abilities.png' })
+  await shot(datasheet, 'test-results/pantheon-datasheet-abilities.png')
   const matrix = datasheet.getByRole('heading', { name: 'Singularity Matrix' }).locator('..')
   await expect(matrix).toContainText('Lord of Deceit (Aura)')
-  await matrix.screenshot({ path: 'test-results/pantheon-singularity-matrix.png' })
+  await shot(matrix, 'test-results/pantheon-singularity-matrix.png')
 
   await page.getByLabel('Add a unit').fill('Imotekh the Stormlord')
   await page.getByRole('button', { name: 'View Imotekh the Stormlord datasheet' }).click()
@@ -150,23 +163,23 @@ test("Pantheon of Woe adds a C'tan shard's required enhancement", async ({ page 
   await expect(datasheet.getByText('Character', { exact: true })).toHaveCSS('color', 'rgb(61, 155, 245)')
   expect(Math.abs((await leader.boundingBox())!.height - (await noble.boundingBox())!.height)).toBeLessThan(1)
   await expect(datasheet.getByRole('button', { name: 'Ignores Cover', exact: true })).toHaveCSS('font-size', '14.25px')
-  await datasheet.screenshot({ path: 'test-results/imotekh-datasheet-tags.png' })
+  await shot(datasheet, 'test-results/imotekh-datasheet-tags.png')
   await page.setViewportSize({ width: 390, height: 844 })
   await expect(noble).toBeVisible()
-  await datasheet.screenshot({ path: 'test-results/imotekh-datasheet-tags-phone.png' })
+  await shot(datasheet, 'test-results/imotekh-datasheet-tags-phone.png')
 
   await page.setViewportSize({ width: 1600, height: 900 })
   await page.goto('/factions/necrons/datasheets/imotekh-the-stormlord')
   const referenceHeader = page.locator('main > header')
   await expect(referenceHeader.locator('[data-faction-mark="necrons"]')).toBeVisible()
   await expect(referenceHeader.getByText('Noble', { exact: true })).toHaveCSS('color', 'rgb(61, 155, 245)')
-  await referenceHeader.screenshot({ path: 'test-results/imotekh-reference-tags.png' })
+  await shot(referenceHeader, 'test-results/imotekh-reference-tags.png')
   await page.goto('/factions/necrons/datasheets/lokhust-lord')
   const lokhustProfile = page.locator('main section').first()
   await expect(page.getByText('Models', { exact: true })).toHaveCount(0)
   await expect(lokhustProfile.getByText('Invulnerable save', { exact: true })).toBeVisible()
   await expect(lokhustProfile.getByText('4+', { exact: true })).toBeVisible()
-  await lokhustProfile.screenshot({ path: 'test-results/lokhust-lord-characteristics.png' })
+  await shot(lokhustProfile, 'test-results/lokhust-lord-characteristics.png')
 })
 
 test('unit upgrades stay separate from character enhancements', async ({ page }) => {
@@ -187,9 +200,9 @@ test('unit upgrades stay separate from character enhancements', async ({ page })
   const madnessOption = madness.locator('xpath=ancestor::article')
   await expect(madnessOption.locator('.font-rules')).toHaveCSS('font-family', /^Barlow,/)
   await expect(madness).toHaveCSS('font-family', /Barlow Semi Condensed/)
-  await madnessOption.screenshot({ path: 'test-results/deepening-madness-option.png' })
+  await shot(madnessOption, 'test-results/deepening-madness-option.png')
   await page.setViewportSize({ width: 390, height: 844 })
-  await madnessOption.screenshot({ path: 'test-results/deepening-madness-option-phone.png' })
+  await shot(madnessOption, 'test-results/deepening-madness-option-phone.png')
   await page.setViewportSize({ width: 1280, height: 720 })
   const optionBox = await madnessOption.boundingBox()
   await madnessOption.click({ position: { x: 20, y: (optionBox?.height ?? 20) - 10 } })
@@ -198,7 +211,7 @@ test('unit upgrades stay separate from character enhancements', async ({ page })
   await expect(card).toContainText('Upgrade')
   await expect(card).toContainText('Deepening Madness')
   await expect(card.getByText('1x Deepening Madness', { exact: true })).toHaveCount(0)
-  await card.screenshot({ path: 'test-results/deepening-madness-upgrade.png' })
+  await shot(card, 'test-results/deepening-madness-upgrade.png')
 
   await add(page, 'Lokhust Heavy Destroyers')
   await page
@@ -729,7 +742,7 @@ test('a character can be marked as the warlord from its unit editor', async ({ p
   await expect(pane.getByText('Invulnerable save', { exact: true })).toBeVisible()
   await expect(pane.getByText('2+', { exact: true })).toBeVisible()
   await expect(pane.getByText('4+', { exact: true })).toBeVisible()
-  await pane.locator('[data-slot="unit-profile"]').screenshot({ path: 'test-results/invulnerable-save-row.png' })
+  await shot(pane.locator('[data-slot="unit-profile"]'), 'test-results/invulnerable-save-row.png')
   await expect(loadout.getByText('Tachyon arrow', { exact: true })).toBeVisible()
   await expect(loadout.getByText("Overlord's blade", { exact: true })).toBeVisible()
   await expect(loadout.getByText('Voidscythe', { exact: true })).toBeVisible()
@@ -828,7 +841,7 @@ test('a smaller desktop keeps the picker, roster and loadout visible', async ({ 
   await page.mouse.move(800, 100)
   await datasheet.locator('[data-slot="scroll-area-viewport"]').evaluate((viewport) => (viewport.scrollTop = viewport.scrollHeight))
   await expect(datasheet.getByRole('link', { name: 'Full datasheet' })).toBeVisible()
-  await datasheet.screenshot({ path: 'test-results/builder-datasheet-footer.png' })
+  await shot(datasheet, 'test-results/builder-datasheet-footer.png')
 })
 
 test('mobile roster sheets move directly between units, loadout and datasheet', async ({ page }) => {
@@ -852,7 +865,7 @@ test('mobile roster sheets move directly between units, loadout and datasheet', 
   await expect(datasheet.getByText('Character', { exact: true })).toBeVisible()
   await datasheet.getByRole('button', { name: 'Units' }).click()
   await expect(picker.getByLabel('Add a unit')).toHaveValue('Imotekh the Stormlord')
-  await picker.screenshot({ path: 'test-results/mobile-roster-sheet-navigation.png' })
+  await shot(picker, 'test-results/mobile-roster-sheet-navigation.png')
 })
 
 test('making a new warlord removes the previous one', async ({ page }) => {
@@ -1067,4 +1080,33 @@ test('a chapter reaches the whole Codex range, not just its own datasheets', asy
   await openBuilder(page, 'Dark Angels', /Unforgiven Task Force/)
   await add(page, 'Intercessor Squad')
   await expect(page.locator('[data-unit="Intercessor Squad"]')).toBeVisible()
+})
+
+/**
+ * A Plague Marine's meltagun is filed as a model of its own, apart from the marines
+ * it is drawn from, so the panel drew it on a card with no squadmate to take a body
+ * from and left the control disabled. The squad it joins is where the body comes from.
+ */
+test('a specialist filed apart from its squad can still be armed', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 })
+  await openBuilder(page, 'Death Guard', /Champions of Contagion/)
+  await add(page, 'Plague Marines')
+  await page
+    .locator('[data-unit="Plague Marines"]')
+    .getByRole('button', { name: /^Plague Marines/ })
+    .first()
+    .click()
+
+  const loadout = page.locator('aside[aria-label="Loadout"]')
+  await loadout.getByRole('button', { name: 'More Meltagun' }).click()
+  await expect(loadout.getByLabel('Meltagun count')).toHaveText('1')
+
+  // The marine carrying it is one of the five, so the squad is the size it was and
+  // costs what it did: a boltgun marine gave up his place rather than a sixth joining.
+  await expect(page.getByText('1x Meltagun')).toBeVisible()
+  await expect(page.getByText('4x Boltgun')).toBeVisible()
+  await expect(page.getByLabel('Plague Marines models')).toHaveText('5')
+  await expect(page.locator('[data-unit="Plague Marines"]')).toContainText('90 pts')
+  await expect(page.getByText('Within the points limit')).toBeAttached()
+  await page.screenshot({ path: 'test-results/specialist-filed-apart.png', fullPage: true })
 })

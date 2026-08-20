@@ -1887,3 +1887,95 @@ describe('a specialist the squad does not have yet', () => {
     })
   })
 })
+
+/**
+ * How many models a squad fields is the size its player set, and asking for a weapon
+ * is not asking for that to change. A meltagun is one of the five Plague Marines
+ * carrying it, not a sixth marine — but a drone or a plasmacyte is filed outside the
+ * group the squad's size is counted in, because it is an addition rather than one of
+ * the squad, and taking one does make the unit bigger.
+ */
+describe('a weapon request beside a squad that may still grow', () => {
+  const squad = (extras: { inside: boolean }) => {
+    const specialists = {
+      id: 'specialists',
+      name: 'Special weapons',
+      constraints: [{ id: 'specialists-max', type: 'max' as const, value: 2, field: 'selections', scope: 'parent' }],
+      selectionEntries: [
+        {
+          id: 'gunner',
+          name: 'Trooper w/ meltagun',
+          type: 'model' as const,
+          constraints: [{ id: 'gunner-max', type: 'max' as const, value: 2, field: 'selections', scope: 'parent' }],
+          selectionEntries: [{ id: 'melta', name: 'Meltagun', type: 'upgrade' as const, constraints: mandatory('melta-min') }],
+        },
+      ],
+    }
+    return indexOf({
+      sharedSelectionEntries: [
+        {
+          id: 'squad',
+          name: 'Squad',
+          type: 'unit',
+          selectionEntryGroups: [
+            {
+              id: 'models',
+              name: 'Models',
+              defaultSelectionEntryId: 'trooper',
+              constraints: [
+                { id: 'models-min', type: 'min', value: 5, field: 'selections', scope: 'parent' },
+                { id: 'models-max', type: 'max', value: 10, field: 'selections', scope: 'parent' },
+              ],
+              selectionEntries: [
+                {
+                  id: 'trooper',
+                  name: 'Trooper',
+                  type: 'model',
+                  selectionEntries: [{ id: 'rifle', name: 'Rifle', type: 'upgrade', constraints: mandatory('rifle-min') }],
+                },
+              ],
+              ...(extras.inside ? { selectionEntryGroups: [specialists] } : {}),
+            },
+            ...(extras.inside ? [] : [specialists]),
+          ],
+        },
+      ],
+    })
+  }
+
+  const armed = (index: ReturnType<typeof indexOf>, key: string) => {
+    const built = buildUnit('squad', index, undefined, undefined, { spreads: { [key]: { gunner: 1 } } })!
+    return { models: modelCountOf(built.selection, index), wargear: wargearOf(built.selection, index) }
+  }
+
+  /** The group is inside the one the squad's size is counted in: a swap, as the datasheet says. */
+  it('costs a squadmate their place where the model joins the squad', () => {
+    expect(armed(squad({ inside: true }), 'models/specialists')).toEqual({
+      models: 5,
+      wargear: [
+        { name: 'Rifle', count: 4 },
+        { name: 'Meltagun', count: 1 },
+      ],
+    })
+  })
+
+  /** Filed beside the squad rather than in it: an addition, the way a drone is. */
+  it('adds to a unit where the model stands beside the squad', () => {
+    expect(armed(squad({ inside: false }), 'specialists')).toEqual({
+      models: 6,
+      wargear: [
+        { name: 'Rifle', count: 5 },
+        { name: 'Meltagun', count: 1 },
+      ],
+    })
+  })
+
+  it('hands the place back when the weapon is put down again', () => {
+    const index = squad({ inside: true })
+    const built = buildUnit('squad', index, undefined, undefined, { spreads: { 'models/specialists': { gunner: 0 } } })!
+    expect({ models: modelCountOf(built.selection, index), wargear: wargearOf(built.selection, index) }).toEqual({
+      models: 5,
+      wargear: [{ name: 'Rifle', count: 5 }],
+    })
+  })
+})
