@@ -762,6 +762,69 @@ describe('a datasheet', () => {
     ])
   })
 
+  /**
+   * The real catalogue does not nest an enhancement directly under its bearer: every
+   * eligible datasheet links to one shared library of enhancement options, and
+   * picking one persists that link as an intermediate selection (`expand` in
+   * roster.ts builds exactly this shape). A `parent`-scoped modifier reached through
+   * that link previously resolved to the library link itself rather than the
+   * bearer, so it matched nothing on the bearer's own profiles and only worked by
+   * accident once attached to a unit whose own profiles could never be its lineage.
+   */
+  it('reaches the bearer through a library of enhancements linked by reference', () => {
+    const profiles = (id: string) => [
+      {
+        id: `${id}-ranged`,
+        name: 'Gauss weapon',
+        typeName: 'Ranged Weapons',
+        characteristics: [{ name: 'Range', typeId: 'range', $text: '18"' }],
+      },
+    ]
+    const book = bookOf({
+      sharedSelectionEntryGroups: [
+        {
+          id: 'enhancements',
+          name: 'Enhancements',
+          selectionEntries: [
+            {
+              id: 'gauntlet',
+              name: 'Gauntlet of Compression',
+              type: 'upgrade',
+              modifiers: [
+                {
+                  type: 'increment' as const,
+                  value: 6,
+                  field: 'range',
+                  scope: 'parent',
+                  affects: 'self.entries.group.recursive.profiles.Ranged Weapons',
+                },
+              ],
+            },
+          ],
+        },
+      ],
+      selectionEntries: [
+        {
+          id: 'cryptek',
+          name: 'Cryptek',
+          type: 'model',
+          profiles: profiles('cryptek'),
+          entryLinks: [{ id: 'cryptek-enhancements', name: 'Enhancements', targetId: 'enhancements', type: 'selectionEntryGroup' }],
+        },
+        { id: 'squad', name: 'Squad', type: 'unit', profiles: profiles('squad') },
+      ],
+    })
+    const selections = [{ id: 'cryptek', selections: [{ id: 'cryptek-enhancements', selections: [{ id: 'gauntlet' }] }] }, { id: 'squad' }]
+    const values = (entryId: string, unitSelectionIndex: number, companions: number[]) =>
+      datasheetIn(book, 'cat', entryId, { selections, unitSelectionIndex, companions })?.profiles.map((profile) => ({
+        name: profile.name,
+        values: profile.values.map((value) => `${value.name} ${value.value}`),
+      }))
+
+    expect(values('cryptek', 0, [])).toEqual([{ name: 'Gauss weapon', values: ['Range 24"'] }])
+    expect(values('squad', 1, [0])).toEqual([{ name: 'Gauss weapon', values: ['Range 24"'] }])
+  })
+
   it('keeps every weapon when the loadout asks for the ones not carried', () => {
     const book = bookOf({
       selectionEntries: [

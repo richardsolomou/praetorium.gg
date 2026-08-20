@@ -864,12 +864,19 @@ function resolveScope(scope: string, node: Node, root: Node, census: Census): No
   switch (scope) {
     case 'self':
       return [node]
-    case 'parent':
+    case 'parent': {
       // A datasheet sits directly in the force, and what it asks about its parent it
       // means about itself: an enhancement is a child of the unit that bears it, so
       // reading the force here let one character's relic change another's weapons.
-      if (!node.parent || node.parent.force || node.parent === root) return [node]
-      return [node.parent]
+      // A group standing between them — a library of enhancements reached through
+      // one link — is catalogue organisation rather than a roster selection, so it
+      // is not the parent either: skipping past it is what keeps "the bearer's
+      // unit" reaching the bearer instead of stopping at the library it chose from.
+      let parent = node.parent
+      while (parent && isGroup(parent)) parent = parent.parent
+      if (!parent || parent.force || parent === root) return [node]
+      return [parent]
+    }
     case 'roster':
       return [root]
     case 'force': {
