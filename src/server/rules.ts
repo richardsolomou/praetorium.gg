@@ -341,9 +341,118 @@ export type LoadedRules = {
       mirror: string | null
     }[]
   }[]
+  /**
+   * The kinds of model each datasheet is built from, keyed by the slug the product
+   * already routes datasheets by.
+   *
+   * The catalogue we price from splits a kind of model into one entry per loadout,
+   * which is bookkeeping rather than what a datasheet says. This is the datasheet's
+   * own answer: named kinds, how many of each, and what each carries — so a sergeant
+   * standing beside his veterans is a fact read from the data instead of a shape
+   * inferred from it.
+   */
+  compositions: ReadonlyMap<string, UnitComposition>
+  /** Weapons by id, so a composition's ids can be shown as profiles. */
+  weapons: ReadonlyMap<string, LoadedWeapon>
   /** Whatever the dataset says about how settled these numbers are. */
   dataslate: string | null
 }
+
+export type UnitComposition = {
+  unitId: string
+  models: {
+    name: string
+    /** The profile the kind shares with its siblings, when the data separates the two. */
+    profile: string | null
+    min: number
+    max: number
+    leader: boolean
+    /**
+     * The weapons it starts with. The id is kept because names repeat across
+     * factions — several books have a "Power weapon", and only the id says which.
+     */
+    weapons: { id: string; name: string }[]
+  }[]
+  /** What a kind of model may carry instead of what it starts with. */
+  options: {
+    /** The upstream id, so a player's pick can point at one swap and stay pointed. */
+    id: string
+    /** The kind this applies to, as the composition names it. */
+    model: string | null
+    gives: { id: string; name: string }[]
+    /** Each entry is one alternative; an alternative may be several weapons at once. */
+    takes: { id: string; name: string }[][]
+    /** Whether the swap costs points, which decides whether it can be offered at all. */
+    free: boolean
+  }[]
+}
+
+/** A weapon as the rules source describes it, ready to be shown as a profile. */
+export type LoadedWeapon = {
+  name: string
+  melee: boolean
+  profiles: { name: string; range: string; stats: { name: string; value: string }[]; keywords: string[] }[]
+}
+
+type RawWargearOption = {
+  id?: string
+  unit_id?: string
+  is_free?: boolean
+  replaces?: string[]
+  replacement?: string[]
+  replacement_choice?: string[][]
+  model_constraint?: { model_name?: string }
+}
+
+type RawComposition = {
+  unit_id?: string
+  models?: {
+    name?: string
+    profile_name?: string
+    min?: number
+    max?: number
+    is_leader_model?: boolean
+    default_weapon_ids?: string[]
+  }[]
+}
+
+type RawWeapon = {
+  id?: string
+  name?: string
+  type?: string
+  profiles?: {
+    name?: string
+    range?: number | string
+    stats?: Record<string, number | string | null>
+    keywords?: { keyword_id?: string; parameters?: Record<string, number | string> }[]
+  }[]
+}
+
+/** The order a datasheet prints weapon characteristics in. */
+const RANGED_STATS = ['A', 'BS', 'S', 'AP', 'D']
+const MELEE_STATS = ['A', 'WS', 'S', 'AP', 'D']
+
+/** "anti" with a target and a threshold reads as "Anti-Infantry 4+" on the card. */
+function keywordLabel(keyword: { keyword_id?: string; parameters?: Record<string, number | string> }) {
+  const name = titleCase((keyword.keyword_id ?? '').replaceAll('-', ' '))
+  const target = keyword.parameters?.target_keyword
+  const threshold = keyword.parameters?.threshold
+  if (target && threshold) return `${name}-${target} ${threshold}+`
+  const value = keyword.parameters ? Object.values(keyword.parameters)[0] : undefined
+  return value === undefined ? name : `${name} ${value}`
+}
+
+/**
+ * Upstream ids transliterate accents that our route slugs drop, so "Khârn" is
+ * `kharn` there and `kh-rn` here. Folding the accent back rather than changing
+ * `routeSlug`, which is what existing links are already built from.
+ */
+const joinKey = (nameOrSlug: string) =>
+  nameOrSlug
+    .normalize('NFD')
+    .replaceAll(/\p{M}+/gu, '')
+    .toLocaleLowerCase()
+    .replaceAll(/[^a-z0-9]+/g, '')
 
 /** Sits inside the catalogue directory, so one sync brings every source. */
 function rulesDirectory(dataDirectory = process.env.DATA_DIR ?? '/data') {
@@ -367,7 +476,94 @@ export function loadRules(
   const factionNames = new Map<string, string>()
   const factionIcons = new Map<string, string>()
   const factionRules = new Map<string, { name: string; description: string }>()
+  const compositions = new Map<string, UnitComposition>()
+  const weaponNames = new Map<string, string>()
+  const weapons = new Map<string, LoadedWeapon>()
   let dataslate: string | null = null
+
+  // Weapons first: a composition holds ids, and only this says what they are and do.
+  for (const faction of fs.readdirSync(core, { withFileTypes: true })) {
+    if (!faction.isDirectory() || faction.name.startsWith('_')) continue
+    for (const weapon of readOptionalList<RawWeapon>(path.join(core, faction.name, 'weapons.json'))) {
+      if (!weapon.id || !weapon.name) continue
+      weaponNames.set(weapon.id, weapon.name)
+      const melee = (weapon.type ?? '').toLocaleLowerCase() === 'melee'
+      weapons.set(weapon.id, {
+        name: weapon.name,
+        melee,
+        profiles: (weapon.profiles ?? []).map((profile) => ({
+          name: profile.name ?? weapon.name!,
+          range: melee ? 'Melee' : profile.range === undefined ? '-' : `${profile.range}"`,
+          stats: (melee ? MELEE_STATS : RANGED_STATS).map((stat) => {
+            const value = profile.stats?.[stat]
+            // A torrent weapon needs no roll to hit, and the data says so by leaving
+            // the characteristic out. A datasheet prints the rest as "3+".
+            if (value === undefined || value === null) return { name: stat, value: '-' }
+            const skill = stat === 'WS' || stat === 'BS'
+            return { name: stat, value: `${value}${skill ? '+' : ''}` }
+          }),
+          keywords: (profile.keywords ?? []).map(keywordLabel),
+        })),
+      })
+    }
+  }
+
+  // Not everything a model carries is a weapon: a shield has a name and a rule but
+  // no profile, and a swap that grants one still has to be able to name it.
+  for (const faction of fs.readdirSync(core, { withFileTypes: true })) {
+    if (!faction.isDirectory() || faction.name.startsWith('_')) continue
+    for (const item of readOptionalList<RawWeapon>(path.join(core, faction.name, 'wargear.json'))) {
+      if (item.id && item.name && !weaponNames.has(item.id)) weaponNames.set(item.id, item.name)
+    }
+  }
+
+  for (const faction of fs.readdirSync(core, { withFileTypes: true })) {
+    if (!faction.isDirectory() || faction.name.startsWith('_')) continue
+    for (const raw of readOptionalList<RawComposition>(path.join(core, faction.name, 'unit-compositions.json'))) {
+      if (!raw.unit_id || !raw.models?.length) continue
+      const models = raw.models.flatMap((model) =>
+        model.name
+          ? [
+              {
+                name: model.name,
+                profile: model.profile_name ?? null,
+                min: model.min ?? 0,
+                max: model.max ?? model.min ?? 0,
+                leader: Boolean(model.is_leader_model),
+                // A weapon the id table does not know is left out rather than named
+                // after its id, which would put a slug in front of a player.
+                weapons: (model.default_weapon_ids ?? []).flatMap((id) => {
+                  const name = weaponNames.get(id)
+                  return name ? [{ id, name }] : []
+                }),
+              },
+            ]
+          : [],
+      )
+      if (models.length) compositions.set(joinKey(raw.unit_id), { unitId: raw.unit_id, models, options: [] })
+    }
+  }
+
+  for (const faction of fs.readdirSync(core, { withFileTypes: true })) {
+    if (!faction.isDirectory() || faction.name.startsWith('_')) continue
+    for (const raw of readOptionalList<RawWargearOption>(path.join(core, faction.name, 'wargear-options.json'))) {
+      const composition = raw.unit_id ? compositions.get(joinKey(raw.unit_id)) : undefined
+      if (!composition) continue
+      const named = (ids: string[]) => ids.flatMap((id) => (weaponNames.get(id) ? [{ id, name: weaponNames.get(id)! }] : []))
+      const takes = [...(raw.replacement ? [raw.replacement] : []), ...(raw.replacement_choice ?? [])]
+        .map(named)
+        .filter((one) => one.length)
+      if (!takes.length) continue
+      if (!raw.id) continue
+      composition.options.push({
+        id: raw.id,
+        model: raw.model_constraint?.model_name ?? null,
+        gives: named(raw.replaces ?? []),
+        takes,
+        free: raw.is_free !== false,
+      })
+    }
+  }
 
   for (const faction of fs.readdirSync(core, { withFileTypes: true })) {
     if (!faction.isDirectory() || faction.name.startsWith('_')) continue
@@ -596,8 +792,20 @@ export function loadRules(
     deployments,
     terrainLayouts,
     terrainTemplates,
+    compositions,
+    weapons,
     dataslate,
   }
+}
+
+/**
+ * The kinds of model a datasheet is built from, or nothing when the data is silent.
+ *
+ * Takes the datasheet's name or its slug: either folds to the same key, which is what
+ * lets an accented name find a source that spells it without one.
+ */
+export function compositionOf(rules: LoadedRules | null, nameOrSlug: string): UnitComposition | null {
+  return rules?.compositions?.get(joinKey(nameOrSlug)) ?? null
 }
 
 /** The primary an army plays, derived from its disposition and the one opposing it. */

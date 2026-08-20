@@ -301,6 +301,92 @@ test('destroyer plasmacytes follow the unit size', async ({ page }) => {
   }
 })
 
+/**
+ * A squad divides itself between the weapons its models carry, and a specialist takes
+ * a body from a squadmate to carry his. Arming the specialist used to come out of
+ * whatever the squad held most of, so a player filling a squad with combi-weapons
+ * found them quietly turning back into bolt rifles somewhere around half the squad.
+ */
+test('a squad keeps the weapons it was given while a specialist is armed', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 })
+  await openBuilder(page, 'Dark Angels', /Wrath of the Rock/)
+  await add(page, 'Sternguard Veteran Squad')
+  await page
+    .getByRole('button', { name: /^Sternguard Veteran Squad/ })
+    .first()
+    .click()
+
+  const loadout = page.locator('aside[aria-label="Loadout"]')
+  for (const models of ['6', '7', '8', '9', '10']) {
+    await loadout.getByRole('button', { name: 'More models in Sternguard Veteran Squad' }).click()
+    await expect(loadout.getByLabel('Sternguard Veteran Squad models')).toHaveText(models)
+  }
+  // The sergeant carries his own weapons, so every count here is the squad's.
+  const veterans = loadout.locator('section').filter({ has: page.getByLabel('Sternguard Veteran models', { exact: true }) })
+  await expect(veterans.getByLabel('Sternguard Bolt Rifle count')).toHaveText('9')
+
+  await veterans.getByRole('button', { name: 'More Pyrecannon' }).click()
+  await expect(veterans.getByLabel('Pyrecannon count')).toHaveText('1')
+  await expect(veterans.getByLabel('Sternguard Bolt Rifle count')).toHaveText('8')
+  await expect(page.locator('[data-roster-builder]')).toHaveAttribute('data-saving', 'false')
+
+  for (const count of ['1', '2', '3', '4', '5', '6', '7', '8']) {
+    await veterans.getByRole('button', { name: 'More Combi-weapon' }).click()
+    await expect(veterans.getByLabel('Combi-weapon count')).toHaveText(count)
+    await expect(veterans.getByLabel('Pyrecannon count')).toHaveText('1')
+  }
+  await expect(veterans.getByLabel('Sternguard Bolt Rifle count')).toHaveText('0')
+  await expect(page.locator('[data-roster-builder]')).toHaveAttribute('data-saving', 'false')
+  await expect(page.locator('[data-unit="Sternguard Veteran Squad"]')).toContainText('1x Pyrecannon')
+  await page.screenshot({ path: 'test-results/sternguard-combi-weapons.png', fullPage: true })
+
+  // Putting the pyrecannon down hands its body back rather than shrinking the squad.
+  await veterans.getByRole('button', { name: 'Fewer Pyrecannon' }).click()
+  await expect(veterans.getByLabel('Pyrecannon count')).toHaveText('0')
+  await expect(veterans.getByLabel('Sternguard Veteran models')).toHaveText('9')
+  await expect(loadout.getByLabel('Sternguard Veteran Squad models')).toHaveText('10')
+})
+
+/**
+ * Free swaps live in the rules source rather than the community catalogue, so a card
+ * counting the catalogue's own selection went on naming the weapon that was traded
+ * away. Card and loadout answer the same question and have to agree.
+ */
+test('a free swap shows on the roster card as well as the loadout', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 })
+  await openBuilder(page, 'Deathwatch', /Black Spear Task Force/)
+  await add(page, 'Decimus Kill Team')
+  await page
+    .getByRole('button', { name: /^Decimus Kill Team/ })
+    .first()
+    .click()
+
+  // A kill team joins at its smallest, one veteran of each kind.
+  const card = page.locator('[data-unit="Decimus Kill Team"]')
+  await expect(card).toContainText('1x Heavy thunder hammer')
+  await expect(card).toContainText('1x Power weapon')
+  await expect(card).not.toContainText('Astartes shield')
+
+  const loadout = page.locator('aside[aria-label="Loadout"]')
+  const swap = 'Power weapon and Astartes shield'
+  await expect(loadout.getByLabel(`${swap} count`)).toHaveText('0')
+  await loadout.getByRole('button', { name: `More ${swap}` }).click()
+  await expect(loadout.getByLabel(`${swap} count`)).toHaveText('1')
+  await expect(page.locator('[data-roster-builder]')).toHaveAttribute('data-saving', 'false')
+
+  // The hammer was the only one, so it goes: the shield and a second power weapon
+  // are what that veteran holds now.
+  await expect(card).toContainText('1x Astartes shield')
+  await expect(card).toContainText('2x Power weapon')
+  await expect(card).not.toContainText('Heavy thunder hammer')
+  await page.screenshot({ path: 'test-results/decimus-swap-on-card.png', fullPage: true })
+
+  await loadout.getByRole('button', { name: `Fewer ${swap}` }).click()
+  await expect(loadout.getByLabel(`${swap} count`)).toHaveText('0')
+  await expect(card).toContainText('1x Heavy thunder hammer')
+  await expect(card).not.toContainText('Astartes shield')
+})
+
 test('Cursed Legion does not modify Immortals without an eligible leader', async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 900 })
   await openBuilder(page, 'Necrons', /Cursed Legion/)

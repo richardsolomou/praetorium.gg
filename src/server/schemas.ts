@@ -54,6 +54,8 @@ const pickSchema = z.object({
    * one — a squad splitting its weapons between two.
    */
   spreads: z.record(z.string().max(400), z.record(z.string().max(64), z.number().int().min(0).max(60))).optional(),
+  /** How many models took each datasheet swap, keyed `<swap id>#<alternative>`. */
+  swaps: z.record(z.string().max(140), z.number().int().min(0).max(60)).optional(),
   toggles: z.record(z.string().max(400), z.number().int().min(0).max(1)).optional(),
   /**
    * The position of the unit this one is attached to, when it is.

@@ -161,12 +161,13 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
           detachmentIds,
           disposition,
           limit,
-          picks: picked.map(({ entryId, catalogueId: unitCatalogueId, models, choices, spreads, toggles, attachedTo }) => ({
+          picks: picked.map(({ entryId, catalogueId: unitCatalogueId, models, choices, spreads, swaps, toggles, attachedTo }) => ({
             entryId,
             catalogueId: unitCatalogueId,
             models,
             choices,
             spreads,
+            swaps,
             toggles,
             // Saved by position, because the keys are this session's own numbering.
             attachedTo: attachedTo === undefined ? undefined : picked.findIndex((pick) => pick.key === attachedTo),
@@ -200,12 +201,13 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
           disposition,
           limit,
           name: listName || 'Roster',
-          units: picked.map(({ entryId, catalogueId: unitCatalogueId, models, choices, spreads, toggles, attachedTo }) => ({
+          units: picked.map(({ entryId, catalogueId: unitCatalogueId, models, choices, spreads, swaps, toggles, attachedTo }) => ({
             entryId,
             catalogueId: unitCatalogueId,
             models,
             choices,
             spreads,
+            swaps,
             toggles,
             attachedTo: attachedTo === undefined ? undefined : picked.findIndex((candidate) => candidate.key === attachedTo),
           })),
@@ -228,12 +230,13 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
       detachmentIds,
       disposition,
       limit,
-      picked.map(({ entryId, catalogueId: unitCatalogueId, models, choices, spreads, toggles }) => ({
+      picked.map(({ entryId, catalogueId: unitCatalogueId, models, choices, spreads, swaps, toggles }) => ({
         entryId,
         catalogueId: unitCatalogueId,
         models,
         choices,
         spreads,
+        swaps,
         toggles,
       })),
     ),
@@ -266,13 +269,13 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
       ? {
           ...selectedUnit,
           size: { ...selectedUnit.size, models: selectedPick.models ?? selectedUnit.size.models },
+          // Counts are the evaluated result, never the pick that asked for them.
+          // Taking a heavy weapon spends one of the squad's bodies, so a spread the
+          // player set in one group can be answered by a different number in another;
+          // showing what was asked for would keep insisting on the number that lost.
           choices: selectedUnit.choices.map((choice) => ({
             ...choice,
             chosen: Object.hasOwn(selectedPick.choices ?? {}, choice.key) ? (selectedPick.choices?.[choice.key] ?? '') : choice.chosen,
-            options: choice.options.map((option) => ({
-              ...option,
-              count: selectedPick.spreads?.[choice.key]?.[option.id] ?? option.count,
-            })),
           })),
           toggles: selectedUnit.toggles.map((toggle) => ({
             ...toggle,
@@ -329,6 +332,18 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
             }
           : pick,
       ),
+    )
+
+  /** A datasheet swap the catalogue cannot price, kept beside the picks it sits with. */
+  const swap = (index: number, key: string, count: number) =>
+    setPicked((current) =>
+      current.map((pick, at) => {
+        if (at !== index) return pick
+        const swaps = { ...pick.swaps }
+        if (count <= 0) delete swaps[key]
+        else swaps[key] = count
+        return { ...pick, swaps }
+      }),
     )
 
   const toggle = (index: number, key: string, toggleName: string, enabled: boolean) =>
@@ -488,6 +503,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
       onSpread={(key, counts) => selected !== null && spread(selected, key, counts)}
       onToggle={(key, toggleName, enabled) => selected !== null && toggle(selected, key, toggleName, enabled)}
       onResize={(models) => selected !== null && resize(selected, models)}
+      onSwap={(key, count) => selected !== null && swap(selected, key, count)}
       editable={editable}
     />
   )

@@ -2,7 +2,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { loadRules, missionFor } from './rules'
+import { compositionOf, loadRules, missionFor } from './rules'
 
 let directory: string
 
@@ -104,6 +104,25 @@ beforeEach(() => {
   write(path.join(root, 'mission-matchups.json'), [
     { disposition: 'disruption', opponent_disposition: 'take-and-hold', mission_id: 'death-trap' },
     { disposition: 'take-and-hold', opponent_disposition: 'disruption', mission_id: 'vital-link' },
+  ])
+  write(path.join(core, 'weapons.json'), [
+    { id: 'plague-spewer', name: 'Plague spewer' },
+    { id: 'bolt-pistol-plague-marines', name: 'Bolt pistol' },
+  ])
+  write(path.join(core, 'unit-compositions.json'), [
+    {
+      unit_id: 'plague-marines',
+      models: [
+        { name: 'Plague Champion', profile_name: 'Plague Marine', min: 1, max: 1, is_leader_model: true },
+        {
+          name: 'Plague Marine',
+          profile_name: 'Plague Marine',
+          min: 4,
+          max: 9,
+          default_weapon_ids: ['plague-spewer', 'bolt-pistol-plague-marines', 'weapon-nobody-has-heard-of'],
+        },
+      ],
+    },
   ])
   write(path.join(root, 'force-dispositions.json'), [{ id: 'disruption', name: 'Disruption' }])
   write(path.join(root, 'deployment-patterns.json'), [
@@ -207,6 +226,45 @@ describe('stratagems', () => {
 
   it('include the ones every army has', () => {
     expect(load().core.map((stratagem) => stratagem.name)).toEqual(['Command Re-Roll'])
+  })
+})
+
+describe('the kinds of model a datasheet is built from', () => {
+  it('names each kind, how many of it, and which one leads', () => {
+    expect(compositionOf(load(), 'plague-marines')?.models).toEqual([
+      { name: 'Plague Champion', profile: 'Plague Marine', min: 1, max: 1, leader: true, weapons: [] },
+      {
+        name: 'Plague Marine',
+        profile: 'Plague Marine',
+        min: 4,
+        max: 9,
+        leader: false,
+        weapons: [
+          { id: 'plague-spewer', name: 'Plague spewer' },
+          { id: 'bolt-pistol-plague-marines', name: 'Bolt pistol' },
+        ],
+      },
+    ])
+  })
+
+  /** Accents survive upstream but not in the slugs our own links are built from. */
+  it('finds a unit whose name our slug spells differently', () => {
+    expect(compositionOf(load(), 'plague--marines')?.unitId).toBe('plague-marines')
+  })
+
+  it('says nothing about a datasheet the data does not cover', () => {
+    expect(compositionOf(load(), 'terminator-squad')).toBeNull()
+  })
+
+  /**
+   * Several books arm someone with a "Power weapon" and they are not the same
+   * weapon, so a name is not enough to say what one does.
+   */
+  it('keeps the weapon id, because names repeat across factions', () => {
+    const rules = load()
+    const carried = compositionOf(rules, 'plague-marines')?.models[1]?.weapons ?? []
+    expect(carried.map((weapon) => weapon.id)).toEqual(['plague-spewer', 'bolt-pistol-plague-marines'])
+    expect(rules.weapons.get('plague-spewer')?.name).toBe('Plague spewer')
   })
 })
 
