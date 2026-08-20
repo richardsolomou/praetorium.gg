@@ -909,6 +909,81 @@ test('a squad divides its weapons between two options', async ({ page }) => {
   await page.screenshot({ path: 'test-results/loadout.png', fullPage: true })
 })
 
+/**
+ * The catalogue files a Necron Warrior once per gun it can hold, which is bookkeeping
+ * rather than two kinds of model. Drawn as written, the panel gave each of them a card
+ * of its own and then asked for the same gun again as a wargear option underneath.
+ */
+test('a squad the catalogue files one loadout per weapon is one card', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 })
+  await openBuilder(page)
+  await add(page, 'Necron Warriors')
+  await page.locator('[data-unit="Necron Warriors"]').getByRole('button', { name: 'Necron Warriors', exact: true }).click()
+
+  const loadout = page.locator('aside[aria-label="Loadout"]')
+  await expect(loadout.getByLabel('Warrior models')).toHaveText('10')
+  await expect(loadout.getByText('Wargear options', { exact: true })).toBeHidden()
+
+  // Both guns are on the one card, and the squad divides itself between them.
+  await loadout.getByRole('button', { name: 'More Gauss reaper' }).click()
+  await expect(loadout.getByLabel('Gauss reaper count')).toHaveText('1')
+  await expect(loadout.getByLabel('Gauss flayer count')).toHaveText('9')
+  await expect(page.getByText('9x Gauss flayer')).toBeVisible()
+  await expect(page.getByText('Within the points limit')).toBeAttached()
+  await page.screenshot({ path: 'test-results/one-card-per-model-kind.png', fullPage: true })
+})
+
+/**
+ * The same model can be filed under two groups — the gun every Hearthkyn carries in
+ * one, the heavy weapon one of them may take in another — which is still one kind of
+ * warrior, and one card holding every weapon it may end up with.
+ */
+test('a kind of model filed under two groups is still one card', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 })
+  await openBuilder(page, 'Leagues of Votann', /Hearthband/)
+  await add(page, 'Hearthkyn Warriors')
+  await page.locator('[data-unit="Hearthkyn Warriors"]').getByRole('button', { name: 'Hearthkyn Warriors', exact: true }).click()
+
+  const loadout = page.locator('aside[aria-label="Loadout"]')
+  const warriors = loadout.locator('section').filter({ has: page.getByLabel('Hearthkyn Warrior models') })
+  await expect(warriors.getByLabel('Hearthkyn Warrior models')).toHaveText('9')
+  await expect(loadout.getByText('Wargear options', { exact: true })).toBeHidden()
+  // The gun each warrior carries and the heavy weapon one of them may take instead.
+  await expect(warriors.getByLabel('Autoch-pattern bolter count')).toHaveText('9')
+  await expect(warriors.getByLabel('Magna-rail rifle count')).toBeVisible()
+
+  // The body for the ion blaster comes from a squadmate, not from thin air.
+  await warriors.getByRole('button', { name: 'More Ion blaster' }).click()
+  await expect(warriors.getByLabel('Ion blaster count')).toHaveText('1')
+  await expect(warriors.getByLabel('Autoch-pattern bolter count')).toHaveText('8')
+  await expect(warriors.getByLabel('Hearthkyn Warrior models')).toHaveText('9')
+  await expect(page.getByText('Within the points limit')).toBeAttached()
+  await page.screenshot({ path: 'test-results/one-card-across-groups.png', fullPage: true })
+})
+
+/**
+ * Six wraiths, each a pairing of claws or coils with a gun the player cannot break
+ * apart, so each keeps a card of its own — and the card is then where the squad says
+ * how many of that pairing it has, rather than repeating all six underneath.
+ */
+test('a loadout that pairs two weapons is counted on its own card', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 })
+  await openBuilder(page)
+  await add(page, 'Canoptek Wraiths')
+  await page.locator('[data-unit="Canoptek Wraiths"]').getByRole('button', { name: 'Canoptek Wraiths', exact: true }).click()
+
+  const loadout = page.locator('aside[aria-label="Loadout"]')
+  await expect(loadout.getByText('Wargear options', { exact: true })).toBeHidden()
+  await expect(loadout.getByLabel('Wraith w/ claws count')).toHaveText('3')
+
+  await loadout.getByRole('button', { name: 'More Wraith w/ claws and beamer' }).click()
+  await expect(loadout.getByLabel('Wraith w/ claws and beamer count')).toHaveText('1')
+  await expect(loadout.getByLabel('Wraith w/ claws count')).toHaveText('2')
+  await expect(page.getByText('1x Transdimensional beamer')).toBeVisible()
+  await expect(page.getByText('Within the points limit')).toBeAttached()
+  await page.screenshot({ path: 'test-results/paired-loadout-cards.png', fullPage: true })
+})
+
 test('fixed duplicate weapons show their quantity with the profile', async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 900 })
   await openBuilder(page)
