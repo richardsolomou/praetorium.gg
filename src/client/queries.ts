@@ -116,10 +116,12 @@ export const datasheetQuery = (
   detachmentIds: readonly string[] = [],
   picks: readonly RosterPick[] = [],
   pickIndex: number | null = null,
+  everyWeapon = false,
 ) =>
   queryOptions({
-    queryKey: ['datasheet', catalogueId, entryId, detachmentIds, picks, pickIndex],
-    queryFn: () => datasheet({ data: { catalogueId, entryId, detachmentIds: [...detachmentIds], picks: [...picks], pickIndex } }),
+    queryKey: ['datasheet', catalogueId, entryId, detachmentIds, picks, pickIndex, everyWeapon],
+    queryFn: () =>
+      datasheet({ data: { catalogueId, entryId, detachmentIds: [...detachmentIds], picks: [...picks], pickIndex, everyWeapon } }),
     enabled: Boolean(catalogueId && entryId),
     staleTime: Infinity,
   })

@@ -388,6 +388,12 @@ export const datasheet = createServerFn({ method: 'GET' })
       })
       const selected = builtUnits.findIndex((unit) => unit.index === data.pickIndex)
       const selections = [...detachments, ...builtUnits.map((unit) => unit.selection)]
+      // A character and the unit it leads are one unit, so each is told about the
+      // other: a relic that speaks of the bearer's unit has to reach both.
+      const attachedTo = data.pickIndex === null ? undefined : data.picks[data.pickIndex]?.attachedTo
+      const companions = builtUnits.flatMap((unit, at) =>
+        data.picks[unit.index]?.attachedTo === data.pickIndex || unit.index === attachedTo ? [detachments.length + at] : [],
+      )
       return describeDatasheetAbilities(
         loaded,
         data.catalogueId,
@@ -395,7 +401,9 @@ export const datasheet = createServerFn({ method: 'GET' })
           loaded,
           data.catalogueId,
           data.entryId,
-          selected < 0 ? undefined : { selections, unitSelectionIndex: detachments.length + selected },
+          selected < 0
+            ? undefined
+            : { selections, unitSelectionIndex: detachments.length + selected, everyWeapon: data.everyWeapon, companions },
         ),
         app().rules(),
       )

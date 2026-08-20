@@ -318,6 +318,7 @@ describe('repeated specialist models', () => {
                 id: 'veteran',
                 name: 'Veteran',
                 type: 'model',
+                profiles: [{ id: 'veteran-profile', name: 'Trooper', typeName: 'Unit' }],
                 constraints: [{ id: 'veteran-max', type: 'max', value: 9, field: 'selections', scope: 'parent' }],
                 selectionEntries: [{ id: 'rifle', name: 'Rifle', type: 'upgrade', constraints: mandatory('rifle-min') }],
               },
@@ -325,6 +326,7 @@ describe('repeated specialist models', () => {
                 id: 'sergeant',
                 name: 'Sergeant',
                 type: 'model',
+                profiles: [{ id: 'sergeant-profile', name: 'Sergeant', typeName: 'Unit' }],
                 constraints: [
                   ...mandatory('sergeant-min'),
                   { id: 'sergeant-max', type: 'max', value: 1, field: 'selections', scope: 'parent' },
@@ -334,6 +336,7 @@ describe('repeated specialist models', () => {
                 id: 'gunner',
                 name: 'Gunner',
                 type: 'model',
+                profiles: [{ id: 'gunner-profile', name: 'Trooper', typeName: 'Unit' }],
                 constraints: [{ id: 'gunner-max', type: 'max', value: 1, field: 'selections', scope: 'parent' }],
                 modifiers: [
                   {
@@ -390,6 +393,90 @@ describe('repeated specialist models', () => {
     const choice = built.choices.find((candidate) => candidate.key === key)
     expect(choice?.options.find((option) => option.id === 'heavy-bolter')?.count).toBe(2)
     expect(wargearOf(built.selection, index)).toContainEqual({ name: 'Heavy bolter', count: 2 })
+  })
+
+  it('counts specialists split across two nested choices as one kind of model', () => {
+    const built = buildUnit('squad', index, 10, undefined, {
+      spreads: { [key]: { 'heavy-bolter': 1, pyrecannon: 1 } },
+    })!
+    const choice = built.choices.find((candidate) => candidate.key === 'models')
+    expect(choice?.options.find((option) => option.id === 'gunner')?.count).toBe(2)
+  })
+
+  it('sends a disarmed specialist back to the squad it came from', () => {
+    const built = buildUnit('squad', index, 10, undefined, {
+      spreads: { models: { gunner: 1 }, [key]: { 'heavy-bolter': 0, pyrecannon: 0 } },
+    })!
+    expect(modelCountOf(built.selection, index)).toBe(10)
+    expect(wargearOf(built.selection, index)).toEqual([{ name: 'Rifle', count: 9 }])
+    expect(built.choices.find((choice) => choice.key === 'models')?.options.find((option) => option.id === 'gunner')?.count).toBe(0)
+  })
+
+  it('names the model a nested choice belongs to, and leaves the squad-wide choice without one', () => {
+    const built = buildUnit('squad', index, 10)!
+    expect(built.choices.find((choice) => choice.key === key)?.owner?.name).toBe('Gunner')
+    expect(built.choices.find((choice) => choice.key === 'models')?.owner).toBeNull()
+  })
+
+  /**
+   * Arming a model the squad did not have yet costs it a body. Both halves of that
+   * were wrong: the squad grew past its size, and the model it grew past was the
+   * sergeant the data insists on.
+   */
+  it('takes the body for a new specialist from a squadmate, not from the required model', () => {
+    const armed = buildUnit('squad', index, 10, undefined, {
+      spreads: { models: { veteran: 9 }, [key]: { 'heavy-bolter': 1 } },
+    })!
+    const models = armed.choices.find((choice) => choice.key === 'models')
+    expect(models?.options.map((option) => `${option.id}=${option.count}`)).toEqual(['veteran=8', 'gunner=1'])
+    expect(modelCountOf(armed.selection, index)).toBe(10)
+    expect(wargearOf(armed.selection, index)).toContainEqual({ name: 'Heavy bolter', count: 1 })
+  })
+
+  /**
+   * A squad and one of its models can both have an opinion about that model. The
+   * squad's is the wider one and settles first, so what the model was handed is not
+   * put down again — and the answer no longer depends on which of the two the saved
+   * list happens to name first.
+   */
+  it('lets a model keep the weapon it was given when the squad also names that model', () => {
+    const spreads = { [key]: { 'heavy-bolter': 1 }, models: { veteran: 9, gunner: 0 } }
+    const armed = buildUnit('squad', index, 10, undefined, { spreads })!
+    const reversed = buildUnit('squad', index, 10, undefined, {
+      spreads: Object.fromEntries(Object.entries(spreads).toReversed()),
+    })!
+    for (const built of [armed, reversed]) {
+      expect(built.choices.find((choice) => choice.key === key)?.options.find((option) => option.id === 'heavy-bolter')?.count).toBe(1)
+      expect(modelCountOf(built.selection, index)).toBe(10)
+    }
+  })
+
+  /**
+   * A count the squad keeps for a model that arms itself is a leftover opinion, and
+   * spending a body on it starves whatever the player actually asked for — silently,
+   * because the group is full either way.
+   */
+  it('ignores a squad-level count for a model whose own wargear decides how many there are', () => {
+    const built = buildUnit('squad', index, 10, undefined, {
+      spreads: { models: { veteran: 8, gunner: 1, sergeant: 1 }, [key]: { 'heavy-bolter': 0, pyrecannon: 0 } },
+    })!
+    const models = built.choices.find((choice) => choice.key === 'models')
+    // No heavy weapon taken, so no gunner — and the body it was holding goes back
+    // to the squad rather than being spent on a model carrying nothing.
+    expect(models?.options.find((option) => option.id === 'gunner')?.count).toBe(0)
+    expect(modelCountOf(built.selection, index)).toBe(10)
+    expect(wargearOf(built.selection, index)).not.toContainEqual(expect.objectContaining({ name: 'Heavy bolter' }))
+  })
+
+  /**
+   * The kinds of model a datasheet names, against the per-loadout entries the
+   * catalogue splits each kind into: a gunner is a trooper holding a heavy weapon,
+   * not a third kind of model standing beside the sergeant.
+   */
+  it('groups per-loadout model entries by the kind of model they are', () => {
+    const built = buildUnit('squad', index, 10)!
+    expect(built.choices.find((choice) => choice.key === key)?.owner?.profile).toBe('Trooper')
+    expect(built.choices.find((choice) => choice.key === 'models')?.options.map((option) => option.profile)).toEqual(['Trooper', 'Trooper'])
   })
 })
 
@@ -454,8 +541,10 @@ describe('optional wargear on repeated models', () => {
       name: 'Shieldvanes',
       chosen: '',
       optional: true,
+      carried: true,
       room: 3,
       options: [{ id: 'shield', name: 'Shieldvanes', points: 0, count: 0, max: 3 }],
+      owner: null,
     })
   })
 
@@ -1332,5 +1421,149 @@ describe('per-model wargear when a squad changes size', () => {
       { count: 7, max: 7 },
       { count: 0, max: 7 },
     ])
+  })
+})
+
+describe('a choice the data closes behind another', () => {
+  const index = indexOf({
+    sharedSelectionEntries: [
+      {
+        id: 'champion',
+        name: 'Champion',
+        type: 'unit',
+        selectionEntryGroups: [
+          {
+            id: 'ranged',
+            name: 'Ranged Option',
+            defaultSelectionEntryId: 'rifle',
+            constraints: [
+              { id: 'ranged-min', type: 'min', value: 1, field: 'selections', scope: 'parent' },
+              { id: 'ranged-max', type: 'max', value: 1, field: 'selections', scope: 'parent' },
+            ],
+            selectionEntries: [
+              { id: 'rifle', name: 'Rifle', type: 'upgrade' },
+              { id: 'combi', name: 'Combi-weapon', type: 'upgrade' },
+            ],
+          },
+          {
+            id: 'melee',
+            name: 'Melee Option',
+            constraints: [{ id: 'melee-max', type: 'max', value: 1, field: 'selections', scope: 'parent' }],
+            // A combi-weapon takes both hands, and the data says so by closing the
+            // melee group rather than by naming what it rules out.
+            modifiers: [
+              {
+                type: 'set',
+                value: 0,
+                field: 'melee-max',
+                conditions: [{ type: 'atLeast', value: 1, field: 'selections', scope: 'champion', childId: 'combi' }],
+              },
+            ],
+            selectionEntries: [
+              { id: 'power-weapon', name: 'Power weapon', type: 'upgrade' },
+              { id: 'chainsword', name: 'Chainsword', type: 'upgrade' },
+            ],
+          },
+        ],
+      },
+    ],
+  })
+
+  it('holds both while the data allows both', () => {
+    const built = buildUnit('champion', index, undefined, { ranged: 'rifle', melee: 'power-weapon' })!
+    expect(wargearOf(built.selection, index)).toEqual([
+      { name: 'Rifle', count: 1 },
+      { name: 'Power weapon', count: 1 },
+    ])
+    expect(evaluate([built.selection], index).errors).toEqual([])
+  })
+
+  it('lets go of the closed choice rather than reporting it back', () => {
+    const built = buildUnit('champion', index, undefined, { ranged: 'combi', melee: 'power-weapon' })!
+    expect(wargearOf(built.selection, index)).toEqual([{ name: 'Combi-weapon', count: 1 }])
+    expect(evaluate([built.selection], index).errors).toEqual([])
+  })
+})
+
+describe('a squad that both divides itself and arms a specialist', () => {
+  const index = indexOf({
+    sharedSelectionEntries: [
+      {
+        id: 'squad',
+        name: 'Squad',
+        type: 'unit',
+        selectionEntryGroups: [
+          {
+            id: 'models',
+            name: 'Models',
+            defaultSelectionEntryId: 'rifleman',
+            constraints: [
+              { id: 'models-min', type: 'min', value: 5, field: 'selections', scope: 'parent' },
+              { id: 'models-max', type: 'max', value: 10, field: 'selections', scope: 'parent' },
+            ],
+            selectionEntries: [
+              {
+                id: 'rifleman',
+                name: 'Veteran w/ Rifle',
+                type: 'model',
+                constraints: [{ id: 'rifleman-max', type: 'max', value: 9, field: 'selections', scope: 'parent' }],
+                selectionEntries: [{ id: 'rifle', name: 'Rifle', type: 'upgrade', constraints: mandatory('rifle-min') }],
+              },
+              {
+                id: 'combi',
+                name: 'Veteran w/ Combi-weapon',
+                type: 'model',
+                constraints: [{ id: 'combi-max', type: 'max', value: 9, field: 'selections', scope: 'parent' }],
+                selectionEntries: [{ id: 'combi-weapon', name: 'Combi-weapon', type: 'upgrade', constraints: mandatory('combi-min') }],
+              },
+              {
+                id: 'gunner',
+                name: 'Veteran w/ Special Weapon',
+                type: 'model',
+                constraints: [{ id: 'gunner-max', type: 'max', value: 2, field: 'selections', scope: 'parent' }],
+                selectionEntryGroups: [
+                  {
+                    id: 'heavy-weapon',
+                    name: 'Heavy weapon',
+                    constraints: [
+                      { id: 'heavy-min', type: 'min', value: 1, field: 'selections', scope: 'parent' },
+                      { id: 'heavy-max', type: 'max', value: 1, field: 'selections', scope: 'parent' },
+                    ],
+                    selectionEntries: [{ id: 'pyrecannon', name: 'Pyrecannon', type: 'upgrade' }],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  })
+  const weapon = 'models/gunner/heavy-weapon'
+  const held = (spreads: Record<string, Record<string, number>>) => {
+    const built = buildUnit('squad', index, 10, undefined, { spreads })!
+    return { models: modelCountOf(built.selection, index), wargear: wargearOf(built.selection, index) }
+  }
+
+  /**
+   * The specialist's body has to come from somewhere, and taking it from whichever
+   * option happens to hold the most took it from the combi-weapons the player had
+   * just asked for — then handed the body back to the rifles, so the squad quietly
+   * refused to hold more than about half its combi-weapons.
+   */
+  it('keeps every weapon the player asked for while a specialist is armed', () => {
+    expect(held({ models: { rifleman: 3, combi: 5 }, [weapon]: { pyrecannon: 1 } })).toEqual({
+      models: 10,
+      wargear: [
+        { name: 'Pyrecannon', count: 1 },
+        { name: 'Rifle', count: 4 },
+        { name: 'Combi-weapon', count: 5 },
+      ],
+    })
+  })
+
+  it('leaves the squad the same whichever request the list names first', () => {
+    const spreads = { models: { rifleman: 2, combi: 5 }, [weapon]: { pyrecannon: 2 } }
+    expect(held(spreads)).toEqual(held(Object.fromEntries(Object.entries(spreads).toReversed())))
   })
 })

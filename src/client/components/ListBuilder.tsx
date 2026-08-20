@@ -17,7 +17,7 @@ import {
   TriangleAlert,
   X,
 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
   AlertDialog,
@@ -105,6 +105,22 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
   const [visibility, setVisibility] = useState<RosterVisibility>(initial?.visibility ?? 'private')
   const [source, setSource] = useState<RosterSource>(initial?.source ?? 'editable')
   const [selected, setSelected] = useState<number | null>(null)
+  /**
+   * The picks as anything outside this component reads them.
+   *
+   * `attachedTo` is a key while a list is being edited, because the same datasheet may
+   * be in it twice; everything the picks are sent to counts positions instead, the
+   * price and the datasheet alike.
+   */
+  const positioned = useMemo(
+    () =>
+      picked.map((pick) => {
+        if (pick.attachedTo === undefined) return pick
+        const at = picked.findIndex((candidate) => candidate.key === pick.attachedTo)
+        return { ...pick, attachedTo: at < 0 ? undefined : at }
+      }),
+    [picked],
+  )
   const [preview, setPreview] = useState<{ catalogueId: string; entryId: string } | null>(null)
   const [showing, setShowing] = useState<'picker' | 'loadout' | 'datasheet' | null>(null)
   const [datasheetReturn, setDatasheetReturn] = useState<'picker' | 'loadout' | null>(null)
@@ -161,12 +177,13 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
           detachmentIds,
           disposition,
           limit,
-          picks: picked.map(({ entryId, catalogueId: unitCatalogueId, models, choices, spreads, toggles, attachedTo }) => ({
+          picks: picked.map(({ entryId, catalogueId: unitCatalogueId, models, choices, spreads, swaps, toggles, attachedTo }) => ({
             entryId,
             catalogueId: unitCatalogueId,
             models,
             choices,
             spreads,
+            swaps,
             toggles,
             // Saved by position, because the keys are this session's own numbering.
             attachedTo: attachedTo === undefined ? undefined : picked.findIndex((pick) => pick.key === attachedTo),
@@ -200,12 +217,13 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
           disposition,
           limit,
           name: listName || 'Roster',
-          units: picked.map(({ entryId, catalogueId: unitCatalogueId, models, choices, spreads, toggles, attachedTo }) => ({
+          units: picked.map(({ entryId, catalogueId: unitCatalogueId, models, choices, spreads, swaps, toggles, attachedTo }) => ({
             entryId,
             catalogueId: unitCatalogueId,
             models,
             choices,
             spreads,
+            swaps,
             toggles,
             attachedTo: attachedTo === undefined ? undefined : picked.findIndex((candidate) => candidate.key === attachedTo),
           })),
@@ -228,12 +246,13 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
       detachmentIds,
       disposition,
       limit,
-      picked.map(({ entryId, catalogueId: unitCatalogueId, models, choices, spreads, toggles }) => ({
+      picked.map(({ entryId, catalogueId: unitCatalogueId, models, choices, spreads, swaps, toggles }) => ({
         entryId,
         catalogueId: unitCatalogueId,
         models,
         choices,
         spreads,
+        swaps,
         toggles,
       })),
     ),
@@ -266,13 +285,13 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
       ? {
           ...selectedUnit,
           size: { ...selectedUnit.size, models: selectedPick.models ?? selectedUnit.size.models },
+          // Counts are the evaluated result, never the pick that asked for them.
+          // Taking a heavy weapon spends one of the squad's bodies, so a spread the
+          // player set in one group can be answered by a different number in another;
+          // showing what was asked for would keep insisting on the number that lost.
           choices: selectedUnit.choices.map((choice) => ({
             ...choice,
             chosen: Object.hasOwn(selectedPick.choices ?? {}, choice.key) ? (selectedPick.choices?.[choice.key] ?? '') : choice.chosen,
-            options: choice.options.map((option) => ({
-              ...option,
-              count: selectedPick.spreads?.[choice.key]?.[option.id] ?? option.count,
-            })),
           })),
           toggles: selectedUnit.toggles.map((toggle) => ({
             ...toggle,
@@ -329,6 +348,18 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
             }
           : pick,
       ),
+    )
+
+  /** A datasheet swap the catalogue cannot price, kept beside the picks it sits with. */
+  const swap = (index: number, key: string, count: number) =>
+    setPicked((current) =>
+      current.map((pick, at) => {
+        if (at !== index) return pick
+        const swaps = { ...pick.swaps }
+        if (count <= 0) delete swaps[key]
+        else swaps[key] = count
+        return { ...pick, swaps }
+      }),
     )
 
   const toggle = (index: number, key: string, toggleName: string, enabled: boolean) =>
@@ -408,14 +439,27 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
    * The units in the list this one may join: named by its own rules, present in the
    * roster, and not already holding it. A unit it is already attached to is not
    * offered again, which is what stops the row and the offer both being on screen.
+   *
+   * A unit already led is not offered to a second Leader either. `attachmentErrors`
+   * is what decides that, and says so about a list however it was built; this only
+   * keeps the offer from being made when the answer is already known.
    */
   const joinable = (index: number) => {
     const pick = picked[index]
     const unit = units[index]
     if (!pick || !unit?.attachment || pick.attachedTo !== undefined) return []
     const wanted = new Set(unit.attachment.targets.map((target) => target.trim().toLowerCase()))
+    const led = new Set(
+      picked.flatMap((candidate, at) =>
+        candidate.attachedTo !== undefined && units[at]?.attachment?.kind === 'leader' ? [candidate.attachedTo] : [],
+      ),
+    )
     return picked.flatMap((candidate, at) =>
-      at !== index && wanted.has((units[at]?.name ?? '').trim().toLowerCase()) ? [{ key: candidate.key, name: units[at]?.name ?? '' }] : [],
+      at !== index &&
+      wanted.has((units[at]?.name ?? '').trim().toLowerCase()) &&
+      !(unit.attachment?.kind === 'leader' && led.has(candidate.key))
+        ? [{ key: candidate.key, name: units[at]?.name ?? '' }]
+        : [],
     )
   }
 
@@ -482,12 +526,13 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
       catalogueId={loadoutCatalogueId}
       unit={optimisticUnit}
       detachmentIds={detachmentIds}
-      picks={picked}
+      picks={positioned}
       pickIndex={selected}
       onChoose={(key, optionId) => selected !== null && choose(selected, key, optionId)}
       onSpread={(key, counts) => selected !== null && spread(selected, key, counts)}
       onToggle={(key, toggleName, enabled) => selected !== null && toggle(selected, key, toggleName, enabled)}
       onResize={(models) => selected !== null && resize(selected, models)}
+      onSwap={(key, count) => selected !== null && swap(selected, key, count)}
       editable={editable}
     />
   )
@@ -497,7 +542,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
       factionSlug={available?.factions.find((entry) => entry.id === datasheetCatalogueId)?.slug ?? ''}
       entryId={preview?.entryId ?? selectedUnit?.entryId ?? null}
       detachmentIds={detachmentIds}
-      picks={picked}
+      picks={positioned}
       pickIndex={preview ? null : selected}
       showWeapons={Boolean(preview)}
     />
