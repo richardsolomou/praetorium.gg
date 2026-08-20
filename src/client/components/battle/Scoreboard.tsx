@@ -74,25 +74,13 @@ function SideScore({ side, round, token, align }: { side: Side; round: number; t
           {side.armies.map((army, at) => (
             <span key={army.playerId}>
               {at ? <span className="text-dim"> & </span> : null}
-              <Link
-                to="/users/$userId"
-                params={{ userId: army.playerId }}
-                className="inline-flex items-center gap-1 align-middle hover:underline"
-              >
+              <Link to="/users/$userId" params={{ userId: army.playerId }} className="group inline-flex items-center gap-1 align-middle">
                 <PlayerAvatar name={army.playerName} image={army.playerImage} className="size-5 text-[0.625rem]" />
-                <span>{army.playerName}</span>
+                <span className="group-hover:underline">{army.playerName}</span>
               </Link>
             </span>
           ))}
           {side.isViewer ? <span className="ml-1.5 text-[0.625rem] font-normal normal-case text-dim">&nbsp;you</span> : null}
-        </p>
-        <p className="truncate text-[0.6875rem] text-dim">
-          {side.armies.map((army, at) => (
-            <span key={army.playerId}>
-              {at ? ' · ' : null}
-              <ArmyLink army={army} token={token} />
-            </span>
-          ))}
         </p>
         <div className={`mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[0.6875rem] text-dim ${end ? 'justify-end' : ''}`}>
           {side.armies.map((army) => {
@@ -143,6 +131,14 @@ function SideScore({ side, round, token, align }: { side: Side; round: number; t
             )
           })}
         </div>
+        <p className="truncate text-[0.6875rem] text-dim">
+          {side.armies.map((army, at) => (
+            <span key={army.playerId}>
+              {at ? ' · ' : null}
+              <ArmyLink army={army} token={token} />
+            </span>
+          ))}
+        </p>
         <p className={`readout mt-0.5 flex items-baseline gap-1.5 ${end ? 'justify-end' : ''}`}>
           <span className="text-2xl leading-none font-bold sm:text-3xl">{side.total}</span>
           <span className="text-[0.625rem] text-dim uppercase">vp</span>

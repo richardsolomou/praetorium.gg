@@ -1,4 +1,4 @@
-import type { Page } from '@playwright/test'
+import type { Locator, Page } from '@playwright/test'
 import { expect } from '@playwright/test'
 
 /**
@@ -22,6 +22,15 @@ export function uniqueName(base: string) {
   return `${base}-${crypto.randomUUID().slice(0, 8)}`
 }
 
+/** Retries interactions that can reach server-rendered controls before hydration. */
+async function retryUntilVisible(outcome: Locator, action: () => Promise<void>) {
+  await expect(async () => {
+    if (await outcome.isVisible()) return
+    await action()
+    await expect(outcome).toBeVisible({ timeout: 1_000 })
+  }).toPass({ timeout: 10_000 })
+}
+
 export async function befriend(requester: Page, recipient: Page) {
   const requesterName = (await requester.locator('button[aria-label^="Account menu for "]').getAttribute('aria-label'))?.replace(
     'Account menu for ',
@@ -33,12 +42,15 @@ export async function befriend(requester: Page, recipient: Page) {
   )
   if (!requesterName || !recipientName) throw new Error('Both players must be signed in before becoming friends.')
   await requester.goto('/friends')
-  await requester.getByPlaceholder('Search by account name').fill(recipientName)
-  await requester.getByRole('button', { name: 'Add friend' }).click()
+  const sent = requester.locator('section').filter({ hasText: 'Sent requests' }).filter({ hasText: recipientName })
+  await retryUntilVisible(sent, async () => {
+    await requester.getByPlaceholder('Search by account name').fill(recipientName)
+    await requester.getByRole('button', { name: 'Add friend' }).click()
+  })
   await recipient.goto('/friends')
   const request = recipient.locator('section').filter({ hasText: 'Friend requests' }).filter({ hasText: requesterName })
-  await request.getByRole('button', { name: 'Accept' }).click()
-  await expect(recipient.locator('section').filter({ hasText: 'Friends' }).filter({ hasText: requesterName })).toBeVisible()
+  const accepted = recipient.locator('section').filter({ hasText: 'Friends' }).filter({ hasText: requesterName })
+  await retryUntilVisible(accepted, () => request.getByRole('button', { name: 'Accept' }).click())
   await requester.goto('/friends')
   await expect(requester.locator('section').filter({ hasText: 'Friends' }).filter({ hasText: recipientName })).toBeVisible()
 }
@@ -92,7 +104,8 @@ export async function createBattle(
   { opponent, ally, solo = false }: { opponent?: string; ally?: string; solo?: boolean } = {},
 ) {
   await page.goto('/battles')
-  await page.getByRole('button', { name: 'New battle' }).click()
+  const dialog = page.getByRole('dialog', { name: 'Start a battle' })
+  await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'New battle' }).click())
   if (solo) {
     await page.getByRole('button', { name: 'Solo practice' }).click()
   } else {

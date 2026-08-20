@@ -35,5 +35,13 @@ it('creates two idempotent preview accounts, rosters and their friendship', asyn
     limit: 2000,
     picks: JSON.stringify(PREVIEW_ROSTER.picks),
   })
+  expect(database.select().from(rosters).where(eq(rosters.id, PREVIEW_OPPONENT_ROSTER.id)).get()).toMatchObject({
+    name: PREVIEW_OPPONENT_ROSTER.name,
+    catalogueId: PREVIEW_OPPONENT_ROSTER.catalogueId,
+    detachmentId: JSON.stringify(PREVIEW_OPPONENT_ROSTER.detachmentIds),
+    disposition: PREVIEW_OPPONENT_ROSTER.disposition,
+    limit: 2000,
+    picks: JSON.stringify(PREVIEW_OPPONENT_ROSTER.picks),
+  })
   closeDatabase(database)
 })

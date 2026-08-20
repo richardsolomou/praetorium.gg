@@ -11,6 +11,7 @@ import type { MissionAward as Award } from '../../missionText'
 export type { MissionAward as Award } from '../../missionText'
 
 export type ReferenceCard = ComponentProps<typeof MissionCardReference>['card']
+export type MissionDetails = { name: string; card: ReferenceCard; type: string }
 
 /** What a stratagem actually says, as the detachment page prints it. */
 export type StratagemText = { type: string | null; description: string | null; keywordRules: { name: string; description: string }[] }
@@ -151,20 +152,53 @@ function Total({ label, scored, cap, stat }: { label: string; scored: number; ca
   )
 }
 
-export function MissionName({ name, card, type }: { name: string; card?: ReferenceCard; type: string }) {
+export function MissionName({
+  name,
+  card,
+  type,
+  onRead,
+}: {
+  name: string
+  card?: ReferenceCard
+  type: string
+  onRead?: (details: MissionDetails) => void
+}) {
   if (!card) return <span className={CARD_NAME}>{name}</span>
+  const trigger = (
+    <button
+      type="button"
+      aria-label={`Read ${name}`}
+      className={`${CARD_NAME} text-left hover:underline`}
+      onClick={onRead ? () => onRead({ name, card, type }) : undefined}
+    >
+      {name}
+    </button>
+  )
+  if (onRead) return trigger
   return (
     <Dialog>
-      <DialogTrigger render={<button type="button" aria-label={`Read ${name}`} className={`${CARD_NAME} text-left hover:underline`} />}>
-        {name}
-      </DialogTrigger>
-      <DialogContent className="max-h-[85dvh] overflow-y-auto border border-edge bg-panel text-bone sm:max-w-2xl">
-        <DialogHeader>
-          <DialogTitle className="uppercase">{name}</DialogTitle>
-          <DialogDescription className="text-dim">What this mission asks you to do and when it scores.</DialogDescription>
-        </DialogHeader>
-        <MissionCardReference card={card} type={type} />
-      </DialogContent>
+      <DialogTrigger render={trigger} />
+      <MissionDetailsContent details={{ name, card, type }} />
     </Dialog>
+  )
+}
+
+export function MissionDetailsDialog({ details, onOpenChange }: { details: MissionDetails; onOpenChange: (open: boolean) => void }) {
+  return (
+    <Dialog open onOpenChange={onOpenChange}>
+      <MissionDetailsContent details={details} />
+    </Dialog>
+  )
+}
+
+function MissionDetailsContent({ details }: { details: MissionDetails }) {
+  return (
+    <DialogContent className="max-h-[85dvh] overflow-y-auto border border-edge bg-panel text-bone sm:max-w-2xl">
+      <DialogHeader>
+        <DialogTitle className="uppercase">{details.name}</DialogTitle>
+        <DialogDescription className="text-dim">What this mission asks you to do and when it scores.</DialogDescription>
+      </DialogHeader>
+      <MissionCardReference card={details.card} type={details.type} />
+    </DialogContent>
   )
 }
