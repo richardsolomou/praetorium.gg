@@ -104,9 +104,10 @@ export function Loadout({
   // Every weapon the unit could take, priced and modified as this list would have
   // it: an enhancement that adds to a weapon's Attacks is part of the choice, so it
   // has to be visible before the choice is made rather than after.
-  const { data: availableSheet } = useQuery(
-    datasheetQuery(catalogueId, unit?.entryId ?? '', context.detachmentIds, context.picks, pickIndex, true),
-  )
+  const { data: availableSheet } = useQuery({
+    ...datasheetQuery(catalogueId, unit?.entryId ?? '', context.detachmentIds, context.picks, pickIndex, true),
+    placeholderData: (previous, previousQuery) => (previousQuery?.queryKey[2] === unit?.entryId ? previous : undefined),
+  })
 
   if (!unit) {
     return (
