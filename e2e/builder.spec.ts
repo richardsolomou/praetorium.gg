@@ -256,6 +256,7 @@ test('wargear abilities are explained beside their choices', async ({ page }) =>
     await expect(loadout.getByLabel('Tomb Blades models')).toHaveText(models)
   }
   await loadout.getByRole('button', { name: 'More Shadowloom' }).click()
+  await expect(loadout.getByLabel('Shadowloom count')).toHaveText('1')
   await loadout.getByRole('button', { name: 'More Shadowloom' }).click()
   await expect(loadout.getByLabel('Shadowloom count')).toHaveText('2')
   await expect(page.locator('[data-roster-builder]')).toHaveAttribute('data-saving', 'false')
@@ -265,8 +266,13 @@ test('wargear abilities are explained beside their choices', async ({ page }) =>
   await loadout.getByRole('button', { name: 'Fewer models in Tomb Blades' }).click()
   await expect(loadout.getByLabel('Tomb Blades models')).toHaveText('3')
 
+  // Each press asks the server what the squad now holds, and the next press divides
+  // whatever comes back. Pressing again before the answer arrives divides the old
+  // numbers, so the two are taken one at a time here.
   await loadout.getByRole('button', { name: 'More Particle beamer' }).click()
+  await expect(loadout.getByLabel('Particle beamer count')).toHaveText('1')
   await loadout.getByRole('button', { name: 'More Twin tesla carbine' }).click()
+  await expect(loadout.getByLabel('Twin tesla carbine count')).toHaveText('1')
   await expect(loadout.getByLabel('Twin gauss blaster count')).toHaveText('1')
   await expect(loadout.getByLabel('Particle beamer count')).toHaveText('1')
   await expect(loadout.getByLabel('Twin tesla carbine count')).toHaveText('1')
@@ -299,6 +305,197 @@ test('destroyer plasmacytes follow the unit size', async ({ page }) => {
     await loadout.getByRole('button', { name: 'Fewer Plasmacyte' }).click()
     await expect(loadout.getByLabel('Plasmacyte count')).toHaveText('1')
   }
+})
+
+/**
+ * An enhancement changes what the bearer's weapons do, and the loadout has to say so:
+ * its weapon rows were drawn from the sheet fetched to learn what a unit *could*
+ * take, which is fetched without the list and so cannot see an enhancement at all.
+ */
+test('an enhancement changes the weapons of the model bearing it', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 })
+  await openBuilder(page, 'Necrons', /Cursed Legion/)
+  await add(page, 'Overlord')
+  await page
+    .locator('[data-unit="Overlord"]')
+    .getByRole('button', { name: /^Overlord/ })
+    .click()
+
+  const loadout = page.locator('aside[aria-label="Loadout"]')
+  await expect(loadout.getByText("Overlord's blade")).not.toHaveCount(0)
+  await expect(page.getByRole('button', { name: /A 6, modified from 4/ })).toHaveCount(0)
+
+  await loadout.getByRole('button', { name: 'Select Destroyer Ankh' }).click()
+  await expect(page.locator('[data-roster-builder]')).toHaveAttribute('data-saving', 'false')
+
+  // The ankh adds two to the Move of the bearer's unit and two to the Attacks of the
+  // melee weapons it carries, and says as much on both.
+  await expect(page.getByRole('button', { name: /M 7", modified from 5" by Destroyer Ankh/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: /A 6, modified from 4 by Destroyer Ankh/ }).first()).toBeVisible()
+  await page.screenshot({ path: 'test-results/destroyer-ankh.png', fullPage: true })
+
+  // A weapon the Overlord could take rather than the one it holds says what it would
+  // do in this list, which is the point of showing it before the choice is made.
+  await expect(loadout.getByText('Staff of light')).not.toHaveCount(0)
+  await expect(page.getByRole('button', { name: /S 7, modified from 5 by Destroyer Ankh/ }).first()).toBeVisible()
+
+  // Attached, the two are one unit: the ankh moves the models it has joined, and
+  // leaves their weapons alone.
+  await add(page, 'Immortals')
+  await page.locator('[data-unit="Overlord"]').getByRole('button', { name: 'Immortals', exact: true }).click()
+  await expect(page.locator('[data-roster-builder]')).toHaveAttribute('data-saving', 'false')
+  await expect(page.locator('[data-unit="Overlord"]')).toContainText('Leading')
+  await page.locator('[data-unit="Immortals"]').getByRole('button', { name: 'Immortals', exact: true }).click()
+  await expect(page.getByRole('button', { name: /M 7", modified from 5" by Destroyer Ankh/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: /modified from 2 by Destroyer Ankh/ })).toHaveCount(0)
+  await page.screenshot({ path: 'test-results/destroyer-ankh-attached.png', fullPage: true })
+
+  // And a unit is led by one character, so the second Overlord is not offered it.
+  await add(page, 'Overlord')
+  const second = page.locator('[data-unit="Overlord"]').nth(1)
+  await expect(second).toBeVisible()
+  await expect(second.getByRole('button', { name: 'Immortals', exact: true })).toHaveCount(0)
+
+  // One relic, one army. The catalogue says so itself, and it is the player's to undo.
+  await second.getByRole('button', { name: 'Overlord', exact: true }).click()
+  await loadout.getByRole('button', { name: 'Select Destroyer Ankh' }).click()
+  await expect(page.getByText('Destroyer Ankh: allows at most 1, has 2')).toHaveCount(1)
+  await page.screenshot({ path: 'test-results/enhancement-once-per-army.png', fullPage: true })
+})
+
+/**
+ * The same shape of enhancement in another book, and the scopes the data uses for it.
+ * A Master Artisan adds one to the bearer's Wounds — written against the model — and
+ * one to the Toughness of every model in its unit, written against the whole group.
+ * The first of those scopes went unresolved, so half the relic did nothing.
+ */
+test('an enhancement adds to the bearer and to the unit around it', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 })
+  await openBuilder(page, 'Drukhari', /Covenite Coterie/)
+  await add(page, 'Haemonculus')
+  await page
+    .locator('[data-unit="Haemonculus"]')
+    .getByRole('button', { name: /^Haemonculus/ })
+    .click()
+
+  const loadout = page.locator('aside[aria-label="Loadout"]')
+  await loadout.getByRole('button', { name: 'Select Master Artisan' }).click()
+  await expect(page.locator('[data-roster-builder]')).toHaveAttribute('data-saving', 'false')
+
+  await expect(page.getByRole('button', { name: /W \d+, modified from \d+ by Master Artisan/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: /T \d+, modified from \d+ by Master Artisan/ })).toBeVisible()
+  await page.screenshot({ path: 'test-results/master-artisan.png', fullPage: true })
+})
+
+/**
+ * Two sources name the same weapon: the catalogue prints a staff of light as two
+ * rows, and the rules source spells the same two as "Staff of light (Ranged)" and
+ * "(Melee)". Both drawn, a character appeared to carry the staff twice over.
+ */
+test('a weapon both sources name is drawn once', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 })
+  await openBuilder(page)
+  await add(page, 'Lokhust Lord')
+  await page
+    .locator('[data-unit="Lokhust Lord"]')
+    .getByRole('button', { name: /^Lokhust Lord/ })
+    .click()
+
+  const loadout = page.locator('aside[aria-label="Loadout"]')
+  await expect(loadout.getByRole('heading', { name: 'Staff of light', exact: true })).toHaveCount(2)
+  await expect(loadout.getByRole('heading', { name: /Staff of light \(/ })).toHaveCount(0)
+  // The catalogue's own two rows: one to shoot with, one to fight with. Read at the
+  // weapon level rather than the profile, the fighting one printed its range as
+  // `Melee"` and asked for a ballistic skill.
+  await expect(loadout.getByText('Melee"')).toHaveCount(0)
+  await expect(loadout.getByText('WS', { exact: true })).not.toHaveCount(0)
+  await page.screenshot({ path: 'test-results/lokhust-lord-staff.png', fullPage: true })
+})
+
+/**
+ * A squad divides itself between the weapons its models carry, and a specialist takes
+ * a body from a squadmate to carry his. Arming the specialist used to come out of
+ * whatever the squad held most of, so a player filling a squad with combi-weapons
+ * found them quietly turning back into bolt rifles somewhere around half the squad.
+ */
+test('a squad keeps the weapons it was given while a specialist is armed', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 })
+  await openBuilder(page, 'Dark Angels', /Wrath of the Rock/)
+  await add(page, 'Sternguard Veteran Squad')
+  await page
+    .getByRole('button', { name: /^Sternguard Veteran Squad/ })
+    .first()
+    .click()
+
+  const loadout = page.locator('aside[aria-label="Loadout"]')
+  for (const models of ['6', '7', '8', '9', '10']) {
+    await loadout.getByRole('button', { name: 'More models in Sternguard Veteran Squad' }).click()
+    await expect(loadout.getByLabel('Sternguard Veteran Squad models')).toHaveText(models)
+  }
+  // The sergeant carries his own weapons, so every count here is the squad's.
+  const veterans = loadout.locator('section').filter({ has: page.getByLabel('Sternguard Veteran models', { exact: true }) })
+  await expect(veterans.getByLabel('Sternguard Bolt Rifle count')).toHaveText('9')
+
+  await veterans.getByRole('button', { name: 'More Pyrecannon' }).click()
+  await expect(veterans.getByLabel('Pyrecannon count')).toHaveText('1')
+  await expect(veterans.getByLabel('Sternguard Bolt Rifle count')).toHaveText('8')
+  await expect(page.locator('[data-roster-builder]')).toHaveAttribute('data-saving', 'false')
+
+  for (const count of ['1', '2', '3', '4', '5', '6', '7', '8']) {
+    await veterans.getByRole('button', { name: 'More Combi-weapon' }).click()
+    await expect(veterans.getByLabel('Combi-weapon count')).toHaveText(count)
+    await expect(veterans.getByLabel('Pyrecannon count')).toHaveText('1')
+  }
+  await expect(veterans.getByLabel('Sternguard Bolt Rifle count')).toHaveText('0')
+  await expect(page.locator('[data-roster-builder]')).toHaveAttribute('data-saving', 'false')
+  await expect(page.locator('[data-unit="Sternguard Veteran Squad"]')).toContainText('1x Pyrecannon')
+  await page.screenshot({ path: 'test-results/sternguard-combi-weapons.png', fullPage: true })
+
+  // Putting the pyrecannon down hands its body back rather than shrinking the squad.
+  await veterans.getByRole('button', { name: 'Fewer Pyrecannon' }).click()
+  await expect(veterans.getByLabel('Pyrecannon count')).toHaveText('0')
+  await expect(veterans.getByLabel('Sternguard Veteran models')).toHaveText('9')
+  await expect(loadout.getByLabel('Sternguard Veteran Squad models')).toHaveText('10')
+})
+
+/**
+ * Free swaps live in the rules source rather than the community catalogue, so a card
+ * counting the catalogue's own selection went on naming the weapon that was traded
+ * away. Card and loadout answer the same question and have to agree.
+ */
+test('a free swap shows on the roster card as well as the loadout', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 })
+  await openBuilder(page, 'Deathwatch', /Black Spear Task Force/)
+  await add(page, 'Decimus Kill Team')
+  await page
+    .getByRole('button', { name: /^Decimus Kill Team/ })
+    .first()
+    .click()
+
+  // A kill team joins at its smallest, one veteran of each kind.
+  const card = page.locator('[data-unit="Decimus Kill Team"]')
+  await expect(card).toContainText('1x Heavy thunder hammer')
+  await expect(card).toContainText('1x Power weapon')
+  await expect(card).not.toContainText('Astartes shield')
+
+  const loadout = page.locator('aside[aria-label="Loadout"]')
+  const swap = 'Power weapon and Astartes shield'
+  await expect(loadout.getByLabel(`${swap} count`)).toHaveText('0')
+  await loadout.getByRole('button', { name: `More ${swap}` }).click()
+  await expect(loadout.getByLabel(`${swap} count`)).toHaveText('1')
+  await expect(page.locator('[data-roster-builder]')).toHaveAttribute('data-saving', 'false')
+
+  // The hammer was the only one, so it goes: the shield and a second power weapon
+  // are what that veteran holds now.
+  await expect(card).toContainText('1x Astartes shield')
+  await expect(card).toContainText('2x Power weapon')
+  await expect(card).not.toContainText('Heavy thunder hammer')
+  await page.screenshot({ path: 'test-results/decimus-swap-on-card.png', fullPage: true })
+
+  await loadout.getByRole('button', { name: `Fewer ${swap}` }).click()
+  await expect(loadout.getByLabel(`${swap} count`)).toHaveText('0')
+  await expect(card).toContainText('1x Heavy thunder hammer')
+  await expect(card).not.toContainText('Astartes shield')
 })
 
 test('Cursed Legion does not modify Immortals without an eligible leader', async ({ page }) => {

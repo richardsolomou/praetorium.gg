@@ -251,4 +251,55 @@ describe('attachment legality', () => {
     })
     expect(attachmentErrors([{ entryId: 'leader', attachedTo: 1 }, { entryId: 'squad' }], index)).toEqual([])
   })
+
+  /**
+   * One character leads a unit. A supporting character joins one alongside — that is
+   * what makes it supporting — so only a second Leader is a mistake.
+   */
+  it('allows one leader and refuses a second', () => {
+    const leader = (id: string, name: string) => ({
+      id,
+      name,
+      type: 'model' as const,
+      infoGroups: [
+        {
+          id: `${id}-g`,
+          name: 'Leader',
+          profiles: [ability('Leader', 'This model can be attached to the following units:\n■ SQUAD')],
+        },
+      ],
+    })
+    const index = indexOf({
+      sharedSelectionEntries: [
+        leader('overlord', 'Overlord'),
+        leader('lord', 'Lord'),
+        {
+          id: 'ancient',
+          name: 'Ancient',
+          type: 'model',
+          infoGroups: [
+            {
+              id: 'ancient-g',
+              name: 'Ancient',
+              profiles: [ability('Ancient', 'This model can be attached to the following units:\n■ SQUAD')],
+            },
+          ],
+        },
+        { id: 'squad', name: 'SQUAD', type: 'unit' },
+      ],
+    })
+
+    const one = [{ entryId: 'overlord', attachedTo: 3 }, { entryId: 'ancient', attachedTo: 3 }, { entryId: 'lord' }, { entryId: 'squad' }]
+    expect(attachmentErrors(one, index)).toEqual([])
+
+    const two = [
+      { entryId: 'overlord', attachedTo: 3 },
+      { entryId: 'ancient', attachedTo: 3 },
+      { entryId: 'lord', attachedTo: 3 },
+      { entryId: 'squad' },
+    ]
+    expect(attachmentErrors(two, index).map((error) => `${error.entryName}: ${error.message}`)).toEqual([
+      'Lord: cannot lead SQUAD, which is already led by Overlord',
+    ])
+  })
 })

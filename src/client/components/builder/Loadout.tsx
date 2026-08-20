@@ -16,6 +16,7 @@ type LoadoutChoice = {
   name: string
   chosen: string
   optional: boolean
+  carried: boolean
   room: number
   kind?: 'enhancement' | 'upgrade'
   options: {
@@ -29,6 +30,15 @@ type LoadoutChoice = {
   }[]
 }
 
+type LoadoutModel = {
+  name: string
+  fixed: { name: string; count?: number }[]
+  members: { id: string; choiceKey: string | null; baseCount: number }[]
+  rows: { name: string; choiceKey: string; optionId: string }[]
+  /** Swaps the datasheet allows, one row per alternative, always listed. */
+  swaps?: { key: string; gives: string[]; takes: string[]; count: number; max: number; free: boolean }[]
+}
+
 type LoadoutUnit = {
   entryId: string
   name: string
@@ -36,6 +46,13 @@ type LoadoutUnit = {
   size: { min: number; max: number; models: number; resizable: boolean }
   toggles: { key: string; name: string; selected: boolean }[]
   choices: LoadoutChoice[]
+  models: LoadoutModel[]
+  /** Profiles for weapons the catalogue does not carry, from the source that names them. */
+  modelWeapons?: Datasheet['profiles']
+  /** Keyword rules for those weapons: they live in the game system, not the datasheet. */
+  modelKeywordRules?: Datasheet['keywordRules']
+  /** Rules for wargear that has no profile of its own, such as a shield. */
+  modelAbilities?: Datasheet['abilities']
 }
 
 type Props = {
@@ -48,6 +65,8 @@ type Props = {
   onSpread: (key: string, counts: Record<string, number>) => void
   onToggle: (key: string, name: string, selected: boolean) => void
   onResize: (models: number) => void
+  /** How many models take a datasheet swap the catalogue does not describe. */
+  onSwap: (key: string, count: number) => void
   editable?: boolean
 }
 
@@ -70,6 +89,7 @@ export function Loadout({
   onSpread,
   onToggle,
   onResize,
+  onSwap,
   editable = true,
 }: Props) {
   const [context, setContext] = useState({ detachmentIds, picks })
@@ -81,7 +101,12 @@ export function Loadout({
     ...datasheetQuery(catalogueId, unit?.entryId ?? '', context.detachmentIds, context.picks, pickIndex),
     placeholderData: (previous, previousQuery) => (previousQuery?.queryKey[2] === unit?.entryId ? previous : undefined),
   })
-  const { data: availableSheet } = useQuery(datasheetQuery(catalogueId, unit?.entryId ?? '', detachmentIds))
+  // Every weapon the unit could take, priced and modified as this list would have
+  // it: an enhancement that adds to a weapon's Attacks is part of the choice, so it
+  // has to be visible before the choice is made rather than after.
+  const { data: availableSheet } = useQuery(
+    datasheetQuery(catalogueId, unit?.entryId ?? '', context.detachmentIds, context.picks, pickIndex, true),
+  )
 
   if (!unit) {
     return (
@@ -94,13 +119,26 @@ export function Loadout({
 
   const ranged = sheet.profiles.filter((profile) => profile.type === 'Ranged Weapons')
   const melee = sheet.profiles.filter((profile) => profile.type === 'Melee Weapons')
-  const availableWeapons = availableSheet.profiles.filter(
+  const catalogueWeapons = availableSheet.profiles.filter(
     (profile) => profile.type === 'Ranged Weapons' || profile.type === 'Melee Weapons',
   )
+  const availableWeapons = [
+    ...catalogueWeapons,
+    // The rules source is only here to fill gaps. A weapon the catalogue already
+    // names belongs to the catalogue, however either of them spells its profiles:
+    // a staff of light the catalogue prints as two rows would otherwise appear
+    // twice more as "Staff of light (Ranged)" and "Staff of light (Melee)".
+    ...(unit.modelWeapons ?? []).filter((extra) => !catalogueWeapons.some((profile) => sameWeapon(profile.name, extra.name))),
+  ]
   const choiceWeaponNames = unit.choices.flatMap((choice) => choice.options.map((option) => option.name))
   const fixedRanged = ranged.filter((profile) => !choiceWeaponNames.some((name) => weaponMatches(name, profile.name)))
   const fixedMelee = melee.filter((profile) => !choiceWeaponNames.some((name) => weaponMatches(name, profile.name)))
-  const rules = availableSheet.keywordRules
+  const rules = [...availableSheet.keywordRules, ...(unit.modelKeywordRules ?? [])]
+  const abilities = [...availableSheet.abilities, ...(unit.modelAbilities ?? [])]
+  // Every choice a model of its own carries is drawn inside that model's card, so
+  // what is left over belongs to the unit as a whole.
+  const modelled = new Set(unit.models.flatMap((model) => model.rows.map((row) => row.choiceKey)))
+  const looseChoices = unit.choices.filter((choice) => !modelled.has(choice.key))
 
   return (
     <div className="flex h-full flex-col">
@@ -163,16 +201,37 @@ export function Loadout({
       </div>
       <ScrollArea className="min-h-0 flex-1 [&_[data-slot=scroll-area-viewport]]:p-2.5">
         <div className="space-y-4">
-          {fixedRanged.length ? <WeaponSummary title="Equipped ranged weapons" weapons={fixedRanged} rules={rules} /> : null}
-          {fixedMelee.length ? <WeaponSummary title="Equipped melee weapons" weapons={fixedMelee} rules={rules} /> : null}
-          {unit.choices.length ? (
+          {unit.models.length ? (
+            <div className="space-y-3">
+              {unit.models.map((model) => (
+                <ModelCard
+                  key={model.name}
+                  model={model}
+                  choices={unit.choices}
+                  weapons={availableWeapons}
+                  abilities={abilities}
+                  rules={rules}
+                  onChoose={onChoose}
+                  onSpread={onSpread}
+                  onSwap={onSwap}
+                  editable={editable}
+                />
+              ))}
+            </div>
+          ) : (
+            <>
+              {fixedRanged.length ? <WeaponSummary title="Equipped ranged weapons" weapons={fixedRanged} rules={rules} /> : null}
+              {fixedMelee.length ? <WeaponSummary title="Equipped melee weapons" weapons={fixedMelee} rules={rules} /> : null}
+            </>
+          )}
+          {looseChoices.length ? (
             <section>
               <p className="rubric flex items-baseline justify-between border-b border-edge pb-1.5">
                 <span>Wargear options</span>
-                <span className="readout">{unit.choices.length}</span>
+                <span className="readout">{looseChoices.length}</span>
               </p>
               <div className="mt-3 grid gap-5">
-                {unit.choices.map((choice) =>
+                {looseChoices.map((choice) =>
                   choice.kind
                     ? specialChoice(choice, onChoose, unit.name, editable)
                     : choice.room > 1
@@ -189,6 +248,279 @@ export function Loadout({
 }
 
 /** Waits for the complete loadout so its sections arrive together instead of in stages. */
+/**
+ * One kind of model in the unit, and everything it can carry.
+ *
+ * A datasheet is read a model at a time — this is the sergeant, this is what he
+ * holds — so the wargear a kind of model may take belongs under its own heading
+ * rather than in one list the whole squad shares. The count comes from the choices
+ * the rows already point at, never from a second copy of the same number.
+ */
+function ModelCard({
+  model,
+  choices,
+  weapons,
+  abilities,
+  rules,
+  onChoose,
+  onSpread,
+  onSwap,
+  editable,
+}: {
+  model: LoadoutModel
+  choices: LoadoutChoice[]
+  weapons: WeaponProfileData[]
+  abilities: Datasheet['abilities']
+  rules: Datasheet['keywordRules']
+  onChoose: Props['onChoose']
+  onSpread: Props['onSpread']
+  onSwap: Props['onSwap']
+  editable: boolean
+}) {
+  const optionOf = (choiceKey: string, optionId: string) => {
+    const choice = choices.find((candidate) => candidate.key === choiceKey)
+    const option = choice?.options.find((candidate) => candidate.id === optionId)
+    return choice && option ? { choice, option } : null
+  }
+
+  const count = model.members.reduce(
+    (total, member) => total + (member.choiceKey ? (optionOf(member.choiceKey, member.id)?.option.count ?? 0) : member.baseCount),
+    0,
+  )
+
+  /**
+   * Every weapon this kind of model counts by is one of its bodies holding that
+   * weapon, so they all draw on the same pool however the catalogue files them.
+   * Rebalancing within a single group would leave a veteran unable to put down a
+   * pyrecannon and pick his bolt rifle back up, because the two are written in
+   * different places.
+   */
+  const shared = model.rows.flatMap((row) => {
+    const found = optionOf(row.choiceKey, row.optionId)
+    return found && (found.choice.room > 1 || found.choice.carried) ? [{ row, ...found }] : []
+  })
+  const held = shared.reduce((total, entry) => total + entry.option.count, 0)
+
+  const move = (from: typeof shared, to: typeof shared) => {
+    const wanted = new Map<string, Record<string, number>>()
+    for (const [entry, delta] of [...from.map((one) => [one, -1] as const), ...to.map((one) => [one, 1] as const)]) {
+      const counts = wanted.get(entry.choice.key) ?? {}
+      counts[entry.option.id] = entry.option.count + delta
+      wanted.set(entry.choice.key, counts)
+    }
+    return [...wanted]
+  }
+
+  const spend = (taker: (typeof shared)[number]) => {
+    if (taker.option.count >= taker.option.max) return null
+    // A group with no room left gives up one of its own: the veteran holding the
+    // pyrecannon is the one who puts it down for a heavy bolter, and asking a
+    // squadmate with a bolt rifle instead would put a second special weapon in a
+    // squad allowed one.
+    const kin = shared.filter((entry) => entry.choice.key === taker.choice.key)
+    const full = kin.reduce((total, entry) => total + entry.option.count, 0) >= taker.choice.room
+    const pool = full ? kin : shared
+    if (!full && held < count) return move([], [taker])
+    const giver = pool
+      .filter((entry) => entry !== taker && entry.option.count > 0)
+      .toSorted((one, other) => other.option.count - one.option.count)[0]
+    if (giver) return move([giver], [taker])
+    // A kind made only of carriers has no squadmate to ask, because the model is
+    // what joins the squad rather than something a body already there picks up.
+    return !full && taker.choice.carried ? move([], [taker]) : null
+  }
+
+  const free = (giver: (typeof shared)[number]) => {
+    if (giver.option.count <= 0) return null
+    // The weapon being put down is what makes room for the one picked up, so while
+    // the kind is full a squadmate counts as able to take it even though the
+    // selection as it stands allows no more. Only the group's own capacity is a
+    // ceiling: nine veterans with bolt rifles cannot become ten.
+    const headroom = (entry: (typeof shared)[number]) => Math.max(entry.option.max, held >= count ? entry.choice.room : 0)
+    const taker = shared
+      .filter((entry) => entry !== giver && entry.option.count < headroom(entry))
+      .toSorted((one, other) => other.option.count - one.option.count)[0]
+    return taker ? move([giver], [taker]) : move([giver], [])
+  }
+
+  /** The handler for a row's button, or nothing when that row cannot give or take. */
+  const pooled = (row: LoadoutModel['rows'][number], decide: (entry: (typeof shared)[number]) => ReturnType<typeof move> | null) => {
+    const entry = shared.find((candidate) => candidate.row === row)
+    const changes = entry ? decide(entry) : null
+    return changes ? () => changes.forEach(([key, counts]) => onSpread(key, counts)) : undefined
+  }
+
+  return (
+    <section className="border border-edge-strong bg-panel/40">
+      <p className="eyebrow flex items-baseline justify-between gap-2 border-b border-edge px-2.5 py-2 text-bone">
+        <span className="min-w-0">{model.name}</span>
+        <span className="readout normal-case text-dim" aria-label={`${model.name} models`}>
+          {count}
+        </span>
+      </p>
+      <ul className="divide-y divide-edge">
+        {ordered(
+          [
+            ...model.fixed.map((entry) => ({ name: entry.name, fixed: entry })),
+            ...model.rows.map((row) => ({ name: row.name, row })),
+            ...(model.swaps ?? []).map((swap) => ({ name: swap.takes.join(' and '), swap })),
+          ],
+          weapons,
+          (entry) =>
+            'row' in entry
+              ? `choice:${entry.row.choiceKey}`
+              : 'swap' in entry
+                ? `wargear:${entry.swap.gives[0] ?? entry.swap.key}`
+                : `wargear:${entry.name}`,
+        ).map((entry) => {
+          if ('fixed' in entry) {
+            return (
+              <WargearRow
+                key={entry.name}
+                name={entry.name}
+                count={entry.fixed.count ?? count}
+                weapons={weapons}
+                abilities={abilities}
+                rules={rules}
+              />
+            )
+          }
+          if ('swap' in entry) {
+            const swap = entry.swap
+            return (
+              <WargearRow
+                key={swap.key}
+                name={entry.name}
+                count={swap.count}
+                weapons={weapons}
+                abilities={abilities}
+                rules={rules}
+                note={swap.gives.length ? `instead of ${swap.gives.join(' and ')}` : undefined}
+                control={
+                  swap.free ? (
+                    <PoolStepper
+                      name={entry.name}
+                      count={swap.count}
+                      editable={editable}
+                      onAdd={swap.count < swap.max ? () => onSwap(swap.key, swap.count + 1) : undefined}
+                      onRemove={swap.count > 0 ? () => onSwap(swap.key, swap.count - 1) : undefined}
+                    />
+                  ) : (
+                    <span className="w-[5.5rem] text-right text-[0.6875rem] text-faint">costs points</span>
+                  )
+                }
+              />
+            )
+          }
+          const row = entry.row
+          const found = optionOf(row.choiceKey, row.optionId)
+          if (!found) return null
+          const { choice, option } = found
+          const taken = choice.chosen === option.id
+          return (
+            <WargearRow
+              key={`${row.choiceKey}/${row.optionId}`}
+              name={row.name}
+              count={option.count}
+              points={option.points}
+              weapons={weapons}
+              abilities={abilities}
+              rules={rules}
+              control={
+                <PoolStepper
+                  name={row.name}
+                  count={option.count}
+                  editable={editable}
+                  {...(choice.room > 1 || choice.carried
+                    ? { onAdd: pooled(row, spend), onRemove: pooled(row, free) }
+                    : {
+                        onAdd: taken ? undefined : () => onChoose(choice.key, option.id),
+                        // A group that must hold something cannot be emptied, only
+                        // pointed elsewhere, so offering to empty it would lie.
+                        onRemove: taken && choice.optional ? () => onChoose(choice.key, '') : undefined,
+                      })}
+                />
+              }
+            />
+          )
+        })}
+      </ul>
+    </section>
+  )
+}
+
+/**
+ * Wargear in the order a datasheet prints it: everything shot with, then everything
+ * swung with.
+ *
+ * Anything interchangeable travels together — the options of one group, and a swap
+ * beside the weapon it replaces — so a choice is made without hunting up the card
+ * for the thing to give up. A cluster takes its place from what it starts with, which
+ * is why a combat knife sits with the bolt carbine it is traded for rather than down
+ * among the melee weapons.
+ */
+function ordered<T extends { name: string }>(entries: readonly T[], weapons: WeaponProfileData[], clusterOf: (entry: T) => string) {
+  const profiles = (name: string) => weapons.filter((weapon) => weaponMatches(name, weapon.name))
+  // A combi-weapon has a melee profile and is still a gun, so what it also does
+  // cannot decide where it goes.
+  const melee = (name: string) =>
+    profiles(name).some((weapon) => weapon.type === 'Melee Weapons') && !profiles(name).some((weapon) => weapon.type === 'Ranged Weapons')
+  const clusters = new Map<string, { at: number; melee: boolean; entries: T[] }>()
+  entries.forEach((entry, at) => {
+    const key = clusterOf(entry)
+    const cluster = clusters.get(key)
+    if (cluster) cluster.entries.push(entry)
+    else clusters.set(key, { at, melee: melee(entry.name), entries: [entry] })
+  })
+  return [...clusters.values()]
+    .toSorted((one, other) => Number(one.melee) - Number(other.melee) || one.at - other.at)
+    .flatMap((cluster) => cluster.entries)
+}
+
+function WargearRow({
+  name,
+  count,
+  points,
+  weapons,
+  abilities,
+  rules,
+  control,
+  note,
+}: {
+  name: string
+  count: number
+  points?: number
+  weapons: WeaponProfileData[]
+  abilities: Datasheet['abilities']
+  rules: Datasheet['keywordRules']
+  control?: ReactNode
+  note?: string
+}) {
+  const matching = weapons
+    .filter((weapon) => weaponMatches(name, weapon.name))
+    .filter((weapon, at, all) => all.findIndex((candidate) => candidate.name === weapon.name) === at)
+  return (
+    <li className={count ? 'bg-azure/5' : undefined}>
+      <div className="flex items-center gap-2 px-2.5 py-1.5">
+        <span className="min-w-0 flex-1">
+          <span className="block text-xs font-semibold">{name}</span>
+          {note ? <span className="block text-[0.6875rem] text-faint">{note}</span> : null}
+          {points ? <span className="readout text-[0.6875rem] text-faint">+{points} each</span> : null}
+        </span>
+        {control ?? (
+          <span className="chip readout" aria-label={`${name} count`}>
+            {count}
+          </span>
+        )}
+      </div>
+      {matching.map((weapon) => (
+        <WeaponProfile key={weapon.id} weapon={weapon} rules={rules} showName={false} embedded />
+      ))}
+      <OptionAbilities optionName={name} abilities={abilities} rules={rules} />
+    </li>
+  )
+}
+
 function LoadoutLoading() {
   return (
     <output className="block h-full" aria-label="Loading loadout">
@@ -300,14 +632,7 @@ function specialChoice(choice: LoadoutChoice, onChoose: Props['onChoose'], unitN
  * option takes one off whichever option has the most to give. That is what the
  * datasheet says in words: each model may replace its blaster with a carbine.
  */
-function spread(
-  choice: LoadoutChoice,
-  onSpread: Props['onSpread'],
-  weapons: WeaponProfileData[],
-  abilities: Datasheet['abilities'],
-  rules: Datasheet['keywordRules'],
-  editable: boolean,
-) {
+function spreadHandlers(choice: LoadoutChoice) {
   const taken = choice.options.reduce((total, option) => total + option.count, 0)
   const room = choice.room - taken
 
@@ -324,11 +649,64 @@ function spread(
   const less = (option: LoadoutChoice['options'][number]) => {
     if (option.count <= 0) return null
     if (choice.optional || taken < choice.room) return { [option.id]: option.count - 1 }
+    // A full group has to hand the freed slot to a sibling, and only one still
+    // under its own cap can take it. Nine bolt rifles and a special weapon cannot
+    // become ten bolt rifles.
     const receiving = choice.options
-      .filter((candidate) => candidate.id !== option.id)
+      .filter((candidate) => candidate.id !== option.id && candidate.count < candidate.max)
       .toSorted((left, right) => right.count - left.count)[0]
     return receiving ? { [option.id]: option.count - 1, [receiving.id]: receiving.count + 1 } : null
   }
+
+  return { taken, more, less }
+}
+
+/** A row's share of the bodies its kind of model has, given and taken one at a time. */
+function PoolStepper({
+  name,
+  count,
+  editable,
+  onAdd,
+  onRemove,
+}: {
+  name: string
+  count: number
+  editable: boolean
+  onAdd?: () => void
+  onRemove?: () => void
+}) {
+  if (!editable) {
+    return (
+      <span className="chip readout" aria-label={`${name} count`}>
+        {count}
+      </span>
+    )
+  }
+  return (
+    <span className="grid shrink-0 grid-cols-[1.5rem_2rem_1.5rem] items-center gap-1">
+      <Button variant="outline" size="icon-sm" className="size-6" aria-label={`Fewer ${name}`} disabled={!onRemove} onClick={onRemove}>
+        <Minus />
+      </Button>
+      <span className="readout text-center text-sm tabular-nums" aria-label={`${name} count`}>
+        {count}
+      </span>
+      <Button variant="outline" size="icon-sm" className="size-6" aria-label={`More ${name}`} disabled={!onAdd} onClick={onAdd}>
+        <Plus />
+      </Button>
+    </span>
+  )
+}
+
+function spread(
+  choice: LoadoutChoice,
+  onSpread: Props['onSpread'],
+  weapons: WeaponProfileData[],
+  abilities: Datasheet['abilities'],
+  rules: Datasheet['keywordRules'],
+  editable: boolean,
+) {
+  const handlers = spreadHandlers(choice)
+  const { taken, more, less } = handlers
 
   return (
     <div key={choice.key}>
@@ -488,6 +866,19 @@ function OptionProfiles({
       ))}
     </div>
   ) : null
+}
+
+/**
+ * Whether two profile names are the same weapon, whichever of them names its
+ * profiles: "Staff of light" and "Staff of light (Melee)" are one staff.
+ */
+function sameWeapon(one: string, other: string) {
+  const base = (name: string) =>
+    name
+      .replace(/\s*\([^)]*\)\s*$/, '')
+      .trim()
+      .toLocaleLowerCase()
+  return base(one) === base(other)
 }
 
 function weaponMatches(optionName: string, profileName: string) {

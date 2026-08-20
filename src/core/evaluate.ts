@@ -113,6 +113,14 @@ export function profileModifiers(
   index: CatalogueIndex,
   options: EvaluateOptions = {},
   unitSelectionIndex?: number,
+  /**
+   * The other units that count as this one, by position.
+   *
+   * A character attached to a bodyguard unit makes one unit with it, so a relic that
+   * speaks of the bearer's unit reaches the models it has joined. Only the whole-unit
+   * modifiers travel: what the bearer's own weapons do stays with the bearer.
+   */
+  companionIndexes: readonly number[] = [],
 ): ProfileModifier[] {
   const census = new Census()
   const counter = { next: 0 }
@@ -147,8 +155,16 @@ export function profileModifiers(
       ? indexed
       : descendants(force).find((node) => node.id === unitId || node.target.id === unitId)
   if (!unit) return []
-  const selectedIds = new Set(descendants(root).map((node) => node.id))
-  const unitNodes = new Set(descendants(unit))
+  // A condition names the shared entry it is about, and a selection reaches that
+  // entry through a link with an id of its own. Both are the same thing, so a
+  // modifier can be credited to the enhancement rather than to the datasheet.
+  const selectedIds = new Set(descendants(root).flatMap((node) => [node.id, node.target.id]))
+  const own = new Set(descendants(unit))
+  const companions = companionIndexes.flatMap((at) => {
+    const node = force.children[at]
+    return node && node !== unit ? descendants(node) : []
+  })
+  const unitNodes = new Set([...own, ...companions])
   const found = new Map<string, ProfileModifier>()
 
   const add = (node: Node, modifier: Modifier, exact?: { id: string; type: string }) => {
@@ -203,7 +219,9 @@ export function profileModifiers(
         includeSelf: target.includeSelf,
         includeEntries: target.includeEntries,
         recursive: target.recursive,
-        global: target.forces || origin === root || Boolean(origin.force),
+        // A whole-unit modifier from the unit this one is attached to belongs to
+        // every model here, which is what being one unit means.
+        global: target.forces || origin === root || Boolean(origin.force) || (target.group && !own.has(origin)),
         profileType,
       }
       found.set(JSON.stringify(applied), applied)
@@ -288,6 +306,11 @@ function parseProfileAffects(affects: string) {
     includeEntries,
     recursive: selection.includes('recursive'),
     forces,
+    // The whole group the modifier sits in, which for wargear on a model is the unit
+    // it belongs to. A Destroyer Ankh adds to the Move of every model in the bearer's
+    // unit and to the Attacks of only the bearer's own melee weapons, and this is the
+    // difference the data draws between the two.
+    group: selection.includes('group'),
     filters: selection.filter((part) => !controls.has(part)),
   }
 }
@@ -842,7 +865,11 @@ function resolveScope(scope: string, node: Node, root: Node, census: Census): No
     case 'self':
       return [node]
     case 'parent':
-      return node.parent ? [node.parent] : []
+      // A datasheet sits directly in the force, and what it asks about its parent it
+      // means about itself: an enhancement is a child of the unit that bears it, so
+      // reading the force here let one character's relic change another's weapons.
+      if (!node.parent || node.parent.force || node.parent === root) return [node]
+      return [node.parent]
     case 'roster':
       return [root]
     case 'force': {
@@ -856,11 +883,18 @@ function resolveScope(scope: string, node: Node, root: Node, census: Census): No
     case 'root-entry':
       return [rootEntry(node)]
     // The enclosing unit, which is what a per-model cost is nearly always counted in.
+    // The `-self` spelling is the same question: `enclosing` counts the node itself,
+    // which is what including self means.
     case 'unit':
     case 'unit-self':
     case 'model':
+    case 'model-self':
     case 'model-or-unit':
-      return enclosing(node, scope === 'model-or-unit' ? ['model', 'unit'] : [scope === 'unit-self' ? 'unit' : scope])
+    case 'model-or-unit-self':
+    case 'upgrade':
+      return enclosing(node, scope.startsWith('model-or-unit') ? ['model', 'unit'] : [scope.replace(/-self$/, '')])
+    case 'root-entry-self':
+      return [rootEntry(node)]
     case 'primary-catalogue':
       census.note('scope primary-catalogue')
       return []

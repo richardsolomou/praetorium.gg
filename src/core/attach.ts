@@ -104,6 +104,7 @@ function uniqueNames(values: readonly string[]) {
 
 export function attachmentErrors(units: readonly { entryId: string; attachedTo?: number }[], index: CatalogueIndex): EvaluationError[] {
   const errors: EvaluationError[] = []
+  const leaders = new Map<number, number>()
   units.forEach((unit, position) => {
     if (unit.attachedTo === undefined) return
     const definition = index.definitions.get(unit.entryId)
@@ -131,6 +132,17 @@ export function attachmentErrors(units: readonly { entryId: string; attachedTo?:
       ?.filter((constraint) => constraint.type === 'max' && constraint.field === 'associations')
       .map((constraint) => constraint.value)
     if (associationMax?.length && Math.min(...associationMax) < 1) error('allows no attachments')
+    // A unit is led by one character. Others may still be attached alongside — that
+    // is what a supporting character is — but a second Leader is not a loadout
+    // question the player can resolve later, so it is said plainly here.
+    if (attachment?.kind === 'leader') {
+      const already = leaders.get(unit.attachedTo)
+      if (already === undefined) leaders.set(unit.attachedTo, position)
+      else
+        error(
+          `cannot lead ${hostName}, which is already led by ${nameOf(index.definitions.get(units[already]?.entryId ?? '') ?? { id: '' }, index.definitions)}`,
+        )
+    }
   })
   return errors
 }
