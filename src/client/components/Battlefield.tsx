@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { Link } from '@tanstack/react-router'
 import { Check, Eye, Shuffle } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
@@ -26,7 +27,24 @@ export function Battlefield({ view, send, pending, allowedIds }: Props) {
   const available = options.filter((option) => option.terrain.geometry)
   const inspected = options.find((option) => option.terrain.id === inspecting)
 
-  if (!matchupIds.length) return <p className="text-sm text-dim">Both armies determine the three deployment and terrain layouts.</p>
+  if (!matchupIds.length) {
+    const viewerRoster = view.players.find((player) => player.isViewer)?.roster
+    if (viewerRoster && !viewerRoster.built?.disposition) {
+      return (
+        <p className="text-sm text-dim">
+          Your army combines detachments with different Force Dispositions, so it needs one chosen before a battlefield can be picked.{' '}
+          {viewerRoster.id ? (
+            <Link to="/rosters/$id" params={{ id: viewerRoster.id }} className="text-azure hover:text-bone">
+              Choose one on the roster
+            </Link>
+          ) : (
+            'Edit the roster to choose one.'
+          )}
+        </p>
+      )
+    }
+    return <p className="text-sm text-dim">Both armies determine the three deployment and terrain layouts.</p>
+  }
   if (!options.length) return <p className="text-sm text-dim">No combined battlefield layouts match these armies and mission.</p>
 
   return (

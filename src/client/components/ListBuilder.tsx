@@ -582,6 +582,21 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
           </div>
         ) : null}
 
+        {editable && priced?.dispositionError ? (
+          <p role="alert" className="mt-1 flex items-center gap-1.5 text-xs text-destructive">
+            <TriangleAlert className="size-3 shrink-0" aria-hidden />
+            {priced.dispositionError} Its detachments disagree, so a battle cannot pick a mission for it.
+            <Button
+              variant="ghost"
+              size="xs"
+              className="h-auto p-0 text-destructive underline hover:text-destructive"
+              onClick={() => setSetupDraft({ name: listName, catalogueId, detachmentIds, disposition, limit, visibility })}
+            >
+              Choose one
+            </Button>
+          </p>
+        ) : null}
+
         {editable && available && editingSetup ? (
           <RosterSetupDialog
             open={editingSetup}
