@@ -18,7 +18,7 @@ jobs:
       checks: write
       issues: write
       pull-requests: write
-    uses: richardsolomou/ras-stack/.github/workflows/report-preview-status.yml@v0.41.1
+    uses: richardsolomou/ras-stack/.github/workflows/report-preview-status.yml@v0.44.0
     with:
       state: building
       pr-number: ${{ github.event.pull_request.number }}

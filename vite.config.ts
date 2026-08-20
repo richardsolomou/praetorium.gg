@@ -6,11 +6,12 @@ import viteReact from '@vitejs/plugin-react'
 import { nitro } from 'nitro/vite'
 import { postHogEnvironment } from 'ras-stack/posthog'
 import { postHogIngestProxy } from 'ras-stack/posthog/proxy'
+import { POSTHOG_INGEST_PATH } from './src/posthog'
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
   const posthog = postHogEnvironment({ projectToken: env.VITE_POSTHOG_PROJECT_TOKEN, host: env.VITE_POSTHOG_HOST })
-  const proxy = posthog ? postHogIngestProxy(posthog) : undefined
+  const proxy = posthog ? postHogIngestProxy(posthog, { path: POSTHOG_INGEST_PATH }) : undefined
   return {
     resolve: { alias: { '@': path.resolve(import.meta.dirname, 'src') } },
     // Centrifugo runs beside the dev server rather than behind Caddy, so the proxy

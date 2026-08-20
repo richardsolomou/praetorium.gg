@@ -25,6 +25,7 @@ import { authClient } from '../client/authClient'
 import { GlobalSearch } from '../client/components/GlobalSearch'
 import { PlayerAvatar } from '../client/components/PlayerAvatar'
 import { favouriteFactionsQuery, meQuery } from '../client/queries'
+import { POSTHOG_INGEST_PATH } from '../posthog'
 import appCss from '../styles.css?url'
 
 const TITLE = 'Praetorium'
@@ -229,7 +230,7 @@ function RootComponent() {
         <HeadContent />
       </head>
       <body className={immersive ? 'h-dvh overflow-hidden' : 'min-h-dvh'}>
-        <PostHogIntegration environment={posthog}>
+        <PostHogIntegration environment={posthog} ingestPath={POSTHOG_INGEST_PATH}>
           {posthog && <PostHogBetterAuthIdentity authClient={authClient} />}
           {/*
            * The bar spans the window and the page inside it decides its own width,
