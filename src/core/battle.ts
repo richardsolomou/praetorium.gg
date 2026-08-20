@@ -123,7 +123,7 @@ export const STRATAGEM_CP_MAX = 6
 
 /** A secondary mission, named by the player because the deck is not in the data either. */
 export type Secondary = { key: string; name: string }
-type SecondaryStatus = 'active' | 'achieved' | 'discarded'
+type SecondaryStatus = 'active' | 'achieved' | 'returned'
 
 export const SECONDARIES_MAX = 6
 const SECONDARY_HISTORY_MAX = 30
@@ -1161,7 +1161,10 @@ function describe(
     }
     case 'set-secondary-status': {
       const secondary = player?.secondaries.find((candidate) => candidate.key === command.key)
-      return `${who} marks ${secondary?.name ?? 'a secondary'} ${command.status}${forTarget}`
+      const name = secondary?.name ?? 'a secondary'
+      // Putting a card back is not giving up on it: it goes back in the deck to be drawn again, not to the bin.
+      if (command.status === 'returned') return `${who} puts ${name} back in the deck${forTarget}`
+      return `${who} marks ${name} ${command.status}${forTarget}`
     }
     case 'draw-secondary':
       return `${who} draws ${player?.secondaries.find((secondary) => secondary.key === command.secondary.key)?.name ?? 'a secondary'}${forTarget}`

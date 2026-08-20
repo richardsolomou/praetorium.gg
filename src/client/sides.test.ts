@@ -114,7 +114,7 @@ describe('battle sides', () => {
 })
 
 describe('the order a hand is drawn in', () => {
-  const card = (key: string, status: 'active' | 'achieved' | 'discarded') =>
+  const card = (key: string, status: 'active' | 'achieved' | 'returned') =>
     ({ key, name: key, status, points: 0, secret: false, revealed: false }) as ViewPlayer['secondaries'][number]
   const hand = (...cards: ViewPlayer['secondaries']) => sides(view([player({ id: 'you', side: 0, secondaries: cards })]))[0]?.secondaries
 
@@ -123,7 +123,7 @@ describe('the order a hand is drawn in', () => {
   })
 
   it('drops a card back among the settled ones once it is scored', () => {
-    expect(hand(card('first', 'achieved'), card('second', 'discarded'))?.map((entry) => entry.key)).toEqual(['first', 'second'])
+    expect(hand(card('first', 'achieved'), card('second', 'returned'))?.map((entry) => entry.key)).toEqual(['first', 'second'])
   })
 
   it('leaves a hand of live cards in the order it was dealt', () => {

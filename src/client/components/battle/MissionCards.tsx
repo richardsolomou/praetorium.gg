@@ -54,20 +54,20 @@ export function SecondaryMissions({ side, actionable, pending, send, referenceFo
     side.secondaryMode === 'fixed' &&
     !side.secondaries.some((card) => card.secret) &&
     side.remainingSecondaries.length > 0
+  // A card put back into the deck was never really held, so it does not belong in this list at all.
+  const drawn = side.secondaries.filter((secondary) => secondary.status !== 'returned')
   return (
     <section className="space-y-1.5">
       <Total label="Secondary missions" scored={side.secondary} cap={guides.secondary} stat="secondary" />
-      {side.secondaries.length ? null : <p className="text-xs text-dim">No cards in hand.</p>}
-      {side.secondaries.map((secondary) => (
+      {drawn.length ? null : <p className="text-xs text-dim">No cards in hand.</p>}
+      {drawn.map((secondary) => (
         <div key={secondary.key} data-secondary={secondary.key} className={`${CARD} space-y-1.5`}>
           <div className="flex items-baseline gap-2">
             <span className="min-w-0 flex-1">
               <MissionName name={secondary.name} card={referenceFor(secondary.key)} type="Secondary mission" />
               <span className="mt-0.5 flex flex-wrap gap-1.5 text-[0.625rem] font-semibold uppercase">
                 {secondary.secret ? <span className="text-azure">{secondary.revealed ? 'revealed' : 'secret'}</span> : null}
-                {secondary.status === 'active' ? null : (
-                  <span className={secondary.status === 'achieved' ? 'text-achieved' : 'text-discarded'}>{secondary.status}</span>
-                )}
+                {secondary.status === 'achieved' ? <span className="text-achieved">achieved</span> : null}
               </span>
             </span>
             <span className="readout shrink-0 font-bold">{secondary.points}</span>

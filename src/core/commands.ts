@@ -119,7 +119,7 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
   z.object({
     kind: z.literal('set-secondary-status'),
     key: id,
-    status: z.enum(['active', 'achieved', 'discarded']),
+    status: z.enum(['active', 'achieved', 'returned']),
     playerId: id.optional(),
   }),
   z.object({ kind: z.literal('draw-secondary'), secondary }),

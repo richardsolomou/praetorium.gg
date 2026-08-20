@@ -99,9 +99,7 @@ export function DrawDialog({ side, seq, round, undoable, initiallyPaused, pendin
                         size="xs"
                         className="text-discarded"
                         disabled={pending || !side.remainingSecondaries.length}
-                        onClick={() =>
-                          send({ kind: 'set-secondary-status', key: card.key, status: 'discarded', playerId: side.captain.id })
-                        }
+                        onClick={() => send({ kind: 'set-secondary-status', key: card.key, status: 'returned', playerId: side.captain.id })}
                       >
                         Put back and draw another
                       </Button>
