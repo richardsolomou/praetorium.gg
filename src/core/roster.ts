@@ -813,15 +813,62 @@ export type ModelKind = {
 function kindName(names: readonly string[], profile: string | null): string {
   const [first = '', ...rest] = names
   if (!rest.length) return first || (profile ?? '')
+  return sharedName(names) ?? profile ?? first
+}
+
+/** The name those loadouts agree on, or nothing when they agree on no whole word. */
+function sharedName(names: readonly string[]): string | null {
+  const [first = '', ...rest] = names
+  if (!first || !rest.length) return null
   let shared = 0
   while (shared < first.length && rest.every((name) => name[shared] === first[shared])) shared++
-  const prefix = first.slice(0, shared)
-  if (!/[^\p{L}\p{N}]$/u.test(prefix)) return profile ?? first
-  // The separator the loadouts were split on is not part of the name, and neither is
-  // the "w/" in front of it.
-  const words = prefix.trim().split(/\s+/)
-  while (words.length && /[^\p{L}\p{N}]/u.test(words.at(-1) ?? '')) words.pop()
-  return words.join(' ') || profile || first
+  if (!/[^\p{L}\p{N}]$/u.test(first.slice(0, shared))) return null
+  // A name ends where the loadout begins. Loadouts that agree past the "w/" agree on
+  // part of a weapon — a gauss flayer and a gauss reaper are both gauss — so the name
+  // is cut at the separator rather than at the last word the two happen to share.
+  const words = first.slice(0, shared).trim().split(/\s+/)
+  const separator = (word: string) => /[^\p{L}\p{N}]/u.test(word)
+  const cut = words.findLastIndex((word, position) => position > 0 && separator(word))
+  const named = words.slice(0, cut < 0 ? words.length : cut)
+  // What a name is joined to its loadout by is written either way round — "w/" or
+  // "with" — and neither is part of the name. A model is named in the case a datasheet
+  // prints it in, so a trailing lowercase word is the sentence, not the model.
+  const joining = (word: string) => separator(word) || word === word.toLocaleLowerCase()
+  while (named.length > 1 && joining(named.at(-1) ?? '')) named.pop()
+  return named.join(' ') || null
+}
+
+/** One entry the catalogue offers as a model, and the profile it names it by, if any. */
+type Loadout = { profile: string | null; member: { id: string; name: string; choiceKey: string | null } }
+
+/** What each key gathers, in the order the keys first appear. */
+function groupBy<T>(entries: readonly T[], keyOf: (entry: T) => string): Map<string, T[]> {
+  const groups = new Map<string, T[]>()
+  for (const entry of entries) {
+    const key = keyOf(entry)
+    const group = groups.get(key)
+    if (group) group.push(entry)
+    else groups.set(key, [entry])
+  }
+  return groups
+}
+
+/**
+ * Whether these loadouts are one kind of model the catalogue filed a weapon at a time.
+ *
+ * They are the same model when a row per weapon says everything the separate entries
+ * said: each differs from the rest by exactly one weapon, and no two by the same one.
+ * A loadout pairing two weapons is a pairing the player cannot break, and one holding
+ * a choice of its own has more to say than a row, so both stay as they were written.
+ */
+function gathers(group: readonly Loadout[], carried: (id: string) => readonly string[], owns: (id: string) => boolean): boolean {
+  if (group.length < 2 || group.some((entry) => owns(entry.member.id))) return false
+  const lists = group.map((entry) => carried(entry.member.id))
+  const shared = new Set((lists[0] ?? []).filter((name) => lists.every((list) => list.includes(name))))
+  const apart = lists.map((list) => list.filter((name) => !shared.has(name)))
+  if (apart.some((list) => list.length !== 1)) return false
+  const weapons = apart.map((list) => list[0])
+  return new Set(weapons).size === weapons.length
 }
 
 export function modelKindsOf(
@@ -832,15 +879,12 @@ export function modelKindsOf(
 ): ModelKind[] {
   const choices = unitChoices(entryId, selection, index, options)
   type Member = { id: string; name: string; choiceKey: string | null; baseCount: number }
-  const kinds = new Map<string, { profile: string | null; members: Member[] }>()
+  const found: { profile: string | null; member: Member }[] = []
 
   const remember = (profile: string | null, member: Member) => {
-    const key = profile ?? member.id
-    const kind = kinds.get(key) ?? { profile, members: [] }
     // A model reached both as a loadout of its kind and as the owner of a choice is
     // one model. The loadout is kept, because that is where its count is changed.
-    if (!kind.members.some((present) => present.id === member.id)) kind.members.push(member)
-    kinds.set(key, kind)
+    if (!found.some((present) => present.member.id === member.id)) found.push({ profile, member })
   }
 
   for (const choice of choices) {
@@ -860,13 +904,54 @@ export function modelKindsOf(
     })
   }
 
-  const kindsOf = [...kinds.values()].map(({ profile, members }) => {
-    // What each loadout carries on its own, read from its own defaults so that a
-    // loadout nobody has taken yet still knows its weapon.
-    const carried = members.map((member) => {
+  // What each loadout carries on its own, read from its own defaults so that a
+  // loadout nobody has taken yet still knows its weapon.
+  const carriedBy = new Map(
+    found.map(({ member }) => {
       const base = defaultSelection(member.id, index, options)
-      return base ? wargearOf(base, index).map((piece) => piece.name) : []
-    })
+      return [member.id, base ? wargearOf(base, index).map((piece) => piece.name) : []] as const
+    }),
+  )
+  const carriedOf = (id: string) => carriedBy.get(id) ?? []
+  const owns = (id: string) => choices.some((choice) => choice.owner?.id === id)
+
+  // Where the catalogue gives no unit profile, the name the loadouts agree on stands
+  // in for one: a warrior with a gauss flayer and a warrior with a gauss reaper are
+  // both warriors, however many groups the catalogue files them under. The widest set
+  // that still says what the entries said is the one gathered, so the unit gives way
+  // to the group and the group to the loadouts, and a pairing that cannot be drawn as
+  // rows costs only its own card.
+  const loose = found.filter((entry) => !entry.profile)
+  const nameOf = (entry: Loadout) => {
+    const siblings = loose.filter((other) => other.member.choiceKey === entry.member.choiceKey)
+    return (siblings.length > 1 ? sharedName(siblings.map((other) => other.member.name)) : null) ?? entry.member.name
+  }
+  const gathered = new Map<string, { key: string; named: string }>()
+  const gather = (key: string, named: string, group: readonly Loadout[]) => {
+    for (const entry of group) gathered.set(entry.member.id, { key, named })
+  }
+  for (const [name, group] of groupBy(loose, nameOf)) {
+    if (gathers(group, carriedOf, owns)) {
+      gather(`kind:${name}`, name, group)
+      continue
+    }
+    for (const [choiceKey, part] of groupBy(group, (entry) => entry.member.choiceKey ?? entry.member.id)) {
+      if (gathers(part, carriedOf, owns)) gather(`kind:${name}/${choiceKey}`, name, part)
+      else for (const entry of part) gather(entry.member.id, entry.member.name, [entry])
+    }
+  }
+
+  const kinds = new Map<string, { profile: string | null; named: string | null; members: Member[] }>()
+  for (const entry of found) {
+    const gathering = gathered.get(entry.member.id)
+    const key = entry.profile ?? gathering?.key ?? entry.member.id
+    const kind = kinds.get(key) ?? { profile: entry.profile, named: entry.profile ? null : (gathering?.named ?? null), members: [] }
+    kind.members.push(entry.member)
+    kinds.set(key, kind)
+  }
+
+  const kindsOf = [...kinds.values()].map(({ profile, named, members }) => {
+    const carried = members.map((member) => carriedOf(member.id))
     const shared = (carried[0] ?? []).filter((name) => carried.every((list) => list.includes(name)))
 
     // One loadout at a time, in the order the data holds them, so the weapons read
@@ -893,10 +978,12 @@ export function modelKindsOf(
     })
 
     return {
-      name: kindName(
-        members.map((member) => member.name),
-        profile,
-      ),
+      name:
+        named ??
+        kindName(
+          members.map((member) => member.name),
+          profile,
+        ),
       fixed: shared.filter((name) => !rows.some((row) => row.name === name)).map((name) => ({ name })),
       members: members.map(({ id, choiceKey, baseCount }) => ({ id, choiceKey, baseCount })),
       rows,

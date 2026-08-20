@@ -135,10 +135,37 @@ export function Loadout({
   const fixedMelee = melee.filter((profile) => !choiceWeaponNames.some((name) => weaponMatches(name, profile.name)))
   const rules = [...availableSheet.keywordRules, ...(unit.modelKeywordRules ?? [])]
   const abilities = [...availableSheet.abilities, ...(unit.modelAbilities ?? [])]
+  /**
+   * The option a card stands for, where the card is the whole of it.
+   *
+   * A loadout that pairs two weapons cannot be drawn as a row for each — the pairing
+   * is what the catalogue sells — so it keeps a card of its own, and the card is then
+   * the only honest place to ask how many of it the squad has. Its heading takes the
+   * count, rather than the card saying one thing and a wargear option below it another.
+   */
+  const standingFor = (model: LoadoutModel) => {
+    const [member, ...rest] = model.members
+    if (!member || rest.length || !member.choiceKey) return null
+    if (model.rows.some((row) => row.optionId === member.id)) return null
+    const choice = unit.choices.find((candidate) => candidate.key === member.choiceKey && !candidate.kind)
+    const option = choice?.options.find((candidate) => candidate.id === member.id)
+    return choice && option ? { choice, option } : null
+  }
+  const stood = new Map(unit.models.map((model) => [model, standingFor(model)] as const))
+
   // Every choice a model of its own carries is drawn inside that model's card, so
-  // what is left over belongs to the unit as a whole.
+  // what is left over belongs to the unit as a whole — and a group whose every option
+  // is a card of its own is answered by those cards, not by asking again below them.
   const modelled = new Set(unit.models.flatMap((model) => model.rows.map((row) => row.choiceKey)))
-  const looseChoices = unit.choices.filter((choice) => !modelled.has(choice.key))
+  const carded = new Set([...stood.values()].flatMap((found) => (found ? [found.option.id] : [])))
+  const looseChoices = unit.choices.filter(
+    (choice) => !modelled.has(choice.key) && !choice.options.every((option) => carded.has(option.id)),
+  )
+  // Only where the group is not drawn below as well: one question, one control.
+  const stands = (model: LoadoutModel) => {
+    const found = stood.get(model)
+    return found && !looseChoices.includes(found.choice) ? found : null
+  }
 
   return (
     <div className="flex h-full flex-col">
@@ -205,9 +232,12 @@ export function Loadout({
             <div className="space-y-3">
               {unit.models.map((model) => (
                 <ModelCard
-                  key={model.name}
+                  // A datasheet can name two kinds of model the same, so what tells
+                  // the cards apart is the models they hold rather than the heading.
+                  key={model.members.map((member) => member.id).join('/')}
                   model={model}
                   choices={unit.choices}
+                  stands={stands(model)}
                   weapons={availableWeapons}
                   abilities={abilities}
                   rules={rules}
@@ -259,6 +289,7 @@ export function Loadout({
 function ModelCard({
   model,
   choices,
+  stands,
   weapons,
   abilities,
   rules,
@@ -269,6 +300,8 @@ function ModelCard({
 }: {
   model: LoadoutModel
   choices: LoadoutChoice[]
+  /** The choice option this card is the whole of, when its heading is where it is counted. */
+  stands: { choice: LoadoutChoice; option: LoadoutChoice['options'][number] } | null
   weapons: WeaponProfileData[]
   abilities: Datasheet['abilities']
   rules: Datasheet['keywordRules']
@@ -350,13 +383,41 @@ function ModelCard({
     return changes ? () => changes.forEach(([key, counts]) => onSpread(key, counts)) : undefined
   }
 
+  /**
+   * How many of this card there are, where the card is one option of a group.
+   *
+   * The same two shapes a row has, for the same reason: a group with room for several
+   * divides itself, and one with room for one is answered rather than counted.
+   */
+  const heading = () => {
+    if (!stands) return null
+    const { choice, option } = stands
+    if (choice.room > 1 || choice.carried) {
+      const handlers = spreadHandlers(choice)
+      return {
+        onAdd: changeBy(handlers.more(option), choice.key, onSpread),
+        onRemove: changeBy(handlers.less(option), choice.key, onSpread),
+      }
+    }
+    const taken = choice.chosen === option.id
+    return {
+      onAdd: taken ? undefined : () => onChoose(choice.key, option.id),
+      onRemove: taken && choice.optional ? () => onChoose(choice.key, '') : undefined,
+    }
+  }
+  const counted = heading()
+
   return (
     <section className="border border-edge-strong bg-panel/40">
-      <p className="eyebrow flex items-baseline justify-between gap-2 border-b border-edge px-2.5 py-2 text-bone">
+      <p className="eyebrow flex items-center justify-between gap-2 border-b border-edge px-2.5 py-2 text-bone">
         <span className="min-w-0">{model.name}</span>
-        <span className="readout normal-case text-dim" aria-label={`${model.name} models`}>
-          {count}
-        </span>
+        {stands && counted ? (
+          <PoolStepper name={model.name} count={stands.option.count} editable={editable} {...counted} />
+        ) : (
+          <span className="readout normal-case text-dim" aria-label={`${model.name} models`}>
+            {count}
+          </span>
+        )}
       </p>
       <ul className="divide-y divide-edge">
         {ordered(
@@ -659,6 +720,11 @@ function spreadHandlers(choice: LoadoutChoice) {
   }
 
   return { taken, more, less }
+}
+
+/** A press that hands a group the counts it would then hold, or nothing to press. */
+function changeBy(counts: Record<string, number> | null, key: string, onSpread: Props['onSpread']) {
+  return counts ? () => onSpread(key, counts) : undefined
 }
 
 /** A row's share of the bodies its kind of model has, given and taken one at a time. */
