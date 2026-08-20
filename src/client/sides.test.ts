@@ -114,7 +114,7 @@ describe('battle sides', () => {
 })
 
 describe('the order a hand is drawn in', () => {
-  const card = (key: string, status: 'active' | 'achieved' | 'discarded') =>
+  const card = (key: string, status: 'active' | 'achieved' | 'discarded' | 'returned') =>
     ({ key, name: key, status, points: 0, secret: false, revealed: false }) as ViewPlayer['secondaries'][number]
   const hand = (...cards: ViewPlayer['secondaries']) => sides(view([player({ id: 'you', side: 0, secondaries: cards })]))[0]?.secondaries
 
