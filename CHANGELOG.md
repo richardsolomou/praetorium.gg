@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.16.0
+
+### Minor Changes
+
+- 9d37c68: Right-click a unit card in the list builder to duplicate it, toggle collection ownership, or delete it.
+
 ## 0.15.1
 
 ### Patch Changes
