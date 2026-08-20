@@ -108,6 +108,15 @@ beforeEach(() => {
   write(path.join(core, 'weapons.json'), [
     { id: 'plague-spewer', name: 'Plague spewer' },
     { id: 'bolt-pistol-plague-marines', name: 'Bolt pistol' },
+    {
+      id: 'plague-knife',
+      name: 'Plague knife',
+      type: 'ranged',
+      profiles: [
+        { name: 'Ranged', range: 12, stats: { A: 2, BS: 3, S: 4, AP: 0, D: 1 } },
+        { name: 'Melee', range: 'Melee', stats: { A: 3, WS: 3, S: 4, AP: -1, D: 1 } },
+      ],
+    },
   ])
   write(path.join(core, 'unit-compositions.json'), [
     {
@@ -376,5 +385,44 @@ describe('Battlemaster terrain geometry', () => {
       id: 'area-1',
       markers: [{ label: 'AB', position: { x: 35, y: 17 } }],
     })
+  })
+})
+
+/**
+ * The data types a weapon as one thing and then gives it a profile of the other: a
+ * staff of light shoots at eighteen inches and strikes in melee. Read at the weapon
+ * level, the fighting profile printed a ballistic skill and a range of `Melee"`.
+ */
+describe('a weapon that both shoots and fights', () => {
+  it('reads each profile on its own terms', () => {
+    const profiles = loadRules(directory)?.weapons.get('plague-knife')?.profiles ?? []
+    expect(profiles).toEqual([
+      {
+        name: 'Ranged',
+        melee: false,
+        range: '12"',
+        stats: [
+          { name: 'A', value: '2' },
+          { name: 'BS', value: '3+' },
+          { name: 'S', value: '4' },
+          { name: 'AP', value: '0' },
+          { name: 'D', value: '1' },
+        ],
+        keywords: [],
+      },
+      {
+        name: 'Melee',
+        melee: true,
+        range: 'Melee',
+        stats: [
+          { name: 'A', value: '3' },
+          { name: 'WS', value: '3+' },
+          { name: 'S', value: '4' },
+          { name: 'AP', value: '-1' },
+          { name: 'D', value: '1' },
+        ],
+        keywords: [],
+      },
+    ])
   })
 })

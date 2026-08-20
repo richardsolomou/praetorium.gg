@@ -391,7 +391,7 @@ export type UnitComposition = {
 export type LoadedWeapon = {
   name: string
   melee: boolean
-  profiles: { name: string; range: string; stats: { name: string; value: string }[]; keywords: string[] }[]
+  profiles: { name: string; melee: boolean; range: string; stats: { name: string; value: string }[]; keywords: string[] }[]
 }
 
 type RawWargearOption = {
@@ -491,19 +491,28 @@ export function loadRules(
       weapons.set(weapon.id, {
         name: weapon.name,
         melee,
-        profiles: (weapon.profiles ?? []).map((profile) => ({
-          name: profile.name ?? weapon.name!,
-          range: melee ? 'Melee' : profile.range === undefined ? '-' : `${profile.range}"`,
-          stats: (melee ? MELEE_STATS : RANGED_STATS).map((stat) => {
-            const value = profile.stats?.[stat]
-            // A torrent weapon needs no roll to hit, and the data says so by leaving
-            // the characteristic out. A datasheet prints the rest as "3+".
-            if (value === undefined || value === null) return { name: stat, value: '-' }
-            const skill = stat === 'WS' || stat === 'BS'
-            return { name: stat, value: `${value}${skill ? '+' : ''}` }
-          }),
-          keywords: (profile.keywords ?? []).map(keywordLabel),
-        })),
+        profiles: (weapon.profiles ?? []).map((profile) => {
+          // Whether a row is melee belongs to the profile rather than the weapon: a
+          // staff of light is typed as something that shoots and strikes in melee
+          // too, and only the profile says which of the two this row is. Read the
+          // wrong way it prints a fighting weapon with a ballistic skill and a range
+          // of `Melee"`.
+          const fights = melee || String(profile.range ?? '').toLocaleLowerCase() === 'melee' || profile.stats?.WS !== undefined
+          return {
+            name: profile.name ?? weapon.name!,
+            melee: fights,
+            range: fights ? 'Melee' : profile.range === undefined ? '-' : `${profile.range}"`,
+            stats: (fights ? MELEE_STATS : RANGED_STATS).map((stat) => {
+              const value = profile.stats?.[stat]
+              // A torrent weapon needs no roll to hit, and the data says so by leaving
+              // the characteristic out. A datasheet prints the rest as "3+".
+              if (value === undefined || value === null) return { name: stat, value: '-' }
+              const skill = stat === 'WS' || stat === 'BS'
+              return { name: stat, value: `${value}${skill ? '+' : ''}` }
+            }),
+            keywords: (profile.keywords ?? []).map(keywordLabel),
+          }
+        }),
       })
     }
   }

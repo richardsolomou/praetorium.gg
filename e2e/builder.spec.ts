@@ -302,6 +302,31 @@ test('destroyer plasmacytes follow the unit size', async ({ page }) => {
 })
 
 /**
+ * Two sources name the same weapon: the catalogue prints a staff of light as two
+ * rows, and the rules source spells the same two as "Staff of light (Ranged)" and
+ * "(Melee)". Both drawn, a character appeared to carry the staff twice over.
+ */
+test('a weapon both sources name is drawn once', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 })
+  await openBuilder(page)
+  await add(page, 'Lokhust Lord')
+  await page
+    .locator('[data-unit="Lokhust Lord"]')
+    .getByRole('button', { name: /^Lokhust Lord/ })
+    .click()
+
+  const loadout = page.locator('aside[aria-label="Loadout"]')
+  await expect(loadout.getByRole('heading', { name: 'Staff of light', exact: true })).toHaveCount(2)
+  await expect(loadout.getByRole('heading', { name: /Staff of light \(/ })).toHaveCount(0)
+  // The catalogue's own two rows: one to shoot with, one to fight with. Read at the
+  // weapon level rather than the profile, the fighting one printed its range as
+  // `Melee"` and asked for a ballistic skill.
+  await expect(loadout.getByText('Melee"')).toHaveCount(0)
+  await expect(loadout.getByText('WS', { exact: true })).not.toHaveCount(0)
+  await page.screenshot({ path: 'test-results/lokhust-lord-staff.png', fullPage: true })
+})
+
+/**
  * A squad divides itself between the weapons its models carry, and a specialist takes
  * a body from a squadmate to carry his. Arming the specialist used to come out of
  * whatever the squad held most of, so a player filling a squad with combi-weapons

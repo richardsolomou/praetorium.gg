@@ -362,7 +362,7 @@ function weaponProfiles(composition: UnitComposition | null, rules: LoadedRules 
       found.push({
         id: `${id}-${at}`,
         name: shown,
-        type: weapon.melee ? 'Melee Weapons' : 'Ranged Weapons',
+        type: profile.melee ? 'Melee Weapons' : 'Ranged Weapons',
         values: [{ name: 'Range', value: profile.range }, ...profile.stats, { name: 'Keywords', value: profile.keywords.join(', ') }],
       })
     })

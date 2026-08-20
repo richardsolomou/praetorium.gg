@@ -120,10 +120,10 @@ export function Loadout({
   const availableWeapons = [
     ...catalogueWeapons,
     // The rules source is only here to fill gaps. A weapon the catalogue already
-    // names belongs to the catalogue, or the same profile is drawn twice.
-    ...(unit.modelWeapons ?? []).filter(
-      (extra) => !catalogueWeapons.some((profile) => profile.name.trim().toLocaleLowerCase() === extra.name.trim().toLocaleLowerCase()),
-    ),
+    // names belongs to the catalogue, however either of them spells its profiles:
+    // a staff of light the catalogue prints as two rows would otherwise appear
+    // twice more as "Staff of light (Ranged)" and "Staff of light (Melee)".
+    ...(unit.modelWeapons ?? []).filter((extra) => !catalogueWeapons.some((profile) => sameWeapon(profile.name, extra.name))),
   ]
   const choiceWeaponNames = unit.choices.flatMap((choice) => choice.options.map((option) => option.name))
   const fixedRanged = ranged.filter((profile) => !choiceWeaponNames.some((name) => weaponMatches(name, profile.name)))
@@ -861,6 +861,19 @@ function OptionProfiles({
       ))}
     </div>
   ) : null
+}
+
+/**
+ * Whether two profile names are the same weapon, whichever of them names its
+ * profiles: "Staff of light" and "Staff of light (Melee)" are one staff.
+ */
+function sameWeapon(one: string, other: string) {
+  const base = (name: string) =>
+    name
+      .replace(/\s*\([^)]*\)\s*$/, '')
+      .trim()
+      .toLocaleLowerCase()
+  return base(one) === base(other)
 }
 
 function weaponMatches(optionName: string, profileName: string) {
