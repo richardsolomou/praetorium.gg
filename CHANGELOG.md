@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.14.0
+
+### Minor Changes
+
+- 4c0cd8e: Refuse a primary or secondary score that would pass the mission's round or game cap, explaining why in the scoring dialog.
+
 ## 0.13.3
 
 ### Patch Changes
