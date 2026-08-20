@@ -1722,3 +1722,168 @@ describe('loadouts the catalogue files a weapon at a time', () => {
     expect(kindsOf(index).map((kind) => kind.name)).toEqual(['Warrior w/ staff', 'Warrior'])
   })
 })
+
+/**
+ * A group is not in the selection tree until something is put in it, and the heavy
+ * weapon a squad may take is exactly that: an optional group, nested inside the group
+ * holding the squad, empty until a player asks for one. Asked for, the request went
+ * nowhere — the walk to the group only ever stepped through models already standing
+ * there — so a Hearthkyn Warriors squad could never take its magna-rail rifle.
+ */
+describe('a group with nothing in it yet', () => {
+  const index = indexOf({
+    sharedSelectionEntries: [
+      {
+        id: 'squad',
+        name: 'Squad',
+        type: 'unit',
+        selectionEntryGroups: [
+          {
+            id: 'models',
+            name: 'Models',
+            defaultSelectionEntryId: 'trooper',
+            constraints: [
+              { id: 'models-min', type: 'min', value: 5, field: 'selections', scope: 'parent' },
+              { id: 'models-max', type: 'max', value: 5, field: 'selections', scope: 'parent' },
+            ],
+            selectionEntries: [
+              {
+                id: 'trooper',
+                name: 'Trooper w/ rifle',
+                type: 'model',
+                selectionEntries: [{ id: 'rifle', name: 'Rifle', type: 'upgrade', constraints: mandatory('rifle-min') }],
+              },
+            ],
+            selectionEntryGroups: [
+              {
+                id: 'heavies',
+                name: 'Heavy weapons',
+                constraints: [{ id: 'heavies-max', type: 'max', value: 1, field: 'selections', scope: 'parent' }],
+                selectionEntries: [
+                  {
+                    id: 'gunner',
+                    name: 'Trooper w/ heavy bolter',
+                    type: 'model',
+                    constraints: [{ id: 'gunner-max', type: 'max', value: 1, field: 'selections', scope: 'parent' }],
+                    selectionEntries: [{ id: 'bolter', name: 'Heavy bolter', type: 'upgrade', constraints: mandatory('bolter-min') }],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  })
+
+  const held = (spreads: Record<string, Record<string, number>>) => {
+    const built = buildUnit('squad', index, undefined, undefined, { spreads })!
+    return { models: modelCountOf(built.selection, index), wargear: wargearOf(built.selection, index) }
+  }
+
+  it('is reached by the request that puts the first model in it', () => {
+    expect(held({ 'models/heavies': { gunner: 1 }, models: { trooper: 4 } })).toEqual({
+      models: 5,
+      wargear: [
+        { name: 'Heavy bolter', count: 1 },
+        { name: 'Rifle', count: 4 },
+      ],
+    })
+  })
+
+  it('offers the model it holds once it has been reached', () => {
+    const built = buildUnit('squad', index, undefined, undefined, { spreads: { 'models/heavies': { gunner: 1 }, models: { trooper: 4 } } })!
+    const heavies = built.choices.find((choice) => choice.name === 'Heavy weapons')
+    expect(heavies?.options.map((option) => [option.name, option.count])).toEqual([['Trooper w/ heavy bolter', 1]])
+  })
+
+  it('is left out of the selection while nothing is asked of it', () => {
+    const built = buildUnit('squad', index, undefined, undefined, { spreads: { 'models/heavies': { gunner: 0 } } })!
+    expect(built.selection.selections?.[0]?.selections?.map((child) => child.id)).toEqual(['trooper'])
+  })
+})
+
+/**
+ * The carrier can be as absent as the group it holds. A squad arming its first flamer
+ * has neither the flamer nor the biker to hang it on, and the request that would put
+ * both there went nowhere for the same reason: the group the biker stands in was not
+ * in the tree to be stood in.
+ */
+describe('a specialist the squad does not have yet', () => {
+  const index = indexOf({
+    sharedSelectionEntries: [
+      {
+        id: 'squad',
+        name: 'Squad',
+        type: 'unit',
+        selectionEntryGroups: [
+          {
+            id: 'models',
+            name: 'Models',
+            defaultSelectionEntryId: 'trooper',
+            constraints: [
+              { id: 'models-min', type: 'min', value: 4, field: 'selections', scope: 'parent' },
+              { id: 'models-max', type: 'max', value: 4, field: 'selections', scope: 'parent' },
+            ],
+            selectionEntries: [
+              {
+                id: 'trooper',
+                name: 'Trooper',
+                type: 'model',
+                selectionEntries: [{ id: 'rifle', name: 'Rifle', type: 'upgrade', constraints: mandatory('rifle-min') }],
+              },
+            ],
+            selectionEntryGroups: [
+              {
+                id: 'specialists',
+                name: 'Specialists',
+                constraints: [{ id: 'specialists-max', type: 'max', value: 2, field: 'selections', scope: 'parent' }],
+                selectionEntries: [
+                  {
+                    id: 'gunner',
+                    name: 'Trooper w/ special weapon',
+                    type: 'model',
+                    constraints: [{ id: 'gunner-max', type: 'max', value: 2, field: 'selections', scope: 'parent' }],
+                    selectionEntryGroups: [
+                      {
+                        id: 'special',
+                        name: 'Special weapon',
+                        constraints: [
+                          { id: 'special-min', type: 'min', value: 1, field: 'selections', scope: 'parent' },
+                          { id: 'special-max', type: 'max', value: 1, field: 'selections', scope: 'parent' },
+                        ],
+                        selectionEntries: [
+                          { id: 'flamer', name: 'Flamer', type: 'upgrade' },
+                          { id: 'melta', name: 'Meltagun', type: 'upgrade' },
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  })
+
+  it('is brought in by the request that arms it, at a squadmate’s expense', () => {
+    const built = buildUnit('squad', index, undefined, undefined, { spreads: { 'models/specialists/gunner/special': { flamer: 1 } } })!
+    expect({ models: modelCountOf(built.selection, index), wargear: wargearOf(built.selection, index) }).toEqual({
+      models: 4,
+      wargear: [
+        { name: 'Rifle', count: 3 },
+        { name: 'Flamer', count: 1 },
+      ],
+    })
+  })
+
+  it('hands the body back when its weapon is put down', () => {
+    const built = buildUnit('squad', index, undefined, undefined, { spreads: { 'models/specialists/gunner/special': { flamer: 0 } } })!
+    expect({ models: modelCountOf(built.selection, index), wargear: wargearOf(built.selection, index) }).toEqual({
+      models: 4,
+      wargear: [{ name: 'Rifle', count: 4 }],
+    })
+  })
+})

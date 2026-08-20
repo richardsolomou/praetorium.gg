@@ -1120,7 +1120,7 @@ export function withChoice(selection: Selection, key: string, optionId: string, 
   if (!group) return selection
 
   const options = new Set(childrenOf(resolve(group, index), index).map((option) => option.id))
-  const present = at(selection, path) ? selection : withCounts(selection, [{ path, count: 1 }])
+  const present = withPlaceFor(selection, path)
   if (!optionId)
     return updateSelection(present, path, (held) => ({ ...held, selections: held.selections?.filter((child) => !options.has(child.id)) }))
 
@@ -1133,6 +1133,19 @@ export function withChoice(selection: Selection, key: string, optionId: string, 
     ...held,
     selections: [...(held.selections ?? []).filter((child) => !options.has(child.id)), replacement],
   }))
+}
+
+/**
+ * The tree with somewhere for `path` to be, so a request can reach a group that has
+ * nothing in it yet.
+ *
+ * A group is absent until something is put in it — the heavy weapon a squad may take
+ * is not in the tree while nobody carries one — and every walk below steps through
+ * what is already there. Without a place made first, the request that would put the
+ * first model in the group is the one request that goes nowhere.
+ */
+function withPlaceFor(selection: Selection, path: readonly string[]): Selection {
+  return at(selection, path) ? selection : withCounts(selection, [{ path, count: 1 }])
 }
 
 function updateSelection(selection: Selection, path: readonly string[], update: (selection: Selection) => Selection): Selection {
@@ -1170,7 +1183,8 @@ function withUnitSpread(selection: Selection, key: string, counts: Readonly<Reco
     // wants is not saying it has no sergeant.
     const optionIds = new Set(Object.keys(counts))
     const capacity = maximumCount(group!, index)
-    return updateSelection(selection, path, (held) => {
+    const asking = Object.values(counts).some((count) => count > 0)
+    const filled = updateSelection(asking ? withPlaceFor(selection, path) : selection, path, (held) => {
       // A saved list can ask for more bodies than the squad has, either because the
       // catalogue's limits moved under it or because two of its own requests
       // disagree. The group's own maximum is the answer, and the models it says
@@ -1193,6 +1207,7 @@ function withUnitSpread(selection: Selection, key: string, counts: Readonly<Reco
         ],
       }
     })
+    return withinSquad(filled, path, index)
   }
   const repeatedEntry = repeatedModelOn(path.slice(0, -1), index)
   const entry = group ? resolve(group, index) : undefined
@@ -1269,18 +1284,47 @@ function spreadRepeatedGroup(
     variants.push(withChoice(base, withinModel.join('/'), request.optionId, index))
   }
   const holder = repeating.path.slice(0, -1)
-  const replaced = replaceAt(selection, holder, modelId, variants)
+  // The carrier can be as absent as the group it holds — a squad arming its first
+  // flamer has neither the flamer nor the biker to hang it on — so the group the
+  // carrier stands in needs its place made before the carrier can be put there.
+  const replaced = replaceAt(requested.length ? withPlaceFor(selection, holder) : selection, holder, modelId, variants)
   // Arming a model this squad did not have yet puts a body in it, and the squad is
   // already as big as it is allowed to be. The body comes from one of its own — a
   // veteran puts down his bolt rifle to carry the heavy bolter — and never from a
   // model the data insists on, which is how the sergeant used to be squeezed out.
   const before = models.reduce((total, model) => total + (model.count ?? 1), 0)
   const after = variants.reduce((total, variant) => total + (variant.count ?? 1), 0)
-  if (after > before) return spendBodies(replaced, holder, modelId, after - before, index)
+  // The squadmate may stand a group further out than the carrier does, where the
+  // catalogue files its specialists apart from the squad they are drawn from, so what
+  // the holder cannot pay for is asked of the group holding the holder.
+  if (after > before) return withinSquad(spendBodies(replaced, holder, modelId, after - before, index), holder, index)
   // And a body no longer needed goes back to the squadmate who lent it, so putting
   // a heavy bolter down leaves the unit the size the player asked for.
   if (after < before) return refundBodies(replaced, holder, modelId, before - after, index)
   return replaced
+}
+
+/**
+ * The squad kept to the size its data allows, after a request put a model inside it.
+ *
+ * A model in a group the squad's own group holds is one of the squad — the heavy
+ * weapon is a warrior carrying it, not an eleventh warrior — so once that group is
+ * full the body comes from a squadmate, the way a specialist's does. A group with
+ * room left is not full, and grows: what the catalogue permits is the answer, and
+ * `2-5 Bikers` means a third biker is a squad of three rather than a swap.
+ */
+function withinSquad(selection: Selection, path: readonly string[], index: CatalogueIndex): Selection {
+  let tree = selection
+  for (let length = path.length - 1; length > 0; length--) {
+    const enclosing = path.slice(0, length)
+    const definition = index.definitions.get(enclosing.at(-1) ?? '')
+    const capacity = definition ? maximumCount(definition, index) : null
+    if (capacity === null || capacity === UNBOUNDED) continue
+    const held = at(tree, enclosing)
+    const over = held ? modelCountOf(held, index) - capacity : 0
+    if (over > 0) tree = spendBodies(tree, enclosing, path[length] ?? '', over, index)
+  }
+  return tree
 }
 
 /** Bodies handed back to the squad, the inverse of one being spent to arm a carrier. */
