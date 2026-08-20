@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.13.2
+
+### Patch Changes
+
+- 752924d: Route PostHog analytics through `/t` instead of `/ingest`, since ad-blocker lists block that literal path segment regardless of host.
+
 ## 0.13.1
 
 ### Patch Changes
