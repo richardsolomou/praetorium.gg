@@ -133,6 +133,15 @@ describe('a limit the catalogue breaks itself', () => {
   it('leaves every other kind of complaint alone', () => {
     expect(isCatalogueSelfContradiction({ entryId: 'exchange-rifle', message: 'needs at least 1, has 0' }, composed)).toBe(false)
   })
+
+  /**
+   * The map holds what the catalogue puts in a unit by itself. An enhancement the
+   * player chose is inside that unit too, and one relic in two armies' worth of
+   * characters is theirs to answer for, so it must never be in the map to begin with.
+   */
+  it('still counts against an enhancement the player chose', () => {
+    expect(isCatalogueSelfContradiction({ entryId: 'destroyer-ankh', message: 'allows at most 1, has 2' }, composed)).toBe(false)
+  })
 })
 
 /**

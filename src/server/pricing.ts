@@ -116,24 +116,34 @@ export function calculateRosterPrice(data: PriceInput) {
    * or could undo. The rules source states the same model counts and the price
    * agrees with them, so there is nothing here for a player to act on and nothing
    * worth telling them about.
+   *
+   * Only what the catalogue puts there by itself, which is why this reads the unit
+   * built with no choices at all rather than the one in the list: an enhancement the
+   * player picked is inside that unit too, and its own limits are theirs to answer
+   * for — two of the same relic in one army is a mistake worth being told about.
    */
   const composedByCatalogue = new Map<string, string>()
   for (const unit of picked) {
     if (modelKindsOf(unit.entryId, unit.selection, loaded.index, options).length) continue
     if (!compositionOf(rules, unit.name)) continue
+    const composed = buildUnit(unit.entryId, loaded.index, unit.size.models, undefined, {
+      primaryCatalogueId: data.catalogueId,
+      roster: detachmentSelection,
+    })
+    if (!composed) continue
     const walk = (node: Selection) => {
       composedByCatalogue.set(node.id, unit.name)
       const definition = loaded.index.definitions.get(node.id)
       if (definition) composedByCatalogue.set(targetOf(definition, loaded.index.definitions).id, unit.name)
       node.selections?.forEach(walk)
     }
-    walk(unit.selection)
+    walk(composed.selection)
   }
   const selfContradictory = new Set(whole.errors.filter((error) => isCatalogueSelfContradiction(error, composedByCatalogue)))
 
   // The 10e catalogue wrapper caps detachments at one; the 11e rules source
   // replaces that constraint with the DP budget checked above.
-  const errors = [
+  const reported = [
     ...whole.errors.filter(
       (error) =>
         !(chosen.length > 1 && error.entryName.toLowerCase().includes('detachment') && error.message.includes('allows at most 1, has ')) &&
@@ -143,6 +153,11 @@ export function calculateRosterPrice(data: PriceInput) {
     ...factionRestrictionViolations(rules?.factionRestrictions.get(factionSlug), kotcUnits),
     ...(isKotcLimit(data.limit) ? kotcViolations(chosen.length, kotcUnits, data.limit) : []),
   ]
+  // One fact, said once. A limit on a shared entry is broken by each selection of it,
+  // and every one of them reports the same sentence about the same count.
+  const errors = reported.filter(
+    (error, at) => reported.findIndex((other) => other.entryId === error.entryId && other.message === error.message) === at,
+  )
 
   return {
     revision: loaded.index.revision,

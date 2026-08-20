@@ -349,6 +349,12 @@ test('an enhancement changes the weapons of the model bearing it', async ({ page
   const second = page.locator('[data-unit="Overlord"]').nth(1)
   await expect(second).toBeVisible()
   await expect(second.getByRole('button', { name: 'Immortals', exact: true })).toHaveCount(0)
+
+  // One relic, one army. The catalogue says so itself, and it is the player's to undo.
+  await second.getByRole('button', { name: 'Overlord', exact: true }).click()
+  await loadout.getByRole('button', { name: 'Select Destroyer Ankh' }).click()
+  await expect(page.getByText('Destroyer Ankh: allows at most 1, has 2')).toHaveCount(1)
+  await page.screenshot({ path: 'test-results/enhancement-once-per-army.png', fullPage: true })
 })
 
 /**
