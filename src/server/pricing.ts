@@ -181,11 +181,12 @@ export function calculateRosterPrice(data: PriceInput) {
       const deployment = deploymentRules(datasheetIn(loaded, catalogueId, unit.entryId)?.abilities.map((ability) => ability.name) ?? [])
       const choices: ((typeof unit.choices)[number] & { kind?: 'enhancement' | 'upgrade' })[] = unit.choices.map((choice) => {
         if (!choice.name.toLowerCase().includes('enhancement')) return choice
-        const kind = choice.options.every((option) => upgradeNames.has(slug(option.name))) ? ('upgrade' as const) : ('enhancement' as const)
+        const choiceOptions = choice.options ?? []
+        const kind = choiceOptions.every((option) => upgradeNames.has(slug(option.name))) ? ('upgrade' as const) : ('enhancement' as const)
         return {
           ...choice,
           kind,
-          options: choice.options.map((option) => {
+          options: choiceOptions.map((option) => {
             const description = findEnhancementDescription(enhancementDescriptions, chosen, option.name)
             return { ...option, description, keywordRules: rulesReferencedIn(loaded, [description]) }
           }),
