@@ -358,6 +358,30 @@ test('an enhancement changes the weapons of the model bearing it', async ({ page
 })
 
 /**
+ * The same shape of enhancement in another book, and the scopes the data uses for it.
+ * A Master Artisan adds one to the bearer's Wounds — written against the model — and
+ * one to the Toughness of every model in its unit, written against the whole group.
+ * The first of those scopes went unresolved, so half the relic did nothing.
+ */
+test('an enhancement adds to the bearer and to the unit around it', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 })
+  await openBuilder(page, 'Drukhari', /Covenite Coterie/)
+  await add(page, 'Haemonculus')
+  await page
+    .locator('[data-unit="Haemonculus"]')
+    .getByRole('button', { name: /^Haemonculus/ })
+    .click()
+
+  const loadout = page.locator('aside[aria-label="Loadout"]')
+  await loadout.getByRole('button', { name: 'Select Master Artisan' }).click()
+  await expect(page.locator('[data-roster-builder]')).toHaveAttribute('data-saving', 'false')
+
+  await expect(page.getByRole('button', { name: /W \d+, modified from \d+ by Master Artisan/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: /T \d+, modified from \d+ by Master Artisan/ })).toBeVisible()
+  await page.screenshot({ path: 'test-results/master-artisan.png', fullPage: true })
+})
+
+/**
  * Two sources name the same weapon: the catalogue prints a staff of light as two
  * rows, and the rules source spells the same two as "Staff of light (Ranged)" and
  * "(Melee)". Both drawn, a character appeared to carry the staff twice over.

@@ -883,11 +883,18 @@ function resolveScope(scope: string, node: Node, root: Node, census: Census): No
     case 'root-entry':
       return [rootEntry(node)]
     // The enclosing unit, which is what a per-model cost is nearly always counted in.
+    // The `-self` spelling is the same question: `enclosing` counts the node itself,
+    // which is what including self means.
     case 'unit':
     case 'unit-self':
     case 'model':
+    case 'model-self':
     case 'model-or-unit':
-      return enclosing(node, scope === 'model-or-unit' ? ['model', 'unit'] : [scope === 'unit-self' ? 'unit' : scope])
+    case 'model-or-unit-self':
+    case 'upgrade':
+      return enclosing(node, scope.startsWith('model-or-unit') ? ['model', 'unit'] : [scope.replace(/-self$/, '')])
+    case 'root-entry-self':
+      return [rootEntry(node)]
     case 'primary-catalogue':
       census.note('scope primary-catalogue')
       return []
