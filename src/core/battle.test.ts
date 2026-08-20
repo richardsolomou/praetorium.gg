@@ -1187,17 +1187,17 @@ describe('secondaries', () => {
     expect(alice(reduceBattle(PLAYERS, history))?.secondary).toBe(7)
   })
 
-  it('carry achieved and returned lifecycle state into the view', () => {
-    const achieved = reduceBattle(PLAYERS, log(...named(), [ALICE, { kind: 'set-secondary-status', key: 'a', status: 'achieved' }]))
-    expect(battleView({ token: 'abc' }, NAMES, achieved, ALICE).players[0]?.secondaries[0]?.status).toBe('achieved')
-
-    const returned = reduceBattle(PLAYERS, log(...named(), [ALICE, { kind: 'set-secondary-status', key: 'a', status: 'returned' }]))
-    expect(battleView({ token: 'abc' }, NAMES, returned, ALICE).players[0]?.secondaries[0]?.status).toBe('returned')
+  it.each(['achieved', 'discarded', 'returned'] as const)('carries %s lifecycle state into the view', (status) => {
+    const state = reduceBattle(PLAYERS, log(...named(), [ALICE, { kind: 'set-secondary-status', key: 'a', status }]))
+    expect(battleView({ token: 'abc' }, NAMES, state, ALICE).players[0]?.secondaries[0]?.status).toBe(status)
   })
 
   it('reports putting a card back differently from giving up on it', () => {
-    const history = log(...named(), [ALICE, { kind: 'set-secondary-status', key: 'a', status: 'returned' }])
-    expect(text(battleReport(NAMES, history))).toContain('Alice puts Behind Enemy Lines back in the deck')
+    const returned = log(...named(), [ALICE, { kind: 'set-secondary-status', key: 'a', status: 'returned' }])
+    expect(text(battleReport(NAMES, returned))).toContain('Alice puts Behind Enemy Lines back in the deck')
+
+    const discarded = log(...named(), [ALICE, { kind: 'set-secondary-status', key: 'a', status: 'discarded' }])
+    expect(text(battleReport(NAMES, discarded))).toContain('Alice marks Behind Enemy Lines discarded')
   })
 
   it('withhold a secret mission from the opponent until it is revealed', () => {

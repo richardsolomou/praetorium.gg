@@ -123,7 +123,7 @@ export const STRATAGEM_CP_MAX = 6
 
 /** A secondary mission, named by the player because the deck is not in the data either. */
 export type Secondary = { key: string; name: string }
-type SecondaryStatus = 'active' | 'achieved' | 'returned'
+type SecondaryStatus = 'active' | 'achieved' | 'discarded' | 'returned'
 
 export const SECONDARIES_MAX = 6
 const SECONDARY_HISTORY_MAX = 30

@@ -67,7 +67,9 @@ export function SecondaryMissions({ side, actionable, pending, send, referenceFo
               <MissionName name={secondary.name} card={referenceFor(secondary.key)} type="Secondary mission" />
               <span className="mt-0.5 flex flex-wrap gap-1.5 text-[0.625rem] font-semibold uppercase">
                 {secondary.secret ? <span className="text-azure">{secondary.revealed ? 'revealed' : 'secret'}</span> : null}
-                {secondary.status === 'achieved' ? <span className="text-achieved">achieved</span> : null}
+                {secondary.status === 'active' ? null : (
+                  <span className={secondary.status === 'achieved' ? 'text-achieved' : 'text-discarded'}>{secondary.status}</span>
+                )}
               </span>
             </span>
             <span className="readout shrink-0 font-bold">{secondary.points}</span>
