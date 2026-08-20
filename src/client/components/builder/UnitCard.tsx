@@ -1,5 +1,6 @@
 import { Copy, EllipsisVertical, Heart, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { ContextMenu, ContextMenuCheckboxItem, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu'
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -58,11 +59,10 @@ export function UnitCard({
   onJoin,
   editable = true,
 }: Props) {
-  return (
-    <div
-      data-unit={unit.name}
-      className={`border bg-card transition-colors ${selected ? 'border-azure' : 'border-edge hover:border-azure'}`}
-    >
+  const cardClassName = `border bg-card transition-colors ${selected ? 'border-azure' : 'border-edge hover:border-azure'}`
+
+  const card = (
+    <>
       <div className="relative flex items-start gap-2 px-2.5 py-2">
         <Button
           variant="ghost"
@@ -172,6 +172,36 @@ export function UnitCard({
           ))}
         </div>
       ) : null}
-    </div>
+    </>
+  )
+
+  if (!editable) {
+    return (
+      <div data-unit={unit.name} className={cardClassName}>
+        {card}
+      </div>
+    )
+  }
+
+  return (
+    <ContextMenu>
+      <ContextMenuTrigger render={<div data-unit={unit.name} className={cardClassName} />}>{card}</ContextMenuTrigger>
+      <ContextMenuContent className="w-44 rounded-none border border-edge-strong bg-raised shadow-xl ring-0">
+        <ContextMenuItem className="rounded-none text-xs font-semibold uppercase focus:bg-edge" onClick={onDuplicate}>
+          <Copy className="size-3.5" /> Duplicate unit
+        </ContextMenuItem>
+        <ContextMenuCheckboxItem
+          className="rounded-none text-xs font-semibold uppercase focus:bg-edge"
+          checked={owned}
+          onCheckedChange={onOwned}
+        >
+          <Heart className={`size-3.5 ${owned ? 'fill-azure text-azure' : ''}`} />
+          {owned ? 'Remove from collection' : 'Add to collection'}
+        </ContextMenuCheckboxItem>
+        <ContextMenuItem variant="destructive" className="rounded-none text-xs font-semibold uppercase" onClick={onRemove}>
+          <X className="size-3.5" /> Delete unit
+        </ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
   )
 }
