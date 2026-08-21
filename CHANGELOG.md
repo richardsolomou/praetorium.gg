@@ -1,5 +1,14 @@
 # praetorium
 
+## 0.17.1
+
+### Patch Changes
+
+- 3ecf75b: Open battles and the battles list faster by leaving the list expansion out of the log.
+- 3ecf75b: Load battle and roster pages in fewer round trips by fetching what does not depend on the page alongside it.
+- 3ecf75b: Keep offering players to connect with once you have many friends, instead of running out of suggestions.
+- 3ecf75b: Show every roster's points as the library loads, in one request instead of one per row.
+
 ## 0.17.0
 
 ### Minor Changes
