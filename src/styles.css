@@ -19,7 +19,7 @@
  *
  * The layout, density and vocabulary are BattleBase's; the surfaces are dark.
  * The palette takes its cues from printed deployment plans: charcoal
- * structure, warm paper, and muted red and green opposing zones.
+ * structure with muted red and green field markings.
  *
  * The two side colours are not decoration. Every number on screen belongs to one
  * player or the other, and at arm's length across a table the tint is what tells
@@ -40,8 +40,8 @@
   --color-dim: #a4a8ac;
   --color-faint: #83888d;
 
-  --color-azure: #c8c1ae;
-  --color-azure-ink: #201e18;
+  --color-azure: #89b89d;
+  --color-azure-ink: #101a14;
   --color-side-a: #df8078;
   --color-side-b: #7eaa9e;
   --color-achieved: #63b36f;
@@ -112,8 +112,8 @@
   --card-foreground: #eceff1;
   --popover: #1a1d21;
   --popover-foreground: #eceff1;
-  --primary: #c8c1ae;
-  --primary-foreground: #201e18;
+  --primary: #89b89d;
+  --primary-foreground: #101a14;
   --secondary: #1a1d21;
   --secondary-foreground: #eceff1;
   --muted: #1a1d21;
@@ -124,7 +124,7 @@
   --destructive-foreground: #21110f;
   --border: #292d32;
   --input: #3a4047;
-  --ring: #c8c1ae;
+  --ring: #89b89d;
 }
 
 /*
