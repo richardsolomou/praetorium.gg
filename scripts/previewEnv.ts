@@ -66,7 +66,24 @@ export function databaseNameFrom(url: string) {
   return new URL(url).pathname.replace(/^\//, '')
 }
 
-export function previewEnv(prNumber: string, previewUrl: string, source: Source = process.env) {
+/**
+ * The previews that still exist, as Dokploy sees them.
+ *
+ * Dokploy is the authority on what is alive, so a database with no application
+ * belongs to a pull request that closed. Reading it here means the cleanup needs
+ * no GitHub token and no route from a runner into the database network.
+ */
+export function livePullRequests(applicationNames: readonly string[], applicationPrefix: string, current: string) {
+  const pattern = new RegExp(`^${applicationPrefix}-pr-(\\d+)$`)
+  const live = new Set([pullRequestNumber(current)])
+  for (const name of applicationNames) {
+    const found = pattern.exec(name.trim())
+    if (found?.[1]) live.add(found[1])
+  }
+  return [...live].sort((left, right) => Number(left) - Number(right))
+}
+
+export function previewEnv(prNumber: string, previewUrl: string, source: Source = process.env, live: readonly string[] = []) {
   const admin = required(source, 'PREVIEW_DATABASE_ADMIN_URL')
   const entries: [string, string][] = [
     ['APP_URL', previewUrl],
@@ -75,6 +92,10 @@ export function previewEnv(prNumber: string, previewUrl: string, source: Source 
     ['DATABASE_URL', previewDatabaseUrl(admin, prNumber)],
     ['PRAETORIUM_PREVIEW_ADMIN_DATABASE_URL', admin],
   ]
+  // Everything still open, so the container can drop the databases of pull
+  // requests that closed. Absent means "do not know", and the container leaves
+  // every database alone rather than guessing.
+  if (live.length) entries.push(['PRAETORIUM_PREVIEW_LIVE_PR_NUMBERS', live.join(' ')])
   const snapshot = value(source, 'CATALOGUE_SNAPSHOT_BASE_URL')
   if (snapshot) entries.push(['CATALOGUE_SNAPSHOT_BASE_URL', snapshot])
   // No VALKEY_URL: a preview is one replica, so sessions and the limiter belong in

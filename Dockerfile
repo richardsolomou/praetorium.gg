@@ -14,7 +14,7 @@ COPY src ./src
 COPY public ./public
 COPY drizzle ./drizzle
 COPY catalogue ./catalogue
-COPY scripts/containerRuntime.ts scripts/migrate.ts scripts/previewDatabase.ts scripts/previewEnv.ts scripts/seedPreview.ts ./scripts/
+COPY scripts/containerRuntime.ts scripts/importOnBoot.ts scripts/importSqlite.ts scripts/migrate.ts scripts/previewDatabase.ts scripts/previewEnv.ts scripts/seedPreview.ts ./scripts/
 COPY ras-stack.assets.json tsconfig.json vite.config.ts vite.seed.config.ts ./
 ARG VITE_POSTHOG_PROJECT_TOKEN
 ARG VITE_POSTHOG_HOST

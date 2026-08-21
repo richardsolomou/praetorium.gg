@@ -21,6 +21,8 @@ import {
 /**
  * Moves a SQLite Praetorium into Postgres, once.
  *
+ * Transitional, and removed with `importOnBoot.ts` after the cutover.
+ *
  * The tables are copied in the order their foreign keys allow, inside one
  * transaction, so a failure anywhere leaves an empty database rather than half a
  * game. Rows keep their ids, so a link a player has already shared still opens
@@ -267,6 +269,7 @@ export function sqliteCounts(source: DatabaseSync) {
   })
 }
 
+/** The database to read. Pass `undefined` to mean "whatever is in DATA_DIR". */
 export function sqlitePath(argument = process.argv[2]) {
   return argument ?? path.join(path.resolve(process.env.DATA_DIR ?? '/data'), 'praetorium.sqlite')
 }

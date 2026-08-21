@@ -20,7 +20,9 @@ Previews share one Postgres of their own, separate from production, and each tak
 { "PREVIEW_DATABASE_ADMIN_URL": "postgres://user:password@preview-postgres:5432/postgres" }
 ```
 
-Any other key is refused rather than passed through. The preview Postgres is reachable from Dokploy and not from a CI runner, which is why the database is created inside the container rather than by the workflow. A closed pull request therefore leaves an empty database behind on that instance; the next deployment of the same number drops it. The pull request comment contains both logins so two browser sessions can play each other. The preview downloads the same current verified snapshot as production after startup.
+Any other key is refused rather than passed through. The preview Postgres is reachable from Dokploy and not from a CI runner, which is why the database is created inside the container rather than by the workflow.
+
+Closed pull requests are cleaned up by the next deployment of any preview. The deploy asks Dokploy which preview applications exist, since Dokploy is the authority on what is alive, and passes those numbers to the container, which drops every other `praetorium_pr_<number>`. A deploy that cannot determine the list drops nothing rather than guessing. The pull request comment contains both logins so two browser sessions can play each other. The preview downloads the same current verified snapshot as production after startup.
 
 Closing or merging removes the instance and its preview images. A weekly prune removes previews and images left behind by a failed cleanup.
 

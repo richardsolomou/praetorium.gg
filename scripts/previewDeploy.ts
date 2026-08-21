@@ -1,21 +1,35 @@
 // Deploys PR previews by driving the Dokploy API, so the environment can carry a
 // Postgres URL that must not live in a public workflow file.
 import fs from 'node:fs'
-import { dokployPreviewFromEnvironment } from 'ras-stack/preview/dokploy'
-import { loadPreviewAppSecrets, previewEnv, pullRequestNumber } from './previewEnv'
+import { DokployClient, dokployPreviewFromEnvironment } from 'ras-stack/preview/dokploy'
+import { livePullRequests, loadPreviewAppSecrets, previewEnv, pullRequestNumber } from './previewEnv'
 
 loadPreviewAppSecrets()
 
 const prNumber = () => pullRequestNumber(process.env.PR_NUMBER)
 
+type PreviewConfig = ReturnType<typeof dokployPreviewFromEnvironment>['config']
+
+function client(config: PreviewConfig) {
+  return new DokployClient({ url: config.url, apiKey: config.apiKey, environmentId: config.environmentId })
+}
+
 async function deploy() {
   const { config, manager } = dokployPreviewFromEnvironment()
   const image = process.env.PREVIEW_IMAGE?.trim()
   if (!image) throw new Error('PREVIEW_IMAGE is required')
+  // Asked before the deploy, so this pull request's own application may be absent;
+  // `livePullRequests` always keeps the current number regardless.
+  const applications = await client(config).applications()
+  const live = livePullRequests(
+    applications.map((application) => application.name),
+    config.applicationPrefix,
+    prNumber(),
+  )
   const deployed = await manager.deploy({
     prNumber: prNumber(),
     image,
-    environment: ({ url }) => previewEnv(prNumber(), url),
+    environment: ({ url }) => previewEnv(prNumber(), url, process.env, live),
     ...(config.registry ? { registry: config.registry } : {}),
   })
   if (process.env.GITHUB_OUTPUT) fs.appendFileSync(process.env.GITHUB_OUTPUT, `preview-url=${deployed.url}\n`)

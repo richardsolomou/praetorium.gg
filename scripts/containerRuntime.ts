@@ -26,6 +26,10 @@ if (process.env.PRAETORIUM_PREVIEW_ADMIN_DATABASE_URL?.trim()) {
 // together take turns rather than race.
 execFileSync(process.execPath, ['.output/server/migrate.mjs'], { stdio: 'inherit' })
 
+// Carries a SQLite deployment across on its first Postgres boot. A no-op once
+// there are accounts, and on any instance with no `praetorium.sqlite` to read.
+execFileSync(process.execPath, ['.output/server/import-on-boot.mjs'], { stdio: 'inherit' })
+
 if (process.env.PRAETORIUM_SEED_PREVIEW === 'true' || previewDeployment(process.env.APP_URL)) {
   execFileSync(process.execPath, ['.output/server/seed-preview.mjs'], { stdio: 'inherit' })
 }
