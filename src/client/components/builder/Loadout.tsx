@@ -6,7 +6,7 @@ import type { RosterPick } from '../../../core/roster'
 import { datasheetQuery } from '../../queries'
 import { useSettled } from '../../useSettled'
 import { WeaponSummary } from './DatasheetPanel'
-import { type LoadoutModel, type LoadoutUnit, sameWeapon, type SpreadCounts, weaponMatches } from './loadoutModel'
+import { type LoadoutModel, type LoadoutUnit, orderedChoices, sameWeapon, type SpreadCounts, weaponMatches } from './loadoutModel'
 import { EitherChoice, LoadoutLoading, SpecialChoice, SpreadChoice, Stepper } from './LoadoutControls'
 import { ModelCard } from './ModelCard'
 
@@ -173,7 +173,7 @@ export function Loadout({
                 <span className="readout">{loose.length}</span>
               </p>
               <div className="mt-3 grid gap-5">
-                {loose.map((choice) =>
+                {orderedChoices(loose, weapons).map((choice) =>
                   choice.kind ? (
                     <SpecialChoice key={choice.key} choice={choice} unitName={unit.name} editable={editable} onChoose={onChoose} />
                   ) : choice.room > 1 ? (

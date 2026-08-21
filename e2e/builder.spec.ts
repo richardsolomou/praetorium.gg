@@ -803,6 +803,32 @@ test('the detachment that makes a tank a character hands it the crown', async ({
   await expect(page.locator('[data-unit="Land Raider Redeemer"]')).toContainText('250 pts')
 })
 
+test('the unit editor asks about weapons before the rest of the wargear', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 1200 })
+  await openBuilder(page)
+  await add(page, 'Overlord')
+  await page
+    .locator('[data-unit="Overlord"]')
+    .getByRole('button', { name: /^Overlord/ })
+    .click()
+
+  const loadout = page.locator('aside[aria-label="Loadout"]')
+  const groups = loadout.locator('legend, .eyebrow').filter({ hasText: /^(Weapons|Wargear)$/ })
+  await expect(groups.first()).toHaveText(/Weapons/i)
+  await expect(groups.nth(1)).toHaveText(/Wargear/i)
+
+  // The resurrection orb's rules read at the size of the labels around them, not at
+  // the size a reference page sets prose in.
+  const prose = loadout.locator('[data-slot], div').filter({ hasText: 'this unit resurrects' }).last()
+  const label = loadout
+    .locator('.eyebrow')
+    .filter({ hasText: /^Wargear$/ })
+    .first()
+  const sizeOf = (locator: typeof prose) => locator.evaluate((element) => Number.parseFloat(getComputedStyle(element).fontSize))
+  expect(await sizeOf(prose)).toBeLessThanOrEqual((await sizeOf(label)) + 1.5)
+  await loadout.screenshot({ path: 'test-results/loadout-reading-order.png' })
+})
+
 test('a character can be marked as the warlord from its unit editor', async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 900 })
   await openBuilder(page)

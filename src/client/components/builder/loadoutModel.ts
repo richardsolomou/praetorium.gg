@@ -107,21 +107,48 @@ export function ordered<T extends { name: string }>(
   weapons: readonly WeaponProfileData[],
   clusterOf: (entry: T) => string,
 ) {
-  const profiles = (name: string) => weapons.filter((weapon) => weaponMatches(name, weapon.name))
-  // A combi-weapon has a melee profile and is still a gun, so what it also does
-  // cannot decide where it goes.
-  const melee = (name: string) =>
-    profiles(name).some((weapon) => weapon.type === 'Melee Weapons') && !profiles(name).some((weapon) => weapon.type === 'Ranged Weapons')
   const clusters = new Map<string, { at: number; melee: boolean; entries: T[] }>()
   entries.forEach((entry, at) => {
     const key = clusterOf(entry)
     const cluster = clusters.get(key)
     if (cluster) cluster.entries.push(entry)
-    else clusters.set(key, { at, melee: melee(entry.name), entries: [entry] })
+    else clusters.set(key, { at, melee: isMelee(entry.name, weapons), entries: [entry] })
   })
   return [...clusters.values()]
     .toSorted((one, other) => Number(one.melee) - Number(other.melee) || one.at - other.at)
     .flatMap((cluster) => cluster.entries)
+}
+
+const profilesFor = (name: string, weapons: readonly WeaponProfileData[]) => weapons.filter((weapon) => weaponMatches(name, weapon.name))
+
+// A combi-weapon has a melee profile and is still a gun, so what it also does cannot
+// decide where it goes.
+const isMelee = (name: string, weapons: readonly WeaponProfileData[]) =>
+  profilesFor(name, weapons).some((weapon) => weapon.type === 'Melee Weapons') &&
+  !profilesFor(name, weapons).some((weapon) => weapon.type === 'Ranged Weapons')
+
+/**
+ * The questions the unit answers as a whole, in the order a datasheet asks them.
+ *
+ * What it fights with first, then what else it carries: an Overlord picks his blade
+ * before he decides about the resurrection orb, which is the order the datasheet
+ * prints and the order the question actually gets asked in. A group is a weapon group
+ * when any of its options has a profile, since the point of the group is usually that
+ * one of them is a weapon and another is not.
+ */
+export function orderedChoices<T extends { options: readonly { name: string }[] }>(
+  choices: readonly T[],
+  weapons: readonly WeaponProfileData[],
+) {
+  const band = (choice: T) => {
+    const names = choice.options.map((option) => option.name)
+    if (!names.some((name) => profilesFor(name, weapons).length)) return 2
+    return names.every((name) => isMelee(name, weapons)) ? 1 : 0
+  }
+  return choices
+    .map((choice, at) => ({ choice, at, band: band(choice) }))
+    .toSorted((one, other) => one.band - other.band || one.at - other.at)
+    .map((entry) => entry.choice)
 }
 
 /**

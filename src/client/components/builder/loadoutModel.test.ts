@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { type LoadoutChoice, ordered, sameWeapon, spreadHandlers, weaponMatches, wargearMatches } from './loadoutModel'
+import { type LoadoutChoice, ordered, orderedChoices, sameWeapon, spreadHandlers, weaponMatches, wargearMatches } from './loadoutModel'
 
 const option = (id: string, count: number, max: number) => ({ id, name: id, points: 0, count, max })
 
@@ -69,6 +69,36 @@ describe('ordering the rows on a model card', () => {
       'Combat knife',
       'Plasma pistol',
     ])
+  })
+})
+
+describe('ordering the questions the unit answers as a whole', () => {
+  const weapons = [
+    weapon('Overlord\u2019s blade', 'Melee Weapons'),
+    weapon('Tachyon arrow', 'Ranged Weapons'),
+    weapon('Hyperphase sword', 'Melee Weapons'),
+  ]
+  const group = (name: string, ...carried: string[]) => ({ name, options: carried.map((held) => ({ name: held })) })
+
+  it('asks what the unit fights with before what else it carries', () => {
+    const choices = [group('Wargear', 'Resurrection orb'), group('Weapons', 'Overlord\u2019s blade', 'Tachyon arrow')]
+    expect(orderedChoices(choices, weapons).map((entry) => entry.name)).toEqual(['Weapons', 'Wargear'])
+  })
+
+  it('keeps guns ahead of blades, and leaves the rest as the datasheet has them', () => {
+    const choices = [
+      group('Melee', 'Hyperphase sword'),
+      group('Relic', 'Veil of darkness'),
+      group('Ranged', 'Tachyon arrow'),
+      group('Trinket', 'Phylactery'),
+    ]
+    expect(orderedChoices(choices, weapons).map((entry) => entry.name)).toEqual(['Ranged', 'Melee', 'Relic', 'Trinket'])
+  })
+
+  it('counts a group as weapons when any option in it has a profile', () => {
+    // The point of most such groups is that one option is a gun and the other is not.
+    const choices = [group('Wargear', 'Resurrection orb'), group('Arm', 'Tachyon arrow', 'Nothing at all')]
+    expect(orderedChoices(choices, weapons).map((entry) => entry.name)).toEqual(['Arm', 'Wargear'])
   })
 })
 

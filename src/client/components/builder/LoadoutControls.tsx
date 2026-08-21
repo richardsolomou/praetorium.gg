@@ -8,6 +8,14 @@ import { type LoadoutChoice, type LoadoutOption, type SpreadCounts, spreadHandle
 import type { WeaponProfileData } from './loadoutModel'
 
 /**
+ * Rules prose inside the pane, at the size of the labels it sits between.
+ *
+ * A reference page is prose with headings; this is a control with a note attached, and
+ * a note set larger than the option it explains reads as the louder of the two.
+ */
+const PROSE = 'text-xs'
+
+/**
  * The controls the loadout pane is built from.
  *
  * Two kinds of choice, because the data holds two. A group with room for one is an
@@ -240,7 +248,7 @@ export function SpecialChoice({
           >
             {option.description ? (
               <div className="border-t border-edge px-2.5 pb-2">
-                <RuleText text={option.description} rules={option.keywordRules} />
+                <RuleText text={option.description} rules={option.keywordRules} className={PROSE} />
               </div>
             ) : null}
           </ChoiceOption>
@@ -283,7 +291,7 @@ export function EitherChoice({
             <OptionAbilities optionName={option.name} abilities={abilities} rules={rules} />
             {option.description ? (
               <div className="border-t border-edge px-2.5 pb-2">
-                <RuleText text={option.description} rules={option.keywordRules ?? rules} />
+                <RuleText text={option.description} rules={option.keywordRules ?? rules} className={PROSE} />
               </div>
             ) : null}
           </ChoiceOption>
@@ -359,7 +367,7 @@ function OptionAbilities({
       {matching.map((ability) => (
         <div key={ability.id}>
           {ability.name.toLocaleLowerCase() === optionName.toLocaleLowerCase() ? null : <p className="eyebrow pt-2">{ability.name}</p>}
-          {ability.description ? <RuleText text={ability.description} rules={rules} /> : null}
+          {ability.description ? <RuleText text={ability.description} rules={rules} className={PROSE} /> : null}
         </div>
       ))}
     </div>
