@@ -83,10 +83,6 @@ db-check:
 db-migrate:
     pnpm db:migrate
 
-# Move a SQLite Praetorium into Postgres. Takes the .sqlite path, or uses DATA_DIR
-db-import-sqlite *args:
-    pnpm db:import-sqlite {{ args }}
-
 e2e-install:
     pnpm exec playwright install chromium --only-shell
 
