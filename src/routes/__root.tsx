@@ -245,7 +245,7 @@ function RootComponent() {
                   className="group flex shrink-0 items-center gap-1.5 text-base leading-none font-bold tracking-[0.02em] text-bone uppercase hover:text-azure sm:text-lg"
                 >
                   <img src="/logo.svg" alt="" className="size-7 transition-transform group-hover:-translate-y-px" />
-                  <span>Praetorium</span>
+                  <span className="min-[815px]:hidden min-[900px]:inline">Praetorium</span>
                 </Link>
                 <PrimaryNavigation path={path} />
                 <GlobalSearch />
