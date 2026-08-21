@@ -160,18 +160,23 @@ function finishUnit(entryId: string, selection: Selection, size: UnitSize, index
     return withUnitSpread(tree, choice.key, { [option.id]: option.max }, index)
   }, selection)
   /**
-   * A squad the data keeps identical, kept identical however it was asked for.
+   * A squad the data keeps identical, not split by the building of it.
    *
-   * The rule is the datasheet's, so it holds whatever the saved list says and whatever
-   * a resize left behind: growing a squad of tesla carbines refills the new bodies from
-   * the group's default, which would quietly mix what may not be mixed. What the player
-   * last asked for decides which way it goes, and the rest of the squad follows.
+   * Growing a squad of tesla carbines refills the new bodies from the group's default,
+   * which would mix what the datasheet does not allow mixed — nobody asked for that, so
+   * the models that arrived take what the rest are holding.
+   *
+   * A split the list itself states is left exactly as it states it. A roster pasted in
+   * from somewhere else is the player's, illegal or not, and `violations` is already
+   * where it gets told that its Immortals may not carry both. Quietly issuing seven of
+   * them a different gun would be a worse answer than saying so.
    */
   const settled = unitChoices(entryId, completed, index, context).reduce((tree, choice) => {
     const held = choice.options.filter((option) => option.count > 0)
-    if (!choice.uniform || held.length < 2) return tree
     const asked = context?.spreads?.[choice.key] ?? {}
-    const chosen = held.find((option) => (asked[option.id] ?? 0) > 0) ?? held.toSorted((one, other) => other.count - one.count)[0]
+    const stated = choice.options.filter((option) => (asked[option.id] ?? 0) > 0)
+    if (!choice.uniform || held.length < 2 || stated.length > 1) return tree
+    const chosen = stated[0] ?? held.toSorted((one, other) => other.count - one.count)[0]
     if (!chosen) return tree
     return withUnitSpread(
       tree,

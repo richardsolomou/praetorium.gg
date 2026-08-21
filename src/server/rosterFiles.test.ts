@@ -43,6 +43,48 @@ const faction: CatalogueFile = {
         ],
       },
       {
+        id: 'immortals',
+        name: 'Immortals',
+        type: 'unit',
+        // "All models must be equipped identically", as the catalogue writes it.
+        modifiers: [
+          {
+            type: 'add',
+            field: 'error',
+            value: 'All models must be equipped identically',
+            conditionGroups: [
+              {
+                type: 'and',
+                conditions: [
+                  { type: 'atLeast', value: 1, field: 'selections', scope: 'immortals', childId: 'gauss', includeChildSelections: true },
+                  { type: 'atLeast', value: 1, field: 'selections', scope: 'immortals', childId: 'tesla', includeChildSelections: true },
+                ],
+              },
+            ],
+          },
+        ],
+        selectionEntries: [
+          {
+            id: 'immortal',
+            name: 'Immortal',
+            type: 'model',
+            constraints: [{ id: 'immortal-min', type: 'min', value: 5, field: 'selections', scope: 'parent' }],
+            selectionEntryGroups: [
+              {
+                id: 'guns',
+                name: 'Weapons',
+                defaultSelectionEntryId: 'gauss',
+                constraints: [{ id: 'guns-max', type: 'max', value: 5, field: 'selections', scope: 'parent' }],
+                selectionEntries: [
+                  { id: 'gauss', name: 'Gauss blaster', type: 'upgrade' },
+                  { id: 'tesla', name: 'Tesla carbine', type: 'upgrade' },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+      {
         id: 'lord',
         name: 'Lokhust Lord',
         type: 'model',
@@ -220,6 +262,36 @@ Exported with BattleBase, Data Version: v20260812`,
     )
 
     expect(imported.units[0]?.spreads?.['model/weapon']).toEqual({ blaster: 0, beamer: 3 })
+  })
+
+  it('keeps a split the datasheet forbids exactly as the file states it', () => {
+    // Somebody else's builder let them mix, and the file is theirs. Reading it back as
+    // four of one gun would hand them an army they did not write; violations is where
+    // they get told, and one press of either weapon settles it.
+    const imported = importRosterFile(
+      {
+        file: `Mixed (140 Points)
+
+Necrons
+Pantheon of Woe (2 Detachment Points)
+Strike Force (2,000 Points)
+
+OTHER DATASHEETS
+
+Immortals (140 Points)
+    • 3x Gauss blaster
+    • 2x Tesla carbine
+
+Exported with BattleBase, Data Version: v20260812`,
+      },
+      loaded,
+    )
+
+    expect(imported.units[0]?.spreads?.['immortal/guns']).toEqual({ gauss: 3, tesla: 2 })
+    const built = buildUnit('immortals', loaded.index, imported.units[0]?.models, undefined, {
+      spreads: imported.units[0]?.spreads,
+    })!
+    expect(wargearOf(built.selection, loaded.index).map((piece) => piece.name)).toEqual(['Gauss blaster', 'Tesla carbine'])
   })
 
   it('matches an enhancement after its export label', () => {

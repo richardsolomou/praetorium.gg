@@ -862,11 +862,13 @@ describe('a squad the data will not let hold two things at once', () => {
     expect(carrying(squad(forbidsMixing), { carbine: 5, blaster: 0 })).toEqual(['Tesla carbine'])
   })
 
-  it('settles a list that was saved holding both on the one it holds most of', () => {
+  it('leaves a list that states both exactly as it states it, and lets it be told', () => {
+    // A roster pasted in from another builder is the player's, illegal or not. Quietly
+    // issuing three of them a different gun is a worse answer than saying so.
     const index = squad(forbidsMixing)
     const built = buildUnit('squad', index, 5, undefined, { spreads: { 'body/guns': { blaster: 3, carbine: 2 } } })!
-    expect(wargearOf(built.selection, index).map((piece) => piece.name)).toEqual(['Gauss blaster'])
-    expect(evaluate([built.selection], index).errors).toEqual([])
+    expect(wargearOf(built.selection, index).map((piece) => piece.name)).toEqual(['Gauss blaster', 'Tesla carbine'])
+    expect(evaluate([built.selection], index).errors.map((error) => error.message)).toEqual(['All models must be equipped identically'])
   })
 
   it('leaves a group the data says nothing about free to divide itself', () => {
