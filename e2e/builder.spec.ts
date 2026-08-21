@@ -573,7 +573,7 @@ test('Cursed Legion does not modify Immortals without an eligible leader', async
     .click()
 
   const loadout = page.locator('aside[aria-label="Loadout"]')
-  const gauss = loadout.getByRole('listitem').filter({ hasText: 'Gauss blaster' })
+  const gauss = loadout.locator('article').filter({ hasText: 'Gauss blaster' }).first()
   await expect(gauss.getByText('5', { exact: true }).first()).toBeVisible()
   await expect(page.getByRole('button', { name: /modified from 5 by Cursed Legion/ })).toHaveCount(0)
 })
@@ -994,13 +994,15 @@ test('making a new warlord removes the previous one', async ({ page }) => {
   await expect(page.getByText(/\d+x Warlord/)).toHaveCount(0)
 })
 
-test('a squad divides its weapons between two options', async ({ page }) => {
+test('a squad the datasheet keeps identical is asked once, not counted', async ({ page }) => {
+  // "All models in this unit can each have their gauss blaster replaced with 1 tesla
+  // carbine" is one decision for the whole squad, and the catalogue says so by calling
+  // a mixed squad an error. A count against each option invited exactly that error.
   await page.setViewportSize({ width: 1600, height: 900 })
   await openBuilder(page)
   await add(page, 'Immortals')
   await page.locator('[data-unit="Immortals"]').getByRole('button', { name: 'Immortals', exact: true }).click()
 
-  // Ten bodies, so there are ten guns to divide.
   for (let models = 6; models <= 10; models++) {
     await page.getByRole('button', { name: 'More models in Immortals' }).click()
     await expect(page.getByLabel('Immortals models')).toHaveText(String(models))
@@ -1011,25 +1013,14 @@ test('a squad divides its weapons between two options', async ({ page }) => {
   await expect(loadout.getByText('Wargear options')).toBeVisible()
   await expect(loadout.getByText('Weapons').first()).toBeVisible()
   await expect(loadout.getByText('BS').first()).toBeVisible()
-  await expect(loadout.getByText('10/10')).toBeVisible()
 
-  // The group is always full, so taking a carbine takes a blaster off a model.
-  for (let swapped = 1; swapped <= 3; swapped++) {
-    await loadout.getByRole('button', { name: 'More Tesla carbine' }).click()
-    await expect(page.getByLabel('Tesla carbine count')).toHaveText(String(swapped))
-  }
-  await expect(page.getByLabel('Tesla carbine count')).toHaveText('3')
-  await expect(page.getByLabel('Gauss blaster count')).toHaveText('7')
+  // One question, not ten: no count against either gun, and picking one arms the squad.
+  await expect(loadout.getByRole('button', { name: /^(More|Fewer) (Gauss blaster|Tesla carbine)$/ })).toHaveCount(0)
+  await loadout.getByRole('button', { name: 'Select Tesla carbine' }).click()
 
-  // Removing a default weapon makes the inverse legal swap instead of being
-  // silently refilled by the catalogue's mandatory group.
-  await loadout.getByRole('button', { name: 'Fewer Gauss blaster' }).click()
-  await expect(page.getByLabel('Tesla carbine count')).toHaveText('4')
-  await expect(page.getByLabel('Gauss blaster count')).toHaveText('6')
-
-  // The card reads as the datasheet would print it, and the squad is still legal.
-  await expect(page.getByText('6x Gauss blaster')).toBeVisible()
-  await expect(page.getByText('4x Tesla carbine')).toBeVisible()
+  await expect(page.getByText('10x Tesla carbine')).toBeVisible()
+  await expect(page.getByText('10x Gauss blaster')).toBeHidden()
+  await expect(page.getByText('must be equipped identically')).toHaveCount(0)
   await expect(page.getByText('Within the points limit')).toBeAttached()
   await page.screenshot({ path: 'test-results/loadout.png', fullPage: true })
 })

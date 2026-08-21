@@ -9,6 +9,7 @@
 import type { CatalogueIndex, Definition } from './catalogue'
 import {
   childrenOf,
+  exclusiveSets,
   isRosterToggle,
   MAX_DEPTH,
   maximumCount,
@@ -54,6 +55,16 @@ export type UnitChoice = {
    */
   room: number
   /**
+   * Whether the squad has to answer this one way for all of it.
+   *
+   * "All models in this unit can each have their gauss blaster replaced with 1 tesla
+   * carbine" is one decision taken once, not five taken separately, and the data says
+   * so by calling a squad holding both an error. A group with room for several is
+   * otherwise a squad dividing itself, so without this the pane offers a count against
+   * each option and only objects once the player has used it.
+   */
+  uniform: boolean
+  /**
    * `profile` is set when the option is a model rather than a piece of wargear, and
    * names the kind of model it is one loadout of.
    */
@@ -80,6 +91,25 @@ export function unitChoices(entryId: string, selection: Selection, index: Catalo
   const visible = (definition: Definition) => !hiddenByRules(definition, index, { ...options, roster })
   const entry = index.definitions.get(entryId)
   if (!entry) return []
+
+  /**
+   * What the datasheet refuses to see held together, wherever it says so.
+   *
+   * A squad that must match is written against the unit for Immortals and against the
+   * weapon group itself for Lychguard, so the answer is the same either way only if
+   * the whole datasheet is read for it.
+   */
+  const forbidden: string[][] = []
+  const gather = (definition: Definition, left: number, seen: Set<string>) => {
+    const target = resolve(definition, index)
+    if (left <= 0 || seen.has(target.id)) return
+    const visited = new Set(seen).add(target.id)
+    forbidden.push(...exclusiveSets(definition), ...(target === definition ? [] : exclusiveSets(target)))
+    for (const child of childrenOf(target, index)) gather(child.definition, left - 1, visited)
+  }
+  // One deeper than the choices themselves: the catalogue writes the rule onto each
+  // of the options it holds apart, which is a level below the group that offers them.
+  gather(entry, depth + 1, new Set())
 
   const choices: UnitChoice[] = []
   const walk = (definition: Definition, trail: string[], left: number, seen: Set<string>, carriers: number) => {
@@ -108,6 +138,7 @@ export function unitChoices(entryId: string, selection: Selection, index: Catalo
           optional: true,
           room,
           options: [{ id: child.id, name: inner.name ?? child.id, points: pointsOf(child, index), count, max: room }],
+          uniform: false,
           carried: true,
           owner: modelOwnerOf(trail, index),
         })
@@ -136,6 +167,7 @@ export function unitChoices(entryId: string, selection: Selection, index: Catalo
           optional: true,
           room: 1,
           options: [{ id: child.id, name: inner.name ?? child.id, points: pointsOf(child, index), count, max: 1 }],
+          uniform: false,
           carried: false,
           owner: modelOwnerOf(trail, index),
         })
@@ -173,6 +205,12 @@ export function unitChoices(entryId: string, selection: Selection, index: Catalo
           if (!repeating) return legalMaximum(selection, here, option, adjustable, adjustableRoom, index, options)
           return separate ? roomFor(option) : adjustableRoom
         }
+        // A squad the data will not let hold two of these at once answers the group
+        // once for all of it, however many models are carrying it.
+        const ids = adjustable.map((option) => new Set([option.id, resolve(option.definition, index).id]))
+        const uniform =
+          adjustable.length > 1 &&
+          forbidden.some((set) => ids.every((option) => set.some((named) => option.has(named))) && set.length >= adjustable.length)
         const optionalSingle = !fixed && adjustable.length === 1 && requiredCount(child.definition, index) === 0
         if ((adjustable.length > 1 || optionalSingle) && adjustableRoom >= 1 && adjustableRoom !== UNBOUNDED) {
           const taken = held.find((present) => (present.count ?? 1) > 0 && adjustable.some((option) => option.id === present.id))
@@ -190,6 +228,7 @@ export function unitChoices(entryId: string, selection: Selection, index: Catalo
               max: maximumFor(option),
               ...(resolve(option.definition, index).type === 'model' ? { profile: modelProfileOf(option.definition, index) } : {}),
             })),
+            uniform,
             carried: Boolean(repeating),
             owner: modelOwnerOf(trail, index),
           })

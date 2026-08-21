@@ -371,6 +371,7 @@ describe('optional wargear on repeated models', () => {
       optional: true,
       carried: true,
       room: 3,
+      uniform: false,
       options: [{ id: 'shield', name: 'Shieldvanes', points: 0, count: 0, max: 3 }],
       owner: null,
     })

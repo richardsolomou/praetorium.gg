@@ -6,7 +6,15 @@ import type { RosterPick } from '../../../core/roster'
 import { datasheetQuery } from '../../queries'
 import { useSettled } from '../../useSettled'
 import { WeaponSummary } from './DatasheetPanel'
-import { type LoadoutModel, type LoadoutUnit, orderedChoices, sameWeapon, type SpreadCounts, weaponMatches } from './loadoutModel'
+import {
+  type LoadoutModel,
+  type LoadoutUnit,
+  orderedChoices,
+  sameWeapon,
+  type SpreadCounts,
+  weaponMatches,
+  wholeSquadTakes,
+} from './loadoutModel'
 import { EitherChoice, LoadoutLoading, SpecialChoice, SpreadChoice, Stepper } from './LoadoutControls'
 import { ModelCard } from './ModelCard'
 
@@ -176,7 +184,7 @@ export function Loadout({
                 {orderedChoices(loose, weapons).map((choice) =>
                   choice.kind ? (
                     <SpecialChoice key={choice.key} choice={choice} unitName={unit.name} editable={editable} onChoose={onChoose} />
-                  ) : choice.room > 1 ? (
+                  ) : choice.room > 1 && !choice.uniform ? (
                     <SpreadChoice
                       key={choice.key}
                       choice={choice}
@@ -192,7 +200,8 @@ export function Loadout({
                       choice={choice}
                       unitName={unit.name}
                       editable={editable}
-                      onChoose={onChoose}
+                      // A squad that must match answers once, and every model follows.
+                      onChoose={choice.uniform ? (key, optionId) => onSpread(key, wholeSquadTakes(choice, optionId)) : onChoose}
                       weapons={weapons}
                       abilities={availableSheet.abilities}
                       rules={rules}

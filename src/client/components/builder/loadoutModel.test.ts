@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import { type LoadoutChoice, ordered, orderedChoices, sameWeapon, spreadHandlers, weaponMatches, wargearMatches } from './loadoutModel'
+import {
+  type LoadoutChoice,
+  ordered,
+  orderedChoices,
+  sameWeapon,
+  spreadHandlers,
+  weaponMatches,
+  wargearMatches,
+  wholeSquadTakes,
+} from './loadoutModel'
 
 const option = (id: string, count: number, max: number) => ({ id, name: id, points: 0, count, max })
 
@@ -10,6 +19,7 @@ const choice = (options: LoadoutChoice['options'], room: number, optional = fals
   optional,
   carried: false,
   room,
+  uniform: false,
   options,
 })
 
@@ -99,6 +109,14 @@ describe('ordering the questions the unit answers as a whole', () => {
     // The point of most such groups is that one option is a gun and the other is not.
     const choices = [group('Wargear', 'Resurrection orb'), group('Arm', 'Tachyon arrow', 'Nothing at all')]
     expect(orderedChoices(choices, weapons).map((entry) => entry.name)).toEqual(['Arm', 'Wargear'])
+  })
+})
+
+describe('a group the whole squad answers at once', () => {
+  it('hands every model the option that was picked', () => {
+    const group = choice([option('gauss', 5, 5), option('tesla', 0, 5)], 5)
+    expect(wholeSquadTakes(group, 'tesla')).toEqual({ gauss: 0, tesla: 5 })
+    expect(wholeSquadTakes(group, 'gauss')).toEqual({ gauss: 5, tesla: 0 })
   })
 })
 

@@ -7,9 +7,10 @@ import {
   ordered,
   type SpreadCounts,
   spreadHandlers,
+  wholeSquadTakes,
 } from './loadoutModel'
 import type { WeaponProfileData } from './loadoutModel'
-import { PoolStepper, WargearRow } from './LoadoutControls'
+import { PickControl, PoolStepper, WargearRow } from './LoadoutControls'
 
 /**
  * One kind of model in the unit, and everything it can carry.
@@ -224,19 +225,36 @@ export function ModelCard({
               abilities={abilities}
               rules={rules}
               control={
-                <PoolStepper
-                  name={row.name}
-                  count={option.count}
-                  editable={editable}
-                  {...(choice.room > 1 || choice.carried
-                    ? { onAdd: pooled(row, spend), onRemove: pooled(row, free) }
-                    : {
-                        onAdd: taken ? undefined : () => onChoose(choice.key, option.id),
-                        // A group that must hold something cannot be emptied, only
-                        // pointed elsewhere, so offering to empty it would lie.
-                        onRemove: taken && choice.optional ? () => onChoose(choice.key, '') : undefined,
-                      })}
-                />
+                choice.uniform ? (
+                  // Every model carries the same one, so the row is answered rather
+                  // than counted: taking it hands it to the whole squad at once.
+                  <PickControl
+                    name={row.name}
+                    count={option.count}
+                    editable={editable}
+                    onPick={
+                      option.count > 0
+                        ? choice.optional
+                          ? () => onSpread(choice.key, wholeSquadTakes(choice, ''))
+                          : undefined
+                        : () => onSpread(choice.key, wholeSquadTakes(choice, option.id))
+                    }
+                  />
+                ) : (
+                  <PoolStepper
+                    name={row.name}
+                    count={option.count}
+                    editable={editable}
+                    {...(choice.room > 1 || choice.carried
+                      ? { onAdd: pooled(row, spend), onRemove: pooled(row, free) }
+                      : {
+                          onAdd: taken ? undefined : () => onChoose(choice.key, option.id),
+                          // A group that must hold something cannot be emptied, only
+                          // pointed elsewhere, so offering to empty it would lie.
+                          onRemove: taken && choice.optional ? () => onChoose(choice.key, '') : undefined,
+                        })}
+                  />
+                )
               }
             />
           )

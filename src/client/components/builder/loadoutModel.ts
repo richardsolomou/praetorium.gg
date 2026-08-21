@@ -15,6 +15,8 @@ export type LoadoutChoice = {
   optional: boolean
   carried: boolean
   room: number
+  /** The squad answers this once for all of it, however many models carry it. */
+  uniform: boolean
   kind?: 'enhancement' | 'upgrade'
   options: {
     id: string
@@ -150,6 +152,15 @@ export function orderedChoices<T extends { options: readonly { name: string }[] 
     .toSorted((one, other) => one.band - other.band || one.at - other.at)
     .map((entry) => entry.choice)
 }
+
+/**
+ * Every model in the squad holding the same option, which is what a uniform group is.
+ *
+ * The group is still one slot per model, so answering it is still a spread — it is the
+ * question that is asked once, not the wargear that is issued once.
+ */
+export const wholeSquadTakes = (choice: LoadoutChoice, optionId: string): SpreadCounts =>
+  Object.fromEntries(choice.options.map((option) => [option.id, option.id === optionId ? choice.room : 0]))
 
 /**
  * A group the squad divides between its options, a count at a time.

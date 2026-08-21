@@ -9,7 +9,15 @@
  * Pure, like the rest of `src/core`.
  */
 
-import { type CatalogueIndex, type Constraint, type Definition, targetOf } from './catalogue'
+import {
+  type CatalogueIndex,
+  type ConditionGroup,
+  type Constraint,
+  type Definition,
+  type Modifier,
+  type ModifierGroup,
+  targetOf,
+} from './catalogue'
 import { type EvaluateOptions, selectionCountBounds } from './evaluate'
 
 /** Crusade and campaign subtrees run deep and none of it is mandatory. */
@@ -99,6 +107,39 @@ export function modelProfileOf(definition: Definition, index: CatalogueIndex): s
 
 /** Optional single entries with roster meaning rather than loadout meaning. */
 export const isRosterToggle = (name: string | undefined) => name?.trim().toLowerCase() === 'warlord'
+
+/**
+ * Sets of entries the data will not let a unit hold together.
+ *
+ * "All models in this unit can each have their gauss blaster replaced with 1 tesla
+ * carbine" has no number in it to constrain, so the catalogue writes it as an error
+ * that fires when the unit holds one of each. Read the other way round, that names a
+ * decision the squad takes once for all of it. Only a plain "and" of "holds at least
+ * one of this" is read: anything else is some other rule, and guessing at it would
+ * take away a choice a player is entitled to.
+ */
+export function exclusiveSets(definition: Definition): string[][] {
+  const found: string[][] = []
+  const collect = (modifier: Modifier, inherited: readonly ConditionGroup[]) => {
+    if (modifier.field !== 'error' || modifier.type !== 'add') return
+    for (const group of [...inherited, ...(modifier.conditionGroups ?? [])]) {
+      const conditions = group.conditions ?? []
+      if (group.type !== 'and' || conditions.length < 2) continue
+      if (!conditions.every((condition) => condition.type === 'atLeast' && condition.value === 1 && condition.field === 'selections'))
+        continue
+      const named = conditions.flatMap((condition) => (condition.childId ? [condition.childId] : []))
+      if (named.length === conditions.length) found.push(named)
+    }
+  }
+  const walk = (group: ModifierGroup, inherited: readonly ConditionGroup[]) => {
+    const chain = [...inherited, ...(group.conditionGroups ?? [])]
+    for (const modifier of group.modifiers ?? []) collect(modifier, chain)
+    for (const nested of group.modifierGroups ?? []) walk(nested, chain)
+  }
+  for (const modifier of definition.modifiers ?? []) collect(modifier, [])
+  for (const group of definition.modifierGroups ?? []) walk(group, [])
+  return found
+}
 
 /** The nearest ancestor model a path sits inside, when it is not the unit's own root. */
 export function modelOwnerOf(trail: readonly string[], index: CatalogueIndex): { id: string; name: string; profile: string | null } | null {
