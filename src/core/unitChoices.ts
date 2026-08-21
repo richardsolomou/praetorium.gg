@@ -136,7 +136,18 @@ export function unitChoices(entryId: string, selection: Selection, index: Catalo
         // same entry — so how many there are is a sum, not the first one found.
         const countOf = (id: string) =>
           held.filter((present) => present.id === id).reduce((total, present) => total + (present.count ?? 1), 0)
-        const adjustableRoom = fixed ? adjustable.reduce((total, option) => total + countOf(option.id), 0) : room
+        // A group with a cap of its own shares it out, so what is left for the optional
+        // occupants is what a required sibling is not already holding. A group with no
+        // cap makes nothing compete: a hunter-killer missile, a multi-melta and a storm
+        // bolter each answer only to their own maximum, once for every model carrying
+        // the group, and a tank may carry all three.
+        const separate = fixed && capacity === null
+        const roomFor = (option: Option) => scaled(maximumCount(option.definition, index), scale)
+        const adjustableRoom = separate ? sum(adjustable.map(roomFor)) : fixed ? heldRoom(adjustable, countOf) : room
+        const maximumFor = (option: Option) => {
+          if (!repeating) return legalMaximum(selection, here, option, adjustable, adjustableRoom, index, options)
+          return separate ? roomFor(option) : adjustableRoom
+        }
         const optionalSingle = !fixed && adjustable.length === 1 && requiredCount(child.definition, index) === 0
         if ((adjustable.length > 1 || optionalSingle) && adjustableRoom >= 1 && adjustableRoom !== UNBOUNDED) {
           const taken = held.find((present) => (present.count ?? 1) > 0 && adjustable.some((option) => option.id === present.id))
@@ -151,7 +162,7 @@ export function unitChoices(entryId: string, selection: Selection, index: Catalo
               name: resolve(option.definition, index).name ?? option.id,
               points: pointsOf(option, index),
               count: countOf(option.id),
-              max: repeating ? adjustableRoom : legalMaximum(selection, here, option, adjustable, adjustableRoom, index, options),
+              max: maximumFor(option),
               ...(resolve(option.definition, index).type === 'model' ? { profile: modelProfileOf(option.definition, index) } : {}),
             })),
             carried: Boolean(repeating),
@@ -175,16 +186,27 @@ export function unitChoices(entryId: string, selection: Selection, index: Catalo
   return choices
 }
 
-/** Optional single entries with roster meaning rather than loadout meaning. */
-export function unitToggles(entryId: string, selection: Selection, index: CatalogueIndex): UnitToggle[] {
+/**
+ * Optional single entries with roster meaning rather than loadout meaning.
+ *
+ * Read through the same visibility the loadout choices are read through. Who may be
+ * the Warlord is in the data and it is conditional: a Land Raider carries the entry
+ * only underneath the Tank Ace Character upgrade a couple of detachments unlock, and
+ * a daemon borrowed into a Chaos Space Marine book carries one its own book hides.
+ * Walking past those conditions offered a crown to every tank in the game.
+ */
+export function unitToggles(entryId: string, selection: Selection, index: CatalogueIndex, options: ChoiceOptions = {}): UnitToggle[] {
   const root = index.definitions.get(entryId)
   if (!root) return []
+  const roster = [...(options.roster ?? []), selection]
+  const visible = (definition: Definition) => !hiddenByRules(definition, index, { ...options, roster })
   const found: UnitToggle[] = []
   const walk = (definition: Definition, trail: string[], seen: Set<string>) => {
     const target = resolve(definition, index)
     if (seen.has(target.id)) return
     const visited = new Set(seen).add(target.id)
     for (const child of childrenOf(target, index)) {
+      if (!visible(child.definition)) continue
       const inner = resolve(child.definition, index)
       const here = [...trail, child.id]
       if (isRosterToggle(inner.name ?? child.definition.name)) {
@@ -258,3 +280,13 @@ function legalMaximum(
 
 const occupantRoom = (choosable: Option[], index: CatalogueIndex) =>
   choosable.length ? Math.min(...choosable.map((option) => maximumCount(option.definition, index) ?? UNBOUNDED)) : UNBOUNDED
+
+/** What the optional occupants of a capped group have left once the required ones are placed. */
+const heldRoom = (adjustable: Option[], countOf: (id: string) => number) =>
+  adjustable.reduce((total, option) => total + countOf(option.id), 0)
+
+/** One occupant's allowance across every model carrying the group. */
+const scaled = (cap: number | null, carriers: number) => (cap === null ? UNBOUNDED : cap * carriers)
+
+/** Occupants that share no capacity are bounded one by one, so their room adds up. */
+const sum = (rooms: number[]) => (rooms.includes(UNBOUNDED) ? UNBOUNDED : rooms.reduce((total, room) => total + room, 0))

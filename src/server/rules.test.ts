@@ -23,16 +23,20 @@ beforeEach(() => {
       game_version: { edition: '11th', dataslate: 'launch' },
     },
     { id: 'mortarions-teachings', name: "MORTARION'S TEACHINGS", detachment_id: 'flyblown-host', cp_cost: 2, timing: 'unknown-timing' },
+    // The same card written down a second time under the detachment that shares it.
+    { id: 'grim-reapers-plague-cohort', name: 'GRIM REAPERS', detachment_id: 'plague-cohort', cp_cost: 1, timing: 'once-per-phase' },
   ])
   write(path.join(core, 'detachments.json'), [
     {
       id: 'flyblown-host',
       name: 'Flyblown Host',
       enhancement_ids: ['living-plague', 'rejuvenating-swarm', 'virulent-carapace'],
-      stratagem_ids: ['grim-reapers', 'mortarions-teachings'],
+      stratagem_ids: ['grim-reapers-plague-cohort', 'mortarions-teachings'],
       detachment_points: 2,
       force_dispositions: ['disruption'],
     },
+    // Two detachments sharing one stratagem, written down once under the other.
+    { id: 'plague-cohort', name: 'Plague Cohort', stratagem_ids: ['grim-reapers-flyblown-host'], detachment_points: 1 },
   ])
   write(path.join(core, 'enhancements.json'), [
     { id: 'living-plague', name: 'Living Plague', detachment_id: 'flyblown-host', cost: 20 },
@@ -215,6 +219,40 @@ describe('stratagems', () => {
 
   it('are grouped under the detachment that brings them', () => {
     expect(load().byDetachment.get('death-guard')?.get('flyblown-host')).toHaveLength(2)
+  })
+
+  it('reach a detachment that names one the dataset filed under another', () => {
+    // The shared six are written once and referenced by id from everywhere else, so
+    // reading only the record's own detachment loses them.
+    expect(
+      load()
+        .byDetachment.get('death-guard')
+        ?.get('plague-cohort')
+        ?.map((stratagem) => stratagem.name),
+    ).toEqual(['Grim Reapers'])
+    expect(
+      load()
+        .detachmentDetails.get('death-guard')
+        ?.get('plague-cohort')
+        ?.stratagems.map((found) => found.name),
+    ).toEqual(['Grim Reapers'])
+    expect(load().detachmentReferences.get('death-guard')?.get('plague-cohort')?.stratagems).toBe(1)
+  })
+
+  it('counts a card reached both ways once', () => {
+    const found = load().byDetachment.get('death-guard')?.get('flyblown-host') ?? []
+    expect(found.map((stratagem) => stratagem.name)).toEqual(['Grim Reapers', "Mortarion's Teachings"])
+    // The copy filed under this detachment, not the one it merely names.
+    expect(found[0]?.key).toBe('grim-reapers-flyblown-host')
+  })
+
+  it('answer to every name the dataset gives the faction', () => {
+    // The catalogues call the Adeptus Astartes book Space Marines, and a whole
+    // faction's detachment points and stratagems went missing over the difference.
+    const rules = load()
+    expect(rules.detachmentReferences.get('plague-marines')?.get('flyblown-host')?.points).toBe(2)
+    expect(rules.detachmentDetails.get('plague-marines')?.get('flyblown-host')?.name).toBe('Flyblown Host')
+    expect(rules.byDetachment.get('plague-marines')?.get('flyblown-host')).toHaveLength(2)
   })
 
   it('take the usage limit the dataset states', () => {

@@ -637,3 +637,122 @@ describe('a choice the data closes behind another', () => {
     expect(evaluate([built.selection], index).errors).toEqual([])
   })
 })
+
+describe('a wargear group holding both the fixed guns and the optional extras', () => {
+  // How every tank in the game is written: the group carries no cap of its own, the
+  // guns it always has sit in it with minimums, and the pintle mounts sit beside them
+  // with a maximum of one each. Nothing competes, so a Land Raider may bolt on all of
+  // them — reading the group as one shared slot offered none of them at all.
+  const index = indexOf({
+    sharedSelectionEntries: [
+      {
+        id: 'tank',
+        name: 'Land Raider',
+        type: 'unit',
+        selectionEntryGroups: [
+          {
+            id: 'wargear',
+            name: 'Wargear',
+            selectionEntries: [
+              {
+                id: 'tracks',
+                name: 'Armoured tracks',
+                type: 'upgrade',
+                constraints: [
+                  { id: 'tracks-min', type: 'min', value: 1, field: 'selections', scope: 'parent' },
+                  { id: 'tracks-max', type: 'max', value: 1, field: 'selections', scope: 'parent' },
+                ],
+              },
+              {
+                id: 'hunter-killer',
+                name: 'Hunter-killer missile',
+                type: 'upgrade',
+                constraints: [{ id: 'hk-max', type: 'max', value: 1, field: 'selections', scope: 'parent' }],
+              },
+              {
+                id: 'multi-melta',
+                name: 'Multi-melta',
+                type: 'upgrade',
+                constraints: [{ id: 'mm-max', type: 'max', value: 1, field: 'selections', scope: 'parent' }],
+              },
+              {
+                id: 'storm-bolter',
+                name: 'Storm bolter',
+                type: 'upgrade',
+                constraints: [{ id: 'sb-max', type: 'max', value: 1, field: 'selections', scope: 'parent' }],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  })
+
+  it('offers every extra, each to its own maximum', () => {
+    const [choice, ...rest] = buildUnit('tank', index)!.choices
+    expect(rest).toEqual([])
+    expect(choice?.room).toBe(3)
+    expect(choice?.options.map((option) => [option.name, option.max])).toEqual([
+      ['Hunter-killer missile', 1],
+      ['Multi-melta', 1],
+      ['Storm bolter', 1],
+    ])
+  })
+
+  it('lets the tank carry all of them at once', () => {
+    const built = buildUnit('tank', index, undefined, undefined, {
+      spreads: { wargear: { 'hunter-killer': 1, 'multi-melta': 1, 'storm-bolter': 1 } },
+    })!
+    expect(wargearOf(built.selection, index)).toEqual([
+      { name: 'Armoured tracks', count: 1 },
+      { name: 'Hunter-killer missile', count: 1 },
+      { name: 'Multi-melta', count: 1 },
+      { name: 'Storm bolter', count: 1 },
+    ])
+    expect(evaluate([built.selection], index).errors).toEqual([])
+  })
+})
+
+describe('who the data lets a list nominate as its Warlord', () => {
+  // A tank carries the entry only underneath an upgrade a detachment unlocks, and the
+  // data hides it until then. Walking past that offered a crown to every vehicle.
+  const index = indexOf({
+    sharedSelectionEntries: [
+      {
+        id: 'captain',
+        name: 'Captain',
+        type: 'model',
+        entryLinks: [{ id: 'captain-warlord', targetId: 'warlord', type: 'selectionEntry' }],
+      },
+      {
+        id: 'tank',
+        name: 'Land Raider',
+        type: 'unit',
+        entryLinks: [{ id: 'tank-ace', targetId: 'ace', type: 'selectionEntry' }],
+      },
+      {
+        id: 'ace',
+        name: 'Tank Ace Character',
+        type: 'upgrade',
+        modifiers: [
+          {
+            type: 'set',
+            value: true,
+            field: 'hidden',
+            conditions: [{ type: 'lessThan', value: 1, field: 'selections', scope: 'roster', childId: 'headhunters' }],
+          },
+        ],
+        entryLinks: [{ id: 'ace-warlord', targetId: 'warlord', type: 'selectionEntry' }],
+      },
+      { id: 'warlord', name: 'Warlord', type: 'upgrade' },
+    ],
+  })
+
+  it('offers the crown to a character', () => {
+    expect(buildUnit('captain', index)!.toggles.map((toggle) => toggle.name)).toEqual(['Warlord'])
+  })
+
+  it('keeps it from a tank whose detachment does not make it a character', () => {
+    expect(buildUnit('tank', index)!.toggles).toEqual([])
+  })
+})

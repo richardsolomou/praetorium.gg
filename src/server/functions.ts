@@ -255,7 +255,7 @@ export const factionDatasheets = createServerFn({ method: 'GET' })
           factionDisplayName(loaded.factions.find((entry) => entry.id === data.catalogueId)?.name ?? '', app().rules()?.factionNames),
         ),
       )?.datasheets
-      return unitsIn(loaded, data.catalogueId, data.query, { includeNames: names, limit: Number.POSITIVE_INFINITY })
+      return unitsIn(loaded, data.catalogueId, data.query, { includeNames: names })
     }),
   )
 

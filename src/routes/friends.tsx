@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { SearchField } from '../client/components/SearchField'
 import { SignInRequired } from '../client/components/SignInRequired'
 import { friendshipsQuery, meQuery, opponentsQuery } from '../client/queries'
 import { acceptFriend, removeFriend, requestFriend } from '../server/functions'
@@ -45,11 +45,14 @@ function Friends() {
 
       <section>
         <p className="rubric border-b border-edge pb-2">Find players</p>
-        <Input
-          className="mt-3 rounded-none border-edge bg-sunken"
+        <SearchField
+          className="mt-3"
+          inputClassName="rounded-none border-edge bg-sunken"
           value={query}
-          onChange={(event) => setQuery(event.target.value)}
+          onChange={setQuery}
           placeholder="Search by account name"
+          label="Search by account name"
+          clearLabel="Empty the player filter"
         />
         <div className="mt-2 space-y-2">
           {people.map((person) => (

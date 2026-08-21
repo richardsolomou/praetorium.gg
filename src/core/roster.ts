@@ -163,7 +163,7 @@ function finishUnit(entryId: string, selection: Selection, size: UnitSize, index
     selection: completed,
     size,
     choices: unitChoices(entryId, completed, index, context),
-    toggles: unitToggles(entryId, completed, index),
+    toggles: unitToggles(entryId, completed, index, context),
   }
 }
 

@@ -37,6 +37,26 @@ test('the unit picker stays within the roster faction', async ({ page }) => {
   await expect(page.getByRole('combobox', { name: 'Force' })).toHaveCount(0)
 })
 
+test('the whole book is on the shelves, not the first page of it', async ({ page }) => {
+  // A Space Marine book runs to well over a hundred datasheets and the picker sorts
+  // them by name, so a cut-off page ended mid-alphabet: the infantry shelf stopped at
+  // Inner Circle Companions and Sternguard Veterans could only be found by searching.
+  await openBuilder(page, 'Space Marines', /Gladius Task Force/)
+  await expect(page.getByRole('button', { name: 'Add Sternguard Veteran Squad', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Add Whirlwind', exact: true })).toBeVisible()
+})
+
+test('a filter that found nothing can be emptied without selecting it', async ({ page }) => {
+  await openBuilder(page)
+  const filter = page.getByLabel('Add a unit')
+  await filter.fill('nothing by this name')
+  await expect(page.getByText('Nothing by that name.')).toBeVisible()
+  await page.getByRole('button', { name: 'Empty the picker filter' }).click()
+  await expect(filter).toHaveValue('')
+  await expect(page.getByRole('button', { name: 'Empty the picker filter' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Add Immortals', exact: true })).toBeVisible()
+})
+
 test('Deathwatch excludes Scouts from its unit picker', async ({ page }) => {
   await openBuilder(page, 'Deathwatch', /Black Spear Task Force/)
   await page.getByLabel('Add a unit').fill('Scout')
@@ -715,6 +735,31 @@ test('a unit that leads nothing is offered no one to lead', async ({ page }) => 
   // Immortals lead nobody, so no attachment row is offered on their card.
   await expect(page.getByText('Leading')).toBeHidden()
   await expect(page.getByText('Support', { exact: true })).toBeHidden()
+})
+
+test('a tank is armed but not crowned', async ({ page }) => {
+  // The pintle mounts sit in the same uncapped group as the guns the tank always has,
+  // and were never offered; the Warlord entry sits under an upgrade only a couple of
+  // detachments unlock, and was offered to every vehicle in the game.
+  await page.setViewportSize({ width: 1600, height: 900 })
+  await openBuilder(page, 'Space Marines', /Gladius Task Force/)
+  await add(page, 'Land Raider Redeemer')
+  await page
+    .locator('[data-unit="Land Raider Redeemer"]')
+    .getByRole('button', { name: /^Land Raider Redeemer/ })
+    .click()
+  const loadout = page.locator('aside[aria-label="Loadout"]')
+  for (const weapon of ['Hunter-killer missile', 'Multi-melta', 'Storm bolter']) {
+    await expect(loadout.getByRole('button', { name: `More ${weapon}` })).toBeVisible()
+  }
+  await expect(page.getByRole('button', { name: /Land Raider Redeemer Warlord/ })).toHaveCount(0)
+
+  await add(page, 'Captain')
+  await page
+    .locator('[data-unit="Captain"]')
+    .getByRole('button', { name: /^Captain/ })
+    .click()
+  await expect(page.getByRole('button', { name: 'Make Captain Warlord' })).toBeVisible()
 })
 
 test('a character can be marked as the warlord from its unit editor', async ({ page }) => {

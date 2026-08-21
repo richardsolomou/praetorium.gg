@@ -114,6 +114,17 @@ describe('the picker', () => {
     expect(unitsIn(book, 'cat', '')[0]?.points).toBe(60)
   })
 
+  it('offers the whole book, not the first page of it', () => {
+    // A book runs to well over a hundred datasheets and the picker sorts them by
+    // name, so anything cut off the end takes the back half of the alphabet with it:
+    // a Space Marine player could find no Sternguard on any shelf.
+    const names = Array.from({ length: 120 }, (_, at) => `Squad ${String(at).padStart(3, '0')}`)
+    const book = bookOf({
+      selectionEntries: names.map((name, at) => ({ id: `unit-${at}`, name, type: 'unit', costs: points(10) })),
+    })
+    expect(offered(book)).toEqual(names)
+  })
+
   it('offers a datasheet the book reaches by a link', () => {
     // How most of the game is written: the datasheets live in a library, and a book
     // states its roster as links into it.
@@ -170,7 +181,7 @@ describe('the picker', () => {
     })
   })
 
-  it('keeps allied units after the limited primary page', () => {
+  it('keeps allied units after the whole primary book', () => {
     const shelf = shelfOf(
       {
         catalogueLinks: [
@@ -187,8 +198,9 @@ describe('the picker', () => {
       { selectionEntries: [{ id: 'ally', name: 'Aaron the Ally', type: 'unit', costs: points(30) }] },
     )
 
-    expect(unitsIn(shelf, 'cat', '', { limit: 1 }).map((unit) => [unit.name, unit.alliedFaction])).toEqual([
+    expect(unitsIn(shelf, 'cat', '').map((unit) => [unit.name, unit.alliedFaction])).toEqual([
       ['Alpha', null],
+      ['Bravo', null],
       ['Aaron the Ally', 'Book 2'],
     ])
   })

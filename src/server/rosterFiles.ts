@@ -38,6 +38,9 @@ export function importRosterFile(data: ImportRosterInput, loaded: LoadedCatalogu
       })
       .toSorted((left, right) => left.at - right.at)
       .map(({ id }) => id) ?? []
+  // What the roster's detachments leave open is part of reading its units: an
+  // enhancement group and the Warlord entry on a tank are both conditional on them.
+  const detachmentSelections = catalogueId ? rosterDetachments(loaded, catalogueId, detachmentIds).selections : []
   const importedUnits: { selection: Selection; parent: number | null; catalogueId: string | null }[] = []
   const collectUnits = (selection: Selection, parent: number | null, forceCatalogueId: string | null) => {
     const isDatasheet = isDatasheetId(loaded.index, selection.id, forceCatalogueId)
@@ -55,7 +58,8 @@ export function importRosterFile(data: ImportRosterInput, loaded: LoadedCatalogu
     catalogueName: parsed.catalogueName,
     detachmentIds,
     units: importedUnits.map(({ selection, parent, catalogueId: forceCatalogueId }) => {
-      const decisions = unitChoices(selection.id, selection, loaded.index, { primaryCatalogueId: catalogueId ?? undefined })
+      const context = { primaryCatalogueId: catalogueId ?? undefined, roster: detachmentSelections }
+      const decisions = unitChoices(selection.id, selection, loaded.index, context)
       const entry = loaded.index.definitions.get(selection.id)
       const attachedTo = parent !== null && entry && attachmentOf(entry, loaded.index) ? parent : undefined
       return {
@@ -71,7 +75,7 @@ export function importRosterFile(data: ImportRosterInput, loaded: LoadedCatalogu
             .map((choice) => [choice.key, Object.fromEntries(choice.options.map((option) => [option.id, option.count]))]),
         ),
         toggles: Object.fromEntries(
-          unitToggles(selection.id, selection, loaded.index).map((toggle) => [toggle.key, toggle.selected ? 1 : 0]),
+          unitToggles(selection.id, selection, loaded.index, context).map((toggle) => [toggle.key, toggle.selected ? 1 : 0]),
         ),
         attachedTo,
       }
@@ -177,7 +181,9 @@ function textRosterPick(unit: TextRosterUnit, entryId: string, catalogueId: stri
   const built = buildUnit(entryId, loaded.index, requestedModels, {}, context)
   const selection = built?.selection ?? { id: entryId, count: 1 }
   const choices = unitChoices(entryId, selection, loaded.index, context)
-  const toggles = Object.fromEntries(unitToggles(entryId, selection, loaded.index).map((toggle) => [toggle.key, unit.warlord ? 1 : 0]))
+  const toggles = Object.fromEntries(
+    unitToggles(entryId, selection, loaded.index, context).map((toggle) => [toggle.key, unit.warlord ? 1 : 0]),
+  )
   const statedChoiceCounts = new Map(choices.map((choice) => [choice.key, countsForChoice(choice.options, stated, loaded, context)]))
   return {
     entryId,
