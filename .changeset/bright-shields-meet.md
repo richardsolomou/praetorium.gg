@@ -2,4 +2,4 @@
 'praetorium': patch
 ---
 
-Give Praetorium a distinctive new logo across the app and browser.
+Give Praetorium a distinctive new logo and field-document color scheme across the app and browser.

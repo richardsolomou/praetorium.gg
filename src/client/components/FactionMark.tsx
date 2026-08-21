@@ -38,7 +38,7 @@ const FACTION_COLOURS: Record<string, string> = {
 }
 
 export function factionColour(id: string) {
-  return FACTION_COLOURS[id] ?? '#767e88'
+  return FACTION_COLOURS[id] ?? '#8b918a'
 }
 
 export type FactionPresentation = { slug: string; displayName: string; icon: string | null }

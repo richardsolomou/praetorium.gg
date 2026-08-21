@@ -1,10 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title description">
   <title id="title">Praetorium</title>
-  <desc id="description">Two opposing sides meeting in a fortified arena</desc>
-  <path fill="#eceef1" d="M8 8h48v32L32 58 8 40V8Z"/>
-  <path fill="#121417" d="M12 12h40v26L32 53 12 38V12Z"/>
-  <path fill="#f2564b" d="M16 16h13v10H19v9l10 7v5L16 37V16Z"/>
-  <path fill="#6f74ff" d="M35 16h13v21L35 47v-5l10-7v-9H35V16Z"/>
-  <path fill="#3d9bf5" d="m32 13 5 6-3 5v20l-2 5-2-5V24l-3-5 5-6Z"/>
-  <path fill="#eceef1" d="M22 29h7v5h-7zm13 0h7v5h-7z"/>
+  <desc id="description">Two opposing sides entering one shared command core</desc>
+  <circle cx="32" cy="32" r="27" fill="none" stroke="#a7aea8" stroke-width="6" stroke-dasharray="21 4"/>
+  <path fill="#df8078" d="M8 29h17l7 3-7 3H8Z"/>
+  <path fill="#7eaa9e" d="M56 29H39l-7 3 7 3h17Z"/>
+  <path fill="#102d33" stroke="#e8e2d2" stroke-width="2" d="m32 16 16 16-16 16-16-16Z"/>
+  <path fill="#d8cbaa" d="m32 23 9 9-9 9-9-9Z"/>
+  <circle cx="32" cy="32" r="3" fill="#091417"/>
 </svg>
