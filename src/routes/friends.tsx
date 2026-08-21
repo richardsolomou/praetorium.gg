@@ -93,7 +93,7 @@ function People({
 
 function PersonRow({ person, action, onAction }: { person: Person; action: string; onAction: () => void }) {
   return (
-    <div className="flex items-center justify-between gap-3 border border-edge bg-panel p-3">
+    <div data-person={person.name} className="flex items-center justify-between gap-3 border border-edge bg-panel p-3">
       <span className="font-bold uppercase">{person.name}</span>
       <Button variant="outline" size="sm" onClick={onAction}>
         {action}

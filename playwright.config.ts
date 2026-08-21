@@ -18,7 +18,14 @@ export default defineConfig({
   // One worker owns each container and database; CI starts isolated processes for parallelism.
   workers: 1,
   retries: 0,
-  timeout: 45_000,
+  /*
+   * A journey test signs two players up, builds a list, sets a table and plays a turn.
+   * None of that is asserting speed, and on a loaded CI runner the whole run can pass
+   * 45 seconds without anything being wrong — the budget is only here so a genuinely
+   * stuck test stops rather than hangs. `expect.timeout` below is the wait that means
+   * something, and it stays where it was.
+   */
+  timeout: 120_000,
   // Both pages settle through Centrifugo rather than by polling, so assertions
   // need room for the nudge and the refetch behind it.
   expect: { timeout: 15_000 },
