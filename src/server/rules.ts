@@ -132,7 +132,7 @@ export function loadRules(
  * a book and the rest of the app knows a faction by the name it shows a player.
  */
 export const rulesFaction = (rules: LoadedRules | null | undefined, factionSlug: string) =>
-  rules?.factionKeys.get(factionSlug) ?? factionSlug
+  rules?.factionKeys?.get(factionSlug) ?? factionSlug
 
 /**
  * The kinds of model a datasheet is built from, or nothing when the data is silent.

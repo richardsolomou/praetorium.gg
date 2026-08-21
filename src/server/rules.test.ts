@@ -265,6 +265,13 @@ describe('stratagems', () => {
     expect(rulesFaction(rules, 'a-faction-nobody-has-heard-of')).toBe('a-faction-nobody-has-heard-of')
   })
 
+  it('name the slug back when a stale rules object lacks the map', () => {
+    // A memoized rules object built before the map existed keeps no factionKeys.
+    // The reader must fall back to the slug rather than throw on the missing map.
+    const stale = {} as ReturnType<typeof load>
+    expect(rulesFaction(stale, 'death-guard')).toBe('death-guard')
+  })
+
   it('take the usage limit the dataset states', () => {
     const found = load().byDetachment.get('death-guard')?.get('flyblown-host')?.[0]
     expect(found?.limit).toBe('phase')
