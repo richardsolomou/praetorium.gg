@@ -762,6 +762,24 @@ test('a tank is armed but not crowned', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Make Captain Warlord' })).toBeVisible()
 })
 
+test('the detachment that makes a tank a character hands it the crown', async ({ page }) => {
+  // Tank Ace Character is a lone upgrade hung on the datasheet rather than sitting in
+  // a group, so nothing offered it and the Headhunter Task Force rule was unreachable.
+  await page.setViewportSize({ width: 1600, height: 900 })
+  await openBuilder(page, 'Space Marines', /Headhunter Task Force/)
+  await add(page, 'Land Raider Redeemer')
+  await page
+    .locator('[data-unit="Land Raider Redeemer"]')
+    .getByRole('button', { name: /^Land Raider Redeemer/ })
+    .click()
+  await expect(page.getByRole('button', { name: /Land Raider Redeemer Warlord/ })).toHaveCount(0)
+
+  const loadout = page.locator('aside[aria-label="Loadout"]')
+  await loadout.getByRole('button', { name: 'Select Tank Ace Character' }).click()
+  await expect(page.getByRole('button', { name: 'Make Land Raider Redeemer Warlord' })).toBeVisible()
+  await expect(page.locator('[data-unit="Land Raider Redeemer"]')).toContainText('250 pts')
+})
+
 test('a character can be marked as the warlord from its unit editor', async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 900 })
   await openBuilder(page)

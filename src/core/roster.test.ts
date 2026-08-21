@@ -15,6 +15,8 @@ const indexOf = (catalogue: Partial<Catalogue>) =>
 
 const mandatory = (id: string) => [{ id, type: 'min' as const, value: 1, field: 'selections', scope: 'parent' }]
 
+const points = (value: number) => [{ name: 'pts', typeId: PTS, value }]
+
 /** An enhancement group: optional, one at most, and only inside its own faction. */
 const keyworded = (): Partial<Catalogue> => ({
   sharedSelectionEntries: [
@@ -734,6 +736,7 @@ describe('who the data lets a list nominate as its Warlord', () => {
         id: 'ace',
         name: 'Tank Ace Character',
         type: 'upgrade',
+        constraints: [{ id: 'ace-max', type: 'max', value: 1, field: 'selections', scope: 'parent' }],
         modifiers: [
           {
             type: 'set',
@@ -742,9 +745,28 @@ describe('who the data lets a list nominate as its Warlord', () => {
             conditions: [{ type: 'lessThan', value: 1, field: 'selections', scope: 'roster', childId: 'headhunters' }],
           },
         ],
-        entryLinks: [{ id: 'ace-warlord', targetId: 'warlord', type: 'selectionEntry' }],
+        // The crown is inside the upgrade and guarded by it, so buying the upgrade is
+        // what puts it within reach.
+        entryLinks: [
+          {
+            id: 'ace-warlord',
+            targetId: 'warlord',
+            type: 'selectionEntry',
+            modifiers: [
+              {
+                type: 'set',
+                value: true,
+                field: 'hidden',
+                conditions: [
+                  { type: 'notInstanceOf', value: 1, field: 'selections', scope: 'ancestor', childId: 'ace', includeChildSelections: true },
+                ],
+              },
+            ],
+          },
+        ],
       },
       { id: 'warlord', name: 'Warlord', type: 'upgrade' },
+      { id: 'headhunters', name: 'Headhunter Task Force', type: 'upgrade' },
     ],
   })
 
@@ -754,5 +776,66 @@ describe('who the data lets a list nominate as its Warlord', () => {
 
   it('keeps it from a tank whose detachment does not make it a character', () => {
     expect(buildUnit('tank', index)!.toggles).toEqual([])
+  })
+
+  it('hands the crown over once the detachment is taken and the upgrade with it', () => {
+    const roster = [{ id: 'headhunters', count: 1 }]
+    const offered = buildUnit('tank', index, undefined, undefined, { roster })!
+    expect(offered.choices.map((choice) => choice.name)).toEqual(['Tank Ace Character'])
+    expect(offered.toggles).toEqual([])
+
+    const ace = offered.choices[0]
+    const crowned = buildUnit('tank', index, undefined, { [ace?.key ?? '']: ace?.options[0]?.id ?? '' }, { roster })!
+    expect(crowned.toggles.map((toggle) => toggle.name)).toEqual(['Warlord'])
+  })
+
+  it('leaves the crown out of the wargear, since it is not a thing the unit carries', () => {
+    expect(buildUnit('captain', index)!.choices).toEqual([])
+  })
+})
+
+describe('an upgrade the data hangs on the unit rather than in a group', () => {
+  // A lone yes-or-no needs no group to hold it, so it is written without one: a Chaos
+  // unit's icon, an Infiltrator Squad's comms array, a demolition charge. Everything
+  // that reads choices looked for a group, so none of them could ever be taken.
+  const index = indexOf({
+    sharedSelectionEntries: [
+      {
+        id: 'squad',
+        name: 'Breachers',
+        type: 'unit',
+        selectionEntries: [
+          { id: 'body', name: 'Breacher', type: 'model', constraints: mandatory('body-min'), costs: points(20) },
+          {
+            id: 'charge',
+            name: 'Demolition charge',
+            type: 'upgrade',
+            costs: points(15),
+            constraints: [{ id: 'charge-max', type: 'max', value: 1, field: 'selections', scope: 'parent' }],
+          },
+        ],
+      },
+    ],
+  })
+
+  it('offers it as a choice the list may simply decline', () => {
+    const [choice, ...rest] = buildUnit('squad', index)!.choices
+    expect(rest).toEqual([])
+    expect(choice).toMatchObject({ key: 'charge', name: 'Demolition charge', optional: true, room: 1, chosen: '', carried: false })
+    expect(choice?.options).toEqual([{ id: 'charge', name: 'Demolition charge', points: 15, count: 0, max: 1 }])
+  })
+
+  it('charges for it once when it is taken, and stops when it is put down', () => {
+    const bare = buildUnit('squad', index)!
+    expect(evaluate([bare.selection], index).points).toBe(20)
+
+    const armed = buildUnit('squad', index, undefined, { charge: 'charge' })!
+    expect(evaluate([armed.selection], index).points).toBe(35)
+    expect(wargearOf(armed.selection, index)).toEqual([{ name: 'Demolition charge', count: 1 }])
+    expect(armed.choices[0]?.chosen).toBe('charge')
+
+    const disarmed = buildUnit('squad', index, undefined, { charge: '' })!
+    expect(evaluate([disarmed.selection], index).points).toBe(20)
+    expect(disarmed.choices[0]?.chosen).toBe('')
   })
 })

@@ -13,7 +13,7 @@
 import type { CatalogueIndex, Definition } from './catalogue'
 import { childrenOf, MAX_DEPTH, maximumCount, type Option, pointsOf, requiredCount, resolve, scaleOf } from './definitions'
 import { type EvaluateOptions, hiddenByRules, type Selection } from './evaluate'
-import { updateSelection, withPlaceFor } from './selection'
+import { updateSelection, withCounts, withPlaceFor } from './selection'
 
 export type DefaultOptions = EvaluateOptions & { maxDepth?: number }
 
@@ -133,6 +133,12 @@ export function withChoice(selection: Selection, key: string, optionId: string, 
   const groupId = path.at(-1)
   const group = groupId ? index.definitions.get(groupId) : undefined
   if (!group) return selection
+
+  // A lone optional upgrade stands on its own, so its key names the entry itself
+  // rather than a group holding it: the question is whether the unit has one, not
+  // what to put inside it. Placing the option under that key would file the entry
+  // inside a copy of itself and charge for it twice.
+  if (resolve(group, index).type !== undefined) return withCounts(selection, [{ path, count: optionId ? 1 : 0 }])
 
   const options = new Set(childrenOf(resolve(group, index), index).map((option) => option.id))
   const present = withPlaceFor(selection, path)

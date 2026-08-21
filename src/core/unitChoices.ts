@@ -93,12 +93,9 @@ export function unitChoices(entryId: string, selection: Selection, index: Catalo
       const here = [...trail, child.id]
 
       const repeatingEntry = inner.type === 'upgrade' ? repeatedModelOn(trail, index) : null
-      if (
-        repeatingEntry &&
-        repeatingEntry.path.length === trail.length &&
-        requiredCount(child.definition, index) === 0 &&
-        maximumCount(child.definition, index) === 1
-      ) {
+      const single = inner.type === 'upgrade' && requiredCount(child.definition, index) === 0 && maximumCount(child.definition, index) === 1
+      const onRepeatedModel = Boolean(repeatingEntry && repeatingEntry.path.length === trail.length)
+      if (repeatingEntry && onRepeatedModel && single) {
         const room = effectiveCount(selection, repeatingEntry.path, repeatingEntry.definition, index, options)
         const count = allAt(selection, repeatingEntry.path).reduce(
           (total, model) => total + (at(model, here.slice(repeatingEntry.path.length)) ? (model.count ?? 1) : 0),
@@ -112,6 +109,34 @@ export function unitChoices(entryId: string, selection: Selection, index: Catalo
           room,
           options: [{ id: child.id, name: inner.name ?? child.id, points: pointsOf(child, index), count, max: room }],
           carried: true,
+          owner: modelOwnerOf(trail, index),
+        })
+      }
+
+      /**
+       * An upgrade the data hangs on the unit itself rather than inside a group.
+       *
+       * A group is the usual way to write "one of these", so everything that reads
+       * choices looks for one — but a lone yes-or-no needs no group to hold it and
+       * is written without one, leaving nothing for the group branch to notice.
+       * That is a Chaos unit's icon, an Infiltrator Squad's comms array, the
+       * demolition charge on Imperial Navy Breachers, and the Tank Ace Character
+       * upgrade a Land Raider needs before it can lead an army.
+       *
+       * Only where the carrier is a real entry: inside a group the occupants are
+       * already reported together, and reporting them again would draw one control
+       * for the group and a second for every option in it.
+       */
+      if (single && !onRepeatedModel && target.type !== undefined && !isRosterToggle(inner.name ?? child.definition.name)) {
+        const count = countAt(selection, here)
+        choices.push({
+          key: here.join('/'),
+          name: inner.name ?? child.id,
+          chosen: count ? child.id : '',
+          optional: true,
+          room: 1,
+          options: [{ id: child.id, name: inner.name ?? child.id, points: pointsOf(child, index), count, max: 1 }],
+          carried: false,
           owner: modelOwnerOf(trail, index),
         })
       }
