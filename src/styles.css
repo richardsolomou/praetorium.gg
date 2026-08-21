@@ -18,7 +18,7 @@
  * the shadcn tokens its components read. Both point at the same values.
  *
  * The layout, density and vocabulary are BattleBase's; the surfaces are dark.
- * The palette takes its cues from printed deployment plans: deep blue-green
+ * The palette takes its cues from printed deployment plans: charcoal
  * structure, warm paper, and muted red and green opposing zones.
  *
  * The two side colours are not decoration. Every number on screen belongs to one
@@ -30,12 +30,12 @@
   --font-rules: 'Barlow', ui-sans-serif, system-ui, -apple-system, sans-serif;
   --font-mono: ui-monospace, 'SF Mono', Menlo, monospace;
 
-  --color-void: #091417;
-  --color-panel: #0d2429;
-  --color-raised: #153239;
-  --color-sunken: #071215;
-  --color-edge: #274249;
-  --color-edge-strong: #365158;
+  --color-void: #0b0c0e;
+  --color-panel: #121417;
+  --color-raised: #1a1d21;
+  --color-sunken: #08090b;
+  --color-edge: #292d32;
+  --color-edge-strong: #3a4047;
   --color-bone: #e8e2d2;
   --color-dim: #a9a99e;
   --color-faint: #8b918a;
@@ -106,24 +106,24 @@
   /* BattleBase rounds almost nothing: 3px on buttons, 4px on cards. */
   --radius: 0.25rem;
 
-  --background: #091417;
+  --background: #0b0c0e;
   --foreground: #e8e2d2;
-  --card: #0d2429;
+  --card: #121417;
   --card-foreground: #e8e2d2;
-  --popover: #153239;
+  --popover: #1a1d21;
   --popover-foreground: #e8e2d2;
   --primary: #d8cbaa;
   --primary-foreground: #211d14;
-  --secondary: #153239;
+  --secondary: #1a1d21;
   --secondary-foreground: #e8e2d2;
-  --muted: #153239;
+  --muted: #1a1d21;
   --muted-foreground: #a9a99e;
-  --accent: #274249;
+  --accent: #292d32;
   --accent-foreground: #e8e2d2;
   --destructive: #df8078;
   --destructive-foreground: #21110f;
-  --border: #274249;
-  --input: #365158;
+  --border: #292d32;
+  --input: #3a4047;
   --ring: #d8cbaa;
 }
 

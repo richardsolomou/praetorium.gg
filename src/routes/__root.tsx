@@ -43,7 +43,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: 'utf-8' },
       { name: 'viewport', content: 'width=device-width, initial-scale=1' },
       // Matches `--color-void`; the browser paints this before the stylesheet lands.
-      { name: 'theme-color', content: '#091417' },
+      { name: 'theme-color', content: '#0b0c0e' },
       { title: `${TITLE} — live Warhammer 40,000 battle tracking` },
       { name: 'description', content: DESCRIPTION },
       // Battle links get pasted into chats, so they need a real card.
