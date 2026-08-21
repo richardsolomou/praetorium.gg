@@ -1,5 +1,18 @@
 # praetorium
 
+## 0.16.6
+
+### Patch Changes
+
+- b97636e: Show a detachment all six of its stratagems. A card two detachments share is written down once, under whichever of them the source filed it, and named by the others only by its id. Reading the filing alone left Armoured Speartip without Armour of Contempt or Rapid Embarkation, and 184 other detachments similarly short, on the reference page and in the live tracker alike.
+- b97636e: Let a tank take the weapons bolted on beside its fixed ones. A hunter-killer missile, a multi-melta and a storm bolter sit in the same capless group as the guns a Land Raider always has, and nothing in that group competes for room, so it may carry all three. Reading the group as one shared slot offered none of them, and did the same to the Rhino's havoc launcher, the Gladiator's Icarus rocket pod and the ironhail heavy stubber.
+- b97636e: Put a cross in every box that narrows a list. A query matching nothing looks exactly like an empty shelf, and getting back to the whole list meant selecting the text and deleting it. The picker, the faction and datasheet finders and the player search all clear on the cross, or on Escape.
+- b97636e: Keep the roster on screen while a deleted unit is being taken off it. The list is drawn from the priced answer and the price is a round trip behind the picks, so dropping one unit emptied the whole list until the server replied. What is left now stays where it is, as it already did while a unit was being added.
+- b97636e: Offer every datasheet in the book, not the first sixty. The picker sorts by name and stopped once it had priced sixty, so a Space Marine list ran out somewhere after Inner Circle Companions and Sternguard Veterans could only be reached by searching for them.
+- b97636e: Give the Space Marines detachments their points, stratagems and enhancements back. The rules source files that book under Adeptus Astartes while the catalogues call it Space Marines, so every one of its sixteen detachments came back empty. Each faction now answers to every name its own data gives it.
+- b97636e: Offer the upgrades a datasheet asks about one at a time. A lone yes-or-no needs no group to hold it and is written without one, and the builder only ever looked for groups: a Chaos unit's daemonic icon and instrument, an Infiltrator Squad's comms array, helix gauntlet and grapnel launchers, a Reiver's grav-chute, the demolition charge on Imperial Navy Breachers and 268 more could not be taken at all.
+- b97636e: Offer the crown only to what may wear it. Nominating a Land Raider or a Repulsor as Warlord took a detachment that makes vehicles characters, and a daemon borrowed into a Chaos Space Marine army may not lead it at all, but every one of them was offered anyway. Take Headhunter Task Force and its Tank Ace Character upgrade and the tank can be nominated, as the rule intends.
+
 ## 0.16.5
 
 ### Patch Changes
