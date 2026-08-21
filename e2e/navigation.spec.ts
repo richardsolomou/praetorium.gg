@@ -5,6 +5,7 @@ test('primary navigation collapses below 815 pixels', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto('/')
 
+  await expect(page.locator('head link[rel="icon"]')).toHaveAttribute('href', '/favicon.svg')
   await expect(page.locator('head link[rel="preload"][as="font"]')).toHaveCount(6)
   expect(await page.evaluate(() => document.fonts.check('400 16px "Barlow Semi Condensed"'))).toBe(true)
   const primary = page.locator('#primary-navigation')
