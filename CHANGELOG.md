@@ -1,5 +1,15 @@
 # praetorium
 
+## 0.16.8
+
+### Patch Changes
+
+- 70ba273: Keep the faction list working when a stale rules object is missing a map. The list builder reads several rules maps to name factions and detachments, and a rules snapshot loaded before one of those maps existed made the reader throw and return an empty list. Each map read now falls back to its plain value rather than failing.
+- 06b4f4b: Draw every hover explanation the same way: what it is about, what it says, and where it came from, in that order. A rule long enough to fill the screen now stays inside it instead of running off the bottom edge, and a tooltip left open while a panel scrolls follows the word it belongs to.
+- 06b4f4b: Open a unit from anywhere on its card. The rows under a unit's name — its enhancement, its unit upgrade, and the one saying which unit it is leading or supporting — read like part of the card and were the only part of it that did nothing when clicked, so a player reaching for an Overlord by the relic it carries had to aim at the name instead. Every row opens the unit now, and the buttons that do something else still do only that.
+- 06b4f4b: Explain a weapon keyword something in the list added. Skyshroud Spearhead's Deepening Madness gives a unit's ranged attacks `[ASSAULT]`, and the keyword appeared on the weapon as plain text: the catalogue links the rules a profile was printed with and links nothing for one that was added, so it was the only keyword on the page a player could not read. It now hovers like every other, and says which upgrade or enhancement put it there.
+- 06b4f4b: Add up the relics a single unit is carrying. A Leader and a supporting character joined to the same bodyguard unit are one unit, so a Destroyer Ankh that adds 2" to the Move of models in the bearer's unit moves the Chronomancer standing in it as well — and its own Murdermind adds 3" on top. Each character could only see the unit it had joined, never the character beside it, so the Chronomancer showed 8" where the rest of its unit showed 7" and the two enhancements never stacked.
+
 ## 0.16.7
 
 ### Patch Changes
