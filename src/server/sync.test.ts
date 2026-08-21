@@ -136,9 +136,12 @@ it('extracts only a source configured subpath', async () => {
   })
   vi.stubGlobal(
     'fetch',
-    vi.fn<(url: string) => Promise<Response>>(async (url) =>
-      url.includes('codeload.github.com') ? new Response(archive) : new Response('changed export'),
-    ),
+    vi.fn<(url: string | URL) => Promise<Response>>(async (url) => {
+      const href = String(url)
+      if (href.includes('codeload.github.com')) return new Response(archive)
+      if (href.includes('cdn.jsdelivr.net')) return new Response('<svg xmlns="http://www.w3.org/2000/svg"/>')
+      return new Response('changed export')
+    }),
   )
 
   await syncSources(directory, sources)
@@ -156,8 +159,8 @@ it('extracts the Game Datacards 11th edition data without other editions', async
   })
   vi.stubGlobal(
     'fetch',
-    vi.fn<(url: string) => Promise<Response>>(async (url) =>
-      url.includes('codeload.github.com') ? new Response(archive) : new Response('changed export'),
+    vi.fn<(url: string | URL) => Promise<Response>>(async (url) =>
+      String(url).includes('codeload.github.com') ? new Response(archive) : new Response('changed export'),
     ),
   )
 

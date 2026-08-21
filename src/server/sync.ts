@@ -9,6 +9,7 @@ import {
   type SourceName,
   type WahapediaSource,
 } from './catalogueSources'
+import { SUPPLEMENTAL_FACTION_ICONS } from './factionIconSources'
 
 /**
  * Fetching the community data an instance needs, without anybody running a script.
@@ -124,6 +125,7 @@ async function syncFactionIcons(directory: string, report: (message: string) => 
         (faction): faction is { id: string; logo_url: string } => Boolean(faction.id && faction.logo_url),
       )
     })
+    .concat(SUPPLEMENTAL_FACTION_ICONS.map((faction) => ({ id: faction.id, logo_url: faction.logoUrl })))
   const target = path.join(directory, 'faction-icons')
   if (factions.length && factions.every((faction) => fs.existsSync(path.join(target, `${faction.id}.svg`)))) return
 

@@ -5,6 +5,7 @@ import { routeSlug } from '../core/slug'
 import { byName, factionDirectories, readJson, readOptionalList, titleCase } from './rulesSource'
 import { type RawStratagem, toStratagem } from './rulesCards'
 import { findDescription, findDetachmentAbilities, type WahapediaDescriptions } from './wahapedia'
+import { SUPPLEMENTAL_FACTION_ICONS } from './factionIconSources'
 
 /**
  * Who the factions are, and what each of their detachments brings.
@@ -211,6 +212,12 @@ export function loadFactions(core: string, iconDirectory: string, wahapedia: Wah
       detachmentDetails.set(faction, details)
     }
     if (detachments.size) byDetachment.set(faction, detachments)
+  }
+
+  for (const { id, logoUrl } of SUPPLEMENTAL_FACTION_ICONS) {
+    if (factionIcons.has(id)) continue
+    const icon = path.join(iconDirectory, `${id}.svg`)
+    factionIcons.set(id, fs.existsSync(icon) ? `data:image/svg+xml;base64,${fs.readFileSync(icon).toString('base64')}` : logoUrl)
   }
 
   return { factionNames, factionIcons, factionRules, factionKeys, detachmentReferences, detachmentDetails, byDetachment, dataslate }
