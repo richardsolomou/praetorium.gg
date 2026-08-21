@@ -1,13 +1,14 @@
 import { rulesReferencedIn } from './catalogue'
+import { routeSlug } from '../core/slug'
 import { detachmentCatalogueDetail } from './catalogueDescriptions'
 import type { LoadedCatalogue } from './catalogueIndex'
-import { type LoadedRules, slug } from './rules'
+import { type LoadedRules } from './rules'
 
 export function detachmentReference(loaded: LoadedCatalogue, rules: LoadedRules, catalogueId: string, detachmentSlug: string) {
   const faction = loaded.index.catalogues.get(catalogueId)
   if (!faction) return null
-  const detail = rules.detachmentDetails.get(slug(faction.name))?.get(detachmentSlug)
-  const option = loaded.detachments.get(catalogueId)?.options.find((candidate) => slug(candidate.name) === detachmentSlug)
+  const detail = rules.detachmentDetails.get(routeSlug(faction.name))?.get(detachmentSlug)
+  const option = loaded.detachments.get(catalogueId)?.options.find((candidate) => routeSlug(candidate.name) === detachmentSlug)
   if (!detail || !option) return null
   const catalogueDetail = detachmentCatalogueDetail(
     loaded,

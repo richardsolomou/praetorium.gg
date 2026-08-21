@@ -2,7 +2,8 @@ import path from 'node:path'
 import fs from 'node:fs'
 import { detachmentCatalogueDetail } from '../src/server/catalogueDescriptions'
 import { loadCatalogue } from '../src/server/catalogueIndex'
-import { loadRules, slug } from '../src/server/rules'
+import { routeSlug } from '../src/core/slug'
+import { loadRules } from '../src/server/rules'
 
 /** Add `--details` to print every missing item as faction | detachment | name. */
 const directory = process.env.CATALOGUE_DIR ?? path.join(import.meta.dirname, '..', 'catalogue-data')
@@ -14,11 +15,13 @@ if (!catalogue) throw new Error('catalogue data is unavailable')
 const detachments = Array.from(rules.detachmentDetails, ([faction, details]) =>
   Array.from(details.values(), (detail) => {
     const options = Array.from(catalogue.index.catalogues.values()).flatMap((book) =>
-      slug(book.name) === faction
-        ? (catalogue.detachments.get(book.id)?.options.filter((option) => slug(option.name) === slug(detail.name)) ?? []).map((option) => ({
-            book,
-            option,
-          }))
+      routeSlug(book.name) === faction
+        ? (catalogue.detachments.get(book.id)?.options.filter((option) => routeSlug(option.name) === routeSlug(detail.name)) ?? []).map(
+            (option) => ({
+              book,
+              option,
+            }),
+          )
         : [],
     )
     const catalogueDetails = options.flatMap(({ book, option }) => {
@@ -79,7 +82,7 @@ if (fs.existsSync(datacardsDirectory)) {
       datacards.some((faction) =>
         faction.rules?.detachment?.some(
           (candidate) =>
-            slug(candidate.detachment ?? '') === slug(detail.name) &&
+            routeSlug(candidate.detachment ?? '') === routeSlug(detail.name) &&
             candidate.rules?.some((rule) => rule.rules?.some((part) => hasText(part.text?.en))),
         ),
       ),
@@ -88,8 +91,8 @@ if (fs.existsSync(datacardsDirectory)) {
       datacards.some((faction) =>
         faction.enhancements?.some(
           (candidate) =>
-            slug(candidate.detachment ?? '') === slug(entry.detachment) &&
-            slug(candidate.name?.en ?? '') === slug(entry.name) &&
+            routeSlug(candidate.detachment ?? '') === routeSlug(entry.detachment) &&
+            routeSlug(candidate.name?.en ?? '') === routeSlug(entry.name) &&
             hasText(candidate.description?.en),
         ),
       ),
@@ -98,8 +101,8 @@ if (fs.existsSync(datacardsDirectory)) {
       datacards.some((faction) =>
         faction.stratagems?.some(
           (candidate) =>
-            slug(candidate.detachment ?? '') === slug(entry.detachment) &&
-            slug(candidate.name?.en ?? '') === slug(entry.name) &&
+            routeSlug(candidate.detachment ?? '') === routeSlug(entry.detachment) &&
+            routeSlug(candidate.name?.en ?? '') === routeSlug(entry.name) &&
             hasText(candidate.effect?.en),
         ),
       ),

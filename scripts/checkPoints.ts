@@ -15,7 +15,8 @@ import path from 'node:path'
 import { parse } from 'yaml'
 import { buildIndex, type CatalogueFile, type SelectionEntry, targetOf } from '../src/core/catalogue'
 import { evaluate, type Selection } from '../src/core/evaluate'
-import { buildUnit, isResizable } from '../src/core/roster'
+import { buildUnit } from '../src/core/roster'
+import { isResizable } from '../src/core/unitSize'
 
 const dataDirectory = process.env.CATALOGUE_DIR ?? path.join(import.meta.dirname, '..', 'catalogue-data')
 const definitionsDirectory = path.join(dataDirectory, 'definitions')

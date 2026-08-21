@@ -84,7 +84,7 @@ export const UNIT_FORMATIONS = ['battlefield', 'strategic-reserves', 'deep-strik
 type UnitFormation = (typeof UNIT_FORMATIONS)[number]
 
 /** A unit's standing in the battle. Attached rosters begin on the battlefield. */
-type UnitState = SubmittedUnit & {
+export type UnitState = SubmittedUnit & {
   destroyed: boolean
   deployed: boolean
   formation: UnitFormation
@@ -123,7 +123,7 @@ export const STRATAGEM_CP_MAX = 6
 
 /** A secondary mission, named by the player because the deck is not in the data either. */
 export type Secondary = { key: string; name: string }
-type SecondaryStatus = 'active' | 'achieved' | 'discarded' | 'returned'
+export type SecondaryStatus = 'active' | 'achieved' | 'discarded' | 'returned'
 
 export const SECONDARIES_MAX = 6
 const SECONDARY_HISTORY_MAX = 30
@@ -146,9 +146,9 @@ type BattlePrep = {
   secondaryMode: SecondaryMode
 }
 
-type BattleEndReason = 'completed' | 'finished-early' | 'conceded'
+export type BattleEndReason = 'completed' | 'finished-early' | 'conceded'
 
-type BattleSettings = {
+export type BattleSettings = {
   limit: number | null
   missionPackId: string | null
   terrainLayoutId: string | null
@@ -173,8 +173,8 @@ const DEFAULT_SETTINGS: BattleSettings = {
  * at a real table, which is far worse than displaying a total that has gone past
  * what the mission allows.
  */
-const PRIMARY_GUIDE = 50
-const SECONDARY_GUIDE = 40
+export const PRIMARY_GUIDE = 50
+export const SECONDARY_GUIDE = 40
 export const PAINTED_ARMY_POINTS = 10
 
 /** The matched-play game sizes, smallest first. */
@@ -192,7 +192,7 @@ export const GAME_SIZES = [
 export const detachmentPointBudget = (limit: number) => GAME_SIZES.find((size) => size.limit === limit)?.detachmentPoints ?? null
 export const isKotcLimit = (limit: number | null): boolean => limit !== null && KOTC_LIMITS.some((candidate) => candidate === limit)
 export const detachmentLimit = (limit: number) => (isKotcLimit(limit) ? 1 : 3)
-const battleRoundLimit = (limit: number | null) => (isKotcLimit(limit) ? KOTC_ROUNDS : BATTLE_ROUNDS)
+export const battleRoundLimit = (limit: number | null) => (isKotcLimit(limit) ? KOTC_ROUNDS : BATTLE_ROUNDS)
 
 /** The format-specific cap for copies of one datasheet, before catalogue limits are applied. */
 export const formatDatasheetLimit = (limit: number, repeatable: boolean) => (isKotcLimit(limit) ? (repeatable ? 2 : 1) : null)
@@ -260,7 +260,7 @@ export type SubmitResult = { outcome: 'appended'; seq: number } | { outcome: 'st
 
 export type LoggedCommand = { seq: number; by: PlayerId; at: number; command: Command }
 
-type PlayerState = {
+export type PlayerState = {
   id: PlayerId
   side: number
   cp: number
@@ -296,7 +296,7 @@ type PlayerState = {
 
 type StratagemUse = { key: string; round: number; phase: Phase; turn: PlayerId | null }
 
-type BattleState = {
+export type BattleState = {
   status: 'setup' | 'playing' | 'finished'
   /** The shared setup section shown on every seated device. */
   setupStep: number
@@ -328,7 +328,75 @@ type BattleState = {
  * ever appended to; a command it names is skipped by the fold rather than removed.
  */
 export function reduceBattle(playerIds: readonly PlayerId[], log: readonly LoggedCommand[], playerSides?: readonly number[]): BattleState {
-  const state: BattleState = {
+  const state = emptyBattle(playerIds, playerSides)
+  for (const _step of replay(state, log)) {
+    // The fold is the point; every step is already applied to `state`.
+  }
+  return state
+}
+
+/** One command as it actually happened, and what the fold knew either side of it. */
+export type BattleStep = {
+  entry: LoggedCommand
+  before: { round: number; phase: Phase; active: PlayerId | null }
+  /** The army the command changed, which is not always the one that sent it. */
+  army: PlayerState | undefined
+}
+
+/**
+ * Replays the log into `state`, one standing command at a time.
+ *
+ * Undo is itself a command, so a command it names is skipped rather than removed —
+ * which is why replaying is the only way to know what actually happened. The state
+ * yielded through is the live fold, so a caller reads it during its own step and
+ * never keeps it.
+ */
+export function* replay(state: BattleState, log: readonly LoggedCommand[]): Generator<BattleStep> {
+  const undone = new Set<number>()
+  for (const entry of log) {
+    if (entry.command.kind === 'undo') undone.add(entry.command.target)
+    state.seq = Math.max(state.seq, entry.seq)
+  }
+
+  for (const entry of log) {
+    if (entry.command.kind === 'undo' || undone.has(entry.seq)) continue
+    const before = { round: state.round, phase: state.phase, active: state.activePlayerId }
+    apply(state, entry.by, entry.command)
+    recordProgress(state, entry, before)
+    const actor = state.players.find((candidate) => candidate.id === entry.by)
+    const targetId = 'playerId' in entry.command && entry.command.playerId ? entry.command.playerId : entry.by
+    yield {
+      entry,
+      before,
+      army: actor ? targetArmy(state, actor, entry.command) : state.players.find((candidate) => candidate.id === targetId),
+    }
+  }
+}
+
+/** The clock and the undo target, both of which follow from the command rather than from the rules. */
+function recordProgress(state: BattleState, entry: LoggedCommand, before: BattleStep['before']) {
+  const openTurn = (at: number) => {
+    if (state.activePlayerId) state.turns.push({ playerId: state.activePlayerId, round: state.round, startedAt: at, endedAt: null })
+  }
+  const closeTurn = (at: number) => {
+    const current = state.turns.at(-1)
+    if (current) current.endedAt = at
+  }
+
+  if (entry.command.kind === 'begin-battle') openTurn(entry.at)
+  else if (entry.command.kind === 'advance' && (state.activePlayerId !== before.active || state.round !== before.round)) {
+    closeTurn(entry.at)
+    openTurn(entry.at)
+  } else if (entry.command.kind === 'end-battle') closeTurn(entry.at)
+  else if (entry.command.kind === 'reopen-battle') openTurn(entry.at)
+
+  if (entry.command.kind === 'begin-battle') state.undoable = null
+  else if (entry.command.kind !== 'settle-opponent-turn') state.undoable = { seq: entry.seq, by: entry.by }
+}
+
+/** A battle before anything has happened in it, which is what a replay folds into. */
+export function emptyBattle(playerIds: readonly PlayerId[], playerSides?: readonly number[]): BattleState {
+  return {
     status: 'setup',
     setupStep: 0,
     round: 0,
@@ -373,35 +441,6 @@ export function reduceBattle(playerIds: readonly PlayerId[], log: readonly Logge
     seq: 0,
     turns: [],
   }
-
-  const undone = new Set<number>()
-  for (const entry of log) {
-    if (entry.command.kind === 'undo') undone.add(entry.command.target)
-    state.seq = Math.max(state.seq, entry.seq)
-  }
-
-  for (const entry of log) {
-    if (entry.command.kind === 'undo' || undone.has(entry.seq)) continue
-    const activeBefore = state.activePlayerId
-    const roundBefore = state.round
-    apply(state, entry.by, entry.command)
-    if (entry.command.kind === 'begin-battle') {
-      if (state.activePlayerId) state.turns.push({ playerId: state.activePlayerId, round: state.round, startedAt: entry.at, endedAt: null })
-    } else if (entry.command.kind === 'advance' && (state.activePlayerId !== activeBefore || state.round !== roundBefore)) {
-      const current = state.turns.at(-1)
-      if (current) current.endedAt = entry.at
-      if (state.activePlayerId) state.turns.push({ playerId: state.activePlayerId, round: state.round, startedAt: entry.at, endedAt: null })
-    } else if (entry.command.kind === 'end-battle') {
-      const current = state.turns.at(-1)
-      if (current) current.endedAt = entry.at
-    } else if (entry.command.kind === 'reopen-battle' && state.activePlayerId) {
-      state.turns.push({ playerId: state.activePlayerId, round: state.round, startedAt: entry.at, endedAt: null })
-    }
-    if (entry.command.kind === 'begin-battle') state.undoable = null
-    else if (entry.command.kind !== 'settle-opponent-turn') state.undoable = { seq: entry.seq, by: entry.by }
-  }
-
-  return state
 }
 
 /**
@@ -957,12 +996,6 @@ function limitReached(player: PlayerState, stratagem: Stratagem, state: BattleSt
   return stratagem.limit === 'turn' ? thisTurn.length > 0 : thisTurn.some((use) => use.phase === state.phase)
 }
 
-const titled = (slug: string) =>
-  slug
-    .split('-')
-    .map((word) => word.charAt(0).toLocaleUpperCase() + word.slice(1))
-    .join(' ')
-
 function enterTurn(state: BattleState, playerId: PlayerId, settlementRound: number | null) {
   state.activePlayerId = playerId
   state.phase = 'command'
@@ -976,7 +1009,7 @@ function enterTurn(state: BattleState, playerId: PlayerId, settlementRound: numb
   }
 }
 
-function sideCaptain(state: BattleState, side: number): PlayerState {
+export function sideCaptain(state: BattleState, side: number): PlayerState {
   return state.players.find((player) => player.side === side)!
 }
 
@@ -1032,7 +1065,7 @@ export function scoringTarget(
   }
 }
 
-function sameSide(state: BattleState, left: PlayerId | null, right: PlayerId): boolean {
+export function sameSide(state: BattleState, left: PlayerId | null, right: PlayerId): boolean {
   const leftSide = state.players.find((player) => player.id === left)?.side
   return leftSide !== undefined && leftSide === state.players.find((player) => player.id === right)?.side
 }
@@ -1042,7 +1075,7 @@ function mayNameSecondary(state: BattleState, by: PlayerId, player: PlayerState,
   return player.secretSecondary !== key || player.secretRevealed || sameSide(state, by, player.id)
 }
 
-function helperAdvancePending(state: BattleState, by: PlayerId, player: PlayerState): boolean {
+export function helperAdvancePending(state: BattleState, by: PlayerId, player: PlayerState): boolean {
   if (state.phase === 'command' && by !== player.id && state.pendingSettlement?.playerId === player.id) return true
   if (by === player.id) return false
   const activeSecondaries = player.secondaries.filter((secondary) => player.secondaryStatus[secondary.key] === 'active')
@@ -1057,367 +1090,6 @@ function rosterLimit(state: BattleState, player: PlayerState): number | null {
   if (state.settings.limit === null || !state.settings.teamBattle) return state.settings.limit
   const teammates = state.players.filter((candidate) => candidate.side === player.side).length
   return state.settings.limit / teammates
-}
-
-/** One thing that happened, in the words a player would use about it. */
-type ReportEntry = { seq: number; at: number; round: number; phase: Phase; by: string; commandKind: Command['kind']; text: string }
-
-/**
- * A readable account of the battle, derived from the log.
- *
- * The log is already a complete record of the game, so this is a rendering of it
- * rather than anything new: nothing is stored to make a report possible. Undone
- * commands are absent, because they did not happen.
- */
-export function battleReport(
-  players: readonly { id: PlayerId; name: string }[],
-  log: readonly LoggedCommand[],
-  playerIds: readonly PlayerId[] = players.map((player) => player.id),
-  viewerId?: PlayerId,
-  playerSides?: readonly number[],
-): ReportEntry[] {
-  const named = new Map(players.map((player) => [player.id, player.name]))
-  const state = reduceBattle(playerIds, [], playerSides)
-  const undone = new Set(log.flatMap((entry) => (entry.command.kind === 'undo' ? [entry.command.target] : [])))
-  const entries: ReportEntry[] = []
-
-  for (const entry of log) {
-    if (entry.command.kind === 'undo' || undone.has(entry.seq)) continue
-    const before = { round: state.round, phase: state.phase, active: state.activePlayerId }
-    apply(state, entry.by, entry.command)
-    const text = describe(entry.command, state, before, entry.by, named, viewerId)
-    if (text) {
-      entries.push({
-        seq: entry.seq,
-        at: entry.at,
-        round: before.round || state.round,
-        phase: before.phase,
-        by: entry.by,
-        commandKind: entry.command.kind,
-        text,
-      })
-    }
-  }
-
-  return entries
-}
-
-function describe(
-  command: Command,
-  after: BattleState,
-  before: { round: number; phase: Phase; active: PlayerId | null },
-  by: PlayerId,
-  named: Map<PlayerId, string>,
-  viewerId?: PlayerId,
-): string | null {
-  const who = named.get(by) ?? 'Someone'
-  // Setting the table can be done for someone else, so a line names the army it changed.
-  const targetId = 'playerId' in command && command.playerId ? command.playerId : by
-  const actor = after.players.find((candidate) => candidate.id === by)
-  const player = actor ? targetArmy(after, actor, command) : after.players.find((candidate) => candidate.id === targetId)
-  const whose = targetId === by ? 'their' : `${named.get(targetId) ?? 'another player'}’s`
-  const forTarget = targetId === by ? '' : ` for ${named.get(targetId) ?? 'another player'}`
-
-  switch (command.kind) {
-    case 'configure-battle':
-      return `${who} sets a ${command.limit}-point${command.solo ? ' practice' : ''} battle`
-    case 'reset-setup':
-      return `${who} resets battle setup`
-    case 'set-setup-step':
-      return null
-    case 'attach-roster': {
-      const detachment = command.roster.built?.detachment
-      return `${who} brought ${command.roster.name}${detachment && !command.roster.name.includes(detachment) ? ` (${detachment})` : ''}`
-    }
-    case 'set-prep': {
-      const parts = [
-        command.primary ? `${command.primary.name} as the primary` : null,
-        player?.secondaries.length ? `${player.secondaries.map((secondary) => secondary.name).join(' and ')} as secondaries` : null,
-        command.stratagems.length ? `${command.stratagems.length} stratagems` : null,
-      ].filter(Boolean)
-      return parts.length ? `${who} took ${parts.join(', ')}` : null
-    }
-    case 'set-deployment':
-      // Only the id reaches here, so it is titled rather than left as a slug.
-      return command.patternId ? `The battlefield is ${titled(command.patternId)}` : null
-    case 'set-battlefield':
-      return `The battlefield is ${titled(command.terrainLayoutId)}`
-    case 'deploy-unit': {
-      const unit = player?.units.find((candidate) => candidate.key === command.unitKey)?.name ?? 'a unit'
-      if (targetId === by) return command.deployed ? `${who} put ${unit} on the table` : `${who} held ${unit} in reserve`
-      return command.deployed ? `${who} puts ${whose} ${unit} on the table` : `${who} holds ${whose} ${unit} in reserve`
-    }
-    case 'set-unit-formation': {
-      const unit = player?.units.find((candidate) => candidate.key === command.unitKey)?.name ?? 'a unit'
-      return `${who} places ${whose} ${unit} in ${titled(command.formation)}`
-    }
-    case 'set-painted':
-      return command.painted ? `${who} marks ${whose} army battle ready` : `${who} removes the battle ready bonus from ${whose} army`
-    case 'begin-battle':
-      return `The battle begins, ${named.get(command.attackerId ?? command.firstPlayerId) ?? 'someone'} attacking and ${named.get(command.firstPlayerId) ?? 'someone'} taking the first turn`
-    case 'advance': {
-      if (after.status === 'finished') return targetId === by ? 'The last round ends' : `${who} ends the last round${forTarget}`
-      if (after.round !== before.round)
-        return targetId === by ? `Round ${after.round} begins` : `${who} ends the turn${forTarget}; round ${after.round} begins`
-      if (after.activePlayerId !== before.active) {
-        const next = named.get(after.activePlayerId ?? '') ?? 'the other player'
-        return targetId === by ? `The turn passes to ${next}` : `${who} passes ${whose} turn to ${next}`
-      }
-      return `${who} ends the ${before.phase} phase${forTarget}`
-    }
-    case 'adjust-cp':
-      if (targetId === by) return command.delta > 0 ? `${who} gains ${command.delta} CP` : `${who} spends ${Math.abs(command.delta)} CP`
-      return command.delta > 0 ? `${who} adds ${command.delta} CP${forTarget}` : `${who} spends ${Math.abs(command.delta)} CP${forTarget}`
-    case 'use-stratagem': {
-      const stratagem = player?.stratagems.find((candidate) => candidate.key === command.key)
-      return stratagem
-        ? `${who} uses ${targetId === by ? '' : `${whose} `}${stratagem.name} for ${command.cp ?? stratagem.cp} CP`
-        : `${who} uses a stratagem${forTarget}`
-    }
-    case 'score':
-      return `${who} scores ${command.delta} ${command.category}${forTarget}`
-    case 'correct-player': {
-      const target = named.get(command.playerId) ?? 'a player'
-      return `${who} corrects ${target}’s ${command.resource} by ${command.delta > 0 ? '+' : ''}${command.delta}`
-    }
-    case 'settle-opponent-turn':
-      return null
-    case 'score-secondary': {
-      const secondary = player?.secondaries.find((candidate) => candidate.key === command.key)
-      const name =
-        player?.secretSecondary === command.key && !player.secretRevealed && !sameSide(after, viewerId ?? null, targetId)
-          ? 'a secret mission'
-          : secondary?.name
-      return `${who} scores ${command.delta} on ${name ?? 'a secondary'}${forTarget}`
-    }
-    case 'set-secondary-status': {
-      const secondary = player?.secondaries.find((candidate) => candidate.key === command.key)
-      const name = secondary?.name ?? 'a secondary'
-      // Putting a card back is not giving up on it: it goes back in the deck to be drawn again, not to the bin.
-      if (command.status === 'returned') return `${who} puts ${name} back in the deck${forTarget}`
-      return `${who} marks ${name} ${command.status}${forTarget}`
-    }
-    case 'draw-secondary':
-      return `${who} draws ${player?.secondaries.find((secondary) => secondary.key === command.secondary.key)?.name ?? 'a secondary'}${forTarget}`
-    case 'select-secret': {
-      const selected = player?.secondaries.find((secondary) => secondary.key === command.secondary.key)?.name ?? 'a secret mission'
-      return sameSide(after, viewerId ?? null, targetId)
-        ? `${who} selects ${selected} as a secret mission${forTarget}`
-        : `${who} selects a secret mission${forTarget}`
-    }
-    case 'reveal-secret': {
-      const secondary = player?.secondaries.find((candidate) => candidate.key === player.secretSecondary)
-      return `${who} reveals ${secondary?.name ?? 'a secret mission'}${forTarget}`
-    }
-    case 'set-unit': {
-      const unit = player?.units.find((candidate) => candidate.key === command.unitKey)?.name ?? 'a unit'
-      if (targetId === by) return command.destroyed ? `${who} loses ${unit}` : `${who} brings ${unit} back`
-      return command.destroyed ? `${who} marks ${whose} ${unit} lost` : `${who} brings ${whose} ${unit} back`
-    }
-    case 'wound-unit': {
-      const unit = player?.units.find((candidate) => candidate.key === command.unitKey)
-      const name = unit?.name ?? 'a unit'
-      if (unit && unit.alive === 0) return targetId === by ? `${who} loses ${name}` : `${who} removes the last model from ${whose} ${name}`
-      const count = Math.abs(command.delta)
-      const models = count === 1 ? 'model' : 'models'
-      if (targetId === by)
-        return command.delta < 0 ? `${who} loses ${count} ${models} from ${name}` : `${who} returns ${count} ${models} to ${name}`
-      return command.delta < 0
-        ? `${who} removes ${count} ${models} from ${whose} ${name}`
-        : `${who} returns ${count} ${models} to ${whose} ${name}`
-    }
-    case 'pause-clock':
-    case 'resume-clock':
-      return null
-    case 'end-battle':
-      return command.reason === 'conceded' ? `${who} concedes` : `${who} calls the battle early`
-    case 'reopen-battle':
-      return `${who} reopens the battle`
-    default:
-      return null
-  }
-}
-
-export type BattleView = {
-  token: string
-  status: BattleState['status']
-  setupStep: number
-  round: number
-  phase: Phase
-  rounds: number
-  /** What a command must carry to be accepted. Anything older is a stale client. */
-  seq: number
-  viewerId: PlayerId
-  creatorId: PlayerId
-  activePlayerId: PlayerId | null
-  attackerId: PlayerId | null
-  settlementRound: number | null
-  settings: BattleSettings
-  result: { reason: BattleEndReason; concededBy: PlayerId | null } | null
-  players: {
-    id: PlayerId
-    side: number
-    name: string
-    image: string | null
-    isViewer: boolean
-    isActive: boolean
-    cp: number
-    cpGained: number
-    cpSpent: number
-    cpByRound: number[]
-    primary: number
-    secondary: number
-    total: number
-    painted: boolean
-    paintedPoints: number
-    rounds: { round: number; primary: number; secondary: number; total: number }[]
-    roster: Roster | null
-    units: UnitState[]
-    /** What is still on the table, for the line a player actually glances at. */
-    standing: number
-    deployed: number
-    /** Each stratagem with whether it can be used right now, and why not when it cannot. */
-    stratagems: {
-      key: string
-      name: string
-      cp: number
-      limit: StratagemLimit
-      phases?: Phase[]
-      turn?: 'your-turn' | 'opponent-turn' | 'either'
-      uses: number
-      refusal: string | null
-    }[]
-    secondaries: {
-      key: string
-      name: string
-      points: number
-      rounds: number[]
-      status: SecondaryStatus
-      secret: boolean
-      revealed: boolean
-    }[]
-    primaryCard: Secondary | null
-    secondaryMode: SecondaryMode
-    remainingSecondaries: Secondary[]
-  }[]
-  /** The conventional ceilings, for display beside a total. */
-  guides: { primary: number; secondary: number }
-  deploymentId: string | null
-  turns: { playerId: PlayerId; playerName: string; round: number; minutes: number | null }[]
-  advancePrompt: string | null
-  /** The latest active command any seated player may take back. */
-  undoable: number | null
-}
-
-/**
- * The only place visibility is decided. Every route and every server function
- * reads a battle through here, so a new field cannot leak by being added to a
- * shape someone else assembled by hand.
- *
- * Drawn cards, lists, and points are public to both players. Undrawn tactical
- * cards and unrevealed secret missions are held back for their owner here.
- */
-export function battleView(
-  battle: { token: string },
-  players: readonly { id: PlayerId; name: string; image?: string | null }[],
-  state: BattleState,
-  viewerId: PlayerId,
-  _now = Date.now(),
-): BattleView {
-  const named = new Map(players.map((player) => [player.id, player.name]))
-  const active = state.players.find((player) => player.id === state.activePlayerId)
-  const viewerOwnsActive = active ? sideCaptain(state, active.side).id === viewerId : false
-  return {
-    token: battle.token,
-    status: state.status,
-    setupStep: state.setupStep,
-    round: state.round,
-    phase: state.phase,
-    rounds: battleRoundLimit(state.settings.limit),
-    seq: state.seq,
-    viewerId,
-    creatorId: players[0]?.id ?? viewerId,
-    activePlayerId: state.activePlayerId,
-    attackerId: state.attackerId,
-    settlementRound: state.pendingSettlement?.playerId === viewerId ? state.pendingSettlement.round : null,
-    settings: state.settings,
-    result: state.result,
-    players: state.players.map((player) => {
-      const resources = sideCaptain(state, player.side)
-      return {
-        id: player.id,
-        side: player.side,
-        name: named.get(player.id) ?? 'Unknown',
-        image: players.find((identity) => identity.id === player.id)?.image ?? null,
-        isViewer: player.id === viewerId,
-        isActive: sameSide(state, state.activePlayerId, player.id),
-        cp: resources.cp,
-        cpGained: resources.cpGained,
-        cpSpent: resources.cpSpent,
-        cpByRound: resources.cpByRound,
-        primary: resources.primary,
-        secondary: resources.secondary,
-        total: resources.primary + resources.secondary + (state.status === 'finished' && player.painted ? PAINTED_ARMY_POINTS : 0),
-        painted: player.painted,
-        /** What the bonus will pay. It joins the total when the battle ends, not before. */
-        paintedPoints: player.painted ? PAINTED_ARMY_POINTS : 0,
-        rounds: Array.from({ length: battleRoundLimit(state.settings.limit) }, (_, round) => ({
-          round: round + 1,
-          primary: resources.primaryByRound[round] ?? 0,
-          secondary: resources.secondaryByRound[round] ?? 0,
-          total: (resources.primaryByRound[round] ?? 0) + (resources.secondaryByRound[round] ?? 0),
-        })),
-        roster: player.roster,
-        units: player.units,
-        standing: player.units.filter((unit) => !unit.destroyed).length,
-        deployed: player.units.filter((unit) => unit.deployed && !unit.destroyed).length,
-        stratagems: resources.stratagems.map((stratagem) => ({
-          ...stratagem,
-          uses: resources.uses.filter((use) => use.key === stratagem.key).length,
-          // The same rule the server enforces, so the interface never offers what
-          // would be refused.
-          refusal: validate(state, player.id, { kind: 'use-stratagem', key: stratagem.key }),
-        })),
-        primaryCard: resources.primaryCard,
-        secondaryMode: resources.secondaryMode,
-        remainingSecondaries:
-          resources.id === viewerId
-            ? (resources.secondaryDeck ?? []).filter(
-                (candidate) => !resources.secondaries.some((secondary) => secondary.key === candidate.key),
-              )
-            : [],
-        secondaries: resources.secondaries.map((secondary) => ({
-          key:
-            resources.secretSecondary === secondary.key &&
-            !resources.secretRevealed &&
-            player.side !== state.players.find((candidate) => candidate.id === viewerId)?.side
-              ? 'secret'
-              : secondary.key,
-          name:
-            resources.secretSecondary === secondary.key &&
-            !resources.secretRevealed &&
-            player.side !== state.players.find((candidate) => candidate.id === viewerId)?.side
-              ? 'Secret mission'
-              : secondary.name,
-          points: resources.scored[secondary.key] ?? 0,
-          rounds: (resources.scoredByRound[secondary.key] ?? Array(BATTLE_ROUNDS).fill(0)).slice(0, battleRoundLimit(state.settings.limit)),
-          status: resources.secondaryStatus[secondary.key] ?? 'active',
-          secret: resources.secretSecondary === secondary.key,
-          revealed: resources.secretSecondary !== secondary.key || resources.secretRevealed,
-        })),
-      }
-    }),
-    guides: { primary: PRIMARY_GUIDE, secondary: SECONDARY_GUIDE },
-    deploymentId: state.deploymentId,
-    turns: state.turns.map((turn) => ({
-      playerId: turn.playerId,
-      playerName: named.get(turn.playerId) ?? 'Unknown',
-      round: turn.round,
-      minutes: turn.endedAt === null ? null : Math.max(0, Math.round((turn.endedAt - turn.startedAt) / 60_000)),
-    })),
-    advancePrompt: viewerOwnsActive ? scoringPrompt(state, viewerId) : helperAdvancePrompt(state, viewerId),
-    undoable: state.undoable?.seq ?? null,
-  }
 }
 
 function validatePrep(prep: BattlePrep): string | null {
@@ -1442,21 +1114,4 @@ function validatePrep(prep: BattlePrep): string | null {
   }
   if (prep.primary && !prep.primary.name.trim()) return 'name the primary mission'
   return null
-}
-
-function scoringPrompt(state: BattleState, playerId: PlayerId): string | null {
-  const viewer = state.players.find((player) => player.id === playerId)
-  const active = viewer ? sideCaptain(state, viewer.side) : undefined
-  if (!active || state.phase !== 'end') return null
-  const unscored = active.secondaries.filter(
-    (secondary) =>
-      active.secondaryStatus[secondary.key] === 'active' && (active.scoredByRound[secondary.key]?.[state.round - 1] ?? 0) === 0,
-  )
-  return unscored.length ? `Check ${unscored.map((secondary) => secondary.name).join(' and ')} before passing the turn.` : null
-}
-
-function helperAdvancePrompt(state: BattleState, viewerId: PlayerId): string | null {
-  const active = state.activePlayerId ? state.players.find((player) => player.id === state.activePlayerId) : undefined
-  const player = active ? sideCaptain(state, active.side) : undefined
-  return player && helperAdvancePending(state, viewerId, player) ? 'The active side has an action to settle.' : null
 }

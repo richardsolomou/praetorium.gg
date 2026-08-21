@@ -1,6 +1,6 @@
 # Battles
 
-`src/core/battle.ts` contains the battle domain. `src/server/service.ts` connects it to persistence and realtime updates.
+`src/core/battle.ts` contains the battle domain: the log, `validate`, and `apply`. `src/core/battleView.ts` decides what each player may see, and `src/core/battleReport.ts` renders the log into English. Neither of the two decides anything the domain has not already settled. `src/server/service.ts` connects all three to persistence and realtime updates.
 
 ## Command log
 
@@ -33,7 +33,7 @@ Secondaries are tactical unless a player says otherwise: the hand starts empty, 
 
 ## Views and visibility
 
-`battleView` is the only place that decides what a player can see. Routes and realtime messages must not build a second view. An opponent can see drawn tactical missions but never the cards remaining in another player's deck.
+`battleView` in `src/core/battleView.ts` is the only place that decides what a player can see. Routes and realtime messages must not build a second view. An opponent can see drawn tactical missions but never the cards remaining in another player's deck.
 
 A read never claims a battle seat. `PraetoriumService.screen` returns an invitation until the player sends the join mutation. This prevents link-preview crawlers from taking a seat.
 
@@ -70,4 +70,6 @@ Starting the battle is not undoable: `begin-battle` leaves nothing for `undo` to
 
 ## Tests
 
-`src/core/battle.test.ts` covers turn order, ownership, visibility, undo, solo play, resets, concessions, reopening, stratagem costs including the ones the board makes dearer, tactical decks, and battle settings. `src/server/service.test.ts` covers persistence, deletion permissions, and concurrent submissions against SQLite. `src/client/sides.test.ts` covers the fold from seats to sides, and `e2e/team-battle.spec.ts` drives three devices through a 2v1 to prove the allied pair shares one pool.
+Battle coverage is split the way the domain is. `src/core/battle.test.ts` covers setup, turn order, ownership, undo, solo play, resets, concessions, reopening, deployment and battle settings. `src/core/battleCards.test.ts` covers stratagem costs including the ones the board makes dearer, and tactical decks. `src/core/battleView.test.ts` covers visibility, units and the models inside them, and `src/core/battleReport.test.ts` covers the account of the battle. All four build their games from `src/core/battle.fixtures.ts`.
+
+`src/server/service.test.ts` covers persistence, deletion permissions, and concurrent submissions against SQLite. `src/client/sides.test.ts` covers the fold from seats to sides, and `e2e/team-battle.spec.ts` drives three devices through a 2v1 to prove the allied pair shares one pool.

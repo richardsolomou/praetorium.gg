@@ -39,18 +39,23 @@ test('a private roster can be shared and made private again', async ({ browser }
   await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Shareable roster' })
   await page.goto('/rosters')
 
+  // Scoped to the row, because 'Unlisted' and 'Private' also appear in the menu
+  // items that change them and would otherwise match before the change lands.
+  const row = page.locator('[data-roster="Shareable roster"]')
+
   await page.getByRole('button', { name: 'Actions for Shareable roster' }).click()
   await page.getByRole('menuitem', { name: 'Share unlisted link' }).click()
-  await expect(page.getByText('Unlisted')).toBeVisible()
+  await expect(row.getByText('Unlisted')).toBeVisible()
+  // Polled, because the link is copied only once the visibility change comes back.
+  await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toMatch(/\/rosters\/[^/]+$/)
   const sharedUrl = await page.evaluate(() => navigator.clipboard.readText())
-  expect(sharedUrl).toMatch(/\/rosters\/[^/]+$/)
   const anonymous = await (await browser.newContext()).newPage()
   await anonymous.goto(sharedUrl)
   await expect(anonymous.getByRole('textbox', { name: 'List name' })).toHaveValue('Shareable roster')
 
   await page.getByRole('button', { name: 'Actions for Shareable roster' }).click()
   await page.getByRole('menuitem', { name: 'Make private' }).click()
-  await expect(page.getByText('Private')).toBeVisible()
+  await expect(row.getByText('Private')).toBeVisible()
   await anonymous.reload()
   await expect(anonymous.getByRole('heading', { name: 'Nothing here' })).toBeVisible()
 })

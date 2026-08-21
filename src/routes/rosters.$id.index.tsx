@@ -11,6 +11,7 @@ import {
   sharedRosterQuery,
   unitsQuery,
 } from '../client/queries'
+import { normalisePicks } from '../client/rosterPicks'
 
 export const Route = createFileRoute('/rosters/$id/')({
   // A battle token is what lets a seated opponent open a list that is otherwise private.
@@ -38,14 +39,7 @@ export const Route = createFileRoute('/rosters/$id/')({
           roster.detachmentIds,
           roster.disposition,
           roster.limit,
-          roster.picks.map(({ entryId, catalogueId, models, choices, spreads, toggles }) => ({
-            entryId,
-            catalogueId,
-            models,
-            choices,
-            spreads,
-            toggles,
-          })),
+          normalisePicks(roster.picks),
           deps.battle,
         ),
       ),

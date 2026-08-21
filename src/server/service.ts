@@ -1,9 +1,6 @@
 import type { BattleEvents } from '../adapters/events'
 import { randomId, randomToken } from 'ras-stack/auth'
 import {
-  type BattleView,
-  battleReport,
-  battleView,
   type Command,
   PAINTED_ARMY_POINTS,
   type PlayerId,
@@ -14,6 +11,8 @@ import {
   type Stratagem,
   type SubmitResult,
 } from '../core/battle'
+import { type BattleView, battleView } from '../core/battleView'
+import { battleReport } from '../core/battleReport'
 import type { RosterPick } from '../core/roster'
 import type { RosterSource } from '../core/savedRoster'
 import type { BattleSeats, JoinResult, Repository } from '../db/repository'

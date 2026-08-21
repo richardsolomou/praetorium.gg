@@ -1,5 +1,6 @@
 import { Button } from '@/components/ui/button'
-import type { BattleView, Command } from '../../../core/battle'
+import type { Command } from '../../../core/battle'
+import type { BattleView } from '../../../core/battleView'
 import { type Army, type Side, sideName } from '../../sides'
 import type { PresentPlayer } from '../../useLiveBattle'
 import { type Award, PrimaryMission, type ReferenceCard, SecondaryMissions, type StratagemText } from './MissionCards'

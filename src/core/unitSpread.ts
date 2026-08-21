@@ -1,0 +1,268 @@
+/**
+ * Dividing a squad between the options it is offered.
+ *
+ * "Eight keep the gauss blaster, two take tesla carbines" is one group holding two
+ * things at once, which a single chosen id cannot say. Every function here answers a
+ * request of that shape, and the hard part is never the counts — it is that arming a
+ * model is often the same act as putting that model in the squad, so the squad has to
+ * come out the size the player set it to.
+ */
+
+import type { CatalogueIndex, Definition } from './catalogue'
+import { childrenOf, MAX_DEPTH, maximumCount, repeatedCarrierOn, repeatedModelOn, requiredCount, resolve, UNBOUNDED } from './definitions'
+import type { Selection } from './evaluate'
+import { expand, withChoice } from './expand'
+import { allAt, at, replaceAt, updateSelection, withCounts, withoutSelectionAt, withPlaceFor, withSpread } from './selection'
+import { modelCountOf, sizeOf } from './unitSize'
+
+/** Repeated specialist models need one model branch per nested option. */
+export function withUnitSpread(
+  selection: Selection,
+  key: string,
+  counts: Readonly<Record<string, number>>,
+  index: CatalogueIndex,
+): Selection {
+  const path = key.split('/')
+  const groupId = path.at(-1)
+  const group = groupId ? index.definitions.get(groupId) : undefined
+  const occupants = group ? childrenOf(resolve(group, index), index) : []
+  if (group && occupants.some((option) => resolve(option.definition, index).type === 'model')) {
+    return keepingTheSquad(selection, withModelOccupants(selection, path, counts, group, occupants, index), path, index)
+  }
+
+  const repeatedEntry = repeatedModelOn(path.slice(0, -1), index)
+  const entry = group ? resolve(group, index) : undefined
+  if (repeatedEntry && entry?.type === 'upgrade' && groupId) {
+    return spreadRepeatedUpgrade(selection, path, counts[groupId] ?? 0, repeatedEntry)
+  }
+
+  const repeating = repeatedCarrierOn(path, index)
+  if (!repeating) return withSpread(selection, key, counts)
+
+  return spreadRepeatedGroup(selection, path, counts, repeating, index)
+}
+
+/**
+ * A group of models set to the counts asked for, and only those.
+ *
+ * Rebuilding the whole group from the request would drop the models it says nothing
+ * about — a squad told how many bolt rifles it wants is not saying it has no sergeant.
+ */
+function withModelOccupants(
+  selection: Selection,
+  path: readonly string[],
+  counts: Readonly<Record<string, number>>,
+  group: Definition,
+  occupants: readonly { id: string; definition: Definition }[],
+  index: CatalogueIndex,
+): Selection {
+  const optionIds = new Set(Object.keys(counts))
+  const capacity = maximumCount(group, index)
+  const asking = Object.values(counts).some((count) => count > 0)
+  return updateSelection(asking ? withPlaceFor(selection, path) : selection, path, (held) => {
+    // A saved list can ask for more bodies than the squad has, either because the
+    // catalogue's limits moved under it or because two of its own requests
+    // disagree. The group's own maximum is the answer, and the models it says
+    // nothing about are counted first because they are already standing there.
+    const untouched = (held.selections ?? []).filter((child) => !optionIds.has(child.id))
+    let left =
+      capacity === null || capacity === UNBOUNDED
+        ? Number.POSITIVE_INFINITY
+        : Math.max(0, capacity - untouched.reduce((total, child) => total + (child.count ?? 1), 0))
+    return {
+      ...held,
+      selections: [
+        ...untouched,
+        ...occupants.flatMap((option) => {
+          if (!Object.hasOwn(counts, option.id)) return []
+          const count = Math.min(counts[option.id] ?? 0, left)
+          left -= count
+          return count > 0 ? [expand(option.id, option.definition, index, MAX_DEPTH, count, new Set(), 1)] : []
+        }),
+      ],
+    }
+  })
+}
+
+function spreadRepeatedUpgrade(selection: Selection, path: readonly string[], requested: number, repeating: { path: string[] }) {
+  const modelId = repeating.path.at(-1)
+  if (!modelId) return selection
+  const models = allAt(selection, repeating.path)
+  const carriers = models.reduce((total, model) => total + (model.count ?? 1), 0)
+  const withinModel = path.slice(repeating.path.length)
+  const variants: Selection[] = []
+  let remaining = Math.min(carriers, Math.max(0, requested))
+  for (const model of models) {
+    const count = model.count ?? 1
+    const base = withoutSelectionAt(model, withinModel)
+    const taking = Math.min(remaining, count)
+    if (taking) variants.push(withCounts({ ...base, count: taking }, [{ path: withinModel, count: 1 }]))
+    if (taking < count) variants.push({ ...base, count: count - taking })
+    remaining -= taking
+  }
+  return replaceAt(selection, repeating.path.slice(0, -1), modelId, variants)
+}
+
+function spreadRepeatedGroup(
+  selection: Selection,
+  path: readonly string[],
+  counts: Readonly<Record<string, number>>,
+  repeating: { path: string[]; definition: Definition },
+  index: CatalogueIndex,
+) {
+  const modelId = repeating.path.at(-1)
+  if (!modelId) return selection
+  const withinModel = path.slice(repeating.path.length)
+  const models = allAt(selection, repeating.path)
+  const requested = Object.entries(counts)
+    .filter(([, count]) => count > 0)
+    .map(([optionId, count]) => ({ optionId, remaining: count }))
+  const variants: Selection[] = []
+  let requestAt = 0
+  // A model the squad took on only to carry this weapon — one the data does not
+  // insist on, holding a group it does insist on — has no reason to stay once the
+  // weapon is put down. Shieldvanes are the other case: the models were always
+  // there and the upgrade is what is optional, so an unequipped one has to remain.
+  const group = index.definitions.get(path.at(-1) ?? '')
+  const disposable = requiredCount(repeating.definition, index) === 0 && Boolean(group) && requiredCount(group!, index) > 0
+
+  for (const model of models) {
+    const base = withoutSelectionAt(model, withinModel)
+    let remaining = model.count ?? 1
+    while (remaining > 0 && requestAt < requested.length) {
+      const request = requested[requestAt]
+      if (!request) break
+      const count = Math.min(remaining, request.remaining)
+      variants.push(withChoice({ ...base, count }, withinModel.join('/'), request.optionId, index))
+      remaining -= count
+      request.remaining -= count
+      if (request.remaining === 0) requestAt += 1
+    }
+    if (remaining > 0 && !disposable) variants.push({ ...base, count: remaining })
+  }
+  for (; requestAt < requested.length; requestAt += 1) {
+    const request = requested[requestAt]
+    if (!request || request.remaining <= 0) continue
+    const base = expand(modelId, repeating.definition, index, MAX_DEPTH, request.remaining, new Set(), 1)
+    variants.push(withChoice(base, withinModel.join('/'), request.optionId, index))
+  }
+  const holder = repeating.path.slice(0, -1)
+  // The carrier can be as absent as the group it holds — a squad arming its first
+  // flamer has neither the flamer nor the biker to hang it on — so the group the
+  // carrier stands in needs its place made before the carrier can be put there.
+  const replaced = replaceAt(requested.length ? withPlaceFor(selection, holder) : selection, holder, modelId, variants)
+  // Arming a model this squad did not have yet puts a body in it, and the squad is
+  // already as big as it is allowed to be. The body comes from one of its own — a
+  // veteran puts down his bolt rifle to carry the heavy bolter — and never from a
+  // model the data insists on, which is how the sergeant used to be squeezed out.
+  const before = models.reduce((total, model) => total + (model.count ?? 1), 0)
+  const after = variants.reduce((total, variant) => total + (variant.count ?? 1), 0)
+  // The squadmate may stand a group further out than the carrier does, where the
+  // catalogue files its specialists apart from the squad they are drawn from, so what
+  // the holder cannot pay for is asked of the squad around it.
+  if (after > before) return keepingTheSquad(selection, spendBodies(replaced, holder, modelId, after - before, index), path, index)
+  // And a body no longer needed goes back to the squadmate who lent it, so putting
+  // a heavy bolter down leaves the unit the size the player asked for.
+  if (after < before) return keepingTheSquad(selection, refundBodies(replaced, holder, modelId, before - after, index), path, index)
+  return replaced
+}
+
+/**
+ * The squad the size it was, after a request armed something inside it.
+ *
+ * How many models a squad fields is the size the player set, and asking for a weapon
+ * is not asking for that to change: a magna-rail rifle is one of the ten warriors
+ * carrying it, and a Chaos Biker's flamer is taken *instead of* his combi-bolter. So
+ * a model brought into the squad's own group costs a squadmate their place, and one
+ * put down hands the place back.
+ *
+ * Only inside that group. A drone, a plasmacyte or a pack of hunting wolves is filed
+ * outside the group whose bounds are the squad's size, because it is an addition to
+ * the squad rather than one of its models, and taking one has to make the unit bigger.
+ */
+function keepingTheSquad(before: Selection, after: Selection, path: readonly string[], index: CatalogueIndex): Selection {
+  const squad = sizeOf(before, index).path.slice(0, -1)
+  const inside = squad.length > 0 && path.length > squad.length && squad.every((step, depth) => path[depth] === step)
+  if (!inside) return after
+  const fielded = (tree: Selection) => {
+    const held = at(tree, squad)
+    return held ? modelCountOf(held, index) : 0
+  }
+  const grew = fielded(after) - fielded(before)
+  const carrier = path[squad.length] ?? ''
+  if (grew > 0) return spendBodies(after, squad, carrier, grew, index)
+  if (grew < 0) return refundBodies(after, squad, carrier, -grew, index)
+  return after
+}
+
+/**
+ * The squadmates a body can be taken from or handed back to: models in the same group
+ * that the data does not insist on, largest first, so the sergeant is never the one
+ * squeezed out.
+ */
+function squadmates(group: Selection, carrierId: string, index: CatalogueIndex): Selection[] {
+  return (group.selections ?? [])
+    .filter((child) => {
+      if (child.id === carrierId) return false
+      const definition = index.definitions.get(child.id)
+      return Boolean(definition) && resolve(definition!, index).type === 'model' && requiredCount(definition!, index) === 0
+    })
+    .toSorted((one, other) => (other.count ?? 1) - (one.count ?? 1))
+}
+
+/** Bodies handed back to the squad, the inverse of one being spent to arm a carrier. */
+function refundBodies(
+  selection: Selection,
+  groupPath: readonly string[],
+  carrierId: string,
+  spare: number,
+  index: CatalogueIndex,
+): Selection {
+  let left = spare
+  return updateSelection(selection, groupPath, (group) => {
+    const given = new Map<string, number>()
+    for (const taker of squadmates(group, carrierId, index)) {
+      if (left <= 0) break
+      const cap = maximumCount(index.definitions.get(taker.id)!, index)
+      const give = Math.min(left, cap === null ? left : Math.max(0, cap - (taker.count ?? 1)))
+      if (!give) continue
+      given.set(taker.id, give)
+      left -= give
+    }
+    return {
+      ...group,
+      selections: (group.selections ?? []).map((child) => {
+        const give = given.get(child.id) ?? 0
+        return give ? { ...child, count: (child.count ?? 1) + give } : child
+      }),
+    }
+  })
+}
+
+function spendBodies(
+  selection: Selection,
+  groupPath: readonly string[],
+  carrierId: string,
+  wanted: number,
+  index: CatalogueIndex,
+): Selection {
+  let left = wanted
+  return updateSelection(selection, groupPath, (group) => {
+    const spent = new Map<string, number>()
+    for (const giver of squadmates(group, carrierId, index)) {
+      if (left <= 0) break
+      const take = Math.min(left, giver.count ?? 1)
+      spent.set(giver.id, take)
+      left -= take
+    }
+    return {
+      ...group,
+      selections: (group.selections ?? []).flatMap((child) => {
+        const take = spent.get(child.id) ?? 0
+        if (!take) return [child]
+        const remaining = (child.count ?? 1) - take
+        return remaining > 0 ? [{ ...child, count: remaining }] : []
+      }),
+    }
+  })
+}

@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import type { Secondary, Stratagem } from '../../core/battle'
 import { ListBuilder } from './ListBuilder'
 
@@ -17,14 +16,12 @@ type Roster = {
 
 type Props = { roster: Roster; editable: boolean }
 
-export function RosterEditor({ roster, editable }: Props) {
-  const [prep, setPrep] = useState<{ stratagems: Stratagem[]; secondaries: Secondary[] }>(
-    roster.prep ?? { stratagems: [], secondaries: [] },
-  )
+const NO_PREP = { stratagems: [], secondaries: [] }
 
+export function RosterEditor({ roster, editable }: Props) {
   return (
     <main className="flex h-full w-full flex-col">
-      <ListBuilder prep={prep} onRestorePrep={setPrep} initial={roster} editable={editable} />
+      <ListBuilder prep={roster.prep ?? NO_PREP} initial={roster} editable={editable} />
     </main>
   )
 }

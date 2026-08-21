@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
 import { Link } from '@tanstack/react-router'
-import type { BattleView } from '../../../core/battle'
+import type { BattleView } from '../../../core/battleView'
 import { factionFor } from '../../factions'
 import { factionsQuery } from '../../queries'
 import { PlayerAvatar } from '../PlayerAvatar'

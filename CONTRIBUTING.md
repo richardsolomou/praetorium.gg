@@ -30,10 +30,11 @@ Run `just e2e` for changes to rendered behavior or complete user flows. The comm
 
 Run `just points` after changes to points or roster legality. The result is a ratchet. A lower match rate is a regression unless the set of generated checks changed and the new baseline is explained.
 
-Two browser-test details matter:
+Three browser-test details matter:
 
 - Battle pages keep a live connection open, so they never reach network idle. Wait for a page element instead.
-- Find unit cards with `data-unit`. CSS changes the displayed case, so visible-text matching is unreliable.
+- Find unit cards with `data-unit` and roster rows with `data-roster`. CSS changes the displayed case, so visible-text matching is unreliable.
+- Scope an assertion to the row or card it is about. `getByText` matches a substring case-insensitively, so a word on a row also matches the menu item that changes it, and the assertion can pass before the change lands.
 
 ## Layout
 

@@ -10,7 +10,7 @@ Praetorium uses a compact, dark visual system. See [the product design guide](..
 - Render each picker or loadout pane once. `src/client/components/builder/Pane.tsx` moves the same instance between a desktop sidebar and a mobile sheet. Two instances create duplicate form controls and accessibility labels.
 - Split unit lists into collapsible primary-category shelves and omit empty shelves. Use the same shelf order on rosters, in the picker and on faction datasheet pages.
 - Show allied picker shelves with their short faction name and keep them collapsed until a player needs them.
-- Use `data-unit` to find unit cards in tests. CSS changes the displayed case, so visible-text selectors do not match the source text reliably.
+- Use `data-unit` to find unit cards in tests and `data-roster` to find library rows. CSS changes the displayed case, so visible-text selectors do not match the source text reliably — and a word like "Unlisted" appears both on a row and in the menu item that changes it, so an unscoped match can pass before the change lands.
 - Keep battle setup in five visible sections: Format, Armies, Battlefield, Pre-battle, and First turn. The active section is folded from the battle log so every seated device moves together. Show every attached roster, and let anyone at the table set reserves and the battle-ready bonus for any army while the table is being set. A roster stays the choice of the player who owns it.
 - Choose saved rosters in a dialog ordered like the roster library. Keep battlefield selection stable while its command saves, and open each battlefield in a full-size dialog without changing the selection.
 - In the live tracker, show only stratagems valid for the current turn and phase. The CP badge spends the printed cost; the overflow menu handles modified costs. A stratagem opens the same text the detachment page prints, from `detachmentRules`.
@@ -32,6 +32,9 @@ Praetorium uses a compact, dark visual system. See [the product design guide](..
 ## Components and styles
 
 - Do not disable controls while a command is in flight. `useCommand` sends them in order, so a player's own taps cannot race each other and nothing has to go dead to prevent it.
+- Wait for a run of edits to settle before asking the server about them. `src/client/useSettled.ts` is the one delay: holding a stepper down is one intent, not fifteen requests.
+- The loadout pane is three files. `loadoutModel.ts` holds its shapes and every decision that needs no screen — matching a wargear name to what describes it, ordering a card's rows, and what a step on one option does to its siblings. `LoadoutControls.tsx` holds the controls, `ModelCard.tsx` one kind of model, and `Loadout.tsx` only decides which choices belong to a card and which to the unit.
+- Keep a route file to its loader, its search parameters and its page shell. Anything with state of its own belongs in `src/client/components`.
 - `src/components/ui` contains generated shadcn Base UI components. Add or replace them with the shadcn CLI. Do not edit them by hand.
 - `src/styles.css` maps root tokens to Tailwind color utilities through `@theme inline`. Generated components depend on that mapping.
 - Barlow Semi Condensed handles the compact display hierarchy; regular Barlow handles paragraph-length rules text. Both OFL-licensed faces are registered in the main stylesheet and preloaded by the root route. Do not add a font without its license or hide it behind client-side loading.

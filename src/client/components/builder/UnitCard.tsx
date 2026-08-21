@@ -60,6 +60,7 @@ export function UnitCard({
   editable = true,
 }: Props) {
   const cardClassName = `border bg-card transition-colors ${selected ? 'border-azure' : 'border-edge hover:border-azure'}`
+  const actions = { owned, onOwned, onDuplicate, onRemove }
 
   const card = (
     <>
@@ -102,21 +103,8 @@ export function UnitCard({
                 >
                   <EllipsisVertical className="size-4" />
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-44 rounded-none border border-edge-strong bg-raised shadow-xl ring-0">
-                  <DropdownMenuItem className="rounded-none text-xs font-semibold uppercase focus:bg-edge" onClick={onDuplicate}>
-                    <Copy className="size-3.5" /> Duplicate unit
-                  </DropdownMenuItem>
-                  <DropdownMenuCheckboxItem
-                    className="rounded-none text-xs font-semibold uppercase focus:bg-edge"
-                    checked={owned}
-                    onCheckedChange={onOwned}
-                  >
-                    <Heart className={`size-3.5 ${owned ? 'fill-azure text-azure' : ''}`} />
-                    {owned ? 'Remove from collection' : 'Add to collection'}
-                  </DropdownMenuCheckboxItem>
-                  <DropdownMenuItem variant="destructive" className="rounded-none text-xs font-semibold uppercase" onClick={onRemove}>
-                    <X className="size-3.5" /> Delete unit
-                  </DropdownMenuItem>
+                <DropdownMenuContent align="end" className={MENU}>
+                  <UnitActions Item={DropdownMenuItem} Checkbox={DropdownMenuCheckboxItem} {...actions} />
                 </DropdownMenuContent>
               </DropdownMenu>
             </span>
@@ -186,22 +174,49 @@ export function UnitCard({
   return (
     <ContextMenu>
       <ContextMenuTrigger render={<div data-unit={unit.name} className={cardClassName} />}>{card}</ContextMenuTrigger>
-      <ContextMenuContent className="w-44 rounded-none border border-edge-strong bg-raised shadow-xl ring-0">
-        <ContextMenuItem className="rounded-none text-xs font-semibold uppercase focus:bg-edge" onClick={onDuplicate}>
-          <Copy className="size-3.5" /> Duplicate unit
-        </ContextMenuItem>
-        <ContextMenuCheckboxItem
-          className="rounded-none text-xs font-semibold uppercase focus:bg-edge"
-          checked={owned}
-          onCheckedChange={onOwned}
-        >
-          <Heart className={`size-3.5 ${owned ? 'fill-azure text-azure' : ''}`} />
-          {owned ? 'Remove from collection' : 'Add to collection'}
-        </ContextMenuCheckboxItem>
-        <ContextMenuItem variant="destructive" className="rounded-none text-xs font-semibold uppercase" onClick={onRemove}>
-          <X className="size-3.5" /> Delete unit
-        </ContextMenuItem>
+      <ContextMenuContent className={MENU}>
+        <UnitActions Item={ContextMenuItem} Checkbox={ContextMenuCheckboxItem} {...actions} />
       </ContextMenuContent>
     </ContextMenu>
+  )
+}
+
+const MENU = 'w-44 rounded-none border border-edge-strong bg-raised shadow-xl ring-0'
+const ITEM = 'rounded-none text-xs font-semibold uppercase focus:bg-edge'
+
+/**
+ * The same three actions, in whichever menu asked for them.
+ *
+ * The overflow button and the right-click menu are two ways to reach one list, so the
+ * list is written once and handed the item components of the menu drawing it.
+ */
+function UnitActions({
+  Item,
+  Checkbox,
+  owned,
+  onOwned,
+  onDuplicate,
+  onRemove,
+}: {
+  Item: typeof DropdownMenuItem | typeof ContextMenuItem
+  Checkbox: typeof DropdownMenuCheckboxItem | typeof ContextMenuCheckboxItem
+  owned: boolean
+  onOwned: () => void
+  onDuplicate: () => void
+  onRemove: () => void
+}) {
+  return (
+    <>
+      <Item className={ITEM} onClick={onDuplicate}>
+        <Copy className="size-3.5" /> Duplicate unit
+      </Item>
+      <Checkbox className={ITEM} checked={owned} onCheckedChange={onOwned}>
+        <Heart className={`size-3.5 ${owned ? 'fill-azure text-azure' : ''}`} />
+        {owned ? 'Remove from collection' : 'Add to collection'}
+      </Checkbox>
+      <Item variant="destructive" className="rounded-none text-xs font-semibold uppercase" onClick={onRemove}>
+        <X className="size-3.5" /> Delete unit
+      </Item>
+    </>
   )
 }

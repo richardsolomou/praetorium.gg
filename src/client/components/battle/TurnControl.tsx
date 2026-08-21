@@ -1,6 +1,7 @@
 import { Undo2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { PHASES, type BattleView, type Command } from '../../../core/battle'
+import { PHASES, type Command } from '../../../core/battle'
+import { type BattleView } from '../../../core/battleView'
 import { tint } from './tints'
 
 type Props = {

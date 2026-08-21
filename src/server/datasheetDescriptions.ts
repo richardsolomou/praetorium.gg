@@ -1,6 +1,7 @@
 import { datasheetIn, rulesReferencedIn } from './catalogue'
+import { routeSlug } from '../core/slug'
 import type { LoadedCatalogue } from './catalogueIndex'
-import { type LoadedRules, slug } from './rules'
+import { type LoadedRules } from './rules'
 import { findAbilityDescription, WAHAPEDIA_ATTRIBUTION } from './wahapedia'
 
 export function describeDatasheetAbilities(
@@ -19,15 +20,17 @@ export function describeDatasheetAbilities(
     description: ability.description ?? (descriptions ? findAbilityDescription(descriptions, ability.name) : null),
   }))
   const faction = loaded.index.catalogues.get(catalogueId)
-  const keywords = new Set(sheet.keywords.map((keyword) => slug(keyword.replace(/^faction:\s*/i, ''))))
+  const keywords = new Set(sheet.keywords.map((keyword) => routeSlug(keyword.replace(/^faction:\s*/i, ''))))
   const character = keywords.has('character')
   const detachments = faction
-    ? [...(loadedRules?.detachmentDetails.get(slug(faction.name))?.values() ?? [])].map((detachment) => ({
+    ? [...(loadedRules?.detachmentDetails.get(routeSlug(faction.name))?.values() ?? [])].map((detachment) => ({
         id: detachment.id,
         name: detachment.name,
         rules: detachment.rules,
         enhancements: character
-          ? detachment.enhancements.filter((enhancement) => enhancement.keywordRestrictions.every((keyword) => keywords.has(slug(keyword))))
+          ? detachment.enhancements.filter((enhancement) =>
+              enhancement.keywordRestrictions.every((keyword) => keywords.has(routeSlug(keyword))),
+            )
           : [],
       }))
     : []

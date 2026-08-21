@@ -28,7 +28,7 @@ Along the way:
 - Scoring controls use the values defined by each mission card.
 - Every seated player can record actions for either side and undo the latest command.
 - Finished battles can record a concession, be corrected, or be reopened without rewriting history.
-- Saved lists can be tagged, reused, printed, and exported as Games Workshop-style text. They stay private unless their owner creates an unlisted sharing link.
+- Saved lists can be reused, copied, printed, and exported as Games Workshop-style text. They stay private unless their owner creates an unlisted sharing link.
 
 ## Shared battle state 🔒
 
@@ -60,7 +60,9 @@ Praetorium tracks whether a unit is active or destroyed, but not wounds on indiv
 
 ## Development 🛠️
 
-Development requires Node 24.x, pnpm 11.15.0, and just. Run `just install && just dev`. See [CONTRIBUTING.md](CONTRIBUTING.md) for checks, [AGENTS.md](AGENTS.md) for architecture rules, and [SECURITY.md](SECURITY.md) for vulnerability reports.
+Development requires Node 24.x, pnpm 11.15.0, and just 1.58.0. Run `just install && just dev`. See [CONTRIBUTING.md](CONTRIBUTING.md) for checks, [AGENTS.md](AGENTS.md) for architecture rules, and [SECURITY.md](SECURITY.md) for vulnerability reports.
+
+`src/core` holds the domain and stays free of IO: `battle.ts` plays the game, `battleView.ts` decides what each player may see, and `roster.ts` builds a unit from the catalogue. `src/server` loads the community data and exposes it, `src/client` draws it, and `src/routes` stays thin.
 
 ## Attribution
 
