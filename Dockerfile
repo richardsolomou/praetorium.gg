@@ -3,7 +3,8 @@ FROM ghcr.io/richardsolomou/ras-stack-runtime-binaries:runtime-v1.0.0@sha256:5f8
 
 FROM node:24-alpine AS build
 WORKDIR /app
-RUN apk add --no-cache python3 make g++
+# No toolchain: nothing in the dependency tree compiles now that the database is
+# reached over a socket rather than linked into the process.
 RUN corepack enable && corepack install --global pnpm@11.15.0
 COPY pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm fetch --frozen-lockfile
@@ -13,7 +14,7 @@ COPY src ./src
 COPY public ./public
 COPY drizzle ./drizzle
 COPY catalogue ./catalogue
-COPY scripts/containerRuntime.ts scripts/seedPreview.ts ./scripts/
+COPY scripts/containerRuntime.ts scripts/migrate.ts scripts/seedPreview.ts ./scripts/
 COPY ras-stack.assets.json tsconfig.json vite.config.ts vite.seed.config.ts ./
 ARG VITE_POSTHOG_PROJECT_TOKEN
 ARG VITE_POSTHOG_HOST

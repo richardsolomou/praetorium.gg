@@ -37,4 +37,8 @@ Two Playwright rules matter:
 
 ## Database
 
-Generate migrations with `just db-generate`. Do not edit an applied migration. The build copies `drizzle/` into `.output/server/drizzle` for production.
+`just dev` starts Postgres and Valkey in containers alongside Centrifugo, applies migrations, then runs the app. Their data lives in named Docker volumes, so it survives between sessions; `just services-down` stops them.
+
+Generate migrations with `just db-generate` and apply them with `just db-migrate`. Do not edit an applied migration. The build copies `drizzle/` into `.output/server/drizzle` for production, which is where both the app and the standalone migrate step look for it.
+
+Unit tests run against PGlite, a real Postgres compiled to WebAssembly, so `pnpm test` needs no server and still exercises the same SQL and the same migrations as a deployment.

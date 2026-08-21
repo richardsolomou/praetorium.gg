@@ -3,13 +3,19 @@ services:
     build:
       context: .
     restart: unless-stopped
-    # One instance, always. Live updates fan out inside the process, so a second
-    # replica would serve battles that never hear about each other's commands.
-    deploy:
-      replicas: 1
+    depends_on:
+      postgres:
+        condition: service_healthy
+      valkey:
+        condition: service_healthy
     ports:
       - '3030:3000'
     environment:
+      # Accounts, lists, battles and every command in their logs.
+      DATABASE_URL: postgres://${POSTGRES_USER:-praetorium}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-praetorium}
+      # Sessions, the auth limiter, and Centrifugo's fan-out between replicas.
+      # Remove it and the deployment is one replica again, which still works.
+      VALKEY_URL: redis://valkey:6379
       # Public origin of the deployment. Only needed when proxy headers cannot
       # represent it; mutations are rejected from any other origin.
       APP_URL: ${APP_URL:-}
@@ -23,5 +29,42 @@ services:
       DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID:-}
       DISCORD_CLIENT_SECRET: ${DISCORD_CLIENT_SECRET:-}
     volumes:
-      # The SQLite database holding every battle and its command log.
+      # Secrets and the catalogue cache. The game data lives in Postgres now, so
+      # this holds nothing that cannot be rebuilt except the signing secrets.
       - ${DATA_HOST_DIR:-./praetorium-data}:/data
+
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-praetorium}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-praetorium}
+    healthcheck:
+      # The app migrates on the way up, so it must not start before this answers.
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-praetorium} -d ${POSTGRES_DB:-praetorium}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    volumes:
+      # Postgres 18 puts its cluster in a version-named subdirectory, so the mount
+      # belongs one level above `data` — where `pg_upgrade` can reach both.
+      - praetorium-postgres:/var/lib/postgresql
+
+  valkey:
+    image: valkey/valkey:9-alpine
+    restart: unless-stopped
+    # Sessions are worth keeping across a restart, so this is not a pure cache.
+    command: ['valkey-server', '--appendonly', 'yes']
+    healthcheck:
+      test: ['CMD', 'valkey-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - praetorium-valkey:/data
+
+volumes:
+  praetorium-postgres:
+  praetorium-valkey:

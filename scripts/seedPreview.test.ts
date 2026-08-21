@@ -1,33 +1,38 @@
-import fs from 'node:fs'
-import os from 'node:os'
-import path from 'node:path'
 import { count, eq } from 'drizzle-orm'
 import { afterEach, expect, it } from 'vitest'
-import { closeDatabase, databasePath, openDatabase } from '../src/db/connection'
+import type { PraetoriumConnection } from '../src/db/connection'
+import { openTestDatabase } from '../src/db/testDatabase'
 import { friendships, rosters, user } from '../src/db/schema'
 import { PREVIEW_EMAIL, PREVIEW_OPPONENT_EMAIL, PREVIEW_OPPONENT_ROSTER, PREVIEW_ROSTER, seedPreview } from './seedPreview'
 
-let root: string | undefined
+let connection: PraetoriumConnection | undefined
 
-afterEach(() => {
-  if (root) fs.rmSync(root, { recursive: true, force: true })
-  delete process.env.DATA_DIR
+afterEach(async () => {
+  await connection?.close()
+  connection = undefined
 })
 
 it('creates two idempotent preview accounts, rosters and their friendship', async () => {
-  root = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-preview-seed-'))
-  process.env.DATA_DIR = root
+  connection = await openTestDatabase()
+  const database = connection.database
 
-  await seedPreview()
-  await seedPreview()
+  await seedPreview(database)
+  await seedPreview(database)
 
-  const database = openDatabase(databasePath())
-  expect(database.select({ count: count() }).from(user).where(eq(user.email, PREVIEW_EMAIL)).get()?.count).toBe(1)
-  expect(database.select({ count: count() }).from(user).where(eq(user.email, PREVIEW_OPPONENT_EMAIL)).get()?.count).toBe(1)
-  expect(database.select({ count: count() }).from(rosters).where(eq(rosters.id, PREVIEW_ROSTER.id)).get()?.count).toBe(1)
-  expect(database.select({ count: count() }).from(rosters).where(eq(rosters.id, PREVIEW_OPPONENT_ROSTER.id)).get()?.count).toBe(1)
-  expect(database.select().from(friendships).get()?.acceptedAt).not.toBeNull()
-  expect(database.select().from(rosters).where(eq(rosters.id, PREVIEW_ROSTER.id)).get()).toMatchObject({
+  const [previewAccounts] = await database.select({ count: count() }).from(user).where(eq(user.email, PREVIEW_EMAIL))
+  const [opponentAccounts] = await database.select({ count: count() }).from(user).where(eq(user.email, PREVIEW_OPPONENT_EMAIL))
+  const [previewRosters] = await database.select({ count: count() }).from(rosters).where(eq(rosters.id, PREVIEW_ROSTER.id))
+  const [opponentRosters] = await database.select({ count: count() }).from(rosters).where(eq(rosters.id, PREVIEW_OPPONENT_ROSTER.id))
+  expect(previewAccounts?.count).toBe(1)
+  expect(opponentAccounts?.count).toBe(1)
+  expect(previewRosters?.count).toBe(1)
+  expect(opponentRosters?.count).toBe(1)
+
+  const [friendship] = await database.select().from(friendships)
+  expect(friendship?.acceptedAt).not.toBeNull()
+
+  const [saved] = await database.select().from(rosters).where(eq(rosters.id, PREVIEW_ROSTER.id))
+  expect(saved).toMatchObject({
     name: PREVIEW_ROSTER.name,
     catalogueId: PREVIEW_ROSTER.catalogueId,
     detachmentId: JSON.stringify(PREVIEW_ROSTER.detachmentIds),
@@ -35,7 +40,9 @@ it('creates two idempotent preview accounts, rosters and their friendship', asyn
     limit: 2000,
     picks: JSON.stringify(PREVIEW_ROSTER.picks),
   })
-  expect(database.select().from(rosters).where(eq(rosters.id, PREVIEW_OPPONENT_ROSTER.id)).get()).toMatchObject({
+
+  const [opponentSaved] = await database.select().from(rosters).where(eq(rosters.id, PREVIEW_OPPONENT_ROSTER.id))
+  expect(opponentSaved).toMatchObject({
     name: PREVIEW_OPPONENT_ROSTER.name,
     catalogueId: PREVIEW_OPPONENT_ROSTER.catalogueId,
     detachmentId: JSON.stringify(PREVIEW_OPPONENT_ROSTER.detachmentIds),
@@ -43,5 +50,4 @@ it('creates two idempotent preview accounts, rosters and their friendship', asyn
     limit: 2000,
     picks: JSON.stringify(PREVIEW_OPPONENT_ROSTER.picks),
   })
-  closeDatabase(database)
 })

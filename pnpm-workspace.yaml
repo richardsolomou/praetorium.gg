@@ -1,5 +1,4 @@
 allowBuilds:
-  better-sqlite3: true
   core-js: true
   esbuild: true
   # centrifuge pulls it in; we speak Centrifugo's JSON protocol and never protobuf,
@@ -8,6 +7,3 @@ allowBuilds:
 minimumReleaseAgeExclude:
   - ras-stack@0.44.0
 minimumReleaseAge: 10080
-peerDependencyRules:
-  allowedVersions:
-    better-sqlite3: '13'

@@ -45,9 +45,9 @@ import {
 } from './schemas'
 
 /** Reads answer null for a link that points at nothing, so the route can render a real 404. */
-function orNull<T>(work: () => T) {
+async function orNull<T>(work: () => Promise<T>) {
   try {
-    return work()
+    return await work()
   } catch (error) {
     if (error instanceof Response && error.status === 404) return null
     throw error
@@ -112,7 +112,7 @@ export const createBattle = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     mutationRpc(async () => {
       const player = await requireUser()
-      const result = app().service.createBattle(player.id, data)
+      const result = await app().service.createBattle(player.id, data)
       await app().telemetry.capture(player.id, 'battle_created', { solo: data.solo, limit: data.limit })
       return result
     }),
@@ -123,7 +123,7 @@ export const deleteBattle = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     mutationRpc(async () => {
       const player = await requireUser()
-      app().service.deleteBattle(data.token, player.id)
+      await app().service.deleteBattle(data.token, player.id)
       await app().telemetry.capture(player.id, 'battle_deleted')
       return null
     }),
@@ -134,7 +134,7 @@ export const joinBattle = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     mutationRpc(async () => {
       const player = await requireUser()
-      const result = app().service.join(data.token, player.id)
+      const result = await app().service.join(data.token, player.id)
       await app().telemetry.capture(player.id, 'battle_joined')
       return result
     }),
@@ -150,7 +150,7 @@ export const submit = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     mutationRpc(async () => {
       const player = await requireUser()
-      const result = app().service.submit(data.token, player.id, data.expectedSeq, data.command, app().rules())
+      const result = await app().service.submit(data.token, player.id, data.expectedSeq, data.command, app().rules())
       await app().telemetry.capture(player.id, 'battle_command_submitted', { command: data.command.kind })
       return result
     }),
@@ -169,7 +169,7 @@ export const setOwned = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     mutationRpc(async () => {
       const player = await requireUser()
-      const result = app().service.setOwned(player.id, data.entryId, data.owned)
+      const result = await app().service.setOwned(player.id, data.entryId, data.owned)
       await app().telemetry.capture(player.id, 'player_collection_updated', { owned: data.owned })
       return result
     }),
@@ -187,7 +187,7 @@ export const setFavouriteFaction = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     mutationRpc(async () => {
       const player = await requireUser()
-      app().service.setFavouriteFaction(player.id, data.catalogueId, data.favourite)
+      await app().service.setFavouriteFaction(player.id, data.catalogueId, data.favourite)
       return null
     }),
   )
@@ -222,7 +222,8 @@ export const globalSearch = createServerFn({ method: 'GET' })
         own: async () => {
           const userId = await currentUserId()
           if (!userId) return null
-          return { rosters: app().service.savedRosters(userId), battles: app().service.battles(userId, app().rules()) }
+          const [rosters, battles] = await Promise.all([app().service.savedRosters(userId), app().service.battles(userId, app().rules())])
+          return { rosters, battles }
         },
       }),
     ),
@@ -346,7 +347,7 @@ export const savedRosterPrice = createServerFn({ method: 'GET' })
   .handler(({ data }) =>
     rpc(async () => {
       const userId = await currentUserId()
-      const roster = app().service.sharedRoster(data.id, userId, data.battle ?? null)
+      const roster = await app().service.sharedRoster(data.id, userId, data.battle ?? null)
       return roster
         ? calculateRosterPrice({
             catalogueId: roster.catalogueId,
@@ -364,7 +365,7 @@ export const saveRoster = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     mutationRpc(async () => {
       const player = await requireUser()
-      const result = app().service.saveRoster(player.id, data)
+      const result = await app().service.saveRoster(player.id, data)
       await app().telemetry.capture(player.id, 'roster_saved', { unit_count: data.picks.length })
       return result
     }),
@@ -375,7 +376,7 @@ export const deleteRoster = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     mutationRpc(async () => {
       const player = await requireUser()
-      app().service.deleteRoster(player.id, data.id)
+      await app().service.deleteRoster(player.id, data.id)
       await app().telemetry.capture(player.id, 'roster_deleted')
       return null
     }),
@@ -386,7 +387,7 @@ export const setRosterVisibility = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     mutationRpc(async () => {
       const player = await requireUser()
-      app().service.setRosterVisibility(player.id, data.id, data.visibility)
+      await app().service.setRosterVisibility(player.id, data.id, data.visibility)
       await app().telemetry.capture(player.id, 'roster_visibility_updated', { visibility: data.visibility })
       return null
     }),

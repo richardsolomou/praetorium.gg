@@ -9,7 +9,6 @@ const root = process.env.PLAYWRIGHT_DATA_ROOT ?? `/tmp/praetorium-e2e-${port}`
 // The synced catalogue, so list building is exercised against the real data.
 const catalogue = process.env.CATALOGUE_DIR ?? path.join(import.meta.dirname, 'catalogue-data')
 const image = process.env.PLAYWRIGHT_IMAGE ?? 'praetorium-e2e'
-const container = `praetorium-e2e-${port}`
 
 export default defineConfig({
   testDir: './e2e',
@@ -30,17 +29,22 @@ export default defineConfig({
    * serves a request, so a suite that ran the Node output alone would be testing a
    * topology nobody deploys — and the websocket would cross an origin it never
    * crosses in production.
+   *
+   * Postgres and Valkey come up beside it for the same reason. The script owns
+   * the whole stack so it can take all of it down again, including after a
+   * failure.
    */
   webServer: {
-    command: [
-      `docker rm -f ${container} >/dev/null 2>&1 || true`,
-      `rm -rf ${root} && mkdir -p ${root} && chmod 777 ${root}`,
-      `docker run --rm --name ${container} -p 127.0.0.1:${port}:3000` +
-        ` -v ${root}:/data -v ${catalogue}:/catalogue:ro` +
-        ` -e CATALOGUE_DIR=/catalogue -e RULES_DIR=/catalogue/rules -e AUTH_RATE_LIMIT=off ${image}`,
-    ].join(' && '),
+    command: `sh e2e/stack.sh ${port}`,
+    env: {
+      PLAYWRIGHT_IMAGE: image,
+      PLAYWRIGHT_DATA_ROOT: root,
+      CATALOGUE_HOST_DIR: catalogue,
+    },
     url: `${baseURL}/api/health`,
     reuseExistingServer: false,
-    timeout: 180_000,
+    // Longer than before: Postgres has to accept connections and the schema has
+    // to be applied before the app answers its first health check.
+    timeout: 240_000,
   },
 })

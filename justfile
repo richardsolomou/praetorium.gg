@@ -7,19 +7,32 @@ install:
     corepack enable
     pnpm install
 
-# The app and Centrifugo together, since live updates need both
+# The app, Centrifugo, Postgres and Valkey together, since the app needs all four
 dev:
     #!/usr/bin/env bash
     # Centrifugo goes in the background and is taken down on the way out, so a
-    # stray container cannot outlive the terminal that started it.
+    # stray container cannot outlive the terminal that started it. Postgres and
+    # Valkey are left running: their data is worth keeping between sessions.
     set -euo pipefail
     mkdir -p data-dev
+    just services
     just realtime --detach
     cleanup() {
         docker rm --force praetorium-realtime >/dev/null 2>&1 || true
     }
     trap cleanup EXIT INT TERM
+    export DATABASE_URL="${DATABASE_URL:-postgres://praetorium:praetorium@127.0.0.1:5432/praetorium}"
+    export VALKEY_URL="${VALKEY_URL:-redis://127.0.0.1:6379}"
+    pnpm db:migrate
     DATA_DIR=./data-dev CATALOGUE_DIR=./catalogue-data RULES_DIR=./catalogue-data/rules pnpm dev
+
+# Postgres and Valkey alone, for when the dev server is already running
+services *args:
+    sh scripts/devServices.sh {{ args }}
+
+# Take the development Postgres and Valkey down
+services-down:
+    sh scripts/devServices.sh down
 
 # Centrifugo alone, for when the dev server is already running
 realtime *args:
@@ -65,6 +78,14 @@ db-generate:
 
 db-check:
     pnpm db:check
+
+# Bring the schema up to date against DATABASE_URL
+db-migrate:
+    pnpm db:migrate
+
+# Move a SQLite Praetorium into Postgres. Takes the .sqlite path, or uses DATA_DIR
+db-import-sqlite *args:
+    pnpm db:import-sqlite {{ args }}
 
 e2e-install:
     pnpm exec playwright install chromium --only-shell

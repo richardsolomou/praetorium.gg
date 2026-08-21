@@ -1,5 +1,5 @@
 import { eq } from 'drizzle-orm'
-import { closeDatabase, databasePath, openDatabase } from '../src/db/connection'
+import { databaseUrl, openDatabase, type PraetoriumDatabase } from '../src/db/connection'
 import { user } from '../src/db/schema'
 import { Repository } from '../src/db/repository'
 import { createAuth } from '../src/server/auth'
@@ -53,49 +53,60 @@ export const PREVIEW_OPPONENT_ROSTER = {
   prep: null,
 } as const
 
-export async function seedPreview() {
-  const database = openDatabase(databasePath())
+/**
+ * The two accounts, lists and friendship a preview deployment opens with.
+ *
+ * Takes a database when one is already open — the suites pass a disposable
+ * Postgres — and otherwise connects to the configured one and closes it after.
+ */
+export async function seedPreview(provided?: PraetoriumDatabase) {
+  if (provided) return seedInto(provided)
+  const connection = openDatabase(databaseUrl())
   try {
-    const auth = createAuth(database, 'praetorium-disposable-preview-secret')
-    const repository = new Repository(database)
-    const previewUserId = await ensurePreviewUser(PREVIEW_EMAIL, PREVIEW_PASSWORD, 'Preview Player')
-    const opponentUserId = await ensurePreviewUser(PREVIEW_OPPONENT_EMAIL, PREVIEW_OPPONENT_PASSWORD, 'Preview Opponent')
-    saveRoster(PREVIEW_ROSTER, previewUserId)
-    saveRoster(PREVIEW_OPPONENT_ROSTER, opponentUserId)
-    repository.requestFriend(previewUserId, opponentUserId, Date.now())
-    const friendship = repository.friendships(previewUserId).find((row) => row.addresseeId === opponentUserId)
-    if (friendship?.acceptedAt === null) repository.acceptFriend(previewUserId, opponentUserId, Date.now())
-
-    async function ensurePreviewUser(email: string, password: string, name: string) {
-      let account = database.select({ id: user.id }).from(user).where(eq(user.email, email)).get()
-      if (!account) {
-        await auth.api.signUpEmail({ body: { email, password, name } })
-        account = database.select({ id: user.id }).from(user).where(eq(user.email, email)).get()
-      }
-      if (!account) throw new Error(`${name} account was not created`)
-      return account.id
-    }
-
-    function saveRoster(roster: typeof PREVIEW_ROSTER | typeof PREVIEW_OPPONENT_ROSTER, userId: string) {
-      if (repository.roster(roster.id)) return
-      repository.saveRoster({
-        id: roster.id,
-        name: roster.name,
-        catalogueId: roster.catalogueId,
-        disposition: roster.disposition,
-        limit: roster.limit,
-        userId,
-        detachmentId: JSON.stringify(roster.detachmentIds),
-        picks: JSON.stringify(roster.picks),
-        prep: null,
-        tags: '[]',
-        visibility: 'private',
-        source: 'editable',
-        now: Date.now(),
-      })
-    }
+    await seedInto(connection.database)
   } finally {
-    closeDatabase(database)
+    await connection.close()
+  }
+}
+
+async function seedInto(database: PraetoriumDatabase) {
+  const auth = createAuth(database, 'praetorium-disposable-preview-secret')
+  const repository = new Repository(database)
+  const previewUserId = await ensurePreviewUser(PREVIEW_EMAIL, PREVIEW_PASSWORD, 'Preview Player')
+  const opponentUserId = await ensurePreviewUser(PREVIEW_OPPONENT_EMAIL, PREVIEW_OPPONENT_PASSWORD, 'Preview Opponent')
+  await saveRoster(PREVIEW_ROSTER, previewUserId)
+  await saveRoster(PREVIEW_OPPONENT_ROSTER, opponentUserId)
+  await repository.requestFriend(previewUserId, opponentUserId, Date.now())
+  const friendship = (await repository.friendships(previewUserId)).find((row) => row.addresseeId === opponentUserId)
+  if (friendship?.acceptedAt === null) await repository.acceptFriend(previewUserId, opponentUserId, Date.now())
+
+  async function ensurePreviewUser(email: string, password: string, name: string) {
+    let [account] = await database.select({ id: user.id }).from(user).where(eq(user.email, email)).limit(1)
+    if (!account) {
+      await auth.api.signUpEmail({ body: { email, password, name } })
+      ;[account] = await database.select({ id: user.id }).from(user).where(eq(user.email, email)).limit(1)
+    }
+    if (!account) throw new Error(`${name} account was not created`)
+    return account.id
+  }
+
+  async function saveRoster(roster: typeof PREVIEW_ROSTER | typeof PREVIEW_OPPONENT_ROSTER, userId: string) {
+    if (await repository.roster(roster.id)) return
+    await repository.saveRoster({
+      id: roster.id,
+      name: roster.name,
+      catalogueId: roster.catalogueId,
+      disposition: roster.disposition,
+      limit: roster.limit,
+      userId,
+      detachmentId: JSON.stringify(roster.detachmentIds),
+      picks: JSON.stringify(roster.picks),
+      prep: null,
+      tags: '[]',
+      visibility: 'private',
+      source: 'editable',
+      now: Date.now(),
+    })
   }
 }
 
