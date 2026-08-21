@@ -51,32 +51,9 @@ With `VALKEY_URL` set, more than one replica is safe. Centrifugo uses Valkey as 
 
 Without it, run one replica. Live updates then fan out inside a single process, and a second replica would serve battles that never hear each other's commands.
 
-## Moving an existing SQLite deployment
+## Sessions
 
-Earlier versions stored everything in `praetorium.sqlite` on the `/data` volume. The container moves it across on its own: the first boot that finds a `praetorium.sqlite` on the volume and no accounts in Postgres imports it before serving a request. Every later boot finds accounts and does nothing, and an instance that was always Postgres has no file to find.
-
-Keep `praetorium.sqlite` on the volume for that boot, and keep `auth.secret` beside it or everyone is signed out. Both the automatic import and the command below are transitional, and go once a deployment has been through the cutover.
-
-To do it by hand instead, with the app stopped:
-
-1. Stop the app so nothing writes to SQLite while it is being read.
-2. Point `DATABASE_URL` at the new, empty Postgres.
-3. Apply the schema, then copy the data in:
-
-   ```sh
-   just db-migrate
-   just db-import-sqlite /path/to/praetorium.sqlite
-   ```
-
-   The path is optional; without it the command reads `praetorium.sqlite` from `DATA_DIR`.
-
-4. Compare the per-table counts the command prints against the source, then start the app.
-
-Either way the import copies rows in foreign-key order inside one transaction, so a failure leaves an empty database rather than half a game, and it names the row it stopped on. Running it again is safe: rows already present are left alone rather than duplicated. Ids are preserved, so a battle link a player has already shared still opens the same battle.
-
-Keep `auth.secret` on the `/data` volume across the move, or everyone is signed out.
-
-One thing does not carry over. When `VALKEY_URL` is set, better-auth reads sessions from Valkey only, so existing sessions stop resolving and every player signs in once after the cutover. Their accounts, lists, battles, and logs are untouched.
+Sessions live in Valkey when `VALKEY_URL` is set, so replacing it or clearing it signs everyone in again. Accounts, lists, battles, and logs are unaffected.
 
 ## Reverse proxy
 

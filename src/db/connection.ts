@@ -1,5 +1,5 @@
 import type { PgDatabase, PgQueryResultHKT } from 'drizzle-orm/pg-core'
-import { bundledDirectory, databaseTarget } from 'ras-stack/database'
+import { bundledDirectory } from 'ras-stack/database'
 import { closeDrizzlePostgres, migrateDrizzlePostgres, openDrizzlePostgres, redactedPostgresUrl } from 'ras-stack/database/postgres'
 import { schema } from './schema'
 
@@ -46,11 +46,12 @@ const migrationsFolder = bundledDirectory({
  * would let a deployment come up pointing at nothing and call itself healthy.
  */
 export function databaseUrl(environment: NodeJS.ProcessEnv = process.env) {
-  // Resolved through ras-stack so the protocol is checked here rather than
-  // becoming a confusing connection error later.
-  const target = databaseTarget({ databaseUrl: environment.DATABASE_URL, sqliteFile: '' })
-  if (target.provider !== 'postgres') throw new Error('DATABASE_URL is not set. Praetorium needs a Postgres connection string.')
-  return target.url
+  const url = environment.DATABASE_URL?.trim()
+  if (!url) throw new Error('DATABASE_URL is not set. Praetorium needs a Postgres connection string.')
+  // Checked at boot, so a wrong protocol says so rather than becoming a
+  // confusing connection error on the first query.
+  if (!/^postgres(ql)?:\/\//.test(url)) throw new Error('DATABASE_URL must use a postgres:// or postgresql:// URL')
+  return url
 }
 
 /**
