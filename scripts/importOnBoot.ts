@@ -27,6 +27,21 @@ export async function importIfEmpty(source: DatabaseSync, database: PraetoriumDa
   return importSqlite(source, database)
 }
 
+async function accountCount(database: PraetoriumDatabase) {
+  const [row] = await database.select({ accounts: count() }).from(user)
+  return row?.accounts ?? 0
+}
+
+function sqliteAccountCount(source: DatabaseSync) {
+  try {
+    const row = source.prepare('select count(*) as accounts from "user"').get() as { accounts: number } | undefined
+    return row?.accounts ?? 0
+  } catch {
+    // An older database without the table. Reported as unknown rather than zero.
+    return null
+  }
+}
+
 export async function importOnBoot() {
   const file = sqlitePath(undefined)
   // Nothing to carry across on an instance that was always Postgres.
@@ -37,7 +52,20 @@ export async function importOnBoot() {
   try {
     const counts = await importIfEmpty(source, connection.database)
     if (!counts) {
-      console.log({ event: 'sqlite_import_skipped', reason: 'postgres already holds accounts', from: file })
+      /*
+       * Both counts, because the only way this is the wrong answer is a Postgres
+       * that already held something. One account here against many there is the
+       * signature of a cutover that skipped, and it says so rather than coming up
+       * quietly empty. The SQLite file is opened read-only and never removed, so
+       * that case is recoverable: empty the database and deploy again.
+       */
+      console.log({
+        event: 'sqlite_import_skipped',
+        reason: 'postgres already holds accounts',
+        from: file,
+        postgresAccounts: await accountCount(connection.database),
+        sqliteAccounts: sqliteAccountCount(source),
+      })
       return
     }
     console.log({ event: 'sqlite_imported', from: file, into: describeDatabase(url) })
