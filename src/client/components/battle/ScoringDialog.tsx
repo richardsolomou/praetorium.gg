@@ -91,9 +91,9 @@ export function ScoringDialog({ side, due, moment, confirmLabel, pending, send, 
 
   return (
     <Dialog open onOpenChange={(open) => !open && onCancel?.()}>
-      <DialogContent className="max-h-[85dvh] overflow-y-auto rounded-none border border-edge bg-panel text-bone sm:max-w-2xl">
+      <DialogContent className="max-h-[85dvh] overflow-y-auto rounded-none border border-discarded/60 bg-panel text-bone sm:max-w-2xl">
         <DialogHeader className="text-center">
-          <p className="eyebrow">Now</p>
+          <p className="eyebrow text-discarded">Now</p>
           <DialogTitle className="uppercase">Scoring {moment} points</DialogTitle>
           <DialogDescription className="text-dim">
             Recording points for {sideName(side)}. Press what the board actually paid on each card.

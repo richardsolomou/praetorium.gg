@@ -60,7 +60,7 @@ function ArmySetup({ army, multiple, send }: { army: Army; multiple: boolean; se
           <span className="min-w-0">
             <span className="text-sm font-semibold">{unit.name}</span>
             {unit.prebattleRules?.length ? (
-              <span className="mt-0.5 block text-[0.625rem] text-azure uppercase">
+              <span className="mt-0.5 block text-[0.625rem] text-discarded uppercase">
                 {unit.prebattleRules.map(formationLabel).join(' · ')}
               </span>
             ) : null}
