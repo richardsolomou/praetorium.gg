@@ -15,6 +15,12 @@ const secret = persistedSecret({
 })
 process.env.REALTIME_SECRET = secret
 
+// A preview owns a database on a Postgres it shares with other previews, and the
+// database outlives the container, so it is emptied before anything migrates into it.
+if (process.env.PRAETORIUM_PREVIEW_ADMIN_DATABASE_URL?.trim()) {
+  execFileSync(process.execPath, ['.output/server/preview-database.mjs'], { stdio: 'inherit' })
+}
+
 // Before the app, never alongside it: a replica must not answer a request against
 // a schema that is still moving. An advisory lock inside makes replicas starting
 // together take turns rather than race.

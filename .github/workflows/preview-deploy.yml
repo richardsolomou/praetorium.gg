@@ -47,10 +47,9 @@ jobs:
       application-prefix: praetorium
       domain: praetorium.gg
       port: 3000
-      environment: |
-        APP_URL=https://pr-{{PR_NUMBER}}.praetorium.gg
-        CATALOGUE_SNAPSHOT_BASE_URL=https://s3.praetorium.gg/praetorium-catalogue
-        PRAETORIUM_SEED_PREVIEW=true
+      # The environment is composed by the script, not here: it carries the preview
+      # Postgres URL, which must not live in a public file.
+      deploy-script: scripts/previewDeploy.ts
       marker: <!-- praetorium-preview -->
       note: Test battles with `preview@praetorium.gg` / `preview-preview-preview` and `opponent@praetorium.gg` / `opponent-opponent-opponent`. Preview data is disposable and resets on every deployment.
     secrets: inherit

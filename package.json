@@ -8,7 +8,7 @@
   "scripts": {
     "dev": "vite dev",
     "realtime": "sh scripts/realtime.sh",
-    "build": "vite build && vite build --config vite.seed.config.ts && esbuild scripts/containerRuntime.ts --bundle --platform=node --format=esm --target=node24 --outfile=.output/server/container-runtime.mjs --log-level=warning && esbuild scripts/migrate.ts --bundle --platform=node --format=esm --target=node24 --outfile=.output/server/migrate.mjs --log-level=warning && ras assets sync",
+    "build": "vite build && vite build --config vite.seed.config.ts && esbuild scripts/containerRuntime.ts --bundle --platform=node --format=esm --target=node24 --outfile=.output/server/container-runtime.mjs --log-level=warning && esbuild scripts/migrate.ts --bundle --platform=node --format=esm --target=node24 --outfile=.output/server/migrate.mjs --log-level=warning && esbuild scripts/previewDatabase.ts --bundle --platform=node --format=esm --target=node24 --outfile=.output/server/preview-database.mjs --log-level=warning && ras assets sync",
     "start": "node .output/server/index.mjs",
     "typecheck": "tsc --noEmit",
     "lint": "oxlint --type-aware --deny-warnings --report-unused-disable-directives-severity=error .",
