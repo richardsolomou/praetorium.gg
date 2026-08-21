@@ -2,12 +2,14 @@
 # The production container against a real Postgres and Valkey, on a network of
 # their own.
 #
-# Playwright runs this as its web server and kills it when the suite ends, so
-# everything it creates is torn down on the way out — including on failure, which
-# is when a stray container is most likely and most confusing.
-#
 # POSIX, and run with `sh`: on a CI runner that is dash, which has no `pipefail`.
 # There is nothing to pipe here anyway.
+#
+# `stack-down.sh` is called here on the way in, so a crashed previous run cannot
+# poison this one. The way out is Playwright's teardown, not an exit trap here:
+# Playwright kills this process without leaving it long enough to run one. The app
+# container still stops on its own, because the exec below makes it this process
+# and `docker run` forwards the signal into it.
 set -eu
 
 port=${1:?port required}
@@ -15,18 +17,17 @@ image=${PLAYWRIGHT_IMAGE:-praetorium-e2e}
 root=${PLAYWRIGHT_DATA_ROOT:?data root required}
 catalogue=${CATALOGUE_HOST_DIR:?catalogue directory required}
 
-network="praetorium-e2e-${port}"
+here=$(dirname "$0")
+network="praetorium-e2e-net-${port}"
 app="praetorium-e2e-${port}"
 postgres="praetorium-e2e-postgres-${port}"
 valkey="praetorium-e2e-valkey-${port}"
 
-cleanup() {
-    docker rm --force "$app" "$postgres" "$valkey" >/dev/null 2>&1 || true
-    docker network rm "$network" >/dev/null 2>&1 || true
-}
-trap cleanup EXIT INT TERM
+# Covers a signal arriving during setup, before the exec below hands this
+# process over to the app container.
+trap 'sh "$here/stack-down.sh" "$port"' INT TERM
 
-cleanup
+sh "$here/stack-down.sh" "$port"
 rm -rf "$root"
 mkdir -p "$root"
 chmod 777 "$root"
@@ -51,7 +52,7 @@ for _ in $(seq 1 60); do
     sleep 1
 done
 
-docker run --rm --name "$app" --network "$network" \
+exec docker run --rm --name "$app" --network "$network" \
     --publish "127.0.0.1:${port}:3000" \
     --volume "${root}:/data" \
     --volume "${catalogue}:/catalogue:ro" \
@@ -60,7 +61,4 @@ docker run --rm --name "$app" --network "$network" \
     --env CATALOGUE_DIR=/catalogue \
     --env RULES_DIR=/catalogue/rules \
     --env AUTH_RATE_LIMIT=off \
-    "$image" &
-
-# Waiting rather than exec-ing, so the trap above still runs when Playwright stops us.
-wait $!
+    "$image"

@@ -94,11 +94,16 @@ e2e-build:
     docker build -t praetorium-e2e .
 
 # Browsers against the container image, which is the topology that ships
-e2e *args: e2e-build
+e2e *args: e2e-build e2e-down
     pnpm exec playwright test {{ args }}
 
-e2e-run *args:
+e2e-run *args: e2e-down
     pnpm exec playwright test {{ args }}
 
-e2e-trace *args: e2e-build
+e2e-trace *args: e2e-build e2e-down
     PLAYWRIGHT_TRACE=1 pnpm exec playwright test {{ args }}
+
+# Remove a previous run's containers. Playwright refuses to start if one still
+# holds the port, and it probes before it runs anything of ours.
+e2e-down:
+    sh e2e/stack-down.sh ${PLAYWRIGHT_PORT:-4173}

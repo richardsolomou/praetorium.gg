@@ -1,17 +1,10 @@
-import path from 'node:path'
 import { defineConfig, devices } from '@playwright/test'
-
-const port = Number(process.env.PLAYWRIGHT_PORT ?? 4173)
-const baseURL = `http://127.0.0.1:${port}`
-// Under /tmp rather than os.tmpdir(): the container mounts this, and a macOS
-// private temp directory is not shared with the Docker VM.
-const root = process.env.PLAYWRIGHT_DATA_ROOT ?? `/tmp/praetorium-e2e-${port}`
-// The synced catalogue, so list building is exercised against the real data.
-const catalogue = process.env.CATALOGUE_DIR ?? path.join(import.meta.dirname, 'catalogue-data')
-const image = process.env.PLAYWRIGHT_IMAGE ?? 'praetorium-e2e'
+import { baseURL, catalogue, image, port, root } from './e2e/stackEnv'
 
 export default defineConfig({
   testDir: './e2e',
+  // Playwright is still alive here, unlike the shell that started the stack.
+  globalTeardown: './e2e/globalTeardown.ts',
   outputDir: process.env.PLAYWRIGHT_OUTPUT_DIR ?? 'test-results',
   fullyParallel: false,
   // One worker owns each container and database; CI starts isolated processes for parallelism.
