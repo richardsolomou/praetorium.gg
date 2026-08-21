@@ -20,11 +20,11 @@ test('a list can be copied as Games Workshop text', async ({ browser }) => {
     await page.getByRole('button', { name: 'More models in Immortals' }).click()
     await expect(page.getByLabel('Immortals models')).toHaveText(String(models))
   }
+  // Immortals take one weapon or the other for the whole squad, so the export has to
+  // carry whichever was picked.
   const loadout = page.locator('aside[aria-label="Loadout"]')
-  for (let swapped = 1; swapped <= 3; swapped++) {
-    await loadout.getByRole('button', { name: 'More Tesla carbine' }).click()
-    await expect(page.getByLabel('Tesla carbine count')).toHaveText(String(swapped))
-  }
+  await loadout.getByRole('button', { name: 'Select Tesla carbine' }).click()
+  await expect(page.getByText('10x Tesla carbine')).toBeVisible()
 
   await page.getByRole('button', { name: 'Roster actions' }).click()
   await page.getByRole('menuitem', { name: 'Export GW text' }).click()
@@ -32,8 +32,7 @@ test('a list can be copied as Games Workshop text', async ({ browser }) => {
   await expect(dialog).toContainText('Necrons roster')
   await expect(dialog).toContainText('Awakened Dynasty')
   await expect(dialog).toContainText('Immortals')
-  await expect(dialog).toContainText('7x Gauss blaster')
-  await expect(dialog).toContainText('3x Tesla carbine')
+  await expect(dialog).toContainText('10x Tesla carbine')
   await expect(dialog).toContainText('Overlord')
   await dialog.getByRole('button', { name: 'Copy text' }).click()
   await expect(dialog.getByRole('button', { name: 'Copied' })).toBeVisible()

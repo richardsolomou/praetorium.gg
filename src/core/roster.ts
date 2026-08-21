@@ -159,11 +159,33 @@ function finishUnit(entryId: string, selection: Selection, size: UnitSize, index
     if (!defaulted || !option || option.points !== 0 || context?.spreads?.[choice.key] !== undefined) return tree
     return withUnitSpread(tree, choice.key, { [option.id]: option.max }, index)
   }, selection)
+  /**
+   * A squad the data keeps identical, kept identical however it was asked for.
+   *
+   * The rule is the datasheet's, so it holds whatever the saved list says and whatever
+   * a resize left behind: growing a squad of tesla carbines refills the new bodies from
+   * the group's default, which would quietly mix what may not be mixed. What the player
+   * last asked for decides which way it goes, and the rest of the squad follows.
+   */
+  const settled = unitChoices(entryId, completed, index, context).reduce((tree, choice) => {
+    const held = choice.options.filter((option) => option.count > 0)
+    if (!choice.uniform || held.length < 2) return tree
+    const asked = context?.spreads?.[choice.key] ?? {}
+    const chosen = held.find((option) => (asked[option.id] ?? 0) > 0) ?? held.toSorted((one, other) => other.count - one.count)[0]
+    if (!chosen) return tree
+    return withUnitSpread(
+      tree,
+      choice.key,
+      Object.fromEntries(choice.options.map((option) => [option.id, option.id === chosen.id ? choice.room : 0])),
+      index,
+    )
+  }, completed)
+
   return {
-    selection: completed,
+    selection: settled,
     size,
-    choices: unitChoices(entryId, completed, index, context),
-    toggles: unitToggles(entryId, completed, index, context),
+    choices: unitChoices(entryId, settled, index, context),
+    toggles: unitToggles(entryId, settled, index, context),
   }
 }
 
