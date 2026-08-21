@@ -36,7 +36,6 @@ export const builtRoster = (name: string, units: string[]): Command => ({
       limit: 2000,
       detachment: 'Flyblown Host',
       disposition: 'reconnaissance',
-      selections: [],
       units: units.map((unit, index) => ({ key: `u${index}`, name: unit, points: 100, models: 5 })),
     },
   },

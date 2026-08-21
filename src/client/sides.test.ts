@@ -98,7 +98,6 @@ describe('battle sides', () => {
         limit: 2000,
         detachment: null,
         disposition: null,
-        selections: [],
         units: [
           { key: 'a', name: 'A', points: 120, models: 1 },
           { key: 'b', name: 'B', points: 95, models: 5 },

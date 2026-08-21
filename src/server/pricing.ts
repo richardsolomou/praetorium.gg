@@ -18,6 +18,53 @@ import { descriptionKey, findDescription, type FactionRestrictions } from './wah
 
 export { rosterDetachments }
 
+/**
+ * A list as the catalogue reads it: every pick expanded, grouped by the book it
+ * came from.
+ *
+ * Pulled out because the whole price and the points alone both start here, and a
+ * library row and the editor showing different totals for one list would be the
+ * plainest possible version of the same question answered twice.
+ */
+function rosterForces(loaded: LoadedCatalogue, data: PriceInput, detachmentSelection: readonly Selection[]) {
+  const picked = data.units.flatMap((wanted, key) => {
+    const built = buildUnit(wanted.entryId, loaded.index, wanted.models, wanted.choices, {
+      primaryCatalogueId: data.catalogueId,
+      roster: detachmentSelection,
+      spreads: wanted.spreads,
+      toggles: wanted.toggles,
+    })
+    const entry = loaded.index.definitions.get(wanted.entryId)
+    return built ? [{ key, entryId: wanted.entryId, name: entry?.name ?? wanted.entryId, ...built }] : []
+  })
+  const forceSelections = new Map<string, Selection[]>([[data.catalogueId, [...detachmentSelection]]])
+  for (const unit of picked) {
+    const owner = data.units[unit.key]?.catalogueId ?? loaded.index.catalogueOf.get(unit.entryId) ?? data.catalogueId
+    const force = forceSelections.get(owner) ?? []
+    force.push(unit.selection)
+    forceSelections.set(owner, force)
+  }
+  return { picked, forceSelections }
+}
+
+/**
+ * What a list costs, and nothing else.
+ *
+ * The library shows one number per row and used to get it by pricing the whole
+ * list — every datasheet resolved, every relic described, every keyword rule
+ * gathered — then sending fifty kilobytes back so a row could print an integer.
+ * The number comes from the same `evaluateForces` the full price uses, so this is
+ * that price with the display work left off rather than a second opinion about
+ * what a list costs.
+ */
+export function calculateRosterPoints(data: PriceInput) {
+  const loaded = app().catalogue()
+  if (!loaded) return null
+  const { selections: detachmentSelection } = rosterDetachments(loaded, data.catalogueId, data.detachmentIds)
+  const { forceSelections } = rosterForces(loaded, data, detachmentSelection)
+  return evaluateForces([...forceSelections.values()], loaded.index, { primaryCatalogueId: data.catalogueId }).points
+}
+
 export function calculateRosterPrice(data: PriceInput) {
   const loaded = app().catalogue()
   if (!loaded) return null
@@ -76,25 +123,8 @@ export function calculateRosterPrice(data: PriceInput) {
   )
   const detachmentError = detachmentPointsError(purchased, budget)
 
-  const picked = data.units.flatMap((wanted, key) => {
-    const built = buildUnit(wanted.entryId, loaded.index, wanted.models, wanted.choices, {
-      primaryCatalogueId: data.catalogueId,
-      roster: detachmentSelection,
-      spreads: wanted.spreads,
-      toggles: wanted.toggles,
-    })
-    const entry = loaded.index.definitions.get(wanted.entryId)
-    return built ? [{ key, entryId: wanted.entryId, name: entry?.name ?? wanted.entryId, ...built }] : []
-  })
-
+  const { picked, forceSelections } = rosterForces(loaded, data, detachmentSelection)
   const options = { primaryCatalogueId: data.catalogueId }
-  const forceSelections = new Map<string, Selection[]>([[data.catalogueId, [...detachmentSelection]]])
-  picked.forEach((unit) => {
-    const owner = data.units[unit.key]?.catalogueId ?? loaded.index.catalogueOf.get(unit.entryId) ?? data.catalogueId
-    const force = forceSelections.get(owner) ?? []
-    force.push(unit.selection)
-    forceSelections.set(owner, force)
-  })
   const selections = [...forceSelections.values()].flat()
   const whole = evaluateForces([...forceSelections.values()], loaded.index, options)
   const kotcUnits = picked.map((unit) => {

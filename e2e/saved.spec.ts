@@ -36,6 +36,9 @@ test('a list is saved and loaded into another battle', async ({ browser }) => {
   await waitForRosterSave(page, () => page.getByLabel('List name').fill('Nurgle 2k'), 'Nurgle 2k')
 
   await page.getByRole('link', { name: 'Rosters' }).click()
+  // The library prices every list in one answer that comes down with the page, so
+  // the total is on the row rather than arriving after it.
+  await expect(page.locator('[data-roster="Nurgle 2k"]')).toContainText('230/2000')
   await page.getByRole('link', { name: /Nurgle 2k/ }).click()
   await expect(page).toHaveURL(/\/rosters\/[^/]+$/)
   const editor = page.getByLabel('Add units').locator('xpath=ancestor::div[contains(@class,"bg-sunken")][1]')

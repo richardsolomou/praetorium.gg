@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { ROSTER_NAME_MAX_LENGTH } from '../../../core/battle'
 import { deleteRoster, exportRoster, saveRoster, setRosterVisibility } from '../../../server/functions'
-import { savedRostersQuery } from '../../queries'
+import { invalidateSavedRosters, savedRostersQuery } from '../../queries'
 import { errorMessage } from '../../queryClient'
 import type { RosterSetup } from '../RosterSetupDialog'
 
@@ -18,7 +18,7 @@ export type SavedRoster = Awaited<ReturnType<NonNullable<ReturnType<typeof saved
  */
 export function useRosterActions(origin: string) {
   const queryClient = useQueryClient()
-  const refresh = () => queryClient.invalidateQueries({ queryKey: savedRostersQuery().queryKey })
+  const refresh = () => invalidateSavedRosters(queryClient)
 
   const [copiedFor, setCopiedFor] = useState<string | null>(null)
   const [shareProblem, setShareProblem] = useState<string | null>(null)

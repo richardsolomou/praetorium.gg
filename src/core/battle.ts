@@ -1,5 +1,3 @@
-import type { Selection } from './evaluate'
-
 /**
  * The whole domain: what a battle is, what may happen to it, and who may see what.
  *
@@ -45,6 +43,14 @@ export type Roster = {
   built?: BuiltRoster
 }
 
+/**
+ * What the catalogue said about the list at the moment it was attached.
+ *
+ * The expansion the price came from is deliberately not here. Nothing reads it —
+ * the fold keeps `units`, the opponent reads `text`, and `id` points back at the
+ * saved list — so carrying it made every read of every log parse a selection tree
+ * on behalf of no one.
+ */
 type BuiltRoster = {
   catalogueId: string
   /** The catalogue revision this list was priced and validated against. */
@@ -59,7 +65,6 @@ type BuiltRoster = {
   detachmentPointBudget?: number | null
   /** The chosen force disposition; the pair decides the mission. */
   disposition: string | null
-  selections: Selection[]
   /**
    * The units as submitted, fixed at the moment the list was attached.
    *
@@ -327,6 +332,18 @@ export type BattleState = {
  * Folds the log into current state. Undo is itself a command, so history is only
  * ever appended to; a command it names is skipped by the fold rather than removed.
  */
+/**
+ * How many players a battle seats.
+ *
+ * Its own settings decide it, and only here: a practice battle seats one, so a
+ * second player following the link is refused for the same reason a full game
+ * refuses a third rather than by a separate rule that could come to disagree.
+ */
+export function battleCapacity(settings: Pick<BattleSettings, 'solo' | 'teamBattle'>) {
+  if (settings.solo) return 1
+  return settings.teamBattle ? TEAM_BATTLE_PLAYERS : PLAYERS_PER_BATTLE
+}
+
 export function reduceBattle(playerIds: readonly PlayerId[], log: readonly LoggedCommand[], playerSides?: readonly number[]): BattleState {
   const state = emptyBattle(playerIds, playerSides)
   for (const _step of replay(state, log)) {

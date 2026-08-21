@@ -20,7 +20,7 @@ import { RosterRow } from '../client/components/rosters/RosterRow'
 import { type SavedRoster, useRosterActions } from '../client/components/rosters/rosterLibrary'
 import { readWorkspaceState, writeWorkspaceState } from '../client/components/workspaceState'
 import { SignInRequired } from '../client/components/SignInRequired'
-import { factionsQuery, meQuery, savedRostersQuery } from '../client/queries'
+import { factionsQuery, meQuery, savedRosterPointsQuery, savedRostersQuery } from '../client/queries'
 import { useOrigin } from '../client/useOrigin'
 import { GAME_SIZES } from '../core/battle'
 
@@ -37,16 +37,23 @@ export const Route = createFileRoute('/rosters/')({
     return GAME_SIZES.some((size) => size.limit === limit) ? { limit } : {}
   },
   loader: ({ context }) =>
-    Promise.all([context.queryClient.ensureQueryData(savedRostersQuery()), context.queryClient.ensureQueryData(factionsQuery())]),
+    Promise.all([
+      context.queryClient.ensureQueryData(savedRostersQuery()),
+      context.queryClient.ensureQueryData(savedRosterPointsQuery()),
+      context.queryClient.ensureQueryData(factionsQuery()),
+    ]),
   component: RosterLibrary,
 })
 
 function RosterLibrary() {
   const { data: me } = useQuery(meQuery())
   const { data: saved = [] } = useQuery(savedRostersQuery())
+  const { data: prices } = useQuery(savedRosterPointsQuery())
   const { data: available } = useQuery(factionsQuery())
   const { limit } = Route.useSearch()
   const shown = limit === undefined ? saved : saved.filter((roster) => roster.limit === limit)
+
+  const points = new Map((prices ?? []).map((entry) => [entry.id, entry.points]))
 
   const origin = useOrigin()
   const actions = useRosterActions(origin)
@@ -121,6 +128,7 @@ function RosterLibrary() {
                 key={roster.id}
                 roster={roster}
                 faction={available?.factions.find((entry) => entry.id === roster.catalogueId)}
+                points={points.get(roster.id)}
                 actions={actions}
                 origin={origin}
                 onEdit={() => setEditing({ rosterId: roster.id, draft: setupOf(roster) })}

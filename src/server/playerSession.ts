@@ -1,10 +1,35 @@
 import { getRequest } from '@tanstack/react-start/server'
 import { app } from './app'
 
-export async function currentUser(request = getRequest()) {
-  const session = await app().auth.api.getSession({ headers: request.headers })
-  if (!session) return null
-  return { id: session.user.id, name: session.user.name, image: session.user.image ?? null, email: session.user.email }
+type Player = { id: string; name: string; image: string | null; email: string }
+
+/**
+ * Who is asking, resolved once per request.
+ *
+ * A page is a handful of server functions, and rendering one asks this question
+ * from every read that has an owner — the battle, the lists, the collection. Each
+ * asked better-auth again, which is a signature check at best and a session read
+ * at worst, repeated for an answer that cannot change inside one request. The
+ * request object is the key and holds it weakly, so nothing outlives the request
+ * it belongs to and a second request is never told about the first.
+ */
+const resolved = new WeakMap<Request, Promise<Player | null>>()
+
+export function currentUser(request = getRequest()): Promise<Player | null> {
+  const held = resolved.get(request)
+  if (held) return held
+  const asking = app()
+    .auth.api.getSession({ headers: request.headers })
+    .then((session) =>
+      session ? { id: session.user.id, name: session.user.name, image: session.user.image ?? null, email: session.user.email } : null,
+    )
+    // A failed lookup must not be remembered as the answer for the rest of the request.
+    .catch((error: unknown) => {
+      resolved.delete(request)
+      throw error
+    })
+  resolved.set(request, asking)
+  return asking
 }
 
 export async function currentUserId(request = getRequest()) {

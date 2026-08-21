@@ -1,13 +1,5 @@
-import { and, asc, desc, eq, inArray, isNull, ne, or } from 'drizzle-orm'
-import {
-  type Command,
-  type LoggedCommand,
-  PLAYERS_PER_BATTLE,
-  reduceBattle,
-  TEAM_BATTLE_PLAYERS,
-  type SubmitResult,
-  validate,
-} from '../core/battle'
+import { and, asc, desc, eq, exists, inArray, isNull, ne, notExists, or, sql } from 'drizzle-orm'
+import { battleCapacity, type Command, type LoggedCommand, reduceBattle, type SubmitResult, validate } from '../core/battle'
 import { commandSchema } from '../core/commands'
 import type { RosterSource } from '../core/savedRoster'
 import { alias } from 'drizzle-orm/pg-core'
@@ -53,13 +45,29 @@ export class Repository {
     })
   }
 
+  /**
+   * Deletes a battle, if the player asking is the one who opened it.
+   *
+   * The seat check is part of the delete rather than a read before it: as two
+   * statements the seat could change between them, and it cost a transaction and
+   * a round trip to say what one `exists` says here.
+   */
   async deleteBattle(battleId: string, userId: string) {
-    return this.database.transaction(async (tx) => {
-      const opener = (await this.playersByBattle(battleId, tx)).find((player) => player.side === 0)
-      if (opener?.id !== userId) return false
-      await tx.delete(battles).where(eq(battles.id, battleId))
-      return true
-    })
+    const removed = await this.database
+      .delete(battles)
+      .where(
+        and(
+          eq(battles.id, battleId),
+          exists(
+            this.database
+              .select({ one: sql`1` })
+              .from(battleUsers)
+              .where(and(eq(battleUsers.battleId, battleId), eq(battleUsers.userId, userId), eq(battleUsers.side, 0))),
+          ),
+        ),
+      )
+      .returning({ id: battles.id })
+    return removed.length > 0
   }
 
   async userById(id: string) {
@@ -82,15 +90,51 @@ export class Repository {
     return new Map(rows.map((row) => [row.id, row]))
   }
 
-  async usersExcept(userId: string) {
-    return this.database.select({ id: user.id, name: user.name }).from(user).where(ne(user.id, userId)).orderBy(asc(user.name)).limit(100)
+  /**
+   * Players this one has no relationship with yet, so there is someone to ask.
+   *
+   * The exclusion is the database's: filtering a fetched page in memory returns
+   * fewer than a page as soon as a player has connections, and a well-connected
+   * one could be offered nobody at all while the instance is full of strangers.
+   */
+  async unrelatedUsers(userId: string, limit = 100) {
+    const relationship = this.database
+      .select({ one: sql`1` })
+      .from(friendships)
+      .where(
+        or(
+          and(eq(friendships.requesterId, userId), eq(friendships.addresseeId, user.id)),
+          and(eq(friendships.addresseeId, userId), eq(friendships.requesterId, user.id)),
+        ),
+      )
+    return this.database
+      .select({ id: user.id, name: user.name })
+      .from(user)
+      .where(and(ne(user.id, userId), notExists(relationship)))
+      .orderBy(asc(user.name))
+      .limit(limit)
   }
 
-  async friendships(userId: string) {
+  /**
+   * Every relationship this player is in, with the other party already named.
+   *
+   * The name comes from the join rather than a second lookup keyed on the ids
+   * this query just returned, which is the same answer for one round trip.
+   */
+  async relationships(userId: string) {
+    const other = alias(user, 'other')
     return this.database
-      .select()
+      .select({
+        requesterId: friendships.requesterId,
+        addresseeId: friendships.addresseeId,
+        acceptedAt: friendships.acceptedAt,
+        otherId: other.id,
+        otherName: other.name,
+      })
       .from(friendships)
-      .where(or(eq(friendships.requesterId, userId), eq(friendships.addresseeId, userId)))
+      .innerJoin(other, or(eq(other.id, friendships.requesterId), eq(other.id, friendships.addresseeId)))
+      .where(and(ne(other.id, userId), or(eq(friendships.requesterId, userId), eq(friendships.addresseeId, userId))))
+      .orderBy(asc(other.name))
   }
 
   /**
@@ -196,7 +240,10 @@ export class Repository {
    * Takes an opposing seat, if one is still free.
    *
    * The battle row is locked first: two players following the same link at once
-   * would otherwise both read one free chair and both take it.
+   * would otherwise both read one free chair and both take it. How many chairs
+   * there are is settled here and nowhere else — a practice battle has one, so a
+   * second player is refused as full rather than by a separate rule that could
+   * come to disagree with this one.
    */
   async join(input: { battleId: string; userId: string; now: number }): Promise<JoinResult> {
     return this.database.transaction(async (tx) => {
@@ -209,8 +256,7 @@ export class Repository {
         log,
         seated.map((player) => player.side),
       )
-      const capacity = state.settings.teamBattle ? TEAM_BATTLE_PLAYERS : PLAYERS_PER_BATTLE
-      if (seated.length >= capacity) return 'full'
+      if (seated.length >= battleCapacity(state.settings)) return 'full'
       await tx.insert(battleUsers).values({ battleId: input.battleId, userId: input.userId, side: 1, joinedAt: input.now })
       return 'joined'
     })
@@ -221,7 +267,7 @@ export class Repository {
   }
 
   /**
-   * Appends one command, or explains why not.
+   * Appends one command, or explains why not, and answers with the history it judged.
    *
    * Reading history, judging the command against it, and writing the result all
    * happen in one transaction, and the battle row is locked before any of it. A
@@ -230,29 +276,35 @@ export class Repository {
    * primary key would refuse the loser, but as an error rather than the answer it
    * is owed. Locking the battle makes them queue, so the second is told it is
    * behind. `expectedSeq` is the caller's claim about what it had already seen.
+   *
+   * The log comes back because the caller owes the client the state its command
+   * landed in, and under the lock this transaction is the only thing that could
+   * have changed it — so reading it again afterwards would be a second round trip
+   * for the same answer, on the one path a battle takes on every single tap.
    */
   async submit(
     input: { battleId: string; userId: string; expectedSeq: number; command: Command; now: number },
     validateState?: (state: ReturnType<typeof reduceBattle>) => string | null,
-  ): Promise<SubmitResult> {
+  ): Promise<{ result: SubmitResult; log: LoggedCommand[] }> {
     return this.database.transaction(async (tx) => {
       await lockBattle(tx, input.battleId)
       const seated = await this.playersByBattle(input.battleId, tx)
+      const log = await this.logQuery(input.battleId, tx)
       const state = reduceBattle(
         seated.map((player) => player.id),
-        await this.logQuery(input.battleId, tx),
+        log,
         seated.map((player) => player.side),
       )
-      if (input.expectedSeq !== state.seq) return { outcome: 'stale', seq: state.seq }
+      if (input.expectedSeq !== state.seq) return { result: { outcome: 'stale', seq: state.seq }, log }
       const refusal = validate(state, input.userId, input.command)
-      if (refusal) return { outcome: 'refused', reason: refusal }
+      if (refusal) return { result: { outcome: 'refused', reason: refusal }, log }
       const externalRefusal = validateState?.(state)
-      if (externalRefusal) return { outcome: 'refused', reason: externalRefusal }
+      if (externalRefusal) return { result: { outcome: 'refused', reason: externalRefusal }, log }
       const seq = state.seq + 1
       await tx
         .insert(commands)
         .values({ battleId: input.battleId, seq, userId: input.userId, at: input.now, body: JSON.stringify(input.command) })
-      return { outcome: 'appended', seq }
+      return { result: { outcome: 'appended', seq }, log: [...log, { seq, by: input.userId, at: input.now, command: input.command }] }
     })
   }
 

@@ -16,7 +16,7 @@ import { gameReferencesFor } from './gameReferences'
 import { rulesFaction } from './rules'
 import { type GlobalSearchResult, searchEverything } from './globalSearch'
 import { mutationRpc, rpc } from './rpc'
-import { calculateRosterPrice, rosterDetachments } from './pricing'
+import { calculateRosterPoints, calculateRosterPrice, rosterDetachments } from './pricing'
 import { exportRosterFile, importRosterFile } from './rosterFiles'
 import { currentUser, currentUserId, requireUser, requireUserId } from './playerSession'
 import {
@@ -329,6 +329,32 @@ export const savedRosters = createServerFn({ method: 'GET' }).handler(() =>
   rpc(async () => {
     const id = await currentUserId()
     return id ? app().service.savedRosters(id) : []
+  }),
+)
+
+/**
+ * What every list in the player's library costs, in one answer.
+ *
+ * A row shows a total and nothing else, so asking for it a list at a time meant a
+ * request, a session check and a full pricing per row — and a library of twenty
+ * lists opened twenty of them. This is one read, priced in process, and small
+ * enough to come down with the page rather than appearing afterwards.
+ */
+export const savedRosterPoints = createServerFn({ method: 'GET' }).handler(() =>
+  rpc(async () => {
+    const id = await currentUserId()
+    if (!id) return []
+    const saved = await app().service.savedRosters(id)
+    return saved.map((roster) => ({
+      id: roster.id,
+      points: calculateRosterPoints({
+        catalogueId: roster.catalogueId,
+        detachmentIds: roster.detachmentIds,
+        disposition: roster.disposition,
+        limit: roster.limit,
+        units: roster.picks,
+      }),
+    }))
   }),
 )
 

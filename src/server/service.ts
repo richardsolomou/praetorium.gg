@@ -1,10 +1,10 @@
 import type { BattleEvents } from '../adapters/events'
 import { randomId, randomToken } from 'ras-stack/auth'
 import {
+  battleCapacity,
   type Command,
   PAINTED_ARMY_POINTS,
   type PlayerId,
-  PLAYERS_PER_BATTLE,
   reduceBattle,
   type Secondary,
   scoringTarget,
@@ -197,37 +197,28 @@ export class PraetoriumService {
     else await this.repository.removeFavouriteFaction(userId, catalogueId)
   }
 
+  /**
+   * The players this one may open a battle with.
+   *
+   * Asked for on its own rather than taken out of the friends page, because the
+   * page also offers strangers to invite — and reaching for that here put a scan
+   * of every account on the instance behind every battle opened and every link
+   * followed, to answer a question about a handful of rows.
+   */
   async opponents(userId: string) {
-    return (await this.friendships(userId)).friends
+    return sortedFriends(await this.repository.relationships(userId), userId).friends
   }
 
   /**
    * Everyone this player is connected to, waiting on, or could ask.
    *
-   * The names come back in one query rather than one per relationship, so a
-   * well-connected player does not cost a round trip per friend.
+   * Two queries whatever the count: the relationships with the other party
+   * already named, and the strangers, whom the database excludes rather than
+   * this code filtering a fetched page down to whatever survives.
    */
   async friendships(userId: string) {
-    const relationships = await this.repository.friendships(userId)
-    const related = new Set(relationships.flatMap((row) => [row.requesterId, row.addresseeId]))
-    const [names, people] = await Promise.all([this.repository.namesByIds([...related]), this.repository.usersExcept(userId)])
-    const named = (id: string) => names.get(id) ?? null
-    const present = (player: { id: string; name: string } | null): player is { id: string; name: string } => player !== null
-    return {
-      friends: relationships
-        .filter((row) => row.acceptedAt !== null)
-        .map((row) => named(row.requesterId === userId ? row.addresseeId : row.requesterId))
-        .filter(present),
-      incoming: relationships
-        .filter((row) => row.acceptedAt === null && row.addresseeId === userId)
-        .map((row) => named(row.requesterId))
-        .filter(present),
-      outgoing: relationships
-        .filter((row) => row.acceptedAt === null && row.requesterId === userId)
-        .map((row) => named(row.addresseeId))
-        .filter(present),
-      people: people.filter((user) => !related.has(user.id)),
-    }
+    const [relationships, people] = await Promise.all([this.repository.relationships(userId), this.repository.unrelatedUsers(userId)])
+    return { ...sortedFriends(relationships, userId), people }
   }
 
   async requestFriend(userId: string, friendId: string) {
@@ -296,20 +287,23 @@ export class PraetoriumService {
     )
   }
 
+  /**
+   * Takes a seat behind a shared link.
+   *
+   * Only the seats are read here: whether there is a chair free is settled inside
+   * the append, under the lock that stops two people taking the same one, so
+   * reading the history out here as well would fold the same log twice to reach
+   * the same answer.
+   */
   async join(token: string, userId: string): Promise<JoinResult> {
-    const history = await this.mustFind(token)
-    const state = reduceBattle(
-      history.players.map((player) => player.id),
-      history.log,
-      history.players.map((player) => player.side),
-    )
-    if (state.settings.solo) return 'full'
-    const opener = history.players.find((player) => player.side === 0)
+    const seats = await this.repository.battleByToken(token)
+    if (!seats) throw new Response('no such battle', { status: 404 })
+    const opener = seats.players.find((player) => player.side === 0)
     if (!opener || !(await this.opponents(opener.id)).some((friend) => friend.id === userId)) {
       throw new Response('battle opponents must be friends', { status: 403 })
     }
-    const result = await this.repository.join({ battleId: history.battle.id, userId, now: this.clock() })
-    if (result === 'joined') this.events.publish(history.battle.id, [...history.players.map((player) => player.id), userId])
+    const result = await this.repository.join({ battleId: seats.battle.id, userId, now: this.clock() })
+    if (result === 'joined') this.events.publish(seats.battle.id, [...seats.players.map((player) => player.id), userId])
     return result
   }
 
@@ -325,8 +319,7 @@ export class PraetoriumService {
         history.log,
         history.players.map((player) => player.side),
       )
-      const capacity = state.settings.teamBattle ? 3 : PLAYERS_PER_BATTLE
-      return { kind: 'invitation', free: !state.settings.solo && history.players.length < capacity }
+      return { kind: 'invitation', free: history.players.length < battleCapacity(state.settings) }
     }
     return this.seatedScreen(history, userId, rules)
   }
@@ -352,21 +345,23 @@ export class PraetoriumService {
     rules?: Parameters<typeof missionFor>[0] | null,
   ): Promise<SubmitAnswer> {
     const seats = await this.mustSeat(token, userId)
-    const result = await this.repository.submit({ battleId: seats.battle.id, userId, expectedSeq, command, now: this.clock() }, (state) => {
-      if (command.kind === 'begin-battle') return rules ? setupReferenceError(state, rules) : null
-      if (command.kind === 'score' || command.kind === 'score-secondary')
-        return rules ? scoringCapError(state, userId, command, rules) : null
-      return null
-    })
+    // The log comes back with the answer, so a refusal and a lost race both report
+    // the state that refused them rather than the one the caller was holding —
+    // and without a second read of a history the append had already in hand.
+    const { result, log } = await this.repository.submit(
+      { battleId: seats.battle.id, userId, expectedSeq, command, now: this.clock() },
+      (state) => {
+        if (command.kind === 'begin-battle') return rules ? setupReferenceError(state, rules) : null
+        if (command.kind === 'score' || command.kind === 'score-secondary')
+          return rules ? scoringCapError(state, userId, command, rules) : null
+        return null
+      },
+    )
     if (result.outcome === 'appended')
       this.events.publish(
         seats.battle.id,
         seats.players.map((player) => player.id),
       )
-    // Read after the write, so a refusal and a lost race answer with the state
-    // that refused them rather than the one the caller was already holding. Only
-    // the log is re-read; the seats cannot have changed under this command.
-    const log = await this.repository.log(seats.battle.id)
     return { result, screen: this.seatedScreen({ ...seats, log }, userId, rules) }
   }
 
@@ -421,6 +416,22 @@ export class PraetoriumService {
     const history = await this.repository.battleHistoryByToken(token)
     if (!history) throw new Response('no such battle', { status: 404 })
     return history
+  }
+}
+
+/**
+ * One player's relationships sorted into what the interface asks about: settled
+ * friends, requests waiting on them, and requests they are waiting on.
+ *
+ * The only place that split is made, so `opponents` and the friends page cannot
+ * disagree about who counts as a friend.
+ */
+function sortedFriends(relationships: Awaited<ReturnType<Repository['relationships']>>, userId: string) {
+  const named = (row: (typeof relationships)[number]) => ({ id: row.otherId, name: row.otherName })
+  return {
+    friends: relationships.filter((row) => row.acceptedAt !== null).map(named),
+    incoming: relationships.filter((row) => row.acceptedAt === null && row.addresseeId === userId).map(named),
+    outgoing: relationships.filter((row) => row.acceptedAt === null && row.requesterId === userId).map(named),
   }
 }
 

@@ -10,7 +10,7 @@ import { GAME_SIZES, ROSTER_NAME_MAX_LENGTH } from '../../core/battle'
 import type { RosterPick } from '../../core/roster'
 import type { RosterSource, RosterVisibility } from '../../core/savedRoster'
 import { exportRoster, saveRoster } from '../../server/functions'
-import { collectionQuery, factionsQuery, priceQuery, savedRostersQuery } from '../queries'
+import { collectionQuery, factionsQuery, invalidateSavedRosters, priceQuery } from '../queries'
 import { useCollectionMutation } from '../useCollection'
 import { DatasheetPanel } from './builder/DatasheetPanel'
 import { shortName } from './builder/factions'
@@ -109,7 +109,7 @@ export function ListBuilder({ prep, initial, editable = true }: Props) {
           source: initial.source,
         },
       }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: savedRostersQuery().queryKey }),
+    onSuccess: () => invalidateSavedRosters(queryClient),
   })
 
   useEffect(() => {

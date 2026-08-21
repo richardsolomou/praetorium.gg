@@ -1,4 +1,4 @@
-import { queryOptions, replaceEqualDeep } from '@tanstack/react-query'
+import { type QueryClient, queryOptions, replaceEqualDeep } from '@tanstack/react-query'
 import type { RosterPick } from '../core/roster'
 import {
   battleReport,
@@ -23,6 +23,7 @@ import {
   userProfile,
   priceRoster,
   savedRosters,
+  savedRosterPoints,
   savedRosterPrice,
   sharedRoster,
   signInOptions,
@@ -166,6 +167,24 @@ export const savedRosterPriceQuery = (
 
 export const savedRostersQuery = () =>
   queryOptions({ queryKey: ['saved-rosters'], queryFn: () => savedRosters(), staleTime: SSR_STALE_TIME })
+
+/** Every list's total in one answer, so a library of twenty rows is one request rather than twenty. */
+export const savedRosterPointsQuery = () =>
+  queryOptions({ queryKey: ['saved-roster-points'], queryFn: () => savedRosterPoints(), staleTime: SSR_STALE_TIME })
+
+/**
+ * What "the library changed" means, decided once.
+ *
+ * The lists and their totals are two reads of one thing, so anything that saves,
+ * imports, duplicates or deletes a list says so here rather than each caller
+ * remembering both keys — and the totals silently going stale when one forgets.
+ */
+export function invalidateSavedRosters(queryClient: QueryClient) {
+  return Promise.all([
+    queryClient.invalidateQueries({ queryKey: savedRostersQuery().queryKey }),
+    queryClient.invalidateQueries({ queryKey: savedRosterPointsQuery().queryKey }),
+  ])
+}
 
 /** `battle` is what entitles a seated opponent to read a list that is otherwise private. */
 export const sharedRosterQuery = (id: string, battle?: string) =>

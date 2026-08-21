@@ -1,14 +1,11 @@
-import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { Copy, Download, EllipsisVertical, Eye, Link2, Lock, Pencil, Printer, Trash2 } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { GAME_SIZES } from '../../../core/battle'
-import type { RosterPick } from '../../../core/roster'
 import { ROSTER_SOURCE_LABELS } from '../../../core/savedRoster'
-import { priceQuery } from '../../queries'
 import { FactionLabel, type FactionPresentation } from '../FactionMark'
 import type { RosterActions, SavedRoster } from './rosterLibrary'
 
@@ -27,6 +24,7 @@ export function RosterRow({
   origin,
   onEdit,
   onDelete,
+  points,
 }: {
   roster: SavedRoster
   faction?: Faction
@@ -34,6 +32,8 @@ export function RosterRow({
   origin: string
   onEdit: () => void
   onDelete: () => void
+  /** Priced with every other list in the library, so a row asks for nothing of its own. */
+  points?: number | null
 }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const detachments = roster.detachmentIds.map((id) => faction?.detachments.find((entry) => entry.id === id)?.name).filter(Boolean)
@@ -63,13 +63,9 @@ export function RosterRow({
           </span>
         </Link>
         <span className="shrink-0 text-right">
-          <RosterPoints
-            catalogueId={roster.catalogueId}
-            detachmentIds={roster.detachmentIds}
-            disposition={roster.disposition}
-            limit={roster.limit}
-            picks={roster.picks}
-          />
+          <span className="readout block text-lg font-bold">
+            {points ?? '—'}/{roster.limit}
+          </span>
           <span className="text-xs text-dim">{roster.visibility === 'private' ? 'Private' : 'Unlisted'}</span>
         </span>
         <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
@@ -137,48 +133,5 @@ function RosterActionItems({
         <Trash2 /> Delete
       </Item>
     </>
-  )
-}
-
-/**
- * The list's price, asked for only once the row is on screen.
- *
- * A library of thirty lists is thirty pricing requests, and the ones below the fold
- * are for rows the player may never scroll to.
- */
-function RosterPoints({
-  catalogueId,
-  detachmentIds,
-  disposition,
-  limit,
-  picks,
-}: {
-  catalogueId: string
-  detachmentIds: string[]
-  disposition: string | null
-  limit: number
-  picks: RosterPick[]
-}) {
-  const element = useRef<HTMLSpanElement>(null)
-  const [visible, setVisible] = useState(false)
-  useEffect(() => {
-    if (!element.current || !('IntersectionObserver' in window)) {
-      setVisible(true)
-      return
-    }
-    const observer = new IntersectionObserver(([entry]) => {
-      if (entry?.isIntersecting) {
-        setVisible(true)
-        observer.disconnect()
-      }
-    })
-    observer.observe(element.current)
-    return () => observer.disconnect()
-  }, [])
-  const { data } = useQuery({ ...priceQuery(catalogueId, detachmentIds, disposition, limit, picks), enabled: visible })
-  return (
-    <span ref={element} className="readout block text-lg font-bold">
-      {data?.points ?? '—'}/{limit}
-    </span>
   )
 }

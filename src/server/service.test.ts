@@ -92,6 +92,30 @@ describe('friends', () => {
     expect(await service.opponents('alice')).toContainEqual({ id: 'dave', name: 'Dave' })
   })
 
+  it('offers only players with no relationship yet, and does not run out of them', async () => {
+    // More strangers than a page, so a page filtered after the fact would come
+    // back short — or empty — rather than simply excluding the connections.
+    for (let index = 0; index < 120; index += 1) await enrol(`p${index}`, `Player ${String(index).padStart(3, '0')}`)
+
+    const { people } = await service.friendships('alice')
+
+    expect(people).toHaveLength(100)
+    expect(people.map((player) => player.id)).not.toContain('bob')
+    expect(people.map((player) => player.id)).not.toContain('carol')
+    expect(people.map((player) => player.id)).not.toContain('alice')
+  })
+
+  it('names an opponent without reading the players nobody is connected to', async () => {
+    await enrol('dave', 'Dave')
+
+    // A friend is a friend whether or not anyone asks who else is on the instance.
+    expect(await service.opponents('alice')).toEqual([
+      { id: 'bob', name: 'Bob' },
+      { id: 'carol', name: 'Carol' },
+    ])
+    expect((await service.friendships('alice')).friends).toEqual(await service.opponents('alice'))
+  })
+
   it('does not let another player accept someone else’s request', async () => {
     await enrol('dave', 'Dave')
     await service.requestFriend('alice', 'dave')
@@ -299,7 +323,6 @@ describe('battle setup references', () => {
                 limit: 2000,
                 detachment: null,
                 disposition,
-                selections: [],
                 units: [],
               },
             },
@@ -437,7 +460,6 @@ describe('scoring caps', () => {
           limit: 2000,
           detachment: null,
           disposition: 'reconnaissance',
-          selections: [],
           units: [],
         },
       },
