@@ -1,5 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="12" fill="#0a0b0d"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title description">
+  <title id="title">Praetorium</title>
+  <desc id="description">Two opposing sides meeting in a fortified arena</desc>
   <path fill="#eceef1" d="M8 8h48v32L32 58 8 40V8Z"/>
   <path fill="#121417" d="M12 12h40v26L32 53 12 38V12Z"/>
   <path fill="#f2564b" d="M16 16h13v10H19v9l10 7v5L16 37V16Z"/>
