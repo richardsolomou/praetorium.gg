@@ -233,12 +233,12 @@ function ProfileValue({ value }: { value: DisplayValue }) {
   const sources = value.modifiers.join(', ')
   return (
     <HoverTooltip
-      className="font-semibold text-azure"
+      className="font-semibold text-info"
       label={`${value.name} ${value.value}, modified from ${value.baseValue} by ${sources}`}
       title={`Modified ${value.name}`}
       body={
         <>
-          {value.baseValue} → <span className="text-azure">{value.value}</span>
+          {value.baseValue} → <span className="text-info">{value.value}</span>
         </>
       }
       note={`Modified by ${sources}`}

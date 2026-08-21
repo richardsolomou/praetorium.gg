@@ -112,7 +112,7 @@ export function Loadout({
       <div className="border-b border-edge p-2.5">
         <h2 className="text-sm leading-tight">{unit.name}</h2>
         <div className="mt-1.5 flex flex-wrap items-center gap-2">
-          <span className="chip">{unit.points} pts</span>
+          <span className="chip text-info">{unit.points} pts</span>
           {unit.size.resizable && editable ? (
             <Stepper
               label={`models in ${unit.name}`}
@@ -137,7 +137,7 @@ export function Loadout({
               className={
                 toggle.selected
                   ? 'border-parchment bg-parchment/15 text-parchment hover:bg-parchment/20 hover:text-parchment'
-                  : 'border-edge-strong text-dim hover:border-azure hover:text-bone'
+                  : 'border-edge-strong text-dim hover:border-info hover:text-bone'
               }
               onPressedChange={(pressed) => onToggle(toggle.key, toggle.name, pressed)}
             >

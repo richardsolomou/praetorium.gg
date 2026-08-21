@@ -138,7 +138,7 @@ export function WargearRow({
         <span className="min-w-0 flex-1">
           <span className="block text-xs font-semibold">{name}</span>
           {note ? <span className="block text-[0.6875rem] text-faint">{note}</span> : null}
-          {points ? <span className="readout text-[0.6875rem] text-faint">+{points} each</span> : null}
+          {points ? <span className="readout text-[0.6875rem] text-info">+{points} each</span> : null}
         </span>
         {control ?? (
           <span className="chip readout" aria-label={`${name} count`}>
@@ -206,7 +206,7 @@ function ChoiceOption({
         <div className="flex w-full items-center justify-between gap-2 px-2.5 py-2 text-left">
           <span className="text-sm font-semibold text-bone">{option.name}</span>
           <span className="flex shrink-0 items-center gap-1.5">
-            {option.points ? <span className="chip">+{option.points} pts</span> : null}
+            {option.points ? <span className="chip text-info">+{option.points} pts</span> : null}
             {selected ? <Check className="size-3.5 text-parchment" aria-hidden /> : null}
           </span>
         </div>
@@ -361,7 +361,7 @@ export function SpreadChoice({
             <div className="flex items-center gap-2 px-2 py-1.5">
               <span className="min-w-0 flex-1">
                 <span className="block text-xs font-semibold">{option.name}</span>
-                {option.points ? <span className="readout text-[0.6875rem] text-faint">+{option.points} each</span> : null}
+                {option.points ? <span className="readout text-[0.6875rem] text-info">+{option.points} each</span> : null}
               </span>
               <PoolStepper
                 name={option.name}

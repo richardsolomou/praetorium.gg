@@ -271,7 +271,7 @@ export function ListBuilder({ prep, initial, editable = true }: Props) {
               <FactionLabel faction={faction} />
             </Link>
             <span aria-hidden>·</span>
-            <Link to="/rosters" search={{ limit }} className="shrink-0 hover:text-bone">
+            <Link to="/rosters" search={{ limit }} className="shrink-0 text-info hover:text-bone">
               {GAME_SIZES.find((size) => size.limit === limit)?.name ?? `${limit} points`}
             </Link>
             {detachmentIds.map((id) => {
@@ -496,7 +496,7 @@ export function ListBuilder({ prep, initial, editable = true }: Props) {
              * anyone who cannot see it: it is the whole answer to "can I play this".
              */}
             <span className="sr-only">{over ? 'Over the points limit' : 'Within the points limit'}</span>
-            <span data-stat="points" className={`readout text-xl font-bold ${over ? 'text-destructive' : ''}`}>
+            <span data-stat="points" className={`readout text-xl font-bold ${over ? 'text-destructive' : 'text-info'}`}>
               {priced?.points ?? 0}/{limit}
             </span>
             <span className="eyebrow">points</span>

@@ -54,7 +54,7 @@ export function FactionDatasheet() {
             <h1 className="text-3xl">{sheet.name}</h1>
             <div className="flex shrink-0 gap-1">
               {sheet.composition.length ? <span className="chip">{compositionCount(sheet.composition)}</span> : null}
-              {sheet.points === null ? null : <span className="chip">{sheet.points} pts</span>}
+              {sheet.points === null ? null : <span className="chip text-info">{sheet.points} pts</span>}
             </div>
           </div>
           <div className="mt-2 flex flex-wrap gap-1">
@@ -196,7 +196,7 @@ function UnitConfiguration({ sheet, rules }: { sheet: DatasheetDisplay; rules: K
                         </span>
                       ) : null}
                     </span>
-                    <span className="readout text-azure">{cost.cost} pts</span>
+                    <span className="readout text-info">{cost.cost} pts</span>
                   </div>
                 ))}
             </div>

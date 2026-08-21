@@ -59,7 +59,7 @@ export function UnitCard({
   onJoin,
   editable = true,
 }: Props) {
-  const cardClassName = `relative border bg-card transition-colors ${selected ? 'border-parchment' : 'border-edge hover:border-azure'}`
+  const cardClassName = `relative border bg-card transition-colors ${selected ? 'border-parchment' : 'border-edge hover:border-info'}`
   const actions = { owned, onOwned, onDuplicate, onRemove }
 
   // One target over the whole card, under everything on it. An enhancement, an
@@ -80,7 +80,7 @@ export function UnitCard({
           <span className="w-full min-w-0">
             <span className="block text-[0.9375rem] leading-tight font-bold tracking-[0.02em] uppercase">{unit.name}</span>
             {alliedFaction ? (
-              <span className="eyebrow mt-1 flex items-center gap-1 text-azure">
+              <span className="eyebrow mt-1 flex items-center gap-1 text-info">
                 Allied unit · <FactionLabel faction={alliedFaction} />
               </span>
             ) : null}
@@ -97,7 +97,7 @@ export function UnitCard({
           ) : null}
         </div>
         <span className="pointer-events-none relative z-10 flex shrink-0 items-center gap-1.5 [&_button]:pointer-events-auto">
-          <span className="chip">{unit.points} pts</span>
+          <span className="chip text-info">{unit.points} pts</span>
           {editable ? (
             <span data-print-hide>
               <DropdownMenu>

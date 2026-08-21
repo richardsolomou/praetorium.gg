@@ -204,7 +204,7 @@ export function ModelCard({
                       onRemove={swap.count > 0 ? () => onSwap(swap.key, swap.count - 1) : undefined}
                     />
                   ) : (
-                    <span className="w-[5.5rem] text-right text-[0.6875rem] text-faint">costs points</span>
+                    <span className="w-[5.5rem] text-right text-[0.6875rem] text-info">costs points</span>
                   )
                 }
               />

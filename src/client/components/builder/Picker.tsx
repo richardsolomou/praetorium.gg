@@ -126,7 +126,7 @@ export function Picker({ catalogueId, onAdd, onPreview, inRoster, room, battleSi
                       >
                         <button
                           type="button"
-                          className="flex min-w-0 flex-1 items-center gap-1.5 text-left hover:text-azure"
+                          className="flex min-w-0 flex-1 items-center gap-1.5 text-left hover:text-info"
                           aria-label={`View ${unit.name} datasheet`}
                           onClick={() => onPreview(unit.id)}
                         >
@@ -153,7 +153,7 @@ export function Picker({ catalogueId, onAdd, onPreview, inRoster, room, battleSi
                             className={`size-3.5 ${collection.has(unit.id) ? 'fill-azure text-azure' : 'text-faint hover:text-dim'}`}
                           />
                         </Toggle>
-                        {unit.points === null ? null : <span className="chip shrink-0">{unit.points} pts</span>}
+                        {unit.points === null ? null : <span className="chip shrink-0 text-info">{unit.points} pts</span>}
                         <Button
                           size="sm"
                           className="h-7 shrink-0 px-2 text-[0.6875rem]"

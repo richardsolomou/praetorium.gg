@@ -32,7 +32,7 @@ Praetorium uses a compact, dark visual system. See [the product design guide](..
 
 ## Components and styles
 
-- Use green for primary actions, rule references, and success; parchment for selected state; amber for attention; and muted steel blue for navigation and informational links. Player-side tints remain separate ownership signals.
+- Use green for primary actions, rule references, and success; parchment for selected state; amber for attention; and muted steel blue for navigation and inspectable information such as points. Player-side tints remain separate ownership signals.
 - Explain everything on hover through `HoverTooltip`, which takes a title, the words themselves, and a note saying where they came from. The shape is the component's API rather than free-form content, so a keyword's rule and a modified characteristic read alike; it measures itself to stay inside the window and follows its trigger when the page scrolls.
 - Do not disable controls while a command is in flight. `useCommand` sends them in order, so a player's own taps cannot race each other and nothing has to go dead to prevent it.
 - Wait for a run of edits to settle before asking the server about them. `src/client/useSettled.ts` is the one delay: holding a stepper down is one intent, not fifteen requests.
