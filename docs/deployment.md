@@ -51,13 +51,9 @@ With `VALKEY_URL` set, more than one replica is safe. Centrifugo uses Valkey as 
 
 Without it, run one replica. Live updates then fan out inside a single process, and a second replica would serve battles that never hear each other's commands.
 
-## Moving an existing SQLite deployment
+## Sessions
 
-Versions before 0.17.0 stored everything in `praetorium.sqlite` on the `/data` volume. Praetorium reads Postgres only, so a deployment still on that file upgrades to 0.17.0 first: it carries the data across on its first boot, from the file, and needs nothing else. Any later version can be deployed after that.
-
-Keep `auth.secret` on the `/data` volume across the move, or everyone is signed out.
-
-One thing does not carry over. When `VALKEY_URL` is set, better-auth reads sessions from Valkey only, so existing sessions stop resolving and every player signs in once after the move. Their accounts, lists, battles, and logs are untouched.
+Sessions live in Valkey when `VALKEY_URL` is set, so replacing it or clearing it signs everyone in again. Accounts, lists, battles, and logs are unaffected.
 
 ## Reverse proxy
 
