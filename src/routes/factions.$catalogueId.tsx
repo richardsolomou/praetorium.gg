@@ -27,7 +27,7 @@ function FactionPage() {
 
   return (
     <main className="mx-auto w-full max-w-5xl px-4 py-8">
-      <Link to="/factions" className="eyebrow flex items-center gap-1 text-azure hover:text-bone">
+      <Link to="/factions" className="eyebrow flex items-center gap-1 text-info hover:text-bone">
         <ChevronLeft className="size-3.5" /> Factions
       </Link>
       <header className="mt-4 flex items-center gap-4 border-b pb-4" style={{ borderBottomColor: factionColour(faction.slug) }}>

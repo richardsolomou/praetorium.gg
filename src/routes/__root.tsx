@@ -86,7 +86,7 @@ function Account() {
           <Button
             variant="ghost"
             size="icon-sm"
-            className="shrink-0 text-dim hover:bg-raised hover:text-azure"
+            className="shrink-0 text-dim hover:bg-raised hover:text-info"
             aria-label={me ? `Account menu for ${me.name}` : 'Account menu'}
           />
         }
@@ -161,7 +161,7 @@ function PrimaryNavigation({ path }: { path: string }) {
   }, [open])
 
   const linkClass =
-    'eyebrow flex min-h-11 items-center border-l-2 border-transparent px-3 hover:border-azure hover:bg-raised hover:text-azure min-[815px]:min-h-0 min-[815px]:border-0 min-[815px]:bg-transparent min-[815px]:px-0'
+    'eyebrow flex min-h-11 items-center border-l-2 border-transparent px-3 hover:border-info hover:bg-raised hover:text-info min-[815px]:min-h-0 min-[815px]:border-0 min-[815px]:bg-transparent min-[815px]:px-0'
 
   return (
     <div ref={root} className="min-[815px]:contents">
@@ -169,7 +169,7 @@ function PrimaryNavigation({ path }: { path: string }) {
         ref={trigger}
         variant="ghost"
         size="icon-sm"
-        className="text-dim hover:bg-raised hover:text-azure min-[815px]:hidden"
+        className="text-dim hover:bg-raised hover:text-info min-[815px]:hidden"
         aria-label={open ? 'Close primary navigation' : 'Open primary navigation'}
         aria-controls="primary-navigation"
         aria-expanded={open}
@@ -243,7 +243,7 @@ function RootComponent() {
               <div className="flex h-12 items-center gap-2 px-2 sm:px-4 min-[815px]:gap-3 min-[900px]:gap-5">
                 <Link
                   to="/"
-                  className="group flex shrink-0 items-center gap-1.5 text-base leading-none font-bold tracking-[0.02em] text-bone uppercase hover:text-azure sm:text-lg"
+                  className="group flex shrink-0 items-center gap-1.5 text-base leading-none font-bold tracking-[0.02em] text-bone uppercase hover:text-info sm:text-lg"
                 >
                   <img src="/logo.svg" alt="" className="size-7 transition-transform group-hover:-translate-y-px" />
                   <span className="min-[815px]:hidden min-[900px]:inline">Praetorium</span>

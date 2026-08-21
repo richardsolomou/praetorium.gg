@@ -35,7 +35,7 @@ export function Battlefield({ view, send, pending, allowedIds }: Props) {
         <p className="text-sm text-dim">
           Your army combines detachments with different Force Dispositions, so it needs one chosen before a battlefield can be picked.{' '}
           {viewerRoster.id ? (
-            <Link to="/rosters/$id" params={{ id: viewerRoster.id }} className="text-azure hover:text-bone">
+            <Link to="/rosters/$id" params={{ id: viewerRoster.id }} className="text-info hover:text-bone">
               Choose one on the roster
             </Link>
           ) : (

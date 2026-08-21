@@ -19,7 +19,8 @@
  *
  * The layout, density and vocabulary are BattleBase's; the surfaces are dark.
  * The palette takes its cues from printed deployment plans: charcoal
- * structure with muted red and green field markings.
+ * structure with muted red and green field markings, parchment selections,
+ * and steel-blue navigation.
  *
  * The two side colours are not decoration. Every number on screen belongs to one
  * player or the other, and at arm's length across a table the tint is what tells
@@ -42,6 +43,7 @@
 
   --color-parchment: #c8b991;
   --color-parchment-ink: #17140f;
+  --color-info: #829bb0;
   --color-azure: #89b89d;
   --color-azure-ink: #101a14;
   --color-side-a: #df8078;

@@ -267,7 +267,7 @@ export function ListBuilder({ prep, initial, editable = true }: Props) {
 
         {faction ? (
           <div className="flex min-w-0 items-center gap-2 text-xs text-dim">
-            <Link to="/factions/$catalogueId" params={{ catalogueId: faction.slug }} className="truncate text-azure hover:text-bone">
+            <Link to="/factions/$catalogueId" params={{ catalogueId: faction.slug }} className="truncate text-info hover:text-bone">
               <FactionLabel faction={faction} />
             </Link>
             <span aria-hidden>·</span>

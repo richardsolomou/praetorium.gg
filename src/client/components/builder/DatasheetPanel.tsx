@@ -59,7 +59,7 @@ export function DatasheetPanel({ catalogueId, factionSlug, entryId, detachmentId
             <Link
               to="/factions/$catalogueId/datasheets/$entryId"
               params={{ catalogueId: factionSlug, entryId: sheet.slug }}
-              className="eyebrow text-azure hover:text-bone"
+              className="eyebrow text-info hover:text-bone"
             >
               Full datasheet
             </Link>
