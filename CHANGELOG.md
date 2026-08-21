@@ -1,5 +1,13 @@
 # praetorium
 
+## 0.16.7
+
+### Patch Changes
+
+- fae016d: Ask a squad that must match one question instead of ten. Immortals take gauss blasters or tesla carbines, Lychguard warscythes or sword and shield, and neither may be mixed — but the editor offered a count against each option and only said "all models must be equipped identically" once a player had used it. Where the data forbids the mix the option is picked once and every model follows, including the models a resize adds. A list imported from another builder still says exactly what it said: a split it states is kept and reported, not quietly reissued. Aggressor Squads, Vanguard Veterans with Jump Packs and Cthonian Beserks read the same way.
+- fae016d: Set the rules text in the unit editor at the size of the labels around it. What a resurrection orb does, what each enhancement gives and what a dispersion shield is for were all printed larger than the option they explain, so the note shouted over the thing it was describing.
+- fae016d: Ask what a unit fights with before asking what else it carries. An Overlord's blade and tachyon arrow sat below the question about his resurrection orb, which is neither the order the datasheet prints nor the order the choice gets made in.
+
 ## 0.16.6
 
 ### Patch Changes
