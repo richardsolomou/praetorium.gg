@@ -83,6 +83,16 @@ export type LoadedFactions = {
   factionNames: Map<string, string>
   factionIcons: Map<string, string>
   factionRules: Map<string, { name: string; description: string }>
+  /**
+   * Every name a faction answers to, against the one its rules are filed under.
+   *
+   * The catalogues call the Adeptus Astartes book Space Marines, so a lookup by the
+   * name a player sees reaches nothing without this — which is how a whole faction
+   * came to have detachments with no points and no stratagems. Resolved on the way
+   * in rather than by filing each faction under several keys, because the maps
+   * below are read one key at a time and also counted whole.
+   */
+  factionKeys: Map<string, string>
   /** Display metadata for each detachment, from the same licensed source as its stratagems. */
   detachmentReferences: Map<string, Map<string, DetachmentReference>>
   detachmentDetails: Map<string, Map<string, DetachmentRulesDetail>>
@@ -99,22 +109,16 @@ export function loadFactions(core: string, iconDirectory: string, wahapedia: Wah
   const factionNames = new Map<string, string>()
   const factionIcons = new Map<string, string>()
   const factionRules = new Map<string, { name: string; description: string }>()
+  const factionKeys = new Map<string, string>()
   let dataslate: string | null = null
 
   for (const faction of factionDirectories(core)) {
     const file = path.join(core, faction, 'stratagems.json')
     const factionFile = path.join(core, faction, 'factions.json')
-    /**
-     * The directory name and every name the dataset also answers to.
-     *
-     * The catalogues call the Adeptus Astartes book Space Marines, so a lookup by the
-     * name a player sees reaches nothing unless the aliases are keys as well — which
-     * is how a whole faction came to have detachments with no points and no stratagems.
-     */
-    const keys = new Set([faction])
+    factionKeys.set(faction, faction)
     if (fs.existsSync(factionFile)) {
       for (const found of readJson<RawFaction[]>(factionFile)) {
-        for (const alias of found.aliases ?? []) keys.add(routeSlug(alias))
+        for (const alias of found.aliases ?? []) factionKeys.set(routeSlug(alias), faction)
         factionNames.set(found.id, found.name)
         const icon = path.join(iconDirectory, `${found.id}.svg`)
         if (found.logo_url) {
@@ -203,13 +207,11 @@ export function loadFactions(core: string, iconDirectory: string, wahapedia: Wah
           },
         ]),
       )
-      for (const key of keys) {
-        detachmentReferences.set(key, references)
-        detachmentDetails.set(key, details)
-      }
+      detachmentReferences.set(faction, references)
+      detachmentDetails.set(faction, details)
     }
-    if (detachments.size) for (const key of keys) byDetachment.set(key, detachments)
+    if (detachments.size) byDetachment.set(faction, detachments)
   }
 
-  return { factionNames, factionIcons, factionRules, detachmentReferences, detachmentDetails, byDetachment, dataslate }
+  return { factionNames, factionIcons, factionRules, factionKeys, detachmentReferences, detachmentDetails, byDetachment, dataslate }
 }

@@ -2,7 +2,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { compositionOf, loadRules, missionFor } from './rules'
+import { compositionOf, loadRules, missionFor, rulesFaction } from './rules'
 
 let directory: string
 
@@ -250,9 +250,19 @@ describe('stratagems', () => {
     // The catalogues call the Adeptus Astartes book Space Marines, and a whole
     // faction's detachment points and stratagems went missing over the difference.
     const rules = load()
-    expect(rules.detachmentReferences.get('plague-marines')?.get('flyblown-host')?.points).toBe(2)
-    expect(rules.detachmentDetails.get('plague-marines')?.get('flyblown-host')?.name).toBe('Flyblown Host')
-    expect(rules.byDetachment.get('plague-marines')?.get('flyblown-host')).toHaveLength(2)
+    const key = rulesFaction(rules, 'plague-marines')
+    expect(key).toBe('death-guard')
+    expect(rules.detachmentReferences.get(key)?.get('flyblown-host')?.points).toBe(2)
+    expect(rules.detachmentDetails.get(key)?.get('flyblown-host')?.name).toBe('Flyblown Host')
+    expect(rules.byDetachment.get(key)?.get('flyblown-host')).toHaveLength(2)
+  })
+
+  it('are filed once, so counting them whole counts each faction once', () => {
+    // Filing a faction under each of its names would have every reader that walks the
+    // whole map see it twice, which is what the description ratchet caught.
+    const rules = load()
+    expect([...rules.detachmentDetails.keys()]).toEqual(['death-guard'])
+    expect(rulesFaction(rules, 'a-faction-nobody-has-heard-of')).toBe('a-faction-nobody-has-heard-of')
   })
 
   it('take the usage limit the dataset states', () => {

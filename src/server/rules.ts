@@ -39,6 +39,8 @@ export type LoadedRules = {
   abilityDescriptions: ReadonlyMap<string, string>
   /** Army-construction restrictions keyed by the player-facing faction slug. */
   factionRestrictions: ReturnType<typeof factionRestrictions>
+  /** Every name a faction answers to, against the one its rules are filed under. */
+  factionKeys: Map<string, string>
   /** Faction slug then detachment slug, so a chosen detachment maps straight to its six. */
   byDetachment: Map<string, Map<string, Stratagem[]>>
   /** Display metadata for each detachment, from the same licensed source as its stratagems. */
@@ -101,6 +103,7 @@ export function loadRules(
       .join('. '),
     abilityDescriptions: wahapedia?.abilities ?? new Map(),
     factionRestrictions: factionRestrictions(wahapedia?.abilities ?? new Map()),
+    factionKeys: factions.factionKeys,
     byDetachment: factions.byDetachment,
     detachmentReferences: factions.detachmentReferences,
     detachmentDetails: factions.detachmentDetails,
@@ -121,6 +124,15 @@ export function loadRules(
     dataslate: factions.dataslate,
   }
 }
+
+/**
+ * Which faction directory a player-facing slug's rules are filed under.
+ *
+ * One place decides it, because the rules maps are keyed by the dataset's own name for
+ * a book and the rest of the app knows a faction by the name it shows a player.
+ */
+export const rulesFaction = (rules: LoadedRules | null | undefined, factionSlug: string) =>
+  rules?.factionKeys.get(factionSlug) ?? factionSlug
 
 /**
  * The kinds of model a datasheet is built from, or nothing when the data is silent.

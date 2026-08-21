@@ -12,7 +12,7 @@ import { detachmentCatalogueDetail } from './catalogueDescriptions'
 import { groupOfEntry } from './cataloguePicker'
 import { rosterDetachments } from './rosterDetachments'
 import { type LoadedCatalogue } from './catalogueIndex'
-import { compositionOf, type LoadedRules, type UnitComposition } from './rules'
+import { compositionOf, type LoadedRules, rulesFaction, type UnitComposition } from './rules'
 import type { PriceInput } from './schemas'
 import { descriptionKey, findDescription, type FactionRestrictions } from './wahapedia'
 
@@ -27,7 +27,7 @@ export function calculateRosterPrice(data: PriceInput) {
   // the roster when units are expanded.
   const rules = app().rules()
   const factionSlug = routeSlug(loaded.index.catalogues.get(data.catalogueId)?.name ?? '')
-  const references = rules?.detachmentReferences.get(factionSlug)
+  const references = rules?.detachmentReferences.get(rulesFaction(rules, factionSlug))
   const allowedDispositions = [
     ...new Set(
       chosen.flatMap((option) => {
@@ -42,7 +42,7 @@ export function calculateRosterPrice(data: PriceInput) {
     points: references?.get(routeSlug(option.name))?.points ?? null,
   }))
   const detachmentSpecials = chosen.map((option) => {
-    const detail = rules?.detachmentDetails.get(factionSlug)?.get(routeSlug(option.name))
+    const detail = rules?.detachmentDetails.get(rulesFaction(rules, factionSlug))?.get(routeSlug(option.name))
     const named = [...(detail?.enhancements ?? []), ...(detail?.upgrades ?? [])]
     const catalogue = detachmentCatalogueDetail(
       loaded,

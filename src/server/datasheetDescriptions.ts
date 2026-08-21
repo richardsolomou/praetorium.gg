@@ -1,7 +1,7 @@
 import { datasheetIn, rulesReferencedIn } from './catalogue'
 import { routeSlug } from '../core/slug'
 import type { LoadedCatalogue } from './catalogueIndex'
-import { type LoadedRules } from './rules'
+import { type LoadedRules, rulesFaction } from './rules'
 import { findAbilityDescription, WAHAPEDIA_ATTRIBUTION } from './wahapedia'
 
 export function describeDatasheetAbilities(
@@ -23,7 +23,7 @@ export function describeDatasheetAbilities(
   const keywords = new Set(sheet.keywords.map((keyword) => routeSlug(keyword.replace(/^faction:\s*/i, ''))))
   const character = keywords.has('character')
   const detachments = faction
-    ? [...(loadedRules?.detachmentDetails.get(routeSlug(faction.name))?.values() ?? [])].map((detachment) => ({
+    ? [...(loadedRules?.detachmentDetails.get(rulesFaction(loadedRules, routeSlug(faction.name)))?.values() ?? [])].map((detachment) => ({
         id: detachment.id,
         name: detachment.name,
         rules: detachment.rules,
