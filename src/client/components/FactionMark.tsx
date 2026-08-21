@@ -37,12 +37,6 @@ const FACTION_COLOURS: Record<string, string> = {
   'world-eaters': '#c42126',
 }
 
-const ICON_BASE = 'https://cdn.jsdelivr.net/gh/Certseeds/wh40k-icon@be230023ff0755d19ffb1a1762658c711c2887f9/src/svgs'
-const FALLBACK_ICONS: Record<string, string> = {
-  'adeptus-titanicus': `${ICON_BASE}/human_imperium/mechanicum/collegia-titanica.svg`,
-  'titanicus-traitoris': `${ICON_BASE}/chaos/titanicus-traitoris.svg`,
-}
-
 export function factionColour(id: string) {
   return FACTION_COLOURS[id] ?? '#767e88'
 }
@@ -51,8 +45,7 @@ export type FactionPresentation = { slug: string; displayName: string; icon: str
 
 export function FactionMark({ id, icon, size = 'md' }: { id: string; icon: string | null; size?: 'sm' | 'md' | 'lg' }) {
   const colour = factionColour(id)
-  const source = icon ?? FALLBACK_ICONS[id]
-  const mask = source ? `url(${JSON.stringify(source)})` : undefined
+  const mask = icon ? `url(${JSON.stringify(icon)})` : undefined
   const style = {
     backgroundColor: colour,
     maskImage: mask,
@@ -63,7 +56,7 @@ export function FactionMark({ id, icon, size = 'md' }: { id: string; icon: strin
     WebkitMaskRepeat: 'no-repeat',
     maskSize: 'contain',
     WebkitMaskSize: 'contain',
-    clipPath: source ? undefined : 'polygon(50% 0, 100% 50%, 50% 100%, 0 50%)',
+    clipPath: icon ? undefined : 'polygon(50% 0, 100% 50%, 50% 100%, 0 50%)',
   } as CSSProperties
 
   return (
