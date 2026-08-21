@@ -59,7 +59,7 @@ export function UnitCard({
   onJoin,
   editable = true,
 }: Props) {
-  const cardClassName = `relative border bg-card transition-colors ${selected ? 'border-azure' : 'border-edge hover:border-azure'}`
+  const cardClassName = `relative border bg-card transition-colors ${selected ? 'border-parchment' : 'border-edge hover:border-azure'}`
   const actions = { owned, onOwned, onDuplicate, onRemove }
 
   // One target over the whole card, under everything on it. An enhancement, an

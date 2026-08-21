@@ -73,6 +73,7 @@ function ArmySetup({ army, multiple, send }: { army: Army; multiple: boolean; se
               <Button
                 key={formation}
                 variant={unit.formation === formation ? 'default' : 'outline'}
+                className={unit.formation === formation ? 'bg-parchment text-parchment-ink hover:bg-parchment/80' : undefined}
                 size="xs"
                 aria-label={`Start ${unit.name} in ${formationLabel(formation)}`}
                 onClick={() => send({ kind: 'set-unit-formation', unitKey: unit.key, formation, playerId: army.playerId })}

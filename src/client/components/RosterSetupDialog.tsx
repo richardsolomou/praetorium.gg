@@ -206,7 +206,7 @@ export function RosterSetupDialog({
                   return (
                     <div
                       key={detachment.id}
-                      className={`flex min-h-20 items-stretch rounded-none border ${chosen ? 'border-azure bg-raised' : 'border-edge bg-sunken'}`}
+                      className={`flex min-h-20 items-stretch rounded-none border ${chosen ? 'border-parchment bg-raised' : 'border-edge bg-sunken'}`}
                     >
                       <button
                         type="button"
@@ -216,7 +216,7 @@ export function RosterSetupDialog({
                           setReference({ catalogueId: faction.id, slug: detachment.slug, name: detachment.name })
                         }}
                       >
-                        <Layers3 className={`mt-0.5 size-4 shrink-0 ${chosen ? 'text-azure' : 'text-faint'}`} />
+                        <Layers3 className={`mt-0.5 size-4 shrink-0 ${chosen ? 'text-parchment' : 'text-faint'}`} />
                         <span className="min-w-0 flex-1">
                           <span className="block font-bold uppercase">{detachment.name}</span>
                           <span className="mt-2 flex flex-wrap gap-1">
@@ -232,7 +232,7 @@ export function RosterSetupDialog({
                         type="button"
                         aria-label={`${chosen ? 'Remove' : 'Select'} ${detachment.name}`}
                         onClick={() => toggleDetachment(detachment.id)}
-                        className={`grid w-20 shrink-0 place-items-center border-l border-edge text-sm font-bold uppercase ${chosen ? 'bg-azure text-azure-ink' : 'bg-raised text-azure hover:bg-azure/15'}`}
+                        className={`grid w-20 shrink-0 place-items-center border-l border-edge text-sm font-bold uppercase ${chosen ? 'bg-parchment text-parchment-ink' : 'bg-raised text-azure hover:bg-azure/15'}`}
                       >
                         {detachment.reference?.points ?? '—'} DP
                       </button>

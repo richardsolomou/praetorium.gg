@@ -234,7 +234,7 @@ function AwardRow({
               <Plus />
             </Button>
           </div>
-          <span className={`chip shrink-0 ${times > 0 ? 'border-azure text-azure' : 'border-edge-strong'}`}>
+          <span className={`chip shrink-0 ${times > 0 ? 'border-parchment text-parchment' : 'border-edge-strong'}`}>
             {awardTotal(award, times)} VP
           </span>
         </>
@@ -275,7 +275,7 @@ function Chip({
       aria-label={ariaLabel}
       disabled={pending || disabled}
       onClick={onPress}
-      className={`chip shrink-0 px-2 py-1 ${chosen ? 'border-azure bg-azure/15 text-azure' : 'border-edge-strong hover:border-azure hover:text-azure'}`}
+      className={`chip shrink-0 px-2 py-1 ${chosen ? 'border-parchment bg-parchment/15 text-parchment' : 'border-edge-strong hover:border-azure hover:text-azure'}`}
     >
       {label}
     </button>

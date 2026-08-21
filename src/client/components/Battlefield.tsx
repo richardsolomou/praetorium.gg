@@ -71,7 +71,7 @@ export function Battlefield({ view, send, pending, allowedIds }: Props) {
           return (
             <article
               key={terrain.id}
-              className={`border bg-sunken p-2 transition-colors ${selected ? 'border-azure ring-1 ring-azure' : 'border-edge'}`}
+              className={`border bg-sunken p-2 transition-colors ${selected ? 'border-parchment ring-1 ring-parchment' : 'border-edge'}`}
             >
               <span className="block text-center text-lg font-bold">{label}</span>
               <TerrainBoard

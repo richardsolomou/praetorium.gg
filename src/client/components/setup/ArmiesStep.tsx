@@ -147,7 +147,7 @@ function RosterChooser({
                 </span>
                 <span className="shrink-0 text-right">
                   <span className="chip block">{roster.limit} pts</span>
-                  {selectedName === roster.name ? <span className="mt-1 block text-xs text-achieved">Selected</span> : null}
+                  {selectedName === roster.name ? <span className="mt-1 block text-xs text-parchment">Selected</span> : null}
                 </span>
               </button>
             ))

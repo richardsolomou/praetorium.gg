@@ -136,7 +136,7 @@ export function Loadout({
               disabled={!editable}
               className={
                 toggle.selected
-                  ? 'border-azure bg-azure/15 text-azure hover:bg-azure/20 hover:text-azure'
+                  ? 'border-parchment bg-parchment/15 text-parchment hover:bg-parchment/20 hover:text-parchment'
                   : 'border-edge-strong text-dim hover:border-azure hover:text-bone'
               }
               onPressedChange={(pressed) => onToggle(toggle.key, toggle.name, pressed)}

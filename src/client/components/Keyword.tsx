@@ -4,7 +4,7 @@ import { HoverTooltip } from './HoverTooltip'
 
 export type KeywordRule = { name: string; description: string }
 export const KEYWORD_TAG_CLASS =
-  'chip inline-flex min-h-6 items-center justify-center border-parchment/50 bg-parchment/10 py-0.5 leading-none text-parchment'
+  'chip inline-flex min-h-6 items-center justify-center border-azure/50 bg-azure/10 py-0.5 leading-none text-azure'
 
 export function Keyword({
   name,
@@ -25,7 +25,7 @@ export function Keyword({
 
   return (
     <HoverTooltip
-      className={`${className} ${note ? 'font-semibold' : ''} text-parchment hover:text-bone`}
+      className={`${className} ${note ? 'font-semibold' : ''} text-azure hover:text-bone`}
       title={rule?.name ?? name}
       body={rule ? rule.description.replaceAll(/\^\^|\*/g, '') : undefined}
       note={note}

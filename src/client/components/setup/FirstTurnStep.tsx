@@ -73,7 +73,7 @@ function SideChoice({
             variant="outline"
             aria-pressed={side.index === chosen}
             className={`h-auto justify-start border-t-2 px-3 py-2 text-left ${tint(side.index).edge} ${
-              side.index === chosen ? 'bg-azure/10 ring-2 ring-azure' : ''
+              side.index === chosen ? 'bg-parchment/10 ring-2 ring-parchment' : ''
             }`}
             onClick={() => onChoose(side.index)}
           >

@@ -185,35 +185,35 @@ function PrimaryNavigation({ path }: { path: string }) {
         <Link
           to="/battles"
           className={linkClass}
-          activeProps={{ className: 'border-azure bg-raised text-azure min-[815px]:bg-transparent' }}
+          activeProps={{ className: 'border-parchment bg-raised text-parchment min-[815px]:bg-transparent' }}
         >
           Battles
         </Link>
         <Link
           to="/rosters"
           className={linkClass}
-          activeProps={{ className: 'border-azure bg-raised text-azure min-[815px]:bg-transparent' }}
+          activeProps={{ className: 'border-parchment bg-raised text-parchment min-[815px]:bg-transparent' }}
         >
           Rosters
         </Link>
         <Link
           to="/friends"
           className={linkClass}
-          activeProps={{ className: 'border-azure bg-raised text-azure min-[815px]:bg-transparent' }}
+          activeProps={{ className: 'border-parchment bg-raised text-parchment min-[815px]:bg-transparent' }}
         >
           Friends
         </Link>
         <Link
           to="/factions"
           className={linkClass}
-          activeProps={{ className: 'border-azure bg-raised text-azure min-[815px]:bg-transparent' }}
+          activeProps={{ className: 'border-parchment bg-raised text-parchment min-[815px]:bg-transparent' }}
         >
           Factions
         </Link>
         <Link
           to="/mission-packs"
           className={linkClass}
-          activeProps={{ className: 'border-azure bg-raised text-azure min-[815px]:bg-transparent' }}
+          activeProps={{ className: 'border-parchment bg-raised text-parchment min-[815px]:bg-transparent' }}
         >
           Mission packs
         </Link>

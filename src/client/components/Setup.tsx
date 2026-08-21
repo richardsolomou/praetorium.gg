@@ -135,6 +135,9 @@ export function Setup({ view, mission, send, pending, problem }: Props) {
                     <Button
                       key={pack.id}
                       variant={view.settings.missionPackId === pack.id ? 'default' : 'outline'}
+                      className={
+                        view.settings.missionPackId === pack.id ? 'bg-parchment text-parchment-ink hover:bg-parchment/80' : undefined
+                      }
                       size="sm"
                       onClick={() => configure({ missionPackId: pack.id })}
                     >

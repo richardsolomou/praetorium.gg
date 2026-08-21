@@ -69,7 +69,7 @@ export function CreateBattle() {
                   key={format.key}
                   variant={chosen ? 'default' : 'outline'}
                   aria-pressed={chosen}
-                  className="h-auto flex-col items-start gap-0.5 px-2.5 py-2 text-left"
+                  className={`h-auto flex-col items-start gap-0.5 px-2.5 py-2 text-left ${chosen ? 'bg-parchment text-parchment-ink hover:bg-parchment/80' : ''}`}
                   onClick={() => {
                     setSolo(format.key === 'solo')
                     setTeamBattle(format.key === 'team')
@@ -77,7 +77,9 @@ export function CreateBattle() {
                   }}
                 >
                   <span className="font-bold uppercase">{format.name}</span>
-                  <span className={`text-[0.625rem] leading-tight font-normal whitespace-normal ${chosen ? 'text-void/75' : 'text-dim'}`}>
+                  <span
+                    className={`text-[0.625rem] leading-tight font-normal whitespace-normal ${chosen ? 'text-parchment-ink/75' : 'text-dim'}`}
+                  >
                     {format.detail}
                   </span>
                 </Button>
@@ -140,6 +142,7 @@ export function CreateBattle() {
                 key={size.limit}
                 variant={limit === size.limit ? 'default' : 'outline'}
                 size="sm"
+                className={limit === size.limit ? 'bg-parchment text-parchment-ink hover:bg-parchment/80' : undefined}
                 onClick={() => setLimit(size.limit)}
               >
                 {size.name} · {size.limit}
@@ -156,6 +159,7 @@ export function CreateBattle() {
                   key={pack.id}
                   variant={missionPackId === pack.id ? 'default' : 'outline'}
                   size="sm"
+                  className={missionPackId === pack.id ? 'bg-parchment text-parchment-ink hover:bg-parchment/80' : undefined}
                   onClick={() => setMissionPackId(pack.id)}
                 >
                   {pack.name}

@@ -93,7 +93,7 @@ export function Picker({ catalogueId, onAdd, onPreview, inRoster, room, battleSi
               onPressedChange={() => toggle(filter.id)}
               className={`rounded-sm border px-1.5 py-px text-[0.6875rem] font-semibold tracking-[0.06em] uppercase transition-colors ${
                 active.has(filter.id)
-                  ? 'border-azure bg-azure/15 text-azure'
+                  ? 'border-parchment bg-parchment/15 text-parchment'
                   : 'border-edge-strong text-dim hover:border-dim hover:text-bone'
               }`}
             >

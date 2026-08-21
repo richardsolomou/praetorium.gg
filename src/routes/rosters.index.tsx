@@ -97,7 +97,7 @@ function RosterLibrary() {
           nativeButton={false}
           variant="outline"
           size="xs"
-          className={`chip ${limit === undefined ? 'border-azure text-azure' : ''}`}
+          className={`chip ${limit === undefined ? 'border-parchment text-parchment' : ''}`}
         >
           All
         </Button>
@@ -108,7 +108,7 @@ function RosterLibrary() {
             nativeButton={false}
             variant="outline"
             size="xs"
-            className={`chip ${limit === size.limit ? 'border-azure text-azure' : ''}`}
+            className={`chip ${limit === size.limit ? 'border-parchment text-parchment' : ''}`}
           >
             {size.name} · {size.limit}
           </Button>

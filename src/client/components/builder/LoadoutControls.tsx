@@ -73,7 +73,7 @@ export function PickControl({ name, count, editable, onPick }: { name: string; c
         pressed={taken}
         disabled={!editable || !onPick}
         onPressedChange={() => onPick?.()}
-        className={`size-6 p-0 ${taken ? 'border-azure bg-azure/15 text-azure' : 'border-edge-strong text-dim'}`}
+        className={`size-6 p-0 ${taken ? 'border-parchment bg-parchment/15 text-parchment' : 'border-edge-strong text-dim'}`}
       >
         <Check className="size-3.5" />
       </Toggle>
@@ -191,7 +191,7 @@ function ChoiceOption({
 }) {
   return (
     <article
-      className={`relative border ${selected ? 'border-azure bg-azure/10' : `border-edge bg-card ${onSelect ? 'hover:border-dim' : ''}`}`}
+      className={`relative border ${selected ? 'border-parchment bg-parchment/10' : `border-edge bg-card ${onSelect ? 'hover:border-dim' : ''}`}`}
     >
       {onSelect ? (
         <button
@@ -207,7 +207,7 @@ function ChoiceOption({
           <span className="text-sm font-semibold text-bone">{option.name}</span>
           <span className="flex shrink-0 items-center gap-1.5">
             {option.points ? <span className="chip">+{option.points} pts</span> : null}
-            {selected ? <Check className="size-3.5 text-azure" aria-hidden /> : null}
+            {selected ? <Check className="size-3.5 text-parchment" aria-hidden /> : null}
           </span>
         </div>
         {children}
@@ -235,7 +235,7 @@ function DeclineButton({
       disabled={!editable}
       onClick={onDecline}
       className={`flex w-full items-center justify-between border px-2.5 py-2 text-left text-xs font-semibold uppercase ${
-        chosen ? 'border-edge bg-card text-dim hover:border-dim hover:text-bone' : 'border-azure bg-azure/10 text-azure'
+        chosen ? 'border-edge bg-card text-dim hover:border-dim hover:text-bone' : 'border-parchment bg-parchment/10 text-parchment'
       }`}
     >
       {label}
@@ -357,7 +357,7 @@ export function SpreadChoice({
       </p>
       <ul className="mt-1.5 space-y-1">
         {choice.options.map((option) => (
-          <li key={option.id} className={`border ${option.count ? 'border-azure bg-azure/10' : 'border-edge bg-card'}`}>
+          <li key={option.id} className={`border ${option.count ? 'border-parchment bg-parchment/10' : 'border-edge bg-card'}`}>
             <div className="flex items-center gap-2 px-2 py-1.5">
               <span className="min-w-0 flex-1">
                 <span className="block text-xs font-semibold">{option.name}</span>
