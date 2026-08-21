@@ -40,6 +40,8 @@
   --color-dim: #a4a8ac;
   --color-faint: #83888d;
 
+  --color-parchment: #c8b991;
+  --color-parchment-ink: #17140f;
   --color-azure: #89b89d;
   --color-azure-ink: #101a14;
   --color-side-a: #df8078;
@@ -112,8 +114,8 @@
   --card-foreground: #eceff1;
   --popover: #1a1d21;
   --popover-foreground: #eceff1;
-  --primary: #89b89d;
-  --primary-foreground: #101a14;
+  --primary: #c8b991;
+  --primary-foreground: #17140f;
   --secondary: #1a1d21;
   --secondary-foreground: #eceff1;
   --muted: #1a1d21;
