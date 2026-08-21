@@ -1,11 +1,20 @@
 import { Check, Minus, Plus } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
+import { Toggle } from '@/components/ui/toggle'
 import type { Datasheet } from '../../../server/catalogue'
 import { RuleText } from '../RuleText'
 import { WeaponProfile } from './DatasheetPanel'
 import { type LoadoutChoice, type LoadoutOption, type SpreadCounts, spreadHandlers, weaponMatches, wargearMatches } from './loadoutModel'
 import type { WeaponProfileData } from './loadoutModel'
+
+/**
+ * Rules prose inside the pane, at the size of the labels it sits between.
+ *
+ * A reference page is prose with headings; this is a control with a note attached, and
+ * a note set larger than the option it explains reads as the louder of the two.
+ */
+const PROSE = 'text-xs'
 
 /**
  * The controls the loadout pane is built from.
@@ -41,6 +50,35 @@ export function PoolStepper({
     )
   }
   return <Stepper label={name} count={count} onAdd={onAdd} onRemove={onRemove} countLabel={`${name} count`} />
+}
+
+/**
+ * Taken or not, for a row the whole squad answers together.
+ *
+ * Every model carries the same one, so there is no number here to change: a count
+ * control on a row like this invites a split the datasheet does not allow, and only
+ * says so once the player has made one.
+ */
+export function PickControl({ name, count, editable, onPick }: { name: string; count: number; editable: boolean; onPick?: () => void }) {
+  const taken = count > 0
+  return (
+    <span className="flex shrink-0 items-center gap-1.5">
+      <span className="readout text-sm tabular-nums" aria-label={`${name} count`}>
+        {count}
+      </span>
+      <Toggle
+        variant="outline"
+        size="sm"
+        aria-label={`${taken ? 'Remove' : 'Select'} ${name}`}
+        pressed={taken}
+        disabled={!editable || !onPick}
+        onPressedChange={() => onPick?.()}
+        className={`size-6 p-0 ${taken ? 'border-azure bg-azure/15 text-azure' : 'border-edge-strong text-dim'}`}
+      >
+        <Check className="size-3.5" />
+      </Toggle>
+    </span>
+  )
 }
 
 /**
@@ -240,7 +278,7 @@ export function SpecialChoice({
           >
             {option.description ? (
               <div className="border-t border-edge px-2.5 pb-2">
-                <RuleText text={option.description} rules={option.keywordRules} />
+                <RuleText text={option.description} rules={option.keywordRules} className={PROSE} />
               </div>
             ) : null}
           </ChoiceOption>
@@ -283,7 +321,7 @@ export function EitherChoice({
             <OptionAbilities optionName={option.name} abilities={abilities} rules={rules} />
             {option.description ? (
               <div className="border-t border-edge px-2.5 pb-2">
-                <RuleText text={option.description} rules={option.keywordRules ?? rules} />
+                <RuleText text={option.description} rules={option.keywordRules ?? rules} className={PROSE} />
               </div>
             ) : null}
           </ChoiceOption>
@@ -359,7 +397,7 @@ function OptionAbilities({
       {matching.map((ability) => (
         <div key={ability.id}>
           {ability.name.toLocaleLowerCase() === optionName.toLocaleLowerCase() ? null : <p className="eyebrow pt-2">{ability.name}</p>}
-          {ability.description ? <RuleText text={ability.description} rules={rules} /> : null}
+          {ability.description ? <RuleText text={ability.description} rules={rules} className={PROSE} /> : null}
         </div>
       ))}
     </div>

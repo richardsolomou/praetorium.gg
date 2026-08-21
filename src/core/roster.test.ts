@@ -371,6 +371,7 @@ describe('optional wargear on repeated models', () => {
       optional: true,
       carried: true,
       room: 3,
+      uniform: false,
       options: [{ id: 'shield', name: 'Shieldvanes', points: 0, count: 0, max: 3 }],
       owner: null,
     })
@@ -791,6 +792,89 @@ describe('who the data lets a list nominate as its Warlord', () => {
 
   it('leaves the crown out of the wargear, since it is not a thing the unit carries', () => {
     expect(buildUnit('captain', index)!.choices).toEqual([])
+  })
+})
+
+describe('a squad the data will not let hold two things at once', () => {
+  // The catalogue writes "all models must be equipped identically" as an error that
+  // fires when the unit holds one of each, since there is no number in it to constrain.
+  const forbidsMixing = [
+    {
+      type: 'add' as const,
+      field: 'error',
+      value: 'All models must be equipped identically',
+      conditionGroups: [
+        {
+          type: 'and' as const,
+          conditions: [
+            { type: 'atLeast' as const, value: 1, field: 'selections', scope: 'squad', childId: 'blaster', includeChildSelections: true },
+            { type: 'atLeast' as const, value: 1, field: 'selections', scope: 'squad', childId: 'carbine', includeChildSelections: true },
+          ],
+        },
+      ],
+    },
+  ]
+
+  const squad = (modifiers?: typeof forbidsMixing) =>
+    indexOf({
+      sharedSelectionEntries: [
+        {
+          id: 'squad',
+          name: 'Immortals',
+          type: 'unit',
+          modifiers,
+          selectionEntries: [
+            {
+              id: 'body',
+              name: 'Immortal',
+              type: 'model',
+              costs: points(14),
+              constraints: [{ id: 'body-min', type: 'min', value: 5, field: 'selections', scope: 'parent' }],
+              selectionEntryGroups: [
+                {
+                  id: 'guns',
+                  name: 'Weapons',
+                  defaultSelectionEntryId: 'blaster',
+                  constraints: [{ id: 'guns-max', type: 'max', value: 5, field: 'selections', scope: 'parent' }],
+                  selectionEntries: [
+                    { id: 'blaster', name: 'Gauss blaster', type: 'upgrade' },
+                    { id: 'carbine', name: 'Tesla carbine', type: 'upgrade' },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    })
+
+  it('asks the group once for the whole squad rather than counting it out', () => {
+    const guns = buildUnit('squad', squad(forbidsMixing))!.choices.find((choice) => choice.name === 'Weapons')
+    expect(guns?.uniform).toBe(true)
+    expect(guns?.room).toBe(5)
+  })
+
+  /** What the squad ends up holding, which is the whole question here. */
+  const carrying = (index: ReturnType<typeof squad>, spread: Record<string, number>) =>
+    wargearOf(buildUnit('squad', index, 5, undefined, { spreads: { 'body/guns': spread } })!.selection, index).map((piece) => piece.name)
+
+  it('takes the whole squad to the weapon it was asked for', () => {
+    expect(carrying(squad(forbidsMixing), { carbine: 5, blaster: 0 })).toEqual(['Tesla carbine'])
+  })
+
+  it('leaves a list that states both exactly as it states it, and lets it be told', () => {
+    // A roster pasted in from another builder is the player's, illegal or not. Quietly
+    // issuing three of them a different gun is a worse answer than saying so.
+    const index = squad(forbidsMixing)
+    const built = buildUnit('squad', index, 5, undefined, { spreads: { 'body/guns': { blaster: 3, carbine: 2 } } })!
+    expect(wargearOf(built.selection, index).map((piece) => piece.name)).toEqual(['Gauss blaster', 'Tesla carbine'])
+    expect(evaluate([built.selection], index).errors.map((error) => error.message)).toEqual(['All models must be equipped identically'])
+  })
+
+  it('leaves a group the data says nothing about free to divide itself', () => {
+    const index = squad()
+    expect(buildUnit('squad', index)!.choices.find((choice) => choice.name === 'Weapons')?.uniform).toBe(false)
+    expect(carrying(index, { blaster: 3, carbine: 2 })).toEqual(['Gauss blaster', 'Tesla carbine'])
   })
 })
 

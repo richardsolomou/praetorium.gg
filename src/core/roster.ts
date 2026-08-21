@@ -159,11 +159,38 @@ function finishUnit(entryId: string, selection: Selection, size: UnitSize, index
     if (!defaulted || !option || option.points !== 0 || context?.spreads?.[choice.key] !== undefined) return tree
     return withUnitSpread(tree, choice.key, { [option.id]: option.max }, index)
   }, selection)
+  /**
+   * A squad the data keeps identical, not split by the building of it.
+   *
+   * Growing a squad of tesla carbines refills the new bodies from the group's default,
+   * which would mix what the datasheet does not allow mixed — nobody asked for that, so
+   * the models that arrived take what the rest are holding.
+   *
+   * A split the list itself states is left exactly as it states it. A roster pasted in
+   * from somewhere else is the player's, illegal or not, and `violations` is already
+   * where it gets told that its Immortals may not carry both. Quietly issuing seven of
+   * them a different gun would be a worse answer than saying so.
+   */
+  const settled = unitChoices(entryId, completed, index, context).reduce((tree, choice) => {
+    const held = choice.options.filter((option) => option.count > 0)
+    const asked = context?.spreads?.[choice.key] ?? {}
+    const stated = choice.options.filter((option) => (asked[option.id] ?? 0) > 0)
+    if (!choice.uniform || held.length < 2 || stated.length > 1) return tree
+    const chosen = stated[0] ?? held.toSorted((one, other) => other.count - one.count)[0]
+    if (!chosen) return tree
+    return withUnitSpread(
+      tree,
+      choice.key,
+      Object.fromEntries(choice.options.map((option) => [option.id, option.id === chosen.id ? choice.room : 0])),
+      index,
+    )
+  }, completed)
+
   return {
-    selection: completed,
+    selection: settled,
     size,
-    choices: unitChoices(entryId, completed, index, context),
-    toggles: unitToggles(entryId, completed, index, context),
+    choices: unitChoices(entryId, settled, index, context),
+    toggles: unitToggles(entryId, settled, index, context),
   }
 }
 
