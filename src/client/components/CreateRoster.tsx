@@ -5,7 +5,7 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { DEFAULT_GAME_LIMIT } from '../../core/battle'
 import { saveRoster } from '../../server/functions'
-import { savedRostersQuery } from '../queries'
+import { invalidateSavedRosters } from '../queries'
 import { RosterSetupDialog, type RosterSetup, type RosterSetupFaction } from './RosterSetupDialog'
 
 const EMPTY_SETUP: RosterSetup = {
@@ -32,7 +32,7 @@ export function CreateRoster({ factions }: { factions: RosterSetupFaction[] }) {
         },
       }),
     onSuccess: async ({ id }) => {
-      await queryClient.invalidateQueries({ queryKey: savedRostersQuery().queryKey })
+      await invalidateSavedRosters(queryClient)
       await navigate({ to: '/rosters/$id', params: { id } })
     },
   })

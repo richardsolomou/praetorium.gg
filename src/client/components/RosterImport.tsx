@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { DEFAULT_GAME_LIMIT } from '../../core/battle'
 import { importRoster, saveRoster } from '../../server/functions'
 import { errorMessage } from '../queryClient'
-import { savedRostersQuery } from '../queries'
+import { invalidateSavedRosters } from '../queries'
 
 export function RosterImport() {
   const [open, setOpen] = useState(false)
@@ -48,7 +48,7 @@ export function RosterImport() {
       return id
     },
     onSuccess: async (id) => {
-      await queryClient.invalidateQueries({ queryKey: savedRostersQuery().queryKey })
+      await invalidateSavedRosters(queryClient)
       setOpen(false)
       setText('')
       await navigate({ to: '/rosters/$id', params: { id } })

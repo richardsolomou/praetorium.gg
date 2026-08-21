@@ -10,7 +10,6 @@ import {
   STRATAGEMS_MAX,
   UNIT_FORMATIONS,
 } from './battle'
-import type { Selection } from './evaluate'
 
 const id = z.string().min(1).max(64)
 const phase = z.enum(['command', 'movement', 'shooting', 'charge', 'fight', 'end'])
@@ -30,15 +29,6 @@ const battlePrep = z.object({
   primary: secondary.nullable(),
   secondaryMode: z.enum(SECONDARY_MODES),
 })
-
-/** A chosen entry and what sits under it. Recursive, and bounded so a command cannot be enormous. */
-const selectionSchema: z.ZodType<Selection> = z.lazy(() =>
-  z.object({
-    id,
-    count: z.number().int().min(0).max(1000).optional(),
-    selections: z.array(selectionSchema).max(200).optional(),
-  }),
-)
 
 /**
  * The wire and storage contract for a command, in both directions: what a client
@@ -78,7 +68,6 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
             .optional(),
           detachmentPointBudget: z.number().int().min(0).max(3).nullable().optional(),
           disposition: z.string().max(64).nullable(),
-          selections: z.array(selectionSchema).max(200),
           units: z
             .array(
               z.object({

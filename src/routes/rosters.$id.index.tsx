@@ -2,15 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, notFound } from '@tanstack/react-router'
 import { useEffect } from 'react'
 import { RosterEditor } from '../client/components/RosterEditor'
-import {
-  collectionQuery,
-  factionsQuery,
-  meQuery,
-  savedRosterPriceQuery,
-  savedRostersQuery,
-  sharedRosterQuery,
-  unitsQuery,
-} from '../client/queries'
+import { collectionQuery, factionsQuery, savedRosterPriceQuery, savedRostersQuery, sharedRosterQuery, unitsQuery } from '../client/queries'
 import { normalisePicks } from '../client/rosterPicks'
 
 export const Route = createFileRoute('/rosters/$id/')({
@@ -21,17 +13,24 @@ export const Route = createFileRoute('/rosters/$id/')({
   }),
   loaderDeps: ({ search }) => ({ battle: search.battle }),
   loader: async ({ context, params, deps }) => {
-    const me = await context.queryClient.ensureQueryData(meQuery())
-    const [shared, saved] = await Promise.all([
+    /*
+     * Who is asking, what they are asking for, and the factions, all at once.
+     *
+     * None of the three depends on the others — the reads resolve the viewer
+     * themselves, and a signed-out one is answered with no lists rather than
+     * having to be asked about first — so waiting on the account before starting
+     * put a round trip in front of the page for nothing.
+     */
+    const [, shared, saved] = await Promise.all([
+      context.queryClient.ensureQueryData(factionsQuery()),
       context.queryClient.ensureQueryData(sharedRosterQuery(params.id, deps.battle)),
-      me ? context.queryClient.ensureQueryData(savedRostersQuery()) : Promise.resolve([]),
+      context.queryClient.ensureQueryData(savedRostersQuery()),
     ])
     const owned = saved.find((candidate) => candidate.id === params.id)
     const roster = owned ?? shared
     if (!roster) throw notFound()
 
     await Promise.all([
-      context.queryClient.ensureQueryData(factionsQuery()),
       context.queryClient.ensureQueryData(
         savedRosterPriceQuery(
           roster.id,

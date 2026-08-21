@@ -7,8 +7,8 @@ type PricedRoster = NonNullable<Awaited<ReturnType<typeof savedRosterPrice>>>
 
 /**
  * The list as the battle keeps it: the text an opponent reads on any device, and the
- * priced selections behind it. Cards are settled by the battle rather than carried
- * in with the list, so nothing about prep comes across here.
+ * priced units behind it. Cards are settled by the battle rather than carried in
+ * with the list, so nothing about prep comes across here.
  */
 export function battleRoster(saved: SavedRoster, priced: PricedRoster): Roster {
   return {
@@ -31,7 +31,6 @@ export function battleRoster(saved: SavedRoster, priced: PricedRoster): Roster {
       detachments: priced.detachments,
       detachmentPointBudget: priced.detachmentPointBudget,
       disposition: priced.disposition,
-      selections: priced.selections,
       units: priced.units.map((unit, index) => ({
         key: `${index}-${unit.entryId}`,
         name: unit.name,

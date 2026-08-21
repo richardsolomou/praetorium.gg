@@ -77,7 +77,7 @@ async function seedInto(database: PraetoriumDatabase) {
   await saveRoster(PREVIEW_ROSTER, previewUserId)
   await saveRoster(PREVIEW_OPPONENT_ROSTER, opponentUserId)
   await repository.requestFriend(previewUserId, opponentUserId, Date.now())
-  const friendship = (await repository.friendships(previewUserId)).find((row) => row.addresseeId === opponentUserId)
+  const friendship = (await repository.relationships(previewUserId)).find((row) => row.addresseeId === opponentUserId)
   if (friendship?.acceptedAt === null) await repository.acceptFriend(previewUserId, opponentUserId, Date.now())
 
   async function ensurePreviewUser(email: string, password: string, name: string) {
