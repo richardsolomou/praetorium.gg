@@ -48,4 +48,6 @@ export async function importOnBoot() {
   }
 }
 
+// An entrypoint, not a library: a main block runs inside any bundle that includes
+// the file, because esbuild gives every module the entrypoint's `import.meta.url`.
 if (import.meta.url === `file://${process.argv[1]}`) await importOnBoot()

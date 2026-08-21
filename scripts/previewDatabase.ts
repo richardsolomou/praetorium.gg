@@ -51,6 +51,8 @@ async function dropClosedPreviews(admin: postgres.Sql, live: readonly string[]) 
   return dropped
 }
 
+// An entrypoint, not a library: a main block runs inside any bundle that includes
+// the file, because esbuild gives every module the entrypoint's `import.meta.url`.
 if (import.meta.url === `file://${process.argv[1]}`) {
   const adminUrl = process.env.PRAETORIUM_PREVIEW_ADMIN_DATABASE_URL?.trim()
   const databaseUrl = process.env.DATABASE_URL?.trim()

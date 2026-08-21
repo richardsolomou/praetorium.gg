@@ -2,7 +2,7 @@ import { DatabaseSync } from 'node:sqlite'
 import path from 'node:path'
 import { getTableName, sql } from 'drizzle-orm'
 import type { PgTable } from 'drizzle-orm/pg-core'
-import { databaseUrl, describeDatabase, openDatabase, type PraetoriumDatabase } from '../src/db/connection'
+import type { PraetoriumDatabase } from '../src/db/connection'
 import {
   account,
   battleUsers,
@@ -22,6 +22,11 @@ import {
  * Moves a SQLite Praetorium into Postgres, once.
  *
  * Transitional, and removed with `importOnBoot.ts` after the cutover.
+ *
+ * A library only. The command line lives in `importSqliteCli.ts` because a main
+ * block here would run inside any bundle that includes this file: esbuild gives
+ * every module in a bundle the entrypoint's own `import.meta.url`, so the guard
+ * that is meant to mean "run directly" becomes true for a dependency too.
  *
  * The tables are copied in the order their foreign keys allow, inside one
  * transaction, so a failure anywhere leaves an empty database rather than half a
@@ -272,23 +277,4 @@ export function sqliteCounts(source: DatabaseSync) {
 /** The database to read. Pass `undefined` to mean "whatever is in DATA_DIR". */
 export function sqlitePath(argument = process.argv[2]) {
   return argument ?? path.join(path.resolve(process.env.DATA_DIR ?? '/data'), 'praetorium.sqlite')
-}
-
-if (import.meta.url === `file://${process.argv[1]}`) {
-  const file = sqlitePath()
-  const url = databaseUrl()
-  const source = new DatabaseSync(file, { readOnly: true })
-  const connection = openDatabase(url)
-  try {
-    await connection.migrate()
-    const counts = await importSqlite(source, connection.database)
-    console.log({ event: 'sqlite_imported', from: file, into: describeDatabase(url) })
-    for (const { table, read, written } of counts) {
-      const skipped = read - written
-      console.log(`  ${table}: read ${read}, wrote ${written}${skipped ? `, already present ${skipped}` : ''}`)
-    }
-  } finally {
-    source.close()
-    await connection.close()
-  }
 }
