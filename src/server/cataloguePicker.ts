@@ -59,18 +59,16 @@ export function isMatchedPlayDatasheet(index: CatalogueIndex, entry: Definition)
  * roster pins, and the number follows from it.
  *
  * Pricing is the same `buildUnit` the roster itself goes through, so a number in
- * the picker cannot disagree with the number the unit costs once added. A page of
- * results is small enough for that to be cheap; the whole book would not be.
+ * the picker cannot disagree with the number the unit costs once added. Every
+ * datasheet the book offers is priced: the largest is under two hundred and the
+ * whole of it costs a fraction of a second, which is a great deal cheaper than a
+ * page that silently ends at the letter I.
  */
 export function unitsIn(
   loaded: LoadedCatalogue,
   catalogueId: string,
   query: string,
-  {
-    limit = 60,
-    restrictions,
-    includeNames,
-  }: { limit?: number; restrictions?: FactionRestrictions; includeNames?: ReadonlySet<string> } = {},
+  { restrictions, includeNames }: { restrictions?: FactionRestrictions; includeNames?: ReadonlySet<string> } = {},
 ): UnitSummary[] {
   const wanted = query.trim().toLowerCase()
   const found: { id: string; name: string; group: UnitGroup; alliedFaction: string | null; alliedOrder: number }[] = []
@@ -98,8 +96,7 @@ export function unitsIn(
   const allies = found
     .filter((unit) => unit.alliedFaction)
     .toSorted((left, right) => left.alliedOrder - right.alliedOrder || left.name.localeCompare(right.name))
-  const page = [...primary.slice(0, limit), ...allies]
-  return page.map((unit) => ({
+  return [...primary, ...allies].map((unit) => ({
     id: unit.id,
     slug: datasheetSlug(loaded, catalogueId, unit.id),
     name: unit.name,

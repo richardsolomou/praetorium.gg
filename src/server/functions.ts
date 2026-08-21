@@ -12,6 +12,7 @@ import { factionDisplayName } from './factionNames'
 import { unitsIn } from './cataloguePicker'
 
 import { gameReferencesFor } from './gameReferences'
+import { rulesFaction } from './rules'
 import { type GlobalSearchResult, searchEverything } from './globalSearch'
 import { mutationRpc, rpc } from './rpc'
 import { calculateRosterPrice, rosterDetachments } from './pricing'
@@ -255,7 +256,7 @@ export const factionDatasheets = createServerFn({ method: 'GET' })
           factionDisplayName(loaded.factions.find((entry) => entry.id === data.catalogueId)?.name ?? '', app().rules()?.factionNames),
         ),
       )?.datasheets
-      return unitsIn(loaded, data.catalogueId, data.query, { includeNames: names, limit: Number.POSITIVE_INFINITY })
+      return unitsIn(loaded, data.catalogueId, data.query, { includeNames: names })
     }),
   )
 
@@ -407,8 +408,8 @@ export const detachmentRules = createServerFn({ method: 'GET' })
 
       const faction = catalogue.index.catalogues.get(data.catalogueId)
       const factionSlug = faction ? routeSlug(faction.name) : null
-      const detachments = factionSlug ? rules.byDetachment.get(factionSlug) : undefined
-      const details = factionSlug ? rules.detachmentDetails.get(factionSlug) : undefined
+      const detachments = factionSlug ? rules.byDetachment.get(rulesFaction(rules, factionSlug)) : undefined
+      const details = factionSlug ? rules.detachmentDetails.get(rulesFaction(rules, factionSlug)) : undefined
       // The same text the detachment page prints, so a stratagem reads the same wherever it is opened.
       const written = data.detachmentNames.flatMap((name) => details?.get(routeSlug(name))?.stratagems ?? [])
       return {

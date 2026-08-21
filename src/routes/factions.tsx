@@ -2,11 +2,11 @@ import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, Outlet, useRouterState } from '@tanstack/react-router'
 import { ChevronRight, Heart } from 'lucide-react'
 import { useState } from 'react'
-import { Input } from '@/components/ui/input'
 import { Toggle } from '@/components/ui/toggle'
 import { factionIndexQuery, meQuery } from '../client/queries'
 import { useFavouriteFactions } from '../client/favouriteFactions'
 import { FactionMark, factionColour } from '../client/components/FactionMark'
+import { SearchField } from '../client/components/SearchField'
 
 export const Route = createFileRoute('/factions')({
   loader: ({ context, location }) =>
@@ -40,11 +40,12 @@ function FactionIndex() {
 
   return (
     <main className="mx-auto w-full max-w-5xl px-4 py-8">
-      <Input
+      <SearchField
         value={factionQueryText}
-        onChange={(event) => setFactionQueryText(event.target.value)}
+        onChange={setFactionQueryText}
         placeholder="Find a faction"
-        aria-label="Find a faction"
+        label="Find a faction"
+        clearLabel="Empty the faction filter"
       />
       <FactionShelf title="Favourites" entries={favouriteFactions} favourites={favourites} onFavourite={me ? toggleFavourite : undefined} />
       {matching.length ? (

@@ -20,7 +20,7 @@ import { Picker } from './builder/Picker'
 import { Section } from './builder/Section'
 import { Pane } from './builder/Pane'
 import { UnitCard } from './builder/UnitCard'
-import { preservesUnitSequence } from './builder/pricePlaceholder'
+import { survivingUnits } from './builder/pricePlaceholder'
 import { attachmentRows, joinableUnits } from './builder/attachments'
 import { pickEditor, usePicks } from './builder/usePicks'
 import { RosterSetupDialog, type RosterSetup } from './RosterSetupDialog'
@@ -131,8 +131,25 @@ export function ListBuilder({ prep, initial, editable = true }: Props) {
 
   const { data: priced } = useQuery({
     ...priceQuery(catalogueId, detachmentIds, disposition, limit, positioned),
+    /**
+     * The last answer, with whatever the list has since let go of taken out of it.
+     *
+     * The total stays as it was until the new one lands, the same way an added unit
+     * is not counted until then: a number one request behind corrects itself, and a
+     * number this page worked out for itself could be wrong in ways it cannot know.
+     */
     placeholderData: (previous, previousQuery) => {
-      return preservesUnitSequence(previousQuery?.queryKey.at(-1), picks) ? previous : undefined
+      if (!previous) return undefined
+      const kept = survivingUnits(previousQuery?.queryKey.at(-1), picks)
+      if (!kept) return undefined
+      if (kept.length === previous.units.length && kept.every((at, index) => at === index)) return previous
+      const units = []
+      for (const at of kept) {
+        const unit = previous.units[at]
+        if (!unit) break
+        units.push(unit)
+      }
+      return { ...previous, units }
     },
   })
 

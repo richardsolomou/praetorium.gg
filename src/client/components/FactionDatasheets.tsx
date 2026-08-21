@@ -2,10 +2,10 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { Link, Outlet, useParams, useRouterState } from '@tanstack/react-router'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useState } from 'react'
-import { Input } from '@/components/ui/input'
 import { factionFor } from '../factions'
 import { factionDatasheetsQuery, factionsQuery } from '../queries'
 import { FactionMark, factionColour } from './FactionMark'
+import { SearchField } from './SearchField'
 import { GROUPS } from './builder/groups'
 import { Section } from './builder/Section'
 
@@ -35,12 +35,13 @@ export function FactionDatasheets() {
           <h1 className="text-3xl">Datasheets</h1>
         </span>
       </header>
-      <Input
+      <SearchField
         className="mt-5"
         value={query}
-        onChange={(event) => setQuery(event.target.value)}
+        onChange={setQuery}
         placeholder="Find a datasheet"
-        aria-label="Find a datasheet"
+        label="Find a datasheet"
+        clearLabel="Empty the datasheet filter"
       />
       <p className="rubric mt-5 flex items-baseline justify-between border-b border-edge pb-2">
         <span>Datasheets</span>

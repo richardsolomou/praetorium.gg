@@ -37,6 +37,26 @@ test('the unit picker stays within the roster faction', async ({ page }) => {
   await expect(page.getByRole('combobox', { name: 'Force' })).toHaveCount(0)
 })
 
+test('the whole book is on the shelves, not the first page of it', async ({ page }) => {
+  // A Space Marine book runs to well over a hundred datasheets and the picker sorts
+  // them by name, so a cut-off page ended mid-alphabet: the infantry shelf stopped at
+  // Inner Circle Companions and Sternguard Veterans could only be found by searching.
+  await openBuilder(page, 'Space Marines', /Gladius Task Force/)
+  await expect(page.getByRole('button', { name: 'Add Sternguard Veteran Squad', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Add Whirlwind', exact: true })).toBeVisible()
+})
+
+test('a filter that found nothing can be emptied without selecting it', async ({ page }) => {
+  await openBuilder(page)
+  const filter = page.getByLabel('Add a unit')
+  await filter.fill('nothing by this name')
+  await expect(page.getByText('Nothing by that name.')).toBeVisible()
+  await page.getByRole('button', { name: 'Empty the picker filter' }).click()
+  await expect(filter).toHaveValue('')
+  await expect(page.getByRole('button', { name: 'Empty the picker filter' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Add Immortals', exact: true })).toBeVisible()
+})
+
 test('Deathwatch excludes Scouts from its unit picker', async ({ page }) => {
   await openBuilder(page, 'Deathwatch', /Black Spear Task Force/)
   await page.getByLabel('Add a unit').fill('Scout')
@@ -70,6 +90,29 @@ test('adding a unit keeps the confirmed roster visible while pricing catches up'
   await expect(page.locator('[data-unit]')).toHaveCount(1, { timeout: 250 })
   await expect(page.locator('[data-unit="Skorpekh Destroyers"]')).toBeVisible()
   await page.screenshot({ path: 'test-results/roster-visible-while-adding.png', fullPage: true })
+})
+
+test('deleting a unit keeps the rest of the roster visible while pricing catches up', async ({ page }) => {
+  await openBuilder(page)
+  await add(page, 'Immortals')
+  await add(page, 'Overlord')
+  await add(page, 'Necron Warriors')
+  await expect(page.locator('[data-unit]')).toHaveCount(3)
+
+  await page.route('**/_serverFn/**', async (route) => {
+    if (route.request().method() === 'POST') await new Promise((resolve) => setTimeout(resolve, 1000))
+    await route.continue()
+  })
+  await page.locator('[data-unit="Overlord"]').getByLabel('Unit actions for Overlord').click()
+  await page.getByRole('menuitem', { name: 'Delete unit' }).click()
+
+  // The two that are left stay on screen: the roster is drawn from the price, and the
+  // price is a round trip behind, so discarding it emptied the list in front of you.
+  await expect(page.getByText('Pick a unit to start building.')).toBeHidden({ timeout: 250 })
+  await expect(page.locator('[data-unit]')).toHaveCount(2, { timeout: 250 })
+  await expect(page.locator('[data-unit="Immortals"]')).toBeVisible()
+  await expect(page.locator('[data-unit="Necron Warriors"]')).toBeVisible()
+  await page.screenshot({ path: 'test-results/roster-visible-while-deleting.png', fullPage: true })
 })
 
 test('owned units rise to the top of their roster and picker groups', async ({ page }) => {
@@ -715,6 +758,49 @@ test('a unit that leads nothing is offered no one to lead', async ({ page }) => 
   // Immortals lead nobody, so no attachment row is offered on their card.
   await expect(page.getByText('Leading')).toBeHidden()
   await expect(page.getByText('Support', { exact: true })).toBeHidden()
+})
+
+test('a tank is armed but not crowned', async ({ page }) => {
+  // The pintle mounts sit in the same uncapped group as the guns the tank always has,
+  // and were never offered; the Warlord entry sits under an upgrade only a couple of
+  // detachments unlock, and was offered to every vehicle in the game.
+  await page.setViewportSize({ width: 1600, height: 900 })
+  await openBuilder(page, 'Space Marines', /Gladius Task Force/)
+  await add(page, 'Land Raider Redeemer')
+  await page
+    .locator('[data-unit="Land Raider Redeemer"]')
+    .getByRole('button', { name: /^Land Raider Redeemer/ })
+    .click()
+  const loadout = page.locator('aside[aria-label="Loadout"]')
+  for (const weapon of ['Hunter-killer missile', 'Multi-melta', 'Storm bolter']) {
+    await expect(loadout.getByRole('button', { name: `More ${weapon}` })).toBeVisible()
+  }
+  await expect(page.getByRole('button', { name: /Land Raider Redeemer Warlord/ })).toHaveCount(0)
+
+  await add(page, 'Captain')
+  await page
+    .locator('[data-unit="Captain"]')
+    .getByRole('button', { name: /^Captain/ })
+    .click()
+  await expect(page.getByRole('button', { name: 'Make Captain Warlord' })).toBeVisible()
+})
+
+test('the detachment that makes a tank a character hands it the crown', async ({ page }) => {
+  // Tank Ace Character is a lone upgrade hung on the datasheet rather than sitting in
+  // a group, so nothing offered it and the Headhunter Task Force rule was unreachable.
+  await page.setViewportSize({ width: 1600, height: 900 })
+  await openBuilder(page, 'Space Marines', /Headhunter Task Force/)
+  await add(page, 'Land Raider Redeemer')
+  await page
+    .locator('[data-unit="Land Raider Redeemer"]')
+    .getByRole('button', { name: /^Land Raider Redeemer/ })
+    .click()
+  await expect(page.getByRole('button', { name: /Land Raider Redeemer Warlord/ })).toHaveCount(0)
+
+  const loadout = page.locator('aside[aria-label="Loadout"]')
+  await loadout.getByRole('button', { name: 'Select Tank Ace Character' }).click()
+  await expect(page.getByRole('button', { name: 'Make Land Raider Redeemer Warlord' })).toBeVisible()
+  await expect(page.locator('[data-unit="Land Raider Redeemer"]')).toContainText('250 pts')
 })
 
 test('a character can be marked as the warlord from its unit editor', async ({ page }) => {

@@ -2,7 +2,7 @@ import { routeSlug } from '../core/slug'
 import { detachmentCatalogueDetail } from './catalogueDescriptions'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { factionDisplayName } from './factionNames'
-import { type LoadedRules } from './rules'
+import { type LoadedRules, rulesFaction } from './rules'
 
 function factionSummary(loaded: LoadedCatalogue, rules: LoadedRules | null | undefined, faction: LoadedCatalogue['factions'][number]) {
   const displayName = factionDisplayName(faction.name, rules?.factionNames)
@@ -47,8 +47,8 @@ export function factionsFor(loaded: LoadedCatalogue, rules: LoadedRules | null |
         armyRule: rules?.factionRules.get(summary.slug) ?? null,
         referenceDetachmentIds: referenceDetachments.map((detachment) => detachment.id),
         detachments: detachments.map((detachment) => {
-          const reference = rules?.detachmentReferences.get(routeSlug(faction.name))?.get(routeSlug(detachment.name))
-          const detail = rules?.detachmentDetails.get(routeSlug(faction.name))?.get(routeSlug(detachment.name))
+          const reference = rules?.detachmentReferences.get(rulesFaction(rules, routeSlug(faction.name)))?.get(routeSlug(detachment.name))
+          const detail = rules?.detachmentDetails.get(rulesFaction(rules, routeSlug(faction.name)))?.get(routeSlug(detachment.name))
           const forced = detachmentCatalogueDetail(loaded, faction.id, detachment.id, [])?.forcedEnhancements ?? []
           return {
             id: detachment.id,

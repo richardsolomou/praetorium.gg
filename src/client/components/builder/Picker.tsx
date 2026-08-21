@@ -2,10 +2,10 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { Heart, ListFilter, Plus } from 'lucide-react'
 import { Fragment, useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Toggle } from '@/components/ui/toggle'
 import { formatDatasheetLimit } from '../../../core/battle'
+import { SearchField } from '../SearchField'
 import { useCollectionMutation } from '../../useCollection'
 import { collectionQuery, unitsQuery } from '../../queries'
 import { shortName } from './factions'
@@ -73,12 +73,13 @@ export function Picker({ catalogueId, onAdd, onPreview, inRoster, room, battleSi
   return (
     <div className="flex h-full flex-col">
       <div className="space-y-2 border-b border-edge p-2.5">
-        <Input
+        <SearchField
           value={query}
-          onChange={(event) => setQuery(event.target.value)}
+          onChange={setQuery}
           placeholder="Type a datasheet name"
-          aria-label="Add a unit"
-          className="h-9"
+          label="Add a unit"
+          clearLabel="Empty the picker filter"
+          inputClassName="h-9"
         />
         <div className="flex flex-wrap items-center gap-1.5">
           <ListFilter className="size-3.5 shrink-0 text-faint" aria-hidden />
