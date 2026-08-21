@@ -45,7 +45,9 @@ export async function befriend(requester: Page, recipient: Page) {
   const sent = requester.locator('section').filter({ hasText: 'Sent requests' }).filter({ hasText: recipientName })
   await retryUntilVisible(sent, async () => {
     await requester.getByPlaceholder('Search by account name').fill(recipientName)
-    await requester.getByRole('button', { name: 'Add friend' }).click()
+    // The row for this player, not whoever the search happens to be showing: results
+    // narrow a request behind the typing, and every player found offers the same button.
+    await requester.locator(`[data-person="${recipientName}"]`).getByRole('button', { name: 'Add friend' }).click()
   })
   await recipient.goto('/friends')
   const request = recipient.locator('section').filter({ hasText: 'Friend requests' }).filter({ hasText: requesterName })
@@ -122,11 +124,21 @@ export async function createBattle(
   return page.url()
 }
 
+/** Whether the section on screen becomes something other than the one named, before time runs out. */
+const movedOn = (active: Locator, from: string, within: number) =>
+  expect
+    .poll(() => active.innerText().catch(() => from), { timeout: within })
+    .not.toBe(from)
+    .then(
+      () => true,
+      () => false,
+    )
+
 /** Setup shows one section at a time, and the section is shared, so a helper walks to the one it needs. */
 export async function setupStep(page: Page, label: string) {
   const chip = page.getByRole('navigation', { name: 'Setup sections' }).getByRole('button', { name: label })
   const active = page.locator('[aria-current="step"]')
-  for (let guard = 0; guard < 5; guard += 1) {
+  for (let guard = 0; guard < 8; guard += 1) {
     if ((await chip.getAttribute('aria-current')) === 'step') return
     if (await chip.isEnabled()) {
       await chip.click()
@@ -138,7 +150,10 @@ export async function setupStep(page: Page, label: string) {
     // Passing through a section can leave a command in flight, which disables Next until it lands.
     await expect(next).toBeEnabled({ timeout: 20_000 })
     await next.click()
-    await expect.poll(() => active.innerText()).not.toBe(previous)
+    // A press that arrives as the button goes dead behind that command does nothing at
+    // all, and the section stays where it was. Five seconds is a hundred times what the
+    // round trip takes, so nothing having happened by then means pressing again.
+    await movedOn(active, previous, 5_000)
   }
   throw new Error(`Setup never reached the ${label} step`)
 }
