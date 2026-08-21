@@ -1,5 +1,16 @@
 # praetorium
 
+## 0.17.0
+
+### Minor Changes
+
+- ae68a6a: Run more than one replica by pointing `VALKEY_URL` at a Valkey, which carries live updates, sessions and sign-in limits between them.
+- ae68a6a: Store accounts, lists, battles and command logs in Postgres instead of SQLite.
+
+### Patch Changes
+
+- ae68a6a: Open the battle list, a player's profile and a friend list in a fixed number of queries rather than one per battle, friend or row.
+
 ## 0.16.8
 
 ### Patch Changes
