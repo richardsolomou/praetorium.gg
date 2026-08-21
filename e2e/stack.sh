@@ -1,11 +1,14 @@
-#!/usr/bin/env bash
+#!/bin/sh
 # The production container against a real Postgres and Valkey, on a network of
 # their own.
 #
 # Playwright runs this as its web server and kills it when the suite ends, so
 # everything it creates is torn down on the way out — including on failure, which
 # is when a stray container is most likely and most confusing.
-set -euo pipefail
+#
+# POSIX, and run with `sh`: on a CI runner that is dash, which has no `pipefail`.
+# There is nothing to pipe here anyway.
+set -eu
 
 port=${1:?port required}
 image=${PLAYWRIGHT_IMAGE:-praetorium-e2e}
