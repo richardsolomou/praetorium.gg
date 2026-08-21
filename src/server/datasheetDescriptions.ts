@@ -1,4 +1,4 @@
-import { datasheetIn, rulesReferencedIn } from './catalogue'
+import { datasheetIn, rulesNamed, rulesReferencedIn } from './catalogue'
 import { routeSlug } from '../core/slug'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { type LoadedRules, rulesFaction } from './rules'
@@ -41,15 +41,31 @@ export function describeDatasheetAbilities(
     ...sheet,
     abilities,
     keywordRules: mergeKeywordRules(
-      rulesReferencedIn(
-        loaded,
-        abilities.map((ability) => ability.description),
-      ),
+      [
+        ...rulesReferencedIn(
+          loaded,
+          abilities.map((ability) => ability.description),
+        ),
+        ...rulesNamed(loaded, weaponKeywords(sheet.profiles)),
+      ],
       sheet.keywordRules,
     ),
     detachments,
     attribution: supplied || suppliedDetachmentDescriptions ? WAHAPEDIA_ATTRIBUTION : null,
   }
+}
+
+/**
+ * Every keyword the weapons on this sheet carry, printed or added.
+ *
+ * The profile states them as one comma-separated characteristic, and a modifier
+ * appends to that string rather than announcing what it added — so the whole line is
+ * read and each name looked up.
+ */
+function weaponKeywords(profiles: NonNullable<ReturnType<typeof datasheetIn>>['profiles']) {
+  return profiles.flatMap((profile) =>
+    profile.values.flatMap((value) => (value.name === 'Keywords' ? value.value.split(',').map((keyword) => keyword.trim()) : [])),
+  )
 }
 
 function mergeKeywordRules<T extends { name: string }>(preferred: readonly T[], fallback: readonly T[]) {

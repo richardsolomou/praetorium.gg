@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { datasheetIn, rulesReferencedIn } from './catalogue'
+import { describeDatasheetAbilities } from './datasheetDescriptions'
 import { ability, bookOf, shelfOf } from './catalogue.fixtures'
 
 describe('the abilities and wargear a datasheet lists', () => {
@@ -257,6 +258,71 @@ describe('the abilities and wargear a datasheet lists', () => {
     })
     expect(rulesReferencedIn(book, ['This model has **Feel No Pain 4+**, [LETHAL HITS] and ^^**VEHICLE^^**.'])).toEqual([
       { name: 'Feel No Pain', description: 'Ignore lost wounds.' },
+      { name: 'Lethal Hits', description: 'Critical hits wound automatically.' },
+    ])
+  })
+
+  /**
+   * A keyword a detachment upgrade appends to a weapon arrives as a bare word: the
+   * entry that printed the profile links the rules it was printed with, and nothing
+   * links the one that was added. Without looking it up by name, [ASSAULT] on a
+   * modified profile is the only keyword on screen a player cannot read.
+   */
+  it('describes a weapon keyword an upgrade added rather than the datasheet printed', () => {
+    const book = bookOf({
+      sharedRules: [
+        { id: 'assault', name: 'Assault', description: 'Can be shot with after Advancing.' },
+        { id: 'lethal', name: 'Lethal Hits', description: 'Critical hits wound automatically.' },
+      ],
+      selectionEntries: [
+        {
+          id: 'destroyers',
+          name: 'Destroyers',
+          type: 'unit',
+          profiles: [
+            {
+              id: 'cannon',
+              name: 'Gauss cannon',
+              typeName: 'Ranged Weapons',
+              characteristics: [{ name: 'Keywords', typeId: 'keywords', $text: 'Lethal Hits' }],
+            },
+          ],
+          selectionEntryGroups: [
+            {
+              id: 'upgrades',
+              name: 'Enhancements',
+              selectionEntries: [
+                {
+                  id: 'madness',
+                  name: 'Deepening Madness',
+                  type: 'upgrade',
+                  modifiers: [
+                    {
+                      type: 'append' as const,
+                      value: 'Assault',
+                      field: 'keywords',
+                      join: ', ',
+                      scope: 'parent',
+                      affects: 'self.entries.group.recursive.profiles.Ranged Weapons',
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    })
+    const selections = [{ id: 'destroyers', selections: [{ id: 'upgrades', selections: [{ id: 'madness' }] }] }]
+    const sheet = datasheetIn(book, 'cat', 'destroyers', { selections, unitSelectionIndex: 0 })
+
+    expect(sheet?.profiles[0]?.values).toEqual([
+      { name: 'Keywords', value: 'Lethal Hits, Assault', baseValue: 'Lethal Hits', modifiers: ['Deepening Madness'] },
+    ])
+    // The datasheet itself links neither rule, so both are found by name.
+    expect(sheet?.keywordRules).toEqual([])
+    expect(describeDatasheetAbilities(book, 'cat', sheet, null)?.keywordRules).toEqual([
+      { name: 'Assault', description: 'Can be shot with after Advancing.' },
       { name: 'Lethal Hits', description: 'Critical hits wound automatically.' },
     ])
   })

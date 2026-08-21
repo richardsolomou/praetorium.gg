@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { compositionCount, displayAbilities } from './datasheet'
+import { addedKeywords, compositionCount, displayAbilities } from './datasheet'
 
 describe('datasheet composition count', () => {
   it('adds fixed and ranged model groups', () => {
@@ -26,5 +26,19 @@ describe('datasheet abilities', () => {
     const abilities = [{ name: 'Leader', kind: 'rule' }]
 
     expect(displayAbilities(abilities, false)).toEqual(abilities)
+  })
+})
+
+describe('the keywords something in the list added to a weapon', () => {
+  it('names what the printed profile does not have', () => {
+    expect(addedKeywords({ value: 'Lethal Hits, Assault', baseValue: 'Lethal Hits' })).toEqual(['Assault'])
+  })
+
+  it('names nothing on an unmodified profile', () => {
+    expect(addedKeywords({ value: 'Lethal Hits' })).toEqual([])
+  })
+
+  it('reads a non-breaking space as the separator the catalogue joined with', () => {
+    expect(addedKeywords({ value: 'Lethal Hits,\u00a0Assault', baseValue: 'Lethal Hits' })).toEqual(['Assault'])
   })
 })

@@ -3,6 +3,7 @@ import { app } from './app'
 import { configuredProviders } from 'ras-stack/auth'
 import { SOCIAL_PROVIDERS } from '../authConfig'
 import { routeSlug } from '../core/slug'
+import { attachedUnit } from '../core/attach'
 import { buildUnit } from '../core/roster'
 import { datasheetIn, datasheetInBySlug, rulesReferencedIn } from './catalogue'
 import { describeDatasheetAbilities } from './datasheetDescriptions'
@@ -278,12 +279,11 @@ export const datasheet = createServerFn({ method: 'GET' })
       })
       const selected = builtUnits.findIndex((unit) => unit.index === data.pickIndex)
       const selections = [...detachments, ...builtUnits.map((unit) => unit.selection)]
-      // A character and the unit it leads are one unit, so each is told about the
-      // other: a relic that speaks of the bearer's unit has to reach both.
-      const attachedTo = data.pickIndex === null ? undefined : data.picks[data.pickIndex]?.attachedTo
-      const companions = builtUnits.flatMap((unit, at) =>
-        data.picks[unit.index]?.attachedTo === data.pickIndex || unit.index === attachedTo ? [detachments.length + at] : [],
-      )
+      // A character, the unit it joined and everything else joined to that unit are
+      // one unit, so each is told about the others: a relic that speaks of the
+      // bearer's unit has to reach every model in it.
+      const attached = data.pickIndex === null ? [] : attachedUnit(data.picks, data.pickIndex)
+      const companions = builtUnits.flatMap((unit, at) => (attached.includes(unit.index) ? [detachments.length + at] : []))
       return describeDatasheetAbilities(
         loaded,
         data.catalogueId,

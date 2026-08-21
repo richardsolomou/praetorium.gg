@@ -102,6 +102,21 @@ function uniqueNames(values: readonly string[]) {
   })
 }
 
+/**
+ * The other units in the list that are the same unit as this one, by position.
+ *
+ * An Attached unit is one unit however many entries the list keeps it in: the
+ * bodyguard unit, the Leader, and every supporting character joined to it. So a
+ * character reaches its siblings through the unit they all joined rather than
+ * through each other — asking only what this entry is attached to would tell a
+ * Chronomancer nothing about the Overlord standing beside it, and an enhancement
+ * that speaks of the bearer's unit means every model in it.
+ */
+export function attachedUnit(units: readonly { attachedTo?: number }[], position: number): number[] {
+  const host = units[position]?.attachedTo ?? position
+  return units.flatMap((unit, at) => (at !== position && (at === host || unit.attachedTo === host) ? [at] : []))
+}
+
 export function attachmentErrors(units: readonly { entryId: string; attachedTo?: number }[], index: CatalogueIndex): EvaluationError[] {
   const errors: EvaluationError[] = []
   const leaders = new Map<number, number>()

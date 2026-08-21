@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { attachmentErrors, attachmentOf } from './attach'
+import { attachedUnit, attachmentErrors, attachmentOf } from './attach'
 import { buildIndex, type Catalogue, type CatalogueFile } from './catalogue'
 
 const system: CatalogueFile = { gameSystem: { id: 'gs', name: 'Test', costTypes: [{ id: 'pts', name: 'pts' }] } }
@@ -301,5 +301,24 @@ describe('attachment legality', () => {
     expect(attachmentErrors(two, index).map((error) => `${error.entryName}: ${error.message}`)).toEqual([
       'Lord: cannot lead SQUAD, which is already led by Overlord',
     ])
+  })
+})
+
+describe('the unit an attachment makes', () => {
+  // A Leader and a supporting character on one bodyguard unit: all three are one
+  // unit, so each of them counts the other two.
+  const attached = [{}, { attachedTo: 0 }, { attachedTo: 0 }]
+
+  it('counts the host and everything else joined to it', () => {
+    expect(attachedUnit(attached, 1)).toEqual([0, 2])
+    expect(attachedUnit(attached, 2)).toEqual([0, 1])
+  })
+
+  it('counts everything joined to a host, from the host', () => {
+    expect(attachedUnit(attached, 0)).toEqual([1, 2])
+  })
+
+  it('leaves a unit standing on its own alone', () => {
+    expect(attachedUnit([{}, { attachedTo: 0 }, {}], 2)).toEqual([])
   })
 })
