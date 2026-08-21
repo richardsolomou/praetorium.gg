@@ -1,10 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { useEffect, useState } from 'react'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import type { RosterPick } from '../../../core/roster'
 import type { Datasheet } from '../../../server/catalogue'
 import { datasheetQuery } from '../../queries'
+import { useSettled } from '../../useSettled'
 import { HoverTooltip } from '../HoverTooltip'
 import { Keyword, KEYWORD_TAG_CLASS, KeywordList } from '../Keyword'
 import { RuleText } from '../RuleText'
@@ -20,13 +20,12 @@ type Props = {
 }
 
 export function DatasheetPanel({ catalogueId, factionSlug, entryId, detachmentIds, picks, pickIndex, showWeapons = false }: Props) {
-  const [context, setContext] = useState({ detachmentIds, picks, pickIndex })
-  useEffect(() => {
-    const timeout = window.setTimeout(() => setContext({ detachmentIds, picks, pickIndex }), 150)
-    return () => window.clearTimeout(timeout)
-  }, [detachmentIds, picks, pickIndex])
+  // Only once the player stops changing the list, so a held stepper asks once.
+  const detachments = useSettled(detachmentIds)
+  const settledPicks = useSettled(picks)
+  const settledIndex = useSettled(pickIndex)
   const { data: sheet } = useQuery({
-    ...datasheetQuery(catalogueId, entryId ?? '', context.detachmentIds, context.picks, context.pickIndex),
+    ...datasheetQuery(catalogueId, entryId ?? '', detachments, settledPicks, settledIndex),
     placeholderData: (previous, previousQuery) => (previousQuery?.queryKey[2] === entryId ? previous : undefined),
   })
 

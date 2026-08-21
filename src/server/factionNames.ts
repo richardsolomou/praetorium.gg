@@ -1,4 +1,4 @@
-import { slug } from './rules'
+import { routeSlug } from '../core/slug'
 
 /** The same rules-backed player-facing name used by the faction reference pages. */
 export function factionDisplayName(catalogueName: string, names?: ReadonlyMap<string, string>) {
@@ -6,5 +6,5 @@ export function factionDisplayName(catalogueName: string, names?: ReadonlyMap<st
   const last = parts.at(-1)
   const leaf = last?.toLowerCase() === 'library' ? parts.at(-2) : last
   if (!leaf) return catalogueName
-  return names?.get(slug(leaf)) ?? leaf
+  return names?.get(routeSlug(leaf)) ?? leaf
 }

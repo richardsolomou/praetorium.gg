@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { buildIndex, type CatalogueFile } from '../core/catalogue'
-import { buildUnit, wargearOf } from '../core/roster'
+import { buildUnit } from '../core/roster'
+import { wargearOf } from '../core/wargear'
 import { importRosterFile } from './rosterFiles'
 import type { LoadedCatalogue } from './catalogueIndex'
 

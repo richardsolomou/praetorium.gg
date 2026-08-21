@@ -1,48 +1,19 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import {
-  BookOpen,
-  Check,
-  Copy,
-  Download,
-  EllipsisVertical,
-  Eye,
-  Layers3,
-  ListPlus,
-  Pencil,
-  Plus,
-  Printer,
-  SlidersHorizontal,
-  Trash2,
-  TriangleAlert,
-  X,
-} from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { BookOpen, Check, Download, EllipsisVertical, ListPlus, Pencil, Printer, SlidersHorizontal, TriangleAlert } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog'
-import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import type { Roster, Secondary, Stratagem } from '../../core/battle'
-import { DEFAULT_GAME_LIMIT, detachmentLimit, GAME_SIZES, isKotcLimit, ROSTER_NAME_MAX_LENGTH } from '../../core/battle'
+import type { Secondary, Stratagem } from '../../core/battle'
+import { GAME_SIZES, ROSTER_NAME_MAX_LENGTH } from '../../core/battle'
 import type { RosterPick } from '../../core/roster'
 import type { RosterSource, RosterVisibility } from '../../core/savedRoster'
-import { deleteRoster, exportRoster, saveRoster } from '../../server/functions'
+import { exportRoster, saveRoster } from '../../server/functions'
 import { collectionQuery, factionsQuery, priceQuery, savedRostersQuery } from '../queries'
 import { useCollectionMutation } from '../useCollection'
 import { DatasheetPanel } from './builder/DatasheetPanel'
-import { factionSelectGroups, shortName } from './builder/factions'
+import { shortName } from './builder/factions'
 import { GROUPS } from './builder/groups'
 import { Loadout } from './builder/Loadout'
 import { Picker } from './builder/Picker'
@@ -50,20 +21,16 @@ import { Section } from './builder/Section'
 import { Pane } from './builder/Pane'
 import { UnitCard } from './builder/UnitCard'
 import { preservesUnitSequence } from './builder/pricePlaceholder'
-import { SearchableSelect } from './SearchableSelect'
+import { attachmentRows, joinableUnits } from './builder/attachments'
+import { pickEditor, usePicks } from './builder/usePicks'
 import { RosterSetupDialog, type RosterSetup } from './RosterSetupDialog'
 import { RosterExportDialog } from './RosterExportDialog'
 import { readWorkspaceState, writeWorkspaceState } from './workspaceState'
-import { useFavouriteFactions } from '../favouriteFactions'
 import { FactionLabel } from './FactionMark'
 
 type Props = {
-  onAttach?: (roster: Roster) => void
-  pending?: boolean
-  attached?: boolean
   /** What the player has written down, so a saved list carries it and restores it. */
   prep: { stratagems: Stratagem[]; secondaries: Secondary[] }
-  onRestorePrep: (prep: { stratagems: Stratagem[]; secondaries: Secondary[] }) => void
   initial: {
     id: string
     name: string
@@ -71,14 +38,12 @@ type Props = {
     detachmentIds: string[]
     disposition: string | null
     limit: number
-    picks: Omit<Pick, 'key'>[]
+    picks: RosterPick[]
     visibility: RosterVisibility
     source: RosterSource
   }
   editable?: boolean
 }
-
-type Pick = RosterPick & { key: number }
 
 /**
  * Building a list from the catalogue rather than pasting one.
@@ -91,36 +56,16 @@ type Pick = RosterPick & { key: number }
  * The price and the legality both come from the server, because the catalogue is
  * 90MB and the browser has no business holding it.
  */
-export function ListBuilder({ onAttach, pending = false, attached = false, prep, onRestorePrep, initial, editable = true }: Props) {
+export function ListBuilder({ prep, initial, editable = true }: Props) {
   const { data: available } = useQuery(factionsQuery())
-  const [catalogueId, setCatalogueId] = useState(initial?.catalogueId ?? '')
-  // Picks carry their own key: the same datasheet may legitimately appear twice,
-  // so position is the only thing that tells two of them apart.
-  const [picked, setPicked] = useState<Pick[]>(() => initial?.picks.map((pick, key) => ({ ...pick, key })) ?? [])
-  const [nextKey, setNextKey] = useState(initial?.picks.length ?? 0)
-  const [limit, setLimit] = useState<number>(initial?.limit ?? DEFAULT_GAME_LIMIT)
-  const [detachmentIds, setDetachmentIds] = useState<string[]>(initial?.detachmentIds ?? [])
-  const [disposition, setDisposition] = useState<string | null>(initial?.disposition ?? null)
-  const [name, setName] = useState(initial?.name ?? '')
-  const [visibility, setVisibility] = useState<RosterVisibility>(initial?.visibility ?? 'private')
-  const [source, setSource] = useState<RosterSource>(initial?.source ?? 'editable')
+  const [catalogueId, setCatalogueId] = useState(initial.catalogueId)
+  const { picks, setPicks, positioned, held } = usePicks(initial.picks)
+  const [limit, setLimit] = useState(initial.limit)
+  const [detachmentIds, setDetachmentIds] = useState<string[]>(initial.detachmentIds)
+  const [disposition, setDisposition] = useState<string | null>(initial.disposition)
+  const [name, setName] = useState(initial.name)
+  const [visibility, setVisibility] = useState<RosterVisibility>(initial.visibility)
   const [selected, setSelected] = useState<number | null>(null)
-  /**
-   * The picks as anything outside this component reads them.
-   *
-   * `attachedTo` is a key while a list is being edited, because the same datasheet may
-   * be in it twice; everything the picks are sent to counts positions instead, the
-   * price and the datasheet alike.
-   */
-  const positioned = useMemo(
-    () =>
-      picked.map((pick) => {
-        if (pick.attachedTo === undefined) return pick
-        const at = picked.findIndex((candidate) => candidate.key === pick.attachedTo)
-        return { ...pick, attachedTo: at < 0 ? undefined : at }
-      }),
-    [picked],
-  )
   const [preview, setPreview] = useState<{ catalogueId: string; entryId: string } | null>(null)
   const [showing, setShowing] = useState<'picker' | 'loadout' | 'datasheet' | null>(null)
   const [datasheetReturn, setDatasheetReturn] = useState<'picker' | 'loadout' | null>(null)
@@ -134,130 +79,60 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
     writeWorkspaceState(workspacePath, 'roster-setup', draft)
   }
 
-  const [savedId, setSavedId] = useState<string | undefined>(initial?.id)
+  const savedId = initial.id
   const queryClient = useQueryClient()
-  const { data: saved } = useQuery({ ...savedRostersQuery(), enabled: editable })
   const { data: owned } = useQuery({ ...collectionQuery(), enabled: editable })
   const collection = new Set(owned ?? [])
   const own = useCollectionMutation()
-  const { favourites } = useFavouriteFactions()
 
   useEffect(() => setSetupDraftState(readWorkspaceState<RosterSetup>(workspacePath, 'roster-setup')), [workspacePath])
-  const refreshSaved = () => queryClient.invalidateQueries({ queryKey: savedRostersQuery().queryKey })
-
-  const loadSaved = (list: NonNullable<typeof saved>[number], copy = false) => {
-    setSavedId(copy ? undefined : list.id)
-    setName(copy ? `Copy of ${list.name}` : list.name)
-    setCatalogueId(list.catalogueId)
-    setDetachmentIds(list.detachmentIds)
-    setDisposition(list.disposition)
-    setLimit(list.limit)
-    setVisibility(list.visibility)
-    setSource(list.source)
-    setPicked(list.picks.map((pick, at) => ({ ...pick, key: at })))
-    setNextKey(list.picks.length)
-    setSelected(null)
-    if (list.prep) onRestorePrep(list.prep)
-  }
 
   const faction = available?.factions.find((entry) => entry.id === catalogueId)
-  const factionGroups = factionSelectGroups(available?.factions ?? [], favourites)
   const suggested = faction
     ? [shortName(faction.name), faction.detachments.find((entry) => entry.id === detachmentIds[0])?.name].filter(Boolean).join(' — ')
     : ''
   const listName = name.trim() || suggested
   const save = useMutation({
     scope: { id: 'roster-autosave' },
-    mutationFn: (id: string) =>
+    mutationFn: () =>
       saveRoster({
         data: {
-          id,
+          id: savedId,
           name: listName || 'Untitled list',
           catalogueId,
           detachmentIds,
           disposition,
           limit,
-          picks: picked.map(({ entryId, catalogueId: unitCatalogueId, models, choices, spreads, swaps, toggles, attachedTo }) => ({
-            entryId,
-            catalogueId: unitCatalogueId,
-            models,
-            choices,
-            spreads,
-            swaps,
-            toggles,
-            // Saved by position, because the keys are this session's own numbering.
-            attachedTo: attachedTo === undefined ? undefined : picked.findIndex((pick) => pick.key === attachedTo),
-          })),
+          picks: positioned,
           prep,
           visibility,
-          source,
+          source: initial.source,
         },
       }),
-    onSuccess: ({ id }) => {
-      setSavedId(id)
-      void refreshSaved()
-    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: savedRostersQuery().queryKey }),
   })
 
   useEffect(() => {
-    if (!editable || !catalogueId || (!picked.length && !savedId) || !listName || !savedId) return
-    save.mutate(savedId)
+    if (!editable || !catalogueId || !listName) return
+    save.mutate()
     // The mutation reads the complete rendered draft. A later render queues behind
     // this one, so the final request always contains the newest state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [catalogueId, detachmentIds, disposition, editable, limit, listName, picked, prep, savedId, source, visibility])
+  }, [catalogueId, detachmentIds, disposition, editable, limit, listName, picks, prep, visibility])
 
   /** Hands the list to another tool, in the format every one of them reads. */
   const take = useMutation({
     mutationFn: () =>
       exportRoster({
-        data: {
-          catalogueId,
-          detachmentIds,
-          disposition,
-          limit,
-          name: listName || 'Roster',
-          units: picked.map(({ entryId, catalogueId: unitCatalogueId, models, choices, spreads, swaps, toggles, attachedTo }) => ({
-            entryId,
-            catalogueId: unitCatalogueId,
-            models,
-            choices,
-            spreads,
-            swaps,
-            toggles,
-            attachedTo: attachedTo === undefined ? undefined : picked.findIndex((candidate) => candidate.key === attachedTo),
-          })),
-        },
+        data: { catalogueId, detachmentIds, disposition, limit, name: listName || 'Roster', units: positioned },
       }),
     onSuccess: ({ text }) => setExportText(text),
   })
 
-  const remove = useMutation({
-    mutationFn: (id: string) => deleteRoster({ data: { id } }),
-    onSuccess: () => {
-      setSavedId(undefined)
-      void refreshSaved()
-    },
-  })
-
   const { data: priced } = useQuery({
-    ...priceQuery(
-      catalogueId,
-      detachmentIds,
-      disposition,
-      limit,
-      picked.map(({ entryId, catalogueId: unitCatalogueId, models, choices, spreads, swaps, toggles }) => ({
-        entryId,
-        catalogueId: unitCatalogueId,
-        models,
-        choices,
-        spreads,
-        swaps,
-        toggles,
-      })),
-    ),
+    ...priceQuery(catalogueId, detachmentIds, disposition, limit, positioned),
     placeholderData: (previous, previousQuery) => {
-      return preservesUnitSequence(previousQuery?.queryKey.at(-1), picked) ? previous : undefined
+      return preservesUnitSequence(previousQuery?.queryKey.at(-1), picks) ? previous : undefined
     },
   })
 
@@ -273,13 +148,9 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
   }
 
   const over = Boolean(priced && priced.points > limit)
-  const illegal = isKotcLimit(limit) && Boolean(priced?.errors.length)
-  // A list without one is not a legal army, so it cannot be attached.
-  const needsDetachment = Boolean(faction?.detachments.length) && !detachmentIds.length
-  const overDetachmentPoints = Boolean(priced?.detachmentPointsOver)
   const units = priced?.units ?? []
   const selectedUnit = selected === null ? null : (units[selected] ?? null)
-  const selectedPick = selected === null ? null : (picked[selected] ?? null)
+  const selectedPick = selected === null ? null : (picks[selected] ?? null)
   const optimisticUnit =
     selectedUnit && selectedPick
       ? {
@@ -300,201 +171,11 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
         }
       : selectedUnit
 
-  const held: Record<string, number> = {}
-  for (const pick of picked) held[pick.entryId] = (held[pick.entryId] ?? 0) + 1
-
-  const add = (entryId: string) => {
-    setPicked((current) => [...current, { key: nextKey, entryId, catalogueId }])
-    setNextKey((current) => current + 1)
-  }
-
-  const toggleDetachment = (id: string, checked: boolean) => {
-    setDetachmentIds((current) => {
-      const next = checked
-        ? current.includes(id)
-          ? current
-          : isKotcLimit(limit)
-            ? [id]
-            : [...current, id].slice(0, detachmentLimit(limit))
-        : current.filter((entry) => entry !== id)
-      if (next[0] !== current[0]) setDisposition(null)
-      return next
-    })
-  }
-
-  const resize = (index: number, models: number) =>
-    setPicked((current) => current.map((pick, at) => (at === index ? { ...pick, models } : pick)))
-
-  const choose = (index: number, key: string, optionId: string) =>
-    setPicked((current) =>
-      current.map((pick, at) => {
-        if (at !== index) return pick
-        const choices = { ...pick.choices }
-        if (optionId) choices[key] = optionId
-        else delete choices[key]
-        return { ...pick, choices }
-      }),
-    )
-
-  /** How many of each option a group holds, leaving the unit's other groups alone. */
-  const spread = (index: number, key: string, counts: Record<string, number>) =>
-    setPicked((current) =>
-      current.map((pick, at) =>
-        at === index
-          ? {
-              ...pick,
-              models: pick.models ?? units[index]?.size.models,
-              spreads: { ...pick.spreads, [key]: { ...pick.spreads?.[key], ...counts } },
-            }
-          : pick,
-      ),
-    )
-
-  /** A datasheet swap the catalogue cannot price, kept beside the picks it sits with. */
-  const swap = (index: number, key: string, count: number) =>
-    setPicked((current) =>
-      current.map((pick, at) => {
-        if (at !== index) return pick
-        const swaps = { ...pick.swaps }
-        if (count <= 0) delete swaps[key]
-        else swaps[key] = count
-        return { ...pick, swaps }
-      }),
-    )
-
-  const toggle = (index: number, key: string, toggleName: string, enabled: boolean) =>
-    setPicked((current) =>
-      current.map((pick, at) => {
-        const toggles = { ...pick.toggles }
-        if (toggleName === 'Warlord' && enabled) {
-          for (const candidate of units[at]?.toggles ?? []) if (candidate.name === toggleName) toggles[candidate.key] = 0
-        }
-        return at === index ? { ...pick, toggles: { ...toggles, [key]: enabled ? 1 : 0 } } : { ...pick, toggles }
-      }),
-    )
+  const edit = pickEditor(setPicks, { catalogueId, units })
 
   const drop = (index: number) => {
-    setPicked((current) => {
-      const going = current[index]
-      // Anything standing with it is left standing alone rather than pointing at a
-      // unit that is no longer in the list.
-      const kept: Pick[] = []
-      for (const [at, pick] of current.entries()) {
-        if (at === index) continue
-        kept.push(pick.attachedTo === going?.key ? { ...pick, attachedTo: undefined } : pick)
-      }
-      return kept
-    })
+    edit.drop(index)
     setSelected(null)
-  }
-
-  const duplicate = (index: number) => {
-    const pickedSource = picked[index]
-    if (!pickedSource) return
-    setPicked((current) => [...current.slice(0, index + 1), { ...pickedSource, key: nextKey }, ...current.slice(index + 1)])
-    setNextKey((current) => current + 1)
-  }
-
-  const join = (index: number, targetKey: number | undefined) =>
-    setPicked((current) => current.map((pick, at) => (at === index ? { ...pick, attachedTo: targetKey } : pick)))
-
-  /**
-   * The attachment rows on one unit's card: what it has joined, and what has joined
-   * it. Both sides of the same fact, so each card can be read on its own.
-   */
-  const joinedRows = (index: number) => {
-    const rows: { label: string; name: string; action: string; onAct: () => void }[] = []
-    const pick = picked[index]
-    const unit = units[index]
-    if (!pick || !unit) return rows
-
-    if (pick.attachedTo !== undefined) {
-      const hostIndex = picked.findIndex((candidate) => candidate.key === pick.attachedTo)
-      const host = units[hostIndex]
-      if (host) {
-        rows.push({
-          label: unit.attachment?.kind === 'leader' ? 'Leading' : 'Supporting',
-          name: host.name,
-          action: 'Remove',
-          onAct: () => join(index, undefined),
-        })
-      }
-    }
-
-    for (const [at, candidate] of picked.entries()) {
-      if (candidate.attachedTo !== pick.key) continue
-      const attachedUnit = units[at]
-      if (!attachedUnit) continue
-      rows.push({
-        label: attachedUnit.attachment?.kind === 'leader' ? 'Leader' : 'Support',
-        name: attachedUnit.name,
-        action: 'Detach',
-        onAct: () => join(at, undefined),
-      })
-    }
-    return rows
-  }
-
-  /**
-   * The units in the list this one may join: named by its own rules, present in the
-   * roster, and not already holding it. A unit it is already attached to is not
-   * offered again, which is what stops the row and the offer both being on screen.
-   *
-   * A unit already led is not offered to a second Leader either. `attachmentErrors`
-   * is what decides that, and says so about a list however it was built; this only
-   * keeps the offer from being made when the answer is already known.
-   */
-  const joinable = (index: number) => {
-    const pick = picked[index]
-    const unit = units[index]
-    if (!pick || !unit?.attachment || pick.attachedTo !== undefined) return []
-    const wanted = new Set(unit.attachment.targets.map((target) => target.trim().toLowerCase()))
-    const led = new Set(
-      picked.flatMap((candidate, at) =>
-        candidate.attachedTo !== undefined && units[at]?.attachment?.kind === 'leader' ? [candidate.attachedTo] : [],
-      ),
-    )
-    return picked.flatMap((candidate, at) =>
-      at !== index &&
-      wanted.has((units[at]?.name ?? '').trim().toLowerCase()) &&
-      !(unit.attachment?.kind === 'leader' && led.has(candidate.key))
-        ? [{ key: candidate.key, name: units[at]?.name ?? '' }]
-        : [],
-    )
-  }
-
-  const attach = () => {
-    if (!priced || !onAttach) return
-    onAttach({
-      name: listName,
-      // The readable form travels with the list so an opponent can see it whatever
-      // the other instance has synced.
-      text: [
-        `${priced.points} / ${limit} pts`,
-        ...priced.detachments.map(
-          (detachment, index) => `${index ? 'Detachment' : 'Primary detachment'}: ${detachment.name} (${detachment.points ?? '?'} DP)`,
-        ),
-        '',
-        ...units.map((unit) => `${unit.name}${unit.size.resizable ? ` (${unit.size.models})` : ''} — ${unit.points}`),
-      ].join('\n'),
-      built: {
-        catalogueId,
-        revision: priced.revision,
-        limit,
-        detachment: priced.detachment,
-        detachments: priced.detachments,
-        detachmentPointBudget: priced.detachmentPointBudget,
-        disposition: priced.disposition,
-        selections: priced.selections,
-        // Keys are fixed here because the battle log points at them.
-        units: units.map((unit, index) => ({
-          key: `${index}-${unit.entryId}`,
-          name: unit.name,
-          points: unit.points,
-          models: unit.size.models,
-        })),
-      },
-    })
   }
 
   const picker =
@@ -503,7 +184,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
         <div className="min-h-0 flex-1">
           <Picker
             catalogueId={catalogueId}
-            onAdd={add}
+            onAdd={edit.add}
             onPreview={(entryId) => {
               setPreview({ catalogueId, entryId })
               setDatasheetReturn('picker')
@@ -519,7 +200,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
       <p className="p-2.5 text-xs text-faint">Pick a book first.</p>
     )
 
-  const loadoutCatalogueId = selected === null ? catalogueId : (picked[selected]?.catalogueId ?? catalogueId)
+  const loadoutCatalogueId = selected === null ? catalogueId : (picks[selected]?.catalogueId ?? catalogueId)
   const datasheetCatalogueId = preview?.catalogueId ?? loadoutCatalogueId
   const loadout = (
     <Loadout
@@ -528,11 +209,11 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
       detachmentIds={detachmentIds}
       picks={positioned}
       pickIndex={selected}
-      onChoose={(key, optionId) => selected !== null && choose(selected, key, optionId)}
-      onSpread={(key, counts) => selected !== null && spread(selected, key, counts)}
-      onToggle={(key, toggleName, enabled) => selected !== null && toggle(selected, key, toggleName, enabled)}
-      onResize={(models) => selected !== null && resize(selected, models)}
-      onSwap={(key, count) => selected !== null && swap(selected, key, count)}
+      onChoose={(key, optionId) => selected !== null && edit.choose(selected, key, optionId)}
+      onSpread={(key, counts) => selected !== null && edit.spread(selected, key, counts)}
+      onToggle={(key, toggleName, enabled) => selected !== null && edit.toggle(selected, key, toggleName, enabled)}
+      onResize={(models) => selected !== null && edit.resize(selected, models)}
+      onSwap={(key, count) => selected !== null && edit.swap(selected, key, count)}
       editable={editable}
     />
   )
@@ -567,7 +248,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
           className="h-8 border-0 bg-transparent px-0 text-lg font-bold tracking-[0.02em] uppercase focus-visible:ring-0"
         />
 
-        {initial && faction ? (
+        {faction ? (
           <div className="flex min-w-0 items-center gap-2 text-xs text-dim">
             <Link to="/factions/$catalogueId" params={{ catalogueId: faction.slug }} className="truncate text-azure hover:text-bone">
               <FactionLabel faction={faction} />
@@ -649,7 +330,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
             factions={available.factions}
             value={setupDraft}
             onDraftChange={setSetupDraft}
-            hasUnits={Boolean(picked.length)}
+            hasUnits={Boolean(picks.length)}
             onSave={(setup) => {
               const changedFaction = setup.catalogueId !== catalogueId
               setName(setup.name)
@@ -659,214 +340,13 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
               setLimit(setup.limit)
               setVisibility(setup.visibility)
               if (changedFaction) {
-                setPicked([])
+                edit.clear()
                 setSelected(null)
               }
               setSetupDraft(null)
             }}
           />
         ) : null}
-
-        {initial ? null : (
-          <>
-            {/*
-             * Faction, detachment and battle size read as the values they are rather
-             * than as three form controls, because on a phone the header competes with
-             * the roster for the screen and the roster is what is being read.
-             */}
-            <div className="grid grid-cols-2 gap-x-5 gap-y-1 sm:flex sm:flex-wrap sm:gap-x-7">
-              <div className="order-1 min-w-0">
-                <Label className="eyebrow block" htmlFor="faction">
-                  Faction
-                </Label>
-                <SearchableSelect
-                  id="faction"
-                  groups={factionGroups}
-                  value={catalogueId}
-                  onValueChange={(value) => {
-                    setCatalogueId(value)
-                    setPicked([])
-                    setDetachmentIds([])
-                    setSelected(null)
-                  }}
-                  placeholder="Pick a faction"
-                  searchPlaceholder="Search factions…"
-                  className="h-6 border-0 bg-transparent px-0 font-semibold text-azure uppercase hover:bg-transparent data-popup-open:bg-transparent"
-                />
-              </div>
-
-              {faction?.detachments.length ? (
-                <div className="order-3 col-span-2 min-w-0 sm:order-2 sm:min-w-64">
-                  <span className="eyebrow block">Detachments</span>
-                  <div className="mt-1 space-y-1">
-                    {detachmentIds.map((id, index) => {
-                      const entry = faction.detachments.find((candidate) => candidate.id === id)
-                      if (!entry) return null
-                      return (
-                        <div key={id} className="flex min-h-8 items-center gap-2 border border-edge-strong bg-raised px-2 py-1">
-                          <Layers3 className="size-3 shrink-0 text-azure" aria-hidden />
-                          <span className="min-w-0 flex-1 truncate text-xs font-semibold uppercase">{entry.name}</span>
-                          {index === 0 ? <span className="eyebrow text-azure">Primary</span> : null}
-                          {entry.reference?.points == null ? null : <span className="chip">{entry.reference.points} DP</span>}
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            aria-label={`Remove ${entry.name}`}
-                            onClick={() => toggleDetachment(id, false)}
-                          >
-                            <X />
-                          </Button>
-                        </div>
-                      )
-                    })}
-                    {detachmentIds.length < detachmentLimit(limit) ? (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger
-                          aria-label="Add detachment"
-                          className="flex h-8 w-full items-center gap-2 border border-dashed border-edge-strong px-2 text-xs font-semibold text-azure uppercase"
-                        >
-                          <Plus className="size-3" aria-hidden /> Add detachment
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent className="w-80 rounded-none border border-edge-strong bg-raised ring-0">
-                          {faction.detachments
-                            .filter((entry) => !detachmentIds.includes(entry.id))
-                            .map((entry) => (
-                              <DropdownMenuItem
-                                key={entry.id}
-                                onClick={() => toggleDetachment(entry.id, true)}
-                                className="rounded-none text-xs uppercase focus:bg-edge"
-                              >
-                                <span className="min-w-0 flex-1 truncate">{entry.name}</span>
-                                {entry.reference?.points == null ? null : <span className="chip">{entry.reference.points} DP</span>}
-                              </DropdownMenuItem>
-                            ))}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    ) : null}
-                    {priced?.detachmentError ? (
-                      <p role="alert" className="flex max-w-80 gap-1.5 text-xs text-destructive">
-                        <TriangleAlert className="mt-0.5 size-3 shrink-0" aria-hidden />
-                        {priced.detachmentError}
-                      </p>
-                    ) : null}
-                  </div>
-                </div>
-              ) : null}
-
-              <div className="order-2 min-w-0 sm:order-3">
-                <Label className="eyebrow block" htmlFor="size">
-                  Battle size
-                </Label>
-                <Select
-                  value={String(limit)}
-                  onValueChange={(value: string | null) => {
-                    const next = Number(value ?? DEFAULT_GAME_LIMIT)
-                    setLimit(next)
-                    setDetachmentIds((current) => current.slice(0, detachmentLimit(next)))
-                    setDisposition(null)
-                  }}
-                >
-                  <SelectTrigger id="size" className="h-6 w-full border-0 bg-transparent px-0 font-semibold uppercase">
-                    <SelectValue>
-                      {(value: unknown) => GAME_SIZES.find((entry) => String(entry.limit) === value)?.name ?? 'Pick a size'}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {GAME_SIZES.map((entry) => (
-                      <SelectItem key={entry.limit} value={String(entry.limit)}>
-                        {entry.name} — {entry.limit} pts
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <p className="mt-1 text-xs text-faint">
-              {[
-                '11th edition',
-                `${priced?.points ?? 0}/${limit} points`,
-                priced?.detachmentPointBudget === null || priced?.detachmentPointBudget === undefined
-                  ? null
-                  : detachmentIds.length <= 1
-                    ? `${priced.detachmentPointsSpent} DP detachment`
-                    : `${priced.detachmentPointsSpent}/${priced.detachmentPointBudget} DP allowance`,
-                `${units.length} ${units.length === 1 ? 'unit' : 'units'}`,
-              ]
-                .filter(Boolean)
-                .join(' • ')}
-            </p>
-
-            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5">
-              {saved?.length ? (
-                <span className="flex flex-wrap items-center gap-1.5">
-                  <span className="eyebrow">Your lists</span>
-                  {saved.map((list) => (
-                    <span key={list.id} className="flex items-center border border-edge bg-card">
-                      <Button
-                        variant="ghost"
-                        size="xs"
-                        className="max-w-40 truncate rounded-none px-2 py-0.5 text-xs hover:bg-transparent hover:text-azure"
-                        title={`${list.picks.length} units · ${list.limit} points · updated ${new Date(list.updatedAt).toLocaleDateString()}`}
-                        onClick={() => loadSaved(list)}
-                      >
-                        {list.name}
-                      </Button>
-                      <Button
-                        render={<Link to="/rosters/$id" params={{ id: list.id }} />}
-                        nativeButton={false}
-                        variant="ghost"
-                        size="icon-sm"
-                        className="size-6"
-                        aria-label={`View ${list.name}`}
-                      >
-                        <Eye />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        className="size-6"
-                        aria-label={`Copy ${list.name}`}
-                        onClick={() => loadSaved(list, true)}
-                      >
-                        <Copy />
-                      </Button>
-                      <AlertDialog>
-                        <AlertDialogTrigger
-                          render={
-                            <Button
-                              variant="ghost"
-                              size="icon-sm"
-                              className="size-6"
-                              aria-label={`Delete ${list.name}`}
-                              disabled={remove.isPending}
-                            />
-                          }
-                        >
-                          <Trash2 />
-                        </AlertDialogTrigger>
-                        <AlertDialogContent className="rounded-none border border-edge bg-panel text-bone ring-0">
-                          <AlertDialogHeader>
-                            <AlertDialogTitle className="uppercase">Delete {list.name}?</AlertDialogTitle>
-                            <AlertDialogDescription className="text-dim">
-                              This removes the saved roster. Battles that already use it are not changed.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter className="rounded-none border-edge bg-sunken">
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction variant="destructive" onClick={() => remove.mutate(list.id)}>
-                              Delete roster
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </span>
-                  ))}
-                </span>
-              ) : null}
-            </div>
-          </>
-        )}
       </header>
 
       <div className="flex min-h-0 flex-1">
@@ -906,12 +386,12 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
                 <Section key={id} title={plural} count={rows.length}>
                   {rows.map(({ unit, index }) => (
                     <UnitCard
-                      key={picked[index]?.key ?? unit.entryId}
+                      key={picks[index]?.key ?? unit.entryId}
                       unit={unit}
                       alliedFaction={
-                        picked[index]?.catalogueId === catalogueId
+                        picks[index]?.catalogueId === catalogueId
                           ? undefined
-                          : available.factions.find((entry) => entry.id === picked[index]?.catalogueId)
+                          : available.factions.find((entry) => entry.id === picks[index]?.catalogueId)
                       }
                       selected={selected === index}
                       onSelect={() => {
@@ -920,12 +400,12 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
                         setShowing('loadout')
                       }}
                       onRemove={() => drop(index)}
-                      onDuplicate={() => duplicate(index)}
+                      onDuplicate={() => edit.duplicate(index)}
                       owned={collection.has(unit.entryId)}
                       onOwned={() => own.mutate({ entryId: unit.entryId, owned: !collection.has(unit.entryId) })}
-                      joined={joinedRows(index)}
-                      canJoin={joinable(index)}
-                      onJoin={(targetKey) => join(index, targetKey)}
+                      joined={attachmentRows(picks, units, index).map((row) => ({ ...row, onAct: () => edit.join(row.detach, undefined) }))}
+                      canJoin={joinableUnits(picks, units, index)}
+                      onJoin={(targetKey) => edit.join(index, targetKey)}
                       editable={editable}
                     />
                   ))}
@@ -1010,29 +490,6 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
               Add units
             </Button>
           ) : null}
-
-          <span className="ml-auto flex flex-wrap items-center gap-2">
-            {onAttach ? (
-              <Button
-                size="sm"
-                className="h-9 px-4"
-                disabled={pending || !listName || !units.length || over || illegal || needsDetachment || overDetachmentPoints}
-                onClick={attach}
-              >
-                {over && priced
-                  ? `${priced.points - limit} pts over`
-                  : illegal
-                    ? 'Roster is not legal'
-                    : overDetachmentPoints && priced && priced.detachmentPointBudget !== null
-                      ? 'Invalid detachments'
-                      : needsDetachment
-                        ? 'Pick a detachment first'
-                        : attached
-                          ? 'Replace my list'
-                          : 'Attach this list'}
-              </Button>
-            ) : null}
-          </span>
         </div>
         {editable && save.isError ? (
           <div
@@ -1041,7 +498,7 @@ export function ListBuilder({ onAttach, pending = false, attached = false, prep,
           >
             <TriangleAlert className="size-4 shrink-0" aria-hidden />
             <span className="min-w-0 flex-1">Your latest changes have not been saved.</span>
-            <Button variant="outline" size="xs" onClick={() => savedId && save.mutate(savedId)} disabled={!savedId || save.isPending}>
+            <Button variant="outline" size="xs" onClick={() => save.mutate()} disabled={save.isPending}>
               Try again
             </Button>
           </div>

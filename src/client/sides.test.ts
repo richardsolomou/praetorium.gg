@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { BattleView } from '../core/battle'
+import type { BattleView } from '../core/battleView'
 import { facingSides, sideName, sides } from './sides'
 
 type ViewPlayer = BattleView['players'][number]

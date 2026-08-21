@@ -1,0 +1,152 @@
+/**
+ * Reading the catalogue's own entries, and the paths through them.
+ *
+ * The questions everything about building a list has to ask first: what does this
+ * link resolve to, what does it hold, how many does the data insist on, how many will
+ * it allow, and is this number one model's or the whole squad's. None of it changes a
+ * list — it only reads what the data says about one.
+ *
+ * Pure, like the rest of `src/core`.
+ */
+
+import { type CatalogueIndex, type Constraint, type Definition, targetOf } from './catalogue'
+import { type EvaluateOptions, selectionCountBounds } from './evaluate'
+
+/** Crusade and campaign subtrees run deep and none of it is mandatory. */
+export const MAX_DEPTH = 4
+
+export const UNBOUNDED = Number.MAX_SAFE_INTEGER
+
+/** One entry a group offers, reached by the id the path holds rather than the one it resolves to. */
+export type Option = { id: string; definition: Definition }
+
+export const resolve = (definition: Definition, index: CatalogueIndex) => targetOf(definition, index.definitions)
+
+export function childrenOf(definition: Definition, index: CatalogueIndex): Option[] {
+  const found: Option[] = []
+  for (const entry of definition.selectionEntries ?? []) found.push({ id: entry.id, definition: entry })
+  for (const group of definition.selectionEntryGroups ?? []) found.push({ id: group.id, definition: group })
+  for (const link of definition.entryLinks ?? []) {
+    if (index.definitions.get(link.targetId)) found.push({ id: link.id, definition: link })
+  }
+  return found
+}
+
+export function pointsOf(option: Option, index: CatalogueIndex): number {
+  const target = resolve(option.definition, index)
+  const own = option.definition.costs?.find((cost) => cost.typeId === index.pointsTypeId)?.value
+  return own ?? target.costs?.find((cost) => cost.typeId === index.pointsTypeId)?.value ?? 0
+}
+
+/**
+ * Whether this entry's count is a total for the whole unit rather than one model's.
+ *
+ * A `collective` weapon under a squad of ten is ten weapons stored as one number,
+ * and its `@parent` constraints are per model — "each model may take one" reads as
+ * `max=1`, so a ten-model squad may hold ten. Everything about splitting a squad
+ * between two weapons follows from that: the counts are absolute and they share
+ * one capacity.
+ */
+export function isCollective(definition: Definition, index: CatalogueIndex): boolean {
+  const target = resolve(definition, index)
+  return Boolean(('collective' in definition && definition.collective) || ('collective' in target && target.collective))
+}
+
+/**
+ * How many carriers a child's `@parent` constraint is counted against: the models
+ * holding it when it is collective, one otherwise. A group takes the factor of what
+ * it holds, because the constraint is written on the group and meant per model.
+ */
+export function scaleOf(definition: Definition, index: CatalogueIndex, carriers: number): number {
+  if (isCollective(definition, index)) return carriers
+  const target = resolve(definition, index)
+  if (target.type !== undefined) return 1
+  return childrenOf(target, index).some((child) => isCollective(child.definition, index)) ? carriers : 1
+}
+
+/** The binding cap on how many of this may be taken, or null when nothing limits it. */
+export function maximumCount(definition: Definition, index: CatalogueIndex, options?: EvaluateOptions): number | null {
+  if (options) return selectionCountBounds(definition, index, options).maximum
+  const caps = constraintsOn(definition, index)
+    .filter((constraint) => constraint.type === 'max' && constraint.field === 'selections' && !constraint.percentValue)
+    .map((constraint) => constraint.value)
+    .filter((value) => value >= 0)
+  return caps.length ? Math.min(...caps) : null
+}
+
+/** How many of this child the data insists on: its own minimum, or a group's. */
+export function requiredCount(definition: Definition, index: CatalogueIndex, options?: EvaluateOptions): number {
+  if (options) return selectionCountBounds(definition, index, options).minimum
+  const minimums = constraintsOn(definition, index)
+    .filter(isSelectionMinimum)
+    .map((constraint) => constraint.value)
+  return minimums.length ? Math.max(...minimums) : 0
+}
+
+/** What the entry says about itself, plus what the link's target says, without repeating either. */
+function constraintsOn(definition: Definition, index: CatalogueIndex): Constraint[] {
+  const target = resolve(definition, index)
+  return [...(definition.constraints ?? []), ...(target === definition ? [] : (target.constraints ?? []))]
+}
+
+const isSelectionMinimum = (constraint: Constraint) =>
+  constraint.type === 'min' && constraint.field === 'selections' && (constraint.scope === 'parent' || constraint.scope === 'self')
+
+/** The unit profile a model entry carries, which is what names its kind. */
+export function modelProfileOf(definition: Definition, index: CatalogueIndex): string | null {
+  return resolve(definition, index).profiles?.find((profile) => profile.typeName === 'Unit')?.name ?? null
+}
+
+/** Optional single entries with roster meaning rather than loadout meaning. */
+export const isRosterToggle = (name: string | undefined) => name?.trim().toLowerCase() === 'warlord'
+
+/** The nearest ancestor model a path sits inside, when it is not the unit's own root. */
+export function modelOwnerOf(trail: readonly string[], index: CatalogueIndex): { id: string; name: string; profile: string | null } | null {
+  for (let length = trail.length; length > 0; length--) {
+    const id = trail[length - 1]
+    const definition = id ? index.definitions.get(id) : undefined
+    if (!definition || resolve(definition, index).type !== 'model') continue
+    const target = resolve(definition, index)
+    // The id a selection is reached by, not the id it resolves to: a supplement links
+    // the datasheet it borrows, and only the link appears in the path.
+    return { id, name: definition.name ?? target.name ?? id, profile: modelProfileOf(definition, index) }
+  }
+  return null
+}
+
+/** A model on this path the squad may take more than one of, and where it stands. */
+export function repeatedModelOn(path: readonly string[], index: CatalogueIndex): { path: string[]; definition: Definition } | null {
+  return modelOnPath(path, index, (definition) => (maximumCount(definition, index) ?? 1) > 1)
+}
+
+/** A model on this path the squad need not take at all, but may take a bounded number of. */
+function repeatableModelOn(path: readonly string[], index: CatalogueIndex): { path: string[]; definition: Definition } | null {
+  return modelOnPath(path, index, (definition) => requiredCount(definition, index) === 0 && maximumCount(definition, index) !== null)
+}
+
+function modelOnPath(
+  path: readonly string[],
+  index: CatalogueIndex,
+  accept: (definition: Definition) => boolean,
+): { path: string[]; definition: Definition } | null {
+  for (let length = path.length; length > 0; length--) {
+    const id = path[length - 1]
+    const definition = id ? index.definitions.get(id) : undefined
+    if (!definition || resolve(definition, index).type !== 'model') continue
+    if (accept(definition)) return { path: path.slice(0, length), definition }
+  }
+  return null
+}
+
+/**
+ * The repeated model a group hangs off, when the group belongs to one model rather
+ * than to the whole unit. A group of collective wargear belongs to the unit, so it
+ * has no single carrier however many models are holding it.
+ */
+export function repeatedCarrierOn(groupPath: readonly string[], index: CatalogueIndex) {
+  const groupId = groupPath.at(-1)
+  const group = groupId ? index.definitions.get(groupId) : undefined
+  if (!group || childrenOf(resolve(group, index), index).some((option) => isCollective(option.definition, index))) return null
+  const modelPath = groupPath.slice(0, -1)
+  return repeatedModelOn(modelPath, index) ?? repeatableModelOn(modelPath, index)
+}

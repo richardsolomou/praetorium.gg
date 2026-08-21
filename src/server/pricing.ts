@@ -1,15 +1,18 @@
 import { attachmentErrors, attachmentOf } from '../core/attach'
+import { routeSlug } from '../core/slug'
 import { detachmentPointBudget, detachmentPointsError, formatDatasheetLimit, isKotcLimit } from '../core/battle'
 import { targetOf } from '../core/catalogue'
 import { evaluate, evaluateForces, type Selection } from '../core/evaluate'
-import { buildUnit, type ModelKind, modelKindsOf, wargearOf } from '../core/roster'
+import { type ModelKind, modelKindsOf } from '../core/modelKinds'
+import { buildUnit } from '../core/roster'
+import { wargearOf } from '../core/wargear'
 import { app } from './app'
 import { datasheetIn, rulesReferencedIn } from './catalogue'
 import { detachmentCatalogueDetail } from './catalogueDescriptions'
 import { groupOfEntry } from './cataloguePicker'
 import { rosterDetachments } from './rosterDetachments'
 import { type LoadedCatalogue } from './catalogueIndex'
-import { compositionOf, type LoadedRules, slug, type UnitComposition } from './rules'
+import { compositionOf, type LoadedRules, type UnitComposition } from './rules'
 import type { PriceInput } from './schemas'
 import { descriptionKey, findDescription, type FactionRestrictions } from './wahapedia'
 
@@ -23,12 +26,12 @@ export function calculateRosterPrice(data: PriceInput) {
   // Enhancements and unit limits can depend on the detachment already being in
   // the roster when units are expanded.
   const rules = app().rules()
-  const factionSlug = slug(loaded.index.catalogues.get(data.catalogueId)?.name ?? '')
+  const factionSlug = routeSlug(loaded.index.catalogues.get(data.catalogueId)?.name ?? '')
   const references = rules?.detachmentReferences.get(factionSlug)
   const allowedDispositions = [
     ...new Set(
       chosen.flatMap((option) => {
-        const fromRules = references?.get(slug(option.name))?.dispositions ?? []
+        const fromRules = references?.get(routeSlug(option.name))?.dispositions ?? []
         return fromRules.length ? fromRules : option.disposition ? [option.disposition] : []
       }),
     ),
@@ -36,10 +39,10 @@ export function calculateRosterPrice(data: PriceInput) {
   const { disposition, error: dispositionError } = resolveDisposition(allowedDispositions, data.disposition)
   const purchased = chosen.map((option) => ({
     name: option.name,
-    points: references?.get(slug(option.name))?.points ?? null,
+    points: references?.get(routeSlug(option.name))?.points ?? null,
   }))
   const detachmentSpecials = chosen.map((option) => {
-    const detail = rules?.detachmentDetails.get(factionSlug)?.get(slug(option.name))
+    const detail = rules?.detachmentDetails.get(factionSlug)?.get(routeSlug(option.name))
     const named = [...(detail?.enhancements ?? []), ...(detail?.upgrades ?? [])]
     const catalogue = detachmentCatalogueDetail(
       loaded,
@@ -64,11 +67,11 @@ export function calculateRosterPrice(data: PriceInput) {
   )
   const budget = detachmentPointBudget(data.limit)
   const spent = purchased.reduce((total, option) => total + (option.points ?? 0), 0)
-  const upgradeNames = new Set(detachmentSpecials.flatMap(({ detail }) => detail?.upgrades.map((upgrade) => slug(upgrade.name)) ?? []))
+  const upgradeNames = new Set(detachmentSpecials.flatMap(({ detail }) => detail?.upgrades.map((upgrade) => routeSlug(upgrade.name)) ?? []))
   const enhancementNames = new Set(
     detachmentSpecials.flatMap(({ detail, catalogue }) => [
-      ...(detail?.enhancements.map((enhancement) => slug(enhancement.name)) ?? []),
-      ...(catalogue?.forcedEnhancements.map((enhancement) => slug(enhancement.name)) ?? []),
+      ...(detail?.enhancements.map((enhancement) => routeSlug(enhancement.name)) ?? []),
+      ...(catalogue?.forcedEnhancements.map((enhancement) => routeSlug(enhancement.name)) ?? []),
     ]),
   )
   const detachmentError = detachmentPointsError(purchased, budget)
@@ -182,7 +185,9 @@ export function calculateRosterPrice(data: PriceInput) {
       const choices: ((typeof unit.choices)[number] & { kind?: 'enhancement' | 'upgrade' })[] = unit.choices.map((choice) => {
         if (!choice.name.toLowerCase().includes('enhancement')) return choice
         const choiceOptions = choice.options ?? []
-        const kind = choiceOptions.every((option) => upgradeNames.has(slug(option.name))) ? ('upgrade' as const) : ('enhancement' as const)
+        const kind = choiceOptions.every((option) => upgradeNames.has(routeSlug(option.name)))
+          ? ('upgrade' as const)
+          : ('enhancement' as const)
         return {
           ...choice,
           kind,
@@ -195,11 +200,11 @@ export function calculateRosterPrice(data: PriceInput) {
       const specialChoices = new Set(
         choices
           .filter((choice) => choice.kind)
-          .flatMap((choice) => choice.options.filter((option) => option.count > 0).map((option) => slug(option.name))),
+          .flatMap((choice) => choice.options.filter((option) => option.count > 0).map((option) => routeSlug(option.name))),
       )
       const catalogued = wargearOf(unit.selection, loaded.index)
-      const automaticEnhancements = catalogued.filter((piece) => enhancementNames.has(slug(piece.name))).map((piece) => piece.name)
-      const specialSelections = new Set([...specialChoices, ...automaticEnhancements.map(slug)])
+      const automaticEnhancements = catalogued.filter((piece) => enhancementNames.has(routeSlug(piece.name))).map((piece) => piece.name)
+      const specialSelections = new Set([...specialChoices, ...automaticEnhancements.map(routeSlug)])
       const models = unitModels(
         unit.entryId,
         unit.selection,
@@ -236,7 +241,7 @@ export function calculateRosterPrice(data: PriceInput) {
         upgrades: choices
           .filter((choice) => choice.kind === 'upgrade')
           .flatMap((choice) => choice.options.filter((option) => option.count > 0).map((option) => option.name)),
-        wargear: wargear.filter((piece) => !specialSelections.has(slug(piece.name))),
+        wargear: wargear.filter((piece) => !specialSelections.has(routeSlug(piece.name))),
         group: groupOfEntry(loaded.index, unit.entryId),
         attachment: attachmentOf(loaded.index.definitions.get(unit.entryId) ?? { id: unit.entryId }, loaded.index),
       }
@@ -247,7 +252,7 @@ export function calculateRosterPrice(data: PriceInput) {
 export function uniqueNames(names: readonly string[]): string[] {
   const seen = new Set<string>()
   return names.filter((name) => {
-    const key = slug(name)
+    const key = routeSlug(name)
     if (seen.has(key)) return false
     seen.add(key)
     return true
@@ -337,7 +342,7 @@ function compositionExtras(composition: UnitComposition | null, rules: LoadedRul
 
   // Wargear with no profile still has a rule, and only the description source has it.
   const modelAbilities = named.flatMap((weapon) => {
-    const description = rules?.abilityDescriptions.get(slug(weapon.name))
+    const description = rules?.abilityDescriptions.get(routeSlug(weapon.name))
     if (!description || profiles.some((profile) => profile.name === weapon.name)) return []
     return [{ id: `wargear-${weapon.id}`, name: weapon.name, description, kind: 'wargear' as const }]
   })
@@ -416,11 +421,11 @@ export function heldWargear(
   const held = new Map<string, { name: string; count: number }>()
   const named = new Set<string>()
   const add = (name: string, count: number) => {
-    named.add(slug(name))
+    named.add(routeSlug(name))
     if (count <= 0) return
-    const seen = held.get(slug(name))
+    const seen = held.get(routeSlug(name))
     if (seen) seen.count += count
-    else held.set(slug(name), { name, count })
+    else held.set(routeSlug(name), { name, count })
   }
 
   for (const kind of models) {
@@ -432,7 +437,7 @@ export function heldWargear(
     for (const row of kind.rows) add(row.name, countOf(row.choiceKey, row.optionId))
     for (const swap of kind.swaps ?? []) for (const take of swap.takes) add(take, swap.count)
   }
-  for (const piece of catalogued) if (!named.has(slug(piece.name))) add(piece.name, piece.count)
+  for (const piece of catalogued) if (!named.has(routeSlug(piece.name))) add(piece.name, piece.count)
   return [...held.values()]
 }
 
@@ -459,8 +464,8 @@ function unitModels(
   if (composition.models.length < 2) return []
   // Nor may a kind claim a weapon the catalogue offers as a choice, for the same
   // reason: the choice is what the player acts on.
-  const chooseable = new Set(choices.flatMap((choice) => choice.options.map((option) => slug(option.name))))
-  if (composition.models.some((model) => model.weapons.some((weapon) => chooseable.has(slug(weapon.name))))) return []
+  const chooseable = new Set(choices.flatMap((choice) => choice.options.map((option) => routeSlug(option.name))))
+  if (composition.models.some((model) => model.weapons.some((weapon) => chooseable.has(routeSlug(weapon.name))))) return []
   /**
    * Which kind a swap belongs to.
    *

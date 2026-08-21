@@ -2,7 +2,7 @@ import { Undo2 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import type { Command, Secondary } from '../../../core/battle'
+import type { Command } from '../../../core/battle'
 import { HAND_SIZE, nextDraw } from '../../scoring'
 import type { Side } from '../../sides'
 import { MissionDetailsDialog, MissionName, type MissionDetails, type ReferenceCard } from './MissionCards'
@@ -150,7 +150,7 @@ export function DrawDialog({ side, round, undoable, initiallyPaused, pending, se
  * what is on the table it cannot, so that one is stated for the player to judge —
  * the same reason objective control is never inferred anywhere else.
  */
-export function redrawOffer(rule: WhenDrawn | undefined, round: number, held: readonly { key: string }[]): string | null {
+function redrawOffer(rule: WhenDrawn | undefined, round: number, held: readonly { key: string }[]): string | null {
   if (!rule) return null
   if (rule.roundMax !== null) {
     return round <= rule.roundMax ? `You may put this back in battle round ${rule.roundMax} or earlier.` : null
@@ -172,5 +172,3 @@ function shuffled<T>(deck: readonly T[]): T[] {
   }
   return cards
 }
-
-export type DrawableCard = Secondary

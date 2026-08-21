@@ -1,0 +1,125 @@
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useState } from 'react'
+import { ROSTER_NAME_MAX_LENGTH } from '../../../core/battle'
+import { deleteRoster, exportRoster, saveRoster, setRosterVisibility } from '../../../server/functions'
+import { savedRostersQuery } from '../../queries'
+import { errorMessage } from '../../queryClient'
+import type { RosterSetup } from '../RosterSetupDialog'
+
+/** One saved list, as the library reads it back. */
+export type SavedRoster = Awaited<ReturnType<NonNullable<ReturnType<typeof savedRostersQuery>['queryFn']>>>[number]
+
+/**
+ * Everything a saved list can have done to it from the library.
+ *
+ * Gathered here because the same six actions are offered twice on every row — from
+ * the overflow button and from the right-click menu — and because sharing has a
+ * rollback that has no business in a component.
+ */
+export function useRosterActions(origin: string) {
+  const queryClient = useQueryClient()
+  const refresh = () => queryClient.invalidateQueries({ queryKey: savedRostersQuery().queryKey })
+
+  const [copiedFor, setCopiedFor] = useState<string | null>(null)
+  const [shareProblem, setShareProblem] = useState<string | null>(null)
+  const [exportText, setExportText] = useState<string | null>(null)
+
+  const duplicate = useMutation({
+    mutationFn: (roster: SavedRoster) =>
+      saveRoster({
+        data: {
+          name: `Copy of ${roster.name}`.slice(0, ROSTER_NAME_MAX_LENGTH),
+          catalogueId: roster.catalogueId,
+          detachmentIds: roster.detachmentIds,
+          disposition: roster.disposition,
+          limit: roster.limit,
+          picks: roster.picks,
+          prep: roster.prep,
+          visibility: roster.visibility,
+          source: roster.source,
+        },
+      }),
+    onSuccess: refresh,
+  })
+
+  const remove = useMutation({ mutationFn: (id: string) => deleteRoster({ data: { id } }), onSuccess: refresh })
+
+  const access = useMutation({
+    mutationFn: ({ id, visibility }: { id: string; visibility: 'private' | 'unlisted' }) =>
+      setRosterVisibility({ data: { id, visibility } }),
+    onSuccess: refresh,
+  })
+
+  const take = useMutation({
+    mutationFn: (roster: SavedRoster) =>
+      exportRoster({
+        data: {
+          catalogueId: roster.catalogueId,
+          detachmentIds: roster.detachmentIds,
+          disposition: roster.disposition,
+          limit: roster.limit,
+          name: roster.name,
+          units: roster.picks,
+        },
+      }),
+    onSuccess: ({ text }) => setExportText(text),
+  })
+
+  const update = useMutation({
+    mutationFn: ({ roster, setup }: { roster: SavedRoster; setup: RosterSetup }) =>
+      saveRoster({
+        data: {
+          id: roster.id,
+          ...setup,
+          // A new faction is a new list: nothing picked from the old book still applies.
+          picks: setup.catalogueId === roster.catalogueId ? roster.picks : [],
+          prep: roster.prep,
+          visibility: setup.visibility,
+          source: roster.source,
+        },
+      }),
+    onSuccess: refresh,
+  })
+
+  /**
+   * Copies a link, making the list unlisted first when it is not already.
+   *
+   * A copy that fails after the list was opened up leaves it private again: the
+   * player asked for a link, not for their list to be readable by anyone holding one.
+   */
+  const share = async (roster: SavedRoster) => {
+    const promoted = roster.visibility === 'private'
+    setShareProblem(null)
+    try {
+      if (promoted) await access.mutateAsync({ id: roster.id, visibility: 'unlisted' })
+      await navigator.clipboard.writeText(`${origin}/rosters/${roster.id}`)
+      setCopiedFor(roster.id)
+    } catch (error) {
+      let problem = errorMessage(error)
+      if (promoted) {
+        try {
+          await access.mutateAsync({ id: roster.id, visibility: 'private' })
+        } catch (rollbackError) {
+          problem = `${problem}. The roster could not be made private again: ${errorMessage(rollbackError)}`
+        }
+      }
+      setShareProblem(problem)
+    }
+  }
+
+  return {
+    duplicate,
+    remove,
+    access,
+    take,
+    update,
+    share,
+    print: (id: string) => window.open(`/rosters/${id}?print=true`, '_blank'),
+    copiedFor,
+    shareProblem,
+    exportText,
+    clearExport: () => setExportText(null),
+  }
+}
+
+export type RosterActions = ReturnType<typeof useRosterActions>

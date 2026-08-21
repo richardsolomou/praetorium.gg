@@ -26,6 +26,19 @@ Server catalogue code is split by responsibility:
 - `catalogueDescriptions.ts` resolves detachment and enhancement text without guessing between conflicting matches.
 - `sync.ts` owns downloads and atomic replacement. It does not interpret game data.
 
+The rules dataset is split the same way. `rules.ts` only assembles `LoadedRules`; `rulesSource.ts` reads the files and keys what it finds, and `rulesCards.ts`, `rulesDatasheets.ts`, `rulesFactions.ts` and `rulesTerrain.ts` each own one part of it. An absent source leaves its part empty rather than guessed.
+
+Core catalogue code is split by question:
+
+- `definitions.ts` reads what the data says about one entry: what a link resolves to, what it holds, and whether a number is one model's or the whole squad's.
+- `selection.ts` reads and rewrites a selection tree by path. It knows nothing about catalogues.
+- `expand.ts` builds the smallest legal selection of an entry, and swaps a single choice.
+- `unitSize.ts` says how many models a selection fields and which group resizes it.
+- `unitChoices.ts` says what the data still leaves to the player, read from the datasheet rather than from what was built.
+- `unitSpread.ts` divides a squad between the options one group offers, keeping the squad the size the player set.
+- `modelKinds.ts` gathers per-loadout entries back into the kinds of model a datasheet names.
+- `roster.ts` assembles all of it into `buildUnit`, and `wargear.ts` lists what the result is carrying.
+
 ## Books and datasheets
 
 - A book offers the datasheets linked from its root. Do not identify datasheets by entry type or file depth.

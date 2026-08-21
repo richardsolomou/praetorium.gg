@@ -1,5 +1,6 @@
 import { Button } from '@/components/ui/button'
-import { type BattleView, type Command, UNIT_FORMATIONS } from '../../../core/battle'
+import { type Command, UNIT_FORMATIONS } from '../../../core/battle'
+import { type BattleView } from '../../../core/battleView'
 import type { Army, Side } from '../../sides'
 import { sideName } from '../../sides'
 import { HEADING, tint } from '../battle/tints'

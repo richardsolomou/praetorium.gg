@@ -1,4 +1,4 @@
-import type { BattleView } from '../core/battle'
+import type { BattleView } from '../core/battleView'
 
 type ViewPlayer = BattleView['players'][number]
 

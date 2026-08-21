@@ -1,0 +1,260 @@
+/**
+ * The decisions a datasheet leaves to the player, and what is currently taken in each.
+ *
+ * Read from the datasheet rather than from the built selection, because what a unit
+ * *may* take is a property of the data: an enhancement group is optional and therefore
+ * absent from a default list, and walking only what was built would never offer it.
+ */
+
+import type { CatalogueIndex, Definition } from './catalogue'
+import {
+  childrenOf,
+  isRosterToggle,
+  MAX_DEPTH,
+  maximumCount,
+  modelOwnerOf,
+  modelProfileOf,
+  type Option,
+  pointsOf,
+  repeatedCarrierOn,
+  repeatedModelOn,
+  requiredCount,
+  resolve,
+  scaleOf,
+  UNBOUNDED,
+} from './definitions'
+import { evaluate, hiddenByRules, type Selection } from './evaluate'
+import { allAt, at, countAt, withCounts, withSpread } from './selection'
+import { modelCountOf, sizeOf } from './unitSize'
+
+/** A decision the data leaves to the player: one of these, in this slot. */
+export type UnitChoice = {
+  /** Path to the group holding the options, as a `/`-joined key the caller can round-trip. */
+  key: string
+  name: string
+  /** Empty when nothing is taken, which an optional group starts out as. */
+  chosen: string
+  /** An enhancement is a choice a list may simply decline, so it needs a way to say no. */
+  optional: boolean
+  /**
+   * Whether the group hangs off a model the squad need not include.
+   *
+   * Such a group insists on holding something only once its carrier is there, so
+   * emptying it is not a violation — it takes the carrier away with it. That is the
+   * difference between a sergeant who must pick one of his weapons and a heavy
+   * weapon the squad may simply go without.
+   */
+  carried: boolean
+  /**
+   * How many selections the group may hold at once.
+   *
+   * One is an either-or: a captain's relic blade or his power sword. More than one
+   * is a squad dividing itself, and the two want different controls — a choice of
+   * one, against a count against each option.
+   */
+  room: number
+  /**
+   * `profile` is set when the option is a model rather than a piece of wargear, and
+   * names the kind of model it is one loadout of.
+   */
+  options: { id: string; name: string; points: number; count: number; max: number; profile?: string | null }[]
+  /**
+   * The specific model this choice belongs to, when it is not every model in the unit.
+   *
+   * `profile` is the unit profile the model shares with its siblings, which is what
+   * separates the kinds of model a datasheet names — a sergeant from the veterans he
+   * leads — from the per-loadout entries the catalogue splits each kind into.
+   */
+  owner: { id: string; name: string; profile: string | null } | null
+}
+
+export type UnitToggle = { key: string; name: string; selected: boolean }
+
+export type ChoiceOptions = { primaryCatalogueId?: string; depth?: number; roster?: readonly Selection[] }
+
+export function unitChoices(entryId: string, selection: Selection, index: CatalogueIndex, options: ChoiceOptions = {}): UnitChoice[] {
+  const depth = options.depth ?? MAX_DEPTH
+  // The unit's own selection has to be in the roster it is judged against, or a
+  // question about its surroundings has nothing to look at.
+  const roster = [...(options.roster ?? []), selection]
+  const visible = (definition: Definition) => !hiddenByRules(definition, index, { ...options, roster })
+  const entry = index.definitions.get(entryId)
+  if (!entry) return []
+
+  const choices: UnitChoice[] = []
+  const walk = (definition: Definition, trail: string[], left: number, seen: Set<string>, carriers: number) => {
+    const target = resolve(definition, index)
+    if (left <= 0 || seen.has(target.id)) return
+    const visited = new Set(seen).add(target.id)
+
+    for (const child of childrenOf(target, index)) {
+      if (!visible(child.definition)) continue
+      const inner = resolve(child.definition, index)
+      const here = [...trail, child.id]
+
+      const repeatingEntry = inner.type === 'upgrade' ? repeatedModelOn(trail, index) : null
+      if (
+        repeatingEntry &&
+        repeatingEntry.path.length === trail.length &&
+        requiredCount(child.definition, index) === 0 &&
+        maximumCount(child.definition, index) === 1
+      ) {
+        const room = effectiveCount(selection, repeatingEntry.path, repeatingEntry.definition, index, options)
+        const count = allAt(selection, repeatingEntry.path).reduce(
+          (total, model) => total + (at(model, here.slice(repeatingEntry.path.length)) ? (model.count ?? 1) : 0),
+          0,
+        )
+        choices.push({
+          key: here.join('/'),
+          name: inner.name ?? child.id,
+          chosen: count ? child.id : '',
+          optional: true,
+          room,
+          options: [{ id: child.id, name: inner.name ?? child.id, points: pointsOf(child, index), count, max: room }],
+          carried: true,
+          owner: modelOwnerOf(trail, index),
+        })
+      }
+
+      if (inner.type === undefined) {
+        const choosable = childrenOf(inner, index).filter(
+          (option) => visible(option.definition) && resolve(option.definition, index).type !== undefined,
+        )
+        const repeating = repeatedCarrierOn(here, index)
+        const scale = repeating
+          ? effectiveCount(selection, repeating.path, repeating.definition, index, options)
+          : scaleOf(child.definition, index, carriers)
+        const capacity = maximumCount(child.definition, index)
+        const room = capacity === null ? occupantRoom(choosable, index) : capacity * scale
+        const fixed = choosable.some((option) => requiredCount(option.definition, index) > 0)
+        const adjustable = fixed ? choosable.filter((option) => requiredCount(option.definition, index) === 0) : choosable
+        const held = repeating
+          ? repeatedOptions(selection, repeating.path, here.slice(repeating.path.length))
+          : allAt(selection, here).flatMap((group) => group.selections ?? [])
+        // One model kind can sit in the group more than once — two veterans with a
+        // pyrecannon and two more with a heavy bolter are four selections of the
+        // same entry — so how many there are is a sum, not the first one found.
+        const countOf = (id: string) =>
+          held.filter((present) => present.id === id).reduce((total, present) => total + (present.count ?? 1), 0)
+        const adjustableRoom = fixed ? adjustable.reduce((total, option) => total + countOf(option.id), 0) : room
+        const optionalSingle = !fixed && adjustable.length === 1 && requiredCount(child.definition, index) === 0
+        if ((adjustable.length > 1 || optionalSingle) && adjustableRoom >= 1 && adjustableRoom !== UNBOUNDED) {
+          const taken = held.find((present) => (present.count ?? 1) > 0 && adjustable.some((option) => option.id === present.id))
+          choices.push({
+            key: here.join('/'),
+            name: inner.name ?? 'Choice',
+            chosen: taken?.id ?? '',
+            optional: requiredCount(child.definition, index) === 0,
+            room: adjustableRoom,
+            options: adjustable.map((option) => ({
+              id: option.id,
+              name: resolve(option.definition, index).name ?? option.id,
+              points: pointsOf(option, index),
+              count: countOf(option.id),
+              max: repeating ? adjustableRoom : legalMaximum(selection, here, option, adjustable, adjustableRoom, index, options),
+              ...(resolve(option.definition, index).type === 'model' ? { profile: modelProfileOf(option.definition, index) } : {}),
+            })),
+            carried: Boolean(repeating),
+            owner: modelOwnerOf(trail, index),
+          })
+        }
+      }
+
+      // What is inside an entry is held by however many of it the selection holds.
+      if (inner.type !== 'upgrade') {
+        walk(child.definition, here, left - 1, visited, inner.type === undefined ? carriers : (at(selection, here)?.count ?? 1))
+      }
+    }
+  }
+
+  walk(entry, [], depth, new Set(), 1)
+  // An owner only means something next to a sibling it differs from. A unit built
+  // from one model throughout has nothing to contrast it with, so naming that model
+  // on every choice would repeat the unit's own name rather than distinguish anything.
+  if (new Set(choices.map((choice) => choice.owner?.id ?? '')).size <= 1) return choices.map((choice) => ({ ...choice, owner: null }))
+  return choices
+}
+
+/** Optional single entries with roster meaning rather than loadout meaning. */
+export function unitToggles(entryId: string, selection: Selection, index: CatalogueIndex): UnitToggle[] {
+  const root = index.definitions.get(entryId)
+  if (!root) return []
+  const found: UnitToggle[] = []
+  const walk = (definition: Definition, trail: string[], seen: Set<string>) => {
+    const target = resolve(definition, index)
+    if (seen.has(target.id)) return
+    const visited = new Set(seen).add(target.id)
+    for (const child of childrenOf(target, index)) {
+      const inner = resolve(child.definition, index)
+      const here = [...trail, child.id]
+      if (isRosterToggle(inner.name ?? child.definition.name)) {
+        found.push({ key: here.join('/'), name: 'Warlord', selected: (at(selection, here)?.count ?? 0) > 0 })
+      } else walk(child.definition, here, visited)
+    }
+  }
+  walk(root, [], new Set())
+  return found
+}
+
+function repeatedOptions(selection: Selection, modelPath: readonly string[], groupPath: readonly string[]): Selection[] {
+  const totals = new Map<string, number>()
+  for (const model of allAt(selection, modelPath)) {
+    const group = at(model, groupPath)
+    for (const option of group?.selections ?? []) {
+      totals.set(option.id, (totals.get(option.id) ?? 0) + (option.count ?? 1) * (model.count ?? 1))
+    }
+  }
+  return [...totals].map(([id, count]) => ({ id, count }))
+}
+
+/** How many of a repeated carrier the list will actually accept, found by asking. */
+function effectiveCount(
+  selection: Selection,
+  path: readonly string[],
+  definition: Definition,
+  index: CatalogueIndex,
+  context: { primaryCatalogueId?: string; roster?: readonly Selection[] },
+): number {
+  const targetId = resolve(definition, index).id
+  const ceiling = Math.max(1, modelCountOf(selection, index))
+  const size = sizeOf(selection, index)
+  const existing = allAt(selection, path).reduce((total, model) => total + (model.count ?? 1), 0)
+  for (let count = Math.max(1, existing + 1); count <= ceiling; count++) {
+    let candidate = withCounts(selection, [{ path, count }])
+    if (size.path.length && size.path.join('/') !== path.join('/')) {
+      const resized = countAt(candidate, size.path) - (count - existing)
+      if (resized < 0) return count - 1
+      candidate = withCounts(candidate, [{ path: size.path, count: resized }])
+    }
+    const result = evaluate([...(context.roster ?? []), candidate], index, { primaryCatalogueId: context.primaryCatalogueId })
+    if (result.errors.some((error) => error.entryId === targetId && error.message.startsWith('allows at most'))) {
+      return Math.max(existing, count - 1)
+    }
+  }
+  return ceiling
+}
+
+/** The effective cap after conditional catalogue modifiers have been applied. */
+function legalMaximum(
+  selection: Selection,
+  path: readonly string[],
+  option: Option,
+  siblings: readonly Option[],
+  room: number,
+  index: CatalogueIndex,
+  context: { primaryCatalogueId?: string; roster?: readonly Selection[] },
+): number {
+  const targetId = resolve(option.definition, index).id
+  for (let count = 1; count <= room; count++) {
+    const other = siblings.find((candidate) => candidate.id !== option.id)
+    const counts: Record<string, number> = { [option.id]: count }
+    if (other) counts[other.id] = room - count
+    const candidate = withSpread(selection, path.join('/'), counts)
+    const result = evaluate([...(context.roster ?? []), candidate], index, { primaryCatalogueId: context.primaryCatalogueId })
+    if (result.errors.some((error) => error.entryId === targetId && error.message.startsWith('allows at most'))) return count - 1
+  }
+  return room
+}
+
+const occupantRoom = (choosable: Option[], index: CatalogueIndex) =>
+  choosable.length ? Math.min(...choosable.map((option) => maximumCount(option.definition, index) ?? UNBOUNDED)) : UNBOUNDED

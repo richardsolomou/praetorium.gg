@@ -1,0 +1,186 @@
+import fs from 'node:fs'
+import path from 'node:path'
+import type { Stratagem } from '../core/battle'
+import { routeSlug } from '../core/slug'
+import { byName, factionDirectories, readJson, readOptionalList, titleCase } from './rulesSource'
+import { type RawStratagem, toStratagem } from './rulesCards'
+import { findDescription, findDetachmentAbilities, type WahapediaDescriptions } from './wahapedia'
+
+/**
+ * Who the factions are, and what each of their detachments brings.
+ *
+ * Names, icons and army rules from the licensed dataset; the prose that describes a
+ * detachment ability, enhancement or stratagem from Wahapedia's export. Everything is
+ * keyed by the faction directory the dataset uses, which is also the slug the app
+ * routes reference pages by.
+ */
+
+type RawFaction = { id: string; name: string; aliases?: string[]; faction_rule_id?: string; logo_url?: string }
+
+type RawDetachment = {
+  id: string
+  name: string
+  enhancement_ids?: string[]
+  stratagem_ids?: string[]
+  detachment_points?: number
+  force_dispositions?: string[]
+}
+
+type RawEnhancement = { id: string; name: string; detachment_id?: string; cost?: number; keyword_restrictions?: string[] }
+const isUnitUpgrade = (name: string) => /\s*\(upgrade\)\s*$/i.test(name)
+
+export type DetachmentReference = {
+  enhancements: number
+  upgrades: number
+  stratagems: number
+  points: number | null
+  dispositions: string[]
+}
+
+export type DetachmentRulesDetail = {
+  id: string
+  name: string
+  points: number | null
+  dispositions: string[]
+  rules: { name: string; description: string }[]
+  enhancements: { name: string; points: number | null; description: string | null; keywordRestrictions: string[] }[]
+  upgrades: { name: string; points: number | null; description: string | null }[]
+  stratagems: {
+    id: string
+    name: string
+    cp: number
+    type: string | null
+    phases: string[]
+    turn: string | null
+    description: string | null
+  }[]
+}
+
+export type LoadedFactions = {
+  /** Player-facing faction names, separate from BSData's technical catalogue labels. */
+  factionNames: Map<string, string>
+  factionIcons: Map<string, string>
+  factionRules: Map<string, { name: string; description: string }>
+  /** Display metadata for each detachment, from the same licensed source as its stratagems. */
+  detachmentReferences: Map<string, Map<string, DetachmentReference>>
+  detachmentDetails: Map<string, Map<string, DetachmentRulesDetail>>
+  /** Faction slug then detachment slug, so a chosen detachment maps straight to its six. */
+  byDetachment: Map<string, Map<string, Stratagem[]>>
+  /** Whatever the dataset says about how settled these numbers are. */
+  dataslate: string | null
+}
+
+export function loadFactions(core: string, iconDirectory: string, wahapedia: WahapediaDescriptions | null): LoadedFactions {
+  const byDetachment = new Map<string, Map<string, Stratagem[]>>()
+  const detachmentReferences = new Map<string, Map<string, DetachmentReference>>()
+  const detachmentDetails = new Map<string, Map<string, DetachmentRulesDetail>>()
+  const factionNames = new Map<string, string>()
+  const factionIcons = new Map<string, string>()
+  const factionRules = new Map<string, { name: string; description: string }>()
+  let dataslate: string | null = null
+
+  for (const faction of factionDirectories(core)) {
+    const file = path.join(core, faction, 'stratagems.json')
+    const factionFile = path.join(core, faction, 'factions.json')
+    if (fs.existsSync(factionFile)) {
+      for (const found of readJson<RawFaction[]>(factionFile)) {
+        factionNames.set(found.id, found.name)
+        const icon = path.join(iconDirectory, `${found.id}.svg`)
+        if (found.logo_url) {
+          const source = fs.existsSync(icon) ? `data:image/svg+xml;base64,${fs.readFileSync(icon).toString('base64')}` : found.logo_url
+          factionIcons.set(found.id, source)
+          for (const alias of found.aliases ?? []) factionIcons.set(routeSlug(alias), source)
+        }
+        const description = found.faction_rule_id ? wahapedia?.abilities.get(found.faction_rule_id) : null
+        if (found.faction_rule_id && description) {
+          const name = titleCase(found.faction_rule_id.replaceAll('-', ' ')).replace(/\s(Of|The|And|For|From|In|To)\b/g, (word) =>
+            word.toLowerCase(),
+          )
+          const rule = { name, description }
+          factionRules.set(found.id, rule)
+          for (const alias of found.aliases ?? []) factionRules.set(routeSlug(alias), rule)
+        }
+      }
+    }
+    const referenceFile = path.join(core, faction, 'detachments.json')
+    const enhancementFile = path.join(core, faction, 'enhancements.json')
+    if (fs.existsSync(referenceFile)) {
+      const rawDetachments = readJson<RawDetachment[]>(referenceFile)
+      const enhancements = fs.existsSync(enhancementFile) ? readJson<RawEnhancement[]>(enhancementFile) : []
+      const rawStratagems = fs.existsSync(file) ? readJson<RawStratagem[]>(file) : []
+      detachmentReferences.set(
+        faction,
+        new Map(
+          rawDetachments.map((detachment) => [
+            detachment.id,
+            {
+              enhancements: enhancements.filter(
+                (enhancement) => enhancement.detachment_id === detachment.id && !isUnitUpgrade(enhancement.name),
+              ).length,
+              upgrades: enhancements.filter((enhancement) => enhancement.detachment_id === detachment.id && isUnitUpgrade(enhancement.name))
+                .length,
+              stratagems: detachment.stratagem_ids?.length ?? 0,
+              points: detachment.detachment_points ?? null,
+              dispositions: detachment.force_dispositions ?? [],
+            },
+          ]),
+        ),
+      )
+      detachmentDetails.set(
+        faction,
+        new Map(
+          rawDetachments.map((detachment) => [
+            detachment.id,
+            {
+              id: detachment.id,
+              name: detachment.name,
+              points: detachment.detachment_points ?? null,
+              dispositions: detachment.force_dispositions ?? [],
+              rules: wahapedia ? [...findDetachmentAbilities(wahapedia.detachmentAbilities, detachment.name)] : [],
+              enhancements: enhancements
+                .filter((enhancement) => enhancement.detachment_id === detachment.id && !isUnitUpgrade(enhancement.name))
+                .map((enhancement) => ({
+                  name: enhancement.name,
+                  points: enhancement.cost ?? null,
+                  description: wahapedia ? findDescription(wahapedia.enhancements, detachment.name, enhancement.name) : null,
+                  keywordRestrictions: enhancement.keyword_restrictions ?? [],
+                })),
+              upgrades: enhancements
+                .filter((enhancement) => enhancement.detachment_id === detachment.id && isUnitUpgrade(enhancement.name))
+                .map((enhancement) => ({
+                  name: enhancement.name.replace(/\s*\(upgrade\)\s*$/i, ''),
+                  points: enhancement.cost ?? null,
+                  description: wahapedia ? findDescription(wahapedia.enhancements, detachment.name, enhancement.name) : null,
+                })),
+              stratagems: rawStratagems
+                .filter((stratagem) => stratagem.detachment_id === detachment.id)
+                .map((stratagem) => ({
+                  id: stratagem.id,
+                  name: titleCase(stratagem.name),
+                  cp: stratagem.cp_cost ?? 0,
+                  type: stratagem.type ? titleCase(stratagem.type.replaceAll('-', ' ')) : null,
+                  phases: stratagem.phases ?? [],
+                  turn: stratagem.player_turn ?? null,
+                  description: wahapedia ? findDescription(wahapedia.stratagems, detachment.name, stratagem.name) : null,
+                }))
+                .toSorted(byName),
+            },
+          ]),
+        ),
+      )
+    }
+    if (!fs.existsSync(file)) continue
+
+    const detachments = new Map<string, Stratagem[]>()
+    for (const raw of readOptionalList<RawStratagem>(file)) {
+      dataslate ??= raw.game_version?.dataslate ?? null
+      if (!raw.detachment_id) continue
+      const existing = detachments.get(raw.detachment_id) ?? []
+      existing.push(toStratagem(raw))
+      detachments.set(raw.detachment_id, existing)
+    }
+    if (detachments.size) byDetachment.set(faction, detachments)
+  }
+
+  return { factionNames, factionIcons, factionRules, detachmentReferences, detachmentDetails, byDetachment, dataslate }
+}

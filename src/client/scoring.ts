@@ -1,4 +1,5 @@
-import { type BattleView, type Phase, TACTICAL_HAND_SIZE } from '../core/battle'
+import { TACTICAL_HAND_SIZE } from '../core/battle'
+import { type BattleView } from '../core/battleView'
 
 import type { MissionAward } from './missionText'
 
@@ -87,8 +88,6 @@ export function cardsDue(
 }
 
 /** The phase the card data names, so a label can say which one is being settled. */
-export const phaseLabel = (phase: Phase) => `${phase} phase`
-
 /** A tactical hand is two cards. */
 export { TACTICAL_HAND_SIZE as HAND_SIZE }
 
