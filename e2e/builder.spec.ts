@@ -92,6 +92,29 @@ test('adding a unit keeps the confirmed roster visible while pricing catches up'
   await page.screenshot({ path: 'test-results/roster-visible-while-adding.png', fullPage: true })
 })
 
+test('deleting a unit keeps the rest of the roster visible while pricing catches up', async ({ page }) => {
+  await openBuilder(page)
+  await add(page, 'Immortals')
+  await add(page, 'Overlord')
+  await add(page, 'Necron Warriors')
+  await expect(page.locator('[data-unit]')).toHaveCount(3)
+
+  await page.route('**/_serverFn/**', async (route) => {
+    if (route.request().method() === 'POST') await new Promise((resolve) => setTimeout(resolve, 1000))
+    await route.continue()
+  })
+  await page.locator('[data-unit="Overlord"]').getByLabel('Unit actions for Overlord').click()
+  await page.getByRole('menuitem', { name: 'Delete unit' }).click()
+
+  // The two that are left stay on screen: the roster is drawn from the price, and the
+  // price is a round trip behind, so discarding it emptied the list in front of you.
+  await expect(page.getByText('Pick a unit to start building.')).toBeHidden({ timeout: 250 })
+  await expect(page.locator('[data-unit]')).toHaveCount(2, { timeout: 250 })
+  await expect(page.locator('[data-unit="Immortals"]')).toBeVisible()
+  await expect(page.locator('[data-unit="Necron Warriors"]')).toBeVisible()
+  await page.screenshot({ path: 'test-results/roster-visible-while-deleting.png', fullPage: true })
+})
+
 test('owned units rise to the top of their roster and picker groups', async ({ page }) => {
   await openBuilder(page)
   await add(page, 'Necron Warriors')
