@@ -17,4 +17,6 @@ jobs:
       application-prefix: praetorium
       domain: praetorium.gg
       port: 3000
+      # Same script as the deploy, so there is one implementation of the lifecycle.
+      deploy-script: scripts/previewDeploy.ts
     secrets: inherit

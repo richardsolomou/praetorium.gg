@@ -7,14 +7,17 @@ import { catalogueDirectory, type LoadedCatalogue, loadCatalogue } from './catal
 import { type LoadedRules, loadRules } from './rules'
 import { DEFAULT_CATALOGUE_SNAPSHOT_BASE_URL, fetchCurrentSnapshot, installedSnapshot } from './catalogueSnapshot'
 import type { SyncState } from './sync'
-import { databasePath, type PraetoriumDatabase, openDatabase } from '../db/connection'
+import { databaseUrl, type PraetoriumDatabase, openDatabase } from '../db/connection'
 import { Repository } from '../db/repository'
 import { createAuth } from './auth'
 import { realtimeConfig } from '../adapters/realtime'
+import { openValkey, type ValkeyClient, valkeyUrl } from '../adapters/valkey'
 import { PraetoriumService } from './service'
 
 type App = {
   database: PraetoriumDatabase
+  /** Null on a single-replica instance, which needs none of it. */
+  valkey: ValkeyClient | null
   service: PraetoriumService
   events: BattleEvents
   /** Loaded on first use, and null on an instance with no catalogue data synced. */
@@ -93,16 +96,20 @@ export function warm(instance: Pick<App, 'catalogue' | 'rules'>): Promise<void> 
 export function app(): App {
   return globalSingleton('praetorium.app', () => {
     const telemetry = serverTelemetry()
-    const file = databasePath()
-    const database = openDatabase(file)
+    // Secrets and the catalogue cache still live on disk; only the game data moved.
+    const dataDirectory = path.resolve(process.env.DATA_DIR ?? '/data')
+    const { database } = openDatabase(databaseUrl())
+    const valkey = valkeyUrl()
+    const cache = valkey ? openValkey(valkey) : null
     const realtime = realtimeConfig()
     const events = new RealtimePublisher(realtime.apiUrl, realtime.apiKey)
     let ready = Promise.resolve()
     const instance: App = {
       database,
+      valkey: cache,
       service: new PraetoriumService(new Repository(database), Date.now, events),
       events,
-      auth: createAuth(database, persistedSecret({ directory: path.dirname(file) })),
+      auth: createAuth(database, persistedSecret({ directory: dataDirectory }), cache ?? undefined),
       catalogue: memoize(loadCatalogue),
       rules: memoize(loadRules),
       sync: () => sync.state,
@@ -111,14 +118,14 @@ export function app(): App {
     }
     // Fetched in the background rather than at boot: an instance must start and
     // serve battles whether or not it has the catalogues yet.
-    sync.begin(catalogueDirectory(path.dirname(file)), () => {
+    sync.begin(catalogueDirectory(dataDirectory), () => {
       instance.catalogue = memoize(loadCatalogue)
       instance.rules = memoize(loadRules)
       ready = warm(instance)
     })
     const catalogueRefresh = setInterval(
       () =>
-        sync.begin(catalogueDirectory(path.dirname(file)), () => {
+        sync.begin(catalogueDirectory(dataDirectory), () => {
           instance.catalogue = memoize(loadCatalogue)
           instance.rules = memoize(loadRules)
           ready = warm(instance)

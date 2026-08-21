@@ -15,7 +15,7 @@ import { type BattleView, battleView } from '../core/battleView'
 import { battleReport } from '../core/battleReport'
 import type { RosterPick } from '../core/roster'
 import type { RosterSource } from '../core/savedRoster'
-import type { BattleSeats, JoinResult, Repository } from '../db/repository'
+import type { BattleHistory, BattleSeats, JoinResult, Repository } from '../db/repository'
 import { type Mission, missionFor } from './rules'
 import { picksSchema, savedPrepSchema } from './schemas'
 
@@ -47,26 +47,31 @@ export class PraetoriumService {
     private readonly events: BattleEvents,
   ) {}
 
-  /** A user's battles with their current state folded from each log. */
-  battles(userId: string, rules?: Parameters<typeof missionFor>[0] | null) {
-    return this.repository.battlesByUser(userId).map((seats) => {
-      const log = this.repository.log(seats.battle.id)
+  /**
+   * A user's battles with their current state folded from each log.
+   *
+   * The logs arrive with the seats, so the cost of this page does not grow by a
+   * round trip for every battle the player has ever opened.
+   */
+  async battles(userId: string, rules?: Parameters<typeof missionFor>[0] | null) {
+    const histories = await this.repository.battlesByUser(userId)
+    return histories.map(({ battle, players, log }) => {
       const state = reduceBattle(
-        seats.players.map((player) => player.id),
+        players.map((player) => player.id),
         log,
-        seats.players.map((player) => player.side),
+        players.map((player) => player.side),
       )
       const viewerSide = state.players.find((player) => player.id === userId)?.side
       const ownDisposition = state.players.find((player) => player.side === viewerSide)?.roster?.built?.disposition ?? null
       const opposingDisposition = state.players.find((player) => player.side !== viewerSide)?.roster?.built?.disposition ?? null
       return {
-        token: seats.battle.token,
-        createdAt: seats.battle.createdAt,
+        token: battle.token,
+        createdAt: battle.createdAt,
         status: state.status,
         round: state.round,
         phase: state.phase,
-        players: seats.players.map((player) => player.name),
-        playerIds: seats.players.map((player) => player.id),
+        players: players.map((player) => player.name),
+        playerIds: players.map((player) => player.id),
         sides: state.players.map((player) => player.side),
         armies: state.players.map((player) => player.roster?.name ?? null),
         detachments: state.players.map((player) => player.roster?.built?.detachments?.map((detachment) => detachment.name) ?? []),
@@ -80,19 +85,25 @@ export class PraetoriumService {
         deploymentId: state.deploymentId,
         settings: state.settings,
         result: state.result,
-        lastActivity: log.at(-1)?.at ?? seats.battle.createdAt,
+        lastActivity: log.at(-1)?.at ?? battle.createdAt,
       }
     })
   }
 
-  userProfile(viewerId: string, userId: string) {
-    const profile = this.repository.profileByUserId(userId)
+  /**
+   * Someone's name and picture, to a viewer allowed to see it.
+   *
+   * Sharing a battle is the whole test, and it is asked as that one question
+   * rather than by reading every battle the viewer plays and looking through them.
+   */
+  async userProfile(viewerId: string, userId: string) {
+    const profile = await this.repository.profileByUserId(userId)
     if (!profile) return null
     if (viewerId === userId) return profile
-    return this.repository.battlesByUser(viewerId).some((battle) => battle.players.some((player) => player.id === userId)) ? profile : null
+    return (await this.repository.shareBattle(viewerId, userId)) ? profile : null
   }
 
-  saveRoster(
+  async saveRoster(
     userId: string,
     roster: {
       id?: string
@@ -108,9 +119,9 @@ export class PraetoriumService {
     },
   ) {
     const id = roster.id ?? randomId()
-    const existing = this.repository.roster(id)
+    const existing = await this.repository.roster(id)
     if (existing && existing.userId !== userId) throw new Response('you do not own this roster', { status: 403 })
-    this.repository.saveRoster({
+    await this.repository.saveRoster({
       ...roster,
       detachmentId: JSON.stringify(roster.detachmentIds),
       id,
@@ -124,8 +135,9 @@ export class PraetoriumService {
   }
 
   /** A user's own saved lists, newest first. Their picks come back parsed. */
-  savedRosters(userId: string) {
-    return this.repository.rostersByUser(userId).map((row) => ({
+  async savedRosters(userId: string) {
+    const rows = await this.repository.rostersByUser(userId)
+    return rows.map((row) => ({
       ...rosterFromRow(row),
       prep: row.prep ? savedPrepSchema.parse(JSON.parse(row.prep)) : null,
     }))
@@ -139,107 +151,117 @@ export class PraetoriumService {
    * and its units, so the reader can see this list either way. The battle has to be
    * named, so the check stays one log rather than a scan of every battle they play.
    */
-  sharedRoster(id: string, userId: string | null = null, token: string | null = null) {
-    const row = this.repository.roster(id)
+  async sharedRoster(id: string, userId: string | null = null, token: string | null = null) {
+    const row = await this.repository.roster(id)
     if (!row) return null
     if (row.visibility === 'unlisted' || row.userId === userId) return rosterFromRow(row)
-    return userId && token && this.fieldedIn(token, userId, id) ? rosterFromRow(row) : null
+    if (!userId || !token) return null
+    return (await this.fieldedIn(token, userId, id)) ? rosterFromRow(row) : null
   }
 
   /** Whether a reader shares a battle with the list they are asking about. */
-  private fieldedIn(token: string, userId: string, rosterId: string) {
-    const seats = this.repository.battleByToken(token)
-    if (!seats?.players.some((player) => player.id === userId)) return false
-    return this.repository
-      .log(seats.battle.id)
-      .some((entry) => entry.command.kind === 'attach-roster' && entry.command.roster.id === rosterId)
+  private async fieldedIn(token: string, userId: string, rosterId: string) {
+    const history = await this.repository.battleHistoryByToken(token)
+    if (!history?.players.some((player) => player.id === userId)) return false
+    return history.log.some((entry) => entry.command.kind === 'attach-roster' && entry.command.roster.id === rosterId)
   }
 
-  setRosterVisibility(userId: string, id: string, visibility: 'private' | 'unlisted') {
-    if (!this.repository.setRosterVisibility(id, userId, visibility, this.clock())) {
+  async setRosterVisibility(userId: string, id: string, visibility: 'private' | 'unlisted') {
+    if (!(await this.repository.setRosterVisibility(id, userId, visibility, this.clock()))) {
       throw new Response('you do not own this roster', { status: 403 })
     }
   }
 
-  deleteRoster(userId: string, id: string) {
-    this.repository.deleteRoster(id, userId)
+  async deleteRoster(userId: string, id: string) {
+    await this.repository.deleteRoster(id, userId)
   }
 
   /** The datasheets a user owns, as a set the picker can ask about directly. */
-  collection(userId: string) {
-    return this.repository.collectionByUser(userId).map((row) => row.entryId)
+  async collection(userId: string) {
+    const rows = await this.repository.collectionByUser(userId)
+    return rows.map((row) => row.entryId)
   }
 
-  setOwned(userId: string, entryId: string, owned: boolean) {
-    if (owned) this.repository.addToCollection({ userId, entryId, now: this.clock() })
-    else this.repository.removeFromCollection(userId, entryId)
+  async setOwned(userId: string, entryId: string, owned: boolean) {
+    if (owned) await this.repository.addToCollection({ userId, entryId, now: this.clock() })
+    else await this.repository.removeFromCollection(userId, entryId)
   }
 
-  favouriteFactions(userId: string) {
-    return this.repository.favouriteFactionsByUser(userId).map((row) => row.catalogueId)
+  async favouriteFactions(userId: string) {
+    const rows = await this.repository.favouriteFactionsByUser(userId)
+    return rows.map((row) => row.catalogueId)
   }
 
-  setFavouriteFaction(userId: string, catalogueId: string, favourite: boolean) {
-    if (favourite) this.repository.addFavouriteFaction({ userId, catalogueId, now: this.clock() })
-    else this.repository.removeFavouriteFaction(userId, catalogueId)
+  async setFavouriteFaction(userId: string, catalogueId: string, favourite: boolean) {
+    if (favourite) await this.repository.addFavouriteFaction({ userId, catalogueId, now: this.clock() })
+    else await this.repository.removeFavouriteFaction(userId, catalogueId)
   }
 
-  opponents(userId: string) {
-    return this.friendships(userId).friends
+  async opponents(userId: string) {
+    return (await this.friendships(userId)).friends
   }
 
-  friendships(userId: string) {
-    const relationships = this.repository.friendships(userId)
+  /**
+   * Everyone this player is connected to, waiting on, or could ask.
+   *
+   * The names come back in one query rather than one per relationship, so a
+   * well-connected player does not cost a round trip per friend.
+   */
+  async friendships(userId: string) {
+    const relationships = await this.repository.friendships(userId)
     const related = new Set(relationships.flatMap((row) => [row.requesterId, row.addresseeId]))
-    const named = (id: string) => {
-      const user = this.repository.userById(id)
-      return user ? { id: user.id, name: user.name } : null
-    }
+    const [names, people] = await Promise.all([this.repository.namesByIds([...related]), this.repository.usersExcept(userId)])
+    const named = (id: string) => names.get(id) ?? null
+    const present = (player: { id: string; name: string } | null): player is { id: string; name: string } => player !== null
     return {
       friends: relationships
         .filter((row) => row.acceptedAt !== null)
         .map((row) => named(row.requesterId === userId ? row.addresseeId : row.requesterId))
-        .filter((player): player is NonNullable<typeof player> => player !== null),
+        .filter(present),
       incoming: relationships
         .filter((row) => row.acceptedAt === null && row.addresseeId === userId)
         .map((row) => named(row.requesterId))
-        .filter((player): player is NonNullable<typeof player> => player !== null),
+        .filter(present),
       outgoing: relationships
         .filter((row) => row.acceptedAt === null && row.requesterId === userId)
         .map((row) => named(row.addresseeId))
-        .filter((player): player is NonNullable<typeof player> => player !== null),
-      people: this.repository.usersExcept(userId).filter((user) => !related.has(user.id)),
+        .filter(present),
+      people: people.filter((user) => !related.has(user.id)),
     }
   }
 
-  requestFriend(userId: string, friendId: string) {
-    if (friendId === userId || !this.repository.userById(friendId)) throw new Response('choose another player', { status: 400 })
-    if (!this.repository.requestFriend(userId, friendId, this.clock())) throw new Response('a connection already exists', { status: 409 })
+  async requestFriend(userId: string, friendId: string) {
+    if (friendId === userId || !(await this.repository.userById(friendId))) throw new Response('choose another player', { status: 400 })
+    if (!(await this.repository.requestFriend(userId, friendId, this.clock())))
+      throw new Response('a connection already exists', { status: 409 })
   }
 
-  acceptFriend(userId: string, requesterId: string) {
-    if (!this.repository.acceptFriend(requesterId, userId, this.clock())) throw new Response('no such friend request', { status: 404 })
+  async acceptFriend(userId: string, requesterId: string) {
+    if (!(await this.repository.acceptFriend(requesterId, userId, this.clock())))
+      throw new Response('no such friend request', { status: 404 })
   }
 
-  removeFriend(userId: string, friendId: string) {
-    if (!this.repository.removeFriend(userId, friendId)) throw new Response('no such friendship', { status: 404 })
+  async removeFriend(userId: string, friendId: string) {
+    if (!(await this.repository.removeFriend(userId, friendId))) throw new Response('no such friendship', { status: 404 })
   }
 
-  createBattle(
+  async createBattle(
     userId: string,
     input?: string | { opponentId?: string; opponentIds?: string[]; solo: boolean; limit?: number; missionPackId: string | null },
   ) {
     const settings = typeof input === 'object' && input.limit !== undefined ? { ...input, limit: input.limit } : null
     const opponentIds = typeof input === 'string' ? [input] : (input?.opponentIds ?? (input?.opponentId ? [input.opponentId] : []))
-    if (new Set(opponentIds).size !== opponentIds.length || opponentIds.some((id) => id === userId || !this.repository.userById(id))) {
+    // One query for every named opponent rather than one apiece.
+    const known = await this.repository.namesByIds(opponentIds)
+    if (new Set(opponentIds).size !== opponentIds.length || opponentIds.some((id) => id === userId || !known.has(id))) {
       throw new Response('choose an opponent', { status: 400 })
     }
-    const friendIds = new Set(this.opponents(userId).map((friend) => friend.id))
+    const friendIds = new Set((await this.opponents(userId)).map((friend) => friend.id))
     if (opponentIds.some((id) => !friendIds.has(id))) throw new Response('battle opponents must be your friends', { status: 403 })
     if (settings && !settings.solo && !opponentIds.length) throw new Response('choose an opponent or a practice battle', { status: 400 })
     const token = randomToken()
     const id = randomId()
-    this.repository.createBattle({
+    await this.repository.createBattle({
       id,
       token,
       userId,
@@ -264,29 +286,30 @@ export class PraetoriumService {
     return { token }
   }
 
-  deleteBattle(token: string, userId: string) {
-    const seats = this.mustSeat(token, userId)
-    if (!this.repository.deleteBattle(seats.battle.id, userId)) throw new Response('only the battle creator can delete it', { status: 403 })
+  async deleteBattle(token: string, userId: string) {
+    const seats = await this.mustSeat(token, userId)
+    if (!(await this.repository.deleteBattle(seats.battle.id, userId)))
+      throw new Response('only the battle creator can delete it', { status: 403 })
     this.events.publish(
       seats.battle.id,
       seats.players.map((player) => player.id),
     )
   }
 
-  join(token: string, userId: string): JoinResult {
-    const seats = this.mustFind(token)
+  async join(token: string, userId: string): Promise<JoinResult> {
+    const history = await this.mustFind(token)
     const state = reduceBattle(
-      seats.players.map((player) => player.id),
-      this.repository.log(seats.battle.id),
-      seats.players.map((player) => player.side),
+      history.players.map((player) => player.id),
+      history.log,
+      history.players.map((player) => player.side),
     )
     if (state.settings.solo) return 'full'
-    const opener = seats.players.find((player) => player.side === 0)
-    if (!opener || !this.opponents(opener.id).some((friend) => friend.id === userId)) {
+    const opener = history.players.find((player) => player.side === 0)
+    if (!opener || !(await this.opponents(opener.id)).some((friend) => friend.id === userId)) {
       throw new Response('battle opponents must be friends', { status: 403 })
     }
-    const result = this.repository.join({ battleId: seats.battle.id, userId, now: this.clock() })
-    if (result === 'joined') this.events.publish(seats.battle.id, [...seats.players.map((player) => player.id), userId])
+    const result = await this.repository.join({ battleId: history.battle.id, userId, now: this.clock() })
+    if (result === 'joined') this.events.publish(history.battle.id, [...history.players.map((player) => player.id), userId])
     return result
   }
 
@@ -294,41 +317,42 @@ export class PraetoriumService {
    * `rules` is passed in rather than reached for, so the service stays testable
    * without a synced dataset.
    */
-  screen(token: string, userId: string | null, rules?: Parameters<typeof missionFor>[0] | null): BattleScreen {
-    const seats = this.mustFind(token)
-    if (!userId || !this.seated(seats, userId)) {
+  async screen(token: string, userId: string | null, rules?: Parameters<typeof missionFor>[0] | null): Promise<BattleScreen> {
+    const history = await this.mustFind(token)
+    if (!userId || !this.seated(history, userId)) {
       const state = reduceBattle(
-        seats.players.map((player) => player.id),
-        this.repository.log(seats.battle.id),
-        seats.players.map((player) => player.side),
+        history.players.map((player) => player.id),
+        history.log,
+        history.players.map((player) => player.side),
       )
       const capacity = state.settings.teamBattle ? 3 : PLAYERS_PER_BATTLE
-      return { kind: 'invitation', free: !state.settings.solo && seats.players.length < capacity }
+      return { kind: 'invitation', free: !state.settings.solo && history.players.length < capacity }
     }
-    return this.seatedScreen(seats, userId, rules)
+    return this.seatedScreen(history, userId, rules)
   }
 
   /** A readable account of the battle. Derived from the log, so nothing is stored for it. */
-  report(token: string, userId: string) {
-    const seats = this.mustSeat(token, userId)
+  async report(token: string, userId: string) {
+    const history = await this.mustFind(token)
+    if (!this.seated(history, userId)) throw new Response('you are not in this battle', { status: 403 })
     return battleReport(
-      seats.players,
-      this.repository.log(seats.battle.id),
-      seats.players.map((player) => player.id),
+      history.players,
+      history.log,
+      history.players.map((player) => player.id),
       userId,
-      seats.players.map((player) => player.side),
+      history.players.map((player) => player.side),
     )
   }
 
-  submit(
+  async submit(
     token: string,
     userId: string,
     expectedSeq: number,
     command: Command,
     rules?: Parameters<typeof missionFor>[0] | null,
-  ): SubmitAnswer {
-    const seats = this.mustSeat(token, userId)
-    const result = this.repository.submit({ battleId: seats.battle.id, userId, expectedSeq, command, now: this.clock() }, (state) => {
+  ): Promise<SubmitAnswer> {
+    const seats = await this.mustSeat(token, userId)
+    const result = await this.repository.submit({ battleId: seats.battle.id, userId, expectedSeq, command, now: this.clock() }, (state) => {
       if (command.kind === 'begin-battle') return rules ? setupReferenceError(state, rules) : null
       if (command.kind === 'score' || command.kind === 'score-secondary')
         return rules ? scoringCapError(state, userId, command, rules) : null
@@ -340,24 +364,26 @@ export class PraetoriumService {
         seats.players.map((player) => player.id),
       )
     // Read after the write, so a refusal and a lost race answer with the state
-    // that refused them rather than the one the caller was already holding.
-    return { result, screen: this.seatedScreen(seats, userId, rules) }
+    // that refused them rather than the one the caller was already holding. Only
+    // the log is re-read; the seats cannot have changed under this command.
+    const log = await this.repository.log(seats.battle.id)
+    return { result, screen: this.seatedScreen({ ...seats, log }, userId, rules) }
   }
 
   /** Opening a battle stream is an authorization decision. */
-  userBattleId(token: string, userId: string) {
-    const seats = this.mustSeat(token, userId)
+  async userBattleId(token: string, userId: string) {
+    const seats = await this.mustSeat(token, userId)
     return seats.battle.id
   }
 
   /** One battle as one player may see it. The only place a seated view is built. */
-  private seatedScreen(seats: BattleSeats, userId: string, rules?: Parameters<typeof missionFor>[0] | null): SeatedScreen {
+  private seatedScreen(history: BattleHistory, userId: string, rules?: Parameters<typeof missionFor>[0] | null): SeatedScreen {
     const state = reduceBattle(
-      seats.players.map((player) => player.id),
-      this.repository.log(seats.battle.id),
-      seats.players.map((player) => player.side),
+      history.players.map((player) => player.id),
+      history.log,
+      history.players.map((player) => player.side),
     )
-    const view = battleView(seats.battle, seats.players, state, userId, this.clock())
+    const view = battleView(history.battle, history.players, state, userId, this.clock())
     const missionForSide = (side: number) => {
       const ownDisposition = view.players.find((player) => player.side === side)?.roster?.built?.disposition ?? null
       const opposingDisposition = view.players.find((player) => player.side !== side)?.roster?.built?.disposition ?? null
@@ -383,20 +409,22 @@ export class PraetoriumService {
     return seats.players.some((player) => player.id === userId)
   }
 
-  private mustSeat(token: string, userId: string) {
-    const seats = this.mustFind(token)
+  /** Seats alone, for the callers that do not need the history. */
+  private async mustSeat(token: string, userId: string) {
+    const seats = await this.repository.battleByToken(token)
+    if (!seats) throw new Response('no such battle', { status: 404 })
     if (!this.seated(seats, userId)) throw new Response('you are not in this battle', { status: 403 })
     return seats
   }
 
-  private mustFind(token: string): BattleSeats {
-    const seats = this.repository.battleByToken(token)
-    if (!seats) throw new Response('no such battle', { status: 404 })
-    return seats
+  private async mustFind(token: string): Promise<BattleHistory> {
+    const history = await this.repository.battleHistoryByToken(token)
+    if (!history) throw new Response('no such battle', { status: 404 })
+    return history
   }
 }
 
-function rosterFromRow(row: NonNullable<ReturnType<Repository['roster']>>) {
+function rosterFromRow(row: NonNullable<Awaited<ReturnType<Repository['roster']>>>) {
   return {
     id: row.id,
     name: row.name,

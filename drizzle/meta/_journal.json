@@ -1,82 +1,12 @@
 {
   "version": "7",
-  "dialect": "sqlite",
+  "dialect": "postgresql",
   "entries": [
     {
       "idx": 0,
-      "version": "6",
-      "when": 1785867498360,
-      "tag": "0000_skinny_agent_brand",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "6",
-      "when": 1785873006109,
-      "tag": "0001_loose_unus",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "6",
-      "when": 1785873630843,
-      "tag": "0002_dapper_roxanne_simpson",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "6",
-      "when": 1785877950055,
-      "tag": "0003_public_ma_gnuci",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "6",
-      "when": 1785884511774,
-      "tag": "0004_classy_peter_quill",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "6",
-      "when": 1786177301970,
-      "tag": "0005_loving_rick_jones",
-      "breakpoints": true
-    },
-    {
-      "idx": 6,
-      "version": "6",
-      "when": 1786206677829,
-      "tag": "0006_simple_elektra",
-      "breakpoints": true
-    },
-    {
-      "idx": 7,
-      "version": "6",
-      "when": 1786712552155,
-      "tag": "0007_volatile_kinsey_walden",
-      "breakpoints": true
-    },
-    {
-      "idx": 8,
-      "version": "6",
-      "when": 1787071804829,
-      "tag": "0008_normal_alex_power",
-      "breakpoints": true
-    },
-    {
-      "idx": 9,
-      "version": "6",
-      "when": 1787083530197,
-      "tag": "0009_organic_silverclaw",
-      "breakpoints": true
-    },
-    {
-      "idx": 10,
-      "version": "6",
-      "when": 1787172911592,
-      "tag": "0010_nosy_spirit",
+      "version": "7",
+      "when": 1787311548231,
+      "tag": "0000_aspiring_monster_badoon",
       "breakpoints": true
     }
   ]

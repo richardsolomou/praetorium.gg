@@ -37,6 +37,9 @@ test('a player can edit their display name and profile picture', async ({ page }
 
   await page.getByRole('button', { name: 'Remove' }).click()
   await page.getByRole('button', { name: 'Save profile' }).click()
+  // Wait for the save to be acknowledged, as the first one does. Reloading out of
+  // an in-flight mutation cancels it, and the picture is still there afterwards.
+  await expect(page.getByText('Profile saved.')).toBeVisible()
   await page.reload()
   await expect(page.getByRole('button', { name: 'Add picture' })).toBeVisible()
   await expect(page.locator('main img')).toHaveCount(0)

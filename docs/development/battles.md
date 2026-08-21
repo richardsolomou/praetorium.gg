@@ -44,12 +44,12 @@ A read never claims a battle seat. `PraetoriumService.screen` returns an invitat
 - Realtime channels use the internal battle ID, not the invitation token.
 - A second channel is named after a player, so the list of battles hears about a battle the player has not opened yet.
 - Every channel prefix needs a namespace in `realtime.json`. Centrifugo rejects a subscription to a prefix it was not configured with.
-- Centrifugo subscription state provides presence. Do not store presence in SQLite.
+- Centrifugo subscription state provides presence. Do not store presence in the database.
 - Caddy and the Vite development proxy serve Centrifugo on the app origin. Keep `connect-src 'self'`.
 
 ## Server boundaries
 
-- Run one application replica while SQLite is the database.
+- More than one replica needs `VALKEY_URL`. Centrifugo then fans out through Valkey, so a command taken by one replica reaches a page connected to another. Without it, run one replica.
 - Wrap server-function reads with `rpc()` and mutations with `mutationRpc()`.
 - Keep `/api/health` outside canonical-host redirects so container health checks remain local.
 - Keep sign-in `next` values as paths on this instance. Absolute redirect targets create an open redirect.
@@ -72,4 +72,4 @@ Starting the battle is not undoable: `begin-battle` leaves nothing for `undo` to
 
 Battle coverage is split the way the domain is. `src/core/battle.test.ts` covers setup, turn order, ownership, undo, solo play, resets, concessions, reopening, deployment and battle settings. `src/core/battleCards.test.ts` covers stratagem costs including the ones the board makes dearer, and tactical decks. `src/core/battleView.test.ts` covers visibility, units and the models inside them, and `src/core/battleReport.test.ts` covers the account of the battle. All four build their games from `src/core/battle.fixtures.ts`.
 
-`src/server/service.test.ts` covers persistence, deletion permissions, and concurrent submissions against SQLite. `src/client/sides.test.ts` covers the fold from seats to sides, and `e2e/team-battle.spec.ts` drives three devices through a 2v1 to prove the allied pair shares one pool.
+`src/server/service.test.ts` covers persistence, deletion permissions, and concurrent submissions against an in-process Postgres. `src/client/sides.test.ts` covers the fold from seats to sides, and `e2e/team-battle.spec.ts` drives three devices through a 2v1 to prove the allied pair shares one pool.

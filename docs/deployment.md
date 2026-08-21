@@ -4,21 +4,36 @@ The hosted service at [praetorium.gg](https://praetorium.gg) is the supported wa
 
 Private deployments do not include managed support. Review this page and the supplied `docker-compose.yml` before starting.
 
-Praetorium runs as one container with one persistent `/data` volume. Copy `.env.example` to `.env`, review the settings, then start the Compose service.
+Praetorium runs as one container against a Postgres and a Valkey. The supplied `docker-compose.yml` starts all three. Copy `.env.example` to `.env`, set `POSTGRES_PASSWORD`, then start the Compose project.
 
 ```sh
 cp .env.example .env
 docker compose up -d
 ```
 
-## Persistent data
+## Data stores
 
-- `praetorium.sqlite` stores accounts, lists, battles, and command logs.
+`DATABASE_URL` is required. It holds accounts, lists, battles, and every command in their logs. This is the only store that must be backed up.
+
+`VALKEY_URL` is optional and holds sessions, the sign-in rate limiter, and Centrifugo's fan-out between replicas. Leave it unset to run a single replica: sessions then live in Postgres and live updates fan out inside the process. Set it to run more than one.
+
+The `/data` volume no longer holds game data. What remains is:
+
 - `auth.secret` signs account sessions. Replacing it signs everyone out but does not delete their data.
 - `realtime-secret` signs Centrifugo tokens. Replacing it disconnects active realtime clients.
 - `catalogue/` caches verified community data from the snapshot service.
 
-Back up `praetorium.sqlite` and `auth.secret` together. The app can fetch the catalogue again.
+Back up Postgres and `auth.secret` together. The app can fetch the catalogue again, and nothing in Valkey needs backing up.
+
+## Schema migrations
+
+The container applies migrations on the way up, before the app serves a request, and takes a Postgres advisory lock while it does. Several replicas starting together therefore take turns rather than racing, and no replica answers a request against a schema that is still moving.
+
+To apply migrations by hand against `DATABASE_URL`:
+
+```sh
+just db-migrate
+```
 
 ## Catalogue sync
 
@@ -30,7 +45,38 @@ Running instances never contact upstream data providers. A separate hourly publi
 
 The image runs the app, Centrifugo, and Caddy. Caddy sends `/connection/*` to Centrifugo and all other requests to the app. The container stops if any process exits so the container runtime can restart the full service.
 
-Run one replica. Multiple replicas cannot safely share the SQLite database. Move to a network database before adding replicas.
+## Replicas
+
+With `VALKEY_URL` set, more than one replica is safe. Centrifugo uses Valkey as its engine, so a command taken by one replica reaches a page connected to another, and sessions and rate-limit counters are shared rather than held once per replica.
+
+Without it, run one replica. Live updates then fan out inside a single process, and a second replica would serve battles that never hear each other's commands.
+
+## Moving an existing SQLite deployment
+
+Earlier versions stored everything in `praetorium.sqlite` on the `/data` volume. The container moves it across on its own: the first boot that finds a `praetorium.sqlite` on the volume and no accounts in Postgres imports it before serving a request. Every later boot finds accounts and does nothing, and an instance that was always Postgres has no file to find.
+
+Keep `praetorium.sqlite` on the volume for that boot, and keep `auth.secret` beside it or everyone is signed out. Both the automatic import and the command below are transitional, and go once a deployment has been through the cutover.
+
+To do it by hand instead, with the app stopped:
+
+1. Stop the app so nothing writes to SQLite while it is being read.
+2. Point `DATABASE_URL` at the new, empty Postgres.
+3. Apply the schema, then copy the data in:
+
+   ```sh
+   just db-migrate
+   just db-import-sqlite /path/to/praetorium.sqlite
+   ```
+
+   The path is optional; without it the command reads `praetorium.sqlite` from `DATA_DIR`.
+
+4. Compare the per-table counts the command prints against the source, then start the app.
+
+Either way the import copies rows in foreign-key order inside one transaction, so a failure leaves an empty database rather than half a game, and it names the row it stopped on. Running it again is safe: rows already present are left alone rather than duplicated. Ids are preserved, so a battle link a player has already shared still opens the same battle.
+
+Keep `auth.secret` on the `/data` volume across the move, or everyone is signed out.
+
+One thing does not carry over. When `VALKEY_URL` is set, better-auth reads sessions from Valkey only, so existing sessions stop resolving and every player signs in once after the cutover. Their accounts, lists, battles, and logs are untouched.
 
 ## Reverse proxy
 

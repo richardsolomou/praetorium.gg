@@ -25,7 +25,7 @@ export const Route = createFileRoute('/api/realtime/token')({
         if (!new URL(request.url).searchParams.get('battle')) {
           return Response.json({ token: await connectionToken(user.id, secret), channel: userChannel(user.id) })
         }
-        const battleId = seatedBattleId(request, user.id)
+        const battleId = await seatedBattleId(request, user.id)
         if (battleId instanceof Response) return battleId
         // The channel is named after the battle rather than the invite token, so
         // the link that gets shared never becomes a channel name.
@@ -47,7 +47,7 @@ export const Route = createFileRoute('/api/realtime/token')({
           return Response.json({ token: await subscriptionToken(user, channel, secret) })
         }
 
-        const battleId = seatedBattleId(request, user.id)
+        const battleId = await seatedBattleId(request, user.id)
         if (battleId instanceof Response) return battleId
         if (channel !== battleChannel(battleId)) return new Response('not your channel', { status: 403 })
 
@@ -60,11 +60,11 @@ export const Route = createFileRoute('/api/realtime/token')({
 const unauthorised = () => new Response('sign in first', { status: 401 })
 
 /** The battle this request names, if the player holds a seat in it. */
-function seatedBattleId(request: Request, userId: string) {
+async function seatedBattleId(request: Request, userId: string) {
   const token = new URL(request.url).searchParams.get('battle')
   if (!token) return new Response('battle required', { status: 400 })
   try {
-    return app().service.userBattleId(token, userId)
+    return await app().service.userBattleId(token, userId)
   } catch (error) {
     if (error instanceof Response) return error
     throw error

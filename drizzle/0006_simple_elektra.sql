@@ -1,1 +1,0 @@
-ALTER TABLE `rosters` ADD `disposition` text;

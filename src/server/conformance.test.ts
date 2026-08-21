@@ -3,13 +3,12 @@ import {
   assertMutationOriginConformance,
   assertPostHogBrowserConformance,
   assertPostHogRequestConformance,
-  assertSqliteConformance,
 } from 'ras-stack/conformance'
 import { postHogRequestContext } from 'ras-stack/posthog'
 import { postHogBrowserOptions } from 'ras-stack/posthog/client'
 import { tanStackHealthHandler } from 'ras-stack/tanstack/server'
 import { describe, expect, it } from 'vitest'
-import { closeDatabase, openDatabase } from '../db/connection'
+import { databaseUrl } from '../db/connection'
 import { mutationRpc } from './rpc'
 
 describe('shared infrastructure conformance', () => {
@@ -23,10 +22,13 @@ describe('shared infrastructure conformance', () => {
     await expect(assertHealthHandlerConformance((check) => tanStackHealthHandler(check))).resolves.toBeUndefined()
   })
 
-  it('configures SQLite safely', async () => {
-    const database = openDatabase(':memory:')
-    await expect(assertSqliteConformance((name) => database.$client.pragma(name, { simple: true }))).resolves.toBeUndefined()
-    closeDatabase(database)
+  it('insists on a Postgres URL', () => {
+    expect(databaseUrl({ DATABASE_URL: 'postgres://user:pw@db:5432/praetorium' })).toBe('postgres://user:pw@db:5432/praetorium')
+    expect(databaseUrl({ DATABASE_URL: 'postgresql://user:pw@db:5432/praetorium' })).toBe('postgresql://user:pw@db:5432/praetorium')
+    // A missing or wrong-protocol URL must fail at boot, not on the first query.
+    expect(() => databaseUrl({})).toThrow(/DATABASE_URL/)
+    expect(() => databaseUrl({ DATABASE_URL: '  ' })).toThrow(/DATABASE_URL/)
+    expect(() => databaseUrl({ DATABASE_URL: 'mysql://user:pw@db:3306/praetorium' })).toThrow(/postgres/)
   })
 
   it('keeps PostHog browser and request defaults safe', () => {

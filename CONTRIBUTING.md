@@ -39,7 +39,7 @@ Three browser-test details matter:
 ## Layout
 
 - `src/core` contains the domain model for battles, catalogues, evaluation, and rosters. It has no IO or framework imports.
-- `src/db` contains the Drizzle repository, SQLite schema, and database connection.
+- `src/db` contains the Drizzle repository, Postgres schema, and database connection.
 - `src/server` contains application setup, authentication, server functions, catalogue loading, and realtime publishing.
 - `src/client` contains React components, hooks, and query definitions.
 - `src/routes` contains TanStack Router route files. Keep routes thin.

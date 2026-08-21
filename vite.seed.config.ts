@@ -7,7 +7,6 @@ export default defineConfig({
     outDir: '.output/server',
     emptyOutDir: false,
     rolldownOptions: {
-      external: ['better-sqlite3'],
       output: { entryFileNames: 'seed-preview.mjs' },
     },
   },

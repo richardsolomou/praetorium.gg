@@ -1,33 +1,37 @@
-import { customType, index, integer, primaryKey, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
+import { bigint, boolean, index, integer, pgTable, primaryKey, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core'
 
-/** better-auth stores its dates as ISO strings. */
-const isoDate = customType<{ data: Date; driverData: string }>({
-  dataType: () => 'text',
-  fromDriver: (value) => new Date(value),
-  toDriver: (value) => value.toISOString(),
-})
+/**
+ * Every time in this schema is one of two kinds, and they are not interchangeable.
+ *
+ * better-auth owns its own columns and hands the driver `Date`, so those are
+ * `timestamptz`. Everything the product owns is epoch milliseconds, which must be
+ * `bigint`: a Postgres `integer` is four bytes and stops at about 2.1e9, while a
+ * millisecond timestamp is already past 1.7e12. `integer` here would not be slow,
+ * it would be wrong.
+ */
 
-// The tables better-auth owns. Their shapes are dictated by better-auth, so
-// product columns do not belong here.
+// The tables better-auth owns below. Their shapes are dictated by better-auth,
+// so product columns do not belong here.
 
-export const user = sqliteTable('user', {
+/** `user` is a reserved word in Postgres. Drizzle quotes it, so the name still stands. */
+export const user = pgTable('user', {
   id: text().primaryKey().notNull(),
   name: text().notNull(),
   email: text().notNull().unique(),
-  emailVerified: integer({ mode: 'boolean' }).notNull(),
+  emailVerified: boolean().notNull(),
   image: text(),
-  createdAt: isoDate().notNull(),
-  updatedAt: isoDate().notNull(),
+  createdAt: timestamp({ withTimezone: true, mode: 'date' }).notNull(),
+  updatedAt: timestamp({ withTimezone: true, mode: 'date' }).notNull(),
 })
 
-export const session = sqliteTable(
+export const session = pgTable(
   'session',
   {
     id: text().primaryKey().notNull(),
-    expiresAt: isoDate().notNull(),
+    expiresAt: timestamp({ withTimezone: true, mode: 'date' }).notNull(),
     token: text().notNull().unique(),
-    createdAt: isoDate().notNull(),
-    updatedAt: isoDate().notNull(),
+    createdAt: timestamp({ withTimezone: true, mode: 'date' }).notNull(),
+    updatedAt: timestamp({ withTimezone: true, mode: 'date' }).notNull(),
     ipAddress: text(),
     userAgent: text(),
     userId: text()
@@ -37,7 +41,7 @@ export const session = sqliteTable(
   (table) => [index('session_userId_idx').on(table.userId)],
 )
 
-export const account = sqliteTable(
+export const account = pgTable(
   'account',
   {
     id: text().primaryKey().notNull(),
@@ -49,52 +53,58 @@ export const account = sqliteTable(
     accessToken: text(),
     refreshToken: text(),
     idToken: text(),
-    accessTokenExpiresAt: isoDate(),
-    refreshTokenExpiresAt: isoDate(),
+    accessTokenExpiresAt: timestamp({ withTimezone: true, mode: 'date' }),
+    refreshTokenExpiresAt: timestamp({ withTimezone: true, mode: 'date' }),
     scope: text(),
     password: text(),
-    createdAt: isoDate().notNull(),
-    updatedAt: isoDate().notNull(),
+    createdAt: timestamp({ withTimezone: true, mode: 'date' }).notNull(),
+    updatedAt: timestamp({ withTimezone: true, mode: 'date' }).notNull(),
   },
   (table) => [index('account_userId_idx').on(table.userId)],
 )
 
-export const verification = sqliteTable(
+export const verification = pgTable(
   'verification',
   {
     id: text().primaryKey().notNull(),
     identifier: text().notNull(),
     value: text().notNull(),
-    expiresAt: isoDate().notNull(),
-    createdAt: isoDate().notNull(),
-    updatedAt: isoDate().notNull(),
+    expiresAt: timestamp({ withTimezone: true, mode: 'date' }).notNull(),
+    createdAt: timestamp({ withTimezone: true, mode: 'date' }).notNull(),
+    updatedAt: timestamp({ withTimezone: true, mode: 'date' }).notNull(),
   },
   (table) => [index('verification_identifier_idx').on(table.identifier)],
 )
 
-export const rateLimit = sqliteTable(
+/**
+ * better-auth's own limiter table, kept for the case where Valkey is absent.
+ * With Valkey configured the counters live there instead, one round trip
+ * instead of a write per request.
+ */
+export const rateLimit = pgTable(
   'rateLimit',
   {
     id: text().primaryKey().notNull(),
     key: text().notNull().unique(),
     count: integer().notNull(),
-    lastRequest: integer().notNull(),
+    lastRequest: bigint({ mode: 'number' }).notNull(),
   },
-  (table) => [index('rateLimit_key_idx').on(table.key)],
+  // No index on `key`: the unique constraint above is already one, and a second
+  // copy would cost a write per request to answer nothing new.
 )
 
 /** One game between opposing sides. Its token is the link they share. */
-export const battles = sqliteTable(
+export const battles = pgTable(
   'battles',
   {
     id: text('id').primaryKey(),
     token: text('token').notNull(),
-    createdAt: integer('created_at').notNull(),
+    createdAt: bigint('created_at', { mode: 'number' }).notNull(),
   },
   (table) => [uniqueIndex('battles_token_unique').on(table.token)],
 )
 
-export const battleUsers = sqliteTable(
+export const battleUsers = pgTable(
   'battle_users',
   {
     battleId: text('battle_id')
@@ -105,13 +115,13 @@ export const battleUsers = sqliteTable(
       .references(() => user.id, { onDelete: 'cascade' }),
     /** 0 opened the battle, 1 accepted the link. Fixes the order players are shown in. */
     side: integer('side').notNull(),
-    joinedAt: integer('joined_at').notNull(),
+    joinedAt: bigint('joined_at', { mode: 'number' }).notNull(),
   },
   (table) => [primaryKey({ columns: [table.battleId, table.userId] }), index('battle_users_user_id_index').on(table.userId)],
 )
 
 /** A mutual connection, beginning as a request from one player to another. */
-export const friendships = sqliteTable(
+export const friendships = pgTable(
   'friendships',
   {
     requesterId: text('requester_id')
@@ -120,8 +130,8 @@ export const friendships = sqliteTable(
     addresseeId: text('addressee_id')
       .notNull()
       .references(() => user.id, { onDelete: 'cascade' }),
-    requestedAt: integer('requested_at').notNull(),
-    acceptedAt: integer('accepted_at'),
+    requestedAt: bigint('requested_at', { mode: 'number' }).notNull(),
+    acceptedAt: bigint('accepted_at', { mode: 'number' }),
   },
   (table) => [
     primaryKey({ columns: [table.requesterId, table.addresseeId] }),
@@ -134,9 +144,10 @@ export const friendships = sqliteTable(
  * is stored, so there is no second copy of the score to disagree with this one.
  *
  * `seq` is per battle and gapless: the primary key is what makes two clients
- * unable to claim the same position in history, whatever else goes wrong.
+ * unable to claim the same position in history, whatever else goes wrong. It is
+ * also what lets one query read the logs of many battles in `seq` order.
  */
-export const commands = sqliteTable(
+export const commands = pgTable(
   'commands',
   {
     battleId: text('battle_id')
@@ -146,7 +157,7 @@ export const commands = sqliteTable(
     userId: text('user_id')
       .notNull()
       .references(() => user.id, { onDelete: 'cascade' }),
-    at: integer('at').notNull(),
+    at: bigint('at', { mode: 'number' }).notNull(),
     /** A `Command` as JSON, read back through `commandSchema`. */
     body: text('body').notNull(),
   },
@@ -160,7 +171,7 @@ export const commands = sqliteTable(
  * catalogue the instance currently holds is the honest answer when Games Workshop
  * changes points, and it is what a player expects a saved list to do.
  */
-export const rosters = sqliteTable(
+export const rosters = pgTable(
   'rosters',
   {
     id: text('id').primaryKey(),
@@ -186,9 +197,12 @@ export const rosters = sqliteTable(
     source: text('source', { enum: ['legacy', 'editable', 'battlebase', 'newrecruit', 'roster-file'] })
       .notNull()
       .default('legacy'),
-    updatedAt: integer('updated_at').notNull(),
+    updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
   },
-  (table) => [index('rosters_user_id_index').on(table.userId)],
+  // Lists are always read for one player newest first, which this index answers
+  // outright. It also serves a plain lookup by player, so there is no separate
+  // index on `user_id` to keep current.
+  (table) => [index('rosters_user_id_updated_at_index').on(table.userId, table.updatedAt)],
 )
 
 /**
@@ -199,7 +213,7 @@ export const rosters = sqliteTable(
  * the question the filter asks is whether a datasheet is in the collection at
  * all, and a count nobody reads would be a number to keep correct for nothing.
  */
-export const collection = sqliteTable(
+export const collection = pgTable(
   'collection',
   {
     userId: text('user_id')
@@ -207,20 +221,20 @@ export const collection = sqliteTable(
       .references(() => user.id, { onDelete: 'cascade' }),
     /** The catalogue entry id, so a datasheet is owned per book it appears in. */
     entryId: text('entry_id').notNull(),
-    at: integer('at').notNull(),
+    at: bigint('at', { mode: 'number' }).notNull(),
   },
   (table) => [primaryKey({ columns: [table.userId, table.entryId] })],
 )
 
 /** Factions a player keeps at the top of faction pickers. */
-export const favouriteFactions = sqliteTable(
+export const favouriteFactions = pgTable(
   'favourite_factions',
   {
     userId: text('user_id')
       .notNull()
       .references(() => user.id, { onDelete: 'cascade' }),
     catalogueId: text('catalogue_id').notNull(),
-    at: integer('at').notNull(),
+    at: bigint('at', { mode: 'number' }).notNull(),
   },
   (table) => [primaryKey({ columns: [table.userId, table.catalogueId] })],
 )
