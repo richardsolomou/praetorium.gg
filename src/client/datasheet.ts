@@ -11,6 +11,23 @@ export function compositionCount(composition: readonly string[]) {
   return `${count} ${maximum === 1 ? 'model' : 'models'}`
 }
 
+/**
+ * The keywords something in the list put on a weapon: the ones the printed profile
+ * does not have.
+ *
+ * A modifier appends to the characteristic rather than announcing what it added, so
+ * the difference between what is printed and what is shown is the only statement of
+ * which keyword is new. Named rather than counted, because a detachment may add one
+ * keyword to a weapon that already lists three.
+ */
+export function addedKeywords(keywords: { value: string; baseValue?: string }): string[] {
+  if (!keywords.baseValue) return []
+  const printed = new Set(splitKeywords(keywords.baseValue))
+  return splitKeywords(keywords.value).filter((keyword) => !printed.has(keyword))
+}
+
+export const splitKeywords = (value: string) => value.split(',').map((keyword) => keyword.trim())
+
 type Ability = { name: string; kind: string }
 
 export function displayAbilities<T extends Ability>(abilities: readonly T[], hasLeaderAttachments: boolean): T[] {

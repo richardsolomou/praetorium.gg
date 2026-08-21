@@ -59,19 +59,23 @@ export function UnitCard({
   onJoin,
   editable = true,
 }: Props) {
-  const cardClassName = `border bg-card transition-colors ${selected ? 'border-azure' : 'border-edge hover:border-azure'}`
+  const cardClassName = `relative border bg-card transition-colors ${selected ? 'border-azure' : 'border-edge hover:border-azure'}`
   const actions = { owned, onOwned, onDuplicate, onRemove }
 
+  // One target over the whole card, under everything on it. An enhancement, an
+  // upgrade and who a unit is standing with are all things a player reads on the
+  // card and then wants to open, so the rows saying so open it too — and the
+  // buttons that do something else take their clicks back.
   const card = (
     <>
-      <div className="relative flex items-start gap-2 px-2.5 py-2">
-        <Button
-          variant="ghost"
-          className="absolute inset-0 h-full w-full rounded-none hover:bg-transparent dark:hover:bg-transparent"
-          onClick={onSelect}
-          aria-pressed={selected}
-          aria-label={unit.name}
-        />
+      <Button
+        variant="ghost"
+        className="absolute inset-0 h-full w-full rounded-none hover:bg-transparent dark:hover:bg-transparent"
+        onClick={onSelect}
+        aria-pressed={selected}
+        aria-label={unit.name}
+      />
+      <div className="flex items-start gap-2 px-2.5 py-2">
         <div className="pointer-events-none min-w-0 flex-1 text-left">
           <span className="w-full min-w-0">
             <span className="block text-[0.9375rem] leading-tight font-bold tracking-[0.02em] uppercase">{unit.name}</span>
@@ -113,21 +117,21 @@ export function UnitCard({
       </div>
 
       {unit.enhancements.map((enhancement) => (
-        <div key={enhancement} className="flex items-center gap-2 border-t border-edge bg-raised px-2.5 py-1">
+        <div key={enhancement} className={`${ROW} pointer-events-none gap-2`}>
           <span className="chip text-achieved">Enhancement</span>
           <span className="text-xs font-semibold">{enhancement}</span>
         </div>
       ))}
 
       {unit.upgrades.map((upgrade) => (
-        <div key={upgrade} className="flex items-center gap-2 border-t border-edge bg-raised px-2.5 py-1">
+        <div key={upgrade} className={`${ROW} pointer-events-none gap-2`}>
           <span className="chip text-achieved">Upgrade</span>
           <span className="text-xs font-semibold">{upgrade}</span>
         </div>
       ))}
 
       {joined.map((row) => (
-        <div key={`${row.label}-${row.name}`} className="flex items-center gap-2 border-t border-edge bg-raised px-2.5 py-1">
+        <div key={`${row.label}-${row.name}`} className={`${ROW} pointer-events-none relative z-10 gap-2 [&_button]:pointer-events-auto`}>
           <span className="chip shrink-0">{row.label}</span>
           <span className="min-w-0 flex-1 text-xs">{row.name}</span>
           {editable ? (
@@ -145,7 +149,7 @@ export function UnitCard({
       ))}
 
       {editable && canJoin.length ? (
-        <div className="flex flex-wrap items-center gap-1.5 border-t border-edge bg-raised px-2.5 py-1">
+        <div className={`${ROW} pointer-events-none relative z-10 flex-wrap gap-1.5 [&_button]:pointer-events-auto`}>
           <span className="chip shrink-0">{unit.attachment?.kind === 'leader' ? 'Lead' : 'Support'}</span>
           {canJoin.map((target) => (
             <Button
@@ -181,6 +185,8 @@ export function UnitCard({
   )
 }
 
+/** A line under the unit's name: an enhancement, an upgrade, or who it is standing with. */
+const ROW = 'flex items-center border-t border-edge bg-raised px-2.5 py-1'
 const MENU = 'w-44 rounded-none border border-edge-strong bg-raised shadow-xl ring-0'
 const ITEM = 'rounded-none text-xs font-semibold uppercase focus:bg-edge'
 

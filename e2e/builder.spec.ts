@@ -256,6 +256,17 @@ test('unit upgrades stay separate from character enhancements', async ({ page })
   await expect(card.getByText('1x Deepening Madness', { exact: true })).toHaveCount(0)
   await shot(card, 'test-results/deepening-madness-upgrade.png')
 
+  // The upgrade appends [ASSAULT] to the weapon, and a keyword nothing on the
+  // datasheet links is still a rule a player can read — with what put it there.
+  const assault = page.getByRole('button', { name: 'Assault', exact: true }).first()
+  await expect(assault).toBeVisible()
+  await assault.hover()
+  await expect(page.getByRole('tooltip')).toContainText('assault shooting')
+  await expect(page.getByRole('tooltip')).toContainText('Added by Deepening Madness')
+  await shot(page.getByRole('tooltip'), 'test-results/added-keyword-tooltip.png')
+  await page.mouse.move(0, 0)
+  await expect(page.getByRole('tooltip')).toBeHidden()
+
   await add(page, 'Lokhust Heavy Destroyers')
   await page
     .getByRole('button', { name: /^Lokhust Heavy Destroyers/ })
@@ -405,6 +416,36 @@ test('an enhancement changes the weapons of the model bearing it', async ({ page
   await expect(page.getByRole('button', { name: /M 7", modified from 5" by Destroyer Ankh/ })).toBeVisible()
   await expect(page.getByRole('button', { name: /modified from 2 by Destroyer Ankh/ })).toHaveCount(0)
   await page.screenshot({ path: 'test-results/destroyer-ankh-attached.png', fullPage: true })
+
+  /*
+   * A supporting character joins the same unit, which makes the three of them one
+   * unit: the ankh moves every model in it, so the Chronomancer's own relic and the
+   * Overlord's both reach it. Reading only what a character is attached to told it
+   * nothing about the character standing beside it.
+   */
+  await add(page, 'Chronomancer')
+  const chronomancer = page.locator('[data-unit="Chronomancer"]')
+  await chronomancer.getByRole('button', { name: 'Immortals', exact: true }).click()
+  await expect(page.locator('[data-roster-builder]')).toHaveAttribute('data-saving', 'false')
+  await chronomancer.getByRole('button', { name: 'Chronomancer', exact: true }).click()
+  await loadout.getByRole('button', { name: 'Select Murdermind' }).click()
+  await expect(page.locator('[data-roster-builder]')).toHaveAttribute('data-saving', 'false')
+  // Three inches from the relic it bears, two from the one its unit's Overlord bears.
+  await expect(page.getByRole('button', { name: 'M 10", modified from 5" by Destroyer Ankh, Murdermind' })).toBeVisible()
+  await page.screenshot({ path: 'test-results/attached-unit-modifiers.png', fullPage: true })
+
+  // The rows under a unit's name are part of its card: the one saying who it is
+  // standing with opens it, as clicking the name does.
+  const supporting = chronomancer.getByText('Supporting', { exact: true })
+  const row = (await supporting.boundingBox())!
+  await page.mouse.click(row.x + row.width / 2, row.y + row.height / 2)
+  await expect(chronomancer.getByRole('button', { name: 'Chronomancer', exact: true })).toHaveAttribute('aria-pressed', 'true')
+  await page.locator('[data-unit="Immortals"]').getByRole('button', { name: 'Immortals', exact: true }).click()
+  await expect(chronomancer.getByRole('button', { name: 'Chronomancer', exact: true })).toHaveAttribute('aria-pressed', 'false')
+  const enhancement = chronomancer.getByText('Murdermind', { exact: true })
+  const enhancementRow = (await enhancement.boundingBox())!
+  await page.mouse.click(enhancementRow.x + enhancementRow.width / 2, enhancementRow.y + enhancementRow.height / 2)
+  await expect(chronomancer.getByRole('button', { name: 'Chronomancer', exact: true })).toHaveAttribute('aria-pressed', 'true')
 
   // And a unit is led by one character, so the second Overlord is not offered it.
   await add(page, 'Overlord')

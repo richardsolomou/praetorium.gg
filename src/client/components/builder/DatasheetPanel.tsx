@@ -7,6 +7,7 @@ import { datasheetQuery } from '../../queries'
 import { useSettled } from '../../useSettled'
 import { HoverTooltip } from '../HoverTooltip'
 import { Keyword, KEYWORD_TAG_CLASS, KeywordList } from '../Keyword'
+import { addedKeywords } from '../../datasheet'
 import { RuleText } from '../RuleText'
 
 type Props = {
@@ -148,6 +149,7 @@ export function WeaponProfile({
   showName?: boolean
   embedded?: boolean
 }) {
+  const keywords = weapon.values.find((value) => value.name === 'Keywords')
   return (
     <div className={`${embedded ? '' : 'border border-edge bg-card '}px-2 py-1.5`}>
       {showName ? <h3 className="text-xs">{weapon.count && weapon.count > 1 ? `${weapon.count}× ${weapon.name}` : weapon.name}</h3> : null}
@@ -163,9 +165,9 @@ export function WeaponProfile({
             </div>
           ))}
       </div>
-      {weapon.values.find((value) => value.name === 'Keywords')?.value ? (
+      {keywords?.value ? (
         <p className="mt-1 text-xs text-bone">
-          <KeywordList value={weapon.values.find((value) => value.name === 'Keywords')!.value} rules={rules} />
+          <KeywordList value={keywords.value} rules={rules} added={addedKeywords(keywords)} note={addedBy(keywords)} />
         </p>
       ) : null}
     </div>
@@ -223,6 +225,9 @@ function AbilitySummary({ abilities, rules }: { abilities: Datasheet['abilities'
 
 type DisplayValue = Profile['values'][number]
 
+/** What put a keyword on a weapon, in the words the tooltip footer says it in. */
+const addedBy = (keywords: DisplayValue) => (keywords.modifiers?.length ? `Added by ${keywords.modifiers.join(', ')}` : undefined)
+
 function ProfileValue({ value }: { value: DisplayValue }) {
   if (!value.baseValue || !value.modifiers?.length) return value.value
   const sources = value.modifiers.join(', ')
@@ -230,15 +235,13 @@ function ProfileValue({ value }: { value: DisplayValue }) {
     <HoverTooltip
       className="font-semibold text-azure"
       label={`${value.name} ${value.value}, modified from ${value.baseValue} by ${sources}`}
-      content={
+      title={`Modified ${value.name}`}
+      body={
         <>
-          <strong className="block font-semibold">Modified {value.name}</strong>
-          <span className="mt-1 block text-dim">
-            {value.baseValue} → <span className="text-azure">{value.value}</span>
-          </span>
-          <span className="mt-1 block text-xs text-faint">{sources}</span>
+          {value.baseValue} → <span className="text-azure">{value.value}</span>
         </>
       }
+      note={`Modified by ${sources}`}
     >
       {value.value}
     </HoverTooltip>

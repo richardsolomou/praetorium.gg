@@ -445,7 +445,8 @@ function replaceAt(value: string, pattern: RegExp, position: number | string | u
 const escapeRegExp = (value: string) => value.replaceAll(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
 export function rulesReferencedIn(loaded: LoadedCatalogue, texts: readonly (string | null)[]) {
-  const references = new Set(
+  return rulesNamed(
+    loaded,
     texts.flatMap((text) => [
       ...[...(text ?? '').matchAll(/\*\*(.*?)\*\*|\^\^(.*?)\^\^/g)].map((match) =>
         (match[1] ?? match[2] ?? '').replaceAll(/\*\*|\^\^/g, ''),
@@ -453,6 +454,19 @@ export function rulesReferencedIn(loaded: LoadedCatalogue, texts: readonly (stri
       ...bracketedRuleReferences(text ?? ''),
     ]),
   )
+}
+
+/**
+ * The rules these names are asking for, by name alone.
+ *
+ * A keyword a detachment appends to a weapon arrives as a bare word — the entry that
+ * printed the profile links the rules it was printed with, and nothing links the one
+ * that was added. Looking it up by name is how [ASSAULT] on a modified profile reads
+ * the same as [ASSAULT] on a printed one. A name two catalogues describe differently
+ * is dropped rather than guessed between.
+ */
+export function rulesNamed(loaded: LoadedCatalogue, names: readonly string[]) {
+  const references = new Set(names)
   const candidates = new Map<string, Set<string>>()
   for (const rule of loaded.index.rules.values()) {
     if (!rule.name || !rule.description) continue
