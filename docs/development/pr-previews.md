@@ -12,7 +12,7 @@ One pull request comment shows the current state:
 
 The `PR preview deploy` check shows the same state.
 
-Each preview has an empty database and no persistent volume. A new deployment removes its battles and accounts. It then recreates two shared preview logins, a saved roster for each, and their confirmed friendship before the application starts. The pull request comment contains both logins so two browser sessions can play each other. The preview downloads the same current verified snapshot as production after startup.
+Each preview needs a `DATABASE_URL`. Its accounts and battles live in that Postgres rather than on a disposable volume, so a preview starts empty only when it points at a database of its own. Every deployment recreates two shared preview logins, a saved roster for each, and their confirmed friendship before the application starts. `VALKEY_URL` is not needed: a preview is a single replica. The pull request comment contains both logins so two browser sessions can play each other. The preview downloads the same current verified snapshot as production after startup.
 
 Closing or merging removes the instance and its preview images. A weekly prune removes previews and images left behind by a failed cleanup.
 
