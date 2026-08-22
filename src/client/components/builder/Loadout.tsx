@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
-import { cloneElement, type ReactElement } from 'react'
+import { usePostHog } from '@posthog/react'
+import { cloneElement, type ReactElement, useEffect, useRef } from 'react'
 import type { Datasheet } from '../../../server/catalogue'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import type { RosterPick } from '../../../core/roster'
@@ -54,6 +55,9 @@ export function Loadout({
   showOptions = true,
   reference,
 }: Props) {
+  const posthog = usePostHog()
+  const timing = useRef<{ request: number; resolvedAt: number } | null>(null)
+  const capturedAt = useRef(0)
   // Only once the player stops changing the list, so a held stepper asks once.
   const detachments = useSettled(detachmentIds)
   const settledPicks = useSettled(picks)
@@ -61,10 +65,26 @@ export function Loadout({
   // A pane that swapped units keeps nothing from the last one; one that only had a
   // count changed keeps what it was showing, so the profiles do not blink.
   const forSameUnit = (previousQuery?: { queryKey: readonly unknown[] }) => previousQuery?.queryKey[2] === unit?.entryId
-  const { data: sheets } = useQuery({
-    ...loadoutDatasheetsQuery(catalogueId, unit?.entryId ?? '', detachments, settledPicks, pickIndex),
+  const { data: sheets, dataUpdatedAt } = useQuery({
+    ...loadoutDatasheetsQuery(catalogueId, unit?.entryId ?? '', detachments, settledPicks, pickIndex, (request) => {
+      timing.current = { request, resolvedAt: performance.now() }
+    }),
     placeholderData: (previous, previousQuery) => (forSameUnit(previousQuery) ? previous : undefined),
   })
+  useEffect(() => {
+    const measured = timing.current
+    if (!sheets || !measured || dataUpdatedAt <= capturedAt.current) return
+    capturedAt.current = dataUpdatedAt
+    const frame = requestAnimationFrame(() => {
+      posthog.capture('roster_datasheet_rendered', {
+        unit_count: picks.length,
+        request_duration_ms: Math.round(measured.request),
+        render_duration_ms: Math.round(performance.now() - measured.resolvedAt),
+        editable,
+      })
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [dataUpdatedAt, editable, picks.length, posthog, sheets])
   const sheet = sheets?.selected
   // Every weapon the unit could take, priced and modified as this list would have
   // it: an enhancement that adds to a weapon's Attacks is part of the choice, so it

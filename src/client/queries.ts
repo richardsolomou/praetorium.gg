@@ -142,10 +142,18 @@ export const loadoutDatasheetsQuery = (
   detachmentIds: readonly string[],
   picks: readonly RosterPick[],
   pickIndex: number | null,
+  onLoaded?: (durationMs: number) => void,
 ) =>
   queryOptions({
     queryKey: ['loadout-datasheets', catalogueId, entryId, detachmentIds, picks, pickIndex],
-    queryFn: () => loadoutDatasheets({ data: { catalogueId, entryId, detachmentIds: [...detachmentIds], picks: [...picks], pickIndex } }),
+    queryFn: async () => {
+      const startedAt = performance.now()
+      const result = await loadoutDatasheets({
+        data: { catalogueId, entryId, detachmentIds: [...detachmentIds], picks: [...picks], pickIndex },
+      })
+      onLoaded?.(performance.now() - startedAt)
+      return result
+    },
     enabled: Boolean(catalogueId && entryId),
     staleTime: Infinity,
   })
