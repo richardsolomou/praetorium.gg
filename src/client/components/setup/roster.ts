@@ -1,6 +1,7 @@
 import type { Roster } from '../../../core/battle'
 import type { savedRosterPrice } from '../../../server/functions'
 import type { savedRostersQuery } from '../../queries'
+import { attachmentRows } from '../builder/attachments'
 
 export type SavedRoster = Awaited<ReturnType<NonNullable<ReturnType<typeof savedRostersQuery>['queryFn']>>>[number]
 type PricedRoster = NonNullable<Awaited<ReturnType<typeof savedRosterPrice>>>
@@ -33,9 +34,22 @@ export function battleRoster(saved: SavedRoster, priced: PricedRoster): Roster {
       disposition: priced.disposition ?? null,
       units: priced.units.map((unit, index) => ({
         key: `${index}-${unit.entryId}`,
+        entryId: unit.entryId,
         name: unit.name,
         points: unit.points,
         models: unit.size.models,
+        group: unit.group,
+        wargear: unit.wargear,
+        enhancements: unit.enhancements,
+        upgrades: unit.upgrades,
+        joined: attachmentRows(
+          saved.picks.map((pick, key) => ({ ...pick, key })),
+          priced.units,
+          index,
+        ).map(({ label, name }) => ({
+          label,
+          name,
+        })),
         formationOptions: [...unit.formationOptions],
         prebattleRules: unit.prebattleRules,
       })),
