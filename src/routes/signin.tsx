@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useAuthAction } from 'ras-stack/auth/react'
+import posthog from 'posthog-js'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -43,6 +44,7 @@ function SignIn() {
         : authClient.signIn.email({ email, password }),
     )
     if (!result.error) {
+      posthog.capture(joining ? 'account_created' : 'account_signed_in', { method: 'email', redirected: Boolean(next) })
       await queryClient.invalidateQueries()
       // `next` is a pathname rather than a route, so this is a navigation by href
       // rather than by route id.

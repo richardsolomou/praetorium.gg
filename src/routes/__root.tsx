@@ -231,7 +231,11 @@ function RootComponent() {
         <HeadContent />
       </head>
       <body className={immersive ? 'h-dvh overflow-hidden' : 'min-h-dvh'}>
-        <PostHogIntegration environment={posthog} ingestPath={POSTHOG_INGEST_PATH}>
+        <PostHogIntegration
+          environment={posthog}
+          ingestPath={POSTHOG_INGEST_PATH}
+          options={{ capture_exceptions: true, capture_performance: true }}
+        >
           {posthog && <PostHogBetterAuthIdentity authClient={authClient} />}
           {/*
            * The bar spans the window and the page inside it decides its own width,

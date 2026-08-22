@@ -18,6 +18,7 @@ Each of these is a short read, and the one that matches what you are touching is
 | Any screen                                 | [docs/development/interface.md](docs/development/interface.md)                                               |
 | Product scope and interface design         | [docs/product-design.md](docs/product-design.md)                                                             |
 | Deploying, or the preview environments     | [docs/deployment.md](docs/deployment.md), [docs/development/pr-previews.md](docs/development/pr-previews.md) |
+| Product analytics, errors, logs            | [docs/development/telemetry.md](docs/development/telemetry.md)                                               |
 
 ## Rules that hold everywhere
 
