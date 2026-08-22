@@ -96,13 +96,13 @@ function MissionPackPage() {
           <span>Secondary missions</span>
           <span className="readout">{data.secondaries.length}</span>
         </h2>
-        <div className="mt-2 divide-y divide-edge border border-edge bg-panel">
+        <div className="mt-2 grid gap-px border border-edge bg-edge sm:grid-cols-2">
           {data.secondaries.map((card) => (
             <button
               key={card.key}
               type="button"
               onClick={() => setSecondaryId(card.key)}
-              className="flex w-full items-center justify-between px-3 py-2 text-left font-bold uppercase hover:bg-raised hover:text-info"
+              className="flex w-full items-center justify-between bg-panel px-3 py-2 text-left font-bold uppercase hover:bg-raised hover:text-info"
             >
               <span>{card.name}</span>
               <span className="text-xs text-dim">View</span>
