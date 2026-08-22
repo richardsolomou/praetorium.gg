@@ -28,8 +28,9 @@ function FactionIndex() {
   const { favourites, toggleFavourite } = useFavouriteFactions()
   if (!data)
     return (
-      <main className="mx-auto max-w-5xl px-4 py-8">
+      <main className="w-full">
         <PageState
+          className="min-h-[calc(100dvh-7rem)] border-x-0 border-t-0"
           loading
           eyebrow="Community catalogues"
           title="Syncing catalogue data"
@@ -50,10 +51,10 @@ function FactionIndex() {
   }, new Map<string, Faction[]>())
 
   return (
-    <main className="mx-auto w-full max-w-6xl sm:px-4 sm:py-6">
-      <section className="relative overflow-hidden border-y border-edge bg-panel p-5 sm:border sm:p-7">
+    <main className="w-full">
+      <section className="relative overflow-hidden border-b border-edge bg-panel p-5 sm:p-7">
         <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,transparent_35%,color-mix(in_srgb,var(--color-parchment)_8%,transparent),transparent_75%)]" />
-        <div className="relative">
+        <div className="relative mx-auto max-w-6xl">
           <p className="eyebrow text-parchment">Community catalogues</p>
           <h1 className="mt-1 text-3xl">Factions</h1>
           <p className="mt-2 max-w-2xl text-sm text-dim">
@@ -61,7 +62,7 @@ function FactionIndex() {
           </p>
         </div>
       </section>
-      <div className="mx-3 sm:mx-0">
+      <div className="mx-auto max-w-6xl px-3 pb-6 sm:px-4">
         <SearchField
           className="mt-4"
           value={factionQueryText}

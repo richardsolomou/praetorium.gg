@@ -166,10 +166,10 @@ function RosterLibrary() {
   if (!me) return <SignInRequired title="Your rosters" explanation="Sign in to build a list and keep it between battles." />
 
   return (
-    <main className="mx-auto w-full max-w-6xl sm:px-4 sm:py-6">
-      <section className="relative overflow-hidden border-y border-edge bg-panel p-5 sm:border sm:p-7">
+    <main className="w-full">
+      <section className="relative overflow-hidden border-b border-edge bg-panel p-5 sm:p-7">
         <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,transparent_35%,color-mix(in_srgb,var(--color-parchment)_8%,transparent),transparent_75%)]" />
-        <div className="relative flex flex-wrap items-end justify-between gap-4">
+        <div className="relative mx-auto flex max-w-6xl flex-wrap items-end justify-between gap-4">
           <div>
             <p className="eyebrow text-parchment">Your rosters</p>
             <h1 className="text-3xl">My rosters</h1>
@@ -182,7 +182,7 @@ function RosterLibrary() {
         </div>
       </section>
 
-      <div className="mx-3 mt-4 flex flex-wrap items-end gap-3 sm:mx-0" aria-label="Roster filters">
+      <div className="mx-auto mt-4 flex max-w-6xl flex-wrap items-end gap-3 px-3 sm:px-4" aria-label="Roster filters">
         <RosterCombobox
           label="Battle size"
           value={search.limit ? String(search.limit) : 'all'}
@@ -216,10 +216,10 @@ function RosterLibrary() {
         />
       </div>
       {actions.shareProblem ? (
-        <p className="mx-3 mt-3 text-sm text-destructive sm:mx-0">Could not copy the link: {actions.shareProblem}</p>
+        <p className="mx-auto mt-3 max-w-6xl px-3 text-sm text-destructive sm:px-4">Could not copy the link: {actions.shareProblem}</p>
       ) : null}
 
-      <section className="mx-3 mt-4 sm:mx-0">
+      <section className="mx-auto mt-4 max-w-6xl px-3 pb-6 sm:px-4">
         <p className="rubric flex items-baseline justify-between border-b border-edge pb-2">
           <span>Rosters</span>
           <span className="readout">{shown.length}</span>

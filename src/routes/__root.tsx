@@ -69,8 +69,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   }),
   component: RootComponent,
   notFoundComponent: () => (
-    <main className="mx-auto w-full max-w-2xl px-4 py-10">
+    <main className="w-full">
       <PageState
+        className="min-h-[calc(100dvh-7rem)] border-x-0 border-t-0"
         eyebrow="404"
         title="Nothing here"
         explanation="This page does not exist or its current data is unavailable. Check the link and try again."

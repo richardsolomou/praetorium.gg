@@ -48,10 +48,10 @@ function Battles() {
   const finished = battles.filter((battle) => battle.status === 'finished')
 
   return (
-    <main className="mx-auto w-full max-w-6xl sm:px-4 sm:py-6">
-      <section className="relative overflow-hidden border-y border-edge bg-panel p-5 sm:border sm:p-7">
+    <main className="w-full">
+      <section className="relative overflow-hidden border-b border-edge bg-panel p-5 sm:p-7">
         <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,transparent_35%,color-mix(in_srgb,var(--color-parchment)_8%,transparent),transparent_75%)]" />
-        <div className="relative flex flex-wrap items-end justify-between gap-4">
+        <div className="relative mx-auto flex max-w-6xl flex-wrap items-end justify-between gap-4">
           <div>
             <p className="eyebrow text-parchment">Your battles</p>
             <h1 className="mt-1 text-3xl">My battles</h1>
@@ -61,13 +61,13 @@ function Battles() {
         </div>
       </section>
       {battles.length ? (
-        <div className="mx-3 mt-4 space-y-6 sm:mx-0">
+        <div className="mx-auto mt-4 max-w-6xl space-y-6 px-3 pb-6 sm:px-4">
           <BattleShelf title="Active" battles={active} viewerId={me.id} onDelete={setDeleting} />
           <BattleShelf title="Setup" battles={setup} viewerId={me.id} onDelete={setDeleting} />
           <BattleShelf title="Finished" battles={finished} viewerId={me.id} onDelete={setDeleting} />
         </div>
       ) : (
-        <div className="mx-3 mt-4 grid place-items-center border border-edge bg-panel px-6 py-10 text-center sm:mx-0 sm:py-12">
+        <div className="mx-auto mt-4 grid max-w-6xl place-items-center border-y border-edge bg-panel px-6 py-10 text-center sm:border sm:py-12">
           <span className="grid size-14 place-items-center rounded-full border border-edge-strong bg-sunken text-parchment">
             <Swords className="size-6" aria-hidden />
           </span>

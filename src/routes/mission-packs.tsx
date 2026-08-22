@@ -29,8 +29,9 @@ function MissionPacks() {
 
   if (path !== '/mission-packs') return <Outlet />
   return (
-    <main className="mx-auto w-full max-w-5xl px-4 py-8">
+    <main className="w-full">
       <PageState
+        className="min-h-[calc(100dvh-7rem)] border-x-0 border-t-0"
         loading={!data}
         eyebrow="Mission packs"
         title={data ? 'No mission packs available' : 'Loading mission data'}

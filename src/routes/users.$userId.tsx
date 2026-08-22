@@ -29,8 +29,9 @@ function PlayerProfile() {
   const shared = battles.filter((battle) => battle.playerIds.includes(userId))
   if (!profile) {
     return (
-      <main className="mx-auto w-full max-w-2xl px-4 py-10">
+      <main className="w-full">
         <PageState
+          className="min-h-[calc(100dvh-7rem)] border-x-0 border-t-0"
           eyebrow="Player profile"
           title="Profile unavailable"
           explanation="You are not friends and have not shared a battle with this player."
@@ -52,61 +53,66 @@ function PlayerProfile() {
   const together = yourself ? 0 : shared.filter((battle) => sideOf(battle, me.id) === sideOf(battle, userId)).length
 
   return (
-    <main className="mx-auto w-full max-w-3xl space-y-6 px-4 py-8">
-      <section className="relative flex items-center gap-4 overflow-hidden border border-edge bg-panel p-5 sm:p-7">
+    <main className="w-full">
+      <section className="relative overflow-hidden border-b border-edge bg-panel p-5 sm:p-7">
         <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,transparent_35%,color-mix(in_srgb,var(--color-parchment)_8%,transparent),transparent_75%)]" />
-        <PlayerAvatar name={profile.name} image={profile.image} className="size-20 text-2xl" />
-        <div className="relative min-w-0">
-          <p className="eyebrow text-parchment">{yourself ? 'You' : 'Player'}</p>
-          <h1 className="truncate text-2xl">{profile.name}</h1>
-          <p className="mt-2 text-sm text-dim">
-            {yourself
-              ? `${shared.length} ${shared.length === 1 ? 'battle' : 'battles'} played.`
-              : `${shared.length} ${shared.length === 1 ? 'battle' : 'battles'} with you${
-                  together ? `, ${together} of them on the same side` : ''
-                }.`}
+        <div className="relative mx-auto flex max-w-6xl items-center gap-4">
+          <PlayerAvatar name={profile.name} image={profile.image} className="size-20 text-2xl" />
+          <div className="min-w-0">
+            <p className="eyebrow text-parchment">{yourself ? 'You' : 'Player'}</p>
+            <h1 className="truncate text-2xl">{profile.name}</h1>
+            <p className="mt-2 text-sm text-dim">
+              {yourself
+                ? `${shared.length} ${shared.length === 1 ? 'battle' : 'battles'} played.`
+                : `${shared.length} ${shared.length === 1 ? 'battle' : 'battles'} with you${
+                    together ? `, ${together} of them on the same side` : ''
+                  }.`}
+            </p>
+          </div>
+        </div>
+      </section>
+      <div className="mx-auto max-w-6xl space-y-6 px-3 py-4 sm:px-4">
+        <section>
+          <p className="rubric border-b border-edge pb-2">{yourself ? 'Your record' : 'Your record against them'}</p>
+          <div className="mt-3 grid grid-cols-3 gap-2">
+            <Tally label="Won" value={record.won} className="text-achieved" />
+            <Tally label="Lost" value={record.lost} className="text-side-a" />
+            <Tally label="Drawn" value={record.drawn} className="text-dim" />
+          </div>
+          {finished.length ? null : (
+            <p className="mt-3 text-sm text-dim">{yourself ? 'No finished battles yet.' : 'No finished battles between you yet.'}</p>
+          )}
+        </section>
+
+        <section>
+          <p className="rubric flex items-baseline justify-between border-b border-edge pb-2">
+            <span>Battles</span>
+            <span className="readout">{shared.length}</span>
           </p>
-        </div>
-      </section>
-
-      <section>
-        <p className="rubric border-b border-edge pb-2">{yourself ? 'Your record' : 'Your record against them'}</p>
-        <div className="mt-3 grid grid-cols-3 gap-2">
-          <Tally label="Won" value={record.won} className="text-achieved" />
-          <Tally label="Lost" value={record.lost} className="text-side-a" />
-          <Tally label="Drawn" value={record.drawn} className="text-dim" />
-        </div>
-        {finished.length ? null : (
-          <p className="mt-3 text-sm text-dim">{yourself ? 'No finished battles yet.' : 'No finished battles between you yet.'}</p>
-        )}
-      </section>
-
-      <section>
-        <p className="rubric flex items-baseline justify-between border-b border-edge pb-2">
-          <span>Battles</span>
-          <span className="readout">{shared.length}</span>
-        </p>
-        <div className="mt-2 space-y-2">
-          {shared.map((battle) => (
-            <Link
-              key={battle.token}
-              to="/battles/$token"
-              params={{ token: battle.token }}
-              className="flex items-center justify-between gap-3 border border-edge bg-panel p-3 hover:border-edge-strong"
-            >
-              <span className="min-w-0">
-                <span className="block truncate font-bold uppercase">{matchup(battle)}</span>
-                <span className="block truncate text-xs text-dim">{battle.armies.filter(Boolean).join(' · ') || 'No armies attached'}</span>
-              </span>
-              <span className="shrink-0 text-right">
-                <span className="eyebrow block">{battle.status === 'playing' ? `Round ${battle.round}` : battle.status}</span>
-                <span className="readout block text-xs text-dim">{sideScores(battle).join('–')}</span>
-                <span className="block text-[0.625rem] text-faint">{new Date(battle.lastActivity).toLocaleDateString()}</span>
-              </span>
-            </Link>
-          ))}
-        </div>
-      </section>
+          <div className="mt-2 space-y-2">
+            {shared.map((battle) => (
+              <Link
+                key={battle.token}
+                to="/battles/$token"
+                params={{ token: battle.token }}
+                className="flex items-center justify-between gap-3 border border-edge bg-panel p-3 hover:border-edge-strong"
+              >
+                <span className="min-w-0">
+                  <span className="block truncate font-bold uppercase">{matchup(battle)}</span>
+                  <span className="block truncate text-xs text-dim">
+                    {battle.armies.filter(Boolean).join(' · ') || 'No armies attached'}
+                  </span>
+                </span>
+                <span className="shrink-0 text-right">
+                  <span className="eyebrow block">{battle.status === 'playing' ? `Round ${battle.round}` : battle.status}</span>
+                  <span className="readout block text-xs text-dim">{sideScores(battle).join('–')}</span>
+                  <span className="block text-[0.625rem] text-faint">{new Date(battle.lastActivity).toLocaleDateString()}</span>
+                </span>
+              </Link>
+            ))}
+          </div>
+        </section>
+      </div>
     </main>
   )
 }

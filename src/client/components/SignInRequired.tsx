@@ -11,8 +11,9 @@ import { PageState } from './PageState'
  */
 export function SignInRequired({ title, explanation, next }: { title: string; explanation: string; next?: string }) {
   return (
-    <main className="mx-auto w-full max-w-2xl px-4 py-10">
+    <main className="w-full">
       <PageState
+        className="min-h-[calc(100dvh-7rem)] border-x-0 border-t-0"
         eyebrow="Account required"
         title={title}
         explanation={explanation}

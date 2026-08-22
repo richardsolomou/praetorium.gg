@@ -26,10 +26,10 @@ function MissionPackPage() {
   const secondaryCap = Math.max(0, ...pack.missions.map((entry) => entry.secondaryGameCap ?? 0))
 
   return (
-    <main className="mx-auto w-full max-w-6xl sm:px-4 sm:py-6">
-      <section className="relative overflow-hidden border-y border-edge bg-panel p-5 sm:border sm:p-7">
+    <main className="w-full">
+      <section className="relative overflow-hidden border-b border-edge bg-panel p-5 sm:p-7">
         <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,transparent_35%,color-mix(in_srgb,var(--color-parchment)_8%,transparent),transparent_75%)]" />
-        <div className="relative">
+        <div className="relative mx-auto max-w-6xl">
           <p className="eyebrow text-parchment">Mission pack</p>
           <h1 className="mt-1 text-3xl">{pack.name}</h1>
           <p className="mt-2 max-w-3xl text-sm text-dim">
@@ -39,7 +39,7 @@ function MissionPackPage() {
           </p>
         </div>
       </section>
-      <section className="mx-3 mt-5 sm:mx-0 sm:mt-7">
+      <section className="mx-auto mt-5 max-w-6xl px-3 sm:mt-7 sm:px-4">
         <h2 className="text-xl">Force dispositions</h2>
         <p className="mt-1 text-sm text-dim">Select the resulting mission to read its scoring rules.</p>
         <div className="mt-3 overflow-x-auto pb-2">
@@ -91,7 +91,7 @@ function MissionPackPage() {
         </div>
       </section>
 
-      <section className="mx-3 mt-7 sm:mx-0">
+      <section className="mx-auto mt-7 max-w-6xl px-3 sm:px-4">
         <h2 className="rubric flex justify-between border-b border-edge pb-2">
           <span>Secondary missions</span>
           <span className="readout">{data.secondaries.length}</span>
@@ -111,7 +111,7 @@ function MissionPackPage() {
         </div>
       </section>
 
-      <p className="mx-3 mt-6 border-t border-edge pt-3 text-xs text-dim sm:mx-0">{data.attribution}</p>
+      <p className="mx-auto mt-6 max-w-6xl border-t border-edge px-3 pt-3 pb-6 text-xs text-dim sm:px-4">{data.attribution}</p>
 
       <Dialog open={Boolean(secondary)} onOpenChange={(open) => !open && setSecondaryId(null)}>
         <DialogContent className="rounded-none border border-edge bg-panel text-bone ring-0 sm:max-w-2xl">

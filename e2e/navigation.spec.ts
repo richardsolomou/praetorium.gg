@@ -391,7 +391,7 @@ test('a player can enter through the roster library and browse the product', asy
   await expect(page.getByLabel('Find a datasheet')).toBeVisible()
   await page.getByLabel('Find a datasheet').fill('Overlord')
   await expect(page.getByRole('link', { name: /Overlord/ }).first()).toBeVisible()
-  await expect(page.locator('main > p.rubric')).toContainText('2')
+  await expect(page.locator('main p.rubric').filter({ hasText: 'Datasheets' })).toContainText('2')
   await page.screenshot({ path: 'test-results/faction-datasheets.png', fullPage: true })
   await page
     .getByRole('link', { name: /Overlord/ })

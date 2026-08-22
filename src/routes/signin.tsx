@@ -56,8 +56,8 @@ function SignIn() {
   }
 
   return (
-    <main className="mx-auto grid w-full max-w-4xl gap-px px-4 py-10 md:grid-cols-[1fr_1.1fr]">
-      <aside className="relative hidden min-h-[34rem] overflow-hidden border border-edge bg-sunken p-8 md:grid md:content-between">
+    <main className="mx-auto grid w-full max-w-6xl gap-px md:grid-cols-[1fr_1.1fr]">
+      <aside className="relative hidden min-h-[calc(100dvh-7rem)] overflow-hidden border-r border-edge bg-sunken p-8 md:grid md:content-between">
         <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(145deg,transparent_30%,color-mix(in_srgb,var(--color-parchment)_10%,transparent),transparent_75%)]" />
         <div className="relative">
           <p className="eyebrow text-parchment">Praetorium account</p>
@@ -66,7 +66,7 @@ function SignIn() {
         <img src="/logo.svg" alt="" className="relative mx-auto size-40 drop-shadow-[0_0_2rem_rgba(137,184,157,0.18)]" />
         <p className="relative text-sm text-dim">Your rosters, friendships, and battle history follow your account across devices.</p>
       </aside>
-      <section className="border border-edge bg-panel p-6 sm:p-8 md:min-h-[34rem]">
+      <section className="min-h-[calc(100dvh-7rem)] border-b border-edge bg-panel p-6 sm:p-8 md:border-l">
         <p className="eyebrow text-parchment">{joining ? 'Create account' : 'Sign in'}</p>
         <h1 className="mt-1 text-3xl">{joining ? 'Make an account' : 'Welcome back'}</h1>
         <p className="mt-3 text-sm text-dim">
