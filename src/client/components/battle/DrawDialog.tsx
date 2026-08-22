@@ -47,7 +47,7 @@ export function DrawDialog({
   const held = side.secondaries.filter((card) => card.status === 'active')
   const [paused, setPaused] = useState(initiallyPaused)
   const [inspected, setInspected] = useState<MissionDetails | null>(null)
-  const [confirmingUndo, setConfirmingUndo] = useState(false)
+  const [confirmingUndo, setConfirmingUndo] = useState<number | null>(null)
   /**
    * What this prompt has already asked the deck for.
    *
@@ -128,7 +128,7 @@ export function DrawDialog({
               onClick={() => {
                 if (undoable === null) return
                 if (confirmUndo) {
-                  setConfirmingUndo(true)
+                  setConfirmingUndo(undoable)
                   return
                 }
                 setPaused(true)
@@ -153,14 +153,14 @@ export function DrawDialog({
       {/* Base UI treats nested dialogs as one dismissible region, so details must be a sibling. */}
       {inspected ? <MissionDetailsDialog details={inspected} onOpenChange={(open) => !open && setInspected(null)} /> : null}
       <DrawUndoAlert
-        open={confirmingUndo}
+        open={confirmingUndo !== null}
         pending={pending}
-        onOpenChange={setConfirmingUndo}
+        onOpenChange={(open) => !open && setConfirmingUndo(null)}
         onConfirm={() => {
-          if (undoable === null) return
+          if (confirmingUndo === null) return
           setPaused(true)
-          setConfirmingUndo(false)
-          send({ kind: 'undo', target: undoable })
+          setConfirmingUndo(null)
+          send({ kind: 'undo', target: confirmingUndo })
         }}
       />
     </>

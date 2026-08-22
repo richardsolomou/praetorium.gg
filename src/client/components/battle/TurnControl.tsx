@@ -24,7 +24,7 @@ type Props = {
  * side is taking the turn.
  */
 export function TurnControl({ view, send, pending, blockReason, onAdvance, className = '' }: Props) {
-  const [confirmingUndo, setConfirmingUndo] = useState(false)
+  const [confirmingUndo, setConfirmingUndo] = useState<number | null>(null)
   const active = view.players.find((player) => player.isActive)
   const activeSide = active?.side ?? 0
   const at = PHASES.indexOf(view.phase)
@@ -58,7 +58,7 @@ export function TurnControl({ view, send, pending, blockReason, onAdvance, class
           disabled={view.undoable === null || pending}
           onClick={() => {
             if (view.undoable === null) return
-            if (view.undoableDraw) setConfirmingUndo(true)
+            if (view.undoableDraw) setConfirmingUndo(view.undoable)
             else send({ kind: 'undo', target: view.undoable })
           }}
         >
@@ -69,13 +69,13 @@ export function TurnControl({ view, send, pending, blockReason, onAdvance, class
         <p className="border border-discarded/50 bg-discarded/10 p-2 text-center text-xs text-discarded">{blockReason}</p>
       ) : null}
       <DrawUndoAlert
-        open={confirmingUndo}
+        open={confirmingUndo !== null}
         pending={pending}
-        onOpenChange={setConfirmingUndo}
+        onOpenChange={(open) => !open && setConfirmingUndo(null)}
         onConfirm={() => {
-          if (view.undoable === null) return
-          setConfirmingUndo(false)
-          send({ kind: 'undo', target: view.undoable })
+          if (confirmingUndo === null) return
+          setConfirmingUndo(null)
+          send({ kind: 'undo', target: confirmingUndo })
         }}
       />
     </section>
