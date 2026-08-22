@@ -1,5 +1,15 @@
 # praetorium
 
+## 0.19.1
+
+### Patch Changes
+
+- c6a1825: Restore the default interface font size for a more compact layout.
+- 8082b0d: Show synced descriptions for core stratagems in battles.
+- 52f4e62: Cap additional command point gains at one per side each battle round.
+- c069e57: Confirm before undoing randomly drawn secondary missions.
+- f7526a0: Describe round-one secondary redraws without referring to impossible earlier rounds.
+
 ## 0.19.0
 
 ### Minor Changes
