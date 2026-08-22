@@ -81,7 +81,7 @@ describe('setup', () => {
         [BOB, roster('Marines')],
         [CAROL, roster('Guard')],
         [ALICE, { kind: 'begin-battle', firstPlayerId: BOB }],
-        [CAROL, { kind: 'adjust-cp', delta: 2 }],
+        [CAROL, { kind: 'adjust-cp', delta: 1 }],
       ),
       [0, 1, 1],
     )
@@ -89,9 +89,12 @@ describe('setup', () => {
 
     expect(view.players.map((player) => ({ name: player.roster?.name, cp: player.cp }))).toEqual([
       { name: 'Knights', cp: 0 },
-      { name: 'Marines', cp: 3 },
-      { name: 'Guard', cp: 3 },
+      { name: 'Marines', cp: 2 },
+      { name: 'Guard', cp: 2 },
     ])
+    expect(validate(state, BOB, { kind: 'adjust-cp', delta: 1 })).toBe(
+      'a side can gain at most 1 additional command point per battle round',
+    )
   })
 
   it('limits King of the Colosseum to one detachment', () => {
