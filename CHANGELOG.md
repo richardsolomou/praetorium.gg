@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.18.4
+
+### Patch Changes
+
+- b081d11: Open picker previews and read-only roster datasheets without sending or processing unnecessary roster data.
+
 ## 0.18.3
 
 ### Patch Changes
