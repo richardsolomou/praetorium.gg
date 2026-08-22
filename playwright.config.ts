@@ -6,7 +6,9 @@ export default defineConfig({
   // Playwright is still alive here, unlike the shell that started the stack.
   globalTeardown: './e2e/globalTeardown.ts',
   outputDir: process.env.PLAYWRIGHT_OUTPUT_DIR ?? 'test-results',
-  fullyParallel: false,
+  // Sharding reads this setting before it assigns tests. Keeping it only on the
+  // command line leaves the large builder spec on one runner while others are empty.
+  fullyParallel: true,
   // One worker owns each container and database; CI starts isolated processes for parallelism.
   workers: 1,
   retries: 0,

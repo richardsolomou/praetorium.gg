@@ -171,7 +171,7 @@ jobs:
           PLAYWRIGHT_PORT="$((4170 + E2E_SHARD))" \
             PLAYWRIGHT_DATA_ROOT="/tmp/praetorium-e2e-$E2E_SHARD" \
             PLAYWRIGHT_OUTPUT_DIR="test-results-$E2E_SHARD" \
-            pnpm exec playwright test --fully-parallel --workers=1 --shard="$E2E_SHARD/8"
+            pnpm exec playwright test --workers=1 --shard="$E2E_SHARD/8"
       - if: failure()
         uses: actions/upload-artifact@v7
         with:
