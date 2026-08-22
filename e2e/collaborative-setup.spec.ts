@@ -36,8 +36,13 @@ test('battle setup stays in step and shows both players their shared choices', a
   await alice.screenshot({ path: 'test-results/setup-battlefield-dialog.png', fullPage: true })
   await alice.keyboard.press('Escape')
 
+  await setupStep(bob, 'Attacker')
+  await bob
+    .getByRole('group', { name: 'Attacker' })
+    .getByRole('button', { name: new RegExp(aliceName) })
+    .click()
   await setupStep(bob, 'Pre-battle')
-  await expect(alice.getByText(/4 of 5 · Pre-battle/i)).toBeVisible()
+  await expect(alice.getByText(/5 of 6 · Pre-battle/i)).toBeVisible()
   // Both sides are drawn, so each name appears on the table strip and again on its own column.
   await expect(alice.getByRole('main').getByText(aliceName, { exact: true }).first()).toBeVisible()
   await expect(alice.getByRole('main').getByText(bobName, { exact: true }).first()).toBeVisible()
