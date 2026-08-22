@@ -6,6 +6,7 @@ Praetorium uses a compact, dark interface. See [Product design](../product-desig
 
 - Use compact, uppercase headings, section counts, points chips, and red or blue player tints consistently.
 - Keep player tints on scores and controls. The tint identifies ownership across the table.
+- Use theme red for attacker deployment zones and theme green for defender zones. Use primary green for a neutral zone.
 - Edit squad size on the roster card. Do not add a second squad-size control to the loadout pane.
 - Render each picker or loadout pane once. `src/client/components/builder/Pane.tsx` moves the same instance between a desktop sidebar and a mobile sheet. Two instances create duplicate form controls and accessibility labels.
 - Split unit lists into collapsible primary-category shelves and omit empty shelves. Use the same shelf order on rosters, in the picker and on faction datasheet pages.

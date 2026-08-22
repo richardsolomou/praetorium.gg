@@ -2,4 +2,4 @@
 'praetorium.gg': patch
 ---
 
-Make tactical draws, roster saves, and catalogue refreshes safer.
+Make battle draws, roster saves, catalogue refreshes, and terrain layouts safer and clearer.
