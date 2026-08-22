@@ -20,6 +20,7 @@ type Props = {
   showWeapons?: boolean
   embedded?: boolean
   hideSummary?: boolean
+  providedSheet?: Datasheet | null
 }
 
 export function DatasheetPanel({
@@ -32,15 +33,18 @@ export function DatasheetPanel({
   showWeapons = false,
   embedded = false,
   hideSummary = false,
+  providedSheet,
 }: Props) {
   // Only once the player stops changing the list, so a held stepper asks once.
   const detachments = useSettled(detachmentIds)
   const settledPicks = useSettled(picks)
   const settledIndex = useSettled(pickIndex)
-  const { data: sheet } = useQuery({
+  const { data: fetchedSheet } = useQuery({
     ...datasheetQuery(catalogueId, entryId ?? '', detachments, settledPicks, settledIndex),
+    enabled: providedSheet === undefined && Boolean(catalogueId && entryId),
     placeholderData: (previous, previousQuery) => (previousQuery?.queryKey[2] === entryId ? previous : undefined),
   })
+  const sheet = providedSheet === undefined ? fetchedSheet : providedSheet
 
   if (!entryId) {
     return (

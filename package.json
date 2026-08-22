@@ -33,6 +33,7 @@
     "catalogue:snapshot": "tsx scripts/catalogueSnapshot.ts",
     "catalogue:update": "tsx scripts/syncCatalogue.ts --update",
     "catalogue:points": "node --max-old-space-size=8192 --import tsx scripts/checkPoints.ts && tsx scripts/checkRestrictions.ts",
+    "benchmark:roster": "tsx scripts/benchmarkRosterLoading.ts",
     "db:migrate": "tsx scripts/migrate.ts"
   },
   "dependencies": {

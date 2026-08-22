@@ -8,7 +8,7 @@ import { buildUnit } from '../core/roster'
 import { modelCountOf } from '../core/unitSize'
 import { wargearOf } from '../core/wargear'
 import { app } from './app'
-import { datasheetIn, rulesReferencedIn } from './catalogue'
+import { abilityNamesIn, datasheetIn, rulesReferencedIn } from './catalogue'
 import { detachmentCatalogueDetail } from './catalogueDescriptions'
 import { groupOfEntry } from './cataloguePicker'
 import { rosterDetachments } from './rosterDetachments'
@@ -128,20 +128,27 @@ export function calculateRosterPrice(data: PriceInput) {
   const options = { primaryCatalogueId: data.catalogueId }
   const selections = [...forceSelections.values()].flat()
   const whole = evaluateForces([...forceSelections.values()], loaded.index, options)
-  const kotcUnits = picked.map((unit) => {
-    const catalogueId = data.units[unit.key]?.catalogueId ?? loaded.index.catalogueOf.get(unit.entryId) ?? data.catalogueId
-    const sheet = datasheetIn(loaded, catalogueId, unit.entryId, {
-      selections,
-      unitSelectionIndex: selections.indexOf(unit.selection),
-    })
-    return {
-      entryId: unit.entryId,
-      name: unit.name,
-      keywords: sheet?.keywords ?? [],
-      toughness: toughnessOf(sheet?.profiles ?? []),
-      warlord: Object.values(data.units[unit.key]?.toggles ?? {}).some((count) => count > 0),
-    }
-  })
+  const restrictions = rules?.factionRestrictions.get(factionSlug)
+  // Keywords and Toughness are only inputs to these two construction rule sets.
+  // Projecting every contextual datasheet for an ordinary roster made pricing
+  // revisit the complete roster once per unit, despite never reading the result.
+  const constructionUnits =
+    restrictions || isKotcLimit(data.limit)
+      ? picked.map((unit) => {
+          const catalogueId = data.units[unit.key]?.catalogueId ?? loaded.index.catalogueOf.get(unit.entryId) ?? data.catalogueId
+          const sheet = datasheetIn(loaded, catalogueId, unit.entryId, {
+            selections,
+            unitSelectionIndex: selections.indexOf(unit.selection),
+          })
+          return {
+            entryId: unit.entryId,
+            name: unit.name,
+            keywords: sheet?.keywords ?? [],
+            toughness: toughnessOf(sheet?.profiles ?? []),
+            warlord: Object.values(data.units[unit.key]?.toggles ?? {}).some((count) => count > 0),
+          }
+        })
+      : []
   /**
    * Units the catalogue builds itself, model for model, per squad size.
    *
@@ -184,8 +191,8 @@ export function calculateRosterPrice(data: PriceInput) {
         !selfContradictory.has(error),
     ),
     ...attachmentErrors(data.units, loaded.index),
-    ...factionRestrictionViolations(rules?.factionRestrictions.get(factionSlug), kotcUnits),
-    ...(isKotcLimit(data.limit) ? kotcViolations(chosen.length, kotcUnits, data.limit) : []),
+    ...factionRestrictionViolations(restrictions, constructionUnits),
+    ...(isKotcLimit(data.limit) ? kotcViolations(chosen.length, constructionUnits, data.limit) : []),
   ]
   // One fact, said once. A limit on a shared entry is broken by each selection of it,
   // and every one of them reports the same sentence about the same count.
@@ -212,7 +219,7 @@ export function calculateRosterPrice(data: PriceInput) {
     selections,
     units: picked.map((unit) => {
       const catalogueId = data.units[unit.key]?.catalogueId ?? loaded.index.catalogueOf.get(unit.entryId) ?? data.catalogueId
-      const deployment = deploymentRules(datasheetIn(loaded, catalogueId, unit.entryId)?.abilities.map((ability) => ability.name) ?? [])
+      const deployment = deploymentRules(abilityNamesIn(loaded, catalogueId, unit.entryId))
       const choices: ((typeof unit.choices)[number] & { kind?: 'enhancement' | 'upgrade' })[] = unit.choices.map((choice) => {
         if (!choice.name.toLowerCase().includes('enhancement')) return choice
         const choiceOptions = choice.options ?? []

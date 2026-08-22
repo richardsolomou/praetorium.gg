@@ -1,8 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
-import type { ReactNode } from 'react'
+import { cloneElement, type ReactElement } from 'react'
+import type { Datasheet } from '../../../server/catalogue'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import type { RosterPick } from '../../../core/roster'
-import { datasheetQuery } from '../../queries'
+import { loadoutDatasheetsQuery } from '../../queries'
 import { useSettled } from '../../useSettled'
 import { UnitProfile, WeaponSummary } from './DatasheetPanel'
 import {
@@ -29,7 +30,7 @@ type Props = {
   onSwap: (key: string, count: number) => void
   editable?: boolean
   showOptions?: boolean
-  reference?: ReactNode
+  reference?: ReactElement<{ providedSheet?: Datasheet | null }>
 }
 
 /**
@@ -60,17 +61,15 @@ export function Loadout({
   // A pane that swapped units keeps nothing from the last one; one that only had a
   // count changed keeps what it was showing, so the profiles do not blink.
   const forSameUnit = (previousQuery?: { queryKey: readonly unknown[] }) => previousQuery?.queryKey[2] === unit?.entryId
-  const { data: sheet } = useQuery({
-    ...datasheetQuery(catalogueId, unit?.entryId ?? '', detachments, settledPicks, pickIndex),
+  const { data: sheets } = useQuery({
+    ...loadoutDatasheetsQuery(catalogueId, unit?.entryId ?? '', detachments, settledPicks, pickIndex),
     placeholderData: (previous, previousQuery) => (forSameUnit(previousQuery) ? previous : undefined),
   })
+  const sheet = sheets?.selected
   // Every weapon the unit could take, priced and modified as this list would have
   // it: an enhancement that adds to a weapon's Attacks is part of the choice, so it
   // has to be visible before the choice is made rather than after.
-  const { data: availableSheet } = useQuery({
-    ...datasheetQuery(catalogueId, unit?.entryId ?? '', detachments, settledPicks, pickIndex, true),
-    placeholderData: (previous, previousQuery) => (forSameUnit(previousQuery) ? previous : undefined),
-  })
+  const availableSheet = sheets?.available
 
   if (!unit) {
     return (
@@ -194,7 +193,7 @@ export function Loadout({
               </div>
             </section>
           ) : null}
-          {reference}
+          {sheet && reference ? cloneElement(reference, { providedSheet: sheet }) : null}
         </div>
       </ScrollArea>
     </div>

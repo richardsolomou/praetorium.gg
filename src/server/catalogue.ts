@@ -37,43 +37,107 @@ export type Datasheet = {
 
 type AbilityKind = 'core' | 'faction' | 'datasheet' | 'rule' | 'wargear'
 
+type DatasheetContext = {
+  selections: readonly Selection[]
+  unitSelectionIndex?: number
+  /** Whether to keep weapons the unit is not carrying. */
+  everyWeapon?: boolean
+  /** The units that count as this one, by position: a character and what it leads. */
+  companions?: readonly number[]
+  /** Shared by paired projections of the same roster and unit. */
+  modifiers?: readonly ProfileModifier[]
+}
+
 const abilityDescription = (profile: Profile) =>
   profile.characteristics?.find((characteristic) => characteristic.name === 'Description')?.$text ?? null
 
+const abilityNameCache = new WeakMap<LoadedCatalogue, Map<string, string[]>>()
+
+/**
+ * Ability names without projecting a complete display datasheet.
+ *
+ * Roster pricing only needs to recognize deployment abilities. Building profiles,
+ * choices, attachment relationships and description text for every unit made that
+ * small question pay nearly the whole datasheet-page cost.
+ */
+export function abilityNamesIn(loaded: LoadedCatalogue, catalogueId: string, entryId: string): string[] {
+  const key = `${catalogueId}:${entryId}`
+  const cache = abilityNameCache.get(loaded)
+  const cached = cache?.get(key)
+  if (cached) return cached
+  if (!datasheetsOf(loaded.index, catalogueId).has(entryId)) return []
+  const root = loaded.index.definitions.get(entryId)
+  if (!root) return []
+
+  const names = new Set<string>()
+  const visited = new Set<string>()
+  const addProfile = (profile: Profile) => {
+    if (profile.typeName === 'Abilities' && profile.name && !profile.hidden) names.add(profile.name)
+  }
+  const addRule = (link: InfoLink) => {
+    if (link.type !== 'rule' || infoLinkHiddenByRules(link, loaded.index, { primaryCatalogueId: catalogueId })) return
+    const rule = loaded.index.rules.get(link.targetId)
+    const name = displayRuleName(link, link.name ?? rule?.name)
+    if (name && !rule?.hidden) names.add(name)
+  }
+  const addGroup = (group: InfoGroup) => {
+    if (group.hidden) return
+    group.profiles?.forEach(addProfile)
+    group.infoLinks?.forEach(addRule)
+  }
+  const addProfiles = (definition: Definition, ownRules: boolean) => {
+    definition.profiles?.forEach(addProfile)
+    definition.infoGroups?.forEach(addGroup)
+    for (const link of definition.infoLinks ?? []) {
+      if (ownRules) addRule(link)
+      const shared = loaded.index.shared.get(link.targetId)
+      if (!shared) continue
+      if ('profiles' in shared) addGroup({ ...shared, name: link.name ?? shared.name })
+      else addProfile({ ...shared, name: link.name ?? shared.name })
+    }
+  }
+  const visit = (definition: Definition, isRoot = false, enhancement = false) => {
+    if (visited.has(definition.id)) return
+    visited.add(definition.id)
+    const enhancementEntry = enhancement || definition.name === 'Enhancements'
+    if (!enhancementEntry) addProfiles(definition, isRoot)
+    definition.selectionEntries?.forEach((entry) => visit(entry, false, enhancementEntry))
+    definition.selectionEntryGroups?.forEach((group) => visit(group, false, enhancementEntry))
+    for (const link of definition.entryLinks ?? []) {
+      visit(link)
+      const target = loaded.index.definitions.get(link.targetId)
+      if (target) addProfiles(target, false)
+    }
+  }
+
+  const sheet = targetOf(root, loaded.index.definitions)
+  visit(root, true)
+  if (sheet !== root) visit(sheet, true)
+  const found = [...names]
+  const entries = cache ?? new Map<string, string[]>()
+  entries.set(key, found)
+  if (!cache) abilityNameCache.set(loaded, entries)
+  return found
+}
+
 /** Structured display data for one top-level datasheet, including linked shared profiles. */
-export function datasheetIn(
-  loaded: LoadedCatalogue,
-  catalogueId: string,
-  entryId: string,
-  context?: {
-    selections: readonly Selection[]
-    unitSelectionIndex?: number
-    /**
-     * Whether to keep weapons the unit is not carrying.
-     *
-     * The loadout asks for these: a player choosing between two guns wants to see
-     * what each would do in *this* list, enhancement and all, rather than what the
-     * bare datasheet prints.
-     */
-    everyWeapon?: boolean
-    /** The units that count as this one, by position: a character and what it leads. */
-    companions?: readonly number[]
-  },
-): Datasheet | null {
+export function datasheetIn(loaded: LoadedCatalogue, catalogueId: string, entryId: string, context?: DatasheetContext): Datasheet | null {
   if (!datasheetsOf(loaded.index, catalogueId).has(entryId)) return null
   const root = loaded.index.definitions.get(entryId)
   if (!root) return null
 
-  const modifiers = context
-    ? profileModifiers(
-        context.selections,
-        entryId,
-        loaded.index,
-        { primaryCatalogueId: catalogueId },
-        context.unitSelectionIndex,
-        context.companions ?? [],
-      )
-    : []
+  const modifiers =
+    context?.modifiers ??
+    (context
+      ? profileModifiers(
+          context.selections,
+          entryId,
+          loaded.index,
+          { primaryCatalogueId: catalogueId },
+          context.unitSelectionIndex,
+          context.companions ?? [],
+        )
+      : [])
   const grantedWeaponAbilities = context
     ? weaponAbilitiesInAttachedUnit(context.selections, context.unitSelectionIndex, context.companions ?? [], loaded.index)
     : []
@@ -260,6 +324,28 @@ export function datasheetIn(
   }
 }
 
+/** Selected and offered-weapon views sharing the expensive roster modifier fold. */
+export function datasheetViewsIn(
+  loaded: LoadedCatalogue,
+  catalogueId: string,
+  entryId: string,
+  context: Omit<DatasheetContext, 'everyWeapon' | 'modifiers'>,
+) {
+  const modifiers = profileModifiers(
+    context.selections,
+    entryId,
+    loaded.index,
+    { primaryCatalogueId: catalogueId },
+    context.unitSelectionIndex,
+    context.companions ?? [],
+  )
+  const shared = { ...context, modifiers }
+  return {
+    selected: datasheetIn(loaded, catalogueId, entryId, shared),
+    available: datasheetIn(loaded, catalogueId, entryId, { ...shared, everyWeapon: true }),
+  }
+}
+
 type GrantedWeaponAbility = { keyword: string; source: string; profileTypes: readonly string[] }
 type GrantedInvulnerableSave = { value: string; source: string; originIds: readonly string[] }
 
@@ -379,7 +465,14 @@ function addGrantedWeaponAbilities(
   return values.map((value) => (value === keywords ? changed : value))
 }
 
+const relationshipCache = new WeakMap<LoadedCatalogue, Map<string, { leaders: string[]; supporters: string[] }>>()
+
 function relationshipsFor(loaded: LoadedCatalogue, catalogueId: string, entryId: string, name: string) {
+  const key = `${catalogueId}:${entryId}`
+  const cache = relationshipCache.get(loaded)
+  const cached = cache?.get(key)
+  if (cached) return cached
+
   const leaders = new Set<string>()
   const supporters = new Set<string>()
   for (const candidateId of datasheetsOf(loaded.index, catalogueId)) {
@@ -391,7 +484,11 @@ function relationshipsFor(loaded: LoadedCatalogue, catalogueId: string, entryId:
     const found = attachment.kind === 'leader' ? leaders : supporters
     found.add(nameOf(candidate, loaded.index.definitions))
   }
-  return { leaders: [...leaders], supporters: [...supporters] }
+  const relationships = { leaders: [...leaders], supporters: [...supporters] }
+  const entries = cache ?? new Map<string, { leaders: string[]; supporters: string[] }>()
+  entries.set(key, relationships)
+  if (!cache) relationshipCache.set(loaded, entries)
+  return relationships
 }
 
 function uniqueProfiles(profiles: Datasheet['profiles']) {
