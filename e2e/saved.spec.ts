@@ -57,9 +57,9 @@ test('a list is saved and loaded into another battle', async ({ browser }) => {
     .first()
     .click()
 
-  const datasheet = page.locator('aside[aria-label="Datasheet"]')
-  await expect(datasheet.locator('[data-slot="unit-profile"]')).toBeVisible()
-  await expect(page.locator('aside[aria-label="Loadout"]').getByText('Gauss blaster', { exact: true }).first()).toBeVisible()
+  const loadout = page.locator('aside[aria-label="Loadout"]')
+  await expect(loadout.locator('[data-slot="unit-profile"]')).toBeVisible()
+  await expect(loadout.getByText('Gauss blaster', { exact: true }).first()).toBeVisible()
   await expect(page.getByLabel('List name')).toHaveValue('Nurgle 2k')
   await expect(page.getByLabel('Immortals models')).toHaveText('6')
   await page.screenshot({ path: 'test-results/saved-roster-edge-to-edge.png', fullPage: true })
@@ -91,15 +91,20 @@ test('a list is saved and loaded into another battle', async ({ browser }) => {
   const roster = await view
   await expect(roster.getByLabel('List name')).toHaveValue('Copy of Nurgle 2k')
   await expect(roster.getByRole('button', { name: 'Immortals', exact: true })).toBeVisible()
-  await roster.evaluate(() => {
-    window.print = () => document.documentElement.setAttribute('data-print-called', 'true')
-  })
-  await roster.getByRole('button', { name: 'Print' }).click()
-  await expect(roster.locator('html')).toHaveAttribute('data-print-called', 'true')
   await roster.emulateMedia({ media: 'print' })
   await roster.screenshot({ path: 'test-results/shared-roster-print.png', fullPage: true })
   const sharedUrl = roster.url()
   await roster.close()
+
+  await context.addInitScript(() => {
+    window.print = () => document.documentElement.setAttribute('data-print-called', 'true')
+  })
+  await page.getByRole('button', { name: 'Actions for Copy of Nurgle 2k' }).click()
+  const print = page.waitForEvent('popup')
+  await page.getByRole('menuitem', { name: 'Print' }).click()
+  const printedRoster = await print
+  await expect(printedRoster.locator('html')).toHaveAttribute('data-print-called', 'true')
+  await printedRoster.close()
 
   await page.getByRole('button', { name: 'Actions for Copy of Nurgle 2k' }).click()
   await page.getByRole('menuitem', { name: 'Edit setup' }).click()
@@ -127,7 +132,7 @@ test('a list is saved and loaded into another battle', async ({ browser }) => {
   await expect(guestLoadout.getByRole('button', { name: 'More Gauss blaster' })).toHaveCount(0)
   await expect(guestLoadout.getByRole('button', { name: /^Select / })).toHaveCount(0)
   await expect(guestLoadout.getByRole('button', { name: 'More models in Immortals' })).toHaveCount(0)
-  await expect(guest.locator('aside[aria-label="Datasheet"]').getByText('Implacable Eradication')).toBeVisible()
+  await expect(guestLoadout.getByText('Implacable Eradication')).toBeVisible()
   await guest.screenshot({ path: 'test-results/shared-roster-read-only.png', fullPage: true })
   await guest.setViewportSize({ width: 390, height: 844 })
   await expect(guestLoadout).toBeVisible()

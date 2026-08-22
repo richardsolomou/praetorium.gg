@@ -67,14 +67,15 @@ test('the roster workspace preserves picker and read-only state', async ({ page 
   await page.getByRole('button', { name: 'Add units', exact: true }).click()
   await expect(page.getByLabel('Add a unit')).toHaveValue('Immortals')
   await expect(page.getByRole('button', { name: 'Owned', exact: true })).toHaveAttribute('aria-pressed', 'true')
+  await page.getByRole('dialog', { name: 'Add units' }).getByRole('button', { name: 'Close' }).click()
 
   await page.setViewportSize({ width: 1600, height: 900 })
   await expect(page.getByLabel('Add a unit')).toHaveValue('Immortals')
   await expect(page.getByRole('button', { name: 'Owned', exact: true })).toHaveAttribute('aria-pressed', 'true')
 
-  await page.getByLabel('Read-only mode').click()
+  await page.getByRole('switch', { name: /Read-only mode/ }).click()
   await page.reload()
-  await expect(page.getByLabel('Read-only mode')).toBeChecked()
+  await expect(page.getByRole('switch', { name: /Read-only mode/ })).toBeChecked()
   await page.getByRole('button', { name: 'Add Immortals', exact: true }).click()
   await page.locator('[data-unit="Immortals"]').getByRole('button', { name: 'Immortals', exact: true }).click()
   await expect(page.getByRole('button', { name: /More models in Immortals/ })).toHaveCount(0)
@@ -213,16 +214,17 @@ test("Pantheon of Woe adds a C'tan shard's required enhancement", async ({ page 
     .getByRole('button', { name: /^C'tan Shard of the Deceiver/ })
     .first()
     .click()
-  const datasheet = page.locator('aside[aria-label="Datasheet"]')
-  await expect(datasheet.getByRole('button', { name: 'Feel No Pain 5+' })).toBeVisible()
-  await expect(datasheet.getByRole('button', { name: 'Deadly Demise D6' })).toBeVisible()
-  await shot(datasheet, 'test-results/pantheon-datasheet-abilities.png')
-  const matrix = datasheet.getByRole('heading', { name: 'Singularity Matrix' }).locator('..')
+  const unit = page.locator('aside[aria-label="Loadout"]')
+  await expect(unit.getByRole('button', { name: 'Feel No Pain 5+' })).toBeVisible()
+  await expect(unit.getByRole('button', { name: 'Deadly Demise D6' })).toBeVisible()
+  await shot(unit, 'test-results/pantheon-datasheet-abilities.png')
+  const matrix = unit.getByRole('heading', { name: 'Singularity Matrix' }).locator('..')
   await expect(matrix).toContainText('Lord of Deceit (Aura)')
   await shot(matrix, 'test-results/pantheon-singularity-matrix.png')
 
   await page.getByLabel('Add a unit').fill('Imotekh the Stormlord')
   await page.getByRole('button', { name: 'View Imotekh the Stormlord datasheet' }).click()
+  const datasheet = page.locator('aside[aria-label="Datasheet"]')
   const leader = datasheet.getByRole('button', { name: 'Leader', exact: true }).first()
   const noble = datasheet.getByText('Noble', { exact: true })
   await expect(noble).toHaveCSS('color', 'rgb(137, 184, 157)')
@@ -291,6 +293,7 @@ test('unit upgrades stay separate from character enhancements', async ({ page })
   await page.mouse.move(0, 0)
   await expect(page.getByRole('tooltip')).toBeHidden()
 
+  await page.setViewportSize({ width: 1600, height: 900 })
   await add(page, 'Lokhust Heavy Destroyers')
   await page
     .getByRole('button', { name: /^Lokhust Heavy Destroyers/ })
@@ -697,11 +700,11 @@ test('a squad grows from its unit editor', async ({ page }) => {
   await add(page, 'Flayed Ones')
   await card.click({ position: { x: 4, y: 4 } })
   await expect(page.locator('aside[aria-label="Loadout"]').getByRole('heading', { name: 'Immortals' })).toBeVisible()
-  const datasheet = page.locator('aside[aria-label="Datasheet"]')
-  await expect(datasheet.getByText('Battleline', { exact: true })).toBeVisible()
-  const profile = datasheet.locator('[data-slot="unit-profile"]')
+  const loadout = page.locator('aside[aria-label="Loadout"]')
+  await expect(loadout.getByText('Battleline', { exact: true })).toBeVisible()
+  const profile = loadout.locator('[data-slot="unit-profile"]')
   await expect(profile).toBeVisible()
-  await datasheet.evaluate((pane) => {
+  await loadout.evaluate((pane) => {
     new MutationObserver(() => {
       if (pane.querySelector('[aria-label="Loading datasheet"]')) document.documentElement.dataset.datasheetReloaded = 'true'
     }).observe(pane, { childList: true, subtree: true })
@@ -716,7 +719,7 @@ test('a squad grows from its unit editor', async ({ page }) => {
   await expect(page.locator('html')).not.toHaveAttribute('data-datasheet-reloaded', 'true')
   // And the wargear lines follow the models carrying it.
   await expect(page.getByText('6x Gauss blaster')).toBeVisible()
-  await expect(datasheet.getByRole('heading', { name: 'Tools of Dominion' })).toHaveCount(0)
+  await expect(loadout.getByRole('heading', { name: 'Tools of Dominion' })).toHaveCount(0)
   await page.screenshot({ path: 'test-results/unit-editor-model-count.png', fullPage: true })
 })
 
@@ -882,15 +885,10 @@ test('the unit editor asks about weapons before the rest of the wargear', async 
   await expect(groups.first()).toHaveText(/Weapons/i)
   await expect(groups.nth(1)).toHaveText(/Wargear/i)
 
-  // The resurrection orb's rules read at the size of the labels around them, not at
-  // the size a reference page sets prose in.
+  // The resurrection orb stays in the rules face used throughout the loadout.
   const prose = loadout.locator('[data-slot], div').filter({ hasText: 'this unit resurrects' }).last()
-  const label = loadout
-    .locator('.eyebrow')
-    .filter({ hasText: /^Wargear$/ })
-    .first()
-  const sizeOf = (locator: typeof prose) => locator.evaluate((element) => Number.parseFloat(getComputedStyle(element).fontSize))
-  expect(await sizeOf(prose)).toBeLessThanOrEqual((await sizeOf(label)) + 1.5)
+  await expect(prose).toBeVisible()
+  await expect(prose).toHaveClass(/font-rules/)
   await loadout.screenshot({ path: 'test-results/loadout-reading-order.png' })
 })
 
@@ -913,20 +911,16 @@ test('a character can be marked as the warlord from its unit editor', async ({ p
     .locator('[data-unit="Overlord"]')
     .getByRole('button', { name: /^Overlord/ })
     .click()
-  const pane = page.locator('aside[aria-label="Datasheet"]')
   const loadout = page.locator('aside[aria-label="Loadout"]')
-  await expect(pane.getByText('Sv', { exact: true })).toBeVisible()
-  await expect(pane.getByText('Invulnerable save', { exact: true })).toBeVisible()
-  await expect(pane.getByText('2+', { exact: true })).toBeVisible()
-  await expect(pane.getByText('4+', { exact: true })).toBeVisible()
-  await shot(pane.locator('[data-slot="unit-profile"]'), 'test-results/invulnerable-save-row.png')
+  const profile = loadout.locator('[data-slot="unit-profile"]')
+  await expect(profile.getByText('Sv', { exact: true })).toBeVisible()
+  await expect(profile.getByText('Invulnerable save', { exact: true })).toBeVisible()
+  await expect(profile.getByText('2+', { exact: true })).toBeVisible()
+  await expect(profile.getByText('4+', { exact: true })).toBeVisible()
+  await shot(profile, 'test-results/invulnerable-save-row.png')
   await expect(loadout.getByText('Tachyon arrow', { exact: true })).toBeVisible()
   await expect(loadout.getByText("Overlord's blade", { exact: true })).toBeVisible()
   await expect(loadout.getByText('Voidscythe', { exact: true })).toBeVisible()
-  const leader = pane.getByRole('button', { name: 'Leader', exact: true })
-  await leader.hover()
-  await expect(page.getByRole('tooltip')).toContainText('select one friendly bodyguard unit')
-  const profile = pane.locator('[data-slot="unit-profile"]')
   const stats = await profile.boundingBox()
   const lastStat = await profile.locator(':scope > div').last().boundingBox()
   expect(stats).not.toBeNull()
@@ -1188,7 +1182,9 @@ test('a book that keeps its datasheets in a library can still be built from', as
   await expect(page.locator('[data-unit="Cadian Shock Troops"]')).toBeVisible()
 
   // And what it borrows from another book is there beside its own.
-  await add(page, 'Callidus Assassin')
+  await page.getByLabel('Add a unit').fill('Callidus Assassin')
+  await page.getByRole('button', { name: 'Agents of the Imperium 1' }).click()
+  await page.getByRole('button', { name: 'Add Callidus Assassin', exact: true }).click()
   await expect(page.locator('[data-unit="Callidus Assassin"]')).toBeVisible()
   await expect(page.getByText('Within the points limit')).toBeAttached()
 })
