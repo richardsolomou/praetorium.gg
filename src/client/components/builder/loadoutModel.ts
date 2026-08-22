@@ -61,6 +61,11 @@ export type WeaponProfileData = Datasheet['profiles'][number]
 /** What a change to one option leaves every option in its group holding. */
 export type SpreadCounts = Record<string, number>
 
+/** Editing shows every available option; a finished roster shows only what is held. */
+export function showLoadoutEntry(count: number, showOptions: boolean) {
+  return showOptions || count > 0
+}
+
 /**
  * Whether two profile names are the same weapon, whichever of them names its
  * profiles: "Staff of light" and "Staff of light (Melee)" are one staff.

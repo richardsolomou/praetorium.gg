@@ -5,6 +5,7 @@ import {
   type LoadoutModel,
   type LoadoutOption,
   ordered,
+  showLoadoutEntry,
   type SpreadCounts,
   spreadHandlers,
   wholeSquadTakes,
@@ -175,11 +176,13 @@ export function ModelCard({
                 : `wargear:${entry.name}`,
         ).map((entry) => {
           if ('fixed' in entry) {
+            const fixedCount = entry.fixed.count ?? count
+            if (!showLoadoutEntry(fixedCount, showOptions)) return null
             return (
               <WargearRow
                 key={entry.name}
                 name={entry.name}
-                count={entry.fixed.count ?? count}
+                count={fixedCount}
                 weapons={weapons}
                 abilities={abilities}
                 rules={rules}
@@ -189,7 +192,7 @@ export function ModelCard({
           }
           if ('swap' in entry) {
             const swap = entry.swap
-            if (!showOptions && !swap.count) return null
+            if (!showLoadoutEntry(swap.count, showOptions)) return null
             return (
               <WargearRow
                 key={swap.key}
@@ -220,7 +223,7 @@ export function ModelCard({
           const found = optionOf(row.choiceKey, row.optionId)
           if (!found) return null
           const { choice, option } = found
-          if (!showOptions && !option.count) return null
+          if (!showLoadoutEntry(option.count, showOptions)) return null
           const taken = choice.chosen === option.id
           return (
             <WargearRow
