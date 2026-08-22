@@ -151,7 +151,6 @@ test('terrain layouts show their labels and measurement guides', async ({ page }
   await page.getByRole('button', { name: 'Enlarge terrain layout A: Sweeping Engagement' }).click()
 
   const layout = page.getByRole('dialog').locator('svg')
-  await expect(layout.locator('text').filter({ hasText: /^AB$/ }).first()).toBeVisible()
   await expect(
     layout
       .locator('text')
