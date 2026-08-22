@@ -55,9 +55,9 @@ export function FactionDatasheet() {
         <FactionMark id={faction.slug} icon={faction.icon} />
         <div className="relative min-w-0 flex-1">
           <p className="eyebrow text-parchment">{faction.displayName} · Datasheet</p>
-          <div className="flex items-center justify-between gap-4">
-            <h1 className="text-3xl">{sheet.name}</h1>
-            <div className="flex shrink-0 items-center gap-1">
+          <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+            <h1 className="min-w-0 text-3xl break-words">{sheet.name}</h1>
+            <div className="flex flex-wrap items-center gap-1 sm:shrink-0 sm:justify-end">
               {sheet.composition.length ? <span className="chip">{compositionCount(sheet.composition)}</span> : null}
               {sheet.points === null ? null : <span className="chip text-info">{sheet.points} pts</span>}
               <CollectionToggle entryId={sheet.id} name={sheet.name} />

@@ -8,6 +8,7 @@ import { useFavouriteFactions } from '../client/favouriteFactions'
 import { FactionMark, factionColour } from '../client/components/FactionMark'
 import { SearchField } from '../client/components/SearchField'
 import { PageState } from '../client/components/PageState'
+import { SummaryStat } from '../client/components/SummaryStat'
 
 export const Route = createFileRoute('/factions')({
   loader: ({ context, location }) =>
@@ -61,14 +62,14 @@ function FactionIndex() {
           </p>
         </div>
       </section>
-      <div className="grid gap-px border-x border-b border-edge bg-edge sm:grid-cols-3">
-        <FactionStat icon={LibraryBig} label="Factions" value={data.factions.length} />
-        <FactionStat
+      <div className="grid grid-cols-3 gap-px border-x border-b border-edge bg-edge">
+        <SummaryStat icon={LibraryBig} label="Factions" value={data.factions.length} />
+        <SummaryStat
           icon={BookOpen}
           label="Datasheets"
           value={data.factions.reduce((total, faction) => total + (faction.references[0]?.datasheets ?? 0), 0)}
         />
-        <FactionStat icon={Heart} label="Favourites" value={favourites.size} />
+        <SummaryStat icon={Heart} label="Favourites" value={favourites.size} />
       </div>
       <SearchField
         className="mt-5"
@@ -101,18 +102,6 @@ function FactionIndex() {
         />
       )}
     </main>
-  )
-}
-
-function FactionStat({ icon: Icon, label, value }: { icon: typeof Heart; label: string; value: number }) {
-  return (
-    <div className="flex items-center gap-3 bg-panel p-4">
-      <Icon className="size-5 text-parchment" aria-hidden />
-      <span>
-        <span className="readout block text-2xl">{value}</span>
-        <span className="eyebrow text-faint">{label}</span>
-      </span>
-    </div>
   )
 }
 

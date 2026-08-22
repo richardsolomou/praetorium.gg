@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { SearchField } from '../client/components/SearchField'
 import { PlayerAvatar } from '../client/components/PlayerAvatar'
 import { SignInRequired } from '../client/components/SignInRequired'
+import { SummaryStat } from '../client/components/SummaryStat'
 import { friendshipsQuery, meQuery, opponentsQuery } from '../client/queries'
 import { acceptFriend, removeFriend, requestFriend } from '../server/functions'
 import { errorMessage } from '../client/queryClient'
@@ -36,26 +37,31 @@ function Friends() {
   const people = data.people.filter((person) => person.name.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()))
 
   return (
-    <main className="mx-auto w-full max-w-4xl space-y-8 px-4 py-8">
-      <header className="border-b border-edge pb-4">
-        <p className="eyebrow">Your account</p>
-        <h1 className="text-3xl">Friends</h1>
-        <p className="mt-2 text-sm text-dim">Only confirmed friends can be added to your battles.</p>
-      </header>
+    <main className="mx-auto w-full max-w-5xl px-4 py-6 sm:py-8">
+      <section className="relative overflow-hidden border border-edge bg-panel p-5 sm:p-7">
+        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,transparent_35%,color-mix(in_srgb,var(--color-parchment)_8%,transparent),transparent_75%)]" />
+        <div className="relative">
+          <p className="eyebrow text-parchment">Your account</p>
+          <h1 className="mt-1 text-3xl">Friends</h1>
+          <p className="mt-2 max-w-2xl text-sm text-dim">
+            Connect with the people you know, then invite confirmed friends to private battles.
+          </p>
+        </div>
+      </section>
 
-      <div className="grid gap-px border border-edge bg-edge sm:grid-cols-3">
-        <FriendStat icon={Users} label="Friends" value={data.friends.length} />
-        <FriendStat icon={Inbox} label="Received" value={data.incoming.length} />
-        <FriendStat icon={Send} label="Sent" value={data.outgoing.length} />
+      <div className="grid grid-cols-3 gap-px border-x border-b border-edge bg-edge">
+        <SummaryStat icon={Users} label="Friends" value={data.friends.length} />
+        <SummaryStat icon={Inbox} label="Received" value={data.incoming.length} />
+        <SummaryStat icon={Send} label="Sent" value={data.outgoing.length} />
       </div>
 
       {request.error || accept.error || remove.error ? (
-        <p className="border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
+        <p className="mt-5 border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
           {errorMessage(request.error ?? accept.error ?? remove.error)}
         </p>
       ) : null}
 
-      <div className="grid gap-8 md:grid-cols-2">
+      <div className="mt-6 grid gap-6 md:grid-cols-2 md:gap-8">
         <People
           title="Friend requests"
           empty="No requests are waiting for you."
@@ -73,7 +79,7 @@ function Friends() {
         />
       </div>
 
-      <section>
+      <section className="mt-8">
         <div className="flex items-baseline justify-between border-b border-edge pb-2">
           <p className="rubric">Find players</p>
           <UserPlus className="size-4 text-parchment" aria-hidden />
@@ -98,14 +104,16 @@ function Friends() {
         </div>
       </section>
 
-      <People
-        title="Sent requests"
-        empty="You have no pending requests."
-        people={data.outgoing}
-        action="Cancel"
-        destructive
-        onAction={(person) => remove.mutate(person.id)}
-      />
+      <div className="mt-8">
+        <People
+          title="Sent requests"
+          empty="You have no pending requests."
+          people={data.outgoing}
+          action="Cancel"
+          destructive
+          onAction={(person) => remove.mutate(person.id)}
+        />
+      </div>
     </main>
   )
 }
@@ -167,18 +175,6 @@ function PersonRow({
       <Button variant={destructive ? 'destructive' : 'outline'} size="sm" onClick={onAction}>
         {action}
       </Button>
-    </div>
-  )
-}
-
-function FriendStat({ icon: Icon, label, value }: { icon: typeof Users; label: string; value: number }) {
-  return (
-    <div className="flex items-center gap-3 bg-panel p-4">
-      <Icon className="size-5 text-parchment" aria-hidden />
-      <span>
-        <span className="readout block text-2xl">{value}</span>
-        <span className="eyebrow text-faint">{label}</span>
-      </span>
     </div>
   )
 }

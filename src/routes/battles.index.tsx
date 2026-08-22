@@ -16,6 +16,7 @@ import type { Battle } from '../client/components/battles/battle'
 import { BattleShelf } from '../client/components/battles/BattleShelf'
 import { CreateBattle } from '../client/components/battles/CreateBattle'
 import { SignInRequired } from '../client/components/SignInRequired'
+import { SummaryStat } from '../client/components/SummaryStat'
 import { battlesQuery, gameReferencesQuery, meQuery, opponentsQuery } from '../client/queries'
 import { useLiveBattles } from '../client/useLiveBattle'
 import { deleteBattle } from '../server/functions'
@@ -48,18 +49,22 @@ function Battles() {
   const finished = battles.filter((battle) => battle.status === 'finished')
 
   return (
-    <main className="mx-auto w-full max-w-4xl px-4 py-8">
-      <div className="flex items-end justify-between gap-4 border-b border-edge pb-4">
-        <div>
-          <p className="eyebrow">Your battles</p>
-          <h1 className="text-3xl">My battles</h1>
+    <main className="mx-auto w-full max-w-5xl px-4 py-6 sm:py-8">
+      <section className="relative overflow-hidden border border-edge bg-panel p-5 sm:p-7">
+        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,transparent_35%,color-mix(in_srgb,var(--color-parchment)_8%,transparent),transparent_75%)]" />
+        <div className="relative flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <p className="eyebrow text-parchment">Your battles</p>
+            <h1 className="mt-1 text-3xl">My battles</h1>
+            <p className="mt-2 max-w-2xl text-sm text-dim">Set up a table, return to active games, and review finished battles.</p>
+          </div>
+          {battles.length ? <CreateBattle /> : null}
         </div>
-        {battles.length ? <CreateBattle /> : null}
-      </div>
-      <div className="mt-5 grid gap-px border border-edge bg-edge sm:grid-cols-3">
-        <BattleStat icon={CircleDot} label="Active" value={active.length} tone="text-parchment" />
-        <BattleStat icon={Settings2} label="In setup" value={setup.length} tone="text-info" />
-        <BattleStat icon={Flag} label="Finished" value={finished.length} tone="text-dim" />
+      </section>
+      <div className="grid grid-cols-3 gap-px border-x border-b border-edge bg-edge">
+        <SummaryStat icon={CircleDot} label="Active" value={active.length} />
+        <SummaryStat icon={Settings2} label="In setup" value={setup.length} tone="text-info" />
+        <SummaryStat icon={Flag} label="Finished" value={finished.length} tone="text-dim" />
       </div>
       {battles.length ? (
         <div className="mt-5 space-y-6">
@@ -105,17 +110,5 @@ function Battles() {
         </AlertDialogContent>
       </AlertDialog>
     </main>
-  )
-}
-
-function BattleStat({ icon: Icon, label, value, tone }: { icon: typeof Swords; label: string; value: number; tone: string }) {
-  return (
-    <div className="flex items-center gap-3 bg-panel p-4">
-      <Icon className={`size-5 ${tone}`} aria-hidden />
-      <span>
-        <span className="readout block text-2xl">{value}</span>
-        <span className="eyebrow text-faint">{label}</span>
-      </span>
-    </div>
   )
 }

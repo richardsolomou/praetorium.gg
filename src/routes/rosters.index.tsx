@@ -24,6 +24,7 @@ import { type SavedRoster, useRosterActions } from '../client/components/rosters
 import { ROSTER_SORTS, type RosterSort, sortRosters } from '../client/components/rosters/rosterSort'
 import { readWorkspaceState, writeWorkspaceState } from '../client/components/workspaceState'
 import { SignInRequired } from '../client/components/SignInRequired'
+import { SummaryStat } from '../client/components/SummaryStat'
 import { PageState } from '../client/components/PageState'
 import { useFavouriteFactions } from '../client/favouriteFactions'
 import { factionsQuery, meQuery, savedRosterPointsQuery, savedRostersQuery } from '../client/queries'
@@ -182,10 +183,10 @@ function RosterLibrary() {
         </div>
       </section>
 
-      <div className="grid gap-px border-x border-b border-edge bg-edge sm:grid-cols-3">
-        <RosterStat icon={ScrollText} label="Total" value={saved.length} />
-        <RosterStat icon={LockKeyhole} label="Private" value={saved.filter((roster) => roster.visibility === 'private').length} />
-        <RosterStat icon={Eye} label="Unlisted" value={saved.filter((roster) => roster.visibility === 'unlisted').length} />
+      <div className="grid grid-cols-3 gap-px border-x border-b border-edge bg-edge">
+        <SummaryStat icon={ScrollText} label="Total" value={saved.length} />
+        <SummaryStat icon={LockKeyhole} label="Private" value={saved.filter((roster) => roster.visibility === 'private').length} />
+        <SummaryStat icon={Eye} label="Unlisted" value={saved.filter((roster) => roster.visibility === 'unlisted').length} />
       </div>
 
       <div className="mt-4 flex flex-wrap items-end gap-3" aria-label="Roster filters">
@@ -291,18 +292,6 @@ function RosterLibrary() {
       ) : null}
       <RosterExportDialog text={actions.exportText} onClose={actions.clearExport} />
     </main>
-  )
-}
-
-function RosterStat({ icon: Icon, label, value }: { icon: typeof ScrollText; label: string; value: number }) {
-  return (
-    <div className="flex items-center gap-3 bg-panel p-4">
-      <Icon className="size-5 text-parchment" aria-hidden />
-      <span>
-        <span className="readout block text-2xl">{value}</span>
-        <span className="eyebrow text-faint">{label}</span>
-      </span>
-    </div>
   )
 }
 

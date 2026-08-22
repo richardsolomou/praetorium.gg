@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Flag, Map, Target } from 'lucide-react'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { MissionCardReference } from '../client/components/MissionCardReference'
+import { SummaryStat } from '../client/components/SummaryStat'
 import { dispositionTone } from '../client/components/rosterSetup'
 import { gameReferencesQuery } from '../client/queries'
 
@@ -40,10 +41,10 @@ function MissionPackPage() {
           </p>
         </div>
       </section>
-      <div className="grid gap-px border-x border-b border-edge bg-edge sm:grid-cols-3">
-        <MissionStat icon={Map} label="Missions" value={pack.missions.length} />
-        <MissionStat icon={Flag} label="Dispositions" value={data.dispositions.length} />
-        <MissionStat icon={Target} label="Secondaries" value={data.secondaries.length} />
+      <div className="grid grid-cols-3 gap-px border-x border-b border-edge bg-edge">
+        <SummaryStat icon={Map} label="Missions" value={pack.missions.length} />
+        <SummaryStat icon={Flag} label="Dispositions" value={data.dispositions.length} />
+        <SummaryStat icon={Target} label="Secondaries" value={data.secondaries.length} />
       </div>
 
       <section className="mt-7">
@@ -130,17 +131,5 @@ function MissionPackPage() {
         </DialogContent>
       </Dialog>
     </main>
-  )
-}
-
-function MissionStat({ icon: Icon, label, value }: { icon: typeof Flag; label: string; value: number }) {
-  return (
-    <div className="flex items-center gap-3 bg-panel p-4">
-      <Icon className="size-5 text-parchment" aria-hidden />
-      <span>
-        <span className="readout block text-2xl">{value}</span>
-        <span className="eyebrow text-faint">{label}</span>
-      </span>
-    </div>
   )
 }
