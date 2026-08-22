@@ -3,6 +3,7 @@ import { detachmentCatalogueDetail } from './catalogueDescriptions'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { factionDisplayName } from './factionNames'
 import { type LoadedRules, rulesFaction } from './rules'
+import { joinKey } from './rulesSource'
 
 function factionSummary(loaded: LoadedCatalogue, rules: LoadedRules | null | undefined, faction: LoadedCatalogue['factions'][number]) {
   const displayName = factionDisplayName(faction.name, rules?.factionNames)
@@ -94,7 +95,7 @@ export function detachmentNamed<T>(detachments: ReadonlyMap<string, T> | undefin
   const slug = routeSlug(name)
   const exact = detachments?.get(slug)
   if (exact) return exact
-  const compact = slug.replaceAll('-', '')
-  const matches = [...(detachments ?? [])].filter(([id]) => id.replaceAll('-', '') === compact)
+  const compact = joinKey(name)
+  const matches = [...(detachments ?? [])].filter(([id]) => joinKey(id) === compact)
   return matches.length === 1 ? matches[0]?.[1] : undefined
 }
