@@ -3,6 +3,7 @@ import {
   deploymentNeedsFlip,
   formatInches,
   objectiveTerrainMarkerPosition,
+  objectiveTerrainMarkers,
   pointInPolygon,
   polygonCentroid,
   portraitPoint,
@@ -23,6 +24,7 @@ const openArea = (points: { x: number; y: number }[], markers: { label: string; 
   name: 'Area',
   points,
   markers,
+  objectiveGroup: null,
   parts: [],
 })
 
@@ -99,6 +101,13 @@ describe('placing a marker in a terrain area', () => {
 
   it('puts an objective marker in the middle of an area with no labels', () => {
     expect(objectiveTerrainMarkerPosition(openArea(square(0, 0, 10)))).toEqual({ x: 5, y: 5 })
+  })
+
+  it('gives connected objective terrain one shared marker', () => {
+    const left = { ...openArea(square(20, 17, 5), [{ label: 'AB', position: { x: 21, y: 18 } }]), id: 'left', objectiveGroup: 'center' }
+    const right = { ...openArea(square(35, 22, 5), [{ label: 'CD', position: { x: 39, y: 26 } }]), id: 'right', objectiveGroup: 'center' }
+
+    expect(objectiveTerrainMarkers({ areas: [left, right] })).toEqual([{ key: 'group-center', position: { x: 32.2, y: 19.8 } }])
   })
 })
 

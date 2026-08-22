@@ -5,7 +5,7 @@ import {
   formatInches,
   measurementAnchor,
   measurementLabelSize,
-  objectiveTerrainMarkerPosition,
+  objectiveTerrainMarkers,
   placeMeasurementLabel,
   pointInPolygon,
   polygonCentroid,
@@ -128,57 +128,69 @@ function ExactTerrainGeometry({
   flipped: boolean
   zones: { player: string; points: { x: number; y: number }[] }[]
 }) {
-  return geometry.areas.map((area) => (
-    <g key={area.id}>
-      <polygon points={svgPoints(area.points)} className="fill-raised/90 stroke-azure" strokeWidth={detailed ? '.18' : '.25'}>
-        <title>{area.name}</title>
-      </polygon>
-      {area.parts.map((part, partIndex) => {
-        const stroke = partIndex % 2 === 0 ? 'stroke-discarded' : 'stroke-achieved'
-        return (
-          <g key={part.id}>
-            {part.roof?.length ? (
-              <polygon points={svgPoints(part.roof)} className="fill-bone/10 stroke-bone/55" strokeWidth=".12" strokeDasharray=".3 .2" />
-            ) : null}
-            {part.walls.map((wall) => (
-              <polyline
-                key={wall.id}
-                points={svgPoints(wall.points)}
-                fill="none"
-                className={stroke}
-                strokeWidth={wall.thickness}
-                strokeLinejoin="miter"
-                strokeLinecap="square"
-              >
-                <title>{part.name}</title>
-              </polyline>
-            ))}
-          </g>
-        )
-      })}
+  return (
+    <>
+      {geometry.areas.map((area) => (
+        <g key={area.id}>
+          <polygon points={svgPoints(area.points)} className="fill-raised/90 stroke-azure" strokeWidth={detailed ? '.18' : '.25'}>
+            <title>{area.name}</title>
+          </polygon>
+          {area.parts.map((part, partIndex) => {
+            const stroke = partIndex % 2 === 0 ? 'stroke-discarded' : 'stroke-achieved'
+            return (
+              <g key={part.id}>
+                {part.roof?.length ? (
+                  <polygon
+                    points={svgPoints(part.roof)}
+                    className="fill-bone/10 stroke-bone/55"
+                    strokeWidth=".12"
+                    strokeDasharray=".3 .2"
+                  />
+                ) : null}
+                {part.walls.map((wall) => (
+                  <polyline
+                    key={wall.id}
+                    points={svgPoints(wall.points)}
+                    fill="none"
+                    className={stroke}
+                    strokeWidth={wall.thickness}
+                    strokeLinejoin="miter"
+                    strokeLinecap="square"
+                  >
+                    <title>{part.name}</title>
+                  </polyline>
+                ))}
+              </g>
+            )
+          })}
+          {detailed
+            ? (area.markers ?? []).map((marker) => (
+                <g
+                  key={marker.label}
+                  transform={`translate(${terrainMarkerPosition(area, marker).x} ${terrainMarkerPosition(area, marker).y}) rotate(${flipped ? -90 : 90})`}
+                >
+                  <circle r="1" className="fill-raised stroke-bone" strokeWidth=".18" />
+                  <text textAnchor="middle" dominantBaseline="middle" className="fill-bone" fontSize=".62" fontWeight="700">
+                    {marker.label}
+                  </text>
+                  <title>{`${marker.label} terrain`}</title>
+                </g>
+              ))
+            : null}
+        </g>
+      ))}
       {detailed
-        ? (area.markers ?? []).map((marker) => (
-            <g
-              key={marker.label}
-              transform={`translate(${terrainMarkerPosition(area, marker).x} ${terrainMarkerPosition(area, marker).y}) rotate(${flipped ? -90 : 90})`}
-            >
-              <circle r="1" className="fill-raised stroke-bone" strokeWidth=".18" />
-              <text textAnchor="middle" dominantBaseline="middle" className="fill-bone" fontSize=".62" fontWeight="700">
-                {marker.label}
-              </text>
-              <title>{`${marker.label} terrain`}</title>
-            </g>
+        ? objectiveTerrainMarkers(geometry).map((objective) => (
+            <ObjectiveTerrainMarker
+              key={objective.key}
+              position={objective.position}
+              counterRotation={flipped ? -90 : 90}
+              homePlayer={zones.find((zone) => pointInPolygon(objective.position, zone.points))?.player}
+            />
           ))
         : null}
-      {detailed && area.markers?.length ? (
-        <ObjectiveTerrainMarker
-          position={objectiveTerrainMarkerPosition(area)}
-          counterRotation={flipped ? -90 : 90}
-          homePlayer={zones.find((zone) => pointInPolygon(objectiveTerrainMarkerPosition(area), zone.points))?.player}
-        />
-      ) : null}
-    </g>
-  ))
+    </>
+  )
 }
 
 function ObjectiveTerrainMarker({
