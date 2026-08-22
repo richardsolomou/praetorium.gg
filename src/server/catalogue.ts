@@ -5,7 +5,7 @@ import { defaultSelection } from '../core/expand'
 import { unitChoices } from '../core/unitChoices'
 import { wargearOf } from '../core/wargear'
 import { bracketedRuleReferences, ruleReferenceMatches } from '../core/ruleReference'
-import { datasheetSlug, datasheetsOf, type LoadedCatalogue } from './catalogueIndex'
+import { datasheetSlug, datasheetsOf, isReferenceDatasheet, type LoadedCatalogue } from './catalogueIndex'
 import { isMatchedPlayDatasheet, priceOf } from './cataloguePicker'
 import type { DatasheetDetails } from './datacards'
 
@@ -530,7 +530,7 @@ function datacardDetails(loaded: LoadedCatalogue, name: string): DatasheetDetail
 
 export function datasheetInBySlug(loaded: LoadedCatalogue, catalogueId: string, slug: string) {
   const entryId = [...datasheetsOf(loaded.index, catalogueId)].find((id) => id === slug || datasheetSlug(loaded, catalogueId, id) === slug)
-  return entryId ? datasheetIn(loaded, catalogueId, entryId) : null
+  return entryId && isReferenceDatasheet(loaded, catalogueId, entryId) ? datasheetIn(loaded, catalogueId, entryId) : null
 }
 
 function definitionTokens(definition: Definition) {

@@ -153,6 +153,24 @@ const unitCount = (index: CatalogueIndex, catalogueId: string) => index.datashee
 
 export const datasheetsOf = (index: CatalogueIndex, catalogueId: string) => index.datasheets.get(catalogueId) ?? new Set<string>()
 
+/**
+ * Whether a datasheet belongs on this faction's reference pages.
+ *
+ * Chapter catalogues repeat the generic Adeptus Astartes datasheets so they can
+ * be picked in chapter rosters. Their canonical reference home is Space Marines;
+ * the roster picker deliberately does not use this predicate.
+ */
+export function isReferenceDatasheet(loaded: LoadedCatalogue, catalogueId: string, entryId: string) {
+  if (!datasheetsOf(loaded.index, catalogueId).has(entryId)) return false
+  if (loaded.index.catalogues.get(catalogueId)?.name === 'Space Marines') return true
+  const entry = loaded.index.definitions.get(entryId)
+  if (!entry) return false
+  const target = targetOf(entry, loaded.index.definitions)
+  return ![...(entry.categoryLinks ?? []), ...(target.categoryLinks ?? [])].some(
+    (category) => category.name?.trim().toLocaleLowerCase() === 'faction: adeptus astartes',
+  )
+}
+
 export function isDatasheetId(index: CatalogueIndex, entryId: string, catalogueId?: string | null) {
   const offered = catalogueId ? index.datasheets.get(catalogueId) : undefined
   if (offered) return offered.has(entryId)

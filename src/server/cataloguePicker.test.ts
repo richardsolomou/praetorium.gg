@@ -17,6 +17,39 @@ describe('the picker', () => {
     expect(datasheetInBySlug(book, 'cat', units[0]?.slug ?? '')?.id).toBe('first-sheet')
   })
 
+  it('keeps generic Adeptus Astartes datasheets off chapter reference pages', () => {
+    const shelf = shelfOf(
+      {
+        name: 'Space Marines',
+        selectionEntries: [
+          {
+            id: 'chaplain',
+            name: 'Chaplain',
+            type: 'model',
+            costs: points(60),
+            categoryLinks: categories('Faction: Adeptus Astartes'),
+          },
+        ],
+      },
+      {
+        name: 'Black Templars',
+        selectionEntries: [
+          {
+            id: 'black-templars-chaplain',
+            name: 'Chaplain',
+            type: 'model',
+            costs: points(60),
+            categoryLinks: categories('Faction: Adeptus Astartes'),
+          },
+        ],
+      },
+    )
+
+    expect(datasheetInBySlug(shelf, 'cat', 'chaplain')?.name).toBe('Chaplain')
+    expect(datasheetInBySlug(shelf, 'cat-1', 'chaplain')).toBeNull()
+    expect(unitsIn(shelf, 'cat-1', '').map((unit) => unit.name)).toEqual(['Chaplain'])
+  })
+
   it('filters a cached priced faction list without rebuilding its summaries', () => {
     const book = bookOf({
       selectionEntries: [
