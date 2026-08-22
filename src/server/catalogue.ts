@@ -74,6 +74,9 @@ export function datasheetIn(
         context.companions ?? [],
       )
     : []
+  const grantedWeaponAbilities = context
+    ? weaponAbilitiesInAttachedUnit(context.selections, context.unitSelectionIndex, context.companions ?? [], loaded.index)
+    : []
   const selected = new Set<string>()
   const selectedCounts = new Map<string, number>()
   const requestedUnit = context?.unitSelectionIndex === undefined ? undefined : context.selections[context.unitSelectionIndex]
@@ -213,6 +216,9 @@ export function datasheetIn(
       const changed = modifiedProfileField('', field, profileType, profileLineage, owner, modifiers)
       return characteristicName && changed.value ? [{ name: characteristicName, ...changed }] : []
     })
+    const displayedValues = weapon
+      ? addGrantedWeaponAbilities([...values, ...added], profileType, grantedWeaponAbilities)
+      : [...values, ...added]
     return [
       {
         id: profile.id,
@@ -221,7 +227,7 @@ export function datasheetIn(
         ...(weapon && selectedUnit
           ? { count: wargearCounts.get(profile.name) ?? Math.max(1, ...owner.map((id) => selectedCounts.get(id) ?? 0)) }
           : {}),
-        values: [...values, ...added],
+        values: displayedValues,
       },
     ]
   })
@@ -246,6 +252,84 @@ export function datasheetIn(
     supporters: relationships.supporters,
     keywordRules: [...keywordRules.values()],
   }
+}
+
+type GrantedWeaponAbility = { keyword: string; source: string; profileTypes: readonly string[] }
+
+function weaponAbilitiesInAttachedUnit(
+  selections: readonly Selection[],
+  unitSelectionIndex: number | undefined,
+  companionIndexes: readonly number[],
+  index: LoadedCatalogue['index'],
+): GrantedWeaponAbility[] {
+  if (unitSelectionIndex === undefined || !companionIndexes.length) return []
+  const found = new Map<string, GrantedWeaponAbility>()
+  const seenProfiles = new Set<string>()
+  const inspect = (definition: Definition) => {
+    for (const source of [definition, targetOf(definition, index.definitions)]) {
+      for (const profile of source.profiles ?? []) {
+        if (profile.typeName !== 'Abilities' || !profile.name || seenProfiles.has(profile.id)) continue
+        seenProfiles.add(profile.id)
+        const description = abilityDescription(profile)?.normalize('NFKC').replaceAll(/\s+/g, ' ').trim()
+        const match = description?.match(
+          /^While this model is leading a unit, (?:(melee|ranged) )?weapons equipped by models in that unit have the \[([\p{L}\p{N} +'’\p{Pd}]+)\] ability\.$/iu,
+        )
+        if (!match) continue
+        const keyword = match[2].toLocaleLowerCase().replaceAll(/(^|[\s-])\p{L}/gu, (letter) => letter.toLocaleUpperCase())
+        const profileTypes = match[1]
+          ? [`${match[1][0].toLocaleUpperCase()}${match[1].slice(1).toLocaleLowerCase()} Weapons`]
+          : ['Ranged Weapons', 'Melee Weapons']
+        found.set(`${profile.name}:${keyword}:${profileTypes.join(',')}`, { keyword, source: profile.name, profileTypes })
+      }
+    }
+  }
+  const visit = (selection: Selection) => {
+    const definition = index.definitions.get(selection.id)
+    if (definition) inspect(definition)
+    selection.selections?.forEach(visit)
+  }
+  for (const at of [unitSelectionIndex, ...companionIndexes]) {
+    const selection = selections[at]
+    if (selection) visit(selection)
+  }
+  return [...found.values()]
+}
+
+function addGrantedWeaponAbilities(
+  values: Datasheet['profiles'][number]['values'],
+  profileType: string,
+  abilities: readonly GrantedWeaponAbility[],
+) {
+  const granted = abilities.filter((ability) => ability.profileTypes.includes(profileType))
+  if (!granted.length) return values
+  const keywords = values.find((value) => value.name === 'Keywords')
+  if (!keywords) {
+    return [
+      ...values,
+      {
+        name: 'Keywords',
+        value: granted.map((ability) => ability.keyword).join(', '),
+        baseValue: '',
+        modifiers: [...new Set(granted.map((ability) => ability.source))],
+      },
+    ]
+  }
+  const printed = new Set(keywords.value.split(',').map((keyword) => keyword.trim().toLocaleLowerCase()))
+  const additions = granted.filter((ability) => !printed.has(ability.keyword.toLocaleLowerCase()))
+  if (!additions.length) return values
+  const changed = {
+    ...keywords,
+    value: [
+      ...keywords.value
+        .split(',')
+        .map((keyword) => keyword.trim())
+        .filter(Boolean),
+      ...additions.map((ability) => ability.keyword),
+    ].join(', '),
+    baseValue: keywords.baseValue ?? keywords.value,
+    modifiers: [...new Set([...(keywords.modifiers ?? []), ...additions.map((ability) => ability.source)])],
+  }
+  return values.map((value) => (value === keywords ? changed : value))
 }
 
 function relationshipsFor(loaded: LoadedCatalogue, catalogueId: string, entryId: string, name: string) {

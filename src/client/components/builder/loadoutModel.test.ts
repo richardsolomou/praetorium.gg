@@ -45,6 +45,10 @@ describe('matching a wargear name to what describes it', () => {
     expect(weaponMatches('Chainsword and bolt pistol', 'Chainsword')).toBe(true)
   })
 
+  it('matches spacing differences between an option and its profile', () => {
+    expect(weaponMatches('Veteran w/ Black Shield blades', 'Blackshield blades')).toBe(true)
+  })
+
   it('matches a rule the same way a profile is matched', () => {
     expect(wargearMatches('Storm shield', 'Storm shield')).toBe(true)
     expect(wargearMatches('Storm shield and thunder hammer', 'Storm shield')).toBe(true)

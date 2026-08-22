@@ -410,6 +410,58 @@ describe('the profile modifiers on a datasheet', () => {
     expect(keywords('destroyers', 1, [])).toBeUndefined()
   })
 
+  it('reads an attached-unit weapon ability when the catalogue only supplies its prose', () => {
+    const weapon = (id: string, typeName: string) => ({
+      id,
+      name: 'Weapon',
+      typeName,
+      characteristics: [{ name: 'S', typeId: 'strength', $text: '5' }],
+    })
+    const book = bookOf({
+      selectionEntries: [
+        {
+          id: 'captain',
+          name: 'Captain',
+          type: 'model',
+          profiles: [
+            weapon('captain-blade', 'Melee Weapons'),
+            {
+              id: 'tactical-instinct',
+              name: 'Tactical Instinct',
+              typeName: 'Abilities',
+              characteristics: [
+                {
+                  name: 'Description',
+                  $text: 'While this model is leading a unit, weapons equipped by models in that unit have the [LETHAL HITS] ability.',
+                },
+              ],
+            },
+          ],
+        },
+        {
+          id: 'veterans',
+          name: 'Veterans',
+          type: 'unit',
+          profiles: [weapon('veteran-bolter', 'Ranged Weapons'), weapon('veteran-blade', 'Melee Weapons')],
+        },
+      ],
+    })
+    const selections = [{ id: 'captain' }, { id: 'veterans' }]
+    const keywords = (entryId: string, unitSelectionIndex: number, companions: number[]) =>
+      datasheetIn(book, 'cat', entryId, { selections, unitSelectionIndex, companions })?.profiles.flatMap((profile) =>
+        profile.values.filter((value) => value.name === 'Keywords'),
+      )
+
+    expect(keywords('captain', 0, [1])).toEqual([
+      { name: 'Keywords', value: 'Lethal Hits', baseValue: '', modifiers: ['Tactical Instinct'] },
+    ])
+    expect(keywords('veterans', 1, [0])).toEqual([
+      { name: 'Keywords', value: 'Lethal Hits', baseValue: '', modifiers: ['Tactical Instinct'] },
+      { name: 'Keywords', value: 'Lethal Hits', baseValue: '', modifiers: ['Tactical Instinct'] },
+    ])
+    expect(keywords('veterans', 1, [])).toEqual([])
+  })
+
   it('shows an invulnerable save set by selected wargear on a blank characteristic', () => {
     const book = bookOf({
       selectionEntries: [

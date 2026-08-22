@@ -89,9 +89,10 @@ export function wargearMatches(optionName: string, abilityName: string) {
  * name, and the profile can be the option plus a parenthesised mode.
  */
 function named(optionName: string, candidateName: string) {
-  const option = optionName.trim().toLocaleLowerCase()
-  const candidate = candidateName.trim().toLocaleLowerCase()
-  return candidate === option || candidate.startsWith(`${option} (`) || option.includes(candidate)
+  const normalize = (name: string) => name.trim().toLocaleLowerCase().replaceAll(/\s+/g, '')
+  const option = normalize(optionName)
+  const candidate = normalize(candidateName)
+  return candidate === option || candidate.startsWith(`${option}(`) || option.includes(candidate)
 }
 
 /**
