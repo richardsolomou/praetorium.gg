@@ -9,6 +9,12 @@ describe('datasheet composition count', () => {
   it('keeps a single-model datasheet singular', () => {
     expect(compositionCount(['**1 Overlord**'])).toBe('1 model')
   })
+
+  it('totals each fixed composition without adding alternatives together', () => {
+    expect(
+      compositionCount(['**1 Shock Trooper Sergeant and 9 Shock Troopers**', 'OR', '**2 Shock Trooper Sergeants and 18 Shock Troopers**']),
+    ).toBe('10–20 models')
+  })
 })
 
 describe('datasheet abilities', () => {

@@ -44,7 +44,7 @@ export type LoadoutUnit = {
   entryId: string
   name: string
   points: number
-  size: { min: number; max: number; models: number; resizable: boolean }
+  size: { min: number; max: number; models: number; options?: number[]; resizable: boolean }
   toggles: { key: string; name: string; selected: boolean }[]
   choices: LoadoutChoice[]
   models: LoadoutModel[]

@@ -537,12 +537,24 @@ export function ListBuilder({ prep, initial, editable = true }: Props) {
                     count={optimisticUnit.size.models}
                     onRemove={
                       optimisticUnit.size.models > optimisticUnit.size.min
-                        ? () => selected !== null && edit.resize(selected, optimisticUnit.size.models - 1)
+                        ? () =>
+                            selected !== null &&
+                            edit.resize(
+                              selected,
+                              optimisticUnit.size.options?.findLast((size) => size < optimisticUnit.size.models) ??
+                                optimisticUnit.size.models - 1,
+                            )
                         : undefined
                     }
                     onAdd={
                       optimisticUnit.size.models < optimisticUnit.size.max
-                        ? () => selected !== null && edit.resize(selected, optimisticUnit.size.models + 1)
+                        ? () =>
+                            selected !== null &&
+                            edit.resize(
+                              selected,
+                              optimisticUnit.size.options?.find((size) => size > optimisticUnit.size.models) ??
+                                optimisticUnit.size.models + 1,
+                            )
                         : undefined
                     }
                   />

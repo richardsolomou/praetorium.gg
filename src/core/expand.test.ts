@@ -143,7 +143,10 @@ describe('the default selection for a unit', () => {
 })
 
 describe('a group that requires selections', () => {
-  const group = (requirement: number, options: { id: string; name: string; max?: number; points?: number }[]): Partial<Catalogue> => ({
+  const group = (
+    requirement: number,
+    options: { id: string; name: string; min?: number; max?: number; points?: number }[],
+  ): Partial<Catalogue> => ({
     sharedSelectionEntries: [
       {
         id: 'squad',
@@ -159,10 +162,14 @@ describe('a group that requires selections', () => {
               name: option.name,
               type: 'upgrade' as const,
               costs: option.points === undefined ? undefined : [{ name: 'pts', typeId: PTS, value: option.points }],
-              constraints:
-                option.max === undefined
+              constraints: [
+                ...(option.min === undefined
                   ? []
-                  : [{ id: `${option.id}-max`, type: 'max' as const, value: option.max, field: 'selections', scope: 'parent' }],
+                  : [{ id: `${option.id}-min`, type: 'min' as const, value: option.min, field: 'selections', scope: 'parent' }]),
+                ...(option.max === undefined
+                  ? []
+                  : [{ id: `${option.id}-max`, type: 'max' as const, value: option.max, field: 'selections', scope: 'parent' }]),
+              ],
             })),
           },
         ],
@@ -177,6 +184,10 @@ describe('a group that requires selections', () => {
     // The requirement belongs to what goes inside a group, never to the group
     // itself: putting the number on the group left squads with no models in them.
     expect(chosen(group(4, [{ id: 'knife', name: 'Knife' }]))).toEqual([{ id: 'knife', count: 4 }])
+  })
+
+  it('fills the slots beyond an option own minimum', () => {
+    expect(chosen(group(9, [{ id: 'trooper', name: 'Trooper', min: 6, max: 9 }]))).toEqual([{ id: 'trooper', count: 9 }])
   })
 
   it('finds required models inside a nested group', () => {
