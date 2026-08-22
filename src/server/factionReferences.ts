@@ -51,8 +51,9 @@ export function factionsFor(loaded: LoadedCatalogue, rules: LoadedRules | null |
         armyRule: rules?.factionRules?.get(summary.slug) ?? null,
         referenceDetachmentIds: referenceDetachments.map((detachment) => detachment.id),
         detachments: detachments.map((detachment) => {
-          const reference = rules?.detachmentReferences?.get(rulesFaction(rules, routeSlug(faction.name)))?.get(routeSlug(detachment.name))
-          const detail = rules?.detachmentDetails?.get(rulesFaction(rules, routeSlug(faction.name)))?.get(routeSlug(detachment.name))
+          const rulesId = rulesFaction(rules, routeSlug(faction.name))
+          const reference = detachmentNamed(rules?.detachmentReferences?.get(rulesId), detachment.name)
+          const detail = detachmentNamed(rules?.detachmentDetails?.get(rulesId), detachment.name)
           const forced = detachmentCatalogueDetail(loaded, faction.id, detachment.id, [])?.forcedEnhancements ?? []
           return {
             id: detachment.id,
@@ -79,4 +80,13 @@ export function factionsFor(loaded: LoadedCatalogue, rules: LoadedRules | null |
       }
     }),
   }
+}
+
+export function detachmentNamed<T>(detachments: ReadonlyMap<string, T> | undefined, name: string): T | undefined {
+  const slug = routeSlug(name)
+  const exact = detachments?.get(slug)
+  if (exact) return exact
+  const compact = slug.replaceAll('-', '')
+  const matches = [...(detachments ?? [])].filter(([id]) => id.replaceAll('-', '') === compact)
+  return matches.length === 1 ? matches[0]?.[1] : undefined
 }
