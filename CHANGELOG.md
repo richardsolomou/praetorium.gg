@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.18.3
+
+### Patch Changes
+
+- 3694c7a: Open datasheets reliably in large rosters.
+
 ## 0.18.2
 
 ### Patch Changes
