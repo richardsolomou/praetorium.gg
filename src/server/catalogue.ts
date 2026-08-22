@@ -366,9 +366,9 @@ function weaponAbilitiesInAttachedUnit(
           /^While this model is leading a unit, (?:(melee|ranged) )?weapons equipped by models in that unit have the \[([\p{L}\p{N} +'’\p{Pd}]+)\] ability\.$/iu,
         )
         if (!match) continue
-        const keyword = match[2].toLocaleLowerCase().replaceAll(/(^|[\s-])\p{L}/gu, (letter) => letter.toLocaleUpperCase())
+        const keyword = match[2]!.toLocaleLowerCase().replaceAll(/(^|[\s-])\p{L}/gu, (letter) => letter.toLocaleUpperCase())
         const profileTypes = match[1]
-          ? [`${match[1][0].toLocaleUpperCase()}${match[1].slice(1).toLocaleLowerCase()} Weapons`]
+          ? [`${match[1][0]!.toLocaleUpperCase()}${match[1].slice(1).toLocaleLowerCase()} Weapons`]
           : ['Ranged Weapons', 'Melee Weapons']
         found.set(`${profile.name}:${keyword}:${profileTypes.join(',')}`, { keyword, source: profile.name, profileTypes })
       }
@@ -703,10 +703,11 @@ export function rulesReferencedIn(loaded: LoadedCatalogue, texts: readonly (stri
   return rulesNamed(
     loaded,
     texts.flatMap((text) => [
-      ...[...(text ?? '').matchAll(/\*\*(.*?)\*\*|\^\^(.*?)\^\^/g)].map((match) =>
-        (match[1] ?? match[2] ?? '').replaceAll(/\*\*|\^\^/g, ''),
-      ),
-      ...bracketedRuleReferences(text ?? ''),
+      ...[...(text ?? '').matchAll(/\*\*(.*?)\*\*|\^\^(.*?)\^\^/g)].flatMap((match) => {
+        const name = (match[1] ?? match[2] ?? '').replaceAll(/\*\*|\^\^/g, '')
+        return name ? [name] : []
+      }),
+      ...bracketedRuleReferences(text ?? '').filter((name): name is string => Boolean(name)),
     ]),
   )
 }

@@ -120,7 +120,7 @@ function assemble(
       ? chosen
       : withModelComposition(entryId, chosen, requestedModels, new Set(Object.keys(choices ?? {})), index, context)
   const measured = sizeOf(composed, index)
-  const composedSize = fixedSizes.length ? { ...measured, min: fixedSizes[0], max: fixedSizes.at(-1)!, options: fixedSizes } : measured
+  const composedSize = fixedSizes.length ? { ...measured, min: fixedSizes[0]!, max: fixedSizes.at(-1)!, options: fixedSizes } : measured
   // Then the spreads, which say how many of each option rather than which one.
   //
   // Deepest first, because a model's own wargear is what puts that model in the
@@ -248,7 +248,7 @@ function withProportionalModels(selection: Selection, models: number, index: Cat
   const groups = boundedGroups(selection, index)
   if (!groups.length) return selection
   const overrides = groups.map((group) => ({ path: group.adjust, count: countAt(selection, group.adjust) * factor }))
-  if (overrides.some((override, position) => override.count > groups[position].max)) return selection
+  if (overrides.some((override, position) => override.count > groups[position]!.max)) return selection
   const scaled = withCounts(selection, overrides)
   return modelCountOf(scaled, index) === models ? scaled : selection
 }

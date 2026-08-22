@@ -1,6 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { useVirtualizer } from '@tanstack/react-virtual'
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { reportQuery } from '../queries'
 
@@ -28,15 +27,7 @@ const NO_PLAYERS: readonly ReportPlayer[] = []
 export function Report({ token, open, players = NO_PLAYERS }: { token: string; open: boolean; players?: readonly ReportPlayer[] }) {
   const { data: entries } = useQuery(reportQuery(token, open))
   const [filter, setFilter] = useState<'all' | 'cp'>('all')
-  const scroller = useRef<HTMLDivElement>(null)
-
   const visible = (filter === 'cp' ? (entries ?? []).filter(isCommandPointEntry) : (entries ?? [])).toReversed()
-  const rows = useVirtualizer({
-    count: visible.length,
-    getScrollElement: () => scroller.current,
-    estimateSize: () => 44,
-    overscan: 8,
-  })
 
   if (!entries?.length) return <p className="mt-3 text-xs text-dim">Nothing has happened yet.</p>
 
@@ -55,30 +46,20 @@ export function Report({ token, open, players = NO_PLAYERS }: { token: string; o
         <ToggleGroupItem value="all">All</ToggleGroupItem>
         <ToggleGroupItem value="cp">CP only</ToggleGroupItem>
       </ToggleGroup>
-      <div ref={scroller} className="mt-3 h-96 overflow-y-auto pr-1">
+      <div className="mt-3 h-96 overflow-y-auto pr-1">
         {visible.length ? (
-          <ol className="relative w-full" style={{ height: rows.getTotalSize() }}>
-            {rows.getVirtualItems().map((row) => {
-              const entry = visible[row.index]
-              if (!entry) return null
-              return (
-                <li
-                  key={entry.seq}
-                  ref={rows.measureElement}
-                  data-index={row.index}
-                  className="absolute top-0 left-0 flex w-full gap-3 pb-1 text-sm"
-                  style={{ transform: `translateY(${row.start}px)` }}
-                >
-                  <span className="readout w-20 shrink-0 text-right text-xs text-dim">
-                    {new Date(entry.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    <span className="block text-[0.625rem] text-faint">
-                      {entry.round ? `R${entry.round}` : '—'} {PHASE_LABELS[entry.phase] ?? entry.phase}
-                    </span>
+          <ol className="w-full space-y-1">
+            {visible.map((entry) => (
+              <li key={entry.seq} className="flex w-full gap-3 text-sm">
+                <span className="readout w-20 shrink-0 text-right text-xs text-dim">
+                  {new Date(entry.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  <span className="block text-[0.625rem] text-faint">
+                    {entry.round ? `R${entry.round}` : '—'} {PHASE_LABELS[entry.phase] ?? entry.phase}
                   </span>
-                  <span className="min-w-0 flex-1 text-bone">{colourNames(entry.text, players)}</span>
-                </li>
-              )
-            })}
+                </span>
+                <span className="min-w-0 flex-1 text-bone">{colourNames(entry.text, players)}</span>
+              </li>
+            ))}
           </ol>
         ) : (
           <p className="text-xs text-dim">No command point events yet.</p>

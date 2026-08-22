@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
-import { ImagePlus, Trash2 } from 'lucide-react'
+import { ImagePlus, ShieldCheck, Trash2 } from 'lucide-react'
 import { useAuthAction } from 'ras-stack/auth/react'
 import { useEffect, useRef, useState } from 'react'
 import posthog from 'posthog-js'
@@ -74,15 +74,23 @@ function ProfileForm({ me }: { me: NonNullable<Awaited<ReturnType<NonNullable<Re
   }
 
   return (
-    <main className="mx-auto w-full max-w-2xl space-y-8 px-4 py-8">
-      <header className="border-b border-edge pb-4">
-        <p className="eyebrow">Your account</p>
-        <h1 className="text-2xl">Profile</h1>
-        <p className="mt-2 text-sm text-dim">Choose how your name and picture appear to the people you play with.</p>
-      </header>
+    <main className="w-full">
+      <section className="relative overflow-hidden border-b border-edge bg-panel p-5 sm:p-7">
+        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,transparent_35%,color-mix(in_srgb,var(--color-parchment)_8%,transparent),transparent_75%)]" />
+        <div className="relative mx-auto flex max-w-5xl items-center gap-4">
+          <span className="grid size-12 shrink-0 place-items-center rounded-full border border-edge-strong bg-sunken text-parchment">
+            <ShieldCheck className="size-5" aria-hidden />
+          </span>
+          <div>
+            <p className="eyebrow text-parchment">Your account</p>
+            <h1 className="text-3xl">Profile</h1>
+            <p className="mt-1 text-sm text-dim">Choose how your name and picture appear to the people you play with.</p>
+          </div>
+        </div>
+      </section>
 
       <form
-        className="space-y-8"
+        className="mx-auto mt-4 grid max-w-5xl gap-8 border-y border-edge bg-panel p-5 sm:border md:grid-cols-2 md:p-7"
         onSubmit={(event) => {
           event.preventDefault()
           void save()
@@ -150,7 +158,7 @@ function ProfileForm({ me }: { me: NonNullable<Awaited<ReturnType<NonNullable<Re
           </div>
         </section>
 
-        <div className="flex items-center gap-3 border-t border-edge pt-4">
+        <div className="flex flex-wrap items-center gap-3 border-t border-edge pt-4 md:col-span-2">
           <Button type="submit" disabled={!changed || !name.trim() || preparing || submit.busy}>
             {submit.busy ? 'Saving…' : 'Save profile'}
           </Button>

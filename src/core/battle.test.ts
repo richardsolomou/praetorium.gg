@@ -826,7 +826,7 @@ describe('battle management', () => {
   it('allows a catalogue-backed deep strike formation', () => {
     const command = builtRoster('Death Guard', ['Lord of Virulence'])
     if (command.kind !== 'attach-roster' || !command.roster.built) throw new Error('expected a built roster')
-    command.roster.built.units[0].formationOptions = ['deep-strike']
+    command.roster.built.units[0]!.formationOptions = ['deep-strike']
     const state = reduceBattle(PLAYERS, log([ALICE, command]))
 
     expect(validate(state, ALICE, { kind: 'set-unit-formation', unitKey: 'u0', formation: 'deep-strike' })).toBeNull()

@@ -1,16 +1,17 @@
 # Interface
 
-Praetorium uses a compact, dark visual system. See [the product design guide](../product-design.md) for its scope and layout.
+Praetorium uses a compact, dark interface. See [Product design](../product-design.md) for its scope and layout.
 
 ## Layout
 
 - Use compact, uppercase headings, section counts, points chips, and red or blue player tints consistently.
 - Keep player tints on scores and controls. The tint identifies ownership across the table.
+- Use theme red for attacker deployment zones and theme green for defender zones. Use primary green for a neutral zone.
 - Edit squad size on the roster card. Do not add a second squad-size control to the loadout pane.
 - Render each picker or loadout pane once. `src/client/components/builder/Pane.tsx` moves the same instance between a desktop sidebar and a mobile sheet. Two instances create duplicate form controls and accessibility labels.
 - Split unit lists into collapsible primary-category shelves and omit empty shelves. Use the same shelf order on rosters, in the picker and on faction datasheet pages.
 - Show allied picker shelves with their short faction name and keep them collapsed until a player needs them.
-- A unit card is one target. Its name, its wargear, its enhancements, its upgrades and the rows naming who it is standing with all open the unit; only the controls that do something else — the overflow menu, detaching, joining — take their own clicks back.
+- A unit card is one target. Its details open the unit. The menu, detach, and join controls handle their own clicks.
 - Use `data-unit` to find unit cards in tests, `data-roster` to find library rows, and `data-person` to find a player's row. CSS changes the displayed case, so visible-text selectors do not match the source text reliably — and a word like "Unlisted" appears both on a row and in the menu item that changes it, so an unscoped match can pass before the change lands.
 - Keep battle setup in five visible sections: Format, Armies, Battlefield, Pre-battle, and First turn. The active section is folded from the battle log so every seated device moves together. Show every attached roster, and let anyone at the table set reserves and the battle-ready bonus for any army while the table is being set. A roster stays the choice of the player who owns it.
 - Choose saved rosters in a dialog ordered like the roster library. Keep battlefield selection stable while its command saves, and open each battlefield in a full-size dialog without changing the selection.
@@ -29,11 +30,14 @@ Praetorium uses a compact, dark visual system. See [the product design guide](..
 - Keep both sides' public controls available to every seated player, including the phase control, command points, scoring and stratagems. A player may help the active side without changing who the log says performed the action. Keep undealt tactical cards and hidden missions private, and disable a helper's phase control with an opaque prompt while the active side has opening mission work or a hidden end-of-turn choice.
 - Keep the phase control reachable at every width. One instance moves by CSS between the centre column and a bottom bar on narrow screens, as `builder/Pane.tsx` does for the roster panes, and always advances the active side.
 - Open long card lists in a dialog rather than laying dozens of buttons into a panel, and close the dialog on the pick.
+- Keep the global search panel height stable while typing. Settle the query before the server request, and preserve the prior results while it loads.
+- Give top-level home, account, library, faction, and mission pages a clear introduction, useful summaries, and next actions. Empty states must explain how to add the first item.
+- Keep Friends in the signed-in account menu rather than global navigation. A confirmed friend may open the other player's profile before they share a battle.
 
 ## Components and styles
 
 - Use muted green for primary actions, rule references, success, and selected state; amber for attention; and muted steel blue for navigation and inspectable information such as points. Player-side tints remain separate ownership signals.
-- Explain everything on hover through `HoverTooltip`, which takes a title, the words themselves, and a note saying where they came from. The shape is the component's API rather than free-form content, so a keyword's rule and a modified characteristic read alike; it measures itself to stay inside the window and follows its trigger when the page scrolls.
+- Use `HoverTooltip` for rule help. It accepts a title, body, and source note. The generated Base UI tooltip controls position, focus, collision handling, and scrolling.
 - Do not disable controls while a command is in flight. `useCommand` sends them in order, so a player's own taps cannot race each other and nothing has to go dead to prevent it.
 - Wait for a run of edits to settle before asking the server about them. `src/client/useSettled.ts` is the one delay: holding a stepper down is one intent, not fifteen requests.
 - The loadout pane is three files. `loadoutModel.ts` holds its shapes and every decision that needs no screen — matching a wargear name to what describes it, ordering a card's rows, and what a step on one option does to its siblings. `LoadoutControls.tsx` holds the controls, `ModelCard.tsx` one kind of model, and `Loadout.tsx` only decides which choices belong to a card and which to the unit.

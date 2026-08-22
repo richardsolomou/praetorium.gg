@@ -71,7 +71,14 @@ export const factionIndexQuery = () => queryOptions({ queryKey: ['faction-index'
 export const favouriteFactionsQuery = () =>
   queryOptions({ queryKey: ['favourite-factions'], queryFn: () => favouriteFactions(), staleTime: SSR_STALE_TIME })
 export const gameReferencesQuery = () =>
-  queryOptions({ queryKey: ['game-references'], queryFn: () => gameReferences(), staleTime: Infinity })
+  queryOptions({
+    queryKey: ['game-references'],
+    queryFn: () => gameReferences(),
+    staleTime: ({ state }) => (state.data ? Infinity : 0),
+    refetchInterval: ({ state }) => gameReferencesRefreshInterval(state.data),
+  })
+
+export const gameReferencesRefreshInterval = (data: unknown) => (data ? false : 1_000)
 
 export const globalSearchQuery = (query: string) =>
   queryOptions({

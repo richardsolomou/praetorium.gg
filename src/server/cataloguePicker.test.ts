@@ -17,6 +17,20 @@ describe('the picker', () => {
     expect(datasheetInBySlug(book, 'cat', units[0]?.slug ?? '')?.id).toBe('first-sheet')
   })
 
+  it('filters a cached priced faction list without rebuilding its summaries', () => {
+    const book = bookOf({
+      selectionEntries: [
+        { id: 'warden', name: 'Royal Warden', type: 'unit', costs: points(40) },
+        { id: 'warriors', name: 'Necron Warriors', type: 'unit', costs: points(100) },
+      ],
+    })
+    const all = unitsIn(book, 'cat', '')
+    const filtered = unitsIn(book, 'cat', 'warden')
+
+    expect(filtered).toHaveLength(1)
+    expect(filtered[0]).toBe(all[1])
+  })
+
   it('shelves every datasheet by its primary category', () => {
     const book = bookOf({
       selectionEntries: [

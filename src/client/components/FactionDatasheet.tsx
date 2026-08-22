@@ -7,6 +7,7 @@ import { compositionCount, displayAbilities } from '../datasheet'
 import { factionFor } from '../factions'
 import { datasheetSlugQuery, factionsQuery } from '../queries'
 import { FactionMark, factionColour } from './FactionMark'
+import { CollectionToggle } from './CollectionToggle'
 import { Keyword, KEYWORD_TAG_CLASS, KeywordList, type KeywordRule } from './Keyword'
 import { RuleText } from './RuleText'
 
@@ -26,74 +27,83 @@ export function FactionDatasheet() {
   const melee = profiles('Melee Weapons')
 
   return (
-    <main className="mx-auto w-full max-w-5xl space-y-6 px-4 py-8">
-      <Breadcrumb>
-        <BreadcrumbList className="eyebrow gap-1 text-info">
-          <BreadcrumbItem>
-            <BreadcrumbLink render={<Link to="/factions" />}>Factions</BreadcrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator className="text-dim" />
-          <BreadcrumbItem>
-            <BreadcrumbLink render={<Link to="/factions/$catalogueId" params={{ catalogueId: faction.slug }} />}>
-              {faction.displayName}
-            </BreadcrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator className="text-dim" />
-          <BreadcrumbItem>
-            <BreadcrumbLink render={<Link to="/factions/$catalogueId/datasheets" params={{ catalogueId: faction.slug }} />}>
-              Datasheets
-            </BreadcrumbLink>
-          </BreadcrumbItem>
-        </BreadcrumbList>
-      </Breadcrumb>
-      <header className="flex items-start gap-3 border-b pb-4" style={{ borderBottomColor: factionColour(faction.slug) }}>
-        <FactionMark id={faction.slug} icon={faction.icon} />
-        <div className="min-w-0 flex-1">
-          <p className="eyebrow">{faction.displayName} · Datasheet</p>
-          <div className="flex items-center justify-between gap-4">
-            <h1 className="text-3xl">{sheet.name}</h1>
-            <div className="flex shrink-0 gap-1">
-              {sheet.composition.length ? <span className="chip">{compositionCount(sheet.composition)}</span> : null}
-              {sheet.points === null ? null : <span className="chip text-info">{sheet.points} pts</span>}
+    <main className="w-full">
+      <header className="relative overflow-hidden border-b border-edge bg-panel p-5 sm:p-7">
+        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,transparent_35%,color-mix(in_srgb,var(--color-parchment)_8%,transparent),transparent_75%)]" />
+        <div
+          className="relative mx-auto flex max-w-5xl items-start gap-3 border-l-[3px] pl-3"
+          style={{ borderLeftColor: factionColour(faction.slug) }}
+        >
+          <FactionMark id={faction.slug} icon={faction.icon} />
+          <div className="min-w-0 flex-1">
+            <p className="eyebrow text-parchment">{faction.displayName} · Datasheet</p>
+            <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+              <h1 className="min-w-0 text-3xl break-words">{sheet.name}</h1>
+              <div className="flex flex-wrap items-center gap-1 sm:shrink-0 sm:justify-end">
+                {sheet.composition.length ? <span className="chip">{compositionCount(sheet.composition)}</span> : null}
+                {sheet.points === null ? null : <span className="chip text-info">{sheet.points} pts</span>}
+                <CollectionToggle entryId={sheet.id} name={sheet.name} />
+              </div>
             </div>
-          </div>
-          <div className="mt-2 flex flex-wrap gap-1">
-            {sheet.keywords.map((keyword) => (
-              <Keyword key={keyword} name={keyword} rules={sheet.keywordRules} className={KEYWORD_TAG_CLASS} />
-            ))}
+            <div className="mt-2 flex flex-wrap gap-1">
+              {sheet.keywords.map((keyword) => (
+                <Keyword key={keyword} name={keyword} rules={sheet.keywordRules} className={KEYWORD_TAG_CLASS} />
+              ))}
+            </div>
           </div>
         </div>
       </header>
+      <div className="mx-auto max-w-5xl space-y-6 px-3 py-4 sm:px-4">
+        <Breadcrumb>
+          <BreadcrumbList className="eyebrow gap-1 text-info">
+            <BreadcrumbItem>
+              <BreadcrumbLink render={<Link to="/factions" />}>Factions</BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator className="text-dim" />
+            <BreadcrumbItem>
+              <BreadcrumbLink render={<Link to="/factions/$catalogueId" params={{ catalogueId: faction.slug }} />}>
+                {faction.displayName}
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator className="text-dim" />
+            <BreadcrumbItem>
+              <BreadcrumbLink render={<Link to="/factions/$catalogueId/datasheets" params={{ catalogueId: faction.slug }} />}>
+                Datasheets
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
 
-      {unit.length === 1 && unit[0] ? <UnitCharacteristics profile={unit[0]} /> : null}
-      {unit.length > 1 ? <ProfileTable title="Models" profiles={unit} omit={['InSv']} keywordRules={sheet.keywordRules} /> : null}
-      {unit.length > 1 && invulnerable.length ? (
-        <section>
-          <h2 className="rubric">Invulnerable save</h2>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {invulnerable.map((profile) => (
-              <div key={profile.name} className="border border-edge bg-panel px-3 py-2">
-                <span className="text-sm font-semibold">{profile.name}</span>
-                <span className="readout ml-3 text-dim">{profile.value}</span>
-              </div>
-            ))}
-          </div>
-        </section>
-      ) : null}
-      {ranged.length ? <ProfileTable title="Ranged weapons" profiles={ranged} keywordRules={sheet.keywordRules} /> : null}
-      {melee.length ? <ProfileTable title="Melee weapons" profiles={melee} keywordRules={sheet.keywordRules} /> : null}
-      <Abilities abilities={displayAbilities(sheet.abilities)} rules={sheet.keywordRules} />
-      <UnitConfiguration sheet={sheet} rules={sheet.keywordRules} />
-      {sheet.transport ? (
-        <section>
-          <h2 className="rubric">Transport</h2>
-          <div className="mt-2 border border-edge bg-panel p-3">
-            <RuleText text={sheet.transport} rules={sheet.keywordRules} className="mt-0" />
-          </div>
-        </section>
-      ) : null}
-      <Relationships sheet={sheet} factionSlug={faction.slug} />
-      {sheet.attribution ? <p className="border-t border-edge pt-4 text-xs text-dim">{sheet.attribution}.</p> : null}
+        {unit.length === 1 && unit[0] ? <UnitCharacteristics profile={unit[0]} /> : null}
+        {unit.length > 1 ? <ProfileTable title="Models" profiles={unit} omit={['InSv']} keywordRules={sheet.keywordRules} /> : null}
+        {unit.length > 1 && invulnerable.length ? (
+          <section>
+            <h2 className="rubric">Invulnerable save</h2>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {invulnerable.map((profile) => (
+                <div key={profile.name} className="border border-edge bg-panel px-3 py-2">
+                  <span className="text-sm font-semibold">{profile.name}</span>
+                  <span className="readout ml-3 text-dim">{profile.value}</span>
+                </div>
+              ))}
+            </div>
+          </section>
+        ) : null}
+        {ranged.length ? <ProfileTable title="Ranged weapons" profiles={ranged} keywordRules={sheet.keywordRules} /> : null}
+        {melee.length ? <ProfileTable title="Melee weapons" profiles={melee} keywordRules={sheet.keywordRules} /> : null}
+        <Abilities abilities={displayAbilities(sheet.abilities)} rules={sheet.keywordRules} />
+        <UnitConfiguration sheet={sheet} rules={sheet.keywordRules} />
+        {sheet.transport ? (
+          <section>
+            <h2 className="rubric">Transport</h2>
+            <div className="mt-2 border border-edge bg-panel p-3">
+              <RuleText text={sheet.transport} rules={sheet.keywordRules} className="mt-0" />
+            </div>
+          </section>
+        ) : null}
+        <Relationships sheet={sheet} factionSlug={faction.slug} />
+        {sheet.attribution ? <p className="border-t border-edge pt-4 text-xs text-dim">{sheet.attribution}.</p> : null}
+      </div>
     </main>
   )
 }

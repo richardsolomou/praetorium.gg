@@ -1,6 +1,6 @@
 # Product design
 
-Praetorium uses a compact, dark interface designed for opposing sides at a table. The roster builder favors information density. The battle tracker favors clear ownership and large controls.
+Praetorium uses a compact, dark interface for players at one table. The roster builder is dense. The battle tracker uses clear ownership and large controls.
 
 ## Scope
 
@@ -23,9 +23,9 @@ Use these patterns consistently:
 - Red and blue player ownership throughout the battle tracker.
 - A persistent points total while editing a roster.
 
-On phones, Praetorium keeps the roster visible and moves the picker or loadout into one sheet. The battle tracker uses one scrolling column with a fixed two-side scoreboard.
+On phones, the roster stays visible. The picker or loadout moves into one sheet. The battle tracker uses one column and a fixed scoreboard.
 
-Battle setup uses five sections with a persistent progress summary. It separates shared table decisions from each player's army preparation, then shows both sides together before the battle starts.
+Battle setup has five sections and a persistent summary. It separates table decisions from army preparation. It shows both sides before play starts.
 
 Keep screenshots that contain roster or battle data outside version control.
 
@@ -47,7 +47,7 @@ Keep screenshots that contain roster or battle data outside version control.
 
 `just points` currently matches 100% of 1,861 reference checks. Keep new mismatches out of the baseline.
 
-The fetched sources do not provide every mission-pack restriction or every prose replacement rule as structured data. Praetorium reports missing semantics instead of reconstructing them from memory.
+The sources do not structure every restriction or replacement rule. Praetorium reports missing semantics. It does not reconstruct rules from memory.
 
 The current sources do not provide structured twist decks or enough transport relationships to automate embarking. Battle photos also remain outside the product boundary. These features stay absent rather than becoming local-only or guessed state.
 

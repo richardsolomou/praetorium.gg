@@ -8,11 +8,11 @@ just catalogue-sync
 just dev
 ```
 
-Sync before working on list building, mission matchups, or battlefield plans. Without it, the app can still serve existing battles and pasted rosters, but combined deployment-and-terrain choices stay unavailable until the current verified snapshot arrives.
+Sync before work on lists, mission matchups, or battlefields. Without data, the app still serves battles and pasted rosters. Deployment and terrain choices remain unavailable.
 
 `just dev` starts the app and Centrifugo. The Vite server proxies `/connection` so realtime traffic stays on the app origin.
 
-Run `just` without a recipe to list all commands. Each recipe wraps a `pnpm` script. CI uses the `pnpm` scripts directly.
+Run `just` to list commands. Each recipe wraps a `pnpm` script. CI runs the `pnpm` scripts directly.
 
 ## Checks
 
@@ -37,8 +37,8 @@ Two Playwright rules matter:
 
 ## Database
 
-`just dev` starts Postgres and Valkey in containers alongside Centrifugo, applies migrations, then runs the app. Their data lives in named Docker volumes, so it survives between sessions; `just services-down` stops them.
+`just dev` starts Postgres, Valkey, Centrifugo, and the app. It applies migrations first. Named Docker volumes preserve service data. `just services-down` stops the services.
 
 Generate migrations with `just db-generate` and apply them with `just db-migrate`. Do not edit an applied migration. The build copies `drizzle/` into `.output/server/drizzle` for production, which is where both the app and the standalone migrate step look for it.
 
-Unit tests run against PGlite, a real Postgres compiled to WebAssembly, so `pnpm test` needs no server and still exercises the same SQL and the same migrations as a deployment.
+Unit tests use PGlite, which runs Postgres in WebAssembly. `pnpm test` needs no server. It uses the production SQL and migrations.

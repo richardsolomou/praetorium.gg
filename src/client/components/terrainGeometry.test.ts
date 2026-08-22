@@ -82,13 +82,13 @@ describe('turning the board for a narrow screen', () => {
 describe('placing a marker in a terrain area', () => {
   it('leaves a marker where the data put it when nothing is in the way', () => {
     const area = openArea(square(0, 0, 10), [{ label: 'AB', position: { x: 5, y: 5 } }])
-    expect(terrainMarkerPosition(area, area.markers[0])).toEqual({ x: 5, y: 5 })
+    expect(terrainMarkerPosition(area, area.markers[0]!)).toEqual({ x: 5, y: 5 })
   })
 
   it('moves a marker that would sit outside its own area', () => {
     const area = openArea(square(0, 0, 10), [{ label: 'AB', position: { x: 50, y: 50 } }])
     // Nowhere near the area is open, so it falls back to the centre, which is.
-    expect(terrainMarkerPosition(area, area.markers[0])).toEqual({ x: 5, y: 5 })
+    expect(terrainMarkerPosition(area, area.markers[0]!)).toEqual({ x: 5, y: 5 })
   })
 
   it('keeps an objective marker clear of the terrain labels beside it', () => {

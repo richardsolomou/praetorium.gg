@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Command, CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
 import type { GlobalSearchResult } from '../../server/functions'
 import { globalSearchQuery } from '../queries'
+import { useSettled } from '../useSettled'
 import { matchingPages } from './globalSearchPages'
 import { isSearchShortcut } from './globalSearchShortcut'
 
@@ -15,7 +16,8 @@ export function GlobalSearch() {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const trimmed = query.trim()
-  const { data = [], isFetching } = useQuery({ ...globalSearchQuery(trimmed), placeholderData: keepPreviousData })
+  const settled = useSettled(trimmed)
+  const { data = [], isFetching } = useQuery({ ...globalSearchQuery(settled), placeholderData: keepPreviousData })
   const results = [...matchingPages(trimmed), ...data]
 
   useEffect(() => {
@@ -60,9 +62,9 @@ export function GlobalSearch() {
       >
         <Command>
           <CommandInput value={query} onValueChange={setQuery} placeholder="Search everything…" />
-          <CommandList className="max-h-[min(60vh,30rem)]">
-            {trimmed.length >= 2 && isFetching ? <p className="py-6 text-center text-sm text-dim">Searching…</p> : null}
-            {trimmed.length >= 2 && !isFetching ? <CommandEmpty>No results found.</CommandEmpty> : null}
+          <CommandList className="h-[min(60vh,30rem)] max-h-none">
+            {trimmed.length >= 2 && isFetching ? <output className="sr-only">Searching</output> : null}
+            {trimmed.length >= 2 && trimmed === settled && !isFetching ? <CommandEmpty>No results found.</CommandEmpty> : null}
             {groups.map((group) => {
               const items = results.filter((result) => result.group === group)
               if (!items.length) return null

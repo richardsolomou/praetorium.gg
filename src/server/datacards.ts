@@ -18,6 +18,7 @@ export type FactionContent = {
   datasheets: Set<string>
   datasheetDetails: Map<string, DatasheetDetails>
   detachments: Set<string>
+  armyRules: { name: string; description: string }[]
 }
 
 type DatacardsFaction = {
@@ -25,6 +26,7 @@ type DatacardsFaction = {
   name?: unknown
   datasheets?: unknown
   detachments?: unknown
+  rules?: unknown
 }
 
 export function loadFactionContents(directory: string): Map<string, FactionContent> {
@@ -56,9 +58,27 @@ export function loadFactionContents(directory: string): Map<string, FactionConte
           return localized && typeof localized === 'object' && 'en' in localized && typeof localized.en === 'string' ? [localized.en] : []
         }),
       ),
+      armyRules: armyRulesOf(parsed.rules),
     })
   }
   return found
+}
+
+function armyRulesOf(value: unknown): { name: string; description: string }[] {
+  const cards = records(value, 'army')
+  return cards.flatMap((card) => {
+    const name = localizedField(card, 'name')
+    const description = records(card, 'rules')
+      .toSorted((left, right) => Number(left.order ?? 0) - Number(right.order ?? 0))
+      .flatMap((rule) => {
+        const text = localizedField(rule, 'text')
+        if (!text || rule.type === 'image') return []
+        const title = localizedField(rule, 'title')
+        return rule.type === 'header' || title ? [`### ${title ?? text}`, ...(title ? [text] : [])] : [text]
+      })
+      .join('\n\n')
+    return name && description ? [{ name, description }] : []
+  })
 }
 
 function localizedField(value: unknown, field: string): string | null {

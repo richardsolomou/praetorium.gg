@@ -12,6 +12,7 @@ type ExportRow = { name: string; detachment?: string; description?: string }
 
 export type WahapediaDescriptions = {
   abilities: ReadonlyMap<string, string>
+  armyRules: ReadonlyMap<string, readonly DetachmentAbility[]>
   detachmentAbilities: ReadonlyMap<string, readonly DetachmentAbility[]>
   enhancements: ReadonlyMap<string, string>
   stratagems: ReadonlyMap<string, string>
@@ -43,19 +44,35 @@ export function loadWahapediaDescriptions(directory: string): WahapediaDescripti
   )
   const enhancements = new Map([...readDescriptions(path.join(directory, 'Enhancements.csv')), ...live.enhancements])
   const stratagems = new Map([...readDescriptions(path.join(directory, 'Stratagems.csv')), ...live.stratagems])
-  return abilities.size || detachmentAbilities.size || enhancements.size || stratagems.size
-    ? { abilities, detachmentAbilities, enhancements, stratagems }
+  return abilities.size || live.armyRules.size || detachmentAbilities.size || enhancements.size || stratagems.size
+    ? { abilities, armyRules: live.armyRules, detachmentAbilities, enhancements, stratagems }
     : null
 }
 
 function readLivePages(directory: string) {
+  const armyRules = new Map<string, DetachmentAbility[]>()
   const detachmentAbilities = new Map<string, DetachmentAbility[]>()
   const enhancements = new Map<string, string>()
   const stratagems = new Map<string, string>()
-  if (!fs.existsSync(directory)) return { detachmentAbilities, enhancements, stratagems }
+  if (!fs.existsSync(directory)) return { armyRules, detachmentAbilities, enhancements, stratagems }
 
   for (const file of fs.readdirSync(directory).filter((name) => name.endsWith('.html'))) {
     const $ = cheerio.load(fs.readFileSync(path.join(directory, file), 'utf8'))
+    const armyHeading = $('h2.outline_header')
+      .filter((_, heading) => $(heading).text().trim() === 'Army Rules')
+      .first()
+    const armyRuleCards: DetachmentAbility[] = []
+    armyHeading
+      .next('.Columns2')
+      .children('.BreakInsideAvoid')
+      .each((_, section) => {
+        const heading = $(section).find('h3').first().text().trim()
+        const content = $(section).clone()
+        content.find('h3, .ShowFluff').remove()
+        const description = toText(content.html() ?? '').trim()
+        if (heading && description) armyRuleCards.push({ name: heading, description })
+      })
+    if (armyRuleCards.length) armyRules.set(path.basename(file, '.html'), armyRuleCards)
     $('div.clFl').each((_, element) => {
       const detachment = $(element)
         .children('h2.outline_header')
@@ -98,7 +115,7 @@ function readLivePages(directory: string) {
       })
     })
   }
-  return { detachmentAbilities, enhancements, stratagems }
+  return { armyRules, detachmentAbilities, enhancements, stratagems }
 }
 
 function mergeDetachmentAbilities(
@@ -128,7 +145,7 @@ export function findDescription(descriptions: ReadonlyMap<string, string>, detac
     const candidateName = key.slice(separator + 1)
     return near(detachmentTarget, candidateDetachment) && near(target, comparableName(candidateName))
   })
-  return matches.length === 1 ? matches[0][1] : null
+  return matches.length === 1 ? matches[0]![1] : null
 }
 
 const comparableName = (name: string) => routeSlug(name).replace(/-(?:aura|upgrade)$/, '')
@@ -146,7 +163,7 @@ export function findDetachmentAbilities(
   const target = routeSlug(detachment)
   const maximumDistance = Math.min(3, Math.max(1, Math.floor(target.length * 0.15)))
   const matches = [...abilities].filter(([key]) => distance(target, key) <= maximumDistance)
-  return matches.length === 1 ? matches[0][1] : []
+  return matches.length === 1 ? matches[0]![1] : []
 }
 
 export const findAbilityDescription = (descriptions: ReadonlyMap<string, string>, name: string) => descriptions.get(routeSlug(name)) ?? null
@@ -164,12 +181,15 @@ export function factionRestrictions(descriptions: ReadonlyMap<string, string>) {
     for (const match of description.matchAll(
       /Your army cannot include (?:any of )?the following (?:units|models|datasheets[^:]*):\s*([^.]*)/gi,
     )) {
-      addNames(forFaction(describedFaction).excludedNames, match[1])
+      const excluded = match[1]
+      if (excluded) addNames(forFaction(describedFaction).excludedNames, excluded)
     }
     for (const match of description.matchAll(
       /If your army includes one or more ([A-Z][A-Z ]+) units, it cannot include[^.]*?the following (?:units|models):\s*([^.]*)/g,
     )) {
-      addNames(forFaction(match[1]).excludedNames, match[2])
+      const factionName = match[1]
+      const excluded = match[2]
+      if (factionName && excluded) addNames(forFaction(factionName).excludedNames, excluded)
     }
     if (/BLACK TEMPLARS units[^.]*cannot include any Adeptus Astartes Psyker models/i.test(description)) {
       forFaction('Black Templars').excludedKeywords.add('psyker')

@@ -1,8 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, notFound } from '@tanstack/react-router'
+import { MapPinned } from 'lucide-react'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { MissionCardReference } from '../client/components/MissionCardReference'
 import { TerrainBoard } from '../client/components/TerrainBoard'
+import { PageState } from '../client/components/PageState'
 import { type TerrainGeometry, type TerrainPiece, type TerrainTemplate } from '../client/components/terrainGeometry'
 import { dispositionTone } from '../client/components/rosterSetup'
 import { gameReferencesQuery, terrainMatchupIds, terrainReferencesQuery } from '../client/queries'
@@ -33,59 +35,76 @@ function MissionMatchupPage() {
   if (!data || !pack || !yours || !theirs || !yourDisposition || !opponentDisposition) return null
 
   return (
-    <main className="mx-auto w-full max-w-6xl px-4 py-8">
-      <Link to="/mission-packs/$packId" params={{ packId }} className="eyebrow text-info">
-        {pack.name}
-      </Link>
-      <h1 className="mt-3 text-3xl">
-        {yourDisposition.name} vs {opponentDisposition.name}
-      </h1>
-      <div className="mt-5 grid grid-cols-[1fr_auto_1fr] items-stretch gap-2">
-        <div className={`grid min-h-14 place-items-center border px-3 text-center font-bold uppercase ${dispositionTone(you, true)}`}>
-          {yourDisposition.name}
+    <main className="w-full">
+      <section className="relative overflow-hidden border-b border-edge bg-panel p-5 sm:p-7">
+        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,transparent_35%,color-mix(in_srgb,var(--color-parchment)_8%,transparent),transparent_75%)]" />
+        <div className="relative mx-auto max-w-5xl">
+          <p className="eyebrow text-parchment">Mission matchup</p>
+          <h1 className="mt-1 text-3xl">
+            {yourDisposition.name} vs {opponentDisposition.name}
+          </h1>
         </div>
-        <span className="grid place-items-center text-sm font-bold text-dim">VS</span>
-        <div className={`grid min-h-14 place-items-center border px-3 text-center font-bold uppercase ${dispositionTone(opponent, true)}`}>
-          {opponentDisposition.name}
+      </section>
+      <div className="mx-auto max-w-5xl px-3 py-4 sm:px-4">
+        <Link to="/mission-packs/$packId" params={{ packId }} className="eyebrow text-info">
+          {pack.name}
+        </Link>
+        <div className="mt-4 grid grid-cols-[1fr_auto_1fr] items-stretch gap-2 border border-edge bg-sunken p-3">
+          <div className={`grid min-h-14 place-items-center border px-3 text-center font-bold uppercase ${dispositionTone(you, true)}`}>
+            {yourDisposition.name}
+          </div>
+          <span className="grid place-items-center text-sm font-bold text-dim">VS</span>
+          <div
+            className={`grid min-h-14 place-items-center border px-3 text-center font-bold uppercase ${dispositionTone(opponent, true)}`}
+          >
+            {opponentDisposition.name}
+          </div>
         </div>
+
+        <section className="mt-7">
+          <h2 className="rubric border-b border-edge pb-2">Primary missions</h2>
+          <div className="mt-3 grid gap-3 md:grid-cols-2">
+            <div className="border border-edge bg-panel p-4">
+              <h3 className="text-xl">{yours.name}</h3>
+              {yours.card ? <MissionCardReference card={yours.card} type={yourDisposition.name} /> : null}
+            </div>
+            <div className="border border-edge bg-panel p-4">
+              <h3 className="text-xl">{theirs.name}</h3>
+              {theirs.card ? <MissionCardReference card={theirs.card} type={opponentDisposition.name} /> : null}
+            </div>
+          </div>
+        </section>
+
+        <section className="mt-7">
+          <h2 className="rubric flex justify-between border-b border-edge pb-2">
+            <span>Terrain layouts</span>
+            <span className="readout">{layouts.length}</span>
+          </h2>
+          {layouts.length ? (
+            <div className="mt-3 grid gap-3 sm:grid-cols-3">
+              {layouts.map((layout, index) => (
+                <TerrainLayout
+                  key={layout.id}
+                  layout={layout}
+                  deployment={data.deployments.find((entry) => entry.id === layout.deploymentId)}
+                  templates={terrain?.templates ?? []}
+                  label={String.fromCharCode(65 + index)}
+                />
+              ))}
+            </div>
+          ) : (
+            <PageState
+              className="mt-3"
+              headingLevel={2}
+              eyebrow="Terrain layouts"
+              title="No layouts available"
+              explanation="The current synced source does not associate terrain geometry with this matchup."
+              icon={MapPinned}
+            />
+          )}
+        </section>
+        <p className="mt-6 border-t border-edge pt-3 text-xs text-dim">{data.attribution}</p>
       </div>
-
-      <section className="mt-7">
-        <h2 className="rubric border-b border-edge pb-2">Primary missions</h2>
-        <div className="mt-3 grid gap-3 md:grid-cols-2">
-          <div className="border border-edge bg-panel p-4">
-            <h3 className="text-xl">{yours.name}</h3>
-            {yours.card ? <MissionCardReference card={yours.card} type={yourDisposition.name} /> : null}
-          </div>
-          <div className="border border-edge bg-panel p-4">
-            <h3 className="text-xl">{theirs.name}</h3>
-            {theirs.card ? <MissionCardReference card={theirs.card} type={opponentDisposition.name} /> : null}
-          </div>
-        </div>
-      </section>
-
-      <section className="mt-7">
-        <h2 className="rubric flex justify-between border-b border-edge pb-2">
-          <span>Terrain layouts</span>
-          <span className="readout">{layouts.length}</span>
-        </h2>
-        {layouts.length ? (
-          <div className="mt-3 grid gap-3 sm:grid-cols-3">
-            {layouts.map((layout, index) => (
-              <TerrainLayout
-                key={layout.id}
-                layout={layout}
-                deployment={data.deployments.find((entry) => entry.id === layout.deploymentId)}
-                templates={terrain?.templates ?? []}
-                label={String.fromCharCode(65 + index)}
-              />
-            ))}
-          </div>
-        ) : (
-          <p className="mt-2 text-sm text-dim">No terrain layouts are associated with this matchup in the synced source.</p>
-        )}
-      </section>
-      <p className="mt-6 border-t border-edge pt-3 text-xs text-dim">{data.attribution}</p>
     </main>
   )
 }

@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 import { unzipSync, zipSync, type Zippable } from 'fflate'
+import { fetchWithRetry } from './fetch'
 
 const LEGACY_FORMAT = 'praetorium.catalogue.v1'
 const FORMAT = 'praetorium.catalogue.v2'
@@ -107,7 +108,7 @@ function installArchive(directory: string, archive: Uint8Array, expected: Snapsh
     const target = path.resolve(staging, name)
     if (!target.startsWith(`${path.resolve(staging)}${path.sep}`)) throw new Error(`unsafe catalogue snapshot path ${name}`)
     fs.mkdirSync(path.dirname(target), { recursive: true })
-    fs.writeFileSync(target, entries[`catalogue/${name}`])
+    fs.writeFileSync(target, entries[`catalogue/${name}`]!)
   }
   requireComplete(staging, manifest.format === FORMAT)
   fs.writeFileSync(path.join(staging, '.snapshot.json'), `${JSON.stringify(expected, null, 2)}\n`)
@@ -126,7 +127,7 @@ export function installedSnapshot(directory: string): SnapshotPointer | null {
 
 export async function fetchCurrentSnapshot(directory: string, baseUrl: string, report: (message: string) => void = () => {}) {
   const base = baseUrl.replace(/\/$/, '')
-  const pointerResponse = await fetch(`${base}/current.json`, { cache: 'no-store' })
+  const pointerResponse = await fetchWithRetry(`${base}/current.json`, { cache: 'no-store' })
   if (!pointerResponse.ok) throw new Error(`catalogue snapshot pointer answered ${pointerResponse.status}`)
   const pointer = parsePointer(await pointerResponse.json())
   if (installedSnapshot(directory)?.id === pointer.id) {
@@ -134,7 +135,7 @@ export async function fetchCurrentSnapshot(directory: string, baseUrl: string, r
     return false
   }
   report(`fetching catalogue snapshot ${pointer.id.slice(0, 10)}`)
-  const response = await fetch(`${base}/snapshots/${pointer.id}.zip`)
+  const response = await fetchWithRetry(`${base}/snapshots/${pointer.id}.zip`)
   if (!response.ok) throw new Error(`catalogue snapshot answered ${response.status}`)
   const length = Number(response.headers.get('content-length') ?? 0)
   if (length > MAX_ARCHIVE_BYTES) throw new Error('catalogue snapshot archive is too large')

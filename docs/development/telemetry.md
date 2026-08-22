@@ -1,9 +1,6 @@
 # Telemetry
 
-Praetorium uses one PostHog integration for product analytics, session replay,
-feature flags, browser and server error tracking, performance, and server logs.
-The integration is optional: an instance without the PostHog environment variables
-keeps every product path working.
+Praetorium uses PostHog for analytics, replay, flags, errors, performance, and server logs. The integration is optional. Every product path works without PostHog variables.
 
 ## Event contract
 
@@ -20,11 +17,7 @@ ordinary clicks remain autocaptured.
 | Battles    | `battle_created`, `battle_joined`, `battle_roster_attached`, `battle_started`, `battle_finished`, `battle_reopened`, `battle_deleted`, `battle_command_submitted`                                                                                                                              |
 | Quality    | `roster_datasheet_loaded`, `roster_datasheet_rendered`, sampled `roster_priced`, `$exception`, and structured server error logs                                                                                                                                                                |
 
-`battle_command_submitted` carries the command kind and domain outcome, so feature
-usage and stale or refused commands can be compared without recording the command
-payload. Datasheet performance separates server work, browser-observed request
-duration, and time from response resolution to the next rendered frame. Performance
-events carry duration and workload counts only.
+`battle_command_submitted` contains the command kind and outcome. It does not contain the command payload. Datasheet metrics separate server work, request time, and render time. Performance events contain durations and workload counts only.
 
 Builder events cover structural roster changes, not autosave or each loadout
 stepper click. Search events carry only the bounded result group and result count;

@@ -1,6 +1,6 @@
 # Battles
 
-`src/core/battle.ts` contains the battle domain: the log, `validate`, and `apply`. `src/core/battleView.ts` decides what each player may see, and `src/core/battleReport.ts` renders the log into English. Neither of the two decides anything the domain has not already settled. `src/server/service.ts` connects all three to persistence and realtime updates.
+`src/core/battle.ts` owns the log, `validate`, and `apply`. `battleView.ts` controls visibility. `battleReport.ts` renders the log. `src/server/service.ts` connects the domain to storage and realtime updates.
 
 ## Command log
 
@@ -13,7 +13,9 @@
 
 Undo appends an `undo` command that names the latest active command. It does not delete history. Either player can undo the latest command, then continue rewinding active commands across turn boundaries.
 
-Live commands may name the player or army they affect, so anyone seated at the table can keep either side moving. The log still records the player who submitted the command, and reports name both players when they differ. Concessions remain personal. Undealt tactical cards and hidden missions remain private. When a turn changes hands, the incoming side captain settles any scoring owed by the previous turn before another player can advance their command phase; that acknowledgement is coordination metadata rather than a report entry or undo target.
+Live commands can name the affected player or army. Any seated player can operate either side. The log records the submitting player. Concessions remain personal. Undealt cards and hidden missions remain private.
+
+After a turn changes, the incoming captain settles scoring from the prior turn. This acknowledgement is not a report entry or undo target.
 
 Setup settings, roster replacements, formation choices, painted-army bonuses, concessions, reopening, and setup resets are commands too. A reset clears rosters and battlefield choices without erasing the audit trail or the configured game size, mission pack or solo format. A finished battle remains reopenable; deletion is the only destructive operation and is restricted to the account that created the battle.
 
@@ -30,6 +32,8 @@ A 2v1 battle has one player on the first side and two allied players on the seco
 What an army brings is not a choice a player makes twice. The stratagems are the detachment's own plus the core ones every army has, and its primary comes from its ordered force-disposition matchup against the opposing side — both are recorded by `set-prep` as soon as they are known rather than offered as a picker. A solo battle pairs its one disposition against itself so that it still has a mission to score.
 
 Secondaries are tactical unless a player says otherwise: the hand starts empty, the deck is the whole pack, and the tracker asks for the draw at the top of that player's command phase. Fixed play is the alternative, and the only case where cards are chosen up front.
+
+The client requests a draw. The server chooses the card while it holds the battle lock. The log stores the chosen card. The server ignores the client's placeholder card.
 
 ## Views and visibility
 

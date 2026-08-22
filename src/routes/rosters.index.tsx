@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
+import { ScrollText } from 'lucide-react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,6 +24,7 @@ import { type SavedRoster, useRosterActions } from '../client/components/rosters
 import { ROSTER_SORTS, type RosterSort, sortRosters } from '../client/components/rosters/rosterSort'
 import { readWorkspaceState, writeWorkspaceState } from '../client/components/workspaceState'
 import { SignInRequired } from '../client/components/SignInRequired'
+import { PageState } from '../client/components/PageState'
 import { useFavouriteFactions } from '../client/favouriteFactions'
 import { factionsQuery, meQuery, savedRosterPointsQuery, savedRostersQuery } from '../client/queries'
 import { useOrigin } from '../client/useOrigin'
@@ -164,19 +166,23 @@ function RosterLibrary() {
   if (!me) return <SignInRequired title="Your rosters" explanation="Sign in to build a list and keep it between battles." />
 
   return (
-    <main className="mx-auto w-full max-w-5xl px-4 py-8">
-      <div className="flex flex-wrap items-end justify-between gap-4 border-b border-edge pb-4">
-        <div>
-          <p className="eyebrow">Your rosters</p>
-          <h1 className="text-3xl">My rosters</h1>
+    <main className="w-full">
+      <section className="relative overflow-hidden border-b border-edge bg-panel p-5 sm:p-7">
+        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,transparent_35%,color-mix(in_srgb,var(--color-parchment)_8%,transparent),transparent_75%)]" />
+        <div className="relative mx-auto flex max-w-5xl flex-wrap items-end justify-between gap-4">
+          <div>
+            <p className="eyebrow text-parchment">Your rosters</p>
+            <h1 className="text-3xl">My rosters</h1>
+            <p className="mt-2 text-sm text-dim">Build, import, organize, and share the armies you bring to battle.</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <RosterImport />
+            {available ? <CreateRoster factions={available.factions} /> : null}
+          </div>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <RosterImport />
-          {available ? <CreateRoster factions={available.factions} /> : null}
-        </div>
-      </div>
+      </section>
 
-      <div className="mt-4 flex flex-wrap items-end gap-3" aria-label="Roster filters">
+      <div className="mx-auto mt-4 flex max-w-5xl flex-wrap items-end gap-3 px-3 sm:px-4" aria-label="Roster filters">
         <RosterCombobox
           label="Battle size"
           value={search.limit ? String(search.limit) : 'all'}
@@ -209,9 +215,11 @@ function RosterLibrary() {
           }
         />
       </div>
-      {actions.shareProblem ? <p className="mt-3 text-sm text-destructive">Could not copy the link: {actions.shareProblem}</p> : null}
+      {actions.shareProblem ? (
+        <p className="mx-auto mt-3 max-w-5xl px-3 text-sm text-destructive sm:px-4">Could not copy the link: {actions.shareProblem}</p>
+      ) : null}
 
-      <section className="mt-4">
+      <section className="mx-auto mt-4 max-w-5xl px-3 sm:px-4">
         <p className="rubric flex items-baseline justify-between border-b border-edge pb-2">
           <span>Rosters</span>
           <span className="readout">{shown.length}</span>
@@ -231,9 +239,13 @@ function RosterLibrary() {
               />
             ))
           ) : (
-            <p className="border border-edge bg-panel p-8 text-center text-sm text-dim">
-              {saved.length ? 'No rosters match these filters.' : 'No rosters yet. Create one or bring one from another app.'}
-            </p>
+            <PageState
+              headingLevel={2}
+              eyebrow={saved.length ? 'Roster filters' : 'Roster library'}
+              title={saved.length ? 'No rosters match' : 'No rosters yet'}
+              explanation={saved.length ? 'No rosters match these filters.' : 'No rosters yet. Create one or bring one from another app.'}
+              icon={ScrollText}
+            />
           )}
         </div>
       </section>

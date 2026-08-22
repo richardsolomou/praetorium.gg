@@ -8,6 +8,7 @@ import {
   reduceBattle,
   type Secondary,
   scoringTarget,
+  sideCaptain,
   type Stratagem,
   type SubmitResult,
 } from '../core/battle'
@@ -45,6 +46,7 @@ export class PraetoriumService {
     private readonly repository: Repository,
     private readonly clock: () => number,
     private readonly events: BattleEvents,
+    private readonly randomIndex: (limit: number) => number,
   ) {}
 
   /**
@@ -93,13 +95,14 @@ export class PraetoriumService {
   /**
    * Someone's name and picture, to a viewer allowed to see it.
    *
-   * Sharing a battle is the whole test, and it is asked as that one question
-   * rather than by reading every battle the viewer plays and looking through them.
+   * A mutual friendship or shared battle permits this small public profile.
    */
   async userProfile(viewerId: string, userId: string) {
     const profile = await this.repository.profileByUserId(userId)
     if (!profile) return null
     if (viewerId === userId) return profile
+    const friends = sortedFriends(await this.repository.relationships(viewerId), viewerId).friends
+    if (friends.some((friend) => friend.id === userId)) return profile
     return (await this.repository.shareBattle(viewerId, userId)) ? profile : null
   }
 
@@ -119,9 +122,7 @@ export class PraetoriumService {
     },
   ) {
     const id = roster.id ?? randomId()
-    const existing = await this.repository.roster(id)
-    if (existing && existing.userId !== userId) throw new Response('you do not own this roster', { status: 403 })
-    await this.repository.saveRoster({
+    const saved = await this.repository.saveRoster({
       ...roster,
       detachmentId: JSON.stringify(roster.detachmentIds),
       id,
@@ -131,6 +132,7 @@ export class PraetoriumService {
       tags: '[]',
       now: this.clock(),
     })
+    if (!saved) throw new Response('you do not own this roster', { status: 403 })
     return { id }
   }
 
@@ -355,6 +357,16 @@ export class PraetoriumService {
         if (command.kind === 'score' || command.kind === 'score-secondary')
           return rules ? scoringCapError(state, userId, command, rules) : null
         return null
+      },
+      (state, submitted) => {
+        if (submitted.kind !== 'draw-secondary') return submitted
+        const actor = state.players.find((candidate) => candidate.id === userId)
+        const player = actor ? sideCaptain(state, actor.side) : undefined
+        const remaining = (player?.secondaryDeck ?? []).filter(
+          (candidate) => !player?.secondaries.some((secondary) => secondary.key === candidate.key),
+        )
+        if (!remaining.length) return submitted
+        return { ...submitted, secondary: remaining[this.randomIndex(remaining.length)]! }
       },
     )
     if (result.outcome === 'appended')

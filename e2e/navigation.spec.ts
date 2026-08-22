@@ -108,6 +108,24 @@ test('faction routes keep a stable content width', async ({ page }) => {
   expect(widths[0]).toBeGreaterThan(0)
 })
 
+test('account libraries share their page width and fit a phone', async ({ page }) => {
+  await signUp(page, 'MobilePlayer')
+  await page.setViewportSize({ width: 1280, height: 800 })
+
+  const widths: number[] = []
+  for (const path of ['/rosters', '/battles', '/friends']) {
+    await page.goto(path)
+    widths.push((await page.locator('main').boundingBox())?.width ?? 0)
+  }
+  expect(new Set(widths).size).toBe(1)
+
+  await page.setViewportSize({ width: 390, height: 844 })
+  for (const path of ['/rosters', '/battles', '/friends', '/factions', '/mission-packs']) {
+    await page.goto(path)
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  }
+})
+
 test('terrain layouts show their labels and measurement guides', async ({ page }) => {
   await page.goto('/mission-matchups/chapter-approved-2026-2027/purge-the-foe/take-and-hold')
   await page.getByRole('button', { name: 'Enlarge terrain layout A: Sweeping Engagement' }).click()
@@ -373,7 +391,7 @@ test('a player can enter through the roster library and browse the product', asy
   await expect(page.getByLabel('Find a datasheet')).toBeVisible()
   await page.getByLabel('Find a datasheet').fill('Overlord')
   await expect(page.getByRole('link', { name: /Overlord/ }).first()).toBeVisible()
-  await expect(page.locator('main > p.rubric')).toContainText('2')
+  await expect(page.locator('main p.rubric').filter({ hasText: 'Datasheets' })).toContainText('2')
   await page.screenshot({ path: 'test-results/faction-datasheets.png', fullPage: true })
   await page
     .getByRole('link', { name: /Overlord/ })

@@ -145,7 +145,8 @@ export function exclusiveSets(definition: Definition): string[][] {
 export function modelOwnerOf(trail: readonly string[], index: CatalogueIndex): { id: string; name: string; profile: string | null } | null {
   for (let length = trail.length; length > 0; length--) {
     const id = trail[length - 1]
-    const definition = id ? index.definitions.get(id) : undefined
+    if (!id) continue
+    const definition = index.definitions.get(id)
     if (!definition || resolve(definition, index).type !== 'model') continue
     const target = resolve(definition, index)
     // The id a selection is reached by, not the id it resolves to: a supplement links

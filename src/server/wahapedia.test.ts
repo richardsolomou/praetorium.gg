@@ -44,6 +44,19 @@ it('reads current descriptions from a pinned faction page', () => {
   })
 })
 
+it('reads army rules from a pinned faction page', () => {
+  fs.mkdirSync(path.join(directory, 'pages'))
+  write(
+    'pages/adeptus-titanicus.html',
+    '<h2 class="outline_header">Army Rules</h2><div class="Columns2"><div class="BreakInsideAvoid"><h3>Towering Example</h3><p class="ShowFluff">Fluff.</p><p>Ignore the Select Detachment Rules step.</p></div><div class="BreakInsideAvoid"><div><h3>Titanicus Traitoris</h3><p>Replace Imperium with Chaos.</p></div></div></div>',
+  )
+
+  expect(loadWahapediaDescriptions(directory)?.armyRules.get('adeptus-titanicus')).toEqual([
+    { name: 'Towering Example', description: 'Ignore the Select Detachment Rules step.' },
+    { name: 'Titanicus Traitoris', description: 'Replace Imperium with Chaos.' },
+  ])
+})
+
 it('reads an enhancement whose rule includes a table instead of a paragraph', () => {
   fs.mkdirSync(path.join(directory, 'pages'))
   write(
