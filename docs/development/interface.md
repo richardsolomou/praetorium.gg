@@ -30,6 +30,7 @@ Praetorium uses a compact, dark interface. See [Product design](../product-desig
 - Keep both sides' public controls available to every seated player, including the phase control, command points, scoring and stratagems. A player may help the active side without changing who the log says performed the action. Keep undealt tactical cards and hidden missions private, and disable a helper's phase control with an opaque prompt while the active side has opening mission work or a hidden end-of-turn choice.
 - Keep the phase control reachable at every width. One instance moves by CSS between the centre column and a bottom bar on narrow screens, as `builder/Pane.tsx` does for the roster panes, and always advances the active side.
 - Open long card lists in a dialog rather than laying dozens of buttons into a panel, and close the dialog on the pick.
+- Keep the global search panel height stable while typing. Settle the query before the server request, and preserve the prior results while it loads.
 
 ## Components and styles
 
