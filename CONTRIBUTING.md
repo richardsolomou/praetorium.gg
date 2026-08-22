@@ -64,6 +64,6 @@ Report vulnerabilities privately as described in [SECURITY.md](SECURITY.md).
 
 ## Release notes
 
-Run `pnpm changeset` for changes to released application behavior. Choose `minor` for new capabilities and `patch` for fixes, then write one imperative, user-visible sentence. Documentation, tests, refactors, and tooling-only changes do not need a changeset.
+Run `pnpm changeset` for changes to released application behavior. Use the package name from `package.json` exactly (`praetorium.gg`), choose `minor` for new capabilities and `patch` for fixes, then write one imperative, user-visible sentence. Documentation, tests, refactors, and tooling-only changes do not need a changeset.
 
 When a changeset reaches `main`, CI updates `package.json` and `CHANGELOG.md`, then creates the matching tag and GitHub Release.
