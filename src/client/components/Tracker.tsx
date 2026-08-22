@@ -11,6 +11,7 @@ import type { BattleView } from '../../core/battleView'
 import type { PresentPlayer } from '../useLiveBattle'
 import { BattleMenu } from './battle/BattleMenu'
 import { DrawDialog, type WhenDrawn } from './battle/DrawDialog'
+import { DiscardSecondaryDialog } from './battle/DiscardSecondaryDialog'
 import type { Award, ReferenceCard, StratagemText } from './battle/MissionCards'
 import { Scoreboard } from './battle/Scoreboard'
 import { turnPrompt } from '../scoring'
@@ -41,6 +42,7 @@ type Props = {
 const VIEWS = ['yours', 'battle', 'theirs'] as const
 type Focus = (typeof VIEWS)[number]
 type ScoringContext = Pick<BattleView, 'seq' | 'round' | 'phase' | 'activePlayerId'>
+type DiscardContext = Pick<BattleView, 'round' | 'phase' | 'activePlayerId'> & { keys: string[] }
 
 /**
  * The live battle, laid out as the table is: a side, the battle, the other side.
@@ -52,6 +54,7 @@ type ScoringContext = Pick<BattleView, 'seq' | 'round' | 'phase' | 'activePlayer
 export function Tracker({ view, mission, present, send, pending, problem }: Props) {
   const [focus, setFocus] = useState<Focus>('yours')
   const [scoring, setScoring] = useState<ScoringContext | null>(null)
+  const [discarding, setDiscarding] = useState<DiscardContext | null>(null)
   // Which turn the draw is open for, and which turn has already been taken past it.
   const [drawTurn, setDrawTurn] = useState<string | null>(null)
   const [drawnFor, setDrawnFor] = useState<string | null>(null)
@@ -141,6 +144,11 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
     if (advanceBlocked || !active) return
     if (due.length) {
       setScoring({ seq: view.seq, round: view.round, phase: view.phase, activePlayerId: view.activePlayerId })
+      return
+    }
+    const discardable = discardableSecondaries(active)
+    if (view.phase === 'end' && discardable.length) {
+      setDiscarding({ round: view.round, phase: view.phase, activePlayerId: view.activePlayerId, keys: discardable })
       return
     }
     send({ kind: 'advance', playerId: active.captain.id })
@@ -296,9 +304,12 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
           roundSoFar={active.rounds[view.round - 1] ?? { primary: 0, secondary: 0 }}
           caps={caps}
           onCancel={() => setScoring(null)}
-          onDone={() => {
+          onDone={(completedSecondaryKeys) => {
             setScoring(null)
-            send({ kind: 'advance', playerId: active.captain.id })
+            const discardable = discardableSecondaries(active).filter((key) => !completedSecondaryKeys.includes(key))
+            if (view.phase === 'end' && discardable.length) {
+              setDiscarding({ round: view.round, phase: view.phase, activePlayerId: view.activePlayerId, keys: discardable })
+            } else send({ kind: 'advance', playerId: active.captain.id })
           }}
         />
       ) : null}
@@ -315,6 +326,23 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
           roundSoFar={yours.rounds[(settlementRound ?? view.round) - 1] ?? { primary: 0, secondary: 0 }}
           caps={caps}
           onDone={() => send({ kind: 'settle-opponent-turn' })}
+        />
+      ) : null}
+
+      {discarding &&
+      active &&
+      discarding.round === view.round &&
+      discarding.phase === view.phase &&
+      discarding.activePlayerId === view.activePlayerId ? (
+        <DiscardSecondaryDialog
+          side={active}
+          keys={discarding.keys}
+          pending={pending}
+          send={send}
+          onDone={() => {
+            setDiscarding(null)
+            send({ kind: 'advance', playerId: active.captain.id })
+          }}
         />
       ) : null}
 
@@ -339,6 +367,11 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
     </main>
   )
 }
+
+const discardableSecondaries = (side: Side) =>
+  side.secondaryMode === 'tactical' && side.canGainCp
+    ? side.secondaries.filter((card) => card.status === 'active').map((card) => card.key)
+    : []
 
 function Fact({ label, value }: { label: string; value: string }) {
   return (

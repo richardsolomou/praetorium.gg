@@ -1,6 +1,6 @@
 {
   "name": "praetorium.gg",
-  "version": "0.19.1",
+  "version": "0.19.4",
   "private": true,
   "description": "Live Warhammer 40,000 battle tracking: two players, one authoritative command log, no conflicts.",
   "license": "AGPL-3.0-only",
@@ -17,7 +17,7 @@
     "format:check": "oxfmt --check .",
     "policy:sync": "ras policy sync",
     "policy:check": "ras policy check",
-    "check": "pnpm format:check && pnpm lint && pnpm policy:check && pnpm db:check && pnpm catalogue:check && pnpm build && pnpm typecheck && pnpm test",
+    "check": "pnpm format:check && pnpm lint && pnpm policy:check && pnpm db:check && pnpm catalogue:check && pnpm build && pnpm typecheck && pnpm test && pnpm changeset status",
     "test": "vitest run",
     "changeset": "changeset",
     "version-packages": "changeset version",

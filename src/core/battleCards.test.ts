@@ -161,6 +161,27 @@ describe('secondaries', () => {
 
   const alice = (state: ReturnType<typeof reduceBattle>) => state.players.find((player) => player.id === ALICE)
 
+  const tacticalEnd = (...extra: [string, Command][]) =>
+    reduceBattle(
+      PLAYERS,
+      log(
+        ...started(),
+        [
+          ALICE,
+          {
+            kind: 'set-prep',
+            stratagems: [],
+            primary: null,
+            secondaryMode: 'tactical',
+            secondaries: [{ key: 'a', name: 'Behind Enemy Lines' }],
+            secondaryDeck: [{ key: 'a', name: 'Behind Enemy Lines' }],
+          },
+        ],
+        ...turns(5, ALICE),
+        ...extra,
+      ),
+    )
+
   it('are scored one at a time', () => {
     const state = reduceBattle(PLAYERS, log(...named(), [ALICE, { kind: 'score-secondary', key: 'a', delta: 4 }]))
     expect(alice(state)?.scored.a).toBe(4)
@@ -186,6 +207,29 @@ describe('secondaries', () => {
 
     const discarded = log(...named(), [ALICE, { kind: 'set-secondary-status', key: 'a', status: 'discarded' }])
     expect(text(battleReport(NAMES, discarded))).toContain('Alice marks Behind Enemy Lines discarded')
+  })
+
+  it('discards an active tactical secondary and gains one command point atomically', () => {
+    const command: Command = { kind: 'discard-secondary-for-cp', key: 'a' }
+    const before = tacticalEnd()
+    const after = tacticalEnd([ALICE, command])
+
+    expect(validate(before, ALICE, command)).toBeNull()
+    expect(alice(after)).toMatchObject({ cp: 2, cpGained: 2, secondaryStatus: { a: 'discarded' } })
+    expect(text(battleReport(NAMES, log(...started(), [ALICE, command])))).toContain('Alice discards a secondary and gains 1 CP')
+  })
+
+  it('only offers the discard gain at the end of the active tactical side’s turn', () => {
+    const command: Command = { kind: 'discard-secondary-for-cp', key: 'a' }
+    expect(validate(reduceBattle(PLAYERS, log(...started())), ALICE, command)).toBe('discard for command points at the end of your turn')
+    expect(validate(tacticalEnd(), BOB, command)).toBe('discard for command points at the end of your turn')
+  })
+
+  it('does not grant a second additional command point in the round', () => {
+    const gained = tacticalEnd([ALICE, { kind: 'adjust-cp', delta: 1 }])
+    expect(validate(gained, ALICE, { kind: 'discard-secondary-for-cp', key: 'a' })).toBe(
+      'a side can gain at most 1 additional command point per battle round',
+    )
   })
 
   it('withhold a secret mission from the opponent until it is revealed', () => {

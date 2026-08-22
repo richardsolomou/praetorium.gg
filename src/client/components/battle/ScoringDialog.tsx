@@ -18,7 +18,7 @@ type Props = {
   pending: boolean
   send: (command: Command) => void
   referenceFor: (key: string) => ReferenceCard | undefined
-  onDone: () => void
+  onDone: (completedSecondaryKeys: string[]) => void
   onCancel?: () => void
   /** What pressing through the prompt does next. */
   confirmLabel: string
@@ -86,7 +86,7 @@ export function ScoringDialog({ side, due, moment, confirmLabel, pending, send, 
         send({ kind: 'set-secondary-status', key: card.key, status: 'achieved', playerId: side.captain.id })
       }
     }
-    onDone()
+    onDone(due.filter((card) => finishesOnScore(card.category, side.secondaryMode, scoredFor(card))).map((card) => card.key))
   }
 
   return (
