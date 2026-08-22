@@ -2,4 +2,4 @@
 'praetorium.gg': minor
 ---
 
-Find shared Adeptus Astartes datasheets under Space Marines and offer typo-tolerant datasheet search results.
+Find shared Astartes datasheets under their parent faction and offer typo-tolerant datasheet search results.

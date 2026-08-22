@@ -78,6 +78,40 @@ describe('global datasheet search', () => {
     ])
   })
 
+  it('shows generic Heretic Astartes datasheets under Chaos Space Marines once', async () => {
+    const catalogue = shelfOf(
+      {
+        name: 'Chaos - Chaos Space Marines',
+        selectionEntries: [
+          {
+            id: 'chaos-lord',
+            name: 'Chaos Lord',
+            type: 'model',
+            costs: points(90),
+            categoryLinks: categories('Faction: Heretic Astartes'),
+          },
+        ],
+      },
+      {
+        name: 'Chaos - World Eaters',
+        selectionEntries: [
+          {
+            id: 'world-eaters-chaos-lord',
+            name: 'Chaos Lord',
+            type: 'model',
+            costs: points(90),
+            categoryLinks: categories('Faction: Heretic Astartes'),
+          },
+        ],
+      },
+    )
+
+    const results = await searchEverything('chaos lord', { catalogue, rules: null, own: async () => null })
+    expect(results.filter((result) => result.group === 'Datasheets')).toEqual([
+      expect.objectContaining({ label: 'Chaos Lord', detail: 'Chaos Space Marines' }),
+    ])
+  })
+
   it('offers a close datasheet match only when no direct datasheet match exists', async () => {
     const catalogue = shelfOf({
       name: 'Space Marines',

@@ -50,6 +50,39 @@ describe('the picker', () => {
     expect(unitsIn(shelf, 'cat-1', '').map((unit) => unit.name)).toEqual(['Chaplain'])
   })
 
+  it('keeps generic Heretic Astartes datasheets off legion reference pages', () => {
+    const shelf = shelfOf(
+      {
+        name: 'Chaos - Chaos Space Marines',
+        selectionEntries: [
+          {
+            id: 'chaos-lord',
+            name: 'Chaos Lord',
+            type: 'model',
+            costs: points(90),
+            categoryLinks: categories('Faction: Heretic Astartes'),
+          },
+        ],
+      },
+      {
+        name: 'Chaos - World Eaters',
+        selectionEntries: [
+          {
+            id: 'world-eaters-chaos-lord',
+            name: 'Chaos Lord',
+            type: 'model',
+            costs: points(90),
+            categoryLinks: categories('Faction: Heretic Astartes'),
+          },
+        ],
+      },
+    )
+
+    expect(datasheetInBySlug(shelf, 'cat', 'chaos-lord')?.name).toBe('Chaos Lord')
+    expect(datasheetInBySlug(shelf, 'cat-1', 'chaos-lord')).toBeNull()
+    expect(unitsIn(shelf, 'cat-1', '').map((unit) => unit.name)).toEqual(['Chaos Lord'])
+  })
+
   it('filters a cached priced faction list without rebuilding its summaries', () => {
     const book = bookOf({
       selectionEntries: [

@@ -157,20 +157,29 @@ export const datasheetsOf = (index: CatalogueIndex, catalogueId: string) => inde
 /**
  * Whether a datasheet belongs on this faction's reference pages.
  *
- * Chapter catalogues repeat the generic Adeptus Astartes datasheets so they can
- * be picked in chapter rosters. Their canonical reference home is Space Marines;
- * the roster picker deliberately does not use this predicate.
+ * Chapter catalogues repeat generic Astartes datasheets so they can be picked in
+ * chapter rosters. Their canonical reference home is the parent codex; the roster
+ * picker deliberately does not use this predicate.
  */
 export function isReferenceDatasheet(loaded: LoadedCatalogue, catalogueId: string, entryId: string) {
   if (!datasheetsOf(loaded.index, catalogueId).has(entryId)) return false
-  if (factionDisplayName(loaded.index.catalogues.get(catalogueId)?.name ?? '') === 'Space Marines') return true
   const entry = loaded.index.definitions.get(entryId)
   if (!entry) return false
   const target = targetOf(entry, loaded.index.definitions)
-  return ![...(entry.categoryLinks ?? []), ...(target.categoryLinks ?? [])].some(
-    (category) => category.name?.trim().toLocaleLowerCase() === 'faction: adeptus astartes',
-  )
+  const canonical = [...(entry.categoryLinks ?? []), ...(target.categoryLinks ?? [])]
+    .map((category) => category.name?.trim().toLocaleLowerCase())
+    .find((category): category is string => {
+      if (!category) return false
+      return CANONICAL_REFERENCE_FACTIONS.has(category)
+    })
+  const canonicalFaction = canonical ? CANONICAL_REFERENCE_FACTIONS.get(canonical) : undefined
+  return !canonicalFaction || factionDisplayName(loaded.index.catalogues.get(catalogueId)?.name ?? '') === canonicalFaction
 }
+
+const CANONICAL_REFERENCE_FACTIONS = new Map([
+  ['faction: adeptus astartes', 'Space Marines'],
+  ['faction: heretic astartes', 'Chaos Space Marines'],
+])
 
 export function isDatasheetId(index: CatalogueIndex, entryId: string, catalogueId?: string | null) {
   const offered = catalogueId ? index.datasheets.get(catalogueId) : undefined
