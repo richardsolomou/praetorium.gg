@@ -24,6 +24,10 @@ describe('datasheet abilities', () => {
 })
 
 describe('the keywords something in the list added to a weapon', () => {
+  it('names a keyword added to a blank printed characteristic', () => {
+    expect(addedKeywords({ value: 'Lethal Hits', baseValue: '' })).toEqual(['Lethal Hits'])
+  })
+
   it('names what the printed profile does not have', () => {
     expect(addedKeywords({ value: 'Lethal Hits, Assault', baseValue: 'Lethal Hits' })).toEqual(['Assault'])
   })

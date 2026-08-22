@@ -197,19 +197,22 @@ export function datasheetIn(
     const changedName = modifiedProfileField(profile.name, 'name', profileType, profileLineage, owner, modifiers)
     const annotation = modifiedProfileField('', 'annotation', profileType, profileLineage, owner, modifiers).value
     const values = (profile.characteristics ?? []).flatMap((value) => {
-      if (!value.name || !value.$text) return []
-      const changed = modifiedProfileField(value.$text, value.typeId, profileType, profileLineage, owner, modifiers)
-      return [{ name: value.name, ...changed }]
+      if (!value.name) return []
+      const changed = modifiedProfileField(value.$text ?? '', value.typeId, profileType, profileLineage, owner, modifiers)
+      return changed.value ? [{ name: value.name, ...changed }] : []
     })
     const present = new Set((profile.characteristics ?? []).map((value) => value.typeId).filter((id): id is string => Boolean(id)))
-    const added = [...new Set(modifiers.filter((modifier) => modifier.profileType === profileType && !present.has(modifier.field)).map((modifier) => modifier.field))].flatMap(
-      (field) => {
-        const name = characteristicNames.get(field)
-        const active = modifiers.filter((modifier) => modifier.field === field && modifier.profileType === profileType)
-        const value = active.toSorted((left, right) => modifierOrder(left.type) - modifierOrder(right.type)).reduce((current, modifier) => applyDisplayModifier(current, modifier), '')
-        return name && value ? [{ name, value, baseValue: '', modifiers: [...new Set(active.map((modifier) => modifier.source))] }] : []
-      },
-    )
+    const added = [
+      ...new Set(
+        modifiers
+          .filter((modifier) => modifier.profileType === profileType && !present.has(modifier.field))
+          .map((modifier) => modifier.field),
+      ),
+    ].flatMap((field) => {
+      const characteristicName = characteristicNames.get(field)
+      const changed = modifiedProfileField('', field, profileType, profileLineage, owner, modifiers)
+      return characteristicName && changed.value ? [{ name: characteristicName, ...changed }] : []
+    })
     return [
       {
         id: profile.id,
@@ -222,25 +225,13 @@ export function datasheetIn(
       },
     ]
   })
-  const displayedProfiles = uniqueProfiles(displayProfiles).map((profile) => {
-    const values = [...profile.values]
-    for (const field of new Set(modifiers.filter((modifier) => modifier.profileType === profile.type).map((modifier) => modifier.field))) {
-      const name = characteristicNames.get(field)
-      if (!name || values.some((value) => value.name === name)) continue
-      const active = modifiers.filter((modifier) => modifier.field === field && modifier.profileType === profile.type)
-      const value = active.toSorted((left, right) => modifierOrder(left.type) - modifierOrder(right.type)).reduce((current, modifier) => applyDisplayModifier(current, modifier), '')
-      if (value) values.push({ name, value, baseValue: '', modifiers: [...new Set(active.map((modifier) => modifier.source))] })
-    }
-    return { ...profile, values }
-  })
-
   return {
     id: root.id,
     slug: datasheetSlug(loaded, catalogueId, root.id),
     name,
     points: priceOf(loaded, catalogueId, entryId),
     keywords: [...new Set(keywords.map((link) => link.name).filter((keyword): keyword is string => Boolean(keyword)))].toSorted(),
-    profiles: displayedProfiles,
+    profiles: uniqueProfiles(displayProfiles),
     abilities: uniqueAbilities([...abilities.values()]),
     composition: details?.composition ?? [],
     loadout: details?.loadout ?? null,

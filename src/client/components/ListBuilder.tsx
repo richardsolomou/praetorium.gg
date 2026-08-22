@@ -19,7 +19,7 @@ import { shortName } from './builder/factions'
 import { GROUPS } from './builder/groups'
 import { Loadout } from './builder/Loadout'
 import { Stepper } from './builder/LoadoutControls'
-import { Picker } from './builder/Picker'
+import { Picker, type PickerFilter } from './builder/Picker'
 import { Section } from './builder/Section'
 import { Pane } from './builder/Pane'
 import { UnitCard } from './builder/UnitCard'
@@ -78,6 +78,8 @@ export function ListBuilder({ prep, initial, editable = true }: Props) {
   const workspacePath = `/rosters/${initial.id}`
   const [setupDraft, setSetupDraftState] = useState<RosterSetup | null>(null)
   const [wideWorkspace, setWideWorkspace] = useState(true)
+  const [pickerQuery, setPickerQuery] = useState('')
+  const [pickerFilters, setPickerFilters] = useState<Set<PickerFilter>>(new Set())
   const editingSetup = setupDraft !== null
 
   const setSetupDraft = (draft: RosterSetup | null) => {
@@ -108,6 +110,12 @@ export function ListBuilder({ prep, initial, editable = true }: Props) {
     setReadOnly(next)
     localStorage.setItem(READ_ONLY_PREFERENCE, String(next))
   }
+  const togglePickerFilter = (filter: PickerFilter) =>
+    setPickerFilters((current) => {
+      const next = new Set(current)
+      if (!next.delete(filter)) next.add(filter)
+      return next
+    })
 
   const faction = available?.factions.find((entry) => entry.id === catalogueId)
   const suggested = faction
@@ -226,14 +234,18 @@ export function ListBuilder({ prep, initial, editable = true }: Props) {
           <Picker
             catalogueId={catalogueId}
             onAdd={edit.add}
-            onPreview={(entryId, name) => {
-              setPreview({ catalogueId, entryId, name })
+            onPreview={(entryId, unitName) => {
+              setPreview({ catalogueId, entryId, name: unitName })
               setSelected(null)
               setShowing('loadout')
             }}
             inRoster={held}
             room={priced ? limit - priced.points : null}
             battleSize={limit}
+            query={pickerQuery}
+            onQueryChange={setPickerQuery}
+            active={pickerFilters}
+            onFilterToggle={togglePickerFilter}
           />
         </div>
       </div>
@@ -339,8 +351,12 @@ export function ListBuilder({ prep, initial, editable = true }: Props) {
             <span className="ml-auto flex shrink-0 items-center gap-1" data-print-hide>
               {editable ? (
                 <>
-                  <label className="flex items-center gap-1.5 text-xs font-semibold text-dim" title="Show only this unit’s applied choices">
-                    <Switch checked={readOnly} onCheckedChange={setReadOnlyMode} aria-label="Read-only mode" />
+                  <label
+                    htmlFor="roster-read-only"
+                    className="flex items-center gap-1.5 text-xs font-semibold text-dim"
+                    title="Show only this unit’s applied choices"
+                  >
+                    <Switch id="roster-read-only" checked={readOnly} onCheckedChange={setReadOnlyMode} aria-label="Read-only mode" />
                     Read-only
                   </label>
                   <DropdownMenu>
@@ -498,10 +514,12 @@ export function ListBuilder({ prep, initial, editable = true }: Props) {
                     aria-label={`${warlord.selected ? 'Remove' : 'Make'} ${optimisticUnit.name} Warlord`}
                     pressed={warlord.selected}
                     className={`!h-auto !min-h-0 !min-w-0 gap-1 rounded-sm !px-1.5 !py-px !text-[0.6875rem] !font-semibold !tracking-[0.06em] uppercase ${
-                      warlord.selected ? 'border-parchment bg-parchment/15 text-parchment' : 'border-edge-strong text-dim hover:border-info hover:text-bone'
+                      warlord.selected
+                        ? 'border-parchment bg-parchment/15 text-parchment'
+                        : 'border-edge-strong text-dim hover:border-info hover:text-bone'
                     }`}
                     onPressedChange={(pressed) => selected !== null && edit.toggle(selected, warlord.key, warlord.name, pressed)}
-                    >
+                  >
                     <Crown className={warlord.selected ? 'fill-current' : undefined} />
                     Warlord
                   </Toggle>
@@ -559,7 +577,13 @@ export function ListBuilder({ prep, initial, editable = true }: Props) {
           </span>
 
           {editable ? (
-            <Button variant="outline" size="sm" className="ml-auto min-[1300px]:hidden" onClick={() => setShowing('picker')} disabled={!faction}>
+            <Button
+              variant="outline"
+              size="sm"
+              className="ml-auto min-[1300px]:hidden"
+              onClick={() => setShowing('picker')}
+              disabled={!faction}
+            >
               Add units
             </Button>
           ) : null}

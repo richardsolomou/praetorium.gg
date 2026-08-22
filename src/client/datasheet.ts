@@ -21,7 +21,7 @@ export function compositionCount(composition: readonly string[]) {
  * keyword to a weapon that already lists three.
  */
 export function addedKeywords(keywords: { value: string; baseValue?: string }): string[] {
-  if (!keywords.baseValue) return []
+  if (keywords.baseValue === undefined) return []
   const printed = new Set(splitKeywords(keywords.baseValue))
   return splitKeywords(keywords.value).filter((keyword) => !printed.has(keyword))
 }

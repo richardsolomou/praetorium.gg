@@ -57,8 +57,12 @@ export function DatasheetPanel({
   const content = (
     <div className="space-y-4">
       {!hideSummary && model ? <UnitProfile profile={model} /> : null}
-      {!hideSummary && showWeapons && ranged.length ? <WeaponSummary title="Ranged weapons" weapons={ranged} rules={sheet.keywordRules} /> : null}
-      {!hideSummary && showWeapons && melee.length ? <WeaponSummary title="Melee weapons" weapons={melee} rules={sheet.keywordRules} /> : null}
+      {!hideSummary && showWeapons && ranged.length ? (
+        <WeaponSummary title="Ranged weapons" weapons={ranged} rules={sheet.keywordRules} />
+      ) : null}
+      {!hideSummary && showWeapons && melee.length ? (
+        <WeaponSummary title="Melee weapons" weapons={melee} rules={sheet.keywordRules} />
+      ) : null}
       <AbilitySummary abilities={displayAbilities(sheet.abilities)} rules={sheet.keywordRules} />
       {factionSlug ? (
         <div className="border-t border-edge pt-3">
@@ -80,7 +84,11 @@ export function DatasheetPanel({
       ) : null}
     </div>
   )
-  return embedded ? <div className="border-t border-edge pt-4">{content}</div> : <ScrollArea className="h-full [&_[data-slot=scroll-area-viewport]]:p-3">{content}</ScrollArea>
+  return embedded ? (
+    <div className="border-t border-edge pt-4">{content}</div>
+  ) : (
+    <ScrollArea className="h-full [&_[data-slot=scroll-area-viewport]]:p-3">{content}</ScrollArea>
+  )
 }
 
 /** Holds the pane's visual rhythm while a different datasheet is fetched. */
@@ -110,7 +118,7 @@ function DatasheetLoading() {
 type Profile = Datasheet['profiles'][number]
 
 export function UnitProfile({ profile }: { profile: Profile }) {
-  const invulnerable = profile.values.find((value) => value.name === 'InSv')?.value
+  const invulnerable = profile.values.find((value) => value.name === 'InSv')
   const values = profile.values.filter((value) => value.name !== 'InSv')
   return (
     <section data-slot="unit-profile">
@@ -127,7 +135,9 @@ export function UnitProfile({ profile }: { profile: Profile }) {
       {invulnerable ? (
         <div className="mt-1.5 flex items-center justify-between border border-edge bg-card px-2 py-1.5">
           <span className="text-xs font-bold uppercase">Invulnerable save</span>
-          <span className="readout text-base">{invulnerable}</span>
+          <span className="readout text-base">
+            <ProfileValue value={invulnerable} />
+          </span>
         </div>
       ) : null}
     </section>
@@ -243,16 +253,18 @@ type DisplayValue = Profile['values'][number]
 const addedBy = (keywords: DisplayValue) => (keywords.modifiers?.length ? `Added by ${keywords.modifiers.join(', ')}` : undefined)
 
 function ProfileValue({ value }: { value: DisplayValue }) {
-  if (!value.baseValue || !value.modifiers?.length) return value.value
+  if (value.baseValue === undefined || !value.modifiers?.length) return value.value
   const sources = value.modifiers.join(', ')
+  const name = value.name === 'InSv' ? 'Invulnerable save' : value.name
+  const baseValue = value.baseValue || '—'
   return (
     <HoverTooltip
       className="font-semibold text-info"
-      label={`${value.name} ${value.value}, modified from ${value.baseValue} by ${sources}`}
-      title={`Modified ${value.name}`}
+      label={`${name} ${value.value}, modified from ${baseValue} by ${sources}`}
+      title={`Modified ${name}`}
       body={
         <>
-          {value.baseValue} → <span className="text-info">{value.value}</span>
+          {baseValue} → <span className="text-info">{value.value}</span>
         </>
       }
       note={`Modified by ${sources}`}

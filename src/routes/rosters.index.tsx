@@ -75,7 +75,10 @@ function RosterLibrary() {
   const battleSizeGroups: SearchableGroup[] = [
     {
       label: '',
-      items: [{ label: 'All battle sizes', value: 'all' }, ...GAME_SIZES.map((size) => ({ label: `${size.name} · ${size.limit} points`, value: String(size.limit) }))],
+      items: [
+        { label: 'All battle sizes', value: 'all' },
+        ...GAME_SIZES.map((size) => ({ label: `${size.name} · ${size.limit} points`, value: String(size.limit) })),
+      ],
     },
   ]
   const rosterFactionGroups: SearchableGroup[] = [{ label: '', items: [{ label: 'All factions', value: 'all' }] }, ...factionGroups]
@@ -151,7 +154,9 @@ function RosterLibrary() {
           label="Sharing"
           value={search.visibility ?? 'all'}
           groups={sharingGroups}
-          onChange={(value) => void navigate({ to: '/rosters', search: { ...search, visibility: value === 'all' ? undefined : (value as RosterVisibility) } })}
+          onChange={(value) =>
+            void navigate({ to: '/rosters', search: { ...search, visibility: value === 'all' ? undefined : (value as RosterVisibility) } })
+          }
         />
       </div>
       {actions.shareProblem ? <p className="mt-3 text-sm text-destructive">Could not copy the link: {actions.shareProblem}</p> : null}

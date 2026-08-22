@@ -7,7 +7,6 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { authClient } from '../client/authClient'
 import { signInOptionsQuery } from '../client/queries'
-import { errorMessage } from '../client/queryClient'
 import { PASSWORD_MIN_LENGTH } from '../authConfig'
 
 export const Route = createFileRoute('/signin')({
@@ -35,7 +34,7 @@ function SignIn() {
   const [joining, setJoining] = useState(false)
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const submit = useAuthAction({ failureMessage: errorMessage })
+  const submit = useAuthAction()
 
   const authenticate = async () => {
     const result = await submit.run(() =>

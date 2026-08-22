@@ -61,6 +61,8 @@ type Node = {
 class Census {
   private readonly seen = new Set<string>()
 
+  constructor(readonly associations = 0) {}
+
   note(what: string) {
     this.seen.add(what)
   }
@@ -122,7 +124,7 @@ export function profileModifiers(
    */
   companionIndexes: readonly number[] = [],
 ): ProfileModifier[] {
-  const census = new Census()
+  const census = new Census(companionIndexes.length)
   const counter = { next: 0 }
   const root: Node = {
     target: { id: 'roster' },
@@ -821,9 +823,11 @@ function measure(spec: Measurable, node: Node, root: Node, index: CatalogueIndex
   const matching = [...seen]
 
   if (spec.field === 'selections') return matching.reduce((total, each) => total + each.count, 0)
-  // External roster associations are validated beside the saved picks. A bare
-  // selection tree carries none, so its measured association count is zero.
-  if (spec.field === 'associations') return 0
+  // Saved picks own attachments outside the selection tree. Profile projection
+  // supplies that count so catalogue rules gated on leading a unit can render;
+  // ordinary evaluation keeps the default of zero and validates attachments beside
+  // the picks.
+  if (spec.field === 'associations') return census.associations
   if (index.costTypes.has(spec.field)) {
     return matching.reduce((total, each) => total + (costOf(each, spec.field) ?? 0) * each.count, 0)
   }

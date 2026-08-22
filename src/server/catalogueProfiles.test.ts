@@ -326,4 +326,138 @@ describe('the profile modifiers on a datasheet', () => {
     expect(datasheetIn(book, 'cat', 'destroyer', { selections, unitSelectionIndex: 0 })?.profiles[0]?.values[0]?.value).toBe('7')
     expect(datasheetIn(book, 'cat', 'immortals', { selections, unitSelectionIndex: 1 })?.profiles[0]?.values[0]?.value).toBe('4')
   })
+
+  it('keeps an added characteristic inside the profile targeted by its modifier', () => {
+    const book = bookOf({
+      selectionEntries: [
+        {
+          id: 'unit',
+          name: 'Unit',
+          type: 'unit',
+          profiles: [
+            {
+              id: 'rifle',
+              name: 'Rifle',
+              typeName: 'Ranged Weapons',
+              characteristics: [
+                { name: 'S', typeId: 'strength', $text: '4' },
+                { name: 'Keywords', typeId: 'keywords', $text: '' },
+              ],
+              modifiers: [{ type: 'append', field: 'keywords', value: 'Assault' }],
+            },
+            { id: 'pistol', name: 'Pistol', typeName: 'Ranged Weapons', characteristics: [{ name: 'S', typeId: 'strength', $text: '3' }] },
+          ],
+        },
+      ],
+    })
+    book.characteristicNames = new Map([['keywords', 'Keywords']])
+
+    const profiles = datasheetIn(book, 'cat', 'unit', { selections: [{ id: 'unit' }] })?.profiles
+    expect(profiles?.[0]?.values).toContainEqual({ name: 'Keywords', value: 'Assault', baseValue: '', modifiers: ['Unit'] })
+    expect(profiles?.[1]?.values).toEqual([{ name: 'S', value: '3' }])
+  })
+
+  it('adds a leader ability keyword to the melee weapons in its attached unit', () => {
+    const profiles = (id: string) => [
+      {
+        id: `${id}-blade`,
+        name: 'Blade',
+        typeName: 'Melee Weapons',
+        characteristics: [
+          { name: 'S', typeId: 'strength', $text: '5' },
+          { name: 'Keywords', typeId: 'keywords', $text: '' },
+        ],
+      },
+    ]
+    const book = bookOf({
+      selectionEntries: [
+        {
+          id: 'lord',
+          name: 'Lord',
+          type: 'model',
+          profiles: profiles('lord'),
+          selectionEntries: [
+            {
+              id: 'united-in-destruction',
+              name: 'United in Destruction',
+              type: 'upgrade',
+              modifiers: [
+                {
+                  type: 'append',
+                  value: 'Lethal Hits',
+                  field: 'keywords',
+                  scope: 'root-entry',
+                  affects: 'entries.group.recursive.profiles.Melee Weapons',
+                  join: ', ',
+                  conditions: [{ type: 'atLeast', value: 1, field: 'associations', scope: 'self', childId: 'any' }],
+                },
+              ],
+            },
+          ],
+        },
+        { id: 'destroyers', name: 'Destroyers', type: 'unit', profiles: profiles('destroyers') },
+      ],
+    })
+    book.characteristicNames = new Map([['keywords', 'Keywords']])
+    const selections = [{ id: 'lord', selections: [{ id: 'united-in-destruction' }] }, { id: 'destroyers' }]
+    const keywords = (entryId: string, unitSelectionIndex: number, companions: number[]) =>
+      datasheetIn(book, 'cat', entryId, { selections, unitSelectionIndex, companions })?.profiles[0]?.values.find(
+        (value) => value.name === 'Keywords',
+      )
+
+    expect(keywords('lord', 0, [1])).toMatchObject({ value: 'Lethal Hits', modifiers: ['United in Destruction'] })
+    expect(keywords('destroyers', 1, [0])).toMatchObject({ value: 'Lethal Hits', modifiers: ['United in Destruction'] })
+    expect(keywords('destroyers', 1, [])).toBeUndefined()
+  })
+
+  it('shows an invulnerable save set by selected wargear on a blank characteristic', () => {
+    const book = bookOf({
+      selectionEntries: [
+        {
+          id: 'unit',
+          name: 'Unit',
+          type: 'unit',
+          selectionEntries: [
+            {
+              id: 'model',
+              name: 'Model',
+              type: 'model',
+              profiles: [
+                {
+                  id: 'model-profile',
+                  name: 'Model',
+                  typeName: 'Unit',
+                  characteristics: [{ name: 'InSv', typeId: 'invulnerable-save', $text: '' }],
+                },
+              ],
+              selectionEntries: [
+                {
+                  id: 'shield',
+                  name: 'Shield',
+                  type: 'upgrade',
+                  modifiers: [
+                    {
+                      type: 'set',
+                      value: '4+',
+                      field: 'invulnerable-save',
+                      scope: 'model',
+                      affects: 'self.entries.recursive.profiles.Unit',
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    })
+    const selections = [{ id: 'unit', selections: [{ id: 'model', selections: [{ id: 'shield' }] }] }]
+
+    expect(datasheetIn(book, 'cat', 'unit', { selections })?.profiles[0]?.values).toContainEqual({
+      name: 'InSv',
+      value: '4+',
+      baseValue: '',
+      modifiers: ['Shield'],
+    })
+  })
 })

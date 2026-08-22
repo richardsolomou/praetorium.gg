@@ -50,7 +50,13 @@ export function loadCatalogue(directory = catalogueDirectory()): LoadedCatalogue
   const index = buildIndex(files, revision.definitions)
   const detachments = detachmentsOf(files, index)
   const factionContents = loadFactionContents(path.join(directory, 'datacards', '11th', 'gdc'))
-  return { index, characteristicNames: characteristicNamesOf(files), factions: factionsIn(index, detachments), detachments, factionContents }
+  return {
+    index,
+    characteristicNames: characteristicNamesOf(files),
+    factions: factionsIn(index, detachments),
+    detachments,
+    factionContents,
+  }
 }
 
 /** Characteristic type ids are defined inline throughout the source files. */

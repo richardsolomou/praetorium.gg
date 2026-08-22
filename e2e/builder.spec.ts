@@ -57,6 +57,29 @@ test('a filter that found nothing can be emptied without selecting it', async ({
   await expect(page.getByRole('button', { name: 'Add Immortals', exact: true })).toBeVisible()
 })
 
+test('the roster workspace preserves picker and read-only state', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 })
+  await openBuilder(page)
+
+  await page.getByLabel('Add a unit').fill('Immortals')
+  await page.getByRole('button', { name: 'Owned', exact: true }).click()
+  await page.setViewportSize({ width: 1200, height: 800 })
+  await page.getByRole('button', { name: 'Add units', exact: true }).click()
+  await expect(page.getByLabel('Add a unit')).toHaveValue('Immortals')
+  await expect(page.getByRole('button', { name: 'Owned', exact: true })).toHaveAttribute('aria-pressed', 'true')
+
+  await page.setViewportSize({ width: 1600, height: 900 })
+  await expect(page.getByLabel('Add a unit')).toHaveValue('Immortals')
+  await expect(page.getByRole('button', { name: 'Owned', exact: true })).toHaveAttribute('aria-pressed', 'true')
+
+  await page.getByLabel('Read-only mode').click()
+  await page.reload()
+  await expect(page.getByLabel('Read-only mode')).toBeChecked()
+  await page.getByRole('button', { name: 'Add Immortals', exact: true }).click()
+  await page.locator('[data-unit="Immortals"]').getByRole('button', { name: 'Immortals', exact: true }).click()
+  await expect(page.getByRole('button', { name: /More models in Immortals/ })).toHaveCount(0)
+})
+
 test('Deathwatch excludes Scouts from its unit picker', async ({ page }) => {
   await openBuilder(page, 'Deathwatch', /Black Spear Task Force/)
   await page.getByLabel('Add a unit').fill('Scout')

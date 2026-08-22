@@ -154,7 +154,15 @@ export function Loadout({
               <div className="mt-3 grid gap-5">
                 {orderedChoices(visibleLoose, weapons).map((choice) =>
                   choice.kind ? (
-                <SpecialChoice key={choice.key} choice={choice} unitName={unit.name} editable={editable} onChoose={onChoose} showOptions={showOptions} highlightSelection={showOptions} />
+                    <SpecialChoice
+                      key={choice.key}
+                      choice={choice}
+                      unitName={unit.name}
+                      editable={editable}
+                      onChoose={onChoose}
+                      showOptions={showOptions}
+                      highlightSelection={showOptions}
+                    />
                   ) : choice.room > 1 && !choice.uniform ? (
                     <SpreadChoice
                       key={choice.key}

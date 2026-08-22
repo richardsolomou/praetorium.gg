@@ -1,3 +1,4 @@
+/* eslint-disable jsx-a11y/no-noninteractive-element-interactions -- the tooltip tracks hover only so readable content stays open across the trigger gap */
 import { type ReactNode, useLayoutEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 
@@ -125,7 +126,9 @@ export function HoverTooltip({
               <strong className="block shrink-0 border-b border-edge px-2.5 py-1.5 text-xs font-bold tracking-[0.06em] text-bone uppercase">
                 {title}
               </strong>
-              {body ? <span className="block min-h-0 overflow-y-auto px-2.5 py-1.5 font-rules text-xs whitespace-pre-line text-dim">{body}</span> : null}
+              {body ? (
+                <span className="block min-h-0 overflow-y-auto px-2.5 py-1.5 font-rules text-xs whitespace-pre-line text-dim">{body}</span>
+              ) : null}
               {note ? <span className="eyebrow block shrink-0 border-t border-edge px-2.5 py-1 text-faint">{note}</span> : null}
             </span>,
             document.body,

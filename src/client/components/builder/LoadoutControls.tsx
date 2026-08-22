@@ -385,7 +385,10 @@ export function SpreadChoice({
       </p>
       <ul className="mt-1.5 space-y-1">
         {(showOptions ? choice.options : choice.options.filter((option) => option.count)).map((option) => (
-          <li key={option.id} className={`border ${option.count && highlightSelection ? 'border-parchment bg-parchment/10' : 'border-edge bg-card'}`}>
+          <li
+            key={option.id}
+            className={`border ${option.count && highlightSelection ? 'border-parchment bg-parchment/10' : 'border-edge bg-card'}`}
+          >
             <div className="flex items-center gap-2 px-2 py-1.5">
               <span className="min-w-0 flex-1">
                 <span className="block text-xs font-semibold">{option.name}</span>
