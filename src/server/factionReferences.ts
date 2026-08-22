@@ -52,13 +52,21 @@ export function factionsFor(loaded: LoadedCatalogue, rules: LoadedRules | null |
       const { summary, detachments, referenceDetachments } = factionSummary(loaded, rules, faction)
       const content = loaded.factionContents.get(summary.slug)
       const rulesId = rulesFaction(rules, routeSlug(faction.name))
+      const pageRules = rules?.factionRuleCards.get(summary.slug)
+      const aliasedPageRules = [...(rules?.factionRuleCards.values() ?? [])].find((cards) =>
+        cards.some((card) => routeSlug(card.name) === summary.slug),
+      )
       return {
         ...summary,
         armyRules: content?.armyRules.length
           ? content.armyRules
-          : rules?.factionRules?.get(summary.slug)
-            ? [rules.factionRules.get(summary.slug)!]
-            : [],
+          : pageRules?.length
+            ? pageRules
+            : aliasedPageRules?.length
+              ? aliasedPageRules
+              : rules?.factionRules?.get(summary.slug)
+                ? [rules.factionRules.get(summary.slug)!]
+                : [],
         referenceDetachmentIds: referenceDetachments.map((detachment) => detachment.id),
         detachments: detachments.map((detachment) => {
           const reference = detachmentNamed(rules?.detachmentReferences?.get(rulesId), detachment.name)
