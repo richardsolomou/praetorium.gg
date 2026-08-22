@@ -211,15 +211,30 @@ test('a card the rules let you put back is offered back as it is drawn', async (
       .not.toEqual(before)
   }
   const undoDraw = prompt.getByRole('button', { name: 'Undo latest action' })
+  const confirmation = bob.getByRole('alertdialog', { name: 'Undo mission draw?' })
   await undoDraw.click()
+  await expect(confirmation).toBeVisible()
+  await confirmation.getByRole('button', { name: 'Keep missions' }).click()
+  await expect(confirmation).toBeHidden()
+  await expect(prompt.locator('[data-drawn]')).toHaveCount(2)
+
+  const confirmUndo = async () => {
+    await undoDraw.click()
+    await expect(confirmation).toBeVisible()
+    await confirmation.getByRole('button', { name: 'Undo draw' }).click()
+  }
+  await bob.setViewportSize({ width: 390, height: 844 })
+  await confirmUndo()
   await expect(prompt.locator('[data-drawn]')).toHaveCount(1)
   await expect(prompt.getByRole('button', { name: 'Resume drawing' })).toBeVisible()
-  await undoDraw.click()
   if (returned) {
+    await undoDraw.click()
     await expect(prompt.locator('[data-drawn]')).toHaveCount(2)
-    await undoDraw.click()
+    await confirmUndo()
     await expect(prompt.locator('[data-drawn]')).toHaveCount(1)
-    await undoDraw.click()
+    await confirmUndo()
+  } else {
+    await confirmUndo()
   }
   await expect(prompt.locator('[data-drawn]')).toHaveCount(0)
   await prompt.getByRole('button', { name: 'Resume drawing' }).click()
@@ -234,6 +249,8 @@ test('a card the rules let you put back is offered back as it is drawn', async (
   await takeTheTurn(bob)
   await expect(prompt).toBeHidden()
   await bob.getByRole('button', { name: 'Undo latest action' }).click()
+  await expect(confirmation).toBeVisible()
+  await confirmation.getByRole('button', { name: 'Undo draw' }).click()
   await expect(prompt).toBeVisible()
   await expect(prompt.locator('[data-drawn]')).toHaveCount(1)
   await expect(prompt.getByRole('button', { name: 'Resume drawing' })).toBeVisible()

@@ -324,6 +324,7 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
           side={yours}
           round={view.round}
           undoable={view.undoable}
+          confirmUndo={view.undoableDraw}
           initiallyPaused={drawPaused}
           pending={pending}
           send={send}

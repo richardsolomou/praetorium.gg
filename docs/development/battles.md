@@ -37,6 +37,8 @@ Secondaries are tactical unless a player says otherwise: the hand starts empty, 
 
 The client requests a draw. The server chooses the card while it holds the battle lock. The log stores the chosen card. The server ignores the client's placeholder card.
 
+Undoing a logged draw returns hidden random state to the deck, so both the draw prompt and the main turn control confirm that consequence first. Cancelling the confirmation does not append a command.
+
 ## Views and visibility
 
 `battleView` in `src/core/battleView.ts` is the only place that decides what a player can see. Routes and realtime messages must not build a second view. An opponent can see drawn tactical missions but never the cards remaining in another player's deck.

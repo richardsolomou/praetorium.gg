@@ -6,6 +6,7 @@ import type { Command } from '../../../core/battle'
 import { HAND_SIZE, nextDraw } from '../../scoring'
 import type { Side } from '../../sides'
 import { redrawOffer, type WhenDrawn } from './drawOffer'
+import { DrawUndoAlert } from './DrawUndoAlert'
 import { MissionDetailsDialog, MissionName, type MissionDetails, type ReferenceCard } from './MissionCards'
 import { CARD } from './tints'
 
@@ -15,6 +16,7 @@ type Props = {
   side: Side
   round: number
   undoable: number | null
+  confirmUndo: boolean
   initiallyPaused: boolean
   pending: boolean
   send: (command: Command) => void
@@ -30,10 +32,22 @@ type Props = {
  * are dealt is not a move the game has. Putting one back is, but only where the
  * card itself says so, which is why each offer names the condition it rests on.
  */
-export function DrawDialog({ side, round, undoable, initiallyPaused, pending, send, referenceFor, whenDrawnFor, onDone }: Props) {
+export function DrawDialog({
+  side,
+  round,
+  undoable,
+  confirmUndo,
+  initiallyPaused,
+  pending,
+  send,
+  referenceFor,
+  whenDrawnFor,
+  onDone,
+}: Props) {
   const held = side.secondaries.filter((card) => card.status === 'active')
   const [paused, setPaused] = useState(initiallyPaused)
   const [inspected, setInspected] = useState<MissionDetails | null>(null)
+  const [confirmingUndo, setConfirmingUndo] = useState<number | null>(null)
   /**
    * What this prompt has already asked the deck for.
    *
@@ -113,6 +127,10 @@ export function DrawDialog({ side, round, undoable, initiallyPaused, pending, se
               disabled={pending || undoable === null}
               onClick={() => {
                 if (undoable === null) return
+                if (confirmUndo) {
+                  setConfirmingUndo(undoable)
+                  return
+                }
                 setPaused(true)
                 send({ kind: 'undo', target: undoable })
               }}
@@ -134,6 +152,17 @@ export function DrawDialog({ side, round, undoable, initiallyPaused, pending, se
       </Dialog>
       {/* Base UI treats nested dialogs as one dismissible region, so details must be a sibling. */}
       {inspected ? <MissionDetailsDialog details={inspected} onOpenChange={(open) => !open && setInspected(null)} /> : null}
+      <DrawUndoAlert
+        open={confirmingUndo !== null}
+        pending={pending}
+        onOpenChange={(open) => !open && setConfirmingUndo(null)}
+        onConfirm={() => {
+          if (confirmingUndo === null) return
+          setPaused(true)
+          setConfirmingUndo(null)
+          send({ kind: 'undo', target: confirmingUndo })
+        }}
+      />
     </>
   )
 }
