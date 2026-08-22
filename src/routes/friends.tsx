@@ -1,12 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { Inbox, Send, UserPlus, Users } from 'lucide-react'
+import { UserPlus } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { SearchField } from '../client/components/SearchField'
 import { PlayerAvatar } from '../client/components/PlayerAvatar'
 import { SignInRequired } from '../client/components/SignInRequired'
-import { SummaryStat } from '../client/components/SummaryStat'
 import { friendshipsQuery, meQuery, opponentsQuery } from '../client/queries'
 import { acceptFriend, removeFriend, requestFriend } from '../server/functions'
 import { errorMessage } from '../client/queryClient'
@@ -37,8 +36,8 @@ function Friends() {
   const people = data.people.filter((person) => person.name.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()))
 
   return (
-    <main className="mx-auto w-full max-w-5xl px-4 py-6 sm:py-8">
-      <section className="relative overflow-hidden border border-edge bg-panel p-5 sm:p-7">
+    <main className="mx-auto w-full max-w-6xl sm:px-4 sm:py-6">
+      <section className="relative overflow-hidden border-y border-edge bg-panel p-5 sm:border sm:p-7">
         <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,transparent_35%,color-mix(in_srgb,var(--color-parchment)_8%,transparent),transparent_75%)]" />
         <div className="relative">
           <p className="eyebrow text-parchment">Your account</p>
@@ -49,19 +48,13 @@ function Friends() {
         </div>
       </section>
 
-      <div className="grid grid-cols-3 gap-px border-x border-b border-edge bg-edge">
-        <SummaryStat icon={Users} label="Friends" value={data.friends.length} />
-        <SummaryStat icon={Inbox} label="Received" value={data.incoming.length} />
-        <SummaryStat icon={Send} label="Sent" value={data.outgoing.length} />
-      </div>
-
       {request.error || accept.error || remove.error ? (
-        <p className="mt-5 border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
+        <p className="mx-3 mt-4 border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive sm:mx-0">
           {errorMessage(request.error ?? accept.error ?? remove.error)}
         </p>
       ) : null}
 
-      <div className="mt-6 grid gap-6 md:grid-cols-2 md:gap-8">
+      <div className="mx-3 mt-4 grid gap-6 sm:mx-0 md:grid-cols-2 md:gap-8">
         <People
           title="Friend requests"
           empty="No requests are waiting for you."
@@ -79,7 +72,7 @@ function Friends() {
         />
       </div>
 
-      <section className="mt-8">
+      <section className="mx-3 mt-7 sm:mx-0">
         <div className="flex items-baseline justify-between border-b border-edge pb-2">
           <p className="rubric">Find players</p>
           <UserPlus className="size-4 text-parchment" aria-hidden />
@@ -104,7 +97,7 @@ function Friends() {
         </div>
       </section>
 
-      <div className="mt-8">
+      <div className="mx-3 mt-7 sm:mx-0">
         <People
           title="Sent requests"
           empty="You have no pending requests."

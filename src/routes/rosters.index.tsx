@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
-import { Eye, LockKeyhole, ScrollText } from 'lucide-react'
+import { ScrollText } from 'lucide-react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,7 +24,6 @@ import { type SavedRoster, useRosterActions } from '../client/components/rosters
 import { ROSTER_SORTS, type RosterSort, sortRosters } from '../client/components/rosters/rosterSort'
 import { readWorkspaceState, writeWorkspaceState } from '../client/components/workspaceState'
 import { SignInRequired } from '../client/components/SignInRequired'
-import { SummaryStat } from '../client/components/SummaryStat'
 import { PageState } from '../client/components/PageState'
 import { useFavouriteFactions } from '../client/favouriteFactions'
 import { factionsQuery, meQuery, savedRosterPointsQuery, savedRostersQuery } from '../client/queries'
@@ -167,8 +166,8 @@ function RosterLibrary() {
   if (!me) return <SignInRequired title="Your rosters" explanation="Sign in to build a list and keep it between battles." />
 
   return (
-    <main className="mx-auto w-full max-w-5xl px-4 py-8">
-      <section className="relative overflow-hidden border border-edge bg-panel p-5 sm:p-7">
+    <main className="mx-auto w-full max-w-6xl sm:px-4 sm:py-6">
+      <section className="relative overflow-hidden border-y border-edge bg-panel p-5 sm:border sm:p-7">
         <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,transparent_35%,color-mix(in_srgb,var(--color-parchment)_8%,transparent),transparent_75%)]" />
         <div className="relative flex flex-wrap items-end justify-between gap-4">
           <div>
@@ -183,13 +182,7 @@ function RosterLibrary() {
         </div>
       </section>
 
-      <div className="grid grid-cols-3 gap-px border-x border-b border-edge bg-edge">
-        <SummaryStat icon={ScrollText} label="Total" value={saved.length} />
-        <SummaryStat icon={LockKeyhole} label="Private" value={saved.filter((roster) => roster.visibility === 'private').length} />
-        <SummaryStat icon={Eye} label="Unlisted" value={saved.filter((roster) => roster.visibility === 'unlisted').length} />
-      </div>
-
-      <div className="mt-4 flex flex-wrap items-end gap-3" aria-label="Roster filters">
+      <div className="mx-3 mt-4 flex flex-wrap items-end gap-3 sm:mx-0" aria-label="Roster filters">
         <RosterCombobox
           label="Battle size"
           value={search.limit ? String(search.limit) : 'all'}
@@ -222,9 +215,11 @@ function RosterLibrary() {
           }
         />
       </div>
-      {actions.shareProblem ? <p className="mt-3 text-sm text-destructive">Could not copy the link: {actions.shareProblem}</p> : null}
+      {actions.shareProblem ? (
+        <p className="mx-3 mt-3 text-sm text-destructive sm:mx-0">Could not copy the link: {actions.shareProblem}</p>
+      ) : null}
 
-      <section className="mt-4">
+      <section className="mx-3 mt-4 sm:mx-0">
         <p className="rubric flex items-baseline justify-between border-b border-edge pb-2">
           <span>Rosters</span>
           <span className="readout">{shown.length}</span>

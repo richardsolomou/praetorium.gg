@@ -1,10 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, notFound } from '@tanstack/react-router'
 import { useState } from 'react'
-import { Flag, Map, Target } from 'lucide-react'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { MissionCardReference } from '../client/components/MissionCardReference'
-import { SummaryStat } from '../client/components/SummaryStat'
 import { dispositionTone } from '../client/components/rosterSetup'
 import { gameReferencesQuery } from '../client/queries'
 
@@ -28,8 +26,8 @@ function MissionPackPage() {
   const secondaryCap = Math.max(0, ...pack.missions.map((entry) => entry.secondaryGameCap ?? 0))
 
   return (
-    <main className="mx-auto w-full max-w-5xl px-4 py-8">
-      <section className="relative overflow-hidden border border-edge bg-panel p-5 sm:p-7">
+    <main className="mx-auto w-full max-w-6xl sm:px-4 sm:py-6">
+      <section className="relative overflow-hidden border-y border-edge bg-panel p-5 sm:border sm:p-7">
         <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,transparent_35%,color-mix(in_srgb,var(--color-parchment)_8%,transparent),transparent_75%)]" />
         <div className="relative">
           <p className="eyebrow text-parchment">Mission pack</p>
@@ -41,13 +39,7 @@ function MissionPackPage() {
           </p>
         </div>
       </section>
-      <div className="grid grid-cols-3 gap-px border-x border-b border-edge bg-edge">
-        <SummaryStat icon={Map} label="Missions" value={pack.missions.length} />
-        <SummaryStat icon={Flag} label="Dispositions" value={data.dispositions.length} />
-        <SummaryStat icon={Target} label="Secondaries" value={data.secondaries.length} />
-      </div>
-
-      <section className="mt-7">
+      <section className="mx-3 mt-5 sm:mx-0 sm:mt-7">
         <h2 className="text-xl">Force dispositions</h2>
         <p className="mt-1 text-sm text-dim">Select the resulting mission to read its scoring rules.</p>
         <div className="mt-3 overflow-x-auto pb-2">
@@ -99,7 +91,7 @@ function MissionPackPage() {
         </div>
       </section>
 
-      <section className="mt-7">
+      <section className="mx-3 mt-7 sm:mx-0">
         <h2 className="rubric flex justify-between border-b border-edge pb-2">
           <span>Secondary missions</span>
           <span className="readout">{data.secondaries.length}</span>
@@ -119,7 +111,7 @@ function MissionPackPage() {
         </div>
       </section>
 
-      <p className="mt-6 border-t border-edge pt-3 text-xs text-dim">{data.attribution}</p>
+      <p className="mx-3 mt-6 border-t border-edge pt-3 text-xs text-dim sm:mx-0">{data.attribution}</p>
 
       <Dialog open={Boolean(secondary)} onOpenChange={(open) => !open && setSecondaryId(null)}>
         <DialogContent className="rounded-none border border-edge bg-panel text-bone ring-0 sm:max-w-2xl">

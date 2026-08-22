@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, Outlet, useRouterState } from '@tanstack/react-router'
-import { BookOpen, ChevronRight, Heart, LibraryBig } from 'lucide-react'
+import { ChevronRight, Heart } from 'lucide-react'
 import { useState } from 'react'
 import { Toggle } from '@/components/ui/toggle'
 import { factionIndexQuery, meQuery } from '../client/queries'
@@ -8,7 +8,6 @@ import { useFavouriteFactions } from '../client/favouriteFactions'
 import { FactionMark, factionColour } from '../client/components/FactionMark'
 import { SearchField } from '../client/components/SearchField'
 import { PageState } from '../client/components/PageState'
-import { SummaryStat } from '../client/components/SummaryStat'
 
 export const Route = createFileRoute('/factions')({
   loader: ({ context, location }) =>
@@ -51,8 +50,8 @@ function FactionIndex() {
   }, new Map<string, Faction[]>())
 
   return (
-    <main className="mx-auto w-full max-w-5xl px-4 py-8">
-      <section className="relative overflow-hidden border border-edge bg-panel p-5 sm:p-7">
+    <main className="mx-auto w-full max-w-6xl sm:px-4 sm:py-6">
+      <section className="relative overflow-hidden border-y border-edge bg-panel p-5 sm:border sm:p-7">
         <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,transparent_35%,color-mix(in_srgb,var(--color-parchment)_8%,transparent),transparent_75%)]" />
         <div className="relative">
           <p className="eyebrow text-parchment">Community catalogues</p>
@@ -62,45 +61,43 @@ function FactionIndex() {
           </p>
         </div>
       </section>
-      <div className="grid grid-cols-3 gap-px border-x border-b border-edge bg-edge">
-        <SummaryStat icon={LibraryBig} label="Factions" value={data.factions.length} />
-        <SummaryStat
-          icon={BookOpen}
-          label="Datasheets"
-          value={data.factions.reduce((total, faction) => total + (faction.references[0]?.datasheets ?? 0), 0)}
+      <div className="mx-3 sm:mx-0">
+        <SearchField
+          className="mt-4"
+          value={factionQueryText}
+          onChange={setFactionQueryText}
+          placeholder="Find a faction"
+          label="Find a faction"
+          clearLabel="Empty the faction filter"
         />
-        <SummaryStat icon={Heart} label="Favourites" value={favourites.size} />
+        <FactionShelf
+          title="Favourites"
+          entries={favouriteFactions}
+          favourites={favourites}
+          onFavourite={me ? toggleFavourite : undefined}
+        />
+        {matching.length ? (
+          [...groups.entries()]
+            .toSorted(([left], [right]) => left.localeCompare(right))
+            .map(([title, entries]) => (
+              <FactionShelf
+                key={title}
+                title={title}
+                entries={entries}
+                favourites={favourites}
+                onFavourite={me ? toggleFavourite : undefined}
+              />
+            ))
+        ) : (
+          <PageState
+            className="mt-6"
+            headingLevel={2}
+            eyebrow="Faction search"
+            title="No factions match"
+            explanation="Try a broader faction name or clear the search."
+          />
+        )}
       </div>
-      <SearchField
-        className="mt-5"
-        value={factionQueryText}
-        onChange={setFactionQueryText}
-        placeholder="Find a faction"
-        label="Find a faction"
-        clearLabel="Empty the faction filter"
-      />
-      <FactionShelf title="Favourites" entries={favouriteFactions} favourites={favourites} onFavourite={me ? toggleFavourite : undefined} />
-      {matching.length ? (
-        [...groups.entries()]
-          .toSorted(([left], [right]) => left.localeCompare(right))
-          .map(([title, entries]) => (
-            <FactionShelf
-              key={title}
-              title={title}
-              entries={entries}
-              favourites={favourites}
-              onFavourite={me ? toggleFavourite : undefined}
-            />
-          ))
-      ) : (
-        <PageState
-          className="mt-6"
-          headingLevel={2}
-          eyebrow="Faction search"
-          title="No factions match"
-          explanation="Try a broader faction name or clear the search."
-        />
-      )}
     </main>
   )
 }

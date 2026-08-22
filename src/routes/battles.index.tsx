@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
-import { CircleDot, Flag, Settings2, Swords } from 'lucide-react'
+import { Swords } from 'lucide-react'
 import { useState } from 'react'
 import {
   AlertDialog,
@@ -16,7 +16,6 @@ import type { Battle } from '../client/components/battles/battle'
 import { BattleShelf } from '../client/components/battles/BattleShelf'
 import { CreateBattle } from '../client/components/battles/CreateBattle'
 import { SignInRequired } from '../client/components/SignInRequired'
-import { SummaryStat } from '../client/components/SummaryStat'
 import { battlesQuery, gameReferencesQuery, meQuery, opponentsQuery } from '../client/queries'
 import { useLiveBattles } from '../client/useLiveBattle'
 import { deleteBattle } from '../server/functions'
@@ -49,8 +48,8 @@ function Battles() {
   const finished = battles.filter((battle) => battle.status === 'finished')
 
   return (
-    <main className="mx-auto w-full max-w-5xl px-4 py-6 sm:py-8">
-      <section className="relative overflow-hidden border border-edge bg-panel p-5 sm:p-7">
+    <main className="mx-auto w-full max-w-6xl sm:px-4 sm:py-6">
+      <section className="relative overflow-hidden border-y border-edge bg-panel p-5 sm:border sm:p-7">
         <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,transparent_35%,color-mix(in_srgb,var(--color-parchment)_8%,transparent),transparent_75%)]" />
         <div className="relative flex flex-wrap items-end justify-between gap-4">
           <div>
@@ -61,19 +60,14 @@ function Battles() {
           {battles.length ? <CreateBattle /> : null}
         </div>
       </section>
-      <div className="grid grid-cols-3 gap-px border-x border-b border-edge bg-edge">
-        <SummaryStat icon={CircleDot} label="Active" value={active.length} />
-        <SummaryStat icon={Settings2} label="In setup" value={setup.length} tone="text-info" />
-        <SummaryStat icon={Flag} label="Finished" value={finished.length} tone="text-dim" />
-      </div>
       {battles.length ? (
-        <div className="mt-5 space-y-6">
+        <div className="mx-3 mt-4 space-y-6 sm:mx-0">
           <BattleShelf title="Active" battles={active} viewerId={me.id} onDelete={setDeleting} />
           <BattleShelf title="Setup" battles={setup} viewerId={me.id} onDelete={setDeleting} />
           <BattleShelf title="Finished" battles={finished} viewerId={me.id} onDelete={setDeleting} />
         </div>
       ) : (
-        <div className="mt-5 grid place-items-center border border-edge bg-panel px-6 py-12 text-center">
+        <div className="mx-3 mt-4 grid place-items-center border border-edge bg-panel px-6 py-10 text-center sm:mx-0 sm:py-12">
           <span className="grid size-14 place-items-center rounded-full border border-edge-strong bg-sunken text-parchment">
             <Swords className="size-6" aria-hidden />
           </span>
