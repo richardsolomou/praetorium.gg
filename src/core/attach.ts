@@ -24,6 +24,7 @@ const GENERIC_SUBSTITUTION =
   /if a character unit from your army with the leader ability can be attached to (?:an?|the) (.+?), it can be attached to this unit instead/gi
 
 const substitutionCache = new WeakMap<CatalogueIndex, ReadonlyMap<string, readonly string[]>>()
+const categoryTargetCache = new WeakMap<CatalogueIndex, readonly string[]>()
 
 /**
  * Which units this entry may be attached to, read out of its own ability text.
@@ -78,6 +79,9 @@ function categoryTargets(name: string, index: CatalogueIndex) {
   const required = normalizedName(name).replace('battleliine', 'battleline').split(' ').toSorted()
   if (required.join(' ') !== 'battleline imperium infantry') return []
 
+  const cached = categoryTargetCache.get(index)
+  if (cached) return cached
+
   const found: string[] = []
   for (const definition of index.definitions.values()) {
     const target = targetOf(definition, index.definitions)
@@ -89,7 +93,9 @@ function categoryTargets(name: string, index: CatalogueIndex) {
     )
     if (required.every((category) => categories.has(category))) found.push(nameOf(definition, index.definitions))
   }
-  return uniqueNames(found)
+  const targets = uniqueNames(found)
+  categoryTargetCache.set(index, targets)
+  return targets
 }
 
 function uniqueNames(values: readonly string[]) {
