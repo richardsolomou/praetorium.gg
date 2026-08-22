@@ -7,8 +7,7 @@ import { SetupSideChoice } from './SetupSideChoice'
 type Props = { sides: Side[]; ready: boolean; pending: boolean; send: (command: Command) => void }
 
 /**
- * The roll-off, recorded rather than rolled: who attacks, and who takes the first
- * turn. Both are side decisions, so both are chosen by side.
+ * The post-deployment first-turn roll-off, recorded rather than rolled.
  */
 export function FirstTurnStep({ sides, ready, pending, send }: Props) {
   const [first, setFirst] = useState(sides[0]?.index ?? 0)
