@@ -95,13 +95,14 @@ export class PraetoriumService {
   /**
    * Someone's name and picture, to a viewer allowed to see it.
    *
-   * Sharing a battle is the whole test, and it is asked as that one question
-   * rather than by reading every battle the viewer plays and looking through them.
+   * A mutual friendship or shared battle permits this small public profile.
    */
   async userProfile(viewerId: string, userId: string) {
     const profile = await this.repository.profileByUserId(userId)
     if (!profile) return null
     if (viewerId === userId) return profile
+    const friends = sortedFriends(await this.repository.relationships(viewerId), viewerId).friends
+    if (friends.some((friend) => friend.id === userId)) return profile
     return (await this.repository.shareBattle(viewerId, userId)) ? profile : null
   }
 

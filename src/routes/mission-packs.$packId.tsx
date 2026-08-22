@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, notFound } from '@tanstack/react-router'
 import { useState } from 'react'
+import { Flag, Map, Target } from 'lucide-react'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { MissionCardReference } from '../client/components/MissionCardReference'
 import { dispositionTone } from '../client/components/rosterSetup'
@@ -27,13 +28,23 @@ function MissionPackPage() {
 
   return (
     <main className="mx-auto w-full max-w-5xl px-4 py-8">
-      <p className="eyebrow">Mission pack</p>
-      <h1 className="text-3xl">{pack.name}</h1>
-      <p className="mt-2 text-sm text-dim">
-        {primaryCap ? `Up to ${primaryCap} VP from primary missions. ` : ''}
-        {secondaryCap ? `Up to ${secondaryCap} VP from secondary missions. ` : ''}Choose your disposition down the left and your opponent’s
-        across the top.
-      </p>
+      <header className="relative overflow-hidden border border-edge bg-panel p-5 sm:p-7">
+        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,transparent_35%,color-mix(in_srgb,var(--color-parchment)_8%,transparent),transparent_75%)]" />
+        <div className="relative">
+          <p className="eyebrow text-parchment">Mission pack</p>
+          <h1 className="mt-1 text-3xl">{pack.name}</h1>
+          <p className="mt-2 max-w-3xl text-sm text-dim">
+            {primaryCap ? `Up to ${primaryCap} VP from primary missions. ` : ''}
+            {secondaryCap ? `Up to ${secondaryCap} VP from secondary missions. ` : ''}Choose your disposition down the left and your
+            opponent’s across the top.
+          </p>
+        </div>
+      </header>
+      <div className="grid gap-px border-x border-b border-edge bg-edge sm:grid-cols-3">
+        <MissionStat icon={Map} label="Missions" value={pack.missions.length} />
+        <MissionStat icon={Flag} label="Dispositions" value={data.dispositions.length} />
+        <MissionStat icon={Target} label="Secondaries" value={data.secondaries.length} />
+      </div>
 
       <section className="mt-7">
         <h2 className="text-xl">Force dispositions</h2>
@@ -119,5 +130,17 @@ function MissionPackPage() {
         </DialogContent>
       </Dialog>
     </main>
+  )
+}
+
+function MissionStat({ icon: Icon, label, value }: { icon: typeof Flag; label: string; value: number }) {
+  return (
+    <div className="flex items-center gap-3 bg-panel p-4">
+      <Icon className="size-5 text-parchment" aria-hidden />
+      <span>
+        <span className="readout block text-2xl">{value}</span>
+        <span className="eyebrow text-faint">{label}</span>
+      </span>
+    </div>
   )
 }

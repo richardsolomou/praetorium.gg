@@ -56,77 +56,89 @@ function SignIn() {
   }
 
   return (
-    <main className="mx-auto w-full max-w-md px-4 py-12">
-      <h1 className="text-2xl">{joining ? 'Make an account' : 'Welcome back'}</h1>
-      <p className="mt-3 text-sm text-dim">
-        Your account is your player: it holds your saved lists, the battles you have played and the ones still going, on whatever device you
-        pick up.
-      </p>
-      <form
-        className="mt-8 space-y-4"
-        onSubmit={(event) => {
-          event.preventDefault()
-          void authenticate()
-        }}
-      >
-        {joining ? (
+    <main className="mx-auto grid w-full max-w-4xl gap-px px-4 py-10 md:grid-cols-[1fr_1.1fr]">
+      <aside className="relative hidden min-h-[34rem] overflow-hidden border border-edge bg-sunken p-8 md:grid md:content-between">
+        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(145deg,transparent_30%,color-mix(in_srgb,var(--color-parchment)_10%,transparent),transparent_75%)]" />
+        <div className="relative">
+          <p className="eyebrow text-parchment">Praetorium account</p>
+          <h2 className="mt-2 text-3xl">One player. Every battle.</h2>
+        </div>
+        <img src="/logo.svg" alt="" className="relative mx-auto size-40 drop-shadow-[0_0_2rem_rgba(137,184,157,0.18)]" />
+        <p className="relative text-sm text-dim">Your rosters, friendships, and battle history follow your account across devices.</p>
+      </aside>
+      <section className="border border-edge bg-panel p-6 sm:p-8 md:min-h-[34rem]">
+        <p className="eyebrow text-parchment">{joining ? 'Create account' : 'Sign in'}</p>
+        <h1 className="mt-1 text-3xl">{joining ? 'Make an account' : 'Welcome back'}</h1>
+        <p className="mt-3 text-sm text-dim">
+          Your account is your player: it holds your saved lists, the battles you have played and the ones still going, on whatever device
+          you pick up.
+        </p>
+        <form
+          className="mt-8 space-y-4"
+          onSubmit={(event) => {
+            event.preventDefault()
+            void authenticate()
+          }}
+        >
+          {joining ? (
+            <div className="space-y-2">
+              <Label htmlFor="name">Your name</Label>
+              <Input id="name" value={name} onChange={(event) => setName(event.target.value)} autoComplete="nickname" />
+            </div>
+          ) : null}
           <div className="space-y-2">
-            <Label htmlFor="name">Your name</Label>
-            <Input id="name" value={name} onChange={(event) => setName(event.target.value)} autoComplete="nickname" />
+            <Label htmlFor="email">Email</Label>
+            <Input id="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" required />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="password">Password</Label>
+            <Input
+              id="password"
+              type="password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              autoComplete={joining ? 'new-password' : 'current-password'}
+              minLength={PASSWORD_MIN_LENGTH}
+              required
+            />
+            {joining ? <p className="text-xs text-dim">At least {PASSWORD_MIN_LENGTH} characters.</p> : null}
+          </div>
+          <Button type="submit" className="h-11 w-full text-base" disabled={submit.busy}>
+            {joining ? 'Create the account' : 'Sign in'}
+          </Button>
+          {submit.error ? <p className="text-sm text-destructive">{submit.error}</p> : null}
+        </form>
+
+        <Button
+          variant="ghost"
+          size="sm"
+          className="mt-4"
+          onClick={() => {
+            setJoining((current) => !current)
+            submit.clearError()
+          }}
+        >
+          {joining ? 'I already have an account' : 'I need an account'}
+        </Button>
+
+        {options?.providers.length ? (
+          <div className="mt-6 space-y-2 border-t border-edge pt-6">
+            {options.providers.map((provider) => (
+              <Button
+                key={provider}
+                variant="outline"
+                className="h-11 w-full text-base capitalize"
+                onClick={() => {
+                  posthog.capture('account_authentication_started', { method: provider, redirected: Boolean(next) })
+                  void authClient.signIn.social({ provider, callbackURL: next ?? '/rosters' })
+                }}
+              >
+                Continue with {provider}
+              </Button>
+            ))}
           </div>
         ) : null}
-        <div className="space-y-2">
-          <Label htmlFor="email">Email</Label>
-          <Input id="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" required />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="password">Password</Label>
-          <Input
-            id="password"
-            type="password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            autoComplete={joining ? 'new-password' : 'current-password'}
-            minLength={PASSWORD_MIN_LENGTH}
-            required
-          />
-          {joining ? <p className="text-xs text-dim">At least {PASSWORD_MIN_LENGTH} characters.</p> : null}
-        </div>
-        <Button type="submit" className="h-11 w-full text-base" disabled={submit.busy}>
-          {joining ? 'Create the account' : 'Sign in'}
-        </Button>
-        {submit.error ? <p className="text-sm text-destructive">{submit.error}</p> : null}
-      </form>
-
-      <Button
-        variant="ghost"
-        size="sm"
-        className="mt-4"
-        onClick={() => {
-          setJoining((current) => !current)
-          submit.clearError()
-        }}
-      >
-        {joining ? 'I already have an account' : 'I need an account'}
-      </Button>
-
-      {options?.providers.length ? (
-        <div className="mt-6 space-y-2 border-t border-edge pt-6">
-          {options.providers.map((provider) => (
-            <Button
-              key={provider}
-              variant="outline"
-              className="h-11 w-full text-base capitalize"
-              onClick={() => {
-                posthog.capture('account_authentication_started', { method: provider, redirected: Boolean(next) })
-                void authClient.signIn.social({ provider, callbackURL: next ?? '/rosters' })
-              }}
-            >
-              Continue with {provider}
-            </Button>
-          ))}
-        </div>
-      ) : null}
+      </section>
     </main>
   )
 }

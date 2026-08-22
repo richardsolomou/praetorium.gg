@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, Outlet, useRouterState } from '@tanstack/react-router'
-import { ChevronRight, Heart } from 'lucide-react'
+import { BookOpen, ChevronRight, Heart, LibraryBig } from 'lucide-react'
 import { useState } from 'react'
 import { Toggle } from '@/components/ui/toggle'
 import { factionIndexQuery, meQuery } from '../client/queries'
@@ -40,7 +40,27 @@ function FactionIndex() {
 
   return (
     <main className="mx-auto w-full max-w-5xl px-4 py-8">
+      <header className="relative overflow-hidden border border-edge bg-panel p-5 sm:p-7">
+        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,transparent_35%,color-mix(in_srgb,var(--color-parchment)_8%,transparent),transparent_75%)]" />
+        <div className="relative">
+          <p className="eyebrow text-parchment">Community catalogues</p>
+          <h1 className="mt-1 text-3xl">Factions</h1>
+          <p className="mt-2 max-w-2xl text-sm text-dim">
+            Browse faction rules, detachments, datasheets, loadouts, and points from the current verified snapshot.
+          </p>
+        </div>
+      </header>
+      <div className="grid gap-px border-x border-b border-edge bg-edge sm:grid-cols-3">
+        <FactionStat icon={LibraryBig} label="Factions" value={data.factions.length} />
+        <FactionStat
+          icon={BookOpen}
+          label="Datasheets"
+          value={data.factions.reduce((total, faction) => total + (faction.references[0]?.datasheets ?? 0), 0)}
+        />
+        <FactionStat icon={Heart} label="Favourites" value={favourites.size} />
+      </div>
       <SearchField
+        className="mt-5"
         value={factionQueryText}
         onChange={setFactionQueryText}
         placeholder="Find a faction"
@@ -64,6 +84,18 @@ function FactionIndex() {
         <p className="mt-6 border border-edge bg-panel p-6 text-center text-sm text-dim">No factions match.</p>
       )}
     </main>
+  )
+}
+
+function FactionStat({ icon: Icon, label, value }: { icon: typeof Heart; label: string; value: number }) {
+  return (
+    <div className="flex items-center gap-3 bg-panel p-4">
+      <Icon className="size-5 text-parchment" aria-hidden />
+      <span>
+        <span className="readout block text-2xl">{value}</span>
+        <span className="eyebrow text-faint">{label}</span>
+      </span>
+    </div>
   )
 }
 

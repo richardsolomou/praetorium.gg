@@ -164,8 +164,12 @@ describe('friends', () => {
 })
 
 describe('player profiles', () => {
-  it('shows a profile after the viewer has shared a battle with that player', async () => {
-    expect(await service.userProfile('alice', 'bob')).toBeNull()
+  it('shows a confirmed friend before their first shared battle', async () => {
+    expect(await service.userProfile('alice', 'carol')).toEqual({ id: 'carol', name: 'Carol', image: null })
+  })
+
+  it('keeps showing a friend after the viewer shares a battle with them', async () => {
+    expect(await service.userProfile('alice', 'bob')).toEqual({ id: 'bob', name: 'Bob', image: 'https://example.test/bob.png' })
     await service.createBattle('alice', { opponentId: 'bob', solo: false, limit: 2000, missionPackId: null })
 
     expect(await service.userProfile('alice', 'bob')).toEqual({ id: 'bob', name: 'Bob', image: 'https://example.test/bob.png' })

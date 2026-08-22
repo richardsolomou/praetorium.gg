@@ -18,7 +18,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { CircleUserRound, LogIn, LogOut, Menu, ScrollText, Swords, UserRoundPen, X } from 'lucide-react'
+import { CircleUserRound, LogIn, LogOut, Menu, ScrollText, Swords, UserRoundPen, Users, X } from 'lucide-react'
 import { postHogEnvironment } from 'ras-stack/posthog'
 import { PostHogBetterAuthIdentity, PostHogIntegration } from 'ras-stack/posthog/react'
 import { useEffect, useRef, useState } from 'react'
@@ -113,6 +113,9 @@ function Account() {
             <DropdownMenuItem render={<Link to="/rosters" />}>
               <ScrollText /> My rosters
             </DropdownMenuItem>
+            <DropdownMenuItem render={<Link to="/friends" />}>
+              <Users /> Friends
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={() => {
@@ -196,13 +199,6 @@ function PrimaryNavigation({ path }: { path: string }) {
           activeProps={{ className: 'border-parchment bg-raised text-parchment min-[815px]:bg-transparent' }}
         >
           Rosters
-        </Link>
-        <Link
-          to="/friends"
-          className={linkClass}
-          activeProps={{ className: 'border-parchment bg-raised text-parchment min-[815px]:bg-transparent' }}
-        >
-          Friends
         </Link>
         <Link
           to="/factions"

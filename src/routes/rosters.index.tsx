@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
+import { Eye, LockKeyhole, ScrollText } from 'lucide-react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -165,15 +166,25 @@ function RosterLibrary() {
 
   return (
     <main className="mx-auto w-full max-w-5xl px-4 py-8">
-      <div className="flex flex-wrap items-end justify-between gap-4 border-b border-edge pb-4">
-        <div>
-          <p className="eyebrow">Your rosters</p>
-          <h1 className="text-3xl">My rosters</h1>
+      <header className="relative overflow-hidden border border-edge bg-panel p-5 sm:p-7">
+        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,transparent_35%,color-mix(in_srgb,var(--color-parchment)_8%,transparent),transparent_75%)]" />
+        <div className="relative flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <p className="eyebrow text-parchment">Your rosters</p>
+            <h1 className="text-3xl">My rosters</h1>
+            <p className="mt-2 text-sm text-dim">Build, import, organize, and share the armies you bring to battle.</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <RosterImport />
+            {available ? <CreateRoster factions={available.factions} /> : null}
+          </div>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <RosterImport />
-          {available ? <CreateRoster factions={available.factions} /> : null}
-        </div>
+      </header>
+
+      <div className="grid gap-px border-x border-b border-edge bg-edge sm:grid-cols-3">
+        <RosterStat icon={ScrollText} label="Total" value={saved.length} />
+        <RosterStat icon={LockKeyhole} label="Private" value={saved.filter((roster) => roster.visibility === 'private').length} />
+        <RosterStat icon={Eye} label="Unlisted" value={saved.filter((roster) => roster.visibility === 'unlisted').length} />
       </div>
 
       <div className="mt-4 flex flex-wrap items-end gap-3" aria-label="Roster filters">
@@ -275,6 +286,18 @@ function RosterLibrary() {
       ) : null}
       <RosterExportDialog text={actions.exportText} onClose={actions.clearExport} />
     </main>
+  )
+}
+
+function RosterStat({ icon: Icon, label, value }: { icon: typeof ScrollText; label: string; value: number }) {
+  return (
+    <div className="flex items-center gap-3 bg-panel p-4">
+      <Icon className="size-5 text-parchment" aria-hidden />
+      <span>
+        <span className="readout block text-2xl">{value}</span>
+        <span className="eyebrow text-faint">{label}</span>
+      </span>
+    </div>
   )
 }
 
