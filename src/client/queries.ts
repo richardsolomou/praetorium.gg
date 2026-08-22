@@ -25,6 +25,7 @@ import {
   priceRoster,
   savedRosters,
   savedRosterPoints,
+  savedRosterLoadoutDatasheets,
   savedRosterPrice,
   sharedRoster,
   signInOptions,
@@ -142,19 +143,31 @@ export const loadoutDatasheetsQuery = (
   detachmentIds: readonly string[],
   picks: readonly RosterPick[],
   pickIndex: number | null,
+  persistedRoster?: { id: string; battle?: string },
   onLoaded?: (durationMs: number) => void,
 ) =>
   queryOptions({
-    queryKey: ['loadout-datasheets', catalogueId, entryId, detachmentIds, picks, pickIndex],
+    queryKey: persistedRoster
+      ? ['saved-roster-loadout-datasheets', persistedRoster.id, persistedRoster.battle ?? null, pickIndex]
+      : ['loadout-datasheets', catalogueId, entryId, detachmentIds, picks, pickIndex],
     queryFn: async () => {
       const startedAt = performance.now()
-      const result = await loadoutDatasheets({
-        data: { catalogueId, entryId, detachmentIds: [...detachmentIds], picks: [...picks], pickIndex },
-      })
+      const result =
+        persistedRoster && pickIndex !== null
+          ? await savedRosterLoadoutDatasheets({
+              data: {
+                id: persistedRoster.id,
+                ...(persistedRoster.battle ? { battle: persistedRoster.battle } : {}),
+                pickIndex,
+              },
+            })
+          : await loadoutDatasheets({
+              data: { catalogueId, entryId, detachmentIds: [...detachmentIds], picks: [...picks], pickIndex },
+            })
       onLoaded?.(performance.now() - startedAt)
       return result
     },
-    enabled: Boolean(catalogueId && entryId),
+    enabled: Boolean((persistedRoster && pickIndex !== null) || (catalogueId && entryId)),
     staleTime: Infinity,
   })
 

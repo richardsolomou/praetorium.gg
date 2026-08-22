@@ -64,5 +64,5 @@ function RosterPage() {
   }, [print])
 
   if (!roster) return null
-  return <RosterEditor roster={roster} editable={editable} />
+  return <RosterEditor roster={roster} editable={editable} battle={battle} />
 }

@@ -39,8 +39,12 @@ export function DatasheetPanel({
   const detachments = useSettled(detachmentIds)
   const settledPicks = useSettled(picks)
   const settledIndex = useSettled(pickIndex)
+  // A picker preview is not one of the roster's selections, so the server cannot
+  // apply roster context to it. Do not put a roster it will discard in the URL.
+  const contextualDetachments = settledIndex === null ? [] : detachments
+  const contextualPicks = settledIndex === null ? [] : settledPicks
   const { data: fetchedSheet } = useQuery({
-    ...datasheetQuery(catalogueId, entryId ?? '', detachments, settledPicks, settledIndex),
+    ...datasheetQuery(catalogueId, entryId ?? '', contextualDetachments, contextualPicks, settledIndex),
     enabled: providedSheet === undefined && Boolean(catalogueId && entryId),
     placeholderData: (previous, previousQuery) => (previousQuery?.queryKey[2] === entryId ? previous : undefined),
   })

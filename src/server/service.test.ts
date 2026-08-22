@@ -545,6 +545,19 @@ describe('saved rosters', () => {
     expect((await service.sharedRoster(id, 'alice'))?.name).toBe('Recon force')
   })
 
+  it('shows a private roster to another player seated in the battle where it is fielded', async () => {
+    const { id } = await save()
+    const { token } = await service.createBattle('alice')
+    await service.join(token, 'bob')
+    await service.submit(token, 'alice', 0, {
+      kind: 'attach-roster',
+      roster: { id, name: 'Recon force', text: 'Recon force' },
+    })
+
+    expect((await service.sharedRoster(id, 'bob', token))?.name).toBe('Recon force')
+    expect(await service.sharedRoster(id, 'carol', token)).toBeNull()
+  })
+
   it('shows an unlisted roster to a link holder', async () => {
     const { id } = await save('unlisted')
     expect((await service.sharedRoster(id, null))?.name).toBe('Recon force')
