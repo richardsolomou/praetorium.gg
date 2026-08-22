@@ -44,6 +44,8 @@ type RawTerrainLayout = {
     rotation_degrees?: number
     mirror?: string
     parent_area_id?: string
+    is_objective?: boolean
+    link_group?: string
   }[]
 }
 
@@ -90,6 +92,7 @@ export type TerrainGeometry = {
     name: string
     points: Point[]
     markers: { label: string; position: Point }[]
+    objectiveGroup: string | null
     parts: {
       id: string
       name: string
@@ -167,7 +170,7 @@ export function loadTerrainLayouts(core: string, battlemasterDirectory: string):
       matchupId: layout.mission_matchup_id!,
       variant: layout.variant ?? null,
       deploymentId: layout.deployment_pattern_id ?? null,
-      geometry: battlemasterGeometry(battlemasterDirectory, layout.description),
+      geometry: battlemasterGeometry(battlemasterDirectory, layout.description, layout.pieces ?? []),
       pieces: (layout.pieces ?? [])
         .filter((piece) => piece.position)
         .map((piece) => ({
@@ -207,7 +210,11 @@ export function loadTerrainTemplates(core: string): TerrainTemplate[] {
   }))
 }
 
-function battlemasterGeometry(directory: string, description: string | undefined): TerrainGeometry | null {
+function battlemasterGeometry(
+  directory: string,
+  description: string | undefined,
+  pieces: NonNullable<RawTerrainLayout['pieces']>,
+): TerrainGeometry | null {
   const id = description?.match(/Battlemaster layout (terrain-[0-9a-f-]+)/)?.[1]
   if (!id) return null
   const file = path.join(directory, 'layouts', `${id}.json`)
@@ -216,23 +223,29 @@ function battlemasterGeometry(directory: string, description: string | undefined
   if (!battlemasterLayoutMatches(raw.layout, id) || !raw.terrain?.length) return null
 
   return {
-    areas: raw.terrain.map((area, areaIndex) => ({
-      id: area.id ?? `area-${areaIndex + 1}`,
-      name: area.name,
-      points: area.outline.points.map((point) => battlemasterBoardPoint(point, area.footprint)),
-      markers: terrainReferenceMarkers(area),
-      parts: area.parts.map((part, partIndex) => ({
-        id: part.id ?? `area-${areaIndex + 1}-part-${partIndex + 1}`,
-        name: part.name,
-        material: part.material,
-        roof: part.outline?.points.map((point) => battlemasterBoardPoint(point, area.footprint, part)) ?? null,
-        walls: part.walls.map((wall, wallIndex) => ({
-          id: wall.id ?? `area-${areaIndex + 1}-part-${partIndex + 1}-wall-${wallIndex + 1}`,
-          points: wall.points.map((point) => battlemasterBoardPoint(point, area.footprint, part)),
-          thickness: wall.thicknessIn,
+    areas: raw.terrain.map((area, areaIndex) => {
+      const areaId = area.id ?? `area-${areaIndex + 1}`
+      const sourceId = area.id ?? `area-${String(areaIndex + 1).padStart(2, '0')}`
+      const piece = pieces.find((candidate) => candidate.id === sourceId) ?? pieces[areaIndex]
+      return {
+        id: areaId,
+        name: area.name,
+        points: area.outline.points.map((point) => battlemasterBoardPoint(point, area.footprint)),
+        markers: terrainReferenceMarkers(area),
+        objectiveGroup: piece?.is_objective ? (piece.link_group ?? null) : null,
+        parts: area.parts.map((part, partIndex) => ({
+          id: part.id ?? `area-${areaIndex + 1}-part-${partIndex + 1}`,
+          name: part.name,
+          material: part.material,
+          roof: part.outline?.points.map((point) => battlemasterBoardPoint(point, area.footprint, part)) ?? null,
+          walls: part.walls.map((wall, wallIndex) => ({
+            id: wall.id ?? `area-${areaIndex + 1}-part-${partIndex + 1}-wall-${wallIndex + 1}`,
+            points: wall.points.map((point) => battlemasterBoardPoint(point, area.footprint, part)),
+            thickness: wall.thicknessIn,
+          })),
         })),
-      })),
-    })),
+      }
+    }),
   }
 }
 

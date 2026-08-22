@@ -25,6 +25,7 @@ export type TerrainGeometry = {
     name: string
     points: { x: number; y: number }[]
     markers: { label: string; position: { x: number; y: number } }[]
+    objectiveGroup: string | null
     parts: {
       id: string
       name: string
@@ -72,6 +73,25 @@ export function objectiveTerrainMarkerPosition(area: TerrainGeometry['areas'][nu
           terrainMarkers.every((marker) => Math.hypot(candidate.x - marker.x, candidate.y - marker.y) >= 2.5),
       ) ?? centre
   )
+}
+
+export function objectiveTerrainMarkers(geometry: TerrainGeometry) {
+  const objectiveAreas = geometry.areas.filter((area) => area.markers.length)
+  return objectiveAreas.flatMap((area, index) => {
+    if (!area.objectiveGroup) return [{ key: area.id, position: objectiveTerrainMarkerPosition(area) }]
+    if (objectiveAreas.findIndex((candidate) => candidate.objectiveGroup === area.objectiveGroup) !== index) return []
+    const group = objectiveAreas.filter((candidate) => candidate.objectiveGroup === area.objectiveGroup)
+    const positions = group.map(objectiveTerrainMarkerPosition)
+    return [
+      {
+        key: `group-${area.objectiveGroup}`,
+        position: {
+          x: positions.reduce((total, position) => total + position.x, 0) / positions.length,
+          y: positions.reduce((total, position) => total + position.y, 0) / positions.length,
+        },
+      },
+    ]
+  })
 }
 
 export function terrainMarkerPosition(area: TerrainGeometry['areas'][number], marker: TerrainGeometry['areas'][number]['markers'][number]) {

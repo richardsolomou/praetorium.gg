@@ -447,7 +447,7 @@ describe('Battlemaster terrain geometry', () => {
         name: 'Layout A',
         mission_matchup_id: 'disruption-vs-take-and-hold',
         description: `Imported from Battlemaster layout ${id}.`,
-        pieces: [],
+        pieces: [{ id: 'area-01', position: { x: 0, y: 0 }, is_objective: true, link_group: 'center' }],
       },
     ])
     const battlemaster = path.join(directory, 'battlemaster', 'layouts')
@@ -470,6 +470,7 @@ describe('Battlemaster terrain geometry', () => {
     expect(rules.terrainLayouts[0]?.geometry?.areas[0]).toMatchObject({
       id: 'area-1',
       markers: [{ label: 'AB', position: { x: 35, y: 17 } }],
+      objectiveGroup: 'center',
     })
   })
 })
