@@ -11,9 +11,9 @@ import { PageState } from './PageState'
  */
 export function SignInRequired({ title, explanation, next }: { title: string; explanation: string; next?: string }) {
   return (
-    <main className="w-full">
+    <main className="flex w-full">
       <PageState
-        className="min-h-[calc(100dvh-7rem)] border-x-0 border-t-0"
+        className="flex-1 border-x-0 border-t-0"
         eyebrow="Account required"
         title={title}
         explanation={explanation}

@@ -69,9 +69,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   }),
   component: RootComponent,
   notFoundComponent: () => (
-    <main className="w-full">
+    <main className="flex w-full">
       <PageState
-        className="min-h-[calc(100dvh-7rem)] border-x-0 border-t-0"
+        className="flex-1 border-x-0 border-t-0"
         eyebrow="404"
         title="Nothing here"
         explanation="This page does not exist or its current data is unavailable. Check the link and try again."
@@ -260,7 +260,7 @@ function RootComponent() {
                   <Account />
                 </div>
               </header>
-              <div className={immersive ? 'h-[calc(100dvh-3rem)] min-h-0' : 'min-h-0 flex-1'}>
+              <div className={immersive ? 'h-[calc(100dvh-3rem)] min-h-0' : 'flex min-h-0 flex-1 flex-col [&>main]:flex-1'}>
                 <Outlet />
               </div>
               {/*

@@ -29,9 +29,9 @@ function PlayerProfile() {
   const shared = battles.filter((battle) => battle.playerIds.includes(userId))
   if (!profile) {
     return (
-      <main className="w-full">
+      <main className="flex w-full">
         <PageState
-          className="min-h-[calc(100dvh-7rem)] border-x-0 border-t-0"
+          className="flex-1 border-x-0 border-t-0"
           eyebrow="Player profile"
           title="Profile unavailable"
           explanation="You are not friends and have not shared a battle with this player."
@@ -54,9 +54,9 @@ function PlayerProfile() {
 
   return (
     <main className="w-full">
-      <section className="relative overflow-hidden border-b border-edge bg-panel p-5 sm:p-7">
+      <section className="relative overflow-hidden border-b border-edge bg-panel">
         <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,transparent_35%,color-mix(in_srgb,var(--color-parchment)_8%,transparent),transparent_75%)]" />
-        <div className="relative mx-auto flex max-w-5xl items-center gap-4">
+        <div className="relative mx-auto flex max-w-5xl items-center gap-4 px-3 py-5 sm:px-4 sm:py-7">
           <PlayerAvatar name={profile.name} image={profile.image} className="size-20 text-2xl" />
           <div className="min-w-0">
             <p className="eyebrow text-parchment">{yourself ? 'You' : 'Player'}</p>

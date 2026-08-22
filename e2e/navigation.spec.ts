@@ -132,6 +132,20 @@ test('account libraries share their page width and fit a phone', async ({ page }
   }
 })
 
+test('authentication panels and empty states fill the page above the footer', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 })
+  await page.goto('/signin')
+  const left = await page.locator('main > aside').boundingBox()
+  const right = await page.locator('main > section').boundingBox()
+  expect(left?.x).toBe(0)
+  expect(right ? Math.round(right.x + right.width) : 0).toBe(1280)
+  await page.goto('/rosters')
+  const state = await page.locator('main > div').boundingBox()
+  const footer = await page.locator('footer').boundingBox()
+  expect(state && footer ? Math.round(state.y + state.height) : 0).toBe(Math.round(footer?.y ?? 0))
+  expect(footer ? Math.round(footer.y + footer.height) : 0).toBe(800)
+})
+
 test('terrain layouts show their labels and measurement guides', async ({ page }) => {
   await page.goto('/mission-matchups/chapter-approved-2026-2027/purge-the-foe/take-and-hold')
   await page.getByRole('button', { name: 'Enlarge terrain layout A: Sweeping Engagement' }).click()

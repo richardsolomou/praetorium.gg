@@ -36,9 +36,9 @@ function MissionMatchupPage() {
 
   return (
     <main className="w-full">
-      <section className="relative overflow-hidden border-b border-edge bg-panel p-5 sm:p-7">
+      <section className="relative overflow-hidden border-b border-edge bg-panel">
         <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,transparent_35%,color-mix(in_srgb,var(--color-parchment)_8%,transparent),transparent_75%)]" />
-        <div className="relative mx-auto max-w-5xl">
+        <div className="relative mx-auto max-w-5xl px-3 py-5 sm:px-4 sm:py-7">
           <p className="eyebrow text-parchment">Mission matchup</p>
           <h1 className="mt-1 text-3xl">
             {yourDisposition.name} vs {opponentDisposition.name}
