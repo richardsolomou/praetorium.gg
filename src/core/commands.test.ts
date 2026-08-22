@@ -2,6 +2,39 @@ import { describe, expect, it } from 'vitest'
 import { commandSchema } from './commands'
 
 describe('command schema', () => {
+  it('keeps frozen roster-card details on an attached roster', () => {
+    const command = {
+      kind: 'attach-roster' as const,
+      roster: {
+        name: 'Awakened Dynasty',
+        text: 'Overlord — 85',
+        built: {
+          catalogueId: 'necrons',
+          revision: 'revision',
+          limit: 2_000,
+          detachment: 'Awakened Dynasty',
+          disposition: 'reconnaissance',
+          units: [
+            {
+              key: '0-overlord',
+              entryId: 'overlord',
+              name: 'Overlord',
+              points: 85,
+              models: 1,
+              group: 'character' as const,
+              wargear: [{ name: "Overlord's blade", count: 1 }],
+              enhancements: ['Veil of Darkness'],
+              upgrades: [],
+              joined: [{ label: 'Leading', name: 'Immortals' }],
+            },
+          ],
+        },
+      },
+    }
+
+    expect(commandSchema.parse(command)).toEqual(command)
+  })
+
   it('accepts a shared setup section', () => {
     expect(commandSchema.parse({ kind: 'set-setup-step', step: 3 })).toEqual({ kind: 'set-setup-step', step: 3 })
   })

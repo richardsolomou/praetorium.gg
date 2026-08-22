@@ -9,6 +9,8 @@
  * No IO and no framework imports belong in this file.
  */
 
+import type { UnitGroup } from './unitGroups'
+
 /** The phases of a battle round, in the order 11th edition plays them. */
 export const PHASES = ['command', 'movement', 'shooting', 'charge', 'fight', 'end'] as const
 
@@ -81,6 +83,13 @@ type SubmittedUnit = {
   name: string
   points: number
   models: number
+  /** Frozen roster-card details, absent from battle logs created before snapshots had a full roster view. */
+  entryId?: string
+  group?: UnitGroup
+  wargear?: { name: string; count: number }[]
+  enhancements?: string[]
+  upgrades?: string[]
+  joined?: { label: string; name: string }[]
   formationOptions?: UnitFormation[]
   prebattleRules?: ('infiltrators' | 'scouts')[]
 }

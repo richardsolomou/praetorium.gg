@@ -28,7 +28,8 @@ type Props = {
   unit: BuiltUnit
   alliedFaction?: FactionPresentation
   selected: boolean
-  onSelect: () => void
+  /** Omit when the card has no detail pane to open, such as a frozen battle snapshot. */
+  onSelect?: () => void
   onRemove: () => void
   onDuplicate: () => void
   owned: boolean
@@ -68,13 +69,15 @@ export function UnitCard({
   // buttons that do something else take their clicks back.
   const card = (
     <>
-      <Button
-        variant="ghost"
-        className="absolute inset-0 h-full w-full rounded-none hover:bg-transparent dark:hover:bg-transparent"
-        onClick={onSelect}
-        aria-pressed={selected}
-        aria-label={unit.name}
-      />
+      {onSelect ? (
+        <Button
+          variant="ghost"
+          className="absolute inset-0 h-full w-full rounded-none hover:bg-transparent dark:hover:bg-transparent"
+          onClick={onSelect}
+          aria-pressed={selected}
+          aria-label={unit.name}
+        />
+      ) : null}
       <div className="flow-root px-2.5 py-2">
         <span className="pointer-events-none relative z-10 float-right ml-2 flex shrink-0 items-center gap-1.5 [&_button]:pointer-events-auto">
           <span className="chip text-info">{unit.points} pts</span>

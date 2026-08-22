@@ -10,6 +10,7 @@ import {
   STRATAGEMS_MAX,
   UNIT_FORMATIONS,
 } from './battle'
+import { UNIT_GROUPS } from './unitGroups'
 
 const id = z.string().min(1).max(64)
 const phase = z.enum(['command', 'movement', 'shooting', 'charge', 'fight', 'end'])
@@ -76,6 +77,23 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
                 name: z.string().min(1).max(ROSTER_NAME_MAX_LENGTH),
                 points: z.number().int().min(0).max(10_000),
                 models: z.number().int().min(0).max(100),
+                entryId: id.optional(),
+                group: z.enum(UNIT_GROUPS).optional(),
+                wargear: z
+                  .array(z.object({ name: z.string().min(1).max(ROSTER_NAME_MAX_LENGTH), count: z.number().int().min(1).max(100) }))
+                  .max(200)
+                  .optional(),
+                enhancements: z.array(z.string().min(1).max(ROSTER_NAME_MAX_LENGTH)).max(20).optional(),
+                upgrades: z.array(z.string().min(1).max(ROSTER_NAME_MAX_LENGTH)).max(20).optional(),
+                joined: z
+                  .array(
+                    z.object({
+                      label: z.string().min(1).max(ROSTER_NAME_MAX_LENGTH),
+                      name: z.string().min(1).max(ROSTER_NAME_MAX_LENGTH),
+                    }),
+                  )
+                  .max(20)
+                  .optional(),
                 formationOptions: z.array(z.enum(UNIT_FORMATIONS)).max(4).optional(),
                 prebattleRules: z
                   .array(z.enum(['infiltrators', 'scouts']))
