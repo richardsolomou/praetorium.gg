@@ -31,6 +31,7 @@ Praetorium uses a compact, dark interface. See [Product design](../product-desig
 - Keep the phase control reachable at every width. One instance moves by CSS between the centre column and a bottom bar on narrow screens, as `builder/Pane.tsx` does for the roster panes, and always advances the active side.
 - Open long card lists in a dialog rather than laying dozens of buttons into a panel, and close the dialog on the pick.
 - Keep the global search panel height stable while typing. Settle the query before the server request, and preserve the prior results while it loads.
+- Give the home, friends, and battle-library pages useful summaries and next actions. Empty states must explain how to add the first item.
 
 ## Components and styles
 
