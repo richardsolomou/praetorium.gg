@@ -25,7 +25,7 @@ export default defineConfig({
   expect: { timeout: 15_000 },
   reporter: process.env.CI ? 'github' : 'list',
   use: { baseURL, trace: process.env.PLAYWRIGHT_TRACE ? 'on' : 'retain-on-failure', screenshot: 'only-on-failure' },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 } } }],
   /*
    * The container, not the bundle: Centrifugo and Caddy are part of how this app
    * serves a request, so a suite that ran the Node output alone would be testing a

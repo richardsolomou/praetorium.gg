@@ -1,8 +1,8 @@
 import { expect, test } from '@playwright/test'
-import { attachRoster, chooseBattlefield, createBattle, createRoster, signUp } from './account'
+import { attachRoster, chooseBattlefield, createBattle, createRoster, desktopContext, signUp } from './account'
 
 test('a list can be copied as Games Workshop text', async ({ browser }) => {
-  const page = await (await browser.newContext({ permissions: ['clipboard-read', 'clipboard-write'] })).newPage()
+  const page = await (await browser.newContext({ ...desktopContext, permissions: ['clipboard-read', 'clipboard-write'] })).newPage()
 
   await signUp(page, 'Alice')
 

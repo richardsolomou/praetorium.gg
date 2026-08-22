@@ -8,6 +8,7 @@ type Props = {
   variant: 'picker' | 'loadout'
   open: boolean
   title: string
+  ariaLabel?: string
   onClose: () => void
   actions?: ReactNode
   children: ReactNode
@@ -39,6 +40,7 @@ export function Pane({
   variant,
   open,
   title,
+  ariaLabel,
   onClose,
   actions,
   children,
@@ -104,7 +106,7 @@ export function Pane({
       className={`min-h-0 flex-col overflow-hidden border-edge bg-panel [container-type:inline-size] ${(threeColumn ? VARIANTS : TWO_COLUMN_VARIANTS)[variant]} ${
         hideBelowDesktop ? 'max-[1299px]:hidden' : ''
       } ${open ? `fixed z-40 flex ${MOBILE_LAYOUT[variant]}` : 'hidden'}`}
-      aria-label={title}
+      aria-label={ariaLabel ?? title}
     >
       {body}
     </aside>

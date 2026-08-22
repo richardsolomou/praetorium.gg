@@ -502,6 +502,7 @@ export function ListBuilder({ prep, initial, editable = true }: Props) {
           open={showing === 'loadout' && Boolean(selectedUnit || preview)}
           threeColumn={editable}
           title={preview?.name ?? selectedUnit?.name ?? 'Unit'}
+          ariaLabel={preview ? 'Datasheet' : 'Loadout'}
           onClose={() => setShowing(null)}
           actions={
             !preview && optimisticUnit ? (
