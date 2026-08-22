@@ -11,6 +11,31 @@ describe('setup', () => {
     expect(battleView({ token: 'shared-step' }, NAMES, state, ALICE).setupStep).toBe(2)
   })
 
+  it('records deployment order before the first-turn roll-off', () => {
+    const state = reduceBattle(
+      PLAYERS,
+      log(
+        [ALICE, roster('Alice army')],
+        [BOB, roster('Bob army')],
+        [BOB, { kind: 'set-attacker', attackerId: BOB }],
+        [ALICE, { kind: 'begin-battle', firstPlayerId: ALICE }],
+      ),
+    )
+
+    expect(state).toMatchObject({ attackerId: BOB, firstPlayerId: ALICE, activePlayerId: ALICE })
+  })
+
+  it('clears deployment order when setup is reset', () => {
+    const state = reduceBattle(PLAYERS, log([ALICE, { kind: 'set-attacker', attackerId: BOB }], [ALICE, { kind: 'reset-setup' }]))
+    expect(state.attackerId).toBeNull()
+  })
+
+  it('rejects an attacker who is not seated', () => {
+    expect(validate(reduceBattle(PLAYERS, log()), ALICE, { kind: 'set-attacker', attackerId: CAROL })).toBe(
+      'that attacker is not in this battle',
+    )
+  })
+
   it('lets allies share one turn in a 2v1 battle', () => {
     const configure: Command = {
       kind: 'configure-battle',

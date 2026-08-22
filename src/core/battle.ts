@@ -225,6 +225,7 @@ export type Command =
     }
   | { kind: 'reset-setup' }
   | { kind: 'set-setup-step'; step: number }
+  | { kind: 'set-attacker'; attackerId: PlayerId }
   | { kind: 'attach-roster'; roster: Roster; prep?: BattlePrep | null }
   | ({ kind: 'set-unit'; unitKey: string; destroyed: boolean } & OnBehalfOf)
   | ({ kind: 'wound-unit'; unitKey: string; delta: number } & OnBehalfOf)
@@ -484,7 +485,10 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
       return state.status === 'setup' ? null : 'the battle has started'
     case 'set-setup-step':
       if (state.status !== 'setup') return 'the battle has started'
-      return Number.isInteger(command.step) && command.step >= 0 && command.step <= 4 ? null : 'choose a setup section'
+      return Number.isInteger(command.step) && command.step >= 0 && command.step <= 5 ? null : 'choose a setup section'
+    case 'set-attacker':
+      if (state.status !== 'setup') return 'the battle has started'
+      return state.players.some((candidate) => candidate.id === command.attackerId) ? null : 'that attacker is not in this battle'
     case 'attach-roster': {
       if (state.status === 'finished') return 'the battle is over'
       // Correcting a list mid-battle stays allowed; bringing a different set of cards with it does not.
@@ -718,6 +722,7 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
     }
     case 'reset-setup': {
       state.setupStep = 0
+      state.attackerId = null
       state.deploymentId = null
       state.settings = { ...state.settings, terrainLayoutId: null, twistId: null }
       state.players.forEach(resetPlayer)
@@ -725,6 +730,10 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
     }
     case 'set-setup-step': {
       state.setupStep = command.step
+      return
+    }
+    case 'set-attacker': {
+      state.attackerId = command.attackerId
       return
     }
     case 'attach-roster': {
@@ -838,7 +847,7 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
       state.status = 'playing'
       state.round = 1
       state.firstPlayerId = command.firstPlayerId
-      state.attackerId = command.attackerId ?? command.firstPlayerId
+      state.attackerId = command.attackerId ?? state.attackerId ?? command.firstPlayerId
       state.result = null
       enterTurn(state, command.firstPlayerId, null)
       return

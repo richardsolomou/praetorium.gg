@@ -7,7 +7,7 @@ describe('command schema', () => {
   })
 
   it('rejects a setup section outside the wizard', () => {
-    expect(commandSchema.safeParse({ kind: 'set-setup-step', step: 5 }).success).toBe(false)
+    expect(commandSchema.safeParse({ kind: 'set-setup-step', step: 6 }).success).toBe(false)
   })
 
   it('accepts a player target on a live action', () => {
