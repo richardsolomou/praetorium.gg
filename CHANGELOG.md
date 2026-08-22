@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.18.1
+
+### Patch Changes
+
+- d6f0811: Load roster unit datasheets without expanding the full roster twice.
+
 ## 0.18.0
 
 ### Minor Changes
