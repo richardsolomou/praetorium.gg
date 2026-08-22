@@ -20,7 +20,7 @@ describe('the picker', () => {
   it('keeps generic Adeptus Astartes datasheets off chapter reference pages', () => {
     const shelf = shelfOf(
       {
-        name: 'Space Marines',
+        name: 'Imperium - Adeptus Astartes - Space Marines',
         selectionEntries: [
           {
             id: 'chaplain',
@@ -32,7 +32,7 @@ describe('the picker', () => {
         ],
       },
       {
-        name: 'Black Templars',
+        name: 'Imperium - Adeptus Astartes - Black Templars',
         selectionEntries: [
           {
             id: 'black-templars-chaplain',

@@ -13,6 +13,7 @@ import {
 import { hiddenByRules } from '../core/evaluate'
 import { routeSlug } from '../core/slug'
 import { type FactionContent, loadFactionContents } from './datacards'
+import { factionDisplayName } from './factionNames'
 
 type CatalogueReference = { id: string; name: string; datasheets: number; detachments: number }
 export type DetachmentOptions = { wrapperId: string; groupId: string; options: DetachmentOption[] }
@@ -162,7 +163,7 @@ export const datasheetsOf = (index: CatalogueIndex, catalogueId: string) => inde
  */
 export function isReferenceDatasheet(loaded: LoadedCatalogue, catalogueId: string, entryId: string) {
   if (!datasheetsOf(loaded.index, catalogueId).has(entryId)) return false
-  if (loaded.index.catalogues.get(catalogueId)?.name === 'Space Marines') return true
+  if (factionDisplayName(loaded.index.catalogues.get(catalogueId)?.name ?? '') === 'Space Marines') return true
   const entry = loaded.index.definitions.get(entryId)
   if (!entry) return false
   const target = targetOf(entry, loaded.index.definitions)
