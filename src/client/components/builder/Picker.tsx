@@ -149,9 +149,7 @@ export function Picker({ catalogueId, onAdd, onPreview, inRoster, room, battleSi
                           onPressedChange={(pressed) => own.mutate({ entryId: unit.id, owned: pressed })}
                           className="size-6 shrink-0 p-0"
                         >
-                          <Heart
-                            className={`size-3.5 ${collection.has(unit.id) ? 'fill-azure text-azure' : 'text-faint hover:text-dim'}`}
-                          />
+                          <Heart className={`size-3.5 ${collection.has(unit.id) ? 'fill-rust text-rust' : 'text-faint hover:text-dim'}`} />
                         </Toggle>
                         {unit.points === null ? null : <span className="chip shrink-0 text-info">{unit.points} pts</span>}
                         <Button

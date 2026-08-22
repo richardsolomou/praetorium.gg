@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { createFileRoute, Link } from '@tanstack/react-router'
+import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 import {
   AlertDialog,
@@ -11,20 +11,24 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { Button } from '@/components/ui/button'
+import { Label } from '@/components/ui/label'
 import { CreateRoster } from '../client/components/CreateRoster'
 import { RosterImport } from '../client/components/RosterImport'
 import { RosterExportDialog } from '../client/components/RosterExportDialog'
 import { RosterSetupDialog, type RosterSetup } from '../client/components/RosterSetupDialog'
+import { SearchableSelect, type SearchableGroup } from '../client/components/SearchableSelect'
+import { factionSelectGroups } from '../client/components/builder/factions'
 import { RosterRow } from '../client/components/rosters/RosterRow'
 import { type SavedRoster, useRosterActions } from '../client/components/rosters/rosterLibrary'
 import { readWorkspaceState, writeWorkspaceState } from '../client/components/workspaceState'
 import { SignInRequired } from '../client/components/SignInRequired'
+import { useFavouriteFactions } from '../client/favouriteFactions'
 import { factionsQuery, meQuery, savedRosterPointsQuery, savedRostersQuery } from '../client/queries'
 import { useOrigin } from '../client/useOrigin'
 import { GAME_SIZES } from '../core/battle'
+import { ROSTER_VISIBILITIES, type RosterVisibility } from '../core/savedRoster'
 
-type Search = { limit?: number }
+type Search = { limit?: number; faction?: string; visibility?: RosterVisibility }
 /** An unsaved setup edit, kept per tab so a refresh does not lose it. */
 type EditingSession = { rosterId: string; draft: RosterSetup }
 
@@ -34,7 +38,16 @@ const EDITING_STATE = 'roster-setup'
 export const Route = createFileRoute('/rosters/')({
   validateSearch: (search: Record<string, unknown>): Search => {
     const limit = Number(search.limit)
-    return GAME_SIZES.some((size) => size.limit === limit) ? { limit } : {}
+    const faction = typeof search.faction === 'string' && search.faction.length <= 128 ? search.faction : undefined
+    const visibility =
+      typeof search.visibility === 'string' && ROSTER_VISIBILITIES.includes(search.visibility as RosterVisibility)
+        ? (search.visibility as RosterVisibility)
+        : undefined
+    return {
+      ...(GAME_SIZES.some((size) => size.limit === limit) ? { limit } : {}),
+      ...(faction ? { faction } : {}),
+      ...(visibility ? { visibility } : {}),
+    }
   },
   loader: ({ context }) =>
     Promise.all([
@@ -50,8 +63,38 @@ function RosterLibrary() {
   const { data: saved = [] } = useQuery(savedRostersQuery())
   const { data: prices } = useQuery(savedRosterPointsQuery())
   const { data: available } = useQuery(factionsQuery())
-  const { limit } = Route.useSearch()
-  const shown = limit === undefined ? saved : saved.filter((roster) => roster.limit === limit)
+  const search = Route.useSearch()
+  const navigate = useNavigate()
+  const { favourites } = useFavouriteFactions()
+  const factionSlugById = new Map((available?.factions ?? []).map((faction) => [faction.id, faction.slug]))
+  const selectedFactionId = available?.factions.find((faction) => faction.slug === search.faction)?.id
+  const factionGroups = factionSelectGroups(available?.factions ?? [], favourites).map((group) => ({
+    ...group,
+    items: group.items.map((faction) => ({ ...faction, value: factionSlugById.get(faction.value) ?? faction.value })),
+  }))
+  const battleSizeGroups: SearchableGroup[] = [
+    {
+      label: '',
+      items: [{ label: 'All battle sizes', value: 'all' }, ...GAME_SIZES.map((size) => ({ label: `${size.name} · ${size.limit} points`, value: String(size.limit) }))],
+    },
+  ]
+  const rosterFactionGroups: SearchableGroup[] = [{ label: '', items: [{ label: 'All factions', value: 'all' }] }, ...factionGroups]
+  const sharingGroups: SearchableGroup[] = [
+    {
+      label: '',
+      items: [
+        { label: 'Any sharing status', value: 'all' },
+        { label: 'Private', value: 'private' },
+        { label: 'Unlisted', value: 'unlisted' },
+      ],
+    },
+  ]
+  const shown = saved.filter(
+    (roster) =>
+      (search.limit === undefined || roster.limit === search.limit) &&
+      (search.faction === undefined || roster.catalogueId === selectedFactionId) &&
+      (search.visibility === undefined || roster.visibility === search.visibility),
+  )
 
   const points = new Map((prices ?? []).map((entry) => [entry.id, entry.points]))
 
@@ -90,29 +133,26 @@ function RosterLibrary() {
         </div>
       </div>
 
-      <div className="mt-4 flex flex-wrap items-center gap-1.5" aria-label="Battle size filter">
-        <span className="eyebrow mr-1">Battle size</span>
-        <Button
-          render={<Link to="/rosters" search={{}} />}
-          nativeButton={false}
-          variant="outline"
-          size="xs"
-          className={`chip ${limit === undefined ? 'border-parchment text-parchment' : ''}`}
-        >
-          All
-        </Button>
-        {GAME_SIZES.map((size) => (
-          <Button
-            key={size.limit}
-            render={<Link to="/rosters" search={{ limit: size.limit }} />}
-            nativeButton={false}
-            variant="outline"
-            size="xs"
-            className={`chip ${limit === size.limit ? 'border-parchment text-parchment' : ''}`}
-          >
-            {size.name} · {size.limit}
-          </Button>
-        ))}
+      <div className="mt-4 flex flex-wrap items-end gap-3" aria-label="Roster filters">
+        <RosterCombobox
+          label="Battle size"
+          value={search.limit ? String(search.limit) : 'all'}
+          groups={battleSizeGroups}
+          onChange={(value) => void navigate({ to: '/rosters', search: { ...search, limit: value === 'all' ? undefined : Number(value) } })}
+        />
+        <RosterCombobox
+          label="Faction"
+          value={search.faction ?? 'all'}
+          groups={rosterFactionGroups}
+          className="w-52 max-w-full"
+          onChange={(value) => void navigate({ to: '/rosters', search: { ...search, faction: value === 'all' ? undefined : value } })}
+        />
+        <RosterCombobox
+          label="Sharing"
+          value={search.visibility ?? 'all'}
+          groups={sharingGroups}
+          onChange={(value) => void navigate({ to: '/rosters', search: { ...search, visibility: value === 'all' ? undefined : (value as RosterVisibility) } })}
+        />
       </div>
       {actions.shareProblem ? <p className="mt-3 text-sm text-destructive">Could not copy the link: {actions.shareProblem}</p> : null}
 
@@ -137,7 +177,7 @@ function RosterLibrary() {
             ))
           ) : (
             <p className="border border-edge bg-panel p-8 text-center text-sm text-dim">
-              {saved.length ? 'No rosters at this battle size.' : 'No rosters yet. Create one or bring one from another app.'}
+              {saved.length ? 'No rosters match these filters.' : 'No rosters yet. Create one or bring one from another app.'}
             </p>
           )}
         </div>
@@ -180,5 +220,33 @@ function RosterLibrary() {
       ) : null}
       <RosterExportDialog text={actions.exportText} onClose={actions.clearExport} />
     </main>
+  )
+}
+
+function RosterCombobox({
+  label,
+  value,
+  groups,
+  onChange,
+  className,
+}: {
+  label: string
+  value: string
+  groups: SearchableGroup[]
+  onChange: (value: string) => void
+  className?: string
+}) {
+  return (
+    <div>
+      <Label className="eyebrow block">{label}</Label>
+      <SearchableSelect
+        ariaLabel={label}
+        groups={groups}
+        value={value}
+        onValueChange={onChange}
+        placeholder={label}
+        className={`mt-1 h-9 min-w-40 rounded-none border-edge bg-sunken text-xs font-semibold uppercase ${className ?? ''}`}
+      />
+    </div>
   )
 }

@@ -18,7 +18,11 @@ function factionSummary(loaded: LoadedCatalogue, rules: LoadedRules | null | und
       slug: slugId,
       name: faction.name,
       displayName,
-      icon: rules?.factionIcons?.has(slugId) ? `/api/faction-icons/${slugId}` : null,
+      icon: rules?.factionIcons?.has(slugId)
+        ? process.env.NODE_ENV === 'development'
+          ? (rules.factionIcons.get(slugId) ?? null)
+          : `/api/faction-icons/${slugId}`
+        : null,
       references: faction.references.map((reference) => ({
         ...reference,
         datasheets: content?.datasheets.size ?? reference.datasheets,
