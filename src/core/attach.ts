@@ -23,6 +23,7 @@ const EMPHASISED = /\^\^\*\*(.+?)\*\*\^\^/s
 const GENERIC_SUBSTITUTION =
   /if a character unit from your army with the leader ability can be attached to (?:an?|the) (.+?), it can be attached to this unit instead/gi
 
+const attachmentCache = new WeakMap<CatalogueIndex, WeakMap<Definition, Attachment | null>>()
 const substitutionCache = new WeakMap<CatalogueIndex, ReadonlyMap<string, readonly string[]>>()
 const categoryTargetCache = new WeakMap<CatalogueIndex, readonly string[]>()
 
@@ -37,6 +38,17 @@ const categoryTargetCache = new WeakMap<CatalogueIndex, readonly string[]>()
  * dropped rather than guessed at.
  */
 export function attachmentOf(definition: Definition, index: CatalogueIndex): Attachment | null {
+  const cached = attachmentCache.get(index)
+  if (cached?.has(definition)) return cached.get(definition) ?? null
+
+  const attachment = findAttachment(definition, index)
+  const entries = cached ?? new WeakMap<Definition, Attachment | null>()
+  entries.set(definition, attachment)
+  if (!cached) attachmentCache.set(index, entries)
+  return attachment
+}
+
+function findAttachment(definition: Definition, index: CatalogueIndex): Attachment | null {
   for (const [title, text] of statements(definition, index)) {
     if (!text.toLowerCase().includes(CLAIM)) continue
     const named = names(text)

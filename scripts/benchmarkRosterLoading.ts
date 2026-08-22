@@ -69,7 +69,7 @@ function median(work: () => void, repetitions = 9) {
 
 console.log(`faction=${faction.name} datasheets=${ids.length}`)
 if (process.env.PROFILE) {
-  calculateRosterPrice(input(40))
+  for (let repetition = 0; repetition < 10; repetition += 1) calculateRosterPrice(input(40))
   process.exit(0)
 }
 console.log('units\tprice_ms\tduplicate_datasheets_ms\tshared_datasheets_ms\tspeedup')
