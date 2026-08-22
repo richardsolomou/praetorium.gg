@@ -2,7 +2,8 @@
   "extends": "ras-stack/config/typescript/tanstack",
   "include": ["src", "scripts", "vite.config.ts", "vitest.config.ts", "drizzle.config.ts"],
   "compilerOptions": {
-    "noUncheckedIndexedAccess": false,
+    "noUncheckedIndexedAccess": true,
+    "allowImportingTsExtensions": true,
     "paths": {
       "@/*": ["./src/*"]
     }

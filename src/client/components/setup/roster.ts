@@ -30,7 +30,7 @@ export function battleRoster(saved: SavedRoster, priced: PricedRoster): Roster {
       detachment: priced.detachment,
       detachments: priced.detachments,
       detachmentPointBudget: priced.detachmentPointBudget,
-      disposition: priced.disposition,
+      disposition: priced.disposition ?? null,
       units: priced.units.map((unit, index) => ({
         key: `${index}-${unit.entryId}`,
         name: unit.name,

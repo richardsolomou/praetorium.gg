@@ -92,17 +92,17 @@ describe('naming a payout the source left unstructured', () => {
 
   it('calls the cheaper of two tiers the lower payout', () => {
     const tiers = [bare(3, 'centre-hold'), bare(5, 'centre-hold')]
-    expect(payoutLabel(tiers[0], tiers)).toBe('The lower payout.')
+    expect(payoutLabel(tiers[0]!, tiers)).toBe('The lower payout.')
   })
 
   it('calls the dearer of two tiers the higher payout', () => {
     const tiers = [bare(3, 'centre-hold'), bare(5, 'centre-hold')]
-    expect(payoutLabel(tiers[1], tiers)).toBe('The higher payout.')
+    expect(payoutLabel(tiers[1]!, tiers)).toBe('The higher payout.')
   })
 
   it('points at the card when a payout stands alone', () => {
     const only = [bare(5, null)]
-    expect(payoutLabel(only[0], only)).toBe('As the card describes.')
+    expect(payoutLabel(only[0]!, only)).toBe('As the card describes.')
   })
 
   it('leaves a payout the pack did describe to its own sentence', () => {

@@ -1,7 +1,5 @@
 import { createServerFn } from '@tanstack/react-start'
 import { app } from './app'
-import { configuredProviders } from 'ras-stack/auth'
-import { SOCIAL_PROVIDERS } from '../authConfig'
 import { routeSlug } from '../core/slug'
 import { attachedUnit } from '../core/attach'
 import { buildUnit, type RosterPick } from '../core/roster'
@@ -16,221 +14,18 @@ import { gameReferencesFor } from './gameReferences'
 import { rulesFaction } from './rules'
 import { type GlobalSearchResult, searchEverything } from './globalSearch'
 import { mutationRpc, rpc } from './rpc'
-import { calculateRosterPoints, calculateRosterPrice, rosterDetachments } from './pricing'
-import { exportRosterFile, importRosterFile } from './rosterFiles'
-import { currentUser, currentUserId, requireUser, requireUserId } from './playerSession'
+import { rosterDetachments } from './pricing'
+import { currentUserId } from './playerSession'
 import {
-  createBattleSchema,
-  deleteBattleSchema,
   datasheetSchema,
   datasheetSlugSchema,
   detachmentRulesSchema,
   detachmentDetailSchema,
-  exportRosterSchema,
-  favouriteFactionSchema,
   globalSearchSchema,
-  friendSchema,
-  importRosterSchema,
-  priceSchema,
-  ownedSchema,
-  userSchema,
-  rosterIdSchema,
-  rosterInBattleSchema,
   savedRosterDatasheetSchema,
-  saveRosterSchema,
-  rosterVisibilitySchema,
-  submitSchema,
   terrainReferencesSchema,
-  tokenSchema,
   unitsSchema,
 } from './schemas'
-
-/** Reads answer null for a link that points at nothing, so the route can render a real 404. */
-async function orNull<T>(work: () => Promise<T>) {
-  try {
-    return await work()
-  } catch (error) {
-    if (error instanceof Response && error.status === 404) return null
-    throw error
-  }
-}
-
-function battleLifecycleEvent(kind: string) {
-  if (kind === 'attach-roster') return 'battle_roster_attached'
-  if (kind === 'begin-battle') return 'battle_started'
-  if (kind === 'end-battle') return 'battle_finished'
-  if (kind === 'reopen-battle') return 'battle_reopened'
-  return null
-}
-
-export const me = createServerFn({ method: 'GET' }).handler(() => rpc(() => currentUser()))
-
-export const userProfile = createServerFn({ method: 'GET' })
-  .validator(userSchema)
-  .handler(({ data }) =>
-    rpc(async () => {
-      const viewerId = await currentUserId()
-      return viewerId ? app().service.userProfile(viewerId, data.userId) : null
-    }),
-  )
-
-export const myBattles = createServerFn({ method: 'GET' }).handler(() =>
-  rpc(async () => {
-    const id = await currentUserId()
-    return id ? app().service.battles(id, app().rules()) : []
-  }),
-)
-
-export const opponents = createServerFn({ method: 'GET' }).handler(() =>
-  rpc(async () => {
-    const id = await currentUserId()
-    return id ? app().service.opponents(id) : []
-  }),
-)
-
-export const friendships = createServerFn({ method: 'GET' }).handler(() =>
-  rpc(async () => {
-    const id = await currentUserId()
-    return id ? app().service.friendships(id) : { friends: [], incoming: [], outgoing: [], people: [] }
-  }),
-)
-
-export const requestFriend = createServerFn({ method: 'POST' })
-  .validator(friendSchema)
-  .handler(({ data }) =>
-    mutationRpc(async () => {
-      const userId = await requireUserId()
-      const result = await app().service.requestFriend(userId, data.userId)
-      await app().telemetry.capture(userId, 'friend_request_sent')
-      return result
-    }),
-  )
-
-export const acceptFriend = createServerFn({ method: 'POST' })
-  .validator(friendSchema)
-  .handler(({ data }) =>
-    mutationRpc(async () => {
-      const userId = await requireUserId()
-      const result = await app().service.acceptFriend(userId, data.userId)
-      await app().telemetry.capture(userId, 'friend_request_accepted')
-      return result
-    }),
-  )
-
-export const removeFriend = createServerFn({ method: 'POST' })
-  .validator(friendSchema)
-  .handler(({ data }) =>
-    mutationRpc(async () => {
-      const userId = await requireUserId()
-      const result = await app().service.removeFriend(userId, data.userId)
-      await app().telemetry.capture(userId, 'friendship_removed')
-      return result
-    }),
-  )
-
-export const openBattle = createServerFn({ method: 'GET' })
-  .validator(tokenSchema)
-  .handler(({ data }) =>
-    rpc(async () => {
-      const player = await currentUserId()
-      return orNull(() => app().service.screen(data.token, player, app().rules()))
-    }),
-  )
-
-export const createBattle = createServerFn({ method: 'POST' })
-  .validator(createBattleSchema)
-  .handler(({ data }) =>
-    mutationRpc(async () => {
-      const player = await requireUser()
-      const result = await app().service.createBattle(player.id, data)
-      await app().telemetry.capture(player.id, 'battle_created', { solo: data.solo, limit: data.limit })
-      return result
-    }),
-  )
-
-export const deleteBattle = createServerFn({ method: 'POST' })
-  .validator(deleteBattleSchema)
-  .handler(({ data }) =>
-    mutationRpc(async () => {
-      const player = await requireUser()
-      await app().service.deleteBattle(data.token, player.id)
-      await app().telemetry.capture(player.id, 'battle_deleted')
-      return null
-    }),
-  )
-
-export const joinBattle = createServerFn({ method: 'POST' })
-  .validator(tokenSchema)
-  .handler(({ data }) =>
-    mutationRpc(async () => {
-      const player = await requireUser()
-      const result = await app().service.join(data.token, player.id)
-      await app().telemetry.capture(player.id, 'battle_joined')
-      return result
-    }),
-  )
-
-/**
- * Every change to a battle comes through here. The result is the domain's answer,
- * not an exception: a refusal is something to show the player, and a stale seq is
- * something the answer's own screen already corrects.
- */
-export const submit = createServerFn({ method: 'POST' })
-  .validator(submitSchema)
-  .handler(({ data }) =>
-    mutationRpc(async () => {
-      const player = await requireUser()
-      const startedAt = performance.now()
-      const result = await app().service.submit(data.token, player.id, data.expectedSeq, data.command, app().rules())
-      await app().telemetry.capture(player.id, 'battle_command_submitted', {
-        command: data.command.kind,
-        outcome: result.result.outcome,
-        duration_ms: Math.round(performance.now() - startedAt),
-      })
-      if (result.result.outcome === 'appended') {
-        const lifecycleEvent = battleLifecycleEvent(data.command.kind)
-        if (lifecycleEvent) await app().telemetry.capture(player.id, lifecycleEvent)
-      }
-      return result
-    }),
-  )
-
-/** The datasheets this player owns, so the picker can be asked to show only those. */
-export const collection = createServerFn({ method: 'GET' }).handler(() =>
-  rpc(async () => {
-    const id = await currentUserId()
-    return id ? app().service.collection(id) : []
-  }),
-)
-
-export const setOwned = createServerFn({ method: 'POST' })
-  .validator(ownedSchema)
-  .handler(({ data }) =>
-    mutationRpc(async () => {
-      const player = await requireUser()
-      const result = await app().service.setOwned(player.id, data.entryId, data.owned)
-      await app().telemetry.capture(player.id, 'player_collection_updated', { owned: data.owned })
-      return result
-    }),
-  )
-
-export const favouriteFactions = createServerFn({ method: 'GET' }).handler(() =>
-  rpc(async () => {
-    const id = await currentUserId()
-    return id ? app().service.favouriteFactions(id) : []
-  }),
-)
-
-export const setFavouriteFaction = createServerFn({ method: 'POST' })
-  .validator(favouriteFactionSchema)
-  .handler(({ data }) =>
-    mutationRpc(async () => {
-      const player = await requireUser()
-      await app().service.setFavouriteFaction(player.id, data.catalogueId, data.favourite)
-      await app().telemetry.capture(player.id, 'favourite_faction_updated', { favourite: data.favourite })
-      return null
-    }),
-  )
 
 /** How the community data is doing, so a fresh instance can say so rather than look broken. */
 export const catalogueStatus = createServerFn({ method: 'GET' }).handler(() => rpc(() => app().sync()))
@@ -450,133 +245,6 @@ export const datasheetBySlug = createServerFn({ method: 'GET' })
   )
 
 /**
- * Prices a list in progress and says what is wrong with it.
- *
- * A POST because a list is too big for a query string, and it goes through
- * `mutationRpc` for the origin check even though it changes nothing. Each entry is
- * expanded to the smallest selection the data accepts, and the expansion is
- * returned so the roster that gets attached is exactly the one that was priced.
- */
-export const priceRoster = createServerFn({ method: 'POST' })
-  .validator(priceSchema)
-  .handler(({ data }) =>
-    mutationRpc(async () => {
-      const startedAt = performance.now()
-      const result = calculateRosterPrice(data)
-      const userId = await currentUserId()
-      if (userId && Math.random() < 0.1)
-        await app().telemetry.capture(userId, 'roster_priced', {
-          sample_rate: 0.1,
-          unit_count: data.units.length,
-          duration_ms: Math.round(performance.now() - startedAt),
-          error_count: result?.errors.length ?? 0,
-          unhandled_count: result?.unhandled.length ?? 0,
-        })
-      return result
-    }),
-  )
-
-/** Lists a player keeps between battles. Their own only; unlisted reads use the opaque-id route. */
-export const savedRosters = createServerFn({ method: 'GET' }).handler(() =>
-  rpc(async () => {
-    const id = await currentUserId()
-    return id ? app().service.savedRosters(id) : []
-  }),
-)
-
-/**
- * What every list in the player's library costs, in one answer.
- *
- * A row shows a total and nothing else, so asking for it a list at a time meant a
- * request, a session check and a full pricing per row — and a library of twenty
- * lists opened twenty of them. This is one read, priced in process, and small
- * enough to come down with the page rather than appearing afterwards.
- */
-export const savedRosterPoints = createServerFn({ method: 'GET' }).handler(() =>
-  rpc(async () => {
-    const id = await currentUserId()
-    if (!id) return []
-    const saved = await app().service.savedRosters(id)
-    return saved.map((roster) => ({
-      id: roster.id,
-      points: calculateRosterPoints({
-        catalogueId: roster.catalogueId,
-        detachmentIds: roster.detachmentIds,
-        disposition: roster.disposition,
-        limit: roster.limit,
-        units: roster.picks,
-      }),
-    }))
-  }),
-)
-
-export const sharedRoster = createServerFn({ method: 'GET' })
-  .validator(rosterInBattleSchema)
-  .handler(({ data }) =>
-    rpc(async () => {
-      const userId = await currentUserId()
-      return app().service.sharedRoster(data.id, userId, data.battle ?? null)
-    }),
-  )
-
-/** SSR pricing for a persisted roster: the URL carries only its opaque public id. */
-export const savedRosterPrice = createServerFn({ method: 'GET' })
-  .validator(rosterInBattleSchema)
-  .handler(({ data }) =>
-    rpc(async () => {
-      const userId = await currentUserId()
-      const roster = await app().service.sharedRoster(data.id, userId, data.battle ?? null)
-      return roster
-        ? calculateRosterPrice({
-            catalogueId: roster.catalogueId,
-            detachmentIds: roster.detachmentIds,
-            disposition: roster.disposition,
-            limit: roster.limit,
-            units: roster.picks,
-          })
-        : null
-    }),
-  )
-
-export const saveRoster = createServerFn({ method: 'POST' })
-  .validator(saveRosterSchema)
-  .handler(({ data }) =>
-    mutationRpc(async () => {
-      const player = await requireUser()
-      const result = await app().service.saveRoster(player.id, data)
-      if (!data.id)
-        await app().telemetry.capture(player.id, 'roster_created', {
-          unit_count: data.picks.length,
-          source: data.source,
-          visibility: data.visibility,
-        })
-      return result
-    }),
-  )
-
-export const deleteRoster = createServerFn({ method: 'POST' })
-  .validator(rosterIdSchema)
-  .handler(({ data }) =>
-    mutationRpc(async () => {
-      const player = await requireUser()
-      await app().service.deleteRoster(player.id, data.id)
-      await app().telemetry.capture(player.id, 'roster_deleted')
-      return null
-    }),
-  )
-
-export const setRosterVisibility = createServerFn({ method: 'POST' })
-  .validator(rosterVisibilitySchema)
-  .handler(({ data }) =>
-    mutationRpc(async () => {
-      const player = await requireUser()
-      await app().service.setRosterVisibility(player.id, data.id, data.visibility)
-      await app().telemetry.capture(player.id, 'roster_visibility_updated', { visibility: data.visibility })
-      return null
-    }),
-  )
-
-/**
  * The stratagems a detachment brings and the secondary cards on offer.
  *
  * Null when the rules source has not been synced, so the interface falls back to
@@ -652,11 +320,6 @@ export const terrainReferences = createServerFn({ method: 'GET' })
     }),
   )
 
-/** Fetched only when someone opens the account of the battle, not on every nudge. */
-export const battleReport = createServerFn({ method: 'GET' })
-  .validator(tokenSchema)
-  .handler(({ data }) => rpc(async () => app().service.report(data.token, await requireUserId())))
-
 /**
  * Reads a `.ros`, `.rosz`, BattleBase, or NewRecruit export into picks this instance can price.
  *
@@ -664,40 +327,7 @@ export const battleReport = createServerFn({ method: 'GET' })
  * is the same id here. Anything that cannot be placed is named in the answer rather
  * than dropped quietly.
  */
-export const importRoster = createServerFn({ method: 'POST' })
-  .validator(importRosterSchema)
-  .handler(({ data }) =>
-    mutationRpc(async () => {
-      const loaded = app().catalogue()
-      if (!loaded) throw new Response('this instance has no catalogue', { status: 409 })
-      const result = importRosterFile(data, loaded)
-      const userId = await currentUserId()
-      if (userId) await app().telemetry.capture(userId, 'roster_imported', { unit_count: result.units.length, source: result.source })
-      return result
-    }),
-  )
-
-/** A human-readable GW-style document for the list the builder is showing. */
-export const exportRoster = createServerFn({ method: 'POST' })
-  .validator(exportRosterSchema)
-  .handler(({ data }) =>
-    mutationRpc(async () => {
-      const loaded = app().catalogue()
-      if (!loaded) throw new Response('this instance has no catalogue', { status: 409 })
-
-      const priced = calculateRosterPrice(data)
-      if (!priced) throw new Response('this instance has no catalogue', { status: 409 })
-      const dispositionName = priced.disposition ? (app().rules()?.dispositions.get(priced.disposition) ?? priced.disposition) : null
-      const result = exportRosterFile(data, loaded, priced, dispositionName)
-      const userId = await currentUserId()
-      if (userId) await app().telemetry.capture(userId, 'roster_exported', { unit_count: data.units.length })
-      return result
-    }),
-  )
-
-/** What this instance can actually offer at sign-in, so the page shows only that. */
-export const signInOptions = createServerFn({ method: 'GET' }).handler(() =>
-  rpc(() => ({ providers: configuredProviders(SOCIAL_PROVIDERS) })),
-)
-
+export * from './functions/accounts'
+export * from './functions/battles'
+export * from './functions/rosters'
 export type { GlobalSearchResult }

@@ -220,7 +220,7 @@ function statements(definition: Definition, index: CatalogueIndex): [string, str
 }
 
 function names(text: string): string[] {
-  const bulleted = [...text.matchAll(BULLETED)].map((match) => match[1])
+  const bulleted = [...text.matchAll(BULLETED)].flatMap((match) => (match[1] ? [match[1]] : []))
   if (bulleted.length) return bulleted.map(clean).filter(Boolean)
   const emphasised = EMPHASISED.exec(text.slice(text.toLowerCase().indexOf(CLAIM)))
   if (emphasised?.[1]) return emphasised[1].split(',').map(clean).filter(Boolean)

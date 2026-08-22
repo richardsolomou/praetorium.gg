@@ -139,36 +139,36 @@ describe('a group the whole squad answers at once', () => {
 describe('dividing a group between its options', () => {
   it('fills the spare room before asking a sibling for anything', () => {
     const group = choice([option('blaster', 3, 10), option('carbine', 0, 10)], 5)
-    expect(spreadHandlers(group).more(group.options[1])).toEqual({ carbine: 1 })
+    expect(spreadHandlers(group).more(group.options[1]!)).toEqual({ carbine: 1 })
   })
 
   it('takes from whichever sibling has the most once the group is full', () => {
     const group = choice([option('blaster', 8, 10), option('carbine', 2, 10)], 10)
-    expect(spreadHandlers(group).more(group.options[1])).toEqual({ carbine: 3, blaster: 7 })
+    expect(spreadHandlers(group).more(group.options[1]!)).toEqual({ carbine: 3, blaster: 7 })
   })
 
   it("refuses to exceed an option's own cap", () => {
     const group = choice([option('blaster', 9, 10), option('special', 1, 1)], 10)
-    expect(spreadHandlers(group).more(group.options[1])).toBeNull()
+    expect(spreadHandlers(group).more(group.options[1]!)).toBeNull()
   })
 
   it('hands a freed place to a sibling still under its cap', () => {
     const group = choice([option('blaster', 9, 10), option('special', 1, 1)], 10)
-    expect(spreadHandlers(group).less(group.options[1])).toEqual({ special: 0, blaster: 10 })
+    expect(spreadHandlers(group).less(group.options[1]!)).toEqual({ special: 0, blaster: 10 })
   })
 
   it('refuses to empty an option when no sibling can take its place', () => {
     const group = choice([option('blaster', 9, 9), option('special', 1, 1)], 10)
-    expect(spreadHandlers(group).less(group.options[1])).toBeNull()
+    expect(spreadHandlers(group).less(group.options[1]!)).toBeNull()
   })
 
   it('simply removes one when the group may hold fewer', () => {
     const group = choice([option('blaster', 9, 10), option('special', 1, 1)], 10, true)
-    expect(spreadHandlers(group).less(group.options[1])).toEqual({ special: 0 })
+    expect(spreadHandlers(group).less(group.options[1]!)).toEqual({ special: 0 })
   })
 
   it('has nothing to remove from an empty option', () => {
     const group = choice([option('blaster', 10, 10), option('special', 0, 1)], 10)
-    expect(spreadHandlers(group).less(group.options[1])).toBeNull()
+    expect(spreadHandlers(group).less(group.options[1]!)).toBeNull()
   })
 })

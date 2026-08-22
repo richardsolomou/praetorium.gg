@@ -118,10 +118,11 @@ function pointToSegmentDistance(point: { x: number; y: number }, start: { x: num
 }
 
 export function pointInPolygon(point: { x: number; y: number }, polygon: { x: number; y: number }[]) {
+  if (polygon.length < 3) return false
   let inside = false
   for (let index = 0, previous = polygon.length - 1; index < polygon.length; previous = index, index += 1) {
-    const currentPoint = polygon[index]
-    const previousPoint = polygon[previous]
+    const currentPoint = polygon[index]!
+    const previousPoint = polygon[previous]!
     const crosses =
       currentPoint.y > point.y !== previousPoint.y > point.y &&
       point.x < ((previousPoint.x - currentPoint.x) * (point.y - currentPoint.y)) / (previousPoint.y - currentPoint.y) + currentPoint.x
@@ -234,13 +235,14 @@ export function formatInches(value: number) {
 }
 
 export function polygonCentroid(points: { x: number; y: number }[]) {
+  if (points.length < 3) return { x: 0, y: 0 }
   let signedArea = 0
   let x = 0
   let y = 0
 
   for (let index = 0; index < points.length; index += 1) {
-    const current = points[index]
-    const next = points[(index + 1) % points.length]
+    const current = points[index]!
+    const next = points[(index + 1) % points.length]!
     const cross = current.x * next.y - next.x * current.y
     signedArea += cross
     x += (current.x + next.x) * cross

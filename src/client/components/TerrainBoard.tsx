@@ -29,7 +29,7 @@ export function TerrainBoard({
   layout: { name: string; pieces: TerrainPiece[]; geometry: TerrainGeometry | null }
   templates: TerrainTemplate[]
   deployment?: {
-    zones: { player: string; name: string; colour: string; points: { x: number; y: number }[] }[]
+    zones: { player: string; name: string; points: { x: number; y: number }[] }[]
     objectives: { x: number; y: number }[]
   }
   className?: string
@@ -75,9 +75,7 @@ export function TerrainBoard({
           <polygon
             key={zone.name}
             points={zone.points.map((point) => `${point.x},${point.y}`).join(' ')}
-            fill={zone.colour}
-            fillOpacity=".22"
-            stroke={zone.colour}
+            className={deploymentZoneClass(zone.player)}
             strokeWidth=".25"
           />
         ))}
@@ -104,8 +102,7 @@ export function TerrainBoard({
             <g key={`${objective.x}-${objective.y}`} transform={`translate(${objective.x} ${objective.y})`}>
               <circle
                 r={homeZone ? '1.18' : '1'}
-                className={homeZone ? 'fill-void' : 'fill-void stroke-bone'}
-                stroke={homeZone?.colour}
+                className={homeZone ? `fill-void ${deploymentZoneStroke(homeZone.player)}` : 'fill-void stroke-bone'}
                 strokeWidth=".3"
               />
               {homeZone ? <circle r=".62" fill="none" className="stroke-bone" strokeWidth=".22" /> : null}
@@ -129,7 +126,7 @@ function ExactTerrainGeometry({
   geometry: TerrainGeometry
   detailed: boolean
   flipped: boolean
-  zones: { colour: string; points: { x: number; y: number }[] }[]
+  zones: { player: string; points: { x: number; y: number }[] }[]
 }) {
   return geometry.areas.map((area) => (
     <g key={area.id}>
@@ -177,7 +174,7 @@ function ExactTerrainGeometry({
         <ObjectiveTerrainMarker
           position={objectiveTerrainMarkerPosition(area)}
           counterRotation={flipped ? -90 : 90}
-          homeColour={zones.find((zone) => pointInPolygon(objectiveTerrainMarkerPosition(area), zone.points))?.colour}
+          homePlayer={zones.find((zone) => pointInPolygon(objectiveTerrainMarkerPosition(area), zone.points))?.player}
         />
       ) : null}
     </g>
@@ -187,19 +184,18 @@ function ExactTerrainGeometry({
 function ObjectiveTerrainMarker({
   position,
   counterRotation,
-  homeColour,
+  homePlayer,
 }: {
   position: { x: number; y: number }
   counterRotation: number
-  homeColour?: string
+  homePlayer?: string
 }) {
   return (
     <g transform={`translate(${position.x} ${position.y}) rotate(${counterRotation})`}>
       <circle
         r="1.08"
-        className={homeColour ? 'fill-raised' : 'fill-raised stroke-bone'}
-        stroke={homeColour}
-        strokeWidth={homeColour ? '.28' : '.18'}
+        className={homePlayer ? `fill-raised ${deploymentZoneStroke(homePlayer)}` : 'fill-raised stroke-bone'}
+        strokeWidth={homePlayer ? '.28' : '.18'}
       />
       <circle r=".54" fill="none" className="stroke-bone" strokeWidth=".14" />
       <circle r=".16" className="fill-bone" />
@@ -210,6 +206,18 @@ function ObjectiveTerrainMarker({
       <title>Objective terrain</title>
     </g>
   )
+}
+
+export function deploymentZoneClass(player: string) {
+  if (player === 'attacker') return 'fill-side-a/20 stroke-side-a'
+  if (player === 'defender') return 'fill-side-b/20 stroke-side-b'
+  return 'fill-parchment/20 stroke-parchment'
+}
+
+function deploymentZoneStroke(player: string) {
+  if (player === 'attacker') return 'stroke-side-a'
+  if (player === 'defender') return 'stroke-side-b'
+  return 'stroke-parchment'
 }
 
 function TerrainMeasurements({ geometry, flipped, arrowId }: { geometry: TerrainGeometry; flipped: boolean; arrowId: string }) {

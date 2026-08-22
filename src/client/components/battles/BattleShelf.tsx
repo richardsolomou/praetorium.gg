@@ -51,7 +51,7 @@ export function BattleShelf({
                 <Link
                   to="/battles/$token"
                   params={{ token: battle.token }}
-                  className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 p-3"
+                  className="grid min-w-0 flex-1 grid-cols-2 items-center gap-x-3 gap-y-2 p-3 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:gap-3"
                 >
                   <BattleSide
                     player={battle.players[0]}
@@ -60,7 +60,7 @@ export function BattleShelf({
                     score={battle.scores[0]}
                     side="a"
                   />
-                  <span className="text-center">
+                  <span className="col-span-2 row-start-1 border-b border-edge pb-2 text-center sm:col-span-1 sm:col-start-2 sm:row-start-auto sm:border-0 sm:pb-0">
                     <span className="eyebrow block">{battle.status === 'playing' ? `Round ${battle.round}` : battle.status}</span>
                     <span className="block text-xs text-dim">
                       {battle.status === 'playing' ? `${battle.phase} phase · ` : ''}

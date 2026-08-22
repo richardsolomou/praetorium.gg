@@ -8,6 +8,7 @@ import barlow700 from '@fontsource/barlow-semi-condensed/files/barlow-semi-conde
 import rules400 from '@fontsource/barlow/files/barlow-latin-400-normal.woff2?url'
 import rules600 from '@fontsource/barlow/files/barlow-latin-600-normal.woff2?url'
 import { Button } from '@/components/ui/button'
+import { TooltipProvider } from '@/components/ui/tooltip'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,13 +18,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { CircleUserRound, LogIn, LogOut, Menu, ScrollText, Swords, UserRoundPen, X } from 'lucide-react'
+import { CircleUserRound, LogIn, LogOut, Menu, ScrollText, Swords, UserRoundPen, Users, X } from 'lucide-react'
 import { postHogEnvironment } from 'ras-stack/posthog'
 import { PostHogBetterAuthIdentity, PostHogIntegration } from 'ras-stack/posthog/react'
 import { useEffect, useRef, useState } from 'react'
 import { authClient } from '../client/authClient'
 import { GlobalSearch } from '../client/components/GlobalSearch'
 import { PlayerAvatar } from '../client/components/PlayerAvatar'
+import { PageState } from '../client/components/PageState'
 import { favouriteFactionsQuery, meQuery } from '../client/queries'
 import { POSTHOG_INGEST_PATH } from '../posthog'
 import appCss from '../styles.css?url'
@@ -67,9 +69,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   }),
   component: RootComponent,
   notFoundComponent: () => (
-    <main className="mx-auto mt-[15vh] max-w-md px-6 text-center">
-      <h1 className="text-2xl">Nothing here</h1>
-      <p className="mt-2 text-dim">Check the link you were sent.</p>
+    <main className="flex w-full">
+      <PageState
+        className="flex-1 border-x-0 border-t-0"
+        eyebrow="404"
+        title="Nothing here"
+        explanation="This page does not exist or its current data is unavailable. Check the link and try again."
+      />
     </main>
   ),
 })
@@ -111,6 +117,9 @@ function Account() {
             </DropdownMenuItem>
             <DropdownMenuItem render={<Link to="/rosters" />}>
               <ScrollText /> My rosters
+            </DropdownMenuItem>
+            <DropdownMenuItem render={<Link to="/friends" />}>
+              <Users /> Friends
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
@@ -197,13 +206,6 @@ function PrimaryNavigation({ path }: { path: string }) {
           Rosters
         </Link>
         <Link
-          to="/friends"
-          className={linkClass}
-          activeProps={{ className: 'border-parchment bg-raised text-parchment min-[815px]:bg-transparent' }}
-        >
-          Friends
-        </Link>
-        <Link
           to="/factions"
           className={linkClass}
           activeProps={{ className: 'border-parchment bg-raised text-parchment min-[815px]:bg-transparent' }}
@@ -236,42 +238,44 @@ function RootComponent() {
           ingestPath={POSTHOG_INGEST_PATH}
           options={{ capture_exceptions: true, capture_performance: true }}
         >
-          {posthog && <PostHogBetterAuthIdentity authClient={authClient} />}
-          {/*
-           * The bar spans the window and the page inside it decides its own width,
-           * because a three-column builder and a sign-in form do not want the same
-           * measure. Nothing here is centred on the page's behalf.
-           */}
-          <div className={`flex flex-col ${immersive ? 'h-dvh' : 'min-h-dvh'}`}>
-            <header className="sticky top-0 z-30 border-b border-edge bg-panel/95 backdrop-blur">
-              <div className="flex h-12 items-center gap-2 px-2 sm:px-4 min-[815px]:gap-3 min-[900px]:gap-5">
-                <Link
-                  to="/"
-                  className="group flex shrink-0 items-center gap-1.5 text-base leading-none font-bold tracking-[0.02em] text-bone uppercase hover:text-info sm:text-lg"
-                >
-                  <img src="/logo.svg" alt="" className="size-7 transition-transform group-hover:rotate-180" />
-                  <span className="min-[815px]:hidden min-[900px]:inline">Praetorium</span>
-                </Link>
-                <PrimaryNavigation path={path} />
-                <GlobalSearch />
-                <Account />
-              </div>
-            </header>
-            <div className={immersive ? 'h-[calc(100dvh-3rem)] min-h-0' : 'min-h-0 flex-1'}>
-              <Outlet />
-            </div>
+          <TooltipProvider delay={250} closeDelay={100}>
+            {posthog && <PostHogBetterAuthIdentity authClient={authClient} />}
             {/*
-             * Said plainly and on every page, because the name is drawn from Games
-             * Workshop's setting and nothing about this is theirs or endorsed by them.
-             * The community data has its own attribution, which appears where that
-             * data does — see `ATTRIBUTION` in `src/server/rules.ts`.
+             * The bar spans the window and the page inside it decides its own width,
+             * because a three-column builder and a sign-in form do not want the same
+             * measure. Nothing here is centred on the page's behalf.
              */}
-            {immersive ? null : (
-              <footer className="border-t border-edge px-4 py-4 text-center text-xs text-faint">
-                Praetorium is an unofficial product, and is not in any way affiliated with or endorsed by Games Workshop.
-              </footer>
-            )}
-          </div>
+            <div className={`flex flex-col ${immersive ? 'h-dvh' : 'min-h-dvh'}`}>
+              <header className="sticky top-0 z-30 border-b border-edge bg-panel/95 backdrop-blur">
+                <div className="flex h-12 items-center gap-2 px-2 sm:px-4 min-[815px]:gap-3 min-[900px]:gap-5">
+                  <Link
+                    to="/"
+                    className="group flex shrink-0 items-center gap-1.5 text-base leading-none font-bold tracking-[0.02em] text-bone uppercase hover:text-info sm:text-lg"
+                  >
+                    <img src="/logo.svg" alt="" className="size-7 transition-transform group-hover:rotate-180" />
+                    <span className="min-[815px]:hidden min-[900px]:inline">Praetorium</span>
+                  </Link>
+                  <PrimaryNavigation path={path} />
+                  <GlobalSearch />
+                  <Account />
+                </div>
+              </header>
+              <div className={immersive ? 'h-[calc(100dvh-3rem)] min-h-0' : 'flex min-h-0 flex-1 flex-col [&>main]:flex-1'}>
+                <Outlet />
+              </div>
+              {/*
+               * Said plainly and on every page, because the name is drawn from Games
+               * Workshop's setting and nothing about this is theirs or endorsed by them.
+               * The community data has its own attribution, which appears where that
+               * data does — see `ATTRIBUTION` in `src/server/rules.ts`.
+               */}
+              {immersive ? null : (
+                <footer className="border-t border-edge px-4 py-4 text-center text-xs text-faint">
+                  Praetorium is an unofficial product, and is not in any way affiliated with or endorsed by Games Workshop.
+                </footer>
+              )}
+            </div>
+          </TooltipProvider>
         </PostHogIntegration>
         <Scripts />
       </body>

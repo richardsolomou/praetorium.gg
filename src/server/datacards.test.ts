@@ -67,7 +67,36 @@ it('indexes the faction-owned datasheets and detachments', () => {
       ],
     ]),
     detachments: new Set(['Inner Circle Task Force', 'Unforgiven Task Force']),
+    armyRules: [],
   })
+})
+
+it('reads every structured army rule', () => {
+  directory = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-datacards-'))
+  fs.writeFileSync(
+    path.join(directory, 'custodes.json'),
+    JSON.stringify({
+      name: 'Adeptus Custodes',
+      datasheets: [],
+      detachments: [],
+      rules: {
+        army: [
+          {
+            name: { en: 'Martial Ka’tah' },
+            rules: [
+              { order: 2, type: 'header', text: { en: 'Rendax Stance' } },
+              { order: 1, type: 'text', text: { en: 'Select a stance.' } },
+              { order: 3, type: 'text', text: { en: 'Weapons gain **[LETHAL HITS]**.' } },
+            ],
+          },
+        ],
+      },
+    }),
+  )
+
+  expect(loadFactionContents(directory).get('adeptus-custodes')?.armyRules).toEqual([
+    { name: 'Martial Ka’tah', description: 'Select a stance.\n\n### Rendax Stance\n\nWeapons gain **[LETHAL HITS]**.' },
+  ])
 })
 
 it('adds dimensions to named flying bases', () => {

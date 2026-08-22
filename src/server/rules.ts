@@ -50,6 +50,8 @@ export type LoadedRules = {
   factionNames: Map<string, string>
   factionIcons: Map<string, string>
   factionRules: Map<string, { name: string; description: string }>
+  /** Army-rule cards parsed from optional live faction pages, keyed by page slug. */
+  factionRuleCards: ReadonlyMap<string, readonly { name: string; description: string }[]>
   /** Stratagems every army has, offered alongside whatever the detachment brings. */
   core: Stratagem[]
   secondaries: MissionCard[]
@@ -110,6 +112,7 @@ export function loadRules(
     factionNames: factions.factionNames,
     factionIcons: factions.factionIcons,
     factionRules: factions.factionRules,
+    factionRuleCards: wahapedia?.armyRules ?? new Map(),
     core: cards.core,
     secondaries: cards.secondaries,
     primaries: cards.primaries,

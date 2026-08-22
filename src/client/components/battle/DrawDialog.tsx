@@ -65,7 +65,7 @@ export function DrawDialog({ side, round, undoable, initiallyPaused, pending, se
   // either effect runs, and both would read the same tally and ask the deck twice.
   useEffect(() => {
     if (paused) return
-    const card = nextDraw(side.secondaries, asked.current, shuffled(side.remainingSecondaries))
+    const card = nextDraw(side.secondaries, asked.current, side.remainingSecondaries)
     if (!card) return
     asked.current.add(card.key)
     send({ kind: 'draw-secondary', secondary: card })
@@ -159,16 +159,4 @@ function redrawOffer(rule: WhenDrawn | undefined, round: number, held: readonly 
     return held.some((card) => rule.heldCards.includes(card.key)) ? 'You may put this back while you hold the card it pairs with.' : null
   }
   return rule.condition ? `You may put this back if ${rule.condition}.` : null
-}
-
-/** The deck in a random order, so the card that comes off it is not the one at the top. */
-function shuffled<T>(deck: readonly T[]): T[] {
-  const cards = [...deck]
-  const draws = new Uint32Array(cards.length)
-  crypto.getRandomValues(draws)
-  for (let at = cards.length - 1; at > 0; at -= 1) {
-    const swap = (draws[at] ?? 0) % (at + 1)
-    ;[cards[at], cards[swap]] = [cards[swap], cards[at]]
-  }
-  return cards
 }

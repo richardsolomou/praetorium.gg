@@ -217,7 +217,7 @@ function UnitActions({
         <Copy className="size-3.5" /> Duplicate unit
       </Item>
       <Checkbox className={ITEM} checked={owned} onCheckedChange={onOwned}>
-        <Heart className={`size-3.5 ${owned ? 'fill-azure text-azure' : ''}`} />
+        <Heart className={`size-3.5 ${owned ? 'fill-rust text-rust' : ''}`} />
         {owned ? 'Remove from collection' : 'Add to collection'}
       </Checkbox>
       <Item variant="destructive" className="rounded-none text-xs font-semibold uppercase" onClick={onRemove}>

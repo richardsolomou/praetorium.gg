@@ -16,6 +16,9 @@ type UnitSummary = {
   alliedFaction: string | null
 }
 
+/** Derived from one immutable catalogue snapshot. Search filters this list in memory. */
+const unitSummaryCache = new WeakMap<LoadedCatalogue, Map<string, UnitSummary[]>>()
+
 const GROUP_BY_CATEGORY = new Map<string, UnitGroup>([
   ['epic hero', 'epic-hero'],
   ['character', 'character'],
@@ -71,6 +74,12 @@ export function unitsIn(
   { restrictions, includeNames }: { restrictions?: FactionRestrictions; includeNames?: ReadonlySet<string> } = {},
 ): UnitSummary[] {
   const wanted = query.trim().toLowerCase()
+  // Faction reference pages use one canonical name set. Cache that complete,
+  // priced list so each search does not rebuild every datasheet in the faction.
+  const cacheable = restrictions === undefined
+  const cacheKey = `${catalogueId}:${includeNames ? 'included' : 'all'}`
+  const cached = cacheable ? unitSummaryCache.get(loaded)?.get(cacheKey) : undefined
+  if (cached) return wanted ? cached.filter((unit) => unit.name.toLowerCase().includes(wanted)) : cached
   const found: { id: string; name: string; group: UnitGroup; alliedFaction: string | null; alliedOrder: number }[] = []
   const allied = loaded.index.alliedDatasheets.get(catalogueId) ?? new Map<string, { name: string; order: number }>()
 
@@ -88,7 +97,7 @@ export function unitsIn(
     // the suffix even though they are not matched-play roster choices.
     const ally = allied.get(id)
     if (ally?.name === 'Unaligned Forces') continue
-    if (wanted && !name.toLowerCase().includes(wanted)) continue
+    if (!cacheable && wanted && !name.toLowerCase().includes(wanted)) continue
     found.push({ id, name, group: groupOf(entry, target), alliedFaction: ally?.name ?? null, alliedOrder: ally?.order ?? -1 })
   }
 
@@ -96,7 +105,7 @@ export function unitsIn(
   const allies = found
     .filter((unit) => unit.alliedFaction)
     .toSorted((left, right) => left.alliedOrder - right.alliedOrder || left.name.localeCompare(right.name))
-  return [...primary, ...allies].map((unit) => ({
+  const summaries = [...primary, ...allies].map((unit) => ({
     id: unit.id,
     slug: datasheetSlug(loaded, catalogueId, unit.id),
     name: unit.name,
@@ -106,6 +115,12 @@ export function unitsIn(
     points: priceOf(loaded, catalogueId, unit.id),
     limit: limitOf(loaded, catalogueId, unit.id),
   }))
+  if (cacheable) {
+    const entries = unitSummaryCache.get(loaded) ?? new Map<string, UnitSummary[]>()
+    entries.set(cacheKey, summaries)
+    unitSummaryCache.set(loaded, entries)
+  }
+  return wanted ? summaries.filter((unit) => unit.name.toLowerCase().includes(wanted)) : summaries
 }
 
 const restricted = (name: string, keywords: readonly string[], restrictions?: FactionRestrictions) =>

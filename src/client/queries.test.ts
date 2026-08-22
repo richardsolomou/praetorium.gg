@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { loadoutDatasheetsQuery, newestBattleScreen } from './queries'
+import { gameReferencesRefreshInterval, loadoutDatasheetsQuery, newestBattleScreen } from './queries'
 
 describe('battle query ordering', () => {
   it('keeps the newer cached battle when an older refetch finishes late', () => {
@@ -30,5 +30,12 @@ describe('roster datasheet queries', () => {
     const query = loadoutDatasheetsQuery('catalogue', 'unit', ['detachment'], picks, 0)
 
     expect(query.queryKey).toEqual(['loadout-datasheets', 'catalogue', 'unit', ['detachment'], picks, 0])
+  })
+})
+
+describe('game reference queries', () => {
+  it('retries while startup data is unavailable', () => {
+    expect(gameReferencesRefreshInterval(null)).toBe(1_000)
+    expect(gameReferencesRefreshInterval({ packs: [] })).toBe(false)
   })
 })

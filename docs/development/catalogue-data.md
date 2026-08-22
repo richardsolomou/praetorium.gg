@@ -1,6 +1,6 @@
 # Catalogue data
 
-Praetorium builds and validates rosters from fetched community data. The domain code stays in `src/core`; loading and search stay in `src/server`.
+Praetorium builds and validates rosters from community data. Domain code stays in `src/core`. Loading and search stay in `src/server`.
 
 ## Sources and loading
 
@@ -10,8 +10,9 @@ Praetorium builds and validates rosters from fetched community data. The domain 
 - `catalogue-data/` contains fetched data and is gitignored. Do not commit game data or copied rules text.
 - An hourly automation checks upstream revisions and publishes a complete immutable snapshot. It replaces the remote `current.json` pointer only after reading and verifying the published archive.
 - Running instances check that pointer hourly, download a changed snapshot from the shared store, and swap it into place atomically. They never contact an upstream data provider.
+- Community-data requests have a per-attempt timeout and retry only transient network failures, timeouts, rate limits, and server errors. Checksums and invalid data fail immediately.
 - `src/server/sync.ts` fetches upstream data only for the snapshot publisher. `src/server/catalogueSnapshot.ts` owns packing, verification, and instance downloads.
-- Repository sources extract only their configured subpath. Archive size, output size, paths, and non-empty contents are checked before replacement.
+- Repository sources extract only their configured path. The sync checks archive size, output size, paths, and required contents before replacement.
 - Each download uses a staging directory. It replaces the current source only after the download finishes and its revision or hashes match.
 - Optional description exports still refresh when the authoritative sources are current. Live faction pages are best-effort additions and do not make the verified exports unavailable.
 - Battlemaster supplies the exact terrain footprints, labels, and setup measurements. A layout without its pinned geometry remains visible as unavailable, cannot be selected, and cannot start a battle.
@@ -48,6 +49,8 @@ Core catalogue code is split by question:
 - `isDatasheetId` can fall back to any synced book when an imported roster names an unavailable catalogue.
 - A book's own detachments take priority. A book without detachments uses the detachments from the book that contributes most of its roster.
 - Key the rules dataset by its faction directory and by every alias that directory declares. The catalogues call the Adeptus Astartes book Space Marines, and a lookup by the name a player sees must still find its detachment points and stratagems.
+- Read every structured army rule from Game Datacards. Use the rules dataset only when that faction has no Game Datacards rule.
+- Show only detachments named by Game Datacards or the rules dataset. A catalogue import does not make another faction's detachments its own, and a detachment without reference detail must not link to a missing page.
 - A detachment's stratagems are the union of the ids it names and the records filed under it. The dataset writes a shared stratagem down once and the other detachments reach it by id only; a card reached both ways is kept once, as the copy filed under this detachment.
 - Legends datasheets are not legal roster choices and are never returned by the picker.
 - A detachment has a wrapper, a group, and its choices. Any layer can be inline or linked. Match wrapper names by the `Detachment` prefix.
@@ -84,7 +87,7 @@ Core catalogue code is split by question:
 - Parse prose-only army exclusions into typed faction restrictions. Roster legality and picker visibility consume the same restrictions; `just points` fails when a named exclusion in the synced rules was not captured.
 - Treat conditional modifiers targeting the catalogue `error` field as legality errors. These carry cross-unit and loadout restrictions that cannot be represented as numeric constraints.
 - Read available choices from the datasheet definition, not only from the built selection. Optional groups are absent from the default selection.
-- A group with a cap shares it between its occupants; a group without one does not make them compete, so the optional occupants beside required ones are bounded by their own maxima added up. A tank may carry its hunter-killer missile, its multi-melta and its storm bolter at once.
+- A capped group shares its cap between occupants. In an uncapped group, each occupant uses its own maximum. Optional equipment does not compete without a group cap.
 - A lone optional upgrade is written without a group to hold it. Report one hung directly on a unit or a model as its own choice, and not when it sits inside a group, where its siblings already report it. Its key names the entry rather than a group, so `withChoice` counts it instead of placing anything inside it.
 - A datasheet's Warlord entry is a toggle, never a wargear choice. `isRosterToggle` is the one place that decides which is which.
 - Read the Warlord entry through the same visibility as the loadout choices. Who may be nominated is conditional in the data — on a detachment for a tank, on the primary catalogue for a borrowed datasheet — and walking past those conditions offers the crown to units that may not hold it.
@@ -106,6 +109,7 @@ Inspect the generated selection before changing evaluator logic. A mismatch can 
 ## Picker and attachments
 
 - Price picker rows with `buildUnit`, using the same inputs as the roster. Offer the whole book: results are sorted by name, so a cap ends the list mid-alphabet and hides datasheets a search still finds.
+- Cache each complete faction summary against its immutable catalogue snapshot. Filter that summary for reference-page searches instead of repricing every datasheet.
 - Keep datasheets from secondary imported books in source-labelled allied sections after the primary picker page so players can include or hide them together.
 - Character attachment targets come from ability text. `attachmentOf` supports bullet-list and inline formats.
 - A missing attachment rule means the unit cannot attach.

@@ -10,6 +10,7 @@ import {
   type WahapediaSource,
 } from './catalogueSources'
 import { SUPPLEMENTAL_FACTION_ICONS } from './factionIconSources'
+import { fetchWithRetry } from './fetch'
 
 /**
  * Fetching the community data an instance needs, without anybody running a script.
@@ -139,7 +140,7 @@ async function syncFactionIcons(directory: string, report: (message: string) => 
     if (url.hostname !== 'cdn.jsdelivr.net' || !url.pathname.includes('/gh/Certseeds/wh40k-icon@')) {
       throw new Error(`untrusted faction icon for ${faction.id}`)
     }
-    const response = await fetch(url)
+    const response = await fetchWithRetry(url)
     if (!response.ok) throw new Error(`${faction.id} icon answered ${response.status}`)
     const bytes = new Uint8Array(await response.arrayBuffer())
     if (bytes.length > MAX_FACTION_ICON_BYTES) throw new Error(`${faction.id} icon exceeds ${MAX_FACTION_ICON_BYTES} bytes`)
@@ -196,7 +197,7 @@ async function fetchBattlemasterInto(source: BattlemasterSource, target: string)
   catalogUrl.searchParams.set('owner', source.owner)
   catalogUrl.searchParams.set('missionPack', source.missionPack)
   catalogUrl.searchParams.set('text', '0')
-  const response = await fetch(catalogUrl)
+  const response = await fetchWithRetry(catalogUrl)
   if (!response.ok) throw new Error(`catalog answered ${response.status}`)
   const catalog = (await response.json()) as BattlemasterCatalog
   if (!catalog.catalogKey || !catalog.layouts?.length) throw new Error('catalog is empty')
@@ -215,7 +216,7 @@ async function fetchBattlemasterInto(source: BattlemasterSource, target: string)
     const detailUrl = new URL(`/v1/public/data/layouts/${entry.owner}/${entry.id}`, source.baseUrl)
     // Deliberately sequential: the public API and small production instances should
     // not absorb a 45-request burst for data that changes only when the pin moves.
-    const detailResponse = await fetch(detailUrl)
+    const detailResponse = await fetchWithRetry(detailUrl)
     if (!detailResponse.ok) throw new Error(`${entry.id} answered ${detailResponse.status}`)
     const bytes = new Uint8Array(await detailResponse.arrayBuffer())
     if (bytes.length > MAX_BATTLEMASTER_FILE_BYTES) throw new Error(`${entry.id} exceeds ${MAX_BATTLEMASTER_FILE_BYTES} bytes`)
@@ -281,7 +282,7 @@ async function fetchWahapediaInto(source: WahapediaSource, target: string) {
   const unavailable: string[] = []
   for (const [name, expected] of Object.entries(source.files)) {
     try {
-      const response = await fetch(`${source.baseUrl}/${name}`)
+      const response = await fetchWithRetry(`${source.baseUrl}/${name}`)
       if (!response.ok) throw new Error(`answered ${response.status}`)
       const bytes = new Uint8Array(await response.arrayBuffer())
       if (bytes.length > MAX_EXPORT_BYTES) throw new Error(`exceeds ${MAX_EXPORT_BYTES} bytes`)
@@ -302,7 +303,7 @@ async function fetchWahapediaInto(source: WahapediaSource, target: string) {
   fs.mkdirSync(pages)
   for (const [name, expected] of Object.entries(source.pages)) {
     try {
-      const response = await fetch(`${source.baseUrl}/factions/${name}/`)
+      const response = await fetchWithRetry(`${source.baseUrl}/factions/${name}/`)
       if (!response.ok) throw new Error(`answered ${response.status}`)
       const bytes = new Uint8Array(await response.arrayBuffer())
       if (bytes.length > MAX_EXPORT_BYTES) throw new Error(`exceeds ${MAX_EXPORT_BYTES} bytes`)
@@ -325,7 +326,7 @@ async function fetchWahapediaInto(source: WahapediaSource, target: string) {
 }
 
 async function fetchInto(repository: string, revision: string, target: string, sourcePath?: string) {
-  const response = await fetch(`https://codeload.github.com/${repository}/zip/${revision}`)
+  const response = await fetchWithRetry(`https://codeload.github.com/${repository}/zip/${revision}`)
   if (!response.ok) throw new Error(`${repository} answered ${response.status}`)
 
   const compressed = new Uint8Array(await response.arrayBuffer())

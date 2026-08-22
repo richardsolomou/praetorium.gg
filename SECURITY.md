@@ -4,9 +4,9 @@
 
 Do not open a public issue for an unpatched vulnerability.
 
-Use GitHub private vulnerability reporting. If it is unavailable, open an issue that asks for a private contact method. Do not include vulnerability details in that issue.
+Use GitHub private vulnerability reporting. If it is unavailable, request a private contact method in a public issue. Do not include vulnerability details.
 
-Include the affected version or commit, reproduction steps, impact, and known workarounds in the private report.
+Include the affected version or commit. Include reproduction steps, impact, and known workarounds.
 
 ## Supported versions
 
