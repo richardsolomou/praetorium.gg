@@ -60,6 +60,7 @@ export type BattleView = {
     cpGained: number
     cpSpent: number
     cpByRound: number[]
+    canGainCp: boolean
     primary: number
     secondary: number
     total: number
@@ -152,6 +153,7 @@ export function battleView(
         cpGained: resources.cpGained,
         cpSpent: resources.cpSpent,
         cpByRound: resources.cpByRound,
+        canGainCp: (resources.bonusCpByRound[state.round - 1] ?? 0) < 1,
         primary: resources.primary,
         secondary: resources.secondary,
         total: resources.primary + resources.secondary + (state.status === 'finished' && player.painted ? PAINTED_ARMY_POINTS : 0),

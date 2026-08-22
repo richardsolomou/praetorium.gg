@@ -273,6 +273,8 @@ export type PlayerState = {
   cpGained: number
   cpSpent: number
   cpByRound: number[]
+  /** Additional rules-limited gains, excluding the command-phase grant and corrections. */
+  bonusCpByRound: number[]
   primary: number
   secondary: number
   roster: Roster | null
@@ -434,6 +436,7 @@ export function emptyBattle(playerIds: readonly PlayerId[], playerSides?: readon
       cpGained: 0,
       cpSpent: 0,
       cpByRound: Array(BATTLE_ROUNDS).fill(0),
+      bonusCpByRound: Array(BATTLE_ROUNDS).fill(0),
       primary: 0,
       secondary: 0,
       roster: null,
@@ -532,6 +535,9 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
       if (state.status !== 'playing') return 'the battle is not running'
       if (!Number.isInteger(command.delta) || command.delta === 0) return 'command points move in whole steps'
       if (player.cp + command.delta < 0) return 'not enough command points'
+      if (command.delta > 0 && (player.bonusCpByRound[state.round - 1] ?? 0) + command.delta > 1) {
+        return 'a side can gain at most 1 additional command point per battle round'
+      }
       return null
     }
     case 'score': {
@@ -854,8 +860,10 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
     }
     case 'adjust-cp': {
       player.cp += command.delta
-      if (command.delta > 0) player.cpGained += command.delta
-      else player.cpSpent += Math.abs(command.delta)
+      if (command.delta > 0) {
+        player.cpGained += command.delta
+        player.bonusCpByRound[state.round - 1] = (player.bonusCpByRound[state.round - 1] ?? 0) + command.delta
+      } else player.cpSpent += Math.abs(command.delta)
       player.cpByRound[state.round - 1] = player.cp
       return
     }
@@ -951,6 +959,7 @@ function resetPlayer(player: PlayerState) {
   player.cpGained = 0
   player.cpSpent = 0
   player.cpByRound = Array(BATTLE_ROUNDS).fill(0)
+  player.bonusCpByRound = Array(BATTLE_ROUNDS).fill(0)
   player.primary = 0
   player.secondary = 0
   player.roster = null

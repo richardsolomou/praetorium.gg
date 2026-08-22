@@ -81,7 +81,7 @@ describe('setup', () => {
         [BOB, roster('Marines')],
         [CAROL, roster('Guard')],
         [ALICE, { kind: 'begin-battle', firstPlayerId: BOB }],
-        [CAROL, { kind: 'adjust-cp', delta: 2 }],
+        [CAROL, { kind: 'adjust-cp', delta: 1 }],
       ),
       [0, 1, 1],
     )
@@ -89,9 +89,12 @@ describe('setup', () => {
 
     expect(view.players.map((player) => ({ name: player.roster?.name, cp: player.cp }))).toEqual([
       { name: 'Knights', cp: 0 },
-      { name: 'Marines', cp: 3 },
-      { name: 'Guard', cp: 3 },
+      { name: 'Marines', cp: 2 },
+      { name: 'Guard', cp: 2 },
     ])
+    expect(validate(state, BOB, { kind: 'adjust-cp', delta: 1 })).toBe(
+      'a side can gain at most 1 additional command point per battle round',
+    )
   })
 
   it('limits King of the Colosseum to one detachment', () => {
@@ -720,12 +723,52 @@ describe('command points', () => {
   })
 
   it('can be changed by another participant on the player’s behalf', () => {
-    const command: Command = { kind: 'adjust-cp', delta: 2, playerId: ALICE }
+    const command: Command = { kind: 'adjust-cp', delta: 1, playerId: ALICE }
     const state = reduceBattle(PLAYERS, log(...started(), [BOB, command]))
 
     expect(validate(reduceBattle(PLAYERS, log(...started())), BOB, command)).toBeNull()
-    expect(state.players.find((player) => player.id === ALICE)?.cp).toBe(3)
+    expect(state.players.find((player) => player.id === ALICE)?.cp).toBe(2)
     expect(state.players.find((player) => player.id === BOB)?.cp).toBe(0)
+  })
+
+  it('caps additional gains without counting the command-phase point', () => {
+    const gained = reduceBattle(PLAYERS, log(...started(), [ALICE, { kind: 'adjust-cp', delta: 1 }]))
+    expect(validate(reduceBattle(PLAYERS, log(...started())), ALICE, { kind: 'adjust-cp', delta: 1 })).toBeNull()
+    expect(validate(gained, ALICE, { kind: 'adjust-cp', delta: 1 })).toBe(
+      'a side can gain at most 1 additional command point per battle round',
+    )
+    expect(validate(reduceBattle(PLAYERS, log(...started())), ALICE, { kind: 'adjust-cp', delta: 2 })).toBe(
+      'a side can gain at most 1 additional command point per battle round',
+    )
+  })
+
+  it('does not reopen the gain after spending and resets it next round', () => {
+    const spent = reduceBattle(
+      PLAYERS,
+      log(...started(), [ALICE, { kind: 'adjust-cp', delta: 1 }], [ALICE, { kind: 'adjust-cp', delta: -1 }]),
+    )
+    expect(validate(spent, ALICE, { kind: 'adjust-cp', delta: 1 })).toBe(
+      'a side can gain at most 1 additional command point per battle round',
+    )
+
+    const nextRound = reduceBattle(
+      PLAYERS,
+      log(...started(), [ALICE, { kind: 'adjust-cp', delta: 1 }], ...turns(6, ALICE), ...turns(6, BOB)),
+    )
+    expect(nextRound.round).toBe(2)
+    expect(validate(nextRound, ALICE, { kind: 'adjust-cp', delta: 1 })).toBeNull()
+  })
+
+  it('leaves explicit corrections outside the additional-gain cap', () => {
+    const state = reduceBattle(
+      PLAYERS,
+      log(
+        ...started(),
+        [ALICE, { kind: 'adjust-cp', delta: 1 }],
+        [BOB, { kind: 'correct-player', playerId: ALICE, resource: 'cp', delta: 2 }],
+      ),
+    )
+    expect(state.players.find((player) => player.id === ALICE)?.cp).toBe(4)
   })
 
   it('report gained, used and remaining separately', () => {

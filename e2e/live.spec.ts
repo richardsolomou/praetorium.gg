@@ -21,8 +21,10 @@ test('a battle stays in step across two devices', async ({ browser }) => {
   await panel(bob, 'Necrons').getByRole('button', { name: '+1 CP' }).click()
   await expect(panel(bob, 'Necrons').locator('[data-stat="cp"]')).toHaveText('2')
   await expect(panel(alice, 'Necrons').locator('[data-stat="cp"]')).toHaveText('2')
+  await expect(panel(bob, 'Necrons').getByRole('button', { name: 'Additional CP already gained this round' })).toBeDisabled()
   await bob.getByRole('button', { name: 'Undo latest action' }).click()
   await expect(panel(alice, 'Necrons').locator('[data-stat="cp"]')).toHaveText('1')
+  await expect(panel(bob, 'Necrons').getByRole('button', { name: '+1 CP' })).toBeEnabled()
 
   await alice.screenshot({ path: 'test-results/tracker-alice.png', fullPage: true })
   await bob.screenshot({ path: 'test-results/tracker-bob.png', fullPage: true })

@@ -107,10 +107,12 @@ export function SidePanel({
               <Button
                 variant="secondary"
                 size="xs"
-                title="Gain one additional command point"
+                disabled={!side.canGainCp}
+                title={side.canGainCp ? 'Gain one additional command point' : 'This side already gained its additional CP this round'}
+                aria-label={side.canGainCp ? '+1 CP' : 'Additional CP already gained this round'}
                 onClick={() => send({ kind: 'adjust-cp', delta: 1, playerId: side.captain.id })}
               >
-                +1 CP
+                {side.canGainCp ? '+1 CP' : 'CP gain used'}
               </Button>
             ) : null}
           </div>
