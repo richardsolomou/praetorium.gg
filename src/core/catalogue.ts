@@ -375,7 +375,7 @@ export function buildIndex(files: readonly CatalogueFile[], revision: string): C
   const points = [...costTypes.values()].find((costType) => costType.name === POINTS_COST_NAME)
   if (!points) throw new Error(`no "${POINTS_COST_NAME}" cost type in this data`)
 
-  const datasheets = datasheetsIn(books, definitions)
+  const datasheets = datasheetsIn(books, definitions, catalogueOf, catalogues)
   return {
     definitions,
     costTypes,
@@ -445,7 +445,12 @@ export function importsOf(book: Catalogue, books: ReadonlyMap<string, Catalogue>
  * Runs once every file is indexed, because a book's roster is written as links
  * into other books and a link cannot be followed before its target is known.
  */
-function datasheetsIn(books: ReadonlyMap<string, Catalogue>, definitions: ReadonlyMap<string, Definition>) {
+function datasheetsIn(
+  books: ReadonlyMap<string, Catalogue>,
+  definitions: ReadonlyMap<string, Definition>,
+  catalogueOf: ReadonlyMap<string, string>,
+  catalogues: ReadonlyMap<string, { name: string }>,
+) {
   const datasheets = new Map<string, ReadonlySet<string>>()
   const allies = new Map<string, ReadonlyMap<string, { name: string; order: number }>>()
   for (const book of books.values()) {
@@ -454,16 +459,34 @@ function datasheetsIn(books: ReadonlyMap<string, Catalogue>, definitions: Readon
     // and through an imported book is offered once — the book's own entry first,
     // since that is the one carrying anything it says locally.
     const found = new Map<string, string>()
-    // The largest import is the parent roster (for example the common range a
-    // chapter borrows). Later, smaller imports are the optional allied shelves.
     const imports = importsOf(book, books, definitions)
-    const alliedSources = new Map(imports.slice(1).map((source, order) => [source.id, { name: source.name, order }]))
+    const importedSources = new Map(imports.map((source, order) => [source.id, { name: source.name, order }]))
+    const fallbackAllies = new Set(imports.slice(1).map((source) => source.id))
+    const factionCounts = new Map<string, number>()
+    for (const entry of rootEntriesOf(book, definitions)) {
+      for (const faction of factionCategories(entry, definitions)) factionCounts.set(faction, (factionCounts.get(faction) ?? 0) + 1)
+    }
+    const most = Math.max(0, ...factionCounts.values())
+    const namedFactions = [...factionCounts.keys()].filter((faction) => book.name.toLocaleLowerCase().includes(faction))
+    const primaryFactions = new Set(
+      namedFactions.length ? namedFactions : [...factionCounts].flatMap(([faction, count]) => (count === most ? [faction] : [])),
+    )
     const allied = new Map<string, { name: string; order: number }>()
     for (const source of [book, ...imports]) {
       for (const entry of rootEntriesOf(source, definitions)) {
         if (!found.has(entry.targetId)) {
           found.set(entry.targetId, entry.id)
-          const ally = alliedSources.get(source.id)
+          const imported = importedSources.get(source.id)
+          const factions = factionCategories(entry, definitions)
+          const targetOwner = catalogues.get(catalogueOf.get(entry.targetId) ?? '')
+          const ally =
+            primaryFactions.size && factions.length
+              ? factions.some((faction) => primaryFactions.has(faction))
+                ? undefined
+                : (imported ?? (targetOwner ? { name: targetOwner.name, order: imports.length } : undefined))
+              : imported && fallbackAllies.has(source.id)
+                ? imported
+                : undefined
           if (ally) allied.set(entry.id, ally)
         }
       }
@@ -472,4 +495,13 @@ function datasheetsIn(books: ReadonlyMap<string, Catalogue>, definitions: Readon
     if (allied.size) allies.set(book.id, allied)
   }
   return { datasheets, allies }
+}
+
+function factionCategories(entry: { id: string; targetId: string }, definitions: ReadonlyMap<string, Definition>) {
+  const source = definitions.get(entry.id) ?? entry
+  const target = targetOf(source, definitions)
+  return [...('categoryLinks' in source ? (source.categoryLinks ?? []) : []), ...(target.categoryLinks ?? [])].flatMap((category) => {
+    const faction = category.name?.match(/^Faction:\s*(.+)$/i)?.[1]
+    return faction ? [faction.trim().toLocaleLowerCase()] : []
+  })
 }

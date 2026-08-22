@@ -1,4 +1,4 @@
-import { nameOf } from '../core/catalogue'
+import { nameOf, targetOf } from '../core/catalogue'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { datasheetSlug, datasheetsOf } from './catalogueIndex'
 import { isMatchedPlayDatasheet } from './cataloguePicker'
@@ -60,6 +60,7 @@ function catalogueResults(wanted: string, matches: Matcher, sources: Sources): G
   if (!loaded) return []
 
   const results: GlobalSearchResult[] = []
+  const datasheets = new Map<string, { primary: GlobalSearchResult[]; allied?: GlobalSearchResult }>()
   for (const faction of factionsFor(loaded, sources.rules).factions) {
     if (matches(faction.displayName, faction.name)) {
       results.push({
@@ -85,15 +86,21 @@ function catalogueResults(wanted: string, matches: Matcher, sources: Sources): G
       if (!entry || !isMatchedPlayDatasheet(loaded.index, entry)) continue
       const name = nameOf(entry, loaded.index.definitions)
       if (!name.toLowerCase().includes(wanted)) continue
-      results.push({
+      const result: GlobalSearchResult = {
         id: `datasheet:${faction.id}:${entryId}`,
         group: 'Datasheets',
         label: name,
         detail: faction.displayName,
         href: `/factions/${faction.slug}/datasheets/${datasheetSlug(loaded, faction.id, entryId)}`,
-      })
+      }
+      const key = targetOf(entry, loaded.index.definitions).id
+      const found = datasheets.get(key) ?? { primary: [] }
+      if (loaded.index.alliedDatasheets.get(faction.id)?.has(entryId)) found.allied ??= result
+      else found.primary.push(result)
+      datasheets.set(key, found)
     }
   }
+  results.push(...[...datasheets.values()].flatMap((found) => (found.primary.length ? found.primary : found.allied ? [found.allied] : [])))
   return results
 }
 
