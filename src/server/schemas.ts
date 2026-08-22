@@ -76,6 +76,7 @@ export const datasheetSchema = z.object({
   /** Keep weapons the unit is not carrying, so options read as this list would make them. */
   everyWeapon: z.boolean().default(false),
 })
+export const savedRosterDatasheetSchema = rosterInBattleSchema.extend({ pickIndex: z.number().int().min(0).max(99) })
 export const datasheetSlugSchema = z.object({ catalogueId, slug })
 
 const prepSchema = z.object({

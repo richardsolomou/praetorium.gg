@@ -44,14 +44,20 @@ function context(picks: readonly RosterPick[], pickIndex: number) {
   return { selections, unitSelectionIndex: detachments.length + selected, companions }
 }
 
+function projectWithContext(picks: readonly RosterPick[], prepared: ReturnType<typeof context>) {
+  const selectedIndex = Math.floor(picks.length / 2)
+  const selectedId = picks[selectedIndex].entryId
+  const views = datasheetViewsIn(loaded, faction.id, selectedId, prepared)
+  describeDatasheetAbilities(loaded, faction.id, views.selected, app().rules())
+  describeDatasheetAbilities(loaded, faction.id, views.available, app().rules())
+}
+
 function project(picks: readonly RosterPick[], shared: boolean) {
   const selectedIndex = Math.floor(picks.length / 2)
   const selectedId = picks[selectedIndex].entryId
   const first = context(picks, selectedIndex)
   if (shared) {
-    const views = datasheetViewsIn(loaded, faction.id, selectedId, first)
-    describeDatasheetAbilities(loaded, faction.id, views.selected, app().rules())
-    describeDatasheetAbilities(loaded, faction.id, views.available, app().rules())
+    projectWithContext(picks, first)
     return
   }
   describeDatasheetAbilities(loaded, faction.id, datasheetIn(loaded, faction.id, selectedId, first), app().rules())
@@ -95,11 +101,16 @@ if (process.env.PROFILE) {
   for (let repetition = 0; repetition < 10; repetition += 1) calculateRosterPrice(input(40))
   process.exit(0)
 }
-console.log('units\tprice_ms\tduplicate_datasheets_ms\tshared_datasheets_ms\tspeedup')
+console.log('units\tprice_ms\tduplicate_datasheets_ms\tshared_datasheets_ms\treused_context_ms\treuse_speedup\tcontext_kib')
 for (const size of sizes) {
   const data = input(size)
   const price = median(() => void calculateRosterPrice(data), 3)
   const oldSheets = median(() => project(data.units, false))
   const newSheets = median(() => project(data.units, true))
-  console.log(`${size}\t${price.toFixed(1)}\t${oldSheets.toFixed(1)}\t${newSheets.toFixed(1)}\t${(oldSheets / newSheets).toFixed(2)}x`)
+  const prepared = context(data.units, Math.floor(data.units.length / 2))
+  const reused = median(() => projectWithContext(data.units, prepared))
+  const contextKib = Buffer.byteLength(JSON.stringify(prepared)) / 1024
+  console.log(
+    `${size}\t${price.toFixed(1)}\t${oldSheets.toFixed(1)}\t${newSheets.toFixed(1)}\t${reused.toFixed(1)}\t${(newSheets / reused).toFixed(2)}x\t${contextKib.toFixed(1)}`,
+  )
 }

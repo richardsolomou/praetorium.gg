@@ -32,6 +32,8 @@ type Props = {
   editable?: boolean
   showOptions?: boolean
   reference?: ReactElement<{ providedSheet?: Datasheet | null }>
+  /** A persisted read-only roster can be resolved without sending its picks. */
+  persistedRoster?: { id: string; battle?: string }
 }
 
 /**
@@ -54,6 +56,7 @@ export function Loadout({
   editable = true,
   showOptions = true,
   reference,
+  persistedRoster,
 }: Props) {
   const posthog = usePostHog()
   const timing = useRef<{ request: number; resolvedAt: number } | null>(null)
@@ -65,10 +68,20 @@ export function Loadout({
   // A pane that swapped units keeps nothing from the last one; one that only had a
   // count changed keeps what it was showing, so the profiles do not blink.
   const forSameUnit = (previousQuery?: { queryKey: readonly unknown[] }) => previousQuery?.queryKey[2] === unit?.entryId
+  const recordTiming = (request: number) => {
+    timing.current = { request, resolvedAt: performance.now() }
+  }
+  const request = loadoutDatasheetsQuery(
+    catalogueId,
+    unit?.entryId ?? '',
+    detachments,
+    settledPicks,
+    pickIndex,
+    persistedRoster,
+    recordTiming,
+  )
   const { data: sheets, dataUpdatedAt } = useQuery({
-    ...loadoutDatasheetsQuery(catalogueId, unit?.entryId ?? '', detachments, settledPicks, pickIndex, (request) => {
-      timing.current = { request, resolvedAt: performance.now() }
-    }),
+    ...request,
     placeholderData: (previous, previousQuery) => (forSameUnit(previousQuery) ? previous : undefined),
   })
   useEffect(() => {

@@ -2,4 +2,4 @@
 'praetorium.gg': patch
 ---
 
-Open picker datasheet previews without processing the current roster.
+Open picker previews and read-only roster datasheets without sending or processing unnecessary roster data.

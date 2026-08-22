@@ -14,14 +14,14 @@ type Roster = {
   source: Parameters<typeof ListBuilder>[0]['initial']['source']
 }
 
-type Props = { roster: Roster; editable: boolean }
+type Props = { roster: Roster; editable: boolean; battle?: string }
 
 const NO_PREP = { stratagems: [], secondaries: [] }
 
-export function RosterEditor({ roster, editable }: Props) {
+export function RosterEditor({ roster, editable, battle }: Props) {
   return (
     <main className="flex h-full w-full flex-col">
-      <ListBuilder prep={roster.prep ?? NO_PREP} initial={roster} editable={editable} />
+      <ListBuilder prep={roster.prep ?? NO_PREP} initial={roster} editable={editable} battle={battle} />
     </main>
   )
 }
