@@ -28,7 +28,7 @@ function MissionPackPage() {
 
   return (
     <main className="mx-auto w-full max-w-5xl px-4 py-8">
-      <header className="relative overflow-hidden border border-edge bg-panel p-5 sm:p-7">
+      <section className="relative overflow-hidden border border-edge bg-panel p-5 sm:p-7">
         <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,transparent_35%,color-mix(in_srgb,var(--color-parchment)_8%,transparent),transparent_75%)]" />
         <div className="relative">
           <p className="eyebrow text-parchment">Mission pack</p>
@@ -39,7 +39,7 @@ function MissionPackPage() {
             opponent’s across the top.
           </p>
         </div>
-      </header>
+      </section>
       <div className="grid gap-px border-x border-b border-edge bg-edge sm:grid-cols-3">
         <MissionStat icon={Map} label="Missions" value={pack.missions.length} />
         <MissionStat icon={Flag} label="Dispositions" value={data.dispositions.length} />

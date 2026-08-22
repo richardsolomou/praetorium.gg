@@ -75,7 +75,7 @@ function ProfileForm({ me }: { me: NonNullable<Awaited<ReturnType<NonNullable<Re
 
   return (
     <main className="mx-auto w-full max-w-2xl space-y-8 px-4 py-8">
-      <header className="relative overflow-hidden border border-edge bg-panel p-5 sm:p-7">
+      <section className="relative overflow-hidden border border-edge bg-panel p-5 sm:p-7">
         <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,transparent_35%,color-mix(in_srgb,var(--color-parchment)_8%,transparent),transparent_75%)]" />
         <div className="relative flex items-center gap-4">
           <span className="grid size-12 shrink-0 place-items-center rounded-full border border-edge-strong bg-sunken text-parchment">
@@ -87,7 +87,7 @@ function ProfileForm({ me }: { me: NonNullable<Awaited<ReturnType<NonNullable<Re
             <p className="mt-1 text-sm text-dim">Choose how your name and picture appear to the people you play with.</p>
           </div>
         </div>
-      </header>
+      </section>
 
       <form
         className="space-y-8 border border-edge bg-panel p-5 sm:p-7"

@@ -20,6 +20,7 @@ export function HoverTooltip({
   return (
     <Tooltip>
       <TooltipTrigger
+        closeOnClick={false}
         render={
           <button
             type="button"
@@ -31,6 +32,7 @@ export function HoverTooltip({
         {children}
       </TooltipTrigger>
       <TooltipContent
+        role="tooltip"
         side="bottom"
         sideOffset={6}
         className="z-50 block max-h-[min(18rem,calc(100vh-1rem))] w-66 max-w-[calc(100vw-1rem)] overflow-hidden rounded-none border border-edge-strong bg-raised p-0 text-left text-dim shadow-xl"
