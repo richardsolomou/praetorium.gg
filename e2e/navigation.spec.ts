@@ -140,6 +140,7 @@ test('a player can enter through the roster library and browse the product', asy
   await expect(page).toHaveURL('/rosters?limit=1000')
   await page.getByRole('combobox', { name: 'Battle size' }).click()
   await page.getByRole('option', { name: 'All battle sizes' }).click()
+  await expect(page).toHaveURL('/rosters')
   await page.screenshot({ path: 'test-results/roster-library.png', fullPage: true })
   await page.getByRole('button', { name: 'Create editable roster' }).click()
   const dialog = page.getByRole('dialog', { name: 'Create roster' })

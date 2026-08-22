@@ -700,11 +700,11 @@ test('a squad grows from its unit editor', async ({ page }) => {
   await add(page, 'Flayed Ones')
   await card.click({ position: { x: 4, y: 4 } })
   await expect(page.locator('aside[aria-label="Loadout"]').getByRole('heading', { name: 'Immortals' })).toBeVisible()
-  const datasheet = page.locator('aside[aria-label="Loadout"]')
-  await expect(datasheet.getByText('Battleline', { exact: true })).toBeVisible()
-  const profile = datasheet.locator('[data-slot="unit-profile"]')
+  const loadout = page.locator('aside[aria-label="Loadout"]')
+  await expect(loadout.getByText('Battleline', { exact: true })).toBeVisible()
+  const profile = loadout.locator('[data-slot="unit-profile"]')
   await expect(profile).toBeVisible()
-  await datasheet.evaluate((pane) => {
+  await loadout.evaluate((pane) => {
     new MutationObserver(() => {
       if (pane.querySelector('[aria-label="Loading datasheet"]')) document.documentElement.dataset.datasheetReloaded = 'true'
     }).observe(pane, { childList: true, subtree: true })
@@ -719,7 +719,7 @@ test('a squad grows from its unit editor', async ({ page }) => {
   await expect(page.locator('html')).not.toHaveAttribute('data-datasheet-reloaded', 'true')
   // And the wargear lines follow the models carrying it.
   await expect(page.getByText('6x Gauss blaster')).toBeVisible()
-  await expect(datasheet.getByRole('heading', { name: 'Tools of Dominion' })).toHaveCount(0)
+  await expect(loadout.getByRole('heading', { name: 'Tools of Dominion' })).toHaveCount(0)
   await page.screenshot({ path: 'test-results/unit-editor-model-count.png', fullPage: true })
 })
 
@@ -911,9 +911,8 @@ test('a character can be marked as the warlord from its unit editor', async ({ p
     .locator('[data-unit="Overlord"]')
     .getByRole('button', { name: /^Overlord/ })
     .click()
-  const pane = page.locator('aside[aria-label="Loadout"]')
-  const loadout = pane
-  const profile = pane.locator('[data-slot="unit-profile"]')
+  const loadout = page.locator('aside[aria-label="Loadout"]')
+  const profile = loadout.locator('[data-slot="unit-profile"]')
   await expect(profile.getByText('Sv', { exact: true })).toBeVisible()
   await expect(profile.getByText('Invulnerable save', { exact: true })).toBeVisible()
   await expect(profile.getByText('2+', { exact: true })).toBeVisible()
