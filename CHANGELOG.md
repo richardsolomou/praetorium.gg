@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.19.4
+
+### Patch Changes
+
+- 3790dcc: Set the interface font size to 18px for a more readable layout.
+
 ## 0.19.3
 
 ### Patch Changes
