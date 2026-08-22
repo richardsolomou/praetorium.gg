@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { datasheetIn } from './catalogue'
+import { datasheetIn, datasheetViewsIn } from './catalogue'
 import { bookOf, categories } from './catalogue.fixtures'
 
 describe('a datasheet', () => {
@@ -276,6 +276,9 @@ describe('a datasheet', () => {
       ],
     })
     const context = { selections: [{ id: 'captain', selections: [{ id: 'blade-entry', count: 1 }] }], unitSelectionIndex: 0 }
+    const views = datasheetViewsIn(book, 'cat', 'captain', context)
+    expect(views.selected?.profiles.map((profile) => profile.name)).toEqual(['Blade'])
+    expect(views.available?.profiles.map((profile) => profile.name)).toEqual(['Blade', 'Spear'])
     expect(datasheetIn(book, 'cat', 'captain', { ...context, everyWeapon: true })?.profiles.map((profile) => profile.name)).toEqual([
       'Blade',
       'Spear',

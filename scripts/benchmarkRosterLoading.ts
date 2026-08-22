@@ -2,10 +2,11 @@ import { performance } from 'node:perf_hooks'
 import { attachedUnit } from '../src/core/attach'
 import { buildUnit, type RosterPick } from '../src/core/roster'
 import { app } from '../src/server/app'
-import { datasheetIn } from '../src/server/catalogue'
+import { abilityNamesIn, datasheetIn, datasheetViewsIn } from '../src/server/catalogue'
 import { loadCatalogue } from '../src/server/catalogueIndex'
 import { describeDatasheetAbilities } from '../src/server/datasheetDescriptions'
 import { calculateRosterPrice, rosterDetachments } from '../src/server/pricing'
+import { deploymentRules } from '../src/server/pricing'
 
 process.env.CATALOGUE_DIR ??= new URL('../catalogue-data', import.meta.url).pathname
 process.env.DATABASE_URL ??= 'postgres://benchmark:benchmark@localhost/benchmark'
@@ -47,8 +48,14 @@ function project(picks: readonly RosterPick[], shared: boolean) {
   const selectedIndex = Math.floor(picks.length / 2)
   const selectedId = picks[selectedIndex].entryId
   const first = context(picks, selectedIndex)
+  if (shared) {
+    const views = datasheetViewsIn(loaded, faction.id, selectedId, first)
+    describeDatasheetAbilities(loaded, faction.id, views.selected, app().rules())
+    describeDatasheetAbilities(loaded, faction.id, views.available, app().rules())
+    return
+  }
   describeDatasheetAbilities(loaded, faction.id, datasheetIn(loaded, faction.id, selectedId, first), app().rules())
-  const second = shared ? first : context(picks, selectedIndex)
+  const second = context(picks, selectedIndex)
   describeDatasheetAbilities(
     loaded,
     faction.id,
@@ -68,6 +75,22 @@ function median(work: () => void, repetitions = 9) {
 }
 
 console.log(`faction=${faction.name} datasheets=${ids.length}`)
+if (process.env.VERIFY_DEPLOYMENT_ABILITIES) {
+  for (const candidateFaction of loaded.factions) {
+    for (const entryId of loaded.index.datasheets.get(candidateFaction.id) ?? []) {
+      const sheet = datasheetIn(loaded, candidateFaction.id, entryId)
+      const projectedNames = sheet?.abilities.map((ability) => ability.name) ?? []
+      const projected = deploymentRules(projectedNames)
+      const directNames = abilityNamesIn(loaded, candidateFaction.id, entryId)
+      const direct = deploymentRules(directNames)
+      if (JSON.stringify(projected) !== JSON.stringify(direct)) {
+        throw new Error(
+          `deployment abilities differ for ${sheet?.name ?? entryId}: ${JSON.stringify({ projected, direct, projectedNames, directNames })}`,
+        )
+      }
+    }
+  }
+}
 if (process.env.PROFILE) {
   for (let repetition = 0; repetition < 10; repetition += 1) calculateRosterPrice(input(40))
   process.exit(0)

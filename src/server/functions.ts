@@ -5,7 +5,7 @@ import { SOCIAL_PROVIDERS } from '../authConfig'
 import { routeSlug } from '../core/slug'
 import { attachedUnit } from '../core/attach'
 import { buildUnit, type RosterPick } from '../core/roster'
-import { datasheetIn, datasheetInBySlug, rulesReferencedIn } from './catalogue'
+import { datasheetIn, datasheetInBySlug, datasheetViewsIn, rulesReferencedIn } from './catalogue'
 import { describeDatasheetAbilities } from './datasheetDescriptions'
 import { detachmentReference } from './detachmentReference'
 import { factionIndexFor, factionsFor } from './factionReferences'
@@ -287,9 +287,14 @@ export const loadoutDatasheets = createServerFn({ method: 'GET' })
       const loaded = app().catalogue()
       if (!loaded) return null
       const context = rosterDatasheetContext(loaded, data)
+      const views = context ? datasheetViewsIn(loaded, data.catalogueId, data.entryId, context) : null
       return {
-        selected: rosterDatasheet(loaded, data, context, false),
-        available: rosterDatasheet(loaded, data, context, true),
+        selected: views
+          ? describeDatasheetAbilities(loaded, data.catalogueId, views.selected, app().rules())
+          : rosterDatasheet(loaded, data, undefined, false),
+        available: views
+          ? describeDatasheetAbilities(loaded, data.catalogueId, views.available, app().rules())
+          : rosterDatasheet(loaded, data, undefined, true),
       }
     }),
   )

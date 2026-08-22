@@ -8,7 +8,7 @@ import { buildUnit } from '../core/roster'
 import { modelCountOf } from '../core/unitSize'
 import { wargearOf } from '../core/wargear'
 import { app } from './app'
-import { datasheetIn, rulesReferencedIn } from './catalogue'
+import { abilityNamesIn, datasheetIn, rulesReferencedIn } from './catalogue'
 import { detachmentCatalogueDetail } from './catalogueDescriptions'
 import { groupOfEntry } from './cataloguePicker'
 import { rosterDetachments } from './rosterDetachments'
@@ -219,7 +219,7 @@ export function calculateRosterPrice(data: PriceInput) {
     selections,
     units: picked.map((unit) => {
       const catalogueId = data.units[unit.key]?.catalogueId ?? loaded.index.catalogueOf.get(unit.entryId) ?? data.catalogueId
-      const deployment = deploymentRules(datasheetIn(loaded, catalogueId, unit.entryId)?.abilities.map((ability) => ability.name) ?? [])
+      const deployment = deploymentRules(abilityNamesIn(loaded, catalogueId, unit.entryId))
       const choices: ((typeof unit.choices)[number] & { kind?: 'enhancement' | 'upgrade' })[] = unit.choices.map((choice) => {
         if (!choice.name.toLowerCase().includes('enhancement')) return choice
         const choiceOptions = choice.options ?? []

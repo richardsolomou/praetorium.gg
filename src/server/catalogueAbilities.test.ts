@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { datasheetIn, rulesReferencedIn } from './catalogue'
+import { abilityNamesIn, datasheetIn, rulesReferencedIn } from './catalogue'
 import { describeDatasheetAbilities } from './datasheetDescriptions'
 import { ability, bookOf, shelfOf } from './catalogue.fixtures'
 
@@ -43,6 +43,13 @@ describe('the abilities and wargear a datasheet lists', () => {
       ['My Will Be Done', 'datasheet'],
       ['Resurrection Orb', 'wargear'],
     ])
+    expect(abilityNamesIn(book, 'cat', 'lord')).toEqual([
+      'Translocation Shroud',
+      'Leader',
+      'Reanimation Protocols',
+      'My Will Be Done',
+      'Resurrection Orb',
+    ])
   })
 
   it('shows a unit enhancement ability only when the enhancement is selected', () => {
@@ -67,6 +74,7 @@ describe('the abilities and wargear a datasheet lists', () => {
     })
 
     expect(datasheetIn(book, 'cat', 'immortals')?.abilities.map(({ name }) => name)).toEqual(['Implacable Eradication'])
+    expect(abilityNamesIn(book, 'cat', 'immortals')).toEqual(['Implacable Eradication'])
     expect(
       datasheetIn(book, 'cat', 'immortals', {
         selections: [{ id: 'immortals', selections: [{ id: 'enhancements', selections: [{ id: 'tools' }] }] }],
@@ -129,6 +137,7 @@ describe('the abilities and wargear a datasheet lists', () => {
     loaded.index.ruleCatalogueOf.set('core-rule', 'gs')
 
     expect(datasheetIn(loaded, 'cat', 'unit')?.abilities).toEqual([])
+    expect(abilityNamesIn(loaded, 'cat', 'unit')).toEqual([])
   })
 
   it('lists the choices available on a datasheet as wargear options', () => {
