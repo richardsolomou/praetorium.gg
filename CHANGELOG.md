@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.18.2
+
+### Patch Changes
+
+- 703607e: Measure datasheet request and rendering delays in large rosters.
+
 ## 0.18.1
 
 ### Patch Changes
