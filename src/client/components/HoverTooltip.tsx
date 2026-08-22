@@ -57,10 +57,7 @@ export function HoverTooltip({
     closeTimer.current = setTimeout(() => setHovered(false), 100)
   }
 
-  // Measured rather than guessed, and again on every scroll: a bubble tall enough to
-  // fall off the bottom of the window belongs above its trigger instead, a rule long
-  // enough to fill the window is pinned inside it, and a list that scrolls under an
-  // open tooltip would otherwise leave it behind.
+  // Reposition on scroll because the portal does not move with its trigger.
   useLayoutEffect(() => {
     if (!open) {
       setPlacement(null)

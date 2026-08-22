@@ -823,10 +823,8 @@ function measure(spec: Measurable, node: Node, root: Node, index: CatalogueIndex
   const matching = [...seen]
 
   if (spec.field === 'selections') return matching.reduce((total, each) => total + each.count, 0)
-  // Saved picks own attachments outside the selection tree. Profile projection
-  // supplies that count so catalogue rules gated on leading a unit can render;
-  // ordinary evaluation keeps the default of zero and validates attachments beside
-  // the picks.
+  // Attachments live on saved picks, outside the selection tree. Only profile
+  // projection supplies them; ordinary evaluation validates them separately.
   if (spec.field === 'associations') return census.associations
   if (index.costTypes.has(spec.field)) {
     return matching.reduce((total, each) => total + (costOf(each, spec.field) ?? 0) * each.count, 0)

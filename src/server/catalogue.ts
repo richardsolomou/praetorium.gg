@@ -176,7 +176,7 @@ export function datasheetIn(
   const details = datacardDetails(loaded, name)
   const attachment = attachmentOf(root, loaded.index)
   const relationships = relationshipsFor(loaded, catalogueId, root.id, name)
-  const characteristicNames = characteristicNamesIn(loaded)
+  const characteristicNames = loaded.characteristicNames
   const selection = selectedUnit ?? defaultSelection(root.id, loaded.index, { primaryCatalogueId: catalogueId })
   const catalogueOptions = selection
     ? unitChoices(root.id, selection, loaded.index, { primaryCatalogueId: catalogueId }).map((choice) => ({
@@ -261,39 +261,6 @@ function relationshipsFor(loaded: LoadedCatalogue, catalogueId: string, entryId:
     found.add(nameOf(candidate, loaded.index.definitions))
   }
   return { leaders: [...leaders], supporters: [...supporters] }
-}
-
-const characteristicNamesByCatalogue = new WeakMap<LoadedCatalogue, Map<string, string>>()
-
-function characteristicNamesIn(loaded: LoadedCatalogue) {
-  if (loaded.characteristicNames) return loaded.characteristicNames
-  const existing = characteristicNamesByCatalogue.get(loaded)
-  if (existing) return existing
-  const names = new Map<string, string>()
-  const visited = new Set<string>()
-  const visit = (definition: Definition) => {
-    if (visited.has(definition.id)) return
-    visited.add(definition.id)
-    for (const profile of definition.profiles ?? []) {
-      for (const characteristic of profile.characteristics ?? []) {
-        if (characteristic.typeId && characteristic.name) names.set(characteristic.typeId, characteristic.name)
-      }
-    }
-    definition.selectionEntries?.forEach(visit)
-    definition.selectionEntryGroups?.forEach(visit)
-    definition.entryLinks?.forEach(visit)
-  }
-  for (const definition of loaded.index.definitions.values()) {
-    visit(definition)
-  }
-  for (const shared of loaded.index.shared.values()) {
-    if (!('characteristics' in shared)) continue
-    for (const characteristic of shared.characteristics ?? []) {
-      if (characteristic.typeId && characteristic.name) names.set(characteristic.typeId, characteristic.name)
-    }
-  }
-  characteristicNamesByCatalogue.set(loaded, names)
-  return names
 }
 
 function uniqueProfiles(profiles: Datasheet['profiles']) {

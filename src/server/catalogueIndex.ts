@@ -20,7 +20,7 @@ type DetachmentOption = { id: string; name: string; disposition: string | null }
 
 export type LoadedCatalogue = {
   index: CatalogueIndex
-  characteristicNames?: Map<string, string>
+  characteristicNames: Map<string, string>
   factions: { id: string; name: string; references: CatalogueReference[] }[]
   detachments: Map<string, DetachmentOptions>
   factionContents: Map<string, FactionContent>
@@ -60,7 +60,7 @@ export function loadCatalogue(directory = catalogueDirectory()): LoadedCatalogue
 }
 
 /** Characteristic type ids are defined inline throughout the source files. */
-function characteristicNamesOf(files: readonly CatalogueFile[]) {
+export function characteristicNamesOf(files: readonly CatalogueFile[]) {
   const names = new Map<string, string>()
   const visit = (value: unknown) => {
     if (Array.isArray(value)) return value.forEach(visit)

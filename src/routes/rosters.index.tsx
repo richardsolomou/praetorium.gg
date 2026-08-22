@@ -34,6 +34,25 @@ type EditingSession = { rosterId: string; draft: RosterSetup }
 
 const WORKSPACE_PATH = '/rosters/'
 const EDITING_STATE = 'roster-setup'
+const BATTLE_SIZE_GROUPS: SearchableGroup[] = [
+  {
+    label: '',
+    items: [
+      { label: 'All battle sizes', value: 'all' },
+      ...GAME_SIZES.map((size) => ({ label: `${size.name} · ${size.limit} points`, value: String(size.limit) })),
+    ],
+  },
+]
+const SHARING_GROUPS: SearchableGroup[] = [
+  {
+    label: '',
+    items: [
+      { label: 'Any sharing status', value: 'all' },
+      { label: 'Private', value: 'private' },
+      { label: 'Unlisted', value: 'unlisted' },
+    ],
+  },
+]
 
 export const Route = createFileRoute('/rosters/')({
   validateSearch: (search: Record<string, unknown>): Search => {
@@ -72,26 +91,7 @@ function RosterLibrary() {
     ...group,
     items: group.items.map((faction) => ({ ...faction, value: factionSlugById.get(faction.value) ?? faction.value })),
   }))
-  const battleSizeGroups: SearchableGroup[] = [
-    {
-      label: '',
-      items: [
-        { label: 'All battle sizes', value: 'all' },
-        ...GAME_SIZES.map((size) => ({ label: `${size.name} · ${size.limit} points`, value: String(size.limit) })),
-      ],
-    },
-  ]
   const rosterFactionGroups: SearchableGroup[] = [{ label: '', items: [{ label: 'All factions', value: 'all' }] }, ...factionGroups]
-  const sharingGroups: SearchableGroup[] = [
-    {
-      label: '',
-      items: [
-        { label: 'Any sharing status', value: 'all' },
-        { label: 'Private', value: 'private' },
-        { label: 'Unlisted', value: 'unlisted' },
-      ],
-    },
-  ]
   const shown = saved.filter(
     (roster) =>
       (search.limit === undefined || roster.limit === search.limit) &&
@@ -140,7 +140,7 @@ function RosterLibrary() {
         <RosterCombobox
           label="Battle size"
           value={search.limit ? String(search.limit) : 'all'}
-          groups={battleSizeGroups}
+          groups={BATTLE_SIZE_GROUPS}
           onChange={(value) => void navigate({ to: '/rosters', search: { ...search, limit: value === 'all' ? undefined : Number(value) } })}
         />
         <RosterCombobox
@@ -153,7 +153,7 @@ function RosterLibrary() {
         <RosterCombobox
           label="Sharing"
           value={search.visibility ?? 'all'}
-          groups={sharingGroups}
+          groups={SHARING_GROUPS}
           onChange={(value) =>
             void navigate({ to: '/rosters', search: { ...search, visibility: value === 'all' ? undefined : (value as RosterVisibility) } })
           }

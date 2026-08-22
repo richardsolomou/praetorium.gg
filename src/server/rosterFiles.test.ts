@@ -171,6 +171,7 @@ const faction: CatalogueFile = {
 
 const loaded: LoadedCatalogue = {
   index: buildIndex([system, faction], 'test-revision'),
+  characteristicNames: new Map(),
   factions: [{ id: 'necrons', name: 'Xenos - Necrons', references: [] }],
   detachments: new Map([
     [

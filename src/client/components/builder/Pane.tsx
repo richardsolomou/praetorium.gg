@@ -16,15 +16,7 @@ type Props = {
   hideBelowDesktop?: boolean
 }
 
-/**
- * A side pane where there is room for one, the same pane over the roster where
- * there is not.
- *
- * One instance either way. Rendering a sidebar and a sheet with the same contents
- * puts two of every control in the page — two fields labelled "add a unit", both
- * real to a screen reader — so the pane moves rather than being duplicated, which
- * CSS can do and a second copy cannot.
- */
+/** One pane moves between sidebar and overlay so controls and labels stay unique. */
 const VARIANTS = {
   // Written out rather than composed: Tailwind only sees class names it can read.
   picker:

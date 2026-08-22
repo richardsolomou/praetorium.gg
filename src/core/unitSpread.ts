@@ -42,11 +42,7 @@ export function withUnitSpread(
   return spreadRepeatedGroup(selection, path, counts, repeating, index)
 }
 
-/**
- * A spread asks for several siblings at once, but each one still needs its required
- * descendants. A composite weapon can contain a shield with a profile modifier;
- * storing only the outer option loses that modifier before evaluation sees it.
- */
+/** Expand each spread option so required descendants and their rules survive. */
 function spreadOptions(
   selection: Selection,
   path: readonly string[],
