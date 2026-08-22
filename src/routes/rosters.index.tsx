@@ -20,6 +20,7 @@ import { SearchableSelect, type SearchableGroup } from '../client/components/Sea
 import { factionSelectGroups } from '../client/components/builder/factions'
 import { RosterRow } from '../client/components/rosters/RosterRow'
 import { type SavedRoster, useRosterActions } from '../client/components/rosters/rosterLibrary'
+import { ROSTER_SORTS, type RosterSort, sortRosters } from '../client/components/rosters/rosterSort'
 import { readWorkspaceState, writeWorkspaceState } from '../client/components/workspaceState'
 import { SignInRequired } from '../client/components/SignInRequired'
 import { useFavouriteFactions } from '../client/favouriteFactions'
@@ -28,7 +29,7 @@ import { useOrigin } from '../client/useOrigin'
 import { GAME_SIZES } from '../core/battle'
 import { ROSTER_VISIBILITIES, type RosterVisibility } from '../core/savedRoster'
 
-type Search = { limit?: number; faction?: string; visibility?: RosterVisibility }
+type Search = { limit?: number; faction?: string; visibility?: RosterVisibility; sort?: RosterSort }
 /** An unsaved setup edit, kept per tab so a refresh does not lose it. */
 type EditingSession = { rosterId: string; draft: RosterSetup }
 
@@ -53,6 +54,19 @@ const SHARING_GROUPS: SearchableGroup[] = [
     ],
   },
 ]
+const SORT_GROUPS: SearchableGroup[] = [
+  {
+    label: '',
+    items: [
+      { label: 'Name: A to Z', value: 'name-asc' },
+      { label: 'Name: Z to A', value: 'name-desc' },
+      { label: 'Recently updated', value: 'updated-desc' },
+      { label: 'Least recently updated', value: 'updated-asc' },
+      { label: 'Battle size: low to high', value: 'size-asc' },
+      { label: 'Battle size: high to low', value: 'size-desc' },
+    ],
+  },
+]
 
 export const Route = createFileRoute('/rosters/')({
   validateSearch: (search: Record<string, unknown>): Search => {
@@ -62,10 +76,13 @@ export const Route = createFileRoute('/rosters/')({
       typeof search.visibility === 'string' && ROSTER_VISIBILITIES.includes(search.visibility as RosterVisibility)
         ? (search.visibility as RosterVisibility)
         : undefined
+    const sort =
+      typeof search.sort === 'string' && ROSTER_SORTS.includes(search.sort as RosterSort) ? (search.sort as RosterSort) : undefined
     return {
       ...(GAME_SIZES.some((size) => size.limit === limit) ? { limit } : {}),
       ...(faction ? { faction } : {}),
       ...(visibility ? { visibility } : {}),
+      ...(sort && sort !== 'name-asc' ? { sort } : {}),
     }
   },
   loader: ({ context }) =>
@@ -92,11 +109,14 @@ function RosterLibrary() {
     items: group.items.map((faction) => ({ ...faction, value: factionSlugById.get(faction.value) ?? faction.value })),
   }))
   const rosterFactionGroups: SearchableGroup[] = [{ label: '', items: [{ label: 'All factions', value: 'all' }] }, ...factionGroups]
-  const shown = saved.filter(
-    (roster) =>
-      (search.limit === undefined || roster.limit === search.limit) &&
-      (search.faction === undefined || roster.catalogueId === selectedFactionId) &&
-      (search.visibility === undefined || roster.visibility === search.visibility),
+  const shown = sortRosters(
+    saved.filter(
+      (roster) =>
+        (search.limit === undefined || roster.limit === search.limit) &&
+        (search.faction === undefined || roster.catalogueId === selectedFactionId) &&
+        (search.visibility === undefined || roster.visibility === search.visibility),
+    ),
+    search.sort ?? 'name-asc',
   )
 
   const points = new Map((prices ?? []).map((entry) => [entry.id, entry.points]))
@@ -156,6 +176,15 @@ function RosterLibrary() {
           groups={SHARING_GROUPS}
           onChange={(value) =>
             void navigate({ to: '/rosters', search: { ...search, visibility: value === 'all' ? undefined : (value as RosterVisibility) } })
+          }
+        />
+        <RosterCombobox
+          label="Sort"
+          value={search.sort ?? 'name-asc'}
+          groups={SORT_GROUPS}
+          className="w-52 max-w-full"
+          onChange={(value) =>
+            void navigate({ to: '/rosters', search: { ...search, sort: value === 'name-asc' ? undefined : (value as RosterSort) } })
           }
         />
       </div>
