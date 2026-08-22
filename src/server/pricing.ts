@@ -371,11 +371,16 @@ function compositionExtras(composition: UnitComposition | null, rules: LoadedRul
   }
 
   // Wargear with no profile still has a rule, and only the description source has it.
-  const modelAbilities = named.flatMap((weapon) => {
+  const abilitiesByName = new Map<string, { id: string; name: string; description: string; kind: 'wargear' }>()
+  for (const weapon of named) {
     const description = rules?.abilityDescriptions.get(routeSlug(weapon.name))
-    if (!description || profiles.some((profile) => profile.name === weapon.name)) return []
-    return [{ id: `wargear-${weapon.id}`, name: weapon.name, description, kind: 'wargear' as const }]
-  })
+    if (!description || profiles.some((profile) => profile.name === weapon.name)) continue
+    const key = routeSlug(weapon.name)
+    if (!abilitiesByName.has(key)) {
+      abilitiesByName.set(key, { id: `wargear-${weapon.id}`, name: weapon.name, description, kind: 'wargear' })
+    }
+  }
+  const modelAbilities = [...abilitiesByName.values()]
 
   return { modelWeapons: profiles, modelKeywordRules, modelAbilities }
 }

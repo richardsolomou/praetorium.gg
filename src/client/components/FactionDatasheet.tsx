@@ -82,13 +82,7 @@ export function FactionDatasheet() {
       ) : null}
       {ranged.length ? <ProfileTable title="Ranged weapons" profiles={ranged} keywordRules={sheet.keywordRules} /> : null}
       {melee.length ? <ProfileTable title="Melee weapons" profiles={melee} keywordRules={sheet.keywordRules} /> : null}
-      <Abilities
-        abilities={displayAbilities(
-          sheet.abilities,
-          sheet.attachments.some((attachment) => attachment.kind === 'leader'),
-        )}
-        rules={sheet.keywordRules}
-      />
+      <Abilities abilities={displayAbilities(sheet.abilities)} rules={sheet.keywordRules} />
       <UnitConfiguration sheet={sheet} rules={sheet.keywordRules} />
       {sheet.transport ? (
         <section>

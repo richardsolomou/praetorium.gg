@@ -221,7 +221,12 @@ export function profileModifiers(
         recursive: target.recursive,
         // A whole-unit modifier from the unit this one is attached to belongs to
         // every model here, which is what being one unit means.
-        global: target.forces || origin === root || Boolean(origin.force) || (target.group && !own.has(origin)),
+        global:
+          target.forces ||
+          origin === root ||
+          Boolean(origin.force) ||
+          (target.group && !own.has(origin)) ||
+          (origin.target.type === 'model' && target.includeEntries && target.recursive && profileType === 'Unit'),
         profileType,
       }
       found.set(JSON.stringify(applied), applied)

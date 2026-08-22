@@ -30,7 +30,6 @@ export const splitKeywords = (value: string) => value.split(',').map((keyword) =
 
 type Ability = { name: string; kind: string }
 
-export function displayAbilities<T extends Ability>(abilities: readonly T[], hasLeaderAttachments: boolean): T[] {
-  if (!hasLeaderAttachments) return [...abilities]
-  return abilities.filter((ability) => !['datasheet', 'rule'].includes(ability.kind) || ability.name.toLocaleLowerCase() !== 'leader')
+export function displayAbilities<T extends Ability>(abilities: readonly T[]): T[] {
+  return abilities.filter((ability) => !['leader', 'support'].includes(ability.name.trim().toLocaleLowerCase()))
 }

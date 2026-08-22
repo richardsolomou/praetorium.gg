@@ -12,20 +12,14 @@ describe('datasheet composition count', () => {
 })
 
 describe('datasheet abilities', () => {
-  it('replaces a unit Leader ability with parsed attachment targets', () => {
+  it('leaves attachment roles to the dedicated attachment section', () => {
     const abilities = [
       { name: 'Leader', kind: 'core' },
-      { name: 'Leader', kind: 'rule' },
+      { name: 'Support', kind: 'rule' },
       { name: 'My Will Be Done', kind: 'datasheet' },
     ]
 
-    expect(displayAbilities(abilities, true)).toEqual([abilities[0], abilities[2]])
-  })
-
-  it('keeps a Leader ability when no attachment targets were parsed', () => {
-    const abilities = [{ name: 'Leader', kind: 'rule' }]
-
-    expect(displayAbilities(abilities, false)).toEqual(abilities)
+    expect(displayAbilities(abilities)).toEqual([abilities[2]])
   })
 })
 

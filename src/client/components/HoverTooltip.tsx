@@ -2,7 +2,7 @@ import { type ReactNode, useLayoutEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 
 /** The width the bubble is drawn at, which is also what keeps it inside the viewport. */
-const WIDTH = 288
+const WIDTH = 264
 /** The gap between the trigger and the bubble. */
 const GAP = 6
 /** How close to the edge of the window the bubble may sit. */
@@ -45,7 +45,16 @@ export function HoverTooltip({
   const descriptionId = useId()
   const trigger = useRef<HTMLButtonElement>(null)
   const bubble = useRef<HTMLSpanElement>(null)
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const open = hovered || focused
+  const keepOpen = () => {
+    if (closeTimer.current) clearTimeout(closeTimer.current)
+    setHovered(true)
+  }
+  const closeSoon = () => {
+    if (closeTimer.current) clearTimeout(closeTimer.current)
+    closeTimer.current = setTimeout(() => setHovered(false), 100)
+  }
 
   // Measured rather than guessed, and again on every scroll: a bubble tall enough to
   // fall off the bottom of the window belongs above its trigger instead, a rule long
@@ -87,8 +96,8 @@ export function HoverTooltip({
         type="button"
         aria-label={label}
         aria-describedby={open ? descriptionId : undefined}
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
+        onMouseEnter={keepOpen}
+        onMouseLeave={closeSoon}
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
         className={`${className} inline-flex cursor-help items-center justify-center underline decoration-dotted underline-offset-2`}
@@ -109,12 +118,14 @@ export function HoverTooltip({
                 // Nowhere until it has been measured, rather than somewhere wrong.
                 visibility: placement ? 'visible' : 'hidden',
               }}
-              className="pointer-events-none fixed z-50 flex max-h-[calc(100vh-1rem)] max-w-[80vw] flex-col overflow-hidden border border-edge-strong bg-raised text-left shadow-xl"
+              onMouseEnter={keepOpen}
+              onMouseLeave={closeSoon}
+              className="fixed z-50 flex max-h-[min(18rem,calc(100vh-1rem))] max-w-[calc(100vw-1rem)] flex-col overflow-hidden border border-edge-strong bg-raised text-left shadow-xl"
             >
               <strong className="block shrink-0 border-b border-edge px-2.5 py-1.5 text-xs font-bold tracking-[0.06em] text-bone uppercase">
                 {title}
               </strong>
-              {body ? <span className="block min-h-0 px-2.5 py-1.5 font-rules text-sm whitespace-pre-line text-dim">{body}</span> : null}
+              {body ? <span className="block min-h-0 overflow-y-auto px-2.5 py-1.5 font-rules text-xs whitespace-pre-line text-dim">{body}</span> : null}
               {note ? <span className="eyebrow block shrink-0 border-t border-edge px-2.5 py-1 text-faint">{note}</span> : null}
             </span>,
             document.body,

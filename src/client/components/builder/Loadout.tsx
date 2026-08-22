@@ -1,11 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
-import { Check, Crown } from 'lucide-react'
+import type { ReactNode } from 'react'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Toggle } from '@/components/ui/toggle'
 import type { RosterPick } from '../../../core/roster'
 import { datasheetQuery } from '../../queries'
 import { useSettled } from '../../useSettled'
-import { WeaponSummary } from './DatasheetPanel'
+import { UnitProfile, WeaponSummary } from './DatasheetPanel'
 import {
   type LoadoutModel,
   type LoadoutUnit,
@@ -15,7 +14,7 @@ import {
   weaponMatches,
   wholeSquadTakes,
 } from './loadoutModel'
-import { EitherChoice, LoadoutLoading, SpecialChoice, SpreadChoice, Stepper } from './LoadoutControls'
+import { EitherChoice, LoadoutLoading, SpecialChoice, SpreadChoice } from './LoadoutControls'
 import { ModelCard } from './ModelCard'
 
 type Props = {
@@ -26,11 +25,11 @@ type Props = {
   pickIndex: number | null
   onChoose: (key: string, optionId: string) => void
   onSpread: (key: string, counts: SpreadCounts) => void
-  onToggle: (key: string, name: string, selected: boolean) => void
-  onResize: (models: number) => void
   /** How many models take a datasheet swap the catalogue does not describe. */
   onSwap: (key: string, count: number) => void
   editable?: boolean
+  showOptions?: boolean
+  reference?: ReactNode
 }
 
 /**
@@ -49,10 +48,10 @@ export function Loadout({
   pickIndex,
   onChoose,
   onSpread,
-  onToggle,
-  onResize,
   onSwap,
   editable = true,
+  showOptions = true,
+  reference,
 }: Props) {
   // Only once the player stops changing the list, so a held stepper asks once.
   const detachments = useSettled(detachmentIds)
@@ -94,7 +93,12 @@ export function Loadout({
     ...(unit.modelWeapons ?? []).filter((extra) => !catalogueWeapons.some((profile) => sameWeapon(profile.name, extra.name))),
   ]
   const rules = [...availableSheet.keywordRules, ...(unit.modelKeywordRules ?? [])]
-  const abilities = [...availableSheet.abilities, ...(unit.modelAbilities ?? [])]
+  const modelAbilities = unit.modelAbilities ?? []
+  const modelAbilityNames = new Set(modelAbilities.map((ability) => ability.name.trim().toLocaleLowerCase()))
+  const abilities = [
+    ...availableSheet.abilities.filter((ability) => !modelAbilityNames.has(ability.name.trim().toLocaleLowerCase())),
+    ...modelAbilities,
+  ]
 
   // Weapons a unit with no model cards is simply carrying, as a summary rather than
   // a set of controls: nothing about them is the player's to change.
@@ -103,53 +107,19 @@ export function Loadout({
     sheet.profiles.filter((profile) => profile.type === type && !chosenNames.some((name) => weaponMatches(name, profile.name)))
   const equippedRanged = equipped('Ranged Weapons')
   const equippedMelee = equipped('Melee Weapons')
+  const profile = sheet.profiles.find((candidate) => candidate.type === 'Unit')
 
   const { models, loose } = divide(unit)
+  const visibleLoose = showOptions
+    ? loose
+    : loose.filter((choice) => choice.options.some((option) => option.count || choice.chosen === option.id))
   const described = { weapons, abilities, rules }
 
   return (
     <div className="flex h-full flex-col">
-      <div className="border-b border-edge p-2.5">
-        <h2 className="text-sm leading-tight">{unit.name}</h2>
-        <div className="mt-1.5 flex flex-wrap items-center gap-2">
-          <span className="chip text-info">{unit.points} pts</span>
-          {unit.size.resizable && editable ? (
-            <Stepper
-              label={`models in ${unit.name}`}
-              countLabel={`${unit.name} models`}
-              count={unit.size.models}
-              onRemove={unit.size.models > unit.size.min ? () => onResize(unit.size.models - 1) : undefined}
-              onAdd={unit.size.models < unit.size.max ? () => onResize(unit.size.models + 1) : undefined}
-            />
-          ) : unit.size.resizable ? (
-            <span className="chip normal-case" aria-label={`${unit.name} models`}>
-              {unit.size.models} models
-            </span>
-          ) : null}
-          {unit.toggles.map((toggle) => (
-            <Toggle
-              key={toggle.key}
-              variant="outline"
-              size="sm"
-              aria-label={`${toggle.selected ? 'Remove' : 'Make'} ${unit.name} ${toggle.name}`}
-              pressed={toggle.selected}
-              disabled={!editable}
-              className={
-                toggle.selected
-                  ? 'border-parchment bg-parchment/15 text-parchment hover:bg-parchment/20 hover:text-parchment'
-                  : 'border-edge-strong text-dim hover:border-info hover:text-bone'
-              }
-              onPressedChange={(pressed) => onToggle(toggle.key, toggle.name, pressed)}
-            >
-              <Crown className={toggle.selected ? 'fill-current' : undefined} />
-              {toggle.name}
-              {toggle.selected ? <Check className="size-3.5" aria-hidden /> : null}
-            </Toggle>
-          ))}
-        </div>
-      </div>
       <ScrollArea className="min-h-0 flex-1 [&_[data-slot=scroll-area-viewport]]:p-2.5">
         <div className="space-y-4">
+          {profile ? <UnitProfile profile={profile} /> : null}
           {unit.models.length ? (
             <div className="space-y-3">
               {unit.models.map((model) => (
@@ -164,6 +134,7 @@ export function Loadout({
                   onSpread={onSpread}
                   onSwap={onSwap}
                   editable={editable}
+                  showOptions={showOptions}
                   {...described}
                 />
               ))}
@@ -174,16 +145,16 @@ export function Loadout({
               {equippedMelee.length ? <WeaponSummary title="Equipped melee weapons" weapons={equippedMelee} rules={rules} /> : null}
             </>
           )}
-          {loose.length ? (
+          {visibleLoose.length ? (
             <section>
               <p className="rubric flex items-baseline justify-between border-b border-edge pb-1.5">
                 <span>Wargear options</span>
-                <span className="readout">{loose.length}</span>
+                <span className="readout">{visibleLoose.length}</span>
               </p>
               <div className="mt-3 grid gap-5">
-                {orderedChoices(loose, weapons).map((choice) =>
+                {orderedChoices(visibleLoose, weapons).map((choice) =>
                   choice.kind ? (
-                    <SpecialChoice key={choice.key} choice={choice} unitName={unit.name} editable={editable} onChoose={onChoose} />
+                <SpecialChoice key={choice.key} choice={choice} unitName={unit.name} editable={editable} onChoose={onChoose} showOptions={showOptions} highlightSelection={showOptions} />
                   ) : choice.room > 1 && !choice.uniform ? (
                     <SpreadChoice
                       key={choice.key}
@@ -193,6 +164,8 @@ export function Loadout({
                       weapons={weapons}
                       abilities={availableSheet.abilities}
                       rules={rules}
+                      showOptions={showOptions}
+                      highlightSelection={showOptions}
                     />
                   ) : (
                     <EitherChoice
@@ -205,12 +178,15 @@ export function Loadout({
                       weapons={weapons}
                       abilities={availableSheet.abilities}
                       rules={rules}
+                      showOptions={showOptions}
+                      highlightSelection={showOptions}
                     />
                   ),
                 )}
               </div>
             </section>
           ) : null}
+          {reference}
         </div>
       </ScrollArea>
     </div>

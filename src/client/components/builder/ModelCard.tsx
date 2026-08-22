@@ -32,6 +32,7 @@ export function ModelCard({
   onSpread,
   onSwap,
   editable,
+  showOptions = true,
 }: {
   model: LoadoutModel
   choices: LoadoutChoice[]
@@ -44,6 +45,7 @@ export function ModelCard({
   onSpread: (key: string, counts: SpreadCounts) => void
   onSwap: (key: string, count: number) => void
   editable: boolean
+  showOptions?: boolean
 }) {
   const optionOf = (choiceKey: string, optionId: string) => {
     const choice = choices.find((candidate) => candidate.key === choiceKey)
@@ -143,6 +145,7 @@ export function ModelCard({
     }
   }
   const counted = heading()
+  if (!showOptions && !count) return null
 
   return (
     <section className="border border-edge-strong bg-panel/40">
@@ -180,11 +183,13 @@ export function ModelCard({
                 weapons={weapons}
                 abilities={abilities}
                 rules={rules}
+                highlightSelection={showOptions}
               />
             )
           }
           if ('swap' in entry) {
             const swap = entry.swap
+            if (!showOptions && !swap.count) return null
             return (
               <WargearRow
                 key={swap.key}
@@ -194,6 +199,7 @@ export function ModelCard({
                 abilities={abilities}
                 rules={rules}
                 note={swap.gives.length ? `instead of ${swap.gives.join(' and ')}` : undefined}
+                highlightSelection={showOptions}
                 control={
                   swap.free ? (
                     <PoolStepper
@@ -214,6 +220,7 @@ export function ModelCard({
           const found = optionOf(row.choiceKey, row.optionId)
           if (!found) return null
           const { choice, option } = found
+          if (!showOptions && !option.count) return null
           const taken = choice.chosen === option.id
           return (
             <WargearRow
@@ -224,6 +231,7 @@ export function ModelCard({
               weapons={weapons}
               abilities={abilities}
               rules={rules}
+              highlightSelection={showOptions}
               control={
                 choice.uniform ? (
                   // Every model carries the same one, so the row is answered rather

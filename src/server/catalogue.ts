@@ -176,6 +176,7 @@ export function datasheetIn(
   const details = datacardDetails(loaded, name)
   const attachment = attachmentOf(root, loaded.index)
   const relationships = relationshipsFor(loaded, catalogueId, root.id, name)
+  const characteristicNames = characteristicNamesIn(loaded)
   const selection = selectedUnit ?? defaultSelection(root.id, loaded.index, { primaryCatalogueId: catalogueId })
   const catalogueOptions = selection
     ? unitChoices(root.id, selection, loaded.index, { primaryCatalogueId: catalogueId }).map((choice) => ({
@@ -195,6 +196,20 @@ export function datasheetIn(
     if (hidden === 'true') return []
     const changedName = modifiedProfileField(profile.name, 'name', profileType, profileLineage, owner, modifiers)
     const annotation = modifiedProfileField('', 'annotation', profileType, profileLineage, owner, modifiers).value
+    const values = (profile.characteristics ?? []).flatMap((value) => {
+      if (!value.name || !value.$text) return []
+      const changed = modifiedProfileField(value.$text, value.typeId, profileType, profileLineage, owner, modifiers)
+      return [{ name: value.name, ...changed }]
+    })
+    const present = new Set((profile.characteristics ?? []).map((value) => value.typeId).filter((id): id is string => Boolean(id)))
+    const added = [...new Set(modifiers.filter((modifier) => modifier.profileType === profileType && !present.has(modifier.field)).map((modifier) => modifier.field))].flatMap(
+      (field) => {
+        const name = characteristicNames.get(field)
+        const active = modifiers.filter((modifier) => modifier.field === field && modifier.profileType === profileType)
+        const value = active.toSorted((left, right) => modifierOrder(left.type) - modifierOrder(right.type)).reduce((current, modifier) => applyDisplayModifier(current, modifier), '')
+        return name && value ? [{ name, value, baseValue: '', modifiers: [...new Set(active.map((modifier) => modifier.source))] }] : []
+      },
+    )
     return [
       {
         id: profile.id,
@@ -203,13 +218,20 @@ export function datasheetIn(
         ...(weapon && selectedUnit
           ? { count: wargearCounts.get(profile.name) ?? Math.max(1, ...owner.map((id) => selectedCounts.get(id) ?? 0)) }
           : {}),
-        values: (profile.characteristics ?? []).flatMap((value) => {
-          if (!value.name || !value.$text) return []
-          const changed = modifiedProfileField(value.$text, value.typeId, profileType, profileLineage, owner, modifiers)
-          return [{ name: value.name, ...changed }]
-        }),
+        values: [...values, ...added],
       },
     ]
+  })
+  const displayedProfiles = uniqueProfiles(displayProfiles).map((profile) => {
+    const values = [...profile.values]
+    for (const field of new Set(modifiers.filter((modifier) => modifier.profileType === profile.type).map((modifier) => modifier.field))) {
+      const name = characteristicNames.get(field)
+      if (!name || values.some((value) => value.name === name)) continue
+      const active = modifiers.filter((modifier) => modifier.field === field && modifier.profileType === profile.type)
+      const value = active.toSorted((left, right) => modifierOrder(left.type) - modifierOrder(right.type)).reduce((current, modifier) => applyDisplayModifier(current, modifier), '')
+      if (value) values.push({ name, value, baseValue: '', modifiers: [...new Set(active.map((modifier) => modifier.source))] })
+    }
+    return { ...profile, values }
   })
 
   return {
@@ -218,8 +240,8 @@ export function datasheetIn(
     name,
     points: priceOf(loaded, catalogueId, entryId),
     keywords: [...new Set(keywords.map((link) => link.name).filter((keyword): keyword is string => Boolean(keyword)))].toSorted(),
-    profiles: uniqueProfiles(displayProfiles),
-    abilities: [...abilities.values()],
+    profiles: displayedProfiles,
+    abilities: uniqueAbilities([...abilities.values()]),
     composition: details?.composition ?? [],
     loadout: details?.loadout ?? null,
     wargearOptions: details?.wargear.length
@@ -250,6 +272,39 @@ function relationshipsFor(loaded: LoadedCatalogue, catalogueId: string, entryId:
   return { leaders: [...leaders], supporters: [...supporters] }
 }
 
+const characteristicNamesByCatalogue = new WeakMap<LoadedCatalogue, Map<string, string>>()
+
+function characteristicNamesIn(loaded: LoadedCatalogue) {
+  if (loaded.characteristicNames) return loaded.characteristicNames
+  const existing = characteristicNamesByCatalogue.get(loaded)
+  if (existing) return existing
+  const names = new Map<string, string>()
+  const visited = new Set<string>()
+  const visit = (definition: Definition) => {
+    if (visited.has(definition.id)) return
+    visited.add(definition.id)
+    for (const profile of definition.profiles ?? []) {
+      for (const characteristic of profile.characteristics ?? []) {
+        if (characteristic.typeId && characteristic.name) names.set(characteristic.typeId, characteristic.name)
+      }
+    }
+    definition.selectionEntries?.forEach(visit)
+    definition.selectionEntryGroups?.forEach(visit)
+    definition.entryLinks?.forEach(visit)
+  }
+  for (const definition of loaded.index.definitions.values()) {
+    visit(definition)
+  }
+  for (const shared of loaded.index.shared.values()) {
+    if (!('characteristics' in shared)) continue
+    for (const characteristic of shared.characteristics ?? []) {
+      if (characteristic.typeId && characteristic.name) names.set(characteristic.typeId, characteristic.name)
+    }
+  }
+  characteristicNamesByCatalogue.set(loaded, names)
+  return names
+}
+
 function uniqueProfiles(profiles: Datasheet['profiles']) {
   const seen = new Set<string>()
   return profiles.filter((profile) => {
@@ -259,6 +314,20 @@ function uniqueProfiles(profiles: Datasheet['profiles']) {
       count: profile.count,
       values: profile.values,
     })
+    if (seen.has(signature)) return false
+    seen.add(signature)
+    return true
+  })
+}
+
+function uniqueAbilities(abilities: Datasheet['abilities']) {
+  const wargearNames = new Set(
+    abilities.filter((ability) => ability.kind === 'wargear').map((ability) => ability.name.trim().toLocaleLowerCase()),
+  )
+  const seen = new Set<string>()
+  return abilities.filter((ability) => {
+    if (ability.kind !== 'wargear' && wargearNames.has(ability.name.trim().toLocaleLowerCase())) return false
+    const signature = JSON.stringify({ name: ability.name.toLocaleLowerCase(), description: ability.description })
     if (seen.has(signature)) return false
     seen.add(signature)
     return true

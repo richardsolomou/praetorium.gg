@@ -37,9 +37,37 @@ export function withUnitSpread(
   }
 
   const repeating = repeatedCarrierOn(path, index)
-  if (!repeating) return withSpread(selection, key, counts)
+  if (!repeating) return group ? spreadOptions(selection, path, counts, group, index) : withSpread(selection, key, counts)
 
   return spreadRepeatedGroup(selection, path, counts, repeating, index)
+}
+
+/**
+ * A spread asks for several siblings at once, but each one still needs its required
+ * descendants. A composite weapon can contain a shield with a profile modifier;
+ * storing only the outer option loses that modifier before evaluation sees it.
+ */
+function spreadOptions(
+  selection: Selection,
+  path: readonly string[],
+  counts: Readonly<Record<string, number>>,
+  group: Definition,
+  index: CatalogueIndex,
+): Selection {
+  const requested = new Set(Object.keys(counts))
+  const occupants = childrenOf(resolve(group, index), index)
+  const byId = new Map(occupants.map((option) => [option.id, option]))
+  const asking = Object.values(counts).some((count) => count > 0)
+  return updateSelection(asking ? withPlaceFor(selection, path) : selection, path, (held) => ({
+    ...held,
+    selections: [
+      ...(held.selections ?? []).filter((child) => !requested.has(child.id)),
+      ...Object.entries(counts).flatMap(([optionId, count]) => {
+        const option = byId.get(optionId)
+        return option && count > 0 ? [expand(option.id, option.definition, index, MAX_DEPTH, count, new Set(), 1)] : []
+      }),
+    ],
+  }))
 }
 
 /**

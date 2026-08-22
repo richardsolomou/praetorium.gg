@@ -15,7 +15,7 @@ import { Section } from './Section'
 type Props = {
   catalogueId: string
   onAdd: (entryId: string) => void
-  onPreview: (entryId: string) => void
+  onPreview: (entryId: string, name: string) => void
   inRoster: Record<string, number>
   room: number | null
   battleSize: number
@@ -128,40 +128,42 @@ export function Picker({ catalogueId, onAdd, onPreview, inRoster, room, battleSi
                           type="button"
                           className="flex min-w-0 flex-1 items-center gap-1.5 text-left hover:text-info"
                           aria-label={`View ${unit.name} datasheet`}
-                          onClick={() => onPreview(unit.id)}
+                          onClick={() => onPreview(unit.id, unit.name)}
                         >
                           <span className="min-w-0 flex-1">
                             <span className="block text-sm leading-tight font-semibold tracking-[0.02em] uppercase">{unit.name}</span>
-                            {held ? (
+                          {held ? (
                               <span className={`readout block text-[0.6875rem] ${full ? 'text-discarded' : 'text-faint'}`}>
                                 {held}
                                 {effectiveLimit === null ? '' : `/${effectiveLimit}`} in roster
                               </span>
-                            ) : null}
+                          ) : null}
                           </span>
                         </button>
-                        <Toggle
-                          variant="default"
-                          size="sm"
-                          aria-label={`${collection.has(unit.id) ? 'Remove' : 'Add'} ${unit.name} ${collection.has(unit.id) ? 'from' : 'to'} your collection`}
-                          pressed={collection.has(unit.id)}
-                          disabled={own.isPending && own.variables?.entryId === unit.id}
-                          onPressedChange={(pressed) => own.mutate({ entryId: unit.id, owned: pressed })}
-                          className="size-6 shrink-0 p-0"
-                        >
-                          <Heart className={`size-3.5 ${collection.has(unit.id) ? 'fill-rust text-rust' : 'text-faint hover:text-dim'}`} />
-                        </Toggle>
-                        {unit.points === null ? null : <span className="chip shrink-0 text-info">{unit.points} pts</span>}
-                        <Button
-                          size="sm"
-                          className="h-7 shrink-0 px-2 text-[0.6875rem]"
-                          aria-label={`Add ${unit.name}`}
-                          disabled={formatFull}
-                          onClick={() => onAdd(unit.id)}
-                        >
-                          <Plus className="size-3" />
-                          Add
-                        </Button>
+                        <span className="ml-auto flex shrink-0 items-center gap-1.5">
+                          <Toggle
+                            variant="default"
+                            size="sm"
+                            aria-label={`${collection.has(unit.id) ? 'Remove' : 'Add'} ${unit.name} ${collection.has(unit.id) ? 'from' : 'to'} your collection`}
+                            pressed={collection.has(unit.id)}
+                            disabled={own.isPending && own.variables?.entryId === unit.id}
+                            onPressedChange={(pressed) => own.mutate({ entryId: unit.id, owned: pressed })}
+                            className="size-6 shrink-0 p-0"
+                          >
+                            <Heart className={`size-3.5 ${collection.has(unit.id) ? 'fill-rust text-rust' : 'text-faint hover:text-dim'}`} />
+                          </Toggle>
+                          {unit.points === null ? null : <span className="chip w-[4.5rem] shrink-0 justify-center text-info">{unit.points} pts</span>}
+                          <Button
+                            size="sm"
+                            className="h-7 shrink-0 px-2 text-[0.6875rem]"
+                            aria-label={`Add ${unit.name}`}
+                            disabled={formatFull}
+                            onClick={() => onAdd(unit.id)}
+                          >
+                            <Plus className="size-3" />
+                            Add
+                          </Button>
+                        </span>
                       </div>
                     )
                   })}

@@ -75,8 +75,26 @@ export function UnitCard({
         aria-pressed={selected}
         aria-label={unit.name}
       />
-      <div className="flex items-start gap-2 px-2.5 py-2">
-        <div className="pointer-events-none min-w-0 flex-1 text-left">
+      <div className="flow-root px-2.5 py-2">
+        <span className="pointer-events-none relative z-10 float-right ml-2 flex shrink-0 items-center gap-1.5 [&_button]:pointer-events-auto">
+          <span className="chip text-info">{unit.points} pts</span>
+          {editable ? (
+            <span data-print-hide>
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  className="flex size-7 cursor-pointer items-center justify-center rounded-sm hover:bg-raised"
+                  aria-label={`Unit actions for ${unit.name}`}
+                >
+                  <EllipsisVertical className="size-4" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className={MENU}>
+                  <UnitActions Item={DropdownMenuItem} Checkbox={DropdownMenuCheckboxItem} {...actions} />
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </span>
+          ) : null}
+        </span>
+        <div className="pointer-events-none text-left">
           <span className="w-full min-w-0">
             <span className="block text-[0.9375rem] leading-tight font-bold tracking-[0.02em] uppercase">{unit.name}</span>
             {alliedFaction ? (
@@ -96,24 +114,6 @@ export function UnitCard({
             </ul>
           ) : null}
         </div>
-        <span className="pointer-events-none relative z-10 flex shrink-0 items-center gap-1.5 [&_button]:pointer-events-auto">
-          <span className="chip text-info">{unit.points} pts</span>
-          {editable ? (
-            <span data-print-hide>
-              <DropdownMenu>
-                <DropdownMenuTrigger
-                  className="flex size-7 cursor-pointer items-center justify-center rounded-sm hover:bg-raised"
-                  aria-label={`Unit actions for ${unit.name}`}
-                >
-                  <EllipsisVertical className="size-4" />
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className={MENU}>
-                  <UnitActions Item={DropdownMenuItem} Checkbox={DropdownMenuCheckboxItem} {...actions} />
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </span>
-          ) : null}
-        </span>
       </div>
 
       {unit.enhancements.map((enhancement) => (
