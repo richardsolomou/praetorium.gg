@@ -102,6 +102,8 @@ export type BattleView = {
   advancePrompt: string | null
   /** The latest active command any seated player may take back. */
   undoable: number | null
+  /** Whether taking back that command returns a randomly drawn mission to its deck. */
+  undoableDraw: boolean
 }
 
 /**
@@ -212,6 +214,7 @@ export function battleView(
     })),
     advancePrompt: viewerOwnsActive ? scoringPrompt(state, viewerId) : helperAdvancePrompt(state, viewerId),
     undoable: state.undoable?.seq ?? null,
+    undoableDraw: state.undoable?.kind === 'draw-secondary',
   }
 }
 

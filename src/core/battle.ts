@@ -324,7 +324,7 @@ export type BattleState = {
    * The newest command still standing. Undo reaches only this one, which keeps
    * the log linear: there is never a hole in the middle to reason about.
    */
-  undoable: { seq: number; by: PlayerId } | null
+  undoable: { seq: number; by: PlayerId; kind: Command['kind'] } | null
   /** The highest seq in the log, undone commands included. The concurrency token. */
   seq: number
 }
@@ -409,7 +409,7 @@ function recordProgress(state: BattleState, entry: LoggedCommand, before: Battle
   else if (entry.command.kind === 'reopen-battle') openTurn(entry.at)
 
   if (entry.command.kind === 'begin-battle') state.undoable = null
-  else if (entry.command.kind !== 'settle-opponent-turn') state.undoable = { seq: entry.seq, by: entry.by }
+  else if (entry.command.kind !== 'settle-opponent-turn') state.undoable = { seq: entry.seq, by: entry.by, kind: entry.command.kind }
 }
 
 /** A battle before anything has happened in it, which is what a replay folds into. */

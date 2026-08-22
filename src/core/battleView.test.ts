@@ -7,7 +7,15 @@ import { ALICE, BOB, NAMES, PLAYERS, builtRoster, log, roster, started, text, tu
 describe('the view', () => {
   it('offers the latest undo to both players', () => {
     const state = reduceBattle(PLAYERS, log(...started(), [ALICE, { kind: 'score', category: 'primary', delta: 5 }]))
-    expect(battleView({ token: 'abc' }, NAMES, state, BOB).undoable).toBe(state.undoable?.seq)
+    expect(battleView({ token: 'abc' }, NAMES, state, BOB)).toMatchObject({ undoable: state.undoable?.seq, undoableDraw: false })
+  })
+
+  it('marks an undo that returns a randomly drawn mission to its deck', () => {
+    const state = reduceBattle(
+      PLAYERS,
+      log(...started(), [ALICE, { kind: 'draw-secondary', secondary: { key: 'assassination', name: 'Assassination' } }]),
+    )
+    expect(battleView({ token: 'abc' }, NAMES, state, BOB)).toMatchObject({ undoable: state.undoable?.seq, undoableDraw: true })
   })
 
   it('totals a player’s victory points', () => {
