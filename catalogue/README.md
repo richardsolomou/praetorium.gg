@@ -1,6 +1,6 @@
 # Catalogue sources
 
-Praetorium packages community Warhammer 40,000 data into verified snapshots. This directory defines the upstream locations checked by the hourly publisher. Active revisions and file checksums live in each immutable snapshot manifest. Fetched data lives in the gitignored `catalogue-data/` directory and the snapshot store, never in Git.
+Praetorium packages community Warhammer 40,000 data into verified snapshots. This directory defines the upstream sources. Snapshot manifests contain revisions and checksums. Fetched data stays in `catalogue-data/` and the snapshot store.
 
 No game data is committed to this repository.
 
@@ -11,7 +11,7 @@ No game data is committed to this repository.
 - `rules` uses [40kdc-data](https://github.com/tabletop-developer-consortium/40kdc-data) for stratagems, missions, and scoring data under CC BY 4.0.
 - `datacards` uses the 11th-edition export from [game-datacards/datasources](https://github.com/game-datacards/datasources) for factions, core rules, missions, and layouts.
 
-The points source checks the evaluator. It is not loaded by the product. When a comparison fails, inspect the generated selection, the definitions, and the points source before changing evaluation logic.
+The points source tests the evaluator. The product does not load it. Inspect all three inputs before you change evaluation logic: the generated selection, definitions, and points source.
 
 ## Commands
 

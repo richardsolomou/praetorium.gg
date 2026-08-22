@@ -1,6 +1,6 @@
 # Pull request previews
 
-Every pull request gets a disposable Praetorium instance. A dedicated workflow builds a commit-specific image once. The preview deploys that image as soon as it is ready while CI tests the same image in parallel. The comment identifies the commit that the preview serves.
+Each pull request gets a temporary Praetorium instance. One workflow builds a commit-specific image. The preview and CI use that image. The pull request comment names the deployed commit.
 
 One pull request comment shows the current state:
 
@@ -12,7 +12,7 @@ One pull request comment shows the current state:
 
 The `PR preview deploy` check shows the same state.
 
-Previews share one Postgres of their own, separate from production, and each takes a database in it named after its pull request. The container drops and recreates that database before it migrates, so every deployment still starts empty. It then recreates two shared preview logins, a saved roster for each, and their confirmed friendship before the application starts. No Valkey: a preview is a single replica, and one shared between previews would put every preview's sessions in the same keyspace.
+Previews use a Postgres server that is separate from production. Each preview has its own database. Every deployment recreates that database, two test accounts, two rosters, and one friendship. Previews use one replica and no Valkey.
 
 `scripts/previewDeploy.ts` composes the environment rather than `preview-deploy.yml`, because it carries a Postgres URL and that file is public. The URL arrives in the `PREVIEW_APP_SECRETS` repository secret, a JSON object holding one key:
 
@@ -22,7 +22,7 @@ Previews share one Postgres of their own, separate from production, and each tak
 
 Any other key is refused rather than passed through. The preview Postgres is reachable from Dokploy and not from a CI runner, which is why the database is created inside the container rather than by the workflow.
 
-Closed pull requests are cleaned up by the next deployment of any preview. The deploy asks Dokploy which preview applications exist, since Dokploy is the authority on what is alive, and passes those numbers to the container, which drops every other `praetorium_pr_<number>`. A deploy that cannot determine the list drops nothing rather than guessing. The pull request comment contains both logins so two browser sessions can play each other. The preview downloads the same current verified snapshot as production after startup.
+The next preview deployment removes databases for closed pull requests. Dokploy supplies the active preview list. If that request fails, cleanup removes nothing. The pull request comment contains both test logins. Each preview downloads the current verified snapshot.
 
 Closing or merging removes the instance and its preview images. A weekly prune removes previews and images left behind by a failed cleanup.
 

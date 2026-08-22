@@ -1,6 +1,6 @@
 # Catalogue data
 
-Praetorium builds and validates rosters from fetched community data. The domain code stays in `src/core`; loading and search stay in `src/server`.
+Praetorium builds and validates rosters from community data. Domain code stays in `src/core`. Loading and search stay in `src/server`.
 
 ## Sources and loading
 
@@ -12,7 +12,7 @@ Praetorium builds and validates rosters from fetched community data. The domain 
 - Running instances check that pointer hourly, download a changed snapshot from the shared store, and swap it into place atomically. They never contact an upstream data provider.
 - Community-data requests have a per-attempt timeout and retry only transient network failures, timeouts, rate limits, and server errors. Checksums and invalid data fail immediately.
 - `src/server/sync.ts` fetches upstream data only for the snapshot publisher. `src/server/catalogueSnapshot.ts` owns packing, verification, and instance downloads.
-- Repository sources extract only their configured subpath. Archive size, output size, paths, and non-empty contents are checked before replacement.
+- Repository sources extract only their configured path. The sync checks archive size, output size, paths, and required contents before replacement.
 - Each download uses a staging directory. It replaces the current source only after the download finishes and its revision or hashes match.
 - Optional description exports still refresh when the authoritative sources are current. Live faction pages are best-effort additions and do not make the verified exports unavailable.
 - Battlemaster supplies the exact terrain footprints, labels, and setup measurements. A layout without its pinned geometry remains visible as unavailable, cannot be selected, and cannot start a battle.
@@ -85,7 +85,7 @@ Core catalogue code is split by question:
 - Parse prose-only army exclusions into typed faction restrictions. Roster legality and picker visibility consume the same restrictions; `just points` fails when a named exclusion in the synced rules was not captured.
 - Treat conditional modifiers targeting the catalogue `error` field as legality errors. These carry cross-unit and loadout restrictions that cannot be represented as numeric constraints.
 - Read available choices from the datasheet definition, not only from the built selection. Optional groups are absent from the default selection.
-- A group with a cap shares it between its occupants; a group without one does not make them compete, so the optional occupants beside required ones are bounded by their own maxima added up. A tank may carry its hunter-killer missile, its multi-melta and its storm bolter at once.
+- A capped group shares its cap between occupants. In an uncapped group, each occupant uses its own maximum. Optional equipment does not compete without a group cap.
 - A lone optional upgrade is written without a group to hold it. Report one hung directly on a unit or a model as its own choice, and not when it sits inside a group, where its siblings already report it. Its key names the entry rather than a group, so `withChoice` counts it instead of placing anything inside it.
 - A datasheet's Warlord entry is a toggle, never a wargear choice. `isRosterToggle` is the one place that decides which is which.
 - Read the Warlord entry through the same visibility as the loadout choices. Who may be nominated is conditional in the data — on a detachment for a tank, on the primary catalogue for a borrowed datasheet — and walking past those conditions offers the crown to units that may not hold it.

@@ -1,6 +1,6 @@
 # Stratagems, missions, and scoring
 
-Praetorium reads structured stratagem and mission data from [40kdc-data](https://github.com/tabletop-developer-consortium/40kdc-data) under CC BY 4.0. Descriptions come from Wahapedia's data export. The attribution assembled in `src/server/rules.ts` must appear wherever the app shows this data.
+Praetorium reads stratagem and mission data from [40kdc-data](https://github.com/tabletop-developer-consortium/40kdc-data) under CC BY 4.0. Descriptions come from Wahapedia exports. Every related screen must show the attribution from `src/server/rules.ts`.
 
 ## Rules data
 
@@ -16,14 +16,14 @@ Praetorium reads structured stratagem and mission data from [40kdc-data](https:/
 
 - Use each card's award values for scoring controls.
 - Ask for a payout only at the moment its `trigger.timing` names: `end-of-phase` with its phase, `end-of-turn`, or `end-of-battle`. A card the source gave no timing for is never put on a schedule.
-- Read `exclusive_group` for which payouts on a card are tiers of one thing: picking one rules out the rest of its group. Payouts the card leaves ungrouped are independent, and a card can pay several of them at once. A payout per something inside a group is a tier rather than a count.
+- `exclusive_group` defines payout tiers. Selecting one tier clears the other tiers in that group. Ungrouped payouts are independent.
 - Read `vp_max` for the ceiling on a counted payout. A ceiling clamps the total; it does not stop the count one short of it.
 - A tactical secondary is played once: scoring it finishes it, and the hand fills back to two at the top of the next turn. A fixed hand is chosen for the whole battle and is not finished by being scored.
 - What a payout asks for is the mission pack's `scoringCriteria`, matched to the rules source payout by payout. Never paraphrase a condition id into English: that is a second wording of the same rule, free to drift from the card in the player's hand.
 - Match the two sources by payout value, by position when the sequences already agree. A card whose payouts cannot be matched carries no criteria at all rather than the wrong sentence on a row.
 - A payout on the opponent's turn is settled as the turn comes back, judged against the round that turn was in and against the hand as it stood when it ended. A card dealt afterwards was not in play for that turn and is never asked about for it.
 - What their turn owed comes before the hand this one deals. Both prompts are modal, so only one is shown at a time.
-- Draw a tactical hand at random. `when_drawn` says when a freshly drawn card may go back: a `battle_round` bound and a paired `card_ids` list the battle can check itself, and a board-state `condition` is stated for the player because the source cannot see the table.
+- Draw tactical cards at random. `when_drawn` defines when a card can return. The battle checks `battle_round` and `card_ids`. The player judges board-state conditions.
 - The battle-ready bonus is recorded before the first turn and joins the score only when the battle is finished.
 - Show mission scoring caps as guidance. Do not reject a score that exceeds them.
 - Prompt before passing a turn with an unresolved active card, but leave the final decision to the player because the source cannot infer objective control.

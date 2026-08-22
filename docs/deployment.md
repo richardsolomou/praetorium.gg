@@ -1,8 +1,8 @@
 # Self-hosting
 
-The hosted service at [praetorium.gg](https://praetorium.gg) is the supported way to use Praetorium. Self-hosting is available for operators who can manage Docker, persistent storage, backups, and a reverse proxy.
+[praetorium.gg](https://praetorium.gg) is the supported service. Self-hosting requires Docker, persistent storage, backups, and a reverse proxy.
 
-Private deployments do not include managed support. Review this page and the supplied `docker-compose.yml` before starting.
+Private deployments do not include managed support. Read this page and `docker-compose.yml` before you start.
 
 Praetorium runs as one container against a Postgres and a Valkey. The supplied `docker-compose.yml` starts all three. Copy `.env.example` to `.env`, set `POSTGRES_PASSWORD`, then start the Compose project.
 
@@ -13,9 +13,9 @@ docker compose up -d
 
 ## Data stores
 
-`DATABASE_URL` is required. It holds accounts, lists, battles, and every command in their logs. This is the only store that must be backed up.
+`DATABASE_URL` is required. Postgres holds accounts, lists, battles, and command logs. Back up this store.
 
-`VALKEY_URL` is optional and holds sessions, the sign-in rate limiter, and Centrifugo's fan-out between replicas. Leave it unset to run a single replica: sessions then live in Postgres and live updates fan out inside the process. Set it to run more than one.
+`VALKEY_URL` is optional. Valkey holds sessions, sign-in rate limits, and realtime fan-out. Leave it unset for one replica. Set it for multiple replicas.
 
 The `/data` volume no longer holds game data. What remains is:
 
@@ -27,7 +27,7 @@ Back up Postgres and `auth.secret` together. The app can fetch the catalogue aga
 
 ## Schema migrations
 
-The container applies migrations on the way up, before the app serves a request, and takes a Postgres advisory lock while it does. Several replicas starting together therefore take turns rather than racing, and no replica answers a request against a schema that is still moving.
+The container applies migrations before it serves requests. A Postgres advisory lock serializes migrations across replicas.
 
 To apply migrations by hand against `DATABASE_URL`:
 
@@ -47,7 +47,7 @@ The image runs the app, Centrifugo, and Caddy. Caddy sends `/connection/*` to Ce
 
 ## Replicas
 
-With `VALKEY_URL` set, more than one replica is safe. Centrifugo uses Valkey as its engine, so a command taken by one replica reaches a page connected to another, and sessions and rate-limit counters are shared rather than held once per replica.
+With `VALKEY_URL`, Centrifugo sends commands between replicas. Replicas also share sessions and rate-limit counters.
 
 Without it, run one replica. Live updates then fan out inside a single process, and a second replica would serve battles that never hear each other's commands.
 

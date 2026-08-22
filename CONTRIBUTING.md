@@ -1,6 +1,6 @@
 # Contributing to Praetorium
 
-Thanks for helping with Praetorium. We aim to keep the battle tracker small, predictable, and easy to inspect. Check for an existing issue before starting a substantial change. Open an issue first if the scope or product direction needs discussion. Coding-agent instructions live in [AGENTS.md](AGENTS.md).
+Keep Praetorium small, predictable, and easy to inspect. Check for an existing issue before a substantial change. Open an issue when the product scope needs discussion. Coding-agent rules are in [AGENTS.md](AGENTS.md).
 
 ## Development setup
 
@@ -18,15 +18,15 @@ See [Running locally](docs/development/running-locally.md) for individual comman
 
 ## Checks
 
-Run the complete local check suite with:
+Run the full local check suite:
 
 ```sh
 just check
 ```
 
-This checks formatting, lint, database migrations, catalogue source pins, the production build, types, and unit tests. The build runs before type checking because it generates `src/routeTree.gen.ts`.
+This command checks formatting, lint, database migrations, catalogue sources, the production build, types, and unit tests. The build generates `src/routeTree.gen.ts` before type checking.
 
-Run `just e2e` for changes to rendered behavior or complete user flows. The command builds the production container and runs Playwright against it. Sync the catalogue first when a test uses list building.
+Run `just e2e` for rendered behavior or complete user flows. It builds the production container and runs Playwright. Sync the catalogue before list-building tests.
 
 Run `just points` after changes to points or roster legality. The result is a ratchet. A lower match rate is a regression unless the set of generated checks changed and the new baseline is explained.
 
