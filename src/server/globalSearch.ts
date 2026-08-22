@@ -1,4 +1,5 @@
 import { nameOf, targetOf } from '../core/catalogue'
+import { distance } from 'fastest-levenshtein'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { datasheetSlug, datasheetsOf, isReferenceDatasheet } from './catalogueIndex'
 import { isMatchedPlayDatasheet } from './cataloguePicker'
@@ -10,9 +11,10 @@ import type { LoadedRules } from './rules'
  * One search box over everything the app can name: factions, datasheets,
  * detachments, missions, and the player's own rosters and battles.
  *
- * Plain substring matching, deliberately. Every group is capped and the groups are
- * returned in a fixed order, so a two-letter query cannot bury the one thing the
- * player was reaching for under three hundred datasheets.
+ * Plain substring matching is the default. Datasheets alone fall back to a small,
+ * token-based typo match when their group has no direct result. Every group is
+ * capped and returned in a fixed order, so a two-letter query cannot bury the one
+ * thing the player was reaching for under three hundred datasheets.
  */
 export type GlobalSearchResult = {
   id: string
@@ -20,6 +22,8 @@ export type GlobalSearchResult = {
   label: string
   detail: string
   href: string
+  /** A typo-tolerant fallback, shown separately from direct matches. */
+  fuzzy?: boolean
 }
 
 /** The order results are shown in, and the most of each that is worth showing. */
@@ -101,9 +105,59 @@ function catalogueResults(wanted: string, matches: Matcher, sources: Sources): G
       datasheets.set(key, found)
     }
   }
-  results.push(...[...datasheets.values()].flatMap((found) => (found.primary.length ? found.primary : found.allied ? [found.allied] : [])))
+  const direct = datasheetResults(datasheets)
+  results.push(...(direct.length ? direct : fuzzyDatasheetResults(loaded, sources.rules, wanted)))
   return results
 }
+
+const datasheetResults = (datasheets: ReadonlyMap<string, { primary: GlobalSearchResult[]; allied?: GlobalSearchResult }>) =>
+  [...datasheets.values()].flatMap((found) => (found.primary.length ? found.primary : found.allied ? [found.allied] : []))
+
+function fuzzyDatasheetResults(loaded: LoadedCatalogue, rules: LoadedRules | null, query: string) {
+  const found = new Map<string, { result: GlobalSearchResult; score: number }>()
+  for (const faction of factionsFor(loaded, rules).factions) {
+    for (const entryId of datasheetsOf(loaded.index, faction.id)) {
+      const entry = loaded.index.definitions.get(entryId)
+      if (!entry || !isMatchedPlayDatasheet(loaded.index, entry) || !isReferenceDatasheet(loaded, faction.id, entryId)) continue
+      const name = nameOf(entry, loaded.index.definitions)
+      const score = fuzzyScore(query, name)
+      if (score === null) continue
+      const key = targetOf(entry, loaded.index.definitions).id
+      const existing = found.get(key)
+      if (existing && existing.score <= score) continue
+      found.set(key, {
+        score,
+        result: {
+          id: `datasheet:${faction.id}:${entryId}`,
+          group: 'Datasheets',
+          label: name,
+          detail: faction.displayName,
+          href: `/factions/${faction.slug}/datasheets/${datasheetSlug(loaded, faction.id, entryId)}`,
+          fuzzy: true,
+        },
+      })
+    }
+  }
+  return [...found.values()]
+    .toSorted((left, right) => left.score - right.score || left.result.label.localeCompare(right.result.label))
+    .map(({ result }) => result)
+}
+
+/** Every substantial word must be close to a word on the datasheet, avoiding broad guesses. */
+function fuzzyScore(query: string, name: string) {
+  const queryWords = wordsIn(query).filter((word) => word.length >= 3)
+  const nameWords = wordsIn(name)
+  if (!queryWords.length || !nameWords.length) return null
+  let score = 0
+  for (const queryWord of queryWords) {
+    const nearest = Math.min(...nameWords.map((nameWord) => distance(queryWord, nameWord) / Math.max(queryWord.length, nameWord.length)))
+    if (nearest > 0.34) return null
+    score += nearest
+  }
+  return score / queryWords.length
+}
+
+const wordsIn = (value: string) => value.toLowerCase().match(/[a-z0-9]+/g) ?? []
 
 function missionResults(matches: Matcher, rules: LoadedRules | null): GlobalSearchResult[] {
   if (!rules) return []

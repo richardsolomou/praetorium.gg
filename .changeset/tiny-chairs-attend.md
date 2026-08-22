@@ -1,5 +1,5 @@
 ---
-'praetorium.gg': patch
+'praetorium.gg': minor
 ---
 
-Show shared Adeptus Astartes datasheets once under Space Marines in global search.
+Find shared Adeptus Astartes datasheets under Space Marines and offer typo-tolerant datasheet search results.

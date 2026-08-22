@@ -77,4 +77,25 @@ describe('global datasheet search', () => {
       expect.objectContaining({ label: 'Chaplain in Terminator Armour', detail: 'Space Marines' }),
     ])
   })
+
+  it('offers a close datasheet match only when no direct datasheet match exists', async () => {
+    const catalogue = shelfOf({
+      name: 'Space Marines',
+      selectionEntries: [
+        { id: 'chaplain', name: 'Chaplain in Terminator Armour', type: 'model', costs: points(75) },
+        { id: 'captain', name: 'Captain in Terminator Armour', type: 'model', costs: points(95) },
+      ],
+    })
+
+    const typo = await searchEverything('terminator chaplin', { catalogue, rules: null, own: async () => null })
+    expect(typo.filter((result) => result.group === 'Datasheets')).toEqual([
+      expect.objectContaining({ label: 'Chaplain in Terminator Armour', fuzzy: true }),
+    ])
+
+    const direct = await searchEverything('chaplain', { catalogue, rules: null, own: async () => null })
+    expect(direct.filter((result) => result.group === 'Datasheets')).toEqual([
+      expect.objectContaining({ label: 'Chaplain in Terminator Armour' }),
+    ])
+    expect(direct.find((result) => result.group === 'Datasheets')?.fuzzy).toBeUndefined()
+  })
 })
