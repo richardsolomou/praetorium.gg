@@ -1,5 +1,13 @@
 # praetorium
 
+## 0.18.6
+
+### Patch Changes
+
+- 1437a38: Show the correct global search shortcut for each platform.
+- 2d908a6: Show connected objective terrain as one objective.
+- 4e94b67: Enlarge the battle terrain viewer for accurate measurements.
+
 ## 0.18.5
 
 ### Patch Changes
