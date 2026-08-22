@@ -1,5 +1,18 @@
 # praetorium
 
+## 0.18.0
+
+### Minor Changes
+
+- 8c4cdd3: Sort saved rosters by creation time, name, update time, or battle size without changing their default order when opened or edited.
+- 8c4cdd3: Inspect roster units in one configurable three-column workspace.
+
+### Patch Changes
+
+- 8c4cdd3: Give Praetorium a distinctive new logo and charcoal field-document color scheme across the app and browser.
+- 8c4cdd3: Show the actual account error when sign-in or sign-up fails.
+- 8c4cdd3: Hide zero-count weapons from read-only roster model cards.
+
 ## 0.17.1
 
 ### Patch Changes
