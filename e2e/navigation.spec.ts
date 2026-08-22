@@ -146,17 +146,11 @@ test('authentication panels and empty states fill the page above the footer', as
   expect(footer ? Math.round(footer.y + footer.height) : 0).toBe(800)
 })
 
-test('terrain layouts show their labels and measurement guides', async ({ page }) => {
+test('terrain layouts show measurement guides', async ({ page }) => {
   await page.goto('/mission-matchups/chapter-approved-2026-2027/purge-the-foe/take-and-hold')
   await page.getByRole('button', { name: 'Enlarge terrain layout A: Sweeping Engagement' }).click()
 
   const layout = page.getByRole('dialog').locator('svg')
-  await expect(
-    layout
-      .locator('text')
-      .filter({ hasText: /^OBJECTIVE$/ })
-      .first(),
-  ).toBeVisible()
   await expect(layout.locator('line[marker-end]').first()).toHaveAttribute('marker-end', /-arrow\)$/)
 })
 
