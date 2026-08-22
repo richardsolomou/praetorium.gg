@@ -171,7 +171,7 @@ function FactionShelf({
                   pressed={favourites.has(entry.id)}
                   onPressedChange={() => onFavourite(entry.id)}
                 >
-                  <Heart className={`size-4 ${favourites.has(entry.id) ? 'fill-azure text-azure' : 'text-dim'}`} />
+                  <Heart className={`size-4 ${favourites.has(entry.id) ? 'fill-rust text-rust' : 'text-dim'}`} />
                 </Toggle>
               ) : (
                 <Link

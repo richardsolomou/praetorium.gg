@@ -7,6 +7,7 @@ import { compositionCount, displayAbilities } from '../datasheet'
 import { factionFor } from '../factions'
 import { datasheetSlugQuery, factionsQuery } from '../queries'
 import { FactionMark, factionColour } from './FactionMark'
+import { CollectionToggle } from './CollectionToggle'
 import { Keyword, KEYWORD_TAG_CLASS, KeywordList, type KeywordRule } from './Keyword'
 import { RuleText } from './RuleText'
 
@@ -56,9 +57,10 @@ export function FactionDatasheet() {
           <p className="eyebrow text-parchment">{faction.displayName} · Datasheet</p>
           <div className="flex items-center justify-between gap-4">
             <h1 className="text-3xl">{sheet.name}</h1>
-            <div className="flex shrink-0 gap-1">
+            <div className="flex shrink-0 items-center gap-1">
               {sheet.composition.length ? <span className="chip">{compositionCount(sheet.composition)}</span> : null}
               {sheet.points === null ? null : <span className="chip text-info">{sheet.points} pts</span>}
+              <CollectionToggle entryId={sheet.id} name={sheet.name} />
             </div>
           </div>
           <div className="mt-2 flex flex-wrap gap-1">

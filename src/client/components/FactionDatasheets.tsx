@@ -6,6 +6,7 @@ import { factionFor } from '../factions'
 import { factionDatasheetsQuery, factionsQuery } from '../queries'
 import { useSettled } from '../useSettled'
 import { FactionMark, factionColour } from './FactionMark'
+import { CollectionToggle } from './CollectionToggle'
 import { SearchField } from './SearchField'
 import { GROUPS } from './builder/groups'
 import { Section } from './builder/Section'
@@ -65,18 +66,18 @@ export function FactionDatasheets() {
               <Section key={group.id} title={group.plural} count={rows.length}>
                 <div className="grid gap-2 sm:grid-cols-2">
                   {rows.map((unit) => (
-                    <Link
-                      key={unit.id}
-                      to="/factions/$catalogueId/datasheets/$entryId"
-                      params={{ catalogueId: faction.slug, entryId: unit.slug }}
-                      className="flex items-center justify-between border border-edge bg-panel px-3 py-2 hover:border-info"
-                    >
-                      <span className="truncate text-sm font-bold uppercase">{unit.name}</span>
-                      <span className="flex shrink-0 items-center gap-2">
-                        {unit.points === null ? null : <span className="chip">{unit.points} pts</span>}
-                        <ChevronRight className="size-4 text-dim" aria-hidden />
-                      </span>
-                    </Link>
+                    <div key={unit.id} className="flex items-center border border-edge bg-panel hover:border-info">
+                      <Link
+                        to="/factions/$catalogueId/datasheets/$entryId"
+                        params={{ catalogueId: faction.slug, entryId: unit.slug }}
+                        className="flex min-w-0 flex-1 items-center justify-between px-3 py-2"
+                      >
+                        <span className="truncate text-sm font-bold uppercase">{unit.name}</span>
+                        {unit.points === null ? null : <span className="chip ml-2 shrink-0">{unit.points} pts</span>}
+                      </Link>
+                      <CollectionToggle entryId={unit.id} name={unit.name} />
+                      <ChevronRight className="mr-2 size-4 shrink-0 text-dim" aria-hidden />
+                    </div>
                   ))}
                 </div>
               </Section>
