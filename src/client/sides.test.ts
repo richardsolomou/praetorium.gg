@@ -14,6 +14,7 @@ function player(overrides: Partial<ViewPlayer> & Pick<ViewPlayer, 'id' | 'side'>
     cpGained: 0,
     cpSpent: 0,
     cpByRound: [],
+    canGainCp: true,
     primary: 0,
     secondary: 0,
     total: 0,

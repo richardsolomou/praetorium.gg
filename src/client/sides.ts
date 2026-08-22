@@ -47,6 +47,7 @@ export type Side = {
   cp: number
   cpGained: number
   cpSpent: number
+  canGainCp: boolean
   primary: number
   secondary: number
   /** The battle-ready bonus of every army on the side, added together. */
@@ -79,6 +80,7 @@ export function sides(view: BattleView): Side[] {
         cp: captain.cp,
         cpGained: captain.cpGained,
         cpSpent: captain.cpSpent,
+        canGainCp: captain.canGainCp,
         primary: captain.primary,
         secondary: captain.secondary,
         paintedPoints,

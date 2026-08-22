@@ -17,6 +17,7 @@ Praetorium reads stratagem and mission data from [40kdc-data](https://github.com
 ## Scoring
 
 - Use each card's award values for scoring controls.
+- Track additional command point gains separately from the command-phase grant and score corrections. Each side can gain at most one additional CP per battle round, and spending it does not reopen that allowance.
 - Ask for a payout only at the moment its `trigger.timing` names: `end-of-phase` with its phase, `end-of-turn`, or `end-of-battle`. A card the source gave no timing for is never put on a schedule.
 - `exclusive_group` defines payout tiers. Selecting one tier clears the other tiers in that group. Ungrouped payouts are independent.
 - Read `vp_max` for the ceiling on a counted payout. A ceiling clamps the total; it does not stop the count one short of it.
