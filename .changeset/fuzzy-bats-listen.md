@@ -1,5 +1,5 @@
 ---
-'praetorium': patch
+'praetorium.gg': patch
 ---
 
 Show synced descriptions for core stratagems in battles.
