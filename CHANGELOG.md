@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.19.0
+
+### Minor Changes
+
+- 66f3508: Separate deployment order from the post-deployment first-turn roll-off.
+
 ## 0.18.8
 
 ### Patch Changes
