@@ -18,11 +18,13 @@ ordinary clicks remain autocaptured.
 | Rosters    | `roster_created`, `roster_duplicated`, `roster_imported`, `roster_import_failed`, `roster_exported`, `roster_export_copied`, `roster_shared`, `roster_deleted`, `roster_visibility_updated`, `roster_unit_added`, `roster_unit_removed`, `roster_unit_duplicated`, `roster_attachment_updated` |
 | Navigation | `global_search_result_opened`                                                                                                                                                                                                                                                                  |
 | Battles    | `battle_created`, `battle_joined`, `battle_roster_attached`, `battle_started`, `battle_finished`, `battle_reopened`, `battle_deleted`, `battle_command_submitted`                                                                                                                              |
-| Quality    | `roster_datasheet_loaded`, sampled `roster_priced`, `$exception`, and structured server error logs                                                                                                                                                                                             |
+| Quality    | `roster_datasheet_loaded`, `roster_datasheet_rendered`, sampled `roster_priced`, `$exception`, and structured server error logs                                                                                                                                                                |
 
 `battle_command_submitted` carries the command kind and domain outcome, so feature
 usage and stale or refused commands can be compared without recording the command
-payload. Performance events carry duration and workload counts only.
+payload. Datasheet performance separates server work, browser-observed request
+duration, and time from response resolution to the next rendered frame. Performance
+events carry duration and workload counts only.
 
 Builder events cover structural roster changes, not autosave or each loadout
 stepper click. Search events carry only the bounded result group and result count;
