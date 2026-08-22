@@ -35,14 +35,14 @@ export function fromBattleBaseText(input: string): TextRoster | null {
     }
     const header = trimmed.match(unitHeader)
     if (unitSection && header) {
-      current = { name: header[1].trim(), selections: [], leading: null, warlord: false }
+      current = { name: header[1]!.trim(), selections: [], leading: null, warlord: false }
       units.push(current)
       continue
     }
     if (!current) continue
     const picked = line.match(selection)
     if (!picked) continue
-    const name = picked[2].trim()
+    const name = picked[2]!.trim()
     if (/^Warlord$/i.test(name)) current.warlord = true
     else if (/^Leading:/i.test(name)) current.leading = name.replace(/^Leading:\s*/i, '').trim()
     else if (!/^Leader:/i.test(name)) current.selections.push({ name, count: Number(picked[1] ?? 1) })

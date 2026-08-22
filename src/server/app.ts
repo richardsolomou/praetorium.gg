@@ -1,4 +1,5 @@
 import path from 'node:path'
+import { randomInt } from 'node:crypto'
 import { persistedSecret } from 'ras-stack/auth'
 import { globalSingleton } from 'ras-stack/server'
 import { type BattleEvents, RealtimePublisher } from '../adapters/events'
@@ -107,7 +108,7 @@ export function app(): App {
     const instance: App = {
       database,
       valkey: cache,
-      service: new PraetoriumService(new Repository(database), Date.now, events),
+      service: new PraetoriumService(new Repository(database), Date.now, events, randomInt),
       events,
       auth: createAuth(database, persistedSecret({ directory: dataDirectory }), cache ?? undefined),
       catalogue: memoize(loadCatalogue),

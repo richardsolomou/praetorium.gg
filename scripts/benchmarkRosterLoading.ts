@@ -17,12 +17,16 @@ const requireCatalogue = () => {
   return catalogue
 }
 const loaded = requireCatalogue()
-const faction = loaded.factions.toSorted((left, right) => right.references[0].datasheets - left.references[0].datasheets)[0]
+const faction = loaded.factions.toSorted(
+  (left, right) => (right.references[0]?.datasheets ?? 0) - (left.references[0]?.datasheets ?? 0),
+)[0]!
+if (!faction) throw new Error('catalogue has no factions')
 const ids = [...(loaded.index.datasheets.get(faction.id) ?? [])]
 const sizes = [5, 10, 20, 40]
 
 function input(size: number) {
-  const picks: RosterPick[] = Array.from({ length: size }, (_, at) => ({ entryId: ids[at % ids.length] }))
+  if (!ids.length) throw new Error('faction has no datasheets')
+  const picks: RosterPick[] = Array.from({ length: size }, (_, at) => ({ entryId: ids[at % ids.length]! }))
   return { catalogueId: faction.id, detachmentIds: [], disposition: null, limit: 2_000, units: picks }
 }
 
@@ -46,7 +50,7 @@ function context(picks: readonly RosterPick[], pickIndex: number) {
 
 function projectWithContext(picks: readonly RosterPick[], prepared: ReturnType<typeof context>) {
   const selectedIndex = Math.floor(picks.length / 2)
-  const selectedId = picks[selectedIndex].entryId
+  const selectedId = picks[selectedIndex]!.entryId
   const views = datasheetViewsIn(loaded, faction.id, selectedId, prepared)
   describeDatasheetAbilities(loaded, faction.id, views.selected, app().rules())
   describeDatasheetAbilities(loaded, faction.id, views.available, app().rules())
@@ -54,7 +58,7 @@ function projectWithContext(picks: readonly RosterPick[], prepared: ReturnType<t
 
 function project(picks: readonly RosterPick[], shared: boolean) {
   const selectedIndex = Math.floor(picks.length / 2)
-  const selectedId = picks[selectedIndex].entryId
+  const selectedId = picks[selectedIndex]!.entryId
   const first = context(picks, selectedIndex)
   if (shared) {
     projectWithContext(picks, first)
@@ -77,7 +81,7 @@ function median(work: () => void, repetitions = 9) {
     work()
     return performance.now() - start
   }).toSorted((a, b) => a - b)
-  return samples[Math.floor(samples.length / 2)]
+  return samples[Math.floor(samples.length / 2)]!
 }
 
 console.log(`faction=${faction.name} datasheets=${ids.length}`)

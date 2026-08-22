@@ -10,6 +10,7 @@ Praetorium builds and validates rosters from fetched community data. The domain 
 - `catalogue-data/` contains fetched data and is gitignored. Do not commit game data or copied rules text.
 - An hourly automation checks upstream revisions and publishes a complete immutable snapshot. It replaces the remote `current.json` pointer only after reading and verifying the published archive.
 - Running instances check that pointer hourly, download a changed snapshot from the shared store, and swap it into place atomically. They never contact an upstream data provider.
+- Community-data requests have a per-attempt timeout and retry only transient network failures, timeouts, rate limits, and server errors. Checksums and invalid data fail immediately.
 - `src/server/sync.ts` fetches upstream data only for the snapshot publisher. `src/server/catalogueSnapshot.ts` owns packing, verification, and instance downloads.
 - Repository sources extract only their configured subpath. Archive size, output size, paths, and non-empty contents are checked before replacement.
 - Each download uses a staging directory. It replaces the current source only after the download finishes and its revision or hashes match.

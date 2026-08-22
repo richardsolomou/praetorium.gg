@@ -26,7 +26,7 @@ export function MissionCardReference({ card, type }: { card: { name: string; tex
       ) : null}
       <div className="mt-4 space-y-3">
         {[...groups.values()].map((awards) => (
-          <ScoringBlock key={groupKey(awards[0])} awards={awards} />
+          <ScoringBlock key={groupKey(awards[0]!)} awards={awards} />
         ))}
       </div>
     </article>
@@ -35,6 +35,7 @@ export function MissionCardReference({ card, type }: { card: { name: string; tex
 
 function ScoringBlock({ awards }: { awards: Award[] }) {
   const first = awards[0]
+  if (!first) return null
   const round = roundLabel(first.trigger.roundMin, first.trigger.roundMax)
   const timing = timingLabel(first.trigger)
   return (

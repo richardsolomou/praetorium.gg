@@ -285,6 +285,7 @@ export class Repository {
   async submit(
     input: { battleId: string; userId: string; expectedSeq: number; command: Command; now: number },
     validateState?: (state: ReturnType<typeof reduceBattle>) => string | null,
+    resolveCommand: (state: ReturnType<typeof reduceBattle>, command: Command) => Command = (_, command) => command,
   ): Promise<{ result: SubmitResult; log: LoggedCommand[] }> {
     return this.database.transaction(async (tx) => {
       await lockBattle(tx, input.battleId)
@@ -296,15 +297,16 @@ export class Repository {
         seated.map((player) => player.side),
       )
       if (input.expectedSeq !== state.seq) return { result: { outcome: 'stale', seq: state.seq }, log }
-      const refusal = validate(state, input.userId, input.command)
+      const command = resolveCommand(state, input.command)
+      const refusal = validate(state, input.userId, command)
       if (refusal) return { result: { outcome: 'refused', reason: refusal }, log }
       const externalRefusal = validateState?.(state)
       if (externalRefusal) return { result: { outcome: 'refused', reason: externalRefusal }, log }
       const seq = state.seq + 1
       await tx
         .insert(commands)
-        .values({ battleId: input.battleId, seq, userId: input.userId, at: input.now, body: JSON.stringify(input.command) })
-      return { result: { outcome: 'appended', seq }, log: [...log, { seq, by: input.userId, at: input.now, command: input.command }] }
+        .values({ battleId: input.battleId, seq, userId: input.userId, at: input.now, body: JSON.stringify(command) })
+      return { result: { outcome: 'appended', seq }, log: [...log, { seq, by: input.userId, at: input.now, command }] }
     })
   }
 
@@ -338,10 +340,18 @@ export class Repository {
       source: input.source,
       updatedAt: input.now,
     }
-    await this.database
+    const updated = await this.database
+      .update(rosters)
+      .set(updatable)
+      .where(and(eq(rosters.id, input.id), eq(rosters.userId, input.userId)))
+      .returning({ id: rosters.id })
+    if (updated.length) return true
+    const inserted = await this.database
       .insert(rosters)
       .values({ id: input.id, userId: input.userId, createdAt: input.now, ...updatable })
-      .onConflictDoUpdate({ target: rosters.id, set: updatable })
+      .onConflictDoNothing()
+      .returning({ id: rosters.id })
+    return inserted.length > 0
   }
 
   async rostersByUser(userId: string) {

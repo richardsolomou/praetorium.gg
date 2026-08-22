@@ -6,7 +6,7 @@ import viteReact from '@vitejs/plugin-react'
 import { nitro } from 'nitro/vite'
 import { postHogEnvironment } from 'ras-stack/posthog'
 import { postHogIngestProxy } from 'ras-stack/posthog/proxy'
-import { POSTHOG_INGEST_PATH } from './src/posthog'
+import { POSTHOG_INGEST_PATH } from './src/posthog.ts'
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')

@@ -128,7 +128,7 @@ export function findDescription(descriptions: ReadonlyMap<string, string>, detac
     const candidateName = key.slice(separator + 1)
     return near(detachmentTarget, candidateDetachment) && near(target, comparableName(candidateName))
   })
-  return matches.length === 1 ? matches[0][1] : null
+  return matches.length === 1 ? matches[0]![1] : null
 }
 
 const comparableName = (name: string) => routeSlug(name).replace(/-(?:aura|upgrade)$/, '')
@@ -146,7 +146,7 @@ export function findDetachmentAbilities(
   const target = routeSlug(detachment)
   const maximumDistance = Math.min(3, Math.max(1, Math.floor(target.length * 0.15)))
   const matches = [...abilities].filter(([key]) => distance(target, key) <= maximumDistance)
-  return matches.length === 1 ? matches[0][1] : []
+  return matches.length === 1 ? matches[0]![1] : []
 }
 
 export const findAbilityDescription = (descriptions: ReadonlyMap<string, string>, name: string) => descriptions.get(routeSlug(name)) ?? null
@@ -164,12 +164,15 @@ export function factionRestrictions(descriptions: ReadonlyMap<string, string>) {
     for (const match of description.matchAll(
       /Your army cannot include (?:any of )?the following (?:units|models|datasheets[^:]*):\s*([^.]*)/gi,
     )) {
-      addNames(forFaction(describedFaction).excludedNames, match[1])
+      const excluded = match[1]
+      if (excluded) addNames(forFaction(describedFaction).excludedNames, excluded)
     }
     for (const match of description.matchAll(
       /If your army includes one or more ([A-Z][A-Z ]+) units, it cannot include[^.]*?the following (?:units|models):\s*([^.]*)/g,
     )) {
-      addNames(forFaction(match[1]).excludedNames, match[2])
+      const factionName = match[1]
+      const excluded = match[2]
+      if (factionName && excluded) addNames(forFaction(factionName).excludedNames, excluded)
     }
     if (/BLACK TEMPLARS units[^.]*cannot include any Adeptus Astartes Psyker models/i.test(description)) {
       forFaction('Black Templars').excludedKeywords.add('psyker')

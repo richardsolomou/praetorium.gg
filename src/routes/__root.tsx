@@ -8,6 +8,7 @@ import barlow700 from '@fontsource/barlow-semi-condensed/files/barlow-semi-conde
 import rules400 from '@fontsource/barlow/files/barlow-latin-400-normal.woff2?url'
 import rules600 from '@fontsource/barlow/files/barlow-latin-600-normal.woff2?url'
 import { Button } from '@/components/ui/button'
+import { TooltipProvider } from '@/components/ui/tooltip'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -236,42 +237,44 @@ function RootComponent() {
           ingestPath={POSTHOG_INGEST_PATH}
           options={{ capture_exceptions: true, capture_performance: true }}
         >
-          {posthog && <PostHogBetterAuthIdentity authClient={authClient} />}
-          {/*
-           * The bar spans the window and the page inside it decides its own width,
-           * because a three-column builder and a sign-in form do not want the same
-           * measure. Nothing here is centred on the page's behalf.
-           */}
-          <div className={`flex flex-col ${immersive ? 'h-dvh' : 'min-h-dvh'}`}>
-            <header className="sticky top-0 z-30 border-b border-edge bg-panel/95 backdrop-blur">
-              <div className="flex h-12 items-center gap-2 px-2 sm:px-4 min-[815px]:gap-3 min-[900px]:gap-5">
-                <Link
-                  to="/"
-                  className="group flex shrink-0 items-center gap-1.5 text-base leading-none font-bold tracking-[0.02em] text-bone uppercase hover:text-info sm:text-lg"
-                >
-                  <img src="/logo.svg" alt="" className="size-7 transition-transform group-hover:rotate-180" />
-                  <span className="min-[815px]:hidden min-[900px]:inline">Praetorium</span>
-                </Link>
-                <PrimaryNavigation path={path} />
-                <GlobalSearch />
-                <Account />
-              </div>
-            </header>
-            <div className={immersive ? 'h-[calc(100dvh-3rem)] min-h-0' : 'min-h-0 flex-1'}>
-              <Outlet />
-            </div>
+          <TooltipProvider delay={250} closeDelay={100}>
+            {posthog && <PostHogBetterAuthIdentity authClient={authClient} />}
             {/*
-             * Said plainly and on every page, because the name is drawn from Games
-             * Workshop's setting and nothing about this is theirs or endorsed by them.
-             * The community data has its own attribution, which appears where that
-             * data does — see `ATTRIBUTION` in `src/server/rules.ts`.
+             * The bar spans the window and the page inside it decides its own width,
+             * because a three-column builder and a sign-in form do not want the same
+             * measure. Nothing here is centred on the page's behalf.
              */}
-            {immersive ? null : (
-              <footer className="border-t border-edge px-4 py-4 text-center text-xs text-faint">
-                Praetorium is an unofficial product, and is not in any way affiliated with or endorsed by Games Workshop.
-              </footer>
-            )}
-          </div>
+            <div className={`flex flex-col ${immersive ? 'h-dvh' : 'min-h-dvh'}`}>
+              <header className="sticky top-0 z-30 border-b border-edge bg-panel/95 backdrop-blur">
+                <div className="flex h-12 items-center gap-2 px-2 sm:px-4 min-[815px]:gap-3 min-[900px]:gap-5">
+                  <Link
+                    to="/"
+                    className="group flex shrink-0 items-center gap-1.5 text-base leading-none font-bold tracking-[0.02em] text-bone uppercase hover:text-info sm:text-lg"
+                  >
+                    <img src="/logo.svg" alt="" className="size-7 transition-transform group-hover:rotate-180" />
+                    <span className="min-[815px]:hidden min-[900px]:inline">Praetorium</span>
+                  </Link>
+                  <PrimaryNavigation path={path} />
+                  <GlobalSearch />
+                  <Account />
+                </div>
+              </header>
+              <div className={immersive ? 'h-[calc(100dvh-3rem)] min-h-0' : 'min-h-0 flex-1'}>
+                <Outlet />
+              </div>
+              {/*
+               * Said plainly and on every page, because the name is drawn from Games
+               * Workshop's setting and nothing about this is theirs or endorsed by them.
+               * The community data has its own attribution, which appears where that
+               * data does — see `ATTRIBUTION` in `src/server/rules.ts`.
+               */}
+              {immersive ? null : (
+                <footer className="border-t border-edge px-4 py-4 text-center text-xs text-faint">
+                  Praetorium is an unofficial product, and is not in any way affiliated with or endorsed by Games Workshop.
+                </footer>
+              )}
+            </div>
+          </TooltipProvider>
         </PostHogIntegration>
         <Scripts />
       </body>

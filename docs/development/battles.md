@@ -31,6 +31,8 @@ What an army brings is not a choice a player makes twice. The stratagems are the
 
 Secondaries are tactical unless a player says otherwise: the hand starts empty, the deck is the whole pack, and the tracker asks for the draw at the top of that player's command phase. Fixed play is the alternative, and the only case where cards are chosen up front.
 
+The client asks to draw, but the server chooses the card while it holds the battle lock and records that resolved card in the log. A submitted card is only a compatibility placeholder and is never trusted as the result of the draw.
+
 ## Views and visibility
 
 `battleView` in `src/core/battleView.ts` is the only place that decides what a player can see. Routes and realtime messages must not build a second view. An opponent can see drawn tactical missions but never the cards remaining in another player's deck.

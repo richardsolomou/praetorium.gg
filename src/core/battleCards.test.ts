@@ -424,7 +424,7 @@ describe('secondaries', () => {
       ]),
     )
 
-    expect(validate(state, ALICE, { kind: 'draw-secondary', secondary: cards[2] })).toBe('your tactical hand is full')
+    expect(validate(state, ALICE, { kind: 'draw-secondary', secondary: cards[2]! })).toBe('your tactical hand is full')
   })
 
   it('refuses a secret outside the authoritative deck', () => {

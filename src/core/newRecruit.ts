@@ -23,8 +23,8 @@ export function fromNewRecruitText(input: string): TextRoster | null {
     const header = trimmed.match(unitHeader)
     if (header) {
       current = {
-        name: header[2].trim(),
-        models: Number(header[1]),
+        name: header[2]!.trim(),
+        models: Number(header[1]!),
         selections: [],
         leading: null,
         leader: null,
@@ -38,29 +38,29 @@ export function fromNewRecruitText(input: string): TextRoster | null {
 
     const leading = trimmed.match(/^Leading\s+(.+)$/i)
     if (leading) {
-      current.leading = relationName(leading[1])
+      current.leading = relationName(leading[1]!)
       continue
     }
     const attached = trimmed.match(/^Attached to\s+(.+)$/i)
     if (attached) {
-      current.leader = relationName(attached[1])
+      current.leader = relationName(attached[1]!)
       continue
     }
     const enhancement = trimmed.match(/^Enhancement:\s*(.+)$/i)
     if (enhancement) {
-      const name = enhancement[1].replace(/\s+\([+-]?\d+\s*pts?\)\s*$/i, '').trim()
+      const name = enhancement[1]!.replace(/\s+\([+-]?\d+\s*pts?\)\s*$/i, '').trim()
       addSelection(current, `Enhancement: ${name}`, 1)
       continue
     }
     const model = trimmed.match(modelLine)
     if (model) {
-      const count = Number(model[1])
-      addSelection(current, model[2], count)
+      const count = Number(model[1]!)
+      addSelection(current, model[2]!, count)
       addDetails(current, model[3] ?? '', count)
       continue
     }
     const nested = trimmed.match(/^(\d+)\s+with\s+(.+)$/i)
-    if (nested) addDetails(current, nested[2], Number(nested[1]))
+    if (nested) addDetails(current, nested[2]!, Number(nested[1]!))
   }
 
   if (warlord) {
@@ -91,8 +91,8 @@ function addDetails(unit: TextRosterUnit, details: string, defaultMultiplier: nu
   let multiplier = defaultMultiplier
   const grouped = rest.match(/^(\d+)\s+with\s+(.+)$/i)
   if (grouped) {
-    multiplier = Number(grouped[1])
-    rest = grouped[2]
+    multiplier = Number(grouped[1]!)
+    rest = grouped[2]!
   }
 
   for (const raw of rest.split(',')) {

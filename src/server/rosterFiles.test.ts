@@ -336,7 +336,7 @@ Created with newrecruit.eu v35.51`,
       },
       loaded,
     )
-    const unit = imported.units[0]
+    const unit = imported.units[0]!
     const rebuilt = buildUnit(unit.entryId, loaded.index, unit.models, unit.choices, {
       primaryCatalogueId: imported.catalogueId ?? undefined,
       spreads: unit.spreads,

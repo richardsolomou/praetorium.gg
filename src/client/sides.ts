@@ -64,30 +64,33 @@ export type Side = {
 /** Both sides of the table, lowest side first, so both devices agree on the order. */
 export function sides(view: BattleView): Side[] {
   const indexes = [...new Set(view.players.map((player) => player.side))].toSorted((left, right) => left - right)
-  return indexes.map((index) => {
+  return indexes.flatMap((index) => {
     const seated = view.players.filter((player) => player.side === index)
     const captain = seated[0]
+    if (!captain) return []
     const paintedPoints = seated.reduce((total, player) => total + player.paintedPoints, 0)
-    return {
-      index,
-      armies: seated.map(toArmy),
-      captain,
-      isViewer: seated.some((player) => player.isViewer),
-      isActive: captain.isActive,
-      cp: captain.cp,
-      cpGained: captain.cpGained,
-      cpSpent: captain.cpSpent,
-      primary: captain.primary,
-      secondary: captain.secondary,
-      paintedPoints,
-      total: captain.primary + captain.secondary + (view.status === 'finished' ? paintedPoints : 0),
-      rounds: captain.rounds,
-      primaryCard: captain.primaryCard,
-      secondaries: unsettledFirst(captain.secondaries),
-      secondaryMode: captain.secondaryMode,
-      remainingSecondaries: captain.remainingSecondaries,
-      stratagems: captain.stratagems,
-    }
+    return [
+      {
+        index,
+        armies: seated.map(toArmy),
+        captain,
+        isViewer: seated.some((player) => player.isViewer),
+        isActive: captain.isActive,
+        cp: captain.cp,
+        cpGained: captain.cpGained,
+        cpSpent: captain.cpSpent,
+        primary: captain.primary,
+        secondary: captain.secondary,
+        paintedPoints,
+        total: captain.primary + captain.secondary + (view.status === 'finished' ? paintedPoints : 0),
+        rounds: captain.rounds,
+        primaryCard: captain.primaryCard,
+        secondaries: unsettledFirst(captain.secondaries),
+        secondaryMode: captain.secondaryMode,
+        remainingSecondaries: captain.remainingSecondaries,
+        stratagems: captain.stratagems,
+      },
+    ]
   })
 }
 

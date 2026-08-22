@@ -16,7 +16,12 @@ beforeEach(async () => {
   connection = await openTestDatabase()
   database = connection.database
   now = 0
-  service = new PraetoriumService(new Repository(database), () => ++now, { publish: () => {} })
+  service = new PraetoriumService(
+    new Repository(database),
+    () => ++now,
+    { publish: () => {} },
+    () => 0,
+  )
   await enrol('alice', 'Alice')
   await enrol('bob', 'Bob', 'https://example.test/bob.png')
   await enrol('carol', 'Carol')
@@ -67,6 +72,40 @@ async function view(token: string, playerId: string) {
   if (screen.kind !== 'battle') throw new Error('expected a seat')
   return screen.view
 }
+
+it('chooses tactical draws on the server instead of trusting the submitted card', async () => {
+  const { token } = await service.createBattle('alice')
+  await service.join(token, 'bob')
+  let seq = 0
+  const send = async (by: string, command: Parameters<PraetoriumService['submit']>[3]) => {
+    const answer = await service.submit(token, by, seq, command)
+    if (answer.result.outcome === 'appended') seq = answer.result.seq
+    return answer
+  }
+  await send('alice', { kind: 'attach-roster', roster: { name: 'Alice army', text: 'Alice army' } })
+  await send('bob', { kind: 'attach-roster', roster: { name: 'Bob army', text: 'Bob army' } })
+  const first = { key: 'first', name: 'First card' }
+  const chosenByClient = { key: 'chosen', name: 'Chosen card' }
+  expect(
+    (
+      await send('alice', {
+        kind: 'set-prep',
+        stratagems: [],
+        secondaries: [],
+        secondaryDeck: [first, chosenByClient],
+        primary: null,
+        secondaryMode: 'tactical',
+      })
+    ).result.outcome,
+  ).toBe('appended')
+  expect((await send('alice', { kind: 'begin-battle', firstPlayerId: 'alice' })).result.outcome).toBe('appended')
+
+  expect((await send('alice', { kind: 'draw-secondary', secondary: chosenByClient })).result.outcome).toBe('appended')
+
+  expect((await view(token, 'alice')).players.find((player) => player.id === 'alice')?.secondaries).toContainEqual(
+    expect.objectContaining({ key: 'first' }),
+  )
+})
 
 describe('favourite factions', () => {
   it('keeps each player favourites separate', async () => {
@@ -599,6 +638,7 @@ describe('saved rosters', () => {
         }),
       ),
     ).toBe(403)
+    expect((await service.sharedRoster(id, 'alice'))?.name).toBe('Recon force')
   })
 })
 
