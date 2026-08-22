@@ -61,7 +61,9 @@ function catalogueResults(wanted: string, matches: Matcher, sources: Sources): G
 
   const results: GlobalSearchResult[] = []
   const datasheets = new Map<string, { primary: GlobalSearchResult[]; allied?: GlobalSearchResult }>()
-  for (const faction of factionsFor(loaded, sources.rules).factions) {
+  const factions = factionsFor(loaded, sources.rules).factions
+  const spaceMarines = factions.find((faction) => faction.name === 'Space Marines')
+  for (const faction of factions) {
     if (matches(faction.displayName, faction.name)) {
       results.push({
         id: `faction:${faction.id}`,
@@ -96,12 +98,26 @@ function catalogueResults(wanted: string, matches: Matcher, sources: Sources): G
       const key = targetOf(entry, loaded.index.definitions).id
       const found = datasheets.get(key) ?? { primary: [] }
       if (loaded.index.alliedDatasheets.get(faction.id)?.has(entryId)) found.allied ??= result
-      else found.primary.push(result)
+      // Every chapter catalogue repeats the generic Adeptus Astartes characters
+      // it permits. They are Space Marines datasheets, not a new datasheet for
+      // each chapter reference page. Keep the canonical Space Marines result
+      // when that book is present, while leaving those entries available in
+      // every chapter's roster picker.
+      else if (isAdeptusAstartesDatasheet(entry, loaded) && spaceMarines) {
+        if (faction.id === spaceMarines.id) found.primary.unshift(result)
+      } else found.primary.push(result)
       datasheets.set(key, found)
     }
   }
   results.push(...[...datasheets.values()].flatMap((found) => (found.primary.length ? found.primary : found.allied ? [found.allied] : [])))
   return results
+}
+
+function isAdeptusAstartesDatasheet(entry: Parameters<typeof targetOf>[0], loaded: LoadedCatalogue) {
+  const target = targetOf(entry, loaded.index.definitions)
+  return [...(entry.categoryLinks ?? []), ...(target.categoryLinks ?? [])].some(
+    (category) => category.name?.trim().toLocaleLowerCase() === 'faction: adeptus astartes',
+  )
 }
 
 function missionResults(matches: Matcher, rules: LoadedRules | null): GlobalSearchResult[] {

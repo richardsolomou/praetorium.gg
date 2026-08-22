@@ -31,4 +31,50 @@ describe('global datasheet search', () => {
       expect.objectContaining({ label: 'Callidus Assassin', detail: 'Agents of the Imperium' }),
     ])
   })
+
+  it('shows generic Adeptus Astartes datasheets under Space Marines once', async () => {
+    const catalogue = shelfOf(
+      {
+        name: 'Space Marines',
+        selectionEntries: [
+          {
+            id: 'chaplain',
+            name: 'Chaplain in Terminator Armour',
+            type: 'model',
+            costs: points(75),
+            categoryLinks: categories('Faction: Adeptus Astartes'),
+          },
+        ],
+      },
+      {
+        name: 'Black Templars',
+        selectionEntries: [
+          {
+            id: 'black-templars-chaplain',
+            name: 'Chaplain in Terminator Armour',
+            type: 'model',
+            costs: points(75),
+            categoryLinks: categories('Faction: Adeptus Astartes'),
+          },
+        ],
+      },
+      {
+        name: 'Blood Angels',
+        selectionEntries: [
+          {
+            id: 'blood-angels-chaplain',
+            name: 'Chaplain in Terminator Armour',
+            type: 'model',
+            costs: points(75),
+            categoryLinks: categories('Faction: Adeptus Astartes'),
+          },
+        ],
+      },
+    )
+
+    const results = await searchEverything('chaplain in terminator', { catalogue, rules: null, own: async () => null })
+    expect(results.filter((result) => result.group === 'Datasheets')).toEqual([
+      expect.objectContaining({ label: 'Chaplain in Terminator Armour', detail: 'Space Marines' }),
+    ])
+  })
 })
