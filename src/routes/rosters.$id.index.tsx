@@ -1,8 +1,18 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, notFound } from '@tanstack/react-router'
 import { useEffect } from 'react'
+import { fieldedRoster } from '../client/battleRosterSnapshot'
+import { BattleRosterSnapshot } from '../client/components/BattleRosterSnapshot'
 import { RosterEditor } from '../client/components/RosterEditor'
-import { collectionQuery, factionsQuery, savedRosterPriceQuery, savedRostersQuery, sharedRosterQuery, unitsQuery } from '../client/queries'
+import {
+  battleQuery,
+  collectionQuery,
+  factionsQuery,
+  savedRosterPriceQuery,
+  savedRostersQuery,
+  sharedRosterQuery,
+  unitsQuery,
+} from '../client/queries'
 import { normalisePicks } from '../client/rosterPicks'
 
 export const Route = createFileRoute('/rosters/$id/')({
@@ -13,6 +23,11 @@ export const Route = createFileRoute('/rosters/$id/')({
   }),
   loaderDeps: ({ search }) => ({ battle: search.battle }),
   loader: async ({ context, params, deps }) => {
+    if (deps.battle) {
+      const screen = await context.queryClient.ensureQueryData(battleQuery(deps.battle))
+      if (!screen || screen.kind !== 'battle' || !fieldedRoster(screen.view, params.id)) throw notFound()
+      return { editable: false, snapshot: true }
+    }
     /*
      * Who is asking, what they are asking for, and the factions, all at once.
      *
@@ -46,7 +61,7 @@ export const Route = createFileRoute('/rosters/$id/')({
         ? [context.queryClient.ensureQueryData(collectionQuery()), context.queryClient.ensureQueryData(unitsQuery(roster.catalogueId, ''))]
         : []),
     ])
-    return { editable: Boolean(owned) }
+    return { editable: Boolean(owned), snapshot: false }
   },
   component: RosterPage,
 })
@@ -54,8 +69,9 @@ export const Route = createFileRoute('/rosters/$id/')({
 function RosterPage() {
   const { id } = Route.useParams()
   const { battle, print } = Route.useSearch()
-  const { editable } = Route.useLoaderData()
-  const { data: shared } = useQuery(sharedRosterQuery(id, battle))
+  const { editable, snapshot } = Route.useLoaderData()
+  const { data: screen } = useQuery({ ...battleQuery(battle ?? ''), enabled: snapshot && Boolean(battle) })
+  const { data: shared } = useQuery({ ...sharedRosterQuery(id, battle), enabled: !snapshot })
   const { data: saved = [] } = useQuery({ ...savedRostersQuery(), enabled: editable })
   const roster = saved.find((candidate) => candidate.id === id) ?? shared
 
@@ -63,6 +79,10 @@ function RosterPage() {
     if (print) window.print()
   }, [print])
 
+  if (snapshot && battle && screen?.kind === 'battle') {
+    const fielded = fieldedRoster(screen.view, id)
+    return fielded ? <BattleRosterSnapshot roster={fielded} token={battle} /> : null
+  }
   if (!roster) return null
   return <RosterEditor roster={roster} editable={editable} battle={battle} />
 }

@@ -17,6 +17,8 @@ Live commands can name the affected player or army. Any seated player can operat
 
 After a turn changes, the incoming captain settles scoring from the prior turn. This acknowledgement is not a report entry or undo target.
 
+A roster attached to a battle is a historical snapshot. Battle-qualified roster links read the name, submitted text, catalogue revision, points and units from the command log rather than the mutable saved roster, so later edits or deletion cannot rewrite the battle.
+
 Setup settings, roster replacements, formation choices, painted-army bonuses, concessions, reopening, and setup resets are commands too. A reset clears rosters and battlefield choices without erasing the audit trail or the configured game size, mission pack or solo format. A finished battle remains reopenable; deletion is the only destructive operation and is restricted to the account that created the battle.
 
 The current setup section is also a command-derived shared value. When one seated player moves forward or back, realtime updates move every device to that section; setup navigation is never private browser state.
