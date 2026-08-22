@@ -317,12 +317,14 @@ export const datasheet = createServerFn({ method: 'GET' })
  *
  * The chosen and offered weapon views differ only at the final datasheet
  * projection. Expanding every unit once per view made opening a unit scale at
- * twice the cost of its roster for no domain reason.
+ * twice the cost of its roster for no domain reason. A complete roster is too
+ * large for a reliable query string, so this read uses POST and the same origin
+ * check as roster pricing.
  */
-export const loadoutDatasheets = createServerFn({ method: 'GET' })
+export const loadoutDatasheets = createServerFn({ method: 'POST' })
   .validator(datasheetSchema)
   .handler(({ data }) =>
-    rpc(async () => {
+    mutationRpc(async () => {
       const startedAt = performance.now()
       const loaded = app().catalogue()
       if (!loaded) return null
