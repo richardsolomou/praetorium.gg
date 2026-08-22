@@ -3,11 +3,12 @@ import { Link } from '@tanstack/react-router'
 import { Check, Eye, Shuffle } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Dialog } from '@/components/ui/dialog'
 import type { Command } from '../../core/battle'
 import type { BattleView } from '../../core/battleView'
 import { deploymentsQuery, terrainMatchupIds, terrainReferencesQuery } from '../queries'
 import { TerrainBoard } from './TerrainBoard'
+import { TerrainLayoutDialogContent } from './TerrainLayoutDialogContent'
 
 type Props = { view: BattleView; send: (command: Command) => void; pending: boolean; allowedIds?: string[] }
 
@@ -110,24 +111,16 @@ export function Battlefield({ view, send, pending, allowedIds }: Props) {
         </p>
       ) : null}
       <Dialog open={Boolean(inspected)} onOpenChange={(open) => !open && setInspecting(null)}>
-        <DialogContent className="max-h-[92dvh] overflow-y-auto rounded-none border border-edge bg-panel text-bone sm:max-w-4xl">
-          {inspected ? (
-            <>
-              <DialogHeader>
-                <DialogTitle className="text-2xl uppercase">{inspected.deployment.name}</DialogTitle>
-                <DialogDescription className="text-dim">{inspected.terrain.name} terrain and deployment zones.</DialogDescription>
-              </DialogHeader>
-              <TerrainBoard
-                layout={inspected.terrain}
-                deployment={inspected.deployment}
-                templates={references?.templates ?? []}
-                className="mx-auto max-h-[70dvh] w-full max-w-xl"
-                detailed
-                ariaLabel={`${inspected.deployment.name} battlefield with ${inspected.terrain.name}`}
-              />
-            </>
-          ) : null}
-        </DialogContent>
+        {inspected ? (
+          <TerrainLayoutDialogContent
+            title={inspected.deployment.name}
+            description={`${inspected.terrain.name} terrain and deployment zones.`}
+            layout={inspected.terrain}
+            deployment={inspected.deployment}
+            templates={references?.templates ?? []}
+            ariaLabel={`${inspected.deployment.name} battlefield with ${inspected.terrain.name}`}
+          />
+        ) : null}
       </Dialog>
     </section>
   )
