@@ -1,6 +1,6 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { Link, Outlet, useParams, useRouterState } from '@tanstack/react-router'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, FileSearch } from 'lucide-react'
 import { useState } from 'react'
 import { factionFor } from '../factions'
 import { factionDatasheetsQuery, factionsQuery } from '../queries'
@@ -9,6 +9,7 @@ import { FactionMark, factionColour } from './FactionMark'
 import { SearchField } from './SearchField'
 import { GROUPS } from './builder/groups'
 import { Section } from './builder/Section'
+import { PageState } from './PageState'
 
 export function FactionDatasheets() {
   const { catalogueId } = useParams({ strict: false })
@@ -33,10 +34,14 @@ export function FactionDatasheets() {
       >
         <ChevronLeft className="size-3.5" /> {faction.references[0]?.name ?? faction.displayName}
       </Link>
-      <header className="mt-4 flex items-center gap-3 border-b pb-4" style={{ borderBottomColor: factionColour(faction.slug) }}>
+      <header
+        className="relative mt-4 flex items-center gap-3 overflow-hidden border border-edge bg-panel p-5 sm:p-7"
+        style={{ borderLeftColor: factionColour(faction.slug), borderLeftWidth: 3 }}
+      >
+        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,transparent_35%,color-mix(in_srgb,var(--color-parchment)_8%,transparent),transparent_75%)]" />
         <FactionMark id={faction.slug} icon={faction.icon} />
-        <span>
-          <p className="eyebrow">{faction.displayName} · Reference</p>
+        <span className="relative">
+          <p className="eyebrow text-parchment">{faction.displayName} · Reference</p>
           <h1 className="text-3xl">Datasheets</h1>
         </span>
       </header>
@@ -78,7 +83,18 @@ export function FactionDatasheets() {
             ) : null
           })
         ) : (
-          <p className="py-3 text-sm text-faint">{query.trim() ? 'Nothing by that name.' : 'Loading datasheets…'}</p>
+          <PageState
+            headingLevel={2}
+            loading={!query.trim()}
+            icon={FileSearch}
+            eyebrow={query.trim() ? 'Datasheet search' : faction.displayName}
+            title={query.trim() ? 'No datasheets match' : 'Loading datasheets'}
+            explanation={
+              query.trim()
+                ? 'Try another datasheet name or clear the search.'
+                : 'Pricing the faction’s datasheets from the verified catalogue.'
+            }
+          />
         )}
       </div>
     </main>

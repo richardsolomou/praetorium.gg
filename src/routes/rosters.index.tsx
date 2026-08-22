@@ -24,6 +24,7 @@ import { type SavedRoster, useRosterActions } from '../client/components/rosters
 import { ROSTER_SORTS, type RosterSort, sortRosters } from '../client/components/rosters/rosterSort'
 import { readWorkspaceState, writeWorkspaceState } from '../client/components/workspaceState'
 import { SignInRequired } from '../client/components/SignInRequired'
+import { PageState } from '../client/components/PageState'
 import { useFavouriteFactions } from '../client/favouriteFactions'
 import { factionsQuery, meQuery, savedRosterPointsQuery, savedRostersQuery } from '../client/queries'
 import { useOrigin } from '../client/useOrigin'
@@ -242,9 +243,13 @@ function RosterLibrary() {
               />
             ))
           ) : (
-            <p className="border border-edge bg-panel p-8 text-center text-sm text-dim">
-              {saved.length ? 'No rosters match these filters.' : 'No rosters yet. Create one or bring one from another app.'}
-            </p>
+            <PageState
+              headingLevel={2}
+              eyebrow={saved.length ? 'Roster filters' : 'Roster library'}
+              title={saved.length ? 'No rosters match' : 'No rosters yet'}
+              explanation={saved.length ? 'No rosters match these filters.' : 'No rosters yet. Create one or bring one from another app.'}
+              icon={ScrollText}
+            />
           )}
         </div>
       </section>

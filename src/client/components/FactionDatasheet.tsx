@@ -46,10 +46,14 @@ export function FactionDatasheet() {
           </BreadcrumbItem>
         </BreadcrumbList>
       </Breadcrumb>
-      <header className="flex items-start gap-3 border-b pb-4" style={{ borderBottomColor: factionColour(faction.slug) }}>
+      <header
+        className="relative flex items-start gap-3 overflow-hidden border border-edge bg-panel p-5 sm:p-7"
+        style={{ borderLeftColor: factionColour(faction.slug), borderLeftWidth: 3 }}
+      >
+        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,transparent_35%,color-mix(in_srgb,var(--color-parchment)_8%,transparent),transparent_75%)]" />
         <FactionMark id={faction.slug} icon={faction.icon} />
-        <div className="min-w-0 flex-1">
-          <p className="eyebrow">{faction.displayName} · Datasheet</p>
+        <div className="relative min-w-0 flex-1">
+          <p className="eyebrow text-parchment">{faction.displayName} · Datasheet</p>
           <div className="flex items-center justify-between gap-4">
             <h1 className="text-3xl">{sheet.name}</h1>
             <div className="flex shrink-0 gap-1">

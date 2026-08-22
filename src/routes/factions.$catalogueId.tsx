@@ -1,11 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, notFound, Outlet, useRouterState } from '@tanstack/react-router'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ShieldQuestion } from 'lucide-react'
 import { factionFor } from '../client/factions'
 import { factionsQuery } from '../client/queries'
 import { FactionMark, factionColour } from '../client/components/FactionMark'
 import { dispositionTone } from '../client/components/rosterSetup'
 import { RuleText } from '../client/components/RuleText'
+import { PageState } from '../client/components/PageState'
 
 export const Route = createFileRoute('/factions/$catalogueId')({
   loader: async ({ context, params }) => {
@@ -30,13 +31,17 @@ function FactionPage() {
       <Link to="/factions" className="eyebrow flex items-center gap-1 text-info hover:text-bone">
         <ChevronLeft className="size-3.5" /> Factions
       </Link>
-      <header className="mt-4 flex items-center gap-4 border-b pb-4" style={{ borderBottomColor: factionColour(faction.slug) }}>
+      <section
+        className="relative mt-4 flex items-center gap-4 overflow-hidden border border-edge bg-panel p-5 sm:p-7"
+        style={{ borderLeftColor: factionColour(faction.slug), borderLeftWidth: 3 }}
+      >
+        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,transparent_35%,color-mix(in_srgb,var(--color-parchment)_8%,transparent),transparent_75%)]" />
         <FactionMark id={faction.slug} icon={faction.icon} size="lg" />
-        <span>
-          <p className="eyebrow">Faction</p>
+        <span className="relative">
+          <p className="eyebrow text-parchment">Faction</p>
           <h1 className="text-3xl">{faction.displayName}</h1>
         </span>
-      </header>
+      </section>
       <section className="mt-5">
         <Link
           to="/factions/$catalogueId/datasheets"
@@ -69,7 +74,16 @@ function FactionPage() {
           <span className="readout">{detachments.length}</span>
         </p>
         <div className="mt-2 divide-y divide-edge border border-edge bg-panel">
-          {!detachments.length ? <p className="px-3 py-4 text-sm text-dim">No detachments in the current data.</p> : null}
+          {!detachments.length ? (
+            <PageState
+              headingLevel={2}
+              eyebrow="Detachments"
+              title="No detachments available"
+              explanation="The current structured sources do not define detachments for this faction."
+              icon={ShieldQuestion}
+              className="border-0"
+            />
+          ) : null}
           {detachments.map((detachment) => {
             const content = (
               <>

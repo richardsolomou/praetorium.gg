@@ -1,7 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
+import { UserX } from 'lucide-react'
 import { SignInRequired } from '../client/components/SignInRequired'
 import { PlayerAvatar } from '../client/components/PlayerAvatar'
+import { PageState } from '../client/components/PageState'
 import { battlesQuery, meQuery, userProfileQuery } from '../client/queries'
 
 export const Route = createFileRoute('/users/$userId')({
@@ -27,9 +29,13 @@ function PlayerProfile() {
   const shared = battles.filter((battle) => battle.playerIds.includes(userId))
   if (!profile) {
     return (
-      <main className="mx-auto w-full max-w-2xl px-4 py-12 text-center">
-        <h1 className="text-2xl">Nothing here</h1>
-        <p className="mt-3 text-sm text-dim">You have not shared a battle with this player, so there is nothing to show.</p>
+      <main className="mx-auto w-full max-w-2xl px-4 py-10">
+        <PageState
+          eyebrow="Player profile"
+          title="Profile unavailable"
+          explanation="You are not friends and have not shared a battle with this player."
+          icon={UserX}
+        />
       </main>
     )
   }
@@ -47,10 +53,11 @@ function PlayerProfile() {
 
   return (
     <main className="mx-auto w-full max-w-3xl space-y-6 px-4 py-8">
-      <header className="flex items-center gap-4 border-b border-edge pb-4">
+      <section className="relative flex items-center gap-4 overflow-hidden border border-edge bg-panel p-5 sm:p-7">
+        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,transparent_35%,color-mix(in_srgb,var(--color-parchment)_8%,transparent),transparent_75%)]" />
         <PlayerAvatar name={profile.name} image={profile.image} className="size-20 text-2xl" />
-        <div className="min-w-0">
-          <p className="eyebrow">{yourself ? 'You' : 'Player'}</p>
+        <div className="relative min-w-0">
+          <p className="eyebrow text-parchment">{yourself ? 'You' : 'Player'}</p>
           <h1 className="truncate text-2xl">{profile.name}</h1>
           <p className="mt-2 text-sm text-dim">
             {yourself
@@ -60,7 +67,7 @@ function PlayerProfile() {
                 }.`}
           </p>
         </div>
-      </header>
+      </section>
 
       <section>
         <p className="rubric border-b border-edge pb-2">{yourself ? 'Your record' : 'Your record against them'}</p>

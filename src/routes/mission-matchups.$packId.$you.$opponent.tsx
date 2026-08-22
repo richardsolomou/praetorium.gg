@@ -1,8 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, notFound } from '@tanstack/react-router'
+import { MapPinned } from 'lucide-react'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { MissionCardReference } from '../client/components/MissionCardReference'
 import { TerrainBoard } from '../client/components/TerrainBoard'
+import { PageState } from '../client/components/PageState'
 import { type TerrainGeometry, type TerrainPiece, type TerrainTemplate } from '../client/components/terrainGeometry'
 import { dispositionTone } from '../client/components/rosterSetup'
 import { gameReferencesQuery, terrainMatchupIds, terrainReferencesQuery } from '../client/queries'
@@ -37,10 +39,16 @@ function MissionMatchupPage() {
       <Link to="/mission-packs/$packId" params={{ packId }} className="eyebrow text-info">
         {pack.name}
       </Link>
-      <h1 className="mt-3 text-3xl">
-        {yourDisposition.name} vs {opponentDisposition.name}
-      </h1>
-      <div className="mt-5 grid grid-cols-[1fr_auto_1fr] items-stretch gap-2">
+      <section className="relative mt-3 overflow-hidden border border-edge bg-panel p-5 sm:p-7">
+        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,transparent_35%,color-mix(in_srgb,var(--color-parchment)_8%,transparent),transparent_75%)]" />
+        <div className="relative">
+          <p className="eyebrow text-parchment">Mission matchup</p>
+          <h1 className="mt-1 text-3xl">
+            {yourDisposition.name} vs {opponentDisposition.name}
+          </h1>
+        </div>
+      </section>
+      <div className="grid grid-cols-[1fr_auto_1fr] items-stretch gap-2 border-x border-b border-edge bg-sunken p-3">
         <div className={`grid min-h-14 place-items-center border px-3 text-center font-bold uppercase ${dispositionTone(you, true)}`}>
           {yourDisposition.name}
         </div>
@@ -82,7 +90,14 @@ function MissionMatchupPage() {
             ))}
           </div>
         ) : (
-          <p className="mt-2 text-sm text-dim">No terrain layouts are associated with this matchup in the synced source.</p>
+          <PageState
+            className="mt-3"
+            headingLevel={2}
+            eyebrow="Terrain layouts"
+            title="No layouts available"
+            explanation="The current synced source does not associate terrain geometry with this matchup."
+            icon={MapPinned}
+          />
         )}
       </section>
       <p className="mt-6 border-t border-edge pt-3 text-xs text-dim">{data.attribution}</p>

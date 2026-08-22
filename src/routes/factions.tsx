@@ -7,6 +7,7 @@ import { factionIndexQuery, meQuery } from '../client/queries'
 import { useFavouriteFactions } from '../client/favouriteFactions'
 import { FactionMark, factionColour } from '../client/components/FactionMark'
 import { SearchField } from '../client/components/SearchField'
+import { PageState } from '../client/components/PageState'
 
 export const Route = createFileRoute('/factions')({
   loader: ({ context, location }) =>
@@ -25,7 +26,17 @@ function FactionIndex() {
   const { data: me } = useQuery(meQuery())
   const [factionQueryText, setFactionQueryText] = useState('')
   const { favourites, toggleFavourite } = useFavouriteFactions()
-  if (!data) return <main className="mx-auto max-w-5xl px-4 py-8 text-sm text-dim">Catalogue data is still syncing.</main>
+  if (!data)
+    return (
+      <main className="mx-auto max-w-5xl px-4 py-8">
+        <PageState
+          loading
+          eyebrow="Community catalogues"
+          title="Syncing catalogue data"
+          explanation="Faction references will appear when the verified snapshot is ready."
+        />
+      </main>
+    )
 
   const wanted = factionQueryText.trim().toLowerCase()
   const matching = data.factions.filter(
@@ -81,7 +92,13 @@ function FactionIndex() {
             />
           ))
       ) : (
-        <p className="mt-6 border border-edge bg-panel p-6 text-center text-sm text-dim">No factions match.</p>
+        <PageState
+          className="mt-6"
+          headingLevel={2}
+          eyebrow="Faction search"
+          title="No factions match"
+          explanation="Try a broader faction name or clear the search."
+        />
       )}
     </main>
   )

@@ -25,6 +25,7 @@ import { useEffect, useRef, useState } from 'react'
 import { authClient } from '../client/authClient'
 import { GlobalSearch } from '../client/components/GlobalSearch'
 import { PlayerAvatar } from '../client/components/PlayerAvatar'
+import { PageState } from '../client/components/PageState'
 import { favouriteFactionsQuery, meQuery } from '../client/queries'
 import { POSTHOG_INGEST_PATH } from '../posthog'
 import appCss from '../styles.css?url'
@@ -68,9 +69,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   }),
   component: RootComponent,
   notFoundComponent: () => (
-    <main className="mx-auto mt-[15vh] max-w-md px-6 text-center">
-      <h1 className="text-2xl">Nothing here</h1>
-      <p className="mt-2 text-dim">Check the link you were sent.</p>
+    <main className="mx-auto w-full max-w-2xl px-4 py-10">
+      <PageState
+        eyebrow="404"
+        title="Nothing here"
+        explanation="This page does not exist or its current data is unavailable. Check the link and try again."
+      />
     </main>
   ),
 })

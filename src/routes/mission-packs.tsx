@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Outlet, redirect, useLocation, useNavigate } from '@tanstack/react-router'
 import { useEffect } from 'react'
 import { gameReferencesQuery } from '../client/queries'
+import { PageState } from '../client/components/PageState'
 
 export const Route = createFileRoute('/mission-packs')({
   loader: async ({ context, location }) => {
@@ -29,8 +30,16 @@ function MissionPacks() {
   if (path !== '/mission-packs') return <Outlet />
   return (
     <main className="mx-auto w-full max-w-5xl px-4 py-8">
-      <p className="eyebrow">Mission packs</p>
-      <h1 className="text-3xl">{data ? 'No mission packs available' : 'Loading mission data…'}</h1>
+      <PageState
+        loading={!data}
+        eyebrow="Mission packs"
+        title={data ? 'No mission packs available' : 'Loading mission data'}
+        explanation={
+          data
+            ? 'The current verified rules snapshot does not contain a mission pack.'
+            : 'Missions, deployments, and terrain will appear when the rules snapshot is ready.'
+        }
+      />
     </main>
   )
 }

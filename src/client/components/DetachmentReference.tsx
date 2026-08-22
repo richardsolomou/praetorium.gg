@@ -3,20 +3,30 @@ import { detachmentDetailQuery } from '../queries'
 import { RuleText } from './RuleText'
 import { dispositionTone } from './rosterSetup'
 import { FactionMark, factionColour, type FactionPresentation } from './FactionMark'
+import { PageState } from './PageState'
 
 export function DetachmentReference({ catalogueId, slug, faction }: { catalogueId: string; slug: string; faction?: FactionPresentation }) {
   const { data: detachment } = useQuery(detachmentDetailQuery(catalogueId, slug))
-  if (!detachment) return <p className="p-6 text-sm text-dim">Loading detachment…</p>
+  if (!detachment)
+    return (
+      <PageState
+        loading
+        eyebrow={faction?.displayName ?? 'Detachment'}
+        title="Loading detachment"
+        explanation="Rules, enhancements, and stratagems will appear when the reference is ready."
+      />
+    )
 
   return (
     <div className="space-y-6">
-      <header
-        className="flex items-start gap-3 border-b pb-4"
-        style={{ borderBottomColor: faction ? factionColour(faction.slug) : undefined }}
+      <section
+        className="relative flex items-start gap-3 overflow-hidden border border-edge bg-panel p-5 sm:p-7"
+        style={{ borderLeftColor: faction ? factionColour(faction.slug) : undefined, borderLeftWidth: faction ? 3 : undefined }}
       >
+        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,transparent_35%,color-mix(in_srgb,var(--color-parchment)_8%,transparent),transparent_75%)]" />
         {faction ? <FactionMark id={faction.slug} icon={faction.icon} /> : null}
-        <div className="min-w-0 flex-1">
-          <p className="eyebrow">{faction ? `${faction.displayName} · Detachment` : 'Detachment'}</p>
+        <div className="relative min-w-0 flex-1">
+          <p className="eyebrow text-parchment">{faction ? `${faction.displayName} · Detachment` : 'Detachment'}</p>
           <div className="flex items-start justify-between gap-4">
             <h1 className="text-3xl">{detachment.name}</h1>
             {detachment.dispositions.length || detachment.points !== null ? (
@@ -31,7 +41,7 @@ export function DetachmentReference({ catalogueId, slug, faction }: { catalogueI
             ) : null}
           </div>
         </div>
-      </header>
+      </section>
 
       {detachment.rules.length ? (
         <section>
