@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.18.5
+
+### Patch Changes
+
+- 0b8e04a: Make battles, rosters, catalogue references, navigation, and core account pages safer and clearer.
+
 ## 0.18.4
 
 ### Patch Changes
