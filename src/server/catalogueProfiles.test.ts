@@ -512,4 +512,34 @@ describe('the profile modifiers on a datasheet', () => {
       modifiers: ['Shield'],
     })
   })
+
+  it('reads a model invulnerable save when the catalogue only supplies its prose', () => {
+    const book = bookOf({
+      selectionEntries: [
+        {
+          id: 'captain',
+          name: 'Captain',
+          type: 'model',
+          profiles: [
+            {
+              id: 'captain-profile',
+              name: 'Captain',
+              typeName: 'Unit',
+              characteristics: [{ name: 'InSv', typeId: 'invulnerable-save', $text: '' }],
+            },
+            {
+              id: 'invulnerable-save',
+              name: 'Invulnerable Save',
+              typeName: 'Abilities',
+              characteristics: [{ name: 'Description', $text: 'This model has a 4+ invulnerable save.' }],
+            },
+          ],
+        },
+      ],
+    })
+
+    expect(datasheetIn(book, 'cat', 'captain', { selections: [{ id: 'captain' }], unitSelectionIndex: 0 })?.profiles[0]?.values).toEqual([
+      { name: 'InSv', value: '4+', baseValue: '', modifiers: ['Invulnerable Save'] },
+    ])
+  })
 })

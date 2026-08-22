@@ -77,6 +77,9 @@ export function datasheetIn(
   const grantedWeaponAbilities = context
     ? weaponAbilitiesInAttachedUnit(context.selections, context.unitSelectionIndex, context.companions ?? [], loaded.index)
     : []
+  const grantedInvulnerableSaves = context
+    ? invulnerableSavesInSelectedUnit(context.selections, context.unitSelectionIndex, loaded.index)
+    : []
   const selected = new Set<string>()
   const selectedCounts = new Map<string, number>()
   const requestedUnit = context?.unitSelectionIndex === undefined ? undefined : context.selections[context.unitSelectionIndex]
@@ -216,9 +219,12 @@ export function datasheetIn(
       const changed = modifiedProfileField('', field, profileType, profileLineage, owner, modifiers)
       return characteristicName && changed.value ? [{ name: characteristicName, ...changed }] : []
     })
+    const baseValues = [...values, ...added]
+    const characteristicValues =
+      profileType === 'Unit' ? addGrantedInvulnerableSave(baseValues, owner, grantedInvulnerableSaves) : baseValues
     const displayedValues = weapon
-      ? addGrantedWeaponAbilities([...values, ...added], profileType, grantedWeaponAbilities)
-      : [...values, ...added]
+      ? addGrantedWeaponAbilities(characteristicValues, profileType, grantedWeaponAbilities)
+      : characteristicValues
     return [
       {
         id: profile.id,
@@ -255,6 +261,7 @@ export function datasheetIn(
 }
 
 type GrantedWeaponAbility = { keyword: string; source: string; profileTypes: readonly string[] }
+type GrantedInvulnerableSave = { value: string; source: string; originIds: readonly string[] }
 
 function weaponAbilitiesInAttachedUnit(
   selections: readonly Selection[],
@@ -264,13 +271,11 @@ function weaponAbilitiesInAttachedUnit(
 ): GrantedWeaponAbility[] {
   if (unitSelectionIndex === undefined || !companionIndexes.length) return []
   const found = new Map<string, GrantedWeaponAbility>()
-  const seenProfiles = new Set<string>()
-  const inspect = (definition: Definition) => {
+  for (const definition of definitionsInSelections(selections, [unitSelectionIndex, ...companionIndexes], index)) {
     for (const source of [definition, targetOf(definition, index.definitions)]) {
       for (const profile of source.profiles ?? []) {
-        if (profile.typeName !== 'Abilities' || !profile.name || seenProfiles.has(profile.id)) continue
-        seenProfiles.add(profile.id)
-        const description = abilityDescription(profile)?.normalize('NFKC').replaceAll(/\s+/g, ' ').trim()
+        if (profile.typeName !== 'Abilities' || !profile.name) continue
+        const description = normalizedAbilityDescription(profile)
         const match = description?.match(
           /^While this model is leading a unit, (?:(melee|ranged) )?weapons equipped by models in that unit have the \[([\p{L}\p{N} +'’\p{Pd}]+)\] ability\.$/iu,
         )
@@ -283,16 +288,58 @@ function weaponAbilitiesInAttachedUnit(
       }
     }
   }
+  return [...found.values()]
+}
+
+function invulnerableSavesInSelectedUnit(
+  selections: readonly Selection[],
+  unitSelectionIndex: number | undefined,
+  index: LoadedCatalogue['index'],
+): GrantedInvulnerableSave[] {
+  if (unitSelectionIndex === undefined) return []
+  const found = new Map<string, GrantedInvulnerableSave>()
+  for (const definition of definitionsInSelections(selections, [unitSelectionIndex], index)) {
+    for (const source of [definition, targetOf(definition, index.definitions)]) {
+      for (const profile of source.profiles ?? []) {
+        if (profile.typeName !== 'Abilities' || !profile.name) continue
+        const value = normalizedAbilityDescription(profile)?.match(/^This model has an? (\d+\+) invulnerable save\.$/i)?.[1]
+        if (!value) continue
+        const granted = { value, source: profile.name, originIds: definitionTokens(definition) }
+        found.set(JSON.stringify(granted), granted)
+      }
+    }
+  }
+  return [...found.values()]
+}
+
+function definitionsInSelections(
+  selections: readonly Selection[],
+  indexes: readonly number[],
+  index: LoadedCatalogue['index'],
+): Definition[] {
+  const found = new Map<string, Definition>()
   const visit = (selection: Selection) => {
     const definition = index.definitions.get(selection.id)
-    if (definition) inspect(definition)
+    if (definition) found.set(definition.id, definition)
     selection.selections?.forEach(visit)
   }
-  for (const at of [unitSelectionIndex, ...companionIndexes]) {
+  for (const at of indexes) {
     const selection = selections[at]
     if (selection) visit(selection)
   }
   return [...found.values()]
+}
+
+const normalizedAbilityDescription = (profile: Profile) => abilityDescription(profile)?.normalize('NFKC').replaceAll(/\s+/g, ' ').trim()
+
+function addGrantedInvulnerableSave(
+  values: Datasheet['profiles'][number]['values'],
+  owner: readonly string[],
+  saves: readonly GrantedInvulnerableSave[],
+) {
+  if (values.some((value) => value.name === 'InSv')) return values
+  const save = saves.find((candidate) => candidate.originIds.some((id) => owner.includes(id)))
+  return save ? [...values, { name: 'InSv', value: save.value, baseValue: '', modifiers: [save.source] }] : values
 }
 
 function addGrantedWeaponAbilities(
