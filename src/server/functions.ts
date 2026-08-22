@@ -4,7 +4,7 @@ import { configuredProviders } from 'ras-stack/auth'
 import { SOCIAL_PROVIDERS } from '../authConfig'
 import { routeSlug } from '../core/slug'
 import { attachedUnit } from '../core/attach'
-import { buildUnit } from '../core/roster'
+import { buildUnit, type RosterPick } from '../core/roster'
 import { datasheetIn, datasheetInBySlug, rulesReferencedIn } from './catalogue'
 import { describeDatasheetAbilities } from './datasheetDescriptions'
 import { detachmentReference } from './detachmentReference'
@@ -268,38 +268,74 @@ export const datasheet = createServerFn({ method: 'GET' })
     rpc(() => {
       const loaded = app().catalogue()
       if (!loaded) return null
-      const detachments = rosterDetachments(loaded, data.catalogueId, data.detachmentIds).selections
-      const builtUnits = data.picks.flatMap((pick, index) => {
-        const unit = buildUnit(pick.entryId, loaded.index, pick.models, pick.choices, {
-          primaryCatalogueId: data.catalogueId,
-          roster: detachments,
-          spreads: pick.spreads,
-          toggles: pick.toggles,
-        })
-        return unit ? [{ index, selection: unit.selection }] : []
-      })
-      const selected = builtUnits.findIndex((unit) => unit.index === data.pickIndex)
-      const selections = [...detachments, ...builtUnits.map((unit) => unit.selection)]
-      // A character, the unit it joined and everything else joined to that unit are
-      // one unit, so each is told about the others: a relic that speaks of the
-      // bearer's unit has to reach every model in it.
-      const attached = data.pickIndex === null ? [] : attachedUnit(data.picks, data.pickIndex)
-      const companions = builtUnits.flatMap((unit, at) => (attached.includes(unit.index) ? [detachments.length + at] : []))
-      return describeDatasheetAbilities(
-        loaded,
-        data.catalogueId,
-        datasheetIn(
-          loaded,
-          data.catalogueId,
-          data.entryId,
-          selected < 0
-            ? undefined
-            : { selections, unitSelectionIndex: detachments.length + selected, everyWeapon: data.everyWeapon, companions },
-        ),
-        app().rules(),
-      )
+      const context = rosterDatasheetContext(loaded, data)
+      return rosterDatasheet(loaded, data, context, data.everyWeapon)
     }),
   )
+
+/**
+ * Both views the loadout needs, after expanding the roster once.
+ *
+ * The chosen and offered weapon views differ only at the final datasheet
+ * projection. Expanding every unit once per view made opening a unit scale at
+ * twice the cost of its roster for no domain reason.
+ */
+export const loadoutDatasheets = createServerFn({ method: 'GET' })
+  .validator(datasheetSchema)
+  .handler(({ data }) =>
+    rpc(() => {
+      const loaded = app().catalogue()
+      if (!loaded) return null
+      const context = rosterDatasheetContext(loaded, data)
+      return {
+        selected: rosterDatasheet(loaded, data, context, false),
+        available: rosterDatasheet(loaded, data, context, true),
+      }
+    }),
+  )
+
+function rosterDatasheetContext(
+  loaded: NonNullable<ReturnType<ReturnType<typeof app>['catalogue']>>,
+  data: {
+    catalogueId: string
+    detachmentIds: string[]
+    picks: RosterPick[]
+    pickIndex: number | null
+  },
+) {
+  const detachments = rosterDetachments(loaded, data.catalogueId, data.detachmentIds).selections
+  const builtUnits = data.picks.flatMap((pick, index) => {
+    const unit = buildUnit(pick.entryId, loaded.index, pick.models, pick.choices, {
+      primaryCatalogueId: data.catalogueId,
+      roster: detachments,
+      spreads: pick.spreads,
+      toggles: pick.toggles,
+    })
+    return unit ? [{ index, selection: unit.selection }] : []
+  })
+  const selected = builtUnits.findIndex((unit) => unit.index === data.pickIndex)
+  const selections = [...detachments, ...builtUnits.map((unit) => unit.selection)]
+  // A character, the unit it joined and everything else joined to that unit are
+  // one unit, so each is told about the others: a relic that speaks of the
+  // bearer's unit has to reach every model in it.
+  const attached = data.pickIndex === null ? [] : attachedUnit(data.picks, data.pickIndex)
+  const companions = builtUnits.flatMap((unit, at) => (attached.includes(unit.index) ? [detachments.length + at] : []))
+  return selected < 0 ? undefined : { selections, unitSelectionIndex: detachments.length + selected, companions }
+}
+
+function rosterDatasheet(
+  loaded: NonNullable<ReturnType<ReturnType<typeof app>['catalogue']>>,
+  data: { catalogueId: string; entryId: string },
+  context: ReturnType<typeof rosterDatasheetContext>,
+  everyWeapon: boolean,
+) {
+  return describeDatasheetAbilities(
+    loaded,
+    data.catalogueId,
+    datasheetIn(loaded, data.catalogueId, data.entryId, context ? { ...context, everyWeapon } : undefined),
+    app().rules(),
+  )
+}
 
 export const datasheetBySlug = createServerFn({ method: 'GET' })
   .validator(datasheetSlugSchema)

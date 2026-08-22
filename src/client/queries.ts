@@ -16,6 +16,7 @@ import {
   friendships,
   gameReferences,
   globalSearch,
+  loadoutDatasheets,
   me,
   myBattles,
   openBattle,
@@ -132,6 +133,20 @@ export const datasheetSlugQuery = (catalogueId: string, slug: string) =>
     queryKey: ['datasheet-slug', catalogueId, slug],
     queryFn: () => datasheetBySlug({ data: { catalogueId, slug } }),
     enabled: Boolean(catalogueId && slug),
+    staleTime: Infinity,
+  })
+
+export const loadoutDatasheetsQuery = (
+  catalogueId: string,
+  entryId: string,
+  detachmentIds: readonly string[],
+  picks: readonly RosterPick[],
+  pickIndex: number | null,
+) =>
+  queryOptions({
+    queryKey: ['loadout-datasheets', catalogueId, entryId, detachmentIds, picks, pickIndex],
+    queryFn: () => loadoutDatasheets({ data: { catalogueId, entryId, detachmentIds: [...detachmentIds], picks: [...picks], pickIndex } }),
+    enabled: Boolean(catalogueId && entryId),
     staleTime: Infinity,
   })
 
