@@ -1,9 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, notFound } from '@tanstack/react-router'
 import { MapPinned } from 'lucide-react'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { Dialog, DialogTrigger } from '@/components/ui/dialog'
 import { MissionCardReference } from '../client/components/MissionCardReference'
 import { TerrainBoard } from '../client/components/TerrainBoard'
+import { TerrainLayoutDialogContent } from '../client/components/TerrainLayoutDialogContent'
 import { PageState } from '../client/components/PageState'
 import { type TerrainGeometry, type TerrainPiece, type TerrainTemplate } from '../client/components/terrainGeometry'
 import { dispositionTone } from '../client/components/rosterSetup'
@@ -146,37 +147,13 @@ function TerrainLayout({
         <TerrainBoard layout={layout} deployment={deployment} templates={templates} className="mt-2 w-full" />
         <span className="mt-2 block text-xs text-dim group-hover:text-bone">{description}</span>
       </DialogTrigger>
-      <DialogContent className="rounded-none border border-edge bg-panel p-4 text-bone ring-0 sm:max-w-6xl">
-        <DialogHeader>
-          <DialogTitle>
-            Layout {label} · {layout.name}
-          </DialogTitle>
-          <DialogDescription>{description}</DialogDescription>
-        </DialogHeader>
-        <div className="flex flex-wrap gap-x-5 gap-y-2 border-y border-edge py-2 text-xs text-dim">
-          <span className="flex items-center gap-2">
-            <span className="size-3 border border-azure bg-raised" /> Terrain area footprint
-          </span>
-          <span className="flex items-center gap-2">
-            <span className="flex size-3 overflow-hidden border border-edge">
-              <span className="w-1/2 bg-side-a/60" />
-              <span className="w-1/2 bg-side-b/60" />
-            </span>
-            Deployment zones
-          </span>
-          <span className="flex items-center gap-2">
-            <span className="h-1 w-4 bg-discarded" /> Physical terrain
-          </span>
-          <span className="flex items-center gap-2">
-            <span className="size-3 rounded-full border border-bone bg-void" /> Objective
-          </span>
-          <span className="flex items-center gap-2">
-            <span className="h-px w-4 bg-side-a" /> Setup distance
-          </span>
-          <span>Grid: 1″ · heavier line every 5″</span>
-        </div>
-        <TerrainBoard layout={layout} deployment={deployment} templates={templates} className="mx-auto w-full max-w-5xl" detailed />
-      </DialogContent>
+      <TerrainLayoutDialogContent
+        title={`Layout ${label} · ${layout.name}`}
+        description={description}
+        layout={layout}
+        deployment={deployment}
+        templates={templates}
+      />
     </Dialog>
   )
 }
