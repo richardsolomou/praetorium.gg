@@ -25,7 +25,7 @@ export function Keyword({
 
   return (
     <HoverTooltip
-      className={`${className} ${note ? 'font-semibold' : ''} text-azure hover:text-bone`}
+      className={`${className} ${note ? 'font-semibold text-info' : 'text-azure'} hover:text-bone`}
       title={rule?.name ?? name}
       body={rule ? rule.description.replaceAll(/\^\^|\*/g, '') : undefined}
       note={note}
