@@ -357,6 +357,10 @@ function rosterDatasheetContext(
     pickIndex: number | null
   },
 ) {
+  // A catalogue preview is not a roster selection. Without an index there is no
+  // selected unit to receive contextual modifiers, so expanding the roster would
+  // be work whose result is immediately discarded.
+  if (data.pickIndex === null) return undefined
   const detachments = rosterDetachments(loaded, data.catalogueId, data.detachmentIds).selections
   const builtUnits = data.picks.flatMap((pick, index) => {
     const unit = buildUnit(pick.entryId, loaded.index, pick.models, pick.choices, {
@@ -372,7 +376,7 @@ function rosterDatasheetContext(
   // A character, the unit it joined and everything else joined to that unit are
   // one unit, so each is told about the others: a relic that speaks of the
   // bearer's unit has to reach every model in it.
-  const attached = data.pickIndex === null ? [] : attachedUnit(data.picks, data.pickIndex)
+  const attached = attachedUnit(data.picks, data.pickIndex)
   const companions = builtUnits.flatMap((unit, at) => (attached.includes(unit.index) ? [detachments.length + at] : []))
   return selected < 0 ? undefined : { selections, unitSelectionIndex: detachments.length + selected, companions }
 }
