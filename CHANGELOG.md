@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.18.7
+
+### Patch Changes
+
+- 7731ec6: Keep fielded battle rosters unchanged when saved rosters are edited or deleted.
+
 ## 0.18.6
 
 ### Patch Changes
