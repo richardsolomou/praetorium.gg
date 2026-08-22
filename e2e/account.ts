@@ -152,6 +152,11 @@ export async function setupStep(page: Page, label: string) {
     }
     const previous = await active.innerText()
     const next = page.getByRole('button', { name: 'Next', exact: true })
+    // Tests that are not about deployment order use the first side as their deterministic default.
+    // The attacker step is required, so choose that default before walking past it.
+    if (/attacker/i.test(previous) && !(await next.isEnabled())) {
+      await page.getByRole('group', { name: 'Attacker' }).getByRole('button').first().click()
+    }
     // Passing through a section can leave a command in flight, which disables Next until it lands.
     await expect(next).toBeEnabled({ timeout: 20_000 })
     await next.click()

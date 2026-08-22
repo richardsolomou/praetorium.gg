@@ -74,6 +74,8 @@ function describe(
       return `${who} resets battle setup`
     case 'set-setup-step':
       return null
+    case 'set-attacker':
+      return `${who} names ${named.get(command.attackerId) ?? 'someone'} as the attacker`
     case 'attach-roster': {
       const detachment = command.roster.built?.detachment
       return `${who} brought ${command.roster.name}${detachment && !command.roster.name.includes(detachment) ? ` (${detachment})` : ''}`

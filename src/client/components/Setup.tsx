@@ -9,6 +9,7 @@ import { gameReferencesQuery } from '../queries'
 import { sides as foldSides } from '../sides'
 import { Battlefield } from './Battlefield'
 import { ArmiesStep } from './setup/ArmiesStep'
+import { AttackerStep } from './setup/AttackerStep'
 import { FirstTurnStep } from './setup/FirstTurnStep'
 import { PreBattleStep } from './setup/PreBattleStep'
 import { StepRail, type Step } from './setup/StepRail'
@@ -50,6 +51,11 @@ export function Setup({ view, mission, send, pending, problem }: Props) {
       detail: view.deploymentId ? view.deploymentId.replaceAll('-', ' ') : 'Choose a layout',
       complete: Boolean(view.deploymentId),
     },
+    {
+      name: 'Attacker',
+      detail: view.attackerId ? 'Deployment order chosen' : 'Choose deployment order',
+      complete: Boolean(view.attackerId),
+    },
     // The cards settle themselves once an army is attached, so having them is what says this section is done.
     {
       name: 'Pre-battle',
@@ -63,6 +69,7 @@ export function Setup({ view, mission, send, pending, problem }: Props) {
   const blocked = (() => {
     if (at === 1 && !youHaveAnArmy) return 'Choose your army to continue.'
     if (at === 2 && !view.deploymentId) return 'Choose a battlefield layout to continue.'
+    if (at === 3 && !view.attackerId) return 'Choose the attacker to continue.'
     return null
   })()
 
@@ -164,11 +171,13 @@ export function Setup({ view, mission, send, pending, problem }: Props) {
           </div>
         ) : null}
 
-        {at === 3 && youHaveAnArmy ? (
+        {at === 3 ? <AttackerStep sides={table} attackerId={view.attackerId} send={send} /> : null}
+
+        {at === 4 && youHaveAnArmy ? (
           <PreBattleStep view={view} sides={table} missionId={mission?.id ?? null} send={send} pending={pending} />
         ) : null}
 
-        {at === 4 && view.deploymentId ? <FirstTurnStep sides={table} ready={ready} pending={pending} send={send} /> : null}
+        {at === 5 && view.deploymentId ? <FirstTurnStep sides={table} ready={ready} pending={pending} send={send} /> : null}
 
         {problem ? <p className="text-sm text-destructive">{problem}</p> : null}
       </section>
@@ -192,14 +201,16 @@ const HEADLINES = [
   'Choose how you are playing',
   'Choose the armies',
   'Deployment and terrain',
+  'Choose who deploys second',
   'Reserves, bonuses and cards',
-  'Attacker and first turn',
+  'Choose who takes the first turn',
 ]
 
 const BLURBS = [
   'The points apply to each side. In a 2v1, the allied side splits them evenly.',
   'Everyone chooses their own army. Every attached army is visible here immediately.',
   'One shared choice sets the table for both sides.',
+  'The defender deploys first. The attacker deploys second.',
   'Where every unit starts, and how your side draws its secondary missions.',
-  'Record the roll-off, then begin. The first command phase starts as soon as you do.',
+  'After both armies deploy, record the roll-off and begin. The first command phase starts immediately.',
 ]

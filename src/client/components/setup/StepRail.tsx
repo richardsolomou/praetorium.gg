@@ -5,7 +5,7 @@ export type Step = { name: string; detail: string; complete: boolean }
 type Props = { steps: Step[]; at: number; onGo: (step: number) => void }
 
 /**
- * The five sections, across the top rather than down the side.
+ * The six sections, across the top rather than down the side.
  *
  * The section is folded from the log, so pressing one moves every seated device to
  * it — the rail is the shared place in setup, not a private table of contents.
@@ -13,7 +13,7 @@ type Props = { steps: Step[]; at: number; onGo: (step: number) => void }
 export function StepRail({ steps, at, onGo }: Props) {
   return (
     <nav aria-label="Setup sections">
-      <ol className="grid gap-1.5 sm:grid-cols-5">
+      <ol className="grid gap-1.5 sm:grid-cols-3 lg:grid-cols-6">
         {steps.map((step, index) => {
           const current = index === at
           const reachable = index <= at
