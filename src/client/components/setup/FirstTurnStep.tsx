@@ -28,7 +28,7 @@ export function FirstTurnStep({ sides, ready, pending, send }: Props) {
     <div className="space-y-4">
       <SideChoice
         label="Attacker"
-        hint="The attacker deploys second and moves first."
+        hint="The defender deploys first. The attacker deploys second."
         sides={sides}
         chosen={attacker}
         onChoose={setAttacker}
