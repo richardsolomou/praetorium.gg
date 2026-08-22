@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.19.2
+
+### Patch Changes
+
+- 67ad859: Show battle roster snapshots in the full read-only roster view.
+
 ## 0.19.1
 
 ### Patch Changes
