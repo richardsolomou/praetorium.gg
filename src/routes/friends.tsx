@@ -39,7 +39,7 @@ function Friends() {
     <main className="w-full">
       <section className="relative overflow-hidden border-b border-edge bg-panel p-5 sm:p-7">
         <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,transparent_35%,color-mix(in_srgb,var(--color-parchment)_8%,transparent),transparent_75%)]" />
-        <div className="relative mx-auto max-w-6xl">
+        <div className="relative mx-auto max-w-5xl">
           <p className="eyebrow text-parchment">Your account</p>
           <h1 className="mt-1 text-3xl">Friends</h1>
           <p className="mt-2 max-w-2xl text-sm text-dim">
@@ -49,12 +49,12 @@ function Friends() {
       </section>
 
       {request.error || accept.error || remove.error ? (
-        <p className="mx-auto mt-4 max-w-6xl border-y border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive sm:border-x">
+        <p className="mx-auto mt-4 max-w-5xl border-y border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive sm:border-x">
           {errorMessage(request.error ?? accept.error ?? remove.error)}
         </p>
       ) : null}
 
-      <div className="mx-auto mt-4 grid max-w-6xl gap-6 px-3 sm:px-4 md:grid-cols-2 md:gap-8">
+      <div className="mx-auto mt-4 grid max-w-5xl gap-6 px-3 sm:px-4 md:grid-cols-2 md:gap-8">
         <People
           title="Friend requests"
           empty="No requests are waiting for you."
@@ -72,7 +72,7 @@ function Friends() {
         />
       </div>
 
-      <section className="mx-auto mt-7 max-w-6xl px-3 sm:px-4">
+      <section className="mx-auto mt-7 max-w-5xl px-3 sm:px-4">
         <div className="flex items-baseline justify-between border-b border-edge pb-2">
           <p className="rubric">Find players</p>
           <UserPlus className="size-4 text-parchment" aria-hidden />
@@ -97,7 +97,7 @@ function Friends() {
         </div>
       </section>
 
-      <div className="mx-auto mt-7 max-w-6xl px-3 pb-6 sm:px-4">
+      <div className="mx-auto mt-7 max-w-5xl px-3 sm:px-4">
         <People
           title="Sent requests"
           empty="You have no pending requests."

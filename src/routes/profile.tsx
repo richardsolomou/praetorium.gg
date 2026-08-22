@@ -77,7 +77,7 @@ function ProfileForm({ me }: { me: NonNullable<Awaited<ReturnType<NonNullable<Re
     <main className="w-full">
       <section className="relative overflow-hidden border-b border-edge bg-panel p-5 sm:p-7">
         <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,transparent_35%,color-mix(in_srgb,var(--color-parchment)_8%,transparent),transparent_75%)]" />
-        <div className="relative mx-auto flex max-w-6xl items-center gap-4">
+        <div className="relative mx-auto flex max-w-5xl items-center gap-4">
           <span className="grid size-12 shrink-0 place-items-center rounded-full border border-edge-strong bg-sunken text-parchment">
             <ShieldCheck className="size-5" aria-hidden />
           </span>
@@ -90,7 +90,7 @@ function ProfileForm({ me }: { me: NonNullable<Awaited<ReturnType<NonNullable<Re
       </section>
 
       <form
-        className="mx-auto mt-4 grid max-w-6xl gap-8 border-y border-edge bg-panel p-5 sm:border md:grid-cols-2 md:p-7"
+        className="mx-auto mt-4 grid max-w-5xl gap-8 border-y border-edge bg-panel p-5 sm:border md:grid-cols-2 md:p-7"
         onSubmit={(event) => {
           event.preventDefault()
           void save()

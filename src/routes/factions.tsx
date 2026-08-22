@@ -54,7 +54,7 @@ function FactionIndex() {
     <main className="w-full">
       <section className="relative overflow-hidden border-b border-edge bg-panel p-5 sm:p-7">
         <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,transparent_35%,color-mix(in_srgb,var(--color-parchment)_8%,transparent),transparent_75%)]" />
-        <div className="relative mx-auto max-w-6xl">
+        <div className="relative mx-auto max-w-5xl">
           <p className="eyebrow text-parchment">Community catalogues</p>
           <h1 className="mt-1 text-3xl">Factions</h1>
           <p className="mt-2 max-w-2xl text-sm text-dim">
@@ -62,7 +62,7 @@ function FactionIndex() {
           </p>
         </div>
       </section>
-      <div className="mx-auto max-w-6xl px-3 pb-6 sm:px-4">
+      <div className="mx-auto max-w-5xl px-3 sm:px-4">
         <SearchField
           className="mt-4"
           value={factionQueryText}

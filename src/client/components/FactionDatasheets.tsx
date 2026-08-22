@@ -31,7 +31,7 @@ export function FactionDatasheets() {
       <header className="relative overflow-hidden border-b border-edge bg-panel p-5 sm:p-7">
         <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,transparent_35%,color-mix(in_srgb,var(--color-parchment)_8%,transparent),transparent_75%)]" />
         <div
-          className="relative mx-auto flex max-w-6xl items-center gap-3 border-l-[3px] pl-3"
+          className="relative mx-auto flex max-w-5xl items-center gap-3 border-l-[3px] pl-3"
           style={{ borderLeftColor: factionColour(faction.slug) }}
         >
           <FactionMark id={faction.slug} icon={faction.icon} />
@@ -41,7 +41,7 @@ export function FactionDatasheets() {
           </span>
         </div>
       </header>
-      <div className="mx-auto max-w-6xl px-3 py-4 sm:px-4">
+      <div className="mx-auto max-w-5xl px-3 py-4 sm:px-4">
         <Link
           to="/factions/$catalogueId"
           params={{ catalogueId: faction.slug }}

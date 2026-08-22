@@ -33,7 +33,7 @@ export function DetachmentReference({
       <section className="relative overflow-hidden border-b border-edge bg-panel p-5 sm:p-7">
         <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,transparent_35%,color-mix(in_srgb,var(--color-parchment)_8%,transparent),transparent_75%)]" />
         <div
-          className="relative mx-auto flex max-w-6xl items-start gap-3 border-l-[3px] pl-3"
+          className="relative mx-auto flex max-w-5xl items-start gap-3 border-l-[3px] pl-3"
           style={{ borderLeftColor: faction ? factionColour(faction.slug) : undefined }}
         >
           {faction ? <FactionMark id={faction.slug} icon={faction.icon} /> : null}
@@ -55,7 +55,7 @@ export function DetachmentReference({
           </div>
         </div>
       </section>
-      <div className="mx-auto max-w-6xl space-y-6 px-3 py-4 sm:px-4">
+      <div className="mx-auto max-w-5xl space-y-6 px-3 py-4 sm:px-4">
         {afterHero}
 
         {detachment.rules.length ? (

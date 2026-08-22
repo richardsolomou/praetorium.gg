@@ -260,7 +260,7 @@ function RootComponent() {
                   <Account />
                 </div>
               </header>
-              <div className={immersive ? 'h-[calc(100dvh-3rem)] min-h-0' : 'min-h-0 flex-1'}>
+              <div className={immersive ? 'h-[calc(100dvh-3rem)] min-h-0' : 'min-h-0'}>
                 <Outlet />
               </div>
               {/*
