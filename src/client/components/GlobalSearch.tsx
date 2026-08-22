@@ -1,5 +1,6 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { ChevronRight, Search } from 'lucide-react'
+import posthog from 'posthog-js'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Command, CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
@@ -27,10 +28,11 @@ export function GlobalSearch() {
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [])
 
-  const go = (href: string) => {
+  const go = (result: GlobalSearchResult) => {
+    posthog.capture('global_search_result_opened', { group: result.group, result_count: results.length })
     setOpen(false)
     setQuery('')
-    window.location.assign(href)
+    window.location.assign(result.href)
   }
 
   return (
@@ -70,7 +72,7 @@ export function GlobalSearch() {
                     <CommandItem
                       key={result.id}
                       value={`${result.label} ${result.detail}`}
-                      onSelect={() => go(result.href)}
+                      onSelect={() => go(result)}
                       className="border-l-2 border-transparent data-[selected=true]:border-parchment data-[selected=true]:bg-parchment/15 data-[selected=true]:text-bone data-[selected=true]:[&_.result-detail]:text-dim"
                     >
                       <ChevronRight className="size-4 opacity-0 group-data-[selected=true]/command-item:opacity-100" aria-hidden />

@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { strFromU8 } from 'fflate'
 import { Copy, FileUp, LoaderCircle, Upload } from 'lucide-react'
+import posthog from 'posthog-js'
 import { useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -30,8 +31,14 @@ export function RosterImport() {
       } else file = await source.text()
 
       const imported = await importRoster({ data: { file } })
-      if (!imported.catalogueId) throw new Error(`Could not place: ${imported.unknown.join(', ') || imported.catalogueName || 'faction'}`)
-      if (imported.unknown.length) throw new Error(`Could not place: ${imported.unknown.join(', ')}`)
+      if (!imported.catalogueId) {
+        posthog.capture('roster_import_failed', { reason: 'catalogue_unmatched', input: typeof source === 'string' ? 'text' : 'file' })
+        throw new Error(`Could not place: ${imported.unknown.join(', ') || imported.catalogueName || 'faction'}`)
+      }
+      if (imported.unknown.length) {
+        posthog.capture('roster_import_failed', { reason: 'unit_unmatched', input: typeof source === 'string' ? 'text' : 'file' })
+        throw new Error(`Could not place: ${imported.unknown.join(', ')}`)
+      }
       const { id } = await saveRoster({
         data: {
           name: imported.name,

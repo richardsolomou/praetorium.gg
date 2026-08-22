@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Check, Copy } from 'lucide-react'
+import posthog from 'posthog-js'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 
@@ -7,8 +8,13 @@ export function RosterExportDialog({ text, onClose }: { text: string | null; onC
   const [copied, setCopied] = useState(false)
   const copy = async () => {
     if (!text) return
-    await navigator.clipboard.writeText(text)
-    setCopied(true)
+    try {
+      await navigator.clipboard.writeText(text)
+      posthog.capture('roster_export_copied')
+      setCopied(true)
+    } catch (error) {
+      posthog.captureException(error, { operation: 'roster_export_copy' })
+    }
   }
 
   return (
