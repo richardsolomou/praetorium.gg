@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.18.8
+
+### Patch Changes
+
+- 17854eb: Correct the attacker deployment guidance in battle setup.
+
 ## 0.18.7
 
 ### Patch Changes
