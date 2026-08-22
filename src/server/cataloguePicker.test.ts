@@ -83,6 +83,39 @@ describe('the picker', () => {
     expect(unitsIn(shelf, 'cat-1', '').map((unit) => unit.name)).toEqual(['Chaos Lord'])
   })
 
+  it('keeps a named faction datasheet off an allied reference page', () => {
+    const shelf = shelfOf(
+      {
+        name: 'Astra Militarum',
+        selectionEntries: [
+          {
+            id: 'guardsmen',
+            name: 'Cadian Shock Troops',
+            type: 'unit',
+            costs: points(65),
+            categoryLinks: categories('Faction: Astra Militarum'),
+          },
+        ],
+      },
+      {
+        name: 'Genestealer Cults',
+        selectionEntries: [
+          {
+            id: 'cult-guardsmen',
+            name: 'Cadian Shock Troops',
+            type: 'unit',
+            costs: points(65),
+            categoryLinks: categories('Faction: Astra Militarum'),
+          },
+        ],
+      },
+    )
+
+    expect(datasheetInBySlug(shelf, 'cat', 'cadian-shock-troops')?.name).toBe('Cadian Shock Troops')
+    expect(datasheetInBySlug(shelf, 'cat-1', 'cadian-shock-troops')).toBeNull()
+    expect(unitsIn(shelf, 'cat-1', '').map((unit) => unit.name)).toEqual(['Cadian Shock Troops'])
+  })
+
   it('filters a cached priced faction list without rebuilding its summaries', () => {
     const book = bookOf({
       selectionEntries: [

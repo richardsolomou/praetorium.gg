@@ -2,4 +2,4 @@
 'praetorium.gg': minor
 ---
 
-Find shared Astartes datasheets under their parent faction and offer typo-tolerant datasheet search results.
+Find shared faction datasheets under their canonical reference page and offer typo-tolerant datasheet search results.
