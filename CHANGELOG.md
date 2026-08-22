@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.19.3
+
+### Patch Changes
+
+- be7e549: Offer the end-of-turn tactical secondary discard for one command point.
+
 ## 0.19.2
 
 ### Patch Changes
