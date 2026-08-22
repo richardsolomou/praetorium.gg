@@ -8,6 +8,13 @@
       "when": 1787311548231,
       "tag": "0000_aspiring_monster_badoon",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1787396588518,
+      "tag": "0001_add_roster_created_at",
+      "breakpoints": true
     }
   ]
 }

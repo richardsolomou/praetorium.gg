@@ -40,7 +40,10 @@ const BATTLE_SIZE_GROUPS: SearchableGroup[] = [
     label: '',
     items: [
       { label: 'All battle sizes', value: 'all' },
-      ...GAME_SIZES.map((size) => ({ label: `${size.name} · ${size.limit} points`, value: String(size.limit) })),
+      ...GAME_SIZES.map((size) => ({
+        label: `${size.name.replace(` (${size.limit})`, '')} · ${size.limit} points`,
+        value: String(size.limit),
+      })),
     ],
   },
 ]
@@ -56,14 +59,31 @@ const SHARING_GROUPS: SearchableGroup[] = [
 ]
 const SORT_GROUPS: SearchableGroup[] = [
   {
-    label: '',
+    label: 'Created',
     items: [
-      { label: 'Name: A to Z', value: 'name-asc' },
-      { label: 'Name: Z to A', value: 'name-desc' },
+      { label: 'Recently created', value: 'created-desc' },
+      { label: 'Least recently created', value: 'created-asc' },
+    ],
+  },
+  {
+    label: 'Updated',
+    items: [
       { label: 'Recently updated', value: 'updated-desc' },
       { label: 'Least recently updated', value: 'updated-asc' },
-      { label: 'Battle size: low to high', value: 'size-asc' },
-      { label: 'Battle size: high to low', value: 'size-desc' },
+    ],
+  },
+  {
+    label: 'Name',
+    items: [
+      { label: 'A to Z', value: 'name-asc' },
+      { label: 'Z to A', value: 'name-desc' },
+    ],
+  },
+  {
+    label: 'Battle size',
+    items: [
+      { label: 'Low to high', value: 'size-asc' },
+      { label: 'High to low', value: 'size-desc' },
     ],
   },
 ]
@@ -82,7 +102,7 @@ export const Route = createFileRoute('/rosters/')({
       ...(GAME_SIZES.some((size) => size.limit === limit) ? { limit } : {}),
       ...(faction ? { faction } : {}),
       ...(visibility ? { visibility } : {}),
-      ...(sort && sort !== 'name-asc' ? { sort } : {}),
+      ...(sort && sort !== 'created-desc' ? { sort } : {}),
     }
   },
   loader: ({ context }) =>
@@ -116,7 +136,7 @@ function RosterLibrary() {
         (search.faction === undefined || roster.catalogueId === selectedFactionId) &&
         (search.visibility === undefined || roster.visibility === search.visibility),
     ),
-    search.sort ?? 'name-asc',
+    search.sort ?? 'created-desc',
   )
 
   const points = new Map((prices ?? []).map((entry) => [entry.id, entry.points]))
@@ -161,6 +181,7 @@ function RosterLibrary() {
           label="Battle size"
           value={search.limit ? String(search.limit) : 'all'}
           groups={BATTLE_SIZE_GROUPS}
+          className="w-64 max-w-full"
           onChange={(value) => void navigate({ to: '/rosters', search: { ...search, limit: value === 'all' ? undefined : Number(value) } })}
         />
         <RosterCombobox
@@ -180,11 +201,11 @@ function RosterLibrary() {
         />
         <RosterCombobox
           label="Sort"
-          value={search.sort ?? 'name-asc'}
+          value={search.sort ?? 'created-desc'}
           groups={SORT_GROUPS}
           className="w-52 max-w-full"
           onChange={(value) =>
-            void navigate({ to: '/rosters', search: { ...search, sort: value === 'name-asc' ? undefined : (value as RosterSort) } })
+            void navigate({ to: '/rosters', search: { ...search, sort: value === 'created-desc' ? undefined : (value as RosterSort) } })
           }
         />
       </div>

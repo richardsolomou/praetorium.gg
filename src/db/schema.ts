@@ -197,12 +197,13 @@ export const rosters = pgTable(
     source: text('source', { enum: ['legacy', 'editable', 'battlebase', 'newrecruit', 'roster-file'] })
       .notNull()
       .default('legacy'),
+    createdAt: bigint('created_at', { mode: 'number' }).notNull(),
     updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
   },
-  // Lists are always read for one player newest first, which this index answers
+  // Lists are always read for one player newest-created first, which this index answers
   // outright. It also serves a plain lookup by player, so there is no separate
   // index on `user_id` to keep current.
-  (table) => [index('rosters_user_id_updated_at_index').on(table.userId, table.updatedAt)],
+  (table) => [index('rosters_user_id_created_at_index').on(table.userId, table.createdAt)],
 )
 
 /**

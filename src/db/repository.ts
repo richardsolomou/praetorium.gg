@@ -340,12 +340,12 @@ export class Repository {
     }
     await this.database
       .insert(rosters)
-      .values({ id: input.id, userId: input.userId, ...updatable })
+      .values({ id: input.id, userId: input.userId, createdAt: input.now, ...updatable })
       .onConflictDoUpdate({ target: rosters.id, set: updatable })
   }
 
   async rostersByUser(userId: string) {
-    return this.database.select().from(rosters).where(eq(rosters.userId, userId)).orderBy(desc(rosters.updatedAt))
+    return this.database.select().from(rosters).where(eq(rosters.userId, userId)).orderBy(desc(rosters.createdAt))
   }
 
   async roster(id: string) {

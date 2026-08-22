@@ -1,12 +1,25 @@
-export const ROSTER_SORTS = ['name-asc', 'name-desc', 'updated-desc', 'updated-asc', 'size-asc', 'size-desc'] as const
+export const ROSTER_SORTS = [
+  'created-desc',
+  'created-asc',
+  'name-asc',
+  'name-desc',
+  'updated-desc',
+  'updated-asc',
+  'size-asc',
+  'size-desc',
+] as const
 export type RosterSort = (typeof ROSTER_SORTS)[number]
 
-type SortableRoster = { id: string; name: string; limit: number; updatedAt: number }
+type SortableRoster = { id: string; name: string; limit: number; createdAt: number; updatedAt: number }
 
 export function sortRosters<T extends SortableRoster>(rosters: readonly T[], sort: RosterSort): T[] {
   const name = (left: T, right: T) => left.name.localeCompare(right.name) || left.id.localeCompare(right.id)
   return rosters.toSorted((left, right) => {
     switch (sort) {
+      case 'created-desc':
+        return right.createdAt - left.createdAt || name(left, right)
+      case 'created-asc':
+        return left.createdAt - right.createdAt || name(left, right)
       case 'name-desc':
         return -name(left, right)
       case 'updated-desc':
