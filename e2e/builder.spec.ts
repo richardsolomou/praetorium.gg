@@ -230,7 +230,7 @@ test("Pantheon of Woe adds a C'tan shard's required enhancement", async ({ page 
   await expect(noble).toHaveCSS('color', 'rgb(137, 184, 157)')
   await expect(datasheet.getByText('Character', { exact: true })).toHaveCSS('color', 'rgb(137, 184, 157)')
   expect(Math.abs((await leader.boundingBox())!.height - (await noble.boundingBox())!.height)).toBeLessThan(1)
-  await expect(datasheet.getByRole('button', { name: 'Ignores Cover', exact: true })).toHaveCSS('font-size', '14.25px')
+  await expect(datasheet.getByRole('button', { name: 'Ignores Cover', exact: true })).toHaveCSS('font-size', '12px')
   await shot(datasheet, 'test-results/imotekh-datasheet-tags.png')
   await page.setViewportSize({ width: 390, height: 844 })
   await expect(noble).toBeVisible()
@@ -631,7 +631,7 @@ test('Cursed Legion does not modify Immortals without an eligible leader', async
   await expect(datasheet).toBeVisible()
   await expect(datasheet.getByRole('heading', { name: 'Gauss blaster' }).locator('..').getByText('5', { exact: true })).toBeVisible()
   await expect(page.locator('[data-unit="Immortals"]')).toHaveCount(0)
-  expect(await page.evaluate(() => getComputedStyle(document.documentElement).fontSize)).toBe('19px')
+  expect(await page.evaluate(() => getComputedStyle(document.documentElement).fontSize)).toBe('16px')
   await page.screenshot({ path: 'test-results/unit-preview.png' })
 
   await add(page, 'Immortals')
