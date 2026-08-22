@@ -50,13 +50,17 @@ function FactionPage() {
           </span>
         </Link>
       </section>
-      {faction.armyRule ? (
+      {faction.armyRules.length ? (
         <section className="mt-6">
           <p className="rubric border-b border-edge pb-2">Faction abilities</p>
-          <article className="mt-2 border border-edge bg-panel p-3">
-            <h2 className="text-sm">{faction.armyRule.name}</h2>
-            <RuleText text={faction.armyRule.description} />
-          </article>
+          <div className="mt-2 divide-y divide-edge border border-edge bg-panel">
+            {faction.armyRules.map((rule) => (
+              <article key={rule.name} className="p-3">
+                <h2 className="text-sm">{rule.name}</h2>
+                <RuleText text={rule.description} />
+              </article>
+            ))}
+          </div>
         </section>
       ) : null}
       <section className="mt-6">
@@ -65,37 +69,49 @@ function FactionPage() {
           <span className="readout">{detachments.length}</span>
         </p>
         <div className="mt-2 divide-y divide-edge border border-edge bg-panel">
-          {detachments.map((detachment) => (
-            <Link
-              key={detachment.id}
-              to="/factions/$catalogueId/reference/detachments/$detachmentId"
-              params={{ catalogueId: faction.slug, detachmentId: detachment.slug }}
-              className="flex items-center justify-between gap-4 px-3 py-2.5 hover:bg-raised"
-            >
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-bold uppercase">{detachment.name}</span>
-                {detachment.reference ? (
-                  <>
+          {!detachments.length ? <p className="px-3 py-4 text-sm text-dim">No detachments in the current data.</p> : null}
+          {detachments.map((detachment) => {
+            const content = (
+              <>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-bold uppercase">{detachment.name}</span>
+                  {detachment.reference ? (
                     <span className="text-xs text-dim">
                       {detachment.reference.stratagems} stratagems · {detachment.reference.enhancements} enhancements
                       {detachment.reference.upgrades ? ` · ${detachment.reference.upgrades} unit upgrades` : ''}
                     </span>
-                  </>
-                ) : null}
-              </span>
-              {detachment.reference && (detachment.reference.dispositions.length || detachment.reference.points !== null) ? (
-                <span className="flex shrink-0 flex-wrap justify-end gap-1">
-                  {detachment.reference?.dispositions.map((disposition) => (
-                    <span key={disposition} className={`chip ${dispositionTone(disposition)}`}>
-                      {disposition}
-                    </span>
-                  ))}
-                  {detachment.reference?.points == null ? null : <span className="chip">{detachment.reference.points} DP</span>}
+                  ) : (
+                    <span className="text-xs text-dim">Reference details unavailable</span>
+                  )}
                 </span>
-              ) : null}
-              <ChevronRight className="size-4 shrink-0 text-dim" aria-hidden />
-            </Link>
-          ))}
+                {detachment.reference && (detachment.reference.dispositions.length || detachment.reference.points !== null) ? (
+                  <span className="flex shrink-0 flex-wrap justify-end gap-1">
+                    {detachment.reference.dispositions.map((disposition) => (
+                      <span key={disposition} className={`chip ${dispositionTone(disposition)}`}>
+                        {disposition}
+                      </span>
+                    ))}
+                    {detachment.reference.points == null ? null : <span className="chip">{detachment.reference.points} DP</span>}
+                  </span>
+                ) : null}
+                {detachment.reference ? <ChevronRight className="size-4 shrink-0 text-dim" aria-hidden /> : null}
+              </>
+            )
+            return detachment.reference ? (
+              <Link
+                key={detachment.id}
+                to="/factions/$catalogueId/reference/detachments/$detachmentId"
+                params={{ catalogueId: faction.slug, detachmentId: detachment.slug }}
+                className="flex items-center justify-between gap-4 px-3 py-2.5 hover:bg-raised"
+              >
+                {content}
+              </Link>
+            ) : (
+              <div key={detachment.id} className="flex items-center justify-between gap-4 px-3 py-2.5">
+                {content}
+              </div>
+            )
+          })}
         </div>
       </section>
     </main>

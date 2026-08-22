@@ -49,6 +49,8 @@ Core catalogue code is split by question:
 - `isDatasheetId` can fall back to any synced book when an imported roster names an unavailable catalogue.
 - A book's own detachments take priority. A book without detachments uses the detachments from the book that contributes most of its roster.
 - Key the rules dataset by its faction directory and by every alias that directory declares. The catalogues call the Adeptus Astartes book Space Marines, and a lookup by the name a player sees must still find its detachment points and stratagems.
+- Read every structured army rule from Game Datacards. Use the rules dataset only when that faction has no Game Datacards rule.
+- Show only detachments named by Game Datacards or the rules dataset. A catalogue import does not make another faction's detachments its own, and a detachment without reference detail must not link to a missing page.
 - A detachment's stratagems are the union of the ids it names and the records filed under it. The dataset writes a shared stratagem down once and the other detachments reach it by id only; a card reached both ways is kept once, as the copy filed under this detachment.
 - Legends datasheets are not legal roster choices and are never returned by the picker.
 - A detachment has a wrapper, a group, and its choices. Any layer can be inline or linked. Match wrapper names by the `Detachment` prefix.

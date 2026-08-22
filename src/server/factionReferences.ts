@@ -9,8 +9,11 @@ function factionSummary(loaded: LoadedCatalogue, rules: LoadedRules | null | und
   const slugId = routeSlug(displayName)
   const content = loaded.factionContents.get(slugId)
   const detachments = loaded.detachments.get(faction.id)?.options ?? []
-  const referenceDetachments = detachments.filter(
-    (detachment) => !content || [...content.detachments].some((name) => routeSlug(name) === routeSlug(detachment.name)),
+  const rulesId = rulesFaction(rules, routeSlug(faction.name))
+  const referenceDetachments = detachments.filter((detachment) =>
+    content
+      ? [...content.detachments].some((name) => routeSlug(name) === routeSlug(detachment.name))
+      : Boolean(detachmentNamed(rules?.detachmentReferences.get(rulesId), detachment.name)),
   )
   return {
     summary: {
@@ -46,12 +49,17 @@ export function factionsFor(loaded: LoadedCatalogue, rules: LoadedRules | null |
     revision: loaded.index.revision,
     factions: loaded.factions.map((faction) => {
       const { summary, detachments, referenceDetachments } = factionSummary(loaded, rules, faction)
+      const content = loaded.factionContents.get(summary.slug)
+      const rulesId = rulesFaction(rules, routeSlug(faction.name))
       return {
         ...summary,
-        armyRule: rules?.factionRules?.get(summary.slug) ?? null,
+        armyRules: content?.armyRules.length
+          ? content.armyRules
+          : rules?.factionRules?.get(summary.slug)
+            ? [rules.factionRules.get(summary.slug)!]
+            : [],
         referenceDetachmentIds: referenceDetachments.map((detachment) => detachment.id),
         detachments: detachments.map((detachment) => {
-          const rulesId = rulesFaction(rules, routeSlug(faction.name))
           const reference = detachmentNamed(rules?.detachmentReferences?.get(rulesId), detachment.name)
           const detail = detachmentNamed(rules?.detachmentDetails?.get(rulesId), detachment.name)
           const forced = detachmentCatalogueDetail(loaded, faction.id, detachment.id, [])?.forcedEnhancements ?? []
