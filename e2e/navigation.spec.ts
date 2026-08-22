@@ -118,6 +118,12 @@ test('account libraries share their page width and fit a phone', async ({ page }
     widths.push((await page.locator('main').boundingBox())?.width ?? 0)
   }
   expect(new Set(widths).size).toBe(1)
+  await page.goto('/rosters')
+  const heroRail = await page.locator('main > section').first().locator('div.relative').last().boundingBox()
+  const contentRail = await page.getByLabel('Roster filters').boundingBox()
+  expect(Math.abs((heroRail?.width ?? 0) - (contentRail?.width ?? 0))).toBeLessThan(4)
+  const footer = await page.locator('footer').boundingBox()
+  expect(footer ? Math.round(footer.y + footer.height) : 0).toBe(800)
 
   await page.setViewportSize({ width: 390, height: 844 })
   for (const path of ['/rosters', '/battles', '/friends', '/factions', '/mission-packs']) {
