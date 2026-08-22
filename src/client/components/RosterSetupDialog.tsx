@@ -15,7 +15,7 @@ import {
 } from '../../core/battle'
 import type { RosterVisibility } from '../../core/savedRoster'
 import { DetachmentReference } from './DetachmentReference'
-import { SearchableSelect } from './SearchableSelect'
+import { SearchableSelect, type SearchableGroup } from './SearchableSelect'
 import { factionSelectGroups } from './builder/factions'
 import { dispositionsFor, dispositionTone } from './rosterSetup'
 import { useFavouriteFactions } from '../favouriteFactions'
@@ -57,6 +57,13 @@ type Props = {
   onSave: (value: RosterSetup) => void
   pending?: boolean
 }
+
+const BATTLE_SIZE_GROUPS: SearchableGroup[] = [
+  {
+    label: '',
+    items: GAME_SIZES.map((size) => ({ label: `${size.name} · ${size.limit} points`, value: String(size.limit) })),
+  },
+]
 
 export function RosterSetupDialog({
   open,
@@ -166,9 +173,12 @@ export function RosterSetupDialog({
                 <Label className="eyebrow block" htmlFor="setup-size">
                   Battle size
                 </Label>
-                <Select
+                <SearchableSelect
+                  id="setup-size"
+                  ariaLabel="Battle size"
                   value={String(draft.limit)}
-                  onValueChange={(next: string | null) => {
+                  groups={BATTLE_SIZE_GROUPS}
+                  onValueChange={(next) => {
                     const limit = Number(next)
                     changeDraft({
                       ...draft,
@@ -177,18 +187,9 @@ export function RosterSetupDialog({
                       disposition: null,
                     })
                   }}
-                >
-                  <SelectTrigger id="setup-size" className="mt-1 h-11 w-full rounded-none border-edge bg-sunken font-semibold uppercase">
-                    <SelectValue>{(current: unknown) => GAME_SIZES.find((size) => String(size.limit) === current)?.name}</SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {GAME_SIZES.map((size) => (
-                      <SelectItem key={size.limit} value={String(size.limit)}>
-                        {size.name} — {size.limit} points
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  placeholder="Battle size"
+                  className="mt-1 h-11 rounded-none border-edge bg-sunken font-semibold uppercase"
+                />
               </div>
             </div>
 
@@ -206,7 +207,7 @@ export function RosterSetupDialog({
                   return (
                     <div
                       key={detachment.id}
-                      className={`flex min-h-20 items-stretch rounded-none border ${chosen ? 'border-azure bg-raised' : 'border-edge bg-sunken'}`}
+                      className={`flex min-h-20 items-stretch rounded-none border ${chosen ? 'border-parchment bg-raised' : 'border-edge bg-sunken'}`}
                     >
                       <button
                         type="button"
@@ -216,7 +217,7 @@ export function RosterSetupDialog({
                           setReference({ catalogueId: faction.id, slug: detachment.slug, name: detachment.name })
                         }}
                       >
-                        <Layers3 className={`mt-0.5 size-4 shrink-0 ${chosen ? 'text-azure' : 'text-faint'}`} />
+                        <Layers3 className={`mt-0.5 size-4 shrink-0 ${chosen ? 'text-parchment' : 'text-faint'}`} />
                         <span className="min-w-0 flex-1">
                           <span className="block font-bold uppercase">{detachment.name}</span>
                           <span className="mt-2 flex flex-wrap gap-1">
@@ -232,7 +233,7 @@ export function RosterSetupDialog({
                         type="button"
                         aria-label={`${chosen ? 'Remove' : 'Select'} ${detachment.name}`}
                         onClick={() => toggleDetachment(detachment.id)}
-                        className={`grid w-20 shrink-0 place-items-center border-l border-edge text-sm font-bold uppercase ${chosen ? 'bg-azure text-azure-ink' : 'bg-raised text-azure hover:bg-azure/15'}`}
+                        className={`grid w-20 shrink-0 place-items-center border-l border-edge text-sm font-bold uppercase ${chosen ? 'bg-parchment text-parchment-ink' : 'bg-raised text-azure hover:bg-azure/15'}`}
                       >
                         {detachment.reference?.points ?? '—'} DP
                       </button>

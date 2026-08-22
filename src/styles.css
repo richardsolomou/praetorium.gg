@@ -18,8 +18,9 @@
  * the shadcn tokens its components read. Both point at the same values.
  *
  * The layout, density and vocabulary are BattleBase's; the surfaces are dark.
- * Their #2196f3 and #00aa00 are lifted a little because a hue that reads as
- * confident on white goes muddy on near-black.
+ * The palette takes its cues from printed deployment plans: charcoal
+ * structure with muted red and green field markings, muted-green selections,
+ * and steel-blue navigation.
  *
  * The two side colours are not decoration. Every number on screen belongs to one
  * player or the other, and at arm's length across a table the tint is what tells
@@ -30,23 +31,26 @@
   --font-rules: 'Barlow', ui-sans-serif, system-ui, -apple-system, sans-serif;
   --font-mono: ui-monospace, 'SF Mono', Menlo, monospace;
 
-  --color-void: #0a0b0d;
+  --color-void: #0b0c0e;
   --color-panel: #121417;
-  --color-raised: #191c21;
-  --color-sunken: #0e1013;
-  --color-edge: #24282e;
-  --color-edge-strong: #333941;
-  --color-bone: #eceef1;
-  --color-dim: #8b929c;
-  --color-faint: #767e88;
+  --color-raised: #1a1d21;
+  --color-sunken: #08090b;
+  --color-edge: #292d32;
+  --color-edge-strong: #3a4047;
+  --color-bone: #eceff1;
+  --color-dim: #a4a8ac;
+  --color-faint: #83888d;
 
-  --color-azure: #3d9bf5;
-  --color-azure-ink: #06121f;
-  --color-side-a: #f2564b;
-  --color-side-b: #6f74ff;
-  --color-achieved: #35c759;
-  --color-discarded: #f5a524;
-  --color-rust: #c05c44;
+  --color-parchment: #89b89d;
+  --color-parchment-ink: #101a14;
+  --color-info: #7fa8ca;
+  --color-azure: #89b89d;
+  --color-azure-ink: #101a14;
+  --color-side-a: #df8078;
+  --color-side-b: #7eaa9e;
+  --color-achieved: #63b36f;
+  --color-discarded: #d6a44f;
+  --color-rust: #b85b46;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -106,25 +110,25 @@
   /* BattleBase rounds almost nothing: 3px on buttons, 4px on cards. */
   --radius: 0.25rem;
 
-  --background: #0a0b0d;
-  --foreground: #eceef1;
+  --background: #0b0c0e;
+  --foreground: #eceff1;
   --card: #121417;
-  --card-foreground: #eceef1;
-  --popover: #191c21;
-  --popover-foreground: #eceef1;
-  --primary: #3d9bf5;
-  --primary-foreground: #06121f;
-  --secondary: #191c21;
-  --secondary-foreground: #eceef1;
-  --muted: #191c21;
-  --muted-foreground: #8b929c;
-  --accent: #24282e;
-  --accent-foreground: #eceef1;
-  --destructive: #f2564b;
-  --destructive-foreground: #160707;
-  --border: #24282e;
-  --input: #333941;
-  --ring: #3d9bf5;
+  --card-foreground: #eceff1;
+  --popover: #1a1d21;
+  --popover-foreground: #eceff1;
+  --primary: #89b89d;
+  --primary-foreground: #101a14;
+  --secondary: #1a1d21;
+  --secondary-foreground: #eceff1;
+  --muted: #1a1d21;
+  --muted-foreground: #a4a8ac;
+  --accent: #292d32;
+  --accent-foreground: #eceff1;
+  --destructive: #df8078;
+  --destructive-foreground: #21110f;
+  --border: #292d32;
+  --input: #3a4047;
+  --ring: #89b89d;
 }
 
 /*

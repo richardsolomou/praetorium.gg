@@ -34,7 +34,7 @@ function MissionMatchupPage() {
 
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-8">
-      <Link to="/mission-packs/$packId" params={{ packId }} className="eyebrow text-azure">
+      <Link to="/mission-packs/$packId" params={{ packId }} className="eyebrow text-info">
         {pack.name}
       </Link>
       <h1 className="mt-3 text-3xl">
@@ -118,7 +118,7 @@ function TerrainLayout({
         render={
           <button
             type="button"
-            className="group border border-edge bg-panel p-3 text-left transition-colors hover:border-azure focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-azure"
+            className="group border border-edge bg-panel p-3 text-left transition-colors hover:border-info focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-info"
             aria-label={`Enlarge terrain layout ${label}: ${description}`}
           />
         }

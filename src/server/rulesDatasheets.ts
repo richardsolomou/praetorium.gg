@@ -26,6 +26,7 @@ export type UnitComposition = {
      */
     weapons: { id: string; name: string }[]
   }[]
+  tiers?: { models: { name: string; min: number; max: number }[] }[]
   /** What a kind of model may carry instead of what it starts with. */
   options: {
     /** The upstream id, so a player's pick can point at one swap and stay pointed. */
@@ -67,6 +68,7 @@ type RawComposition = {
     is_leader_model?: boolean
     default_weapon_ids?: string[]
   }[]
+  tiers?: { models?: { name?: string; min?: number; max?: number }[] }[]
 }
 
 type RawWeapon = {
@@ -175,7 +177,19 @@ export function loadCompositions(core: string, weaponNames: ReadonlyMap<string, 
             ]
           : [],
       )
-      if (models.length) compositions.set(joinKey(raw.unit_id), { unitId: raw.unit_id, models, options: [] })
+      const tiers = (raw.tiers ?? []).flatMap((tier) => {
+        const tierModels = (tier.models ?? []).flatMap((model) =>
+          model.name ? [{ name: model.name, min: model.min ?? 0, max: model.max ?? model.min ?? 0 }] : [],
+        )
+        return tierModels.length ? [{ models: tierModels }] : []
+      })
+      if (models.length)
+        compositions.set(joinKey(raw.unit_id), {
+          unitId: raw.unit_id,
+          models,
+          ...(tiers.length ? { tiers } : {}),
+          options: [],
+        })
     }
   }
 

@@ -61,6 +61,13 @@ export function PoolStepper({
  */
 export function PickControl({ name, count, editable, onPick }: { name: string; count: number; editable: boolean; onPick?: () => void }) {
   const taken = count > 0
+  if (!editable) {
+    return (
+      <span className="chip readout" aria-label={`${name} count`}>
+        {count}
+      </span>
+    )
+  }
   return (
     <span className="flex shrink-0 items-center gap-1.5">
       <span className="readout text-sm tabular-nums" aria-label={`${name} count`}>
@@ -73,7 +80,7 @@ export function PickControl({ name, count, editable, onPick }: { name: string; c
         pressed={taken}
         disabled={!editable || !onPick}
         onPressedChange={() => onPick?.()}
-        className={`size-6 p-0 ${taken ? 'border-azure bg-azure/15 text-azure' : 'border-edge-strong text-dim'}`}
+        className={`size-6 p-0 ${taken ? 'border-parchment bg-parchment/15 text-parchment' : 'border-edge-strong text-dim'}`}
       >
         <Check className="size-3.5" />
       </Toggle>
@@ -122,23 +129,25 @@ export function WargearRow({
   rules,
   control,
   note,
+  highlightSelection = true,
 }: Described & {
   name: string
   count: number
   points?: number
   control?: ReactNode
   note?: string
+  highlightSelection?: boolean
 }) {
   const matching = weapons
     .filter((weapon) => weaponMatches(name, weapon.name))
     .filter((weapon, at, all) => all.findIndex((candidate) => candidate.name === weapon.name) === at)
   return (
-    <li className={count ? 'bg-azure/5' : undefined}>
+    <li className={count && highlightSelection ? 'bg-azure/5' : undefined}>
       <div className="flex items-center gap-2 px-2.5 py-1.5">
         <span className="min-w-0 flex-1">
           <span className="block text-xs font-semibold">{name}</span>
           {note ? <span className="block text-[0.6875rem] text-faint">{note}</span> : null}
-          {points ? <span className="readout text-[0.6875rem] text-faint">+{points} each</span> : null}
+          {points ? <span className="readout text-[0.6875rem] text-info">+{points} each</span> : null}
         </span>
         {control ?? (
           <span className="chip readout" aria-label={`${name} count`}>
@@ -181,17 +190,19 @@ export function LoadoutLoading() {
 function ChoiceOption({
   option,
   selected,
+  highlightSelection = true,
   onSelect,
   children,
 }: {
   option: LoadoutOption
   selected: boolean
+  highlightSelection?: boolean
   onSelect?: () => void
   children: ReactNode
 }) {
   return (
     <article
-      className={`relative border ${selected ? 'border-azure bg-azure/10' : `border-edge bg-card ${onSelect ? 'hover:border-dim' : ''}`}`}
+      className={`relative border ${selected && highlightSelection ? 'border-parchment bg-parchment/10' : `border-edge bg-card ${onSelect ? 'hover:border-dim' : ''}`}`}
     >
       {onSelect ? (
         <button
@@ -206,8 +217,8 @@ function ChoiceOption({
         <div className="flex w-full items-center justify-between gap-2 px-2.5 py-2 text-left">
           <span className="text-sm font-semibold text-bone">{option.name}</span>
           <span className="flex shrink-0 items-center gap-1.5">
-            {option.points ? <span className="chip">+{option.points} pts</span> : null}
-            {selected ? <Check className="size-3.5 text-azure" aria-hidden /> : null}
+            {option.points ? <span className="chip text-info">+{option.points} pts</span> : null}
+            {selected && highlightSelection ? <Check className="size-3.5 text-parchment" aria-hidden /> : null}
           </span>
         </div>
         {children}
@@ -235,7 +246,7 @@ function DeclineButton({
       disabled={!editable}
       onClick={onDecline}
       className={`flex w-full items-center justify-between border px-2.5 py-2 text-left text-xs font-semibold uppercase ${
-        chosen ? 'border-edge bg-card text-dim hover:border-dim hover:text-bone' : 'border-azure bg-azure/10 text-azure'
+        chosen ? 'border-edge bg-card text-dim hover:border-dim hover:text-bone' : 'border-parchment bg-parchment/10 text-parchment'
       }`}
     >
       {label}
@@ -250,18 +261,24 @@ export function SpecialChoice({
   unitName,
   editable,
   onChoose,
+  showOptions = true,
+  highlightSelection = true,
 }: {
   choice: LoadoutChoice
   unitName: string
   editable: boolean
   onChoose: (key: string, optionId: string) => void
+  showOptions?: boolean
+  highlightSelection?: boolean
 }) {
   const heading = choice.kind === 'upgrade' ? 'Unit upgrades' : choice.name
+  const options = showOptions ? choice.options : choice.options.filter((option) => choice.chosen === option.id)
+  if (!showOptions && !choice.chosen) return null
   return (
     <fieldset aria-label={`${unitName} ${heading}`} className="m-0 min-w-0 border-0">
       <legend className="eyebrow mb-1.5">{heading}</legend>
       <div className="space-y-1.5">
-        {choice.optional ? (
+        {choice.optional && showOptions ? (
           <DeclineButton
             label={`No ${choice.kind === 'upgrade' ? 'upgrade' : 'enhancement'}`}
             chosen={Boolean(choice.chosen)}
@@ -269,11 +286,12 @@ export function SpecialChoice({
             onDecline={() => onChoose(choice.key, '')}
           />
         ) : null}
-        {choice.options.map((option) => (
+        {options.map((option) => (
           <ChoiceOption
             key={option.id}
             option={option}
             selected={choice.chosen === option.id}
+            highlightSelection={highlightSelection}
             onSelect={editable ? () => onChoose(choice.key, option.id) : undefined}
           >
             {option.description ? (
@@ -297,24 +315,30 @@ export function EitherChoice({
   weapons,
   abilities,
   rules,
+  showOptions = true,
+  highlightSelection = true,
 }: Described & {
   choice: LoadoutChoice
   unitName: string
   editable: boolean
   onChoose: (key: string, optionId: string) => void
+  showOptions?: boolean
+  highlightSelection?: boolean
 }) {
+  const options = showOptions ? choice.options : choice.options.filter((option) => choice.chosen === option.id)
   return (
     <fieldset aria-label={`${unitName} ${choice.name}`} className="m-0 min-w-0 border-0 p-0">
       <legend className="eyebrow p-0">{choice.name}</legend>
       <div className="mt-1.5 space-y-1.5">
-        {choice.optional ? (
+        {choice.optional && showOptions ? (
           <DeclineButton label="None" chosen={Boolean(choice.chosen)} editable={editable} onDecline={() => onChoose(choice.key, '')} />
         ) : null}
-        {choice.options.map((option) => (
+        {options.map((option) => (
           <ChoiceOption
             key={option.id}
             option={option}
             selected={choice.chosen === option.id}
+            highlightSelection={highlightSelection}
             onSelect={editable ? () => onChoose(choice.key, option.id) : undefined}
           >
             <OptionProfiles optionName={option.name} weapons={weapons} rules={rules} />
@@ -339,10 +363,14 @@ export function SpreadChoice({
   weapons,
   abilities,
   rules,
+  showOptions = true,
+  highlightSelection = true,
 }: Described & {
   choice: LoadoutChoice
   editable: boolean
   onSpread: (key: string, counts: SpreadCounts) => void
+  showOptions?: boolean
+  highlightSelection?: boolean
 }) {
   const { taken, more, less } = spreadHandlers(choice)
   const press = (counts: SpreadCounts | null) => (counts ? () => onSpread(choice.key, counts) : undefined)
@@ -356,12 +384,15 @@ export function SpreadChoice({
         </span>
       </p>
       <ul className="mt-1.5 space-y-1">
-        {choice.options.map((option) => (
-          <li key={option.id} className={`border ${option.count ? 'border-azure bg-azure/10' : 'border-edge bg-card'}`}>
+        {(showOptions ? choice.options : choice.options.filter((option) => option.count)).map((option) => (
+          <li
+            key={option.id}
+            className={`border ${option.count && highlightSelection ? 'border-parchment bg-parchment/10' : 'border-edge bg-card'}`}
+          >
             <div className="flex items-center gap-2 px-2 py-1.5">
               <span className="min-w-0 flex-1">
                 <span className="block text-xs font-semibold">{option.name}</span>
-                {option.points ? <span className="readout text-[0.6875rem] text-faint">+{option.points} each</span> : null}
+                {option.points ? <span className="readout text-[0.6875rem] text-info">+{option.points} each</span> : null}
               </span>
               <PoolStepper
                 name={option.name}

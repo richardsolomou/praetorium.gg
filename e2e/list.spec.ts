@@ -5,6 +5,7 @@ import {
   chooseBattlefield,
   createBattle,
   createRoster,
+  desktopContext,
   setupStep,
   signUp,
   startBattle,
@@ -13,8 +14,8 @@ import {
 } from './account'
 
 test('a built list is priced, deployed and tracked', async ({ browser }) => {
-  const alice = await (await browser.newContext()).newPage()
-  const bob = await (await browser.newContext()).newPage()
+  const alice = await (await browser.newContext(desktopContext)).newPage()
+  const bob = await (await browser.newContext(desktopContext)).newPage()
   const aliceName = uniqueName('Alice')
   const bobName = uniqueName('Bob')
 

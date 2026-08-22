@@ -443,6 +443,7 @@ function rosterFromRow(row: NonNullable<Awaited<ReturnType<Repository['roster']>
     detachmentIds: detachmentIds(row.detachmentId),
     disposition: row.disposition,
     limit: row.limit,
+    createdAt: row.createdAt,
     updatedAt: row.updatedAt,
     picks: picksSchema.parse(JSON.parse(row.picks)),
     visibility: row.visibility,

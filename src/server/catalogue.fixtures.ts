@@ -7,7 +7,7 @@
  */
 
 import { buildIndex, type Catalogue, type CatalogueFile, type Modifier } from '../core/catalogue'
-import { detachmentsOf, factionsIn, type LoadedCatalogue } from './catalogueIndex'
+import { characteristicNamesOf, detachmentsOf, factionsIn, type LoadedCatalogue } from './catalogueIndex'
 import { unitsIn } from './cataloguePicker'
 
 export const PTS = 'cost-pts'
@@ -24,6 +24,7 @@ export function shelfOf(...catalogues: Partial<Catalogue>[]): LoadedCatalogue {
   const index = buildIndex([system, ...files], 'test-revision')
   return {
     index,
+    characteristicNames: characteristicNamesOf([system, ...files]),
     factions: factionsIn(index, detachmentsOf(files, index)),
     detachments: detachmentsOf(files, index),
     factionContents: new Map(),

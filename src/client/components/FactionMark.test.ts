@@ -7,6 +7,6 @@ describe('faction colors', () => {
   })
 
   it('uses a neutral color for a new faction', () => {
-    expect(factionColour('unknown')).toBe('#767e88')
+    expect(factionColour('unknown')).toBe('#8b918a')
   })
 })

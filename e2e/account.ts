@@ -1,5 +1,7 @@
-import type { Locator, Page } from '@playwright/test'
+import type { BrowserContextOptions, Locator, Page } from '@playwright/test'
 import { expect } from '@playwright/test'
+
+export const desktopContext = { viewport: { width: 1440, height: 900 } } satisfies BrowserContextOptions
 
 /**
  * Makes an account and leaves the page signed into it.
@@ -98,6 +100,9 @@ export async function createRoster(
   await waitForRosterSave(page, () => page.getByLabel('List name').fill(rosterName), rosterName)
   await page.reload()
   await expect(page.getByLabel('List name')).toHaveValue(rosterName)
+  const picker = page.getByLabel('Add a unit')
+  if (!(await picker.isVisible())) await page.getByRole('button', { name: 'Add units', exact: true }).click()
+  await expect(picker).toBeVisible()
   return rosterName
 }
 

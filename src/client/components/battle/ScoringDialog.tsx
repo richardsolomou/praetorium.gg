@@ -91,9 +91,9 @@ export function ScoringDialog({ side, due, moment, confirmLabel, pending, send, 
 
   return (
     <Dialog open onOpenChange={(open) => !open && onCancel?.()}>
-      <DialogContent className="max-h-[85dvh] overflow-y-auto rounded-none border border-edge bg-panel text-bone sm:max-w-2xl">
+      <DialogContent className="max-h-[85dvh] overflow-y-auto rounded-none border border-discarded/60 bg-panel text-bone sm:max-w-2xl">
         <DialogHeader className="text-center">
-          <p className="eyebrow">Now</p>
+          <p className="eyebrow text-discarded">Now</p>
           <DialogTitle className="uppercase">Scoring {moment} points</DialogTitle>
           <DialogDescription className="text-dim">
             Recording points for {sideName(side)}. Press what the board actually paid on each card.
@@ -234,7 +234,7 @@ function AwardRow({
               <Plus />
             </Button>
           </div>
-          <span className={`chip shrink-0 ${times > 0 ? 'border-azure text-azure' : 'border-edge-strong'}`}>
+          <span className={`chip shrink-0 ${times > 0 ? 'border-parchment text-parchment' : 'border-edge-strong'}`}>
             {awardTotal(award, times)} VP
           </span>
         </>
@@ -275,7 +275,7 @@ function Chip({
       aria-label={ariaLabel}
       disabled={pending || disabled}
       onClick={onPress}
-      className={`chip shrink-0 px-2 py-1 ${chosen ? 'border-azure bg-azure/15 text-azure' : 'border-edge-strong hover:border-azure hover:text-azure'}`}
+      className={`chip shrink-0 px-2 py-1 ${chosen ? 'border-parchment bg-parchment/15 text-parchment' : 'border-edge-strong hover:border-azure hover:text-azure'}`}
     >
       {label}
     </button>

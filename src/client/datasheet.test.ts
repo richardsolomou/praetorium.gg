@@ -9,27 +9,31 @@ describe('datasheet composition count', () => {
   it('keeps a single-model datasheet singular', () => {
     expect(compositionCount(['**1 Overlord**'])).toBe('1 model')
   })
+
+  it('totals each fixed composition without adding alternatives together', () => {
+    expect(
+      compositionCount(['**1 Shock Trooper Sergeant and 9 Shock Troopers**', 'OR', '**2 Shock Trooper Sergeants and 18 Shock Troopers**']),
+    ).toBe('10–20 models')
+  })
 })
 
 describe('datasheet abilities', () => {
-  it('replaces a unit Leader ability with parsed attachment targets', () => {
+  it('leaves attachment roles to the dedicated attachment section', () => {
     const abilities = [
       { name: 'Leader', kind: 'core' },
-      { name: 'Leader', kind: 'rule' },
+      { name: 'Support', kind: 'rule' },
       { name: 'My Will Be Done', kind: 'datasheet' },
     ]
 
-    expect(displayAbilities(abilities, true)).toEqual([abilities[0], abilities[2]])
-  })
-
-  it('keeps a Leader ability when no attachment targets were parsed', () => {
-    const abilities = [{ name: 'Leader', kind: 'rule' }]
-
-    expect(displayAbilities(abilities, false)).toEqual(abilities)
+    expect(displayAbilities(abilities)).toEqual([abilities[2]])
   })
 })
 
 describe('the keywords something in the list added to a weapon', () => {
+  it('names a keyword added to a blank printed characteristic', () => {
+    expect(addedKeywords({ value: 'Lethal Hits', baseValue: '' })).toEqual(['Lethal Hits'])
+  })
+
   it('names what the printed profile does not have', () => {
     expect(addedKeywords({ value: 'Lethal Hits, Assault', baseValue: 'Lethal Hits' })).toEqual(['Assault'])
   })

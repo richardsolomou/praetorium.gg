@@ -13,7 +13,7 @@ import { maximumCount, requiredCount, resolve, UNBOUNDED } from './definitions'
 import type { Selection } from './evaluate'
 import { defaultSelection } from './expand'
 
-export type UnitSize = { min: number; max: number; models: number; path: string[] }
+export type UnitSize = { min: number; max: number; models: number; path: string[]; options?: number[] }
 
 /** A group whose size the data lets the player change, and the selection to change. */
 export type BoundedGroup = { min: number; max: number; total: number; adjust: string[] }

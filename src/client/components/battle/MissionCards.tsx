@@ -67,7 +67,7 @@ export function SecondaryMissions({ side, actionable, pending, send, referenceFo
             <span className="min-w-0 flex-1">
               <MissionName name={secondary.name} card={referenceFor(secondary.key)} type="Secondary mission" />
               <span className="mt-0.5 flex flex-wrap gap-1.5 text-[0.625rem] font-semibold uppercase">
-                {secondary.secret ? <span className="text-azure">{secondary.revealed ? 'revealed' : 'secret'}</span> : null}
+                {secondary.secret ? <span className="text-discarded">{secondary.revealed ? 'revealed' : 'secret'}</span> : null}
                 {secondary.status === 'active' ? null : (
                   <span className={secondary.status === 'achieved' ? 'text-achieved' : 'text-discarded'}>{secondary.status}</span>
                 )}
@@ -114,7 +114,7 @@ function SecretMissionDialog({
       <DialogTrigger render={<Button variant="outline" size="xs" disabled={pending} />}>Select secret mission</DialogTrigger>
       <DialogContent className="max-h-[85dvh] overflow-y-auto rounded-none border border-edge bg-panel text-bone sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle className="uppercase">Select a secret mission</DialogTitle>
+          <DialogTitle className="text-discarded uppercase">Select a secret mission</DialogTitle>
           <DialogDescription className="text-dim">
             Held face down until you reveal it. Your opponent sees only that you hold one.
           </DialogDescription>

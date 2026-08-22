@@ -5,6 +5,7 @@ import {
   type LoadoutModel,
   type LoadoutOption,
   ordered,
+  showLoadoutEntry,
   type SpreadCounts,
   spreadHandlers,
   wholeSquadTakes,
@@ -32,6 +33,7 @@ export function ModelCard({
   onSpread,
   onSwap,
   editable,
+  showOptions = true,
 }: {
   model: LoadoutModel
   choices: LoadoutChoice[]
@@ -44,6 +46,7 @@ export function ModelCard({
   onSpread: (key: string, counts: SpreadCounts) => void
   onSwap: (key: string, count: number) => void
   editable: boolean
+  showOptions?: boolean
 }) {
   const optionOf = (choiceKey: string, optionId: string) => {
     const choice = choices.find((candidate) => candidate.key === choiceKey)
@@ -143,6 +146,7 @@ export function ModelCard({
     }
   }
   const counted = heading()
+  if (!showOptions && !count) return null
 
   return (
     <section className="border border-edge-strong bg-panel/40">
@@ -172,19 +176,23 @@ export function ModelCard({
                 : `wargear:${entry.name}`,
         ).map((entry) => {
           if ('fixed' in entry) {
+            const fixedCount = entry.fixed.count ?? count
+            if (!showLoadoutEntry(fixedCount, showOptions)) return null
             return (
               <WargearRow
                 key={entry.name}
                 name={entry.name}
-                count={entry.fixed.count ?? count}
+                count={fixedCount}
                 weapons={weapons}
                 abilities={abilities}
                 rules={rules}
+                highlightSelection={showOptions}
               />
             )
           }
           if ('swap' in entry) {
             const swap = entry.swap
+            if (!showLoadoutEntry(swap.count, showOptions)) return null
             return (
               <WargearRow
                 key={swap.key}
@@ -194,6 +202,7 @@ export function ModelCard({
                 abilities={abilities}
                 rules={rules}
                 note={swap.gives.length ? `instead of ${swap.gives.join(' and ')}` : undefined}
+                highlightSelection={showOptions}
                 control={
                   swap.free ? (
                     <PoolStepper
@@ -204,7 +213,7 @@ export function ModelCard({
                       onRemove={swap.count > 0 ? () => onSwap(swap.key, swap.count - 1) : undefined}
                     />
                   ) : (
-                    <span className="w-[5.5rem] text-right text-[0.6875rem] text-faint">costs points</span>
+                    <span className="w-[5.5rem] text-right text-[0.6875rem] text-info">costs points</span>
                   )
                 }
               />
@@ -214,6 +223,7 @@ export function ModelCard({
           const found = optionOf(row.choiceKey, row.optionId)
           if (!found) return null
           const { choice, option } = found
+          if (!showLoadoutEntry(option.count, showOptions)) return null
           const taken = choice.chosen === option.id
           return (
             <WargearRow
@@ -224,6 +234,7 @@ export function ModelCard({
               weapons={weapons}
               abilities={abilities}
               rules={rules}
+              highlightSelection={showOptions}
               control={
                 choice.uniform ? (
                   // Every model carries the same one, so the row is answered rather

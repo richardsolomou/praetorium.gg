@@ -61,6 +61,8 @@ type Node = {
 class Census {
   private readonly seen = new Set<string>()
 
+  constructor(readonly associations = 0) {}
+
   note(what: string) {
     this.seen.add(what)
   }
@@ -122,7 +124,7 @@ export function profileModifiers(
    */
   companionIndexes: readonly number[] = [],
 ): ProfileModifier[] {
-  const census = new Census()
+  const census = new Census(companionIndexes.length)
   const counter = { next: 0 }
   const root: Node = {
     target: { id: 'roster' },
@@ -221,7 +223,12 @@ export function profileModifiers(
         recursive: target.recursive,
         // A whole-unit modifier from the unit this one is attached to belongs to
         // every model here, which is what being one unit means.
-        global: target.forces || origin === root || Boolean(origin.force) || (target.group && !own.has(origin)),
+        global:
+          target.forces ||
+          origin === root ||
+          Boolean(origin.force) ||
+          (target.group && !own.has(origin)) ||
+          (origin.target.type === 'model' && target.includeEntries && target.recursive && profileType === 'Unit'),
         profileType,
       }
       found.set(JSON.stringify(applied), applied)
@@ -816,9 +823,9 @@ function measure(spec: Measurable, node: Node, root: Node, index: CatalogueIndex
   const matching = [...seen]
 
   if (spec.field === 'selections') return matching.reduce((total, each) => total + each.count, 0)
-  // External roster associations are validated beside the saved picks. A bare
-  // selection tree carries none, so its measured association count is zero.
-  if (spec.field === 'associations') return 0
+  // Attachments live on saved picks, outside the selection tree. Only profile
+  // projection supplies them; ordinary evaluation validates them separately.
+  if (spec.field === 'associations') return census.associations
   if (index.costTypes.has(spec.field)) {
     return matching.reduce((total, each) => total + (costOf(each, spec.field) ?? 0) * each.count, 0)
   }

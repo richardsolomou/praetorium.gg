@@ -135,6 +135,20 @@ beforeEach(() => {
           default_weapon_ids: ['plague-spewer', 'bolt-pistol-plague-marines', 'weapon-nobody-has-heard-of'],
         },
       ],
+      tiers: [
+        {
+          models: [
+            { name: 'Plague Champion', min: 1, max: 1 },
+            { name: 'Plague Marine', min: 4, max: 4 },
+          ],
+        },
+        {
+          models: [
+            { name: 'Plague Champion', min: 2, max: 2 },
+            { name: 'Plague Marine', min: 8, max: 8 },
+          ],
+        },
+      ],
     },
   ])
   write(path.join(root, 'force-dispositions.json'), [{ id: 'disruption', name: 'Disruption' }])
@@ -306,6 +320,23 @@ describe('the kinds of model a datasheet is built from', () => {
         weapons: [
           { id: 'plague-spewer', name: 'Plague spewer' },
           { id: 'bolt-pistol-plague-marines', name: 'Bolt pistol' },
+        ],
+      },
+    ])
+  })
+
+  it('keeps the model counts for each fixed squad-size tier', () => {
+    expect(compositionOf(load(), 'plague-marines')?.tiers).toEqual([
+      {
+        models: [
+          { name: 'Plague Champion', min: 1, max: 1 },
+          { name: 'Plague Marine', min: 4, max: 4 },
+        ],
+      },
+      {
+        models: [
+          { name: 'Plague Champion', min: 2, max: 2 },
+          { name: 'Plague Marine', min: 8, max: 8 },
         ],
       },
     ])

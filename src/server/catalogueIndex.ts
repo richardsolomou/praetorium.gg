@@ -20,6 +20,7 @@ type DetachmentOption = { id: string; name: string; disposition: string | null }
 
 export type LoadedCatalogue = {
   index: CatalogueIndex
+  characteristicNames: Map<string, string>
   factions: { id: string; name: string; references: CatalogueReference[] }[]
   detachments: Map<string, DetachmentOptions>
   factionContents: Map<string, FactionContent>
@@ -49,7 +50,29 @@ export function loadCatalogue(directory = catalogueDirectory()): LoadedCatalogue
   const index = buildIndex(files, revision.definitions)
   const detachments = detachmentsOf(files, index)
   const factionContents = loadFactionContents(path.join(directory, 'datacards', '11th', 'gdc'))
-  return { index, factions: factionsIn(index, detachments), detachments, factionContents }
+  return {
+    index,
+    characteristicNames: characteristicNamesOf(files),
+    factions: factionsIn(index, detachments),
+    detachments,
+    factionContents,
+  }
+}
+
+/** Characteristic type ids are defined inline throughout the source files. */
+export function characteristicNamesOf(files: readonly CatalogueFile[]) {
+  const names = new Map<string, string>()
+  const visit = (value: unknown) => {
+    if (Array.isArray(value)) return value.forEach(visit)
+    if (!value || typeof value !== 'object') return
+    const record = value as Record<string, unknown>
+    if (typeof record.typeId === 'string' && typeof record.name === 'string' && typeof record.$text === 'string') {
+      names.set(record.typeId, record.name)
+    }
+    Object.values(record).forEach(visit)
+  }
+  files.forEach(visit)
+  return names
 }
 
 export function factionsIn(index: CatalogueIndex, detachments: Map<string, DetachmentOptions>) {

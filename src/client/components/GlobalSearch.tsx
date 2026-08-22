@@ -71,7 +71,7 @@ export function GlobalSearch() {
                       key={result.id}
                       value={`${result.label} ${result.detail}`}
                       onSelect={() => go(result.href)}
-                      className="border-l-2 border-transparent data-[selected=true]:border-azure data-[selected=true]:bg-azure/15 data-[selected=true]:text-bone data-[selected=true]:[&_.result-detail]:text-dim"
+                      className="border-l-2 border-transparent data-[selected=true]:border-parchment data-[selected=true]:bg-parchment/15 data-[selected=true]:text-bone data-[selected=true]:[&_.result-detail]:text-dim"
                     >
                       <ChevronRight className="size-4 opacity-0 group-data-[selected=true]/command-item:opacity-100" aria-hidden />
                       <span className="min-w-0 flex-1">

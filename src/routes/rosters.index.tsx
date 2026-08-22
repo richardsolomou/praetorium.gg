@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { createFileRoute, Link } from '@tanstack/react-router'
+import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 import {
   AlertDialog,
@@ -11,30 +11,99 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { Button } from '@/components/ui/button'
+import { Label } from '@/components/ui/label'
 import { CreateRoster } from '../client/components/CreateRoster'
 import { RosterImport } from '../client/components/RosterImport'
 import { RosterExportDialog } from '../client/components/RosterExportDialog'
 import { RosterSetupDialog, type RosterSetup } from '../client/components/RosterSetupDialog'
+import { SearchableSelect, type SearchableGroup } from '../client/components/SearchableSelect'
+import { factionSelectGroups } from '../client/components/builder/factions'
 import { RosterRow } from '../client/components/rosters/RosterRow'
 import { type SavedRoster, useRosterActions } from '../client/components/rosters/rosterLibrary'
+import { ROSTER_SORTS, type RosterSort, sortRosters } from '../client/components/rosters/rosterSort'
 import { readWorkspaceState, writeWorkspaceState } from '../client/components/workspaceState'
 import { SignInRequired } from '../client/components/SignInRequired'
+import { useFavouriteFactions } from '../client/favouriteFactions'
 import { factionsQuery, meQuery, savedRosterPointsQuery, savedRostersQuery } from '../client/queries'
 import { useOrigin } from '../client/useOrigin'
 import { GAME_SIZES } from '../core/battle'
+import { ROSTER_VISIBILITIES, type RosterVisibility } from '../core/savedRoster'
 
-type Search = { limit?: number }
+type Search = { limit?: number; faction?: string; visibility?: RosterVisibility; sort?: RosterSort }
 /** An unsaved setup edit, kept per tab so a refresh does not lose it. */
 type EditingSession = { rosterId: string; draft: RosterSetup }
 
 const WORKSPACE_PATH = '/rosters/'
 const EDITING_STATE = 'roster-setup'
+const BATTLE_SIZE_GROUPS: SearchableGroup[] = [
+  {
+    label: '',
+    items: [
+      { label: 'All battle sizes', value: 'all' },
+      ...GAME_SIZES.map((size) => ({
+        label: `${size.name.replace(` (${size.limit})`, '')} · ${size.limit} points`,
+        value: String(size.limit),
+      })),
+    ],
+  },
+]
+const SHARING_GROUPS: SearchableGroup[] = [
+  {
+    label: '',
+    items: [
+      { label: 'Any sharing status', value: 'all' },
+      { label: 'Private', value: 'private' },
+      { label: 'Unlisted', value: 'unlisted' },
+    ],
+  },
+]
+const SORT_GROUPS: SearchableGroup[] = [
+  {
+    label: 'Created',
+    items: [
+      { label: 'Recently created', value: 'created-desc' },
+      { label: 'Least recently created', value: 'created-asc' },
+    ],
+  },
+  {
+    label: 'Updated',
+    items: [
+      { label: 'Recently updated', value: 'updated-desc' },
+      { label: 'Least recently updated', value: 'updated-asc' },
+    ],
+  },
+  {
+    label: 'Name',
+    items: [
+      { label: 'A to Z', value: 'name-asc' },
+      { label: 'Z to A', value: 'name-desc' },
+    ],
+  },
+  {
+    label: 'Battle size',
+    items: [
+      { label: 'Low to high', value: 'size-asc' },
+      { label: 'High to low', value: 'size-desc' },
+    ],
+  },
+]
 
 export const Route = createFileRoute('/rosters/')({
   validateSearch: (search: Record<string, unknown>): Search => {
     const limit = Number(search.limit)
-    return GAME_SIZES.some((size) => size.limit === limit) ? { limit } : {}
+    const faction = typeof search.faction === 'string' && search.faction.length <= 128 ? search.faction : undefined
+    const visibility =
+      typeof search.visibility === 'string' && ROSTER_VISIBILITIES.includes(search.visibility as RosterVisibility)
+        ? (search.visibility as RosterVisibility)
+        : undefined
+    const sort =
+      typeof search.sort === 'string' && ROSTER_SORTS.includes(search.sort as RosterSort) ? (search.sort as RosterSort) : undefined
+    return {
+      ...(GAME_SIZES.some((size) => size.limit === limit) ? { limit } : {}),
+      ...(faction ? { faction } : {}),
+      ...(visibility ? { visibility } : {}),
+      ...(sort && sort !== 'created-desc' ? { sort } : {}),
+    }
   },
   loader: ({ context }) =>
     Promise.all([
@@ -50,8 +119,25 @@ function RosterLibrary() {
   const { data: saved = [] } = useQuery(savedRostersQuery())
   const { data: prices } = useQuery(savedRosterPointsQuery())
   const { data: available } = useQuery(factionsQuery())
-  const { limit } = Route.useSearch()
-  const shown = limit === undefined ? saved : saved.filter((roster) => roster.limit === limit)
+  const search = Route.useSearch()
+  const navigate = useNavigate()
+  const { favourites } = useFavouriteFactions()
+  const factionSlugById = new Map((available?.factions ?? []).map((faction) => [faction.id, faction.slug]))
+  const selectedFactionId = available?.factions.find((faction) => faction.slug === search.faction)?.id
+  const factionGroups = factionSelectGroups(available?.factions ?? [], favourites).map((group) => ({
+    ...group,
+    items: group.items.map((faction) => ({ ...faction, value: factionSlugById.get(faction.value) ?? faction.value })),
+  }))
+  const rosterFactionGroups: SearchableGroup[] = [{ label: '', items: [{ label: 'All factions', value: 'all' }] }, ...factionGroups]
+  const shown = sortRosters(
+    saved.filter(
+      (roster) =>
+        (search.limit === undefined || roster.limit === search.limit) &&
+        (search.faction === undefined || roster.catalogueId === selectedFactionId) &&
+        (search.visibility === undefined || roster.visibility === search.visibility),
+    ),
+    search.sort ?? 'created-desc',
+  )
 
   const points = new Map((prices ?? []).map((entry) => [entry.id, entry.points]))
 
@@ -90,29 +176,38 @@ function RosterLibrary() {
         </div>
       </div>
 
-      <div className="mt-4 flex flex-wrap items-center gap-1.5" aria-label="Battle size filter">
-        <span className="eyebrow mr-1">Battle size</span>
-        <Button
-          render={<Link to="/rosters" search={{}} />}
-          nativeButton={false}
-          variant="outline"
-          size="xs"
-          className={`chip ${limit === undefined ? 'border-azure text-azure' : ''}`}
-        >
-          All
-        </Button>
-        {GAME_SIZES.map((size) => (
-          <Button
-            key={size.limit}
-            render={<Link to="/rosters" search={{ limit: size.limit }} />}
-            nativeButton={false}
-            variant="outline"
-            size="xs"
-            className={`chip ${limit === size.limit ? 'border-azure text-azure' : ''}`}
-          >
-            {size.name} · {size.limit}
-          </Button>
-        ))}
+      <div className="mt-4 flex flex-wrap items-end gap-3" aria-label="Roster filters">
+        <RosterCombobox
+          label="Battle size"
+          value={search.limit ? String(search.limit) : 'all'}
+          groups={BATTLE_SIZE_GROUPS}
+          className="w-64 max-w-full"
+          onChange={(value) => void navigate({ to: '/rosters', search: { ...search, limit: value === 'all' ? undefined : Number(value) } })}
+        />
+        <RosterCombobox
+          label="Faction"
+          value={search.faction ?? 'all'}
+          groups={rosterFactionGroups}
+          className="w-52 max-w-full"
+          onChange={(value) => void navigate({ to: '/rosters', search: { ...search, faction: value === 'all' ? undefined : value } })}
+        />
+        <RosterCombobox
+          label="Sharing"
+          value={search.visibility ?? 'all'}
+          groups={SHARING_GROUPS}
+          onChange={(value) =>
+            void navigate({ to: '/rosters', search: { ...search, visibility: value === 'all' ? undefined : (value as RosterVisibility) } })
+          }
+        />
+        <RosterCombobox
+          label="Sort"
+          value={search.sort ?? 'created-desc'}
+          groups={SORT_GROUPS}
+          className="w-52 max-w-full"
+          onChange={(value) =>
+            void navigate({ to: '/rosters', search: { ...search, sort: value === 'created-desc' ? undefined : (value as RosterSort) } })
+          }
+        />
       </div>
       {actions.shareProblem ? <p className="mt-3 text-sm text-destructive">Could not copy the link: {actions.shareProblem}</p> : null}
 
@@ -137,7 +232,7 @@ function RosterLibrary() {
             ))
           ) : (
             <p className="border border-edge bg-panel p-8 text-center text-sm text-dim">
-              {saved.length ? 'No rosters at this battle size.' : 'No rosters yet. Create one or bring one from another app.'}
+              {saved.length ? 'No rosters match these filters.' : 'No rosters yet. Create one or bring one from another app.'}
             </p>
           )}
         </div>
@@ -180,5 +275,33 @@ function RosterLibrary() {
       ) : null}
       <RosterExportDialog text={actions.exportText} onClose={actions.clearExport} />
     </main>
+  )
+}
+
+function RosterCombobox({
+  label,
+  value,
+  groups,
+  onChange,
+  className,
+}: {
+  label: string
+  value: string
+  groups: SearchableGroup[]
+  onChange: (value: string) => void
+  className?: string
+}) {
+  return (
+    <div>
+      <Label className="eyebrow block">{label}</Label>
+      <SearchableSelect
+        ariaLabel={label}
+        groups={groups}
+        value={value}
+        onValueChange={onChange}
+        placeholder={label}
+        className={`mt-1 h-9 min-w-40 rounded-none border-edge bg-sunken text-xs font-semibold uppercase ${className ?? ''}`}
+      />
+    </div>
   )
 }

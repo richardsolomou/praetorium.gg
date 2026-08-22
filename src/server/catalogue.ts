@@ -74,6 +74,12 @@ export function datasheetIn(
         context.companions ?? [],
       )
     : []
+  const grantedWeaponAbilities = context
+    ? weaponAbilitiesInAttachedUnit(context.selections, context.unitSelectionIndex, context.companions ?? [], loaded.index)
+    : []
+  const grantedInvulnerableSaves = context
+    ? invulnerableSavesInSelectedUnit(context.selections, context.unitSelectionIndex, loaded.index)
+    : []
   const selected = new Set<string>()
   const selectedCounts = new Map<string, number>()
   const requestedUnit = context?.unitSelectionIndex === undefined ? undefined : context.selections[context.unitSelectionIndex]
@@ -176,6 +182,7 @@ export function datasheetIn(
   const details = datacardDetails(loaded, name)
   const attachment = attachmentOf(root, loaded.index)
   const relationships = relationshipsFor(loaded, catalogueId, root.id, name)
+  const characteristicNames = loaded.characteristicNames
   const selection = selectedUnit ?? defaultSelection(root.id, loaded.index, { primaryCatalogueId: catalogueId })
   const catalogueOptions = selection
     ? unitChoices(root.id, selection, loaded.index, { primaryCatalogueId: catalogueId }).map((choice) => ({
@@ -195,6 +202,29 @@ export function datasheetIn(
     if (hidden === 'true') return []
     const changedName = modifiedProfileField(profile.name, 'name', profileType, profileLineage, owner, modifiers)
     const annotation = modifiedProfileField('', 'annotation', profileType, profileLineage, owner, modifiers).value
+    const values = (profile.characteristics ?? []).flatMap((value) => {
+      if (!value.name) return []
+      const changed = modifiedProfileField(value.$text ?? '', value.typeId, profileType, profileLineage, owner, modifiers)
+      return changed.value ? [{ name: value.name, ...changed }] : []
+    })
+    const present = new Set((profile.characteristics ?? []).map((value) => value.typeId).filter((id): id is string => Boolean(id)))
+    const added = [
+      ...new Set(
+        modifiers
+          .filter((modifier) => modifier.profileType === profileType && !present.has(modifier.field))
+          .map((modifier) => modifier.field),
+      ),
+    ].flatMap((field) => {
+      const characteristicName = characteristicNames.get(field)
+      const changed = modifiedProfileField('', field, profileType, profileLineage, owner, modifiers)
+      return characteristicName && changed.value ? [{ name: characteristicName, ...changed }] : []
+    })
+    const baseValues = [...values, ...added]
+    const characteristicValues =
+      profileType === 'Unit' ? addGrantedInvulnerableSave(baseValues, owner, grantedInvulnerableSaves) : baseValues
+    const displayedValues = weapon
+      ? addGrantedWeaponAbilities(characteristicValues, profileType, grantedWeaponAbilities)
+      : characteristicValues
     return [
       {
         id: profile.id,
@@ -203,15 +233,10 @@ export function datasheetIn(
         ...(weapon && selectedUnit
           ? { count: wargearCounts.get(profile.name) ?? Math.max(1, ...owner.map((id) => selectedCounts.get(id) ?? 0)) }
           : {}),
-        values: (profile.characteristics ?? []).flatMap((value) => {
-          if (!value.name || !value.$text) return []
-          const changed = modifiedProfileField(value.$text, value.typeId, profileType, profileLineage, owner, modifiers)
-          return [{ name: value.name, ...changed }]
-        }),
+        values: displayedValues,
       },
     ]
   })
-
   return {
     id: root.id,
     slug: datasheetSlug(loaded, catalogueId, root.id),
@@ -219,7 +244,7 @@ export function datasheetIn(
     points: priceOf(loaded, catalogueId, entryId),
     keywords: [...new Set(keywords.map((link) => link.name).filter((keyword): keyword is string => Boolean(keyword)))].toSorted(),
     profiles: uniqueProfiles(displayProfiles),
-    abilities: [...abilities.values()],
+    abilities: uniqueAbilities([...abilities.values()]),
     composition: details?.composition ?? [],
     loadout: details?.loadout ?? null,
     wargearOptions: details?.wargear.length
@@ -233,6 +258,125 @@ export function datasheetIn(
     supporters: relationships.supporters,
     keywordRules: [...keywordRules.values()],
   }
+}
+
+type GrantedWeaponAbility = { keyword: string; source: string; profileTypes: readonly string[] }
+type GrantedInvulnerableSave = { value: string; source: string; originIds: readonly string[] }
+
+function weaponAbilitiesInAttachedUnit(
+  selections: readonly Selection[],
+  unitSelectionIndex: number | undefined,
+  companionIndexes: readonly number[],
+  index: LoadedCatalogue['index'],
+): GrantedWeaponAbility[] {
+  if (unitSelectionIndex === undefined || !companionIndexes.length) return []
+  const found = new Map<string, GrantedWeaponAbility>()
+  for (const definition of definitionsInSelections(selections, [unitSelectionIndex, ...companionIndexes], index)) {
+    for (const source of [definition, targetOf(definition, index.definitions)]) {
+      for (const profile of source.profiles ?? []) {
+        if (profile.typeName !== 'Abilities' || !profile.name) continue
+        const description = normalizedAbilityDescription(profile)
+        const match = description?.match(
+          /^While this model is leading a unit, (?:(melee|ranged) )?weapons equipped by models in that unit have the \[([\p{L}\p{N} +'’\p{Pd}]+)\] ability\.$/iu,
+        )
+        if (!match) continue
+        const keyword = match[2].toLocaleLowerCase().replaceAll(/(^|[\s-])\p{L}/gu, (letter) => letter.toLocaleUpperCase())
+        const profileTypes = match[1]
+          ? [`${match[1][0].toLocaleUpperCase()}${match[1].slice(1).toLocaleLowerCase()} Weapons`]
+          : ['Ranged Weapons', 'Melee Weapons']
+        found.set(`${profile.name}:${keyword}:${profileTypes.join(',')}`, { keyword, source: profile.name, profileTypes })
+      }
+    }
+  }
+  return [...found.values()]
+}
+
+function invulnerableSavesInSelectedUnit(
+  selections: readonly Selection[],
+  unitSelectionIndex: number | undefined,
+  index: LoadedCatalogue['index'],
+): GrantedInvulnerableSave[] {
+  if (unitSelectionIndex === undefined) return []
+  const found = new Map<string, GrantedInvulnerableSave>()
+  for (const definition of definitionsInSelections(selections, [unitSelectionIndex], index)) {
+    for (const source of [definition, targetOf(definition, index.definitions)]) {
+      for (const profile of source.profiles ?? []) {
+        if (profile.typeName !== 'Abilities' || !profile.name) continue
+        const value = normalizedAbilityDescription(profile)?.match(/^This model has an? (\d+\+) invulnerable save\.$/i)?.[1]
+        if (!value) continue
+        const granted = { value, source: profile.name, originIds: definitionTokens(definition) }
+        found.set(JSON.stringify(granted), granted)
+      }
+    }
+  }
+  return [...found.values()]
+}
+
+function definitionsInSelections(
+  selections: readonly Selection[],
+  indexes: readonly number[],
+  index: LoadedCatalogue['index'],
+): Definition[] {
+  const found = new Map<string, Definition>()
+  const visit = (selection: Selection) => {
+    const definition = index.definitions.get(selection.id)
+    if (definition) found.set(definition.id, definition)
+    selection.selections?.forEach(visit)
+  }
+  for (const at of indexes) {
+    const selection = selections[at]
+    if (selection) visit(selection)
+  }
+  return [...found.values()]
+}
+
+const normalizedAbilityDescription = (profile: Profile) => abilityDescription(profile)?.normalize('NFKC').replaceAll(/\s+/g, ' ').trim()
+
+function addGrantedInvulnerableSave(
+  values: Datasheet['profiles'][number]['values'],
+  owner: readonly string[],
+  saves: readonly GrantedInvulnerableSave[],
+) {
+  if (values.some((value) => value.name === 'InSv')) return values
+  const save = saves.find((candidate) => candidate.originIds.some((id) => owner.includes(id)))
+  return save ? [...values, { name: 'InSv', value: save.value, baseValue: '', modifiers: [save.source] }] : values
+}
+
+function addGrantedWeaponAbilities(
+  values: Datasheet['profiles'][number]['values'],
+  profileType: string,
+  abilities: readonly GrantedWeaponAbility[],
+) {
+  const granted = abilities.filter((ability) => ability.profileTypes.includes(profileType))
+  if (!granted.length) return values
+  const keywords = values.find((value) => value.name === 'Keywords')
+  if (!keywords) {
+    return [
+      ...values,
+      {
+        name: 'Keywords',
+        value: granted.map((ability) => ability.keyword).join(', '),
+        baseValue: '',
+        modifiers: [...new Set(granted.map((ability) => ability.source))],
+      },
+    ]
+  }
+  const printed = new Set(keywords.value.split(',').map((keyword) => keyword.trim().toLocaleLowerCase()))
+  const additions = granted.filter((ability) => !printed.has(ability.keyword.toLocaleLowerCase()))
+  if (!additions.length) return values
+  const changed = {
+    ...keywords,
+    value: [
+      ...keywords.value
+        .split(',')
+        .map((keyword) => keyword.trim())
+        .filter(Boolean),
+      ...additions.map((ability) => ability.keyword),
+    ].join(', '),
+    baseValue: keywords.baseValue ?? keywords.value,
+    modifiers: [...new Set([...(keywords.modifiers ?? []), ...additions.map((ability) => ability.source)])],
+  }
+  return values.map((value) => (value === keywords ? changed : value))
 }
 
 function relationshipsFor(loaded: LoadedCatalogue, catalogueId: string, entryId: string, name: string) {
@@ -259,6 +403,20 @@ function uniqueProfiles(profiles: Datasheet['profiles']) {
       count: profile.count,
       values: profile.values,
     })
+    if (seen.has(signature)) return false
+    seen.add(signature)
+    return true
+  })
+}
+
+function uniqueAbilities(abilities: Datasheet['abilities']) {
+  const wargearNames = new Set(
+    abilities.filter((ability) => ability.kind === 'wargear').map((ability) => ability.name.trim().toLocaleLowerCase()),
+  )
+  const seen = new Set<string>()
+  return abilities.filter((ability) => {
+    if (ability.kind !== 'wargear' && wargearNames.has(ability.name.trim().toLocaleLowerCase())) return false
+    const signature = JSON.stringify({ name: ability.name.toLocaleLowerCase(), description: ability.description })
     if (seen.has(signature)) return false
     seen.add(signature)
     return true

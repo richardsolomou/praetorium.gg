@@ -5,6 +5,7 @@ import { targetOf } from '../core/catalogue'
 import { evaluate, evaluateForces, type Selection } from '../core/evaluate'
 import { type ModelKind, modelKindsOf } from '../core/modelKinds'
 import { buildUnit } from '../core/roster'
+import { modelCountOf } from '../core/unitSize'
 import { wargearOf } from '../core/wargear'
 import { app } from './app'
 import { datasheetIn, rulesReferencedIn } from './catalogue'
@@ -252,7 +253,13 @@ export function calculateRosterPrice(data: PriceInput) {
         entryId: unit.entryId,
         name: unit.name,
         points: evaluate([unit.selection], loaded.index, options).points,
-        size: { min: unit.size.min, max: unit.size.max, models: unit.size.models, resizable: unit.size.max > unit.size.min },
+        size: {
+          min: unit.size.min,
+          max: unit.size.max,
+          models: unit.size.models,
+          options: unit.size.options,
+          resizable: unit.size.max > unit.size.min,
+        },
         ...deployment,
         choices,
         models,
@@ -371,11 +378,16 @@ function compositionExtras(composition: UnitComposition | null, rules: LoadedRul
   }
 
   // Wargear with no profile still has a rule, and only the description source has it.
-  const modelAbilities = named.flatMap((weapon) => {
+  const abilitiesByName = new Map<string, { id: string; name: string; description: string; kind: 'wargear' }>()
+  for (const weapon of named) {
     const description = rules?.abilityDescriptions.get(routeSlug(weapon.name))
-    if (!description || profiles.some((profile) => profile.name === weapon.name)) return []
-    return [{ id: `wargear-${weapon.id}`, name: weapon.name, description, kind: 'wargear' as const }]
-  })
+    if (!description || profiles.some((profile) => profile.name === weapon.name)) continue
+    const key = routeSlug(weapon.name)
+    if (!abilitiesByName.has(key)) {
+      abilitiesByName.set(key, { id: `wargear-${weapon.id}`, name: weapon.name, description, kind: 'wargear' })
+    }
+  }
+  const modelAbilities = [...abilitiesByName.values()]
 
   return { modelWeapons: profiles, modelKeywordRules, modelAbilities }
 }
@@ -519,6 +531,12 @@ function unitModels(
       listedBy.set(key, (listedBy.get(key) ?? 0) + 1)
     }
   }
+  const modelsInUnit = modelCountOf(selection, loaded.index)
+  const tier = composition.tiers?.find((candidate) => {
+    const minimum = candidate.models.reduce((total, model) => total + model.min, 0)
+    const maximum = candidate.models.reduce((total, model) => total + model.max, 0)
+    return modelsInUnit >= minimum && modelsInUnit <= maximum
+  })
 
   return composition.models.map((model) => {
     // A weapon only this kind carries counts the kind: one stalker bolt rifle in the
@@ -529,7 +547,8 @@ function unitModels(
       const count = listedBy.get(key) === 1 ? held.get(key) : undefined
       return count === undefined ? [] : [count]
     })
-    const count = own.length ? Math.min(...own) : model.min
+    const tierModel = tier?.models.find((candidate) => candidate.name === model.name)
+    const count = own.length ? Math.min(...own) : (tierModel?.min ?? model.min)
     const mine = optionsFor(model)
     const taken = (option: (typeof mine)[number], at: number) => chosenSwaps[`${option.id}#${at}`] ?? 0
 

@@ -58,7 +58,9 @@ export function TurnControl({ view, send, pending, blockReason, onAdvance, class
           <Undo2 />
         </Button>
       </div>
-      {blockReason ? <p className="text-center text-xs text-dim">{blockReason}</p> : null}
+      {blockReason ? (
+        <p className="border border-discarded/50 bg-discarded/10 p-2 text-center text-xs text-discarded">{blockReason}</p>
+      ) : null}
     </section>
   )
 }

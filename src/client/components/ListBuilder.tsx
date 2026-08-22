@@ -1,9 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { BookOpen, Check, Download, EllipsisVertical, ListPlus, Pencil, Printer, SlidersHorizontal, TriangleAlert } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { Check, Crown, Download, EllipsisVertical, Pencil, SlidersHorizontal, TriangleAlert } from 'lucide-react'
+import { useEffect, useLayoutEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Switch } from '@/components/ui/switch'
+import { Toggle } from '@/components/ui/toggle'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import type { Secondary, Stratagem } from '../../core/battle'
 import { GAME_SIZES, ROSTER_NAME_MAX_LENGTH } from '../../core/battle'
@@ -16,7 +18,8 @@ import { DatasheetPanel } from './builder/DatasheetPanel'
 import { shortName } from './builder/factions'
 import { GROUPS } from './builder/groups'
 import { Loadout } from './builder/Loadout'
-import { Picker } from './builder/Picker'
+import { Stepper } from './builder/LoadoutControls'
+import { Picker, type PickerFilter } from './builder/Picker'
 import { Section } from './builder/Section'
 import { Pane } from './builder/Pane'
 import { UnitCard } from './builder/UnitCard'
@@ -45,6 +48,8 @@ type Props = {
   editable?: boolean
 }
 
+const READ_ONLY_PREFERENCE = 'praetorium.roster-read-only'
+
 /**
  * Building a list from the catalogue rather than pasting one.
  *
@@ -66,12 +71,15 @@ export function ListBuilder({ prep, initial, editable = true }: Props) {
   const [name, setName] = useState(initial.name)
   const [visibility, setVisibility] = useState<RosterVisibility>(initial.visibility)
   const [selected, setSelected] = useState<number | null>(null)
-  const [preview, setPreview] = useState<{ catalogueId: string; entryId: string } | null>(null)
-  const [showing, setShowing] = useState<'picker' | 'loadout' | 'datasheet' | null>(null)
-  const [datasheetReturn, setDatasheetReturn] = useState<'picker' | 'loadout' | null>(null)
+  const [preview, setPreview] = useState<{ catalogueId: string; entryId: string; name: string } | null>(null)
+  const [showing, setShowing] = useState<'picker' | 'loadout' | null>(null)
+  const [readOnly, setReadOnly] = useState(!editable)
   const [exportText, setExportText] = useState<string | null>(null)
   const workspacePath = `/rosters/${initial.id}`
   const [setupDraft, setSetupDraftState] = useState<RosterSetup | null>(null)
+  const [wideWorkspace, setWideWorkspace] = useState(true)
+  const [pickerQuery, setPickerQuery] = useState('')
+  const [pickerFilters, setPickerFilters] = useState<Set<PickerFilter>>(new Set())
   const editingSetup = setupDraft !== null
 
   const setSetupDraft = (draft: RosterSetup | null) => {
@@ -86,6 +94,28 @@ export function ListBuilder({ prep, initial, editable = true }: Props) {
   const own = useCollectionMutation()
 
   useEffect(() => setSetupDraftState(readWorkspaceState<RosterSetup>(workspacePath, 'roster-setup')), [workspacePath])
+  useLayoutEffect(() => {
+    const media = window.matchMedia('(min-width: 1300px)')
+    const sync = () => setWideWorkspace(media.matches)
+    sync()
+    media.addEventListener('change', sync)
+    return () => media.removeEventListener('change', sync)
+  }, [])
+  useEffect(() => {
+    if (!editable) return
+    setReadOnly(localStorage.getItem(READ_ONLY_PREFERENCE) === 'true')
+  }, [editable])
+
+  const setReadOnlyMode = (next: boolean) => {
+    setReadOnly(next)
+    localStorage.setItem(READ_ONLY_PREFERENCE, String(next))
+  }
+  const togglePickerFilter = (filter: PickerFilter) =>
+    setPickerFilters((current) => {
+      const next = new Set(current)
+      if (!next.delete(filter)) next.add(filter)
+      return next
+    })
 
   const faction = available?.factions.find((entry) => entry.id === catalogueId)
   const suggested = faction
@@ -187,6 +217,8 @@ export function ListBuilder({ prep, initial, editable = true }: Props) {
           })),
         }
       : selectedUnit
+  const inspectorView = editable && !readOnly ? 'edit' : 'readonly'
+  const warlord = optimisticUnit?.toggles.find((toggle) => toggle.name === 'Warlord')
 
   const edit = pickEditor(setPicks, { catalogueId, units })
 
@@ -202,14 +234,18 @@ export function ListBuilder({ prep, initial, editable = true }: Props) {
           <Picker
             catalogueId={catalogueId}
             onAdd={edit.add}
-            onPreview={(entryId) => {
-              setPreview({ catalogueId, entryId })
-              setDatasheetReturn('picker')
-              setShowing('datasheet')
+            onPreview={(entryId, unitName) => {
+              setPreview({ catalogueId, entryId, name: unitName })
+              setSelected(null)
+              setShowing('loadout')
             }}
             inRoster={held}
             room={priced ? limit - priced.points : null}
             battleSize={limit}
+            query={pickerQuery}
+            onQueryChange={setPickerQuery}
+            active={pickerFilters}
+            onFilterToggle={togglePickerFilter}
           />
         </div>
       </div>
@@ -228,10 +264,22 @@ export function ListBuilder({ prep, initial, editable = true }: Props) {
       pickIndex={selected}
       onChoose={(key, optionId) => selected !== null && edit.choose(selected, key, optionId)}
       onSpread={(key, counts) => selected !== null && edit.spread(selected, key, counts)}
-      onToggle={(key, toggleName, enabled) => selected !== null && edit.toggle(selected, key, toggleName, enabled)}
-      onResize={(models) => selected !== null && edit.resize(selected, models)}
       onSwap={(key, count) => selected !== null && edit.swap(selected, key, count)}
-      editable={editable}
+      editable={editable && inspectorView === 'edit'}
+      showOptions={inspectorView !== 'readonly'}
+      reference={
+        <DatasheetPanel
+          catalogueId={datasheetCatalogueId}
+          factionSlug={available?.factions.find((entry) => entry.id === datasheetCatalogueId)?.slug ?? ''}
+          entryId={selectedUnit?.entryId ?? null}
+          detachmentIds={detachmentIds}
+          picks={positioned}
+          pickIndex={selected}
+          showWeapons
+          embedded
+          hideSummary
+        />
+      }
     />
   )
   const datasheet = (
@@ -242,7 +290,7 @@ export function ListBuilder({ prep, initial, editable = true }: Props) {
       detachmentIds={detachmentIds}
       picks={positioned}
       pickIndex={preview ? null : selected}
-      showWeapons={Boolean(preview)}
+      showWeapons
     />
   )
 
@@ -267,11 +315,11 @@ export function ListBuilder({ prep, initial, editable = true }: Props) {
 
         {faction ? (
           <div className="flex min-w-0 items-center gap-2 text-xs text-dim">
-            <Link to="/factions/$catalogueId" params={{ catalogueId: faction.slug }} className="truncate text-azure hover:text-bone">
+            <Link to="/factions/$catalogueId" params={{ catalogueId: faction.slug }} className="truncate text-info hover:text-bone">
               <FactionLabel faction={faction} />
             </Link>
             <span aria-hidden>·</span>
-            <Link to="/rosters" search={{ limit }} className="shrink-0 hover:text-bone">
+            <Link to="/rosters" search={{ limit }} className="shrink-0 text-info hover:text-bone">
               {GAME_SIZES.find((size) => size.limit === limit)?.name ?? `${limit} points`}
             </Link>
             {detachmentIds.map((id) => {
@@ -301,25 +349,32 @@ export function ListBuilder({ prep, initial, editable = true }: Props) {
               </span>
             ) : null}
             <span className="ml-auto flex shrink-0 items-center gap-1" data-print-hide>
-              <Button variant="ghost" size="xs" onClick={() => window.print()}>
-                <Printer /> Print
-              </Button>
               {editable ? (
-                <DropdownMenu>
-                  <DropdownMenuTrigger aria-label="Roster actions" className="grid size-7 place-items-center hover:text-bone">
-                    <EllipsisVertical className="size-4" />
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem
-                      onClick={() => setSetupDraft({ name: listName, catalogueId, detachmentIds, disposition, limit, visibility })}
-                    >
-                      <Pencil /> Edit roster setup
-                    </DropdownMenuItem>
-                    <DropdownMenuItem disabled={take.isPending || !units.length} onClick={() => take.mutate()}>
-                      <Download /> Export GW text
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                <>
+                  <label
+                    htmlFor="roster-read-only"
+                    className="flex items-center gap-1.5 text-xs font-semibold text-dim"
+                    title="Show only this unit’s applied choices"
+                  >
+                    <Switch id="roster-read-only" checked={readOnly} onCheckedChange={setReadOnlyMode} aria-label="Read-only mode" />
+                    Read-only
+                  </label>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger aria-label="Roster actions" className="grid size-7 place-items-center hover:text-bone">
+                      <EllipsisVertical className="size-4" />
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem
+                        onClick={() => setSetupDraft({ name: listName, catalogueId, detachmentIds, disposition, limit, visibility })}
+                      >
+                        <Pencil /> Edit roster setup
+                      </DropdownMenuItem>
+                      <DropdownMenuItem disabled={take.isPending || !units.length} onClick={() => take.mutate()}>
+                        <Download /> Export GW text
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </>
               ) : null}
             </span>
           </div>
@@ -366,11 +421,17 @@ export function ListBuilder({ prep, initial, editable = true }: Props) {
         ) : null}
       </header>
 
-      <div className="flex min-h-0 flex-1">
+      <div
+        className={`flex min-h-0 flex-1 ${
+          editable ? 'min-[1300px]:grid min-[1300px]:grid-cols-[minmax(0,1.1fr)_minmax(0,1.45fr)_minmax(0,1.45fr)]' : ''
+        }`}
+      >
         {editable ? (
           <Pane
             variant="picker"
-            open={showing === 'picker'}
+            open={wideWorkspace || showing === 'picker'}
+            drawer={!wideWorkspace}
+            hideBelowDesktop
             title="Add units"
             onClose={() => setShowing(null)}
             actions={
@@ -392,7 +453,7 @@ export function ListBuilder({ prep, initial, editable = true }: Props) {
           </Pane>
         ) : null}
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-3">
+        <div className="min-h-0 min-w-0 flex-1 overflow-y-auto px-3">
           {units.length ? (
             GROUPS.map(({ id, plural }) => {
               const rows = units
@@ -438,48 +499,74 @@ export function ListBuilder({ prep, initial, editable = true }: Props) {
 
         <Pane
           variant="loadout"
-          open={showing === 'loadout' && Boolean(selectedUnit)}
-          title="Loadout"
+          open={showing === 'loadout' && Boolean(selectedUnit || preview)}
+          threeColumn={editable}
+          title={preview?.name ?? selectedUnit?.name ?? 'Unit'}
+          ariaLabel={preview ? 'Datasheet' : 'Loadout'}
           onClose={() => setShowing(null)}
           actions={
-            <>
-              {editable ? (
-                <Button variant="ghost" size="xs" onClick={() => setShowing('picker')}>
-                  <ListPlus /> Units
-                </Button>
-              ) : null}
-              <Button
-                variant="ghost"
-                size="xs"
-                onClick={() => {
-                  setPreview(null)
-                  setDatasheetReturn('loadout')
-                  setShowing('datasheet')
-                }}
-              >
-                <BookOpen /> Datasheet
-              </Button>
-            </>
+            !preview && optimisticUnit ? (
+              <span className="flex shrink-0 flex-wrap items-center justify-start gap-1.5 @max-[30rem]:gap-1">
+                {warlord && inspectorView === 'edit' ? (
+                  <Toggle
+                    variant="outline"
+                    size="sm"
+                    title={`${warlord.selected ? 'Remove' : 'Make'} ${optimisticUnit.name} Warlord`}
+                    aria-label={`${warlord.selected ? 'Remove' : 'Make'} ${optimisticUnit.name} Warlord`}
+                    pressed={warlord.selected}
+                    className={`!h-auto !min-h-0 !min-w-0 gap-1 rounded-sm !px-1.5 !py-px !text-[0.6875rem] !font-semibold !tracking-[0.06em] uppercase ${
+                      warlord.selected
+                        ? 'border-parchment bg-parchment/15 text-parchment'
+                        : 'border-edge-strong text-dim hover:border-info hover:text-bone'
+                    }`}
+                    onPressedChange={(pressed) => selected !== null && edit.toggle(selected, warlord.key, warlord.name, pressed)}
+                  >
+                    <Crown className={warlord.selected ? 'fill-current' : undefined} />
+                    Warlord
+                  </Toggle>
+                ) : null}
+                {warlord?.selected && inspectorView === 'readonly' ? (
+                  <span className="chip gap-1 text-info">
+                    <Crown className="size-3.5 fill-current" /> Warlord
+                  </span>
+                ) : null}
+                <span className="chip w-[4.5rem] justify-center text-info">{optimisticUnit.points} pts</span>
+                {optimisticUnit.size.resizable && inspectorView === 'edit' ? (
+                  <Stepper
+                    label={`models in ${optimisticUnit.name}`}
+                    countLabel={`${optimisticUnit.name} models`}
+                    count={optimisticUnit.size.models}
+                    onRemove={
+                      optimisticUnit.size.models > optimisticUnit.size.min
+                        ? () =>
+                            selected !== null &&
+                            edit.resize(
+                              selected,
+                              optimisticUnit.size.options?.findLast((size) => size < optimisticUnit.size.models) ??
+                                optimisticUnit.size.models - 1,
+                            )
+                        : undefined
+                    }
+                    onAdd={
+                      optimisticUnit.size.models < optimisticUnit.size.max
+                        ? () =>
+                            selected !== null &&
+                            edit.resize(
+                              selected,
+                              optimisticUnit.size.options?.find((size) => size > optimisticUnit.size.models) ??
+                                optimisticUnit.size.models + 1,
+                            )
+                        : undefined
+                    }
+                  />
+                ) : (
+                  <span className="chip normal-case">{optimisticUnit.size.models} models</span>
+                )}
+              </span>
+            ) : undefined
           }
         >
-          {loadout}
-        </Pane>
-
-        <Pane
-          variant="datasheet"
-          open={showing === 'datasheet'}
-          title="Datasheet"
-          onClose={() => setShowing(datasheetReturn)}
-          actions={
-            datasheetReturn ? (
-              <Button variant="ghost" size="xs" onClick={() => setShowing(datasheetReturn)}>
-                {datasheetReturn === 'picker' ? <ListPlus /> : <SlidersHorizontal />}
-                {datasheetReturn === 'picker' ? 'Units' : 'Loadout'}
-              </Button>
-            ) : null
-          }
-        >
-          {datasheet}
+          {preview ? datasheet : loadout}
         </Pane>
       </div>
 
@@ -496,14 +583,20 @@ export function ListBuilder({ prep, initial, editable = true }: Props) {
              * anyone who cannot see it: it is the whole answer to "can I play this".
              */}
             <span className="sr-only">{over ? 'Over the points limit' : 'Within the points limit'}</span>
-            <span data-stat="points" className={`readout text-xl font-bold ${over ? 'text-destructive' : ''}`}>
+            <span data-stat="points" className={`readout text-xl font-bold ${over ? 'text-destructive' : 'text-info'}`}>
               {priced?.points ?? 0}/{limit}
             </span>
             <span className="eyebrow">points</span>
           </span>
 
           {editable ? (
-            <Button variant="outline" size="sm" className="lg:hidden" onClick={() => setShowing('picker')} disabled={!faction}>
+            <Button
+              variant="outline"
+              size="sm"
+              className="ml-auto min-[1300px]:hidden"
+              onClick={() => setShowing('picker')}
+              disabled={!faction}
+            >
               Add units
             </Button>
           ) : null}

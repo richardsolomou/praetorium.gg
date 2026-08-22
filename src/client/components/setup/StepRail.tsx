@@ -26,12 +26,12 @@ export function StepRail({ steps, at, onGo }: Props) {
                 aria-current={current ? 'step' : undefined}
                 onClick={() => onGo(index)}
                 className={`flex w-full items-center gap-2 border-t-2 px-2 py-2 text-left transition-colors disabled:cursor-not-allowed ${
-                  current ? 'border-t-azure bg-panel' : step.complete ? 'border-t-achieved/60 hover:bg-panel' : 'border-t-edge-strong'
+                  current ? 'border-t-discarded bg-panel' : step.complete ? 'border-t-achieved/60 hover:bg-panel' : 'border-t-edge-strong'
                 } ${reachable ? '' : 'opacity-45'}`}
               >
                 <span
                   className={`readout grid size-5 shrink-0 place-items-center rounded-full text-[0.625rem] font-bold ${
-                    step.complete ? 'bg-achieved text-void' : current ? 'bg-azure text-void' : 'border border-edge-strong text-dim'
+                    step.complete ? 'bg-achieved text-void' : current ? 'bg-discarded text-void' : 'border border-edge-strong text-dim'
                   }`}
                 >
                   {step.complete ? <Check className="size-3" /> : index + 1}

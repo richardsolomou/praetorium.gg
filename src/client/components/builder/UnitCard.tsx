@@ -59,7 +59,7 @@ export function UnitCard({
   onJoin,
   editable = true,
 }: Props) {
-  const cardClassName = `relative border bg-card transition-colors ${selected ? 'border-azure' : 'border-edge hover:border-azure'}`
+  const cardClassName = `relative border bg-card transition-colors ${selected ? 'border-parchment' : 'border-edge hover:border-info'}`
   const actions = { owned, onOwned, onDuplicate, onRemove }
 
   // One target over the whole card, under everything on it. An enhancement, an
@@ -75,29 +75,9 @@ export function UnitCard({
         aria-pressed={selected}
         aria-label={unit.name}
       />
-      <div className="flex items-start gap-2 px-2.5 py-2">
-        <div className="pointer-events-none min-w-0 flex-1 text-left">
-          <span className="w-full min-w-0">
-            <span className="block text-[0.9375rem] leading-tight font-bold tracking-[0.02em] uppercase">{unit.name}</span>
-            {alliedFaction ? (
-              <span className="eyebrow mt-1 flex items-center gap-1 text-azure">
-                Allied unit · <FactionLabel faction={alliedFaction} />
-              </span>
-            ) : null}
-          </span>
-          {unit.wargear.length ? (
-            <ul className="mt-1 w-full min-w-0 space-y-px">
-              {unit.wargear.map((piece) => (
-                <li key={piece.name} className="text-xs text-dim">
-                  <span aria-hidden>• </span>
-                  <span className="readout">{piece.count}x</span> {piece.name}
-                </li>
-              ))}
-            </ul>
-          ) : null}
-        </div>
-        <span className="pointer-events-none relative z-10 flex shrink-0 items-center gap-1.5 [&_button]:pointer-events-auto">
-          <span className="chip">{unit.points} pts</span>
+      <div className="flow-root px-2.5 py-2">
+        <span className="pointer-events-none relative z-10 float-right ml-2 flex shrink-0 items-center gap-1.5 [&_button]:pointer-events-auto">
+          <span className="chip text-info">{unit.points} pts</span>
           {editable ? (
             <span data-print-hide>
               <DropdownMenu>
@@ -114,6 +94,26 @@ export function UnitCard({
             </span>
           ) : null}
         </span>
+        <div className="pointer-events-none text-left">
+          <span className="w-full min-w-0">
+            <span className="block text-[0.9375rem] leading-tight font-bold tracking-[0.02em] uppercase">{unit.name}</span>
+            {alliedFaction ? (
+              <span className="eyebrow mt-1 flex items-center gap-1 text-info">
+                Allied unit · <FactionLabel faction={alliedFaction} />
+              </span>
+            ) : null}
+          </span>
+          {unit.wargear.length ? (
+            <ul className="mt-1 w-full min-w-0 space-y-px">
+              {unit.wargear.map((piece) => (
+                <li key={piece.name} className="text-xs text-dim">
+                  <span aria-hidden>• </span>
+                  <span className="readout">{piece.count}x</span> {piece.name}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
       </div>
 
       {unit.enhancements.map((enhancement) => (

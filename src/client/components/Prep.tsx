@@ -182,12 +182,12 @@ function SecondaryPicker({
               aria-pressed={held}
               onClick={() => onToggle(card)}
               className={`absolute top-0 left-0 flex w-full items-center justify-between gap-2 rounded-sm border px-2.5 py-1.5 text-left ${
-                held ? 'border-azure bg-azure/10' : 'border-edge hover:border-edge-strong'
+                held ? 'border-parchment bg-parchment/10' : 'border-edge hover:border-edge-strong'
               }`}
               style={{ height: row.size - 4, transform: `translateY(${row.start}px)` }}
             >
-              <span className={`text-sm leading-tight font-bold uppercase ${held ? 'text-azure' : 'text-bone'}`}>{card.name}</span>
-              {held ? <span className="text-[0.625rem] font-semibold text-azure uppercase">taken</span> : null}
+              <span className={`text-sm leading-tight font-bold uppercase ${held ? 'text-parchment' : 'text-bone'}`}>{card.name}</span>
+              {held ? <span className="text-[0.625rem] font-semibold text-parchment uppercase">taken</span> : null}
             </button>
           )
         })}

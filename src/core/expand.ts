@@ -64,12 +64,13 @@ export function expand(
     let remaining = Math.max(0, count - reserved)
     for (const child of ordered(target, available, index)) {
       const scale = scaleOf(child.definition, index, carriers)
+      const minimum = requiredCount(child.definition, index, options) * scale
       const cap = maximumCount(child.definition, index, options)
-      const room = cap === null ? null : cap * scale
+      const room = cap === null ? null : Math.max(0, cap * scale - minimum)
       const share = remaining > 0 ? (room === null ? remaining : Math.min(remaining, room)) : 0
       // A child's own minimum applies whatever the group asks for, so a group with
       // no requirement still yields what its contents demand.
-      const take = Math.max(share, requiredCount(child.definition, index, options) * scale)
+      const take = minimum + share
       if (take <= 0 && resolve(child.definition, index).type === undefined) {
         const built = expand(child.id, child.definition, index, depth - 1, 0, visited, carriers, options)
         if (built.selections?.length) inside.push(built)

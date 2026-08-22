@@ -110,9 +110,17 @@ function assemble(
 
   // Choices first: an option can bring its own bodies, so sizing has to see them.
   const chosen = Object.entries(choices ?? {}).reduce((tree, [key, optionId]) => withChoice(tree, key, optionId, index), base)
+  const fixedSizes = modelCompositionSizes(entryId, chosen, index, context)
+  const requestedModels =
+    models === undefined || !fixedSizes.length
+      ? models
+      : fixedSizes.reduce((nearest, size) => (Math.abs(size - models) < Math.abs(nearest - models) ? size : nearest))
   const composed =
-    models === undefined ? chosen : withModelComposition(entryId, chosen, models, new Set(Object.keys(choices ?? {})), index, context)
-  const composedSize = sizeOf(composed, index)
+    requestedModels === undefined
+      ? chosen
+      : withModelComposition(entryId, chosen, requestedModels, new Set(Object.keys(choices ?? {})), index, context)
+  const measured = sizeOf(composed, index)
+  const composedSize = fixedSizes.length ? { ...measured, min: fixedSizes[0], max: fixedSizes.at(-1)!, options: fixedSizes } : measured
   // Then the spreads, which say how many of each option rather than which one.
   //
   // Deepest first, because a model's own wargear is what puts that model in the
@@ -139,16 +147,28 @@ function assemble(
   )
   const size = modelCountOf(toggled, index) === modelCountOf(composed, index) ? composedSize : sizeOf(toggled, index)
 
-  if (models === undefined || !size.path.length || models === size.models) {
+  if (requestedModels === undefined || !size.path.length || requestedModels === size.models) {
     const fitted = refit(toggled, index, 1)
     return finishUnit(entryId, fitted, size, index, context)
   }
 
-  const wanted = Math.min(Math.max(models, size.min), size.max)
+  const wanted = Math.min(Math.max(requestedModels, size.min), size.max)
   const current = countAt(toggled, size.path)
   const resized = withCounts(toggled, [{ path: size.path, count: Math.max(0, current + (wanted - size.models)) }])
   const selection = refit(resized, index, 1)
   return finishUnit(entryId, selection, { ...size, models: wanted }, index, context)
+}
+
+/** Fixed model-count alternatives offered by a unit-composition choice. */
+function modelCompositionSizes(entryId: string, selection: Selection, index: CatalogueIndex, context?: ChoiceOptions): number[] {
+  const current = modelCountOf(selection, index)
+  for (const choice of unitChoices(entryId, selection, index, context)) {
+    if (choice.name.trim().toLocaleLowerCase() !== 'unit composition' || choice.room !== 1 || choice.options.length < 2) continue
+    const counts = [current, ...choice.options.map((option) => modelCountOf(withChoice(selection, choice.key, option.id, index), index))]
+    const sizes = [...new Set(counts)].toSorted((left, right) => left - right)
+    if (sizes.length > 1) return sizes
+  }
+  return []
 }
 
 function finishUnit(entryId: string, selection: Selection, size: UnitSize, index: CatalogueIndex, context?: BuildContext): BuiltUnit {

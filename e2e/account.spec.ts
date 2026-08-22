@@ -12,6 +12,25 @@ test('a battle cannot be opened without an account', async ({ page }) => {
   await expect(page.getByRole('link', { name: 'Sign in' }).first()).toBeVisible()
 })
 
+test('account forms show the server error', async ({ page }) => {
+  const email = `auth-error-${crypto.randomUUID()}@example.test`
+  await page.request.post('/api/auth/sign-up/email', {
+    data: { email, password: 'a-long-enough-password', name: 'Auth Error' },
+  })
+
+  await page.goto('/signin')
+  await page.getByLabel('Email').fill(email)
+  await page.getByLabel('Password').fill('the-wrong-password')
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click()
+  await expect(page.getByText('Invalid email or password', { exact: true })).toBeVisible()
+
+  await page.getByRole('button', { name: 'I need an account' }).click()
+  await page.getByLabel('Email').fill(email)
+  await page.getByLabel('Password').fill('a-long-enough-password')
+  await page.getByRole('button', { name: 'Create the account' }).click()
+  await expect(page.getByText('User already exists. Use another email.', { exact: true })).toBeVisible()
+})
+
 test('a player can edit their display name and profile picture', async ({ page }) => {
   await signUp(page, uniqueName('Alice'))
   await page.getByRole('button', { name: /Account menu for/ }).click()

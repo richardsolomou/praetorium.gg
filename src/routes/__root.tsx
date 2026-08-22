@@ -43,7 +43,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: 'utf-8' },
       { name: 'viewport', content: 'width=device-width, initial-scale=1' },
       // Matches `--color-void`; the browser paints this before the stylesheet lands.
-      { name: 'theme-color', content: '#0a0b0d' },
+      { name: 'theme-color', content: '#0b0c0e' },
       { title: `${TITLE} — live Warhammer 40,000 battle tracking` },
       { name: 'description', content: DESCRIPTION },
       // Battle links get pasted into chats, so they need a real card.
@@ -54,6 +54,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: 'twitter:card', content: 'summary' },
     ],
     links: [
+      { rel: 'icon', href: '/favicon.svg', type: 'image/svg+xml' },
       { rel: 'stylesheet', href: appCss },
       ...[barlow400, barlow500, barlow600, barlow700, rules400, rules600].map((href) => ({
         rel: 'preload' as const,
@@ -85,7 +86,7 @@ function Account() {
           <Button
             variant="ghost"
             size="icon-sm"
-            className="shrink-0 text-dim hover:bg-raised hover:text-azure"
+            className="shrink-0 text-dim hover:bg-raised hover:text-info"
             aria-label={me ? `Account menu for ${me.name}` : 'Account menu'}
           />
         }
@@ -160,7 +161,7 @@ function PrimaryNavigation({ path }: { path: string }) {
   }, [open])
 
   const linkClass =
-    'eyebrow flex min-h-11 items-center border-l-2 border-transparent px-3 hover:border-azure hover:bg-raised hover:text-azure min-[815px]:min-h-0 min-[815px]:border-0 min-[815px]:bg-transparent min-[815px]:px-0'
+    'eyebrow flex min-h-11 items-center border-l-2 border-transparent px-3 hover:border-info hover:bg-raised hover:text-info min-[815px]:min-h-0 min-[815px]:border-0 min-[815px]:bg-transparent min-[815px]:px-0'
 
   return (
     <div ref={root} className="min-[815px]:contents">
@@ -168,7 +169,7 @@ function PrimaryNavigation({ path }: { path: string }) {
         ref={trigger}
         variant="ghost"
         size="icon-sm"
-        className="text-dim hover:bg-raised hover:text-azure min-[815px]:hidden"
+        className="text-dim hover:bg-raised hover:text-info min-[815px]:hidden"
         aria-label={open ? 'Close primary navigation' : 'Open primary navigation'}
         aria-controls="primary-navigation"
         aria-expanded={open}
@@ -184,35 +185,35 @@ function PrimaryNavigation({ path }: { path: string }) {
         <Link
           to="/battles"
           className={linkClass}
-          activeProps={{ className: 'border-azure bg-raised text-azure min-[815px]:bg-transparent' }}
+          activeProps={{ className: 'border-parchment bg-raised text-parchment min-[815px]:bg-transparent' }}
         >
           Battles
         </Link>
         <Link
           to="/rosters"
           className={linkClass}
-          activeProps={{ className: 'border-azure bg-raised text-azure min-[815px]:bg-transparent' }}
+          activeProps={{ className: 'border-parchment bg-raised text-parchment min-[815px]:bg-transparent' }}
         >
           Rosters
         </Link>
         <Link
           to="/friends"
           className={linkClass}
-          activeProps={{ className: 'border-azure bg-raised text-azure min-[815px]:bg-transparent' }}
+          activeProps={{ className: 'border-parchment bg-raised text-parchment min-[815px]:bg-transparent' }}
         >
           Friends
         </Link>
         <Link
           to="/factions"
           className={linkClass}
-          activeProps={{ className: 'border-azure bg-raised text-azure min-[815px]:bg-transparent' }}
+          activeProps={{ className: 'border-parchment bg-raised text-parchment min-[815px]:bg-transparent' }}
         >
           Factions
         </Link>
         <Link
           to="/mission-packs"
           className={linkClass}
-          activeProps={{ className: 'border-azure bg-raised text-azure min-[815px]:bg-transparent' }}
+          activeProps={{ className: 'border-parchment bg-raised text-parchment min-[815px]:bg-transparent' }}
         >
           Mission packs
         </Link>
@@ -240,8 +241,12 @@ function RootComponent() {
           <div className={`flex flex-col ${immersive ? 'h-dvh' : 'min-h-dvh'}`}>
             <header className="sticky top-0 z-30 border-b border-edge bg-panel/95 backdrop-blur">
               <div className="flex h-12 items-center gap-2 px-2 sm:px-4 min-[815px]:gap-3 min-[900px]:gap-5">
-                <Link to="/" className="text-base leading-none font-bold tracking-[0.02em] text-bone uppercase hover:text-azure sm:text-lg">
-                  Praetorium
+                <Link
+                  to="/"
+                  className="group flex shrink-0 items-center gap-1.5 text-base leading-none font-bold tracking-[0.02em] text-bone uppercase hover:text-info sm:text-lg"
+                >
+                  <img src="/logo.svg" alt="" className="size-7 transition-transform group-hover:rotate-180" />
+                  <span className="min-[815px]:hidden min-[900px]:inline">Praetorium</span>
                 </Link>
                 <PrimaryNavigation path={path} />
                 <GlobalSearch />

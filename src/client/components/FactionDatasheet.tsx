@@ -28,7 +28,7 @@ export function FactionDatasheet() {
   return (
     <main className="mx-auto w-full max-w-5xl space-y-6 px-4 py-8">
       <Breadcrumb>
-        <BreadcrumbList className="eyebrow gap-1 text-azure">
+        <BreadcrumbList className="eyebrow gap-1 text-info">
           <BreadcrumbItem>
             <BreadcrumbLink render={<Link to="/factions" />}>Factions</BreadcrumbLink>
           </BreadcrumbItem>
@@ -54,7 +54,7 @@ export function FactionDatasheet() {
             <h1 className="text-3xl">{sheet.name}</h1>
             <div className="flex shrink-0 gap-1">
               {sheet.composition.length ? <span className="chip">{compositionCount(sheet.composition)}</span> : null}
-              {sheet.points === null ? null : <span className="chip">{sheet.points} pts</span>}
+              {sheet.points === null ? null : <span className="chip text-info">{sheet.points} pts</span>}
             </div>
           </div>
           <div className="mt-2 flex flex-wrap gap-1">
@@ -82,13 +82,7 @@ export function FactionDatasheet() {
       ) : null}
       {ranged.length ? <ProfileTable title="Ranged weapons" profiles={ranged} keywordRules={sheet.keywordRules} /> : null}
       {melee.length ? <ProfileTable title="Melee weapons" profiles={melee} keywordRules={sheet.keywordRules} /> : null}
-      <Abilities
-        abilities={displayAbilities(
-          sheet.abilities,
-          sheet.attachments.some((attachment) => attachment.kind === 'leader'),
-        )}
-        rules={sheet.keywordRules}
-      />
+      <Abilities abilities={displayAbilities(sheet.abilities)} rules={sheet.keywordRules} />
       <UnitConfiguration sheet={sheet} rules={sheet.keywordRules} />
       {sheet.transport ? (
         <section>
@@ -196,7 +190,7 @@ function UnitConfiguration({ sheet, rules }: { sheet: DatasheetDisplay; rules: K
                         </span>
                       ) : null}
                     </span>
-                    <span className="readout text-azure">{cost.cost} pts</span>
+                    <span className="readout text-info">{cost.cost} pts</span>
                   </div>
                 ))}
             </div>

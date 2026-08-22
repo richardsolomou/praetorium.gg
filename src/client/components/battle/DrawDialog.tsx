@@ -76,10 +76,10 @@ export function DrawDialog({ side, round, undoable, initiallyPaused, pending, se
       <Dialog open>
         <DialogContent
           showCloseButton={false}
-          className="max-h-[85dvh] overflow-y-auto rounded-none border border-edge bg-panel text-bone sm:max-w-lg"
+          className="max-h-[85dvh] overflow-y-auto rounded-none border border-discarded/60 bg-panel text-bone sm:max-w-lg"
         >
           <DialogHeader>
-            <DialogTitle className="uppercase">Your secondary missions</DialogTitle>
+            <DialogTitle className="text-discarded uppercase">Your secondary missions</DialogTitle>
             <DialogDescription className="text-dim">
               Drawn at random from the deck, {side.remainingSecondaries.length} cards left. Some cards may be put back the moment they are
               drawn.
@@ -110,7 +110,7 @@ export function DrawDialog({ side, round, undoable, initiallyPaused, pending, se
               )
             })}
             {paused && held.length < HAND_SIZE ? <p className="text-sm text-dim">Drawing paused while you undo.</p> : null}
-            {!paused && held.length < HAND_SIZE ? <p className="text-sm text-dim">Drawing…</p> : null}
+            {!paused && held.length < HAND_SIZE ? <p className="text-sm text-discarded">Drawing…</p> : null}
           </div>
           <DialogFooter className="rounded-none border-edge bg-sunken">
             <Button

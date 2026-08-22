@@ -24,7 +24,7 @@ export function FactionDatasheets() {
       <Link
         to="/factions/$catalogueId"
         params={{ catalogueId: faction.slug }}
-        className="eyebrow flex items-center gap-1 text-azure hover:text-bone"
+        className="eyebrow flex items-center gap-1 text-info hover:text-bone"
       >
         <ChevronLeft className="size-3.5" /> {faction.references[0]?.name ?? faction.displayName}
       </Link>
@@ -59,7 +59,7 @@ export function FactionDatasheets() {
                       key={unit.id}
                       to="/factions/$catalogueId/datasheets/$entryId"
                       params={{ catalogueId: faction.slug, entryId: unit.slug }}
-                      className="flex items-center justify-between border border-edge bg-panel px-3 py-2 hover:border-azure"
+                      className="flex items-center justify-between border border-edge bg-panel px-3 py-2 hover:border-info"
                     >
                       <span className="truncate text-sm font-bold uppercase">{unit.name}</span>
                       <span className="flex shrink-0 items-center gap-2">

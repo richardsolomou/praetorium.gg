@@ -14,7 +14,7 @@ export function FactionDetachment() {
   return (
     <main className="mx-auto w-full max-w-5xl space-y-6 px-4 py-8">
       <Breadcrumb>
-        <BreadcrumbList className="eyebrow gap-1 text-azure">
+        <BreadcrumbList className="eyebrow gap-1 text-info">
           <BreadcrumbItem>
             <BreadcrumbLink render={<Link to="/factions" />}>Factions</BreadcrumbLink>
           </BreadcrumbItem>

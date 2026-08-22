@@ -44,7 +44,7 @@ export type LoadoutUnit = {
   entryId: string
   name: string
   points: number
-  size: { min: number; max: number; models: number; resizable: boolean }
+  size: { min: number; max: number; models: number; options?: number[]; resizable: boolean }
   toggles: { key: string; name: string; selected: boolean }[]
   choices: LoadoutChoice[]
   models: LoadoutModel[]
@@ -60,6 +60,11 @@ export type WeaponProfileData = Datasheet['profiles'][number]
 
 /** What a change to one option leaves every option in its group holding. */
 export type SpreadCounts = Record<string, number>
+
+/** Editing shows every available option; a finished roster shows only what is held. */
+export function showLoadoutEntry(count: number, showOptions: boolean) {
+  return showOptions || count > 0
+}
 
 /**
  * Whether two profile names are the same weapon, whichever of them names its
@@ -89,9 +94,10 @@ export function wargearMatches(optionName: string, abilityName: string) {
  * name, and the profile can be the option plus a parenthesised mode.
  */
 function named(optionName: string, candidateName: string) {
-  const option = optionName.trim().toLocaleLowerCase()
-  const candidate = candidateName.trim().toLocaleLowerCase()
-  return candidate === option || candidate.startsWith(`${option} (`) || option.includes(candidate)
+  const normalize = (name: string) => name.trim().toLocaleLowerCase().replaceAll(/\s+/g, '')
+  const option = normalize(optionName)
+  const candidate = normalize(candidateName)
+  return candidate === option || candidate.startsWith(`${option}(`) || option.includes(candidate)
 }
 
 /**

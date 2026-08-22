@@ -181,6 +181,71 @@ describe('the picker', () => {
     })
   })
 
+  it('uses faction categories when the first imported book is an allied roster', () => {
+    const shelf = shelfOf(
+      {
+        selectionEntries: [
+          { id: 'mechanicus', name: 'Skitarii', type: 'unit', costs: points(10), categoryLinks: categories('Faction: Adeptus Mechanicus') },
+        ],
+        catalogueLinks: [
+          { targetId: 'cat-1', importRootEntries: true },
+          { targetId: 'cat-2', importRootEntries: true },
+        ],
+      },
+      {
+        selectionEntries: [
+          { id: 'callidus', name: 'Callidus Assassin', type: 'model', costs: points(100), categoryLinks: categories('Faction: Agents') },
+          { id: 'vindicary', name: 'Vindicare Assassin', type: 'model', costs: points(100), categoryLinks: categories('Faction: Agents') },
+        ],
+      },
+      {
+        selectionEntries: [
+          {
+            id: 'common',
+            name: 'Common Mechanicus Unit',
+            type: 'unit',
+            costs: points(20),
+            categoryLinks: categories('Faction: Adeptus Mechanicus'),
+          },
+        ],
+      },
+    )
+
+    expect(Object.fromEntries(unitsIn(shelf, 'cat', '').map((unit) => [unit.name, unit.alliedFaction]))).toEqual({
+      Skitarii: null,
+      'Common Mechanicus Unit': null,
+      'Callidus Assassin': 'Book 1',
+      'Vindicare Assassin': 'Book 1',
+    })
+  })
+
+  it('marks a directly linked datasheet from another faction as allied', () => {
+    const shelf = shelfOf(
+      {
+        name: 'Genestealer Cults',
+        selectionEntries: [
+          { id: 'cultists', name: 'Cultists', type: 'unit', costs: points(10), categoryLinks: categories('Faction: Genestealer Cults') },
+        ],
+        entryLinks: [{ id: 'cadians', name: 'Cadian Shock Troops', targetId: 'cadian-target', type: 'selectionEntry' }],
+        catalogueLinks: [{ targetId: 'cat-1' }],
+      },
+      {
+        name: 'Astra Militarum Library',
+        selectionEntries: [
+          {
+            id: 'cadian-target',
+            name: 'Cadian Shock Troops',
+            type: 'unit',
+            costs: points(60),
+            categoryLinks: categories('Faction: Astra Militarum'),
+          },
+        ],
+      },
+    )
+
+    expect(unitsIn(shelf, 'cat', '').find((unit) => unit.name === 'Cadian Shock Troops')?.alliedFaction).toBe('Astra Militarum Library')
+  })
+
   it('keeps allied units after the whole primary book', () => {
     const shelf = shelfOf(
       {

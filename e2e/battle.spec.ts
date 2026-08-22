@@ -6,6 +6,7 @@ import {
   befriend,
   createBattle,
   createRoster,
+  desktopContext,
   setupBattle,
   setupStep,
   signUp,
@@ -16,8 +17,8 @@ import {
 } from './account'
 
 test('a tactical hand is dealt rather than chosen, and pays out when the card says', async ({ browser }) => {
-  const alice = await (await browser.newContext()).newPage()
-  const bob = await (await browser.newContext()).newPage()
+  const alice = await (await browser.newContext(desktopContext)).newPage()
+  const bob = await (await browser.newContext(desktopContext)).newPage()
   const aliceName = uniqueName('Alice')
   const bobName = uniqueName('Bob')
 
@@ -162,8 +163,8 @@ test('a tactical hand is dealt rather than chosen, and pays out when the card sa
 })
 
 test('a card the rules let you put back is offered back as it is drawn', async ({ browser }) => {
-  const alice = await (await browser.newContext()).newPage()
-  const bob = await (await browser.newContext()).newPage()
+  const alice = await (await browser.newContext(desktopContext)).newPage()
+  const bob = await (await browser.newContext(desktopContext)).newPage()
   const aliceName = uniqueName('Alice')
   const bobName = uniqueName('Bob')
 
@@ -239,8 +240,8 @@ test('a card the rules let you put back is offered back as it is drawn', async (
 })
 
 test('a card names its own condition, and what their turn owed is asked as the turn comes back', async ({ browser }) => {
-  const alice = await (await browser.newContext()).newPage()
-  const bob = await (await browser.newContext()).newPage()
+  const alice = await (await browser.newContext(desktopContext)).newPage()
+  const bob = await (await browser.newContext(desktopContext)).newPage()
   const bobName = uniqueName('Bob')
 
   await signUp(bob, bobName)

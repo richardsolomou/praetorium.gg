@@ -4,6 +4,7 @@ import {
   ordered,
   orderedChoices,
   sameWeapon,
+  showLoadoutEntry,
   spreadHandlers,
   weaponMatches,
   wargearMatches,
@@ -25,6 +26,17 @@ const choice = (options: LoadoutChoice['options'], room: number, optional = fals
 
 const weapon = (name: string, type: string) => ({ id: name, name, type, values: [] })
 
+describe('showing loadout entries', () => {
+  it('hides empty wargear from a finished roster', () => {
+    expect(showLoadoutEntry(0, false)).toBe(false)
+    expect(showLoadoutEntry(2, false)).toBe(true)
+  })
+
+  it('keeps empty wargear available while editing', () => {
+    expect(showLoadoutEntry(0, true)).toBe(true)
+  })
+})
+
 describe('matching a wargear name to what describes it', () => {
   it('reads a parenthesised mode as the same weapon', () => {
     expect(sameWeapon('Staff of light', 'Staff of light (Melee)')).toBe(true)
@@ -43,6 +55,10 @@ describe('matching a wargear name to what describes it', () => {
 
   it('matches a profile the option pairs with something else', () => {
     expect(weaponMatches('Chainsword and bolt pistol', 'Chainsword')).toBe(true)
+  })
+
+  it('matches spacing differences between an option and its profile', () => {
+    expect(weaponMatches('Veteran w/ Black Shield blades', 'Blackshield blades')).toBe(true)
   })
 
   it('matches a rule the same way a profile is matched', () => {

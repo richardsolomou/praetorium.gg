@@ -17,6 +17,63 @@ const mandatory = (id: string) => [{ id, type: 'min' as const, value: 1, field: 
 
 const points = (value: number) => [{ name: 'pts', typeId: PTS, value }]
 
+describe('fixed squad sizes', () => {
+  const index = indexOf({
+    sharedSelectionEntries: [
+      {
+        id: 'squad',
+        name: 'Squad',
+        type: 'unit',
+        selectionEntryGroups: [
+          {
+            id: 'composition',
+            name: 'Unit Composition',
+            defaultSelectionEntryId: 'ten-models',
+            constraints: [
+              { id: 'composition-min', type: 'min', value: 1, field: 'selections', scope: 'parent' },
+              { id: 'composition-max', type: 'max', value: 1, field: 'selections', scope: 'parent' },
+            ],
+            selectionEntries: [
+              {
+                id: 'ten-models',
+                name: '10 models',
+                type: 'upgrade',
+                selectionEntries: [
+                  {
+                    id: 'ten-bodies',
+                    name: 'Bodies',
+                    type: 'model',
+                    constraints: [{ id: 'ten-min', type: 'min', value: 10, field: 'selections', scope: 'parent' }],
+                  },
+                ],
+              },
+              {
+                id: 'twenty-models',
+                name: '20 models',
+                type: 'upgrade',
+                selectionEntries: [
+                  {
+                    id: 'twenty-bodies',
+                    name: 'Bodies',
+                    type: 'model',
+                    constraints: [{ id: 'twenty-min', type: 'min', value: 20, field: 'selections', scope: 'parent' }],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  })
+
+  it('offers and preserves only the declared model counts', () => {
+    expect(buildUnit('squad', index)?.size).toMatchObject({ models: 10, min: 10, max: 20, options: [10, 20] })
+    expect(buildUnit('squad', index, 11)?.size.models).toBe(10)
+    expect(buildUnit('squad', index, 19)?.size.models).toBe(20)
+  })
+})
+
 /** An enhancement group: optional, one at most, and only inside its own faction. */
 const keyworded = (): Partial<Catalogue> => ({
   sharedSelectionEntries: [
