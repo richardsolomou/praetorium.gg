@@ -3,6 +3,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { ImagePlus, Trash2 } from 'lucide-react'
 import { useAuthAction } from 'ras-stack/auth/react'
 import { useEffect, useRef, useState } from 'react'
+import posthog from 'posthog-js'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -52,6 +53,7 @@ function ProfileForm({ me }: { me: NonNullable<Awaited<ReturnType<NonNullable<Re
       queryClient.invalidateQueries({ queryKey: opponentsQuery().queryKey }),
       queryClient.invalidateQueries({ queryKey: ['user-profile'] }),
     ])
+    posthog.capture('profile_updated', { name_changed: name.trim() !== me.name, image_changed: image !== me.image })
     setSaved(true)
   }
 
@@ -63,6 +65,7 @@ function ProfileForm({ me }: { me: NonNullable<Awaited<ReturnType<NonNullable<Re
     try {
       setImage(await prepareProfileImage(file))
     } catch (error) {
+      posthog.captureException(error, { operation: 'profile_image_prepare' })
       setImageError(error instanceof Error ? error.message : 'The profile picture could not be prepared.')
     } finally {
       setPreparing(false)

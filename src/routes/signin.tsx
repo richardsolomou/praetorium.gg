@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useAuthAction } from 'ras-stack/auth/react'
+import posthog from 'posthog-js'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -43,11 +44,14 @@ function SignIn() {
         : authClient.signIn.email({ email, password }),
     )
     if (!result.error) {
+      posthog.capture(joining ? 'account_created' : 'account_signed_in', { method: 'email', redirected: Boolean(next) })
       await queryClient.invalidateQueries()
       // `next` is a pathname rather than a route, so this is a navigation by href
       // rather than by route id.
       if (next) window.location.assign(next)
       else await navigate({ to: '/rosters' })
+    } else {
+      posthog.capture('account_authentication_failed', { method: 'email', action: joining ? 'create' : 'sign_in' })
     }
   }
 
@@ -113,7 +117,10 @@ function SignIn() {
               key={provider}
               variant="outline"
               className="h-11 w-full text-base capitalize"
-              onClick={() => void authClient.signIn.social({ provider, callbackURL: next ?? '/rosters' })}
+              onClick={() => {
+                posthog.capture('account_authentication_started', { method: provider, redirected: Boolean(next) })
+                void authClient.signIn.social({ provider, callbackURL: next ?? '/rosters' })
+              }}
             >
               Continue with {provider}
             </Button>

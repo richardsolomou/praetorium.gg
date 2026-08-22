@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import posthog from 'posthog-js'
 import { useState } from 'react'
 import { ROSTER_NAME_MAX_LENGTH } from '../../../core/battle'
 import { deleteRoster, exportRoster, saveRoster, setRosterVisibility } from '../../../server/functions'
@@ -39,7 +40,10 @@ export function useRosterActions(origin: string) {
           source: roster.source,
         },
       }),
-    onSuccess: refresh,
+    onSuccess: (_result, roster) => {
+      posthog.capture('roster_duplicated', { unit_count: roster.picks.length })
+      return refresh()
+    },
   })
 
   const remove = useMutation({ mutationFn: (id: string) => deleteRoster({ data: { id } }), onSuccess: refresh })
@@ -93,13 +97,16 @@ export function useRosterActions(origin: string) {
     try {
       if (promoted) await access.mutateAsync({ id: roster.id, visibility: 'unlisted' })
       await navigator.clipboard.writeText(`${origin}/rosters/${roster.id}`)
+      posthog.capture('roster_shared', { visibility_changed: promoted })
       setCopiedFor(roster.id)
     } catch (error) {
+      posthog.captureException(error, { operation: 'roster_share' })
       let problem = errorMessage(error)
       if (promoted) {
         try {
           await access.mutateAsync({ id: roster.id, visibility: 'private' })
         } catch (rollbackError) {
+          posthog.captureException(rollbackError, { operation: 'roster_share_rollback' })
           problem = `${problem}. The roster could not be made private again: ${errorMessage(rollbackError)}`
         }
       }

@@ -1,4 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query'
+import posthog from 'posthog-js'
 import type { Centrifuge, Subscription, SubscriptionOptions } from 'centrifuge'
 import { createSameOriginRealtimeClient, requestRealtimeTicket } from 'ras-stack/realtime/client'
 import { useConnectedRealtimeClient, useRealtimePresence, useRealtimeSubscription } from 'ras-stack/realtime/react'
@@ -10,7 +11,10 @@ export type PresentPlayer = { playerId: string; name: string }
 
 const TICKET = z.object({ token: z.string(), channel: z.string().optional() })
 const clientChannels = new WeakMap<Centrifuge, string>()
-const reportRealtimeError = (error: unknown) => console.error({ event: 'realtime_failed', error })
+const reportRealtimeError = (error: unknown) => {
+  posthog.captureException(error, { operation: 'realtime' })
+  console.error({ event: 'realtime_failed', error })
+}
 
 /**
  * Keeps an open battle current, and reports who else has it open.

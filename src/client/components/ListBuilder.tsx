@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { Check, Crown, Download, EllipsisVertical, Pencil, SlidersHorizontal, TriangleAlert } from 'lucide-react'
+import posthog from 'posthog-js'
 import { useEffect, useLayoutEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -224,7 +225,23 @@ export function ListBuilder({ prep, initial, editable = true }: Props) {
 
   const drop = (index: number) => {
     edit.drop(index)
+    posthog.capture('roster_unit_removed', { unit_count: picks.length - 1 })
     setSelected(null)
+  }
+
+  const add = (entryId: string) => {
+    edit.add(entryId)
+    posthog.capture('roster_unit_added', { unit_count: picks.length + 1 })
+  }
+
+  const duplicate = (index: number) => {
+    edit.duplicate(index)
+    posthog.capture('roster_unit_duplicated', { unit_count: picks.length + 1 })
+  }
+
+  const join = (index: number, targetKey: number | undefined) => {
+    edit.join(index, targetKey)
+    posthog.capture('roster_attachment_updated', { attached: targetKey !== undefined })
   }
 
   const picker =
@@ -233,7 +250,7 @@ export function ListBuilder({ prep, initial, editable = true }: Props) {
         <div className="min-h-0 flex-1">
           <Picker
             catalogueId={catalogueId}
-            onAdd={edit.add}
+            onAdd={add}
             onPreview={(entryId, unitName) => {
               setPreview({ catalogueId, entryId, name: unitName })
               setSelected(null)
@@ -478,12 +495,12 @@ export function ListBuilder({ prep, initial, editable = true }: Props) {
                         setShowing('loadout')
                       }}
                       onRemove={() => drop(index)}
-                      onDuplicate={() => edit.duplicate(index)}
+                      onDuplicate={() => duplicate(index)}
                       owned={collection.has(unit.entryId)}
                       onOwned={() => own.mutate({ entryId: unit.entryId, owned: !collection.has(unit.entryId) })}
-                      joined={attachmentRows(picks, units, index).map((row) => ({ ...row, onAct: () => edit.join(row.detach, undefined) }))}
+                      joined={attachmentRows(picks, units, index).map((row) => ({ ...row, onAct: () => join(row.detach, undefined) }))}
                       canJoin={joinableUnits(picks, units, index)}
-                      onJoin={(targetKey) => edit.join(index, targetKey)}
+                      onJoin={(targetKey) => join(index, targetKey)}
                       editable={editable}
                     />
                   ))}

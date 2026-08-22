@@ -1,4 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query'
+import posthog from 'posthog-js'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Command, SubmitResult } from '../core/battle'
 import { submit } from '../server/functions'
@@ -60,6 +61,7 @@ export function useCommand(token: string, seq: number) {
             )
           }
         } catch (error) {
+          posthog.captureException(error, { operation: 'battle_command' })
           // Whatever was behind this one was written against a history that never happened.
           setProblem(errorMessage(error))
           queued.current = []
