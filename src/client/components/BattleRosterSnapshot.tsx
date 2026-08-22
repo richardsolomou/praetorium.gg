@@ -8,6 +8,7 @@ import { UnitCard } from './builder/UnitCard'
 export function BattleRosterSnapshot({ roster, token }: { roster: Roster; token: string }) {
   const built = roster.built
   const points = built?.units.reduce((total, unit) => total + unit.points, 0) ?? 0
+  const hasRosterCards = built?.units.some((unit) => unit.group !== undefined) ?? false
 
   return (
     <main className="flex h-full w-full flex-col px-3 py-3 sm:px-4 sm:py-4">
@@ -43,7 +44,7 @@ export function BattleRosterSnapshot({ roster, token }: { roster: Roster; token:
         </header>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-3">
-          {built?.units.length ? (
+          {hasRosterCards && built ? (
             GROUPS.map(({ id, plural }) => {
               const units = built.units.filter((unit) => (unit.group ?? 'other') === id)
               return units.length ? (

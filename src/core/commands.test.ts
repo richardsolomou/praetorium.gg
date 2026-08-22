@@ -35,6 +35,26 @@ describe('command schema', () => {
     expect(commandSchema.parse(command)).toEqual(command)
   })
 
+  it('keeps legacy attached rosters without card details readable', () => {
+    const command = {
+      kind: 'attach-roster' as const,
+      roster: {
+        name: 'Legacy list',
+        text: '5 Immortals',
+        built: {
+          catalogueId: 'necrons',
+          revision: 'revision',
+          limit: 2_000,
+          detachment: 'Awakened Dynasty',
+          disposition: null,
+          units: [{ key: '0-immortals', name: 'Immortals', points: 100, models: 5 }],
+        },
+      },
+    }
+
+    expect(commandSchema.parse(command)).toEqual(command)
+  })
+
   it('accepts a shared setup section', () => {
     expect(commandSchema.parse({ kind: 'set-setup-step', step: 3 })).toEqual({ kind: 'set-setup-step', step: 3 })
   })
