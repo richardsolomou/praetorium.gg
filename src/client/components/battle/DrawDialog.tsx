@@ -5,16 +5,11 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import type { Command } from '../../../core/battle'
 import { HAND_SIZE, nextDraw } from '../../scoring'
 import type { Side } from '../../sides'
+import { redrawOffer, type WhenDrawn } from './drawOffer'
 import { MissionDetailsDialog, MissionName, type MissionDetails, type ReferenceCard } from './MissionCards'
 import { CARD } from './tints'
 
-/** What the rules say about putting a card back the moment it is drawn. */
-export type WhenDrawn = {
-  operation: 'redraw' | 'replace'
-  roundMax: number | null
-  heldCards: string[]
-  condition: string | null
-}
+export type { WhenDrawn } from './drawOffer'
 
 type Props = {
   side: Side
@@ -141,22 +136,4 @@ export function DrawDialog({ side, round, undoable, initiallyPaused, pending, se
       {inspected ? <MissionDetailsDialog details={inspected} onOpenChange={(open) => !open && setInspected(null)} /> : null}
     </>
   )
-}
-
-/**
- * Why this card may go back, or null when it may not.
- *
- * Round and already-held conditions the battle can settle itself. A condition about
- * what is on the table it cannot, so that one is stated for the player to judge —
- * the same reason objective control is never inferred anywhere else.
- */
-function redrawOffer(rule: WhenDrawn | undefined, round: number, held: readonly { key: string }[]): string | null {
-  if (!rule) return null
-  if (rule.roundMax !== null) {
-    return round <= rule.roundMax ? `You may put this back in battle round ${rule.roundMax} or earlier.` : null
-  }
-  if (rule.heldCards.length) {
-    return held.some((card) => rule.heldCards.includes(card.key)) ? 'You may put this back while you hold the card it pairs with.' : null
-  }
-  return rule.condition ? `You may put this back if ${rule.condition}.` : null
 }
