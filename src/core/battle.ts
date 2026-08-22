@@ -260,6 +260,7 @@ export type Command =
   | ({ kind: 'reveal-secret' } & OnBehalfOf)
   | { kind: 'begin-battle'; firstPlayerId: PlayerId; attackerId?: PlayerId }
   | ({ kind: 'adjust-cp'; delta: number } & OnBehalfOf)
+  | ({ kind: 'discard-secondary-for-cp'; key: string } & OnBehalfOf)
   | ({ kind: 'score'; category: 'primary' | 'secondary'; delta: number } & OnBehalfOf)
   | { kind: 'correct-player'; playerId: PlayerId; resource: 'cp' | 'primary' | 'secondary'; delta: number }
   | { kind: 'settle-opponent-turn' }
@@ -547,6 +548,15 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
       if (command.delta > 0 && (player.bonusCpByRound[state.round - 1] ?? 0) + command.delta > 1) {
         return 'a side can gain at most 1 additional command point per battle round'
       }
+      return null
+    }
+    case 'discard-secondary-for-cp': {
+      if (state.status !== 'playing') return 'the battle is not running'
+      if (state.phase !== 'end' || !sameSide(state, state.activePlayerId, player.id))
+        return 'discard for command points at the end of your turn'
+      if (player.secondaryMode !== 'tactical') return 'only tactical secondaries can be discarded for command points'
+      if (player.secondaryStatus[command.key] !== 'active') return 'that secondary is not active'
+      if ((player.bonusCpByRound[state.round - 1] ?? 0) >= 1) return 'a side can gain at most 1 additional command point per battle round'
       return null
     }
     case 'score': {
@@ -873,6 +883,14 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
         player.cpGained += command.delta
         player.bonusCpByRound[state.round - 1] = (player.bonusCpByRound[state.round - 1] ?? 0) + command.delta
       } else player.cpSpent += Math.abs(command.delta)
+      player.cpByRound[state.round - 1] = player.cp
+      return
+    }
+    case 'discard-secondary-for-cp': {
+      player.secondaryStatus = { ...player.secondaryStatus, [command.key]: 'discarded' }
+      player.cp += 1
+      player.cpGained += 1
+      player.bonusCpByRound[state.round - 1] = (player.bonusCpByRound[state.round - 1] ?? 0) + 1
       player.cpByRound[state.round - 1] = player.cp
       return
     }

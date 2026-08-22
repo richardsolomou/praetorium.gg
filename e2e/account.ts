@@ -267,6 +267,10 @@ export async function advance(page: Page) {
           .click({ timeout: 3_000 })
           .catch(() => undefined)
       }
+      const discard = page.getByRole('dialog', { name: 'Discard a secondary?' })
+      if (await discard.isVisible().catch(() => false)) {
+        await discard.getByRole('button', { name: 'Keep secondaries' }).click()
+      }
       await expect.poll(() => phase.textContent()).not.toBe(before)
       break
     }

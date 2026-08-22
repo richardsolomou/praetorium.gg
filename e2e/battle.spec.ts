@@ -133,7 +133,13 @@ test('a tactical hand is dealt rather than chosen, and pays out when the card sa
   await submitted
   try {
     await scoring.getByRole('button', { name: 'Pass the turn' }).click()
+    const discard = alice.getByRole('dialog', { name: 'Discard a secondary?' })
+    await expect(discard).toBeVisible()
+    const discardedName = await discard.locator('button[aria-pressed]').first().innerText()
+    await discard.locator('button[aria-pressed]').first().click()
+    await discard.getByRole('button', { name: 'Discard and gain 1 CP' }).click()
     await expect(alice.getByRole('heading', { name: 'command phase' })).toBeVisible()
+    await expect(alice.getByText(new RegExp(`discards ${discardedName.trim()} and gains 1 CP`))).toBeVisible()
   } finally {
     releaseBob()
   }
@@ -143,6 +149,7 @@ test('a tactical hand is dealt rather than chosen, and pays out when the card sa
   await expect(alice.getByText(new RegExp(`${bobName} draws `)).first()).toBeVisible()
   await expect(alice.getByText(new RegExp(`${bobName} marks `))).toHaveCount(0)
   await expect(panel.locator('[data-stat="vp"]')).toHaveText(String(scored))
+  await expect(panel.locator('[data-stat="cp"]')).toHaveText('1')
   // Nothing is ticked to finish a card: no control for it exists.
   await expect(alice.getByText('take it out of the hand')).toHaveCount(0)
   await expect(bob.locator('[data-panel="player"]').filter({ hasText: 'Death Guard' }).locator('[data-stat="vp"]')).toHaveText(
