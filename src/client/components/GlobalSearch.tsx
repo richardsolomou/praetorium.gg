@@ -4,23 +4,26 @@ import posthog from 'posthog-js'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Command, CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
+import { Kbd, KbdGroup } from '@/components/ui/kbd'
 import type { GlobalSearchResult } from '../../server/functions'
 import { globalSearchQuery } from '../queries'
 import { useSettled } from '../useSettled'
 import { matchingPages } from './globalSearchPages'
-import { isSearchShortcut } from './globalSearchShortcut'
+import { isSearchShortcut, searchShortcutModifier } from './globalSearchShortcut'
 
 const groups: GlobalSearchResult['group'][] = ['Pages', 'Factions', 'Datasheets', 'Detachments', 'Missions', 'Your rosters', 'Your battles']
 
 export function GlobalSearch() {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
+  const [shortcutModifier, setShortcutModifier] = useState('Ctrl')
   const trimmed = query.trim()
   const settled = useSettled(trimmed)
   const { data = [], isFetching } = useQuery({ ...globalSearchQuery(settled), placeholderData: keepPreviousData })
   const results = [...matchingPages(trimmed), ...data]
 
   useEffect(() => {
+    setShortcutModifier(searchShortcutModifier(navigator.userAgent))
     const handleKeyDown = (event: KeyboardEvent) => {
       if (!isSearchShortcut(event)) return
       event.preventDefault()
@@ -48,7 +51,10 @@ export function GlobalSearch() {
       >
         <Search className="size-4" />
         <span className="hidden flex-1 text-left text-xs sm:inline">Search</span>
-        <kbd className="hidden text-[0.625rem] text-faint sm:inline">⌘K</kbd>
+        <KbdGroup className="hidden sm:inline-flex" aria-hidden>
+          <Kbd className="h-4 min-w-4 bg-raised px-0.5 text-[0.625rem] text-faint">{shortcutModifier}</Kbd>
+          <Kbd className="h-4 min-w-4 bg-raised px-0.5 text-[0.625rem] text-faint">K</Kbd>
+        </KbdGroup>
       </Button>
       <CommandDialog
         open={open}
@@ -90,13 +96,13 @@ export function GlobalSearch() {
           </CommandList>
           <div className="flex items-center justify-end gap-3 border-t border-edge px-3 py-2 text-[0.625rem] text-dim" aria-hidden>
             <span>
-              <kbd>↑</kbd> <kbd>↓</kbd> navigate
+              <Kbd>↑</Kbd> <Kbd>↓</Kbd> navigate
             </span>
             <span>
-              <kbd>↵</kbd> open
+              <Kbd>↵</Kbd> open
             </span>
             <span>
-              <kbd>esc</kbd> close
+              <Kbd>esc</Kbd> close
             </span>
           </div>
         </Command>
