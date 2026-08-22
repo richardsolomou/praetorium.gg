@@ -5,6 +5,7 @@ Praetorium reads stratagem and mission data from [40kdc-data](https://github.com
 ## Rules data
 
 - Players choose stratagems, missions, secondaries, and loadouts from fetched data. Do not replace a missing data field with free text.
+- Core stratagem timing comes from the rules source; its description comes from Game Datacards at `11th/gdc/core.json`, matched by name. Leave an unmatched card undescribed.
 - Faction army rules prefer structured Game Datacards. A pinned Wahapedia faction page fills a faction whose structured sources have no army-rule card; an exact rule name can alias that card to the faction it names.
 - An unknown stratagem timing maps to `unlimited`. Do not invent a usage limit.
 - Phase and player-turn restrictions are enforced only when the synced source supplies them. Missing timing remains unrestricted.

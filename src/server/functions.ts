@@ -262,8 +262,8 @@ export const detachmentRules = createServerFn({ method: 'GET' })
       const factionSlug = faction ? routeSlug(faction.name) : null
       const detachments = factionSlug ? rules.byDetachment.get(rulesFaction(rules, factionSlug)) : undefined
       const details = factionSlug ? rules.detachmentDetails.get(rulesFaction(rules, factionSlug)) : undefined
-      // The same text the detachment page prints, so a stratagem reads the same wherever it is opened.
-      const written = data.detachmentNames.flatMap((name) => details?.get(routeSlug(name))?.stratagems ?? [])
+      // Detachment cards use the same text as their reference page; core cards join them from Game Datacards.
+      const written = [...data.detachmentNames.flatMap((name) => details?.get(routeSlug(name))?.stratagems ?? []), ...rules.coreDetails]
       return {
         attribution: rules.attribution,
         dataslate: rules.dataslate,

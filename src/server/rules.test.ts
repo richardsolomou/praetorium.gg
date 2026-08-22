@@ -74,7 +74,25 @@ beforeEach(() => {
     path.join(wahapedia, 'Enhancements.csv'),
     'name|detachment|description|\nLiving Plague|Flyblown Host|<b>Spread the plague.</b>|\nRejuvinating Swarm|Flyblown Host|Return models.|\nVirulent Carapace (Upgrade)|Flyblown Host|Improve the unit.|\n',
   )
-  write(path.join(root, 'stratagems.json'), [{ id: 'command-re-roll', name: 'COMMAND RE-ROLL', cp_cost: 1, timing: 'once-per-battle' }])
+  write(path.join(root, 'stratagems.json'), [
+    { id: 'command-re-roll', name: 'COMMAND RE-ROLL', cp_cost: 1, timing: 'once-per-battle' },
+    { id: 'insane-bravery', name: 'INSANE BRAVERY', cp_cost: 1, timing: 'once-per-battle' },
+  ])
+  const datacards = path.join(directory, 'datacards', '11th', 'gdc')
+  fs.mkdirSync(datacards, { recursive: true })
+  write(path.join(datacards, 'core.json'), {
+    stratagems: [
+      {
+        name: { en: 'Command Re-roll' },
+        type: 'Core Stratagem',
+        fluff: { en: 'Bend fate to your will.' },
+        when: { en: 'Any phase.' },
+        target: { en: 'That unit or model.' },
+        effect: { en: 'Re-roll that roll.' },
+        restrictions: { en: 'One re-roll.' },
+      },
+    ],
+  })
   write(path.join(root, 'secondary-cards.json'), [
     {
       id: 'assassination',
@@ -175,7 +193,14 @@ const box = (width: number, height: number) => [
   { x: 0, y: height },
 ]
 
-const load = () => loadRules(directory, path.join(directory, 'wahapedia'), undefined, path.join(directory, 'faction-icons'))!
+const load = () =>
+  loadRules(
+    directory,
+    path.join(directory, 'wahapedia'),
+    undefined,
+    path.join(directory, 'faction-icons'),
+    path.join(directory, 'datacards', '11th', 'gdc'),
+  )!
 
 describe('stratagems', () => {
   it('keeps descriptions that supplement datasheet abilities', () => {
@@ -303,7 +328,18 @@ describe('stratagems', () => {
   })
 
   it('include the ones every army has', () => {
-    expect(load().core.map((stratagem) => stratagem.name)).toEqual(['Command Re-Roll'])
+    expect(load().core.map((stratagem) => stratagem.name)).toEqual(['Command Re-Roll', 'Insane Bravery'])
+  })
+
+  it('read core descriptions from the verified Game Datacards path without filling upstream gaps', () => {
+    expect(load().coreDetails).toEqual([
+      {
+        id: 'command-re-roll',
+        type: 'Core Stratagem',
+        description:
+          'Bend fate to your will.\n\n**When:** Any phase.\n\n**Target:** That unit or model.\n\n**Effect:** Re-roll that roll.\n\n**Restrictions:** One re-roll.',
+      },
+    ])
   })
 })
 

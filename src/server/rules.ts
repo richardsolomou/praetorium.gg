@@ -54,6 +54,7 @@ export type LoadedRules = {
   factionRuleCards: ReadonlyMap<string, readonly { name: string; description: string }[]>
   /** Stratagems every army has, offered alongside whatever the detachment brings. */
   core: Stratagem[]
+  coreDetails: LoadedCards['coreDetails']
   secondaries: MissionCard[]
   primaries: MissionCard[]
   /** Which mission a pair of force dispositions plays, with pack-qualified keys and an unqualified legacy fallback. */
@@ -114,6 +115,7 @@ export function loadRules(
     factionRules: factions.factionRules,
     factionRuleCards: wahapedia?.armyRules ?? new Map(),
     core: cards.core,
+    coreDetails: cards.coreDetails,
     secondaries: cards.secondaries,
     primaries: cards.primaries,
     missions: loadMissions(core),

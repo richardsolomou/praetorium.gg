@@ -1,4 +1,6 @@
+import fs from 'node:fs'
 import path from 'node:path'
+import { compile } from 'html-to-text'
 import type { Stratagem, StratagemLimit } from '../core/battle'
 import { routeSlug } from '../core/slug'
 import { criteriaKey, loadMissionCriteria, pairCriteria, type Payout } from './missionCriteria'
@@ -33,6 +35,20 @@ export type RawStratagem = {
   player_turn?: string
   game_version?: { edition?: string; dataslate?: string }
 }
+
+type Localized = { en?: string }
+
+type RawCoreStratagem = {
+  name?: Localized
+  type?: string
+  fluff?: Localized
+  when?: Localized
+  target?: Localized
+  effect?: Localized
+  restrictions?: Localized
+}
+
+type RawCoreCards = { stratagems?: RawCoreStratagem[] }
 
 type RawCard = {
   id: string
@@ -142,7 +158,12 @@ export type WhenDrawn = {
 
 export type MissionCard = { key: string; name: string; text: string | null; awards: Award[]; whenDrawn: WhenDrawn | null }
 
-export type LoadedCards = { core: Stratagem[]; secondaries: MissionCard[]; primaries: MissionCard[] }
+export type LoadedCards = {
+  core: Stratagem[]
+  coreDetails: { id: string; type: string | null; description: string }[]
+  secondaries: MissionCard[]
+  primaries: MissionCard[]
+}
 
 /**
  * The core stratagems every army has, and the card decks, with each payout paired to
@@ -150,11 +171,13 @@ export type LoadedCards = { core: Stratagem[]; secondaries: MissionCard[]; prima
  */
 export function loadCards(core: string, datacardsDirectory: string): LoadedCards {
   const cards = readOptionalList<RawCard>(path.join(core, 'secondary-cards.json'))
+  const coreStratagems = readOptionalList<RawStratagem>(path.join(core, 'stratagems.json'))
   // What a payout asks for is the mission pack's to say; when it is due is this file's.
   const criteria = loadMissionCriteria(datacardsDirectory)
   const card = (raw: RawCard) => toCard(raw, criteria.get(criteriaKey(raw.name)) ?? [])
   return {
-    core: readOptionalList<RawStratagem>(path.join(core, 'stratagems.json')).map(toStratagem),
+    core: coreStratagems.map(toStratagem),
+    coreDetails: coreDescriptions(datacardsDirectory, coreStratagems),
     secondaries: cards
       .filter((entry) => entry.card_type !== 'primary')
       .map(card)
@@ -164,6 +187,33 @@ export function loadCards(core: string, datacardsDirectory: string): LoadedCards
       .map(card)
       .toSorted(byName),
   }
+}
+
+const coreText = compile({ wordwrap: false })
+
+/** Core stratagem prose lives in Game Datacards' `11th/gdc/core.json`, keyed to the rules source by name. */
+function coreDescriptions(datacardsDirectory: string, rules: readonly RawStratagem[]): LoadedCards['coreDetails'] {
+  const file = path.join(datacardsDirectory, 'core.json')
+  if (!fs.existsSync(file)) return []
+  const cards = JSON.parse(fs.readFileSync(file, 'utf8')) as RawCoreCards
+  const descriptionsByName = new Map((cards.stratagems ?? []).map((card) => [criteriaKey(card.name?.en ?? ''), card]))
+  return rules.flatMap((rule) => {
+    const card = descriptionsByName.get(criteriaKey(rule.name))
+    if (!card) return []
+    const sections = [
+      card.fluff?.en ? coreText(card.fluff.en).trim() : null,
+      describedSection('When', card.when?.en),
+      describedSection('Target', card.target?.en),
+      describedSection('Effect', card.effect?.en),
+      describedSection('Restrictions', card.restrictions?.en),
+    ].filter((section): section is string => Boolean(section))
+    return sections.length ? [{ id: rule.id, type: card.type ?? null, description: sections.join('\n\n') }] : []
+  })
+}
+
+const describedSection = (label: string, value: string | undefined) => {
+  const text = value ? coreText(value).trim() : ''
+  return text ? `**${label}:** ${text}` : null
 }
 
 /**
