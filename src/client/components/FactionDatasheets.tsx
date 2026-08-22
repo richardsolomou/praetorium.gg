@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useState } from 'react'
 import { factionFor } from '../factions'
 import { factionDatasheetsQuery, factionsQuery } from '../queries'
+import { useSettled } from '../useSettled'
 import { FactionMark, factionColour } from './FactionMark'
 import { SearchField } from './SearchField'
 import { GROUPS } from './builder/groups'
@@ -15,7 +16,11 @@ export function FactionDatasheets() {
   const { data } = useQuery(factionsQuery())
   const faction = factionFor(data, catalogueId ?? '')
   const [query, setQuery] = useState('')
-  const { data: units = [] } = useQuery({ ...factionDatasheetsQuery(faction?.id ?? '', query), placeholderData: keepPreviousData })
+  const settledQuery = useSettled(query.trim())
+  const { data: units = [] } = useQuery({
+    ...factionDatasheetsQuery(faction?.id ?? '', settledQuery),
+    placeholderData: keepPreviousData,
+  })
   if (path !== `/factions/${catalogueId}/datasheets`) return <Outlet />
   if (!faction) return null
 

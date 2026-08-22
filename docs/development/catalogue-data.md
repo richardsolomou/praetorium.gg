@@ -107,6 +107,7 @@ Inspect the generated selection before changing evaluator logic. A mismatch can 
 ## Picker and attachments
 
 - Price picker rows with `buildUnit`, using the same inputs as the roster. Offer the whole book: results are sorted by name, so a cap ends the list mid-alphabet and hides datasheets a search still finds.
+- Cache each complete faction summary against its immutable catalogue snapshot. Filter that summary for reference-page searches instead of repricing every datasheet.
 - Keep datasheets from secondary imported books in source-labelled allied sections after the primary picker page so players can include or hide them together.
 - Character attachment targets come from ability text. `attachmentOf` supports bullet-list and inline formats.
 - A missing attachment rule means the unit cannot attach.

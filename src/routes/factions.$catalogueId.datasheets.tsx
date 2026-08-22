@@ -8,7 +8,9 @@ export const Route = createFileRoute('/factions/$catalogueId/datasheets')({
     const data = await context.queryClient.ensureQueryData(factionsQuery())
     const faction = factionFor(data, params.catalogueId)
     if (!faction) throw notFound()
-    await context.queryClient.ensureQueryData(factionDatasheetsQuery(faction.id, ''))
+    // Render the page shell immediately. The list can finish pricing behind its
+    // loading state instead of holding the route transition on a large faction.
+    void context.queryClient.prefetchQuery(factionDatasheetsQuery(faction.id, ''))
   },
   component: FactionDatasheets,
 })
