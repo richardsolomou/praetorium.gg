@@ -5,6 +5,7 @@ import { targetOf } from '../core/catalogue'
 import { evaluate, evaluateForces, type Selection } from '../core/evaluate'
 import { type ModelKind, modelKindsOf } from '../core/modelKinds'
 import { buildUnit } from '../core/roster'
+import { modelCountOf } from '../core/unitSize'
 import { wargearOf } from '../core/wargear'
 import { app } from './app'
 import { datasheetIn, rulesReferencedIn } from './catalogue'
@@ -530,6 +531,12 @@ function unitModels(
       listedBy.set(key, (listedBy.get(key) ?? 0) + 1)
     }
   }
+  const modelsInUnit = modelCountOf(selection, loaded.index)
+  const tier = composition.tiers?.find((candidate) => {
+    const minimum = candidate.models.reduce((total, model) => total + model.min, 0)
+    const maximum = candidate.models.reduce((total, model) => total + model.max, 0)
+    return modelsInUnit >= minimum && modelsInUnit <= maximum
+  })
 
   return composition.models.map((model) => {
     // A weapon only this kind carries counts the kind: one stalker bolt rifle in the
@@ -540,7 +547,8 @@ function unitModels(
       const count = listedBy.get(key) === 1 ? held.get(key) : undefined
       return count === undefined ? [] : [count]
     })
-    const count = own.length ? Math.min(...own) : model.min
+    const tierModel = tier?.models.find((candidate) => candidate.name === model.name)
+    const count = own.length ? Math.min(...own) : (tierModel?.min ?? model.min)
     const mine = optionsFor(model)
     const taken = (option: (typeof mine)[number], at: number) => chosenSwaps[`${option.id}#${at}`] ?? 0
 
