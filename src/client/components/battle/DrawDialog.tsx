@@ -110,15 +110,17 @@ export function DrawDialog({
                   <MissionName name={card.name} card={referenceFor(card.key)} type="Secondary mission" onRead={setInspected} />
                   {offer ? (
                     <>
-                      <p className="text-[0.6875rem] text-dim">{offer}</p>
+                      <p className="text-[0.6875rem] text-dim">{offer.message}</p>
                       <Button
                         variant="outline"
                         size="xs"
                         className="text-discarded"
                         disabled={pending || !side.remainingSecondaries.length}
-                        onClick={() => send({ kind: 'set-secondary-status', key: card.key, status: 'returned', playerId: side.captain.id })}
+                        onClick={() =>
+                          send({ kind: 'set-secondary-status', key: card.key, status: offer.status, playerId: side.captain.id })
+                        }
                       >
-                        Put back and draw another
+                        {offer.label}
                       </Button>
                     </>
                   ) : null}
