@@ -1,5 +1,48 @@
 # praetorium
 
+## 0.23.0
+
+### Minor Changes
+
+- d37675d: Add a deployment section that names who sets up first and lists each side's units that deploy outside their zone.
+- d37675d: Ask an allied side which Force Disposition it plays when its two armies brought different ones, instead of playing the first seat's.
+- d37675d: Open a 2v1 from either side, choosing an ally to play beside you instead of only a pair to play against.
+- d37675d: Play a mission twist from the pack that prints one, chosen while the mission is read and readable from the table all game.
+- d37675d: Read each side's primary mission and choose the twist before the battlefield, where the matchup that decides them is finally known.
+- d37675d: Add a pre-battle rules section that names who resolves first and lists each side's units with a scouting move, and begin the battle from there.
+- d37675d: Take an army back off the table during setup, instead of only being able to swap it for another.
+
+### Patch Changes
+
+- d37675d: List only the units with somewhere else to be when setting reserves, and ask once whether the table is using Strategic Reserves at all.
+- d37675d: Stop a single fixed secondary mission scoring past the per-card cap its mission pack prints.
+- d37675d: Claim the battle ready bonus when an army is chosen, leaving an unpainted army to turn it off.
+- d37675d: Fit the battle scoreboard back onto a phone, naming each side by its players' pictures where there is no room for their names.
+- d37675d: Draw every scrollbar thin and dark, on both axes, instead of leaving the platform's own across a dark panel.
+- d37675d: Stop badging a practice opponent's side, its format and its table as practice, since the seat is already named after what it is.
+- d37675d: Read a side's missions beside its stratagems on a tablet, where one panel has the page to itself.
+- d37675d: Move finishing, conceding and deleting a battle to a named button under the battle log, leaving the round and the phase centred.
+- d37675d: Group an allied side's stratagems under the detachment that brought each one, and say that a detachment's rules do not reach an ally's units.
+- d37675d: Head each side panel with its players' pictures, names and the army each one brought, and leave the scoreboard to the score once both panels are on screen.
+- d37675d: Pay a side one battle ready bonus, earned only when every army on it is battle ready, rather than one bonus per allied army.
+- d37675d: Sit the button that ends a phase flush against the bottom of a phone or tablet screen rather than a little above it.
+- d37675d: Give a 2v1 side every stratagem both allies brought, instead of only the first ally's detachment.
+- d37675d: Name each army's faction, detachment and list as links on its own line in its side panel, and say it there once rather than a second time in the scoreboard.
+- d37675d: Group an army's units by their datasheet shelf when setting reserves, and state where each one starts instead of drawing every placement as an equal button.
+- d37675d: Stop tracking and showing which players have a battle open.
+- d37675d: Say that your army is missing when a setup section has nothing to show without it, rather than drawing an empty panel.
+- d37675d: Let a player settle their side's cards when a practice opponent happens to hold the seat beside them, instead of leaving that side unable to start.
+- d37675d: Read the mission, choose the battlefield and settle the secondaries in sections of their own, rather than two of them sharing a screen.
+- d37675d: Show each army's force disposition in its own colour beside the list it was built with, and set the battle ready bonus there too.
+- d37675d: Show only the payout a side can actually take on a card that scores one way fixed and another tactical, once that side has settled which it plays.
+- d37675d: Draw the rule between a side's missions and its stratagems only where the two stack, instead of across the top of a column beside them.
+- d37675d: Say which secondary missions a turn just dealt, apart from the ones the hand was already carrying, and offer a card back to the deck only in the turn it was drawn.
+- d37675d: Wear the scored side's colour throughout the scoring prompt, so which side is being paid is clear before its name is read.
+- d37675d: Colour the button that ends a phase to match the side taking the turn, rather than wearing one colour all game.
+- d37675d: Take exactly two fixed secondary missions, from the four cards the pack prints a fixed payout for, instead of up to six from the whole deck.
+- d37675d: Warn that a mission twist which rewrites the Primary Mission cards is recorded but not applied to the missions on screen.
+- d37675d: Show both names of an allied side in full rather than clipping the second one off the panel.
+
 ## 0.22.2
 
 ### Patch Changes
