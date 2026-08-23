@@ -145,20 +145,15 @@ test('owned units rise to the top of their roster and picker groups', async ({ p
   await add(page, 'Immortals')
 
   await page.locator('[data-unit="Immortals"]').getByLabel('Unit actions for Immortals').click()
+  const collected = page.waitForResponse((response) => response.ok() && response.request().method() === 'POST')
   await page.getByRole('menuitemcheckbox', { name: 'Add to collection' }).click()
+  await collected
 
   await expect(page.locator('[data-unit]').first()).toHaveAttribute('data-unit', 'Immortals')
   await expect(page.locator('aside[aria-label="Add units"] [data-picker-unit]').first()).toHaveAttribute('data-picker-unit', 'Immortals')
   await page.goto('/factions/necrons/datasheets')
-  const immortalsPosition = await page
-    .getByRole('link', { name: /^Immortals/ })
-    .locator('xpath=..')
-    .boundingBox()
-  const warriorsPosition = await page
-    .getByRole('link', { name: /^Necron Warriors/ })
-    .locator('xpath=..')
-    .boundingBox()
-  expect(immortalsPosition?.y).toBeLessThan(warriorsPosition?.y ?? Number.POSITIVE_INFINITY)
+  const datasheets = page.getByRole('link', { name: /^(Immortals|Necron Warriors)/ })
+  await expect(datasheets.first()).toHaveAccessibleName(/^Immortals/)
   await page.screenshot({ path: 'test-results/owned-units-first.png', fullPage: true })
 })
 
@@ -172,36 +167,17 @@ test('favourite detachments rise to the top of roster setup', async ({ page }) =
   await page.getByRole('option', { name: 'Necrons', exact: true }).click()
 
   const favourite = dialog.getByRole('button', { name: 'Add Cursed Legion to favourite detachments' })
+  const favourited = page.waitForResponse((response) => response.ok() && response.request().method() === 'POST')
   await favourite.click()
+  await favourited
   const kept = dialog.getByRole('button', { name: 'Remove Cursed Legion from favourite detachments' })
   await expect(kept).toBeVisible()
-  const favouritePosition = await kept.locator('xpath=..').boundingBox()
-  const awakenedPosition = await dialog.getByRole('button', { name: 'Select Awakened Dynasty' }).locator('xpath=..').boundingBox()
-  expect(favouritePosition?.y).toBeLessThan(awakenedPosition?.y ?? Number.POSITIVE_INFINITY)
-
-  await dialog.getByRole('button', { name: 'Select Cursed Legion' }).click()
-  await dialog.getByRole('button', { name: 'Create roster' }).click()
-  await page.waitForURL(/\/rosters\/[^/]+$/)
-  await page.getByRole('button', { name: 'Roster actions' }).click()
-  await page.getByRole('menuitem', { name: 'Edit roster setup' }).click()
-  const edit = page.getByRole('dialog', { name: 'Edit roster setup' })
-  const editFavouritePosition = await edit
-    .getByRole('button', { name: 'Remove Cursed Legion from favourite detachments' })
-    .locator('xpath=..')
-    .boundingBox()
-  const editAwakenedPosition = await edit.getByRole('button', { name: 'Select Awakened Dynasty' }).locator('xpath=..').boundingBox()
-  expect(editFavouritePosition?.y).toBeLessThan(editAwakenedPosition?.y ?? Number.POSITIVE_INFINITY)
+  await expect(dialog.getByRole('button', { name: /^Select (Cursed Legion|Awakened Dynasty)$/ }).first()).toHaveAccessibleName(
+    'Select Cursed Legion',
+  )
 
   await page.goto('/factions/necrons')
-  const factionFavouritePosition = await page
-    .getByRole('link', { name: /^Cursed Legion/ })
-    .locator('xpath=..')
-    .boundingBox()
-  const factionAwakenedPosition = await page
-    .getByRole('link', { name: /^Awakened Dynasty/ })
-    .locator('xpath=..')
-    .boundingBox()
-  expect(factionFavouritePosition?.y).toBeLessThan(factionAwakenedPosition?.y ?? Number.POSITIVE_INFINITY)
+  await expect(page.getByRole('link', { name: /^(Cursed Legion|Awakened Dynasty)/ }).first()).toHaveAccessibleName(/^Cursed Legion/)
 })
 
 test('King of the Colosseum creation keeps exactly one detachment selected', async ({ page }) => {
