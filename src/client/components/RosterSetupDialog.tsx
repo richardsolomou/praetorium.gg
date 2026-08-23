@@ -215,15 +215,36 @@ export function RosterSetupDialog({
                       key={detachment.id}
                       className={`flex min-h-20 items-stretch rounded-none border ${chosen ? 'border-parchment bg-raised' : 'border-edge bg-sunken'}`}
                     >
+                      <div className="flex w-10 shrink-0 flex-col border-r border-edge">
+                        <button
+                          type="button"
+                          aria-label={`View ${detachment.name} detachment reference`}
+                          className="grid min-h-10 flex-1 place-items-center hover:bg-raised"
+                          onClick={() => {
+                            if (!faction) return
+                            setReference({ catalogueId: faction.id, slug: detachment.slug, name: detachment.name })
+                          }}
+                        >
+                          <Layers3 className={`size-4 ${chosen ? 'text-parchment' : 'text-faint'}`} />
+                        </button>
+                        {faction ? (
+                          <FavouriteDetachmentToggle
+                            catalogueId={faction.id}
+                            detachmentId={detachment.id}
+                            name={detachment.name}
+                            className="size-10 border-t border-edge hover:bg-raised"
+                          />
+                        ) : null}
+                      </div>
                       <button
                         type="button"
-                        className="flex min-w-0 flex-1 items-start gap-3 p-3 text-left"
+                        aria-label={`View ${detachment.name} detachment reference`}
+                        className="flex min-w-0 flex-1 items-start p-3 text-left"
                         onClick={() => {
                           if (!faction) return
                           setReference({ catalogueId: faction.id, slug: detachment.slug, name: detachment.name })
                         }}
                       >
-                        <Layers3 className={`mt-0.5 size-4 shrink-0 ${chosen ? 'text-parchment' : 'text-faint'}`} />
                         <span className="min-w-0 flex-1">
                           <span className="block font-bold uppercase">{detachment.name}</span>
                           <span className="mt-2 flex flex-wrap gap-1">
@@ -235,14 +256,6 @@ export function RosterSetupDialog({
                           </span>
                         </span>
                       </button>
-                      {faction ? (
-                        <FavouriteDetachmentToggle
-                          catalogueId={faction.id}
-                          detachmentId={detachment.id}
-                          name={detachment.name}
-                          className="w-10 border-l border-edge hover:bg-raised"
-                        />
-                      ) : null}
                       <button
                         type="button"
                         aria-label={`${chosen ? 'Remove' : 'Select'} ${detachment.name}`}
