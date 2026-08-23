@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.23.5
+
+### Patch Changes
+
+- 7e94a2e: Make switching between building and viewing a roster clear.
+
 ## 0.23.4
 
 ### Patch Changes
