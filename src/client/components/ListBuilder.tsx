@@ -376,9 +376,9 @@ export function ListBuilder({ prep, initial, editable = true, battle, resolvePer
                 <>
                   <DropdownMenu>
                     <DropdownMenuTrigger aria-label="Roster actions" className="grid h-7 w-10 place-items-center hover:text-bone">
-                      <EllipsisVertical className="size-4" />
+                      <EllipsisVertical className="size-4 translate-y-px" />
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
+                    <DropdownMenuContent align="end" className="min-w-48">
                       <DropdownMenuItem
                         onClick={() => setSetupDraft({ name: listName, catalogueId, detachmentIds, disposition, limit, visibility })}
                       >
@@ -398,6 +398,7 @@ export function ListBuilder({ prep, initial, editable = true, battle, resolvePer
                     size="sm"
                     spacing={0}
                     aria-label="Roster mode"
+                    className="rounded-br-lg"
                   >
                     <Tooltip>
                       <TooltipTrigger
@@ -419,7 +420,7 @@ export function ListBuilder({ prep, initial, editable = true, battle, resolvePer
                         render={
                           <ToggleGroupItem
                             value="view"
-                            className="border-primary/60 text-primary aria-pressed:bg-primary aria-pressed:text-primary-foreground"
+                            className="rounded-br-lg border-primary/60 text-primary aria-pressed:bg-primary aria-pressed:text-primary-foreground"
                           />
                         }
                       >
