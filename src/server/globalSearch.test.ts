@@ -212,7 +212,11 @@ describe('global datasheet search', () => {
 
     const results = await searchEverything('black spear', { catalogue, rules, own: async () => null })
     expect(results.filter((result) => result.group === 'Detachments')).toEqual([
-      expect.objectContaining({ label: 'Black Spear Task Force', detail: 'Deathwatch', href: '/factions/deathwatch/reference/detachments/black-spear-task-force' }),
+      expect.objectContaining({
+        label: 'Black Spear Task Force',
+        detail: 'Deathwatch',
+        href: '/factions/deathwatch/reference/detachments/black-spear-task-force',
+      }),
     ])
 
     const shared = await searchEverything('1st company', { catalogue, rules, own: async () => null })
