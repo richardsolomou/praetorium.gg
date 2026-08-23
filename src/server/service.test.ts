@@ -177,6 +177,51 @@ describe('friends', () => {
   })
 })
 
+describe('events', () => {
+  async function roster(userId: string, id: string, limit: number) {
+    await service.saveRoster(userId, {
+      id,
+      name: `${userId} army`,
+      catalogueId: 'book',
+      detachmentIds: [],
+      disposition: null,
+      limit,
+      picks: [],
+      prep: null,
+      visibility: 'private',
+      source: 'editable',
+    })
+  }
+
+  it('hides opposing rosters until the final matching roster is sealed', async () => {
+    await roster('alice', 'alice-roster', 2000)
+    await roster('bob', 'bob-roster', 1000)
+    const { id } = await service.createEvent('alice', 'Open play', [
+      { userId: 'alice', limit: 2000 },
+      { userId: 'bob', limit: 1000 },
+    ])
+    await service.selectEventRoster(id, 'alice', 'alice-roster')
+    await service.selectEventRoster(id, 'bob', 'bob-roster')
+
+    expect((await service.sealEventRoster(id, 'alice')).revealed).toBe(false)
+    expect((await service.event(id, 'bob'))?.participants.find((participant) => participant.userId === 'alice')?.roster).toBeNull()
+    expect((await service.sealEventRoster(id, 'bob')).revealed).toBe(true)
+    expect((await service.event(id, 'bob'))?.participants.find((participant) => participant.userId === 'alice')?.roster?.name).toBe(
+      'alice army',
+    )
+  })
+
+  it('refuses a roster configured for a different allowance', async () => {
+    await roster('alice', 'alice-roster', 1000)
+    const { id } = await service.createEvent('alice', 'Open play', [
+      { userId: 'alice', limit: 2000 },
+      { userId: 'bob', limit: 1000 },
+    ])
+    await service.selectEventRoster(id, 'alice', 'alice-roster')
+    await expect(service.sealEventRoster(id, 'alice')).rejects.toMatchObject({ status: 409 })
+  })
+})
+
 describe('player profiles', () => {
   it('shows a confirmed friend before their first shared battle', async () => {
     expect(await service.userProfile('alice', 'carol')).toEqual({ id: 'carol', name: 'Carol', image: null })

@@ -10,8 +10,9 @@ Praetorium includes:
 - Compact roster presentation and battle tracking.
 - One synchronized solo, 1v1, or 2v1 battle between signed-in players.
 - Mutual friendships for choosing private battle opponents.
+- Private events where friends receive roster limits, seal saved rosters, and reveal together before deciding matchups.
 
-It does not include rankings, events, leagues, locations, public battle discovery, chat, matchmaking, a rules encyclopedia, model positions, or wound allocation.
+It does not include rankings, brackets, leagues, locations, public event discovery, chat, automatic matchmaking, a rules encyclopedia, model positions, or wound allocation.
 
 ## Interface
 
@@ -37,6 +38,7 @@ Keep screenshots that contain roster or battle data outside version control.
 | Battles           | Shared, 2v1, or solo setup drafts, server-side legality, corrections, concessions, reopening, presence, and live updates.                                                             |
 | Turn tracker      | Five standard rounds, three King of the Colosseum rounds, six phases, command points, victory points, painted bonuses, tactical decks, stratagems, formations, and battle completion. |
 | Rosters           | Build, import, save, copy, rename, private or unlisted share, print, export, and attach.                                                                                              |
+| Events            | Assign points limits, select real saved rosters, seal immutable submissions, and reveal every participant's roster together.                                                          |
 | Catalogue         | Factions, detachments, units, model counts, loadouts, enhancements, attachments, and points limits.                                                                                   |
 | Validation        | Constraints, modifiers, conditions, categories, force scope, attachments, and catalogue-sensitive costs.                                                                              |
 | Missions          | Force dispositions, deployment zones, objectives, mission cards, and scoring awards.                                                                                                  |

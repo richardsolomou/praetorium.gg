@@ -4,7 +4,7 @@ Read [README.md](README.md) for what the product is and [CONTRIBUTING.md](CONTRI
 
 ## Product boundary
 
-Live state for one game of Warhammer 40,000 between opposing sides of up to three friends, and the list building that feeds it. Social scope stops at mutual friendships used to form private battles: no chat, feeds, groups, or public discovery. No rules encyclopedia, no unit-level wound tracking, and **no game data in this repository** — an instance fetches the community catalogues itself.
+Live state for one game of Warhammer 40,000 between opposing sides of up to three friends, the list building that feeds it, and private roster-reveal events before matchups are decided. Social scope stops at mutual friendships used to form private battles and events: no chat, feeds, public groups, or public discovery. No rules encyclopedia, no unit-level wound tracking, and **no game data in this repository** — an instance fetches the community catalogues itself.
 
 ## Where the detail lives
 

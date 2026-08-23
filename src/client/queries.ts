@@ -19,6 +19,8 @@ import {
   globalSearch,
   loadoutDatasheets,
   me,
+  myEvents,
+  openEvent,
   myBattles,
   openBattle,
   opponents,
@@ -44,6 +46,9 @@ export const userProfileQuery = (userId: string) =>
 export const battlesQuery = () => queryOptions({ queryKey: ['battles'], queryFn: () => myBattles(), staleTime: SSR_STALE_TIME })
 export const opponentsQuery = () => queryOptions({ queryKey: ['opponents'], queryFn: () => opponents(), staleTime: SSR_STALE_TIME })
 export const friendshipsQuery = () => queryOptions({ queryKey: ['friendships'], queryFn: () => friendships(), staleTime: SSR_STALE_TIME })
+export const eventsQuery = () => queryOptions({ queryKey: ['events'], queryFn: () => myEvents(), staleTime: SSR_STALE_TIME })
+export const eventQuery = (id: string) =>
+  queryOptions({ queryKey: ['event', id], queryFn: () => openEvent({ data: { id } }), staleTime: SSR_STALE_TIME })
 
 // No polling: `useLiveBattle` refetches this when the server says the battle changed.
 export const battleQuery = (token: string) =>

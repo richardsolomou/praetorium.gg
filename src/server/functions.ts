@@ -332,5 +332,6 @@ export const terrainReferences = createServerFn({ method: 'GET' })
  */
 export * from './functions/accounts'
 export * from './functions/battles'
+export * from './functions/events'
 export * from './functions/rosters'
 export type { GlobalSearchResult }

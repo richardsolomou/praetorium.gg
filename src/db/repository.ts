@@ -2,9 +2,22 @@ import { and, asc, desc, eq, exists, inArray, isNull, ne, notExists, or, sql } f
 import { battleCapacity, type Command, type LoggedCommand, reduceBattle, type SubmitResult, validate } from '../core/battle'
 import { commandSchema } from '../core/commands'
 import type { RosterSource } from '../core/savedRoster'
+import type { EventParticipantRecord, EventRecord, EventRosterSnapshot } from '../core/event'
 import { alias } from 'drizzle-orm/pg-core'
 import type { PraetoriumDatabase } from './connection'
-import { battleUsers, battles, collection, commands, favouriteDetachments, favouriteFactions, friendships, rosters, user } from './schema'
+import {
+  battleUsers,
+  battles,
+  collection,
+  commands,
+  eventParticipants,
+  events,
+  favouriteDetachments,
+  favouriteFactions,
+  friendships,
+  rosters,
+  user,
+} from './schema'
 
 type BattleRecord = { id: string; token: string; createdAt: number }
 type BattlePlayer = { id: string; name: string; image: string | null; side: number }
@@ -361,6 +374,115 @@ export class Repository {
   async roster(id: string) {
     const [row] = await this.database.select().from(rosters).where(eq(rosters.id, id)).limit(1)
     return row
+  }
+
+  async createEvent(input: {
+    id: string
+    name: string
+    creatorId: string
+    participants: { userId: string; limit: number }[]
+    now: number
+  }) {
+    await this.database.transaction(async (tx) => {
+      await tx.insert(events).values({ id: input.id, name: input.name, creatorId: input.creatorId, createdAt: input.now })
+      await tx.insert(eventParticipants).values(input.participants.map((participant) => ({ eventId: input.id, ...participant })))
+    })
+  }
+
+  async eventsByUser(userId: string) {
+    return this.database
+      .select({ id: events.id, name: events.name, creatorId: events.creatorId, createdAt: events.createdAt, revealedAt: events.revealedAt })
+      .from(events)
+      .innerJoin(eventParticipants, eq(eventParticipants.eventId, events.id))
+      .where(eq(eventParticipants.userId, userId))
+      .orderBy(desc(events.createdAt))
+  }
+
+  async event(id: string): Promise<{ event: EventRecord; participants: EventParticipantRecord[] } | null> {
+    const [event] = await this.database.select().from(events).where(eq(events.id, id)).limit(1)
+    if (!event) return null
+    const rows = await this.database
+      .select({
+        userId: eventParticipants.userId,
+        name: user.name,
+        image: user.image,
+        limit: eventParticipants.limit,
+        rosterId: eventParticipants.rosterId,
+        sealedAt: eventParticipants.sealedAt,
+        snapshot: eventParticipants.snapshot,
+      })
+      .from(eventParticipants)
+      .innerJoin(user, eq(user.id, eventParticipants.userId))
+      .where(eq(eventParticipants.eventId, id))
+      .orderBy(asc(user.name))
+    return {
+      event,
+      participants: rows.map((row) => ({ ...row, snapshot: row.snapshot ? (JSON.parse(row.snapshot) as EventRosterSnapshot) : null })),
+    }
+  }
+
+  async selectEventRoster(eventId: string, userId: string, rosterId: string) {
+    return this.database.transaction(async (tx) => {
+      const [event] = await tx.select({ revealedAt: events.revealedAt }).from(events).where(eq(events.id, eventId)).for('update')
+      if (!event || event.revealedAt !== null) return false
+      const [roster] = await tx
+        .select({ id: rosters.id })
+        .from(rosters)
+        .where(and(eq(rosters.id, rosterId), eq(rosters.userId, userId)))
+        .limit(1)
+      if (!roster) return false
+      const updated = await tx
+        .update(eventParticipants)
+        .set({ rosterId, snapshot: null, sealedAt: null })
+        .where(and(eq(eventParticipants.eventId, eventId), eq(eventParticipants.userId, userId)))
+        .returning({ eventId: eventParticipants.eventId })
+      return updated.length > 0
+    })
+  }
+
+  /** Freezes the roster and reveals the event in the same transaction as the final seal. */
+  async sealEventRoster(eventId: string, userId: string, now: number) {
+    return this.database.transaction(async (tx) => {
+      const [event] = await tx.select().from(events).where(eq(events.id, eventId)).for('update')
+      if (!event || event.revealedAt !== null) return null
+      const [participant] = await tx
+        .select({ limit: eventParticipants.limit, rosterId: eventParticipants.rosterId })
+        .from(eventParticipants)
+        .where(and(eq(eventParticipants.eventId, eventId), eq(eventParticipants.userId, userId)))
+        .limit(1)
+      if (!participant?.rosterId) return null
+      const [roster] = await tx
+        .select()
+        .from(rosters)
+        .where(and(eq(rosters.id, participant.rosterId), eq(rosters.userId, userId)))
+        .limit(1)
+      if (!roster || roster.limit !== participant.limit) return null
+      const snapshot: EventRosterSnapshot = {
+        id: roster.id,
+        name: roster.name,
+        catalogueId: roster.catalogueId,
+        detachmentId: roster.detachmentId,
+        disposition: roster.disposition,
+        limit: roster.limit,
+        picks: roster.picks,
+        prep: roster.prep,
+        tags: roster.tags,
+        source: roster.source,
+        updatedAt: roster.updatedAt,
+      }
+      await tx
+        .update(eventParticipants)
+        .set({ snapshot: JSON.stringify(snapshot), sealedAt: now })
+        .where(and(eq(eventParticipants.eventId, eventId), eq(eventParticipants.userId, userId)))
+      const [waiting] = await tx
+        .select({ userId: eventParticipants.userId })
+        .from(eventParticipants)
+        .where(and(eq(eventParticipants.eventId, eventId), isNull(eventParticipants.sealedAt)))
+        .limit(1)
+      const revealed = !waiting
+      if (revealed) await tx.update(events).set({ revealedAt: now }).where(eq(events.id, eventId))
+      return { revealed }
+    })
   }
 
   async setRosterVisibility(id: string, userId: string, visibility: 'private' | 'unlisted', now: number) {

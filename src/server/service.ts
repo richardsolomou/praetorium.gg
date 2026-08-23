@@ -16,6 +16,7 @@ import { type BattleView, battleView } from '../core/battleView'
 import { battleReport } from '../core/battleReport'
 import type { RosterPick } from '../core/roster'
 import type { RosterSource } from '../core/savedRoster'
+import { eventView } from '../core/event'
 import type { BattleHistory, BattleSeats, JoinResult, Repository } from '../db/repository'
 import { type Mission, missionFor } from './rules'
 import { picksSchema, savedPrepSchema } from './schemas'
@@ -143,6 +144,35 @@ export class PraetoriumService {
       ...rosterFromRow(row),
       prep: row.prep ? savedPrepSchema.parse(JSON.parse(row.prep)) : null,
     }))
+  }
+
+  async createEvent(userId: string, name: string, participants: { userId: string; limit: number }[]) {
+    const ids = participants.map((participant) => participant.userId)
+    if (!ids.includes(userId) || new Set(ids).size !== ids.length) throw new Response('choose each participant once', { status: 400 })
+    const friends = new Set((await this.opponents(userId)).map((friend) => friend.id))
+    if (ids.some((id) => id !== userId && !friends.has(id))) throw new Response('event participants must be your friends', { status: 403 })
+    const id = randomId()
+    await this.repository.createEvent({ id, name, creatorId: userId, participants, now: this.clock() })
+    return { id }
+  }
+
+  async eventList(userId: string) {
+    return this.repository.eventsByUser(userId)
+  }
+
+  async event(id: string, userId: string) {
+    const found = await this.repository.event(id)
+    return found ? eventView(found.event, found.participants, userId) : null
+  }
+
+  async selectEventRoster(id: string, userId: string, rosterId: string) {
+    if (!(await this.repository.selectEventRoster(id, userId, rosterId))) throw new Response('choose one of your rosters', { status: 403 })
+  }
+
+  async sealEventRoster(id: string, userId: string) {
+    const result = await this.repository.sealEventRoster(id, userId, this.clock())
+    if (!result) throw new Response('choose a roster matching your assigned points', { status: 409 })
+    return result
   }
 
   /**

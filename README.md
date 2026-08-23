@@ -19,6 +19,7 @@ Praetorium supports private games between up to three friends. A game can be sol
 Players can:
 
 - Build, import, save, share, print, and export army lists.
+- Prepare private roster-reveal events with friends before deciding matchups.
 - Use faction, detachment, unit, loadout, enhancement, and points data from community catalogues.
 - Configure missions, deployment, terrain, formations, stratagems, and mission cards.
 - Track rounds, phases, command points, victory points, and unit state.
@@ -52,7 +53,7 @@ Run `just check` before you submit a change. Read [CONTRIBUTING.md](CONTRIBUTING
 
 ## Architecture
 
-- `src/core` contains the IO-free battle, catalogue, and roster domain.
+- `src/core` contains the IO-free battle, event, catalogue, and roster domain.
 - `src/db` contains the Postgres schema and Drizzle repository.
 - `src/server` contains authentication, application services, catalogue loading, and server functions.
 - `src/client` contains React components, hooks, and queries.

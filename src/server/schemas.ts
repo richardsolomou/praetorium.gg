@@ -26,6 +26,15 @@ export const createBattleSchema = z.object({
 export const deleteBattleSchema = z.object({ token })
 export const userSchema = z.object({ userId: id })
 export const friendSchema = z.object({ userId: id })
+export const eventIdSchema = z.object({ id })
+export const createEventSchema = z.object({
+  name: z.string().trim().min(1).max(80),
+  participants: z
+    .array(z.object({ userId: id, limit: rosterLimit.min(1) }))
+    .min(2)
+    .max(12),
+})
+export const selectEventRosterSchema = z.object({ id, rosterId: id })
 
 /**
  * `expectedSeq` is the client's claim about the history it has already seen.

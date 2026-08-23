@@ -122,6 +122,7 @@ Inspect the generated selection before changing evaluator logic. A mismatch can 
 - New saved lists are private. Making one unlisted lets anyone holding its opaque URL read it. Switching it back to private invalidates that public access without changing the URL.
 - Keep import provenance with the saved list so the library can distinguish an editable Praetorium roster, BattleBase and New Recruit text imports, and a `.ros` or `.rosz` file import.
 - Freeze `built.units` when a roster is attached. Battle commands refer to those stable unit keys.
+- Freeze the saved roster row when an event participant seals. Until then the event references the editable saved roster; after reveal the snapshot is the submitted artefact.
 - Import roster entries by catalogue ID. Resolve joined link paths from their final ID. Use a name match only as a fallback.
 - Report entries that cannot be imported instead of dropping them.
 - Use `fast-xml-parser` for roster XML and `fflate` for `.rosz` archives.

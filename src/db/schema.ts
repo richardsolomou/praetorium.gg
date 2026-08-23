@@ -206,6 +206,35 @@ export const rosters = pgTable(
   (table) => [index('rosters_user_id_created_at_index').on(table.userId, table.createdAt)],
 )
 
+/** A private roster-reveal pool whose participants decide pairings after reveal. */
+export const events = pgTable('events', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  creatorId: text('creator_id')
+    .notNull()
+    .references(() => user.id, { onDelete: 'cascade' }),
+  createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+  revealedAt: bigint('revealed_at', { mode: 'number' }),
+})
+
+export const eventParticipants = pgTable(
+  'event_participants',
+  {
+    eventId: text('event_id')
+      .notNull()
+      .references(() => events.id, { onDelete: 'cascade' }),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    limit: integer('limit').notNull(),
+    rosterId: text('roster_id').references(() => rosters.id, { onDelete: 'set null' }),
+    /** Frozen roster row JSON, written only when this participant seals. */
+    snapshot: text('snapshot'),
+    sealedAt: bigint('sealed_at', { mode: 'number' }),
+  },
+  (table) => [primaryKey({ columns: [table.eventId, table.userId] }), index('event_participants_user_id_index').on(table.userId)],
+)
+
 /**
  * The datasheets a player owns models for.
  *
@@ -262,6 +291,8 @@ export const schema = {
   rateLimit,
   battles,
   battleUsers,
+  events,
+  eventParticipants,
   friendships,
   commands,
   rosters,

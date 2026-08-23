@@ -15,6 +15,7 @@ ordinary clicks remain autocaptured.
 | Rosters    | `roster_created`, `roster_duplicated`, `roster_imported`, `roster_import_failed`, `roster_exported`, `roster_export_copied`, `roster_shared`, `roster_deleted`, `roster_visibility_updated`, `roster_unit_added`, `roster_unit_removed`, `roster_unit_duplicated`, `roster_attachment_updated` |
 | Navigation | `global_search_result_opened`                                                                                                                                                                                                                                                                  |
 | Battles    | `battle_created`, `battle_joined`, `battle_roster_attached`, `battle_started`, `battle_finished`, `battle_reopened`, `battle_deleted`, `battle_command_submitted`                                                                                                                              |
+| Events     | `event_created`, `event_roster_selected`, `event_roster_sealed`, `event_rosters_revealed`                                                                                                                                                                                                      |
 | Quality    | `roster_datasheet_loaded`, `roster_datasheet_rendered`, sampled `roster_priced`, `$exception`, and structured server error logs                                                                                                                                                                |
 
 `battle_command_submitted` contains the command kind and outcome. It does not contain the command payload. Datasheet metrics separate server work, request time, and render time. Performance events contain durations and workload counts only.
@@ -37,6 +38,7 @@ request metadata rather than request bodies or URLs containing opaque ids.
 ## Measuring success
 
 The core product funnel is account created → roster created or imported → battle
-created → roster attached → battle started → battle finished. Diagnose drop-off
+created → roster attached → battle started → battle finished. The event prototype
+adds event created → roster selected → roster sealed → all rosters revealed. Diagnose drop-off
 with command outcomes, exceptions, replay, and the sampled roster pricing and
 datasheet duration distributions.
