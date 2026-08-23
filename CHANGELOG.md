@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.21.9
+
+### Patch Changes
+
+- 892aab6: Stop the faction datasheets list from flickering on first load for signed-in players.
+
 ## 0.21.8
 
 ### Patch Changes
