@@ -17,7 +17,7 @@
     "format:check": "oxfmt --check .",
     "policy:sync": "ras policy sync",
     "policy:check": "ras policy check",
-    "check": "pnpm format:check && pnpm lint && pnpm policy:check && pnpm db:check && pnpm catalogue:check && pnpm build && pnpm typecheck && pnpm test && pnpm changeset status",
+    "check": "pnpm format:check && pnpm lint && pnpm policy:check && pnpm db:check && pnpm catalogue:check && pnpm build && pnpm typecheck && pnpm test && pnpm changeset status --since origin/main",
     "test": "vitest run",
     "changeset": "changeset",
     "version-packages": "changeset version",
