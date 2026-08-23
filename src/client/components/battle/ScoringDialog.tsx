@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import type { Command } from '../../../core/battle'
 import type { BattleView } from '../../../core/battleView'
 import { alternatives, awardLimit, awardTotal, conditionLabel, counted, type MissionAward, payoutLabel } from '../../missionText'
-import { cardsDue, cardsDueFromTheirTurn, type DueCard, finishesOnScore, scoredThisRound } from '../../scoring'
+import { capRoom, cardsDue, cardsDueFromTheirTurn, type DueCard, finishesOnScore, scoredThisRound, settleAgainstCaps } from '../../scoring'
 import { type Side, sideName } from '../../sides'
 import { RuleText } from '../RuleText'
 import { MissionName, type ReferenceCard } from './MissionCards'
@@ -22,17 +22,17 @@ type Props = {
   onCancel?: () => void
   /** What pressing through the prompt does next. */
   confirmLabel: string
-  /** What this side has already banked this round, before anything answered here. */
-  roundSoFar: { primary: number; secondary: number }
-  /** The matched-play ceilings this mission states, when it states any. */
-  caps: { primaryRound: number | null; primaryGame: number | null; secondaryRound: number | null; secondaryGame: number | null }
+  /**
+   * The battle round these points belong to. Not always the one being played: a turn
+   * that has already ended owes its points to the round that turn was in.
+   */
+  round: number
 }
-
-/** How much more a category can take before a stated ceiling refuses it. */
-type Room = { round: number | null; game: number | null }
 
 /** How many times each payout on a card was taken. Zero throughout is "did not score". */
 type Answers = Record<string, number[]>
+
+const CATEGORIES = ['primary', 'secondary'] as const
 
 /**
  * What each card asks, at the moment it asks it.
@@ -42,38 +42,68 @@ type Answers = Record<string, number[]>
  * groups the payouts that are tiers of one thing, and only the better tier scores.
  * Everything it leaves ungrouped a card can pay at the same time.
  */
-export function ScoringDialog({ side, due, moment, confirmLabel, pending, send, referenceFor, onDone, onCancel, roundSoFar, caps }: Props) {
+export function ScoringDialog({ side, due, moment, confirmLabel, pending, send, referenceFor, onDone, onCancel, round }: Props) {
   const [answers, setAnswers] = useState<Answers>({})
   const answerFor = (card: DueCard) => answers[card.key] ?? card.awards.map(() => 0)
-  const scoredFor = (card: DueCard) => card.awards.reduce((total, award, at) => total + awardTotal(award, answerFor(card)[at] ?? 0), 0)
-  const total = due.reduce((sum, card) => sum + scoredFor(card), 0)
+  const claimedFor = (card: DueCard) => card.awards.reduce((total, award, at) => total + awardTotal(award, answerFor(card)[at] ?? 0), 0)
 
-  // Room left under the mission's own ceilings, not each card's: two secondary cards
-  // due at once draw from the one shared pool, the same way the rules book counts it.
-  const roomFor = (category: 'primary' | 'secondary'): Room => {
-    const roundCap = category === 'primary' ? caps.primaryRound : caps.secondaryRound
-    const gameCap = category === 'primary' ? caps.primaryGame : caps.secondaryGame
-    const bankedRound = category === 'primary' ? roundSoFar.primary : roundSoFar.secondary
-    const bankedGame = category === 'primary' ? side.primary : side.secondary
-    const answeredSoFar = due.filter((card) => card.category === category).reduce((sum, card) => sum + scoredFor(card), 0)
-    return {
-      round: roundCap === null ? null : roundCap - bankedRound - answeredSoFar,
-      game: gameCap === null ? null : gameCap - bankedGame - answeredSoFar,
-    }
+  // Every ceiling is the one this side's own mission states, never the viewer's, and
+  // it belongs to the mission rather than to a card: two secondary cards due at once
+  // draw from the one shared pool, the same way the rules book counts it. Worked out
+  // once here, because every number below has to mean the same ceiling.
+  const roundSoFar = side.rounds[round - 1] ?? { primary: 0, secondary: 0 }
+  const room = {
+    primary: capRoom(
+      { round: side.mission?.roundCap ?? null, game: side.mission?.gameCap ?? null },
+      { round: roundSoFar.primary, game: side.primary },
+    ),
+    secondary: capRoom(
+      { round: side.mission?.secondaryRoundCap ?? null, game: side.mission?.secondaryGameCap ?? null },
+      { round: roundSoFar.secondary, game: side.secondary },
+    ),
   }
 
-  // The hard ceiling before anything answered here is added, so a card the board
-  // truthfully paid can still be marked achieved even once the mission stops
-  // paying more VP for it this round or this battle.
-  const totalRoomFor = (category: 'primary' | 'secondary') => {
-    const roundCap = category === 'primary' ? caps.primaryRound : caps.secondaryRound
-    const gameCap = category === 'primary' ? caps.primaryGame : caps.secondaryGame
-    const bankedRound = category === 'primary' ? roundSoFar.primary : roundSoFar.secondary
-    const bankedGame = category === 'primary' ? side.primary : side.secondary
-    const roundRoom = roundCap === null ? Infinity : roundCap - bankedRound
-    const gameRoom = gameCap === null ? Infinity : gameCap - bankedGame
-    return Math.max(0, Math.min(roundRoom, gameRoom))
-  }
+  // One calculation behind both what this shows and what it sends: a card the board
+  // truthfully paid is still claimed in full, and the excess simply does not add up.
+  const settled = settleAgainstCaps(
+    due.map((card) => ({ card, claimed: claimedFor(card) })),
+    { primary: room.primary?.room ?? Infinity, secondary: room.secondary?.room ?? Infinity },
+  )
+  const settledFor = (card: DueCard) => settled.find((entry) => entry.card.key === card.key) ?? { claimed: 0, scoring: 0 }
+  const total = settled.reduce((sum, entry) => sum + entry.scoring, 0)
+
+  // Only the categories this prompt can actually pay into, so a round cap is stated
+  // where it applies and nowhere else.
+  const asking = CATEGORIES.filter((category) => due.some((card) => card.category === category))
+
+  // Where the category stands against whichever ceiling is the one actually refusing
+  // more, because a player who can only bank 11 of the 13 the board paid should know
+  // that while choosing. It counts what is pressed here, so it fills as they press and
+  // stops at the number that stops them.
+  const allowances = asking.flatMap((category) => {
+    const limit = room[category]
+    if (!limit) return []
+    const banked = limit.scope === 'round' ? scoredThisRound(roundSoFar, category) : category === 'primary' ? side.primary : side.secondary
+    const scoring = settled.filter((entry) => entry.card.category === category).reduce((sum, entry) => sum + entry.scoring, 0)
+    return [
+      {
+        label: category === 'primary' ? 'Primary mission' : 'Secondary missions',
+        standing: banked + scoring,
+        cap: limit.cap,
+        when: limit.scope === 'round' ? 'this round' : 'this battle',
+      },
+    ]
+  })
+
+  // Said once for the category that is full, rather than under every payout it refuses.
+  const capNotes = asking.flatMap((category) => {
+    const limit = room[category]
+    const over = settled.filter((entry) => entry.card.category === category).reduce((sum, entry) => sum + entry.claimed - entry.scoring, 0)
+    if (!limit || !over) return []
+    const label = category === 'primary' ? 'primary mission' : 'secondary missions'
+    const whose = limit.scope === 'round' ? 'This round’s' : 'The battle’s'
+    return [`${whose} ${label} cap is ${limit.cap} VP, and ${limit.room} VP of it is left — the other ${over} VP does not score.`]
+  })
 
   const answer = (card: DueCard, at: number, times: number) =>
     setAnswers((current) => {
@@ -87,26 +117,19 @@ export function ScoringDialog({ side, due, moment, confirmLabel, pending, send, 
     })
 
   const confirm = () => {
-    // What the board paid is never refused, but a card cannot pay past the
-    // mission's own ceiling: the excess is claimed truthfully and simply
-    // does not add to the total, the same way the rules book counts it.
-    const roomLeft = { primary: totalRoomFor('primary'), secondary: totalRoomFor('secondary') }
     const finished: string[] = []
-    const scores = due.reduce<Extract<Command, { kind: 'score-settlement' }>['scores']>((settlement, card) => {
-      const raw = scoredFor(card)
-      if (!raw) return settlement
-      const delta = Math.min(raw, roomLeft[card.category])
-      roomLeft[card.category] -= delta
-      if (!delta) return settlement
-      if (finishesOnScore(card.category, side.secondaryMode, delta)) finished.push(card.key)
+    const scores = settled.reduce<Extract<Command, { kind: 'score-settlement' }>['scores']>((settlement, { card, scoring }) => {
+      if (!scoring) return settlement
+      const achieved = finishesOnScore(card.category, side.secondaryMode, scoring)
+      if (achieved) finished.push(card.key)
       settlement.push(
         card.category === 'primary'
-          ? { category: 'primary', delta }
-          : { category: 'secondary', key: card.key, delta, status: finished.includes(card.key) ? 'achieved' : undefined },
+          ? { category: 'primary', delta: scoring }
+          : { category: 'secondary', key: card.key, delta: scoring, status: achieved ? 'achieved' : undefined },
       )
       return settlement
     }, [])
-    if (scores.length) send({ kind: 'score-settlement', scores, playerId: side.captain.id })
+    if (scores.length) send({ kind: 'score-settlement', scores, round, playerId: side.captain.id })
     onDone(finished)
   }
 
@@ -121,14 +144,22 @@ export function ScoringDialog({ side, due, moment, confirmLabel, pending, send, 
           <DialogDescription className="text-dim">
             Recording points for {sideName(side)}. Press what the board actually paid on each card.
           </DialogDescription>
+          {allowances.length ? (
+            <p className="readout flex flex-wrap justify-center gap-x-3 gap-y-0.5 text-xs text-dim">
+              {allowances.map((allowance) => (
+                <span key={allowance.label}>
+                  {allowance.label} <span className="text-bone">{allowance.standing}</span>/{allowance.cap} {allowance.when}
+                </span>
+              ))}
+            </p>
+          ) : null}
         </DialogHeader>
 
         <div className="space-y-3">
           {due.map((card) => {
             const taken = answerFor(card)
-            const scored = scoredFor(card)
+            const { claimed, scoring } = settledFor(card)
             const reference = referenceFor(card.key)
-            const room = roomFor(card.category)
             return (
               <section key={card.key} data-due={card.key} className="border border-edge">
                 <div className="bg-sunken px-3 py-2">
@@ -138,8 +169,14 @@ export function ScoringDialog({ side, due, moment, confirmLabel, pending, send, 
                       card={reference}
                       type={card.category === 'primary' ? 'Primary mission' : 'Secondary mission'}
                     />
+                    {/* Which card the ceiling actually took from, so unpicking a payout
+                        elsewhere is a move the player can see is theirs to make. */}
                     <span className="readout shrink-0 text-xs text-dim">
-                      {scored ? `+${scored} VP` : `${scoredThisRound(roundSoFar, card.category)} so far`}
+                      {claimed > scoring
+                        ? `+${scoring} of ${claimed} VP`
+                        : claimed
+                          ? `+${scoring} VP`
+                          : `${scoredThisRound(roundSoFar, card.category)} VP so far`}
                     </span>
                   </div>
                 </div>
@@ -151,7 +188,6 @@ export function ScoringDialog({ side, due, moment, confirmLabel, pending, send, 
                       award={award}
                       tier={at > 0 && alternatives(award, card.awards[at - 1] ?? award)}
                       times={taken[at] ?? 0}
-                      room={room}
                       pending={pending}
                       onAnswer={(times) => answer(card, at, times)}
                     />
@@ -173,9 +209,18 @@ export function ScoringDialog({ side, due, moment, confirmLabel, pending, send, 
         </div>
 
         <DialogFooter className="flex-col items-stretch gap-2 rounded-none border-edge bg-sunken sm:flex-row sm:items-center">
-          <span className="readout mr-auto text-sm text-dim">
-            Scoring <span className="font-bold text-bone">{total}</span> VP
-          </span>
+          {/* The result of the calculation above it, so a reader who cannot watch the
+              number move is told when a cap has quietly taken a piece of it. */}
+          <output className="mr-auto block space-y-1">
+            <p className="readout text-sm text-dim">
+              Scoring <span className="font-bold text-bone">{total}</span> VP
+            </p>
+            {capNotes.map((note) => (
+              <p key={note} className="max-w-prose text-[0.625rem] text-discarded">
+                {note}
+              </p>
+            ))}
+          </output>
           {onCancel ? (
             <Button variant="outline" disabled={pending} onClick={onCancel}>
               Go back
@@ -196,7 +241,6 @@ function AwardRow({
   award,
   tier,
   times,
-  room,
   pending,
   onAnswer,
 }: {
@@ -205,21 +249,11 @@ function AwardRow({
   /** Another way the same thing pays, so it reads as an alternative to the row above. */
   tier: boolean
   times: number
-  room: Room
   pending: boolean
   onAnswer: (times: number) => void
 }) {
   const limit = awardLimit(award)
   const label = conditionLabel(award) ?? payoutLabel(award, card.awards)
-  const marginal = awardTotal(award, times + 1) - awardTotal(award, times)
-  const roundCapped = room.round !== null && marginal > room.round
-  const gameCapped = !roundCapped && room.game !== null && marginal > room.game
-  const missionWord = card.category === 'primary' ? 'primary mission' : 'secondary missions'
-  const capNote = roundCapped
-    ? `This round’s ${missionWord} cap is reached — the rest may still score next round.`
-    : gameCapped
-      ? `The battle’s ${missionWord} cap is reached.`
-      : null
 
   return (
     <div className="flex items-center gap-3 px-3 py-2">
@@ -232,7 +266,6 @@ function AwardRow({
             {award.vp} VP each{award.max === null ? '' : `, up to ${award.max} VP`}
           </span>
         ) : null}
-        {capNote ? <span className="mt-0.5 block text-[0.625rem] text-discarded">{capNote}</span> : null}
       </span>
       {counted(award) ? (
         <>

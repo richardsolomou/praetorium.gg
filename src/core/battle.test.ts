@@ -715,6 +715,103 @@ describe('the turn sequence', () => {
   })
 })
 
+describe('the round a settlement belongs to', () => {
+  /** Both turns of round one taken, so round two is waiting on what round one owed Alice. */
+  const boundary = () => log(...started(), ...turns(6, ALICE), ...turns(6, BOB))
+
+  it('waits on the round that the ended turn was in', () => {
+    const state = reduceBattle(PLAYERS, boundary())
+    expect({ round: state.round, pending: state.pendingSettlement }).toEqual({
+      round: 2,
+      pending: { playerId: ALICE, round: 1 },
+    })
+  })
+
+  it('banks what the previous turn owed against that round, not the one now being played', () => {
+    const history = boundary()
+    const state = reduceBattle(PLAYERS, [
+      ...history,
+      {
+        seq: history.length + 1,
+        by: ALICE,
+        at: history.length,
+        command: { kind: 'score-settlement', round: 1, scores: [{ category: 'primary', delta: 7 }] },
+      },
+    ])
+    const alice = state.players.find((player) => player.id === ALICE)
+
+    expect(alice?.primary).toBe(7)
+    expect(alice?.primaryByRound.slice(0, 2)).toEqual([7, 0])
+  })
+
+  it('keeps a named secondary in the round its turn was in', () => {
+    const history = log(
+      [ALICE, roster('Ultramarines')],
+      [BOB, roster('Death Guard')],
+      [
+        ALICE,
+        {
+          kind: 'set-prep',
+          stratagems: [],
+          secondaries: [{ key: 'beacon', name: 'Establish Locus' }],
+          primary: null,
+          secondaryMode: 'fixed',
+        },
+      ],
+      [ALICE, { kind: 'begin-battle', firstPlayerId: ALICE }],
+      ...turns(6, ALICE),
+      ...turns(6, BOB),
+    )
+    const state = reduceBattle(PLAYERS, [
+      ...history,
+      {
+        seq: history.length + 1,
+        by: ALICE,
+        at: history.length,
+        command: { kind: 'score-settlement', round: 1, scores: [{ category: 'secondary', key: 'beacon', delta: 4 }] },
+      },
+    ])
+    const alice = state.players.find((player) => player.id === ALICE)
+
+    expect(alice?.secondaryByRound.slice(0, 2)).toEqual([4, 0])
+    expect(alice?.scoredByRound.beacon?.slice(0, 2)).toEqual([4, 0])
+  })
+
+  it('leaves a log written before the round was named folding into the round being played', () => {
+    const history = boundary()
+    const state = reduceBattle(PLAYERS, [
+      ...history,
+      {
+        seq: history.length + 1,
+        by: ALICE,
+        at: history.length,
+        command: { kind: 'score-settlement', scores: [{ category: 'primary', delta: 7 }] },
+      },
+    ])
+
+    expect(state.players.find((player) => player.id === ALICE)?.primaryByRound.slice(0, 2)).toEqual([0, 7])
+  })
+
+  it('refuses a round that is not the turn waiting to be settled', () => {
+    const state = reduceBattle(PLAYERS, boundary())
+    expect(validate(state, ALICE, { kind: 'score-settlement', round: 3, scores: [{ category: 'primary', delta: 7 }] })).toBe(
+      'that is not the turn waiting to be settled',
+    )
+  })
+
+  it('refuses a round named by the side the settlement is not waiting on', () => {
+    const state = reduceBattle(PLAYERS, boundary())
+    expect(validate(state, BOB, { kind: 'score-settlement', round: 1, scores: [{ category: 'primary', delta: 7 }] })).toBe(
+      'that is not the turn waiting to be settled',
+    )
+  })
+
+  it('takes the round being played without a settlement waiting', () => {
+    const state = reduceBattle(PLAYERS, log(...started()))
+    expect(validate(state, ALICE, { kind: 'score-settlement', round: 1, scores: [{ category: 'primary', delta: 7 }] })).toBeNull()
+  })
+})
+
 describe('command points', () => {
   it('refuses score corrections before play begins', () => {
     const state = reduceBattle(PLAYERS, log())

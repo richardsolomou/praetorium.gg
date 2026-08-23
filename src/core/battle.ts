@@ -261,6 +261,13 @@ export type Command =
   | ({
       kind: 'score-settlement'
       scores: ({ category: 'primary'; delta: number } | { category: 'secondary'; key: string; delta: number; status?: 'achieved' })[]
+      /**
+       * The battle round these points belong to, when a turn that has already ended
+       * owed them. Absent means the round being played, which is what the settlement
+       * of the current turn always means and what every log written before this
+       * field existed meant.
+       */
+      round?: number
     } & OnBehalfOf)
   | ({ kind: 'set-secondary-status'; key: string; status: SecondaryStatus } & OnBehalfOf)
   | { kind: 'draw-secondary'; secondary: Secondary }
@@ -697,6 +704,14 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
     case 'score-settlement': {
       if (state.status !== 'playing') return 'the battle is not running'
       if (!command.scores.length) return 'record at least one score'
+      // Naming a round is only ever answering the turn that is waiting to be settled.
+      // Anything else is a second way to say which round a score belongs to.
+      if (command.round !== undefined && command.round !== state.round) {
+        const pending = state.pendingSettlement
+        if (!pending || pending.playerId !== player.id || pending.round !== command.round) {
+          return 'that is not the turn waiting to be settled'
+        }
+      }
       const keys = new Set<string>()
       for (const score of command.scores) {
         if (!Number.isInteger(score.delta) || score.delta <= 0) return 'victory points move in positive whole steps'
@@ -905,13 +920,16 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
       return
     }
     case 'score-settlement': {
+      // A payout the previous turn owed belongs to the round that turn was in, which
+      // the second player passing the turn has already moved the battle out of.
+      const round = command.round ?? state.round
       for (const score of command.scores) {
         if (score.category === 'primary') {
           player.primary += score.delta
-          player.primaryByRound[state.round - 1] = (player.primaryByRound[state.round - 1] ?? 0) + score.delta
+          player.primaryByRound[round - 1] = (player.primaryByRound[round - 1] ?? 0) + score.delta
           continue
         }
-        applySecondaryScore(player, score.key, score.delta, state.round)
+        applySecondaryScore(player, score.key, score.delta, round)
         if (score.status) {
           player.secondaryStatus = { ...player.secondaryStatus, [score.key]: score.status }
           if (score.key === player.secretSecondary) player.secretRevealed = true

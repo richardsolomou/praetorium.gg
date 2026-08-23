@@ -5,7 +5,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { deleteBattle } from '../../server/functions'
 import { battleQuery, battlesQuery, deploymentsQuery, detachmentRulesQuery, gameReferencesQuery } from '../queries'
 import { errorMessage } from '../queryClient'
-import { type Side, sideName, sides } from '../sides'
+import { type Side, type SideMission, sideName, sides } from '../sides'
 import type { Command } from '../../core/battle'
 import type { BattleView } from '../../core/battleView'
 import type { PresentPlayer } from '../useLiveBattle'
@@ -23,15 +23,8 @@ import { Report, type ReportPlayer } from './Report'
 
 type Props = {
   view: BattleView
-  /** Derived from both armies' dispositions, so it is the same on both devices. */
-  mission: {
-    id: string
-    name: string
-    roundCap: number | null
-    gameCap: number | null
-    secondaryRoundCap: number | null
-    secondaryGameCap: number | null
-  } | null
+  /** Each side's own mission, derived from both armies' dispositions, so it is the same on both devices. */
+  missions: { side: number; mission: SideMission | null }[]
   present: PresentPlayer[]
   send: (command: Command) => void
   pending: boolean
@@ -51,7 +44,7 @@ type DiscardContext = Pick<BattleView, 'round' | 'phase' | 'activePlayerId'> & {
  * allied pair is one side, because the rules make it one: they share the turn, the
  * command points, the cards and the score, and only the armies are separate.
  */
-export function Tracker({ view, mission, present, send, pending, problem }: Props) {
+export function Tracker({ view, missions, present, send, pending, problem }: Props) {
   const [focus, setFocus] = useState<Focus>('yours')
   const [scoring, setScoring] = useState<ScoringContext | null>(null)
   const [discarding, setDiscarding] = useState<DiscardContext | null>(null)
@@ -62,7 +55,7 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
   const [drawTurn, setDrawTurn] = useState<string | null>(null)
   const [drawnForTurns, setDrawnForTurns] = useState<ReadonlySet<string>>(new Set())
   const [drawPaused, setDrawPaused] = useState(false)
-  const table = sides(view)
+  const table = sides(view, missions)
   const yours = table.find((side) => side.isViewer)
   const active = table.find((side) => side.isActive)
   const ruleRequests = table.flatMap((side) =>
@@ -120,15 +113,12 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
   }))
   const finished = view.status === 'finished'
   const solo = table.length < 2
-  // The viewer's primary can use a lower ceiling than the conventional one.
-  const guides = { primary: mission?.gameCap ?? view.guides.primary, secondary: mission?.secondaryGameCap ?? view.guides.secondary }
-  // Never guessed: a ceiling only refuses a score when the mission itself states it.
-  const caps = {
-    primaryRound: mission?.roundCap ?? null,
-    primaryGame: mission?.gameCap ?? null,
-    secondaryRound: mission?.secondaryRoundCap ?? null,
-    secondaryGame: mission?.secondaryGameCap ?? null,
-  }
+  // A side's own mission can state a lower ceiling than the conventional one, and the
+  // two sides need not be playing the same mission, so this is asked of each side.
+  const guidesFor = (side: Side) => ({
+    primary: side.mission?.gameCap ?? view.guides.primary,
+    secondary: side.mission?.secondaryGameCap ?? view.guides.secondary,
+  })
   /** Which panel a narrow screen is showing, in the order the columns sit on a wide one. */
   const shown = (side: Side) => (side.isViewer ? 'yours' : 'theirs')
 
@@ -256,7 +246,7 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
             awardsFor={awardsFor}
             referenceFor={referenceFor}
             writtenFor={writtenFor}
-            guides={guides}
+            guides={guidesFor(side)}
             className={`${focus === shown(side) ? '' : 'hidden lg:block'} ${side.index === 0 ? 'lg:col-start-1' : 'lg:col-start-3'} lg:row-start-1`}
           />
         ))}
@@ -286,7 +276,7 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
             ) : null}
 
             <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
-              <Fact label="Mission" value={mission?.name ?? 'Matched play'} />
+              <Fact label="Mission" value={yours?.mission?.name ?? 'Matched play'} />
               <Fact label="Mission pack" value={missionPack?.name ?? 'Not chosen'} />
               <Fact
                 label="Battlefield"
@@ -317,8 +307,7 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
           pending={pending}
           send={send}
           referenceFor={(key) => referenceFor(active, key)}
-          roundSoFar={active.rounds[view.round - 1] ?? { primary: 0, secondary: 0 }}
-          caps={caps}
+          round={view.round}
           onCancel={() => setScoring(null)}
           onDone={(completedSecondaryKeys) => {
             setScoring(null)
@@ -339,8 +328,7 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
           pending={pending}
           send={send}
           referenceFor={(key) => referenceFor(settlementSide, key)}
-          roundSoFar={settlementSide.rounds[(settlementRound ?? view.round) - 1] ?? { primary: 0, secondary: 0 }}
-          caps={caps}
+          round={settlementRound ?? view.round}
           onDone={() => send({ kind: 'settle-opponent-turn' })}
         />
       ) : null}

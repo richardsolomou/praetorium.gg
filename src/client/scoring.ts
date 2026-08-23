@@ -150,3 +150,43 @@ export function turnPrompt(owed: number, drawing: boolean): 'owed' | 'draw' | nu
   if (owed > 0) return 'owed'
   return drawing ? 'draw' : null
 }
+
+/** A ceiling the mission states, which one it is, and how much of it is left. */
+export type CapRoom = { scope: 'round' | 'battle'; cap: number; room: number }
+
+/**
+ * The tighter of the two ceilings a category is still under, or null when there is none.
+ *
+ * Never guessed: a ceiling only refuses a score when the mission itself states it, and
+ * a round that is equally tight as the battle is reported as the round, because that
+ * one is the one the player can do something about next round.
+ */
+export function capRoom(caps: { round: number | null; game: number | null }, banked: { round: number; game: number }): CapRoom | null {
+  const stated: CapRoom[] = []
+  if (caps.round !== null) stated.push({ scope: 'round', cap: caps.round, room: Math.max(0, caps.round - banked.round) })
+  if (caps.game !== null) stated.push({ scope: 'battle', cap: caps.game, room: Math.max(0, caps.game - banked.game) })
+  return stated.reduce<CapRoom | null>((tightest, entry) => (tightest && tightest.room <= entry.room ? tightest : entry), null)
+}
+
+/**
+ * What a settlement actually banks once those ceilings have taken their cut.
+ *
+ * The allowance belongs to the mission, not to a card: two secondaries due at once draw
+ * from the one shared pool. What the board paid is still claimed in full — the excess
+ * simply does not add to the total, the same way the rules book counts it.
+ *
+ * A pool too small for every claim is spent in the order the cards are given, which is
+ * the order the player is reading them in. Nothing in the rules picks a winner here, so
+ * the one thing this must not do is pick one the player cannot see.
+ */
+export function settleAgainstCaps<T extends { category: 'primary' | 'secondary' }>(
+  claims: readonly { card: T; claimed: number }[],
+  room: { primary: number; secondary: number },
+): { card: T; claimed: number; scoring: number }[] {
+  const left = { ...room }
+  return claims.map(({ card, claimed }) => {
+    const scoring = Math.max(0, Math.min(claimed, left[card.category]))
+    left[card.category] -= scoring
+    return { card, claimed, scoring }
+  })
+}

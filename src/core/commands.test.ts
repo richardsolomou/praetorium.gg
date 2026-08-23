@@ -92,3 +92,24 @@ describe('command schema', () => {
     ).toBe(false)
   })
 })
+
+describe('the round a settlement names', () => {
+  const settlement = (round?: number) => ({
+    kind: 'score-settlement' as const,
+    scores: [{ category: 'primary' as const, delta: 3 }],
+    ...(round === undefined ? {} : { round }),
+  })
+
+  it('carries a named battle round across the wire', () => {
+    expect(commandSchema.parse(settlement(1))).toMatchObject({ round: 1 })
+  })
+
+  it('leaves a settlement that names none without one', () => {
+    expect(commandSchema.parse(settlement())).not.toHaveProperty('round')
+  })
+
+  it('refuses a round outside the battle', () => {
+    expect(commandSchema.safeParse(settlement(0)).success).toBe(false)
+    expect(commandSchema.safeParse(settlement(6)).success).toBe(false)
+  })
+})

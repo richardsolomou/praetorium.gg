@@ -293,6 +293,9 @@ test('a card names its own condition, and what their turn owed is asked as the t
   for (let phase = 0; phase < 5; phase += 1) await advance(alice)
   await advanceButton(alice).click()
   const scoring = alice.getByRole('dialog', { name: /^Scoring end of turn points/ })
+  // What the round still allows is stated while the player is choosing, not only once
+  // a cap has already eaten something.
+  await expect(scoring).toContainText(/Secondary missions 0\/15 this round/)
   const outflank = scoring.locator('[data-due="outflank"]')
   // Two tiers of one thing rather than two payouts, each asking in the mission pack's own words.
   await expect(outflank).toContainText('or')
@@ -313,6 +316,9 @@ test('a card names its own condition, and what their turn owed is asked as the t
   await expect(refereeing).toBeVisible()
   await expect(refereeing).toContainText(aliceName)
   await expect(owed.locator('[data-due="assassination"]')).toContainText('For each enemy CHARACTER model destroyed this turn.')
+  // The allowance belongs to the round the ended turn was in, which the battle has
+  // already moved out of, so it still reads as untouched rather than as the new round's.
+  await expect(owed).toContainText(/Secondary missions 0\/15 this round/)
   await refereeing.getByRole('button', { name: 'Take the turn' }).click()
   await expect(owed).toBeHidden()
 })

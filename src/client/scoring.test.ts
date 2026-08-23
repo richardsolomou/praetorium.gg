@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { MissionAward } from './missionText'
 import {
   type AwardTrigger,
+  capRoom,
   cardsDue,
   cardsDueFromTheirTurn,
   dueNow,
@@ -9,6 +10,7 @@ import {
   momentsPassed,
   nextDraw,
   scoredThisRound,
+  settleAgainstCaps,
   turnPrompt,
 } from './scoring'
 
@@ -256,5 +258,82 @@ describe('what a turn opens with', () => {
 
   it('opens with nothing when neither is waiting', () => {
     expect(turnPrompt(0, false)).toBeNull()
+  })
+})
+
+describe('capRoom', () => {
+  it('leaves a category alone when the mission states no ceiling', () => {
+    expect(capRoom({ round: null, game: null }, { round: 4, game: 20 })).toBeNull()
+  })
+
+  it('reports the round ceiling and what is left of it', () => {
+    expect(capRoom({ round: 15, game: 50 }, { round: 4, game: 20 })).toEqual({ scope: 'round', cap: 15, room: 11 })
+  })
+
+  it('reports the battle ceiling when that is the tighter one', () => {
+    expect(capRoom({ round: 15, game: 50 }, { round: 0, game: 45 })).toEqual({ scope: 'battle', cap: 50, room: 5 })
+  })
+
+  it('names the round when both are equally tight, since that one comes back next round', () => {
+    expect(capRoom({ round: 15, game: 50 }, { round: 10, game: 45 })).toEqual({ scope: 'round', cap: 15, room: 5 })
+  })
+
+  it('never reports negative room for a ceiling already passed', () => {
+    expect(capRoom({ round: 15, game: null }, { round: 18, game: 0 })).toEqual({ scope: 'round', cap: 15, room: 0 })
+  })
+})
+
+describe('settleAgainstCaps', () => {
+  type Card = { key: string; category: 'primary' | 'secondary' }
+  const primary: Card = { key: 'p', category: 'primary' }
+  const first: Card = { key: 'a', category: 'secondary' }
+  const second: Card = { key: 'b', category: 'secondary' }
+
+  it('banks everything claimed when there is room for it', () => {
+    expect(settleAgainstCaps([{ card: primary, claimed: 10 }], { primary: 15, secondary: 15 })).toEqual([
+      { card: primary, claimed: 10, scoring: 10 },
+    ])
+  })
+
+  it('claims what the board paid but only banks what fits', () => {
+    expect(settleAgainstCaps([{ card: primary, claimed: 13 }], { primary: 11, secondary: 15 })).toEqual([
+      { card: primary, claimed: 13, scoring: 11 },
+    ])
+  })
+
+  it('draws both cards of a category from the one shared pool', () => {
+    expect(
+      settleAgainstCaps(
+        [
+          { card: first, claimed: 8 },
+          { card: second, claimed: 8 },
+        ],
+        { primary: 15, secondary: 10 },
+      ),
+    ).toEqual([
+      { card: first, claimed: 8, scoring: 8 },
+      { card: second, claimed: 8, scoring: 2 },
+    ])
+  })
+
+  it('keeps one category out of the other’s pool', () => {
+    expect(
+      settleAgainstCaps(
+        [
+          { card: primary, claimed: 5 },
+          { card: first, claimed: 5 },
+        ],
+        { primary: 0, secondary: 15 },
+      ),
+    ).toEqual([
+      { card: primary, claimed: 5, scoring: 0 },
+      { card: first, claimed: 5, scoring: 5 },
+    ])
+  })
+})
+
+describe('the ceiling an allowance reports', () => {
+  it('names the battle when a full round allowance is not the thing refusing more', () => {
+    expect(capRoom({ round: 15, game: 45 }, { round: 0, game: 44 })).toEqual({ scope: 'battle', cap: 45, room: 1 })
   })
 })
