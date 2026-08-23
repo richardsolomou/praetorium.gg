@@ -207,6 +207,7 @@ export function WeaponProfile({
 const ABILITY_SECTIONS = [
   { kind: 'core', title: 'Core abilities' },
   { kind: 'faction', title: 'Faction abilities' },
+  { kind: 'inherited', title: 'Inherited abilities' },
   { kind: 'datasheet', title: 'Datasheet abilities' },
   { kind: 'rule', title: 'Rules' },
   { kind: 'wargear', title: 'Wargear abilities' },
@@ -216,7 +217,7 @@ function AbilitySummary({ abilities, rules }: { abilities: Datasheet['abilities'
   return ABILITY_SECTIONS.map(({ kind, title }) => {
     const found = abilities.filter((ability) => ability.kind === kind)
     if (!found.length) return null
-    if (kind === 'core' || kind === 'faction') {
+    if (kind === 'core' || kind === 'faction' || kind === 'inherited') {
       const described = [
         ...found.flatMap((ability) => (ability.description ? [{ name: ability.name, description: ability.description }] : [])),
         ...rules,
@@ -228,7 +229,18 @@ function AbilitySummary({ abilities, rules }: { abilities: Datasheet['abilities'
           </h2>
           <div className="mt-2 flex flex-wrap gap-1">
             {found.map((ability) => (
-              <Keyword key={ability.id} name={ability.name} rules={described} className={KEYWORD_TAG_CLASS} />
+              <Keyword
+                key={ability.id}
+                name={ability.name}
+                rules={described}
+                className={
+                  ability.source
+                    ? 'chip inline-flex min-h-6 items-center justify-center border-info/50 bg-info/10 py-0.5 leading-none !text-info hover:!text-bone'
+                    : KEYWORD_TAG_CLASS
+                }
+                note={ability.source ? `Added by ${ability.source}` : undefined}
+                highlightNote={false}
+              />
             ))}
           </div>
         </section>

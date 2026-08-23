@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { datasheetIn } from './catalogue'
 import { bookOf, profileOperationCases } from './catalogue.fixtures'
+import { describeDatasheetAbilities } from './datasheetDescriptions'
 
 describe('the profile modifiers on a datasheet', () => {
   it('applies profile modifiers from the selected detachment and preserves their source', () => {
@@ -460,6 +461,127 @@ describe('the profile modifiers on a datasheet', () => {
       { name: 'Keywords', value: 'Lethal Hits', baseValue: '', modifiers: ['Tactical Instinct'] },
     ])
     expect(keywords('veterans', 1, [])).toEqual([])
+  })
+
+  it('shows named abilities inherited from enhancements and attached units', () => {
+    const grantedAbility = (id: string, name: string, description: string) => ({
+      id,
+      name,
+      typeName: 'Abilities',
+      characteristics: [{ name: 'Description', $text: description }],
+    })
+    const book = bookOf({
+      sharedRules: [{ id: 'feel-no-pain', name: 'Feel No Pain', description: 'Roll when a model would lose a wound.' }],
+      categoryEntries: [{ id: 'character', name: 'Character' }],
+      selectionEntries: [
+        {
+          id: 'captain',
+          name: 'Captain',
+          type: 'model',
+          categoryLinks: [{ id: 'character-link', targetId: 'character', name: 'Character' }],
+          profiles: [
+            grantedAbility(
+              'shadow-training',
+              'Shadow Training',
+              'While this model is leading a unit, models in that unit have the [STEALTH] ability.',
+            ),
+          ],
+          selectionEntries: [
+            {
+              id: 'enduring-will',
+              name: 'Enduring Will',
+              type: 'upgrade',
+              profiles: [grantedAbility('enduring-will-rule', 'Enduring Will', 'The bearer has the Feel No Pain 5+ ability.')],
+            },
+          ],
+        },
+        {
+          id: 'veterans',
+          name: 'Veterans',
+          type: 'unit',
+          profiles: [
+            grantedAbility(
+              'silent-bodyguard',
+              'Silent Bodyguard',
+              'While a ^^**Character^^** model is leading this unit, that ^^**Character^^** model has the Feel No Pain 4+ ability.',
+            ),
+          ],
+        },
+        {
+          id: 'armoured-captain',
+          name: 'Armoured Captain',
+          type: 'model',
+          selectionEntries: [
+            {
+              id: 'artificer-armour',
+              name: 'Artificer Armour',
+              type: 'upgrade',
+              profiles: [
+                grantedAbility(
+                  'artificer-armour-rule',
+                  'Artificer Armour',
+                  '**^^Adeptus Astartes^^** model only. The bearer has a Save characteristic of 2+ and the Feel No Pain 6+ ability.',
+                ),
+              ],
+              infoLinks: [
+                {
+                  id: 'artificer-feel-no-pain',
+                  targetId: 'feel-no-pain',
+                  name: 'Feel No Pain',
+                  type: 'rule',
+                  modifiers: [{ type: 'append', field: 'name', value: '5+', join: ' ' }],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    })
+    const captain = { id: 'captain', selections: [{ id: 'enduring-will' }] }
+    const selections = [captain, { id: 'veterans' }]
+
+    const veterans = datasheetIn(book, 'cat', 'veterans', { selections, unitSelectionIndex: 1, companions: [0] })?.abilities
+    expect(veterans).toContainEqual({
+      id: 'inherited:shadow-training',
+      name: 'Stealth',
+      source: 'Shadow Training',
+      description: null,
+      kind: 'inherited',
+    })
+    expect(veterans).not.toContainEqual(expect.objectContaining({ name: 'Feel No Pain 4+', kind: 'core' }))
+    expect(datasheetIn(book, 'cat', 'captain', { selections: [captain], unitSelectionIndex: 0 })?.abilities).toContainEqual({
+      id: 'inherited:enduring-will-rule',
+      name: 'Feel No Pain 5+',
+      source: 'Enduring Will',
+      description: null,
+      kind: 'core',
+    })
+    expect(datasheetIn(book, 'cat', 'captain', { selections, unitSelectionIndex: 0, companions: [1] })?.abilities).toContainEqual({
+      id: 'inherited:silent-bodyguard',
+      name: 'Feel No Pain 4+',
+      source: 'Silent Bodyguard',
+      description: null,
+      kind: 'core',
+    })
+    expect(
+      describeDatasheetAbilities(book, 'cat', datasheetIn(book, 'cat', 'captain', { selections: [captain], unitSelectionIndex: 0 }), null)
+        ?.keywordRules,
+    ).toContainEqual({ name: 'Feel No Pain', description: 'Roll when a model would lose a wound.' })
+    expect(datasheetIn(book, 'cat', 'captain', { selections: [captain], unitSelectionIndex: 0 })?.abilities).not.toContainEqual(
+      expect.objectContaining({ name: 'Stealth', kind: 'inherited' }),
+    )
+    expect(
+      datasheetIn(book, 'cat', 'armoured-captain', {
+        selections: [{ id: 'armoured-captain', selections: [{ id: 'artificer-armour' }] }],
+        unitSelectionIndex: 0,
+      })?.abilities,
+    ).toContainEqual({
+      id: 'inherited:artificer-armour-rule',
+      name: 'Feel No Pain 5+',
+      source: 'Artificer Armour',
+      description: null,
+      kind: 'core',
+    })
   })
 
   it('shows an invulnerable save set by selected wargear on a blank characteristic', () => {

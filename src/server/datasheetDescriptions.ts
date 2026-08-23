@@ -46,6 +46,10 @@ export function describeDatasheetAbilities(
           loaded,
           abilities.map((ability) => ability.description),
         ),
+        ...rulesNamed(
+          loaded,
+          abilities.filter((ability) => ability.source).map((ability) => ability.name),
+        ),
         ...rulesNamed(loaded, weaponKeywords(sheet.profiles)),
       ],
       sheet.keywordRules,
