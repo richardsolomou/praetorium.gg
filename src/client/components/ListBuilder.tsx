@@ -1,12 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { Check, CircleHelp, Crown, Download, EllipsisVertical, Pencil, SlidersHorizontal, TriangleAlert } from 'lucide-react'
+import { Check, Crown, Download, EllipsisVertical, Pencil, SlidersHorizontal, TriangleAlert } from 'lucide-react'
 import posthog from 'posthog-js'
 import { useEffect, useLayoutEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Toggle } from '@/components/ui/toggle'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import type { Secondary, Stratagem } from '../../core/battle'
 import { GAME_SIZES, ROSTER_NAME_MAX_LENGTH } from '../../core/battle'
@@ -31,7 +32,6 @@ import { RosterSetupDialog, type RosterSetup } from './RosterSetupDialog'
 import { RosterExportDialog } from './RosterExportDialog'
 import { readWorkspaceState, writeWorkspaceState } from './workspaceState'
 import { FactionLabel } from './FactionMark'
-import { HoverTooltip } from './HoverTooltip'
 
 type Props = {
   /** What the player has written down, so a saved list carries it and restores it. */
@@ -372,37 +372,6 @@ export function ListBuilder({ prep, initial, editable = true, battle, resolvePer
             <span className="ml-auto flex shrink-0 items-center gap-1 max-sm:basis-full max-sm:justify-end" data-print-hide>
               {editable ? (
                 <>
-                  <ToggleGroup
-                    value={[readOnly ? 'view' : 'build']}
-                    onValueChange={(value) => {
-                      if (value[0] === 'view' || value[0] === 'build') setReadOnlyMode(value[0] === 'view')
-                    }}
-                    variant="outline"
-                    size="sm"
-                    spacing={0}
-                    aria-label="Roster mode"
-                  >
-                    <ToggleGroupItem
-                      value="build"
-                      className="border-primary/60 text-primary aria-pressed:bg-primary aria-pressed:text-primary-foreground"
-                    >
-                      Build
-                    </ToggleGroupItem>
-                    <ToggleGroupItem
-                      value="view"
-                      className="border-primary/60 text-primary aria-pressed:bg-primary aria-pressed:text-primary-foreground"
-                    >
-                      View
-                    </ToggleGroupItem>
-                  </ToggleGroup>
-                  <HoverTooltip
-                    title="Roster mode"
-                    body="Build shows every option. View shows only what’s in your roster."
-                    label="About roster modes"
-                    className="size-7 text-primary hover:text-bone"
-                  >
-                    <CircleHelp className="size-3.5" aria-hidden />
-                  </HoverTooltip>
                   <DropdownMenu>
                     <DropdownMenuTrigger aria-label="Roster actions" className="grid h-7 w-10 place-items-center hover:text-bone">
                       <EllipsisVertical className="size-4" />
@@ -418,6 +387,45 @@ export function ListBuilder({ prep, initial, editable = true, battle, resolvePer
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
+                  <ToggleGroup
+                    value={[readOnly ? 'view' : 'build']}
+                    onValueChange={(value) => {
+                      if (value[0] === 'view' || value[0] === 'build') setReadOnlyMode(value[0] === 'view')
+                    }}
+                    variant="outline"
+                    size="sm"
+                    spacing={0}
+                    aria-label="Roster mode"
+                  >
+                    <Tooltip>
+                      <TooltipTrigger
+                        closeOnClick={false}
+                        render={
+                          <ToggleGroupItem
+                            value="build"
+                            className="border-primary/60 text-primary aria-pressed:bg-primary aria-pressed:text-primary-foreground"
+                          />
+                        }
+                      >
+                        Build
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom">Edit your roster and show every option.</TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger
+                        closeOnClick={false}
+                        render={
+                          <ToggleGroupItem
+                            value="view"
+                            className="border-primary/60 text-primary aria-pressed:bg-primary aria-pressed:text-primary-foreground"
+                          />
+                        }
+                      >
+                        View
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom">Show only what’s in your roster.</TooltipContent>
+                    </Tooltip>
+                  </ToggleGroup>
                 </>
               ) : null}
             </span>
