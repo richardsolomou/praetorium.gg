@@ -28,12 +28,12 @@ export function FactionDatasheet() {
 
   return (
     <main className="w-full">
-      <header className="relative overflow-hidden border-b border-edge bg-panel">
+      <header
+        className="relative overflow-hidden border-t-[3px] border-b border-edge bg-panel"
+        style={{ borderTopColor: factionColour(faction.slug) }}
+      >
         <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,transparent_35%,color-mix(in_srgb,var(--color-parchment)_8%,transparent),transparent_75%)]" />
-        <div
-          className="relative mx-auto flex max-w-5xl items-start gap-3 border-l-[3px] px-3 py-5 sm:px-4 sm:py-7"
-          style={{ borderLeftColor: factionColour(faction.slug) }}
-        >
+        <div className="relative mx-auto flex max-w-5xl items-start gap-3 px-3 pt-[17px] pb-5 sm:px-4 sm:pt-[25px] sm:pb-7">
           <FactionMark id={faction.slug} icon={faction.icon} />
           <div className="min-w-0 flex-1">
             <p className="eyebrow text-parchment">{faction.displayName} · Datasheet</p>
