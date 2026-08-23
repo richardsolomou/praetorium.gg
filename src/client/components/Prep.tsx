@@ -7,12 +7,12 @@ import type { Command, Secondary, SecondaryMode } from '../../core/battle'
 import type { BattleView } from '../../core/battleView'
 import { isKotcLimit, SECONDARIES_MAX, SECONDARY_MODES, STRATAGEMS_MAX } from '../../core/battle'
 import { detachmentRulesQuery } from '../queries'
-import { sides } from '../sides'
+import type { Side } from '../sides'
 
-type Props = { view: BattleView; missionId: string | null; send: (command: Command) => void; pending: boolean }
+type Props = { view: BattleView; side: Side; missionId: string | null; send: (command: Command) => void; pending: boolean }
 
 /**
- * The one card decision a player actually makes: how their secondaries are drawn.
+ * The one card decision a side actually makes: how its secondaries are drawn.
  *
  * Everything else follows from what is already on the table. The stratagems are the
  * detachment's plus the core ones every army has, and the primary comes from this
@@ -21,13 +21,13 @@ type Props = { view: BattleView; missionId: string | null; send: (command: Comma
  * These belong to the side, not the seat, so only the seat the domain folds a side's
  * resources onto writes them. Letting both allies record their own detachment's
  * stratagems into one pool left the survivor down to whichever request landed last.
+ * A practice opponent's side has no seat that could write them, so the table facing
+ * it does — the same rule, asked of who is actually playing the side.
  */
-export function Prep({ view, missionId, send, pending }: Props) {
-  const yourSide = sides(view).find((side) => side.isViewer)
-  const captain = yourSide?.captain
-  const writes = captain?.id === view.viewerId
-  const you = view.players.find((player) => player.isViewer)
-  const built = you?.roster?.built
+export function Prep({ view, side, missionId, send, pending }: Props) {
+  const captain = side.captain
+  const writes = side.played && (captain.id === view.viewerId || side.automated)
+  const built = captain.roster?.built
   const detachmentNames = built?.detachments?.map((detachment) => detachment.name) ?? (built?.detachment ? [built.detachment] : [])
   const { data: rules } = useQuery(detachmentRulesQuery(built?.catalogueId ?? '', detachmentNames))
 
@@ -35,16 +35,17 @@ export function Prep({ view, missionId, send, pending }: Props) {
   const primaryCard = rules?.primaries.find((card) => card.key === missionId)
   const primary: Secondary | null = primaryCard ? { key: primaryCard.key, name: primaryCard.name } : null
   const tacticalOnly = isKotcLimit(view.settings.limit)
-  const storedMode: SecondaryMode = you?.secondaryMode ?? 'tactical'
+  const storedMode: SecondaryMode = captain.secondaryMode
   const mode: SecondaryMode = tacticalOnly ? 'tactical' : storedMode
-  const chosen = you?.secondaries.map(({ key, name }) => ({ key, name })) ?? []
-  const deckReady = mode !== 'tactical' || Boolean(you?.remainingSecondaries.length)
+  const chosen = captain.secondaries.map(({ key, name }) => ({ key, name }))
+  const deckReady = mode !== 'tactical' || Boolean(captain.remainingSecondaries.length)
 
   const save = (next: { mode?: SecondaryMode; secondaries?: Secondary[] }) => {
     if (!rules) return
     const nextMode = next.mode ?? mode
     send({
       kind: 'set-prep',
+      playerId: captain.id,
       stratagems,
       // A tactical hand starts empty and is drawn from the deck once the battle begins.
       secondaries: nextMode === 'tactical' ? [] : (next.secondaries ?? chosen),
@@ -58,10 +59,10 @@ export function Prep({ view, missionId, send, pending }: Props) {
   // and the matchup can settle later than the stratagems do, so this stays live rather
   // than firing once.
   useEffect(() => {
-    if (!writes || !rules || !you || pending) return
-    const missingStratagems = stratagems.length > 0 && you.stratagems.length === 0
-    const wrongPrimary = primary?.key !== you.primaryCard?.key
-    const missingDeck = mode === 'tactical' && rules.secondaries.length > 0 && you.remainingSecondaries.length === 0
+    if (!writes || !rules || pending) return
+    const missingStratagems = stratagems.length > 0 && captain.stratagems.length === 0
+    const wrongPrimary = primary?.key !== captain.primaryCard?.key
+    const missingDeck = mode === 'tactical' && rules.secondaries.length > 0 && captain.remainingSecondaries.length === 0
     const invalidMode = tacticalOnly && storedMode !== 'tactical'
     if (!missingStratagems && !wrongPrimary && !missingDeck && !invalidMode) return
     save({})
@@ -69,9 +70,9 @@ export function Prep({ view, missionId, send, pending }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     rules,
-    you?.stratagems.length,
-    you?.primaryCard,
-    you?.remainingSecondaries.length,
+    captain.stratagems.length,
+    captain.primaryCard,
+    captain.remainingSecondaries.length,
     primary?.key,
     mode,
     storedMode,
@@ -85,9 +86,7 @@ export function Prep({ view, missionId, send, pending }: Props) {
       <div data-secondary-deck-ready={deckReady} className="space-y-2">
         <Label>Secondary play</Label>
         <p className="text-sm">{mode === 'fixed' ? 'Fixed cards, chosen for the whole battle.' : 'Tactical, drawn as the battle runs.'}</p>
-        <p className="text-xs text-dim">
-          {captain?.name ?? 'Your ally'} sets the cards and stratagems your side plays. You both draw from the one hand.
-        </p>
+        <p className="text-xs text-dim">{captain.name} sets the cards and stratagems your side plays. You both draw from the one hand.</p>
       </div>
     )
   }

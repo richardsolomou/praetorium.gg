@@ -20,7 +20,7 @@ const CAPABILITIES = [
   {
     icon: Swords,
     title: 'Share the battle',
-    text: 'Play solo, 1v1, or 2v1. Every seated phone reads the same command log, phase, resources, and score.',
+    text: 'Play 1v1 or 2v1, against a friend or a practice opponent. Every seated phone reads the same command log, phase, resources, and score.',
     link: '/battles' as const,
     action: 'Open battles',
   },

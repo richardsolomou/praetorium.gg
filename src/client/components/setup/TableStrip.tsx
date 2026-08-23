@@ -7,7 +7,9 @@ import { tint } from '../battle/tints'
  * A 2v1 reads as one side against another from the first screen rather than as a
  * flat list of three names that says nothing about who is allied with whom.
  */
-export function TableStrip({ sides, solo }: { sides: Side[]; solo: boolean }) {
+export function TableStrip({ sides }: { sides: Side[] }) {
+  // A side nobody signs in to is practice, and so is an earlier battle with one side.
+  const practice = sides.length < 2 || sides.some((side) => side.automated)
   return (
     <div className="grid items-stretch gap-2 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
       {sides.map((side, position) => (
@@ -16,7 +18,7 @@ export function TableStrip({ sides, solo }: { sides: Side[]; solo: boolean }) {
         </div>
       ))}
       <p className="order-2 self-center text-center text-xs font-bold tracking-[0.14em] text-faint uppercase">
-        {solo ? 'practice' : 'versus'}
+        {practice ? 'practice' : 'versus'}
       </p>
     </div>
   )

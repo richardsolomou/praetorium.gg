@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { attachRoster, chooseBattlefield, createBattle, createRoster, desktopContext, signUp } from './account'
+import { attachRoster, chooseBattlefield, createBattle, createRoster, desktopContext, PRACTICE_OPPONENT, signUp } from './account'
 
 test('a list can be copied as Games Workshop text', async ({ browser }) => {
   const page = await (await browser.newContext({ ...desktopContext, permissions: ['clipboard-read', 'clipboard-write'] })).newPage()
@@ -68,7 +68,8 @@ Exported with BattleBase, Data Version: v20260812`)
   await expect(notice).toHaveCount(0)
   await expect(page.getByText('Disruption', { exact: true })).toBeVisible()
 
-  await createBattle(page, { solo: true })
+  await createBattle(page, { practice: true })
   await attachRoster(page, 'PoWSS 2K')
+  await attachRoster(page, 'PoWSS 2K', { forPlayer: PRACTICE_OPPONENT })
   await chooseBattlefield(page)
 })

@@ -3,12 +3,12 @@ import { randomId, randomToken } from 'ras-stack/auth'
 import {
   battleCapacity,
   type Command,
+  commandArmy,
   PAINTED_ARMY_POINTS,
   type PlayerId,
   reduceBattle,
   type Secondary,
   scoringTarget,
-  sideCaptain,
   type Stratagem,
   type SubmitResult,
 } from '../core/battle'
@@ -24,8 +24,9 @@ type SavedPrep = { stratagems: Stratagem[]; secondaries: Secondary[] }
 
 /**
  * `mission` is the viewer's, for the screens that are about them. `missions` is every
- * side's, because a ceiling is enforced against the side being scored and either
- * player may record a settlement for the side the turn came back to.
+ * side's, because a ceiling is enforced against the side being scored, either player
+ * may record a settlement for the side the turn came back to, and a side nobody signs
+ * in to has its cards settled by the table facing it.
  */
 type SeatedScreen = { kind: 'battle'; view: BattleView; mission: Mission | null; missions: { side: number; mission: Mission | null }[] }
 
@@ -215,15 +216,24 @@ export class PraetoriumService {
   }
 
   /**
-   * The players this one may open a battle with.
+   * The players this one may open a battle with: their friends, and the practice
+   * opponents the instance seats.
+   *
+   * One list rather than two, because `createBattle` asks exactly this question of
+   * exactly this answer. Splitting them would put a second rule about who may be
+   * in a battle next to the first, and the two would eventually disagree.
    *
    * Asked for on its own rather than taken out of the friends page, because the
    * page also offers strangers to invite — and reaching for that here put a scan
    * of every account on the instance behind every battle opened and every link
    * followed, to answer a question about a handful of rows.
    */
-  async opponents(userId: string) {
-    return sortedFriends(await this.repository.relationships(userId), userId).friends
+  async opponents(userId: string): Promise<{ id: string; name: string; automated: boolean }[]> {
+    const [relationships, practice] = await Promise.all([this.repository.relationships(userId), this.repository.practiceOpponents()])
+    return [
+      ...sortedFriends(relationships, userId).friends.map((friend) => ({ ...friend, automated: false })),
+      ...practice.map((opponent) => ({ ...opponent, automated: true })),
+    ]
   }
 
   /**
@@ -264,9 +274,11 @@ export class PraetoriumService {
     if (new Set(opponentIds).size !== opponentIds.length || opponentIds.some((id) => id === userId || !known.has(id))) {
       throw new Response('choose an opponent', { status: 400 })
     }
-    const friendIds = new Set((await this.opponents(userId)).map((friend) => friend.id))
-    if (opponentIds.some((id) => !friendIds.has(id))) throw new Response('battle opponents must be your friends', { status: 403 })
-    if (settings && !settings.solo && !opponentIds.length) throw new Response('choose an opponent or a practice battle', { status: 400 })
+    const allowed = new Map((await this.opponents(userId)).map((opponent) => [opponent.id, opponent]))
+    if (opponentIds.some((id) => !allowed.has(id)))
+      throw new Response('battle opponents must be your friends or a practice opponent', { status: 403 })
+    if (settings && !settings.solo && !opponentIds.length) throw new Response('choose an opponent', { status: 400 })
+    const practice = opponentIds.some((id) => allowed.get(id)?.automated)
     const token = randomToken()
     const id = randomId()
     await this.repository.createBattle({
@@ -291,7 +303,7 @@ export class PraetoriumService {
     // The opponents are told before they have the battle open, which is what puts it
     // on their list without a reload.
     this.events.publish(id, [userId, ...opponentIds])
-    return { token }
+    return { token, practice }
   }
 
   async deleteBattle(token: string, userId: string) {
@@ -375,8 +387,9 @@ export class PraetoriumService {
       },
       (state, submitted) => {
         if (submitted.kind !== 'draw-secondary' && submitted.kind !== 'draw-secondaries') return submitted
-        const actor = state.players.find((candidate) => candidate.id === userId)
-        const player = actor ? sideCaptain(state, actor.side) : undefined
+        // Whose deck this is comes from the domain, so the cards cannot be taken off
+        // one side's deck and recorded against another's.
+        const player = commandArmy(state, userId, submitted)
         const remaining = (player?.secondaryDeck ?? []).filter(
           (candidate) => !player?.secondaries.some((secondary) => secondary.key === candidate.key),
         )

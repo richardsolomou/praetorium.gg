@@ -80,6 +80,6 @@ function BattleSession({ token }: { token: string }) {
   if (!screen) return <Navigate to="/battles" replace />
   if (screen.kind === 'invitation') return <Invitation token={token} free={screen.free} />
   if (screen.view.status === 'setup')
-    return <Setup view={screen.view} mission={screen.mission} send={send} pending={pending} problem={problem} />
+    return <Setup view={screen.view} mission={screen.mission} missions={screen.missions} send={send} pending={pending} problem={problem} />
   return <Tracker view={screen.view} missions={screen.missions} present={present} send={send} pending={pending} problem={problem} />
 }

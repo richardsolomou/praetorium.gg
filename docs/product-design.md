@@ -8,8 +8,8 @@ Praetorium includes:
 
 - Catalogue-backed roster construction, validation, import, and export.
 - Compact roster presentation and battle tracking.
-- One synchronized solo, 1v1, or 2v1 battle between signed-in players.
-- Mutual friendships for choosing private battle opponents.
+- One synchronized 1v1 or 2v1 battle between signed-in players, against a friend or a practice opponent.
+- Mutual friendships for choosing private battle opponents, and practice opponents for playing without one.
 
 It does not include rankings, events, leagues, locations, public battle discovery, chat, matchmaking, a rules encyclopedia, model positions, or wound allocation.
 
@@ -34,7 +34,7 @@ Keep screenshots that contain roster or battle data outside version control.
 | Area              | Coverage                                                                                                                                                                              |
 | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Accounts          | Email and password work without provider configuration. Google and Discord are optional. Players can edit their display name and profile picture.                                     |
-| Battles           | Shared, 2v1, or solo setup drafts, server-side legality, corrections, concessions, reopening, presence, and live updates.                                                             |
+| Battles           | Shared or practice 1v1 and 2v1 setup drafts, server-side legality, corrections, concessions, reopening, presence, and live updates.                                                   |
 | Turn tracker      | Five standard rounds, three King of the Colosseum rounds, six phases, command points, victory points, painted bonuses, tactical decks, stratagems, formations, and battle completion. |
 | Rosters           | Build, import, save, copy, rename, private or unlisted share, print, export, and attach.                                                                                              |
 | Catalogue         | Factions, detachments, units, model counts, loadouts, enhancements, attachments, and points limits.                                                                                   |

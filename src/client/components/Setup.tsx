@@ -6,7 +6,7 @@ import type { Command } from '../../core/battle'
 import type { BattleView } from '../../core/battleView'
 import { GAME_SIZES, isKotcLimit } from '../../core/battle'
 import { gameReferencesQuery } from '../queries'
-import { sides as foldSides } from '../sides'
+import { type SideMission, sides as foldSides } from '../sides'
 import { Battlefield } from './Battlefield'
 import { ArmiesStep } from './setup/ArmiesStep'
 import { AttackerStep } from './setup/AttackerStep'
@@ -18,6 +18,8 @@ import { TableStrip } from './setup/TableStrip'
 type Props = {
   view: BattleView
   mission: { id: string; name: string; deploymentIds: string[] } | null
+  /** Every side's matchup, so a side the table plays settles its cards from its own. */
+  missions: { side: number; mission: SideMission | null }[]
   send: (command: Command) => void
   pending: boolean
   problem: string | null
@@ -30,14 +32,17 @@ type Props = {
  * seated device at once — it is one conversation across the table rather than five
  * private wizards that have to be reconciled at the end.
  */
-export function Setup({ view, mission, send, pending, problem }: Props) {
-  const table = foldSides(view)
+export function Setup({ view, mission, missions, send, pending, problem }: Props) {
+  const table = foldSides(view, missions)
   const yours = table.find((side) => side.isViewer)
   const { data: references } = useQuery(gameReferencesQuery())
   const at = view.setupStep
   const attached = view.players.filter((player) => player.roster).length
   const ready = attached === view.players.length
   const youHaveAnArmy = Boolean(yours?.armies.find((army) => army.isViewer)?.roster)
+  // A practice opponent brings nothing on its own, so its list is one of the ones
+  // this table still owes before setup can move on.
+  const owed = table.flatMap((side) => side.armies).filter((army) => (army.isViewer || army.automated) && !army.roster)
 
   const steps: Step[] = [
     {
@@ -68,6 +73,7 @@ export function Setup({ view, mission, send, pending, problem }: Props) {
   /** What still has to be true before a section can be left behind. */
   const blocked = (() => {
     if (at === 1 && !youHaveAnArmy) return 'Choose your army to continue.'
+    if (at === 1 && owed.length) return `Choose an army for ${owed.map((army) => army.playerName).join(' and ')} to continue.`
     if (at === 2 && !view.deploymentId) return 'Choose a battlefield layout to continue.'
     if (at === 3 && !view.attackerId) return 'Choose the attacker to continue.'
     return null
@@ -93,7 +99,7 @@ export function Setup({ view, mission, send, pending, problem }: Props) {
           <p className="eyebrow">Battle setup</p>
           <h1 className="mt-0.5 text-2xl">Set the table</h1>
         </div>
-        <TableStrip sides={table} solo={view.settings.solo} />
+        <TableStrip sides={table} />
       </header>
 
       <StepRail steps={steps} at={at} onGo={(step) => send({ kind: 'set-setup-step', step })} />
@@ -173,9 +179,7 @@ export function Setup({ view, mission, send, pending, problem }: Props) {
 
         {at === 3 ? <AttackerStep sides={table} attackerId={view.attackerId} send={send} /> : null}
 
-        {at === 4 && youHaveAnArmy ? (
-          <PreBattleStep view={view} sides={table} missionId={mission?.id ?? null} send={send} pending={pending} />
-        ) : null}
+        {at === 4 && youHaveAnArmy ? <PreBattleStep view={view} sides={table} send={send} pending={pending} /> : null}
 
         {at === 5 && view.deploymentId ? <FirstTurnStep sides={table} ready={ready} pending={pending} send={send} /> : null}
 

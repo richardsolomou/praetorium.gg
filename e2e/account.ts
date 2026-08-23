@@ -106,23 +106,22 @@ export async function createRoster(
   return rosterName
 }
 
+/** The practice opponent every instance seats, named as the interface names it. */
+export const PRACTICE_OPPONENT = 'Practice Opponent'
+
 export async function createBattle(
   page: Page,
-  { opponent, ally, solo = false }: { opponent?: string; ally?: string; solo?: boolean } = {},
+  { opponent, ally, practice = false }: { opponent?: string; ally?: string; practice?: boolean } = {},
 ) {
   await page.goto('/battles')
   const dialog = page.getByRole('dialog', { name: 'Start a battle' })
   await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'New battle' }).click())
-  if (solo) {
-    await page.getByRole('button', { name: 'Solo practice' }).click()
-  } else {
-    if (ally) await page.getByRole('button', { name: '2v1' }).click()
-    await page.getByRole('combobox', { name: 'Opponent' }).click()
-    await page.getByRole('option', { name: opponent, exact: true }).click()
-    if (ally) {
-      await page.getByRole('combobox', { name: 'Their ally' }).click()
-      await page.getByRole('option', { name: ally, exact: true }).click()
-    }
+  if (ally) await page.getByRole('button', { name: '2v1' }).click()
+  await page.getByRole('combobox', { name: 'Opponent' }).click()
+  await page.getByRole('option', { name: practice ? PRACTICE_OPPONENT : opponent, exact: true }).click()
+  if (ally) {
+    await page.getByRole('combobox', { name: 'Their ally' }).click()
+    await page.getByRole('option', { name: ally, exact: true }).click()
   }
   await page.getByRole('button', { name: 'Create battle' }).click()
   await page.waitForURL(/\/battles\/[^/]+$/)
@@ -171,12 +170,16 @@ export async function setupStep(page: Page, label: string) {
   throw new Error(`Setup never reached the ${label} step`)
 }
 
-export async function attachRoster(page: Page, name: string) {
+/** Attaches a saved list to a seat: your own by default, or a named one such as a practice opponent's. */
+export async function attachRoster(page: Page, name: string, { forPlayer }: { forPlayer?: string } = {}) {
   await setupStep(page, 'Armies')
-  await page.getByRole('button', { name: /Choose roster|Change roster/ }).click()
+  const chooser = forPlayer
+    ? page.getByRole('button', { name: new RegExp(`roster for ${forPlayer}$`) })
+    : page.getByRole('button', { name: /^(Choose|Change) roster/ }).first()
+  await chooser.click()
   const attached = page.waitForResponse((response) => response.ok() && response.request().method() === 'POST')
   await page
-    .getByRole('dialog', { name: 'Choose your roster' })
+    .getByRole('dialog', { name: /roster$/ })
     .getByRole('button', { name: new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`) })
     .click()
   await attached
@@ -208,7 +211,8 @@ export async function chooseBattlefield(page: Page) {
  */
 export const advanceButton = (page: Page) => page.getByRole('button', { name: /^(End the .+ phase|Pass the turn)$/ })
 
-const drawPrompt = (page: Page) => page.getByRole('dialog', { name: 'Your secondary missions' })
+/** The hand being dealt: this table's own, or the practice opponent's it is also playing. */
+const drawPrompt = (page: Page) => page.getByRole('dialog', { name: /secondary missions$/ })
 /** What the turn the other side just finished owed this one, asked as the turn arrives. */
 const owedPrompt = (page: Page) => page.getByRole('dialog', { name: /^Scoring end of their turn/ })
 
@@ -288,7 +292,9 @@ export async function advance(page: Page) {
 export async function startBattle(page: Page, firstSide?: string) {
   await chooseBattlefield(page)
   await setupStep(page, 'Pre-battle')
-  await expect(page.locator('[data-secondary-deck-ready]')).toHaveAttribute('data-secondary-deck-ready', 'true')
+  // One per side this table settles cards for, so every one of them has to be ready.
+  await expect(page.locator('[data-secondary-deck-ready]').first()).toBeVisible()
+  await expect(page.locator('[data-secondary-deck-ready="false"]')).toHaveCount(0)
   await setupStep(page, 'First turn')
   if (firstSide) {
     await page.getByRole('group', { name: 'First turn' }).getByRole('button', { name: firstSide }).click()

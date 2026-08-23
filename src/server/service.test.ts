@@ -168,7 +168,7 @@ describe('friends', () => {
 
     expect((await service.friendships('alice')).outgoing).toEqual([{ id: 'dave', name: 'Dave' }])
     await service.acceptFriend('dave', 'alice')
-    expect(await service.opponents('alice')).toContainEqual({ id: 'dave', name: 'Dave' })
+    expect(await service.opponents('alice')).toContainEqual({ id: 'dave', name: 'Dave', automated: false })
   })
 
   it('offers only players with no relationship yet, and does not run out of them', async () => {
@@ -187,12 +187,25 @@ describe('friends', () => {
   it('names an opponent without reading the players nobody is connected to', async () => {
     await enrol('dave', 'Dave')
 
-    // A friend is a friend whether or not anyone asks who else is on the instance.
+    // A friend is a friend whether or not anyone asks who else is on the instance,
+    // and the practice opponents the instance seats come after them.
     expect(await service.opponents('alice')).toEqual([
+      { id: 'bob', name: 'Bob', automated: false },
+      { id: 'carol', name: 'Carol', automated: false },
+      { id: 'practice-opponent-1', name: 'Practice Opponent', automated: true },
+      { id: 'practice-opponent-2', name: 'Practice Opponent II', automated: true },
+    ])
+    expect((await service.friendships('alice')).friends).toEqual([
       { id: 'bob', name: 'Bob' },
       { id: 'carol', name: 'Carol' },
     ])
-    expect((await service.friendships('alice')).friends).toEqual(await service.opponents('alice'))
+  })
+
+  it('does not offer a practice opponent as someone to befriend', async () => {
+    const { people } = await service.friendships('alice')
+
+    expect(people.map((player) => player.id)).not.toContain('practice-opponent-1')
+    expect(people.map((player) => player.id)).not.toContain('practice-opponent-2')
   })
 
   it('does not let another player accept someone else’s request', async () => {
@@ -272,6 +285,104 @@ describe('seats', () => {
     expect(await view(token, 'alice')).toMatchObject({ settings: { solo: true } })
     expect(await service.screen(token, 'bob')).toEqual({ kind: 'invitation', free: false })
     expect(await service.join(token, 'bob')).toBe('full')
+  })
+
+  it('seats a practice opponent without a friendship, and marks the seat', async () => {
+    const { token } = await service.createBattle('alice', {
+      opponentId: 'practice-opponent-1',
+      solo: false,
+      limit: 2000,
+      missionPackId: null,
+    })
+
+    expect(await view(token, 'alice')).toMatchObject({
+      settings: { solo: false, teamBattle: false },
+      players: [
+        { id: 'alice', automated: false },
+        { id: 'practice-opponent-1', automated: true },
+      ],
+    })
+  })
+
+  it('lets the table bring the army a practice opponent fields and settle its cards', async () => {
+    const { token } = await service.createBattle('alice', {
+      opponentId: 'practice-opponent-1',
+      solo: false,
+      limit: 2000,
+      missionPackId: null,
+    })
+    let seq = 1
+    const send = async (command: Parameters<PraetoriumService['submit']>[3]) => {
+      const { result } = await service.submit(token, 'alice', seq, command)
+      if (result.outcome === 'appended') seq = result.seq
+      return result
+    }
+
+    await send({ kind: 'attach-roster', roster: { name: 'Ultramarines', text: '10 Intercessors' } })
+    await send({
+      kind: 'attach-roster',
+      playerId: 'practice-opponent-1',
+      roster: { name: 'Death Guard', text: '10 Plague Marines' },
+    })
+    await send({
+      kind: 'set-prep',
+      playerId: 'practice-opponent-1',
+      stratagems: [],
+      secondaries: [],
+      secondaryDeck: [{ key: 'a', name: 'Area Denial' }],
+      primary: null,
+      secondaryMode: 'tactical',
+    })
+    expect((await send({ kind: 'begin-battle', firstPlayerId: 'alice' })).outcome).toBe('appended')
+
+    const seen = await view(token, 'alice')
+    expect(seen.players.map((player) => player.roster?.name)).toEqual(['Ultramarines', 'Death Guard'])
+    // Nobody signs in to it, so its deck has to be readable by the people playing it.
+    expect(seen.players[1]?.remainingSecondaries).toEqual([{ key: 'a', name: 'Area Denial' }])
+  })
+
+  it('deals a practice opponent’s hand off its own deck rather than the drawing player’s', async () => {
+    const { token } = await service.createBattle('alice', {
+      opponentId: 'practice-opponent-1',
+      solo: false,
+      limit: 2000,
+      missionPackId: null,
+    })
+    let seq = 1
+    const send = async (command: Parameters<PraetoriumService['submit']>[3]) => {
+      const { result } = await service.submit(token, 'alice', seq, command)
+      if (result.outcome === 'appended') seq = result.seq
+      return result
+    }
+    const deckOf = (name: string) => [{ key: `${name}-card`, name }]
+
+    await send({ kind: 'attach-roster', roster: { name: 'Ultramarines', text: '10 Intercessors' } })
+    await send({ kind: 'attach-roster', playerId: 'practice-opponent-1', roster: { name: 'Death Guard', text: '10 Plague Marines' } })
+    for (const [playerId, deck] of [
+      ['alice', deckOf('Yours')],
+      ['practice-opponent-1', deckOf('Theirs')],
+    ] as const) {
+      await send({
+        kind: 'set-prep',
+        playerId,
+        stratagems: [],
+        secondaries: [],
+        secondaryDeck: deck,
+        primary: null,
+        secondaryMode: 'tactical',
+      })
+    }
+    await send({ kind: 'begin-battle', firstPlayerId: 'practice-opponent-1' })
+    // The client only says how many cards it needs; the server chooses them.
+    await send({
+      kind: 'draw-secondaries',
+      playerId: 'practice-opponent-1',
+      secondaries: [{ key: 'placeholder', name: 'Placeholder' }],
+    })
+
+    const seen = await view(token, 'alice')
+    expect(seen.players[1]?.secondaries.map((card) => card.name)).toEqual(['Theirs'])
+    expect(seen.players[0]?.secondaries).toEqual([])
   })
 
   it('seats whoever opened the battle', async () => {

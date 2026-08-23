@@ -78,7 +78,7 @@ function describe(
       return `${who} names ${named.get(command.attackerId) ?? 'someone'} as the attacker`
     case 'attach-roster': {
       const detachment = command.roster.built?.detachment
-      return `${who} brought ${command.roster.name}${detachment && !command.roster.name.includes(detachment) ? ` (${detachment})` : ''}`
+      return `${who} brought ${command.roster.name}${detachment && !command.roster.name.includes(detachment) ? ` (${detachment})` : ''}${forTarget}`
     }
     case 'set-prep': {
       const parts = [
@@ -86,7 +86,7 @@ function describe(
         player?.secondaries.length ? `${player.secondaries.map((secondary) => secondary.name).join(' and ')} as secondaries` : null,
         command.stratagems.length ? `${command.stratagems.length} stratagems` : null,
       ].filter(Boolean)
-      return parts.length ? `${who} took ${parts.join(', ')}` : null
+      return parts.length ? `${who} took ${parts.join(', ')}${forTarget}` : null
     }
     case 'set-deployment':
       // Only the id reaches here, so it is titled rather than left as a slug.

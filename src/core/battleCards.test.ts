@@ -466,7 +466,7 @@ describe('secondaries', () => {
     expect(battleView({ token: 'abc' }, NAMES, state, BOB).players[0]?.remainingSecondaries).toEqual([])
   })
 
-  it('withholds the side captain’s remaining tactical deck from an ally', () => {
+  it('shows a side’s remaining tactical deck to an ally, who draws from the same hand', () => {
     const configure: Command = {
       kind: 'configure-battle',
       limit: 2000,
@@ -506,16 +506,45 @@ describe('secondaries', () => {
     const ally = battleView({ token: 'abc' }, [...NAMES, { id: CAROL, name: 'Carol' }], state, CAROL).players.find(
       (player) => player.id === CAROL,
     )
-    expect(ally?.remainingSecondaries).toEqual([])
+    expect(ally?.remainingSecondaries).toEqual([cards[1]])
   })
 
-  it('withholds secret scoring details from the opponent', () => {
+  it('withholds a side’s remaining tactical deck from the side it is playing against', () => {
+    const cards = [
+      { key: 'a', name: 'Behind Enemy Lines' },
+      { key: 'b', name: 'Bring It Down' },
+    ]
+    const state = reduceBattle(
+      PLAYERS,
+      log(...started(), [
+        ALICE,
+        { kind: 'set-prep', stratagems: [], primary: null, secondaryMode: 'tactical', secondaries: [], secondaryDeck: cards },
+      ]),
+    )
+
+    expect(battleView({ token: 'abc' }, NAMES, state, ALICE).players[0]?.remainingSecondaries).toEqual(cards)
+    expect(battleView({ token: 'abc' }, NAMES, state, BOB).players[0]?.remainingSecondaries).toEqual([])
+  })
+
+  it('says an unrevealed secret is outstanding without naming it to the opponent', () => {
     const state = reduceBattle(
       PLAYERS,
       log(...started(), [ALICE, { kind: 'select-secret', secondary: { key: 'secret-a', name: 'Hold the Line' } }], ...turns(5, ALICE)),
     )
 
-    expect(battleView({ token: 'abc' }, NAMES, state, BOB).advancePrompt).toBe('The active side has an action to settle.')
+    for (const viewer of [ALICE, BOB]) {
+      expect(battleView({ token: 'abc' }, NAMES, state, viewer).advancePrompt).toBe(
+        'The active side has a secret mission to reveal or discard.',
+      )
+    }
+  })
+
+  it('refuses a secret mission chosen for the side across the table', () => {
+    const state = reduceBattle(PLAYERS, log(...started()))
+    const command = { kind: 'select-secret', secondary: { key: 'secret-a', name: 'Hold the Line' } } as const
+
+    expect(validate(state, BOB, { ...command, playerId: ALICE })).toBe('that is not one of your secondaries')
+    expect(validate(state, ALICE, command)).toBeNull()
   })
 
   it('lets legacy tactical battles continue without an authoritative deck', () => {

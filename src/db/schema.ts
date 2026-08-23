@@ -240,6 +240,21 @@ export const favouriteFactions = pgTable(
   (table) => [primaryKey({ columns: [table.userId, table.catalogueId] })],
 )
 
+/**
+ * Accounts that hold a seat and never sign in.
+ *
+ * A practice opponent is an account like any other — a battle, a seat and every
+ * command still point at a `user` row, so nothing here invents a second kind of
+ * identity. What it has is no credentials: there is no `account` row to
+ * authenticate against, so the only way its side is ever played is by the people
+ * sitting across from it.
+ */
+export const practiceOpponents = pgTable('practice_opponents', {
+  userId: text('user_id')
+    .primaryKey()
+    .references(() => user.id, { onDelete: 'cascade' }),
+})
+
 /** Detachments a player keeps at the top of roster setup. */
 export const favouriteDetachments = pgTable(
   'favourite_detachments',
@@ -268,4 +283,5 @@ export const schema = {
   collection,
   favouriteFactions,
   favouriteDetachments,
+  practiceOpponents,
 }

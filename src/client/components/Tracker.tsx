@@ -124,14 +124,16 @@ export function Tracker({ view, missions, present, send, pending, problem }: Pro
 
   // Only what the card itself says pays out at this moment, so the ask arrives with the phase that ends.
   const due = active && !finished ? dueForAdvance(view, active, (key, mode) => awardsFor(active, key, mode)) : []
-  const helperBlockReason = view.advancePrompt && !yours?.isActive ? view.advancePrompt : null
   const activeNeedsRules = Boolean(active?.primaryCard || active?.secondaries.some((card) => card.status === 'active'))
   const activeRuleResults = ruleResults.filter((_, index) => ruleRequests[index]?.side === active?.index)
-  const rulesBlockReason =
+  // The only thing that still holds the turn back is not knowing what the cards say.
+  // What the active side still owes is shown as a reminder: one person refereeing the
+  // table can do every one of those things, and refusing them the turn only stopped
+  // the game they were running.
+  const blockReason =
     activeNeedsRules && !activeRuleResults.some((result) => result.data) && activeRuleResults.some((result) => result.isPending)
       ? 'Loading the active side’s rules…'
       : null
-  const blockReason = helperBlockReason ?? rulesBlockReason
   const advanceBlocked = Boolean(blockReason)
   const advance = () => {
     if (advanceBlocked || !active) return
@@ -154,9 +156,19 @@ export function Tracker({ view, missions, present, send, pending, problem }: Pro
   // Shared cards are written by one seat, the way prep is, so a 2v1 cannot draw twice
   // or score its one hand twice from two devices.
   const keeper = yours?.captain.id === view.viewerId
+  /**
+   * The active side, when this device is the one that deals its hand.
+   *
+   * A side with players on it is dealt by the seat the domain folds its resources
+   * onto, so two devices in a shared battle never deal the same hand twice. A side
+   * of practice opponents has no seat to deal for it, so the table facing it does.
+   */
+  const dealing = active && (active.isViewer ? keeper : active.automated) ? active : undefined
   const settlementRound = view.settlementRound
   const settlementSide = table.find((side) => side.captain.id === view.settlementPlayerId)
-  const settlementOwner = settlementSide?.captain.id === view.viewerId
+  // Concluding that nothing private remains is the side's own call. A practice
+  // opponent cannot make it, so the table playing that side makes it instead.
+  const settlementOwner = settlementSide?.captain.id === view.viewerId || Boolean(settlementSide?.automated)
   const settlementRuleResults = ruleResults.filter((_, index) => ruleRequests[index]?.side === settlementSide?.index)
   const settlementRulesPending = settlementRuleResults.some((result) => result.isPending)
   const owedCards =
@@ -173,12 +185,11 @@ export function Tracker({ view, missions, present, send, pending, problem }: Pro
   const turnKey = `${view.round}-${view.activePlayerId ?? ''}`
   const handShort =
     !finished &&
-    keeper &&
-    yours?.isActive &&
-    yours.secondaryMode === 'tactical' &&
+    dealing &&
+    dealing.secondaryMode === 'tactical' &&
     view.phase === 'command' &&
-    yours.secondaries.filter((card) => card.status === 'active').length < 2 &&
-    yours.remainingSecondaries.length > 0
+    dealing.secondaries.filter((card) => card.status === 'active').length < 2 &&
+    dealing.remainingSecondaries.length > 0
   // Latched, because the hand stops being short the moment it is dealt and the player
   // still has to see what they drew and whether a card may go back.
   useEffect(() => {
@@ -218,7 +229,7 @@ export function Tracker({ view, missions, present, send, pending, problem }: Pro
         }
       />
 
-      {/* A practice battle has nobody across the table, so it offers neither a tab nor a column for them. */}
+      {/* An earlier solo battle has nobody across the table, so it offers neither a tab nor a column for them. */}
       <Tabs value={focus} onValueChange={(value) => setFocus(value as Focus)} className="lg:hidden">
         <TabsList className={`grid w-full ${solo ? 'grid-cols-2' : 'grid-cols-3'}`}>
           <TabsTrigger value="yours">Your side</TabsTrigger>
@@ -264,6 +275,7 @@ export function Tracker({ view, missions, present, send, pending, problem }: Pro
               pending={pending}
               onAdvance={advance}
               blockReason={blockReason}
+              note={view.advancePrompt}
               className="fixed inset-x-0 bottom-0 z-40 border-t border-edge bg-panel/98 px-3 py-2 backdrop-blur lg:static lg:rounded-lg lg:border lg:bg-panel lg:p-3 lg:backdrop-filter-none"
             />
           )}
@@ -350,18 +362,18 @@ export function Tracker({ view, missions, present, send, pending, problem }: Pro
         />
       ) : null}
 
-      {prompt === 'draw' && yours ? (
+      {prompt === 'draw' && dealing ? (
         <DrawDialog
           key={turnKey}
-          side={yours}
+          side={dealing}
           round={view.round}
           undoable={view.undoable}
           confirmUndo={view.undoableDraw}
           initiallyPaused={drawPaused}
           pending={pending}
           send={send}
-          referenceFor={(key) => referenceFor(yours, key)}
-          whenDrawnFor={(key) => whenDrawnFor(yours, key)}
+          referenceFor={(key) => referenceFor(dealing, key)}
+          whenDrawnFor={(key) => whenDrawnFor(dealing, key)}
           onDone={() => {
             setDrawPaused(false)
             setDrawnForTurns((current) => new Set(current).add(turnKey))
@@ -390,10 +402,12 @@ function Fact({ label, value }: { label: string; value: string }) {
 
 function formatName(view: BattleView, table: Side[]) {
   if (view.settings.solo) return 'Solo practice'
-  return table
+  const shape = table
     .map((side) => side.armies.length)
     .toSorted((left, right) => right - left)
     .join('v')
+  // The shape still matters when a seat is a practice opponent: a 2v1 is a 2v1.
+  return table.some((side) => side.automated) ? `${shape} practice` : shape
 }
 
 function outcome(table: Side[], view: BattleView) {
