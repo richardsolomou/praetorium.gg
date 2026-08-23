@@ -580,7 +580,16 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
     case 'settle-opponent-turn': {
       if (state.status !== 'playing') return 'the battle is not running'
       if (!state.pendingSettlement) return 'there is no previous turn to settle'
-      if (state.pendingSettlement.playerId !== by) return 'only the side captain can settle the previous turn'
+      const target = state.players.find((candidate) => candidate.id === state.pendingSettlement?.playerId)
+      if (
+        target &&
+        !sameSide(state, by, target.id) &&
+        target.secretSecondary &&
+        !target.secretRevealed &&
+        target.secondaryStatus[target.secretSecondary] === 'active'
+      ) {
+        return 'the affected side has a hidden action to settle'
+      }
       return null
     }
     case 'advance': {

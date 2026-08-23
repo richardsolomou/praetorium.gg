@@ -94,7 +94,9 @@ export function ScoringDialog({ side, due, moment, confirmLabel, pending, send, 
       <DialogContent className="max-h-[85dvh] overflow-y-auto rounded-none border border-discarded/60 bg-panel text-bone sm:max-w-2xl">
         <DialogHeader className="text-center">
           <p className="eyebrow text-discarded">Now</p>
-          <DialogTitle className="uppercase">Scoring {moment} points</DialogTitle>
+          <DialogTitle className="uppercase">
+            Scoring {moment} points · {sideName(side)}
+          </DialogTitle>
           <DialogDescription className="text-dim">
             Recording points for {sideName(side)}. Press what the board actually paid on each card.
           </DialogDescription>

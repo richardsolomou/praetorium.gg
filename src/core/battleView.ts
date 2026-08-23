@@ -47,6 +47,8 @@ export type BattleView = {
   activePlayerId: PlayerId | null
   attackerId: PlayerId | null
   settlementRound: number | null
+  /** The side captain whose previous-turn scoring is being settled, visible to every seat. */
+  settlementPlayerId: PlayerId | null
   settings: BattleSettings
   result: { reason: BattleEndReason; concededBy: PlayerId | null } | null
   players: {
@@ -137,7 +139,8 @@ export function battleView(
     creatorId: players[0]?.id ?? viewerId,
     activePlayerId: state.activePlayerId,
     attackerId: state.attackerId,
-    settlementRound: state.pendingSettlement?.playerId === viewerId ? state.pendingSettlement.round : null,
+    settlementRound: state.pendingSettlement?.round ?? null,
+    settlementPlayerId: state.pendingSettlement?.playerId ?? null,
     settings: state.settings,
     result: state.result,
     players: state.players.map((player) => {

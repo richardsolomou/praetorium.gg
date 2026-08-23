@@ -305,6 +305,11 @@ test('a card names its own condition, and what their turn owed is asked as the t
   // cannot press anything through, so it is settled as the turn comes back.
   for (let phase = 0; phase < 6; phase += 1) await advance(bob)
   const owed = alice.getByRole('dialog', { name: /^Scoring end of their turn points/ })
+  const refereeing = bob.getByRole('dialog', { name: /^Scoring end of their turn points/ })
   await expect(owed).toBeVisible()
+  await expect(refereeing).toBeVisible()
+  await expect(refereeing).toContainText('Death Guard')
   await expect(owed.locator('[data-due="assassination"]')).toContainText('For each enemy CHARACTER model destroyed this turn.')
+  await refereeing.getByRole('button', { name: 'Take the turn' }).click()
+  await expect(owed).toBeHidden()
 })

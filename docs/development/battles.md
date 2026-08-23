@@ -15,7 +15,7 @@ Undo appends an `undo` command that names the latest active command. It does not
 
 Live commands can name the affected player or army. Any seated player can operate either side. The log records the submitting player. Concessions remain personal. Undealt cards and hidden missions remain private.
 
-After a turn changes, the incoming captain settles scoring from the prior turn. This acknowledgement is not a report entry or undo target.
+After a turn changes, every seated player sees the prior-turn scoring owed to the incoming side and either player may settle it once. The affected side is named prominently. This acknowledgement is not a report entry or undo target. A helper cannot dismiss an apparently empty settlement because their view may be withholding a hidden mission; only its owner can conclude that no private work remains.
 
 A roster attached to a battle is a historical snapshot. Battle-qualified roster links render its frozen header, grouped unit cards, loadouts, attachments, catalogue revision and points from the command log rather than the mutable saved roster, so later edits, catalogue updates or deletion cannot rewrite the battle. Older logs without roster-card details still show their submitted text.
 
