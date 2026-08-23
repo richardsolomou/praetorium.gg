@@ -5,8 +5,9 @@ import posthog from 'posthog-js'
 import { useEffect, useLayoutEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Switch } from '@/components/ui/switch'
 import { Toggle } from '@/components/ui/toggle'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import type { Secondary, Stratagem } from '../../core/battle'
 import { GAME_SIZES, ROSTER_NAME_MAX_LENGTH } from '../../core/battle'
@@ -334,56 +335,50 @@ export function ListBuilder({ prep, initial, editable = true, battle, resolvePer
         />
 
         {faction ? (
-          <div className="flex min-w-0 items-center gap-2 text-xs text-dim">
-            <Link to="/factions/$catalogueId" params={{ catalogueId: faction.slug }} className="truncate text-info hover:text-bone">
-              <FactionLabel faction={faction} />
-            </Link>
-            <span aria-hidden>·</span>
-            <Link to="/rosters" search={{ limit }} className="shrink-0 text-info hover:text-bone">
-              {GAME_SIZES.find((size) => size.limit === limit)?.name ?? `${limit} points`}
-            </Link>
-            {detachmentIds.map((id) => {
-              const detachment = faction.detachments.find((candidate) => candidate.id === id)
-              return detachment ? (
-                <span key={id} className="contents">
+          <div className="mt-0.5 flex min-w-0 items-center gap-2 text-xs text-dim">
+            <span className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto whitespace-nowrap [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <Link to="/factions/$catalogueId" params={{ catalogueId: faction.slug }} className="shrink-0 text-info hover:text-bone">
+                <FactionLabel faction={faction} />
+              </Link>
+              <span aria-hidden>·</span>
+              <Link to="/rosters" search={{ limit }} className="shrink-0 text-info hover:text-bone">
+                {GAME_SIZES.find((size) => size.limit === limit)?.name ?? `${limit} points`}
+              </Link>
+              {detachmentIds.map((id) => {
+                const detachment = faction.detachments.find((candidate) => candidate.id === id)
+                return detachment ? (
+                  <span key={id} className="contents">
+                    <span aria-hidden>·</span>
+                    <Link
+                      to="/factions/$catalogueId/reference/detachments/$detachmentId"
+                      params={{ catalogueId: faction.slug, detachmentId: detachment.slug }}
+                      className="shrink-0 hover:text-bone"
+                    >
+                      {detachment.name}
+                    </Link>
+                  </span>
+                ) : null
+              })}
+              {priced?.disposition ? (
+                <span className="contents">
                   <span aria-hidden>·</span>
-                  <Link
-                    to="/factions/$catalogueId/reference/detachments/$detachmentId"
-                    params={{ catalogueId: faction.slug, detachmentId: detachment.slug }}
-                    className="truncate hover:text-bone"
-                  >
-                    {detachment.name}
-                  </Link>
+                  <span className="shrink-0">
+                    {available.factions
+                      .flatMap((entry) => entry.detachments)
+                      .flatMap((entry) => entry.dispositions)
+                      .find((entry) => entry.id === priced.disposition)?.name ?? priced.disposition}
+                  </span>
                 </span>
-              ) : null
-            })}
-            {priced?.disposition ? (
-              <span className="contents">
-                <span aria-hidden>·</span>
-                <span className="shrink-0">
-                  {available.factions
-                    .flatMap((entry) => entry.detachments)
-                    .flatMap((entry) => entry.dispositions)
-                    .find((entry) => entry.id === priced.disposition)?.name ?? priced.disposition}
-                </span>
-              </span>
-            ) : null}
-            <span className="ml-auto flex shrink-0 items-center gap-1" data-print-hide>
+              ) : null}
+            </span>
+            <span className="flex shrink-0 items-center gap-1" data-print-hide>
               {editable ? (
                 <>
-                  <label
-                    htmlFor="roster-read-only"
-                    className="flex items-center gap-1.5 text-xs font-semibold text-dim"
-                    title="Show only this unit’s applied choices"
-                  >
-                    <Switch id="roster-read-only" checked={readOnly} onCheckedChange={setReadOnlyMode} aria-label="Read-only mode" />
-                    Read-only
-                  </label>
                   <DropdownMenu>
-                    <DropdownMenuTrigger aria-label="Roster actions" className="grid size-7 place-items-center hover:text-bone">
-                      <EllipsisVertical className="size-4" />
+                    <DropdownMenuTrigger aria-label="Roster actions" className="grid h-7 w-10 place-items-center hover:text-bone">
+                      <EllipsisVertical className="size-4 translate-y-px" />
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
+                    <DropdownMenuContent align="end" className="min-w-48">
                       <DropdownMenuItem
                         onClick={() => setSetupDraft({ name: listName, catalogueId, detachmentIds, disposition, limit, visibility })}
                       >
@@ -394,6 +389,39 @@ export function ListBuilder({ prep, initial, editable = true, battle, resolvePer
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
+                  <Tooltip>
+                    <TooltipTrigger
+                      closeOnClick={false}
+                      render={
+                        <div>
+                          <ToggleGroup
+                            value={[readOnly ? 'view' : 'build']}
+                            onValueChange={(value) => {
+                              if (value[0] === 'view' || value[0] === 'build') setReadOnlyMode(value[0] === 'view')
+                            }}
+                            variant="outline"
+                            size="sm"
+                            spacing={0}
+                            aria-label="Roster mode"
+                          >
+                            <ToggleGroupItem
+                              value="build"
+                              className="border-primary/60 text-primary aria-pressed:bg-primary aria-pressed:text-primary-foreground"
+                            >
+                              Build
+                            </ToggleGroupItem>
+                            <ToggleGroupItem
+                              value="view"
+                              className="border-primary/60 text-primary aria-pressed:bg-primary aria-pressed:text-primary-foreground"
+                            >
+                              View
+                            </ToggleGroupItem>
+                          </ToggleGroup>
+                        </div>
+                      }
+                    />
+                    <TooltipContent side="bottom">Build edits your roster. View shows only what’s selected.</TooltipContent>
+                  </Tooltip>
                 </>
               ) : null}
             </span>
