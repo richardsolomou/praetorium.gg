@@ -1,7 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link, useParams } from '@tanstack/react-router'
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbSeparator } from '@/components/ui/breadcrumb'
-import { routeSlug } from '../../core/slug'
 import type { Datasheet } from '../../server/catalogue'
 import { compositionCount, displayAbilities } from '../datasheet'
 import { factionFor } from '../factions'
@@ -101,7 +100,7 @@ export function FactionDatasheet() {
             </div>
           </section>
         ) : null}
-        <Relationships sheet={sheet} factionSlug={faction.slug} />
+        <Relationships sheet={sheet} />
         {sheet.attribution ? <p className="border-t border-edge pt-4 text-xs text-dim">{sheet.attribution}.</p> : null}
       </div>
     </main>
@@ -228,32 +227,38 @@ function UnitConfiguration({ sheet, rules }: { sheet: DatasheetDisplay; rules: K
   )
 }
 
-function Relationships({ sheet, factionSlug }: { sheet: DatasheetDisplay; factionSlug: string }) {
+function Relationships({ sheet }: { sheet: DatasheetDisplay }) {
   const groups = [
-    { title: 'Can lead', names: sheet.attachments.filter((entry) => entry.kind === 'leader').map((entry) => entry.name) },
-    { title: 'Can support', names: sheet.attachments.filter((entry) => entry.kind === 'support').map((entry) => entry.name) },
-    { title: 'Can be led by', names: sheet.leaders },
-    { title: 'Can be supported by', names: sheet.supporters },
-  ].filter(({ names }) => names.length)
+    { title: 'Can lead', relationships: sheet.attachments.filter((entry) => entry.kind === 'leader') },
+    { title: 'Can support', relationships: sheet.attachments.filter((entry) => entry.kind === 'support') },
+    { title: 'Can be led by', relationships: sheet.leaders },
+    { title: 'Can be supported by', relationships: sheet.supporters },
+  ].filter(({ relationships }) => relationships.length)
   if (!groups.length) return null
   return (
     <section>
       <h2 className="rubric">Attachments</h2>
       <div className="mt-2 grid gap-2 md:grid-cols-2">
-        {groups.map(({ title, names }) => (
+        {groups.map(({ title, relationships }) => (
           <div key={title} className="border border-edge bg-panel p-3">
             <h3 className="eyebrow mb-2">{title}</h3>
             <div className="flex flex-wrap gap-1">
-              {names.map((name) => (
-                <Link
-                  key={name}
-                  to="/factions/$catalogueId/datasheets/$entryId"
-                  params={{ catalogueId: factionSlug, entryId: routeSlug(name) }}
-                  className={KEYWORD_TAG_CLASS}
-                >
-                  {name}
-                </Link>
-              ))}
+              {relationships.map(({ name, route }) =>
+                route ? (
+                  <Link
+                    key={name}
+                    to="/factions/$catalogueId/datasheets/$entryId"
+                    params={{ catalogueId: route.catalogueId, entryId: route.slug }}
+                    className={KEYWORD_TAG_CLASS}
+                  >
+                    {name}
+                  </Link>
+                ) : (
+                  <span key={name} className={KEYWORD_TAG_CLASS}>
+                    {name}
+                  </span>
+                ),
+              )}
             </div>
           </div>
         ))}

@@ -12,7 +12,6 @@ import { RuleText } from '../RuleText'
 
 type Props = {
   catalogueId: string
-  factionSlug: string
   entryId: string | null
   detachmentIds: readonly string[]
   picks: readonly RosterPick[]
@@ -25,7 +24,6 @@ type Props = {
 
 export function DatasheetPanel({
   catalogueId,
-  factionSlug,
   entryId,
   detachmentIds,
   picks,
@@ -72,7 +70,7 @@ export function DatasheetPanel({
         <WeaponSummary title="Melee weapons" weapons={melee} rules={sheet.keywordRules} />
       ) : null}
       <AbilitySummary abilities={displayAbilities(sheet.abilities)} rules={sheet.keywordRules} />
-      {factionSlug ? (
+      {sheet.referenceRoute ? (
         <div className="border-t border-edge pt-3">
           <div className="flex flex-wrap gap-1">
             {sheet.keywords.map((keyword) => (
@@ -82,7 +80,7 @@ export function DatasheetPanel({
           <div className="mt-3 flex justify-end">
             <Link
               to="/factions/$catalogueId/datasheets/$entryId"
-              params={{ catalogueId: factionSlug, entryId: sheet.slug }}
+              params={{ catalogueId: sheet.referenceRoute.catalogueId, entryId: sheet.referenceRoute.slug }}
               className="eyebrow text-info hover:text-bone"
             >
               Full datasheet

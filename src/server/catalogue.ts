@@ -5,13 +5,14 @@ import { defaultSelection } from '../core/expand'
 import { unitChoices } from '../core/unitChoices'
 import { wargearOf } from '../core/wargear'
 import { bracketedRuleReferences, ruleReferenceMatches } from '../core/ruleReference'
-import { datasheetSlug, datasheetsOf, isReferenceDatasheet, type LoadedCatalogue } from './catalogueIndex'
+import { datasheetSlug, datasheetsOf, isReferenceDatasheet, referenceDatasheetRoute, type LoadedCatalogue } from './catalogueIndex'
 import { isMatchedPlayDatasheet, priceOf } from './cataloguePicker'
 import type { DatasheetDetails } from './datacards'
 
 export type Datasheet = {
   id: string
   slug: string
+  referenceRoute: { catalogueId: string; slug: string } | null
   name: string
   points: number | null
   keywords: string[]
@@ -29,10 +30,16 @@ export type Datasheet = {
   baseSize: string | null
   transport: string | null
   costs: DatasheetDetails['points']
-  attachments: DatasheetDetails['attachesTo']
-  leaders: string[]
-  supporters: string[]
+  attachments: DatasheetRelationship[]
+  leaders: DatasheetRelationship[]
+  supporters: DatasheetRelationship[]
   keywordRules: { name: string; description: string }[]
+}
+
+export type DatasheetRelationship = {
+  kind?: DatasheetDetails['attachesTo'][number]['kind']
+  name: string
+  route: { catalogueId: string; slug: string } | null
 }
 
 type AbilityKind = 'core' | 'faction' | 'datasheet' | 'rule' | 'wargear'
@@ -306,6 +313,7 @@ export function datasheetIn(loaded: LoadedCatalogue, catalogueId: string, entryI
   return {
     id: root.id,
     slug: datasheetSlug(loaded, catalogueId, root.id),
+    referenceRoute: referenceDatasheetRoute(loaded, name),
     name,
     points: priceOf(loaded, catalogueId, entryId),
     keywords,
@@ -319,9 +327,10 @@ export function datasheetIn(loaded: LoadedCatalogue, catalogueId: string, entryI
     baseSize: details?.baseSize ?? null,
     transport: details?.transport ?? null,
     costs: details?.points ?? [],
-    attachments: attachment?.targets.map((target) => ({ kind: attachment.kind, name: target })) ?? [],
-    leaders: relationships.leaders,
-    supporters: relationships.supporters,
+    attachments:
+      attachment?.targets.map((target) => ({ kind: attachment.kind, name: target, route: referenceDatasheetRoute(loaded, target) })) ?? [],
+    leaders: relationships.leaders.map((leader) => ({ name: leader, route: referenceDatasheetRoute(loaded, leader) })),
+    supporters: relationships.supporters.map((supporter) => ({ name: supporter, route: referenceDatasheetRoute(loaded, supporter) })),
     keywordRules: [...keywordRules.values()],
   }
 }
