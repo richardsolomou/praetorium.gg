@@ -43,7 +43,19 @@ jobs:
           id="$(jq -r .id "$CATALOGUE_SNAPSHOT_POINTER_FILE")"
           aws s3api head-object --bucket "$SNAPSHOT_BUCKET" --key "snapshots/$id.zip" --endpoint-url "$SNAPSHOT_ENDPOINT" >/dev/null 2>&1 \
             || aws s3 cp "$CATALOGUE_SNAPSHOT_FILE" "s3://$SNAPSHOT_BUCKET/snapshots/$id.zip" --endpoint-url "$SNAPSHOT_ENDPOINT" --only-show-errors
-          curl --fail --location --silent --show-error "$S3_PUBLIC_BASE_URL/snapshots/$id.zip" --output /tmp/published-catalogue.zip
-          CATALOGUE_SNAPSHOT_FILE=/tmp/published-catalogue.zip pnpm catalogue:snapshot verify
+          # The public URL can briefly lag the object store right after an upload, so a fresh
+          # publish sometimes reads back stale bytes for a moment. Retry before failing the job.
+          for attempt in 1 2 3 4 5; do
+            if curl --fail --location --silent --show-error "$S3_PUBLIC_BASE_URL/snapshots/$id.zip" --output /tmp/published-catalogue.zip \
+              && CATALOGUE_SNAPSHOT_FILE=/tmp/published-catalogue.zip pnpm catalogue:snapshot verify; then
+              break
+            fi
+            if [ "$attempt" = 5 ]; then
+              echo "published catalogue snapshot still fails verification after $attempt attempts" >&2
+              exit 1
+            fi
+            echo "published catalogue snapshot did not verify yet (attempt $attempt/5) — retrying"
+            sleep 5
+          done
           aws s3 cp "$CATALOGUE_SNAPSHOT_POINTER_FILE" "s3://$SNAPSHOT_BUCKET/current.json" \
             --endpoint-url "$SNAPSHOT_ENDPOINT" --content-type application/json --cache-control no-store --only-show-errors
