@@ -13,16 +13,30 @@ export type WhenDrawn = {
  * what is on the table it cannot, so that one is stated for the player to judge —
  * the same reason objective control is never inferred anywhere else.
  */
-export function redrawOffer(rule: WhenDrawn | undefined, round: number, held: readonly { key: string }[]): string | null {
+export type DrawOffer = { message: string; status: 'returned' | 'discarded'; label: string }
+
+export function redrawOffer(rule: WhenDrawn | undefined, round: number, held: readonly { key: string }[]): DrawOffer | null {
   if (!rule) return null
+  if (rule.operation === 'replace') {
+    return rule.condition ? { message: `Discard this if ${rule.condition}.`, status: 'discarded', label: 'Discard and draw another' } : null
+  }
   if (rule.roundMax !== null) {
     if (round > rule.roundMax) return null
-    return rule.roundMax === 1
-      ? 'You may put this back in battle round 1.'
-      : `You may put this back in battle round ${rule.roundMax} or earlier.`
+    return {
+      message:
+        rule.roundMax === 1
+          ? 'You may put this back in battle round 1.'
+          : `You may put this back in battle round ${rule.roundMax} or earlier.`,
+      status: 'returned',
+      label: 'Put back and draw another',
+    }
   }
   if (rule.heldCards.length) {
-    return held.some((card) => rule.heldCards.includes(card.key)) ? 'You may put this back while you hold the card it pairs with.' : null
+    return held.some((card) => rule.heldCards.includes(card.key))
+      ? { message: 'You may put this back while you hold the card it pairs with.', status: 'returned', label: 'Put back and draw another' }
+      : null
   }
-  return rule.condition ? `You may put this back if ${rule.condition}.` : null
+  return rule.condition
+    ? { message: `You may put this back if ${rule.condition}.`, status: 'returned', label: 'Put back and draw another' }
+    : null
 }
