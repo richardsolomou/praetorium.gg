@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.21.12
+
+### Patch Changes
+
+- 981c0b6: Fix roster units listing in the order they were added instead of alphabetically.
+
 ## 0.21.11
 
 ### Patch Changes
