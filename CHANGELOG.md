@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.23.1
+
+### Patch Changes
+
+- 082afd6: Keep a unit's weapon visible in the roster preview when it carries a nested upgrade.
+
 ## 0.23.0
 
 ### Minor Changes
