@@ -113,7 +113,7 @@ export const battleUsers = pgTable(
     userId: text('user_id')
       .notNull()
       .references(() => user.id, { onDelete: 'cascade' }),
-    /** 0 opened the battle, 1 accepted the link. Fixes the order players are shown in. */
+    /** 0 is the side the battle was opened from, 1 the side facing it. Fixes the order players are shown in. */
     side: integer('side').notNull(),
     joinedAt: bigint('joined_at', { mode: 'number' }).notNull(),
   },

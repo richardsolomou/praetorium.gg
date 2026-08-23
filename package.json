@@ -36,6 +36,7 @@
     "catalogue:points": "node --max-old-space-size=8192 --import tsx scripts/checkPoints.ts && tsx scripts/checkRestrictions.ts",
     "benchmark:roster": "tsx scripts/benchmarkRosterLoading.ts",
     "db:migrate": "tsx scripts/migrate.ts",
+    "db:seed": "tsx scripts/seedPreview.ts",
     "profile-images:migrate": "tsx scripts/migrateProfileImages.ts"
   },
   "dependencies": {

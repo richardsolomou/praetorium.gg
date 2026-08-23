@@ -15,6 +15,7 @@ import {
   terrainMatchupIds,
   terrainReferencesQuery,
 } from '../client/queries'
+import { armyRulesRequest } from '../client/sideRules'
 import { useCommand } from '../client/useCommand'
 import { useLiveBattle } from '../client/useLiveBattle'
 
@@ -38,8 +39,8 @@ export const Route = createFileRoute('/battles/$token')({
     const screen = await context.queryClient.ensureQueryData(battleQuery(params.token))
     if (!screen) throw notFound()
     if (screen.kind !== 'battle') return
-    const dispositions = screen.view.players
-      .map((player) => player.roster?.built?.disposition)
+    const dispositions = [...new Set(screen.view.players.map((player) => player.side))]
+      .map((side) => screen.view.players.find((player) => player.side === side)?.disposition)
       .filter((value): value is string => Boolean(value))
     const matchupIds = terrainMatchupIds(dispositions)
     /*
@@ -55,10 +56,9 @@ export const Route = createFileRoute('/battles/$token')({
       context.queryClient.ensureQueryData(collectionQuery()),
       ...(matchupIds.length ? [context.queryClient.ensureQueryData(terrainReferencesQuery(matchupIds))] : []),
       ...screen.view.players.flatMap((player) => {
-        const built = player.roster?.built
-        const names = built?.detachments?.map((detachment) => detachment.name) ?? (built?.detachment ? [built.detachment] : [])
-        return built?.catalogueId && names.length
-          ? [context.queryClient.ensureQueryData(detachmentRulesQuery(built.catalogueId, names))]
+        const { catalogueId, detachmentNames } = armyRulesRequest(player.roster)
+        return catalogueId && detachmentNames.length
+          ? [context.queryClient.ensureQueryData(detachmentRulesQuery(catalogueId, detachmentNames))]
           : []
       }),
     ])
@@ -74,12 +74,12 @@ function BattlePage() {
 function BattleSession({ token }: { token: string }) {
   const { data: screen } = useQuery(battleQuery(token))
   const seated = screen?.kind === 'battle'
-  const present = useLiveBattle(token, seated)
+  useLiveBattle(token, seated)
   const { send, problem, pending } = useCommand(token, seated ? screen.view.seq : 0)
 
   if (!screen) return <Navigate to="/battles" replace />
   if (screen.kind === 'invitation') return <Invitation token={token} free={screen.free} />
   if (screen.view.status === 'setup')
     return <Setup view={screen.view} mission={screen.mission} missions={screen.missions} send={send} pending={pending} problem={problem} />
-  return <Tracker view={screen.view} missions={screen.missions} present={present} send={send} pending={pending} problem={problem} />
+  return <Tracker view={screen.view} missions={screen.missions} send={send} pending={pending} problem={problem} />
 }

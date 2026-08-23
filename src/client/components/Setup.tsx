@@ -1,18 +1,28 @@
 import { useQuery } from '@tanstack/react-query'
+import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import type { Command } from '../../core/battle'
 import type { BattleView } from '../../core/battleView'
-import { GAME_SIZES, isKotcLimit } from '../../core/battle'
-import { gameReferencesQuery } from '../queries'
-import { type SideMission, sides as foldSides } from '../sides'
+import { FIXED_SECONDARIES, GAME_SIZES, isKotcLimit } from '../../core/battle'
+import { deploymentsQuery, gameReferencesQuery } from '../queries'
+import { type Side, type SideMission, sideName, sides as foldSides } from '../sides'
+import { SearchableSelect, type SearchableGroup } from './SearchableSelect'
 import { Battlefield } from './Battlefield'
 import { ArmiesStep } from './setup/ArmiesStep'
+import { CHOOSABLE, CHOSEN, DispositionChip, SetupNote, SetupPanel, useDispositionNames } from './setup/chrome'
+import { TwistChoice } from './setup/TwistChoice'
 import { AttackerStep } from './setup/AttackerStep'
 import { FirstTurnStep } from './setup/FirstTurnStep'
-import { PreBattleStep } from './setup/PreBattleStep'
+import { DeployStep } from './setup/DeployStep'
+import { PreBattleRulesStep } from './setup/PreBattleRulesStep'
+import { SideDispositionChoice } from './setup/SideDispositionChoice'
+import { ReservesStep } from './setup/ReservesStep'
+import { SecondariesStep } from './setup/SecondariesStep'
+import { SidePlayers } from './PlayerName'
 import { StepRail, type Step } from './setup/StepRail'
+import { MissionDetailsDialog, type MissionDetails } from './battle/MissionCards'
+import { CARD_NAME, tint } from './battle/tints'
 import { TableStrip } from './setup/TableStrip'
 
 type Props = {
@@ -26,6 +36,22 @@ type Props = {
 }
 
 /**
+ * The two dispositions a set of layouts is for, in the order the table reads them.
+ *
+ * Named rather than sloganeered: a player choosing a battlefield is choosing one for
+ * this matchup, and the pack prints the layouts under exactly that heading.
+ */
+function matchupName(table: Side[], nameDisposition: (id: string | null | undefined) => { name: string } | null) {
+  const named = table.map((side) => nameDisposition(side.disposition)?.name)
+  return named.length === 2 && named.every(Boolean) ? named.join(' vs ') : undefined
+}
+
+/** Every matched-play size, named and priced, for the one control that asks for it. */
+const SIZE_OPTIONS: SearchableGroup[] = [
+  { label: '', items: GAME_SIZES.map((size) => ({ label: `${size.name} · ${size.limit}`, value: String(size.limit) })) },
+]
+
+/**
  * Setting the table, in the order the rules set it.
  *
  * The section is folded from the battle log, so moving through setup moves every
@@ -37,6 +63,20 @@ export function Setup({ view, mission, missions, send, pending, problem }: Props
   const yours = table.find((side) => side.isViewer)
   const { data: references } = useQuery(gameReferencesQuery())
   const at = view.setupStep
+  const nameDisposition = useDispositionNames()
+  const { data: deployments } = useQuery(deploymentsQuery())
+  const deployment = deployments?.find((entry) => entry.id === view.deploymentId)
+  // The attacker deploys second, so the other side is the one that starts.
+  const attacker = table.find((side) => side.armies.some((army) => army.playerId === view.attackerId))
+  const defender = attacker ? table.find((side) => side.index !== attacker.index) : undefined
+  // The roll-off is recorded a section before the battle begins, and read back in the
+  // one after it, so it is folded from the log rather than held on the device that saw it.
+  const firstSide = table.find((side) => side.armies.some((army) => army.playerId === view.firstPlayerId))
+  /** The mission card a matchup panel has been asked to read out, if any. */
+  const [reading, setReading] = useState<MissionDetails | null>(null)
+  // Another seat can move the table off this section while the card is open, which
+  // unmounts the dialog without closing it — and it would spring back open on return.
+  useEffect(() => setReading(null), [at])
   const attached = view.players.filter((player) => player.roster).length
   const ready = attached === view.players.length
   const youHaveAnArmy = Boolean(yours?.armies.find((army) => army.isViewer)?.roster)
@@ -44,40 +84,97 @@ export function Setup({ view, mission, missions, send, pending, problem }: Props
   // this table still owes before setup can move on.
   const owed = table.flatMap((side) => side.armies).filter((army) => (army.isViewer || army.automated) && !army.roster)
 
+  /**
+   * What still has to be true before a section can be left behind.
+   *
+   * Asked of any section rather than only the one being read, because it is also
+   * what says whether a section further along can be jumped to: everything before
+   * it has to have been settled, and nothing else does.
+   */
+  const blockedAt = (step: number) => {
+    // Said at every section rather than only the first, because each of them draws
+    // your army: without one they were blank screens under a cheerful heading.
+    if (step >= 1 && !youHaveAnArmy) return 'Choose your army to continue.'
+    if (step === 1 && owed.length) return `Choose an army for ${owed.map((army) => army.playerName).join(' and ')} to continue.`
+    const undecided = table.filter((side) => side.dispositionChoices.length > 1 && !side.disposition)
+    if (step === 2 && undecided.length) return 'Choose the Force Disposition each allied side plays to continue.'
+    if (step === 3 && !view.deploymentId) return 'Choose a battlefield layout to continue.'
+    if (step === 4 && !view.attackerId) return 'Roll off and record the attacker to continue.'
+    // Fixed play is two cards, and a side of practice opponents is this table's to pick for.
+    const short = table.filter((side) => side.played && side.secondaryMode === 'fixed' && side.secondaries.length < FIXED_SECONDARIES)
+    if (step === 5 && short.length) return `Choose ${FIXED_SECONDARIES} fixed secondary missions to continue.`
+    return null
+  }
+  const blocked = blockedAt(at)
+  /**
+   * A section is open once everything before it is settled — and wherever the table
+   * has already reached, so a step it is standing on is never one it cannot press.
+   */
+  const reachable = (step: number) => step <= at || [...Array(step).keys()].every((before) => blockedAt(before) === null)
+
   const steps: Step[] = [
     {
       name: 'Format',
       detail: view.settings.limit ? `${view.settings.limit} points` : 'Choose a size',
       complete: view.settings.limit !== null,
+      reachable: true,
     },
-    { name: 'Armies', detail: `${attached}/${view.players.length} chosen`, complete: ready },
+    { name: 'Armies', detail: `${attached}/${view.players.length} chosen`, complete: ready, reachable: reachable(1) },
+    // Derived rather than chosen: both dispositions being in is what settles it.
+    { name: 'Mission', detail: mission?.name ?? 'Choose the armies first', complete: Boolean(mission), reachable: reachable(2) },
     {
       name: 'Battlefield',
-      detail: view.deploymentId ? view.deploymentId.replaceAll('-', ' ') : 'Choose a layout',
+      // The layout's own name, not the slug it is stored under.
+      detail: deployment?.name ?? (view.deploymentId ? view.deploymentId : 'Choose a layout'),
       complete: Boolean(view.deploymentId),
+      reachable: reachable(3),
     },
     {
       name: 'Attacker',
-      detail: view.attackerId ? 'Deployment order chosen' : 'Choose deployment order',
+      detail: view.attackerId ? 'Attacker chosen' : 'Roll off for it',
       complete: Boolean(view.attackerId),
+      reachable: reachable(4),
     },
     // The cards settle themselves once an army is attached, so having them is what says this section is done.
     {
-      name: 'Pre-battle',
-      detail: youHaveAnArmy ? 'Reserves and cards' : 'Choose an army first',
+      name: 'Secondaries',
+      detail: yours?.secondaryMode === 'fixed' ? `${yours.secondaries.length} of ${FIXED_SECONDARIES} fixed` : 'Drawn as the battle runs',
       complete: Boolean(yours?.stratagems.length),
+      reachable: reachable(5),
     },
-    { name: 'First turn', detail: ready && view.deploymentId ? 'Ready to begin' : 'Setup incomplete', complete: false },
+    {
+      name: 'Reserves',
+      detail: youHaveAnArmy ? 'Where units start' : 'Choose an army first',
+      complete: ready,
+      reachable: reachable(6),
+    },
+    // Where the models actually stand is the table's, so nothing here is completed.
+    {
+      name: 'Deploy',
+      detail: attacker ? 'Alternate from the defender' : 'Choose the attacker first',
+      complete: false,
+      reachable: reachable(7),
+    },
+    { name: 'First turn', detail: firstSide ? sideName(firstSide) : 'Record the roll-off', complete: false, reachable: reachable(8) },
+    {
+      name: 'Pre-battle rules',
+      detail: ready && view.deploymentId ? 'Ready to begin' : 'Setup incomplete',
+      complete: false,
+      reachable: reachable(9),
+    },
   ]
 
-  /** What still has to be true before a section can be left behind. */
-  const blocked = (() => {
-    if (at === 1 && !youHaveAnArmy) return 'Choose your army to continue.'
-    if (at === 1 && owed.length) return `Choose an army for ${owed.map((army) => army.playerName).join(' and ')} to continue.`
-    if (at === 2 && !view.deploymentId) return 'Choose a battlefield layout to continue.'
-    if (at === 3 && !view.attackerId) return 'Choose the attacker to continue.'
-    return null
-  })()
+  // A twist belongs to the pack that prints it, so changing the pack drops it above.
+  const chosenPack = references?.packs.find((pack) => pack.id === view.settings.missionPackId)
+  const twists = chosenPack?.twists ?? []
+  /**
+   * What a primary actually asks for, so the matchup can be read rather than only
+   * named. Taken from the pack in play, or from wherever else it is printed for a
+   * battle opened before a pack was settled.
+   */
+  const primaryCardFor = (missionId: string) =>
+    (chosenPack ?? { missions: references?.packs.flatMap((pack) => pack.missions) ?? [] }).missions.find((entry) => entry.id === missionId)
+      ?.card ?? undefined
 
   const configure = (settings: Partial<Omit<Extract<Command, { kind: 'configure-battle' }>, 'kind'>>) =>
     send({
@@ -92,110 +189,168 @@ export function Setup({ view, mission, missions, send, pending, problem }: Props
     })
 
   return (
-    <main className="mx-auto w-full max-w-5xl space-y-5 px-4 py-6">
-      <header className="space-y-4">
-        <div>
-          <p className="eyebrow">Battle setup</p>
-          <h1 className="mt-0.5 text-2xl">Set the table</h1>
-        </div>
+    <main className="w-full pb-8">
+      {/*
+       * Where the table is, banded across the top and pinned there the way the tracker
+       * pins its scoreboard — the same offset under the same header, so setup and the
+       * battle it becomes read as one screen changing rather than two pages.
+       *
+       * Edge to edge and flush: the sections divide the whole width between them, so
+       * holding them to the measure of the column below left a wide screen with more
+       * gutter than rail.
+       */}
+      <div className="sticky top-12 z-20 border-b border-edge bg-void/95 backdrop-blur">
+        <StepRail steps={steps} at={at} blocked={blocked} onGo={(step) => send({ kind: 'set-setup-step', step })} />
+      </div>
+
+      <div className="mx-auto w-full max-w-5xl space-y-5 px-4 py-6">
         <TableStrip sides={table} />
-      </header>
 
-      <StepRail steps={steps} at={at} onGo={(step) => send({ kind: 'set-setup-step', step })} />
+        {/*
+         * One line under the title carries either what the step is for or what it is
+         * still waiting on — the same slot either way, so nothing below it moves when
+         * a step starts asking for something.
+         */}
+        <header className="space-y-1 text-center">
+          <h1 className="text-lg text-balance sm:text-xl">{HEADLINES[at]}</h1>
+          <p className={`text-sm ${blocked ? 'text-discarded' : 'text-dim'}`}>{blocked ?? BLURBS[at]}</p>
+        </header>
 
-      <section aria-label={steps[at]?.name} className="min-w-0 space-y-4">
-        <div>
-          <p className="eyebrow">
-            {at + 1} of {steps.length} · {steps[at]?.name}
-          </p>
-          <h2 className="mt-0.5 text-xl">{HEADLINES[at]}</h2>
-          <p className="mt-1 text-sm text-dim">{BLURBS[at]}</p>
-        </div>
-
-        {at === 0 ? (
-          <div className="space-y-4 rounded-sm border border-edge bg-panel p-4">
-            <div className="max-w-sm">
-              <Label htmlFor="battle-size" className="eyebrow">
-                Battle size
-              </Label>
-              <Select
-                value={view.settings.limit === null ? null : String(view.settings.limit)}
-                onValueChange={(value) => value && configure({ limit: Number(value) })}
-              >
-                <SelectTrigger id="battle-size" className="mt-1 h-11 w-full rounded-none border-edge bg-sunken font-semibold uppercase">
-                  <SelectValue placeholder="Choose a battle size">
-                    {(value: unknown) => {
-                      const size = GAME_SIZES.find((candidate) => String(candidate.limit) === value)
-                      return size ? `${size.name} · ${size.limit}` : 'Choose a battle size'
-                    }}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {GAME_SIZES.map((size) => (
-                    <SelectItem key={size.limit} value={String(size.limit)}>
-                      {size.name} · {size.limit}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            {references?.packs.length ? (
-              <div>
-                <p className="eyebrow">Mission pack</p>
-                <div className="mt-1 flex flex-wrap gap-2">
-                  {references.packs.map((pack) => (
-                    <Button
-                      key={pack.id}
-                      variant={view.settings.missionPackId === pack.id ? 'default' : 'outline'}
-                      className={
-                        view.settings.missionPackId === pack.id ? 'bg-parchment text-parchment-ink hover:bg-parchment/80' : undefined
-                      }
-                      size="sm"
-                      onClick={() => configure({ missionPackId: pack.id })}
-                    >
-                      {pack.name}
-                    </Button>
-                  ))}
+        <section aria-label={steps[at]?.name} className="min-w-0 space-y-4">
+          {at === 0 ? (
+            <>
+              <SetupPanel className="space-y-4">
+                <div className="max-w-sm">
+                  <Label htmlFor="battle-size" className="eyebrow">
+                    Battle size
+                  </Label>
+                  <SearchableSelect
+                    id="battle-size"
+                    ariaLabel="Battle size"
+                    groups={SIZE_OPTIONS}
+                    value={view.settings.limit === null ? '' : String(view.settings.limit)}
+                    onValueChange={(value) => configure({ limit: Number(value) })}
+                    placeholder="Choose a battle size"
+                    searchPlaceholder="Search sizes…"
+                    className="mt-1 h-11 rounded-none border-edge bg-sunken"
+                  />
                 </div>
-              </div>
-            ) : null}
-            <p className="border-t border-edge pt-3 text-xs text-dim">
-              {isKotcLimit(view.settings.limit)
-                ? 'The synced rules source does not yet provide the KOTC 2.0 battlefield or structured twists. Use the prototype pack for setup; Praetorium will not substitute the older 9-inch deployment.'
-                : 'The synced rules source does not currently provide structured twist cards, so none are invented here.'}
-            </p>
-          </div>
-        ) : null}
+                {references?.packs.length ? (
+                  <fieldset>
+                    <legend className="eyebrow">Mission pack</legend>
+                    <div className="mt-1 grid gap-2 sm:grid-cols-2">
+                      {references.packs.map((pack) => (
+                        <Button
+                          key={pack.id}
+                          variant="outline"
+                          aria-pressed={view.settings.missionPackId === pack.id}
+                          className={`h-auto justify-start px-3 py-2 text-left text-sm font-bold uppercase ${
+                            view.settings.missionPackId === pack.id ? CHOSEN : CHOOSABLE
+                          }`}
+                          onClick={() => configure({ missionPackId: pack.id, twistId: null })}
+                        >
+                          {pack.name}
+                        </Button>
+                      ))}
+                    </div>
+                  </fieldset>
+                ) : null}
+              </SetupPanel>
+              {isKotcLimit(view.settings.limit) ? (
+                <SetupNote>
+                  The synced rules source does not yet provide the KOTC 2.0 battlefield. Use the prototype pack for setup; Praetorium will
+                  not substitute the older 9-inch deployment.
+                </SetupNote>
+              ) : null}
+            </>
+          ) : null}
 
-        {at === 1 ? <ArmiesStep view={view} sides={table} send={send} pending={pending} /> : null}
+          {at === 1 ? <ArmiesStep view={view} sides={table} send={send} pending={pending} /> : null}
 
-        {at === 2 && youHaveAnArmy ? (
-          <div className="rounded-sm border border-edge bg-panel p-4">
-            {mission ? <p className="mb-3 text-sm text-dim">Mission matchup · {mission.name}</p> : null}
-            <Battlefield view={view} send={send} pending={pending} allowedIds={mission?.deploymentIds} />
-          </div>
-        ) : null}
+          {/*
+           * The mission and the twist are one thing to settle: what this battle is
+           * being played to. A primary comes from the disposition facing it rather
+           * than from a pick, so the panel reads the matchup out and then asks the
+           * one question about it there is. Where it is fought is the next section.
+           */}
+          {at === 2 && youHaveAnArmy ? (
+            <>
+              <SideDispositionChoice sides={table} nameDisposition={nameDisposition} send={send} />
+              <SetupPanel className="space-y-3">
+                <p className="eyebrow">Primary missions</p>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {table.map((side) => {
+                    const card = side.mission ? primaryCardFor(side.mission.id) : undefined
+                    const body = (
+                      <>
+                        <span className="flex flex-wrap items-center justify-between gap-2">
+                          <SidePlayers side={side} linked={!card} />
+                          {/* The card the side plays, which is the side's rather than any one list's. */}
+                          <DispositionChip disposition={nameDisposition(side.disposition)} />
+                        </span>
+                        <span className={`mt-1 block ${side.mission ? CARD_NAME : 'text-sm font-bold text-faint uppercase'}`}>
+                          {side.mission?.name ?? 'No mission for this matchup'}
+                        </span>
+                      </>
+                    )
+                    const shell = `block w-full rounded-sm border border-edge border-t-2 bg-sunken p-2.5 text-left ${tint(side.index).edge}`
+                    // The whole card opens the card. A mission is read far more often
+                    // than it is glanced at, and the name alone was a small target for
+                    // something the table reaches for every round.
+                    return card && side.mission ? (
+                      <button
+                        key={side.index}
+                        type="button"
+                        aria-label={`Read ${side.mission.name}`}
+                        className={`${shell} transition-colors hover:border-edge-strong hover:bg-raised`}
+                        onClick={() => setReading({ name: side.mission!.name, card, type: 'Primary mission' })}
+                      >
+                        {body}
+                      </button>
+                    ) : (
+                      <div key={side.index} className={shell}>
+                        {body}
+                      </div>
+                    )
+                  })}
+                </div>
+                {reading ? <MissionDetailsDialog details={reading} onOpenChange={(open) => !open && setReading(null)} /> : null}
+              </SetupPanel>
+              <TwistChoice twists={twists} chosenId={view.settings.twistId} onChoose={(twistId) => configure({ twistId })} />
+            </>
+          ) : null}
 
-        {at === 3 ? <AttackerStep sides={table} attackerId={view.attackerId} send={send} /> : null}
+          {at === 3 && youHaveAnArmy ? (
+            <SetupPanel>
+              <Battlefield
+                view={view}
+                send={send}
+                pending={pending}
+                allowedIds={mission?.deploymentIds}
+                matchup={matchupName(table, nameDisposition)}
+              />
+            </SetupPanel>
+          ) : null}
 
-        {at === 4 && youHaveAnArmy ? <PreBattleStep view={view} sides={table} send={send} pending={pending} /> : null}
+          {at === 4 ? <AttackerStep sides={table} attackerId={view.attackerId} token={view.token} send={send} /> : null}
 
-        {at === 5 && view.deploymentId ? <FirstTurnStep sides={table} ready={ready} pending={pending} send={send} /> : null}
+          {at === 5 && youHaveAnArmy ? <SecondariesStep view={view} sides={table} send={send} pending={pending} /> : null}
 
-        {problem ? <p className="text-sm text-destructive">{problem}</p> : null}
-      </section>
+          {at === 6 && youHaveAnArmy ? <ReservesStep sides={table} send={send} /> : null}
 
-      <footer className="flex items-center justify-between gap-3 border-t border-edge pt-4">
-        <Button variant="outline" disabled={at === 0} onClick={() => send({ kind: 'set-setup-step', step: Math.max(0, at - 1) })}>
-          Back
-        </Button>
-        {blocked ? <p className="text-xs text-dim">{blocked}</p> : null}
-        {at === steps.length - 1 ? null : (
-          <Button disabled={blocked !== null} onClick={() => send({ kind: 'set-setup-step', step: at + 1 })}>
-            Next
-          </Button>
-        )}
-      </footer>
+          {at === 7 && youHaveAnArmy ? <DeployStep sides={table} defender={defender} /> : null}
+
+          {at === 8 && view.deploymentId ? (
+            <FirstTurnStep sides={table} token={view.token} first={firstSide?.index ?? null} send={send} />
+          ) : null}
+
+          {at === 9 && view.deploymentId ? (
+            <PreBattleRulesStep sides={table} first={firstSide} ready={ready} pending={pending} send={send} />
+          ) : null}
+
+          {problem ? <p className="text-sm text-destructive">{problem}</p> : null}
+        </section>
+      </div>
     </main>
   )
 }
@@ -203,17 +358,25 @@ export function Setup({ view, mission, missions, send, pending, problem }: Props
 const HEADLINES = [
   'Choose how you are playing',
   'Choose the armies',
-  'Deployment and terrain',
-  'Choose who deploys second',
-  'Reserves, bonuses and cards',
+  'Read the mission',
+  'Choose the battlefield',
+  'Choose the attacker',
+  'Choose how your secondaries are drawn',
+  'Set your reserves',
+  'Deploy the armies',
   'Choose who takes the first turn',
+  'Resolve pre-battle rules',
 ]
 
 const BLURBS = [
   'The points apply to each side. In a 2v1, the allied side splits them evenly.',
   'Everyone chooses their own army. Every attached army is visible here immediately.',
-  'One shared choice sets the table for both sides.',
-  'The defender deploys first. The attacker deploys second.',
-  'Where every unit starts, and how your side draws its secondary missions.',
-  'After both armies deploy, record the roll-off and begin. The first command phase starts immediately.',
+  'Each side finds its opponent’s disposition on its own Force Disposition card, and plays the primary listed there. A twist is optional and bends one rule for the whole battle.',
+  'One shared choice sets the deployment zones and the terrain for both sides.',
+  'Roll off. The winner decides who attacks and who defends — the defender deploys first, the attacker deploys second.',
+  'Tactical cards are dealt as the battle runs. Fixed cards are chosen now and played all game.',
+  'Every unit starts on the battlefield unless you say otherwise. Hold one back to arrive from reserves or deep strike instead.',
+  'Put the models on the table. Nothing is recorded here — this is what each side needs straight before it starts.',
+  'After both armies deploy, record the roll-off here.',
+  'Anything a unit does before the first turn happens now. Starting the battle opens the first command phase immediately.',
 ]

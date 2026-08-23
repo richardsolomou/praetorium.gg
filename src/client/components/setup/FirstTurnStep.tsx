@@ -1,46 +1,33 @@
-import { useState } from 'react'
-import { Button } from '@/components/ui/button'
 import type { Command } from '../../../core/battle'
 import type { Side } from '../../sides'
+import { SetupPanel } from './chrome'
 import { SetupSideChoice } from './SetupSideChoice'
 
-type Props = { sides: Side[]; ready: boolean; pending: boolean; send: (command: Command) => void }
+type Props = { sides: Side[]; token: string; first: number | null; send: (command: Command) => void }
 
 /**
  * The post-deployment first-turn roll-off, recorded rather than rolled.
+ *
+ * Recorded into the log rather than kept on the device that saw it, because the
+ * section after this one both reads it — pre-battle rules are resolved starting with
+ * whoever takes the first turn — and is where the battle is finally begun, which may
+ * be from another seat entirely.
  */
-export function FirstTurnStep({ sides, ready, pending, send }: Props) {
-  const [first, setFirst] = useState(sides[0]?.index ?? 0)
-  const seatFor = (index: number) => sides.find((side) => side.index === index)?.captain.id
-
-  if (!ready) {
-    const waiting = sides.flatMap((side) => side.armies.filter((army) => !army.roster).map((army) => army.playerName))
-    return (
-      <p className="rounded-sm border border-edge bg-panel p-4 text-sm text-dim">
-        Waiting for {waiting.join(' and ') || 'the other side'} to choose an army before the battle can start.
-      </p>
-    )
-  }
-
+export function FirstTurnStep({ sides, token, first, send }: Props) {
   return (
-    <div className="space-y-4">
+    <SetupPanel>
       <SetupSideChoice
         label="First turn"
-        hint="Whoever won the roll-off after deployment."
         sides={sides}
+        token={token}
         chosen={first}
-        onChoose={setFirst}
-      />
-      <Button
-        className="h-12 w-full text-base"
-        disabled={pending}
-        onClick={() => {
-          const firstPlayerId = seatFor(first)
-          if (firstPlayerId) send({ kind: 'begin-battle', firstPlayerId })
+        roles={{ chosen: 'Takes the first turn', other: 'Takes the second turn' }}
+        onChoose={(index) => {
+          // The side's captain stands for the side, the way the attacker is recorded.
+          const captain = sides.find((side) => side.index === index)?.captain.id
+          if (captain) send({ kind: 'set-first-turn', firstPlayerId: captain })
         }}
-      >
-        Start battle
-      </Button>
-    </div>
+      />
+    </SetupPanel>
   )
 }

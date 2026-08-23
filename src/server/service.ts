@@ -4,11 +4,13 @@ import {
   battleCapacity,
   type Command,
   commandArmy,
-  PAINTED_ARMY_POINTS,
   type PlayerId,
   reduceBattle,
   type Secondary,
   scoringTarget,
+  sideCaptain,
+  sideDisposition,
+  sidePaintedPoints,
   type Stratagem,
   type SubmitResult,
 } from '../core/battle'
@@ -69,9 +71,10 @@ export class PraetoriumService {
         log,
         players.map((player) => player.side),
       )
-      const viewerSide = state.players.find((player) => player.id === userId)?.side
-      const ownDisposition = state.players.find((player) => player.side === viewerSide)?.roster?.built?.disposition ?? null
-      const opposingDisposition = state.players.find((player) => player.side !== viewerSide)?.roster?.built?.disposition ?? null
+      const viewerSide = state.players.find((player) => player.id === userId)?.side ?? 0
+      const opposingSide = state.players.find((player) => player.side !== viewerSide)?.side
+      const ownDisposition = sideDisposition(state, viewerSide)
+      const opposingDisposition = opposingSide === undefined ? null : sideDisposition(state, opposingSide)
       return {
         token: battle.token,
         createdAt: battle.createdAt,
@@ -83,9 +86,15 @@ export class PraetoriumService {
         sides: state.players.map((player) => player.side),
         armies: state.players.map((player) => player.roster?.name ?? null),
         detachments: state.players.map((player) => player.roster?.built?.detachments?.map((detachment) => detachment.name) ?? []),
-        // The painted bonus pays at the end of the battle, so a running score does not carry it yet.
+        // The painted bonus pays at the end of the battle, so a running score does not
+        // carry it yet — and it is the side's one bonus, the same as everywhere else.
+        // Onto the seat that already carries the side's score, because that is the seat
+        // every reader of this list picks out to ask what a side finished on.
         scores: state.players.map(
-          (player) => player.primary + player.secondary + (state.status === 'finished' && player.painted ? PAINTED_ARMY_POINTS : 0),
+          (player) =>
+            player.primary +
+            player.secondary +
+            (state.status === 'finished' && player.id === sideCaptain(state, player.side).id ? sidePaintedPoints(state, player.side) : 0),
         ),
         mission: rules ? missionFor(rules, ownDisposition, opposingDisposition, state.settings.missionPackId) : null,
         deploymentId: state.deploymentId,
@@ -226,7 +235,7 @@ export class PraetoriumService {
    * of every account on the instance behind every battle opened and every link
    * followed, to answer a question about a handful of rows.
    */
-  async opponents(userId: string): Promise<{ id: string; name: string; automated: boolean }[]> {
+  async opponents(userId: string): Promise<{ id: string; name: string; image: string | null; automated: boolean }[]> {
     const [relationships, practice] = await Promise.all([this.repository.relationships(userId), this.repository.practiceOpponents()])
     return [
       ...sortedFriends(relationships, userId).friends.map((friend) => ({ ...friend, automated: false })),
@@ -261,28 +270,44 @@ export class PraetoriumService {
     if (!(await this.repository.removeFriend(userId, friendId))) throw new Response('no such friendship', { status: 404 })
   }
 
+  /**
+   * Opens a battle and invites the rest of the table.
+   *
+   * A 2v1 is the same battle whichever of the allied pair opens it, so the creator
+   * says which side each invitation is for: `allyId` joins them and `opponentIds`
+   * face them. Everyone invited is checked once, together — who may be in a battle
+   * is one question, and asking it of the ally and the opponents separately would
+   * be two rules about it.
+   */
   async createBattle(
     userId: string,
-    input?: string | { opponentId?: string; opponentIds?: string[]; limit?: number; missionPackId: string | null },
+    input?: string | { opponentId?: string; opponentIds?: string[]; allyId?: string; limit?: number; missionPackId: string | null },
   ) {
     const settings = typeof input === 'object' && input.limit !== undefined ? { ...input, limit: input.limit } : null
     const opponentIds = typeof input === 'string' ? [input] : (input?.opponentIds ?? (input?.opponentId ? [input.opponentId] : []))
-    // One query for every named opponent rather than one apiece.
-    const known = await this.repository.namesByIds(opponentIds)
-    if (new Set(opponentIds).size !== opponentIds.length || opponentIds.some((id) => id === userId || !known.has(id))) {
+    const allyIds = typeof input === 'object' && input?.allyId ? [input.allyId] : []
+    const invited = [...allyIds, ...opponentIds]
+    // One query for everyone named rather than one apiece, and both reads at once:
+    // who exists and who may be invited are independent questions.
+    const [known, invitable] = await Promise.all([this.repository.namesByIds(invited), this.opponents(userId)])
+    if (new Set(invited).size !== invited.length || invited.some((id) => id === userId || !known.has(id))) {
       throw new Response('choose an opponent', { status: 400 })
     }
-    const allowed = new Map((await this.opponents(userId)).map((opponent) => [opponent.id, opponent]))
-    if (opponentIds.some((id) => !allowed.has(id)))
-      throw new Response('battle opponents must be your friends or a practice opponent', { status: 403 })
+    const allowed = new Map(invitable.map((opponent) => [opponent.id, opponent]))
+    if (invited.some((id) => !allowed.has(id)))
+      throw new Response('battle players must be your friends or a practice opponent', { status: 403 })
+    // How many chairs a battle has is `battleCapacity`'s to say, here as everywhere.
+    if (invited.length >= battleCapacity({ teamBattle: true })) throw new Response('a battle seats three players at most', { status: 400 })
+    if (allyIds.length && !opponentIds.length) throw new Response('choose an opponent', { status: 400 })
     if (settings && !opponentIds.length) throw new Response('choose an opponent', { status: 400 })
-    const practice = opponentIds.some((id) => allowed.get(id)?.automated)
+    const practice = invited.some((id) => allowed.get(id)?.automated)
     const token = randomToken()
     const id = randomId()
     await this.repository.createBattle({
       id,
       token,
       userId,
+      allyIds,
       opponentIds,
       initialCommand: settings
         ? {
@@ -291,15 +316,15 @@ export class PraetoriumService {
             missionPackId: settings.missionPackId,
             terrainLayoutId: null,
             twistId: null,
-            teamBattle: opponentIds.length === 2,
+            teamBattle: invited.length === 2,
             clockLimitMinutes: null,
           }
         : undefined,
       now: this.clock(),
     })
-    // The opponents are told before they have the battle open, which is what puts it
-    // on their list without a reload.
-    this.events.publish(id, [userId, ...opponentIds])
+    // Everyone invited is told before they have the battle open, which is what puts
+    // it on their list without a reload.
+    this.events.publish(id, [userId, ...invited])
     return { token, practice }
   }
 
@@ -423,8 +448,9 @@ export class PraetoriumService {
     )
     const view = battleView(history.battle, history.players, state, userId, this.clock())
     const missionForSide = (side: number) => {
-      const ownDisposition = view.players.find((player) => player.side === side)?.roster?.built?.disposition ?? null
-      const opposingDisposition = view.players.find((player) => player.side !== side)?.roster?.built?.disposition ?? null
+      const ownDisposition = sideDisposition(state, side)
+      const opposingSide = state.players.find((player) => player.side !== side)?.side
+      const opposingDisposition = opposingSide === undefined ? null : sideDisposition(state, opposingSide)
       return rules ? missionFor(rules, ownDisposition, opposingDisposition, state.settings.missionPackId) : null
     }
     if (state.status !== 'setup') {
@@ -472,7 +498,7 @@ export class PraetoriumService {
  * disagree about who counts as a friend.
  */
 function sortedFriends(relationships: Awaited<ReturnType<Repository['relationships']>>, userId: string) {
-  const named = (row: (typeof relationships)[number]) => ({ id: row.otherId, name: row.otherName })
+  const named = (row: (typeof relationships)[number]) => ({ id: row.otherId, name: row.otherName, image: row.otherImage })
   return {
     friends: relationships.filter((row) => row.acceptedAt !== null).map(named),
     incoming: relationships.filter((row) => row.acceptedAt === null && row.addresseeId === userId).map(named),
@@ -497,7 +523,12 @@ function rosterFromRow(row: NonNullable<Awaited<ReturnType<Repository['roster']>
 }
 
 function setupReferenceError(state: ReturnType<typeof reduceBattle>, rules: NonNullable<Parameters<typeof missionFor>[0]>): string | null {
-  const [one, two] = state.players.map((player) => player.roster?.built?.disposition ?? null)
+  // A matchup is between the two sides, so it is read off each side's captain. Taking
+  // the first two seats instead held while side 0 was always one player, and put a 2v1
+  // whose pair opened the battle into a matchup between its own allies.
+  const [one, two] = [...new Set(state.players.map((player) => player.side))]
+    .toSorted((left, right) => left - right)
+    .map((side) => sideDisposition(state, side))
   const missions = [
     missionFor(rules, one ?? null, two ?? null, state.settings.missionPackId),
     missionFor(rules, two ?? null, one ?? null, state.settings.missionPackId),
@@ -549,13 +580,29 @@ function scoringCapError(
                 ? command.delta
                 : 0,
         }
-  const opponentDisposition = state.players.find((player) => player.side !== target.side)?.roster?.built?.disposition ?? null
+  const opposingSide = state.players.find((player) => player.side !== target.side)?.side
+  const opponentDisposition = opposingSide === undefined ? null : sideDisposition(state, opposingSide)
   const mission = missionFor(rules, target.disposition, opponentDisposition, state.settings.missionPackId)
   if (!mission) return null
   // The round the points land in, which for a settlement of a turn already ended is
   // the round that turn was in rather than the one now being played.
   const round = command.kind === 'score-settlement' ? (command.round ?? state.round) : state.round
   const named = round === state.round ? 'this round’s' : `battle round ${round}’s`
+  // A fixed card carries a ceiling of its own for the whole battle, which the per-round
+  // and per-battle secondary caps do not cover: a card paying per model destroyed would
+  // otherwise bank as much as the battle's whole allowance on its own.
+  const cardCap = mission.fixedSecondaryCap
+  if (target.secondaryMode === 'fixed' && cardCap) {
+    const byCard =
+      command.kind === 'score-settlement'
+        ? command.scores.flatMap((score) => (score.category === 'secondary' && score.delta > 0 ? [[score.key, score.delta] as const] : []))
+        : command.kind === 'score-secondary' && command.delta > 0
+          ? [[command.key, command.delta] as const]
+          : []
+    for (const [key, delta] of byCard) {
+      if ((target.scored[key] ?? 0) + delta > cardCap) return `that would score past the ${cardCap} VP cap for one fixed secondary mission`
+    }
+  }
   for (const category of ['primary', 'secondary'] as const) {
     const delta = deltas[category]
     if (delta <= 0) continue

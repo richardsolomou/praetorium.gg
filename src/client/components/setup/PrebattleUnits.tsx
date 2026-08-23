@@ -1,0 +1,75 @@
+import type { Army, Side } from '../../sides'
+import { HEADING } from '../battle/tints'
+import { GROUPS } from '../builder/groups'
+import { formationLabel, SetupNote, SetupSidePanel } from './chrome'
+
+type Rule = 'infiltrators' | 'scouts'
+
+/**
+ * Every unit on the table carrying one pre-battle ability, side by side.
+ *
+ * Read twice with a different rule each time: Infiltrators is about where a unit is
+ * set up, so it belongs to the deployment section, and Scouts is a move made after
+ * both armies are down, so it belongs to the one after the first turn is settled.
+ *
+ * Said plainly rather than implied, because a list that looks complete and is not is
+ * worse than no list: `prebattleRules` is read off a datasheet's own abilities, and
+ * nothing here reads an army rule, a detachment or an enhancement granting the same.
+ */
+export function PrebattleUnits({ sides, rule, empty }: { sides: Side[]; rule: Rule; empty: string }) {
+  return (
+    <>
+      <div className="grid gap-3 lg:grid-cols-2">
+        {sides.map((side) => (
+          <SetupSidePanel key={side.index} side={side} className="space-y-3">
+            {side.armies.map((army) => (
+              <ArmyRules key={army.playerId} army={army} rule={rule} empty={empty} multiple={side.armies.length > 1} />
+            ))}
+          </SetupSidePanel>
+        ))}
+      </div>
+      <SetupNote>
+        Only what a datasheet itself says is listed here. An army rule, a detachment or an enhancement that grants the same ability is not
+        read.
+      </SetupNote>
+    </>
+  )
+}
+
+function ArmyRules({ army, rule, empty, multiple }: { army: Army; rule: Rule; empty: string; multiple: boolean }) {
+  // A unit held back is not on the table to do any of this.
+  const onTable = army.units.filter((unit) => unit.formation === 'battlefield')
+  const carrying = onTable.filter((unit) => unit.prebattleRules?.includes(rule))
+
+  return (
+    <article className="space-y-2">
+      <div className="flex items-baseline justify-between gap-2 border-b border-edge pb-1">
+        <span className="min-w-0">
+          <span className="block truncate text-xs font-bold uppercase">{army.roster?.name ?? 'No army chosen'}</span>
+          {multiple ? <span className="block text-[0.625rem] text-dim">{army.playerName}</span> : null}
+        </span>
+        <span className="chip shrink-0">{onTable.length} on the table</span>
+      </div>
+      {carrying.length ? (
+        GROUPS.flatMap((group) => {
+          const units = carrying.filter((unit) => (unit.group ?? 'other') === group.id)
+          return units.length
+            ? [
+                <section key={group.id} className="space-y-1">
+                  <p className={HEADING}>{group.plural}</p>
+                  {units.map((unit) => (
+                    <div key={unit.key} className="flex flex-wrap items-center justify-between gap-2 rounded-sm bg-sunken px-2.5 py-1.5">
+                      <span className="min-w-0 truncate text-sm font-semibold">{unit.name}</span>
+                      <span className="chip shrink-0 border-discarded/60 text-discarded">{formationLabel(rule)}</span>
+                    </div>
+                  ))}
+                </section>,
+              ]
+            : []
+        })
+      ) : (
+        <p className="text-xs text-dim">{empty}</p>
+      )}
+    </article>
+  )
+}

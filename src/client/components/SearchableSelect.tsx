@@ -11,10 +11,17 @@ import {
   ComboboxTrigger,
   ComboboxValue,
 } from '@/components/ui/combobox'
+import type { ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 import { FactionLabel, type FactionPresentation } from './FactionMark'
 
-export type SearchableOption = { label: string; value: string; faction?: FactionPresentation }
+/**
+ * One choice, optionally with something drawn beside its name.
+ *
+ * `faction` is the faction mark and its name together; `icon` is anything else a
+ * caller wants in front of the label, such as the picture on a player's account.
+ */
+export type SearchableOption = { label: string; value: string; faction?: FactionPresentation; icon?: ReactNode }
 export type SearchableGroup = { label: string; items: SearchableOption[] }
 
 type Props = {
@@ -59,9 +66,7 @@ export function SearchableSelect({
           className,
         )}
       >
-        <ComboboxValue placeholder={placeholder}>
-          {selected?.faction ? <FactionLabel faction={selected.faction} /> : selected?.label}
-        </ComboboxValue>
+        <ComboboxValue placeholder={placeholder}>{selected ? <OptionLabel option={selected} /> : null}</ComboboxValue>
       </ComboboxTrigger>
       <ComboboxContent className="rounded-none border border-edge bg-panel text-bone ring-0 transition-none">
         <ComboboxInput className="rounded-none" placeholder={searchPlaceholder} showTrigger={false} />
@@ -73,7 +78,7 @@ export function SearchableSelect({
               <ComboboxCollection>
                 {(option: SearchableOption) => (
                   <ComboboxItem key={option.value} value={option} className="rounded-none data-highlighted:bg-edge">
-                    {option.faction ? <FactionLabel faction={option.faction} /> : option.label}
+                    <OptionLabel option={option} />
                   </ComboboxItem>
                 )}
               </ComboboxCollection>
@@ -82,5 +87,16 @@ export function SearchableSelect({
         </ComboboxList>
       </ComboboxContent>
     </Combobox>
+  )
+}
+
+function OptionLabel({ option }: { option: SearchableOption }) {
+  if (option.faction) return <FactionLabel faction={option.faction} />
+  if (!option.icon) return option.label
+  return (
+    <span className="inline-flex min-w-0 items-center gap-1.5">
+      {option.icon}
+      <span className="truncate">{option.label}</span>
+    </span>
   )
 }

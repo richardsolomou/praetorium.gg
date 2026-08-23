@@ -248,7 +248,11 @@ export const datasheetBySlug = createServerFn({ method: 'GET' })
   )
 
 /**
- * The stratagems a detachment brings and the secondary cards on offer.
+ * The stratagems a detachment brings, and the words printed on them.
+ *
+ * Only what is actually per army. The mission cards are the instance's and travel
+ * with the game references instead: asked for here, a 2v1 fetched the whole deck
+ * three times over and shipped all three copies in the page.
  *
  * Null when the rules source has not been synced, so the interface falls back to
  * letting a player write their own down rather than offering nothing.
@@ -272,8 +276,6 @@ export const detachmentRules = createServerFn({ method: 'GET' })
         dataslate: rules.dataslate,
         stratagems: data.detachmentNames.flatMap((name) => detachments?.get(routeSlug(name)) ?? []),
         core: rules.core,
-        secondaries: rules.secondaries,
-        primaries: rules.primaries,
         written: written.map(({ id, type, description }) => ({ key: id, type, description })),
         keywordRules: rulesReferencedIn(
           catalogue,

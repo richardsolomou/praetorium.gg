@@ -34,7 +34,7 @@ export function TurnControl({ view, send, pending, blockReason, note, onAdvance,
   const label = view.phase === 'end' ? 'Pass the turn' : `End the ${view.phase} phase`
 
   return (
-    <section className={`space-y-2 ${className}`}>
+    <section data-turn-control className={`space-y-2 ${className}`}>
       <ol className="flex gap-0.5" aria-label={`${view.phase} phase`}>
         {PHASES.map((phase, index) => (
           <li key={phase} className="min-w-0 flex-1" aria-current={phase === view.phase ? 'step' : undefined}>
@@ -50,7 +50,18 @@ export function TurnControl({ view, send, pending, blockReason, note, onAdvance,
         ))}
       </ol>
       <div className="flex items-stretch gap-2">
-        <Button variant="default" className="h-11 min-w-0 flex-1 text-base" disabled={pending || Boolean(blockReason)} onClick={onAdvance}>
+        {/*
+         * Tinted to whichever side is taking the turn, like the phase rail above it.
+         * This is the most-pressed control in the game and the one thing on the middle
+         * column that belongs to a side, so wearing one colour all game left the only
+         * question it answers — whose turn is ending — to be read off the text.
+         */}
+        <Button
+          variant="default"
+          className={`h-11 min-w-0 flex-1 text-base ${tint(activeSide).fill}`}
+          disabled={pending || Boolean(blockReason)}
+          onClick={onAdvance}
+        >
           {label}
         </Button>
         <Button

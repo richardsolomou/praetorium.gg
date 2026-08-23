@@ -1,5 +1,4 @@
-import fs from 'node:fs'
-import path from 'node:path'
+import { english as english_, type MissionPack, readMissionPacks } from './missionPacks'
 
 /**
  * What each payout on a mission card asks for, in the words the pack prints.
@@ -12,14 +11,16 @@ export type Payout = { vp: number; criteria: string }
 
 /** Every card in every pack under `missions`, keyed by name. */
 export function loadMissionCriteria(directory: string): Map<string, Payout[]> {
+  return criteriaIn(readMissionPacks(directory))
+}
+
+/** The same reading, for a caller that has already parsed the packs. */
+export function criteriaIn(packs: readonly MissionPack[]): Map<string, Payout[]> {
   const found = new Map<string, Payout[]>()
-  const missions = path.join(directory, 'missions')
-  if (!fs.existsSync(missions)) return found
   // A name in two packs is two cards until proven otherwise, so neither is used.
   const contested = new Set<string>()
-  for (const fileName of fs.readdirSync(missions).filter((entry) => entry.endsWith('.json'))) {
-    const parsed: unknown = JSON.parse(fs.readFileSync(path.join(missions, fileName), 'utf8'))
-    for (const card of cardsIn(parsed)) {
+  for (const pack of packs) {
+    for (const card of cardsIn(pack)) {
       const name = cardName(card)
       const payouts = payoutsIn(card)
       if (!name || !payouts.length) continue
@@ -80,10 +81,4 @@ function payoutsIn(card: Record<string, unknown>): Payout[] {
       return typeof vp === 'number' && criteria ? [{ vp, criteria }] : []
     })
   })
-}
-
-function english_(value: unknown): string | null {
-  if (!value || typeof value !== 'object') return null
-  const english: unknown = (value as Record<string, unknown>).en
-  return typeof english === 'string' && english.trim() ? english.trim() : null
 }

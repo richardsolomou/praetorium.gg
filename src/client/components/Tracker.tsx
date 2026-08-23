@@ -4,28 +4,30 @@ import { useEffect, useState } from 'react'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { deleteBattle } from '../../server/functions'
 import { battleQuery, battlesQuery, deploymentsQuery, detachmentRulesQuery, gameReferencesQuery } from '../queries'
+import { primaryCards, secondaryCards } from '../missionDeck'
+import { appliesInMode } from '../missionText'
 import { errorMessage } from '../queryClient'
+import { armyRulesRequest } from '../sideRules'
 import { type Side, type SideMission, sideName, sides } from '../sides'
 import type { Command } from '../../core/battle'
 import type { BattleView } from '../../core/battleView'
-import type { PresentPlayer } from '../useLiveBattle'
 import { BattleMenu } from './battle/BattleMenu'
 import { DrawDialog, type WhenDrawn } from './battle/DrawDialog'
 import { DiscardSecondaryDialog } from './battle/DiscardSecondaryDialog'
 import type { Award, ReferenceCard, StratagemText } from './battle/MissionCards'
 import { Scoreboard } from './battle/Scoreboard'
-import { turnPrompt } from '../scoring'
+import { HAND_SIZE, turnPrompt } from '../scoring'
 import { dueForAdvance, dueFromTheirTurn, ScoringDialog } from './battle/ScoringDialog'
 import { SidePanel } from './battle/SidePanel'
 import { HEADING } from './battle/tints'
 import { TurnControl } from './battle/TurnControl'
+import { TwistName } from './MissionTwist'
 import { Report, type ReportPlayer } from './Report'
 
 type Props = {
   view: BattleView
   /** Each side's own mission, derived from both armies' dispositions, so it is the same on both devices. */
   missions: { side: number; mission: SideMission | null }[]
-  present: PresentPlayer[]
   send: (command: Command) => void
   pending: boolean
   problem: string | null
@@ -44,7 +46,7 @@ type DiscardContext = Pick<BattleView, 'round' | 'phase' | 'activePlayerId'> & {
  * allied pair is one side, because the rules make it one: they share the turn, the
  * command points, the cards and the score, and only the armies are separate.
  */
-export function Tracker({ view, missions, present, send, pending, problem }: Props) {
+export function Tracker({ view, missions, send, pending, problem }: Props) {
   const [focus, setFocus] = useState<Focus>('yours')
   const [scoring, setScoring] = useState<ScoringContext | null>(null)
   const [discarding, setDiscarding] = useState<DiscardContext | null>(null)
@@ -60,19 +62,24 @@ export function Tracker({ view, missions, present, send, pending, problem }: Pro
   const active = table.find((side) => side.isActive)
   const ruleRequests = table.flatMap((side) =>
     side.armies.flatMap((army) => {
-      const built = army.roster?.built
-      if (!built) return []
-      const detachmentNames = built.detachments?.map((detachment) => detachment.name) ?? (built.detachment ? [built.detachment] : [])
-      return [{ side: side.index, catalogueId: built.catalogueId, detachmentNames }]
+      const request = armyRulesRequest(army.roster)
+      return request.catalogueId ? [{ side: side.index, ...request }] : []
     }),
   )
   const ruleResults = useQueries({
     queries: ruleRequests.map((request) => detachmentRulesQuery(request.catalogueId, request.detachmentNames)),
   })
   const { data: deployments } = useQuery(deploymentsQuery())
-  const { data: references } = useQuery(gameReferencesQuery())
+  const referencesQuery = useQuery(gameReferencesQuery())
+  const references = referencesQuery.data
+  // What a card pays is read out of the references now, not out of a side's own rules,
+  // so "do we know what the cards say yet" has to watch this query too. An instance
+  // with nothing synced answers null and is not waiting on anything; a request still
+  // in flight or one that failed is, and neither may be read as a card that pays nothing.
+  const deckUnknown = referencesQuery.isPending || referencesQuery.isError
   const deployment = deployments?.find((entry) => entry.id === view.deploymentId)
   const missionPack = references?.packs.find((entry) => entry.id === view.settings.missionPackId)
+  const twist = missionPack?.twists.find((entry) => entry.id === view.settings.twistId)
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const remove = useMutation({
@@ -85,25 +92,18 @@ export function Tracker({ view, missions, present, send, pending, problem }: Pro
   })
   const rulesFor = (side: Side) =>
     ruleResults.flatMap((result, index) => (ruleRequests[index]?.side === side.index && result.data ? [result.data] : []))
-  const awardsFor = (side: Side, key: string, mode?: string): Award[] =>
-    (
-      rulesFor(side)
-        .flatMap((rules) => [...rules.secondaries, ...rules.primaries])
-        .find((card) => card.key === key)?.awards ?? []
-    ).filter((award) => !award.mode || !mode || award.mode === mode)
-  const referenceFor = (side: Side, key: string): ReferenceCard | undefined =>
-    rulesFor(side)
-      .flatMap((rules) => [...rules.primaries, ...rules.secondaries])
-      .find((card) => card.key === key)
+  // The cards are the instance's, not a side's: one deck, read the same way for both.
+  const deck = [...primaryCards(references), ...secondaryCards(references)]
+  const awardsFor = (key: string, mode?: string): Award[] =>
+    (deck.find((card) => card.key === key)?.awards ?? []).filter((award) => appliesInMode(award, mode))
+  const referenceFor = (key: string): ReferenceCard | undefined => deck.find((card) => card.key === key)
   const writtenFor = (side: Side, key: string): StratagemText | undefined => {
     const rules = rulesFor(side).find((candidate) => candidate.written.some((entry) => entry.key === key))
     const written = rules?.written.find((entry) => entry.key === key)
     return written ? { ...written, keywordRules: rules?.keywordRules ?? [] } : undefined
   }
-  const whenDrawnFor = (side: Side, key: string): WhenDrawn | undefined =>
-    rulesFor(side)
-      .flatMap((rules) => rules.secondaries)
-      .find((card) => card.key === key)?.whenDrawn ?? undefined
+  const whenDrawnFor = (key: string): WhenDrawn | undefined =>
+    secondaryCards(references).find((card) => card.key === key)?.whenDrawn ?? undefined
   const coreKeysFor = (side: Side) => new Set(rulesFor(side).flatMap((rules) => rules.core.map((stratagem) => stratagem.key)))
   // Seats are ordered by side, so both devices agree on which player is which colour.
   const reportPlayers: ReportPlayer[] = view.players.map((player) => ({
@@ -124,7 +124,7 @@ export function Tracker({ view, missions, present, send, pending, problem }: Pro
   const shown = (side: Side) => (side.isViewer ? 'yours' : 'theirs')
 
   // Only what the card itself says pays out at this moment, so the ask arrives with the phase that ends.
-  const due = active && !finished ? dueForAdvance(view, active, (key, mode) => awardsFor(active, key, mode)) : []
+  const due = active && !finished ? dueForAdvance(view, active, awardsFor) : []
   const activeNeedsRules = Boolean(active?.primaryCard || active?.secondaries.some((card) => card.status === 'active'))
   const activeRuleResults = ruleResults.filter((_, index) => ruleRequests[index]?.side === active?.index)
   // The only thing that still holds the turn back is not knowing what the cards say.
@@ -132,7 +132,8 @@ export function Tracker({ view, missions, present, send, pending, problem }: Pro
   // table can do every one of those things, and refusing them the turn only stopped
   // the game they were running.
   const blockReason =
-    activeNeedsRules && !activeRuleResults.some((result) => result.data) && activeRuleResults.some((result) => result.isPending)
+    (activeNeedsRules && !activeRuleResults.some((result) => result.data) && activeRuleResults.some((result) => result.isPending)) ||
+    (activeNeedsRules && deckUnknown)
       ? 'Loading the active side’s rules…'
       : null
   const advanceBlocked = Boolean(blockReason)
@@ -156,25 +157,25 @@ export function Tracker({ view, missions, present, send, pending, problem }: Pro
     scoring.activePlayerId === view.activePlayerId
   // Shared cards are written by one seat, the way prep is, so a 2v1 cannot draw twice
   // or score its one hand twice from two devices.
-  const keeper = yours?.captain.id === view.viewerId
+  const keeper = yours?.writer.id === view.viewerId
   /**
    * The active side, when this device is the one that deals its hand.
    *
-   * A side with players on it is dealt by the seat the domain folds its resources
-   * onto, so two devices in a shared battle never deal the same hand twice. A side
-   * of practice opponents has no seat to deal for it, so the table facing it does.
+   * A side with players on it is dealt by the one seat that writes for it, so two
+   * devices in a shared battle never deal the same hand twice. A side of practice
+   * opponents has no such seat, so the table facing it deals instead.
    */
   const dealing = active && (active.isViewer ? keeper : active.automated) ? active : undefined
   const settlementRound = view.settlementRound
   const settlementSide = table.find((side) => side.captain.id === view.settlementPlayerId)
   // Concluding that nothing private remains is the side's own call. A practice
   // opponent cannot make it, so the table playing that side makes it instead.
-  const settlementOwner = settlementSide?.captain.id === view.viewerId || Boolean(settlementSide?.automated)
+  const settlementOwner = settlementSide?.writer.id === view.viewerId || Boolean(settlementSide?.automated)
   const settlementRuleResults = ruleResults.filter((_, index) => ruleRequests[index]?.side === settlementSide?.index)
-  const settlementRulesPending = settlementRuleResults.some((result) => result.isPending)
+  const settlementRulesPending = settlementRuleResults.some((result) => result.isPending) || deckUnknown
   const owedCards =
     settlementRound !== null && settlementSide && !finished
-      ? dueFromTheirTurn(settlementRound, settlementSide, (key, mode) => awardsFor(settlementSide, key, mode), heldKeys(settlementSide))
+      ? dueFromTheirTurn(settlementRound, settlementSide, awardsFor, heldKeys(settlementSide))
       : []
   useEffect(() => {
     // A helper's view may redact a hidden mission that is still owed. Only the owner
@@ -189,7 +190,7 @@ export function Tracker({ view, missions, present, send, pending, problem }: Pro
     dealing &&
     dealing.secondaryMode === 'tactical' &&
     view.phase === 'command' &&
-    dealing.secondariesDrawnThisTurn < 2 &&
+    dealing.secondariesDrawnThisTurn.length < HAND_SIZE &&
     dealing.remainingSecondaries.length > 0
   // Latched, because the turn stops owing a draw the moment it is dealt and the player
   // still has to see what they drew and whether a card may go back.
@@ -213,22 +214,7 @@ export function Tracker({ view, missions, present, send, pending, problem }: Pro
 
   return (
     <main className={`w-full space-y-3 px-3 lg:pb-8 ${finished ? 'pb-8' : 'pb-32'}`}>
-      <Scoreboard
-        view={view}
-        sides={table}
-        outcome={finished ? outcome(table, view) : null}
-        menu={
-          <BattleMenu
-            finished={finished}
-            canDelete={view.creatorId === view.viewerId}
-            pending={pending || remove.isPending}
-            onFinishEarly={() => send({ kind: 'end-battle', reason: 'finished-early' })}
-            onConcede={() => send({ kind: 'end-battle', reason: 'conceded', concededBy: view.viewerId })}
-            onReopen={() => send({ kind: 'reopen-battle' })}
-            onDelete={() => remove.mutate()}
-          />
-        }
-      />
+      <Scoreboard view={view} sides={table} outcome={finished ? outcome(table, view) : null} />
 
       {/* Nobody across the table yet means neither a tab nor a column for them. */}
       <Tabs value={focus} onValueChange={(value) => setFocus(value as Focus)} className="lg:hidden">
@@ -251,7 +237,6 @@ export function Tracker({ view, missions, present, send, pending, problem }: Pro
             key={side.index}
             view={view}
             side={side}
-            present={present}
             coreKeys={coreKeysFor(side)}
             pending={pending}
             send={send}
@@ -277,7 +262,13 @@ export function Tracker({ view, missions, present, send, pending, problem }: Pro
               onAdvance={advance}
               blockReason={blockReason}
               note={view.advancePrompt}
-              className="fixed inset-x-0 bottom-0 z-40 border-t border-edge bg-panel/98 px-3 py-2 backdrop-blur lg:static lg:rounded-lg lg:border lg:bg-panel lg:p-3 lg:backdrop-filter-none"
+              /*
+               * `mb-0` because the column spaces its children with a bottom margin, and
+               * a margin on a fixed box sits between it and the edge it is pinned to —
+               * which held the bar that far off the bottom of every phone and tablet.
+               * At `lg` it is an ordinary box in the column again and takes the gap back.
+               */
+              className="fixed inset-x-0 bottom-0 z-40 mb-0 border-t border-edge bg-panel/98 px-3 py-2 backdrop-blur lg:static lg:mb-3 lg:rounded-lg lg:border lg:bg-panel lg:p-3 lg:backdrop-filter-none"
             />
           )}
 
@@ -298,6 +289,19 @@ export function Tracker({ view, missions, present, send, pending, problem }: Pro
               <Fact label="Attacker" value={view.players.find((player) => player.id === view.attackerId)?.name ?? 'Not chosen'} />
               <Fact label="Battle size" value={view.settings.limit ? `${view.settings.limit} points` : 'Legacy format'} />
               <Fact label="Format" value={formatName(table)} />
+              {/*
+               * A twist changes one rule for the whole battle, so it is not enough to
+               * name it: the sentence it changes has to be readable from the table
+               * without leaving the game to go and find the pack.
+               */}
+              {twist ? (
+                <div className="min-w-0">
+                  <dt className={HEADING}>Twist</dt>
+                  <dd>
+                    <TwistName twist={twist} />
+                  </dd>
+                </div>
+              ) : null}
             </dl>
 
             <div className="border-t border-edge pt-3">
@@ -307,6 +311,24 @@ export function Tracker({ view, missions, present, send, pending, problem }: Pro
 
             {problem ? <p className="text-sm text-destructive">{problem}</p> : null}
             {remove.error ? <p className="text-sm text-destructive">{errorMessage(remove.error)}</p> : null}
+
+            {/*
+             * Finishing, conceding, reopening and deleting, under the log rather than
+             * beside the round. Each is rare and none is pressed mid-turn, and up there
+             * it pushed the round and the phase off the centre of every screen to make
+             * room for something nobody was reaching for.
+             */}
+            <div className="flex justify-end border-t border-edge pt-3">
+              <BattleMenu
+                finished={finished}
+                canDelete={view.creatorId === view.viewerId}
+                pending={pending || remove.isPending}
+                onFinishEarly={() => send({ kind: 'end-battle', reason: 'finished-early' })}
+                onConcede={() => send({ kind: 'end-battle', reason: 'conceded', concededBy: view.viewerId })}
+                onReopen={() => send({ kind: 'reopen-battle' })}
+                onDelete={() => remove.mutate()}
+              />
+            </div>
           </section>
         </div>
       </div>
@@ -319,7 +341,7 @@ export function Tracker({ view, missions, present, send, pending, problem }: Pro
           confirmLabel={view.phase === 'end' ? 'Pass the turn' : 'End the phase'}
           pending={pending}
           send={send}
-          referenceFor={(key) => referenceFor(active, key)}
+          referenceFor={referenceFor}
           round={view.round}
           onCancel={() => setScoring(null)}
           onDone={(completedSecondaryKeys) => {
@@ -340,7 +362,7 @@ export function Tracker({ view, missions, present, send, pending, problem }: Pro
           confirmLabel="Take the turn"
           pending={pending}
           send={send}
-          referenceFor={(key) => referenceFor(settlementSide, key)}
+          referenceFor={referenceFor}
           round={settlementRound ?? view.round}
           onDone={() => send({ kind: 'settle-opponent-turn' })}
         />
@@ -373,8 +395,8 @@ export function Tracker({ view, missions, present, send, pending, problem }: Pro
           initiallyPaused={drawPaused}
           pending={pending}
           send={send}
-          referenceFor={(key) => referenceFor(dealing, key)}
-          whenDrawnFor={(key) => whenDrawnFor(dealing, key)}
+          referenceFor={referenceFor}
+          whenDrawnFor={whenDrawnFor}
           onDone={() => {
             setDrawPaused(false)
             setDrawnForTurns((current) => new Set(current).add(turnKey))
@@ -401,13 +423,18 @@ function Fact({ label, value }: { label: string; value: string }) {
   )
 }
 
+/**
+ * The shape of the table, and only that.
+ *
+ * A seat nobody signs in to does not change what is being played — a 2v1 with one in
+ * it is a 2v1 — and the seat is already named after what it is, so saying "practice"
+ * here was the same fact told twice.
+ */
 function formatName(table: Side[]) {
-  const shape = table
+  return table
     .map((side) => side.armies.length)
     .toSorted((left, right) => right - left)
     .join('v')
-  // The shape still matters when a seat is a practice opponent: a 2v1 is a 2v1.
-  return table.some((side) => side.automated) ? `${shape} practice` : shape
 }
 
 function outcome(table: Side[], view: BattleView) {

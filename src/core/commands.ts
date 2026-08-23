@@ -2,12 +2,15 @@ import { z } from 'zod'
 import {
   BATTLE_ROUNDS,
   type Command,
+  DETACHMENTS_MAX,
   ROSTER_MAX_LENGTH,
   ROSTER_NAME_MAX_LENGTH,
   SECONDARIES_MAX,
   SECONDARY_MODES,
+  SETUP_STEP_MAX,
   STRATAGEM_CP_MAX,
   STRATAGEM_LIMITS,
+  STRATAGEM_SOURCE_MAX_LENGTH,
   STRATAGEMS_MAX,
   UNIT_FORMATIONS,
 } from './battle'
@@ -33,6 +36,7 @@ const stratagem = z.object({
   limit: z.enum(STRATAGEM_LIMITS),
   phases: z.array(phase).max(6).optional(),
   turn: z.enum(['your-turn', 'opponent-turn', 'either']).optional(),
+  detachment: z.string().min(1).max(STRATAGEM_SOURCE_MAX_LENGTH).optional(),
 })
 const battlePrep = z.object({
   stratagems: z.array(stratagem).max(STRATAGEMS_MAX),
@@ -59,12 +63,16 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
     clockLimitMinutes: z.number().int().min(5).max(300).nullable(),
   }),
   z.object({ kind: z.literal('reset-setup') }),
-  z.object({ kind: z.literal('set-setup-step'), step: z.number().int().min(0).max(5) }),
+  z.object({ kind: z.literal('detach-roster'), playerId: id.optional() }),
+  z.object({ kind: z.literal('set-setup-step'), step: z.number().int().min(0).max(SETUP_STEP_MAX) }),
   z.object({ kind: z.literal('set-attacker'), attackerId: id }),
+  z.object({ kind: z.literal('set-first-turn'), firstPlayerId: id }),
+  z.object({ kind: z.literal('set-side-disposition'), side: z.number().int().min(0).max(1), disposition: id }),
   z.object({
     kind: z.literal('attach-roster'),
     playerId: id.optional(),
     prep: battlePrep.nullable().optional(),
+    painted: z.boolean().optional(),
     roster: z.object({
       name: z.string().max(ROSTER_NAME_MAX_LENGTH),
       text: z.string().max(ROSTER_MAX_LENGTH),
@@ -77,7 +85,7 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
           detachment: z.string().max(ROSTER_NAME_MAX_LENGTH).nullable(),
           detachments: z
             .array(z.object({ name: z.string().max(ROSTER_NAME_MAX_LENGTH), points: z.number().int().min(1).max(3).nullable() }))
-            .max(3)
+            .max(DETACHMENTS_MAX)
             .optional(),
           detachmentPointBudget: z.number().int().min(0).max(3).nullable().optional(),
           disposition: z.string().max(64).nullable(),

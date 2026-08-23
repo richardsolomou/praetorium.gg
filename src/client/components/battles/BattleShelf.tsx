@@ -3,6 +3,7 @@ import { EllipsisVertical, Eye, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { summarySides } from '../../battleSummary'
 import { formatDate } from '../../dates'
 import type { Battle } from './battle'
 
@@ -33,6 +34,8 @@ export function BattleShelf({
       <div className="mt-2 space-y-2">
         {battles.map((battle) => {
           const canDelete = battle.playerIds[0] === viewerId
+          // Folded into sides rather than read seat by seat: an ally of a 2v1 sits second.
+          const [ours, theirs] = summarySides(battle)
           const label = battle.players.join(' versus ')
           const actions = (
             <>
@@ -55,10 +58,10 @@ export function BattleShelf({
                   className="grid min-w-0 flex-1 grid-cols-2 items-center gap-x-3 gap-y-2 p-3 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:gap-3"
                 >
                   <BattleSide
-                    player={battle.players[0]}
-                    army={battle.armies[0]}
-                    detachments={battle.detachments[0]}
-                    score={battle.scores[0]}
+                    player={ours?.players.join(' & ')}
+                    army={ours?.armies.join(' & ') || null}
+                    detachments={ours?.detachments ?? []}
+                    score={ours?.score ?? 0}
                     side="a"
                   />
                   <span className="col-span-2 row-start-1 border-b border-edge pb-2 text-center sm:col-span-1 sm:col-start-2 sm:row-start-auto sm:border-0 sm:pb-0">
@@ -75,10 +78,10 @@ export function BattleShelf({
                     </span>
                   </span>
                   <BattleSide
-                    player={battle.players.slice(1).join(' & ') || undefined}
-                    army={battle.armies.slice(1).filter(Boolean).join(' & ') || null}
-                    detachments={battle.detachments.slice(1).flat()}
-                    score={battle.scores[1]}
+                    player={theirs?.players.join(' & ') || undefined}
+                    army={theirs?.armies.join(' & ') || null}
+                    detachments={theirs?.detachments ?? []}
+                    score={theirs?.score ?? 0}
                     side="b"
                     emptyLabel="Open seat"
                     emptyArmy="Waiting for an opponent"

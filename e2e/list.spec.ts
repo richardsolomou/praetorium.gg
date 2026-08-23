@@ -6,7 +6,6 @@ import {
   createBattle,
   createRoster,
   desktopContext,
-  setupStep,
   signUp,
   startBattle,
   uniqueName,
@@ -46,10 +45,12 @@ test('a built list is priced, deployed and tracked', async ({ browser }) => {
   await bob.goto(link)
   await attachRoster(bob, bobRoster)
   await expect(alice.getByText(bobRoster, { exact: true }).first()).toBeVisible()
+  // The bonus is a fact about the army, so it is set where the army is chosen — claimed
+  // as the army arrives, and given back from the same place.
+  await alice.getByRole('button', { name: new RegExp(`^Remove the battle ready bonus for ${aliceName}`) }).click()
+  await alice.getByRole('button', { name: new RegExp(`^Add the battle ready bonus for ${aliceName}`) }).click()
+  await expect(alice.getByRole('button', { name: new RegExp(`^Remove the battle ready bonus for ${aliceName}`) })).toBeVisible()
   await chooseBattlefield(alice)
-  await setupStep(alice, 'Pre-battle')
-  await alice.getByRole('button', { name: /^Add the battle ready bonus for Death Guard/ }).click()
-  await expect(alice.getByRole('button', { name: /^Remove the battle ready bonus for Death Guard/ })).toBeVisible()
   await startBattle(alice)
   await expect(bob.getByRole('heading', { name: 'command phase' })).toBeVisible()
 

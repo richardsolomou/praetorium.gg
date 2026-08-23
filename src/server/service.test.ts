@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { PraetoriumConnection, PraetoriumDatabase } from '../db/connection'
 import { openTestDatabase } from '../db/testDatabase'
 import { Repository } from '../db/repository'
-import { user } from '../db/schema'
+import { battles, battleUsers, user } from '../db/schema'
 import { PraetoriumService } from './service'
 import type { LoadedRules } from './rules'
 import { createBattleSchema } from './schemas'
@@ -166,9 +166,9 @@ describe('friends', () => {
     await enrol('dave', 'Dave')
     await service.requestFriend('alice', 'dave')
 
-    expect((await service.friendships('alice')).outgoing).toEqual([{ id: 'dave', name: 'Dave' }])
+    expect((await service.friendships('alice')).outgoing).toEqual([{ id: 'dave', name: 'Dave', image: null }])
     await service.acceptFriend('dave', 'alice')
-    expect(await service.opponents('alice')).toContainEqual({ id: 'dave', name: 'Dave', automated: false })
+    expect(await service.opponents('alice')).toContainEqual({ id: 'dave', name: 'Dave', image: null, automated: false })
   })
 
   it('offers only players with no relationship yet, and does not run out of them', async () => {
@@ -190,14 +190,14 @@ describe('friends', () => {
     // A friend is a friend whether or not anyone asks who else is on the instance,
     // and the practice opponents the instance seats come after them.
     expect(await service.opponents('alice')).toEqual([
-      { id: 'bob', name: 'Bob', automated: false },
-      { id: 'carol', name: 'Carol', automated: false },
-      { id: 'practice-opponent-1', name: 'Practice Opponent', automated: true },
-      { id: 'practice-opponent-2', name: 'Practice Opponent II', automated: true },
+      { id: 'bob', name: 'Bob', image: 'https://example.test/bob.png', automated: false },
+      { id: 'carol', name: 'Carol', image: null, automated: false },
+      { id: 'practice-opponent-1', name: 'Practice Opponent', image: null, automated: true },
+      { id: 'practice-opponent-2', name: 'Practice Opponent II', image: null, automated: true },
     ])
     expect((await service.friendships('alice')).friends).toEqual([
-      { id: 'bob', name: 'Bob' },
-      { id: 'carol', name: 'Carol' },
+      { id: 'bob', name: 'Bob', image: 'https://example.test/bob.png' },
+      { id: 'carol', name: 'Carol', image: null },
     ])
   })
 
@@ -266,6 +266,50 @@ describe('seats', () => {
         { id: 'carol', side: 1 },
       ],
     })
+  })
+
+  it('seats the creator beside their own ally, so either of a pair can open the 2v1', async () => {
+    const { token } = await service.createBattle(
+      'alice',
+      createBattleSchema.parse({
+        opponentIds: ['bob'],
+        allyId: 'carol',
+        limit: 2000,
+        missionPackId: null,
+      }),
+    )
+
+    // Alice keeps the first seat, which is what says the battle is hers to delete.
+    expect(await view(token, 'alice')).toMatchObject({
+      settings: { teamBattle: true },
+      creatorId: 'alice',
+      players: [
+        { id: 'alice', side: 0 },
+        { id: 'carol', side: 0 },
+        { id: 'bob', side: 1 },
+      ],
+    })
+  })
+
+  it('refuses an ally with nobody to play against', async () => {
+    await expect(service.createBattle('alice', { allyId: 'carol', limit: 2000, missionPackId: null })).rejects.toThrow(
+      expect.objectContaining({ status: 400 }),
+    )
+  })
+
+  it('refuses an ally who is also across the table', async () => {
+    await expect(
+      service.createBattle('alice', { opponentIds: ['bob', 'carol'], allyId: 'carol', limit: 2000, missionPackId: null }),
+    ).rejects.toThrow(expect.objectContaining({ status: 400 }))
+  })
+
+  it('refuses a fourth player', async () => {
+    await enrol('dave', 'Dave')
+    await befriend('alice', 'dave')
+
+    await expect(
+      service.createBattle('alice', { opponentIds: ['bob', 'carol'], allyId: 'dave', limit: 2000, missionPackId: null }),
+    ).rejects.toThrow(expect.objectContaining({ status: 400 }))
   })
 
   it('preserves an opponent-only legacy creation request', async () => {
@@ -418,6 +462,31 @@ describe('battle deletion', () => {
   it('does not let the opponent delete a battle', async () => {
     const { token } = await service.createBattle('alice', 'bob')
     expect(await refusalStatus(() => service.deleteBattle(token, 'bob'))).toBe(403)
+  })
+
+  // Seats taken before allies were seated share a timestamp, so the earliest seat alone
+  // does not name the opener either.
+  it('does not let the opponent of a battle opened before allies were seated delete it', async () => {
+    const token = 'legacy-token'
+    await database.insert(battles).values({ id: 'legacy', token, createdAt: 1 })
+    await database.insert(battleUsers).values([
+      { battleId: 'legacy', userId: 'alice', side: 0, joinedAt: 1 },
+      { battleId: 'legacy', userId: 'bob', side: 1, joinedAt: 1 },
+    ])
+    expect(await refusalStatus(() => service.deleteBattle(token, 'bob'))).toBe(403)
+    await service.deleteBattle(token, 'alice')
+    expect(await refusalStatus(() => service.screen(token, 'alice'))).toBe(404)
+  })
+
+  // The ally sits on the opener's own side, so a seat on side 0 no longer says whose battle it is.
+  it('does not let an ally on the creator side delete a battle', async () => {
+    const { token } = await service.createBattle(
+      'alice',
+      createBattleSchema.parse({ opponentIds: ['bob'], allyId: 'carol', limit: 2000, missionPackId: null }),
+    )
+    expect(await refusalStatus(() => service.deleteBattle(token, 'carol'))).toBe(403)
+    await service.deleteBattle(token, 'alice')
+    expect(await refusalStatus(() => service.screen(token, 'alice'))).toBe(404)
   })
 })
 
@@ -620,6 +689,8 @@ describe('scoring caps', () => {
       ]),
       deployments: [{ id: 'valid-deployment', name: 'Valid', description: null, zones: [], objectives: [] }],
       terrainLayouts: [],
+      // What one fixed card may bank all battle, which the pack states and the mission does not.
+      fixedSecondaryCaps: new Map([['pack-a', 4]]),
     }) as unknown as LoadedRules
 
   /** Both sides field the same disposition, which is the matchup the pack above names. */
@@ -636,7 +707,7 @@ describe('scoring caps', () => {
     },
   })
 
-  const configured = async () => {
+  const configured = async (beforeStart?: Parameters<PraetoriumService['submit']>[3]) => {
     const { token } = await service.createBattle('alice', { opponentId: 'bob', limit: 2000, missionPackId: 'pack-a' })
     let seq = 1
     const send = async (command: Parameters<PraetoriumService['submit']>[3]) => {
@@ -647,6 +718,8 @@ describe('scoring caps', () => {
     await send({ kind: 'attach-roster', roster: army('Alice army') })
     await send({ kind: 'attach-roster', playerId: 'bob', roster: army('Bob army') })
     await send({ kind: 'set-deployment', patternId: 'valid-deployment' })
+    // Cards are settled before the battle begins, so a hand under test is dealt here.
+    if (beforeStart) await send(beforeStart)
     await send({ kind: 'begin-battle', firstPlayerId: 'alice' })
     /** Both sides take a turn before the round turns over, so both are played out. */
     const nextRound = async () => {
@@ -684,6 +757,29 @@ describe('scoring caps', () => {
     expect(await battle.send({ kind: 'score', category: 'secondary', delta: 4, playerId: 'alice' })).toEqual({
       outcome: 'refused',
       reason: 'that would score past this round’s 3 VP cap for secondary missions',
+    })
+  })
+
+  /**
+   * A fixed card carries a ceiling of its own. The per-round and per-battle secondary
+   * caps do not cover it, because a card paying per model destroyed can reach the
+   * whole allowance on its own.
+   */
+  it('refuses a fixed secondary that would pass one card’s own cap', async () => {
+    const battle = await configured({
+      kind: 'set-prep',
+      playerId: 'alice',
+      stratagems: [],
+      primary: null,
+      secondaryMode: 'fixed',
+      secondaries: [{ key: 'bring-it-down', name: 'Bring It Down' }],
+    })
+    expect(await battle.send({ kind: 'score-secondary', key: 'bring-it-down', delta: 3, playerId: 'alice' })).toMatchObject({
+      outcome: 'appended',
+    })
+    expect(await battle.send({ kind: 'score-secondary', key: 'bring-it-down', delta: 2, playerId: 'alice' })).toEqual({
+      outcome: 'refused',
+      reason: 'that would score past the 4 VP cap for one fixed secondary mission',
     })
   })
 

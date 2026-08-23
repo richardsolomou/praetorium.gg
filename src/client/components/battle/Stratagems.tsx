@@ -30,7 +30,19 @@ export function Stratagems({ side, phase, coreKeys, actionable, pending, send, w
   const otherPhases = hiddenThisPhase(side.stratagems, phase, side.isActive)
 
   return (
-    <section className="space-y-3 border-t border-edge pt-2.5">
+    // The rule that separates these from the missions belongs to the layout that
+    // stacks them, so the panel draws it at the widths that need it.
+    <section className="space-y-3">
+      {/*
+       * Said once, above the headings it explains: a pooled side plays both allies'
+       * detachments out of one pool, and the rules on those cards still belong to the
+       * army that brought them.
+       */}
+      {pooledDetachments(side.stratagems, coreKeys) > 1 ? (
+        <p className="rounded-sm border border-edge bg-sunken px-2.5 py-1.5 text-[0.6875rem] text-dim">
+          Each detachment’s rules affect the army that brought it and the enemy — not your ally’s units.
+        </p>
+      ) : null}
       {groups(side.stratagems, coreKeys).map((group) => {
         const shown = group.items.filter((stratagem) => stratagemVisibleNow(stratagem, phase, side.isActive, allPhases))
         if (!shown.length) return null
@@ -174,9 +186,32 @@ function costChoices(printed: number) {
   return [printed - 1, printed, printed + 1, printed + 2].filter((cost) => cost >= 0 && cost <= STRATAGEM_CP_MAX)
 }
 
+/**
+ * The pool, split the way its cards are actually owned.
+ *
+ * One detachment is one heading. A side of allies pools two, and their rules do not
+ * pool with them — each ally's detachment affects their own army and the enemy, not
+ * their ally's — so a pooled side is given a heading per detachment rather than one
+ * list that reads as everyone's. A pool recorded before detachments were named keeps
+ * the single heading it was written with.
+ */
 function groups(stratagems: readonly ViewStratagem[], coreKeys: ReadonlySet<string>) {
-  return [
-    { label: 'Detachment stratagems', items: stratagems.filter((stratagem) => !coreKeys.has(stratagem.key)) },
-    { label: 'Core stratagems', items: stratagems.filter((stratagem) => coreKeys.has(stratagem.key)) },
-  ].filter((group) => group.items.length)
+  const detachment = stratagems.filter((stratagem) => !coreKeys.has(stratagem.key))
+  const names = [...new Set(detachment.flatMap((stratagem) => (stratagem.detachment ? [stratagem.detachment] : [])))]
+  const byDetachment =
+    names.length > 1
+      ? [
+          ...names.map((name) => ({ label: `${name} stratagems`, items: detachment.filter((stratagem) => stratagem.detachment === name) })),
+          { label: 'Detachment stratagems', items: detachment.filter((stratagem) => !stratagem.detachment) },
+        ]
+      : [{ label: 'Detachment stratagems', items: detachment }]
+  return [...byDetachment, { label: 'Core stratagems', items: stratagems.filter((stratagem) => coreKeys.has(stratagem.key)) }].filter(
+    (group) => group.items.length,
+  )
+}
+
+/** Whether the side's pool holds more than one ally's detachment. */
+export function pooledDetachments(stratagems: readonly ViewStratagem[], coreKeys: ReadonlySet<string>) {
+  return new Set(stratagems.flatMap((stratagem) => (!coreKeys.has(stratagem.key) && stratagem.detachment ? [stratagem.detachment] : [])))
+    .size
 }

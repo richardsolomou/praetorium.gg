@@ -69,17 +69,28 @@ function describe(
 
   switch (command.kind) {
     case 'configure-battle':
-      return `${who} sets a ${command.limit}-point battle`
+      // The twist is named by its pack's own id, which this file has no way to read
+      // back into a name — `src/core` holds no game data. The log records that one is
+      // in play; the battle facts name it from the pack.
+      return `${who} sets a ${command.limit}-point battle${command.twistId ? ' with a mission twist' : ''}`
     case 'reset-setup':
       return `${who} resets battle setup`
     case 'set-setup-step':
       return null
     case 'set-attacker':
       return `${who} names ${named.get(command.attackerId) ?? 'someone'} as the attacker`
+    case 'set-first-turn':
+      return `${who} records that ${named.get(command.firstPlayerId) ?? 'someone'} takes the first turn`
+    case 'set-side-disposition':
+      return `${who} sets their side to play ${command.disposition.replaceAll('-', ' ')}`
     case 'attach-roster': {
       const detachment = command.roster.built?.detachment
       return `${who} brought ${command.roster.name}${detachment && !command.roster.name.includes(detachment) ? ` (${detachment})` : ''}${forTarget}`
     }
+    case 'detach-roster':
+      // The list is gone from the fold by the time this is written, so the line names
+      // whose seat was emptied rather than what used to be in it.
+      return `${who} took ${whose} army off the table`
     case 'set-prep': {
       const parts = [
         command.primary ? `${command.primary.name} as the primary` : null,

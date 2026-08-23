@@ -7,16 +7,26 @@ import { Dialog } from '@/components/ui/dialog'
 import type { Command } from '../../core/battle'
 import type { BattleView } from '../../core/battleView'
 import { deploymentsQuery, terrainMatchupIds, terrainReferencesQuery } from '../queries'
+import { CHOOSABLE, CHOSEN } from './setup/chrome'
 import { TerrainBoard } from './TerrainBoard'
 import { TerrainLayoutDialogContent } from './TerrainLayoutDialogContent'
 
-type Props = { view: BattleView; send: (command: Command) => void; pending: boolean; allowedIds?: string[] }
+type Props = {
+  view: BattleView
+  send: (command: Command) => void
+  pending: boolean
+  allowedIds?: string[]
+  /** The two dispositions these layouts are for, named the way the pack names them. */
+  matchup?: string
+}
 
-export function Battlefield({ view, send, pending, allowedIds }: Props) {
+export function Battlefield({ view, send, pending, allowedIds, matchup }: Props) {
   const [inspecting, setInspecting] = useState<string | null>(null)
   const { data: allPatterns } = useQuery(deploymentsQuery())
+  // The card each side plays, as the domain folded it: an allied pair fields one army
+  // and plays one card, so this is not the same as reading the first seat's list.
   const dispositions = [...new Set(view.players.map((player) => player.side))]
-    .map((side) => view.players.find((player) => player.side === side)?.roster?.built?.disposition)
+    .map((side) => view.players.find((player) => player.side === side)?.disposition)
     .filter((value): value is string => Boolean(value))
   const matchupIds = terrainMatchupIds(dispositions)
   const { data: references } = useQuery(terrainReferencesQuery(matchupIds))
@@ -52,7 +62,13 @@ export function Battlefield({ view, send, pending, allowedIds }: Props) {
   return (
     <section>
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <p className="max-w-2xl text-sm text-dim">Choose one layout. Each option includes its deployment zones and exact terrain setup.</p>
+        {/* Named like the panel above it, so the two questions the step asks look alike. */}
+        <div className="min-w-0">
+          <p className="eyebrow">Deployment and terrain layout</p>
+          <p className="mt-0.5 max-w-2xl text-sm text-dim">
+            Choose one layout{matchup ? ` for ${matchup}` : ''}. Each option includes its deployment zones and exact terrain setup.
+          </p>
+        </div>
         <Button
           variant="outline"
           size="sm"
@@ -70,37 +86,44 @@ export function Battlefield({ view, send, pending, allowedIds }: Props) {
           const selected = view.settings.terrainLayoutId === terrain.id && view.deploymentId === deployment.id
           const label = String.fromCharCode(65 + index)
           return (
-            <article
-              key={terrain.id}
-              className={`border bg-sunken p-2 transition-colors ${selected ? 'border-parchment ring-1 ring-parchment' : 'border-edge'}`}
-            >
+            <article key={terrain.id} className={`flex flex-col border bg-sunken p-2 transition-colors ${selected ? CHOSEN : CHOOSABLE}`}>
               <span className="block text-center text-lg font-bold">{label}</span>
-              <TerrainBoard
-                layout={terrain}
-                deployment={deployment}
-                templates={references?.templates ?? []}
+              {/* Taking a layout is the deliberate act, so it is the one button on the card. */}
+              <Button
+                variant={selected ? 'secondary' : 'outline'}
                 className="mt-2 w-full"
-                detailed
-                ariaLabel={`Layout ${label}: ${deployment.name} battlefield with ${terrain.name}`}
-              />
-              <span className="mt-2 block text-xs font-bold uppercase text-bone">{deployment.name}</span>
-              <div className="mt-2 grid grid-cols-2 gap-1 border-t border-edge pt-2">
-                <Button variant="ghost" size="sm" onClick={() => setInspecting(terrain.id)}>
-                  <Eye /> View
-                </Button>
-                <Button
-                  variant={selected ? 'secondary' : 'ghost'}
-                  size="sm"
-                  disabled={!terrain.geometry}
-                  aria-label={`${selected ? 'Selected' : 'Select'} layout ${label}: ${deployment.name}`}
-                  onClick={() => {
-                    if (!pending) send({ kind: 'set-battlefield', patternId: deployment.id, terrainLayoutId: terrain.id })
-                  }}
-                >
-                  {selected ? <Check /> : null}
-                  {selected ? 'Selected' : terrain.geometry ? 'Select' : 'Syncing'}
-                </Button>
-              </div>
+                disabled={!terrain.geometry}
+                aria-label={`${selected ? 'Selected' : 'Select'} layout ${label}: ${deployment.name}`}
+                onClick={() => {
+                  if (!pending) send({ kind: 'set-battlefield', patternId: deployment.id, terrainLayoutId: terrain.id })
+                }}
+              >
+                {selected ? <Check /> : null}
+                {selected ? 'Selected' : terrain.geometry ? 'Select' : 'Syncing'}
+              </Button>
+              {/*
+               * The board itself opens the board, the way the mission pack pages do it.
+               * A third of a column cannot hold the measurements the exact geometry
+               * carries, so this draws the plain one and a press enlarges it.
+               */}
+              <button
+                type="button"
+                className="group mt-2 block w-full flex-1 text-left"
+                aria-label={`Enlarge terrain layout ${label}: ${deployment.name} battlefield with ${terrain.name}`}
+                onClick={() => setInspecting(terrain.id)}
+              >
+                <TerrainBoard
+                  layout={terrain}
+                  deployment={deployment}
+                  templates={references?.templates ?? []}
+                  className="w-full"
+                  ariaLabel={`Layout ${label}: ${deployment.name} battlefield with ${terrain.name}`}
+                />
+                <span className="mt-2 flex items-center justify-center gap-1 text-xs font-bold text-bone uppercase group-hover:text-azure">
+                  <Eye className="size-3.5 shrink-0 text-dim group-hover:text-azure" />
+                  {deployment.name}
+                </span>
+              </button>
             </article>
           )
         })}

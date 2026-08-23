@@ -5,6 +5,7 @@ import {
   createBattle,
   createRoster,
   PRACTICE_OPPONENT,
+  recordFirstTurn,
   setupStep,
   signUp,
   takeTheTurn,
@@ -24,7 +25,7 @@ test('practice battle controls survive completion, reopen and deletion', async (
   await setupStep(page, 'Battlefield')
   await page.getByRole('button', { name: 'Select layout A: Tipping Point' }).click()
   await expect(page.getByRole('button', { name: 'Selected layout A: Tipping Point' })).toBeVisible()
-  await setupStep(page, 'First turn')
+  await recordFirstTurn(page)
   await page.getByRole('button', { name: 'Start battle' }).click()
   await takeTheTurn(page)
   await expect(page.getByRole('heading', { name: 'command phase' })).toBeVisible()

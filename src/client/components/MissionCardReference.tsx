@@ -1,10 +1,37 @@
 import { Plus } from 'lucide-react'
-import { conditionLabel, groupKey, type MissionAward as Award, payoutLabel, roundLabel, timingLabel, title } from '../missionText'
+import {
+  appliesInMode,
+  conditionLabel,
+  groupKey,
+  type MissionAward as Award,
+  payoutLabel,
+  roundLabel,
+  timingLabel,
+  title,
+} from '../missionText'
 import { RuleText } from './RuleText'
 
-export function MissionCardReference({ card, type }: { card: { name: string; text: string | null; awards: Award[] }; type: string }) {
+/**
+ * What a card asks for and what it pays, as the pack prints it.
+ *
+ * A few secondaries pay differently depending on how the side draws its cards, and
+ * the pack prints both. Once a side has settled on fixed or tactical, only one of
+ * them is a rule that side can use — so a known mode shows that one alone rather
+ * than making a player work out which half of the card is theirs.
+ */
+export function MissionCardReference({
+  card,
+  type,
+  mode,
+}: {
+  card: { name: string; text: string | null; awards: Award[] }
+  type: string
+  /** The side's secondary mode, when it is known. Unset shows every way it can pay. */
+  mode?: string
+}) {
   const groups = new Map<string, Award[]>()
-  for (const award of card.awards) {
+  const shown = card.awards.filter((candidate) => appliesInMode(candidate, mode))
+  for (const award of shown) {
     const key = [
       award.mode,
       award.trigger.timing,

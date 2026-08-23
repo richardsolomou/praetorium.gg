@@ -3,7 +3,8 @@ import path from 'node:path'
 import { compile } from 'html-to-text'
 import type { Stratagem, StratagemLimit } from '../core/battle'
 import { routeSlug } from '../core/slug'
-import { criteriaKey, loadMissionCriteria, pairCriteria, type Payout } from './missionCriteria'
+import { criteriaIn, criteriaKey, pairCriteria, type Payout } from './missionCriteria'
+import { type MissionPack, readMissionPacks } from './missionPacks'
 import { byName, readOptionalList, titleCase } from './rulesSource'
 
 /**
@@ -135,6 +136,8 @@ export type Mission = {
   gameCap: number | null
   secondaryRoundCap: number | null
   secondaryGameCap: number | null
+  /** What one Fixed Secondary Mission card may bank all battle, where the pack states it. */
+  fixedSecondaryCap?: number | null
   source: string | null
   packId: string | null
   deploymentIds: string[]
@@ -169,11 +172,15 @@ export type LoadedCards = {
  * The core stratagems every army has, and the card decks, with each payout paired to
  * what the mission pack says it asks for.
  */
-export function loadCards(core: string, datacardsDirectory: string): LoadedCards {
+export function loadCards(
+  core: string,
+  datacardsDirectory: string,
+  packs: readonly MissionPack[] = readMissionPacks(datacardsDirectory),
+): LoadedCards {
   const cards = readOptionalList<RawCard>(path.join(core, 'secondary-cards.json'))
   const coreStratagems = readOptionalList<RawStratagem>(path.join(core, 'stratagems.json'))
   // What a payout asks for is the mission pack's to say; when it is due is this file's.
-  const criteria = loadMissionCriteria(datacardsDirectory)
+  const criteria = criteriaIn(packs)
   const card = (raw: RawCard) => toCard(raw, criteria.get(criteriaKey(raw.name)) ?? [])
   return {
     core: coreStratagems.map(toStratagem),

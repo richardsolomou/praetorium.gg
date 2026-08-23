@@ -17,6 +17,8 @@ export type SideMission = {
   gameCap: number | null
   secondaryRoundCap: number | null
   secondaryGameCap: number | null
+  /** What one fixed secondary card may bank all battle, where the pack states it. */
+  fixedSecondaryCap?: number | null
 }
 
 /**
@@ -42,7 +44,6 @@ export type Army = {
   paintedPoints: number
   /** What the list actually costs, summed from the units as submitted. */
   points: number | null
-  detachment: string | null
 }
 
 /**
@@ -60,6 +61,19 @@ export type Side = {
   armies: Army[]
   /** The seat the domain folds this side's shared resources onto. */
   captain: ViewPlayer
+  /**
+   * The seat whose device records what this side shares: its cards, its hand, and
+   * its settlements.
+   *
+   * Not always the captain. The domain folds a side's resources onto its first
+   * seat, but nobody signs in to a practice opponent — so a side that opens with
+   * one has a captain no device is ever behind, and asking for the captain's
+   * device left a side of a practice opponent and a player with no one able to
+   * settle its cards at all. The first seat someone can sign in to writes for the
+   * side. A side of practice opponents alone has none, and `played` is what says
+   * the table facing it writes instead.
+   */
+  writer: ViewPlayer
   /** The side the viewer is sitting on. */
   isViewer: boolean
   /** A side of practice opponents alone. Nobody signs in to it, so the table plays it. */
@@ -80,8 +94,12 @@ export type Side = {
   canGainCp: boolean
   primary: number
   secondary: number
-  /** The battle-ready bonus of every army on the side, added together. */
+  /** The battle-ready bonus the side has earned, which is one bonus however many armies it fields. */
   paintedPoints: number
+  /** The Force Disposition the side plays, or nothing while two allies disagree. */
+  disposition: string | null
+  /** The cards the side could play, where its allies brought more than one. */
+  dispositionChoices: string[]
   /** The score as it stands. The battle-ready bonus joins it when the battle ends. */
   total: number
   rounds: ViewPlayer['rounds']
@@ -108,12 +126,15 @@ export function sides(view: BattleView, missions: readonly { side: number; missi
     const seated = view.players.filter((player) => player.side === index)
     const captain = seated[0]
     if (!captain) return []
-    const paintedPoints = seated.reduce((total, player) => total + player.paintedPoints, 0)
+    // The side's, not each seat's: the domain already folded it, and summing the
+    // copies every seat carries would pay an allied pair twice.
+    const paintedPoints = captain.paintedPoints
     return [
       {
         index,
         armies: seated.map(toArmy),
         captain,
+        writer: seated.find((player) => !player.automated) ?? captain,
         isViewer: seated.some((player) => player.isViewer),
         automated: seated.every((player) => player.automated),
         played: seated.some((player) => player.isViewer) || seated.every((player) => player.automated),
@@ -124,6 +145,11 @@ export function sides(view: BattleView, missions: readonly { side: number; missi
         canGainCp: captain.canGainCp,
         primary: captain.primary,
         secondary: captain.secondary,
+        // Taken as absent rather than trusted to be there: this app runs more than one
+        // replica, so a view can arrive from an instance older than the screen reading
+        // it, and a side with no card to play is a question this screen already asks.
+        disposition: captain.disposition ?? null,
+        dispositionChoices: captain.dispositionChoices ?? [],
         paintedPoints,
         total: captain.primary + captain.secondary + (view.status === 'finished' ? paintedPoints : 0),
         rounds: captain.rounds,
@@ -177,6 +203,5 @@ function toArmy(player: ViewPlayer): Army {
     painted: player.painted,
     paintedPoints: player.paintedPoints,
     points: units?.length ? units.reduce((total, unit) => total + unit.points, 0) : null,
-    detachment: player.roster?.built?.detachment ?? null,
   }
 }

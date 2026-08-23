@@ -192,6 +192,59 @@
     outline: 2px solid var(--color-azure);
     outline-offset: 2px;
   }
+
+  /*
+   * Scrollbars, drawn as furniture rather than as chrome.
+   *
+   * Both axes, everywhere: this interface scrolls sideways as well as down — the
+   * setup rail, a wide table of units — and a pale platform scrollbar across a dark
+   * panel is the brightest thing on the screen at a table in a dim room.
+   *
+   * Said twice because browsers take one of two routes. Chrome and Firefox read the
+   * standard pair below and ignore the `::-webkit-` rules entirely once they do, so
+   * the standard pair is what actually draws the bar on both of them — thin, dark
+   * thumb, no track. Safari has only the pseudo-elements, so they draw the same bar
+   * there: in pixels rather than rem, because this is furniture and not type, and
+   * the root font here is 18px.
+   */
+  * {
+    scrollbar-color: var(--color-edge-strong) transparent;
+    scrollbar-width: thin;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-track,
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    border: 3px solid transparent;
+    border-radius: 9999px;
+    background: var(--color-edge-strong) content-box;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: var(--color-faint);
+  }
+}
+
+/**
+ * No bar at all, for a list that is scrolled by what is around it.
+ *
+ * The picker and the command palette both ask for this, and they were asking a
+ * utility that did not exist until the bars above were drawn everywhere.
+ */
+@utility no-scrollbar {
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 /** A small tracked label above the thing it names. */

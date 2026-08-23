@@ -427,6 +427,29 @@ describe('the mission', () => {
     })
   })
 
+  /**
+   * The ceiling is printed by the datacards pack and the mission is named by the rules
+   * source, and the two are joined by the pack's name alone. They are separately
+   * maintained community sources, so a rename on either side has to fail here rather
+   * than silently stop enforcing the cap.
+   */
+  it('carries the per-card fixed ceiling its pack prints', () => {
+    const root = path.join(directory, 'data', 'core')
+    write(path.join(root, 'missions.json'), [{ id: 'pack-a-mission', name: 'Pack A Mission', source: 'Pack A' }])
+    write(path.join(root, 'mission-matchups.json'), [
+      { disposition: 'disruption', opponent_disposition: 'take-and-hold', mission_id: 'pack-a-mission' },
+    ])
+    const missions = path.join(directory, 'datacards', '11th', 'gdc', 'missions')
+    fs.mkdirSync(missions, { recursive: true })
+    write(path.join(missions, 'pack-a.json'), { name: { en: 'Pack A' }, fixedSecondaryMissionCapLimit: 20 })
+
+    expect(missionFor(load(), 'disruption', 'take-and-hold', 'pack-a')?.fixedSecondaryCap).toBe(20)
+  })
+
+  it('states no per-card ceiling for a pack that prints none', () => {
+    expect(missionFor(load(), 'disruption', 'take-and-hold')?.fixedSecondaryCap).toBeNull()
+  })
+
   it('is absent until both dispositions are known', () => {
     expect(missionFor(load(), 'disruption', null)).toBeNull()
   })

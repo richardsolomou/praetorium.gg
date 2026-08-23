@@ -183,10 +183,18 @@ export function capRoom(caps: { round: number | null; game: number | null }, ban
 export function settleAgainstCaps<T extends { category: 'primary' | 'secondary' }>(
   claims: readonly { card: T; claimed: number }[],
   room: { primary: number; secondary: number },
+  /**
+   * What this one card still has room for, where it has a ceiling of its own. A fixed
+   * secondary does: the pack caps what one card may bank all battle, on top of the
+   * pool every secondary draws from. Clamped here with the rest rather than refused
+   * on the way out, because a prompt that promises points the server will not take
+   * throws away the whole settlement it was part of.
+   */
+  cardRoom: (card: T) => number = () => Infinity,
 ): { card: T; claimed: number; scoring: number }[] {
   const left = { ...room }
   return claims.map(({ card, claimed }) => {
-    const scoring = Math.max(0, Math.min(claimed, left[card.category]))
+    const scoring = Math.max(0, Math.min(claimed, left[card.category], cardRoom(card)))
     left[card.category] -= scoring
     return { card, claimed, scoring }
   })

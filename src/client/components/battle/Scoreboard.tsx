@@ -1,23 +1,18 @@
-import { useQuery } from '@tanstack/react-query'
-import type { ReactNode } from 'react'
 import { Link } from '@tanstack/react-router'
 import type { BattleView } from '../../../core/battleView'
 import { completedBattleRound } from '../../battleProgress'
-import { factionFor } from '../../factions'
-import { factionsQuery } from '../../queries'
 import { PlayerAvatar } from '../PlayerAvatar'
-import type { Army, Side } from '../../sides'
-import { FactionMark } from '../FactionMark'
+import type { Side } from '../../sides'
 import { tint } from './tints'
 
-type Props = { view: BattleView; sides: Side[]; outcome: string | null; menu: ReactNode }
+type Props = { view: BattleView; sides: Side[]; outcome: string | null }
 
 /**
  * The one line worth glancing at mid-turn: who is ahead, whose turn it is, and how
  * far through the battle everyone is. The same component at every width, so a phone
  * and a laptop never disagree about the score.
  */
-export function Scoreboard({ view, sides, outcome, menu }: Props) {
+export function Scoreboard({ view, sides, outcome }: Props) {
   const active = view.players.find((player) => player.isActive)
   const finished = view.status === 'finished'
 
@@ -37,112 +32,62 @@ export function Scoreboard({ view, sides, outcome, menu }: Props) {
             key={side.index}
             side={side}
             completedRound={completedBattleRound(view.status, view.round, view.result?.reason)}
-            token={view.token}
             align={position === 0 ? 'start' : 'end'}
           />
         ))}
-        <div className="order-2 flex items-center gap-2 text-center">
-          <div className="min-w-28">
-            {finished ? (
-              <>
-                <p className="eyebrow">Result</p>
-                <h1 className="text-sm leading-tight font-bold text-balance uppercase">{outcome}</h1>
-              </>
-            ) : (
-              <>
-                <p className="eyebrow">
-                  Round{' '}
-                  <span data-stat="round" className="readout text-bone">
-                    {view.round}
-                  </span>{' '}
-                  of {view.rounds}
-                </p>
-                <h1 className="text-sm leading-tight font-bold uppercase sm:text-base">{view.phase} phase</h1>
-                <p className="truncate text-[0.6875rem] text-dim">{active ? `${active.name}’s turn` : 'Nobody’s turn'}</p>
-              </>
-            )}
-          </div>
-          {menu}
+        <div className="order-2 min-w-28 text-center">
+          {finished ? (
+            <>
+              <p className="eyebrow">Result</p>
+              <h1 className="text-sm leading-tight font-bold text-balance uppercase">{outcome}</h1>
+            </>
+          ) : (
+            <>
+              <p className="eyebrow">
+                Round{' '}
+                <span data-stat="round" className="readout text-bone">
+                  {view.round}
+                </span>{' '}
+                of {view.rounds}
+              </p>
+              <h1 className="text-sm leading-tight font-bold uppercase sm:text-base">{view.phase} phase</h1>
+              <p className="truncate text-[0.6875rem] text-dim">{active ? `${active.name}’s turn` : 'Nobody’s turn'}</p>
+            </>
+          )}
         </div>
       </div>
     </section>
   )
 }
 
-function SideScore({ side, completedRound, token, align }: { side: Side; completedRound: number; token: string; align: 'start' | 'end' }) {
+function SideScore({ side, completedRound, align }: { side: Side; completedRound: number; align: 'start' | 'end' }) {
   const colours = tint(side.index)
   const end = align === 'end'
-  const { data: factions } = useQuery(factionsQuery())
   return (
     <div data-side-score={side.index} className={`min-w-0 ${end ? 'order-3' : 'order-1'}`}>
       {/* Capped, or the round strip stretches across a wide column and stops reading as five rounds. */}
       <div className={`min-w-0 max-w-64 ${end ? 'ml-auto text-right' : ''}`}>
-        <p className={`truncate text-sm leading-tight font-bold uppercase ${colours.text}`}>
+        {/*
+         * Who is on each side, until the panels that say it better are on screen.
+         * From `lg` up both panels sit under this strip with their players pictured
+         * and named at the top of each, so repeating them here said nothing twice.
+         *
+         * Below that, a phone gives each side about a third of the strip, which two
+         * names and two pictures do not fit into: they wrapped over four lines and
+         * pushed the score itself off the screen. So the picture identifies each
+         * player and the name stays behind it for a screen reader, which keeps this
+         * link the way out of a battle that it is. From `sm` there is room for both.
+         */}
+        <p
+          className={`flex flex-wrap items-center gap-x-1 text-sm leading-tight font-bold uppercase lg:hidden ${end ? 'justify-end' : ''} ${colours.text}`}
+        >
           {side.armies.map((army, at) => (
-            <span key={army.playerId}>
-              {at ? <span className="text-dim"> & </span> : null}
+            <span key={army.playerId} className="inline-flex items-center gap-x-1">
+              {at ? <span className="text-dim">&amp;</span> : null}
               <Link to="/users/$userId" params={{ userId: army.playerId }} className="group inline-flex items-center gap-1 align-middle">
                 <PlayerAvatar name={army.playerName} image={army.playerImage} className="size-5 text-[0.625rem]" />
-                <span className="group-hover:underline">{army.playerName}</span>
+                <span className="sr-only whitespace-nowrap group-hover:underline sm:not-sr-only">{army.playerName}</span>
               </Link>
-            </span>
-          ))}
-          {side.isViewer ? <span className="ml-1.5 text-[0.625rem] font-normal normal-case text-dim">&nbsp;you</span> : null}
-        </p>
-        <div className={`mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[0.6875rem] text-dim ${end ? 'justify-end' : ''}`}>
-          {side.armies.map((army) => {
-            const catalogueId = army.roster?.built?.catalogueId
-            const faction = factionFor(factions, catalogueId ?? '')
-            if (!faction) return null
-            const built = army.roster?.built
-            const detachmentNames =
-              built?.detachments?.map((detachment) => detachment.name) ?? (built?.detachment ? [built.detachment] : [])
-
-            return (
-              <span key={army.playerId} className="inline-flex min-w-0 flex-wrap items-center gap-x-1">
-                <Link
-                  to="/factions/$catalogueId"
-                  params={{ catalogueId: faction.slug }}
-                  aria-label={`${faction.displayName} faction`}
-                  title={faction.displayName}
-                  className="inline-flex min-w-0 items-center gap-1 text-bone hover:text-azure"
-                >
-                  <FactionMark id={faction.slug} icon={faction.icon} size="sm" />
-                  <span aria-hidden className="hidden truncate sm:inline">
-                    {faction.displayName}
-                  </span>
-                </Link>
-                {detachmentNames.map((name, at) => {
-                  const detachment = faction.detachments.find((candidate) => candidate.name === name)
-                  return (
-                    <span key={name} className="inline-flex min-w-0 items-center gap-1">
-                      <span aria-hidden className={at ? '' : 'hidden sm:inline'}>
-                        ·
-                      </span>
-                      {detachment ? (
-                        <Link
-                          to="/factions/$catalogueId/detachments/$detachmentId"
-                          params={{ catalogueId: faction.slug, detachmentId: detachment.slug }}
-                          title={name}
-                          className="truncate hover:text-bone hover:underline"
-                        >
-                          {name}
-                        </Link>
-                      ) : (
-                        <span className="truncate">{name}</span>
-                      )}
-                    </span>
-                  )
-                })}
-              </span>
-            )
-          })}
-        </div>
-        <p className="truncate text-[0.6875rem] text-dim">
-          {side.armies.map((army, at) => (
-            <span key={army.playerId}>
-              {at ? ' · ' : null}
-              <ArmyLink army={army} token={token} />
             </span>
           ))}
         </p>
@@ -159,16 +104,5 @@ function SideScore({ side, completedRound, token, align }: { side: Side; complet
         </div>
       </div>
     </div>
-  )
-}
-
-/** The list itself, when the battle knows which saved list it was. */
-function ArmyLink({ army, token }: { army: Army; token: string }) {
-  if (!army.roster) return <span className="text-faint">No list</span>
-  if (!army.rosterId) return <span>{army.roster.name}</span>
-  return (
-    <Link to="/rosters/$id" params={{ id: army.rosterId }} search={{ battle: token }} className="hover:underline">
-      {army.roster.name}
-    </Link>
   )
 }

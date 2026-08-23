@@ -114,6 +114,16 @@ export function roundLabel(min: number | null, max: number | null) {
   return `Through battle round ${max}`
 }
 
+/**
+ * Whether a payout is one the side can actually use.
+ *
+ * A few cards print a fixed payout and a tactical one, and a payout with no mode
+ * belongs to both. Asked once because the sheet that prints a card and the prompt
+ * that asks whether it paid out have to admit exactly the same payouts — two copies
+ * of this is a card advertising a payout the prompt will never offer.
+ */
+export const appliesInMode = (award: Pick<MissionAward, 'mode'>, mode?: string) => !award.mode || !mode || award.mode === mode
+
 export const groupKey = (award: MissionAward) =>
   [award.mode, award.trigger.timing, award.trigger.phase, award.trigger.playerTurn, award.trigger.roundMin, award.trigger.roundMax].join(
     '|',
