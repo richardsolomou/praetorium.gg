@@ -1,8 +1,53 @@
 import { describe, expect, it } from 'vitest'
 import { datasheetIn, datasheetViewsIn } from './catalogue'
-import { bookOf, categories } from './catalogue.fixtures'
+import { bookOf, categories, shelfOf } from './catalogue.fixtures'
 
 describe('a datasheet', () => {
+  it('links an imported chapter relationship to the canonical Space Marines reference', () => {
+    const book = shelfOf(
+      {
+        name: 'Space Marines',
+        selectionEntries: [
+          { id: 'eradicators', name: 'Eradicator Squad', type: 'unit', categoryLinks: categories('Faction: Adeptus Astartes') },
+        ],
+      },
+      {
+        name: 'Salamanders',
+        selectionEntries: [
+          {
+            id: 'vulkan',
+            name: "Vulkan He'stan",
+            type: 'model',
+            categoryLinks: categories('Faction: Salamanders'),
+            infoGroups: [
+              {
+                id: 'leader',
+                name: 'Leader',
+                profiles: [
+                  {
+                    id: 'leader-profile',
+                    name: 'Leader',
+                    characteristics: [
+                      {
+                        name: 'Description',
+                        $text: 'This model can be attached to the following units:\n■ Eradicator Squad',
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+        catalogueLinks: [{ targetId: 'cat', importRootEntries: true }],
+      },
+    )
+
+    expect(datasheetIn(book, 'cat-1', 'vulkan')?.attachments).toEqual([
+      { kind: 'leader', name: 'Eradicator Squad', route: { catalogueId: 'space-marines', slug: 'eradicator-squad' } },
+    ])
+  })
+
   it('collects model, weapon, ability and keyword display data', () => {
     const book = bookOf({
       selectionEntries: [

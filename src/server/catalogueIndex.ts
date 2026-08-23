@@ -210,3 +210,25 @@ export function datasheetSlug(loaded: LoadedCatalogue, catalogueId: string, entr
   )
   return collisions.length > 1 ? `${base}-${entryId.slice(0, 8)}` : base
 }
+
+/** The one reference-page route for a named datasheet, or null when the data is ambiguous. */
+export function referenceDatasheetRoute(loaded: LoadedCatalogue, name: string) {
+  const cache = referenceDatasheetRouteCache.get(loaded)
+  if (cache?.has(name)) return cache.get(name) ?? null
+  const matches = loaded.factions.flatMap((faction) =>
+    [...datasheetsOf(loaded.index, faction.id)].flatMap((entryId) => {
+      const entry = loaded.index.definitions.get(entryId)
+      if (!entry || nameOf(entry, loaded.index.definitions).localeCompare(name, undefined, { sensitivity: 'accent' }) !== 0) return []
+      return isReferenceDatasheet(loaded, faction.id, entryId)
+        ? [{ catalogueId: routeSlug(factionDisplayName(faction.name)), slug: datasheetSlug(loaded, faction.id, entryId) }]
+        : []
+    }),
+  )
+  const route = matches.length === 1 ? matches[0]! : null
+  const entries = cache ?? new Map<string, { catalogueId: string; slug: string } | null>()
+  entries.set(name, route)
+  if (!cache) referenceDatasheetRouteCache.set(loaded, entries)
+  return route
+}
+
+const referenceDatasheetRouteCache = new WeakMap<LoadedCatalogue, Map<string, { catalogueId: string; slug: string } | null>>()
