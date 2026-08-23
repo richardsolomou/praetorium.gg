@@ -5,8 +5,8 @@ import posthog from 'posthog-js'
 import { useEffect, useLayoutEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Switch } from '@/components/ui/switch'
 import { Toggle } from '@/components/ui/toggle'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import type { Secondary, Stratagem } from '../../core/battle'
 import { GAME_SIZES, ROSTER_NAME_MAX_LENGTH } from '../../core/battle'
@@ -371,14 +371,24 @@ export function ListBuilder({ prep, initial, editable = true, battle, resolvePer
             <span className="ml-auto flex shrink-0 items-center gap-1" data-print-hide>
               {editable ? (
                 <>
-                  <label
-                    htmlFor="roster-read-only"
-                    className="flex items-center gap-1.5 text-xs font-semibold text-dim"
-                    title="Show only this unit’s applied choices"
+                  <ToggleGroup
+                    value={[readOnly ? 'view' : 'build']}
+                    onValueChange={(value) => {
+                      if (value[0] === 'view' || value[0] === 'build') setReadOnlyMode(value[0] === 'view')
+                    }}
+                    variant="outline"
+                    size="sm"
+                    spacing={0}
+                    aria-label="Roster mode"
+                    title="View shows only what’s in your roster"
                   >
-                    <Switch id="roster-read-only" checked={readOnly} onCheckedChange={setReadOnlyMode} aria-label="Read-only mode" />
-                    Read-only
-                  </label>
+                    <ToggleGroupItem value="build" className="data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
+                      Build
+                    </ToggleGroupItem>
+                    <ToggleGroupItem value="view" className="data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
+                      View
+                    </ToggleGroupItem>
+                  </ToggleGroup>
                   <DropdownMenu>
                     <DropdownMenuTrigger aria-label="Roster actions" className="grid size-7 place-items-center hover:text-bone">
                       <EllipsisVertical className="size-4" />

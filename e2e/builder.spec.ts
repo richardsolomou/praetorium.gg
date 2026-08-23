@@ -73,9 +73,9 @@ test('the roster workspace preserves picker and read-only state', async ({ page 
   await expect(page.getByLabel('Add a unit')).toHaveValue('Immortals')
   await expect(page.getByRole('button', { name: 'Owned', exact: true })).toHaveAttribute('aria-pressed', 'true')
 
-  await page.getByRole('switch', { name: /Read-only mode/ }).click()
+  await page.getByRole('button', { name: 'View', exact: true }).click()
   await page.reload()
-  await expect(page.getByRole('switch', { name: /Read-only mode/ })).toBeChecked()
+  await expect(page.getByRole('button', { name: 'View', exact: true })).toHaveAttribute('aria-pressed', 'true')
   await page.getByRole('button', { name: 'Add Immortals', exact: true }).click()
   await page.locator('[data-unit="Immortals"]').getByRole('button', { name: 'Immortals', exact: true }).click()
   await expect(page.getByRole('button', { name: /More models in Immortals/ })).toHaveCount(0)
