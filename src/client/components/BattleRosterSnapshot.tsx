@@ -70,7 +70,9 @@ export function BattleRosterSnapshot({ roster }: { roster: Roster }) {
         <div className="min-h-0 flex-1 overflow-y-auto px-3">
           {hasRosterCards && built ? (
             GROUPS.map(({ id, plural }) => {
-              const units = built.units.filter((unit) => (unit.group ?? 'other') === id)
+              const units = built.units
+                .filter((unit) => (unit.group ?? 'other') === id)
+                .toSorted((left, right) => left.name.localeCompare(right.name))
               return units.length ? (
                 <Section key={id} title={plural} count={units.length}>
                   {units.map((unit) => (
