@@ -4,7 +4,7 @@ import { commandSchema } from '../core/commands'
 import type { RosterSource } from '../core/savedRoster'
 import { alias } from 'drizzle-orm/pg-core'
 import type { PraetoriumDatabase } from './connection'
-import { battleUsers, battles, collection, commands, favouriteFactions, friendships, rosters, user } from './schema'
+import { battleUsers, battles, collection, commands, favouriteDetachments, favouriteFactions, friendships, rosters, user } from './schema'
 
 type BattleRecord = { id: string; token: string; createdAt: number }
 type BattlePlayer = { id: string; name: string; image: string | null; side: number }
@@ -401,6 +401,29 @@ export class Repository {
     await this.database
       .delete(favouriteFactions)
       .where(and(eq(favouriteFactions.userId, userId), eq(favouriteFactions.catalogueId, catalogueId)))
+  }
+
+  async favouriteDetachmentsByUser(userId: string) {
+    return this.database.select().from(favouriteDetachments).where(eq(favouriteDetachments.userId, userId))
+  }
+
+  async addFavouriteDetachment(input: { userId: string; catalogueId: string; detachmentId: string; now: number }) {
+    await this.database
+      .insert(favouriteDetachments)
+      .values({ userId: input.userId, catalogueId: input.catalogueId, detachmentId: input.detachmentId, at: input.now })
+      .onConflictDoNothing()
+  }
+
+  async removeFavouriteDetachment(userId: string, catalogueId: string, detachmentId: string) {
+    await this.database
+      .delete(favouriteDetachments)
+      .where(
+        and(
+          eq(favouriteDetachments.userId, userId),
+          eq(favouriteDetachments.catalogueId, catalogueId),
+          eq(favouriteDetachments.detachmentId, detachmentId),
+        ),
+      )
   }
 
   async deleteRoster(id: string, userId: string) {

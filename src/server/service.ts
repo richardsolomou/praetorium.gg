@@ -199,6 +199,16 @@ export class PraetoriumService {
     else await this.repository.removeFavouriteFaction(userId, catalogueId)
   }
 
+  async favouriteDetachments(userId: string) {
+    const rows = await this.repository.favouriteDetachmentsByUser(userId)
+    return rows.map(({ catalogueId, detachmentId }) => ({ catalogueId, detachmentId }))
+  }
+
+  async setFavouriteDetachment(userId: string, catalogueId: string, detachmentId: string, favourite: boolean) {
+    if (favourite) await this.repository.addFavouriteDetachment({ userId, catalogueId, detachmentId, now: this.clock() })
+    else await this.repository.removeFavouriteDetachment(userId, catalogueId, detachmentId)
+  }
+
   /**
    * The players this one may open a battle with.
    *

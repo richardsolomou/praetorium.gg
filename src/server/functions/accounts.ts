@@ -4,7 +4,7 @@ import { SOCIAL_PROVIDERS } from '../../authConfig'
 import { app } from '../app'
 import { currentUser, currentUserId, requireUser, requireUserId } from '../playerSession'
 import { mutationRpc, rpc } from '../rpc'
-import { favouriteFactionSchema, friendSchema, ownedSchema, userSchema } from '../schemas'
+import { favouriteDetachmentSchema, favouriteFactionSchema, friendSchema, ownedSchema, userSchema } from '../schemas'
 
 export const me = createServerFn({ method: 'GET' }).handler(() => rpc(() => currentUser()))
 
@@ -96,6 +96,24 @@ export const setFavouriteFaction = createServerFn({ method: 'POST' })
       const player = await requireUser()
       await app().service.setFavouriteFaction(player.id, data.catalogueId, data.favourite)
       await app().telemetry.capture(player.id, 'favourite_faction_updated', { favourite: data.favourite })
+      return null
+    }),
+  )
+
+export const favouriteDetachments = createServerFn({ method: 'GET' }).handler(() =>
+  rpc(async () => {
+    const id = await currentUserId()
+    return id ? app().service.favouriteDetachments(id) : []
+  }),
+)
+
+export const setFavouriteDetachment = createServerFn({ method: 'POST' })
+  .validator(favouriteDetachmentSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const player = await requireUser()
+      await app().service.setFavouriteDetachment(player.id, data.catalogueId, data.detachmentId, data.favourite)
+      await app().telemetry.capture(player.id, 'favourite_detachment_updated', { favourite: data.favourite })
       return null
     }),
   )

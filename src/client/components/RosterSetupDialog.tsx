@@ -1,4 +1,4 @@
-import { Check, Layers3 } from 'lucide-react'
+import { Check, Heart, Layers3 } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -19,6 +19,7 @@ import { SearchableSelect, type SearchableGroup } from './SearchableSelect'
 import { factionSelectGroups } from './builder/factions'
 import { dispositionsFor, dispositionTone } from './rosterSetup'
 import { useFavouriteFactions } from '../favouriteFactions'
+import { favouriteDetachmentKey, favouriteDetachmentsFirst, useFavouriteDetachments } from '../favouriteDetachments'
 
 type Detachment = {
   id: string
@@ -79,6 +80,11 @@ export function RosterSetupDialog({
   const [draft, setDraft] = useState(value)
   const [reference, setReference] = useState<{ catalogueId: string; slug: string; name: string } | null>(null)
   const { favourites } = useFavouriteFactions()
+  const {
+    favourites: favouriteDetachments,
+    toggleFavourite: toggleFavouriteDetachment,
+    pending: favouriteMutation,
+  } = useFavouriteDetachments()
 
   const changeDraft = (next: RosterSetup) => {
     setDraft(next)
@@ -95,13 +101,16 @@ export function RosterSetupDialog({
     selected.map((detachment) => ({ points: detachment.reference?.points ?? null })),
     allowance,
   )
-  const availableDetachments =
+  const availableDetachments = favouriteDetachmentsFirst(
     faction?.detachments.filter((detachment) => {
       if (draft.detachmentIds.includes(detachment.id)) return true
       if (draft.detachmentIds.length >= detachmentLimit(draft.limit) && !isKotcLimit(draft.limit)) return false
       if (!selected.length || allowance === null || detachment.reference?.points == null) return true
       return spent + detachment.reference.points <= allowance
-    }) ?? []
+    }) ?? [],
+    faction?.id ?? '',
+    favouriteDetachments,
+  )
   const factionChanged = value.catalogueId !== draft.catalogueId
   const detachmentsChanged = value.detachmentIds.toSorted().join() !== draft.detachmentIds.toSorted().join()
   const groups = factionSelectGroups(factions, favourites)
@@ -204,6 +213,7 @@ export function RosterSetupDialog({
               <div className="mt-2 grid max-h-72 gap-2 overflow-y-auto sm:grid-cols-2">
                 {availableDetachments.map((detachment) => {
                   const chosen = draft.detachmentIds.includes(detachment.id)
+                  const favourite = favouriteDetachments.has(favouriteDetachmentKey(faction?.id ?? '', detachment.id))
                   return (
                     <div
                       key={detachment.id}
@@ -228,6 +238,15 @@ export function RosterSetupDialog({
                             ))}
                           </span>
                         </span>
+                      </button>
+                      <button
+                        type="button"
+                        aria-label={`${favourite ? 'Remove' : 'Add'} ${detachment.name} ${favourite ? 'from' : 'to'} favourite detachments`}
+                        disabled={favouriteMutation.isPending && favouriteMutation.variables?.detachmentId === detachment.id}
+                        onClick={() => faction && toggleFavouriteDetachment(faction.id, detachment.id)}
+                        className="grid w-10 shrink-0 place-items-center border-l border-edge text-faint hover:bg-raised hover:text-dim"
+                      >
+                        <Heart className={`size-4 ${favourite ? 'fill-rust text-rust' : ''}`} />
                       </button>
                       <button
                         type="button"

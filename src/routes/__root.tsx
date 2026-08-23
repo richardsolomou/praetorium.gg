@@ -26,7 +26,7 @@ import { authClient } from '../client/authClient'
 import { GlobalSearch } from '../client/components/GlobalSearch'
 import { PlayerAvatar } from '../client/components/PlayerAvatar'
 import { PageState } from '../client/components/PageState'
-import { favouriteFactionsQuery, meQuery } from '../client/queries'
+import { favouriteDetachmentsQuery, favouriteFactionsQuery, meQuery } from '../client/queries'
 import { POSTHOG_INGEST_PATH } from '../posthog'
 import appCss from '../styles.css?url'
 
@@ -39,7 +39,11 @@ const posthog = postHogEnvironment({
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   loader: ({ context }) =>
-    Promise.all([context.queryClient.ensureQueryData(meQuery()), context.queryClient.ensureQueryData(favouriteFactionsQuery())]),
+    Promise.all([
+      context.queryClient.ensureQueryData(meQuery()),
+      context.queryClient.ensureQueryData(favouriteFactionsQuery()),
+      context.queryClient.ensureQueryData(favouriteDetachmentsQuery()),
+    ]),
   head: () => ({
     meta: [
       { charSet: 'utf-8' },

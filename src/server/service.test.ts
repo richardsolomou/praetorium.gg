@@ -121,6 +121,20 @@ describe('favourite factions', () => {
   })
 })
 
+describe('favourite detachments', () => {
+  it('keeps each player favourites separate', async () => {
+    await service.setFavouriteDetachment('alice', 'space-marines', 'gladius-task-force', true)
+    expect(await service.favouriteDetachments('alice')).toEqual([{ catalogueId: 'space-marines', detachmentId: 'gladius-task-force' }])
+    expect(await service.favouriteDetachments('bob')).toEqual([])
+  })
+
+  it('removes a detachment from favourites', async () => {
+    await service.setFavouriteDetachment('alice', 'space-marines', 'gladius-task-force', true)
+    await service.setFavouriteDetachment('alice', 'space-marines', 'gladius-task-force', false)
+    expect(await service.favouriteDetachments('alice')).toEqual([])
+  })
+})
+
 describe('friends', () => {
   it('requires the recipient to accept a request before the sender becomes a friend', async () => {
     await enrol('dave', 'Dave')

@@ -15,6 +15,13 @@
       "when": 1787396588518,
       "tag": "0001_add_roster_created_at",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1787445768043,
+      "tag": "0002_lively_revanche",
+      "breakpoints": true
     }
   ]
 }

@@ -152,6 +152,37 @@ test('owned units rise to the top of their roster and picker groups', async ({ p
   await page.screenshot({ path: 'test-results/owned-units-first.png', fullPage: true })
 })
 
+test('favourite detachments rise to the top of roster setup', async ({ page }) => {
+  await signUp(page, 'Richard')
+  await page.goto('/rosters')
+  await page.getByRole('button', { name: 'Create editable roster' }).click()
+  const dialog = page.getByRole('dialog', { name: 'Create roster' })
+  await dialog.getByRole('combobox', { name: 'Faction' }).click()
+  await page.getByPlaceholder('Search factions…').fill('Necrons')
+  await page.getByRole('option', { name: 'Necrons', exact: true }).click()
+
+  const favourite = dialog.getByRole('button', { name: 'Add Cursed Legion to favourite detachments' })
+  await favourite.click()
+  const kept = dialog.getByRole('button', { name: 'Remove Cursed Legion from favourite detachments' })
+  await expect(kept).toBeVisible()
+  const favouritePosition = await kept.locator('xpath=..').boundingBox()
+  const awakenedPosition = await dialog.getByRole('button', { name: 'Select Awakened Dynasty' }).locator('xpath=..').boundingBox()
+  expect(favouritePosition?.y).toBeLessThan(awakenedPosition?.y ?? Number.POSITIVE_INFINITY)
+
+  await dialog.getByRole('button', { name: 'Select Cursed Legion' }).click()
+  await dialog.getByRole('button', { name: 'Create roster' }).click()
+  await page.waitForURL(/\/rosters\/[^/]+$/)
+  await page.getByRole('button', { name: 'Roster actions' }).click()
+  await page.getByRole('menuitem', { name: 'Edit roster setup' }).click()
+  const edit = page.getByRole('dialog', { name: 'Edit roster setup' })
+  const editFavouritePosition = await edit
+    .getByRole('button', { name: 'Remove Cursed Legion from favourite detachments' })
+    .locator('xpath=..')
+    .boundingBox()
+  const editAwakenedPosition = await edit.getByRole('button', { name: 'Select Awakened Dynasty' }).locator('xpath=..').boundingBox()
+  expect(editFavouritePosition?.y).toBeLessThan(editAwakenedPosition?.y ?? Number.POSITIVE_INFINITY)
+})
+
 test('King of the Colosseum creation keeps exactly one detachment selected', async ({ page }) => {
   await signUp(page, 'Richard')
   await page.goto('/rosters')

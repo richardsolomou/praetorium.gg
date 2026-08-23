@@ -240,6 +240,20 @@ export const favouriteFactions = pgTable(
   (table) => [primaryKey({ columns: [table.userId, table.catalogueId] })],
 )
 
+/** Detachments a player keeps at the top of roster setup. */
+export const favouriteDetachments = pgTable(
+  'favourite_detachments',
+  {
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    catalogueId: text('catalogue_id').notNull(),
+    detachmentId: text('detachment_id').notNull(),
+    at: bigint('at', { mode: 'number' }).notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.userId, table.catalogueId, table.detachmentId] })],
+)
+
 export const schema = {
   user,
   session,
@@ -253,4 +267,5 @@ export const schema = {
   rosters,
   collection,
   favouriteFactions,
+  favouriteDetachments,
 }
