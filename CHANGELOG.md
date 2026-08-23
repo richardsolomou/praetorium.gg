@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.21.0
+
+### Minor Changes
+
+- 511175d: Favourite detachments to place them first when setting up a roster.
+
 ## 0.20.1
 
 ### Patch Changes
