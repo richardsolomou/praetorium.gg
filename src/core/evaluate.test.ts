@@ -168,6 +168,42 @@ describe('per-model parent constraints', () => {
 
     expect(result.errors).toEqual([])
   })
+
+  it('counts an unmarked mandatory group and upgrade once for every aggregated model', () => {
+    const data = catalogue()
+    const veteran = data.sharedSelectionEntries?.[0]?.selectionEntries?.[0]
+    veteran!.selectionEntries = [
+      {
+        id: 'combat-weapon',
+        name: 'Close combat weapon',
+        type: 'upgrade',
+        constraints: [{ id: 'combat-min', type: 'min', value: 1, field: 'selections', scope: 'parent' }],
+      },
+    ]
+    veteran!.selectionEntryGroups![0]!.constraints!.push({
+      id: 'pistol-min',
+      type: 'min',
+      value: 1,
+      field: 'selections',
+      scope: 'parent',
+    })
+
+    const result = evaluateOne(
+      {
+        id: 'squad',
+        selections: [
+          {
+            id: 'veteran',
+            count: 3,
+            selections: [{ id: 'combat-weapon' }, { id: 'pistol-option', selections: [{ id: 'pistol' }] }],
+          },
+        ],
+      },
+      data,
+    )
+
+    expect(result.errors).toEqual([])
+  })
 })
 
 /**
@@ -664,7 +700,7 @@ describe('a keyword the data grants', () => {
     expect(keywordIds([{ id: 'squad' }], 0, index)).not.toContain('battleline')
   })
 
-  it('says so when it changes which keyword is primary, rather than shelving it silently', () => {
+  it.each(['set-primary', 'unset-primary'] as const)('recognises %s as irrelevant to the keywords a selection carries', (type) => {
     const index = indexOf({
       categoryEntries: [{ id: 'deathwing', name: 'Deathwing' }],
       sharedSelectionEntries: [
@@ -673,12 +709,12 @@ describe('a keyword the data grants', () => {
           name: 'Squad',
           type: 'unit',
           costs: points(40),
-          modifiers: [{ type: 'set-primary', field: 'category', value: 'deathwing' }],
+          modifiers: [{ type, field: 'category', value: 'deathwing' }],
           constraints: [{ id: 'cap', type: 'max', value: 1, field: 'selections', scope: 'roster' }],
         },
       ],
     })
-    expect(evaluate([{ id: 'squad' }], index).unhandled).toContain('category modifier set-primary')
+    expect(evaluate([{ id: 'squad' }], index).unhandled).toEqual([])
   })
 
   it('is withdrawn when the same entry writes the withdrawal last', () => {

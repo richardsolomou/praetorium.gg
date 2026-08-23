@@ -942,7 +942,8 @@ function grantsOf(root: Node, index: CatalogueIndex, census: Census): Map<Node, 
     for (const modifier of modifiersOf(node)) {
       if (modifier.field !== 'category') continue
       // `set-primary` and `unset-primary` change which keyword shelves a datasheet,
-      // not which keywords it carries.
+      // not which keywords it carries. They are understood but irrelevant here.
+      if (modifier.type === 'set-primary' || modifier.type === 'unset-primary') continue
       if (modifier.type !== 'add' && modifier.type !== 'remove') {
         census.note(`category modifier ${modifier.type}`)
         continue
@@ -1085,7 +1086,10 @@ function violations(node: Node, root: Node, index: CatalogueIndex, census: Censu
     }
     // A constraint on an entry counts that entry within the scope, so what is
     // being counted is the node itself.
-    const measured = measure({ ...constraint, childId: node.target.id }, node, root, index, census)
+    const raw = measure({ ...constraint, childId: node.target.id }, node, root, index, census)
+    // An unmarked mandatory child beneath an aggregated model is stored once as
+    // the model's template, while its minimum applies once to every model.
+    const measured = constraint.type === 'min' && raw === 1 ? raw * carriers(constraint, node) : raw
     if (constraint.type === 'min' && measured < limit) {
       errors.push({ entryId: node.target.id, entryName: name, message: `needs at least ${limit}, has ${measured}` })
     }
