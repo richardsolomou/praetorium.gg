@@ -130,6 +130,18 @@ describe('the picker', () => {
     expect(filtered[0]).toBe(all[1])
   })
 
+  it('matches datacard names that use typographic apostrophes', () => {
+    const book = bookOf({
+      selectionEntries: [{ id: 'ctan', name: "Transcendent C'tan", type: 'model', costs: points(295) }],
+    })
+
+    expect(
+      unitsIn(book, 'cat', '', {
+        includeNames: new Set(['Transcendent C’tan']),
+      }).map((unit) => unit.name),
+    ).toEqual(["Transcendent C'tan"])
+  })
+
   it('shelves every datasheet by its primary category', () => {
     const book = bookOf({
       selectionEntries: [
