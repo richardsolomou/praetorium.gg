@@ -54,7 +54,7 @@ docker run --rm --detach --name "$minio" --network "$network" \
     --publish "127.0.0.1:${minio_port}:9000" \
     --env MINIO_ROOT_USER=praetorium \
     --env MINIO_ROOT_PASSWORD=praetorium-storage \
-    "${MINIO_IMAGE:-minio/minio:RELEASE.2025-04-08T15-41-24Z}" server /data --address ':9000' >/dev/null
+    "${MINIO_IMAGE:-pgsty/minio:RELEASE.2026-08-04T00-00-00Z}" server /data --address ':9000' >/dev/null
 
 # The app migrates before it serves, so it must not start before Postgres answers.
 for _ in $(seq 1 60); do
@@ -69,7 +69,7 @@ done
 docker run --rm --network "$network" \
     --env MINIO_ROOT_USER=praetorium \
     --env MINIO_ROOT_PASSWORD=praetorium-storage \
-    --entrypoint sh "${MINIO_MC_IMAGE:-minio/mc:RELEASE.2025-04-08T15-39-49Z}" -c "
+    --entrypoint sh "${MINIO_MC_IMAGE:-pgsty/mc:RELEASE.2026-08-04T00-00-00Z}" -c "
         mc alias set local http://${minio}:9000 \"\$MINIO_ROOT_USER\" \"\$MINIO_ROOT_PASSWORD\" &&
         mc mb --ignore-existing local/praetorium &&
         mc anonymous set download local/praetorium

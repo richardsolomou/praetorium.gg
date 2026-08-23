@@ -86,7 +86,9 @@ services:
       - praetorium-valkey:/data
 
   minio:
-    image: minio/minio:RELEASE.2025-04-08T15-41-24Z
+    # pgsty's mirror, not the official image: Docker Hub stopped getting new
+    # MinIO releases once the community edition moved off it.
+    image: pgsty/minio:RELEASE.2026-08-04T00-00-00Z
     restart: unless-stopped
     environment:
       MINIO_ROOT_USER: ${S3_ACCESS_KEY_ID:-praetorium}
@@ -110,7 +112,7 @@ services:
   # openness — only the keys the app chooses to write are reachable, never a
   # directory listing.
   minio-init:
-    image: minio/mc:RELEASE.2025-04-08T15-39-49Z
+    image: pgsty/mc:RELEASE.2026-08-04T00-00-00Z
     restart: 'no'
     depends_on:
       minio:
