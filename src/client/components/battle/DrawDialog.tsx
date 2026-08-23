@@ -79,8 +79,8 @@ export function DrawDialog({
     if (paused) return
     const requested = new Set(asked.current)
     const secondaries = []
-    for (let slot = held.length; slot < HAND_SIZE; slot += 1) {
-      const card = nextDraw(side.secondaries, requested, side.remainingSecondaries)
+    while (true) {
+      const card = nextDraw(side.secondariesDrawnThisTurn, requested, side.secondaries, side.remainingSecondaries)
       if (!card) break
       requested.add(card.key)
       secondaries.push(card)
@@ -89,7 +89,7 @@ export function DrawDialog({
     for (const card of secondaries) asked.current.add(card.key)
     // Named, because the table may be dealing a practice opponent's hand rather than its own.
     send({ kind: 'draw-secondaries', secondaries, playerId: side.captain.id })
-  }, [held.length, paused, side.captain.id, side.secondaries, side.remainingSecondaries, send])
+  }, [side.secondariesDrawnThisTurn, paused, side.captain.id, side.secondaries, side.remainingSecondaries, send])
 
   return (
     <>
@@ -133,8 +133,10 @@ export function DrawDialog({
                 </div>
               )
             })}
-            {paused && held.length < HAND_SIZE ? <p className="text-sm text-dim">Drawing paused while you undo.</p> : null}
-            {!paused && held.length < HAND_SIZE ? <p className="text-sm text-discarded">Drawing…</p> : null}
+            {paused && side.secondariesDrawnThisTurn < HAND_SIZE ? (
+              <p className="text-sm text-dim">Drawing paused while you undo.</p>
+            ) : null}
+            {!paused && side.secondariesDrawnThisTurn < HAND_SIZE ? <p className="text-sm text-discarded">Drawing…</p> : null}
           </div>
           <DialogFooter className="rounded-none border-edge bg-sunken">
             <Button
@@ -153,12 +155,12 @@ export function DrawDialog({
               <Undo2 />
               Undo latest action
             </Button>
-            {paused && held.length < HAND_SIZE ? (
+            {paused && side.secondariesDrawnThisTurn < HAND_SIZE ? (
               <Button disabled={pending} onClick={() => setPaused(false)}>
                 Resume drawing
               </Button>
             ) : (
-              <Button disabled={pending || held.length < HAND_SIZE} onClick={onDone}>
+              <Button disabled={pending || side.secondariesDrawnThisTurn < HAND_SIZE} onClick={onDone}>
                 Take the turn
               </Button>
             )}

@@ -100,25 +100,26 @@ function finalRoundPrimaryDue(trigger: AwardTrigger, view: Pick<BattleView, 'pha
 }
 
 /** The phase the card data names, so a label can say which one is being settled. */
-/** A tactical hand is two cards. */
+/** Two tactical cards are drawn every turn, on top of whatever is already held. */
 export { TACTICAL_HAND_SIZE as HAND_SIZE }
 
 /**
- * The next card to ask the deck for, or null when the hand is accounted for.
+ * The next card to ask the deck for, or null when this turn's draw is accounted for.
  *
- * `asked` is what has been requested and not yet come back. Counting it is the whole
- * point: a request is in flight for a moment before the hand it fills arrives, and
- * without it a hand of one gets dealt back up to three. A card already played is
- * never dealt again, whatever the deck still lists.
+ * `drawnThisTurn` is the count the battle already recorded; `asked` is what this
+ * prompt has requested and not yet seen come back. Counting both is the whole point:
+ * a request is in flight for a moment before it lands, and without it a turn's draw
+ * of one gets asked for again before the first arrives. A card already held is never
+ * dealt again, whatever the deck still lists.
  */
 export function nextDraw<T extends { key: string }>(
-  held: readonly { key: string; status: string }[],
+  drawnThisTurn: number,
   asked: ReadonlySet<string>,
+  held: readonly { key: string }[],
   deck: readonly T[],
 ): T | null {
-  const active = held.filter((card) => card.status === 'active').length
   const outstanding = [...asked].filter((key) => !held.some((card) => card.key === key)).length
-  if (active + outstanding >= TACTICAL_HAND_SIZE) return null
+  if (drawnThisTurn + outstanding >= TACTICAL_HAND_SIZE) return null
   return deck.find((card) => !asked.has(card.key) && !held.some((entry) => entry.key === card.key)) ?? null
 }
 

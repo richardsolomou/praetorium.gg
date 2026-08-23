@@ -585,7 +585,7 @@ describe('secondaries', () => {
     )
   })
 
-  it('refuses to draw past a full tactical hand', () => {
+  it('refuses a third secondary in the same turn', () => {
     const cards = [
       { key: 'a', name: 'Behind Enemy Lines' },
       { key: 'b', name: 'Bring It Down' },
@@ -593,20 +593,79 @@ describe('secondaries', () => {
     ]
     const state = reduceBattle(
       PLAYERS,
-      log(...started(), [
-        ALICE,
-        {
-          kind: 'set-prep',
-          stratagems: [],
-          primary: null,
-          secondaryMode: 'tactical',
-          secondaries: cards.slice(0, 2),
-          secondaryDeck: cards,
-        },
-      ]),
+      log(
+        ...started(),
+        [ALICE, { kind: 'set-prep', stratagems: [], primary: null, secondaryMode: 'tactical', secondaries: [], secondaryDeck: cards }],
+        [ALICE, { kind: 'draw-secondaries', secondaries: cards.slice(0, 2) }],
+      ),
     )
 
-    expect(validate(state, ALICE, { kind: 'draw-secondary', secondary: cards[2]! })).toBe('your tactical hand is full')
+    expect(validate(state, ALICE, { kind: 'draw-secondary', secondary: cards[2]! })).toBe(
+      'you have already drawn your secondaries this turn',
+    )
+  })
+
+  it('keeps an unresolved secondary in hand and still draws two more at the top of the next turn', () => {
+    const cards = [
+      { key: 'a', name: 'Behind Enemy Lines' },
+      { key: 'b', name: 'Bring It Down' },
+      { key: 'c', name: 'Area Denial' },
+      { key: 'd', name: 'Storm Hostile Objective' },
+    ]
+    const state = reduceBattle(
+      PLAYERS,
+      log(
+        ...started(),
+        [ALICE, { kind: 'set-prep', stratagems: [], primary: null, secondaryMode: 'tactical', secondaries: [], secondaryDeck: cards }],
+        [ALICE, { kind: 'draw-secondaries', secondaries: cards.slice(0, 2) }],
+        // Neither card is scored or discarded, so a full round trip — Alice through to
+        // `end`, then Bob's whole turn — should still find both waiting when Alice's
+        // next turn comes owing two more regardless.
+        ...turns(6, ALICE),
+        ...turns(6, BOB),
+      ),
+    )
+
+    expect(alice(state)?.secondaryStatus).toEqual({ a: 'active', b: 'active' })
+    expect(alice(state)?.secondariesDrawnThisTurn).toBe(0)
+    expect(state.round).toBe(2)
+    expect(validate(state, ALICE, { kind: 'draw-secondaries', secondaries: cards.slice(2, 4) })).toBeNull()
+    expect(validate(state, ALICE, { kind: 'draw-secondaries', secondaries: cards.slice(2, 3) })).toBe(
+      'draw every card owed for this turn together',
+    )
+
+    const validated = reduceBattle(
+      PLAYERS,
+      log(
+        ...started(),
+        [ALICE, { kind: 'set-prep', stratagems: [], primary: null, secondaryMode: 'tactical', secondaries: [], secondaryDeck: cards }],
+        [ALICE, { kind: 'draw-secondaries', secondaries: cards.slice(0, 2) }],
+        ...turns(6, ALICE),
+        ...turns(6, BOB),
+        [ALICE, { kind: 'draw-secondaries', secondaries: cards.slice(2, 4) }],
+      ),
+    )
+    expect(alice(validated)?.secondaries.map((secondary) => secondary.key)).toEqual(['a', 'b', 'c', 'd'])
+  })
+
+  it('puts a card back the moment it is drawn without spending one of the turn’s two draws', () => {
+    const cards = [
+      { key: 'a', name: 'Behind Enemy Lines' },
+      { key: 'b', name: 'Bring It Down' },
+      { key: 'c', name: 'Area Denial' },
+    ]
+    const state = reduceBattle(
+      PLAYERS,
+      log(
+        ...started(),
+        [ALICE, { kind: 'set-prep', stratagems: [], primary: null, secondaryMode: 'tactical', secondaries: [], secondaryDeck: cards }],
+        [ALICE, { kind: 'draw-secondaries', secondaries: cards.slice(0, 2) }],
+        [ALICE, { kind: 'set-secondary-status', key: 'b', status: 'returned' }],
+      ),
+    )
+
+    expect(alice(state)?.secondariesDrawnThisTurn).toBe(1)
+    expect(validate(state, ALICE, { kind: 'draw-secondary', secondary: cards[2]! })).toBeNull()
   })
 
   it('refuses a secret outside the authoritative deck', () => {

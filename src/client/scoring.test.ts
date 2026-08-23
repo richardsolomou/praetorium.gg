@@ -197,35 +197,32 @@ describe('when a mission is asked about', () => {
   })
 })
 
-describe('filling a tactical hand', () => {
-  const card = (key: string, status = 'active') => ({ key, status })
+describe("drawing a turn's tactical cards", () => {
+  const held = (...keys: string[]) => keys.map((key) => ({ key }))
   const deck = [{ key: 'a' }, { key: 'b' }, { key: 'c' }]
 
-  it('asks for a card when the hand is empty', () => {
-    expect(nextDraw([], new Set(), deck)?.key).toBe('a')
+  it('asks for a card when nothing has been drawn this turn', () => {
+    expect(nextDraw(0, new Set(), [], deck)?.key).toBe('a')
   })
 
   it('does not ask twice for the one already in flight', () => {
-    expect(nextDraw([], new Set(['a']), deck)?.key).toBe('b')
+    expect(nextDraw(0, new Set(['a']), [], deck)?.key).toBe('b')
   })
 
-  it('stops once enough are in flight to fill the hand', () => {
-    expect(nextDraw([], new Set(['a', 'b']), deck)).toBeNull()
+  it("stops once enough are in flight to cover the turn's two", () => {
+    expect(nextDraw(0, new Set(['a', 'b']), [], deck)).toBeNull()
   })
 
-  it('stops once the hand itself is full', () => {
-    expect(nextDraw([card('a'), card('b')], new Set(['a', 'b']), deck)).toBeNull()
+  it('stops once the turn has already drawn its two, however large the kept hand is', () => {
+    expect(nextDraw(2, new Set(), held('a', 'b'), deck)).toBeNull()
   })
 
-  it('fills the one gap a scored card left, and only that one', () => {
-    const held = [card('a', 'achieved'), card('b')]
-    const first = nextDraw(held, new Set(), deck)
-    expect(first?.key).toBe('c')
-    expect(nextDraw(held, new Set([first?.key ?? '']), deck)).toBeNull()
+  it('skips a card already held from an earlier turn', () => {
+    expect(nextDraw(0, new Set(), held('a'), deck)?.key).toBe('b')
   })
 
   it('asks for nothing once the deck is empty', () => {
-    expect(nextDraw([], new Set(), [])).toBeNull()
+    expect(nextDraw(0, new Set(), [], [])).toBeNull()
   })
 })
 

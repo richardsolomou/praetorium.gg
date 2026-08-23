@@ -154,6 +154,7 @@ const SECONDARY_HISTORY_MAX = 30
 export type SecondaryMode = 'fixed' | 'tactical'
 
 export const SECONDARY_MODES: SecondaryMode[] = ['fixed', 'tactical']
+/** How many tactical cards a side draws at the top of each of its own turns. Unresolved cards from earlier turns are kept alongside them, not replaced. */
 export const TACTICAL_HAND_SIZE = 2
 
 type BattlePrep = {
@@ -307,6 +308,8 @@ export type PlayerState = {
   /** Every use, with when it happened, so a limit can be judged against the log. */
   uses: StratagemUse[]
   secondaries: Secondary[]
+  /** Cards drawn since this side's turn began, reset when it begins again. A card kept from an earlier turn does not count against it. */
+  secondariesDrawnThisTurn: number
   /** This side's primary mission for its ordered disposition matchup. */
   primaryCard: Secondary | null
   secondaryMode: SecondaryMode
@@ -466,6 +469,7 @@ export function emptyBattle(playerIds: readonly PlayerId[], playerSides?: readon
       stratagems: [],
       uses: [],
       secondaries: [],
+      secondariesDrawnThisTurn: 0,
       primaryCard: null,
       secondaryMode: 'tactical',
       secondaryDeck: null,
@@ -732,8 +736,8 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
     case 'draw-secondary': {
       if (state.status !== 'playing') return 'the battle is not running'
       if (player.secondaryMode !== 'tactical') return 'only tactical missions are drawn'
-      if (player.secondaries.filter((secondary) => player.secondaryStatus[secondary.key] === 'active').length >= TACTICAL_HAND_SIZE) {
-        return 'your tactical hand is full'
+      if (player.secondariesDrawnThisTurn >= TACTICAL_HAND_SIZE) {
+        return 'you have already drawn your secondaries this turn'
       }
       if (!command.secondary.name.trim()) return 'name the secondary'
       if (player.secondaryDeck && !player.secondaryDeck.some((secondary) => secondary.key === command.secondary.key)) {
@@ -746,12 +750,15 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
     case 'draw-secondaries': {
       if (state.status !== 'playing') return 'the battle is not running'
       if (player.secondaryMode !== 'tactical') return 'only tactical missions are drawn'
-      const held = player.secondaries.filter((secondary) => player.secondaryStatus[secondary.key] === 'active').length
       const remaining = (player.secondaryDeck ?? []).filter(
         (candidate) => !player.secondaries.some((secondary) => secondary.key === candidate.key),
       ).length
-      const refill = Math.min(TACTICAL_HAND_SIZE - held, remaining, SECONDARY_HISTORY_MAX - player.secondaries.length)
-      if (!command.secondaries.length || command.secondaries.length !== refill) return 'draw every card needed to fill your hand together'
+      const refill = Math.min(
+        TACTICAL_HAND_SIZE - player.secondariesDrawnThisTurn,
+        remaining,
+        SECONDARY_HISTORY_MAX - player.secondaries.length,
+      )
+      if (!command.secondaries.length || command.secondaries.length !== refill) return 'draw every card owed for this turn together'
       const keys = new Set<string>()
       for (const secondary of command.secondaries) {
         if (!secondary.name.trim()) return 'name the secondary'
@@ -939,14 +946,22 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
       return
     }
     case 'set-secondary-status': {
+      // A card put back or discarded the moment it is drawn is replaced, not spent: it
+      // never occupied one of this turn's two draws, so the count backs off to let the
+      // replacement in.
+      const wasActive = (player.secondaryStatus[command.key] ?? 'active') === 'active'
       player.secondaryStatus = { ...player.secondaryStatus, [command.key]: command.status }
       if (command.key === player.secretSecondary && command.status !== 'active') player.secretRevealed = true
+      if (wasActive && command.status !== 'active') {
+        player.secondariesDrawnThisTurn = Math.max(0, player.secondariesDrawnThisTurn - 1)
+      }
       return
     }
     case 'draw-secondary': {
       const secondary = { ...(player.secondaryDeck?.find((candidate) => candidate.key === command.secondary.key) ?? command.secondary) }
       player.secondaries.push(secondary)
       player.secondaryStatus = { ...player.secondaryStatus, [secondary.key]: 'active' }
+      player.secondariesDrawnThisTurn += 1
       return
     }
     case 'draw-secondaries': {
@@ -955,6 +970,7 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
         player.secondaries.push(secondary)
         player.secondaryStatus = { ...player.secondaryStatus, [secondary.key]: 'active' }
       }
+      player.secondariesDrawnThisTurn += command.secondaries.length
       return
     }
     case 'select-secret': {
@@ -1110,6 +1126,7 @@ function resetPlayer(player: PlayerState) {
   player.stratagems = []
   player.uses = []
   player.secondaries = []
+  player.secondariesDrawnThisTurn = 0
   player.secondaryDeck = null
   player.primaryCard = null
   player.secondaryMode = 'tactical'
@@ -1184,6 +1201,7 @@ function enterTurn(state: BattleState, playerId: PlayerId, settlementRound: numb
     player.cp += COMMAND_PHASE_CP
     player.cpGained += COMMAND_PHASE_CP
     player.cpByRound[state.round - 1] = player.cp
+    player.secondariesDrawnThisTurn = 0
   }
 }
 
@@ -1277,9 +1295,15 @@ function mayNameSecondary(state: BattleState, by: PlayerId, player: PlayerState,
  */
 export function sideOwes(state: BattleState, player: PlayerState): 'settlement' | 'cards' | 'secret' | null {
   if (state.phase === 'command' && state.pendingSettlement?.playerId === player.id) return 'settlement'
-  const held = player.secondaries.filter((secondary) => player.secondaryStatus[secondary.key] === 'active').length
   const hasUndrawnCard = player.secondaryDeck?.some((candidate) => !player.secondaries.some((secondary) => secondary.key === candidate.key))
-  if (state.phase === 'command' && player.secondaryMode === 'tactical' && held < TACTICAL_HAND_SIZE && hasUndrawnCard) return 'cards'
+  if (
+    state.phase === 'command' &&
+    player.secondaryMode === 'tactical' &&
+    player.secondariesDrawnThisTurn < TACTICAL_HAND_SIZE &&
+    hasUndrawnCard
+  ) {
+    return 'cards'
+  }
   if (state.phase === 'end' && player.secretSecondary && !player.secretRevealed) return 'secret'
   return null
 }
