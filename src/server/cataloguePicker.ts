@@ -90,7 +90,7 @@ export function unitsIn(
     if (!isMatchedPlayDatasheet(loaded.index, entry)) continue
     const target = targetOf(entry, loaded.index.definitions)
     const name = nameOf(entry, loaded.index.definitions)
-    if (included && !included.has(referenceName(name))) continue
+    if (included && !includedReferenceName(included, name)) continue
     const keywords = [...(entry.categoryLinks ?? []), ...(target.categoryLinks ?? [])].flatMap((link) => (link.name ? [link.name] : []))
     if (restricted(name, keywords, restrictions)) continue
     // Unaligned Forces is the shared shelf for Legends fortifications and
@@ -130,6 +130,11 @@ const referenceName = (name: string) =>
     .normalize('NFKC')
     .replaceAll(/[‘’ʼ]/g, "'")
     .toLocaleLowerCase()
+
+const includedReferenceName = (included: ReadonlySet<string>, name: string) => {
+  const normalized = referenceName(name)
+  return included.has(normalized) || included.has(`${normalized}s`) || (normalized.endsWith('s') && included.has(normalized.slice(0, -1)))
+}
 
 const restricted = (name: string, keywords: readonly string[], restrictions?: FactionRestrictions) =>
   restrictions !== undefined &&

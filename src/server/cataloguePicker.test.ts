@@ -142,6 +142,14 @@ describe('the picker', () => {
     ).toEqual(["Transcendent C'tan"])
   })
 
+  it('matches singular catalogue names to plural datacard names', () => {
+    const book = bookOf({
+      selectionEntries: [{ id: 'walker', name: 'Plague Walker', type: 'model', costs: points(100) }],
+    })
+
+    expect(unitsIn(book, 'cat', '', { includeNames: new Set(['Plague Walkers']) }).map((unit) => unit.name)).toEqual(['Plague Walker'])
+  })
+
   it('shelves every datasheet by its primary category', () => {
     const book = bookOf({
       selectionEntries: [
