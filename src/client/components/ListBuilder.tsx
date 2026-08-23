@@ -322,7 +322,7 @@ export function ListBuilder({ prep, initial, editable = true, battle, resolvePer
       data-save-error={save.isError}
       className="flex min-h-0 flex-1 flex-col border border-edge bg-sunken"
     >
-      <header className="border-b border-edge px-3 py-2">
+      <header className="relative border-b border-edge px-3 py-2">
         <Input
           id="listname"
           value={name}
@@ -331,12 +331,16 @@ export function ListBuilder({ prep, initial, editable = true, battle, resolvePer
           placeholder={suggested || 'Named from your picks'}
           aria-label="List name"
           readOnly={!editable}
-          className="h-8 border-0 bg-transparent px-0 text-lg font-bold tracking-[0.02em] uppercase focus-visible:ring-0"
+          className="h-8 border-0 bg-transparent px-0 text-lg font-bold tracking-[0.02em] uppercase focus-visible:ring-0 max-sm:pr-40"
         />
 
         {faction ? (
-          <div className="flex min-w-0 items-center gap-x-2 gap-y-1 text-xs text-dim max-sm:flex-wrap">
-            <Link to="/factions/$catalogueId" params={{ catalogueId: faction.slug }} className="truncate text-info hover:text-bone">
+          <div className="flex min-w-0 items-center gap-2 text-xs text-dim max-sm:overflow-x-auto max-sm:whitespace-nowrap max-sm:[scrollbar-width:none] max-sm:[&::-webkit-scrollbar]:hidden">
+            <Link
+              to="/factions/$catalogueId"
+              params={{ catalogueId: faction.slug }}
+              className="truncate text-info hover:text-bone max-sm:shrink-0"
+            >
               <FactionLabel faction={faction} />
             </Link>
             <span aria-hidden>·</span>
@@ -351,7 +355,7 @@ export function ListBuilder({ prep, initial, editable = true, battle, resolvePer
                   <Link
                     to="/factions/$catalogueId/reference/detachments/$detachmentId"
                     params={{ catalogueId: faction.slug, detachmentId: detachment.slug }}
-                    className="truncate hover:text-bone"
+                    className="truncate hover:text-bone max-sm:shrink-0"
                   >
                     {detachment.name}
                   </Link>
@@ -369,7 +373,7 @@ export function ListBuilder({ prep, initial, editable = true, battle, resolvePer
                 </span>
               </span>
             ) : null}
-            <span className="ml-auto flex shrink-0 items-center gap-1 max-sm:basis-full max-sm:justify-end" data-print-hide>
+            <span className="ml-auto flex shrink-0 items-center gap-1 max-sm:absolute max-sm:top-2 max-sm:right-3" data-print-hide>
               {editable ? (
                 <>
                   <DropdownMenu>
