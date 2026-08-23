@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test, type Locator } from '@playwright/test'
 import {
   advance,
   advanceButton,
@@ -51,25 +51,33 @@ test('a tactical hand is dealt rather than chosen, and pays out when the card sa
   const drawn = await hand.evaluateAll((cards) => cards.map((card) => card.getAttribute('data-secondary')))
   for (const key of drawn) await expect(bob.locator(`[data-secondary="${key}"]`)).toBeVisible()
 
-  // The scoreboard is the way out of a battle: to whoever is playing it, and to the
-  // list they brought, which a seated opponent reads through the battle token.
+  // The side panel is the way out of a battle to whoever is playing it and to what
+  // they brought. It is written there once: with both panels on screen at this width
+  // the scoreboard is left to the score.
   const scoreboard = alice.getByRole('region', { name: 'Battle scoreboard' })
-  const playerLink = scoreboard.getByRole('link', { name: aliceName })
+  const ownPanel = alice.locator('[data-panel="player"]').filter({ hasText: 'Death Guard' })
+  const playerLink = ownPanel.getByRole('link', { name: aliceName })
   await expect(playerLink).toHaveAttribute('href', /^\/users\/[^/?]+$/)
   await expect(playerLink.locator('img')).toHaveAttribute('src', /\/avatars\/[0-9a-f]+\.webp$/)
   await playerLink.hover()
   await expect(playerLink).toHaveCSS('text-decoration-line', 'none')
   await expect(playerLink.getByText(aliceName, { exact: true })).toHaveCSS('text-decoration-line', 'underline')
   await expect(playerLink.locator('[aria-hidden="true"]')).toHaveCSS('text-decoration-line', 'none')
-  await expect(scoreboard.getByRole('link', { name: aliceRoster, exact: true })).toHaveAttribute('href', /^\/rosters\/[^/?]+\?battle=/)
-  const faction = scoreboard.getByRole('link', { name: 'Death Guard faction' })
+  await expect(scoreboard.getByRole('link', { name: aliceRoster, exact: true })).toHaveCount(0)
+  await expect(scoreboard.getByRole('link', { name: aliceName })).toBeHidden()
+  await expect(ownPanel.getByRole('link', { name: aliceRoster, exact: true })).toHaveAttribute('href', /^\/rosters\/[^/?]+\?battle=/)
+  const faction = ownPanel.getByRole('link', { name: 'Death Guard faction' })
   await expect(faction).toHaveAttribute('href', '/factions/death-guard')
   await expect(faction.locator('[data-faction-mark="death-guard"]')).toBeVisible()
-  const detachment = scoreboard.getByRole('link', { name: 'Shamblerot Vectorium' })
+  const detachment = ownPanel.getByRole('link', { name: 'Shamblerot Vectorium' })
   await expect(detachment).toHaveAttribute('href', '/factions/death-guard/detachments/shamblerot-vectorium')
-  const rosterPosition = await scoreboard.getByRole('link', { name: aliceRoster, exact: true }).boundingBox()
+  // The list is named after what it is, whether the width puts them on one line or two.
+  const rosterPosition = await ownPanel.getByRole('link', { name: aliceRoster, exact: true }).boundingBox()
   const detachmentPosition = await detachment.boundingBox()
-  expect(rosterPosition?.y).toBeGreaterThan(detachmentPosition?.y ?? Number.POSITIVE_INFINITY)
+  expect(rosterPosition && detachmentPosition).toBeTruthy()
+  const reads = (later: typeof rosterPosition, earlier: typeof detachmentPosition) =>
+    !later || !earlier ? false : later.y > earlier.y || (later.y === earlier.y && later.x > earlier.x)
+  expect(reads(rosterPosition, detachmentPosition)).toBe(true)
   const panel = alice.locator('[data-panel="player"]').filter({ hasText: 'Death Guard' })
   const opponentPanel = bob.locator('[data-panel="player"]').filter({ hasText: 'Death Guard' })
   await expect(panel.locator('[data-stat="cp"]')).toHaveText('1')
@@ -158,12 +166,15 @@ test('a tactical hand is dealt rather than chosen, and pays out when the card sa
   await expect(alice.getByText(/The battlefield is /)).toBeVisible()
   await expect(alice.getByText(/draws /).first()).toBeVisible()
   await alice.screenshot({ path: 'test-results/battle.png', fullPage: true })
+  // The same panel on a phone, reached the same way. Only one panel is on screen at
+  // a time there, so the scoreboard names the players again.
   await alice.setViewportSize({ width: 390, height: 844 })
   await expect(faction).toBeVisible()
-  await expect(scoreboard.getByRole('link', { name: 'Shamblerot Vectorium' })).toBeVisible()
+  await expect(detachment).toBeVisible()
+  await expect(ownPanel.getByRole('link', { name: aliceRoster, exact: true })).toBeVisible()
   await expect(scoreboard.getByRole('link', { name: aliceName })).toBeVisible()
   await alice.screenshot({ path: 'test-results/battle-phone.png', fullPage: true })
-  await scoreboard.getByRole('link', { name: aliceName }).click()
+  await playerLink.click()
   await expect(alice).toHaveURL(/\/users\/[^/?]+$/)
   await expect(alice.getByRole('heading', { name: aliceName })).toBeVisible()
 })
@@ -272,20 +283,23 @@ test('a card names its own condition, and what their turn owed is asked as the t
     opponent: bobName,
     hostRoster: aliceRoster,
     guestRoster: bobRoster,
-    // Fixed play, so the two cards under test are certain: Outflank pays in tiers the
-    // source describes only in prose, and Assassination pays on either player's turn.
+    // Fixed play, so the two cards under test are certain: Engage on All Fronts pays in
+    // tiers the source describes only in prose, and Assassination pays on either player's
+    // turn. Both are cards the pack marks as fixed — nothing else may be taken as one.
     beforeStart: async () => {
-      const press = async (name: string) => {
+      // Located rather than named: 'Fixed' is also in the rail chip's own line once the
+      // mode flips, and a card names two controls — the one that reads it and the one
+      // that takes it. Only the one that takes it is pressed here.
+      const press = async (button: Locator) => {
         await expect(async () => {
-          const button = alice.getByRole('button', { name })
           if ((await button.getAttribute('aria-pressed')) === 'true') return
           await button.click({ timeout: 1_000 })
           await expect(button).toHaveAttribute('aria-pressed', 'true', { timeout: 1_000 })
         }).toPass({ timeout: 10_000 })
       }
-      await press('Fixed')
-      for (const card of ['Assassination', 'Outflank']) {
-        await press(card)
+      await press(alice.getByRole('group', { name: 'Secondary play' }).getByRole('button', { name: 'Fixed' }))
+      for (const card of ['Assassination', 'Engage on All Fronts']) {
+        await press(alice.getByRole('button', { name: new RegExp(`^(Select|Remove) ${card}$`) }))
       }
     },
   })
@@ -296,14 +310,14 @@ test('a card names its own condition, and what their turn owed is asked as the t
   // What the round still allows is stated while the player is choosing, not only once
   // a cap has already eaten something.
   await expect(scoring).toContainText(/Secondary missions 0\/15 this round/)
-  const outflank = scoring.locator('[data-due="outflank"]')
+  const fronts = scoring.locator('[data-due="engage-on-all-fronts"]')
   // Two tiers of one thing rather than two payouts, each asking in the mission pack's own words.
-  await expect(outflank).toContainText('or')
-  await expect(outflank).toContainText('are within 6" of one or more battlefield edges and not within your territory')
-  await expect(outflank).toContainText('are within 6" of opposite battlefield edges')
+  await expect(fronts).toContainText('or')
+  await expect(fronts).toContainText('presence in three table quarters')
+  await expect(fronts).toContainText('presence in four table quarters')
   // The keywords the pack marks up are drawn as keywords rather than printed with their asterisks.
-  await expect(outflank.getByText('AIRCRAFT').first()).toBeVisible()
-  await expect(outflank).not.toContainText('**')
+  await expect(fronts.getByText('presence').first()).toBeVisible()
+  await expect(fronts).not.toContainText('**')
   await scoring.getByRole('button', { name: 'Pass the turn' }).click()
   await expect(bob.getByRole('dialog', { name: 'Your secondary missions' })).toBeVisible()
 

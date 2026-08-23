@@ -46,14 +46,9 @@ export async function connectionToken(userId: string, secret: string, now = Math
  * Proves this player may watch this battle.
  *
  * Issued per channel and only after the seat has been checked, so a leaked link
- * buys no stream.
- * `info` is what the other player's screen shows as presence.
+ * buys no stream. It carries the subject and the channel and nothing else: a
+ * subscription is a nudge to refetch, and nothing on a screen is drawn from it.
  */
-export async function subscriptionToken(
-  user: { id: string; name: string },
-  channel: string,
-  secret: string,
-  now = Math.floor(Date.now() / 1000),
-) {
-  return signRealtimeToken(user.id, { channel, info: { userId: user.id, name: user.name } }, { secret, now, ttlSeconds: TOKEN_TTL_SECONDS })
+export async function subscriptionToken(user: { id: string }, channel: string, secret: string, now = Math.floor(Date.now() / 1000)) {
+  return signRealtimeToken(user.id, { channel }, { secret, now, ttlSeconds: TOKEN_TTL_SECONDS })
 }

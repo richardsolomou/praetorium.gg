@@ -25,7 +25,7 @@ Use these patterns consistently:
 
 On phones, the roster stays visible. The picker or loadout moves into one sheet. The battle tracker uses one column and a fixed scoreboard.
 
-Battle setup has six sections and a persistent summary. It separates table decisions from army preparation. It shows both sides before play starts.
+Battle setup is a walked rail of sections with a persistent summary. It separates table decisions from army preparation. It shows both sides before play starts.
 
 Keep screenshots that contain roster or battle data outside version control.
 
@@ -34,7 +34,7 @@ Keep screenshots that contain roster or battle data outside version control.
 | Area              | Coverage                                                                                                                                                                              |
 | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Accounts          | Email and password work without provider configuration. Google and Discord are optional. Players can edit their display name and profile picture.                                     |
-| Battles           | Shared or practice 1v1 and 2v1 setup drafts, server-side legality, corrections, concessions, reopening, presence, and live updates.                                                   |
+| Battles           | Shared or practice 1v1 and 2v1 setup drafts, server-side legality, corrections, concessions, reopening, and live updates.                                                             |
 | Turn tracker      | Five standard rounds, three King of the Colosseum rounds, six phases, command points, victory points, painted bonuses, tactical decks, stratagems, formations, and battle completion. |
 | Rosters           | Build, import, save, copy, rename, private or unlisted share, print, export, and attach.                                                                                              |
 | Catalogue         | Factions, detachments, units, model counts, loadouts, enhancements, attachments, and points limits.                                                                                   |
@@ -49,7 +49,7 @@ Keep screenshots that contain roster or battle data outside version control.
 
 The sources do not structure every restriction or replacement rule. Praetorium reports missing semantics. It does not reconstruct rules from memory.
 
-The current sources do not provide structured twist decks or enough transport relationships to automate embarking. Battle photos also remain outside the product boundary. These features stay absent rather than becoming local-only or guessed state.
+The current sources do not provide enough transport relationships to automate embarking. Battle photos also remain outside the product boundary. These features stay absent rather than becoming local-only or guessed state.
 
 ## Verification
 

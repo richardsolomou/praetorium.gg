@@ -29,7 +29,9 @@ The current setup section is also a command-derived shared value. When one seate
 
 Deployment and terrain are one battlefield choice. The three layouts for the armies' force dispositions each bind a deployment pattern to exact terrain geometry; `set-battlefield` records both IDs atomically. The setup and live tracker render that same plan, and a selected layout without its pinned geometry cannot start.
 
-A 2v1 battle has one player on the first side and two allied players on the second. Allies share a turn, command points, mission cards, and victory points. Each ally still attaches and controls a separate roster and its units.
+A 2v1 battle has one player on one side and two allied players on the other. Which side the pair is on is the creator's to choose: `createBattle` takes an `allyId` who joins their side and `opponentIds` who face them, so either player of an allied pair can be the one who opens the game. The creator always keeps the first seat on side 0, because deleting a battle is theirs alone and the earliest seat on that side is what says so — an ally sits on side 0 too, so the side by itself does not.
+
+Allies share a turn, command points, mission cards, stratagems, and victory points. Each ally still attaches and controls a separate roster and its units.
 
 ## Practice opponents
 
@@ -40,7 +42,7 @@ Everything they need follows from having no player behind the seat:
 - They need no friendship. `PraetoriumService.opponents` answers "who may this player open a battle with" once, for both the picker and the check that guards creation, and they are excluded from the strangers the friends page offers.
 - They own no lists. The table brings the army a practice opponent fields from its own library, through `attach-roster` naming that seat, and settles its cards through `set-prep` naming its side.
 - Their cards are the table's to play. `battleView` shows a side's undrawn deck to the people playing it — its own players, or anyone at all when nobody signs in to it — and the tracker deals its hand and settles its turns from the device facing it.
-- They never concede and never appear present, so a seat shows what it is rather than a presence light that would read as absent all game.
+- They never concede, and nothing badges their seat: the account is named after what it is, so saying so again told nobody anything.
 
 `draw-secondary` and `draw-secondaries` name their side, and the server resolves whose deck to deal from through `commandArmy` rather than from the submitting player, so cards cannot come off one deck and be recorded against another.
 
@@ -48,7 +50,9 @@ There is no solo format. A battle is between two sides, and a side nobody signs 
 
 ## Cards
 
-What an army brings is not a choice a player makes twice. The stratagems are the detachment's own plus the core ones every army has, and its primary comes from its ordered force-disposition matchup against the opposing side — both are recorded by `set-prep` as soon as they are known rather than offered as a picker.
+What an army brings is not a choice a player makes twice. The stratagems are every detachment the side fields plus the core ones every army has, and its primary comes from its ordered force-disposition matchup against the opposing side — both are recorded by `set-prep` as soon as they are known rather than offered as a picker.
+
+A side is one stratagem pool, so a 2v1 pools both allies' detachments into it, keyed by the dataset's own stratagem id. Only the seat the domain folds a side's resources onto writes that pool: `set-prep` targets the side captain, and letting both allies write their own left the survivor down to whichever request landed last. `sideStratagems` in `src/client/sideRules.ts` assembles it, and `armyRulesRequest` beside it is the one derivation of what an army's rules are looked up by.
 
 Secondaries are tactical unless a player says otherwise: the hand starts empty, the deck is the whole pack, and the tracker asks for the draw at the top of that player's command phase. Fixed play is the alternative, and the only case where cards are chosen up front.
 
@@ -66,12 +70,11 @@ A read never claims a battle seat. `PraetoriumService.screen` returns an invitat
 
 ## Realtime updates
 
-- Realtime messages contain only the battle ID. The client refetches the battle through the normal read path.
+- Realtime messages contain only the battle ID. The client refetches the battle through the normal read path. A subscription token carries its subject and its channel and nothing else — nothing on a screen is drawn from a connection, so nothing needs to be.
 - `/api/realtime/token` requires an account and a seat in the requested battle.
 - Realtime channels use the internal battle ID, not the invitation token.
 - A second channel is named after a player, so the list of battles hears about a battle the player has not opened yet.
 - Every channel prefix needs a namespace in `realtime.json`. Centrifugo rejects a subscription to a prefix it was not configured with.
-- Centrifugo subscription state provides presence. Do not store presence in the database.
 - Caddy and the Vite development proxy serve Centrifugo on the app origin. Keep `connect-src 'self'`.
 
 ## Server boundaries
@@ -99,4 +102,4 @@ Starting the battle is not undoable: `begin-battle` leaves nothing for `undo` to
 
 Battle coverage is split the way the domain is. `src/core/battle.test.ts` covers setup, turn order, ownership, undo, resets, concessions, reopening, deployment and battle settings. `src/core/battleCards.test.ts` covers stratagem costs including the ones the board makes dearer, and tactical decks. `src/core/battleView.test.ts` covers visibility, units and the models inside them, and `src/core/battleReport.test.ts` covers the account of the battle. All four build their games from `src/core/battle.fixtures.ts`.
 
-`src/server/service.test.ts` covers persistence, deletion permissions, and concurrent submissions against an in-process Postgres. `src/client/sides.test.ts` covers the fold from seats to sides, and `e2e/team-battle.spec.ts` drives three devices through a 2v1 to prove the allied pair shares one pool.
+`src/server/service.test.ts` covers persistence, deletion permissions, seating either side of a 2v1, and concurrent submissions against an in-process Postgres. `src/client/sides.test.ts` covers the fold from seats to sides, `src/client/sideRules.test.ts` covers the stratagem pool a side plays with, and `e2e/team-battle.spec.ts` drives a 2v1 from each side of it to prove the allied pair shares one pool.

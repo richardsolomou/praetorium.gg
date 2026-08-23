@@ -9,6 +9,10 @@ import { capRoom, cardsDue, cardsDueFromTheirTurn, type DueCard, finishesOnScore
 import { type Side, sideName } from '../../sides'
 import { RuleText } from '../RuleText'
 import { MissionName, type ReferenceCard } from './MissionCards'
+import { tint } from './tints'
+
+/** Which side a prompt is recording for, in the colours it wears to say so. */
+type Tone = ReturnType<typeof tint>
 
 type Props = {
   side: Side
@@ -65,9 +69,17 @@ export function ScoringDialog({ side, due, moment, confirmLabel, pending, send, 
 
   // One calculation behind both what this shows and what it sends: a card the board
   // truthfully paid is still claimed in full, and the excess simply does not add up.
+  // A fixed card also has a ceiling of its own, counted against what that one card has
+  // already banked rather than against the side's pool.
+  const cardCap = side.secondaryMode === 'fixed' ? (side.mission?.fixedSecondaryCap ?? null) : null
+  const cardRoom = (card: DueCard) =>
+    cardCap === null || card.category !== 'secondary'
+      ? Infinity
+      : Math.max(0, cardCap - (side.secondaries.find((held) => held.key === card.key)?.points ?? 0))
   const settled = settleAgainstCaps(
     due.map((card) => ({ card, claimed: claimedFor(card) })),
     { primary: room.primary?.room ?? Infinity, secondary: room.secondary?.room ?? Infinity },
+    cardRoom,
   )
   const settledFor = (card: DueCard) => settled.find((entry) => entry.card.key === card.key) ?? { claimed: 0, scoring: 0 }
   const total = settled.reduce((sum, entry) => sum + entry.scoring, 0)
@@ -133,12 +145,20 @@ export function ScoringDialog({ side, due, moment, confirmLabel, pending, send, 
     onDone(finished)
   }
 
+  const colours = tint(side.index)
+
   return (
     <Dialog open onOpenChange={(open) => !open && onCancel?.()}>
-      <DialogContent className="max-h-[85dvh] overflow-y-auto rounded-none border border-discarded/60 bg-panel text-bone sm:max-w-2xl">
+      {/*
+       * Edged and titled in the side's own tint. Points go to one side and cannot be
+       * taken back without an undo, so which side is being paid should be readable
+       * before the sentence naming them is — a prompt that looked the same for both
+       * left the name doing that work alone.
+       */}
+      <DialogContent className={`max-h-[85dvh] overflow-y-auto rounded-none border bg-panel text-bone sm:max-w-2xl ${colours.border}`}>
         <DialogHeader className="text-center">
           <p className="eyebrow text-discarded">Now</p>
-          <DialogTitle className="uppercase">
+          <DialogTitle className={`uppercase ${colours.text}`}>
             Scoring {moment} points · {sideName(side)}
           </DialogTitle>
           <DialogDescription className="text-dim">
@@ -168,6 +188,8 @@ export function ScoringDialog({ side, due, moment, confirmLabel, pending, send, 
                       name={card.name}
                       card={reference}
                       type={card.category === 'primary' ? 'Primary mission' : 'Secondary mission'}
+                      mode={card.category === 'secondary' ? side.secondaryMode : undefined}
+                      className={colours.text}
                     />
                     {/* Which card the ceiling actually took from, so unpicking a payout
                         elsewhere is a move the player can see is theirs to make. */}
@@ -189,6 +211,7 @@ export function ScoringDialog({ side, due, moment, confirmLabel, pending, send, 
                       tier={at > 0 && alternatives(award, card.awards[at - 1] ?? award)}
                       times={taken[at] ?? 0}
                       pending={pending}
+                      tone={colours}
                       onAnswer={(times) => answer(card, at, times)}
                     />
                   ))}
@@ -198,6 +221,7 @@ export function ScoringDialog({ side, due, moment, confirmLabel, pending, send, 
                       label="0 VP"
                       chosen={taken.every((times) => times === 0)}
                       pending={pending}
+                      tone={colours}
                       ariaLabel={`${card.name} scored nothing`}
                       onPress={() => setAnswers((current) => ({ ...current, [card.key]: card.awards.map(() => 0) }))}
                     />
@@ -226,7 +250,7 @@ export function ScoringDialog({ side, due, moment, confirmLabel, pending, send, 
               Go back
             </Button>
           ) : null}
-          <Button disabled={pending} onClick={confirm}>
+          <Button className={colours.fill} disabled={pending} onClick={confirm}>
             {confirmLabel}
           </Button>
         </DialogFooter>
@@ -242,6 +266,7 @@ function AwardRow({
   tier,
   times,
   pending,
+  tone,
   onAnswer,
 }: {
   card: DueCard
@@ -250,6 +275,8 @@ function AwardRow({
   tier: boolean
   times: number
   pending: boolean
+  /** The side these points go to, so every mark in the prompt names the same one. */
+  tone: Tone
   onAnswer: (times: number) => void
 }) {
   const limit = awardLimit(award)
@@ -290,9 +317,7 @@ function AwardRow({
               <Plus />
             </Button>
           </div>
-          <span className={`chip shrink-0 ${times > 0 ? 'border-parchment text-parchment' : 'border-edge-strong'}`}>
-            {awardTotal(award, times)} VP
-          </span>
+          <span className={`chip shrink-0 ${times > 0 ? tone.mark : 'border-edge-strong'}`}>{awardTotal(award, times)} VP</span>
         </>
       ) : (
         <Chip
@@ -300,6 +325,7 @@ function AwardRow({
           chosen={times > 0}
           pending={pending}
           ariaLabel={`${card.name} plus ${award.vp}`}
+          tone={tone}
           onPress={() => onAnswer(times > 0 ? 0 : 1)}
         />
       )}
@@ -314,6 +340,7 @@ function Chip({
   pending,
   disabled,
   ariaLabel,
+  tone,
   onPress,
 }: {
   label: string
@@ -321,6 +348,7 @@ function Chip({
   pending: boolean
   disabled?: boolean
   ariaLabel: string
+  tone: Tone
   onPress: () => void
 }) {
   return (
@@ -330,7 +358,7 @@ function Chip({
       aria-label={ariaLabel}
       disabled={pending || disabled}
       onClick={onPress}
-      className={`chip shrink-0 px-2 py-1 ${chosen ? 'border-parchment bg-parchment/15 text-parchment' : 'border-edge-strong hover:border-azure hover:text-azure'}`}
+      className={`chip shrink-0 px-2 py-1 ${chosen ? tone.mark : `border-edge-strong ${tone.hint}`}`}
     >
       {label}
     </button>

@@ -8,6 +8,19 @@ describe('battle creation input', () => {
       missionPackId: null,
     })
   })
+
+  it('seats an ally beside the opener, facing one or two opponents', () => {
+    expect(createBattleSchema.safeParse({ opponentIds: ['bob'], allyId: 'carol' }).success).toBe(true)
+    expect(createBattleSchema.safeParse({ opponentIds: ['bob', 'carol'] }).success).toBe(true)
+  })
+
+  it('refuses a fourth chair', () => {
+    expect(createBattleSchema.safeParse({ opponentIds: ['bob', 'carol'], allyId: 'dave' }).success).toBe(false)
+  })
+
+  it('refuses an ally with nobody to play against', () => {
+    expect(createBattleSchema.safeParse({ allyId: 'carol' }).success).toBe(false)
+  })
 })
 
 describe('saved roster datasheet input', () => {

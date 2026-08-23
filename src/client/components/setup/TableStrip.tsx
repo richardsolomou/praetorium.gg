@@ -1,47 +1,27 @@
-import { type Side, sideName } from '../../sides'
-import { tint } from '../battle/tints'
+import { Fragment } from 'react'
+import type { Side } from '../../sides'
+import { SidePlayers } from '../PlayerName'
 
 /**
- * Who is playing whom, drawn the way the tracker will draw it.
+ * Who is playing whom, in one line above setup.
  *
- * A 2v1 reads as one side against another from the first screen rather than as a
- * flat list of three names that says nothing about who is allied with whom.
+ * The same pictures and names the side panels will carry once the battle starts, so
+ * the table is recognised the same way throughout. It used to be two wide cards
+ * naming each side's list and its points as well, which said what the armies step
+ * says underneath in more detail and took a third of the screen to say it.
+ *
+ * A 2v1 still reads as one side against another rather than as a flat list of three
+ * names that says nothing about who is allied with whom.
  */
 export function TableStrip({ sides }: { sides: Side[] }) {
-  // A side nobody signs in to is practice, and so is an earlier battle with one side.
-  const practice = sides.length < 2 || sides.some((side) => side.automated)
   return (
-    <div className="grid items-stretch gap-2 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
+    <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
       {sides.map((side, position) => (
-        <div key={side.index} className={position === 0 ? 'order-1' : 'order-3'}>
-          <SideCard side={side} />
-        </div>
+        <Fragment key={side.index}>
+          {position ? <span className="text-xs font-bold tracking-[0.14em] text-faint uppercase">versus</span> : null}
+          <SidePlayers side={side} />
+        </Fragment>
       ))}
-      <p className="order-2 self-center text-center text-xs font-bold tracking-[0.14em] text-faint uppercase">
-        {practice ? 'practice' : 'versus'}
-      </p>
     </div>
-  )
-}
-
-function SideCard({ side }: { side: Side }) {
-  const colours = tint(side.index)
-  return (
-    <section className={`h-full rounded-sm border border-edge border-t-2 bg-panel p-3 ${colours.edge}`}>
-      <p className={`truncate text-sm leading-tight font-bold uppercase ${colours.text}`}>
-        {sideName(side)}
-        {side.isViewer ? <span className="ml-1.5 text-[0.625rem] font-normal normal-case text-dim">&nbsp;you</span> : null}
-      </p>
-      <ul className="mt-1.5 space-y-1">
-        {side.armies.map((army) => (
-          <li key={army.playerId} className="flex items-baseline justify-between gap-2 text-xs">
-            <span className={`min-w-0 truncate ${army.roster ? 'text-bone' : 'text-faint'}`}>{army.roster?.name ?? 'No army chosen'}</span>
-            <span className={`readout shrink-0 text-[0.625rem] ${army.roster ? 'text-dim' : 'text-faint'}`}>
-              {army.points === null ? (army.roster ? 'ready' : 'waiting') : `${army.points} pts`}
-            </span>
-          </li>
-        ))}
-      </ul>
-    </section>
   )
 }

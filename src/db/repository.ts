@@ -37,20 +37,41 @@ const AUTOMATED = sql<boolean>`${practiceOpponents.userId} is not null`
 export class Repository {
   constructor(private readonly database: PraetoriumDatabase) {}
 
-  async createBattle(input: { id: string; token: string; userId: string; opponentIds?: string[]; initialCommand?: Command; now: number }) {
+  /**
+   * Opens a battle and seats everyone in it.
+   *
+   * The creator always takes the first seat on side 0, because deleting a battle is
+   * the creator's alone and the earliest seat on that side is what says so — an ally
+   * now sits beside them, so the side alone no longer does. Which side the pair of a 2v1
+   * is on is the caller's to decide: `allyIds` join the creator, `opponentIds` face
+   * them, so either player of an allied pair can be the one who opens the game.
+   */
+  async createBattle(input: {
+    id: string
+    token: string
+    userId: string
+    allyIds?: string[]
+    opponentIds?: string[]
+    initialCommand?: Command
+    now: number
+  }) {
     await this.database.transaction(async (tx) => {
       await tx.insert(battles).values({ id: input.id, token: input.token, createdAt: input.now })
-      const ids = [input.userId, ...(input.opponentIds ?? [])]
+      const seats = [
+        { id: input.userId, side: 0 },
+        ...(input.allyIds ?? []).map((id) => ({ id, side: 0 })),
+        ...(input.opponentIds ?? []).map((id) => ({ id, side: 1 })),
+      ]
+      // Seats are read back by side then by when they were taken, so seating order
+      // here is what decides which seat a side folds its shared resources onto.
       await tx
         .insert(battleUsers)
-        .values(
-          ids.map((id, index) => ({ battleId: input.id, userId: id, side: index ? 1 : 0, joinedAt: input.now + Math.max(index - 1, 0) })),
-        )
+        .values(seats.map((seat, index) => ({ battleId: input.id, userId: seat.id, side: seat.side, joinedAt: input.now + index })))
       if (input.initialCommand) {
         const state = reduceBattle(
-          ids,
+          seats.map((seat) => seat.id),
           [],
-          ids.map((_, index) => (index ? 1 : 0)),
+          seats.map((seat) => seat.side),
         )
         const refusal = validate(state, input.userId, input.initialCommand)
         if (refusal) throw new Error(`new battle settings were refused: ${refusal}`)
@@ -71,6 +92,12 @@ export class Repository {
    * The seat check is part of the delete rather than a read before it: as two
    * statements the seat could change between them, and it cost a transaction and
    * a round trip to say what one `exists` says here.
+   *
+   * The opener is the first seat taken on side 0. A seat on side 0 alone is no longer
+   * enough — an ally now sits beside the opener — and the earliest seat alone is not
+   * either: a battle opened before allies were seated wrote the opener and their
+   * opponent the same `joinedAt`, so asking only for the earliest would hand that
+   * opponent the delete.
    */
   async deleteBattle(battleId: string, userId: string) {
     const removed = await this.database
@@ -82,7 +109,17 @@ export class Repository {
             this.database
               .select({ one: sql`1` })
               .from(battleUsers)
-              .where(and(eq(battleUsers.battleId, battleId), eq(battleUsers.userId, userId), eq(battleUsers.side, 0))),
+              .where(
+                and(
+                  eq(battleUsers.battleId, battleId),
+                  eq(battleUsers.userId, userId),
+                  eq(battleUsers.side, 0),
+                  eq(
+                    battleUsers.joinedAt,
+                    sql`(select min(${battleUsers.joinedAt}) from ${battleUsers} where ${battleUsers.battleId} = ${battleId} and ${battleUsers.side} = 0)`,
+                  ),
+                ),
+              ),
           ),
         ),
       )
@@ -143,7 +180,7 @@ export class Repository {
   /** The practice opponents this instance seats, in the order they are offered. */
   async practiceOpponents() {
     return this.database
-      .select({ id: user.id, name: user.name })
+      .select({ id: user.id, name: user.name, image: user.image })
       .from(practiceOpponents)
       .innerJoin(user, eq(user.id, practiceOpponents.userId))
       .orderBy(asc(user.id))
@@ -164,6 +201,7 @@ export class Repository {
         acceptedAt: friendships.acceptedAt,
         otherId: other.id,
         otherName: other.name,
+        otherImage: other.image,
       })
       .from(friendships)
       .innerJoin(other, or(eq(other.id, friendships.requesterId), eq(other.id, friendships.addresseeId)))

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { FIXED_SECONDARIES, SECONDARIES_MAX, SETUP_STEP_MAX } from './battle'
 import { commandSchema } from './commands'
 
 describe('command schema', () => {
@@ -62,7 +63,9 @@ describe('command schema', () => {
   })
 
   it('rejects a setup section outside the wizard', () => {
-    expect(commandSchema.safeParse({ kind: 'set-setup-step', step: 6 }).success).toBe(false)
+    // Bound by the constant rather than a number, so adding a section moves both together.
+    expect(commandSchema.safeParse({ kind: 'set-setup-step', step: SETUP_STEP_MAX }).success).toBe(true)
+    expect(commandSchema.safeParse({ kind: 'set-setup-step', step: SETUP_STEP_MAX + 1 }).success).toBe(false)
   })
 
   it('accepts a player target on a live action', () => {
@@ -111,5 +114,23 @@ describe('the round a settlement names', () => {
   it('refuses a round outside the battle', () => {
     expect(commandSchema.safeParse(settlement(0)).success).toBe(false)
     expect(commandSchema.safeParse(settlement(6)).success).toBe(false)
+  })
+
+  /**
+   * The schema parses stored logs, so it bounds what was ever written — not what the
+   * rule allows today. Tightening it to the rule refuses to read battles that were
+   * settled under the old one, which is a data-compatibility break, not a fix.
+   */
+  it('still reads a hand settled when more fixed secondaries were allowed', () => {
+    const card = (key: string) => ({ key, name: key })
+    const prep = {
+      stratagems: [],
+      secondaries: Array.from({ length: SECONDARIES_MAX }, (_, at) => card(`card-${at}`)),
+      primary: null,
+      secondaryMode: 'fixed' as const,
+    }
+
+    expect(SECONDARIES_MAX).toBeGreaterThan(FIXED_SECONDARIES)
+    expect(commandSchema.safeParse({ kind: 'set-prep', ...prep }).success).toBe(true)
   })
 })

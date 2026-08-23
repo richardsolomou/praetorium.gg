@@ -27,7 +27,12 @@ if (process.env.PRAETORIUM_PREVIEW_ADMIN_DATABASE_URL?.trim()) {
 execFileSync(process.execPath, ['.output/server/migrate.mjs'], { stdio: 'inherit' })
 
 if (process.env.PRAETORIUM_SEED_PREVIEW === 'true' || previewDeployment(process.env.APP_URL)) {
-  execFileSync(process.execPath, ['.output/server/seed-preview.mjs'], { stdio: 'inherit' })
+  // Said out loud to the seeder, which refuses a database it was not sent at
+  // deliberately: the accounts it creates sign in with passwords this repository prints.
+  execFileSync(process.execPath, ['.output/server/seed-preview.mjs'], {
+    stdio: 'inherit',
+    env: { ...process.env, PRAETORIUM_SEED_PREVIEW: 'true' },
+  })
 }
 
 process.exitCode = await runRealtimeStack({

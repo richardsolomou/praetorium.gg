@@ -12,7 +12,7 @@ import type { MissionAward as Award } from '../../missionText'
 export type { MissionAward as Award } from '../../missionText'
 
 export type ReferenceCard = ComponentProps<typeof MissionCardReference>['card']
-export type MissionDetails = { name: string; card: ReferenceCard; type: string }
+export type MissionDetails = { name: string; card: ReferenceCard; type: string; mode?: string }
 
 /** What a stratagem actually says, as the detachment page prints it. */
 export type StratagemText = { type: string | null; description: string | null; keywordRules: { name: string; description: string }[] }
@@ -65,7 +65,7 @@ export function SecondaryMissions({ side, actionable, pending, send, referenceFo
         <div key={secondary.key} data-secondary={secondary.key} className={`${CARD} space-y-1.5`}>
           <div className="flex items-baseline gap-2">
             <span className="min-w-0 flex-1">
-              <MissionName name={secondary.name} card={referenceFor(secondary.key)} type="Secondary mission" />
+              <MissionName name={secondary.name} card={referenceFor(secondary.key)} type="Secondary mission" mode={side.secondaryMode} />
               <span className="mt-0.5 flex flex-wrap gap-1.5 text-[0.625rem] font-semibold uppercase">
                 {secondary.secret ? <span className="text-discarded">{secondary.revealed ? 'revealed' : 'secret'}</span> : null}
                 {secondary.status === 'active' ? null : (
@@ -159,20 +159,26 @@ export function MissionName({
   name,
   card,
   type,
+  mode,
   onRead,
+  className = '',
 }: {
   name: string
   card?: ReferenceCard
   type: string
+  /** The side's secondary mode, so a card that pays two ways shows only the one in play. */
+  mode?: string
   onRead?: (details: MissionDetails) => void
+  /** A tint for the places where the card belongs to a named side rather than to the reader. */
+  className?: string
 }) {
-  if (!card) return <span className={CARD_NAME}>{name}</span>
+  if (!card) return <span className={`${CARD_NAME} ${className}`}>{name}</span>
   const trigger = (
     <button
       type="button"
       aria-label={`Read ${name}`}
-      className={`${CARD_NAME} text-left hover:underline`}
-      onClick={onRead ? () => onRead({ name, card, type }) : undefined}
+      className={`${CARD_NAME} text-left hover:underline ${className}`}
+      onClick={onRead ? () => onRead({ name, card, type, mode }) : undefined}
     >
       {name}
     </button>
@@ -181,7 +187,7 @@ export function MissionName({
   return (
     <Dialog>
       <DialogTrigger render={trigger} />
-      <MissionDetailsContent details={{ name, card, type }} />
+      <MissionDetailsContent details={{ name, card, type, mode }} />
     </Dialog>
   )
 }
@@ -201,7 +207,7 @@ function MissionDetailsContent({ details }: { details: MissionDetails }) {
         <DialogTitle className="uppercase">{details.name}</DialogTitle>
         <DialogDescription className="text-dim">What this mission asks you to do and when it scores.</DialogDescription>
       </DialogHeader>
-      <MissionCardReference card={details.card} type={details.type} />
+      <MissionCardReference card={details.card} type={details.type} mode={details.mode} />
     </DialogContent>
   )
 }

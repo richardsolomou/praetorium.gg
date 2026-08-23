@@ -11,6 +11,8 @@ function player(overrides: Partial<ViewPlayer> & Pick<ViewPlayer, 'id' | 'side'>
     isViewer: false,
     automated: false,
     isActive: false,
+    disposition: null,
+    dispositionChoices: [],
     cp: 0,
     cpGained: 0,
     cpSpent: 0,
@@ -60,6 +62,34 @@ describe('battle sides', () => {
     expect(theirs).toMatchObject({ automated: false, played: false })
   })
 
+  it('writes for a side from the first seat someone can sign in to, not the first seat', () => {
+    // A practice opponent never opens the app, so a side it happens to sit first on
+    // still has to be settled by the ally beside it rather than by nobody at all.
+    const [, theirs] = sides(
+      view([
+        player({ id: 'you', side: 0, isViewer: true }),
+        player({ id: 'practice', side: 1, automated: true }),
+        player({ id: 'them', side: 1 }),
+      ]),
+    )
+
+    expect(theirs?.captain.id).toBe('practice')
+    expect(theirs?.writer.id).toBe('them')
+  })
+
+  it('leaves a side of practice opponents alone writing for itself, since the table plays it', () => {
+    const [, theirs] = sides(
+      view([
+        player({ id: 'you', side: 0, isViewer: true }),
+        player({ id: 'practice', side: 1, automated: true }),
+        player({ id: 'practice-two', side: 1, automated: true }),
+      ]),
+    )
+
+    expect(theirs).toMatchObject({ automated: true, played: true })
+    expect(theirs?.writer.id).toBe('practice')
+  })
+
   it('folds a 2v1 allied pair into one side', () => {
     expect(sides(view([player({ id: 'solo', side: 0 }), player({ id: 'ally', side: 1 }), player({ id: 'other', side: 1 })]))).toHaveLength(
       2,
@@ -71,12 +101,14 @@ describe('battle sides', () => {
     expect(sides(battle)[0]?.cp).toBe(4)
   })
 
-  it('adds the battle-ready bonus of every army on a side', () => {
+  // An allied pair fields one army between them, so the bonus is claimed once. The
+  // domain has already folded it, and every seat carries the side's copy of it.
+  it('claims the battle-ready bonus once for a side of two armies', () => {
     const battle = view([
       player({ id: 'ally', side: 0, painted: true, paintedPoints: 10 }),
       player({ id: 'other', side: 0, painted: true, paintedPoints: 10 }),
     ])
-    expect(sides(battle)[0]?.paintedPoints).toBe(20)
+    expect(sides(battle)[0]?.paintedPoints).toBe(10)
   })
 
   it('keeps the battle-ready bonus out of a running score', () => {
@@ -87,7 +119,7 @@ describe('battle sides', () => {
     expect(sides(battle)[0]?.total).toBe(32)
   })
 
-  it('totals a side once from its shared score and both bonuses when the battle is over', () => {
+  it('totals a side once from its shared score and its one bonus when the battle is over', () => {
     const battle = view(
       [
         player({ id: 'ally', side: 0, primary: 20, secondary: 12, painted: true, paintedPoints: 10 }),
@@ -95,7 +127,7 @@ describe('battle sides', () => {
       ],
       'finished',
     )
-    expect(sides(battle)[0]?.total).toBe(52)
+    expect(sides(battle)[0]?.total).toBe(42)
   })
 
   it('orders sides by seat so both devices agree on the tints', () => {

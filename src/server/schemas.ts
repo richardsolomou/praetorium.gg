@@ -20,16 +20,30 @@ const rosterLimit = z.number().int().min(0).max(10_000)
 export const tokenSchema = z.object({ token })
 /** A roster read may name the battle that entitles the reader to it. */
 export const rosterInBattleSchema = z.object({ id, battle: token.optional() })
-export const createBattleSchema = z.object({
-  opponentId: id.optional(),
-  opponentIds: z.array(id).min(1).max(2).optional(),
-  limit: z
-    .number()
-    .int()
-    .refine((value) => GAME_SIZES.some((size) => size.limit === value))
-    .optional(),
-  missionPackId: id.nullable().default(null),
-})
+/**
+ * Who is in a new battle, and on which side.
+ *
+ * `allyId` sits with the creator and `opponentIds` face them, so the same 2v1 can be
+ * opened by either player of the allied pair. Three seats is the whole table, which
+ * is why the two together are capped rather than each on its own.
+ */
+export const createBattleSchema = z
+  .object({
+    opponentId: id.optional(),
+    opponentIds: z.array(id).min(1).max(2).optional(),
+    allyId: id.optional(),
+    limit: z
+      .number()
+      .int()
+      .refine((value) => GAME_SIZES.some((size) => size.limit === value))
+      .optional(),
+    missionPackId: id.nullable().default(null),
+  })
+  .refine(
+    (value) => (value.allyId ? 1 : 0) + (value.opponentIds?.length ?? (value.opponentId ? 1 : 0)) <= 2,
+    'a battle seats three players at most',
+  )
+  .refine((value) => !value.allyId || Boolean(value.opponentIds?.length || value.opponentId), 'an ally needs someone to play against')
 export const deleteBattleSchema = z.object({ token })
 export const userSchema = z.object({ userId: id })
 export const friendSchema = z.object({ userId: id })

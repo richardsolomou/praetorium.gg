@@ -28,6 +28,8 @@ function buildGameReferences(rules: LoadedRules) {
   const packs = [...missionsByPack].map(([name, packMissions]) => ({
     id: routeSlug(name),
     name,
+    // Only the pack itself prints these, so a pack that prints none offers none.
+    twists: rules.missionTwists?.get(routeSlug(name)) ?? [],
     missions: packMissions.map((mission) => ({
       ...mission,
       card: primaryByKey.get(mission.id) ?? null,

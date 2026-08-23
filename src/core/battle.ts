@@ -25,6 +25,18 @@ const COMMAND_PHASE_CP = 1
 const PLAYERS_PER_BATTLE = 2
 const TEAM_BATTLE_PLAYERS = 3
 export const ROSTER_NAME_MAX_LENGTH = 80
+
+/** How many detachments one army may field, and so how many names a pooled card may name. */
+export const DETACHMENTS_MAX = 3
+
+/**
+ * The longest label naming where a stratagem came from.
+ *
+ * An army fielding several detachments names them together, so this is what those
+ * names join to — bounding it at one name refused the pool outright, and a refused
+ * pool is a side playing with no stratagems at all.
+ */
+export const STRATAGEM_SOURCE_MAX_LENGTH = DETACHMENTS_MAX * (ROSTER_NAME_MAX_LENGTH + 3)
 export const ROSTER_MAX_LENGTH = 20_000
 
 export type PlayerId = string
@@ -129,6 +141,14 @@ export type Stratagem = {
   limit: StratagemLimit
   phases?: Phase[]
   turn?: 'your-turn' | 'opponent-turn' | 'either'
+  /**
+   * The detachment that prints it, where one does. Recorded because a side of allies
+   * pools two detachments and their rules do not pool with them — each ally's
+   * detachment affects their own army and the enemy, never their ally's — so the
+   * pool has to be able to say which of them a card came from. Absent on a core
+   * stratagem, and on every pool written before this was recorded.
+   */
+  detachment?: string
 }
 
 /** How often a stratagem may be used. `phase` and `turn` reset; `battle` does not. */
@@ -136,13 +156,47 @@ export type StratagemLimit = 'phase' | 'turn' | 'battle' | 'unlimited'
 
 export const STRATAGEM_LIMITS: StratagemLimit[] = ['phase', 'turn', 'battle', 'unlimited']
 
-export const STRATAGEMS_MAX = 24
+/**
+ * The last section of setup, which is what a `set-setup-step` may name.
+ *
+ * The sections themselves are the interface's, not the domain's — this only bounds
+ * the number so a command cannot point at nothing.
+ */
+export const SETUP_STEP_MAX = 9
+
+/**
+ * How many stratagems one side may hold.
+ *
+ * A side's pool is every detachment its armies field plus the core cards, so a 2v1
+ * pools two armies rather than one and the ceiling has to hold both.
+ */
+export const STRATAGEMS_MAX = 48
 export const STRATAGEM_CP_MAX = 6
 
 /** A secondary mission, named by the player because the deck is not in the data either. */
 export type Secondary = { key: string; name: string }
 export type SecondaryStatus = 'active' | 'achieved' | 'discarded' | 'returned'
 
+/**
+ * How many secondaries a side playing fixed takes.
+ *
+ * The mission pack says two, in the prose of its own setup sequence: "If using Fixed
+ * Missions, they also note down which two Fixed Missions they will use." At most,
+ * not exactly, because a player picking them sends each choice as it is made.
+ *
+ * This is the rule, so `validate` is where it is held. It is deliberately not the
+ * schema's bound: a log written when this app allowed six still has six in it, and
+ * a rule that tightened would make those battles unreadable rather than illegal.
+ */
+export const FIXED_SECONDARIES = 2
+
+/**
+ * How many a stored `set-prep` may carry, which is not the same question.
+ *
+ * The command schema is the storage contract as well as the wire one, so it has to
+ * keep reading whatever was written. Loosening the rule is a rule change; loosening
+ * this is not, and tightening it is a migration.
+ */
 export const SECONDARIES_MAX = 6
 const SECONDARY_HISTORY_MAX = 30
 
@@ -194,6 +248,18 @@ export const PRIMARY_GUIDE = 50
 export const SECONDARY_GUIDE = 40
 export const PAINTED_ARMY_POINTS = 10
 
+/**
+ * What the battle ready bonus pays a side, which is the same for one army or two.
+ *
+ * A side of allies fields one army between them, so it claims the bonus once and only
+ * when all of it is painted — an ally who brought an unpainted half costs the side the
+ * whole bonus, exactly as an unpainted half of one player's army would.
+ */
+export function sidePaintedPoints(state: BattleState, side: number): number {
+  const seated = state.players.filter((player) => player.side === side)
+  return seated.length && seated.every((player) => player.painted) ? PAINTED_ARMY_POINTS : 0
+}
+
 /** The matched-play game sizes, smallest first. */
 const KOTC_LIMITS = [500, 600] as const
 const KOTC_ROUNDS = 3
@@ -237,7 +303,10 @@ export type Command =
   | { kind: 'reset-setup' }
   | { kind: 'set-setup-step'; step: number }
   | { kind: 'set-attacker'; attackerId: PlayerId }
-  | ({ kind: 'attach-roster'; roster: Roster; prep?: BattlePrep | null } & OnBehalfOf)
+  | { kind: 'set-first-turn'; firstPlayerId: PlayerId }
+  | { kind: 'set-side-disposition'; side: number; disposition: string }
+  | ({ kind: 'attach-roster'; roster: Roster; prep?: BattlePrep | null; painted?: boolean } & OnBehalfOf)
+  | ({ kind: 'detach-roster' } & OnBehalfOf)
   | ({ kind: 'set-unit'; unitKey: string; destroyed: boolean } & OnBehalfOf)
   | ({ kind: 'wound-unit'; unitKey: string; delta: number } & OnBehalfOf)
   | ({ kind: 'deploy-unit'; unitKey: string; deployed: boolean } & OnBehalfOf)
@@ -340,6 +409,14 @@ export type BattleState = {
   activePlayerId: PlayerId | null
   firstPlayerId: PlayerId | null
   attackerId: PlayerId | null
+  /**
+   * The Force Disposition each side plays, where its armies brought more than one.
+   *
+   * A side of allies fields one army between them and plays one card, chosen from
+   * those either of them brought. A side that brought only one has nothing to record
+   * here, which is why this is empty for every duel.
+   */
+  sideDispositions: Record<number, string>
   resumePlayerId: PlayerId | null
   pendingSettlement: { playerId: PlayerId; round: number } | null
   /** The battlefield both players are using. Shared, so either may set it. */
@@ -449,6 +526,7 @@ export function emptyBattle(playerIds: readonly PlayerId[], playerSides?: readon
     activePlayerId: null,
     firstPlayerId: null,
     attackerId: null,
+    sideDispositions: {},
     resumePlayerId: null,
     pendingSettlement: null,
     deploymentId: null,
@@ -514,10 +592,22 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
       return state.status === 'setup' ? null : 'the battle has started'
     case 'set-setup-step':
       if (state.status !== 'setup') return 'the battle has started'
-      return Number.isInteger(command.step) && command.step >= 0 && command.step <= 5 ? null : 'choose a setup section'
+      return Number.isInteger(command.step) && command.step >= 0 && command.step <= SETUP_STEP_MAX ? null : 'choose a setup section'
     case 'set-attacker':
       if (state.status !== 'setup') return 'the battle has started'
       return state.players.some((candidate) => candidate.id === command.attackerId) ? null : 'that attacker is not in this battle'
+    case 'set-first-turn':
+      if (state.status !== 'setup') return 'the battle has started'
+      return state.players.some((candidate) => candidate.id === command.firstPlayerId) ? null : 'that player is not in this battle'
+    case 'set-side-disposition': {
+      if (state.status !== 'setup') return 'the battle has started'
+      // Only a card one of the side's own armies brought. The side chooses between
+      // them; it does not get to play something nobody at the table wrote down.
+      const brought = state.players.some(
+        (candidate) => candidate.side === command.side && candidate.roster?.built?.disposition === command.disposition,
+      )
+      return brought ? null : 'that force disposition is not one this side brought'
+    }
     case 'attach-roster': {
       if (state.status === 'finished') return 'the battle is over'
       // Correcting a list mid-battle stays allowed; bringing a different set of cards with it does not.
@@ -540,6 +630,14 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
       }
       return null
     }
+    case 'detach-roster': {
+      // Correcting a list mid-battle stays allowed, because a corrected list is still
+      // an army. Taking one away is not: the units on the table would have nothing
+      // behind them, so a seat is only emptied while the table is being set.
+      if (state.status !== 'setup') return 'the battle has started'
+      if (!player.roster) return 'that seat has no army'
+      return null
+    }
     case 'begin-battle': {
       if (state.status !== 'setup') return 'the battle has started'
       const requiredPlayers = state.settings.teamBattle ? TEAM_BATTLE_PLAYERS : PLAYERS_PER_BATTLE
@@ -547,6 +645,14 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
       if (state.players.some((candidate) => !candidate.roster))
         return state.settings.teamBattle ? 'every army needs a list' : 'both armies need a list'
       if (!state.players.some((candidate) => candidate.id === command.firstPlayerId)) return 'that player is not in this battle'
+      // A side of allies plays one Force Disposition, and it decides the primary each
+      // side is set. Starting without it would hand the answer to whichever seat is first.
+      if (
+        state.players.some(
+          (candidate) => sideDispositionChoices(state, candidate.side).length > 1 && !sideDisposition(state, candidate.side),
+        )
+      )
+        return 'each side must choose the force disposition it plays'
       if (command.attackerId && !state.players.some((candidate) => candidate.id === command.attackerId))
         return 'that attacker is not in this battle'
       if (
@@ -836,6 +942,8 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
     case 'reset-setup': {
       state.setupStep = 0
       state.attackerId = null
+      state.firstPlayerId = null
+      state.sideDispositions = {}
       state.deploymentId = null
       state.settings = { ...state.settings, terrainLayoutId: null, twistId: null }
       state.players.forEach(resetPlayer)
@@ -849,6 +957,21 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
       state.attackerId = command.attackerId
       return
     }
+    /**
+     * The roll-off both sides watched, recorded before the battle begins.
+     *
+     * Logged rather than held on the device that saw it, because the section that
+     * asks for it and the section that starts the battle are two steps apart now:
+     * a private answer would have let two devices show the table different ones.
+     */
+    case 'set-first-turn': {
+      state.firstPlayerId = command.firstPlayerId
+      return
+    }
+    case 'set-side-disposition': {
+      state.sideDispositions[command.side] = command.disposition
+      return
+    }
     case 'attach-roster': {
       player.roster = { ...command.roster, name: command.roster.name.trim() }
       // A replaced list is a different army, so nothing about the old one survives.
@@ -856,10 +979,24 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
         Object.assign({ destroyed: false, deployed: true, formation: 'battlefield' as const, alive: unit.models }, unit),
       )
       if (command.prep !== undefined) applyPrep(player, command.prep)
+      // Most armies on a table are painted, so a list arrives claiming the bonus and
+      // the few that are not turn it off. Only when the command says so: a log from
+      // before this carries no claim, and folding one must not invent it a bonus.
+      if (command.painted !== undefined) player.painted = command.painted
       if (state.status === 'setup') {
         state.deploymentId = null
         state.settings.terrainLayoutId = null
       }
+      return
+    }
+    case 'detach-roster': {
+      player.roster = null
+      player.units = []
+      // The cards followed from the army, and the battlefield from both armies'
+      // dispositions, so neither outlives the list they were derived from.
+      applyPrep(player, null)
+      state.deploymentId = null
+      state.settings.terrainLayoutId = null
       return
     }
     case 'set-unit': {
@@ -1205,6 +1342,39 @@ function enterTurn(state: BattleState, playerId: PlayerId, settlementRound: numb
   }
 }
 
+/**
+ * The Force Disposition a side plays, which decides the primary it is set.
+ *
+ * One army fields one card. Where a side's armies agree, or where there is only one
+ * of them, that is the answer and nothing has to be asked. Where two allies brought
+ * different cards the side has to say which it plays, and until it does the answer
+ * is nothing at all — taking the first seat's card would have played one ally's
+ * choice for both of them without ever saying so.
+ */
+export function sideDisposition(state: BattleState, side: number): string | null {
+  const brought = state.players.flatMap((player) =>
+    player.side === side && player.roster?.built?.disposition ? [player.roster.built.disposition] : [],
+  )
+  const chosen = state.sideDispositions[side]
+  if (chosen && brought.includes(chosen)) return chosen
+  if (new Set(brought).size === 1) return brought[0] ?? null
+  // A battle already being played is never left without a mission. Setup refuses to
+  // start one until each side has said, so this only answers for battles begun before
+  // the question was asked — and it answers what they were already being played on.
+  return state.status === 'setup' ? null : (sideCaptain(state, side).roster?.built?.disposition ?? null)
+}
+
+/** The cards a side could play, which is what it is asked to choose between. */
+export function sideDispositionChoices(state: BattleState, side: number): string[] {
+  return [
+    ...new Set(
+      state.players.flatMap((player) =>
+        player.side === side && player.roster?.built?.disposition ? [player.roster.built.disposition] : [],
+      ),
+    ),
+  ]
+}
+
 export function sideCaptain(state: BattleState, side: number): PlayerState {
   return state.players.find((player) => player.side === side)!
 }
@@ -1215,7 +1385,9 @@ function namesAnotherArmy(command: Command, actor: PlayerState): boolean {
 }
 
 function armyCommand(command: Command): boolean {
-  return ['attach-roster', 'set-unit', 'wound-unit', 'deploy-unit', 'set-unit-formation', 'set-painted'].includes(command.kind)
+  return ['attach-roster', 'detach-roster', 'set-unit', 'wound-unit', 'deploy-unit', 'set-unit-formation', 'set-painted'].includes(
+    command.kind,
+  )
 }
 
 /**
@@ -1259,17 +1431,23 @@ export function scoringTarget(
   secondary: number
   primaryByRound: number[]
   secondaryByRound: number[]
+  /** How this side draws its cards, which is what says whether a fixed card's own ceiling applies. */
+  secondaryMode: SecondaryMode
+  /** What each named card has scored so far, keyed the way the card is named. */
+  scored: Record<string, number>
 } | null {
   const actor = state.players.find((candidate) => candidate.id === by)
   if (!actor) return null
   const target = targetArmy(state, actor, command)
   return {
     side: target.side,
-    disposition: target.roster?.built?.disposition ?? null,
+    disposition: sideDisposition(state, target.side),
     primary: target.primary,
     secondary: target.secondary,
     primaryByRound: target.primaryByRound,
     secondaryByRound: target.secondaryByRound,
+    secondaryMode: target.secondaryMode,
+    scored: target.scored,
   }
 }
 
@@ -1325,7 +1503,7 @@ function validatePrep(prep: BattlePrep): string | null {
   if (prep.stratagems.some((stratagem) => stratagem.cp < 0 || stratagem.cp > STRATAGEM_CP_MAX)) {
     return `a stratagem costs between 0 and ${STRATAGEM_CP_MAX} command points`
   }
-  if (prep.secondaries.length > SECONDARIES_MAX) return `that is more than ${SECONDARIES_MAX} secondaries`
+  if (prep.secondaries.length > FIXED_SECONDARIES) return `that is more than ${FIXED_SECONDARIES} secondaries`
   if (prep.secondaries.some((secondary) => !secondary.name.trim())) return 'name every secondary'
   if ((prep.secondaryDeck?.length ?? 0) > 60) return 'that secondary deck is too large'
   if (prep.secondaryDeck?.some((secondary) => !secondary.name.trim())) return 'name every secondary in the deck'

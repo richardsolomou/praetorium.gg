@@ -16,16 +16,11 @@ describe('realtime adapter', () => {
     })
   })
 
-  it('signs channel access and presence information', async () => {
-    const token = await subscriptionToken({ id: 'user-1', name: 'Alice' }, 'battle:one', secret, 100)
+  it('signs channel access and nothing a screen could draw from', async () => {
+    const token = await subscriptionToken({ id: 'user-1' }, 'battle:one', secret, 100)
     const { payload } = await jwtVerify(token, key, verification)
 
-    expect(payload).toEqual({
-      sub: 'user-1',
-      channel: 'battle:one',
-      exp: 400,
-      info: { userId: 'user-1', name: 'Alice' },
-    })
+    expect(payload).toEqual({ sub: 'user-1', channel: 'battle:one', exp: 400 })
   })
 
   it('rejects a different signing secret', async () => {

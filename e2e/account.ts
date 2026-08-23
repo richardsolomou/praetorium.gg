@@ -109,14 +109,25 @@ export async function createRoster(
 /** The practice opponent every instance seats, named as the interface names it. */
 export const PRACTICE_OPPONENT = 'Practice Opponent'
 
+/**
+ * Opens a battle from the dialog, in whichever of its three shapes is asked for.
+ *
+ * `ally` puts the pair across the table (1v2); `yourAlly` puts it on the opener's own
+ * side (2v1). Both are the same battle seated the other way round.
+ */
 export async function createBattle(
   page: Page,
-  { opponent, ally, practice = false }: { opponent?: string; ally?: string; practice?: boolean } = {},
+  { opponent, ally, yourAlly, practice = false }: { opponent?: string; ally?: string; yourAlly?: string; practice?: boolean } = {},
 ) {
   await page.goto('/battles')
   const dialog = page.getByRole('dialog', { name: 'Start a battle' })
   await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'New battle' }).click())
-  if (ally) await page.getByRole('button', { name: '2v1' }).click()
+  if (ally) await page.getByRole('button', { name: '1v2' }).click()
+  if (yourAlly) await page.getByRole('button', { name: '2v1' }).click()
+  if (yourAlly) {
+    await page.getByRole('combobox', { name: 'Your ally' }).click()
+    await page.getByRole('option', { name: yourAlly, exact: true }).click()
+  }
   await page.getByRole('combobox', { name: 'Opponent' }).click()
   await page.getByRole('option', { name: practice ? PRACTICE_OPPONENT : opponent, exact: true }).click()
   if (ally) {
@@ -137,9 +148,31 @@ async function moveSetup(active: Locator, from: string, action: () => Promise<vo
   }).toPass({ timeout: 20_000 })
 }
 
+/**
+ * Records the roll-off and walks on to the last section, which is where the battle begins.
+ *
+ * The roll-off is recorded a section before the battle starts, because what a unit does
+ * before the first turn is resolved starting with whoever is taking it — and it has to
+ * be recorded, since nothing may be left behind unsettled.
+ */
+export async function recordFirstTurn(page: Page, firstSide?: string) {
+  await setupStep(page, 'First turn')
+  const choice = page.getByRole('group', { name: 'First turn' })
+  const side = firstSide ? choice.getByRole('button', { name: firstSide }) : choice.getByRole('button').first()
+  await expect(async () => {
+    if ((await side.getAttribute('aria-pressed')) === 'true') return
+    await side.click({ timeout: 1_000 })
+    await expect(side).toHaveAttribute('aria-pressed', 'true', { timeout: 1_000 })
+  }).toPass({ timeout: 20_000 })
+  await setupStep(page, 'Pre-battle rules')
+}
+
 /** Setup shows one section at a time, and the section is shared, so a helper walks to the one it needs. */
 export async function setupStep(page: Page, label: string) {
-  const chip = page.getByRole('navigation', { name: 'Setup sections' }).getByRole('button', { name: label })
+  // By `data-step` rather than by accessible name: a chip is named by its section and
+  // the line under it, so a section whose blurb happens to name another one — "Choose
+  // the armies first" under Mission — matches two chips and the locator refuses.
+  const chip = page.locator(`nav[aria-label="Setup sections"] button[data-step="${label}"]`)
   const active = page.locator('[aria-current="step"]')
   for (let guard = 0; guard < 8; guard += 1) {
     if ((await chip.getAttribute('aria-current')) === 'step') return
@@ -153,6 +186,19 @@ export async function setupStep(page: Page, label: string) {
     }
     const previous = await active.innerText()
     const next = page.getByRole('button', { name: 'Next', exact: true })
+    // An allied side whose two armies brought different Force Dispositions has to say
+    // which one it plays before the matchup is settled. Tests that are not about that
+    // choice take the first card offered, the same way they take the first attacker.
+    if (/mission/i.test(previous) && !(await next.isEnabled())) {
+      await expect(async () => {
+        if (await next.isEnabled()) return
+        const asked = page.getByRole('group', { name: /^Force Disposition for / })
+        for (let at = 0; at < (await asked.count()); at += 1) {
+          await asked.nth(at).getByRole('button').first().click({ timeout: 1_000 })
+        }
+        await expect(next).toBeEnabled({ timeout: 1_000 })
+      }).toPass({ timeout: 20_000 })
+    }
     // Tests that are not about deployment order use the first side as their deterministic default.
     // The attacker step is required, so choose that default before walking past it.
     if (/attacker/i.test(previous) && !(await next.isEnabled())) {
@@ -188,7 +234,7 @@ export async function attachRoster(page: Page, name: string, { forPlayer }: { fo
 }
 
 export async function chooseBattlefield(page: Page) {
-  const battlefieldStep = page.getByRole('navigation', { name: 'Setup sections' }).getByRole('button', { name: /Battlefield/ })
+  const battlefieldStep = page.locator('nav[aria-label="Setup sections"] button[data-step="Battlefield"]')
   if ((await battlefieldStep.getAttribute('data-complete')) === 'true') return
   await setupStep(page, 'Battlefield')
   const selected = page.getByRole('button', { name: /^Selected layout/ })
@@ -291,14 +337,11 @@ export async function advance(page: Page) {
 
 export async function startBattle(page: Page, firstSide?: string) {
   await chooseBattlefield(page)
-  await setupStep(page, 'Pre-battle')
+  await setupStep(page, 'Secondaries')
   // One per side this table settles cards for, so every one of them has to be ready.
   await expect(page.locator('[data-secondary-deck-ready]').first()).toBeVisible()
   await expect(page.locator('[data-secondary-deck-ready="false"]')).toHaveCount(0)
-  await setupStep(page, 'First turn')
-  if (firstSide) {
-    await page.getByRole('group', { name: 'First turn' }).getByRole('button', { name: firstSide }).click()
-  }
+  await recordFirstTurn(page, firstSide)
   await page.getByRole('button', { name: 'Start battle' }).click()
   // The hand is dealt over the board, and a modal hides the board from the accessibility
   // tree, so the prompt has to be cleared before the phase can be read.
@@ -334,7 +377,7 @@ export async function setupBattle(
   // and the wizard only reaches that step once the battlefield is settled.
   if (beforeStart) {
     await chooseBattlefield(host)
-    await setupStep(host, 'Pre-battle')
+    await setupStep(host, 'Secondaries')
     await beforeStart()
   }
   await startBattle(host)

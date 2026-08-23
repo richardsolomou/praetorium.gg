@@ -54,8 +54,10 @@ export function BattleMenu({ finished, canDelete, pending, onFinishEarly, onConc
   return (
     <>
       <DropdownMenu>
-        <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label="Battle options" disabled={pending} />}>
+        {/* Named rather than an icon alone: it sits under the log now, where nothing else says what it is. */}
+        <DropdownMenuTrigger render={<Button variant="outline" size="sm" aria-label="Battle options" disabled={pending} />}>
           <EllipsisVertical />
+          Battle options
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           {endings.map((ending) => (

@@ -2,12 +2,10 @@ import { useQueryClient } from '@tanstack/react-query'
 import posthog from 'posthog-js'
 import type { Centrifuge, Subscription, SubscriptionOptions } from 'centrifuge'
 import { createSameOriginRealtimeClient, requestRealtimeTicket } from 'ras-stack/realtime/client'
-import { useConnectedRealtimeClient, useRealtimePresence, useRealtimeSubscription } from 'ras-stack/realtime/react'
+import { useConnectedRealtimeClient, useRealtimeSubscription } from 'ras-stack/realtime/react'
 import { useCallback, useMemo } from 'react'
 import { z } from 'zod'
 import { battleQuery, battlesQuery } from './queries'
-
-export type PresentPlayer = { playerId: string; name: string }
 
 const TICKET = z.object({ token: z.string(), channel: z.string().optional() })
 const clientChannels = new WeakMap<Centrifuge, string>()
@@ -17,15 +15,12 @@ const reportRealtimeError = (error: unknown) => {
 }
 
 /**
- * Keeps an open battle current, and reports who else has it open.
+ * Keeps an open battle current.
  *
  * The message carries nothing but the battle id and only prompts a refetch, so
  * `battleView` stays the only thing deciding what a player may see. A connection
  * that dies costs only freshness: subscribing refetches, which covers whatever
  * changed while it was down.
- *
- * Presence is Centrifugo's rather than ours — arriving and leaving is a
- * subscription opening and closing, so there is nothing to expire.
  */
 export function useLiveBattle(token: string, enabled: boolean) {
   const queryClient = useQueryClient()
@@ -74,21 +69,12 @@ export function useLiveBattle(token: string, enabled: boolean) {
     },
     [refresh],
   )
-  const subscription = useRealtimeSubscription({
+  useRealtimeSubscription({
     client,
     channel: client ? clientChannels.get(client) : undefined,
     options: subscriptionOptions,
     configure,
   })
-  const clients = useRealtimePresence(subscription, { onError: reportRealtimeError })
-  return useMemo(() => {
-    const seen = new Map<string, PresentPlayer>()
-    for (const { user, connInfo } of Object.values(clients)) {
-      const named = z.object({ name: z.string() }).safeParse(connInfo)
-      seen.set(user, { playerId: user, name: named.success ? named.data.name : 'Someone' })
-    }
-    return [...seen.values()]
-  }, [clients])
 }
 
 /**

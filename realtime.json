@@ -3,9 +3,6 @@
     "namespaces": [
       {
         "name": "battle",
-        "presence": true,
-        "join_leave": true,
-        "allow_presence_for_subscriber": true,
         "history_size": 1,
         "history_ttl": "5m",
         "force_recovery": true,

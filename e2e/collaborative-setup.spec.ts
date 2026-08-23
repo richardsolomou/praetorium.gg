@@ -31,7 +31,11 @@ test('battle setup stays in step and shows both players their shared choices', a
 
   await chooseBattlefield(alice)
   await expect(bob.getByRole('button', { name: /^Selected layout / })).toBeVisible()
-  await alice.getByRole('button', { name: 'View' }).first().click()
+  // The board itself is what opens the board, rather than a button beside it.
+  await alice
+    .getByRole('button', { name: /^Enlarge terrain layout / })
+    .first()
+    .click()
   await expect(alice.getByRole('dialog').getByRole('img')).toBeVisible()
   await alice.screenshot({ path: 'test-results/setup-battlefield-dialog.png', fullPage: true })
   await alice.keyboard.press('Escape')
@@ -41,8 +45,12 @@ test('battle setup stays in step and shows both players their shared choices', a
     .getByRole('group', { name: 'Attacker' })
     .getByRole('button', { name: new RegExp(aliceName) })
     .click()
-  await setupStep(bob, 'Pre-battle')
-  await expect(alice.getByText(/5 of 6 · Pre-battle/i)).toBeVisible()
+  await setupStep(bob, 'Secondaries')
+  // The rail is the shared place in setup, so Bob moving it moves Alice's screen too.
+  await expect(alice.getByRole('navigation', { name: 'Setup sections' }).getByRole('button', { name: /Secondaries/ })).toHaveAttribute(
+    'aria-current',
+    'step',
+  )
   // Both sides are drawn, so each name appears on the table strip and again on its own column.
   await expect(alice.getByRole('main').getByText(aliceName, { exact: true }).first()).toBeVisible()
   await expect(alice.getByRole('main').getByText(bobName, { exact: true }).first()).toBeVisible()

@@ -113,7 +113,13 @@ export function DrawDialog({
               const offer = redrawOffer(rule, round, held)
               return (
                 <div key={card.key} data-drawn={card.key} className={`${CARD} space-y-1.5`}>
-                  <MissionName name={card.name} card={referenceFor(card.key)} type="Secondary mission" onRead={setInspected} />
+                  <MissionName
+                    name={card.name}
+                    card={referenceFor(card.key)}
+                    type="Secondary mission"
+                    mode={side.secondaryMode}
+                    onRead={setInspected}
+                  />
                   {offer ? (
                     <>
                       <p className="text-[0.6875rem] text-dim">{offer.message}</p>

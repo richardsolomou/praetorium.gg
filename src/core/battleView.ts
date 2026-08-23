@@ -5,7 +5,9 @@ import {
   type BattleState,
   battleRoundLimit,
   mayNameCard,
-  PAINTED_ARMY_POINTS,
+  sideDisposition,
+  sideDispositionChoices,
+  sidePaintedPoints,
   type PlayerId,
   PRIMARY_GUIDE,
   type Roster,
@@ -47,6 +49,8 @@ export type BattleView = {
   creatorId: PlayerId
   activePlayerId: PlayerId | null
   attackerId: PlayerId | null
+  /** Who takes the first turn, from the roll-off recorded before the battle begins. */
+  firstPlayerId: PlayerId | null
   settlementRound: number | null
   /** The side captain whose previous-turn scoring is being settled, visible to every seat. */
   settlementPlayerId: PlayerId | null
@@ -61,6 +65,14 @@ export type BattleView = {
     /** A seat nobody signs in to, so the players facing it are the ones who play it. */
     automated: boolean
     isActive: boolean
+    /**
+     * The Force Disposition this player's side plays, which is the side's rather than
+     * this list's: an allied pair fields one army between them and plays one card.
+     * Null where two allies brought different cards and have not settled which.
+     */
+    disposition: string | null
+    /** The cards the side could play, where its allies brought more than one. */
+    dispositionChoices: string[]
     cp: number
     cpGained: number
     cpSpent: number
@@ -85,6 +97,8 @@ export type BattleView = {
       limit: StratagemLimit
       phases?: Phase[]
       turn?: 'your-turn' | 'opponent-turn' | 'either'
+      /** The detachment that prints it, where the pool recorded one. */
+      detachment?: string
       uses: number
       refusal: string | null
     }[]
@@ -154,6 +168,7 @@ export function battleView(
     creatorId: players[0]?.id ?? viewerId,
     activePlayerId: state.activePlayerId,
     attackerId: state.attackerId,
+    firstPlayerId: state.firstPlayerId,
     settlementRound: state.pendingSettlement?.round ?? null,
     settlementPlayerId: state.pendingSettlement?.playerId ?? null,
     settings: state.settings,
@@ -168,6 +183,13 @@ export function battleView(
         isViewer: player.id === viewerId,
         automated: automated.has(player.id),
         isActive: sameSide(state, state.activePlayerId, player.id),
+        /**
+         * The Force Disposition this player's side plays, which is the side's rather
+         * than this list's: an allied pair fields one army and plays one card.
+         */
+        disposition: sideDisposition(state, player.side),
+        /** The cards the side could play, where its allies brought different ones. */
+        dispositionChoices: sideDispositionChoices(state, player.side),
         cp: resources.cp,
         cpGained: resources.cpGained,
         cpSpent: resources.cpSpent,
@@ -175,10 +197,14 @@ export function battleView(
         canGainCp: (resources.bonusCpByRound[state.round - 1] ?? 0) < 1,
         primary: resources.primary,
         secondary: resources.secondary,
-        total: resources.primary + resources.secondary + (state.status === 'finished' && player.painted ? PAINTED_ARMY_POINTS : 0),
+        total: resources.primary + resources.secondary + (state.status === 'finished' ? sidePaintedPoints(state, player.side) : 0),
         painted: player.painted,
-        /** What the bonus will pay. It joins the total when the battle ends, not before. */
-        paintedPoints: player.painted ? PAINTED_ARMY_POINTS : 0,
+        /**
+         * What the bonus will pay this player's side. It joins the total when the battle
+         * ends, not before, and it is the side's rather than the seat's — so every seat
+         * on a side reads the same number, the way they read the same command points.
+         */
+        paintedPoints: sidePaintedPoints(state, player.side),
         rounds: Array.from({ length: battleRoundLimit(state.settings.limit) }, (_, round) => ({
           round: round + 1,
           primary: resources.primaryByRound[round] ?? 0,

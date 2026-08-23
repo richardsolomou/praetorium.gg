@@ -5,6 +5,8 @@ import { factionRestrictions, loadWahapediaDescriptions, WAHAPEDIA_ATTRIBUTION }
 import { type LoadedCards, loadCards, loadDispositions, loadMissions, type Mission, missionForIn, type MissionCard } from './rulesCards'
 import { loadCompositions, type LoadedWeapon, loadWeapons, type UnitComposition } from './rulesDatasheets'
 import { type DetachmentReference, type DetachmentRulesDetail, loadFactions } from './rulesFactions'
+import { fixedSecondaryCapsIn, type MissionTwist, twistsIn } from './missionTwists'
+import { readMissionPacks } from './missionPacks'
 import { joinKey, rulesDirectory } from './rulesSource'
 import {
   type Deployment,
@@ -59,6 +61,10 @@ export type LoadedRules = {
   primaries: MissionCard[]
   /** Which mission a pair of force dispositions plays, with pack-qualified keys and an unqualified legacy fallback. */
   missions: Map<string, Mission>
+  /** The optional twists each pack offers, by the slug of the pack that prints them. */
+  missionTwists: ReadonlyMap<string, MissionTwist[]>
+  /** The most one Fixed Secondary Mission card may score all battle, by pack. */
+  fixedSecondaryCaps: ReadonlyMap<string, number>
   /** The five dispositions a detachment can have, by slug. */
   dispositions: Map<string, string>
   dispositionDetails: { id: string; name: string; text: string | null }[]
@@ -91,7 +97,10 @@ export function loadRules(
   const { weapons, names } = loadWeapons(core)
   const compositions = loadCompositions(core, names)
   const factions = loadFactions(core, iconDirectory, wahapedia)
-  const cards: LoadedCards = loadCards(core, datacardsDirectory)
+  // Parsed once and read three ways: what each payout asks for, the twists a pack
+  // offers, and the ceiling it puts on a single fixed card.
+  const packs = readMissionPacks(datacardsDirectory)
+  const cards: LoadedCards = loadCards(core, datacardsDirectory, packs)
   const terrainLayouts = loadTerrainLayouts(core, battlemasterDirectory)
   const dispositionDetails = loadDispositions(core)
 
@@ -119,6 +128,8 @@ export function loadRules(
     secondaries: cards.secondaries,
     primaries: cards.primaries,
     missions: loadMissions(core),
+    missionTwists: twistsIn(packs),
+    fixedSecondaryCaps: fixedSecondaryCapsIn(packs),
     dispositions: new Map(dispositionDetails.map((entry) => [entry.id, entry.name])),
     dispositionDetails,
     deployments: loadDeployments(core),
@@ -156,5 +167,8 @@ export function missionFor(
   two: string | null,
   missionPackId: string | null = null,
 ): Mission | null {
-  return missionForIn(rules.missions, one, two, missionPackId)
+  const mission = missionForIn(rules.missions, one, two, missionPackId)
+  // The per-card ceiling belongs to the pack rather than to the matchup, and it is
+  // joined on here so that everything asking what a mission allows asks one object.
+  return mission ? { ...mission, fixedSecondaryCap: rules.fixedSecondaryCaps?.get(mission.packId ?? '') ?? null } : null
 }

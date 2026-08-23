@@ -1,8 +1,9 @@
 import { Button } from '@/components/ui/button'
 import type { Command } from '../../../core/battle'
 import type { BattleView } from '../../../core/battleView'
-import { type Army, type Side, sideName } from '../../sides'
-import type { PresentPlayer } from '../../useLiveBattle'
+import { type Side } from '../../sides'
+import { PlayerName } from '../PlayerName'
+import { ArmyIdentity } from '../ArmyIdentity'
 import { type Award, PrimaryMission, type ReferenceCard, SecondaryMissions, type StratagemText } from './MissionCards'
 import { Stratagems } from './Stratagems'
 import { HEADING, tint } from './tints'
@@ -10,12 +11,11 @@ import { HEADING, tint } from './tints'
 type Props = {
   view: BattleView
   side: Side
-  present: PresentPlayer[]
   coreKeys: ReadonlySet<string>
   pending: boolean
   send: (command: Command) => void
-  awardsFor: (side: Side, key: string, mode?: string) => Award[]
-  referenceFor: (side: Side, key: string) => ReferenceCard | undefined
+  awardsFor: (key: string, mode?: string) => Award[]
+  referenceFor: (key: string) => ReferenceCard | undefined
   writtenFor: (side: Side, key: string) => StratagemText | undefined
   /** The ceilings this mission actually plays to, which the pack can lower. */
   guides: { primary: number; secondary: number }
@@ -29,19 +29,7 @@ type Props = {
  * A 2v1 ally does not get a second copy of them, which is why an allied pair fills
  * one of these rather than two.
  */
-export function SidePanel({
-  view,
-  side,
-  present,
-  coreKeys,
-  pending,
-  send,
-  awardsFor,
-  referenceFor,
-  writtenFor,
-  guides,
-  className = '',
-}: Props) {
+export function SidePanel({ view, side, coreKeys, pending, send, awardsFor, referenceFor, writtenFor, guides, className = '' }: Props) {
   const colours = tint(side.index)
   const finished = view.status === 'finished'
   const actionable = !finished
@@ -51,11 +39,12 @@ export function SidePanel({
     actionable,
     pending,
     send,
-    awardsFor: (key: string, mode?: string) => awardsFor(side, key, mode),
-    referenceFor: (key: string) => referenceFor(side, key),
+    awardsFor,
+    referenceFor,
     guides,
   }
-  const bonus = side.armies.filter((army) => army.painted)
+  // One army between them, so the side either has the bonus or it does not.
+  const bonus = side.paintedPoints > 0
 
   return (
     <section
@@ -65,31 +54,24 @@ export function SidePanel({
         side.isActive && !finished ? `ring-1 ${colours.glow}` : ''
       } ${className}`}
     >
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <h2 className={`truncate text-lg leading-tight font-bold uppercase ${colours.text}`}>{sideName(side)}</h2>
-          <p className="truncate text-[0.6875rem] text-dim">{side.armies.map(armyLine).join(' · ')}</p>
-        </div>
-        <div className="flex shrink-0 items-center gap-1.5">
-          {side.armies.map((army) => {
-            // Nobody signs in to a practice opponent, so a presence light for it would
-            // read as absent all game. It says what it is instead.
-            if (army.automated)
-              return (
-                <span key={army.playerId} className="chip text-dim" title={`${army.playerName} is played from this table`}>
-                  practice
-                </span>
-              )
-            const watching = present.some((watcher) => watcher.playerId === army.playerId)
-            return (
-              <span
-                key={army.playerId}
-                className={`size-2 rounded-full ${watching ? 'bg-azure' : 'border border-dim/60'}`}
-                title={`${army.playerName} ${watching ? 'is watching' : 'is not on the page'}`}
-              />
-            )
-          })}
-        </div>
+      {/*
+       * Who is on this side: each player pictured and named, with the army they
+       * brought under their own name. A 2v1 lists two of these rather than two names
+       * over two armies, because in a pair fielding the same faction there was
+       * nothing to say which list belonged to whom.
+       *
+       * From `lg` up both panels are on screen beside the scoreboard, so this is the
+       * only place the players are written and the scoreboard is left to the score.
+       */}
+      <div className="space-y-2">
+        {side.armies.map((army) => (
+          <div key={army.playerId} className="min-w-0">
+            <h2 className={`text-lg leading-tight font-bold uppercase ${colours.text}`}>
+              <PlayerName army={army} />
+            </h2>
+            <ArmyIdentity army={army} token={view.token} className="mt-0.5" />
+          </div>
+        ))}
       </div>
 
       <div className="grid grid-cols-2 gap-2 border-y border-edge py-2">
@@ -99,7 +81,7 @@ export function SidePanel({
             {side.total}
           </p>
           {/* Chosen before the battle and paid at the end of it, so it is a promise rather than a number in the score. */}
-          {bonus.length ? (
+          {bonus ? (
             <p className="mt-1 text-[0.625rem] text-achieved">
               {finished ? 'Battle ready included' : `+${side.paintedPoints} battle ready at the end`}
             </p>
@@ -130,13 +112,24 @@ export function SidePanel({
         </div>
       </div>
 
-      {/* Missions and stratagems side by side: both are read constantly, so neither is worth scrolling for. */}
-      <div className="grid gap-x-4 gap-y-3 xl:grid-cols-2 xl:items-start">
+      {/*
+       * Missions and stratagems side by side: both are read constantly, so neither is
+       * worth scrolling for. Which widths can hold two columns is not a straight line —
+       * below `lg` one panel fills the page behind its tab and a tablet has room to
+       * spare, while at `lg` the same panel is a third of a three-column table and has
+       * none. So it splits on a tablet, folds back at `lg`, and splits again at `xl`.
+       */}
+      <div className="grid gap-x-4 gap-y-3 md:grid-cols-2 md:items-start lg:grid-cols-1 xl:grid-cols-2">
         <div className="min-w-0 space-y-3">
           <PrimaryMission {...cards} />
           <SecondaryMissions {...cards} />
         </div>
-        <div className="min-w-0">
+        {/*
+         * The rule above the stratagems separates them from the missions, so it is
+         * drawn only at the widths that stack the two. Beside them it was a line
+         * across the top of a column with nothing above it to divide from.
+         */}
+        <div className="min-w-0 border-t border-edge pt-2.5 md:border-0 md:pt-0 lg:border-t lg:pt-2.5 xl:border-0 xl:pt-0">
           <Stratagems
             side={side}
             phase={view.phase}
@@ -150,10 +143,4 @@ export function SidePanel({
       </div>
     </section>
   )
-}
-
-/** The list names itself after its detachment often enough that repeating it would say it twice. */
-const armyLine = (army: Army) => {
-  if (!army.roster) return 'No list'
-  return army.detachment && !army.roster.name.includes(army.detachment) ? `${army.roster.name} · ${army.detachment}` : army.roster.name
 }

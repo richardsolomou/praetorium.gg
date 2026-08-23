@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import { BATTLE_ROUNDS, type Command, detachmentLimit, formatDatasheetLimit, reduceBattle, validate } from './battle'
+import {
+  BATTLE_ROUNDS,
+  type Command,
+  detachmentLimit,
+  formatDatasheetLimit,
+  reduceBattle,
+  sideDisposition,
+  sideDispositionChoices,
+  validate,
+} from './battle'
 import { battleView } from './battleView'
 import { battleReport } from './battleReport'
 import { ALICE, BOB, CAROL, NAMES, PLAYERS, advance, builtRoster, log, roster, started, text, turns } from './battle.fixtures'
@@ -28,6 +37,38 @@ describe('setup', () => {
   it('clears deployment order when setup is reset', () => {
     const state = reduceBattle(PLAYERS, log([ALICE, { kind: 'set-attacker', attackerId: BOB }], [ALICE, { kind: 'reset-setup' }]))
     expect(state.attackerId).toBeNull()
+  })
+
+  it('shares the first-turn roll-off with every device before the battle begins', () => {
+    const state = reduceBattle(PLAYERS, log([BOB, { kind: 'set-first-turn', firstPlayerId: BOB }]))
+
+    // Recorded a section before the battle starts, so the seat that presses start is
+    // not necessarily the seat that watched the dice.
+    expect(battleView({ token: 'roll-off' }, NAMES, state, ALICE).firstPlayerId).toBe(BOB)
+    expect(state.status).toBe('setup')
+  })
+
+  it('clears the first-turn roll-off when setup is reset', () => {
+    const state = reduceBattle(PLAYERS, log([ALICE, { kind: 'set-first-turn', firstPlayerId: BOB }], [ALICE, { kind: 'reset-setup' }]))
+    expect(state.firstPlayerId).toBeNull()
+  })
+
+  it('rejects a first turn for someone who is not seated', () => {
+    expect(validate(reduceBattle(PLAYERS, log()), ALICE, { kind: 'set-first-turn', firstPlayerId: CAROL })).toBe(
+      'that player is not in this battle',
+    )
+  })
+
+  it('takes an army back off the table', () => {
+    const state = reduceBattle(PLAYERS, log([ALICE, builtRoster('Alice army', ['Bloat-drone'])], [ALICE, { kind: 'detach-roster' }]))
+
+    expect(state.players[0]).toMatchObject({ roster: null, units: [] })
+    // Nothing may be started without it, which is the point of being able to take it back.
+    expect(validate(state, ALICE, { kind: 'begin-battle', firstPlayerId: ALICE })).toBe('both armies need a list')
+  })
+
+  it('refuses to take back a seat that has no army', () => {
+    expect(validate(reduceBattle(PLAYERS, log()), ALICE, { kind: 'detach-roster' })).toBe('that seat has no army')
   })
 
   it('rejects an attacker who is not seated', () => {
@@ -59,6 +100,108 @@ describe('setup', () => {
     )
 
     expect(validate(state, CAROL, advance())).toBeNull()
+  })
+
+  /**
+   * A side of allies fields one army between them, so the pack's 10 VP is the side's
+   * and not each list's — and an unpainted half costs the side all of it.
+   */
+  it('pays an allied side one battle-ready bonus, and only when both armies earn it', () => {
+    const teamBattle: Command = {
+      kind: 'configure-battle',
+      limit: 2000,
+      missionPackId: null,
+      terrainLayoutId: null,
+      twistId: null,
+      teamBattle: true,
+      clockLimitMinutes: null,
+    }
+    const seats = [ALICE, BOB, CAROL]
+    const sideOfEach = [0, 1, 1]
+    const both = log(
+      [ALICE, teamBattle],
+      [ALICE, roster('Knights')],
+      [BOB, roster('Marines')],
+      [CAROL, roster('Guard')],
+      [BOB, { kind: 'set-painted', painted: true }],
+      [CAROL, { kind: 'set-painted', painted: true }],
+    )
+    const one = [...both, { seq: both.length + 1, by: CAROL, at: both.length, command: { kind: 'set-painted', painted: false } as Command }]
+
+    const paid = battleView({ token: 'painted' }, NAMES, reduceBattle(seats, both, sideOfEach), BOB)
+    const short = battleView({ token: 'painted' }, NAMES, reduceBattle(seats, one, sideOfEach), BOB)
+
+    expect(paid.players.filter((player) => player.side === 1).map((player) => player.paintedPoints)).toEqual([10, 10])
+    expect(short.players.filter((player) => player.side === 1).map((player) => player.paintedPoints)).toEqual([0, 0])
+  })
+
+  /**
+   * A side fields one army between them, so it plays one Force Disposition. Two allies
+   * who wrote down different cards are asked which; nothing picks one for them.
+   */
+  it('asks an allied side which force disposition it plays, and refuses one nobody brought', () => {
+    const teamBattle: Command = {
+      kind: 'configure-battle',
+      limit: 2000,
+      missionPackId: null,
+      terrainLayoutId: null,
+      twistId: null,
+      teamBattle: true,
+      clockLimitMinutes: null,
+    }
+    // The solo side brings the whole battle size; the allied pair splits it.
+    const army = (name: string, disposition: string, limit: number): Command => ({
+      kind: 'attach-roster',
+      roster: {
+        name,
+        text: name,
+        built: { catalogueId: 'cat', revision: 'rev', limit, detachment: null, disposition, units: [] },
+      },
+    })
+    const seats = [ALICE, BOB, CAROL]
+    const sideOfEach = [0, 1, 1]
+    const disagreeing = log(
+      [ALICE, teamBattle],
+      [ALICE, army('Knights', 'take-and-hold', 2000)],
+      [BOB, army('Marines', 'recon', 1000)],
+      [CAROL, army('Guard', 'purge-the-foe', 1000)],
+    )
+
+    const undecided = reduceBattle(seats, disagreeing, sideOfEach)
+    expect(sideDisposition(undecided, 1)).toBeNull()
+    expect(sideDispositionChoices(undecided, 1)).toEqual(['recon', 'purge-the-foe'])
+    // The side across the table brought one card, so there is nothing to settle there.
+    expect(sideDisposition(undecided, 0)).toBe('take-and-hold')
+    expect(validate(undecided, BOB, { kind: 'set-side-disposition', side: 1, disposition: 'take-and-hold' })).toBe(
+      'that force disposition is not one this side brought',
+    )
+
+    const settled = reduceBattle(
+      seats,
+      [
+        ...disagreeing,
+        { seq: disagreeing.length + 1, by: CAROL, at: 4, command: { kind: 'set-side-disposition', side: 1, disposition: 'purge-the-foe' } },
+      ],
+      sideOfEach,
+    )
+    expect(sideDisposition(settled, 1)).toBe('purge-the-foe')
+    expect(battleView({ token: 'disposition' }, NAMES, settled, BOB).players[1]?.disposition).toBe('purge-the-foe')
+
+    // Nothing starts on an unanswered question, because the answer decides the mission.
+    expect(validate(undecided, ALICE, { kind: 'begin-battle', firstPlayerId: ALICE })).toBe(
+      'each side must choose the force disposition it plays',
+    )
+    expect(validate(settled, ALICE, { kind: 'begin-battle', firstPlayerId: ALICE })).toBeNull()
+
+    // A battle begun before the question was asked keeps the card it was being played
+    // on, rather than losing its mission and every cap with it.
+    const begun = reduceBattle(
+      seats,
+      [...disagreeing, { seq: disagreeing.length + 1, by: ALICE, at: 4, command: { kind: 'begin-battle', firstPlayerId: ALICE } }],
+      sideOfEach,
+    )
+    expect(begun.status).toBe('playing')
+    expect(sideDisposition(begun, 1)).toBe('recon')
   })
 
   it('shares allied command points while keeping their rosters separate', () => {

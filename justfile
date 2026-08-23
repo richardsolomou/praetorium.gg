@@ -88,6 +88,15 @@ db-check:
 db-migrate:
     pnpm db:migrate
 
+# Two signed-in-able accounts, four armies and their friendship, into the development database
+seed:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    just services
+    export DATABASE_URL="${DATABASE_URL:-postgres://praetorium:praetorium@127.0.0.1:5432/praetorium}"
+    pnpm db:migrate
+    pnpm db:seed
+
 # One-off: move any inline profile picture still in DATABASE_URL into S3_* object storage
 profile-images-migrate:
     pnpm profile-images:migrate
