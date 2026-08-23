@@ -24,7 +24,7 @@ Run the full local check suite:
 just check
 ```
 
-This command checks formatting, lint, database migrations, catalogue sources, the production build, types, and unit tests. The build generates `src/routeTree.gen.ts` before type checking.
+This command checks formatting, lint, documentation, database migrations, catalogue sources, the production build, types, and unit tests. The build generates `src/routeTree.gen.ts` before type checking.
 
 Run `just e2e` for rendered behavior or complete user flows. It builds the production container and runs Playwright. Sync the catalogue before list-building tests.
 

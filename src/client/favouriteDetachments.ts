@@ -1,41 +1,26 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
+import type { z } from 'zod'
 import { setFavouriteDetachment } from '../server/functions'
+import type { favouriteDetachmentSchema } from '../server/schemas'
+import { useOptimisticFavourites } from './favourites'
 import { favouriteDetachmentsQuery } from './queries'
 
-type FavouriteDetachment = { catalogueId: string; detachmentId: string }
+type FavouriteDetachment = Omit<z.infer<typeof favouriteDetachmentSchema>, 'favourite'>
 
 export const favouriteDetachmentKey = (catalogueId: string, detachmentId: string) => JSON.stringify([catalogueId, detachmentId])
 
 export function useFavouriteDetachments() {
   const query = favouriteDetachmentsQuery()
-  const queryClient = useQueryClient()
   const { data = [] } = useQuery(query)
-  const mutation = useMutation({
-    mutationFn: ({ catalogueId, detachmentId, favourite }: FavouriteDetachment & { favourite: boolean }) =>
-      setFavouriteDetachment({ data: { catalogueId, detachmentId, favourite } }),
-    onMutate: async ({ catalogueId, detachmentId, favourite }) => {
-      await queryClient.cancelQueries({ queryKey: query.queryKey })
-      const previous = queryClient.getQueryData<FavouriteDetachment[]>(query.queryKey) ?? []
-      queryClient.setQueryData<FavouriteDetachment[]>(
-        query.queryKey,
-        favourite
-          ? [
-              ...previous.filter(
-                (entry) =>
-                  favouriteDetachmentKey(entry.catalogueId, entry.detachmentId) !== favouriteDetachmentKey(catalogueId, detachmentId),
-              ),
-              { catalogueId, detachmentId },
-            ]
-          : previous.filter(
-              (entry) =>
-                favouriteDetachmentKey(entry.catalogueId, entry.detachmentId) !== favouriteDetachmentKey(catalogueId, detachmentId),
-            ),
-      )
-      return { previous }
+  const mutation = useOptimisticFavourites<FavouriteDetachment, FavouriteDetachment & { favourite: boolean }>(
+    query.queryKey,
+    ({ catalogueId, detachmentId, favourite }) => setFavouriteDetachment({ data: { catalogueId, detachmentId, favourite } }),
+    (previous, { catalogueId, detachmentId, favourite }) => {
+      const key = favouriteDetachmentKey(catalogueId, detachmentId)
+      const kept = previous.filter((entry) => favouriteDetachmentKey(entry.catalogueId, entry.detachmentId) !== key)
+      return favourite ? [...kept, { catalogueId, detachmentId }] : kept
     },
-    onError: (_error, _input, context) => queryClient.setQueryData(query.queryKey, context?.previous ?? []),
-    onSettled: () => queryClient.invalidateQueries({ queryKey: query.queryKey }),
-  })
+  )
   const favourites = new Set(data.map((entry) => favouriteDetachmentKey(entry.catalogueId, entry.detachmentId)))
   return {
     favourites,

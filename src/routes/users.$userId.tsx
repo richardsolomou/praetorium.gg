@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { UserX } from 'lucide-react'
 import { SignInRequired } from '../client/components/SignInRequired'
+import { formatDate } from '../client/dates'
 import { PlayerAvatar } from '../client/components/PlayerAvatar'
 import { PageState } from '../client/components/PageState'
 import { battlesQuery, meQuery, userProfileQuery } from '../client/queries'
@@ -106,7 +107,7 @@ function PlayerProfile() {
                 <span className="shrink-0 text-right">
                   <span className="eyebrow block">{battle.status === 'playing' ? `Round ${battle.round}` : battle.status}</span>
                   <span className="readout block text-xs text-dim">{sideScores(battle).join('–')}</span>
-                  <span className="block text-[0.625rem] text-faint">{new Date(battle.lastActivity).toLocaleDateString()}</span>
+                  <span className="block text-[0.625rem] text-faint">{formatDate(battle.lastActivity)}</span>
                 </span>
               </Link>
             ))}

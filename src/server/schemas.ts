@@ -1,5 +1,13 @@
 import { z } from 'zod'
-import { GAME_SIZES, ROSTER_NAME_MAX_LENGTH, SECONDARIES_MAX, STRATAGEM_CP_MAX, STRATAGEM_LIMITS, STRATAGEMS_MAX } from '../core/battle'
+import {
+  GAME_SIZES,
+  PHASES,
+  ROSTER_NAME_MAX_LENGTH,
+  SECONDARIES_MAX,
+  STRATAGEM_CP_MAX,
+  STRATAGEM_LIMITS,
+  STRATAGEMS_MAX,
+} from '../core/battle'
 import { commandSchema, rosterPickSchema } from '../core/commands'
 import { ROSTER_SOURCES, ROSTER_VISIBILITIES } from '../core/savedRoster'
 
@@ -66,10 +74,7 @@ const prepSchema = z.object({
         name: z.string().min(1).max(ROSTER_NAME_MAX_LENGTH),
         cp: z.number().int().min(0).max(STRATAGEM_CP_MAX),
         limit: z.enum(STRATAGEM_LIMITS),
-        phases: z
-          .array(z.enum(['command', 'movement', 'shooting', 'charge', 'fight', 'end']))
-          .max(6)
-          .optional(),
+        phases: z.array(z.enum(PHASES)).max(PHASES.length).optional(),
         turn: z.enum(['your-turn', 'opponent-turn', 'either']).optional(),
       }),
     )

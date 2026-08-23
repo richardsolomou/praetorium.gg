@@ -1,0 +1,19 @@
+name: E2E dependencies
+description: Restore node_modules and the Playwright browser, installing them on a cache miss.
+runs:
+  using: composite
+  steps:
+    - name: Restore E2E dependencies
+      id: e2e-dependencies
+      uses: actions/cache@v5
+      with:
+        path: |
+          node_modules
+          ~/.cache/ms-playwright
+        key: ${{ runner.os }}-${{ runner.arch }}-e2e-${{ hashFiles('pnpm-lock.yaml', 'package.json') }}
+    - name: Install E2E dependencies
+      if: steps.e2e-dependencies.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        pnpm install --frozen-lockfile
+        pnpm exec playwright install chromium --only-shell

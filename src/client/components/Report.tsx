@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import { formatTime } from '../dates'
 import { reportQuery } from '../queries'
 
 export type ReportPlayer = { id: string; name: string; className: string }
@@ -52,7 +53,7 @@ export function Report({ token, open, players = NO_PLAYERS }: { token: string; o
             {visible.map((entry) => (
               <li key={entry.seq} className="flex w-full gap-3 text-sm">
                 <span className="readout w-20 shrink-0 text-right text-xs text-dim">
-                  {new Date(entry.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  {formatTime(entry.at)}
                   <span className="block text-[0.625rem] text-faint">
                     {entry.round ? `R${entry.round}` : '—'} {PHASE_LABELS[entry.phase] ?? entry.phase}
                   </span>
