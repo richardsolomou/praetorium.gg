@@ -35,10 +35,22 @@ const GROUP_BY_CATEGORY = new Map<string, UnitGroup>([
   ['fortification', 'fortification'],
 ])
 
-/** The primary category is on the datasheet, so a link is read together with what it points at. */
+/**
+ * The primary category is on the datasheet, so a link is read together with what it
+ * points at.
+ *
+ * A datasheet can print more than one, and the first is not always the one a player
+ * sorts by: a Reaver Titan prints `Allies: Titanicus Traitoris` ahead of `Vehicle`.
+ * So the first that names a shelf wins, and one whose claims are all bookkeeping
+ * stays under Other rather than borrowing a shelf from a secondary keyword.
+ */
 function groupOf(entry: Definition, target: Definition): UnitGroup {
-  const primary = [...(entry.categoryLinks ?? []), ...(target.categoryLinks ?? [])].find((link) => link.primary)
-  return primary ? (GROUP_BY_CATEGORY.get((primary.name ?? '').trim().toLowerCase()) ?? 'other') : 'other'
+  for (const link of [...(entry.categoryLinks ?? []), ...(target.categoryLinks ?? [])]) {
+    if (!link.primary) continue
+    const shelf = GROUP_BY_CATEGORY.get((link.name ?? '').trim().toLowerCase())
+    if (shelf) return shelf
+  }
+  return 'other'
 }
 
 /** The same shelf by entry id, so a roster and the picker cannot sort a unit differently. */
