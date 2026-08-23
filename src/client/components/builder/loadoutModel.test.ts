@@ -61,6 +61,12 @@ describe('matching a wargear name to what describes it', () => {
     expect(weaponMatches('Veteran w/ Black Shield blades', 'Blackshield blades')).toBe(true)
   })
 
+  it('matches a marked, hyphen-separated mode such as a missile launcher prints', () => {
+    expect(weaponMatches('Missile Launcher', '➤ Missile Launcher - Frag')).toBe(true)
+    expect(weaponMatches('Missile Launcher', '➤ Missile Launcher - Krak')).toBe(true)
+    expect(weaponMatches('Missile Launcher', '➤ Multi-melta - Melta')).toBe(false)
+  })
+
   it('matches a rule the same way a profile is matched', () => {
     expect(wargearMatches('Storm shield', 'Storm shield')).toBe(true)
     expect(wargearMatches('Storm shield and thunder hammer', 'Storm shield')).toBe(true)

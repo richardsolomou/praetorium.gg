@@ -91,13 +91,20 @@ export function wargearMatches(optionName: string, abilityName: string) {
  * Whether a wargear option and a profile or rule are the same thing.
  *
  * Either may be the longer name: the option can be a pairing that contains the rule's
- * name, and the profile can be the option plus a parenthesised mode.
+ * name, and the profile can be the option plus a mode — parenthesised, or marked and
+ * suffixed the way the source prints a missile launcher's "➤ Missile Launcher - Frag".
  */
 function named(optionName: string, candidateName: string) {
-  const normalize = (name: string) => name.trim().toLocaleLowerCase().replaceAll(/\s+/g, '')
+  const normalize = (name: string) =>
+    name
+      .replace(/^[^\p{L}\p{N}]+/u, '')
+      .trim()
+      .toLocaleLowerCase()
+      .replaceAll(/\s+/g, '')
   const option = normalize(optionName)
   const candidate = normalize(candidateName)
-  return candidate === option || candidate.startsWith(`${option}(`) || option.includes(candidate)
+  const modeOf = candidate.startsWith(option) ? candidate.slice(option.length) : null
+  return candidate === option || (modeOf !== null && /^[^\p{L}\p{N}]/u.test(modeOf)) || option.includes(candidate)
 }
 
 /**
