@@ -275,10 +275,17 @@ test('a card names its own condition, and what their turn owed is asked as the t
     // Fixed play, so the two cards under test are certain: Outflank pays in tiers the
     // source describes only in prose, and Assassination pays on either player's turn.
     beforeStart: async () => {
-      await alice.getByRole('button', { name: 'Fixed' }).click()
+      const press = async (name: string) => {
+        await expect(async () => {
+          const button = alice.getByRole('button', { name })
+          if ((await button.getAttribute('aria-pressed')) === 'true') return
+          await button.click({ timeout: 1_000 })
+          await expect(button).toHaveAttribute('aria-pressed', 'true', { timeout: 1_000 })
+        }).toPass({ timeout: 10_000 })
+      }
+      await press('Fixed')
       for (const card of ['Assassination', 'Outflank']) {
-        await alice.getByRole('button', { name: card }).click()
-        await expect(alice.getByRole('button', { name: card })).toHaveAttribute('aria-pressed', 'true')
+        await press(card)
       }
     },
   })
