@@ -12,6 +12,7 @@ import type { DatasheetDetails } from './datacards'
 export type Datasheet = {
   id: string
   slug: string
+  referenceRoute: { catalogueId: string; slug: string } | null
   name: string
   points: number | null
   keywords: string[]
@@ -312,6 +313,7 @@ export function datasheetIn(loaded: LoadedCatalogue, catalogueId: string, entryI
   return {
     id: root.id,
     slug: datasheetSlug(loaded, catalogueId, root.id),
+    referenceRoute: referenceDatasheetRoute(loaded, name),
     name,
     points: priceOf(loaded, catalogueId, entryId),
     keywords,

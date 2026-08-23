@@ -292,7 +292,6 @@ export function ListBuilder({ prep, initial, editable = true, battle, resolvePer
       reference={
         <DatasheetPanel
           catalogueId={datasheetCatalogueId}
-          factionSlug={available?.factions.find((entry) => entry.id === datasheetCatalogueId)?.slug ?? ''}
           entryId={selectedUnit?.entryId ?? null}
           detachmentIds={detachmentIds}
           picks={positioned}
@@ -307,7 +306,6 @@ export function ListBuilder({ prep, initial, editable = true, battle, resolvePer
   const datasheet = (
     <DatasheetPanel
       catalogueId={datasheetCatalogueId}
-      factionSlug={available?.factions.find((entry) => entry.id === datasheetCatalogueId)?.slug ?? ''}
       entryId={preview?.entryId ?? selectedUnit?.entryId ?? null}
       detachmentIds={detachmentIds}
       picks={positioned}

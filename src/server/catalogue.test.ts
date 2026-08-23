@@ -46,6 +46,10 @@ describe('a datasheet', () => {
     expect(datasheetIn(book, 'cat-1', 'vulkan')?.attachments).toEqual([
       { kind: 'leader', name: 'Eradicator Squad', route: { catalogueId: 'space-marines', slug: 'eradicator-squad' } },
     ])
+    expect(datasheetIn(book, 'cat-1', 'eradicators')?.referenceRoute).toEqual({
+      catalogueId: 'space-marines',
+      slug: 'eradicator-squad',
+    })
   })
 
   it('collects model, weapon, ability and keyword display data', () => {
