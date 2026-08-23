@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.19.6
+
+### Patch Changes
+
+- a770797: Undo every score recorded by one scoring confirmation as a single action.
+
 ## 0.19.5
 
 ### Patch Changes
