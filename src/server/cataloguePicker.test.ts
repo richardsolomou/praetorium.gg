@@ -224,6 +224,30 @@ describe('the picker', () => {
     ).toEqual(['Marshal'])
   })
 
+  it('omits one excluded by a keyword the data grants rather than links', () => {
+    // Legality reads the keywords a unit carries, so the picker has to read the same
+    // ones: offering a datasheet the roster will then refuse is the worse answer.
+    const book = bookOf({
+      categoryEntries: [{ id: 'psyker', name: 'Psyker' }],
+      selectionEntries: [
+        { id: 'marshal', name: 'Marshal', type: 'model', costs: points(80), categoryLinks: categories('Character') },
+        {
+          id: 'librarian',
+          name: 'Librarian',
+          type: 'model',
+          costs: points(90),
+          categoryLinks: categories('Character'),
+          modifiers: [{ type: 'add', field: 'category', value: 'psyker' }],
+        },
+      ],
+    })
+    expect(
+      unitsIn(book, 'cat', '', {
+        restrictions: { excludedNames: new Set(), excludedKeywords: new Set(['psyker']) },
+      }).map((unit) => unit.name),
+    ).toEqual(['Marshal'])
+  })
+
   it('prices the smallest legal version of each datasheet', () => {
     const book = bookOf({
       selectionEntries: [

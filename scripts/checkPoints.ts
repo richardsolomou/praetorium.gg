@@ -313,6 +313,16 @@ const allowedUnhandled = new Set([
   // condition fails closed because that unit is not an ancestor of this pick.
   'unresolved scope 212d-f302-aaaf-5c12',
   'unresolved scope 9e9c-bf4d-2d40-be82',
+  /*
+   * Which force slot holds a selection, which is not a question this app asks. 300
+   * of the 340 of these name an `Allies: <faction>` category that is no shelf here —
+   * honouring them would move every allied datasheet to Other, when allies already
+   * have their own labelled sections — and the rest re-shelve a unit for one
+   * detachment, which `groupOfEntry` cannot answer without a roster and must not,
+   * because the picker and the roster have to shelve a unit the same way.
+   */
+  'category modifier set-primary',
+  'category modifier unset-primary',
 ])
 const unexpectedUnhandled = [...census].filter((note) => !allowedUnhandled.has(note))
 if (unexpectedUnhandled.length) process.exitCode = 1

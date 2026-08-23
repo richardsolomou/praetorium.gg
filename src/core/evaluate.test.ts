@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { buildIndex, type Catalogue, type CatalogueFile } from './catalogue'
-import { evaluate, evaluateForces, rosterLimit, type Selection } from './evaluate'
+import { buildIndex, type Catalogue, type CatalogueFile, type Modifier } from './catalogue'
+import { evaluate, evaluateForces, keywordIds, rosterLimit, type Selection } from './evaluate'
 
 const PTS = 'cost-pts'
 const ENHANCEMENTS = 'cost-enhancements'
@@ -508,6 +508,185 @@ describe('keywords', () => {
 
   it('do not match a selection that lacks them', () => {
     expect(evaluateOne({ id: 'grunt' }, catalogue()).points).toBe(20)
+  })
+})
+
+describe('a keyword the data grants', () => {
+  /**
+   * The shape the Dark Angels book uses: a Terminator-armour character is DEATHWING
+   * only when that book is the one the list is built from, written as a category the
+   * entry gains rather than one it links.
+   */
+  const catalogue = (grant: Partial<Catalogue>['sharedSelectionEntries']): Partial<Catalogue> => ({
+    categoryEntries: [{ id: 'deathwing', name: 'Deathwing' }],
+    sharedSelectionEntries: grant,
+  })
+
+  const chaplain = (modifiers: Modifier[]): Partial<Catalogue>['sharedSelectionEntries'] => [
+    {
+      id: 'chaplain',
+      name: 'Chaplain in Terminator Armour',
+      type: 'model',
+      costs: points(75),
+      categoryLinks: [{ id: 'link', targetId: 'character' }],
+      modifiers,
+    },
+    {
+      id: 'assault',
+      name: 'Deathwing Assault',
+      type: 'upgrade',
+      costs: points(15),
+      modifiers: [
+        {
+          type: 'increment',
+          field: PTS,
+          value: 5,
+          conditions: [{ type: 'instanceOf', value: 1, field: 'selections', scope: 'roster', childId: 'deathwing' }],
+        },
+      ],
+    },
+  ]
+
+  const inItsOwnBook: Modifier[] = [
+    {
+      type: 'add',
+      field: 'category',
+      value: 'deathwing',
+      conditions: [{ type: 'instanceOf', value: 1, field: 'selections', scope: 'primary-catalogue', childId: 'cat' }],
+    },
+  ]
+
+  it('is carried in the book that grants it', () => {
+    const index = indexOf(catalogue(chaplain(inItsOwnBook)))
+    expect(keywordIds([{ id: 'chaplain' }], 0, index, { primaryCatalogueId: 'cat' })).toContain('deathwing')
+  })
+
+  it('is not carried in another book', () => {
+    const index = indexOf(catalogue(chaplain(inItsOwnBook)))
+    expect(keywordIds([{ id: 'chaplain' }], 0, index, { primaryCatalogueId: 'other' })).not.toContain('deathwing')
+  })
+
+  it('answers a condition that tests for it, which is what gates an enhancement', () => {
+    const index = indexOf(catalogue(chaplain(inItsOwnBook)))
+    const roster = [{ id: 'chaplain' }, { id: 'assault' }]
+    expect(evaluate(roster, index, { primaryCatalogueId: 'cat' }).points).toBe(95)
+    expect(evaluate(roster, index, { primaryCatalogueId: 'other' }).points).toBe(90)
+  })
+
+  it('reaches the selection the grant is aimed at rather than the one holding it', () => {
+    const index = indexOf({
+      categoryEntries: [{ id: 'deathwing', name: 'Deathwing' }],
+      sharedSelectionEntries: [
+        {
+          id: 'squad',
+          name: 'Terminator Squad',
+          type: 'unit',
+          selectionEntries: [
+            {
+              id: 'oath',
+              name: 'Oath',
+              type: 'upgrade',
+              modifiers: [{ type: 'add', field: 'category', value: 'deathwing', scope: 'parent' }],
+            },
+          ],
+        },
+      ],
+    })
+    expect(keywordIds([{ id: 'squad', selections: [{ id: 'oath' }] }], 0, index)).toContain('deathwing')
+    expect(keywordIds([{ id: 'squad' }], 0, index)).not.toContain('deathwing')
+  })
+
+  it('can be withdrawn, and the withdrawal is what the list carries', () => {
+    const index = indexOf({
+      categoryEntries: [{ id: 'battleline', name: 'Battleline' }],
+      sharedSelectionEntries: [
+        {
+          id: 'squad',
+          name: 'Squad',
+          type: 'unit',
+          categoryLinks: [{ id: 'link', targetId: 'battleline', name: 'Battleline' }],
+          modifiers: [{ type: 'remove', field: 'category', value: 'battleline' }],
+        },
+      ],
+    })
+    expect(keywordIds([{ id: 'squad' }], 0, index)).not.toContain('battleline')
+  })
+
+  it('says so when it changes which keyword is primary, rather than shelving it silently', () => {
+    const index = indexOf({
+      categoryEntries: [{ id: 'deathwing', name: 'Deathwing' }],
+      sharedSelectionEntries: [
+        {
+          id: 'squad',
+          name: 'Squad',
+          type: 'unit',
+          costs: points(40),
+          modifiers: [{ type: 'set-primary', field: 'category', value: 'deathwing' }],
+          constraints: [{ id: 'cap', type: 'max', value: 1, field: 'selections', scope: 'roster' }],
+        },
+      ],
+    })
+    expect(evaluate([{ id: 'squad' }], index).unhandled).toContain('category modifier set-primary')
+  })
+
+  it('is withdrawn when the same entry writes the withdrawal last', () => {
+    // Saint Potentia's shape: one entry both grants a keyword and takes it away, and
+    // which one wins is the order the data writes them in.
+    const index = indexOf({
+      categoryEntries: [{ id: 'saint', name: 'Saint Potentia' }],
+      sharedSelectionEntries: [
+        {
+          id: 'canoness',
+          name: 'Canoness',
+          type: 'model',
+          modifiers: [
+            { type: 'add', field: 'category', value: 'saint' },
+            { type: 'remove', field: 'category', value: 'saint' },
+          ],
+        },
+      ],
+    })
+    expect(keywordIds([{ id: 'canoness' }], 0, index)).not.toContain('saint')
+  })
+
+  it('is read from the written links and never from another grant', () => {
+    /**
+     * A chain of three: `deathwing` is written down, `ravenwing` is granted off it, and
+     * `wulfen` is granted off `ravenwing`. Only the first link in that chain is a fact
+     * the data states, so only the first grant lands. Reading a grant off another grant
+     * would hand `wulfen` to whichever unit the walk reached second, which is why the
+     * answer is asserted in both orders.
+     */
+    const grant = (id: string, keyword: string, from: string) => ({
+      id,
+      name: id,
+      type: 'unit' as const,
+      modifiers: [
+        {
+          type: 'add' as const,
+          field: 'category',
+          value: keyword,
+          conditions: [{ type: 'instanceOf' as const, value: 1, field: 'selections', scope: 'roster', childId: from }],
+        },
+      ],
+    })
+    const index = indexOf({
+      categoryEntries: [
+        { id: 'deathwing', name: 'Deathwing' },
+        { id: 'ravenwing', name: 'Ravenwing' },
+        { id: 'wulfen', name: 'Wulfen' },
+      ],
+      sharedSelectionEntries: [
+        { id: 'seed', name: 'Seed', type: 'unit', categoryLinks: [{ id: 'link', targetId: 'deathwing' }] },
+        grant('rider', 'ravenwing', 'deathwing'),
+        grant('howler', 'wulfen', 'ravenwing'),
+      ],
+    })
+    const inOrder = [{ id: 'seed' }, { id: 'rider' }, { id: 'howler' }]
+    const reversed = [{ id: 'seed' }, { id: 'howler' }, { id: 'rider' }]
+    expect(keywordIds(inOrder, 1, index)).toContain('ravenwing')
+    expect(keywordIds(inOrder, 2, index)).not.toContain('wulfen')
+    expect(keywordIds(reversed, 1, index)).not.toContain('wulfen')
   })
 })
 
