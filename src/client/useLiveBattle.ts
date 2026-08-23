@@ -6,12 +6,17 @@ import { useConnectedRealtimeClient, useRealtimePresence, useRealtimeSubscriptio
 import { useCallback, useMemo } from 'react'
 import { z } from 'zod'
 import { battleQuery, battlesQuery } from './queries'
+import { isExpectedRealtimeDisconnect } from './realtimeErrors'
 
 export type PresentPlayer = { playerId: string; name: string }
 
 const TICKET = z.object({ token: z.string(), channel: z.string().optional() })
 const clientChannels = new WeakMap<Centrifuge, string>()
 const reportRealtimeError = (error: unknown) => {
+  if (isExpectedRealtimeDisconnect(error)) {
+    console.info({ event: 'realtime_disconnected', error })
+    return
+  }
   posthog.captureException(error, { operation: 'realtime' })
   console.error({ event: 'realtime_failed', error })
 }
