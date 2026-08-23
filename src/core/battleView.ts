@@ -97,6 +97,8 @@ export type BattleView = {
     primaryCard: Secondary | null
     secondaryMode: SecondaryMode
     remainingSecondaries: Secondary[]
+    /** Drawn since this side's current turn began, out of `TACTICAL_HAND_SIZE`. */
+    secondariesDrawnThisTurn: number
   }[]
   /** The conventional ceilings, for display beside a total. */
   guides: { primary: number; secondary: number }
@@ -182,6 +184,7 @@ export function battleView(
         })),
         primaryCard: resources.primaryCard,
         secondaryMode: resources.secondaryMode,
+        secondariesDrawnThisTurn: resources.secondariesDrawnThisTurn,
         remainingSecondaries:
           resources.id === viewerId
             ? (resources.secondaryDeck ?? []).filter(

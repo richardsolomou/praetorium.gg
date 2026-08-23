@@ -169,20 +169,20 @@ export function Tracker({ view, missions, present, send, pending, problem }: Pro
     if (!settlementOwner || settlementRound === null || settlementRulesPending || owedCards.length || pending) return
     send({ kind: 'settle-opponent-turn' })
   }, [owedCards.length, pending, send, settlementOwner, settlementRound, settlementRulesPending])
-  // A tactical hand is dealt at the top of your own turn, and only once for it.
+  // Two tactical cards are dealt at the top of your own turn, and only once for it.
   const turnKey = `${view.round}-${view.activePlayerId ?? ''}`
-  const handShort =
+  const owedDraw =
     !finished &&
     keeper &&
     yours?.isActive &&
     yours.secondaryMode === 'tactical' &&
     view.phase === 'command' &&
-    yours.secondaries.filter((card) => card.status === 'active').length < 2 &&
+    yours.secondariesDrawnThisTurn < 2 &&
     yours.remainingSecondaries.length > 0
-  // Latched, because the hand stops being short the moment it is dealt and the player
+  // Latched, because the turn stops owing a draw the moment it is dealt and the player
   // still has to see what they drew and whether a card may go back.
   useEffect(() => {
-    if (!handShort) return
+    if (!owedDraw) return
     const reopening = drawnForTurns.has(turnKey)
     setDrawPaused(reopening)
     // Forgotten rather than left marked drawn, so the prompt is free to show again;
@@ -195,7 +195,7 @@ export function Tracker({ view, missions, present, send, pending, problem }: Pro
       })
     }
     setDrawTurn(turnKey)
-  }, [handShort, drawnForTurns, turnKey])
+  }, [owedDraw, drawnForTurns, turnKey])
   const prompt =
     settlementRound !== null ? (owedCards.length ? 'owed' : null) : turnPrompt(0, drawTurn === turnKey && !drawnForTurns.has(turnKey))
 

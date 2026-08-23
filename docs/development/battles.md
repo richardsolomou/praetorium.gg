@@ -37,7 +37,7 @@ What an army brings is not a choice a player makes twice. The stratagems are the
 
 Secondaries are tactical unless a player says otherwise: the hand starts empty, the deck is the whole pack, and the tracker asks for the draw at the top of that player's command phase. Fixed play is the alternative, and the only case where cards are chosen up front.
 
-The client requests every card needed to refill the hand. The server chooses those cards while it holds the battle lock and stores the refill as one command. The server ignores the client's placeholder cards. Undo therefore returns the complete refill together, while a one-card refill remains a one-card command.
+Two cards are owed every one of a side's own turns, on top of whatever earlier cards are still unresolved — nothing is topped back up to a fixed size, and an unscored card is never replaced by drawing. The client requests every card owed for the turn together. The server chooses those cards while it holds the battle lock and stores the draw as one command. The server ignores the client's placeholder cards. Undo therefore returns the complete draw together, while a one-card draw — the other half already dealt, or a card put back mid-turn freeing its slot again — remains a one-card command.
 
 Undoing a logged draw returns hidden random state to the deck, so both the draw prompt and the main turn control confirm that consequence first. Cancelling the confirmation does not append a command.
 

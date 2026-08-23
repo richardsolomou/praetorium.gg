@@ -30,6 +30,7 @@ function player(overrides: Partial<ViewPlayer> & Pick<ViewPlayer, 'id' | 'side'>
     primaryCard: null,
     secondaryMode: 'tactical',
     remainingSecondaries: [],
+    secondariesDrawnThisTurn: 0,
     ...overrides,
   }
 }

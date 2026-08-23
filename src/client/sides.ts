@@ -76,6 +76,7 @@ export type Side = {
   secondaries: ViewPlayer['secondaries']
   secondaryMode: ViewPlayer['secondaryMode']
   remainingSecondaries: ViewPlayer['remainingSecondaries']
+  secondariesDrawnThisTurn: ViewPlayer['secondariesDrawnThisTurn']
   stratagems: ViewPlayer['stratagems']
   /** The mission this side plays, which is not always the one the viewer plays. */
   mission: SideMission | null
@@ -115,6 +116,7 @@ export function sides(view: BattleView, missions: readonly { side: number; missi
         secondaries: unsettledFirst(captain.secondaries),
         secondaryMode: captain.secondaryMode,
         remainingSecondaries: captain.remainingSecondaries,
+        secondariesDrawnThisTurn: captain.secondariesDrawnThisTurn,
         stratagems: captain.stratagems,
         mission: missions.find((entry) => entry.side === index)?.mission ?? null,
       },
