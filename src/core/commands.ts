@@ -13,6 +13,16 @@ import {
 import { UNIT_GROUPS } from './unitGroups'
 
 const id = z.string().min(1).max(64)
+export const rosterPickSchema = z.object({
+  entryId: id,
+  catalogueId: id.optional(),
+  models: z.number().int().min(1).max(60).optional(),
+  choices: z.record(z.string().max(400), id).optional(),
+  spreads: z.record(z.string().max(400), z.record(z.string().max(64), z.number().int().min(0).max(60))).optional(),
+  swaps: z.record(z.string().max(140), z.number().int().min(0).max(60)).optional(),
+  toggles: z.record(z.string().max(400), z.number().int().min(0).max(1)).optional(),
+  attachedTo: z.number().int().min(0).max(99).optional(),
+})
 const phase = z.enum(['command', 'movement', 'shooting', 'charge', 'fight', 'end'])
 const secondary = z.object({ key: id, name: z.string().min(1).max(ROSTER_NAME_MAX_LENGTH) })
 const stratagem = z.object({
@@ -70,6 +80,8 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
             .optional(),
           detachmentPointBudget: z.number().int().min(0).max(3).nullable().optional(),
           disposition: z.string().max(64).nullable(),
+          detachmentIds: z.array(id).max(3).optional(),
+          picks: z.array(rosterPickSchema).max(100).optional(),
           units: z
             .array(
               z.object({

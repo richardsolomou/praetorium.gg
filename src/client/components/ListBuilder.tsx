@@ -49,6 +49,8 @@ type Props = {
   editable?: boolean
   /** A battle token may entitle a read-only viewer to resolve a private roster. */
   battle?: string
+  /** Resolve read-only details by saved id; false when the supplied picks are themselves the snapshot. */
+  resolvePersistedRoster?: boolean
 }
 
 const READ_ONLY_PREFERENCE = 'praetorium.roster-read-only'
@@ -64,7 +66,7 @@ const READ_ONLY_PREFERENCE = 'praetorium.roster-read-only'
  * The price and the legality both come from the server, because the catalogue is
  * 90MB and the browser has no business holding it.
  */
-export function ListBuilder({ prep, initial, editable = true, battle }: Props) {
+export function ListBuilder({ prep, initial, editable = true, battle, resolvePersistedRoster = true }: Props) {
   const { data: available } = useQuery(factionsQuery())
   const [catalogueId, setCatalogueId] = useState(initial.catalogueId)
   const { picks, setPicks, positioned, held } = usePicks(initial.picks)
@@ -286,7 +288,7 @@ export function ListBuilder({ prep, initial, editable = true, battle }: Props) {
       onSwap={(key, count) => selected !== null && edit.swap(selected, key, count)}
       editable={editable && inspectorView === 'edit'}
       showOptions={inspectorView !== 'readonly'}
-      persistedRoster={editable ? undefined : { id: savedId, ...(battle ? { battle } : {}) }}
+      persistedRoster={editable || !resolvePersistedRoster ? undefined : { id: savedId, ...(battle ? { battle } : {}) }}
       reference={
         <DatasheetPanel
           catalogueId={datasheetCatalogueId}

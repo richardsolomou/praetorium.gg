@@ -14,6 +14,8 @@ describe('command schema', () => {
           limit: 2_000,
           detachment: 'Awakened Dynasty',
           disposition: 'reconnaissance',
+          detachmentIds: ['awakened-dynasty'],
+          picks: [{ entryId: 'overlord', choices: { weapon: 'blade' } }],
           units: [
             {
               key: '0-overlord',

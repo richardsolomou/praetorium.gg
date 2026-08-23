@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { GAME_SIZES, ROSTER_NAME_MAX_LENGTH, SECONDARIES_MAX, STRATAGEM_CP_MAX, STRATAGEM_LIMITS, STRATAGEMS_MAX } from '../core/battle'
-import { commandSchema } from '../core/commands'
+import { commandSchema, rosterPickSchema } from '../core/commands'
 import { ROSTER_SOURCES, ROSTER_VISIBILITIES } from '../core/savedRoster'
 
 const id = z.string().min(1).max(64)
@@ -44,28 +44,7 @@ export const globalSearchSchema = z.object({ query: z.string().trim().min(2).max
  * A list is sent as the entries the player picked and how many models they want
  * in each; the server expands every one to a legal selection.
  */
-const pickSchema = z.object({
-  entryId: id,
-  catalogueId: id.optional(),
-  models: z.number().int().min(1).max(60).optional(),
-  choices: z.record(z.string().max(400), id).optional(),
-  /**
-   * Group path to how many of each option it holds, for groups holding more than
-   * one — a squad splitting its weapons between two.
-   */
-  spreads: z.record(z.string().max(400), z.record(z.string().max(64), z.number().int().min(0).max(60))).optional(),
-  /** How many models took each datasheet swap, keyed `<swap id>#<alternative>`. */
-  swaps: z.record(z.string().max(140), z.number().int().min(0).max(60)).optional(),
-  toggles: z.record(z.string().max(400), z.number().int().min(0).max(1)).optional(),
-  /**
-   * The position of the unit this one is attached to, when it is.
-   *
-   * A position rather than an id, because the same datasheet may be in the list
-   * twice and a character joins one of them, not both. It is only ever read back
-   * beside the picks it was saved with.
-   */
-  attachedTo: z.number().int().min(0).max(99).optional(),
-})
+const pickSchema = rosterPickSchema
 
 export const datasheetSchema = z.object({
   catalogueId,
