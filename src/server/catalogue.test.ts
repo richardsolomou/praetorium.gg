@@ -34,6 +34,29 @@ describe('a datasheet', () => {
     })
   })
 
+  it('prints a keyword the list grants, and not one the data keeps for its own bookkeeping', () => {
+    const book = bookOf({
+      categoryEntries: [
+        { id: 'deathwing', name: 'Deathwing' },
+        { id: 'marker', name: 'Damage Dx Weapon', hidden: true },
+      ],
+      selectionEntries: [
+        {
+          id: 'chaplain',
+          name: 'Chaplain in Terminator Armour',
+          type: 'model',
+          categoryLinks: [{ id: 'link', targetId: 'character', name: 'Character' }],
+          modifiers: [
+            { type: 'add', field: 'category', value: 'deathwing' },
+            { type: 'add', field: 'category', value: 'marker' },
+          ],
+        },
+      ],
+    })
+
+    expect(datasheetIn(book, 'cat', 'chaplain')?.keywords).toEqual(['Character', 'Deathwing'])
+  })
+
   it('shows duplicate available profiles once', () => {
     const profile = (id: string, name = 'Storm bolter') => ({
       id,

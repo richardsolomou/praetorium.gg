@@ -2,6 +2,7 @@ import { type CatalogueIndex, type Definition, nameOf, targetOf } from '../core/
 import { evaluate, rosterLimit } from '../core/evaluate'
 import { buildUnit } from '../core/roster'
 import type { UnitGroup } from '../core/unitGroups'
+import { keywordsIn } from './catalogue'
 import { datasheetSlug, datasheetsOf, type LoadedCatalogue } from './catalogueIndex'
 import type { FactionRestrictions } from './wahapedia'
 
@@ -91,8 +92,9 @@ export function unitsIn(
     const target = targetOf(entry, loaded.index.definitions)
     const name = nameOf(entry, loaded.index.definitions)
     if (included && !includedReferenceName(included, name)) continue
-    const keywords = [...(entry.categoryLinks ?? []), ...(target.categoryLinks ?? [])].flatMap((link) => (link.name ? [link.name] : []))
-    if (restricted(name, keywords, restrictions)) continue
+    // Asked only where a restriction can act on the answer: folding the keywords a
+    // datasheet carries costs a default build of it, and most books exclude nothing.
+    if (restrictions && restricted(name, keywordsIn(loaded, catalogueId, id), restrictions)) continue
     // Unaligned Forces is the shared shelf for Legends fortifications and
     // mission-only battlefield assets. A few assets (including Sentry Gun) lack
     // the suffix even though they are not matched-play roster choices.
@@ -136,10 +138,9 @@ const includedReferenceName = (included: ReadonlySet<string>, name: string) => {
   return included.has(normalized) || included.has(`${normalized}s`) || (normalized.endsWith('s') && included.has(normalized.slice(0, -1)))
 }
 
-const restricted = (name: string, keywords: readonly string[], restrictions?: FactionRestrictions) =>
-  restrictions !== undefined &&
-  (restrictions.excludedNames.has(name.trim().toLowerCase()) ||
-    keywords.some((keyword) => restrictions.excludedKeywords.has(keyword.trim().toLowerCase())))
+const restricted = (name: string, keywords: readonly string[], restrictions: FactionRestrictions) =>
+  restrictions.excludedNames.has(name.trim().toLowerCase()) ||
+  keywords.some((keyword) => restrictions.excludedKeywords.has(keyword.trim().toLowerCase()))
 
 /** How many of one datasheet the roster may hold, or null when nothing limits it. */
 function limitOf(loaded: LoadedCatalogue, catalogueId: string, entryId: string) {

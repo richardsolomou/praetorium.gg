@@ -50,6 +50,17 @@ type Node = {
   catalogueId?: string
   /** Set on the node standing for the roster's force, which conditions scope to. */
   force?: boolean
+  /** Only the root carries this: the keywords the data grants and withdraws across the whole tree. */
+  grants?: Map<Node, Map<string, boolean>>
+  /*
+   * Answers kept because every pass over the tree asks for them again, and a tree
+   * is finished being built before anything reads it. Anything that came to add a
+   * child after evaluation had begun would have to clear these.
+   */
+  /** Its modifiers, with modifier groups flattened. */
+  modifiers?: Modifier[]
+  /** The selections under it, shallow at 0 and deep at 1. */
+  under?: [Node[] | undefined, Node[] | undefined]
   /** The link that brought it in, when one did — it carries its own costs and constraints. */
   link: EntryLink | null
   id: string
@@ -125,31 +136,9 @@ export function profileModifiers(
   companionIndexes: readonly number[] = [],
 ): ProfileModifier[] {
   const census = new Census(companionIndexes.length)
-  const counter = { next: 0 }
-  const root: Node = {
-    target: { id: 'roster' },
-    order: counter.next++,
-    catalogueId: options.primaryCatalogueId,
-    link: null,
-    id: 'roster',
-    count: 1,
-    parent: null,
-    children: [],
-  }
-  const force: Node = {
-    target: { id: index.forces[0]?.id ?? 'force', name: index.forces[0]?.name ?? 'Army Roster' },
-    order: counter.next++,
-    force: true,
-    link: null,
-    id: 'force-0',
-    count: 1,
-    parent: root,
-    children: [],
-  }
-  root.children = [force]
-  force.children = selections
-    .map((selection) => build(selection, force, index, census, counter))
-    .filter((node): node is Node => node !== null)
+  const { root, forces } = rosterContext([selections], index, census, options)
+  const force = forces[0]
+  if (!force) return []
 
   const indexed = unitSelectionIndex === undefined ? undefined : force.children[unitSelectionIndex]
   const unit =
@@ -301,11 +290,21 @@ const PROFILE_MODIFIER_TYPES = new Set<Modifier['type']>([
 
 const isProfileModifierType = (type: Modifier['type']) => PROFILE_MODIFIER_TYPES.has(type)
 
+const AFFECTS_CONTROLS = new Set(['self', 'entries', 'forces', 'recursive', 'group'])
+
 function parseProfileAffects(affects: string) {
   const path = affects.split('.')
   const profile = path.indexOf('profiles')
-  const selection = profile < 0 ? [] : path.slice(0, profile)
-  const controls = new Set(['self', 'entries', 'forces', 'recursive', 'group'])
+  return parseAffects(profile < 0 ? [] : path.slice(0, profile))
+}
+
+/**
+ * Which selections a modifier reaches. The path names the way down — `self`, the
+ * `entries` under it, `recursive` for all of them — and anything left over is an id
+ * the reached selection has to match. A profile modifier spends the tail of the
+ * same path naming profiles; one aimed at a keyword has no tail.
+ */
+function parseAffects(selection: readonly string[]) {
   const includeEntries = selection.includes('entries')
   const forces = selection.includes('forces')
   return {
@@ -318,21 +317,24 @@ function parseProfileAffects(affects: string) {
     // unit and to the Attacks of only the bearer's own melee weapons, and this is the
     // difference the data draws between the two.
     group: selection.includes('group'),
-    filters: selection.filter((part) => !controls.has(part)),
+    filters: selection.filter((part) => !AFFECTS_CONTROLS.has(part)),
   }
 }
 
-export function evaluate(selections: readonly Selection[], index: CatalogueIndex, options: EvaluateOptions = {}): Evaluation {
-  return evaluateForces([selections], index, options)
-}
-
-/** Evaluate each force independently while retaining roster-scoped conditions across all of them. */
-export function evaluateForces(
+/**
+ * The roster, and the forces its selections sit in.
+ *
+ * A force sits between the roster and its selections. Conditions count forces and
+ * scope to them — a per-detachment limit is written against the force, not the
+ * roster — so there has to be one. It is transparent when counting selections,
+ * exactly as a group is, so nothing that already worked sees a new layer.
+ */
+function rosterContext(
   forces: readonly (readonly Selection[])[],
   index: CatalogueIndex,
-  options: EvaluateOptions = {},
-): Evaluation {
-  const census = new Census()
+  census: Census,
+  options: EvaluateOptions,
+): { root: Node; forces: Node[] } {
   const counter = { next: 0 }
   const root: Node = {
     target: { id: 'roster' },
@@ -344,14 +346,6 @@ export function evaluateForces(
     parent: null,
     children: [],
   }
-  /**
-   * The roster's force sits between the roster and its selections.
-   *
-   * Conditions count forces and scope to them — a per-detachment limit is written
-   * against the force, not the roster — so there has to be one. It is transparent
-   * when counting selections, exactly as a group is, so nothing that already worked
-   * sees a new layer.
-   */
   root.children = forces.map((selections, forceIndex) => {
     const force: Node = {
       target: { id: index.forces[0]?.id ?? 'force', name: index.forces[0]?.name ?? 'Army Roster' },
@@ -368,6 +362,51 @@ export function evaluateForces(
       .filter((node): node is Node => node !== null)
     return force
   })
+  return { root, forces: root.children }
+}
+
+export function evaluate(selections: readonly Selection[], index: CatalogueIndex, options: EvaluateOptions = {}): Evaluation {
+  return evaluateForces([selections], index, options)
+}
+
+/**
+ * The keywords one of a roster's selections carries, by category id.
+ *
+ * Not the same question as reading its category links: the data hands keywords out
+ * and takes them away conditionally — a Chaplain in Terminator Armour is DEATHWING
+ * only in the Dark Angels book — and the condition is about the surroundings, so
+ * the selection has to be read where it sits rather than on its own.
+ */
+export function keywordIds(selections: readonly Selection[], at: number, index: CatalogueIndex, options: EvaluateOptions = {}): string[] {
+  const wanted = selections[at]
+  if (!wanted) return []
+  const census = new Census()
+  const { root, forces } = rosterContext([selections], index, census, options)
+  // A selection the catalogue cannot resolve is dropped, so the position asked for
+  // is not always the position built. The id is what the caller meant.
+  const built = forces[0]?.children ?? []
+  const positioned = built[at]
+  const node = positioned?.id === wanted.id ? positioned : built.find((child) => child.id === wanted.id)
+  if (!node) return []
+  const held = linkedCategories(node)
+  for (const [categoryId, present] of grantsOf(root, index, census).get(node) ?? []) {
+    if (present) held.add(categoryId)
+    else held.delete(categoryId)
+  }
+  return [...held]
+}
+
+/** Evaluate each force independently while retaining roster-scoped conditions across all of them. */
+export function evaluateForces(
+  forces: readonly (readonly Selection[])[],
+  index: CatalogueIndex,
+  options: EvaluateOptions = {},
+): Evaluation {
+  const census = new Census()
+  const { root } = rosterContext(forces, index, census, options)
+  // Read up front rather than on the first question about a keyword, so a list that
+  // asks none still reports the keyword rules this evaluator did not act on.
+  grantsOf(root, index, census)
 
   const totals = new Map<string, number>()
   const errors: EvaluationError[] = []
@@ -570,6 +609,8 @@ const isGroup = (node: Node) => node.target.type === undefined
  * sits immediately under the node, groups notwithstanding.
  */
 function selectionsUnder(node: Node, deep: boolean): Node[] {
+  const cached = node.under?.[deep ? 1 : 0]
+  if (cached) return cached
   const found: Node[] = []
   const walk = (current: Node) => {
     for (const child of current.children) {
@@ -582,6 +623,8 @@ function selectionsUnder(node: Node, deep: boolean): Node[] {
     }
   }
   walk(node)
+  node.under ??= [undefined, undefined]
+  node.under[deep ? 1 : 0] = found
   return found
 }
 
@@ -636,6 +679,7 @@ function costsOf(node: Node, root: Node, index: CatalogueIndex, census: Census):
 
 /** Every modifier that applies to this node, with modifier groups flattened and gated. */
 function modifiersOf(node: Node): Modifier[] {
+  if (node.modifiers) return node.modifiers
   const collected: Modifier[] = []
   const flatten = (group: ModifierGroup, inherited: ModifierGroup[]) => {
     const chain = [...inherited, group]
@@ -656,6 +700,7 @@ function modifiersOf(node: Node): Modifier[] {
     collected.push(...(source.modifiers ?? []))
     for (const group of source.modifierGroups ?? []) flatten(group, [])
   }
+  node.modifiers = collected
   return collected
 }
 
@@ -740,7 +785,7 @@ function localHolds(group: LocalConditionGroup, node: Node, root: Node, index: C
   const candidates = new Set<Node>()
   for (const origin of origins) {
     for (const candidate of selectionsUnder(origin, group.includeChildSelections === true)) {
-      if (matches(candidate, group.childId)) candidates.add(candidate)
+      if (matches(candidate, group.childId, root, index, census)) candidates.add(candidate)
     }
   }
 
@@ -815,9 +860,9 @@ function measure(spec: Measurable, node: Node, root: Node, index: CatalogueIndex
 
   const seen = new Set<Node>()
   for (const origin of origins) {
-    if (spec.includeSelf && matches(origin, spec.childId)) seen.add(origin)
+    if (spec.includeSelf && matches(origin, spec.childId, root, index, census)) seen.add(origin)
     for (const candidate of selectionsUnder(origin, spec.includeChildSelections === true)) {
-      if (matches(candidate, spec.childId)) seen.add(candidate)
+      if (matches(candidate, spec.childId, root, index, census)) seen.add(candidate)
     }
   }
   const matching = [...seen]
@@ -832,7 +877,7 @@ function measure(spec: Measurable, node: Node, root: Node, index: CatalogueIndex
   if (spec.field === 'forces') {
     // A roster has exactly one force today, so this counts whether it is the kind
     // being asked about — which is how Crusade-only content is gated.
-    return origins.flatMap((origin) => forcesUnder(origin)).filter((force) => matches(force, spec.childId)).length
+    return origins.flatMap((origin) => forcesUnder(origin)).filter((force) => matches(force, spec.childId, root, index, census)).length
   }
   census.note(`measured field ${spec.field}`)
   return 0
@@ -843,22 +888,105 @@ const costOf = (node: Node, typeId: string) =>
     .flatMap((source) => source.costs ?? [])
     .find((cost: Cost) => cost.typeId === typeId)?.value
 
-function matches(node: Node, childId: string | undefined): boolean {
+function matches(node: Node, childId: string | undefined, root: Node, index: CatalogueIndex, census: Census): boolean {
   if (!childId || childId === 'any') return true
   if (ENTRY_TYPES.has(childId)) {
     const type = node.target.type
     return childId === 'model-or-unit' ? type === 'model' || type === 'unit' : type === childId
   }
-  return node.target.id === childId || node.id === childId || inGroup(node, childId) || inCategory(node, childId)
+  return node.target.id === childId || node.id === childId || inGroup(node, childId) || inCategory(node, childId, root, index, census)
 }
 
 /**
  * Whether this selection carries a keyword. Conditions test membership far more
  * often than identity — "is this inside a model of my own faction" is a category
  * test — so ignoring category links makes every such test answer no.
+ *
+ * A keyword the data hands out or takes away answers for itself; everything else
+ * is what the entry's own links write down.
  */
-function inCategory(node: Node, categoryId: string): boolean {
-  return sourcesOf(node).some((source) => (source.categoryLinks ?? []).some((link) => link.targetId === categoryId))
+function inCategory(node: Node, categoryId: string, root: Node, index: CatalogueIndex, census: Census): boolean {
+  const granted = grantsOf(root, index, census).get(node)?.get(categoryId)
+  return granted ?? isLinkedCategory(node, categoryId)
+}
+
+const isLinkedCategory = (node: Node, categoryId: string) =>
+  sourcesOf(node).some((source) => (source.categoryLinks ?? []).some((link) => link.targetId === categoryId))
+
+const linkedCategories = (node: Node) =>
+  new Set(sourcesOf(node).flatMap((source) => (source.categoryLinks ?? []).map((link) => link.targetId)))
+
+/**
+ * The keywords the data grants and withdraws, read once for the whole tree.
+ *
+ * Most keywords are written as category links, but a book also hands them out
+ * conditionally: a Chaplain in Terminator Armour is DEATHWING only when Dark
+ * Angels is the book the list is built from, and an enhancement gated on that
+ * keyword cannot be offered to a list that does not carry it. A grant is not
+ * always about the entry holding it — `scope` aims one at a parent, a model or the
+ * root entry — so this is read from the top rather than per node.
+ */
+function grantsOf(root: Node, index: CatalogueIndex, census: Census): Map<Node, Map<string, boolean>> {
+  if (root.grants) return root.grants
+  const grants = new Map<Node, Map<string, boolean>>()
+  /*
+   * Published empty before the pass reads anything, because a grant's own conditions
+   * can ask about keywords, including the ones this pass is deciding. An empty map
+   * answers every one of those from the written links, which is what keeps the pass
+   * finite and its answer independent of the order the tree is walked in: a grant may
+   * depend on what the data writes down, never on another grant.
+   */
+  root.grants = grants
+  const decided: { target: Node; categoryId: string; present: boolean }[] = []
+  for (const node of descendants(root)) {
+    for (const modifier of modifiersOf(node)) {
+      if (modifier.field !== 'category') continue
+      // `set-primary` and `unset-primary` change which keyword shelves a datasheet,
+      // not which keywords it carries.
+      if (modifier.type !== 'add' && modifier.type !== 'remove') {
+        census.note(`category modifier ${modifier.type}`)
+        continue
+      }
+      if (typeof modifier.value !== 'string') {
+        census.note(`category modifier ${modifier.type} without a keyword`)
+        continue
+      }
+      if (repeatCount(modifier, node, root, index, census) === 0) continue
+      for (const target of aimedAt(modifier, node, root, index, census)) {
+        decided.push({ target, categoryId: modifier.value, present: modifier.type === 'add' })
+      }
+    }
+  }
+  // Written order decides between a grant and a withdrawal of the same keyword — the
+  // Adepta Sororitas give Saint Potentia hers and take it away again on one entry —
+  // so these are applied in the order they were read, after every one has been read.
+  for (const { target, categoryId, present } of decided) {
+    const held = grants.get(target) ?? new Map<string, boolean>()
+    held.set(categoryId, present)
+    grants.set(target, held)
+  }
+  return grants
+}
+
+/** The selections a keyword modifier is aimed at: where its scope lands, narrowed by what it affects. */
+function aimedAt(modifier: Modifier, node: Node, root: Node, index: CatalogueIndex, census: Census): Node[] {
+  const origins = resolveScope(modifier.scope ?? 'self', node, root, census)
+  if (!modifier.affects) return origins
+  const reach = parseAffects(modifier.affects.split('.'))
+  // Which group a keyword written against one is meant to reach is not something
+  // the data says here, and guessing hands the keyword to the wrong selections.
+  if (reach.group) {
+    census.note('keyword granted to a group')
+    return []
+  }
+  const found = new Set<Node>()
+  for (const origin of origins) {
+    if (reach.includeSelf) found.add(origin)
+    // A force is transparent to `selectionsUnder`, so reaching across the roster's
+    // forces needs nothing beyond walking it.
+    if (reach.includeEntries || reach.forces) for (const child of selectionsUnder(origin, reach.recursive)) found.add(child)
+  }
+  return [...found].filter((each) => reach.filters.every((filter) => matches(each, filter, root, index, census)))
 }
 
 /**

@@ -1,6 +1,6 @@
 import { type Definition, type InfoGroup, type InfoLink, nameOf, type Profile, targetOf } from '../core/catalogue'
 import { attachmentOf } from '../core/attach'
-import { infoLinkHiddenByRules, profileModifiers, type ProfileModifier, type Selection } from '../core/evaluate'
+import { infoLinkHiddenByRules, keywordIds, profileModifiers, type ProfileModifier, type Selection } from '../core/evaluate'
 import { defaultSelection } from '../core/expand'
 import { unitChoices } from '../core/unitChoices'
 import { wargearOf } from '../core/wargear'
@@ -241,13 +241,15 @@ export function datasheetIn(loaded: LoadedCatalogue, catalogueId: string, entryI
   visit(root, true)
   if (sheet !== root) visit(sheet, true, [root.id])
 
-  const keywords = [...(root.categoryLinks ?? []), ...(sheet === root ? [] : (sheet.categoryLinks ?? []))]
   const name = nameOf(root, loaded.index.definitions)
   const details = datacardDetails(loaded, name)
   const attachment = attachmentOf(root, loaded.index)
   const relationships = relationshipsFor(loaded, catalogueId, root.id, name)
   const characteristicNames = loaded.characteristicNames
   const selection = selectedUnit ?? defaultSelection(root.id, loaded.index, { primaryCatalogueId: catalogueId })
+  const keywords = selection
+    ? keywordsIn(loaded, catalogueId, entryId, { selection, roster: selectedUnit ? context?.selections : undefined })
+    : keywordsIn(loaded, catalogueId, entryId)
   const catalogueOptions = selection
     ? unitChoices(root.id, selection, loaded.index, { primaryCatalogueId: catalogueId }).map((choice) => ({
         name: choice.name,
@@ -306,7 +308,7 @@ export function datasheetIn(loaded: LoadedCatalogue, catalogueId: string, entryI
     slug: datasheetSlug(loaded, catalogueId, root.id),
     name,
     points: priceOf(loaded, catalogueId, entryId),
-    keywords: [...new Set(keywords.map((link) => link.name).filter((keyword): keyword is string => Boolean(keyword)))].toSorted(),
+    keywords,
     profiles: uniqueProfiles(displayProfiles),
     abilities: uniqueAbilities([...abilities.values()]),
     composition: details?.composition ?? [],
@@ -322,6 +324,68 @@ export function datasheetIn(loaded: LoadedCatalogue, catalogueId: string, entryI
     supporters: relationships.supporters,
     keywordRules: [...keywordRules.values()],
   }
+}
+
+const keywordCache = new WeakMap<LoadedCatalogue, Map<string, string[]>>()
+
+/**
+ * The keywords printed on one datasheet, and the one place that answers for them.
+ *
+ * The links the entry and its target write down are the line as the book prints it,
+ * but a keyword can also be granted by the list around it — a Chaplain in Terminator
+ * Armour is DEATHWING in the Dark Angels book and nowhere else — so what the
+ * selection carries is read rather than what it links. Keywords the data keeps for
+ * its own bookkeeping are not printed.
+ *
+ * Without a `context` this answers for the datasheet on its own, against a default
+ * selection, and caches that against the immutable snapshot: the picker asks for
+ * every datasheet in a book, and an answer that depends on nothing else cannot
+ * change. With one it answers for that pick inside that list, and caches nothing.
+ */
+export function keywordsIn(
+  loaded: LoadedCatalogue,
+  catalogueId: string,
+  entryId: string,
+  context?: { selection: Selection; roster?: readonly Selection[] },
+): string[] {
+  const root = loaded.index.definitions.get(entryId)
+  if (!root) return []
+  if (context) {
+    return keywordsOf(loaded, catalogueId, root, context.selection, context.roster)
+  }
+  const key = `${catalogueId}:${entryId}`
+  const cached = keywordCache.get(loaded)?.get(key)
+  if (cached) return cached
+  const selection = defaultSelection(entryId, loaded.index, { primaryCatalogueId: catalogueId })
+  const found = keywordsOf(loaded, catalogueId, root, selection, undefined)
+  const entries = keywordCache.get(loaded) ?? new Map<string, string[]>()
+  entries.set(key, found)
+  keywordCache.set(loaded, entries)
+  return found
+}
+
+function keywordsOf(
+  loaded: LoadedCatalogue,
+  catalogueId: string,
+  root: Definition,
+  selection: Selection | null | undefined,
+  roster: readonly Selection[] | undefined,
+): string[] {
+  const sheet = targetOf(root, loaded.index.definitions)
+  const links = [...(root.categoryLinks ?? []), ...(sheet === root ? [] : (sheet.categoryLinks ?? []))]
+  const written = new Map(links.flatMap((link) => (link.name ? [[link.targetId, link.name] as const] : [])))
+  if (!selection) return [...new Set(written.values())].toSorted()
+  const selections = roster?.includes(selection) ? roster : [selection]
+  const held = keywordIds(selections, selections.indexOf(selection), loaded.index, { primaryCatalogueId: catalogueId })
+  const printed = held.flatMap((id) => {
+    // The book's own wording for a keyword it prints, and the category's name for
+    // one the list granted. Bookkeeping the data keeps for itself stays unprinted.
+    const wording = written.get(id)
+    if (wording) return [wording]
+    const category = loaded.index.categories.get(id)
+    return category?.name && !category.hidden ? [category.name] : []
+  })
+  return [...new Set(printed)].toSorted()
 }
 
 /** Selected and offered-weapon views sharing the expensive roster modifier fold. */

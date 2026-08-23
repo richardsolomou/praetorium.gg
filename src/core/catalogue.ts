@@ -160,6 +160,8 @@ type CategoryLink = { id: string; targetId: string; name?: string; primary?: boo
 type CategoryEntry = {
   id: string
   name?: string
+  /** Bookkeeping the data keeps for itself — a marker naming weapons with a variable characteristic. */
+  hidden?: boolean
   constraints?: Constraint[]
   modifiers?: Modifier[]
   modifierGroups?: ModifierGroup[]
