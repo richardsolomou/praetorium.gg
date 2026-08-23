@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.21.7
+
+### Patch Changes
+
+- 85aee37: Score primary missions at the end of each player's turn in the final battle round.
+
 ## 0.21.6
 
 ### Patch Changes
