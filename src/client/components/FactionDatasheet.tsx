@@ -33,7 +33,7 @@ export function FactionDatasheet() {
         style={{ borderTopColor: factionColour(faction.slug) }}
       >
         <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,transparent_35%,color-mix(in_srgb,var(--color-parchment)_8%,transparent),transparent_75%)]" />
-        <div className="relative mx-auto flex max-w-5xl items-start gap-3 px-3 py-5 sm:px-4 sm:py-7">
+        <div className="relative mx-auto flex max-w-5xl items-start gap-3 px-3 pt-[17px] pb-5 sm:px-4 sm:pt-[25px] sm:pb-7">
           <FactionMark id={faction.slug} icon={faction.icon} />
           <div className="min-w-0 flex-1">
             <p className="eyebrow text-parchment">{faction.displayName} · Datasheet</p>
