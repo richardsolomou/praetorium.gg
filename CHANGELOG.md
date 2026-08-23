@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.22.2
+
+### Patch Changes
+
+- 6dc0960: Keep mission packs, battle setup, and create-battle showing their mission and disposition data when the cached rules lack a disposition map.
+
 ## 0.22.1
 
 ### Patch Changes
