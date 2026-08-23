@@ -16,7 +16,7 @@ import { DrawDialog, type WhenDrawn } from './battle/DrawDialog'
 import { DiscardSecondaryDialog } from './battle/DiscardSecondaryDialog'
 import type { Award, ReferenceCard, StratagemText } from './battle/MissionCards'
 import { Scoreboard } from './battle/Scoreboard'
-import { turnPrompt } from '../scoring'
+import { HAND_SIZE, turnPrompt } from '../scoring'
 import { dueForAdvance, dueFromTheirTurn, ScoringDialog } from './battle/ScoringDialog'
 import { SidePanel } from './battle/SidePanel'
 import { HEADING } from './battle/tints'
@@ -190,7 +190,7 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
     dealing &&
     dealing.secondaryMode === 'tactical' &&
     view.phase === 'command' &&
-    dealing.secondariesDrawnThisTurn < 2 &&
+    dealing.secondariesDrawnThisTurn.length < HAND_SIZE &&
     dealing.remainingSecondaries.length > 0
   // Latched, because the turn stops owing a draw the moment it is dealt and the player
   // still has to see what they drew and whether a card may go back.

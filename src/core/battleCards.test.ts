@@ -627,7 +627,7 @@ describe('secondaries', () => {
     )
 
     expect(alice(state)?.secondaryStatus).toEqual({ a: 'active', b: 'active' })
-    expect(alice(state)?.secondariesDrawnThisTurn).toBe(0)
+    expect(alice(state)?.secondariesDrawnThisTurn).toEqual([])
     expect(state.round).toBe(2)
     expect(validate(state, ALICE, { kind: 'draw-secondaries', secondaries: cards.slice(2, 4) })).toBeNull()
     expect(validate(state, ALICE, { kind: 'draw-secondaries', secondaries: cards.slice(2, 3) })).toBe(
@@ -664,8 +664,57 @@ describe('secondaries', () => {
       ),
     )
 
-    expect(alice(state)?.secondariesDrawnThisTurn).toBe(1)
+    // The card put back leaves the turn's tally; the one still in hand is what it dealt.
+    expect(alice(state)?.secondariesDrawnThisTurn).toEqual(['a'])
     expect(validate(state, ALICE, { kind: 'draw-secondary', secondary: cards[2]! })).toBeNull()
+  })
+
+  /**
+   * A hand carries what it did not score, so most turns open holding cards the turn
+   * did not deal — and only what the turn dealt may go back to the deck.
+   */
+  it('names the cards this turn dealt apart from the ones the hand was carrying', () => {
+    const cards = [
+      { key: 'a', name: 'Behind Enemy Lines' },
+      { key: 'b', name: 'Defend Stronghold' },
+      { key: 'c', name: 'Area Denial' },
+      { key: 'd', name: 'Cull the Horde' },
+    ]
+    const state = reduceBattle(
+      PLAYERS,
+      log(
+        ...started(),
+        [ALICE, { kind: 'set-prep', stratagems: [], primary: null, secondaryMode: 'tactical', secondaries: [], secondaryDeck: cards }],
+        [ALICE, { kind: 'draw-secondaries', secondaries: cards.slice(0, 2) }],
+        ...turns(6, ALICE),
+        ...turns(6, BOB),
+        [ALICE, { kind: 'draw-secondaries', secondaries: cards.slice(2, 4) }],
+      ),
+    )
+
+    // Four in hand, two of them this turn's.
+    expect(alice(state)?.secondaries.map((secondary) => secondary.key)).toEqual(['a', 'b', 'c', 'd'])
+    expect(alice(state)?.secondariesDrawnThisTurn).toEqual(['c', 'd'])
+
+    // Putting back a card carried from an earlier turn frees no draw, because it was
+    // never one of this turn's two.
+    const carried = reduceBattle(
+      PLAYERS,
+      log(
+        ...started(),
+        [ALICE, { kind: 'set-prep', stratagems: [], primary: null, secondaryMode: 'tactical', secondaries: [], secondaryDeck: cards }],
+        [ALICE, { kind: 'draw-secondaries', secondaries: cards.slice(0, 2) }],
+        ...turns(6, ALICE),
+        ...turns(6, BOB),
+        [ALICE, { kind: 'draw-secondaries', secondaries: cards.slice(2, 4) }],
+        [ALICE, { kind: 'set-secondary-status', key: 'a', status: 'returned' }],
+      ),
+    )
+
+    expect(alice(carried)?.secondariesDrawnThisTurn).toEqual(['c', 'd'])
+    expect(validate(carried, ALICE, { kind: 'draw-secondary', secondary: { key: 'e', name: 'Storm Hostile Objective' } })).toBe(
+      'you have already drawn your secondaries this turn',
+    )
   })
 
   it('refuses a secret outside the authoritative deck', () => {

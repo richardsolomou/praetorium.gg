@@ -114,8 +114,14 @@ export type BattleView = {
     primaryCard: Secondary | null
     secondaryMode: SecondaryMode
     remainingSecondaries: Secondary[]
-    /** Drawn since this side's current turn began, out of `TACTICAL_HAND_SIZE`. */
-    secondariesDrawnThisTurn: number
+    /**
+     * The cards this side's turn has dealt, out of `TACTICAL_HAND_SIZE`.
+     *
+     * Named, so the prompt can tell what a turn just dealt from what a hand has been
+     * carrying — only the first may be put back. Masked exactly like the hand itself,
+     * so a side reading across the table counts the draws without learning the cards.
+     */
+    secondariesDrawnThisTurn: string[]
   }[]
   /** The conventional ceilings, for display beside a total. */
   guides: { primary: number; secondary: number }
@@ -224,7 +230,9 @@ export function battleView(
         })),
         primaryCard: resources.primaryCard,
         secondaryMode: resources.secondaryMode,
-        secondariesDrawnThisTurn: resources.secondariesDrawnThisTurn,
+        secondariesDrawnThisTurn: resources.secondariesDrawnThisTurn.map((key) =>
+          mayNameCard(state, viewerId, resources, key) ? key : 'secret',
+        ),
         /**
          * What is left in this side's deck, to the people playing that side.
          *

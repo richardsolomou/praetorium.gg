@@ -378,7 +378,15 @@ export type PlayerState = {
   uses: StratagemUse[]
   secondaries: Secondary[]
   /** Cards drawn since this side's turn began, reset when it begins again. A card kept from an earlier turn does not count against it. */
-  secondariesDrawnThisTurn: number
+  /**
+   * The cards this side's current turn has dealt, in the order they came off the deck.
+   *
+   * The keys and not a tally, because a card may only be put back the moment it is
+   * drawn: a hand carries unscored cards from turn to turn, and a count cannot tell
+   * the two apart. It is also what says which draw a card put back was using, so
+   * putting one back frees the slot it took rather than any slot at all.
+   */
+  secondariesDrawnThisTurn: string[]
   /** This side's primary mission for its ordered disposition matchup. */
   primaryCard: Secondary | null
   secondaryMode: SecondaryMode
@@ -547,7 +555,7 @@ export function emptyBattle(playerIds: readonly PlayerId[], playerSides?: readon
       stratagems: [],
       uses: [],
       secondaries: [],
-      secondariesDrawnThisTurn: 0,
+      secondariesDrawnThisTurn: [],
       primaryCard: null,
       secondaryMode: 'tactical',
       secondaryDeck: null,
@@ -842,7 +850,7 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
     case 'draw-secondary': {
       if (state.status !== 'playing') return 'the battle is not running'
       if (player.secondaryMode !== 'tactical') return 'only tactical missions are drawn'
-      if (player.secondariesDrawnThisTurn >= TACTICAL_HAND_SIZE) {
+      if (player.secondariesDrawnThisTurn.length >= TACTICAL_HAND_SIZE) {
         return 'you have already drawn your secondaries this turn'
       }
       if (!command.secondary.name.trim()) return 'name the secondary'
@@ -860,7 +868,7 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
         (candidate) => !player.secondaries.some((secondary) => secondary.key === candidate.key),
       ).length
       const refill = Math.min(
-        TACTICAL_HAND_SIZE - player.secondariesDrawnThisTurn,
+        TACTICAL_HAND_SIZE - player.secondariesDrawnThisTurn.length,
         remaining,
         SECONDARY_HISTORY_MAX - player.secondaries.length,
       )
@@ -1090,7 +1098,7 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
       player.secondaryStatus = { ...player.secondaryStatus, [command.key]: command.status }
       if (command.key === player.secretSecondary && command.status !== 'active') player.secretRevealed = true
       if (wasActive && command.status !== 'active') {
-        player.secondariesDrawnThisTurn = Math.max(0, player.secondariesDrawnThisTurn - 1)
+        player.secondariesDrawnThisTurn = player.secondariesDrawnThisTurn.filter((key) => key !== command.key)
       }
       return
     }
@@ -1098,7 +1106,7 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
       const secondary = { ...(player.secondaryDeck?.find((candidate) => candidate.key === command.secondary.key) ?? command.secondary) }
       player.secondaries.push(secondary)
       player.secondaryStatus = { ...player.secondaryStatus, [secondary.key]: 'active' }
-      player.secondariesDrawnThisTurn += 1
+      player.secondariesDrawnThisTurn = [...player.secondariesDrawnThisTurn, secondary.key]
       return
     }
     case 'draw-secondaries': {
@@ -1107,7 +1115,7 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
         player.secondaries.push(secondary)
         player.secondaryStatus = { ...player.secondaryStatus, [secondary.key]: 'active' }
       }
-      player.secondariesDrawnThisTurn += command.secondaries.length
+      player.secondariesDrawnThisTurn = [...player.secondariesDrawnThisTurn, ...command.secondaries.map((drawn) => drawn.key)]
       return
     }
     case 'select-secret': {
@@ -1263,7 +1271,7 @@ function resetPlayer(player: PlayerState) {
   player.stratagems = []
   player.uses = []
   player.secondaries = []
-  player.secondariesDrawnThisTurn = 0
+  player.secondariesDrawnThisTurn = []
   player.secondaryDeck = null
   player.primaryCard = null
   player.secondaryMode = 'tactical'
@@ -1338,7 +1346,7 @@ function enterTurn(state: BattleState, playerId: PlayerId, settlementRound: numb
     player.cp += COMMAND_PHASE_CP
     player.cpGained += COMMAND_PHASE_CP
     player.cpByRound[state.round - 1] = player.cp
-    player.secondariesDrawnThisTurn = 0
+    player.secondariesDrawnThisTurn = []
   }
 }
 
@@ -1477,7 +1485,7 @@ export function sideOwes(state: BattleState, player: PlayerState): 'settlement' 
   if (
     state.phase === 'command' &&
     player.secondaryMode === 'tactical' &&
-    player.secondariesDrawnThisTurn < TACTICAL_HAND_SIZE &&
+    player.secondariesDrawnThisTurn.length < TACTICAL_HAND_SIZE &&
     hasUndrawnCard
   ) {
     return 'cards'

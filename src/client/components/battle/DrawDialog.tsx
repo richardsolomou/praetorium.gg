@@ -48,6 +48,17 @@ export function DrawDialog({
   onDone,
 }: Props) {
   const held = side.secondaries.filter((card) => card.status === 'active')
+  /**
+   * What this turn dealt, apart from what the hand was already carrying.
+   *
+   * A hand keeps its unscored cards from turn to turn, so most turns open with cards
+   * that were not drawn now — and a card may only be put back the moment it is drawn.
+   * Listing all of them as one deal said the turn had dealt four cards when it dealt
+   * two, and offered a card from two turns ago back to the deck.
+   */
+  const dealtNow = new Set(side.secondariesDrawnThisTurn)
+  const drawn = held.filter((card) => dealtNow.has(card.key))
+  const carried = held.filter((card) => !dealtNow.has(card.key))
   const [paused, setPaused] = useState(initiallyPaused)
   const [inspected, setInspected] = useState<MissionDetails | null>(null)
   const [confirmingUndo, setConfirmingUndo] = useState<number | null>(null)
@@ -80,7 +91,7 @@ export function DrawDialog({
     const requested = new Set(asked.current)
     const secondaries = []
     while (true) {
-      const card = nextDraw(side.secondariesDrawnThisTurn, requested, side.secondaries, side.remainingSecondaries)
+      const card = nextDraw(side.secondariesDrawnThisTurn.length, requested, side.secondaries, side.remainingSecondaries)
       if (!card) break
       requested.add(card.key)
       secondaries.push(card)
@@ -103,12 +114,15 @@ export function DrawDialog({
               {side.isViewer ? 'Your secondary missions' : `${sideName(side)}’s secondary missions`}
             </DialogTitle>
             <DialogDescription className="text-dim">
-              Drawn at random from the deck, {side.remainingSecondaries.length} cards left. Some cards may be put back the moment they are
-              drawn.
+              {carried.length
+                ? `${drawn.length} drawn at random from the deck, on top of the ${carried.length} your hand was already holding. `
+                : 'Drawn at random from the deck. '}
+              {side.remainingSecondaries.length} cards left. Some cards may be put back the moment they are drawn.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
-            {held.map((card) => {
+            {carried.length ? <p className="eyebrow">Drawn this turn</p> : null}
+            {drawn.map((card) => {
               const rule = whenDrawnFor(card.key)
               const offer = redrawOffer(rule, round, held)
               return (
@@ -139,10 +153,31 @@ export function DrawDialog({
                 </div>
               )
             })}
-            {paused && side.secondariesDrawnThisTurn < HAND_SIZE ? (
+            {/*
+             * Named for what they are: still in hand, and not this turn's to put back.
+             * Drawn under the new cards rather than above them, because the question the
+             * prompt is asking is about the ones that just arrived.
+             */}
+            {carried.length ? (
+              <>
+                <p className="eyebrow pt-1">Still in hand</p>
+                {carried.map((card) => (
+                  <div key={card.key} data-held={card.key} className={`${CARD} space-y-1.5`}>
+                    <MissionName
+                      name={card.name}
+                      card={referenceFor(card.key)}
+                      type="Secondary mission"
+                      mode={side.secondaryMode}
+                      onRead={setInspected}
+                    />
+                  </div>
+                ))}
+              </>
+            ) : null}
+            {paused && side.secondariesDrawnThisTurn.length < HAND_SIZE ? (
               <p className="text-sm text-dim">Drawing paused while you undo.</p>
             ) : null}
-            {!paused && side.secondariesDrawnThisTurn < HAND_SIZE ? <p className="text-sm text-discarded">Drawing…</p> : null}
+            {!paused && side.secondariesDrawnThisTurn.length < HAND_SIZE ? <p className="text-sm text-discarded">Drawing…</p> : null}
           </div>
           <DialogFooter className="rounded-none border-edge bg-sunken">
             <Button
@@ -161,12 +196,12 @@ export function DrawDialog({
               <Undo2 />
               Undo latest action
             </Button>
-            {paused && side.secondariesDrawnThisTurn < HAND_SIZE ? (
+            {paused && side.secondariesDrawnThisTurn.length < HAND_SIZE ? (
               <Button disabled={pending} onClick={() => setPaused(false)}>
                 Resume drawing
               </Button>
             ) : (
-              <Button disabled={pending || side.secondariesDrawnThisTurn < HAND_SIZE} onClick={onDone}>
+              <Button disabled={pending || side.secondariesDrawnThisTurn.length < HAND_SIZE} onClick={onDone}>
                 Take the turn
               </Button>
             )}
