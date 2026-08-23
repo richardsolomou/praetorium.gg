@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
 import { Link } from '@tanstack/react-router'
 import type { BattleView } from '../../../core/battleView'
+import { completedBattleRound } from '../../battleProgress'
 import { factionFor } from '../../factions'
 import { factionsQuery } from '../../queries'
 import { PlayerAvatar } from '../PlayerAvatar'
@@ -32,7 +33,13 @@ export function Scoreboard({ view, sides, outcome, menu }: Props) {
         }`}
       >
         {sides.map((side, position) => (
-          <SideScore key={side.index} side={side} round={view.round} token={view.token} align={position === 0 ? 'start' : 'end'} />
+          <SideScore
+            key={side.index}
+            side={side}
+            completedRound={completedBattleRound(view.status, view.round, view.result?.reason)}
+            token={view.token}
+            align={position === 0 ? 'start' : 'end'}
+          />
         ))}
         <div className="order-2 flex items-center gap-2 text-center">
           <div className="min-w-28">
@@ -62,7 +69,7 @@ export function Scoreboard({ view, sides, outcome, menu }: Props) {
   )
 }
 
-function SideScore({ side, round, token, align }: { side: Side; round: number; token: string; align: 'start' | 'end' }) {
+function SideScore({ side, completedRound, token, align }: { side: Side; completedRound: number; token: string; align: 'start' | 'end' }) {
   const colours = tint(side.index)
   const end = align === 'end'
   const { data: factions } = useQuery(factionsQuery())
@@ -147,7 +154,7 @@ function SideScore({ side, round, token, align }: { side: Side; round: number; t
         </p>
         <div className={`mt-1 flex gap-0.5 ${end ? 'flex-row-reverse' : ''}`} aria-hidden>
           {side.rounds.map((entry) => (
-            <span key={entry.round} className={`h-1 flex-1 ${entry.round <= round ? colours.rail : 'bg-edge-strong'}`} />
+            <span key={entry.round} className={`h-1 flex-1 ${entry.round <= completedRound ? colours.rail : 'bg-edge-strong'}`} />
           ))}
         </div>
       </div>
