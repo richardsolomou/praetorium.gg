@@ -96,8 +96,8 @@ export function previewEnv(prNumber: string, previewUrl: string, source: Source 
   // requests that closed. Absent means "do not know", and the container leaves
   // every database alone rather than guessing.
   if (live.length) entries.push(['PRAETORIUM_PREVIEW_LIVE_PR_NUMBERS', live.join(' ')])
-  const snapshot = value(source, 'CATALOGUE_SNAPSHOT_BASE_URL')
-  if (snapshot) entries.push(['CATALOGUE_SNAPSHOT_BASE_URL', snapshot])
+  const snapshot = value(source, 'S3_PUBLIC_BASE_URL')
+  if (snapshot) entries.push(['S3_PUBLIC_BASE_URL', snapshot])
   // No VALKEY_URL: a preview is one replica, so sessions and the limiter belong in
   // Postgres and Centrifugo fans out in process. Sharing one Valkey across previews
   // would put every preview's sessions in the same keyspace.

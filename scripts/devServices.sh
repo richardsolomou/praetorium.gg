@@ -1,5 +1,5 @@
 #!/bin/sh
-# Postgres and Valkey for local development, in containers that outlive nothing.
+# Postgres, Valkey and MinIO for local development, in containers that outlive nothing.
 #
 # The data lives in named volumes rather than the repository, so a reset is a
 # `docker volume rm` and never a stray directory. Ports are overridable because a
@@ -9,14 +9,21 @@ set -eu
 action=${1:-up}
 postgres_name=${POSTGRES_CONTAINER:-praetorium-postgres-dev}
 valkey_name=${VALKEY_CONTAINER:-praetorium-valkey-dev}
+minio_name=${MINIO_CONTAINER:-praetorium-minio-dev}
 postgres_port=${POSTGRES_PORT:-5432}
 valkey_port=${VALKEY_PORT:-6379}
+minio_port=${MINIO_PORT:-9000}
 postgres_image=${POSTGRES_IMAGE:-postgres:18-alpine}
 valkey_image=${VALKEY_IMAGE:-valkey/valkey:9-alpine}
+minio_image=${MINIO_IMAGE:-minio/minio:RELEASE.2025-04-08T15-41-24Z}
+minio_mc_image=${MINIO_MC_IMAGE:-minio/mc:RELEASE.2025-04-08T15-39-49Z}
+s3_bucket=${S3_BUCKET:-praetorium}
+s3_access_key_id=${S3_ACCESS_KEY_ID:-praetorium}
+s3_secret_access_key=${S3_SECRET_ACCESS_KEY:-praetorium-storage}
 
 if [ "$action" = "down" ]; then
-    docker rm --force "$postgres_name" "$valkey_name" >/dev/null 2>&1 || true
-    echo "stopped $postgres_name and $valkey_name"
+    docker rm --force "$postgres_name" "$valkey_name" "$minio_name" >/dev/null 2>&1 || true
+    echo "stopped $postgres_name, $valkey_name and $minio_name"
     exit 0
 fi
 
@@ -43,6 +50,39 @@ if ! running "$valkey_name"; then
         "$valkey_image" >/dev/null
     echo "started $valkey_name on $valkey_port"
 fi
+
+if ! running "$minio_name"; then
+    docker rm --force "$minio_name" >/dev/null 2>&1 || true
+    docker run --detach --name "$minio_name" \
+        --publish "127.0.0.1:$minio_port:9000" \
+        --env MINIO_ROOT_USER="$s3_access_key_id" \
+        --env MINIO_ROOT_PASSWORD="$s3_secret_access_key" \
+        --volume praetorium-minio-dev:/data \
+        "$minio_image" server /data --address ':9000' >/dev/null
+    echo "started $minio_name on $minio_port"
+fi
+
+printf 'waiting for minio'
+attempt=0
+until docker exec "$minio_name" mc ready local >/dev/null 2>&1; do
+    attempt=$((attempt + 1))
+    if [ "$attempt" -gt 60 ]; then
+        echo ' — gave up'
+        exit 1
+    fi
+    printf '.'
+    sleep 1
+done
+echo ' ready'
+docker run --rm --network "container:$minio_name" \
+    --env MINIO_ROOT_USER="$s3_access_key_id" \
+    --env MINIO_ROOT_PASSWORD="$s3_secret_access_key" \
+    --env BUCKET="$s3_bucket" \
+    --entrypoint sh "$minio_mc_image" -c '
+        mc alias set local http://127.0.0.1:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" &&
+        mc mb --ignore-existing "local/$BUCKET" &&
+        mc anonymous set download "local/$BUCKET"
+    ' >/dev/null
 
 # The app migrates before it serves, so waiting here rather than there keeps the
 # failure legible: a database that never came up says so, once.

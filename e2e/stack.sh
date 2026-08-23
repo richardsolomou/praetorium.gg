@@ -22,6 +22,8 @@ network="praetorium-e2e-net-${port}"
 app="praetorium-e2e-${port}"
 postgres="praetorium-e2e-postgres-${port}"
 valkey="praetorium-e2e-valkey-${port}"
+minio="praetorium-e2e-minio-${port}"
+minio_port=$((port + 10000))
 
 # Covers a signal arriving during setup, before the exec below hands this
 # process over to the app container.
@@ -46,11 +48,32 @@ docker run --rm --detach --name "$postgres" --network "$network" \
 docker run --rm --detach --name "$valkey" --network "$network" \
     "${VALKEY_IMAGE:-valkey/valkey:9-alpine}" >/dev/null
 
+# Published: profile pictures are read back by the browser directly, not
+# through the app, so this is the one exception to "nothing but the app".
+docker run --rm --detach --name "$minio" --network "$network" \
+    --publish "127.0.0.1:${minio_port}:9000" \
+    --env MINIO_ROOT_USER=praetorium \
+    --env MINIO_ROOT_PASSWORD=praetorium-storage \
+    "${MINIO_IMAGE:-minio/minio:RELEASE.2025-04-08T15-41-24Z}" server /data --address ':9000' >/dev/null
+
 # The app migrates before it serves, so it must not start before Postgres answers.
 for _ in $(seq 1 60); do
     if docker exec "$postgres" pg_isready -U praetorium -d praetorium >/dev/null 2>&1; then break; fi
     sleep 1
 done
+
+for _ in $(seq 1 60); do
+    if docker exec "$minio" mc ready local >/dev/null 2>&1; then break; fi
+    sleep 1
+done
+docker run --rm --network "$network" \
+    --env MINIO_ROOT_USER=praetorium \
+    --env MINIO_ROOT_PASSWORD=praetorium-storage \
+    --entrypoint sh "${MINIO_MC_IMAGE:-minio/mc:RELEASE.2025-04-08T15-39-49Z}" -c "
+        mc alias set local http://${minio}:9000 \"\$MINIO_ROOT_USER\" \"\$MINIO_ROOT_PASSWORD\" &&
+        mc mb --ignore-existing local/praetorium &&
+        mc anonymous set download local/praetorium
+    " >/dev/null
 
 exec docker run --rm --name "$app" --network "$network" \
     --publish "127.0.0.1:${port}:3000" \
@@ -61,4 +84,9 @@ exec docker run --rm --name "$app" --network "$network" \
     --env CATALOGUE_DIR=/catalogue \
     --env RULES_DIR=/catalogue/rules \
     --env AUTH_RATE_LIMIT=off \
+    --env S3_ENDPOINT="http://${minio}:9000" \
+    --env S3_BUCKET=praetorium \
+    --env S3_ACCESS_KEY_ID=praetorium \
+    --env S3_SECRET_ACCESS_KEY=praetorium-storage \
+    --env S3_PUBLIC_BASE_URL="http://127.0.0.1:${minio_port}/praetorium" \
     "$image"

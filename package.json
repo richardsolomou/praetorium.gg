@@ -35,9 +35,11 @@
     "catalogue:update": "tsx scripts/syncCatalogue.ts --update",
     "catalogue:points": "node --max-old-space-size=8192 --import tsx scripts/checkPoints.ts && tsx scripts/checkRestrictions.ts",
     "benchmark:roster": "tsx scripts/benchmarkRosterLoading.ts",
-    "db:migrate": "tsx scripts/migrate.ts"
+    "db:migrate": "tsx scripts/migrate.ts",
+    "profile-images:migrate": "tsx scripts/migrateProfileImages.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "3.1111.0",
     "@base-ui/react": "^1.7.0",
     "@fontsource/barlow": "5.3.0",
     "@fontsource/barlow-semi-condensed": "5.3.0",

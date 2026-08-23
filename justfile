@@ -7,12 +7,12 @@ install:
     corepack enable
     pnpm install
 
-# The app, Centrifugo, Postgres and Valkey together, since the app needs all four
+# The app, Centrifugo, Postgres, Valkey and MinIO together, since the app needs all five
 dev:
     #!/usr/bin/env bash
     # Centrifugo goes in the background and is taken down on the way out, so a
-    # stray container cannot outlive the terminal that started it. Postgres and
-    # Valkey are left running: their data is worth keeping between sessions.
+    # stray container cannot outlive the terminal that started it. Postgres,
+    # Valkey and MinIO are left running: their data is worth keeping between sessions.
     set -euo pipefail
     mkdir -p data-dev
     just services
@@ -23,14 +23,19 @@ dev:
     trap cleanup EXIT INT TERM
     export DATABASE_URL="${DATABASE_URL:-postgres://praetorium:praetorium@127.0.0.1:5432/praetorium}"
     export VALKEY_URL="${VALKEY_URL:-redis://127.0.0.1:6379}"
+    export S3_ENDPOINT="${S3_ENDPOINT:-http://127.0.0.1:9000}"
+    export S3_BUCKET="${S3_BUCKET:-praetorium}"
+    export S3_ACCESS_KEY_ID="${S3_ACCESS_KEY_ID:-praetorium}"
+    export S3_SECRET_ACCESS_KEY="${S3_SECRET_ACCESS_KEY:-praetorium-storage}"
+    export S3_PUBLIC_BASE_URL="${S3_PUBLIC_BASE_URL:-http://127.0.0.1:9000/praetorium}"
     pnpm db:migrate
     DATA_DIR=./data-dev CATALOGUE_DIR=./catalogue-data RULES_DIR=./catalogue-data/rules pnpm dev
 
-# Postgres and Valkey alone, for when the dev server is already running
+# Postgres, Valkey and MinIO alone, for when the dev server is already running
 services *args:
     sh scripts/devServices.sh {{ args }}
 
-# Take the development Postgres and Valkey down
+# Take the development Postgres, Valkey and MinIO down
 services-down:
     sh scripts/devServices.sh down
 
@@ -82,6 +87,10 @@ db-check:
 # Bring the schema up to date against DATABASE_URL
 db-migrate:
     pnpm db:migrate
+
+# One-off: move any inline profile picture still in DATABASE_URL into S3_* object storage
+profile-images-migrate:
+    pnpm profile-images:migrate
 
 e2e-install:
     pnpm exec playwright install chromium --only-shell

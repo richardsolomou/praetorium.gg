@@ -56,7 +56,7 @@ test('a tactical hand is dealt rather than chosen, and pays out when the card sa
   const scoreboard = alice.getByRole('region', { name: 'Battle scoreboard' })
   const playerLink = scoreboard.getByRole('link', { name: aliceName })
   await expect(playerLink).toHaveAttribute('href', /^\/users\/[^/?]+$/)
-  await expect(playerLink.locator('img')).toHaveAttribute('src', /^data:image\/webp;base64,/)
+  await expect(playerLink.locator('img')).toHaveAttribute('src', /\/avatars\/[0-9a-f]+\.webp$/)
   await playerLink.hover()
   await expect(playerLink).toHaveCSS('text-decoration-line', 'none')
   await expect(playerLink.getByText(aliceName, { exact: true })).toHaveCSS('text-decoration-line', 'underline')

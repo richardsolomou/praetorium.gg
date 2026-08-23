@@ -1,12 +1,11 @@
-import { PROFILE_IMAGE_MAX_LENGTH, PROFILE_NAME_MAX_LENGTH } from '../authConfig'
+import { PROFILE_NAME_MAX_LENGTH } from '../authConfig'
+import { isStoredProfileImageUrl, storeProfileImage } from './avatarStorage'
 
 type ProfileUpdate = Record<string, unknown>
 
 type ProfileUpdateResult = { ok: true; data: ProfileUpdate } | { ok: false; error: string }
 
-const PROFILE_IMAGE = /^data:image\/(?:jpeg|png|webp);base64,[A-Za-z0-9+/]+={0,2}$/
-
-export function profileUpdate(input: ProfileUpdate): ProfileUpdateResult {
+export async function profileUpdate(input: ProfileUpdate): Promise<ProfileUpdateResult> {
   const data = { ...input }
 
   if ('name' in data) {
@@ -20,8 +19,15 @@ export function profileUpdate(input: ProfileUpdate): ProfileUpdateResult {
   }
 
   if ('image' in data && data.image !== null) {
-    if (typeof data.image !== 'string' || data.image.length > PROFILE_IMAGE_MAX_LENGTH || !PROFILE_IMAGE.test(data.image)) {
-      return { ok: false, error: 'Choose a JPEG, PNG or WebP profile picture.' }
+    if (typeof data.image !== 'string') return { ok: false, error: 'Choose a JPEG, PNG or WebP profile picture.' }
+    // An unmodified save resends the same URL this module handed back last time; only a fresh
+    // choice from the file picker arrives as a data URL and needs storing.
+    if (!isStoredProfileImageUrl(data.image)) {
+      try {
+        data.image = await storeProfileImage(data.image)
+      } catch (error) {
+        return { ok: false, error: error instanceof Error ? error.message : 'Choose a JPEG, PNG or WebP profile picture.' }
+      }
     }
   }
 

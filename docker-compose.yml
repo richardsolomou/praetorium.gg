@@ -8,6 +8,8 @@ services:
         condition: service_healthy
       valkey:
         condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
     ports:
       - '3030:3000'
     environment:
@@ -19,7 +21,18 @@ services:
       # Public origin of the deployment. Only needed when proxy headers cannot
       # represent it; mutations are rejected from any other origin.
       APP_URL: ${APP_URL:-}
-      CATALOGUE_SNAPSHOT_BASE_URL: ${CATALOGUE_SNAPSHOT_BASE_URL:-}
+      # Where profile pictures are uploaded to, and (unset) the community catalogue
+      # is mirrored from. Compose's own MinIO by default; point at any
+      # S3-compatible store instead, with S3_PUBLIC_BASE_URL set to wherever it is
+      # publicly reachable.
+      S3_ENDPOINT: ${S3_ENDPOINT:-http://minio:9000}
+      S3_BUCKET: ${S3_BUCKET:-praetorium}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-praetorium}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-praetorium-storage}
+      # Only correct when the browser reaches this host as `localhost`; a real
+      # deployment behind a domain must set this to wherever the store is
+      # actually publicly reachable, and set S3_BUCKET to match if it differs.
+      S3_PUBLIC_BASE_URL: ${S3_PUBLIC_BASE_URL:-http://localhost:9000/praetorium}
       # Signs account sessions. Generated into /data when unset; changing it
       # signs every player out, but does not remove their data.
       AUTH_SECRET: ${AUTH_SECRET:-}
@@ -72,6 +85,48 @@ services:
     volumes:
       - praetorium-valkey:/data
 
+  minio:
+    image: minio/minio:RELEASE.2025-04-08T15-41-24Z
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY_ID:-praetorium}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_ACCESS_KEY:-praetorium-storage}
+    command: ['server', '/data', '--address', ':9000', '--console-address', ':9001']
+    # Published, not just exposed: a browser reads pictures back from here
+    # directly, not through the app.
+    ports:
+      - '9000:9000'
+      - '9001:9001'
+    healthcheck:
+      test: ['CMD', 'mc', 'ready', 'local']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - praetorium-minio:/data
+
+  # Runs once: creates the bucket and lets it be read anonymously, the same
+  # shape as the public catalogue mirror. Nothing inside it needs the same
+  # openness — only the keys the app chooses to write are reachable, never a
+  # directory listing.
+  minio-init:
+    image: minio/mc:RELEASE.2025-04-08T15-39-49Z
+    restart: 'no'
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY_ID:-praetorium}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_ACCESS_KEY:-praetorium-storage}
+      BUCKET: ${S3_BUCKET:-praetorium}
+    entrypoint: ['sh', '-c']
+    command:
+      - |
+        mc alias set local http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD" &&
+        mc mb --ignore-existing "local/$$BUCKET" &&
+        mc anonymous set download "local/$$BUCKET"
+
 volumes:
   praetorium-postgres:
   praetorium-valkey:
+  praetorium-minio:

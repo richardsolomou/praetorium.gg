@@ -88,8 +88,8 @@ describe('the environment a preview runs with', () => {
   })
 
   it('passes the snapshot mirror through when one is configured', () => {
-    const entries = built({ PREVIEW_DATABASE_ADMIN_URL: ADMIN, CATALOGUE_SNAPSHOT_BASE_URL: 'https://example.test/c' })
-    expect(entries.CATALOGUE_SNAPSHOT_BASE_URL).toBe('https://example.test/c')
+    const entries = built({ PREVIEW_DATABASE_ADMIN_URL: ADMIN, S3_PUBLIC_BASE_URL: 'https://example.test/c' })
+    expect(entries.S3_PUBLIC_BASE_URL).toBe('https://example.test/c')
   })
 
   // A preview is one replica, and a shared Valkey would put every preview's
