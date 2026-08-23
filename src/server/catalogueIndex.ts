@@ -154,6 +154,12 @@ const unitCount = (index: CatalogueIndex, catalogueId: string) => index.datashee
 
 export const datasheetsOf = (index: CatalogueIndex, catalogueId: string) => index.datasheets.get(catalogueId) ?? new Set<string>()
 
+/** Imported detachments are roster options, but their reference page belongs to the catalogue that defines the option. */
+export function isReferenceDetachment(loaded: LoadedCatalogue, catalogueId: string, detachmentId: string) {
+  const owner = loaded.index.catalogueOf.get(detachmentId)
+  return !owner || !loaded.factions.some((faction) => faction.id === owner) || owner === catalogueId
+}
+
 /**
  * Whether a datasheet belongs on this faction's reference pages.
  *
