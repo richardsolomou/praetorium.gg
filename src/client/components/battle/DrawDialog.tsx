@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import type { Command } from '../../../core/battle'
 import { HAND_SIZE, nextDraw } from '../../scoring'
-import type { Side } from '../../sides'
+import { type Side, sideName } from '../../sides'
 import { redrawOffer, type WhenDrawn } from './drawOffer'
 import { DrawUndoAlert } from './DrawUndoAlert'
 import { MissionDetailsDialog, MissionName, type MissionDetails, type ReferenceCard } from './MissionCards'
@@ -31,6 +31,9 @@ type Props = {
  * Cards come off the deck at random and are never picked: choosing which one you
  * are dealt is not a move the game has. Putting one back is, but only where the
  * card itself says so, which is why each offer names the condition it rests on.
+ *
+ * The hand belongs to whichever side this was opened for, which is a practice
+ * opponent's when the table is playing that side as well as its own.
  */
 export function DrawDialog({
   side,
@@ -84,8 +87,9 @@ export function DrawDialog({
     }
     if (!secondaries.length) return
     for (const card of secondaries) asked.current.add(card.key)
-    send({ kind: 'draw-secondaries', secondaries })
-  }, [side.secondariesDrawnThisTurn, paused, side.secondaries, side.remainingSecondaries, send])
+    // Named, because the table may be dealing a practice opponent's hand rather than its own.
+    send({ kind: 'draw-secondaries', secondaries, playerId: side.captain.id })
+  }, [side.secondariesDrawnThisTurn, paused, side.captain.id, side.secondaries, side.remainingSecondaries, send])
 
   return (
     <>
@@ -95,7 +99,9 @@ export function DrawDialog({
           className="max-h-[85dvh] overflow-y-auto rounded-none border border-discarded/60 bg-panel text-bone sm:max-w-lg"
         >
           <DialogHeader>
-            <DialogTitle className="text-discarded uppercase">Your secondary missions</DialogTitle>
+            <DialogTitle className="text-discarded uppercase">
+              {side.isViewer ? 'Your secondary missions' : `${sideName(side)}’s secondary missions`}
+            </DialogTitle>
             <DialogDescription className="text-dim">
               Drawn at random from the deck, {side.remainingSecondaries.length} cards left. Some cards may be put back the moment they are
               drawn.

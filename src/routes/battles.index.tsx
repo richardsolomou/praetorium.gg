@@ -73,7 +73,7 @@ function Battles() {
           </span>
           <h2 className="mt-4 text-xl">No battles yet.</h2>
           <p className="mt-2 max-w-md text-sm text-dim">
-            Start a solo practice battle, or add friends and open a shared game. Setup keeps every player on the same step.
+            Practise against a practice opponent, or add friends and open a shared game. Setup keeps every player on the same step.
           </p>
           <div className="mt-5">
             <CreateBattle />

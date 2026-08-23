@@ -1,14 +1,26 @@
 import { expect, test, type Page } from '@playwright/test'
-import { advance, attachRoster, createBattle, createRoster, setupStep, signUp, takeTheTurn, uniqueName, waitForRosterSave } from './account'
+import {
+  advance,
+  attachRoster,
+  createBattle,
+  createRoster,
+  PRACTICE_OPPONENT,
+  setupStep,
+  signUp,
+  takeTheTurn,
+  uniqueName,
+  waitForRosterSave,
+} from './account'
 
-test('solo battle controls survive completion, reopen and deletion', async ({ page }) => {
-  const player = uniqueName('Solo')
+test('practice battle controls survive completion, reopen and deletion', async ({ page }) => {
+  const player = uniqueName('Practice')
   await signUp(page, player)
   const firstRoster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'First roster' })
   await page.getByLabel('Add a unit').fill('Immortals')
   await waitForRosterSave(page, () => page.getByRole('button', { name: 'Add Immortals', exact: true }).first().click())
-  await createBattle(page, { solo: true })
+  await createBattle(page, { practice: true })
   await attachRoster(page, firstRoster)
+  await attachRoster(page, firstRoster, { forPlayer: PRACTICE_OPPONENT })
   await setupStep(page, 'Battlefield')
   await page.getByRole('button', { name: 'Select layout A: Tipping Point' }).click()
   await expect(page.getByRole('button', { name: 'Selected layout A: Tipping Point' })).toBeVisible()
@@ -17,14 +29,18 @@ test('solo battle controls survive completion, reopen and deletion', async ({ pa
   await takeTheTurn(page)
   await expect(page.getByRole('heading', { name: 'command phase' })).toBeVisible()
   await endBattle(page, 'Finish early')
-  await expect(page.getByRole('heading', { name: /Final score/ })).toBeVisible()
+  // Two sides, so the result reads as a scoreline rather than one side's total.
+  await expect(page.getByRole('heading', { name: /Drawn at|win/ })).toBeVisible()
   await page.getByRole('button', { name: 'Battle options' }).click()
   await page.getByRole('menuitem', { name: 'Reopen battle' }).click()
   await expect(page.getByRole('button', { name: /End the .+ phase/ })).toBeVisible()
 
-  for (let step = 0; step < 30; step++) await advance(page)
+  // Both sides take every round now, and the count follows the mission pack, so this
+  // runs the battle out rather than assuming how many phases that is.
+  const result = page.getByRole('heading', { name: /Drawn at|win/ })
+  for (let step = 0; step < 80 && !(await result.isVisible().catch(() => false)); step++) await advance(page)
   await expect(page.getByText('Result', { exact: true })).toBeVisible()
-  await expect(page.getByRole('heading', { name: /Final score/ })).toBeVisible()
+  await expect(result).toBeVisible()
 
   await endBattle(page, 'Delete battle')
   await expect(page).toHaveURL('/battles')

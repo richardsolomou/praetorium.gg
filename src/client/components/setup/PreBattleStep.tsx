@@ -6,11 +6,13 @@ import { sideName } from '../../sides'
 import { HEADING, tint } from '../battle/tints'
 import { Prep } from '../Prep'
 
-type Props = { view: BattleView; sides: Side[]; missionId: string | null; send: (command: Command) => void; pending: boolean }
+type Props = { view: BattleView; sides: Side[]; send: (command: Command) => void; pending: boolean }
 
 /** Where every unit starts, and the one card decision each side actually makes. */
-export function PreBattleStep({ view, sides, missionId, send, pending }: Props) {
-  const yours = sides.find((side) => side.isViewer)
+export function PreBattleStep({ view, sides, send, pending }: Props) {
+  // Your own side, then any side of practice opponents: nobody signs in to those,
+  // so their cards are settled here rather than waiting for a player who never arrives.
+  const played = sides.filter((side) => side.played)
 
   return (
     <div className="space-y-4">
@@ -29,20 +31,32 @@ export function PreBattleStep({ view, sides, missionId, send, pending }: Props) 
         ))}
       </div>
 
-      <section className="space-y-3 rounded-sm border border-edge bg-panel p-3">
-        <div>
-          <p className={HEADING}>{yours && yours.armies.length > 1 ? 'Shared by your side' : 'Your cards'}</p>
-          <h3 className="mt-0.5 text-lg">Cards and stratagems</h3>
-          <p className="mt-1 text-sm text-dim">
-            {yours && yours.armies.length > 1
-              ? 'You and your ally play one hand of mission cards, one set of stratagems, and one pool of command points.'
-              : 'Your mission cards and stratagems come from your detachment. Only how the secondaries are drawn is a choice.'}
-          </p>
-        </div>
-        <Prep view={view} missionId={missionId} send={send} pending={pending} />
-      </section>
+      {played.map((side) => (
+        <section key={side.index} className="space-y-3 rounded-sm border border-edge bg-panel p-3">
+          <div>
+            <p className={HEADING}>{cardsHeading(side)}</p>
+            <h3 className="mt-0.5 text-lg">Cards and stratagems</h3>
+            <p className="mt-1 text-sm text-dim">{cardsBlurb(side)}</p>
+          </div>
+          {/* Each side's primary follows from its own matchup, which the fold already put on it. */}
+          <Prep view={view} side={side} missionId={side.mission?.id ?? null} send={send} pending={pending} />
+        </section>
+      ))}
     </div>
   )
+}
+
+/** Whose cards these are, said the way the table would say it. */
+function cardsHeading(side: Side): string {
+  if (side.automated) return `${sideName(side)}’s cards`
+  return side.armies.length > 1 ? 'Shared by your side' : 'Your cards'
+}
+
+function cardsBlurb(side: Side): string {
+  if (side.automated) return 'Nobody signs in to a practice opponent, so you settle how its side draws its secondaries along with your own.'
+  return side.armies.length > 1
+    ? 'You and your ally play one hand of mission cards, one set of stratagems, and one pool of command points.'
+    : 'Your mission cards and stratagems come from your detachment. Only how the secondaries are drawn is a choice.'
 }
 
 function ArmySetup({ army, multiple, send }: { army: Army; multiple: boolean; send: (command: Command) => void }) {

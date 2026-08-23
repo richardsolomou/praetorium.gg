@@ -71,13 +71,24 @@ export function SidePanel({
           <p className="truncate text-[0.6875rem] text-dim">{side.armies.map(armyLine).join(' · ')}</p>
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
-          {side.armies.map((army) => (
-            <span
-              key={army.playerId}
-              className={`size-2 rounded-full ${present.some((watcher) => watcher.playerId === army.playerId) ? 'bg-azure' : 'border border-dim/60'}`}
-              title={`${army.playerName} ${present.some((watcher) => watcher.playerId === army.playerId) ? 'is watching' : 'is not on the page'}`}
-            />
-          ))}
+          {side.armies.map((army) => {
+            // Nobody signs in to a practice opponent, so a presence light for it would
+            // read as absent all game. It says what it is instead.
+            if (army.automated)
+              return (
+                <span key={army.playerId} className="chip text-dim" title={`${army.playerName} is played from this table`}>
+                  practice
+                </span>
+              )
+            const watching = present.some((watcher) => watcher.playerId === army.playerId)
+            return (
+              <span
+                key={army.playerId}
+                className={`size-2 rounded-full ${watching ? 'bg-azure' : 'border border-dim/60'}`}
+                title={`${army.playerName} ${watching ? 'is watching' : 'is not on the page'}`}
+              />
+            )
+          })}
         </div>
       </div>
 

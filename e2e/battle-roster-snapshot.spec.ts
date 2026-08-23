@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { attachRoster, createBattle, createRoster, signUp, uniqueName, waitForRosterSave } from './account'
+import { attachRoster, createBattle, createRoster, PRACTICE_OPPONENT, signUp, uniqueName, waitForRosterSave } from './account'
 
 const lastPathSegment = (url: string) => new URL(url).pathname.match(/\/([^/]+)\/?$/)?.[1]
 
@@ -11,8 +11,9 @@ test('a fielded roster opens as the frozen read-only roster view', async ({ page
   const rosterId = lastPathSegment(page.url())
   expect(rosterId).toBeTruthy()
 
-  const battleUrl = await createBattle(page, { solo: true })
+  const battleUrl = await createBattle(page, { practice: true })
   await attachRoster(page, rosterName)
+  await attachRoster(page, rosterName, { forPlayer: PRACTICE_OPPONENT })
   await expect(page.getByRole('navigation', { name: 'Setup sections' }).getByRole('button', { name: /Armies/ })).toHaveAttribute(
     'data-complete',
     'true',

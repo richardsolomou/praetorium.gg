@@ -18,7 +18,7 @@ export function Battlefield({ view, send, pending, allowedIds }: Props) {
   const dispositions = [...new Set(view.players.map((player) => player.side))]
     .map((side) => view.players.find((player) => player.side === side)?.roster?.built?.disposition)
     .filter((value): value is string => Boolean(value))
-  const matchupIds = terrainMatchupIds(dispositions, view.settings.solo)
+  const matchupIds = terrainMatchupIds(dispositions)
   const { data: references } = useQuery(terrainReferencesQuery(matchupIds))
   const options =
     references?.layouts.flatMap((terrain) => {

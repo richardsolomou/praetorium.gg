@@ -4,7 +4,7 @@ import {
   type BattleSettings,
   type BattleState,
   battleRoundLimit,
-  helperAdvancePending,
+  mayNameCard,
   PAINTED_ARMY_POINTS,
   type PlayerId,
   PRIMARY_GUIDE,
@@ -16,6 +16,7 @@ import {
   type SecondaryStatus,
   type Phase,
   sideCaptain,
+  sideOwes,
   type StratagemLimit,
   type UnitState,
   validate,
@@ -57,6 +58,8 @@ export type BattleView = {
     name: string
     image: string | null
     isViewer: boolean
+    /** A seat nobody signs in to, so the players facing it are the ones who play it. */
+    automated: boolean
     isActive: boolean
     cp: number
     cpGained: number
@@ -121,14 +124,24 @@ export type BattleView = {
  */
 export function battleView(
   battle: { token: string },
-  players: readonly { id: PlayerId; name: string; image?: string | null }[],
+  players: readonly { id: PlayerId; name: string; image?: string | null; automated?: boolean }[],
   state: BattleState,
   viewerId: PlayerId,
   _now = Date.now(),
 ): BattleView {
   const named = new Map(players.map((player) => [player.id, player.name]))
-  const active = state.players.find((player) => player.id === state.activePlayerId)
-  const viewerOwnsActive = active ? sideCaptain(state, active.side).id === viewerId : false
+  const automated = new Set(players.filter((player) => player.automated).map((player) => player.id))
+  /**
+   * Whether the viewer is one of the people playing a side.
+   *
+   * Their own side, or a side with nobody signed in to it: a practice opponent
+   * never opens the app, so its cards are held by whoever is sitting across from
+   * it. Without this its hand would be hidden from the only person able to play it.
+   */
+  const plays = (side: number) => {
+    const seated = state.players.filter((player) => player.side === side)
+    return seated.some((player) => player.id === viewerId) || seated.every((player) => automated.has(player.id))
+  }
   return {
     token: battle.token,
     status: state.status,
@@ -153,6 +166,7 @@ export function battleView(
         name: named.get(player.id) ?? 'Unknown',
         image: players.find((identity) => identity.id === player.id)?.image ?? null,
         isViewer: player.id === viewerId,
+        automated: automated.has(player.id),
         isActive: sameSide(state, state.activePlayerId, player.id),
         cp: resources.cp,
         cpGained: resources.cpGained,
@@ -185,31 +199,35 @@ export function battleView(
         primaryCard: resources.primaryCard,
         secondaryMode: resources.secondaryMode,
         secondariesDrawnThisTurn: resources.secondariesDrawnThisTurn,
-        remainingSecondaries:
-          resources.id === viewerId
-            ? (resources.secondaryDeck ?? []).filter(
-                (candidate) => !resources.secondaries.some((secondary) => secondary.key === candidate.key),
-              )
-            : [],
-        secondaries: resources.secondaries.map((secondary) => ({
-          key:
-            resources.secretSecondary === secondary.key &&
-            !resources.secretRevealed &&
-            player.side !== state.players.find((candidate) => candidate.id === viewerId)?.side
-              ? 'secret'
-              : secondary.key,
-          name:
-            resources.secretSecondary === secondary.key &&
-            !resources.secretRevealed &&
-            player.side !== state.players.find((candidate) => candidate.id === viewerId)?.side
-              ? 'Secret mission'
-              : secondary.name,
-          points: resources.scored[secondary.key] ?? 0,
-          rounds: (resources.scoredByRound[secondary.key] ?? Array(BATTLE_ROUNDS).fill(0)).slice(0, battleRoundLimit(state.settings.limit)),
-          status: resources.secondaryStatus[secondary.key] ?? 'active',
-          secret: resources.secretSecondary === secondary.key,
-          revealed: resources.secretSecondary !== secondary.key || resources.secretRevealed,
-        })),
+        /**
+         * What is left in this side's deck, to the people playing that side.
+         *
+         * An ally sees it too: the pair share one hand, and reading it only from
+         * the seat the domain folds resources onto left the other unable to draw.
+         * It stays off an opponent's screen because the deck minus what is held
+         * would name a card played face down.
+         */
+        remainingSecondaries: plays(player.side)
+          ? (resources.secondaryDeck ?? []).filter(
+              (candidate) => !resources.secondaries.some((secondary) => secondary.key === candidate.key),
+            )
+          : [],
+        secondaries: resources.secondaries.map((secondary) => {
+          // The one thing in the game that is genuinely hidden, masked in one place.
+          const nameable = mayNameCard(state, viewerId, resources, secondary.key)
+          return {
+            key: nameable ? secondary.key : 'secret',
+            name: nameable ? secondary.name : 'Secret mission',
+            points: resources.scored[secondary.key] ?? 0,
+            rounds: (resources.scoredByRound[secondary.key] ?? Array(BATTLE_ROUNDS).fill(0)).slice(
+              0,
+              battleRoundLimit(state.settings.limit),
+            ),
+            status: resources.secondaryStatus[secondary.key] ?? 'active',
+            secret: resources.secretSecondary === secondary.key,
+            revealed: resources.secretSecondary !== secondary.key || resources.secretRevealed,
+          }
+        }),
       }
     }),
     guides: { primary: PRIMARY_GUIDE, secondary: SECONDARY_GUIDE },
@@ -220,25 +238,35 @@ export function battleView(
       round: turn.round,
       minutes: turn.endedAt === null ? null : Math.max(0, Math.round((turn.endedAt - turn.startedAt) / 60_000)),
     })),
-    advancePrompt: viewerOwnsActive ? scoringPrompt(state, viewerId) : helperAdvancePrompt(state, viewerId),
+    advancePrompt: advancePrompt(state, viewerId),
     undoable: state.undoable?.seq ?? null,
     undoableDraw: state.undoable?.kind === 'draw-secondary' || state.undoable?.kind === 'draw-secondaries',
   }
 }
 
-function scoringPrompt(state: BattleState, playerId: PlayerId): string | null {
-  const viewer = state.players.find((player) => player.id === playerId)
-  const active = viewer ? sideCaptain(state, viewer.side) : undefined
-  if (!active || state.phase !== 'end') return null
-  const unscored = active.secondaries.filter(
-    (secondary) =>
-      active.secondaryStatus[secondary.key] === 'active' && (active.scoredByRound[secondary.key]?.[state.round - 1] ?? 0) === 0,
-  )
-  return unscored.length ? `Check ${unscored.map((secondary) => secondary.name).join(' and ')} before passing the turn.` : null
-}
-
-function helperAdvancePrompt(state: BattleState, viewerId: PlayerId): string | null {
+/**
+ * What the active side still has to do before the turn moves on.
+ *
+ * One sentence, the same on every device. Any seat may draw, discard, score or
+ * settle for either side, so this reads as what is outstanding rather than as a
+ * rule about whose turn it is to press something. Only the naming is the
+ * viewer's: a card held face down is named to its own side and called a secret
+ * mission to the other.
+ */
+function advancePrompt(state: BattleState, viewerId: PlayerId): string | null {
   const active = state.activePlayerId ? state.players.find((player) => player.id === state.activePlayerId) : undefined
   const player = active ? sideCaptain(state, active.side) : undefined
-  return player && helperAdvancePending(state, viewerId, player) ? 'The active side has an action to settle.' : null
+  if (!player) return null
+  const owed = sideOwes(state, player)
+  if (owed === 'settlement') return 'The previous turn is still to be settled.'
+  if (owed === 'cards') return 'The active side has secondary missions to draw.'
+  if (owed === 'secret') return 'The active side has a secret mission to reveal or discard.'
+  if (state.phase !== 'end') return null
+  const unscored = player.secondaries.filter(
+    (secondary) =>
+      player.secondaryStatus[secondary.key] === 'active' && (player.scoredByRound[secondary.key]?.[state.round - 1] ?? 0) === 0,
+  )
+  if (!unscored.length) return null
+  const names = unscored.map((secondary) => (mayNameCard(state, viewerId, player, secondary.key) ? secondary.name : 'a secret mission'))
+  return `Check ${names.join(' and ')} before passing the turn.`
 }

@@ -43,7 +43,6 @@ describe('setup', () => {
       missionPackId: null,
       terrainLayoutId: null,
       twistId: null,
-      solo: false,
       teamBattle: true,
       clockLimitMinutes: null,
     }
@@ -69,7 +68,6 @@ describe('setup', () => {
       missionPackId: null,
       terrainLayoutId: null,
       twistId: null,
-      solo: false,
       teamBattle: true,
       clockLimitMinutes: null,
     }
@@ -161,7 +159,6 @@ describe('setup', () => {
             missionPackId: null,
             terrainLayoutId: null,
             twistId: null,
-            solo: false,
             clockLimitMinutes: null,
           },
         ],
@@ -184,7 +181,6 @@ describe('setup', () => {
             missionPackId: null,
             terrainLayoutId: null,
             twistId: null,
-            solo: false,
             clockLimitMinutes: null,
           },
         ],
@@ -254,25 +250,10 @@ describe('setup', () => {
     expect(validate(reduceBattle(PLAYERS, log()), ALICE, command)).toBe('a selected secondary is not in the deck')
   })
 
-  it('supports a private solo practice battle without a second identity', () => {
-    const history = log(
-      [
-        ALICE,
-        {
-          kind: 'configure-battle',
-          limit: 2000,
-          missionPackId: null,
-          terrainLayoutId: null,
-          twistId: null,
-          solo: true,
-          clockLimitMinutes: null,
-        },
-      ],
-      [ALICE, roster('Practice army')],
-      [ALICE, { kind: 'begin-battle', firstPlayerId: ALICE, attackerId: ALICE }],
-    )
+  it('refuses to start a battle with only one seat filled', () => {
+    const state = reduceBattle([ALICE], log([ALICE, roster('Practice army')]))
 
-    expect(reduceBattle([ALICE], history)).toMatchObject({ status: 'playing', activePlayerId: ALICE, round: 1 })
+    expect(validate(state, ALICE, { kind: 'begin-battle', firstPlayerId: ALICE })).toBe('waiting for an opponent')
   })
 
   it('resets a setup draft without deleting its history', () => {
@@ -301,7 +282,6 @@ describe('setup', () => {
             missionPackId: 'chapter-approved',
             terrainLayoutId: 'layout-a',
             twistId: 'twist-a',
-            solo: false,
             clockLimitMinutes: 45,
           },
         ],
@@ -314,7 +294,6 @@ describe('setup', () => {
       missionPackId: 'chapter-approved',
       terrainLayoutId: null,
       twistId: null,
-      solo: false,
       teamBattle: false,
     })
   })
@@ -332,7 +311,6 @@ describe('setup', () => {
             missionPackId: null,
             terrainLayoutId: 'layout-a',
             twistId: null,
-            solo: false,
             clockLimitMinutes: null,
           },
         ],
@@ -463,7 +441,6 @@ describe('the turn sequence', () => {
         missionPackId: null,
         terrainLayoutId: null,
         twistId: null,
-        solo: false,
         clockLimitMinutes: null,
       },
     ]
@@ -482,7 +459,9 @@ describe('the turn sequence', () => {
     expect(state.round).toBe(BATTLE_ROUNDS)
   })
 
-  it('records each solo round as its own turn', () => {
+  // A one-seat battle can no longer be started, but the logs of the ones that were
+  // still have to fold. These two read that history rather than describe a format.
+  it('records each round of a one-seat log as its own turn', () => {
     const state = reduceBattle(
       [ALICE],
       log(
@@ -494,7 +473,6 @@ describe('the turn sequence', () => {
             missionPackId: null,
             terrainLayoutId: null,
             twistId: null,
-            solo: true,
             clockLimitMinutes: null,
           },
         ],
@@ -507,7 +485,7 @@ describe('the turn sequence', () => {
     expect(state.turns.map((turn) => turn.round)).toEqual([1, 2])
   })
 
-  it('naturally completes all five solo rounds', () => {
+  it('completes all five rounds of a one-seat log', () => {
     const state = reduceBattle(
       [ALICE],
       log(
@@ -519,7 +497,6 @@ describe('the turn sequence', () => {
             missionPackId: null,
             terrainLayoutId: null,
             twistId: null,
-            solo: true,
             clockLimitMinutes: null,
           },
         ],
@@ -545,7 +522,7 @@ describe('the turn sequence', () => {
     expect(reduceBattle(PLAYERS, history).phase).toBe('movement')
   })
 
-  it('waits for the active side to draw its private tactical hand', () => {
+  it('lets anyone at the table advance a side with cards still to draw, and says what is owed', () => {
     const history = log(
       [ALICE, roster('Ultramarines')],
       [BOB, roster('Death Guard')],
@@ -563,20 +540,22 @@ describe('the turn sequence', () => {
       [ALICE, { kind: 'begin-battle', firstPlayerId: ALICE }],
     )
 
-    expect(validate(reduceBattle(PLAYERS, history), BOB, { kind: 'advance', playerId: ALICE })).toBe(
-      'the active side has an action to settle',
-    )
+    const state = reduceBattle(PLAYERS, history)
+
+    expect(validate(state, BOB, { kind: 'advance', playerId: ALICE })).toBeNull()
+    expect(battleView({ token: 'abc' }, NAMES, state, BOB).advancePrompt).toBe('The active side has secondary missions to draw.')
   })
 
-  it('waits for the active side captain to settle the previous turn before a helper advances', () => {
+  it('says the previous turn is unsettled without holding the turn back for it', () => {
     const history = log(...started(), ...turns(6, ALICE))
     const pending = reduceBattle(PLAYERS, history)
 
-    expect(validate(pending, ALICE, { kind: 'advance', playerId: BOB })).toBe('the active side has an action to settle')
+    expect(validate(pending, ALICE, { kind: 'advance', playerId: BOB })).toBeNull()
+    expect(battleView({ token: 'abc' }, NAMES, pending, ALICE).advancePrompt).toBe('The previous turn is still to be settled.')
     expect(validate(pending, BOB, { kind: 'settle-opponent-turn' })).toBeNull()
 
     const settled = reduceBattle(PLAYERS, log(...started(), ...turns(6, ALICE), [BOB, { kind: 'settle-opponent-turn' }]))
-    expect(validate(settled, ALICE, { kind: 'advance', playerId: BOB })).toBeNull()
+    expect(battleView({ token: 'abc' }, NAMES, settled, ALICE).advancePrompt).toBeNull()
   })
 
   it('shows pending opponent-turn scoring and its owner to every seated player', () => {
@@ -600,7 +579,6 @@ describe('the turn sequence', () => {
       missionPackId: null,
       terrainLayoutId: null,
       twistId: null,
-      solo: false,
       teamBattle: true,
       clockLimitMinutes: null,
     }
@@ -638,14 +616,13 @@ describe('the turn sequence', () => {
     expect(battleReport(NAMES, history).some((entry) => entry.commandKind === 'settle-opponent-turn')).toBe(false)
   })
 
-  it('waits for the side captain when an ally cannot see the private tactical deck', () => {
+  it('lets an ally draw and advance for the side they share', () => {
     const configure: Command = {
       kind: 'configure-battle',
       limit: 2000,
       missionPackId: null,
       terrainLayoutId: null,
       twistId: null,
-      solo: false,
       teamBattle: true,
       clockLimitMinutes: null,
     }
@@ -668,21 +645,29 @@ describe('the turn sequence', () => {
       [ALICE, { kind: 'begin-battle', firstPlayerId: BOB }],
     )
 
-    expect(validate(reduceBattle([ALICE, BOB, CAROL], history, [0, 1, 1]), CAROL, { kind: 'advance', playerId: BOB })).toBe(
-      'the active side has an action to settle',
-    )
+    const state = reduceBattle([ALICE, BOB, CAROL], history, [0, 1, 1])
+    const named = [...NAMES, { id: CAROL, name: 'Carol' }]
+
+    expect(validate(state, CAROL, { kind: 'advance', playerId: BOB })).toBeNull()
+    // The pair share one hand, so the ally can see the deck it is drawn from.
+    expect(battleView({ token: 'abc' }, named, state, CAROL).players.find((player) => player.id === CAROL)?.remainingSecondaries).toEqual([
+      { key: 'a', name: 'Area Denial' },
+    ])
   })
 
-  it('waits for the active side to settle its hidden mission before passing the turn', () => {
+  it('asks the active side to settle its hidden mission without refusing the turn', () => {
     const history = log(
       ...started(),
       [ALICE, { kind: 'select-secret', secondary: { key: 'secret-a', name: 'Hold the Line' } }],
       ...turns(5, ALICE),
     )
+    const state = reduceBattle(PLAYERS, history)
 
-    expect(validate(reduceBattle(PLAYERS, history), BOB, { kind: 'advance', playerId: ALICE })).toBe(
-      'the active side has an action to settle',
-    )
+    expect(validate(state, BOB, { kind: 'advance', playerId: ALICE })).toBeNull()
+    // Still the one thing an opponent's screen cannot answer, so the reminder says a
+    // card is outstanding without saying which.
+    expect(battleView({ token: 'abc' }, NAMES, state, BOB).advancePrompt).toBe('The active side has a secret mission to reveal or discard.')
+    expect(battleView({ token: 'abc' }, NAMES, state, BOB).players[0]?.secondaries[0]?.name).toBe('Secret mission')
   })
 
   it('preserves target-less team advances already stored in the log', () => {
@@ -692,7 +677,6 @@ describe('the turn sequence', () => {
       missionPackId: null,
       terrainLayoutId: null,
       twistId: null,
-      solo: false,
       teamBattle: true,
       clockLimitMinutes: null,
     }

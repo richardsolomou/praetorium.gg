@@ -91,8 +91,8 @@ export const globalSearchQuery = (query: string) =>
     staleTime: 30_000,
   })
 
-export const terrainMatchupIds = (dispositions: readonly string[], solo = false) => {
-  const matchup = dispositions.length === 2 ? dispositions : solo && dispositions[0] ? [dispositions[0], dispositions[0]] : []
+export const terrainMatchupIds = (dispositions: readonly string[]) => {
+  const matchup = dispositions.length === 2 ? dispositions : []
   return matchup.length === 2 ? [...new Set([`${matchup[0]}-vs-${matchup[1]}`, `${matchup[1]}-vs-${matchup[0]}`])].toSorted() : []
 }
 

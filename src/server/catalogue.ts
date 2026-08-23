@@ -374,18 +374,26 @@ function keywordsOf(
   const sheet = targetOf(root, loaded.index.definitions)
   const links = [...(root.categoryLinks ?? []), ...(sheet === root ? [] : (sheet.categoryLinks ?? []))]
   const written = new Map(links.flatMap((link) => (link.name ? [[link.targetId, link.name] as const] : [])))
-  if (!selection) return [...new Set(written.values())].toSorted()
+  /**
+   * The book's own wording for a keyword it prints, and the category's name for one
+   * the list granted.
+   *
+   * Bookkeeping the data keeps for itself is printed either way: the attachment
+   * markers, the weapon-matching helpers, the Assigned Agents allowances and the
+   * paired Battleline categories a Chaos god's units are sorted into are all written
+   * as ordinary links on the datasheet. However it came to be in one, it prints
+   * nothing, so the category decides and not the way the datasheet reached it.
+   */
+  const wording = (id: string) => {
+    const category = loaded.index.categories.get(id)
+    if (category?.hidden) return []
+    const printed = written.get(id) ?? category?.name
+    return printed ? [printed] : []
+  }
+  if (!selection) return [...new Set([...written.keys()].flatMap(wording))].toSorted()
   const selections = roster?.includes(selection) ? roster : [selection]
   const held = keywordIds(selections, selections.indexOf(selection), loaded.index, { primaryCatalogueId: catalogueId })
-  const printed = held.flatMap((id) => {
-    // The book's own wording for a keyword it prints, and the category's name for
-    // one the list granted. Bookkeeping the data keeps for itself stays unprinted.
-    const wording = written.get(id)
-    if (wording) return [wording]
-    const category = loaded.index.categories.get(id)
-    return category?.name && !category.hidden ? [category.name] : []
-  })
-  return [...new Set(printed)].toSorted()
+  return [...new Set(held.flatMap(wording))].toSorted()
 }
 
 /** Selected and offered-weapon views sharing the expensive roster modifier fold. */
