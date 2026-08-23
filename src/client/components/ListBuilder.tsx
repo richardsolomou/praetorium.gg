@@ -322,7 +322,7 @@ export function ListBuilder({ prep, initial, editable = true, battle, resolvePer
       data-save-error={save.isError}
       className="flex min-h-0 flex-1 flex-col border border-edge bg-sunken"
     >
-      <header className="relative border-b border-edge px-3 py-2">
+      <header className="border-b border-edge px-3 py-2">
         <Input
           id="listname"
           value={name}
@@ -331,49 +331,47 @@ export function ListBuilder({ prep, initial, editable = true, battle, resolvePer
           placeholder={suggested || 'Named from your picks'}
           aria-label="List name"
           readOnly={!editable}
-          className="h-8 border-0 bg-transparent px-0 text-lg font-bold tracking-[0.02em] uppercase focus-visible:ring-0 max-sm:pr-40"
+          className="h-8 border-0 bg-transparent px-0 text-lg font-bold tracking-[0.02em] uppercase focus-visible:ring-0"
         />
 
         {faction ? (
-          <div className="flex min-w-0 items-center gap-2 text-xs text-dim max-sm:overflow-x-auto max-sm:whitespace-nowrap max-sm:[scrollbar-width:none] max-sm:[&::-webkit-scrollbar]:hidden">
-            <Link
-              to="/factions/$catalogueId"
-              params={{ catalogueId: faction.slug }}
-              className="truncate text-info hover:text-bone max-sm:shrink-0"
-            >
-              <FactionLabel faction={faction} />
-            </Link>
-            <span aria-hidden>·</span>
-            <Link to="/rosters" search={{ limit }} className="shrink-0 text-info hover:text-bone">
-              {GAME_SIZES.find((size) => size.limit === limit)?.name ?? `${limit} points`}
-            </Link>
-            {detachmentIds.map((id) => {
-              const detachment = faction.detachments.find((candidate) => candidate.id === id)
-              return detachment ? (
-                <span key={id} className="contents">
+          <div className="flex min-w-0 items-center gap-2 text-xs text-dim">
+            <span className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto whitespace-nowrap [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <Link to="/factions/$catalogueId" params={{ catalogueId: faction.slug }} className="shrink-0 text-info hover:text-bone">
+                <FactionLabel faction={faction} />
+              </Link>
+              <span aria-hidden>·</span>
+              <Link to="/rosters" search={{ limit }} className="shrink-0 text-info hover:text-bone">
+                {GAME_SIZES.find((size) => size.limit === limit)?.name ?? `${limit} points`}
+              </Link>
+              {detachmentIds.map((id) => {
+                const detachment = faction.detachments.find((candidate) => candidate.id === id)
+                return detachment ? (
+                  <span key={id} className="contents">
+                    <span aria-hidden>·</span>
+                    <Link
+                      to="/factions/$catalogueId/reference/detachments/$detachmentId"
+                      params={{ catalogueId: faction.slug, detachmentId: detachment.slug }}
+                      className="shrink-0 hover:text-bone"
+                    >
+                      {detachment.name}
+                    </Link>
+                  </span>
+                ) : null
+              })}
+              {priced?.disposition ? (
+                <span className="contents">
                   <span aria-hidden>·</span>
-                  <Link
-                    to="/factions/$catalogueId/reference/detachments/$detachmentId"
-                    params={{ catalogueId: faction.slug, detachmentId: detachment.slug }}
-                    className="truncate hover:text-bone max-sm:shrink-0"
-                  >
-                    {detachment.name}
-                  </Link>
+                  <span className="shrink-0">
+                    {available.factions
+                      .flatMap((entry) => entry.detachments)
+                      .flatMap((entry) => entry.dispositions)
+                      .find((entry) => entry.id === priced.disposition)?.name ?? priced.disposition}
+                  </span>
                 </span>
-              ) : null
-            })}
-            {priced?.disposition ? (
-              <span className="contents">
-                <span aria-hidden>·</span>
-                <span className="shrink-0">
-                  {available.factions
-                    .flatMap((entry) => entry.detachments)
-                    .flatMap((entry) => entry.dispositions)
-                    .find((entry) => entry.id === priced.disposition)?.name ?? priced.disposition}
-                </span>
-              </span>
-            ) : null}
-            <span className="ml-auto flex shrink-0 items-center gap-1 max-sm:absolute max-sm:top-2 max-sm:right-3" data-print-hide>
+              ) : null}
+            </span>
+            <span className="flex shrink-0 items-center gap-1" data-print-hide>
               {editable ? (
                 <>
                   <DropdownMenu>
