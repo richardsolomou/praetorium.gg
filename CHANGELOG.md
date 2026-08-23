@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.21.10
+
+### Patch Changes
+
+- df32cf7: Pass realtime overrides and the database pool size through docker-compose.yml, so self-hosted instances can point at their own Centrifugo.
+
 ## 0.21.9
 
 ### Patch Changes
