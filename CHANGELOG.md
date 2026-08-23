@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.21.6
+
+### Patch Changes
+
+- 7b1210d: Discard mandatory conditional secondary replacements before drawing another card.
+
 ## 0.21.5
 
 ### Patch Changes
