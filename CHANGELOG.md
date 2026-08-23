@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.20.1
+
+### Patch Changes
+
+- 7338333: Show faction colors across the full top edge of faction reference headers.
+
 ## 0.20.0
 
 ### Minor Changes
