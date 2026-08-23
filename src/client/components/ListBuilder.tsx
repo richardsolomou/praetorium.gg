@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { Check, Crown, Download, EllipsisVertical, Pencil, SlidersHorizontal, TriangleAlert } from 'lucide-react'
+import { Check, CircleHelp, Crown, Download, EllipsisVertical, Pencil, SlidersHorizontal, TriangleAlert } from 'lucide-react'
 import posthog from 'posthog-js'
 import { useEffect, useLayoutEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
@@ -31,6 +31,7 @@ import { RosterSetupDialog, type RosterSetup } from './RosterSetupDialog'
 import { RosterExportDialog } from './RosterExportDialog'
 import { readWorkspaceState, writeWorkspaceState } from './workspaceState'
 import { FactionLabel } from './FactionMark'
+import { HoverTooltip } from './HoverTooltip'
 
 type Props = {
   /** What the player has written down, so a saved list carries it and restores it. */
@@ -380,17 +381,30 @@ export function ListBuilder({ prep, initial, editable = true, battle, resolvePer
                     size="sm"
                     spacing={0}
                     aria-label="Roster mode"
-                    title="View shows only what’s in your roster"
                   >
-                    <ToggleGroupItem value="build" className="aria-pressed:bg-primary aria-pressed:text-primary-foreground">
+                    <ToggleGroupItem
+                      value="build"
+                      className="border-primary/60 text-primary aria-pressed:bg-primary aria-pressed:text-primary-foreground"
+                    >
                       Build
                     </ToggleGroupItem>
-                    <ToggleGroupItem value="view" className="aria-pressed:bg-primary aria-pressed:text-primary-foreground">
+                    <ToggleGroupItem
+                      value="view"
+                      className="border-primary/60 text-primary aria-pressed:bg-primary aria-pressed:text-primary-foreground"
+                    >
                       View
                     </ToggleGroupItem>
                   </ToggleGroup>
+                  <HoverTooltip
+                    title="Roster mode"
+                    body="Build shows every option. View shows only what’s in your roster."
+                    label="About roster modes"
+                    className="size-7 text-primary hover:text-bone"
+                  >
+                    <CircleHelp className="size-3.5" aria-hidden />
+                  </HoverTooltip>
                   <DropdownMenu>
-                    <DropdownMenuTrigger aria-label="Roster actions" className="grid size-7 place-items-center hover:text-bone">
+                    <DropdownMenuTrigger aria-label="Roster actions" className="grid h-7 w-10 place-items-center hover:text-bone">
                       <EllipsisVertical className="size-4" />
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
