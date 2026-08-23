@@ -161,6 +161,7 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
     playerId: id.optional(),
   }),
   z.object({ kind: z.literal('draw-secondary'), secondary }),
+  z.object({ kind: z.literal('draw-secondaries'), secondaries: z.array(secondary).min(1).max(2) }),
   z.object({ kind: z.literal('select-secret'), secondary }),
   z.object({ kind: z.literal('reveal-secret'), playerId: id.optional() }),
   z.object({ kind: z.literal('begin-battle'), firstPlayerId: id, attackerId: id.optional() }),

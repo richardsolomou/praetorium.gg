@@ -166,6 +166,12 @@ function describe(
     }
     case 'draw-secondary':
       return `${who} draws ${player?.secondaries.find((secondary) => secondary.key === command.secondary.key)?.name ?? 'a secondary'}${forTarget}`
+    case 'draw-secondaries': {
+      const names = command.secondaries.map(
+        (drawn) => player?.secondaries.find((secondary) => secondary.key === drawn.key)?.name ?? 'a secondary',
+      )
+      return `${who} draws ${names.join(' and ')}${forTarget}`
+    }
     case 'select-secret': {
       const selected = player?.secondaries.find((secondary) => secondary.key === command.secondary.key)?.name ?? 'a secret mission'
       return sameSide(after, viewerId ?? null, targetId)

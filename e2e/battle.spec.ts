@@ -231,15 +231,11 @@ test('a card the rules let you put back is offered back as it is drawn', async (
   }
   await bob.setViewportSize({ width: 390, height: 844 })
   await confirmUndo()
-  await expect(prompt.locator('[data-drawn]')).toHaveCount(1)
+  await expect(prompt.locator('[data-drawn]')).toHaveCount(returned ? 1 : 0)
   await expect(prompt.getByRole('button', { name: 'Resume drawing' })).toBeVisible()
   if (returned) {
     await undoDraw.click()
     await expect(prompt.locator('[data-drawn]')).toHaveCount(2)
-    await confirmUndo()
-    await expect(prompt.locator('[data-drawn]')).toHaveCount(1)
-    await confirmUndo()
-  } else {
     await confirmUndo()
   }
   await expect(prompt.locator('[data-drawn]')).toHaveCount(0)
@@ -258,7 +254,7 @@ test('a card the rules let you put back is offered back as it is drawn', async (
   await expect(confirmation).toBeVisible()
   await confirmation.getByRole('button', { name: 'Undo draw' }).click()
   await expect(prompt).toBeVisible()
-  await expect(prompt.locator('[data-drawn]')).toHaveCount(1)
+  await expect(prompt.locator('[data-drawn]')).toHaveCount(0)
   await expect(prompt.getByRole('button', { name: 'Resume drawing' })).toBeVisible()
 })
 

@@ -74,11 +74,18 @@ export function DrawDialog({
   // either effect runs, and both would read the same tally and ask the deck twice.
   useEffect(() => {
     if (paused) return
-    const card = nextDraw(side.secondaries, asked.current, side.remainingSecondaries)
-    if (!card) return
-    asked.current.add(card.key)
-    send({ kind: 'draw-secondary', secondary: card })
-  }, [paused, side.secondaries, side.remainingSecondaries, send])
+    const requested = new Set(asked.current)
+    const secondaries = []
+    for (let slot = held.length; slot < HAND_SIZE; slot += 1) {
+      const card = nextDraw(side.secondaries, requested, side.remainingSecondaries)
+      if (!card) break
+      requested.add(card.key)
+      secondaries.push(card)
+    }
+    if (!secondaries.length) return
+    for (const card of secondaries) asked.current.add(card.key)
+    send({ kind: 'draw-secondaries', secondaries })
+  }, [held.length, paused, side.secondaries, side.remainingSecondaries, send])
 
   return (
     <>
