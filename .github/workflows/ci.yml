@@ -12,7 +12,7 @@ permissions:
   contents: read
 
 env:
-  CATALOGUE_SNAPSHOT_BASE_URL: ${{ vars.CATALOGUE_SNAPSHOT_BASE_URL }}
+  S3_PUBLIC_BASE_URL: ${{ vars.S3_PUBLIC_BASE_URL }}
 
 jobs:
   check:

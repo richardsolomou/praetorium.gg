@@ -14,5 +14,6 @@ port=${1:?port required}
 docker rm --force \
     "praetorium-e2e-${port}" \
     "praetorium-e2e-postgres-${port}" \
-    "praetorium-e2e-valkey-${port}" >/dev/null 2>&1 || true
+    "praetorium-e2e-valkey-${port}" \
+    "praetorium-e2e-minio-${port}" >/dev/null 2>&1 || true
 docker network rm "praetorium-e2e-net-${port}" >/dev/null 2>&1 || true
