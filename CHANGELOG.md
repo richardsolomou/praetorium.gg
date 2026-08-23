@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.21.5
+
+### Patch Changes
+
+- 36bfeb6: Show only completed battle rounds in the scoreboard progress rail.
+
 ## 0.21.4
 
 ### Patch Changes
