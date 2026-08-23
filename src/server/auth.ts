@@ -29,7 +29,7 @@ export function createAuth(database: PraetoriumDatabase, secret: string, valkey?
         update: {
           before: async (data, context) => {
             if (context?.path !== '/update-user') return
-            const result = profileUpdate(data)
+            const result = await profileUpdate(data)
             if (!result.ok) throw new APIError('BAD_REQUEST', { message: result.error })
             return { data: result.data }
           },
