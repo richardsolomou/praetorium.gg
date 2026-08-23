@@ -1,5 +1,14 @@
 # praetorium
 
+## 0.21.11
+
+### Patch Changes
+
+- a3d448f: Fix favourited datasheets sometimes never appearing after a hard refresh of a faction's datasheets page.
+- a3d448f: Stop blocking a scoring selection once the round or battle VP cap is reached — it now stays a warning, and only the overage is left uncounted, so the rest of that turn's legitimate scoring can still go through.
+- a3d448f: Make discarding tactical secondaries at the end of a turn optional, letting a player choose which cards, if any, to give up instead of forcing every active card into the discard pile.
+- a3d448f: Fix undoing a tactical draw from several turns back auto-dealing a fresh hand instead of pausing, which made it impossible to rewind past that point.
+
 ## 0.21.10
 
 ### Patch Changes
