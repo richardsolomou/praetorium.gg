@@ -433,8 +433,8 @@ export class Repository {
       if (!roster) return false
       const updated = await tx
         .update(eventParticipants)
-        .set({ rosterId, snapshot: null, sealedAt: null })
-        .where(and(eq(eventParticipants.eventId, eventId), eq(eventParticipants.userId, userId)))
+        .set({ rosterId })
+        .where(and(eq(eventParticipants.eventId, eventId), eq(eventParticipants.userId, userId), isNull(eventParticipants.sealedAt)))
         .returning({ eventId: eventParticipants.eventId })
       return updated.length > 0
     })

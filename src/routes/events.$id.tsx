@@ -1,4 +1,3 @@
-import { useFeatureFlagEnabled } from '@posthog/react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { Check, Eye, LockKeyhole } from 'lucide-react'
@@ -15,7 +14,6 @@ export const Route = createFileRoute('/events/$id')({
 })
 
 function EventPage() {
-  const enabled = useFeatureFlagEnabled('events-prototype')
   const { id } = Route.useParams()
   const { data: event } = useQuery(eventQuery(id))
   const { data: rosters = [] } = useQuery(savedRostersQuery())
@@ -23,7 +21,7 @@ function EventPage() {
   const refresh = () => queryClient.invalidateQueries({ queryKey: eventQuery(id).queryKey })
   const select = useMutation({ mutationFn: (rosterId: string) => selectEventRoster({ data: { id, rosterId } }), onSuccess: refresh })
   const seal = useMutation({ mutationFn: () => sealEventRoster({ data: { id } }), onSuccess: refresh })
-  if (!enabled || !event)
+  if (!event)
     return (
       <main className="mx-auto w-full max-w-5xl px-4 py-10">
         <p className="text-dim">This event is unavailable.</p>
@@ -97,15 +95,11 @@ function EventPage() {
                   ))}
                 </SelectContent>
               </Select>
-              {mine.sealedAt && mine.rosterId ? (
-                <Button variant="outline" disabled={select.isPending} onClick={() => select.mutate(mine.rosterId!)}>
-                  Change roster
-                </Button>
-              ) : (
+              {!mine.sealedAt ? (
                 <Button disabled={!mine.rosterId || seal.isPending} onClick={() => seal.mutate()}>
                   <LockKeyhole /> {seal.isPending ? 'Sealing…' : 'Seal roster'}
                 </Button>
-              )}
+              ) : null}
             </div>
             {!eligible.length ? (
               <p className="mt-2 text-sm text-dim">You need a saved roster configured for exactly {mine.limit.toLocaleString()} points.</p>

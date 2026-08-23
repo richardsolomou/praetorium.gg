@@ -205,6 +205,19 @@ describe('events', () => {
 
     expect((await service.sealEventRoster(id, 'alice')).revealed).toBe(false)
     expect((await service.event(id, 'bob'))?.participants.find((participant) => participant.userId === 'alice')?.roster).toBeNull()
+    await expect(service.selectEventRoster(id, 'alice', 'alice-roster')).rejects.toMatchObject({ status: 409 })
+    await service.saveRoster('alice', {
+      id: 'alice-roster',
+      name: 'edited after sealing',
+      catalogueId: 'book',
+      detachmentIds: [],
+      disposition: null,
+      limit: 2000,
+      picks: [],
+      prep: null,
+      visibility: 'private',
+      source: 'editable',
+    })
     expect((await service.sealEventRoster(id, 'bob')).revealed).toBe(true)
     expect((await service.event(id, 'bob'))?.participants.find((participant) => participant.userId === 'alice')?.roster?.name).toBe(
       'alice army',

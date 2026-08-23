@@ -166,7 +166,8 @@ export class PraetoriumService {
   }
 
   async selectEventRoster(id: string, userId: string, rosterId: string) {
-    if (!(await this.repository.selectEventRoster(id, userId, rosterId))) throw new Response('choose one of your rosters', { status: 403 })
+    if (!(await this.repository.selectEventRoster(id, userId, rosterId)))
+      throw new Response('choose one of your rosters before sealing', { status: 409 })
   }
 
   async sealEventRoster(id: string, userId: string) {

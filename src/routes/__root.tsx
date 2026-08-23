@@ -1,5 +1,4 @@
 import type { QueryClient } from '@tanstack/react-query'
-import { useFeatureFlagEnabled } from '@posthog/react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { createRootRouteWithContext, HeadContent, Link, Outlet, Scripts, useLocation, useNavigate } from '@tanstack/react-router'
 import barlow400 from '@fontsource/barlow-semi-condensed/files/barlow-semi-condensed-latin-400-normal.woff2?url'
@@ -86,7 +85,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 })
 
 function Account() {
-  const eventsEnabled = useFeatureFlagEnabled('events-prototype')
   const { data: me } = useQuery(meQuery())
   const queryClient = useQueryClient()
   const navigate = useNavigate()
@@ -121,11 +119,9 @@ function Account() {
             <DropdownMenuItem render={<Link to="/battles" />}>
               <Swords /> My battles
             </DropdownMenuItem>
-            {eventsEnabled ? (
-              <DropdownMenuItem render={<Link to="/events" />}>
-                <CalendarDays /> Events
-              </DropdownMenuItem>
-            ) : null}
+            <DropdownMenuItem render={<Link to="/events" />}>
+              <CalendarDays /> Events
+            </DropdownMenuItem>
             <DropdownMenuItem render={<Link to="/rosters" />}>
               <ScrollText /> My rosters
             </DropdownMenuItem>
@@ -156,7 +152,6 @@ function Account() {
 }
 
 function PrimaryNavigation({ path }: { path: string }) {
-  const eventsEnabled = useFeatureFlagEnabled('events-prototype')
   const [open, setOpen] = useState(false)
   const root = useRef<HTMLDivElement>(null)
   const trigger = useRef<HTMLButtonElement>(null)
@@ -217,15 +212,13 @@ function PrimaryNavigation({ path }: { path: string }) {
         >
           Rosters
         </Link>
-        {eventsEnabled ? (
-          <Link
-            to="/events"
-            className={linkClass}
-            activeProps={{ className: 'border-parchment bg-raised text-parchment min-[815px]:bg-transparent' }}
-          >
-            Events
-          </Link>
-        ) : null}
+        <Link
+          to="/events"
+          className={linkClass}
+          activeProps={{ className: 'border-parchment bg-raised text-parchment min-[815px]:bg-transparent' }}
+        >
+          Events
+        </Link>
         <Link
           to="/factions"
           className={linkClass}

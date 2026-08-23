@@ -1,4 +1,3 @@
-import { useFeatureFlagEnabled } from '@posthog/react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { CalendarDays, Plus } from 'lucide-react'
@@ -18,15 +17,8 @@ export const Route = createFileRoute('/events/')({
 })
 
 function EventsPage() {
-  const enabled = useFeatureFlagEnabled('events-prototype')
   const { data: me } = useQuery(meQuery())
   const { data: events = [] } = useQuery(eventsQuery())
-  if (!enabled)
-    return (
-      <main className="mx-auto w-full max-w-5xl px-4 py-10">
-        <p className="text-dim">Events are not available yet.</p>
-      </main>
-    )
   if (!me) return <SignInRequired title="Your events" explanation="Sign in to prepare and reveal rosters with other players." />
   return (
     <main className="w-full">
