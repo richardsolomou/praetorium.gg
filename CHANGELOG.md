@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.23.4
+
+### Patch Changes
+
+- 4f664f9: Stop false catalogue validation warnings for recognised primary categories and aggregated model wargear.
+
 ## 0.23.3
 
 ### Patch Changes
