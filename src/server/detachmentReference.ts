@@ -39,7 +39,7 @@ export function detachmentReference(loaded: LoadedCatalogue, rules: LoadedRules,
   }))
   return {
     ...detail,
-    dispositions: detail.dispositions.map((disposition) => rules.dispositions.get(disposition) ?? disposition),
+    dispositions: detail.dispositions.map((disposition) => rules.dispositions?.get(disposition) ?? disposition),
     rules: detachmentRuleCards,
     enhancements,
     upgrades,
