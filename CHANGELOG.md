@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.23.3
+
+### Patch Changes
+
+- e5d790e: Open related datasheets in their canonical faction reference.
+
 ## 0.23.2
 
 ### Patch Changes
