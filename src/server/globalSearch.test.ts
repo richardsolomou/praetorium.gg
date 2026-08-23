@@ -145,7 +145,14 @@ describe('global datasheet search', () => {
             name: 'Detachment',
             type: 'upgrade',
             selectionEntryGroups: [
-              { id: 'detachment-choices', name: 'Detachment', selectionEntries: [{ id: 'black-spear', name: 'Black Spear Task Force', type: 'upgrade' }] },
+              {
+                id: 'detachment-choices',
+                name: 'Detachment',
+                selectionEntries: [
+                  { id: 'black-spear', name: 'Black Spear Task Force', type: 'upgrade' },
+                  { id: 'first-company', name: '1st Company Task Force', type: 'upgrade' },
+                ],
+              },
             ],
           },
         ],
@@ -155,14 +162,34 @@ describe('global datasheet search', () => {
         selectionEntries: [{ id: 'watch-master', name: 'Watch Master', type: 'model', costs: points(95) }],
         catalogueLinks: [{ targetId: 'cat', importRootEntries: true }],
       },
+      {
+        name: 'Imperial Fists',
+        selectionEntries: [{ id: 'fist-captain', name: 'Captain', type: 'model', costs: points(80) }],
+        catalogueLinks: [{ targetId: 'cat', importRootEntries: true }],
+      },
     )
     const rules = {
       factionKeys: new Map([
         ['space-marines', 'space-marines'],
         ['deathwatch', 'deathwatch'],
+        ['imperial-fists', 'imperial-fists'],
       ]),
       detachmentReferences: new Map([
-        ['deathwatch', new Map([['black-spear-task-force', { enhancements: 0, upgrades: 0, stratagems: 0, points: null, dispositions: [] }]])],
+        [
+          'space-marines',
+          new Map([['1st-company-task-force', { enhancements: 0, upgrades: 0, stratagems: 0, points: null, dispositions: [] }]]),
+        ],
+        [
+          'deathwatch',
+          new Map([
+            ['black-spear-task-force', { enhancements: 0, upgrades: 0, stratagems: 0, points: null, dispositions: [] }],
+            ['1st-company-task-force', { enhancements: 0, upgrades: 0, stratagems: 0, points: null, dispositions: [] }],
+          ]),
+        ],
+        [
+          'imperial-fists',
+          new Map([['1st-company-task-force', { enhancements: 0, upgrades: 0, stratagems: 0, points: null, dispositions: [] }]]),
+        ],
       ]),
       detachmentDetails: new Map(),
       factionNames: new Map(),
@@ -176,10 +203,21 @@ describe('global datasheet search', () => {
       deployments: [],
       attribution: '',
     } as Partial<LoadedRules> as LoadedRules
+    catalogue.factionContents.set('deathwatch', {
+      datasheets: new Set(),
+      datasheetDetails: new Map(),
+      detachments: new Set(['Black Spear Task Force']),
+      armyRules: [],
+    })
 
     const results = await searchEverything('black spear', { catalogue, rules, own: async () => null })
     expect(results.filter((result) => result.group === 'Detachments')).toEqual([
       expect.objectContaining({ label: 'Black Spear Task Force', detail: 'Deathwatch', href: '/factions/deathwatch/reference/detachments/black-spear-task-force' }),
+    ])
+
+    const shared = await searchEverything('1st company', { catalogue, rules, own: async () => null })
+    expect(shared.filter((result) => result.group === 'Detachments')).toEqual([
+      expect.objectContaining({ label: '1st Company Task Force', detail: 'Space Marines' }),
     ])
   })
 })

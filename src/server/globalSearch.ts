@@ -76,7 +76,7 @@ function catalogueResults(wanted: string, matches: Matcher, sources: Sources): G
       })
     }
     for (const detachment of faction.detachments) {
-      if (!detachment.reference) continue
+      if (!faction.referenceDetachmentIds.includes(detachment.id)) continue
       if (!matches(detachment.name)) continue
       results.push({
         id: `detachment:${faction.id}:${detachment.id}`,
