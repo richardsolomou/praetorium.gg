@@ -1,5 +1,19 @@
 # praetorium
 
+## 0.22.0
+
+### Minor Changes
+
+- f439680: Replace solo practice with a practice opponent: a full battle against an account that holds a seat and never signs in, in a 1v1 or on either side of a 2v1.
+
+### Patch Changes
+
+- f439680: Show an allied pair the deck they draw their shared hand from, rather than only the seat that deals it.
+- 0f9d5bd: Stop a datasheet whose name opens with a weapon keyword claiming that weapon's rule.
+- 0f9d5bd: Leave the catalogue's own bookkeeping off a datasheet's keyword line.
+- 0f9d5bd: Shelve a datasheet by a primary keyword it sorts under, so Titans leave Other.
+- f439680: Say what the active side still owes instead of refusing the turn to anyone else at the table.
+
 ## 0.21.18
 
 ### Patch Changes
