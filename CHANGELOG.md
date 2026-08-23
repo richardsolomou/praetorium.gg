@@ -1,5 +1,13 @@
 # praetorium
 
+## 0.21.15
+
+### Patch Changes
+
+- e4f8951: Fix a multi-mode weapon like a missile launcher showing no weapon stats in the loadout pane, when the catalogue prints its modes with a marker and a dash rather than in parentheses.
+- 7cca113: Draw the models a datasheet insists on, so a unit's loadout no longer omits its sergeant. An Eradicator Squad showed two Eradicators and no Eradicator Sergeant, and its wargear was counted two models short; 53 datasheets were missing a model this way, among them Tactical Squad, Kasrkin, Grey Knights Strike Squad and Battle Sisters Squad.
+- 7cca113: Name a squad's rank and file after the model rather than after the unit, so an Eradicator Squad's second card reads "Eradicator" instead of repeating the unit's own name.
+
 ## 0.21.14
 
 ### Patch Changes
