@@ -1,7 +1,38 @@
 import { describe, expect, it } from 'vitest'
 import { datasheetInBySlug } from './catalogue'
-import { unitsIn } from './cataloguePicker'
+import { groupOfEntry, unitsIn } from './cataloguePicker'
 import { bookOf, categories, offered, points, shelfOf } from './catalogue.fixtures'
+
+describe('the shelf a datasheet is filed under', () => {
+  const shelfOfTitan = (links: { id: string; targetId: string; name: string; primary?: boolean }[]) =>
+    groupOfEntry(
+      bookOf({
+        selectionEntries: [{ id: 'titan', name: 'Reaver Titan', type: 'model', categoryLinks: links }],
+      }).index,
+      'titan',
+    )
+
+  it('is the primary category that names a shelf, not merely the first one', () => {
+    // A Reaver Titan prints two: the allied-detachment counter comes first, and
+    // reading only that filed 52 Titans and an allied kill team under Other.
+    expect(
+      shelfOfTitan([
+        { id: 'a', targetId: 'allies', name: 'Allies: Titanicus Traitoris', primary: true },
+        { id: 'b', targetId: 'vehicle', name: 'Vehicle', primary: true },
+      ]),
+    ).toBe('vehicle')
+  })
+
+  it('stays Other when no primary category names a shelf', () => {
+    // A secondary keyword does not get to stand in for one.
+    expect(
+      shelfOfTitan([
+        { id: 'a', targetId: 'allies', name: 'Allies: Titanicus Traitoris', primary: true },
+        { id: 'b', targetId: 'walker', name: 'Walker' },
+      ]),
+    ).toBe('other')
+  })
+})
 
 describe('the picker', () => {
   it('gives datasheets readable unambiguous route slugs', () => {

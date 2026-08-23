@@ -57,6 +57,31 @@ describe('a datasheet', () => {
     expect(datasheetIn(book, 'cat', 'chaplain')?.keywords).toEqual(['Character', 'Deathwing'])
   })
 
+  it('leaves out a bookkeeping keyword the datasheet writes for itself', () => {
+    // The marker is on the datasheet rather than granted to it, and the attachment
+    // markers the game system writes are the same shape. Reading the link instead of
+    // the category it points at printed Leader on 718 datasheets.
+    const book = bookOf({
+      categoryEntries: [
+        { id: 'infantry', name: 'Infantry' },
+        { id: 'marker', name: 'Leader', hidden: true },
+      ],
+      selectionEntries: [
+        {
+          id: 'captain',
+          name: 'Captain',
+          type: 'model',
+          categoryLinks: [
+            { id: 'first', targetId: 'infantry', name: 'Infantry' },
+            { id: 'second', targetId: 'marker', name: 'Leader' },
+          ],
+        },
+      ],
+    })
+
+    expect(datasheetIn(book, 'cat', 'captain')?.keywords).toEqual(['Infantry'])
+  })
+
   it('shows duplicate available profiles once', () => {
     const profile = (id: string, name = 'Storm bolter') => ({
       id,
