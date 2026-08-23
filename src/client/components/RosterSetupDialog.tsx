@@ -1,5 +1,5 @@
 import { Check, Layers3 } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
@@ -19,6 +19,8 @@ import { SearchableSelect, type SearchableGroup } from './SearchableSelect'
 import { factionSelectGroups } from './builder/factions'
 import { dispositionsFor, dispositionTone } from './rosterSetup'
 import { useFavouriteFactions } from '../favouriteFactions'
+import { favouriteDetachmentsFirst, useFavouriteDetachments } from '../favouriteDetachments'
+import { FavouriteDetachmentToggle } from './FavouriteDetachmentToggle'
 
 type Detachment = {
   id: string
@@ -77,8 +79,16 @@ export function RosterSetupDialog({
   pending = false,
 }: Props) {
   const [draft, setDraft] = useState(value)
-  const [reference, setReference] = useState<{ catalogueId: string; slug: string; name: string } | null>(null)
+  const [reference, setReference] = useState<{ catalogueId: string; detachmentId: string; slug: string; name: string } | null>(null)
   const { favourites } = useFavouriteFactions()
+  const { favourites: favouriteDetachments } = useFavouriteDetachments()
+
+  useEffect(() => {
+    if (!reference) return
+    const reset = () => document.getElementById('detachment-reference-dialog')?.scrollTo({ top: 0 })
+    reset()
+    requestAnimationFrame(reset)
+  }, [reference])
 
   const changeDraft = (next: RosterSetup) => {
     setDraft(next)
@@ -95,13 +105,16 @@ export function RosterSetupDialog({
     selected.map((detachment) => ({ points: detachment.reference?.points ?? null })),
     allowance,
   )
-  const availableDetachments =
+  const availableDetachments = favouriteDetachmentsFirst(
     faction?.detachments.filter((detachment) => {
       if (draft.detachmentIds.includes(detachment.id)) return true
       if (draft.detachmentIds.length >= detachmentLimit(draft.limit) && !isKotcLimit(draft.limit)) return false
       if (!selected.length || allowance === null || detachment.reference?.points == null) return true
       return spent + detachment.reference.points <= allowance
-    }) ?? []
+    }) ?? [],
+    faction?.id ?? '',
+    favouriteDetachments,
+  )
   const factionChanged = value.catalogueId !== draft.catalogueId
   const detachmentsChanged = value.detachmentIds.toSorted().join() !== draft.detachmentIds.toSorted().join()
   const groups = factionSelectGroups(factions, favourites)
@@ -209,15 +222,46 @@ export function RosterSetupDialog({
                       key={detachment.id}
                       className={`flex min-h-20 items-stretch rounded-none border ${chosen ? 'border-parchment bg-raised' : 'border-edge bg-sunken'}`}
                     >
+                      <div className="flex w-10 shrink-0 flex-col border-r border-edge">
+                        <button
+                          type="button"
+                          aria-label={`View ${detachment.name} detachment reference`}
+                          className="grid min-h-10 flex-1 place-items-center hover:bg-raised"
+                          onClick={() => {
+                            if (!faction) return
+                            setReference({
+                              catalogueId: faction.id,
+                              detachmentId: detachment.id,
+                              slug: detachment.slug,
+                              name: detachment.name,
+                            })
+                          }}
+                        >
+                          <Layers3 className={`size-4 ${chosen ? 'text-parchment' : 'text-faint'}`} />
+                        </button>
+                        {faction ? (
+                          <FavouriteDetachmentToggle
+                            catalogueId={faction.id}
+                            detachmentId={detachment.id}
+                            name={detachment.name}
+                            className="size-10 border-t border-edge hover:bg-raised"
+                          />
+                        ) : null}
+                      </div>
                       <button
                         type="button"
-                        className="flex min-w-0 flex-1 items-start gap-3 p-3 text-left"
+                        aria-label={`View ${detachment.name} detachment reference`}
+                        className="flex min-w-0 flex-1 items-start p-3 text-left"
                         onClick={() => {
                           if (!faction) return
-                          setReference({ catalogueId: faction.id, slug: detachment.slug, name: detachment.name })
+                          setReference({
+                            catalogueId: faction.id,
+                            detachmentId: detachment.id,
+                            slug: detachment.slug,
+                            name: detachment.name,
+                          })
                         }}
                       >
-                        <Layers3 className={`mt-0.5 size-4 shrink-0 ${chosen ? 'text-parchment' : 'text-faint'}`} />
                         <span className="min-w-0 flex-1">
                           <span className="block font-bold uppercase">{detachment.name}</span>
                           <span className="mt-2 flex flex-wrap gap-1">
@@ -340,7 +384,11 @@ export function RosterSetupDialog({
         </DialogContent>
       </Dialog>
       <Dialog open={Boolean(reference)} onOpenChange={(next) => !next && setReference(null)}>
-        <DialogContent className="rounded-none border border-edge bg-panel p-0 text-bone ring-0 sm:max-w-5xl">
+        <DialogContent
+          id="detachment-reference-dialog"
+          initialFocus={false}
+          className="rounded-none border border-edge bg-panel p-0 text-bone ring-0 sm:max-w-5xl"
+        >
           <DialogHeader className="sr-only">
             <DialogTitle>{reference?.name ?? 'Detachment reference'}</DialogTitle>
             <DialogDescription>Detachment rules, enhancements, and stratagems.</DialogDescription>
@@ -349,6 +397,7 @@ export function RosterSetupDialog({
             {reference ? (
               <DetachmentReference
                 catalogueId={reference.catalogueId}
+                detachmentId={reference.detachmentId}
                 slug={reference.slug}
                 faction={factions.find((entry) => entry.id === reference.catalogueId)}
               />

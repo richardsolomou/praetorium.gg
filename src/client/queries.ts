@@ -13,6 +13,7 @@ import {
   factionDatasheets,
   factionIndex,
   favouriteFactions,
+  favouriteDetachments,
   friendships,
   gameReferences,
   globalSearch,
@@ -70,6 +71,8 @@ export const factionsQuery = () => queryOptions({ queryKey: ['factions'], queryF
 export const factionIndexQuery = () => queryOptions({ queryKey: ['faction-index'], queryFn: () => factionIndex(), staleTime: Infinity })
 export const favouriteFactionsQuery = () =>
   queryOptions({ queryKey: ['favourite-factions'], queryFn: () => favouriteFactions(), staleTime: SSR_STALE_TIME })
+export const favouriteDetachmentsQuery = () =>
+  queryOptions({ queryKey: ['favourite-detachments'], queryFn: () => favouriteDetachments(), staleTime: SSR_STALE_TIME })
 export const gameReferencesQuery = () =>
   queryOptions({
     queryKey: ['game-references'],

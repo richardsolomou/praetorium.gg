@@ -1,7 +1,7 @@
 import { createFileRoute, notFound } from '@tanstack/react-router'
 import { FactionDatasheets } from '../client/components/FactionDatasheets'
 import { factionFor } from '../client/factions'
-import { factionDatasheetsQuery, factionsQuery } from '../client/queries'
+import { collectionQuery, factionDatasheetsQuery, factionsQuery } from '../client/queries'
 
 export const Route = createFileRoute('/factions/$catalogueId/datasheets')({
   loader: async ({ context, params }) => {
@@ -11,6 +11,7 @@ export const Route = createFileRoute('/factions/$catalogueId/datasheets')({
     // Render the page shell immediately. The list can finish pricing behind its
     // loading state instead of holding the route transition on a large faction.
     void context.queryClient.prefetchQuery(factionDatasheetsQuery(faction.id, ''))
+    void context.queryClient.prefetchQuery(collectionQuery())
   },
   component: FactionDatasheets,
 })

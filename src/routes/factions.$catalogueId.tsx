@@ -2,7 +2,10 @@ import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, notFound, Outlet, useRouterState } from '@tanstack/react-router'
 import { ChevronLeft, ChevronRight, ShieldQuestion } from 'lucide-react'
 import { factionFor } from '../client/factions'
+import { favouriteDetachmentsFirst, useFavouriteDetachments } from '../client/favouriteDetachments'
 import { factionsQuery } from '../client/queries'
+import { FavouriteDetachmentToggle } from '../client/components/FavouriteDetachmentToggle'
+import { FavouriteFactionToggle } from '../client/components/FavouriteFactionToggle'
 import { FactionMark, factionColour } from '../client/components/FactionMark'
 import { dispositionTone } from '../client/components/rosterSetup'
 import { RuleText } from '../client/components/RuleText'
@@ -24,7 +27,12 @@ function FactionPage() {
   const faction = factionFor(data, catalogueId)
   if (!faction) return null
   const reference = faction.references[0]
-  const detachments = faction.detachments.filter((detachment) => faction.referenceDetachmentIds.includes(detachment.id))
+  const { favourites } = useFavouriteDetachments()
+  const detachments = favouriteDetachmentsFirst(
+    faction.detachments.filter((detachment) => faction.referenceDetachmentIds.includes(detachment.id)),
+    faction.id,
+    favourites,
+  )
 
   return (
     <main className="w-full">
@@ -35,10 +43,11 @@ function FactionPage() {
         <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,transparent_35%,color-mix(in_srgb,var(--color-parchment)_8%,transparent),transparent_75%)]" />
         <div className="relative mx-auto flex max-w-5xl items-center gap-4 px-3 pt-[17px] pb-5 sm:px-4 sm:pt-[25px] sm:pb-7">
           <FactionMark id={faction.slug} icon={faction.icon} size="lg" />
-          <span>
+          <div className="min-w-0 flex-1">
             <p className="eyebrow text-parchment">Faction</p>
             <h1 className="text-3xl">{faction.displayName}</h1>
-          </span>
+          </div>
+          <FavouriteFactionToggle catalogueId={faction.id} name={faction.displayName} />
         </div>
       </section>
       <div className="mx-auto max-w-5xl px-3 py-4 sm:px-4">
@@ -115,17 +124,20 @@ function FactionPage() {
                 </>
               )
               return detachment.reference ? (
-                <Link
-                  key={detachment.id}
-                  to="/factions/$catalogueId/reference/detachments/$detachmentId"
-                  params={{ catalogueId: faction.slug, detachmentId: detachment.slug }}
-                  className="flex items-center justify-between gap-4 px-3 py-2.5 hover:bg-raised"
-                >
-                  {content}
-                </Link>
+                <div key={detachment.id} className="flex items-center gap-1 px-3 py-2.5 hover:bg-raised">
+                  <Link
+                    to="/factions/$catalogueId/reference/detachments/$detachmentId"
+                    params={{ catalogueId: faction.slug, detachmentId: detachment.slug }}
+                    className="flex min-w-0 flex-1 items-center justify-between gap-4"
+                  >
+                    {content}
+                  </Link>
+                  <FavouriteDetachmentToggle catalogueId={faction.id} detachmentId={detachment.id} name={detachment.name} />
+                </div>
               ) : (
-                <div key={detachment.id} className="flex items-center justify-between gap-4 px-3 py-2.5">
-                  {content}
+                <div key={detachment.id} className="flex items-center gap-1 px-3 py-2.5">
+                  <div className="flex min-w-0 flex-1 items-center justify-between gap-4">{content}</div>
+                  <FavouriteDetachmentToggle catalogueId={faction.id} detachmentId={detachment.id} name={detachment.name} />
                 </div>
               )
             })}
