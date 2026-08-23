@@ -2,7 +2,9 @@ import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, notFound, Outlet, useRouterState } from '@tanstack/react-router'
 import { ChevronLeft, ChevronRight, ShieldQuestion } from 'lucide-react'
 import { factionFor } from '../client/factions'
+import { favouriteDetachmentsFirst, useFavouriteDetachments } from '../client/favouriteDetachments'
 import { factionsQuery } from '../client/queries'
+import { FavouriteDetachmentToggle } from '../client/components/FavouriteDetachmentToggle'
 import { FactionMark, factionColour } from '../client/components/FactionMark'
 import { dispositionTone } from '../client/components/rosterSetup'
 import { RuleText } from '../client/components/RuleText'
@@ -24,7 +26,12 @@ function FactionPage() {
   const faction = factionFor(data, catalogueId)
   if (!faction) return null
   const reference = faction.references[0]
-  const detachments = faction.detachments.filter((detachment) => faction.referenceDetachmentIds.includes(detachment.id))
+  const { favourites } = useFavouriteDetachments()
+  const detachments = favouriteDetachmentsFirst(
+    faction.detachments.filter((detachment) => faction.referenceDetachmentIds.includes(detachment.id)),
+    faction.id,
+    favourites,
+  )
 
   return (
     <main className="w-full">
@@ -115,17 +122,20 @@ function FactionPage() {
                 </>
               )
               return detachment.reference ? (
-                <Link
-                  key={detachment.id}
-                  to="/factions/$catalogueId/reference/detachments/$detachmentId"
-                  params={{ catalogueId: faction.slug, detachmentId: detachment.slug }}
-                  className="flex items-center justify-between gap-4 px-3 py-2.5 hover:bg-raised"
-                >
-                  {content}
-                </Link>
+                <div key={detachment.id} className="flex items-center gap-1 px-3 py-2.5 hover:bg-raised">
+                  <Link
+                    to="/factions/$catalogueId/reference/detachments/$detachmentId"
+                    params={{ catalogueId: faction.slug, detachmentId: detachment.slug }}
+                    className="flex min-w-0 flex-1 items-center justify-between gap-4"
+                  >
+                    {content}
+                  </Link>
+                  <FavouriteDetachmentToggle catalogueId={faction.id} detachmentId={detachment.id} name={detachment.name} />
+                </div>
               ) : (
-                <div key={detachment.id} className="flex items-center justify-between gap-4 px-3 py-2.5">
-                  {content}
+                <div key={detachment.id} className="flex items-center gap-1 px-3 py-2.5">
+                  <div className="flex min-w-0 flex-1 items-center justify-between gap-4">{content}</div>
+                  <FavouriteDetachmentToggle catalogueId={faction.id} detachmentId={detachment.id} name={detachment.name} />
                 </div>
               )
             })}

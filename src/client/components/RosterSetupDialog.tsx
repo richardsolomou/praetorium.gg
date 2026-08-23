@@ -1,4 +1,4 @@
-import { Check, Heart, Layers3 } from 'lucide-react'
+import { Check, Layers3 } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -19,7 +19,8 @@ import { SearchableSelect, type SearchableGroup } from './SearchableSelect'
 import { factionSelectGroups } from './builder/factions'
 import { dispositionsFor, dispositionTone } from './rosterSetup'
 import { useFavouriteFactions } from '../favouriteFactions'
-import { favouriteDetachmentKey, favouriteDetachmentsFirst, useFavouriteDetachments } from '../favouriteDetachments'
+import { favouriteDetachmentsFirst, useFavouriteDetachments } from '../favouriteDetachments'
+import { FavouriteDetachmentToggle } from './FavouriteDetachmentToggle'
 
 type Detachment = {
   id: string
@@ -80,11 +81,7 @@ export function RosterSetupDialog({
   const [draft, setDraft] = useState(value)
   const [reference, setReference] = useState<{ catalogueId: string; slug: string; name: string } | null>(null)
   const { favourites } = useFavouriteFactions()
-  const {
-    favourites: favouriteDetachments,
-    toggleFavourite: toggleFavouriteDetachment,
-    pending: favouriteMutation,
-  } = useFavouriteDetachments()
+  const { favourites: favouriteDetachments } = useFavouriteDetachments()
 
   const changeDraft = (next: RosterSetup) => {
     setDraft(next)
@@ -213,7 +210,6 @@ export function RosterSetupDialog({
               <div className="mt-2 grid max-h-72 gap-2 overflow-y-auto sm:grid-cols-2">
                 {availableDetachments.map((detachment) => {
                   const chosen = draft.detachmentIds.includes(detachment.id)
-                  const favourite = favouriteDetachments.has(favouriteDetachmentKey(faction?.id ?? '', detachment.id))
                   return (
                     <div
                       key={detachment.id}
@@ -239,15 +235,14 @@ export function RosterSetupDialog({
                           </span>
                         </span>
                       </button>
-                      <button
-                        type="button"
-                        aria-label={`${favourite ? 'Remove' : 'Add'} ${detachment.name} ${favourite ? 'from' : 'to'} favourite detachments`}
-                        disabled={favouriteMutation.isPending && favouriteMutation.variables?.detachmentId === detachment.id}
-                        onClick={() => faction && toggleFavouriteDetachment(faction.id, detachment.id)}
-                        className="grid w-10 shrink-0 place-items-center border-l border-edge text-faint hover:bg-raised hover:text-dim"
-                      >
-                        <Heart className={`size-4 ${favourite ? 'fill-rust text-rust' : ''}`} />
-                      </button>
+                      {faction ? (
+                        <FavouriteDetachmentToggle
+                          catalogueId={faction.id}
+                          detachmentId={detachment.id}
+                          name={detachment.name}
+                          className="w-10 border-l border-edge hover:bg-raised"
+                        />
+                      ) : null}
                       <button
                         type="button"
                         aria-label={`${chosen ? 'Remove' : 'Select'} ${detachment.name}`}
