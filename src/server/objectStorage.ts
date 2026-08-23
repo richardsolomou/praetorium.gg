@@ -1,7 +1,7 @@
 import { HeadObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3'
 
 /** The shared public store; operators may override it with their own mirror or bucket. */
-export const DEFAULT_S3_PUBLIC_BASE_URL = 'https://s3.praetorium.gg/praetorium-catalogue'
+export const DEFAULT_S3_PUBLIC_BASE_URL = 'https://s3.praetorium.gg/praetorium'
 
 export type ObjectStore = { bucket: string; publicBaseUrl: string; client: S3Client }
 

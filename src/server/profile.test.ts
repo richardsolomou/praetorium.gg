@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { profileUpdate } from './profile'
 
-const STORED_URL = 'https://s3.praetorium.gg/praetorium-catalogue/avatars/stored.webp'
+const STORED_URL = 'https://s3.praetorium.gg/praetorium/avatars/stored.webp'
 
 const { storeProfileImage } = vi.hoisted(() => ({
   storeProfileImage: vi.fn(async (dataUrl: string) => {
