@@ -5,6 +5,7 @@ import { factionFor } from '../client/factions'
 import { favouriteDetachmentsFirst, useFavouriteDetachments } from '../client/favouriteDetachments'
 import { factionsQuery } from '../client/queries'
 import { FavouriteDetachmentToggle } from '../client/components/FavouriteDetachmentToggle'
+import { FavouriteFactionToggle } from '../client/components/FavouriteFactionToggle'
 import { FactionMark, factionColour } from '../client/components/FactionMark'
 import { dispositionTone } from '../client/components/rosterSetup'
 import { RuleText } from '../client/components/RuleText'
@@ -42,10 +43,11 @@ function FactionPage() {
           style={{ borderLeftColor: factionColour(faction.slug) }}
         >
           <FactionMark id={faction.slug} icon={faction.icon} size="lg" />
-          <span>
+          <div className="min-w-0 flex-1">
             <p className="eyebrow text-parchment">Faction</p>
             <h1 className="text-3xl">{faction.displayName}</h1>
-          </span>
+          </div>
+          <FavouriteFactionToggle catalogueId={faction.id} name={faction.displayName} />
         </div>
       </section>
       <div className="mx-auto max-w-5xl px-3 py-4 sm:px-4">

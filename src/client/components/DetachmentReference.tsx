@@ -4,16 +4,19 @@ import { detachmentDetailQuery } from '../queries'
 import { RuleText } from './RuleText'
 import { dispositionTone } from './rosterSetup'
 import { FactionMark, factionColour, type FactionPresentation } from './FactionMark'
+import { FavouriteDetachmentToggle } from './FavouriteDetachmentToggle'
 import { PageState } from './PageState'
 
 export function DetachmentReference({
   catalogueId,
   slug,
+  detachmentId,
   faction,
   afterHero,
 }: {
   catalogueId: string
   slug: string
+  detachmentId?: string
   faction?: FactionPresentation
   afterHero?: ReactNode
 }) {
@@ -50,6 +53,9 @@ export function DetachmentReference({
                   ))}
                   {detachment.points === null ? null : <span className="chip">{detachment.points} DP</span>}
                 </div>
+              ) : null}
+              {detachmentId ? (
+                <FavouriteDetachmentToggle catalogueId={catalogueId} detachmentId={detachmentId} name={detachment.name} />
               ) : null}
             </div>
           </div>

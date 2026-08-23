@@ -79,7 +79,7 @@ export function RosterSetupDialog({
   pending = false,
 }: Props) {
   const [draft, setDraft] = useState(value)
-  const [reference, setReference] = useState<{ catalogueId: string; slug: string; name: string } | null>(null)
+  const [reference, setReference] = useState<{ catalogueId: string; detachmentId: string; slug: string; name: string } | null>(null)
   const { favourites } = useFavouriteFactions()
   const { favourites: favouriteDetachments } = useFavouriteDetachments()
 
@@ -229,7 +229,12 @@ export function RosterSetupDialog({
                           className="grid min-h-10 flex-1 place-items-center hover:bg-raised"
                           onClick={() => {
                             if (!faction) return
-                            setReference({ catalogueId: faction.id, slug: detachment.slug, name: detachment.name })
+                            setReference({
+                              catalogueId: faction.id,
+                              detachmentId: detachment.id,
+                              slug: detachment.slug,
+                              name: detachment.name,
+                            })
                           }}
                         >
                           <Layers3 className={`size-4 ${chosen ? 'text-parchment' : 'text-faint'}`} />
@@ -249,7 +254,12 @@ export function RosterSetupDialog({
                         className="flex min-w-0 flex-1 items-start p-3 text-left"
                         onClick={() => {
                           if (!faction) return
-                          setReference({ catalogueId: faction.id, slug: detachment.slug, name: detachment.name })
+                          setReference({
+                            catalogueId: faction.id,
+                            detachmentId: detachment.id,
+                            slug: detachment.slug,
+                            name: detachment.name,
+                          })
                         }}
                       >
                         <span className="min-w-0 flex-1">
@@ -387,6 +397,7 @@ export function RosterSetupDialog({
             {reference ? (
               <DetachmentReference
                 catalogueId={reference.catalogueId}
+                detachmentId={reference.detachmentId}
                 slug={reference.slug}
                 faction={factions.find((entry) => entry.id === reference.catalogueId)}
               />

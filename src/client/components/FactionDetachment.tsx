@@ -10,12 +10,14 @@ export function FactionDetachment() {
   const { data } = useQuery(factionsQuery())
   const faction = factionFor(data, params.catalogueId ?? '')
   if (!faction) return null
+  const detachmentId = faction.detachments.find((detachment) => detachment.slug === params.detachmentId)?.id
 
   return (
     <main className="w-full">
       <DetachmentReference
         catalogueId={faction.id}
         slug={params.detachmentId ?? ''}
+        detachmentId={detachmentId}
         faction={faction}
         afterHero={
           <Breadcrumb>
