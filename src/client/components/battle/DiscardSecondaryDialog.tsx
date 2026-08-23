@@ -19,17 +19,23 @@ export function DiscardSecondaryDialog({
   onDone: () => void
 }) {
   const cards = side.secondaries.filter((card) => keys.includes(card.key) && card.status === 'active')
-  const [selected, setSelected] = useState<string | null>(null)
+  const [selected, setSelected] = useState<string[]>([])
+
+  const toggle = (key: string) =>
+    setSelected((current) => (current.includes(key) ? current.filter((candidate) => candidate !== key) : [...current, key]))
+
+  const gainCp = selected.length > 0 && side.canGainCp
+  const confirmLabel = selected.length === 0 ? 'Keep hand' : `Discard ${selected.length}${gainCp ? ' and gain 1 CP' : ''}`
 
   return (
     <Dialog open>
       <DialogContent className="rounded-none border border-discarded/60 bg-panel text-bone sm:max-w-lg">
         <DialogHeader className="text-center">
           <p className="eyebrow text-discarded">End of turn</p>
-          <DialogTitle className="uppercase">Resolve tactical hand?</DialogTitle>
+          <DialogTitle className="uppercase">Discard tactical secondaries?</DialogTitle>
           <DialogDescription className="text-dim">
-            {sideName(side)} discards all active tactical secondaries now.
-            {side.canGainCp ? ' Choose one to gain 1 CP.' : ' The additional CP allowance has already been used this round.'}
+            {sideName(side)} can discard any of their active tactical secondaries, or keep the hand as is.
+            {side.canGainCp ? ' Discarding at least one gains 1 CP.' : ' The additional CP allowance has already been used this round.'}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-1.5">
@@ -38,9 +44,9 @@ export function DiscardSecondaryDialog({
               key={card.key}
               variant="outline"
               className="h-auto w-full justify-start rounded-none py-2 text-left"
-              aria-pressed={selected === card.key}
-              disabled={pending || !side.canGainCp}
-              onClick={() => setSelected((current) => (current === card.key ? null : card.key))}
+              aria-pressed={selected.includes(card.key)}
+              disabled={pending}
+              onClick={() => toggle(card.key)}
             >
               {card.name}
             </Button>
@@ -48,23 +54,13 @@ export function DiscardSecondaryDialog({
         </div>
         <DialogFooter className="rounded-none border-edge bg-sunken">
           <Button
-            variant="outline"
             disabled={pending}
             onClick={() => {
-              send({ kind: 'resolve-tactical-hand', playerId: side.captain.id })
+              if (selected.length) send({ kind: 'resolve-tactical-hand', keys: selected, gainCp, playerId: side.captain.id })
               onDone()
             }}
           >
-            Discard without CP
-          </Button>
-          <Button
-            disabled={pending || !selected || !side.canGainCp}
-            onClick={() => {
-              if (selected) send({ kind: 'resolve-tactical-hand', gainCpFrom: selected, playerId: side.captain.id })
-              onDone()
-            }}
-          >
-            Discard and gain 1 CP
+            {confirmLabel}
           </Button>
         </DialogFooter>
       </DialogContent>

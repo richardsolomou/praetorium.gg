@@ -119,12 +119,11 @@ function describe(
     case 'adjust-cp':
       if (targetId === by) return command.delta > 0 ? `${who} gains ${command.delta} CP` : `${who} spends ${Math.abs(command.delta)} CP`
       return command.delta > 0 ? `${who} adds ${command.delta} CP${forTarget}` : `${who} spends ${Math.abs(command.delta)} CP${forTarget}`
-    case 'discard-secondary-for-cp': {
-      const secondary = player?.secondaries.find((candidate) => candidate.key === command.key)
-      return `${who} discards ${secondary?.name ?? 'a secondary'} and gains 1 CP${forTarget}`
-    }
     case 'resolve-tactical-hand': {
-      return `${who} discards ${whose} remaining tactical hand${command.gainCpFrom ? ' and gains 1 CP' : ''}${forTarget}`
+      const keys = command.keys ?? []
+      if (!keys.length) return null
+      const names = keys.map((key) => player?.secondaries.find((candidate) => candidate.key === key)?.name ?? 'a secondary')
+      return `${who} discards ${names.join(' and ')}${command.gainCp ? ' and gains 1 CP' : ''}${forTarget}`
     }
     case 'use-stratagem': {
       const stratagem = player?.stratagems.find((candidate) => candidate.key === command.key)

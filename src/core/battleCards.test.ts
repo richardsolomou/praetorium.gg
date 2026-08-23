@@ -209,8 +209,8 @@ describe('secondaries', () => {
     expect(text(battleReport(NAMES, discarded))).toContain('Alice marks Behind Enemy Lines discarded')
   })
 
-  it('discards an active tactical secondary and gains one command point atomically', () => {
-    const command: Command = { kind: 'discard-secondary-for-cp', key: 'a' }
+  it('discards a chosen active tactical secondary and gains one command point atomically', () => {
+    const command: Command = { kind: 'resolve-tactical-hand', keys: ['a'], gainCp: true }
     const before = tacticalEnd()
     const after = tacticalEnd([ALICE, command])
 
@@ -220,20 +220,20 @@ describe('secondaries', () => {
   })
 
   it('only offers the discard gain at the end of the active tactical side’s turn', () => {
-    const command: Command = { kind: 'discard-secondary-for-cp', key: 'a' }
-    expect(validate(reduceBattle(PLAYERS, log(...started())), ALICE, command)).toBe('discard for command points at the end of your turn')
-    expect(validate(tacticalEnd(), BOB, command)).toBe('discard for command points at the end of your turn')
+    const command: Command = { kind: 'resolve-tactical-hand', keys: ['a'], gainCp: true }
+    expect(validate(reduceBattle(PLAYERS, log(...started())), ALICE, command)).toBe('resolve tactical missions at the end of your turn')
+    expect(validate(tacticalEnd(), BOB, command)).toBe('resolve tactical missions at the end of your turn')
   })
 
   it('does not grant a second additional command point in the round', () => {
     const gained = tacticalEnd([ALICE, { kind: 'adjust-cp', delta: 1 }])
-    expect(validate(gained, ALICE, { kind: 'discard-secondary-for-cp', key: 'a' })).toBe(
+    expect(validate(gained, ALICE, { kind: 'resolve-tactical-hand', keys: ['a'], gainCp: true })).toBe(
       'a side can gain at most 1 additional command point per battle round',
     )
   })
 
-  it('discards every unscored tactical secondary when the turn ends', () => {
-    const command: Command = { kind: 'resolve-tactical-hand' }
+  it('discards a chosen tactical secondary without a command point when none is requested', () => {
+    const command: Command = { kind: 'resolve-tactical-hand', keys: ['a'] }
     const after = tacticalEnd([ALICE, command])
 
     expect(validate(tacticalEnd(), ALICE, command)).toBeNull()
@@ -241,7 +241,21 @@ describe('secondaries', () => {
     expect(alice(after)?.cp).toBe(1)
   })
 
-  it('resolves the full hand while granting at most one CP from the chosen card', () => {
+  it('leaves the tactical hand untouched when nothing is chosen to discard', () => {
+    const command: Command = { kind: 'resolve-tactical-hand', keys: [] }
+    const after = tacticalEnd([ALICE, command])
+
+    expect(validate(tacticalEnd(), ALICE, command)).toBeNull()
+    expect(alice(after)?.secondaryStatus).toMatchObject({ a: 'active' })
+  })
+
+  it('refuses to grant a command point when nothing is discarded', () => {
+    expect(validate(tacticalEnd(), ALICE, { kind: 'resolve-tactical-hand', keys: [], gainCp: true })).toBe(
+      'discard a secondary to gain a command point',
+    )
+  })
+
+  it('resolves chosen cards while granting at most one CP from the discard', () => {
     const prep: Command = {
       kind: 'set-prep',
       stratagems: [],
@@ -262,7 +276,7 @@ describe('secondaries', () => {
       ...started(),
       [ALICE, prep],
       ...turns(5, ALICE),
-      [ALICE, { kind: 'resolve-tactical-hand', gainCpFrom: 'a' }],
+      [ALICE, { kind: 'resolve-tactical-hand', keys: ['a', 'b'], gainCp: true }],
       [ALICE, { kind: 'advance' }],
       ...turns(6, BOB),
     )
@@ -319,11 +333,13 @@ describe('secondaries', () => {
   it('keeps a secret mission active when resolving the tactical hand', () => {
     const before = tacticalEnd(
       [ALICE, { kind: 'select-secret', secondary: { key: 'secret', name: 'Hold the Line' } }],
-      [ALICE, { kind: 'resolve-tactical-hand' }],
+      [ALICE, { kind: 'resolve-tactical-hand', keys: ['a'] }],
     )
 
     expect(alice(before)?.secondaryStatus).toMatchObject({ a: 'discarded', secret: 'active' })
-    expect(validate(before, ALICE, { kind: 'resolve-tactical-hand' })).toBe('there are no active tactical secondaries to resolve')
+    expect(validate(before, ALICE, { kind: 'resolve-tactical-hand', keys: ['a'] })).toBe(
+      'there are no active tactical secondaries to resolve',
+    )
   })
 
   it('withhold a secret mission from the opponent until it is revealed', () => {
