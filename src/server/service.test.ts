@@ -520,6 +520,20 @@ describe('scoring caps', () => {
     })
   })
 
+  it('applies mission caps to an atomic scoring settlement', async () => {
+    const battle = await configured()
+    expect(
+      await battle.send({
+        kind: 'score-settlement',
+        scores: [{ category: 'primary', delta: 6 }],
+        playerId: 'alice',
+      }),
+    ).toEqual({
+      outcome: 'refused',
+      reason: 'that would score past this round’s 5 VP cap for primary mission',
+    })
+  })
+
   it('refuses a secondary score that would pass this round’s cap', async () => {
     const battle = await configured()
     expect(await battle.send({ kind: 'score', category: 'secondary', delta: 4, playerId: 'alice' })).toEqual({

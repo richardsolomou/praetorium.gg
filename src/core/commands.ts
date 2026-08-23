@@ -125,6 +125,24 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
   }),
   z.object({ kind: z.literal('score-secondary'), key: id, delta: z.number().int(), playerId: id.optional() }),
   z.object({
+    kind: z.literal('score-settlement'),
+    scores: z
+      .array(
+        z.discriminatedUnion('category', [
+          z.object({ category: z.literal('primary'), delta: z.number().int().positive() }),
+          z.object({
+            category: z.literal('secondary'),
+            key: id,
+            delta: z.number().int().positive(),
+            status: z.literal('achieved').optional(),
+          }),
+        ]),
+      )
+      .min(1)
+      .max(3),
+    playerId: id.optional(),
+  }),
+  z.object({
     kind: z.literal('set-secondary-status'),
     key: id,
     status: z.enum(['active', 'achieved', 'discarded', 'returned']),

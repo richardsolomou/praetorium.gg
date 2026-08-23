@@ -920,6 +920,48 @@ describe('battle management', () => {
 })
 
 describe('undo', () => {
+  it('takes back a complete primary and secondary settlement at once', () => {
+    const settlement: Command = {
+      kind: 'score-settlement',
+      scores: [
+        { category: 'primary', delta: 5 },
+        { category: 'secondary', key: 'beacon', delta: 4, status: 'achieved' },
+        { category: 'secondary', key: 'assassination', delta: 3, status: 'achieved' },
+      ],
+    }
+    const history = log(
+      [ALICE, roster('Ultramarines')],
+      [BOB, roster('Death Guard')],
+      [
+        ALICE,
+        {
+          kind: 'set-prep',
+          stratagems: [],
+          secondaries: [
+            { key: 'beacon', name: 'Establish Locus' },
+            { key: 'assassination', name: 'Assassination' },
+          ],
+          primary: null,
+          secondaryMode: 'fixed',
+        },
+      ],
+      [ALICE, { kind: 'begin-battle', firstPlayerId: ALICE }],
+      [ALICE, settlement],
+    )
+    const scored = reduceBattle(PLAYERS, history)
+    expect(scored.players[0]).toMatchObject({
+      primary: 5,
+      secondary: 7,
+      secondaryStatus: { beacon: 'achieved', assassination: 'achieved' },
+    })
+
+    const undone = reduceBattle(PLAYERS, [
+      ...history,
+      { seq: history.length + 1, by: BOB, at: 9, command: { kind: 'undo', target: history.length } },
+    ])
+    expect(undone.players[0]).toMatchObject({ primary: 0, secondary: 0, secondaryStatus: { beacon: 'active', assassination: 'active' } })
+  })
+
   it('takes back the newest command', () => {
     const history = log(...started(), [ALICE, { kind: 'score', category: 'primary', delta: 5 }])
     const undo = reduceBattle(PLAYERS, [

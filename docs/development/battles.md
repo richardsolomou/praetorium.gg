@@ -13,6 +13,8 @@
 
 Undo appends an `undo` command that names the latest active command. It does not delete history. Either player can undo the latest command, then continue rewinding active commands across turn boundaries.
 
+A scoring-dialog confirmation is one `score-settlement` command, including every primary and secondary payout and any achieved-card status. Its report entry and undo target are therefore the whole settlement rather than each score inside it.
+
 Live commands can name the affected player or army. Any seated player can operate either side. The log records the submitting player. Concessions remain personal. Undealt cards and hidden missions remain private.
 
 After a turn changes, every seated player sees the prior-turn scoring owed to the incoming side and either player may settle it once. The affected side is named prominently. This acknowledgement is not a report entry or undo target. A helper cannot dismiss an apparently empty settlement because their view may be withholding a hidden mission; only its owner can conclude that no private work remains.

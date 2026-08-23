@@ -131,6 +131,15 @@ function describe(
     }
     case 'score':
       return `${who} scores ${command.delta} ${command.category}${forTarget}`
+    case 'score-settlement': {
+      const scores = command.scores.map((score) => {
+        if (score.category === 'primary') return `${score.delta} primary VP`
+        const secondary = player?.secondaries.find((candidate) => candidate.key === score.key)
+        const hidden = player?.secretSecondary === score.key && !player.secretRevealed && !sameSide(after, viewerId ?? null, targetId)
+        return `${score.delta} VP on ${hidden ? 'a secret mission' : (secondary?.name ?? 'a secondary')}`
+      })
+      return `${who} settles ${scores.join(', ')}${forTarget}`
+    }
     case 'correct-player': {
       const target = named.get(command.playerId) ?? 'a player'
       return `${who} corrects ${target}’s ${command.resource} by ${command.delta > 0 ? '+' : ''}${command.delta}`
