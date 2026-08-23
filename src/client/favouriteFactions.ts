@@ -1,26 +1,17 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { setFavouriteFaction } from '../server/functions'
+import { useOptimisticFavourites } from './favourites'
 import { favouriteFactionsQuery } from './queries'
 
 export function useFavouriteFactions() {
   const query = favouriteFactionsQuery()
-  const queryClient = useQueryClient()
   const { data = [] } = useQuery(query)
-  const mutation = useMutation({
-    mutationFn: ({ catalogueId, favourite }: { catalogueId: string; favourite: boolean }) =>
-      setFavouriteFaction({ data: { catalogueId, favourite } }),
-    onMutate: async ({ catalogueId, favourite }) => {
-      await queryClient.cancelQueries({ queryKey: query.queryKey })
-      const previous = queryClient.getQueryData<string[]>(query.queryKey) ?? []
-      queryClient.setQueryData<string[]>(
-        query.queryKey,
-        favourite ? [...new Set([...previous, catalogueId])] : previous.filter((id) => id !== catalogueId),
-      )
-      return { previous }
-    },
-    onError: (_error, _input, context) => queryClient.setQueryData(query.queryKey, context?.previous ?? []),
-    onSettled: () => queryClient.invalidateQueries({ queryKey: query.queryKey }),
-  })
+  const mutation = useOptimisticFavourites<string, { catalogueId: string; favourite: boolean }>(
+    query.queryKey,
+    ({ catalogueId, favourite }) => setFavouriteFaction({ data: { catalogueId, favourite } }),
+    (previous, { catalogueId, favourite }) =>
+      favourite ? [...new Set([...previous, catalogueId])] : previous.filter((id) => id !== catalogueId),
+  )
   const favourites = new Set(data)
   return { favourites, toggleFavourite: (catalogueId: string) => mutation.mutate({ catalogueId, favourite: !favourites.has(catalogueId) }) }
 }

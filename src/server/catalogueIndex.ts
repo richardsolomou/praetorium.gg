@@ -142,12 +142,7 @@ const groupsOf = (entry: Definition): Definition[] => [
 
 const dispositionOf = (option: Definition, index: CatalogueIndex) =>
   [...(option.categoryLinks ?? []), ...(targetOf(option, index.definitions).categoryLinks ?? [])]
-    .map((link) =>
-      (link.name ?? '')
-        .toLowerCase()
-        .replaceAll(/[^a-z0-9]+/g, '-')
-        .replace(/^-|-$/g, ''),
-    )
+    .map((link) => routeSlug(link.name ?? ''))
     .find((slug) => DISPOSITIONS.has(slug)) ?? null
 
 const unitCount = (index: CatalogueIndex, catalogueId: string) => index.datasheets.get(catalogueId)?.size ?? 0

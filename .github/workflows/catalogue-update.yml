@@ -30,7 +30,7 @@ jobs:
       - uses: richardsolomou/ras-stack/actions/setup-js@v0.44.0
       - name: Resolve and validate every upstream source
         run: |
-          pnpm catalogue:sync --refresh
+          pnpm catalogue:update
           pnpm catalogue:descriptions
       - name: Build and publish the immutable snapshot
         run: |

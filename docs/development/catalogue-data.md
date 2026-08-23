@@ -100,7 +100,7 @@ Core catalogue code is split by question:
 
 ## Points ratchet
 
-`just points` builds units with the same `buildUnit` function as the app and compares them with the points reference. It currently matches 100% of 1,861 checks.
+`just points` builds units with the same `buildUnit` function as the app and compares them with the points reference. It currently matches 100% of 1,861 checks; it prints the current count, and CI enforces only a lower floor, so treat its output as the real baseline.
 
 Legends reference entries are compared only with catalogue entries explicitly marked as Legends. Active and Legends datasheets with the same name are distinct entries. A lower match rate is a regression unless the generated check set changed and the new baseline is explained.
 

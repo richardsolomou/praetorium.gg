@@ -12,11 +12,11 @@ Sync before work on lists, mission matchups, or battlefields. Without data, the 
 
 `just dev` starts the app and Centrifugo. The Vite server proxies `/connection` so realtime traffic stays on the app origin.
 
-Run `just` to list commands. Each recipe wraps a `pnpm` script. CI runs the `pnpm` scripts directly.
+Run `just` to list commands. Each recipe wraps a `pnpm` script; the `check` job in CI runs `just check` itself, and the sharded e2e jobs call the same `pnpm` scripts the recipes wrap.
 
 ## Checks
 
-`just check` runs formatting, lint, database checks, catalogue checks, the production build, type checking, and unit tests.
+`just check` runs formatting, lint, documentation checks, database checks, catalogue checks, the production build, type checking, and unit tests.
 
 The build runs before type checking because it generates `src/routeTree.gen.ts`.
 

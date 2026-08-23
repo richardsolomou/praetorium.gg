@@ -22,8 +22,8 @@ export const BATTLE_ROUNDS = 5
 /** Granted once, to the player entering their own command phase. */
 const COMMAND_PHASE_CP = 1
 
-export const PLAYERS_PER_BATTLE = 2
-export const TEAM_BATTLE_PLAYERS = 3
+const PLAYERS_PER_BATTLE = 2
+const TEAM_BATTLE_PLAYERS = 3
 export const ROSTER_NAME_MAX_LENGTH = 80
 export const ROSTER_MAX_LENGTH = 20_000
 

@@ -25,7 +25,7 @@ Use these patterns consistently:
 
 On phones, the roster stays visible. The picker or loadout moves into one sheet. The battle tracker uses one column and a fixed scoreboard.
 
-Battle setup has five sections and a persistent summary. It separates table decisions from army preparation. It shows both sides before play starts.
+Battle setup has six sections and a persistent summary. It separates table decisions from army preparation. It shows both sides before play starts.
 
 Keep screenshots that contain roster or battle data outside version control.
 
@@ -45,7 +45,7 @@ Keep screenshots that contain roster or battle data outside version control.
 
 ## Known data limits
 
-`just points` currently matches 100% of 1,861 reference checks. Keep new mismatches out of the baseline.
+`just points` currently matches every generated reference check. Keep new mismatches out of the baseline.
 
 The sources do not structure every restriction or replacement rule. Praetorium reports missing semantics. It does not reconstruct rules from memory.
 

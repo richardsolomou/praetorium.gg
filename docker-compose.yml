@@ -28,6 +28,13 @@ services:
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID:-}
       DISCORD_CLIENT_SECRET: ${DISCORD_CLIENT_SECRET:-}
+      # Set these three to point at a Centrifugo of your own instead of the one
+      # the container runs behind Caddy. Leave them unset for that one.
+      REALTIME_SECRET: ${REALTIME_SECRET:-}
+      REALTIME_API_URL: ${REALTIME_API_URL:-}
+      REALTIME_URL: ${REALTIME_URL:-}
+      # Connections each replica keeps open against Postgres.
+      DATABASE_POOL_MAX: ${DATABASE_POOL_MAX:-10}
     volumes:
       # Secrets and the catalogue cache. The game data lives in Postgres now, so
       # this holds nothing that cannot be rebuilt except the signing secrets.

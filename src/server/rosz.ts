@@ -26,7 +26,7 @@ export function rosterXml(file: string): string {
   const trimmed = file.trimStart()
   if (trimmed.startsWith('<')) return trimmed
 
-  const bytes = Uint8Array.from(atob(file), (character) => character.codePointAt(0) ?? 0)
+  const bytes = new Uint8Array(Buffer.from(file, 'base64'))
   if (bytes[0] !== 0x50 || bytes[1] !== 0x4b) throw new Response('that is not a roster file', { status: 400 })
 
   const entries = unzipSync(bytes)

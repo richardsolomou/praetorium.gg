@@ -3,6 +3,7 @@ import { EllipsisVertical, Eye, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { formatDate } from '../../dates'
 import type { Battle } from './battle'
 
 /**
@@ -64,7 +65,7 @@ export function BattleShelf({
                     <span className="eyebrow block">{battle.status === 'playing' ? `Round ${battle.round}` : battle.status}</span>
                     <span className="block text-xs text-dim">
                       {battle.status === 'playing' ? `${battle.phase} phase · ` : ''}
-                      {new Date(battle.lastActivity).toLocaleDateString()}
+                      {formatDate(battle.lastActivity)}
                     </span>
                     <span className="mt-1 block text-[0.625rem] text-faint">
                       {battle.settings.limit ? `${battle.settings.limit} pts` : 'Legacy format'}

@@ -1,3 +1,5 @@
+import { routeSlug } from '../../core/slug'
+
 export type DispositionOption = { id: string; name: string }
 
 const dispositionTones: Record<string, { quiet: string; strong: string }> = {
@@ -9,10 +11,7 @@ const dispositionTones: Record<string, { quiet: string; strong: string }> = {
 }
 
 export function dispositionTone(id: string, selected = false) {
-  const key = id
-    .toLowerCase()
-    .replaceAll(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '')
+  const key = routeSlug(id)
   const tone = dispositionTones[key]
   return tone ? (selected ? tone.strong : tone.quiet) : selected ? 'border-azure bg-raised text-bone' : 'border-edge bg-sunken text-dim'
 }

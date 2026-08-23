@@ -1,4 +1,4 @@
-import type { Attachment } from '../../../core/attach'
+import { type Attachment, normalizedName } from '../../../core/attach'
 import type { KeyedPick } from '../../rosterPicks'
 
 /** Only what deciding an attachment needs, so a caller may pass any priced unit. */
@@ -70,15 +70,17 @@ export function joinableUnits(
   const unit = units[index]
   if (!pick || !unit?.attachment || pick.attachedTo !== undefined) return []
 
-  const named = (name: string | undefined) => (name ?? '').trim().toLowerCase()
-  const wanted = new Set(unit.attachment.targets.map(named))
+  const wanted = new Set(unit.attachment.targets.map(normalizedName))
   const led = new Set(
     picks.flatMap((candidate, at) =>
       candidate.attachedTo !== undefined && units[at]?.attachment?.kind === 'leader' ? [candidate.attachedTo] : [],
     ),
   )
   return picks.flatMap((candidate, at) =>
-    at !== index && wanted.has(named(units[at]?.name)) && !(unit.attachment?.kind === 'leader' && led.has(candidate.key))
+    at !== index &&
+    units[at] &&
+    wanted.has(normalizedName(units[at]?.name ?? '')) &&
+    !(unit.attachment?.kind === 'leader' && led.has(candidate.key))
       ? [{ key: candidate.key, name: units[at]?.name ?? '' }]
       : [],
   )

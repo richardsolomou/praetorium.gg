@@ -30,8 +30,16 @@
           {
             "patterns": [
               {
-                "regex": "^(node:|@tanstack/|react(?:/|$)|\\.\\./(?:adapters|client|db|routes|server)/)",
-                "message": "Core modules must remain free of IO and framework dependencies."
+                "regex": "^(?:node:)?(?:assert|async_hooks|buffer|child_process|cluster|console|constants|crypto|dgram|diagnostics_channel|dns|domain|events|fs|http|http2|https|inspector|module|net|os|path|perf_hooks|process|punycode|querystring|readline|repl|stream|string_decoder|timers|tls|trace_events|tty|url|util|v8|vm|wasi|worker_threads|zlib)(?:/|$)",
+                "message": "Core modules must remain free of IO. Import Node builtins nowhere in core."
+              },
+              {
+                "regex": "^(@tanstack/|react(?:/|-|$)|@testing-library/|drizzle-orm(?:/|$)|postgres(?:/|$)|iovalkey(?:/|$)|ioredis(?:/|$)|@electric-sql/|better-auth(?:/|$)|cheerio(?:/|$)|html-to-text(?:/|$)|centrifuge(?:/|$)|posthog-js(?:/|$))",
+                "message": "Core modules must remain free of framework and persistence dependencies. Zod is the sanctioned exception."
+              },
+              {
+                "regex": "^\\.\\./(adapters|client|components|db|lib|routes|server)/",
+                "message": "Core modules must not depend on application layers."
               }
             ]
           }

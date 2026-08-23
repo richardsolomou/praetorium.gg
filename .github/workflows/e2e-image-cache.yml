@@ -33,16 +33,4 @@ jobs:
       - uses: richardsolomou/ras-stack/actions/setup-js@v0.44.0
         with:
           install: 'false'
-      - name: Restore E2E dependencies
-        id: e2e-dependencies
-        uses: actions/cache@v5
-        with:
-          path: |
-            node_modules
-            ~/.cache/ms-playwright
-          key: ${{ runner.os }}-${{ runner.arch }}-e2e-${{ hashFiles('pnpm-lock.yaml', 'package.json') }}
-      - name: Install E2E dependencies
-        if: steps.e2e-dependencies.outputs.cache-hit != 'true'
-        run: |
-          pnpm install --frozen-lockfile
-          pnpm exec playwright install chromium --only-shell
+      - uses: ./.github/actions/e2e-dependencies
