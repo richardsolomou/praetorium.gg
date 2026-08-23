@@ -145,8 +145,11 @@ export function sides(view: BattleView, missions: readonly { side: number; missi
         canGainCp: captain.canGainCp,
         primary: captain.primary,
         secondary: captain.secondary,
-        disposition: captain.disposition,
-        dispositionChoices: captain.dispositionChoices,
+        // Taken as absent rather than trusted to be there: this app runs more than one
+        // replica, so a view can arrive from an instance older than the screen reading
+        // it, and a side with no card to play is a question this screen already asks.
+        disposition: captain.disposition ?? null,
+        dispositionChoices: captain.dispositionChoices ?? [],
         paintedPoints,
         total: captain.primary + captain.secondary + (view.status === 'finished' ? paintedPoints : 0),
         rounds: captain.rounds,
