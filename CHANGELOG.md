@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.21.14
+
+### Patch Changes
+
+- d850d47: Stop drawing a piece of wargear twice when the datasheet and the catalogue both describe it, such as the Incursor Squad's haywire mine.
+
 ## 0.21.13
 
 ### Patch Changes
