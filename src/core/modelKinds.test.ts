@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildIndex, type Catalogue, type CatalogueFile } from './catalogue'
+import { buildIndex, type Catalogue, type CatalogueFile, type Constraint } from './catalogue'
 import { modelKindsOf } from './modelKinds'
 import { buildUnit } from './roster'
 
@@ -149,9 +149,181 @@ describe('loadouts the catalogue files a weapon at a time', () => {
 })
 
 /**
- * A group is not in the selection tree until something is put in it, and the heavy
- * weapon a squad may take is exactly that: an optional group, nested inside the group
- * holding the squad, empty until a player asks for one. Asked for, the request went
- * nowhere — the walk to the group only ever stepped through models already standing
- * there — so a Hearthkyn Warriors squad could never take its magna-rail rifle.
+ * A model the data insists on is no choice, so nothing reading the choices reports it.
+ * Read that way, an Eradicator Squad was two Eradicators and no sergeant: the one model
+ * the squad cannot be without was the one model its datasheet never drew.
  */
+describe('models the datasheet stands in the unit itself', () => {
+  const model = (id: string, name: string, weapons: readonly string[], profile: string, constraints: Constraint[]) => ({
+    id,
+    name,
+    type: 'model' as const,
+    profiles: [{ id: `${id}-profile`, name: profile, typeName: 'Unit' }],
+    constraints,
+    selectionEntries: weapons.map((weapon, position) => ({
+      id: `${id}-${position}`,
+      name: weapon,
+      type: 'upgrade' as const,
+      constraints: mandatory(`${id}-${position}-min`),
+    })),
+  })
+
+  const bounded = (id: string, minimum: number, maximum: number): Constraint[] => [
+    { id: `${id}-min`, type: 'min', value: minimum, field: 'selections', scope: 'parent' },
+    { id: `${id}-max`, type: 'max', value: maximum, field: 'selections', scope: 'parent' },
+  ]
+
+  const squad = indexOf({
+    sharedSelectionEntries: [
+      {
+        id: 'squad',
+        name: 'Eradicator Squad',
+        type: 'unit',
+        selectionEntryGroups: [
+          {
+            id: 'models',
+            name: 'Eradicators',
+            constraints: bounded('models', 3, 6),
+            selectionEntries: [
+              model('sergeant', 'Eradicator Sergeant', ['Melta rifle', 'Bolt pistol'], 'Eradicator Sergeant', bounded('sergeant', 1, 1)),
+              model('trooper', 'Eradicator', ['Melta rifle', 'Bolt pistol'], 'Eradicator Squad', bounded('trooper', 0, 5)),
+              model('melta', 'Eradicator with Multi-melta', ['Multi-melta', 'Bolt pistol'], 'Eradicator Squad', bounded('melta', 0, 1)),
+            ],
+          },
+        ],
+      },
+    ],
+  })
+
+  const kinds = modelKindsOf('squad', buildUnit('squad', squad)!.selection, squad)
+
+  it('draws a model the squad cannot be without, counted from the selection', () => {
+    expect(kinds.map((kind) => kind.name)).toEqual(['Eradicator Sergeant', 'Eradicator'])
+    expect(kinds[0]?.members).toEqual([{ id: 'sergeant', choiceKey: null, baseCount: 1 }])
+    expect(kinds[0]?.fixed.map((piece) => piece.name)).toEqual(['Melta rifle', 'Bolt pistol'])
+  })
+
+  /** Nothing about him is the player's to change, so he holds no row and no choice. */
+  it('leaves such a model no rows to pick between', () => {
+    expect(kinds[0]?.rows).toEqual([])
+  })
+
+  /**
+   * The rank and file are one kind however the catalogue files their weapons, and the
+   * plain entry beside the loadouts is what they are called. The profile is no help:
+   * an eleventh-edition datasheet names it after the squad.
+   */
+  it('gathers the rank and file with the loadouts one of them may take', () => {
+    expect(kinds[1]?.members).toEqual([
+      { id: 'trooper', choiceKey: 'models', baseCount: 0 },
+      { id: 'melta', choiceKey: 'models', baseCount: 0 },
+    ])
+    expect(kinds[1]?.rows.map((row) => row.name)).toEqual(['Melta rifle', 'Multi-melta'])
+  })
+
+  /**
+   * A group offering one model and insisting on it asks the player nothing, so it is
+   * reported as no choice at all — and the Fire Coordinator standing in a Krieg Heavy
+   * Weapons Squad was drawn nowhere.
+   */
+  const heavyWeapons = (extras: Catalogue['sharedSelectionEntryGroups'] = []) =>
+    indexOf({
+      sharedSelectionEntries: [
+        {
+          id: 'squad',
+          name: 'Heavy Weapons Squad',
+          type: 'unit',
+          selectionEntryGroups: [
+            {
+              id: 'gunners',
+              name: 'Gunners',
+              constraints: bounded('gunners', 2, 2),
+              selectionEntries: [
+                model('lascannon', 'Gunner w/ lascannon', ['Lascannon'], 'Gunner', bounded('lascannon', 0, 2)),
+                model('mortar', 'Gunner w/ mortar', ['Mortar'], 'Gunner', bounded('mortar', 0, 2)),
+              ],
+            },
+            ...extras,
+          ],
+        },
+      ],
+    })
+
+  it('draws a model whose group leaves the player nothing to answer', () => {
+    const index = heavyWeapons([
+      {
+        id: 'coordinator',
+        name: 'Fire Coordinator',
+        selectionEntries: [model('fire', 'Fire Coordinator', ['Laspistol'], 'Fire Coordinator', bounded('fire', 1, 1))],
+      },
+    ])
+
+    expect(modelKindsOf('squad', buildUnit('squad', index)!.selection, index).map((kind) => kind.name)).toEqual([
+      'Fire Coordinator',
+      'Gunner',
+    ])
+  })
+
+  /**
+   * A catalogue can bundle a whole squad size into one upgrade — a Jakhals pack is
+   * written as "8 chainblades", with the eight Jakhals inside it — so the models are
+   * a level below anything a choice names. Only the bundle the squad took: the models
+   * inside the ones it passed over are cards for a squad it is not.
+   */
+  it('draws the models inside the bundle the squad took, and no others', () => {
+    const index = heavyWeapons([
+      {
+        id: 'pack',
+        name: 'Pack',
+        defaultSelectionEntryId: 'eight',
+        constraints: bounded('pack', 1, 1),
+        selectionEntries: [
+          {
+            id: 'eight',
+            name: '8 chainblades',
+            type: 'upgrade',
+            selectionEntries: [model('jakhal', 'Jakhal', ['Chainblades'], 'Jakhal', bounded('jakhal', 8, 8))],
+          },
+          {
+            id: 'four',
+            name: '4 mauler chainblades',
+            type: 'upgrade',
+            selectionEntries: [model('mauler', 'Jakhal w/ mauler chainblade', ['Mauler chainblade'], 'Mauler', bounded('mauler', 4, 4))],
+          },
+        ],
+      },
+    ])
+    const packed = modelKindsOf('squad', buildUnit('squad', index)!.selection, index)
+
+    expect(packed.map((kind) => kind.name)).toEqual(['Jakhal', 'Gunner'])
+    expect(packed[0]?.members).toEqual([{ id: 'jakhal', choiceKey: null, baseCount: 8 }])
+  })
+
+  /**
+   * A datasheet whose loadouts are fixed per squad size asks the player nothing at all,
+   * and the rules source describes it better — it names the weapons and abilities a
+   * card needs. Standing models are what completes a set of cards, not what starts one,
+   * so saying nothing here is still how that reading gets asked for.
+   */
+  it('says nothing about a datasheet that offers no choice at all', () => {
+    const index = indexOf({
+      sharedSelectionEntries: [
+        {
+          id: 'squad',
+          name: 'Ancestor Guard',
+          type: 'unit',
+          selectionEntryGroups: [
+            {
+              id: 'models',
+              name: 'Guard',
+              constraints: bounded('models', 1, 1),
+              selectionEntries: [model('guard', 'Ancestor', ['Rifle'], 'Ancestor', bounded('guard', 1, 1))],
+            },
+          ],
+        },
+      ],
+    })
+
+    expect(modelKindsOf('squad', buildUnit('squad', index)!.selection, index)).toEqual([])
+  })
+})

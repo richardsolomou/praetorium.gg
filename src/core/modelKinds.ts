@@ -8,10 +8,11 @@
  * gives no profile, the name the loadouts agree on stands in for one.
  */
 
-import type { CatalogueIndex } from './catalogue'
-import type { Selection } from './evaluate'
+import type { CatalogueIndex, Definition } from './catalogue'
+import { childrenOf, MAX_DEPTH, modelProfileOf, resolve } from './definitions'
+import { hiddenByRules, type Selection } from './evaluate'
 import { defaultSelection } from './expand'
-import { countAt } from './selection'
+import { allAt, countAt } from './selection'
 import { type ChoiceOptions, unitChoices } from './unitChoices'
 import { wargearOf } from './wargear'
 
@@ -69,6 +70,14 @@ export function modelKindsOf(entryId: string, selection: Selection, index: Catal
       baseCount: depth < 0 ? 0 : countAt(selection, trail.slice(0, depth + 1)),
     })
   }
+  /*
+   * The models the data insists on complete a set of cards; they do not begin one.
+   * A datasheet the catalogue offers no kind of model for is one the rules source
+   * describes better — it names the weapons, the abilities and the swaps a card needs
+   * — and saying nothing here is how that reading gets asked for.
+   */
+  if (!found.length) return []
+  for (const standing of standingModels(entryId, selection, index, options)) remember(standing.profile, standing.member)
 
   // What each loadout carries on its own, read from its own defaults so that a
   // loadout nobody has taken yet still knows its weapon.
@@ -83,8 +92,10 @@ export function modelKindsOf(entryId: string, selection: Selection, index: Catal
 
   // The widest set that still says what the entries said is the one gathered, so the
   // unit gives way to the group and the group to the loadouts, and a pairing that
-  // cannot be drawn as rows costs only its own card.
-  const loose = found.filter((entry) => !entry.profile)
+  // cannot be drawn as rows costs only its own card. Only the entries a choice offers:
+  // a model standing in the unit by itself is counted on its own card rather than by a
+  // row, so gathering it under a shared name would leave its weapon nowhere to appear.
+  const loose = found.filter((entry) => !entry.profile && entry.member.choiceKey)
   const nameOf = (entry: Loadout) => {
     const siblings = loose.filter((other) => other.member.choiceKey === entry.member.choiceKey)
     return (siblings.length > 1 ? sharedName(siblings.map((other) => other.member.name)) : null) ?? entry.member.name
@@ -161,6 +172,46 @@ export function modelKindsOf(entryId: string, selection: Selection, index: Catal
 }
 
 /**
+ * The models a datasheet stands in the unit itself.
+ *
+ * A choice reports only what a player may change, so the models the data insists on
+ * are named nowhere else — and a squad's sergeant is nearly always one of them. He is
+ * read from the datasheet and counted from the selection, the way the owner of a
+ * choice is: how many of him there are is the catalogue's answer, not the player's.
+ *
+ * Only what the unit is actually holding. A model no selection stands would be a card
+ * for something the squad does not have and cannot ask for. Upgrades are walked through
+ * rather than stopped at, because a catalogue can bundle a whole squad size into one —
+ * a Jakhals pack is written as "8 chainblades", with the eight Jakhals inside it.
+ */
+function standingModels(entryId: string, selection: Selection, index: CatalogueIndex, options: ChoiceOptions): Loadout[] {
+  const entry = index.definitions.get(entryId)
+  if (!entry) return []
+  const roster = [...(options.roster ?? []), selection]
+  const found: Loadout[] = []
+  const walk = (definition: Definition, trail: string[], left: number, seen: Set<string>) => {
+    const target = resolve(definition, index)
+    if (left <= 0 || seen.has(target.id)) return
+    const visited = new Set(seen).add(target.id)
+    for (const child of childrenOf(target, index)) {
+      if (hiddenByRules(child.definition, index, { ...options, roster })) continue
+      const inner = resolve(child.definition, index)
+      const here = [...trail, child.id]
+      const held = allAt(selection, here).reduce((total, node) => total + (node.count ?? 1), 0)
+      if (inner.type === 'model' && held > 0) {
+        found.push({
+          profile: modelProfileOf(child.definition, index),
+          member: { id: child.id, name: inner.name ?? child.id, choiceKey: null, baseCount: held },
+        })
+      }
+      walk(child.definition, here, left - 1, visited)
+    }
+  }
+  walk(entry, [], options.depth ?? MAX_DEPTH, new Set())
+  return found
+}
+
+/**
  * What each key gathers, in the order the keys first appear.
  *
  * `Map.groupBy` says the same thing, but it is ES2024 and this project pins its
@@ -187,7 +238,22 @@ function groupBy<T>(entries: readonly T[], keyOf: (entry: T) => string): Map<str
 function kindName(names: readonly string[], profile: string | null): string {
   const [first = '', ...rest] = names
   if (!rest.length) return first || (profile ?? '')
-  return sharedName(names) ?? profile ?? first
+  return sharedName(names) ?? plainName(names) ?? profile ?? first
+}
+
+/**
+ * The entry that names the model outright, where one of them does.
+ *
+ * A squad's rank and file are written as a plain entry beside the loadouts one of
+ * them may take — "Tactical Marine", then "Tactical Marine w/ special weapon" — and
+ * the plain one is what the kind is called. The catalogue's own profile is no help
+ * there: an eleventh-edition datasheet names the profile after the squad, so a card
+ * drawn from it would read as the whole unit rather than as the models standing on it.
+ */
+function plainName(names: readonly string[]): string | null {
+  const base = names.toSorted((one, other) => one.length - other.length)[0] ?? ''
+  const named = (name: string) => name === base || (name.startsWith(base) && /^[^\p{L}\p{N}]/u.test(name.slice(base.length)))
+  return base && names.every(named) ? base : null
 }
 
 /** The name those loadouts agree on, or nothing when they agree on no whole word. */
