@@ -118,6 +118,58 @@ describe('costs', () => {
   })
 })
 
+describe('per-model parent constraints', () => {
+  const catalogue = (): Partial<Catalogue> => ({
+    sharedSelectionEntries: [
+      {
+        id: 'squad',
+        name: 'Squad',
+        type: 'unit',
+        selectionEntries: [
+          {
+            id: 'veteran',
+            name: 'Veteran',
+            type: 'model',
+            selectionEntryGroups: [
+              {
+                id: 'pistol-option',
+                name: 'Pistol Option',
+                constraints: [{ id: 'pistol-max', type: 'max', value: 1, field: 'selections', scope: 'parent' }],
+                selectionEntries: [
+                  {
+                    id: 'pistol',
+                    name: 'Pistol',
+                    type: 'upgrade',
+                    constraints: [{ id: 'pistol-entry-max', type: 'max', value: 1, field: 'selections', scope: 'parent' }],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  })
+
+  it('scales an unmarked group and its option across an aggregated model entry', () => {
+    const result = evaluateOne(
+      {
+        id: 'squad',
+        selections: [
+          {
+            id: 'veteran',
+            count: 4,
+            selections: [{ id: 'pistol-option', selections: [{ id: 'pistol', count: 4 }] }],
+          },
+        ],
+      },
+      catalogue(),
+    )
+
+    expect(result.errors).toEqual([])
+  })
+})
+
 /**
  * The shape every squad in the real data uses: one price on the unit, replaced by
  * a bigger one once enough models are in the group beneath it.

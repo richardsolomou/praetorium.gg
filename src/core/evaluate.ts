@@ -1099,20 +1099,25 @@ function violations(node: Node, root: Node, index: CatalogueIndex, census: Censu
 /**
  * How many times over a per-parent limit applies.
  *
- * A collective entry holds a total for the whole unit rather than one model's share,
- * and its `@parent` constraints are written per model — "each model may take one
- * gauss blaster" is `max=1`. So the limit for a squad of ten is ten. Reading the
- * one literally called every squad in the game illegal.
+ * A child of an aggregated model holds a total for all copies of that model, and its
+ * `@parent` constraints are written per model — "each model may take one gauss
+ * blaster" is `max=1`. So the limit for a squad of ten is ten. Most such entries are
+ * explicitly `collective`, but some catalogue groups omit that marker while their
+ * selection still holds the squad's total. Reading the one literally called every
+ * such squad illegal.
  */
 function carriers(constraint: Constraint, node: Node): number {
   if (constraint.scope !== 'parent') return 1
   const collective = Boolean(node.target.type !== undefined && 'collective' in node.target && node.target.collective)
   const holdsCollective = isGroup(node) && node.children.some((child) => 'collective' in child.target && child.target.collective === true)
-  if (!collective && !holdsCollective) return 1
-  // Groups hold no count of their own, so the models holding this are the nearest
-  // entry above it.
+  // Groups hold no carrier count of their own, so the models holding this are the
+  // nearest entry above them. An aggregated model scales every parent-scoped child:
+  // the catalogue can omit `collective` even though the selection stores one total
+  // for all copies of that model.
   let holder = node.parent
   while (holder && isGroup(holder)) holder = holder.parent
+  const aggregatedModel = holder?.target.type === 'model' && holder.count > 1
+  if (!collective && !holdsCollective && !aggregatedModel) return 1
   return Math.max(1, holder?.count ?? 1)
 }
 
