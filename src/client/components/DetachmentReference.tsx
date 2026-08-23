@@ -30,12 +30,12 @@ export function DetachmentReference({
 
   return (
     <div>
-      <section className="relative overflow-hidden border-b border-edge bg-panel">
+      <section
+        className="relative overflow-hidden border-t-[3px] border-b border-edge bg-panel"
+        style={{ borderTopColor: faction ? factionColour(faction.slug) : undefined }}
+      >
         <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,transparent_35%,color-mix(in_srgb,var(--color-parchment)_8%,transparent),transparent_75%)]" />
-        <div
-          className="relative mx-auto flex max-w-5xl items-start gap-3 border-l-[3px] px-3 py-5 sm:px-4 sm:py-7"
-          style={{ borderLeftColor: faction ? factionColour(faction.slug) : undefined }}
-        >
+        <div className="relative mx-auto flex max-w-5xl items-start gap-3 px-3 py-5 sm:px-4 sm:py-7">
           {faction ? <FactionMark id={faction.slug} icon={faction.icon} /> : null}
           <div className="min-w-0 flex-1">
             <p className="eyebrow text-parchment">{faction ? `${faction.displayName} · Detachment` : 'Detachment'}</p>
