@@ -335,7 +335,7 @@ export function ListBuilder({ prep, initial, editable = true, battle, resolvePer
         />
 
         {faction ? (
-          <div className="flex min-w-0 items-center gap-2 text-xs text-dim">
+          <div className="mt-0.5 flex min-w-0 items-center gap-2 text-xs text-dim">
             <span className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto whitespace-nowrap [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               <Link to="/factions/$catalogueId" params={{ catalogueId: faction.slug }} className="shrink-0 text-info hover:text-bone">
                 <FactionLabel faction={faction} />
@@ -398,7 +398,6 @@ export function ListBuilder({ prep, initial, editable = true, battle, resolvePer
                     size="sm"
                     spacing={0}
                     aria-label="Roster mode"
-                    className="rounded-br-lg"
                   >
                     <Tooltip>
                       <TooltipTrigger
@@ -420,7 +419,7 @@ export function ListBuilder({ prep, initial, editable = true, battle, resolvePer
                         render={
                           <ToggleGroupItem
                             value="view"
-                            className="rounded-br-lg border-primary/60 text-primary aria-pressed:bg-primary aria-pressed:text-primary-foreground"
+                            className="border-primary/60 text-primary aria-pressed:bg-primary aria-pressed:text-primary-foreground"
                           />
                         }
                       >
