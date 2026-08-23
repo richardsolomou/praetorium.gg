@@ -129,15 +129,14 @@ export async function createBattle(
   return page.url()
 }
 
-/** Whether the section on screen becomes something other than the one named, before time runs out. */
-const movedOn = (active: Locator, from: string, within: number) =>
-  expect
-    .poll(() => active.innerText().catch(() => from), { timeout: within })
-    .not.toBe(from)
-    .then(
-      () => true,
-      () => false,
-    )
+/** Retry an SSR-visible setup control until its command-derived active section changes. */
+async function moveSetup(active: Locator, from: string, action: () => Promise<void>) {
+  await expect(async () => {
+    if ((await active.innerText().catch(() => from)) !== from) return
+    await action()
+    await expect.poll(() => active.innerText().catch(() => from), { timeout: 1_000 }).not.toBe(from)
+  }).toPass({ timeout: 20_000 })
+}
 
 /** Setup shows one section at a time, and the section is shared, so a helper walks to the one it needs. */
 export async function setupStep(page: Page, label: string) {
@@ -146,8 +145,11 @@ export async function setupStep(page: Page, label: string) {
   for (let guard = 0; guard < 8; guard += 1) {
     if ((await chip.getAttribute('aria-current')) === 'step') return
     if (await chip.isEnabled()) {
-      await chip.click()
-      await expect(active).toContainText(label, { ignoreCase: true })
+      await expect(async () => {
+        if ((await chip.getAttribute('aria-current')) === 'step') return
+        await chip.click({ timeout: 1_000 })
+        await expect(chip).toHaveAttribute('aria-current', 'step', { timeout: 1_000 })
+      }).toPass({ timeout: 20_000 })
       return
     }
     const previous = await active.innerText()
@@ -155,15 +157,16 @@ export async function setupStep(page: Page, label: string) {
     // Tests that are not about deployment order use the first side as their deterministic default.
     // The attacker step is required, so choose that default before walking past it.
     if (/attacker/i.test(previous) && !(await next.isEnabled())) {
-      await page.getByRole('group', { name: 'Attacker' }).getByRole('button').first().click()
+      await expect(async () => {
+        if (await next.isEnabled()) return
+        await page.getByRole('group', { name: 'Attacker' }).getByRole('button').first().click({ timeout: 1_000 })
+        await expect(next).toBeEnabled({ timeout: 1_000 })
+      }).toPass({ timeout: 20_000 })
     }
-    // Passing through a section can leave a command in flight, which disables Next until it lands.
-    await expect(next).toBeEnabled({ timeout: 20_000 })
-    await next.click()
-    // A press that arrives as the button goes dead behind that command does nothing at
-    // all, and the section stays where it was. Five seconds is a hundred times what the
-    // round trip takes, so nothing having happened by then means pressing again.
-    await movedOn(active, previous, 5_000)
+    await moveSetup(active, previous, async () => {
+      await expect(next).toBeEnabled({ timeout: 1_000 })
+      await next.click({ timeout: 1_000 })
+    })
   }
   throw new Error(`Setup never reached the ${label} step`)
 }
@@ -171,10 +174,12 @@ export async function setupStep(page: Page, label: string) {
 export async function attachRoster(page: Page, name: string) {
   await setupStep(page, 'Armies')
   await page.getByRole('button', { name: /Choose roster|Change roster/ }).click()
+  const attached = page.waitForResponse((response) => response.ok() && response.request().method() === 'POST')
   await page
     .getByRole('dialog', { name: 'Choose your roster' })
     .getByRole('button', { name: new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`) })
     .click()
+  await attached
   // The table strip names it too, so this is the first of two rather than the only one.
   await expect(page.getByText(name, { exact: true }).first()).toBeVisible()
 }
@@ -185,10 +190,12 @@ export async function chooseBattlefield(page: Page) {
   await setupStep(page, 'Battlefield')
   const selected = page.getByRole('button', { name: /^Selected layout/ })
   // By position, not by name: which layouts a matchup offers follows the pinned rules data.
+  const chosen = page.waitForResponse((response) => response.ok() && response.request().method() === 'POST')
   await page
     .getByRole('button', { name: /^Select layout / })
     .first()
     .click()
+  await chosen
   await expect(selected).toBeVisible()
 }
 
