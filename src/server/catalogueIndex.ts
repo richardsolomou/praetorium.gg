@@ -13,6 +13,7 @@ import {
 import { hiddenByRules } from '../core/evaluate'
 import { routeSlug } from '../core/slug'
 import { type FactionContent, loadFactionContents } from './datacards'
+import { factionDisplayName } from './factionNames'
 
 type CatalogueReference = { id: string; name: string; datasheets: number; detachments: number }
 export type DetachmentOptions = { wrapperId: string; groupId: string; options: DetachmentOption[] }
@@ -152,6 +153,52 @@ const dispositionOf = (option: Definition, index: CatalogueIndex) =>
 const unitCount = (index: CatalogueIndex, catalogueId: string) => index.datasheets.get(catalogueId)?.size ?? 0
 
 export const datasheetsOf = (index: CatalogueIndex, catalogueId: string) => index.datasheets.get(catalogueId) ?? new Set<string>()
+
+/**
+ * Whether a datasheet belongs on this faction's reference pages.
+ *
+ * An army can offer allied units from another faction. Reference pages instead
+ * give a datasheet one canonical home, read from its Faction keyword. The roster
+ * picker deliberately does not use this predicate.
+ */
+export function isReferenceDatasheet(loaded: LoadedCatalogue, catalogueId: string, entryId: string) {
+  if (!datasheetsOf(loaded.index, catalogueId).has(entryId)) return false
+  const entry = loaded.index.definitions.get(entryId)
+  if (!entry) return false
+  const target = targetOf(entry, loaded.index.definitions)
+  const canonicalFaction = referenceFactionOf(
+    loaded,
+    [...(entry.categoryLinks ?? []), ...(target.categoryLinks ?? [])].map((category) => category.name),
+  )
+  return !canonicalFaction || factionDisplayName(loaded.index.catalogues.get(catalogueId)?.name ?? '') === canonicalFaction
+}
+
+const FACTION_CATEGORY = /^Faction:\s*(.+)$/i
+const REFERENCE_FACTION_ALIASES = new Map([
+  ['adeptus astartes', 'Space Marines'],
+  ['heretic astartes', 'Chaos Space Marines'],
+  ['asuryani', 'Aeldari'],
+  ['harlequins', 'Aeldari'],
+  ['legiones daemonica', 'Chaos Daemons'],
+])
+
+const factionNamesCache = new WeakMap<LoadedCatalogue, ReadonlySet<string>>()
+
+/** The owner must be unambiguous: a datasheet genuinely filed under two factions stays visible on both pages. */
+function referenceFactionOf(loaded: LoadedCatalogue, categories: readonly (string | undefined)[]) {
+  const factionNames =
+    factionNamesCache.get(loaded) ?? new Set(loaded.factions.map((faction) => factionDisplayName(faction.name).toLocaleLowerCase()))
+  if (!factionNamesCache.has(loaded)) factionNamesCache.set(loaded, factionNames)
+  const candidates = new Set(
+    categories.flatMap((category) => {
+      const name = category?.match(FACTION_CATEGORY)?.[1]?.trim()
+      if (!name) return []
+      const canonical = REFERENCE_FACTION_ALIASES.get(name.toLocaleLowerCase()) ?? name
+      return factionNames.has(canonical.toLocaleLowerCase()) ? [canonical] : []
+    }),
+  )
+  return candidates.size === 1 ? [...candidates][0] : null
+}
 
 export function isDatasheetId(index: CatalogueIndex, entryId: string, catalogueId?: string | null) {
   const offered = catalogueId ? index.datasheets.get(catalogueId) : undefined

@@ -34,7 +34,7 @@ export function GlobalSearch() {
   }, [])
 
   const go = (result: GlobalSearchResult) => {
-    posthog.capture('global_search_result_opened', { group: result.group, result_count: results.length })
+    posthog.capture('global_search_result_opened', { group: result.group, result_count: results.length, fuzzy: Boolean(result.fuzzy) })
     setOpen(false)
     setQuery('')
     window.location.assign(result.href)
@@ -75,7 +75,10 @@ export function GlobalSearch() {
               const items = results.filter((result) => result.group === group)
               if (!items.length) return null
               return (
-                <CommandGroup key={group} heading={group}>
+                <CommandGroup
+                  key={group}
+                  heading={group === 'Datasheets' && items.every((result) => result.fuzzy) ? 'Close matches' : group}
+                >
                   {items.map((result) => (
                     <CommandItem
                       key={result.id}

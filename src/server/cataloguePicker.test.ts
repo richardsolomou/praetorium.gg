@@ -17,6 +17,105 @@ describe('the picker', () => {
     expect(datasheetInBySlug(book, 'cat', units[0]?.slug ?? '')?.id).toBe('first-sheet')
   })
 
+  it('keeps generic Adeptus Astartes datasheets off chapter reference pages', () => {
+    const shelf = shelfOf(
+      {
+        name: 'Imperium - Adeptus Astartes - Space Marines',
+        selectionEntries: [
+          {
+            id: 'chaplain',
+            name: 'Chaplain',
+            type: 'model',
+            costs: points(60),
+            categoryLinks: categories('Faction: Adeptus Astartes'),
+          },
+        ],
+      },
+      {
+        name: 'Imperium - Adeptus Astartes - Black Templars',
+        selectionEntries: [
+          {
+            id: 'black-templars-chaplain',
+            name: 'Chaplain',
+            type: 'model',
+            costs: points(60),
+            categoryLinks: categories('Faction: Adeptus Astartes'),
+          },
+        ],
+      },
+    )
+
+    expect(datasheetInBySlug(shelf, 'cat', 'chaplain')?.name).toBe('Chaplain')
+    expect(datasheetInBySlug(shelf, 'cat-1', 'chaplain')).toBeNull()
+    expect(unitsIn(shelf, 'cat-1', '').map((unit) => unit.name)).toEqual(['Chaplain'])
+  })
+
+  it('keeps generic Heretic Astartes datasheets off legion reference pages', () => {
+    const shelf = shelfOf(
+      {
+        name: 'Chaos - Chaos Space Marines',
+        selectionEntries: [
+          {
+            id: 'chaos-lord',
+            name: 'Chaos Lord',
+            type: 'model',
+            costs: points(90),
+            categoryLinks: categories('Faction: Heretic Astartes'),
+          },
+        ],
+      },
+      {
+        name: 'Chaos - World Eaters',
+        selectionEntries: [
+          {
+            id: 'world-eaters-chaos-lord',
+            name: 'Chaos Lord',
+            type: 'model',
+            costs: points(90),
+            categoryLinks: categories('Faction: Heretic Astartes'),
+          },
+        ],
+      },
+    )
+
+    expect(datasheetInBySlug(shelf, 'cat', 'chaos-lord')?.name).toBe('Chaos Lord')
+    expect(datasheetInBySlug(shelf, 'cat-1', 'chaos-lord')).toBeNull()
+    expect(unitsIn(shelf, 'cat-1', '').map((unit) => unit.name)).toEqual(['Chaos Lord'])
+  })
+
+  it('keeps a named faction datasheet off an allied reference page', () => {
+    const shelf = shelfOf(
+      {
+        name: 'Astra Militarum',
+        selectionEntries: [
+          {
+            id: 'guardsmen',
+            name: 'Cadian Shock Troops',
+            type: 'unit',
+            costs: points(65),
+            categoryLinks: categories('Faction: Astra Militarum'),
+          },
+        ],
+      },
+      {
+        name: 'Genestealer Cults',
+        selectionEntries: [
+          {
+            id: 'cult-guardsmen',
+            name: 'Cadian Shock Troops',
+            type: 'unit',
+            costs: points(65),
+            categoryLinks: categories('Faction: Astra Militarum'),
+          },
+        ],
+      },
+    )
+
+    expect(datasheetInBySlug(shelf, 'cat', 'cadian-shock-troops')?.name).toBe('Cadian Shock Troops')
+    expect(datasheetInBySlug(shelf, 'cat-1', 'cadian-shock-troops')).toBeNull()
+    expect(unitsIn(shelf, 'cat-1', '').map((unit) => unit.name)).toEqual(['Cadian Shock Troops'])
+  })
+
   it('filters a cached priced faction list without rebuilding its summaries', () => {
     const book = bookOf({
       selectionEntries: [

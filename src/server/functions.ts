@@ -4,6 +4,7 @@ import { routeSlug } from '../core/slug'
 import { attachedUnit } from '../core/attach'
 import { buildUnit, type RosterPick } from '../core/roster'
 import { datasheetIn, datasheetInBySlug, datasheetViewsIn, rulesReferencedIn } from './catalogue'
+import { isReferenceDatasheet } from './catalogueIndex'
 import { describeDatasheetAbilities } from './datasheetDescriptions'
 import { detachmentReference } from './detachmentReference'
 import { factionIndexFor, factionsFor } from './factionReferences'
@@ -93,7 +94,9 @@ export const factionDatasheets = createServerFn({ method: 'GET' })
           factionDisplayName(loaded.factions.find((entry) => entry.id === data.catalogueId)?.name ?? '', app().rules()?.factionNames),
         ),
       )?.datasheets
-      return unitsIn(loaded, data.catalogueId, data.query, { includeNames: names })
+      return unitsIn(loaded, data.catalogueId, data.query, { includeNames: names }).filter((unit) =>
+        isReferenceDatasheet(loaded, data.catalogueId, unit.id),
+      )
     }),
   )
 
