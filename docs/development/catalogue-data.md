@@ -73,6 +73,8 @@ Core catalogue code is split by question:
 - Inspect required entries inside selection groups when building defaults.
 - Fill a required group's count across its options. Respect each option cap and prefer the declared default, then the cheapest option.
 - Wargear counts multiply through ordinary selection ancestors. Collective counts already represent the unit total and do not multiply again.
+- Read a unit's models from the datasheet, not only from its choices. A model the data insists on is no choice, so nothing that reads choices reports one, and a squad's sergeant is nearly always among them. Count such a model from the selection and give it no rows: nothing about it is the player's to change.
+- Name a kind of model by its own entries before the catalogue's profile. An eleventh-edition datasheet names the profile after the squad, so a card drawn from it reads as the whole unit. Prefer the name the loadouts agree on, then the entry that names the model plainly beside them.
 
 ## Pricing and legality
 
