@@ -171,7 +171,6 @@ export type BattleSettings = {
   missionPackId: string | null
   terrainLayoutId: string | null
   twistId: string | null
-  solo: boolean
   teamBattle: boolean
 }
 
@@ -180,7 +179,6 @@ const DEFAULT_SETTINGS: BattleSettings = {
   missionPackId: null,
   terrainLayoutId: null,
   twistId: null,
-  solo: false,
   teamBattle: false,
 }
 
@@ -232,7 +230,6 @@ export type Command =
       missionPackId: string | null
       terrainLayoutId: string | null
       twistId: string | null
-      solo: boolean
       teamBattle?: boolean
       clockLimitMinutes: number | null
     }
@@ -364,12 +361,11 @@ export type BattleState = {
 /**
  * How many players a battle seats.
  *
- * Its own settings decide it, and only here: a practice battle seats one, so a
- * second player following the link is refused for the same reason a full game
- * refuses a third rather than by a separate rule that could come to disagree.
+ * Its own settings decide it, and only here, so a third player following the link
+ * is refused by the same rule the interface reads rather than by a separate one
+ * that could come to disagree.
  */
-export function battleCapacity(settings: Pick<BattleSettings, 'solo' | 'teamBattle'>) {
-  if (settings.solo) return 1
+export function battleCapacity(settings: Pick<BattleSettings, 'teamBattle'>) {
   return settings.teamBattle ? TEAM_BATTLE_PLAYERS : PLAYERS_PER_BATTLE
 }
 
@@ -543,7 +539,7 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
     case 'begin-battle': {
       if (state.status !== 'setup') return 'the battle has started'
       const requiredPlayers = state.settings.teamBattle ? TEAM_BATTLE_PLAYERS : PLAYERS_PER_BATTLE
-      if (!state.settings.solo && state.players.length < requiredPlayers) return 'waiting for an opponent'
+      if (state.players.length < requiredPlayers) return 'waiting for an opponent'
       if (state.players.some((candidate) => !candidate.roster))
         return state.settings.teamBattle ? 'every army needs a list' : 'both armies need a list'
       if (!state.players.some((candidate) => candidate.id === command.firstPlayerId)) return 'that player is not in this battle'
@@ -822,7 +818,6 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
         missionPackId: command.missionPackId,
         terrainLayoutId: command.terrainLayoutId,
         twistId: command.twistId,
-        solo: command.solo,
         teamBattle: command.teamBattle ?? false,
       }
       if (missionPackChanged) {

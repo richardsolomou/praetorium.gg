@@ -87,9 +87,7 @@ export class PraetoriumService {
         scores: state.players.map(
           (player) => player.primary + player.secondary + (state.status === 'finished' && player.painted ? PAINTED_ARMY_POINTS : 0),
         ),
-        mission: rules
-          ? missionFor(rules, ownDisposition, state.settings.solo ? ownDisposition : opposingDisposition, state.settings.missionPackId)
-          : null,
+        mission: rules ? missionFor(rules, ownDisposition, opposingDisposition, state.settings.missionPackId) : null,
         deploymentId: state.deploymentId,
         settings: state.settings,
         result: state.result,
@@ -265,7 +263,7 @@ export class PraetoriumService {
 
   async createBattle(
     userId: string,
-    input?: string | { opponentId?: string; opponentIds?: string[]; solo: boolean; limit?: number; missionPackId: string | null },
+    input?: string | { opponentId?: string; opponentIds?: string[]; limit?: number; missionPackId: string | null },
   ) {
     const settings = typeof input === 'object' && input.limit !== undefined ? { ...input, limit: input.limit } : null
     const opponentIds = typeof input === 'string' ? [input] : (input?.opponentIds ?? (input?.opponentId ? [input.opponentId] : []))
@@ -277,7 +275,7 @@ export class PraetoriumService {
     const allowed = new Map((await this.opponents(userId)).map((opponent) => [opponent.id, opponent]))
     if (opponentIds.some((id) => !allowed.has(id)))
       throw new Response('battle opponents must be your friends or a practice opponent', { status: 403 })
-    if (settings && !settings.solo && !opponentIds.length) throw new Response('choose an opponent', { status: 400 })
+    if (settings && !opponentIds.length) throw new Response('choose an opponent', { status: 400 })
     const practice = opponentIds.some((id) => allowed.get(id)?.automated)
     const token = randomToken()
     const id = randomId()
@@ -293,7 +291,6 @@ export class PraetoriumService {
             missionPackId: settings.missionPackId,
             terrainLayoutId: null,
             twistId: null,
-            solo: settings.solo,
             teamBattle: opponentIds.length === 2,
             clockLimitMinutes: null,
           }
@@ -428,14 +425,15 @@ export class PraetoriumService {
     const missionForSide = (side: number) => {
       const ownDisposition = view.players.find((player) => player.side === side)?.roster?.built?.disposition ?? null
       const opposingDisposition = view.players.find((player) => player.side !== side)?.roster?.built?.disposition ?? null
-      return rules
-        ? missionFor(rules, ownDisposition, state.settings.solo ? ownDisposition : opposingDisposition, state.settings.missionPackId)
-        : null
+      return rules ? missionFor(rules, ownDisposition, opposingDisposition, state.settings.missionPackId) : null
     }
     if (state.status !== 'setup') {
       for (const player of view.players) {
         const primary = missionForSide(player.side)
-        player.primaryCard = primary ? { key: primary.id, name: primary.name } : null
+        // Only when the rules answer. A matchup this instance cannot resolve — a log
+        // from before both dispositions were required, or a pack no longer synced —
+        // keeps the primary its own `set-prep` recorded rather than losing it.
+        if (primary) player.primaryCard = { key: primary.id, name: primary.name }
       }
     }
     const viewerSide = view.players.find((player) => player.id === userId)?.side
@@ -552,12 +550,7 @@ function scoringCapError(
                 : 0,
         }
   const opponentDisposition = state.players.find((player) => player.side !== target.side)?.roster?.built?.disposition ?? null
-  const mission = missionFor(
-    rules,
-    target.disposition,
-    state.settings.solo ? target.disposition : opponentDisposition,
-    state.settings.missionPackId,
-  )
+  const mission = missionFor(rules, target.disposition, opponentDisposition, state.settings.missionPackId)
   if (!mission) return null
   // The round the points land in, which for a settlement of a turn already ended is
   // the round that turn was in rather than the one now being played.

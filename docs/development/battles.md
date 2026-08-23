@@ -23,7 +23,7 @@ After a turn changes, every seated player sees the prior-turn scoring owed to th
 
 A roster attached to a battle is a historical snapshot. Battle-qualified roster links use the same read-only roster presentation for its frozen selections, grouped unit cards, loadouts and attachments from the command log rather than the mutable saved roster, so later edits or deletion cannot rewrite the battle. Applied datasheet details are rebuilt from those selections against the instance's verified catalogue. Older logs without selections show their frozen cards, and logs without roster-card details show their submitted text.
 
-Setup settings, roster replacements, formation choices, painted-army bonuses, concessions, reopening, and setup resets are commands too. A reset clears rosters and battlefield choices without erasing the audit trail or the configured game size, mission pack or solo format. A finished battle remains reopenable; deletion is the only destructive operation and is restricted to the account that created the battle.
+Setup settings, roster replacements, formation choices, painted-army bonuses, concessions, reopening, and setup resets are commands too. A reset clears rosters and battlefield choices without erasing the audit trail or the configured game size, mission pack or format. A finished battle remains reopenable; deletion is the only destructive operation and is restricted to the account that created the battle.
 
 The current setup section is also a command-derived shared value. When one seated player moves forward or back, realtime updates move every device to that section; setup navigation is never private browser state.
 
@@ -44,11 +44,11 @@ Everything they need follows from having no player behind the seat:
 
 `draw-secondary` and `draw-secondaries` name their side, and the server resolves whose deck to deal from through `commandArmy` rather than from the submitting player, so cards cannot come off one deck and be recorded against another.
 
-Earlier solo battles set `solo` in `configure-battle` and keep it: their log says one seat, one army, and a mission matched against its own disposition. Nothing new is created that way.
+There is no solo format. A battle is between two sides, and a side nobody signs in to is what practice means here. Logs from before that carry a `solo` flag in their `configure-battle` command; the schema no longer reads it, so it is dropped on the way in. Those battles keep folding — the round ledger and the turns still come out right for a log with one seat — but a one-seat battle can no longer be started, and a matchup with only one disposition has no mission, so `seatedScreen` leaves the primary each side's own `set-prep` recorded rather than replacing it with nothing.
 
 ## Cards
 
-What an army brings is not a choice a player makes twice. The stratagems are the detachment's own plus the core ones every army has, and its primary comes from its ordered force-disposition matchup against the opposing side — both are recorded by `set-prep` as soon as they are known rather than offered as a picker. An earlier solo battle pairs its one disposition against itself so that it still has a mission to score.
+What an army brings is not a choice a player makes twice. The stratagems are the detachment's own plus the core ones every army has, and its primary comes from its ordered force-disposition matchup against the opposing side — both are recorded by `set-prep` as soon as they are known rather than offered as a picker.
 
 Secondaries are tactical unless a player says otherwise: the hand starts empty, the deck is the whole pack, and the tracker asks for the draw at the top of that player's command phase. Fixed play is the alternative, and the only case where cards are chosen up front.
 

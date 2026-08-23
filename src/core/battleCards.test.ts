@@ -473,7 +473,6 @@ describe('secondaries', () => {
       missionPackId: null,
       terrainLayoutId: null,
       twistId: null,
-      solo: false,
       teamBattle: true,
       clockLimitMinutes: null,
     }

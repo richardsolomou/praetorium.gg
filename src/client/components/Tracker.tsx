@@ -112,7 +112,8 @@ export function Tracker({ view, missions, present, send, pending, problem }: Pro
     className: player.side === 0 ? 'text-side-a' : 'text-side-b',
   }))
   const finished = view.status === 'finished'
-  const solo = table.length < 2
+  // A battle whose second seat is still empty draws one side, not a gap where the other goes.
+  const oneSided = table.length < 2
   // A side's own mission can state a lower ceiling than the conventional one, and the
   // two sides need not be playing the same mission, so this is asked of each side.
   const guidesFor = (side: Side) => ({
@@ -229,18 +230,18 @@ export function Tracker({ view, missions, present, send, pending, problem }: Pro
         }
       />
 
-      {/* An earlier solo battle has nobody across the table, so it offers neither a tab nor a column for them. */}
+      {/* Nobody across the table yet means neither a tab nor a column for them. */}
       <Tabs value={focus} onValueChange={(value) => setFocus(value as Focus)} className="lg:hidden">
-        <TabsList className={`grid w-full ${solo ? 'grid-cols-2' : 'grid-cols-3'}`}>
+        <TabsList className={`grid w-full ${oneSided ? 'grid-cols-2' : 'grid-cols-3'}`}>
           <TabsTrigger value="yours">Your side</TabsTrigger>
           <TabsTrigger value="battle">Battle</TabsTrigger>
-          {solo ? null : <TabsTrigger value="theirs">Opponent</TabsTrigger>}
+          {oneSided ? null : <TabsTrigger value="theirs">Opponent</TabsTrigger>}
         </TabsList>
       </Tabs>
 
       <div
         className={`mx-auto grid items-start gap-3 ${
-          solo
+          oneSided
             ? 'max-w-5xl lg:grid-cols-[minmax(0,1fr)_minmax(19rem,22rem)]'
             : 'max-w-7xl lg:grid-cols-[minmax(0,1fr)_minmax(19rem,22rem)_minmax(0,1fr)]'
         }`}
@@ -296,7 +297,7 @@ export function Tracker({ view, missions, present, send, pending, problem }: Pro
               />
               <Fact label="Attacker" value={view.players.find((player) => player.id === view.attackerId)?.name ?? 'Not chosen'} />
               <Fact label="Battle size" value={view.settings.limit ? `${view.settings.limit} points` : 'Legacy format'} />
-              <Fact label="Format" value={formatName(view, table)} />
+              <Fact label="Format" value={formatName(table)} />
             </dl>
 
             <div className="border-t border-edge pt-3">
@@ -400,8 +401,7 @@ function Fact({ label, value }: { label: string; value: string }) {
   )
 }
 
-function formatName(view: BattleView, table: Side[]) {
-  if (view.settings.solo) return 'Solo practice'
+function formatName(table: Side[]) {
   const shape = table
     .map((side) => side.armies.length)
     .toSorted((left, right) => right - left)

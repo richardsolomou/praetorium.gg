@@ -55,7 +55,6 @@ describe('the account of the battle', () => {
       missionPackId: null,
       terrainLayoutId: null,
       twistId: null,
-      solo: false,
       teamBattle: true,
       clockLimitMinutes: null,
     }

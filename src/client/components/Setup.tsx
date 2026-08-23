@@ -86,7 +86,6 @@ export function Setup({ view, mission, missions, send, pending, problem }: Props
       missionPackId: view.settings.missionPackId,
       terrainLayoutId: view.settings.terrainLayoutId,
       twistId: view.settings.twistId,
-      solo: view.settings.solo,
       teamBattle: view.settings.teamBattle,
       clockLimitMinutes: null,
       ...settings,

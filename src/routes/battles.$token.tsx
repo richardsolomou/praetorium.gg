@@ -41,7 +41,7 @@ export const Route = createFileRoute('/battles/$token')({
     const dispositions = screen.view.players
       .map((player) => player.roster?.built?.disposition)
       .filter((value): value is string => Boolean(value))
-    const matchupIds = terrainMatchupIds(dispositions, screen.view.settings.solo)
+    const matchupIds = terrainMatchupIds(dispositions)
     /*
      * One round for everything the battle's own contents decide.
      *

@@ -69,7 +69,7 @@ function describe(
 
   switch (command.kind) {
     case 'configure-battle':
-      return `${who} sets a ${command.limit}-point${command.solo ? ' practice' : ''} battle`
+      return `${who} sets a ${command.limit}-point battle`
     case 'reset-setup':
       return `${who} resets battle setup`
     case 'set-setup-step':

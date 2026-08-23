@@ -23,7 +23,6 @@ export const rosterInBattleSchema = z.object({ id, battle: token.optional() })
 export const createBattleSchema = z.object({
   opponentId: id.optional(),
   opponentIds: z.array(id).min(1).max(2).optional(),
-  solo: z.boolean().default(false),
   limit: z
     .number()
     .int()

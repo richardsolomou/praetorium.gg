@@ -43,7 +43,6 @@ describe('setup', () => {
       missionPackId: null,
       terrainLayoutId: null,
       twistId: null,
-      solo: false,
       teamBattle: true,
       clockLimitMinutes: null,
     }
@@ -69,7 +68,6 @@ describe('setup', () => {
       missionPackId: null,
       terrainLayoutId: null,
       twistId: null,
-      solo: false,
       teamBattle: true,
       clockLimitMinutes: null,
     }
@@ -161,7 +159,6 @@ describe('setup', () => {
             missionPackId: null,
             terrainLayoutId: null,
             twistId: null,
-            solo: false,
             clockLimitMinutes: null,
           },
         ],
@@ -184,7 +181,6 @@ describe('setup', () => {
             missionPackId: null,
             terrainLayoutId: null,
             twistId: null,
-            solo: false,
             clockLimitMinutes: null,
           },
         ],
@@ -254,25 +250,10 @@ describe('setup', () => {
     expect(validate(reduceBattle(PLAYERS, log()), ALICE, command)).toBe('a selected secondary is not in the deck')
   })
 
-  it('supports a private solo practice battle without a second identity', () => {
-    const history = log(
-      [
-        ALICE,
-        {
-          kind: 'configure-battle',
-          limit: 2000,
-          missionPackId: null,
-          terrainLayoutId: null,
-          twistId: null,
-          solo: true,
-          clockLimitMinutes: null,
-        },
-      ],
-      [ALICE, roster('Practice army')],
-      [ALICE, { kind: 'begin-battle', firstPlayerId: ALICE, attackerId: ALICE }],
-    )
+  it('refuses to start a battle with only one seat filled', () => {
+    const state = reduceBattle([ALICE], log([ALICE, roster('Practice army')]))
 
-    expect(reduceBattle([ALICE], history)).toMatchObject({ status: 'playing', activePlayerId: ALICE, round: 1 })
+    expect(validate(state, ALICE, { kind: 'begin-battle', firstPlayerId: ALICE })).toBe('waiting for an opponent')
   })
 
   it('resets a setup draft without deleting its history', () => {
@@ -301,7 +282,6 @@ describe('setup', () => {
             missionPackId: 'chapter-approved',
             terrainLayoutId: 'layout-a',
             twistId: 'twist-a',
-            solo: false,
             clockLimitMinutes: 45,
           },
         ],
@@ -314,7 +294,6 @@ describe('setup', () => {
       missionPackId: 'chapter-approved',
       terrainLayoutId: null,
       twistId: null,
-      solo: false,
       teamBattle: false,
     })
   })
@@ -332,7 +311,6 @@ describe('setup', () => {
             missionPackId: null,
             terrainLayoutId: 'layout-a',
             twistId: null,
-            solo: false,
             clockLimitMinutes: null,
           },
         ],
@@ -463,7 +441,6 @@ describe('the turn sequence', () => {
         missionPackId: null,
         terrainLayoutId: null,
         twistId: null,
-        solo: false,
         clockLimitMinutes: null,
       },
     ]
@@ -482,7 +459,9 @@ describe('the turn sequence', () => {
     expect(state.round).toBe(BATTLE_ROUNDS)
   })
 
-  it('records each solo round as its own turn', () => {
+  // A one-seat battle can no longer be started, but the logs of the ones that were
+  // still have to fold. These two read that history rather than describe a format.
+  it('records each round of a one-seat log as its own turn', () => {
     const state = reduceBattle(
       [ALICE],
       log(
@@ -494,7 +473,6 @@ describe('the turn sequence', () => {
             missionPackId: null,
             terrainLayoutId: null,
             twistId: null,
-            solo: true,
             clockLimitMinutes: null,
           },
         ],
@@ -507,7 +485,7 @@ describe('the turn sequence', () => {
     expect(state.turns.map((turn) => turn.round)).toEqual([1, 2])
   })
 
-  it('naturally completes all five solo rounds', () => {
+  it('completes all five rounds of a one-seat log', () => {
     const state = reduceBattle(
       [ALICE],
       log(
@@ -519,7 +497,6 @@ describe('the turn sequence', () => {
             missionPackId: null,
             terrainLayoutId: null,
             twistId: null,
-            solo: true,
             clockLimitMinutes: null,
           },
         ],
@@ -602,7 +579,6 @@ describe('the turn sequence', () => {
       missionPackId: null,
       terrainLayoutId: null,
       twistId: null,
-      solo: false,
       teamBattle: true,
       clockLimitMinutes: null,
     }
@@ -647,7 +623,6 @@ describe('the turn sequence', () => {
       missionPackId: null,
       terrainLayoutId: null,
       twistId: null,
-      solo: false,
       teamBattle: true,
       clockLimitMinutes: null,
     }
@@ -702,7 +677,6 @@ describe('the turn sequence', () => {
       missionPackId: null,
       terrainLayoutId: null,
       twistId: null,
-      solo: false,
       teamBattle: true,
       clockLimitMinutes: null,
     }

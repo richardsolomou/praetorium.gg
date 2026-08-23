@@ -55,7 +55,6 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
     missionPackId: id.nullable(),
     terrainLayoutId: id.nullable(),
     twistId: id.nullable(),
-    solo: z.boolean(),
     teamBattle: z.boolean().optional(),
     clockLimitMinutes: z.number().int().min(5).max(300).nullable(),
   }),

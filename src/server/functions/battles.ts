@@ -43,7 +43,7 @@ export const createBattle = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const player = await requireUser()
       const result = await app().service.createBattle(player.id, data)
-      await app().telemetry.capture(player.id, 'battle_created', { practice: result.practice, solo: data.solo, limit: data.limit })
+      await app().telemetry.capture(player.id, 'battle_created', { practice: result.practice, limit: data.limit })
       return result
     }),
   )

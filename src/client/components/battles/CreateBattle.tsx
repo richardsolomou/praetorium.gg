@@ -41,7 +41,6 @@ export function CreateBattle() {
       createBattle({
         data: {
           opponentIds,
-          solo: false,
           limit,
           missionPackId,
         },
