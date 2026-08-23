@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.21.8
+
+### Patch Changes
+
+- d4462df: Show datasheets whose catalogue and reference names use different apostrophe styles.
+
 ## 0.21.7
 
 ### Patch Changes
