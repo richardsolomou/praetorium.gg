@@ -43,7 +43,12 @@ export function DetachmentReference({
           <div className="min-w-0 flex-1">
             <p className="eyebrow text-parchment">{faction ? `${faction.displayName} · Detachment` : 'Detachment'}</p>
             <div className="flex flex-col items-start gap-3 sm:flex-row sm:justify-between sm:gap-4">
-              <h1 className="text-3xl">{detachment.name}</h1>
+              <div className="flex min-w-0 items-center gap-2">
+                <h1 className="text-3xl">{detachment.name}</h1>
+                {detachmentId ? (
+                  <FavouriteDetachmentToggle catalogueId={catalogueId} detachmentId={detachmentId} name={detachment.name} />
+                ) : null}
+              </div>
               {detachment.dispositions.length || detachment.points !== null ? (
                 <div className="flex flex-wrap gap-1 pt-1 sm:shrink-0 sm:justify-end">
                   {detachment.dispositions.map((disposition) => (
@@ -53,9 +58,6 @@ export function DetachmentReference({
                   ))}
                   {detachment.points === null ? null : <span className="chip">{detachment.points} DP</span>}
                 </div>
-              ) : null}
-              {detachmentId ? (
-                <FavouriteDetachmentToggle catalogueId={catalogueId} detachmentId={detachmentId} name={detachment.name} />
               ) : null}
             </div>
           </div>
