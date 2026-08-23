@@ -123,6 +123,9 @@ function describe(
       const secondary = player?.secondaries.find((candidate) => candidate.key === command.key)
       return `${who} discards ${secondary?.name ?? 'a secondary'} and gains 1 CP${forTarget}`
     }
+    case 'resolve-tactical-hand': {
+      return `${who} discards ${whose} remaining tactical hand${command.gainCpFrom ? ' and gains 1 CP' : ''}${forTarget}`
+    }
     case 'use-stratagem': {
       const stratagem = player?.stratagems.find((candidate) => candidate.key === command.key)
       return stratagem

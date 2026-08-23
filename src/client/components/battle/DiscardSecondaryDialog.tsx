@@ -26,9 +26,10 @@ export function DiscardSecondaryDialog({
       <DialogContent className="rounded-none border border-discarded/60 bg-panel text-bone sm:max-w-lg">
         <DialogHeader className="text-center">
           <p className="eyebrow text-discarded">End of turn</p>
-          <DialogTitle className="uppercase">Discard a secondary?</DialogTitle>
+          <DialogTitle className="uppercase">Resolve tactical hand?</DialogTitle>
           <DialogDescription className="text-dim">
-            {sideName(side)} may discard one active tactical secondary to gain 1 CP. Keeping them costs nothing.
+            {sideName(side)} discards all active tactical secondaries now.
+            {side.canGainCp ? ' Choose one to gain 1 CP.' : ' The additional CP allowance has already been used this round.'}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-1.5">
@@ -38,7 +39,7 @@ export function DiscardSecondaryDialog({
               variant="outline"
               className="h-auto w-full justify-start rounded-none py-2 text-left"
               aria-pressed={selected === card.key}
-              disabled={pending}
+              disabled={pending || !side.canGainCp}
               onClick={() => setSelected((current) => (current === card.key ? null : card.key))}
             >
               {card.name}
@@ -46,13 +47,20 @@ export function DiscardSecondaryDialog({
           ))}
         </div>
         <DialogFooter className="rounded-none border-edge bg-sunken">
-          <Button variant="outline" disabled={pending} onClick={onDone}>
-            Keep secondaries
+          <Button
+            variant="outline"
+            disabled={pending}
+            onClick={() => {
+              send({ kind: 'resolve-tactical-hand', playerId: side.captain.id })
+              onDone()
+            }}
+          >
+            Discard without CP
           </Button>
           <Button
-            disabled={pending || !selected}
+            disabled={pending || !selected || !side.canGainCp}
             onClick={() => {
-              if (selected) send({ kind: 'discard-secondary-for-cp', key: selected, playerId: side.captain.id })
+              if (selected) send({ kind: 'resolve-tactical-hand', gainCpFrom: selected, playerId: side.captain.id })
               onDone()
             }}
           >

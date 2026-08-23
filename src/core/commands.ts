@@ -166,6 +166,7 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('begin-battle'), firstPlayerId: id, attackerId: id.optional() }),
   z.object({ kind: z.literal('adjust-cp'), delta: z.number().int(), playerId: id.optional() }),
   z.object({ kind: z.literal('discard-secondary-for-cp'), key: id, playerId: id.optional() }),
+  z.object({ kind: z.literal('resolve-tactical-hand'), gainCpFrom: id.optional(), playerId: id.optional() }),
   z.object({ kind: z.literal('score'), category: z.enum(['primary', 'secondary']), delta: z.number().int(), playerId: id.optional() }),
   z.object({ kind: z.literal('correct-player'), playerId: id, resource: z.enum(['cp', 'primary', 'secondary']), delta: z.number().int() }),
   z.object({ kind: z.literal('settle-opponent-turn') }),

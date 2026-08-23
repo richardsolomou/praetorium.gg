@@ -267,9 +267,9 @@ export async function advance(page: Page) {
           .click({ timeout: 3_000 })
           .catch(() => undefined)
       }
-      const discard = page.getByRole('dialog', { name: 'Discard a secondary?' })
+      const discard = page.getByRole('dialog', { name: 'Resolve tactical hand?' })
       if (await discard.isVisible().catch(() => false)) {
-        await discard.getByRole('button', { name: 'Keep secondaries' }).click()
+        await discard.getByRole('button', { name: 'Discard without CP' }).click()
       }
       await expect.poll(() => phase.textContent()).not.toBe(before)
       break

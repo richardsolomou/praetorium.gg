@@ -232,6 +232,64 @@ describe('secondaries', () => {
     )
   })
 
+  it('discards every unscored tactical secondary when the turn ends', () => {
+    const command: Command = { kind: 'resolve-tactical-hand' }
+    const after = tacticalEnd([ALICE, command])
+
+    expect(validate(tacticalEnd(), ALICE, command)).toBeNull()
+    expect(alice(after)?.secondaryStatus).toMatchObject({ a: 'discarded' })
+    expect(alice(after)?.cp).toBe(1)
+  })
+
+  it('resolves the full hand while granting at most one CP from the chosen card', () => {
+    const prep: Command = {
+      kind: 'set-prep',
+      stratagems: [],
+      primary: null,
+      secondaryMode: 'tactical',
+      secondaries: [
+        { key: 'a', name: 'Behind Enemy Lines' },
+        { key: 'b', name: 'Bring It Down' },
+      ],
+      secondaryDeck: [
+        { key: 'a', name: 'Behind Enemy Lines' },
+        { key: 'b', name: 'Bring It Down' },
+        { key: 'c', name: 'Area Denial' },
+        { key: 'd', name: 'Storm Hostile Objective' },
+      ],
+    }
+    const history = log(
+      ...started(),
+      [ALICE, prep],
+      ...turns(5, ALICE),
+      [ALICE, { kind: 'resolve-tactical-hand', gainCpFrom: 'a' }],
+      [ALICE, { kind: 'advance' }],
+      ...turns(6, BOB),
+    )
+    const nextTurn = reduceBattle(PLAYERS, history)
+
+    expect(alice(nextTurn)).toMatchObject({ cp: 3, secondaryStatus: { a: 'discarded', b: 'discarded' } })
+    expect(validate(nextTurn, ALICE, { kind: 'draw-secondary', secondary: { key: 'c', name: 'Area Denial' } })).toBeNull()
+    const oneDrawn = reduceBattle(
+      PLAYERS,
+      log(...history.map((entry) => [entry.by, entry.command] as [string, Command]), [
+        ALICE,
+        { kind: 'draw-secondary', secondary: { key: 'c', name: 'Area Denial' } },
+      ]),
+    )
+    expect(validate(oneDrawn, ALICE, { kind: 'draw-secondary', secondary: { key: 'd', name: 'Storm Hostile Objective' } })).toBeNull()
+  })
+
+  it('keeps a secret mission active when resolving the tactical hand', () => {
+    const before = tacticalEnd(
+      [ALICE, { kind: 'select-secret', secondary: { key: 'secret', name: 'Hold the Line' } }],
+      [ALICE, { kind: 'resolve-tactical-hand' }],
+    )
+
+    expect(alice(before)?.secondaryStatus).toMatchObject({ a: 'discarded', secret: 'active' })
+    expect(validate(before, ALICE, { kind: 'resolve-tactical-hand' })).toBe('there are no active tactical secondaries to resolve')
+  })
+
   it('withhold a secret mission from the opponent until it is revealed', () => {
     const history = log(...started(), [ALICE, { kind: 'select-secret', secondary: { key: 'secret-a', name: 'Hold the Line' } }])
     const state = reduceBattle(PLAYERS, history)

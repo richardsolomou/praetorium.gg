@@ -269,6 +269,7 @@ export type Command =
   | { kind: 'begin-battle'; firstPlayerId: PlayerId; attackerId?: PlayerId }
   | ({ kind: 'adjust-cp'; delta: number } & OnBehalfOf)
   | ({ kind: 'discard-secondary-for-cp'; key: string } & OnBehalfOf)
+  | ({ kind: 'resolve-tactical-hand'; gainCpFrom?: string } & OnBehalfOf)
   | ({ kind: 'score'; category: 'primary' | 'secondary'; delta: number } & OnBehalfOf)
   | { kind: 'correct-player'; playerId: PlayerId; resource: 'cp' | 'primary' | 'secondary'; delta: number }
   | { kind: 'settle-opponent-turn' }
@@ -565,6 +566,23 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
       if (player.secondaryMode !== 'tactical') return 'only tactical secondaries can be discarded for command points'
       if (player.secondaryStatus[command.key] !== 'active') return 'that secondary is not active'
       if ((player.bonusCpByRound[state.round - 1] ?? 0) >= 1) return 'a side can gain at most 1 additional command point per battle round'
+      return null
+    }
+    case 'resolve-tactical-hand': {
+      if (state.status !== 'playing') return 'the battle is not running'
+      if (state.phase !== 'end' || !sameSide(state, state.activePlayerId, player.id))
+        return 'resolve tactical missions at the end of your turn'
+      if (player.secondaryMode !== 'tactical') return 'only tactical secondaries are resolved each turn'
+      const active = player.secondaries.filter(
+        (secondary) => secondary.key !== player.secretSecondary && player.secondaryStatus[secondary.key] === 'active',
+      )
+      if (!active.length) return 'there are no active tactical secondaries to resolve'
+      if (command.gainCpFrom && !active.some((secondary) => secondary.key === command.gainCpFrom)) {
+        return 'that secondary is not active'
+      }
+      if (command.gainCpFrom && (player.bonusCpByRound[state.round - 1] ?? 0) >= 1) {
+        return 'a side can gain at most 1 additional command point per battle round'
+      }
       return null
     }
     case 'score': {
@@ -935,6 +953,22 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
       player.cpGained += 1
       player.bonusCpByRound[state.round - 1] = (player.bonusCpByRound[state.round - 1] ?? 0) + 1
       player.cpByRound[state.round - 1] = player.cp
+      return
+    }
+    case 'resolve-tactical-hand': {
+      const active = player.secondaries.filter(
+        (secondary) => secondary.key !== player.secretSecondary && player.secondaryStatus[secondary.key] === 'active',
+      )
+      player.secondaryStatus = {
+        ...player.secondaryStatus,
+        ...Object.fromEntries(active.map((secondary) => [secondary.key, 'discarded' as const])),
+      }
+      if (command.gainCpFrom) {
+        player.cp += 1
+        player.cpGained += 1
+        player.bonusCpByRound[state.round - 1] = (player.bonusCpByRound[state.round - 1] ?? 0) + 1
+        player.cpByRound[state.round - 1] = player.cp
+      }
       return
     }
     case 'score': {
