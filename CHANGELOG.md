@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.21.16
+
+### Patch Changes
+
+- 5633a37: Make the end-of-turn tactical discard prompt show whether the round's bonus CP is still available and mark selected cards clearly, instead of leaving both hidden behind unlabelled buttons.
+
 ## 0.21.15
 
 ### Patch Changes
