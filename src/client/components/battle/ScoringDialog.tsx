@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import type { Command } from '../../../core/battle'
 import type { BattleView } from '../../../core/battleView'
 import { alternatives, awardLimit, awardTotal, conditionLabel, counted, type MissionAward, payoutLabel } from '../../missionText'
-import { cardsDue, cardsDueFromTheirTurn, type DueCard, finishesOnScore } from '../../scoring'
+import { cardsDue, cardsDueFromTheirTurn, type DueCard, finishesOnScore, scoredThisRound } from '../../scoring'
 import { type Side, sideName } from '../../sides'
 import { RuleText } from '../RuleText'
 import { MissionName, type ReferenceCard } from './MissionCards'
@@ -122,7 +122,7 @@ export function ScoringDialog({ side, due, moment, confirmLabel, pending, send, 
                       type={card.category === 'primary' ? 'Primary mission' : 'Secondary mission'}
                     />
                     <span className="readout shrink-0 text-xs text-dim">
-                      {scored ? `+${scored} VP` : `${scoredSoFar(side, card)} so far`}
+                      {scored ? `+${scored} VP` : `${scoredThisRound(roundSoFar, card.category)} so far`}
                     </span>
                   </div>
                 </div>
@@ -323,6 +323,3 @@ function playable(side: Side, awardsFor: (key: string, mode?: string) => Mission
       })),
   ]
 }
-
-const scoredSoFar = (side: Side, card: DueCard) =>
-  card.category === 'primary' ? side.primary : (side.secondaries.find((entry) => entry.key === card.key)?.points ?? 0)

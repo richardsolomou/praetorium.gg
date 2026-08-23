@@ -1,6 +1,16 @@
 import { describe, expect, it } from 'vitest'
 import type { MissionAward } from './missionText'
-import { type AwardTrigger, cardsDue, cardsDueFromTheirTurn, dueNow, finishesOnScore, momentsPassed, nextDraw, turnPrompt } from './scoring'
+import {
+  type AwardTrigger,
+  cardsDue,
+  cardsDueFromTheirTurn,
+  dueNow,
+  finishesOnScore,
+  momentsPassed,
+  nextDraw,
+  scoredThisRound,
+  turnPrompt,
+} from './scoring'
 
 const ANY: AwardTrigger = { timing: null, phase: null, playerTurn: null, roundMin: null, roundMax: null }
 const trigger = (overrides: Partial<AwardTrigger>): AwardTrigger => ({ ...ANY, ...overrides })
@@ -15,6 +25,14 @@ const payout = (vp: number, on: Partial<AwardTrigger>): MissionAward => ({
   trigger: trigger(on),
 })
 const at = (phase: string, round = 1, rounds = 5) => ({ phase, round, rounds }) as Parameters<typeof dueNow>[1]
+
+describe('round scoring guidance', () => {
+  it('uses only the applicable round total as already scored', () => {
+    const currentRound = { primary: 10, secondary: 8 }
+    expect(scoredThisRound(currentRound, 'primary')).toBe(10)
+    expect(scoredThisRound(currentRound, 'secondary')).toBe(8)
+  })
+})
 
 describe('when a mission is asked about', () => {
   it('settles only the phase when a turn still has phases left', () => {
