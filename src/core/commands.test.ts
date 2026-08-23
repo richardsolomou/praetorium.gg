@@ -75,9 +75,10 @@ describe('command schema', () => {
 
   it('accepts resolving a tactical hand with or without its CP choice', () => {
     expect(commandSchema.parse({ kind: 'resolve-tactical-hand' })).toEqual({ kind: 'resolve-tactical-hand' })
-    expect(commandSchema.parse({ kind: 'resolve-tactical-hand', gainCpFrom: 'beacon', playerId: 'alice' })).toEqual({
+    expect(commandSchema.parse({ kind: 'resolve-tactical-hand', keys: ['beacon'], gainCp: true, playerId: 'alice' })).toEqual({
       kind: 'resolve-tactical-hand',
-      gainCpFrom: 'beacon',
+      keys: ['beacon'],
+      gainCp: true,
       playerId: 'alice',
     })
   })

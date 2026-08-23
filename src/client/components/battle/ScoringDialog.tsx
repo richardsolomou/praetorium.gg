@@ -62,6 +62,19 @@ export function ScoringDialog({ side, due, moment, confirmLabel, pending, send, 
     }
   }
 
+  // The hard ceiling before anything answered here is added, so a card the board
+  // truthfully paid can still be marked achieved even once the mission stops
+  // paying more VP for it this round or this battle.
+  const totalRoomFor = (category: 'primary' | 'secondary') => {
+    const roundCap = category === 'primary' ? caps.primaryRound : caps.secondaryRound
+    const gameCap = category === 'primary' ? caps.primaryGame : caps.secondaryGame
+    const bankedRound = category === 'primary' ? roundSoFar.primary : roundSoFar.secondary
+    const bankedGame = category === 'primary' ? side.primary : side.secondary
+    const roundRoom = roundCap === null ? Infinity : roundCap - bankedRound
+    const gameRoom = gameCap === null ? Infinity : gameCap - bankedGame
+    return Math.max(0, Math.min(roundRoom, gameRoom))
+  }
+
   const answer = (card: DueCard, at: number, times: number) =>
     setAnswers((current) => {
       const taken = current[card.key] ?? card.awards.map(() => 0)
@@ -74,23 +87,27 @@ export function ScoringDialog({ side, due, moment, confirmLabel, pending, send, 
     })
 
   const confirm = () => {
+    // What the board paid is never refused, but a card cannot pay past the
+    // mission's own ceiling: the excess is claimed truthfully and simply
+    // does not add to the total, the same way the rules book counts it.
+    const roomLeft = { primary: totalRoomFor('primary'), secondary: totalRoomFor('secondary') }
+    const finished: string[] = []
     const scores = due.reduce<Extract<Command, { kind: 'score-settlement' }>['scores']>((settlement, card) => {
-      const delta = scoredFor(card)
+      const raw = scoredFor(card)
+      if (!raw) return settlement
+      const delta = Math.min(raw, roomLeft[card.category])
+      roomLeft[card.category] -= delta
       if (!delta) return settlement
+      if (finishesOnScore(card.category, side.secondaryMode, delta)) finished.push(card.key)
       settlement.push(
         card.category === 'primary'
           ? { category: 'primary', delta }
-          : {
-              category: 'secondary',
-              key: card.key,
-              delta,
-              status: finishesOnScore(card.category, side.secondaryMode, delta) ? 'achieved' : undefined,
-            },
+          : { category: 'secondary', key: card.key, delta, status: finished.includes(card.key) ? 'achieved' : undefined },
       )
       return settlement
     }, [])
     if (scores.length) send({ kind: 'score-settlement', scores, playerId: side.captain.id })
-    onDone(due.filter((card) => finishesOnScore(card.category, side.secondaryMode, scoredFor(card))).map((card) => card.key))
+    onDone(finished)
   }
 
   return (
@@ -215,7 +232,7 @@ function AwardRow({
             {award.vp} VP each{award.max === null ? '' : `, up to ${award.max} VP`}
           </span>
         ) : null}
-        {capNote ? <span className="mt-0.5 block text-[0.625rem] text-destructive">{capNote}</span> : null}
+        {capNote ? <span className="mt-0.5 block text-[0.625rem] text-discarded">{capNote}</span> : null}
       </span>
       {counted(award) ? (
         <>
@@ -234,7 +251,7 @@ function AwardRow({
               variant="outline"
               size="icon-xs"
               aria-label={`${card.name} plus ${award.vp} per ${award.per?.replaceAll('-', ' ')}`}
-              disabled={pending || (limit !== null && times >= limit) || roundCapped || gameCapped}
+              disabled={pending || (limit !== null && times >= limit)}
               onClick={() => onAnswer(times + 1)}
             >
               <Plus />
@@ -249,7 +266,6 @@ function AwardRow({
           label={`${award.vp} VP`}
           chosen={times > 0}
           pending={pending}
-          disabled={times === 0 && (roundCapped || gameCapped)}
           ariaLabel={`${card.name} plus ${award.vp}`}
           onPress={() => onAnswer(times > 0 ? 0 : 1)}
         />

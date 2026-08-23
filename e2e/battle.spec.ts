@@ -133,12 +133,12 @@ test('a tactical hand is dealt rather than chosen, and pays out when the card sa
   await submitted
   try {
     await scoring.getByRole('button', { name: 'Pass the turn' }).click()
-    const discard = alice.getByRole('dialog', { name: 'Resolve tactical hand?' })
+    const discard = alice.getByRole('dialog', { name: 'Discard tactical secondaries?' })
     await expect(discard).toBeVisible()
     await discard.locator('button[aria-pressed]').first().click()
-    await discard.getByRole('button', { name: 'Discard and gain 1 CP' }).click()
+    await discard.getByRole('button', { name: 'Discard 1 and gain 1 CP' }).click()
     await expect(alice.getByRole('heading', { name: 'command phase' })).toBeVisible()
-    await expect(alice.getByText(/discards their remaining tactical hand and gains 1 CP/)).toBeVisible()
+    await expect(alice.getByText(/discards .+ and gains 1 CP/)).toBeVisible()
   } finally {
     releaseBob()
   }
