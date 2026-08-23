@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.21.17
+
+### Patch Changes
+
+- 021f3e0: Give a unit the keywords its book grants it, so a Dark Angels Chaplain in Terminator Armour is Deathwing and can take Deathwing Assault.
+
 ## 0.21.16
 
 ### Patch Changes
