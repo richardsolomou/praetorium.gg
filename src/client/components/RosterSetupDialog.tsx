@@ -1,5 +1,5 @@
 import { Check, Layers3 } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
@@ -82,6 +82,13 @@ export function RosterSetupDialog({
   const [reference, setReference] = useState<{ catalogueId: string; slug: string; name: string } | null>(null)
   const { favourites } = useFavouriteFactions()
   const { favourites: favouriteDetachments } = useFavouriteDetachments()
+
+  useEffect(() => {
+    if (!reference) return
+    const reset = () => document.getElementById('detachment-reference-dialog')?.scrollTo({ top: 0 })
+    reset()
+    requestAnimationFrame(reset)
+  }, [reference])
 
   const changeDraft = (next: RosterSetup) => {
     setDraft(next)
@@ -367,7 +374,11 @@ export function RosterSetupDialog({
         </DialogContent>
       </Dialog>
       <Dialog open={Boolean(reference)} onOpenChange={(next) => !next && setReference(null)}>
-        <DialogContent className="rounded-none border border-edge bg-panel p-0 text-bone ring-0 sm:max-w-5xl">
+        <DialogContent
+          id="detachment-reference-dialog"
+          initialFocus={false}
+          className="rounded-none border border-edge bg-panel p-0 text-bone ring-0 sm:max-w-5xl"
+        >
           <DialogHeader className="sr-only">
             <DialogTitle>{reference?.name ?? 'Detachment reference'}</DialogTitle>
             <DialogDescription>Detachment rules, enhancements, and stratagems.</DialogDescription>
