@@ -55,7 +55,6 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
     missionPackId: id.nullable(),
     terrainLayoutId: id.nullable(),
     twistId: id.nullable(),
-    solo: z.boolean(),
     teamBattle: z.boolean().optional(),
     clockLimitMinutes: z.number().int().min(5).max(300).nullable(),
   }),
@@ -64,6 +63,7 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('set-attacker'), attackerId: id }),
   z.object({
     kind: z.literal('attach-roster'),
+    playerId: id.optional(),
     prep: battlePrep.nullable().optional(),
     roster: z.object({
       name: z.string().max(ROSTER_NAME_MAX_LENGTH),
@@ -123,6 +123,7 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
   z.object({
     kind: z.literal('set-prep'),
     ...battlePrep.shape,
+    playerId: id.optional(),
   }),
   z.object({ kind: z.literal('deploy-unit'), unitKey: id, deployed: z.boolean(), playerId: id.optional() }),
   z.object({ kind: z.literal('set-unit-formation'), unitKey: id, formation: z.enum(UNIT_FORMATIONS), playerId: id.optional() }),
@@ -162,9 +163,9 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
     status: z.enum(['active', 'achieved', 'discarded', 'returned']),
     playerId: id.optional(),
   }),
-  z.object({ kind: z.literal('draw-secondary'), secondary }),
-  z.object({ kind: z.literal('draw-secondaries'), secondaries: z.array(secondary).min(1).max(2) }),
-  z.object({ kind: z.literal('select-secret'), secondary }),
+  z.object({ kind: z.literal('draw-secondary'), secondary, playerId: id.optional() }),
+  z.object({ kind: z.literal('draw-secondaries'), secondaries: z.array(secondary).min(1).max(2), playerId: id.optional() }),
+  z.object({ kind: z.literal('select-secret'), secondary, playerId: id.optional() }),
   z.object({ kind: z.literal('reveal-secret'), playerId: id.optional() }),
   z.object({ kind: z.literal('begin-battle'), firstPlayerId: id, attackerId: id.optional() }),
   z.object({ kind: z.literal('adjust-cp'), delta: z.number().int(), playerId: id.optional() }),

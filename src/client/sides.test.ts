@@ -9,6 +9,7 @@ function player(overrides: Partial<ViewPlayer> & Pick<ViewPlayer, 'id' | 'side'>
     name: overrides.id,
     image: null,
     isViewer: false,
+    automated: false,
     isActive: false,
     cp: 0,
     cpGained: 0,
@@ -37,6 +38,27 @@ function player(overrides: Partial<ViewPlayer> & Pick<ViewPlayer, 'id' | 'side'>
 const view = (players: ViewPlayer[], status: BattleView['status'] = 'playing') => ({ players, status }) as BattleView
 
 describe('battle sides', () => {
+  it('counts a side of practice opponents as one the viewer plays', () => {
+    const [yours, theirs] = sides(
+      view([player({ id: 'you', side: 0, isViewer: true }), player({ id: 'practice', side: 1, automated: true })]),
+    )
+
+    expect(yours).toMatchObject({ automated: false, played: true })
+    expect(theirs).toMatchObject({ automated: true, played: true })
+  })
+
+  it('leaves a side with a signed-in player on it to that player', () => {
+    const [, theirs] = sides(
+      view([
+        player({ id: 'you', side: 0, isViewer: true }),
+        player({ id: 'them', side: 1 }),
+        player({ id: 'practice', side: 1, automated: true }),
+      ]),
+    )
+
+    expect(theirs).toMatchObject({ automated: false, played: false })
+  })
+
   it('folds a 2v1 allied pair into one side', () => {
     expect(sides(view([player({ id: 'solo', side: 0 }), player({ id: 'ally', side: 1 }), player({ id: 'other', side: 1 })]))).toHaveLength(
       2,

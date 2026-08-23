@@ -171,7 +171,6 @@ export type BattleSettings = {
   missionPackId: string | null
   terrainLayoutId: string | null
   twistId: string | null
-  solo: boolean
   teamBattle: boolean
 }
 
@@ -180,7 +179,6 @@ const DEFAULT_SETTINGS: BattleSettings = {
   missionPackId: null,
   terrainLayoutId: null,
   twistId: null,
-  solo: false,
   teamBattle: false,
 }
 
@@ -232,14 +230,13 @@ export type Command =
       missionPackId: string | null
       terrainLayoutId: string | null
       twistId: string | null
-      solo: boolean
       teamBattle?: boolean
       clockLimitMinutes: number | null
     }
   | { kind: 'reset-setup' }
   | { kind: 'set-setup-step'; step: number }
   | { kind: 'set-attacker'; attackerId: PlayerId }
-  | { kind: 'attach-roster'; roster: Roster; prep?: BattlePrep | null }
+  | ({ kind: 'attach-roster'; roster: Roster; prep?: BattlePrep | null } & OnBehalfOf)
   | ({ kind: 'set-unit'; unitKey: string; destroyed: boolean } & OnBehalfOf)
   | ({ kind: 'wound-unit'; unitKey: string; delta: number } & OnBehalfOf)
   | ({ kind: 'deploy-unit'; unitKey: string; deployed: boolean } & OnBehalfOf)
@@ -247,14 +244,14 @@ export type Command =
   | ({ kind: 'set-painted'; painted: boolean } & OnBehalfOf)
   | { kind: 'set-deployment'; patternId: string | null }
   | { kind: 'set-battlefield'; patternId: string; terrainLayoutId: string }
-  | {
+  | ({
       kind: 'set-prep'
       stratagems: Stratagem[]
       secondaries: Secondary[]
       secondaryDeck?: Secondary[]
       primary: Secondary | null
       secondaryMode: SecondaryMode
-    }
+    } & OnBehalfOf)
   /** `cp` overrides the printed cost, for the stratagems whose price depends on the board. */
   | ({ kind: 'use-stratagem'; key: string; cp?: number } & OnBehalfOf)
   | ({ kind: 'score-secondary'; key: string; delta: number } & OnBehalfOf)
@@ -270,9 +267,9 @@ export type Command =
       round?: number
     } & OnBehalfOf)
   | ({ kind: 'set-secondary-status'; key: string; status: SecondaryStatus } & OnBehalfOf)
-  | { kind: 'draw-secondary'; secondary: Secondary }
-  | { kind: 'draw-secondaries'; secondaries: Secondary[] }
-  | { kind: 'select-secret'; secondary: Secondary }
+  | ({ kind: 'draw-secondary'; secondary: Secondary } & OnBehalfOf)
+  | ({ kind: 'draw-secondaries'; secondaries: Secondary[] } & OnBehalfOf)
+  | ({ kind: 'select-secret'; secondary: Secondary } & OnBehalfOf)
   | ({ kind: 'reveal-secret' } & OnBehalfOf)
   | { kind: 'begin-battle'; firstPlayerId: PlayerId; attackerId?: PlayerId }
   | ({ kind: 'adjust-cp'; delta: number } & OnBehalfOf)
@@ -364,12 +361,11 @@ export type BattleState = {
 /**
  * How many players a battle seats.
  *
- * Its own settings decide it, and only here: a practice battle seats one, so a
- * second player following the link is refused for the same reason a full game
- * refuses a third rather than by a separate rule that could come to disagree.
+ * Its own settings decide it, and only here, so a third player following the link
+ * is refused by the same rule the interface reads rather than by a separate one
+ * that could come to disagree.
  */
-export function battleCapacity(settings: Pick<BattleSettings, 'solo' | 'teamBattle'>) {
-  if (settings.solo) return 1
+export function battleCapacity(settings: Pick<BattleSettings, 'teamBattle'>) {
   return settings.teamBattle ? TEAM_BATTLE_PLAYERS : PLAYERS_PER_BATTLE
 }
 
@@ -543,7 +539,7 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
     case 'begin-battle': {
       if (state.status !== 'setup') return 'the battle has started'
       const requiredPlayers = state.settings.teamBattle ? TEAM_BATTLE_PLAYERS : PLAYERS_PER_BATTLE
-      if (!state.settings.solo && state.players.length < requiredPlayers) return 'waiting for an opponent'
+      if (state.players.length < requiredPlayers) return 'waiting for an opponent'
       if (state.players.some((candidate) => !candidate.roster))
         return state.settings.teamBattle ? 'every army needs a list' : 'both armies need a list'
       if (!state.players.some((candidate) => candidate.id === command.firstPlayerId)) return 'that player is not in this battle'
@@ -619,7 +615,9 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
     case 'advance': {
       if (state.status !== 'playing') return 'the battle is not running'
       if (!sameSide(state, state.activePlayerId, player.id)) return 'it is not your turn'
-      if (helperAdvancePending(state, by, player)) return 'the active side has an action to settle'
+      // What the active side still owes is a prompt, not a refusal. One person
+      // refereeing for the table can do every one of those things on that side's
+      // behalf, so refusing them the turn only stopped the game they were running.
       return null
     }
     case 'end-battle': {
@@ -769,6 +767,10 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
     }
     case 'select-secret': {
       if (state.status !== 'playing') return 'the battle is not running'
+      // Only the side that would keep it may put a card face down. Revealing one
+      // is already the owner's alone, so allowing anyone to select it let a seat
+      // create a hidden state that nobody at the table could get back out of.
+      if (!sameSide(state, by, player.id)) return 'that is not one of your secondaries'
       if (player.secretSecondary) return 'you already have a secret mission'
       if (!command.secondary.name.trim()) return 'name the secret mission'
       if (player.secondaryDeck && !player.secondaryDeck.some((secondary) => secondary.key === command.secondary.key)) {
@@ -816,7 +818,6 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
         missionPackId: command.missionPackId,
         terrainLayoutId: command.terrainLayoutId,
         twistId: command.twistId,
-        solo: command.solo,
         teamBattle: command.teamBattle ?? false,
       }
       if (missionPackChanged) {
@@ -1200,6 +1201,18 @@ function armyCommand(command: Command): boolean {
 }
 
 /**
+ * The army a command acts on, resolved for a caller outside this file.
+ *
+ * The server has to know which deck a draw comes off before it chooses the cards,
+ * and that is this question: asking it a second way there would let the cards come
+ * off one deck and be recorded against another.
+ */
+export function commandArmy(state: BattleState, by: PlayerId, command: Command): PlayerState | undefined {
+  const actor = state.players.find((candidate) => candidate.id === by)
+  return actor ? targetArmy(state, actor, command) : undefined
+}
+
+/**
  * The army a command acts on.
  *
  * Live actions may name another player, while commands without a target retain the
@@ -1249,18 +1262,31 @@ export function sameSide(state: BattleState, left: PlayerId | null, right: Playe
 
 function mayNameSecondary(state: BattleState, by: PlayerId, player: PlayerState, key: string): boolean {
   if (!player.secondaries.some((secondary) => secondary.key === key)) return false
-  return player.secretSecondary !== key || player.secretRevealed || sameSide(state, by, player.id)
+  return mayNameCard(state, by, player, key)
 }
 
-export function helperAdvancePending(state: BattleState, by: PlayerId, player: PlayerState): boolean {
-  if (state.phase === 'command' && by !== player.id && state.pendingSettlement?.playerId === player.id) return true
-  if (by === player.id) return false
-  const activeSecondaries = player.secondaries.filter((secondary) => player.secondaryStatus[secondary.key] === 'active')
+/**
+ * What the active side still owes before the turn moves on, or null.
+ *
+ * The same answer whoever asks. These used to refuse the turn to anyone but the
+ * side itself, on the grounds that a helper's screen could not tell whether
+ * private work remained — but drawing, putting a card back and discarding one are
+ * all named in the log to both sides, so the only thing actually held back is a
+ * card played face down. That is one opt-in card in fixed play, and it is the
+ * only case left here that its own side has to answer.
+ */
+export function sideOwes(state: BattleState, player: PlayerState): 'settlement' | 'cards' | 'secret' | null {
+  if (state.phase === 'command' && state.pendingSettlement?.playerId === player.id) return 'settlement'
+  const held = player.secondaries.filter((secondary) => player.secondaryStatus[secondary.key] === 'active').length
   const hasUndrawnCard = player.secondaryDeck?.some((candidate) => !player.secondaries.some((secondary) => secondary.key === candidate.key))
-  if (state.phase === 'command' && player.secondaryMode === 'tactical' && activeSecondaries.length < TACTICAL_HAND_SIZE && hasUndrawnCard) {
-    return true
-  }
-  return state.phase === 'end' && Boolean(player.secretSecondary && !player.secretRevealed)
+  if (state.phase === 'command' && player.secondaryMode === 'tactical' && held < TACTICAL_HAND_SIZE && hasUndrawnCard) return 'cards'
+  if (state.phase === 'end' && player.secretSecondary && !player.secretRevealed) return 'secret'
+  return null
+}
+
+/** Whether a card may be named to this viewer, or is being held face down from them. */
+export function mayNameCard(state: BattleState, viewerId: PlayerId | null, player: PlayerState, key: string): boolean {
+  return player.secretSecondary !== key || player.secretRevealed || sameSide(state, viewerId, player.id)
 }
 
 function rosterLimit(state: BattleState, player: PlayerState): number | null {

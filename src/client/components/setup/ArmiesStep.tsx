@@ -8,7 +8,7 @@ import { type BattleView } from '../../../core/battleView'
 import { savedRosterPrice } from '../../../server/functions'
 import { savedRostersQuery } from '../../queries'
 import { errorMessage } from '../../queryClient'
-import { type Side, sideName } from '../../sides'
+import { type Army, type Side, sideName } from '../../sides'
 import { tint } from '../battle/tints'
 import { battleRoster, type SavedRoster } from './roster'
 
@@ -21,21 +21,28 @@ type Props = { view: BattleView; sides: Side[]; send: (command: Command) => void
  * it is attached — that is what makes the step worth doing together.
  */
 export function ArmiesStep({ view, sides, send, pending }: Props) {
-  const [choosing, setChoosing] = useState(false)
+  /** The army the chooser is picking for: your own, or a practice opponent's. */
+  const [choosing, setChoosing] = useState<Army | null>(null)
   const { data: saved = [] } = useQuery(savedRostersQuery())
   const yourSide = sides.find((side) => side.isViewer)
-  const perArmy = view.settings.limit === null ? null : view.settings.limit / Math.max(1, yourSide?.armies.length ?? 1)
-  const eligible = perArmy === null ? saved : saved.filter((roster) => roster.limit === perArmy)
+  const sideOf = (army: Army) => sides.find((side) => side.armies.some((candidate) => candidate.playerId === army.playerId))
+  /** What one army on a side may cost, which an allied pair splits between them. */
+  const limitFor = (side: Side | undefined) =>
+    view.settings.limit === null ? null : view.settings.limit / Math.max(1, side?.armies.length ?? 1)
+  const perArmy = limitFor(yourSide)
+  // The chooser prices against the side it was opened for, which an allied pair splits.
+  const chooserLimit = choosing ? limitFor(sideOf(choosing)) : perArmy
+  const eligible = chooserLimit === null ? saved : saved.filter((roster) => roster.limit === chooserLimit)
   const attach = useMutation({
-    mutationFn: async (savedRoster: SavedRoster) => {
+    mutationFn: async ({ army, savedRoster }: { army: Army; savedRoster: SavedRoster }) => {
       const priced = await savedRosterPrice({ data: { id: savedRoster.id } })
       if (!priced) throw new Error('That roster could not be loaded.')
-      return battleRoster(savedRoster, priced)
+      return { army, roster: battleRoster(savedRoster, priced) }
     },
-    onSuccess: (roster) => {
+    onSuccess: ({ army, roster }) => {
       // Cards are settled by the battle, not carried in with the list: attaching a roster starts them fresh.
-      send({ kind: 'attach-roster', roster, prep: null })
-      setChoosing(false)
+      send({ kind: 'attach-roster', roster, prep: null, playerId: army.playerId })
+      setChoosing(null)
     },
   })
 
@@ -62,11 +69,18 @@ export function ArmiesStep({ view, sides, send, pending }: Props) {
                       ? `${army.roster.built.units.length} units · ${army.points} of ${army.roster.built.limit} points`
                       : army.roster
                         ? 'Imported army'
-                        : 'Waiting for this player'}
+                        : army.automated
+                          ? 'Choose the army it brings'
+                          : 'Waiting for this player'}
                   </span>
                 </div>
-                {army.isViewer ? (
-                  <Button variant="outline" size="sm" onClick={() => setChoosing(true)}>
+                {army.isViewer || army.automated ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    aria-label={`${army.roster ? 'Change' : 'Choose'} roster for ${army.playerName}`}
+                    onClick={() => setChoosing(army)}
+                  >
                     {army.roster ? 'Change roster' : 'Choose roster'}
                   </Button>
                 ) : (
@@ -78,14 +92,15 @@ export function ArmiesStep({ view, sides, send, pending }: Props) {
         ))}
       </div>
       <RosterChooser
-        open={choosing}
-        onOpenChange={setChoosing}
+        open={choosing !== null}
+        onOpenChange={(open) => !open && setChoosing(null)}
+        forArmy={choosing}
         rosters={eligible}
         savedCount={saved.length}
-        requiredLimit={perArmy}
-        selectedName={yourSide?.armies.find((army) => army.isViewer)?.roster?.name}
+        requiredLimit={chooserLimit}
+        selectedName={choosing?.roster?.name}
         pending={pending || attach.isPending}
-        onChoose={(roster) => attach.mutate(roster)}
+        onChoose={(savedRoster) => choosing && attach.mutate({ army: choosing, savedRoster })}
         error={attach.error ? errorMessage(attach.error) : null}
       />
     </div>
@@ -95,6 +110,7 @@ export function ArmiesStep({ view, sides, send, pending }: Props) {
 function RosterChooser({
   open,
   onOpenChange,
+  forArmy,
   rosters,
   savedCount,
   requiredLimit,
@@ -105,6 +121,7 @@ function RosterChooser({
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
+  forArmy: Army | null
   rosters: SavedRoster[]
   savedCount: number
   requiredLimit: number | null
@@ -117,8 +134,12 @@ function RosterChooser({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[85dvh] overflow-y-auto rounded-none border border-edge bg-panel text-bone sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle className="text-2xl uppercase">Choose your roster</DialogTitle>
+          <DialogTitle className="text-2xl uppercase">
+            {forArmy?.automated ? `Choose ${forArmy.playerName}’s roster` : 'Choose your roster'}
+          </DialogTitle>
           <DialogDescription className="text-dim">
+            {/* A practice opponent owns no lists, so the army it brings comes from yours. */}
+            {forArmy?.automated ? 'One of your own lists, played by the side across the table. ' : ''}
             {requiredLimit === null
               ? 'Rosters are shown in the same order as your roster library.'
               : `Rosters built for ${requiredLimit} points, in the same order as your roster library.`}

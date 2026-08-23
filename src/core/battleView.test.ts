@@ -5,6 +5,37 @@ import { battleView } from './battleView'
 import { ALICE, BOB, NAMES, PLAYERS, builtRoster, log, roster, started, text, turns } from './battle.fixtures'
 
 describe('the view', () => {
+  it('shows a practice opponent’s deck and seat to the table playing it', () => {
+    const cards = [
+      { key: 'a', name: 'Area Denial' },
+      { key: 'b', name: 'Bring It Down' },
+    ]
+    const state = reduceBattle(
+      PLAYERS,
+      log(...started(), [
+        ALICE,
+        {
+          kind: 'set-prep',
+          playerId: BOB,
+          stratagems: [],
+          secondaries: [],
+          secondaryDeck: cards,
+          primary: null,
+          secondaryMode: 'tactical',
+        },
+      ]),
+    )
+    const seats = [
+      { id: ALICE, name: 'Alice' },
+      { id: BOB, name: 'Practice Opponent', automated: true },
+    ]
+
+    const view = battleView({ token: 'abc' }, seats, state, ALICE)
+    expect(view.players[1]).toMatchObject({ automated: true, remainingSecondaries: cards })
+    // A seat someone does sign in to keeps its deck to itself.
+    expect(battleView({ token: 'abc' }, NAMES, state, ALICE).players[1]?.remainingSecondaries).toEqual([])
+  })
+
   it('offers the latest undo to both players', () => {
     const state = reduceBattle(PLAYERS, log(...started(), [ALICE, { kind: 'score', category: 'primary', delta: 5 }]))
     expect(battleView({ token: 'abc' }, NAMES, state, BOB)).toMatchObject({ undoable: state.undoable?.seq, undoableDraw: false })

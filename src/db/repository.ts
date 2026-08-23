@@ -4,15 +4,35 @@ import { commandSchema } from '../core/commands'
 import type { RosterSource } from '../core/savedRoster'
 import { alias } from 'drizzle-orm/pg-core'
 import type { PraetoriumDatabase } from './connection'
-import { battleUsers, battles, collection, commands, favouriteDetachments, favouriteFactions, friendships, rosters, user } from './schema'
+import {
+  battleUsers,
+  battles,
+  collection,
+  commands,
+  favouriteDetachments,
+  favouriteFactions,
+  friendships,
+  practiceOpponents,
+  rosters,
+  user,
+} from './schema'
 
 type BattleRecord = { id: string; token: string; createdAt: number }
-type BattlePlayer = { id: string; name: string; image: string | null; side: number }
+/** A seat and the account in it. `automated` is a practice opponent: an account that never signs in. */
+type BattlePlayer = { id: string; name: string; image: string | null; side: number; automated: boolean }
 export type BattleSeats = { battle: BattleRecord; players: BattlePlayer[] }
 /** Seats and history together, so a list of battles costs no query per battle. */
 export type BattleHistory = BattleSeats & { log: LoggedCommand[] }
 
 export type JoinResult = 'joined' | 'already-in' | 'full'
+
+/**
+ * Whether the account in a seat is a practice opponent.
+ *
+ * Read from the join rather than a second query keyed on the ids the seats just
+ * returned: it is the same answer, and every battle read goes through here.
+ */
+const AUTOMATED = sql<boolean>`${practiceOpponents.userId} is not null`
 
 export class Repository {
   constructor(private readonly database: PraetoriumDatabase) {}
@@ -107,12 +127,26 @@ export class Repository {
           and(eq(friendships.addresseeId, userId), eq(friendships.requesterId, user.id)),
         ),
       )
+    const practice = this.database
+      .select({ one: sql`1` })
+      .from(practiceOpponents)
+      .where(eq(practiceOpponents.userId, user.id))
+    // A practice opponent is nobody to befriend: it is offered as a seat, not a player.
     return this.database
       .select({ id: user.id, name: user.name })
       .from(user)
-      .where(and(ne(user.id, userId), notExists(relationship)))
+      .where(and(ne(user.id, userId), notExists(relationship), notExists(practice)))
       .orderBy(asc(user.name))
       .limit(limit)
+  }
+
+  /** The practice opponents this instance seats, in the order they are offered. */
+  async practiceOpponents() {
+    return this.database
+      .select({ id: user.id, name: user.name })
+      .from(practiceOpponents)
+      .innerJoin(user, eq(user.id, practiceOpponents.userId))
+      .orderBy(asc(user.id))
   }
 
   /**
@@ -458,9 +492,10 @@ export class Repository {
 
   private async playersByBattle(battleId: string, tx: PraetoriumDatabase = this.database): Promise<BattlePlayer[]> {
     return tx
-      .select({ id: user.id, name: user.name, image: user.image, side: battleUsers.side })
+      .select({ id: user.id, name: user.name, image: user.image, side: battleUsers.side, automated: AUTOMATED })
       .from(battleUsers)
       .innerJoin(user, eq(user.id, battleUsers.userId))
+      .leftJoin(practiceOpponents, eq(practiceOpponents.userId, user.id))
       .where(eq(battleUsers.battleId, battleId))
       .orderBy(asc(battleUsers.side), asc(battleUsers.joinedAt))
   }
@@ -470,9 +505,17 @@ export class Repository {
     const grouped = new Map<string, BattlePlayer[]>()
     if (!battleIds.length) return grouped
     const rows = await this.database
-      .select({ battleId: battleUsers.battleId, id: user.id, name: user.name, image: user.image, side: battleUsers.side })
+      .select({
+        battleId: battleUsers.battleId,
+        id: user.id,
+        name: user.name,
+        image: user.image,
+        side: battleUsers.side,
+        automated: AUTOMATED,
+      })
       .from(battleUsers)
       .innerJoin(user, eq(user.id, battleUsers.userId))
+      .leftJoin(practiceOpponents, eq(practiceOpponents.userId, user.id))
       .where(inArray(battleUsers.battleId, [...battleIds]))
       .orderBy(asc(battleUsers.battleId), asc(battleUsers.side), asc(battleUsers.joinedAt))
     for (const { battleId, ...player } of rows) {

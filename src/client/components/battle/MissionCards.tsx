@@ -91,7 +91,7 @@ export function SecondaryMissions({ side, actionable, pending, send, referenceFo
         <SecretMissionDialog
           cards={side.remainingSecondaries}
           pending={pending}
-          onPick={(card) => send({ kind: 'select-secret', secondary: card })}
+          onPick={(card) => send({ kind: 'select-secret', secondary: card, playerId: side.captain.id })}
         />
       ) : null}
     </section>

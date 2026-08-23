@@ -33,7 +33,7 @@ export function BattleShelf({
       <div className="mt-2 space-y-2">
         {battles.map((battle) => {
           const canDelete = battle.playerIds[0] === viewerId
-          const label = battle.settings.solo ? 'Solo practice' : battle.players.join(' versus ')
+          const label = battle.players.join(' versus ')
           const actions = (
             <>
               <DropdownMenuItem render={<Link to="/battles/$token" params={{ token: battle.token }} />}>
@@ -80,8 +80,8 @@ export function BattleShelf({
                     detachments={battle.detachments.slice(1).flat()}
                     score={battle.scores[1]}
                     side="b"
-                    emptyLabel={battle.settings.solo ? 'Solo practice' : 'Open seat'}
-                    emptyArmy={battle.settings.solo ? 'Private battle' : 'Waiting for an opponent'}
+                    emptyLabel="Open seat"
+                    emptyArmy="Waiting for an opponent"
                   />
                 </Link>
                 <DropdownMenu>

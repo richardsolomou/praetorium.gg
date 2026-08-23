@@ -10,7 +10,10 @@ type Props = {
   view: BattleView
   send: (command: Command) => void
   pending: boolean
+  /** Why the turn cannot move at all. Disables the control. */
   blockReason: string | null
+  /** What the active side still owes. Said, never enforced: anyone at the table may do it. */
+  note: string | null
   /** Opens the scoring prompt when this advance settles a card, and advances when it does not. */
   onAdvance: () => void
   className?: string
@@ -23,7 +26,7 @@ type Props = {
  * panels stay the same shape and their numbers line up across the table whichever
  * side is taking the turn.
  */
-export function TurnControl({ view, send, pending, blockReason, onAdvance, className = '' }: Props) {
+export function TurnControl({ view, send, pending, blockReason, note, onAdvance, className = '' }: Props) {
   const [confirmingUndo, setConfirmingUndo] = useState<number | null>(null)
   const active = view.players.find((player) => player.isActive)
   const activeSide = active?.side ?? 0
@@ -67,6 +70,8 @@ export function TurnControl({ view, send, pending, blockReason, onAdvance, class
       </div>
       {blockReason ? (
         <p className="border border-discarded/50 bg-discarded/10 p-2 text-center text-xs text-discarded">{blockReason}</p>
+      ) : note ? (
+        <p className="border border-edge bg-sunken p-2 text-center text-xs text-dim">{note}</p>
       ) : null}
       <DrawUndoAlert
         open={confirmingUndo !== null}
