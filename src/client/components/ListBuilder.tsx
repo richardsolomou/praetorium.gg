@@ -334,7 +334,7 @@ export function ListBuilder({ prep, initial, editable = true, battle, resolvePer
         />
 
         {faction ? (
-          <div className="flex min-w-0 items-center gap-2 text-xs text-dim">
+          <div className="flex min-w-0 items-center gap-x-2 gap-y-1 text-xs text-dim max-sm:flex-wrap">
             <Link to="/factions/$catalogueId" params={{ catalogueId: faction.slug }} className="truncate text-info hover:text-bone">
               <FactionLabel faction={faction} />
             </Link>
@@ -368,7 +368,7 @@ export function ListBuilder({ prep, initial, editable = true, battle, resolvePer
                 </span>
               </span>
             ) : null}
-            <span className="ml-auto flex shrink-0 items-center gap-1" data-print-hide>
+            <span className="ml-auto flex shrink-0 items-center gap-1 max-sm:basis-full max-sm:justify-end" data-print-hide>
               {editable ? (
                 <>
                   <ToggleGroup
@@ -382,10 +382,10 @@ export function ListBuilder({ prep, initial, editable = true, battle, resolvePer
                     aria-label="Roster mode"
                     title="View shows only what’s in your roster"
                   >
-                    <ToggleGroupItem value="build" className="data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
+                    <ToggleGroupItem value="build" className="aria-pressed:bg-primary aria-pressed:text-primary-foreground">
                       Build
                     </ToggleGroupItem>
-                    <ToggleGroupItem value="view" className="data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
+                    <ToggleGroupItem value="view" className="aria-pressed:bg-primary aria-pressed:text-primary-foreground">
                       View
                     </ToggleGroupItem>
                   </ToggleGroup>
