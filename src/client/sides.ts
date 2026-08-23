@@ -3,6 +3,23 @@ import type { BattleView } from '../core/battleView'
 type ViewPlayer = BattleView['players'][number]
 
 /**
+ * What the mission a side plays says about itself.
+ *
+ * Both sides derive one from their own disposition first, so the two can differ and
+ * the ceilings a side is held to are that side's. Null is a side whose mission could
+ * not be resolved, which is a side nothing is enforced for rather than a side with
+ * no limits guessed at.
+ */
+export type SideMission = {
+  id: string
+  name: string
+  roundCap: number | null
+  gameCap: number | null
+  secondaryRoundCap: number | null
+  secondaryGameCap: number | null
+}
+
+/**
  * One army on the table and the player it belongs to.
  *
  * A 2v1 side fields two of these. Everything here is the player's own: their list,
@@ -60,10 +77,18 @@ export type Side = {
   secondaryMode: ViewPlayer['secondaryMode']
   remainingSecondaries: ViewPlayer['remainingSecondaries']
   stratagems: ViewPlayer['stratagems']
+  /** The mission this side plays, which is not always the one the viewer plays. */
+  mission: SideMission | null
 }
 
-/** Both sides of the table, lowest side first, so both devices agree on the order. */
-export function sides(view: BattleView): Side[] {
+/**
+ * Both sides of the table, lowest side first, so both devices agree on the order.
+ *
+ * `missions` is what each side is playing. A caller with no need for it leaves it out
+ * and gets sides that state no mission, rather than sides quietly wearing someone
+ * else's.
+ */
+export function sides(view: BattleView, missions: readonly { side: number; mission: SideMission | null }[] = []): Side[] {
   const indexes = [...new Set(view.players.map((player) => player.side))].toSorted((left, right) => left - right)
   return indexes.flatMap((index) => {
     const seated = view.players.filter((player) => player.side === index)
@@ -91,6 +116,7 @@ export function sides(view: BattleView): Side[] {
         secondaryMode: captain.secondaryMode,
         remainingSecondaries: captain.remainingSecondaries,
         stratagems: captain.stratagems,
+        mission: missions.find((entry) => entry.side === index)?.mission ?? null,
       },
     ]
   })

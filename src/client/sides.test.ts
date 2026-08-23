@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { BattleView } from '../core/battleView'
-import { facingSides, sideName, sides } from './sides'
+import { facingSides, type SideMission, sideName, sides } from './sides'
 
 type ViewPlayer = BattleView['players'][number]
 
@@ -128,5 +128,35 @@ describe('the order a hand is drawn in', () => {
 
   it('leaves a hand of live cards in the order it was dealt', () => {
     expect(hand(card('one', 'active'), card('two', 'active'))?.map((entry) => entry.key)).toEqual(['one', 'two'])
+  })
+})
+
+describe('the mission a side is held to', () => {
+  const mission = (id: string, roundCap: number): SideMission => ({
+    id,
+    name: id,
+    roundCap,
+    gameCap: 45,
+    secondaryRoundCap: 15,
+    secondaryGameCap: 45,
+  })
+  const table = [player({ id: 'alice', side: 0, isViewer: true }), player({ id: 'bob', side: 1 })]
+
+  it('gives each side the mission it is playing rather than the viewer’s', () => {
+    const folded = sides(view(table), [
+      { side: 0, mission: mission('theirs-is-not-yours', 15) },
+      { side: 1, mission: mission('nor-yours-theirs', 10) },
+    ])
+
+    expect(folded.map((side) => side.mission?.roundCap)).toEqual([15, 10])
+  })
+
+  it('states no mission for a side none was resolved for', () => {
+    const folded = sides(view(table), [{ side: 0, mission: mission('only-one-side-known', 15) }])
+    expect(folded.map((side) => side.mission)).toEqual([expect.objectContaining({ roundCap: 15 }), null])
+  })
+
+  it('leaves a caller that asks for none wearing nobody’s', () => {
+    expect(sides(view(table)).every((side) => side.mission === null)).toBe(true)
   })
 })

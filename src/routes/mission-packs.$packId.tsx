@@ -22,8 +22,25 @@ function MissionPackPage() {
   if (!data || !pack) return null
 
   const secondary = data.secondaries.find((entry) => entry.key === secondaryId)
-  const primaryCap = Math.max(0, ...pack.missions.map((entry) => entry.gameCap ?? 0))
-  const secondaryCap = Math.max(0, ...pack.missions.map((entry) => entry.secondaryGameCap ?? 0))
+  // The highest any mission in the pack states, and only what one of them actually
+  // states. Read as a pair per category, because nothing says the two must agree.
+  const missions = pack.missions
+  const capOf = (pick: (mission: (typeof missions)[number]) => number | null | undefined) =>
+    Math.max(0, ...missions.map((entry) => pick(entry) ?? 0))
+  const allowance = (label: string, game: number, round: number) =>
+    game ? [`${label} up to ${game} VP${round ? `, at most ${round} a round` : ''}`] : []
+  const allowances = [
+    ...allowance(
+      'Primary missions',
+      capOf((entry) => entry.gameCap),
+      capOf((entry) => entry.roundCap),
+    ),
+    ...allowance(
+      'Secondary missions',
+      capOf((entry) => entry.secondaryGameCap),
+      capOf((entry) => entry.secondaryRoundCap),
+    ),
+  ]
 
   return (
     <main className="w-full">
@@ -32,11 +49,8 @@ function MissionPackPage() {
         <div className="relative mx-auto max-w-5xl px-3 py-5 sm:px-4 sm:py-7">
           <p className="eyebrow text-parchment">Mission pack</p>
           <h1 className="mt-1 text-3xl">{pack.name}</h1>
-          <p className="mt-2 max-w-3xl text-sm text-dim">
-            {primaryCap ? `Up to ${primaryCap} VP from primary missions. ` : ''}
-            {secondaryCap ? `Up to ${secondaryCap} VP from secondary missions. ` : ''}Choose your disposition down the left and your
-            opponent’s across the top.
-          </p>
+          <p className="mt-2 max-w-3xl text-sm text-dim">Choose your disposition down the left and your opponent’s across the top.</p>
+          {allowances.length ? <p className="readout mt-1 text-xs text-dim">{allowances.join(' · ')}</p> : null}
         </div>
       </section>
       <section className="mx-auto mt-5 max-w-5xl px-3 sm:mt-7 sm:px-4">

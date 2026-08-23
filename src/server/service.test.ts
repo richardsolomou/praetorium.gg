@@ -598,6 +598,39 @@ describe('scoring caps', () => {
     })
   })
 
+  it('charges what a previous turn owed to that turn’s round rather than the one now playing', async () => {
+    const battle = await configured()
+    await battle.send({ kind: 'score', category: 'primary', delta: 5, playerId: 'alice' })
+    for (let i = 0; i < 6; i += 1) await battle.send({ kind: 'advance', playerId: 'alice' })
+
+    expect(
+      await battle.send({ kind: 'score-settlement', round: 1, scores: [{ category: 'primary', delta: 1 }], playerId: 'alice' }),
+    ).toEqual({
+      outcome: 'refused',
+      reason: 'that would score past battle round 1’s 5 VP cap for primary mission',
+    })
+  })
+
+  it('allows what a previous turn owed while that turn’s round still has room', async () => {
+    const battle = await configured()
+    await battle.send({ kind: 'score', category: 'primary', delta: 3, playerId: 'alice' })
+    for (let i = 0; i < 6; i += 1) await battle.send({ kind: 'advance', playerId: 'alice' })
+
+    expect(
+      (await battle.send({ kind: 'score-settlement', round: 1, scores: [{ category: 'primary', delta: 2 }], playerId: 'alice' })).outcome,
+    ).toBe('appended')
+  })
+
+  it('charges a settlement naming no round to the round being played, the way every earlier log meant it', async () => {
+    const battle = await configured()
+    await battle.send({ kind: 'score', category: 'primary', delta: 5, playerId: 'alice' })
+    for (let i = 0; i < 6; i += 1) await battle.send({ kind: 'advance', playerId: 'alice' })
+
+    expect((await battle.send({ kind: 'score-settlement', scores: [{ category: 'primary', delta: 3 }], playerId: 'alice' })).outcome).toBe(
+      'appended',
+    )
+  })
+
   it('never refuses a correction that reduces a score', async () => {
     const battle = await configured()
     await battle.send({ kind: 'score', category: 'primary', delta: 5, playerId: 'alice' })

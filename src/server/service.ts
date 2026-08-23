@@ -22,7 +22,12 @@ import { picksSchema, savedPrepSchema } from './schemas'
 
 type SavedPrep = { stratagems: Stratagem[]; secondaries: Secondary[] }
 
-type SeatedScreen = { kind: 'battle'; view: BattleView; mission: Mission | null }
+/**
+ * `mission` is the viewer's, for the screens that are about them. `missions` is every
+ * side's, because a ceiling is enforced against the side being scored and either
+ * player may record a settlement for the side the turn came back to.
+ */
+type SeatedScreen = { kind: 'battle'; view: BattleView; mission: Mission | null; missions: { side: number; mission: Mission | null }[] }
 
 /**
  * What someone holding the link gets: the battle itself once they have a seat,
@@ -425,6 +430,7 @@ export class PraetoriumService {
       kind: 'battle',
       view,
       mission: viewerSide === undefined ? null : missionForSide(viewerSide),
+      missions: [...new Set(view.players.map((player) => player.side))].map((side) => ({ side, mission: missionForSide(side) })),
     }
   }
 
@@ -540,15 +546,19 @@ function scoringCapError(
     state.settings.missionPackId,
   )
   if (!mission) return null
+  // The round the points land in, which for a settlement of a turn already ended is
+  // the round that turn was in rather than the one now being played.
+  const round = command.kind === 'score-settlement' ? (command.round ?? state.round) : state.round
+  const named = round === state.round ? 'this round’s' : `battle round ${round}’s`
   for (const category of ['primary', 'secondary'] as const) {
     const delta = deltas[category]
     if (delta <= 0) continue
     const roundCap = category === 'primary' ? mission.roundCap : mission.secondaryRoundCap
     const gameCap = category === 'primary' ? mission.gameCap : mission.secondaryGameCap
-    const roundSoFar = (category === 'primary' ? target.primaryByRound : target.secondaryByRound)[state.round - 1] ?? 0
+    const roundSoFar = (category === 'primary' ? target.primaryByRound : target.secondaryByRound)[round - 1] ?? 0
     const gameSoFar = category === 'primary' ? target.primary : target.secondary
     const label = category === 'primary' ? 'primary mission' : 'secondary missions'
-    if (roundCap !== null && roundSoFar + delta > roundCap) return `that would score past this round’s ${roundCap} VP cap for ${label}`
+    if (roundCap !== null && roundSoFar + delta > roundCap) return `that would score past ${named} ${roundCap} VP cap for ${label}`
     if (gameCap !== null && gameSoFar + delta > gameCap) return `that would score past the battle’s ${gameCap} VP cap for ${label}`
   }
   return null

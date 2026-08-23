@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import {
+  BATTLE_ROUNDS,
   type Command,
   ROSTER_MAX_LENGTH,
   ROSTER_NAME_MAX_LENGTH,
@@ -152,6 +153,7 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
       )
       .min(1)
       .max(3),
+    round: z.number().int().min(1).max(BATTLE_ROUNDS).optional(),
     playerId: id.optional(),
   }),
   z.object({
