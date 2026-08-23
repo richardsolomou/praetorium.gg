@@ -389,45 +389,39 @@ export function ListBuilder({ prep, initial, editable = true, battle, resolvePer
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
-                  <ToggleGroup
-                    value={[readOnly ? 'view' : 'build']}
-                    onValueChange={(value) => {
-                      if (value[0] === 'view' || value[0] === 'build') setReadOnlyMode(value[0] === 'view')
-                    }}
-                    variant="outline"
-                    size="sm"
-                    spacing={0}
-                    aria-label="Roster mode"
-                  >
-                    <Tooltip>
-                      <TooltipTrigger
-                        closeOnClick={false}
-                        render={
-                          <ToggleGroupItem
-                            value="build"
-                            className="border-primary/60 text-primary aria-pressed:bg-primary aria-pressed:text-primary-foreground"
-                          />
-                        }
-                      >
-                        Build
-                      </TooltipTrigger>
-                      <TooltipContent side="bottom">Edit your roster and show every option.</TooltipContent>
-                    </Tooltip>
-                    <Tooltip>
-                      <TooltipTrigger
-                        closeOnClick={false}
-                        render={
-                          <ToggleGroupItem
-                            value="view"
-                            className="border-primary/60 text-primary aria-pressed:bg-primary aria-pressed:text-primary-foreground"
-                          />
-                        }
-                      >
-                        View
-                      </TooltipTrigger>
-                      <TooltipContent side="bottom">Show only what’s in your roster.</TooltipContent>
-                    </Tooltip>
-                  </ToggleGroup>
+                  <Tooltip>
+                    <TooltipTrigger
+                      closeOnClick={false}
+                      render={
+                        <div>
+                          <ToggleGroup
+                            value={[readOnly ? 'view' : 'build']}
+                            onValueChange={(value) => {
+                              if (value[0] === 'view' || value[0] === 'build') setReadOnlyMode(value[0] === 'view')
+                            }}
+                            variant="outline"
+                            size="sm"
+                            spacing={0}
+                            aria-label="Roster mode"
+                          >
+                            <ToggleGroupItem
+                              value="build"
+                              className="border-primary/60 text-primary aria-pressed:bg-primary aria-pressed:text-primary-foreground"
+                            >
+                              Build
+                            </ToggleGroupItem>
+                            <ToggleGroupItem
+                              value="view"
+                              className="border-primary/60 text-primary aria-pressed:bg-primary aria-pressed:text-primary-foreground"
+                            >
+                              View
+                            </ToggleGroupItem>
+                          </ToggleGroup>
+                        </div>
+                      }
+                    />
+                    <TooltipContent side="bottom">Build edits your roster. View shows only what’s selected.</TooltipContent>
+                  </Tooltip>
                 </>
               ) : null}
             </span>
