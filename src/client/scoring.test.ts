@@ -111,6 +111,33 @@ describe('when a mission is asked about', () => {
     expect(cardsDue(at('command'), true, cards)[0]?.awards.map((award) => award.vp)).toEqual([3])
   })
 
+  it('keeps primary scoring in the command phase through round 4', () => {
+    const cards = [
+      {
+        key: 'primary',
+        name: 'Primary',
+        category: 'primary' as const,
+        awards: [payout(5, { timing: 'end-of-phase', phase: 'command', playerTurn: 'your-turn' })],
+      },
+    ]
+    expect(cardsDue(at('command', 4), true, cards)).toHaveLength(1)
+    expect(cardsDue(at('end', 4), true, cards)).toEqual([])
+  })
+
+  it('moves primary scoring to the end of your turn in round 5', () => {
+    const cards = [
+      {
+        key: 'primary',
+        name: 'Primary',
+        category: 'primary' as const,
+        awards: [payout(5, { timing: 'end-of-phase', phase: 'command', playerTurn: 'your-turn' })],
+      },
+    ]
+    expect(cardsDue(at('command', 5), true, cards)).toEqual([])
+    expect(cardsDue(at('end', 5), true, cards)).toHaveLength(1)
+    expect(cardsDue(at('end', 5), false, cards)).toEqual([])
+  })
+
   it('settles what the opponent’s turn owed a card that pays on it', () => {
     const cards = [
       {

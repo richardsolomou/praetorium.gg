@@ -82,9 +82,21 @@ export function cardsDue(
       key: card.key,
       name: card.name,
       category: card.category,
-      awards: card.awards.filter((award) => dueNow(award.trigger, view, yourTurn)),
+      awards: card.awards.filter((award) =>
+        card.category === 'primary' && view.round >= view.rounds
+          ? finalRoundPrimaryDue(award.trigger, view, yourTurn)
+          : dueNow(award.trigger, view, yourTurn),
+      ),
     }))
     .filter((card) => card.awards.length > 0)
+}
+
+/** Primary missions move from their printed phase to the end of your turn in the final round. */
+function finalRoundPrimaryDue(trigger: AwardTrigger, view: Pick<BattleView, 'phase' | 'round' | 'rounds'>, yourTurn: boolean) {
+  if (!trigger.timing || view.phase !== 'end' || !yourTurn) return false
+  if (trigger.roundMin !== null && view.round < trigger.roundMin) return false
+  if (trigger.roundMax !== null && view.round > trigger.roundMax) return false
+  return true
 }
 
 /** The phase the card data names, so a label can say which one is being settled. */
