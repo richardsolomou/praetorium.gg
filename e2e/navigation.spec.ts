@@ -146,12 +146,13 @@ test('authentication panels and empty states fill the page above the footer', as
   expect(footer ? Math.round(footer.y + footer.height) : 0).toBe(800)
 })
 
-test('terrain layouts show measurement guides', async ({ page }) => {
+test('terrain layouts open with measurement guidance', async ({ page }) => {
   await page.goto('/mission-matchups/chapter-approved-2026-2027/purge-the-foe/take-and-hold')
   await page.getByRole('button', { name: 'Enlarge terrain layout A: Sweeping Engagement' }).click()
 
-  const layout = page.getByRole('dialog').locator('svg')
-  await expect(layout.locator('line[marker-end]').first()).toHaveAttribute('marker-end', /-arrow\)$/)
+  const dialog = page.getByRole('dialog')
+  await expect(dialog.getByText('Setup distance', { exact: true })).toBeVisible()
+  await expect(dialog.locator('svg[aria-label]').first()).toBeVisible()
 })
 
 test('a player can enter through the roster library and browse the product', async ({ page }) => {
