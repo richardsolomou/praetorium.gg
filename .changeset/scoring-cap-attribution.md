@@ -2,4 +2,4 @@
 'praetorium.gg': patch
 ---
 
-Name the card a mission cap took points from in that card's own total, so a payout can be given up elsewhere to make room.
+Show how much of a card's claim a mission cap took in that card's own total, so a payout can be given up elsewhere to make room.
