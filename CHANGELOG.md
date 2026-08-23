@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.21.2
+
+### Patch Changes
+
+- 91ca61f: Discard unresolved tactical secondaries at the end of each turn so the next turn draws a fresh hand.
+
 ## 0.21.1
 
 ### Patch Changes
