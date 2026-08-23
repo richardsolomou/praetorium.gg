@@ -64,6 +64,7 @@ Core catalogue code is split by question:
 ## Building units
 
 - A `collective` count is the total for the unit. Constraints with `scope: parent` are per model and must scale with the number of carriers.
+- An aggregated model's unmarked mandatory child is stored once as the model template. Its parent-scoped minimum is satisfied once per model even though the stored selection count is one; parent-scoped maximums still scale to allow choices across the squad.
 - `expand`, `unitChoices`, `violations`, and `wargearOf` must use the same collective-count rules.
 - `refit` fills required per-model upgrade groups after a model-count change. It uses the declared default, then the cheapest option. It does not fill optional groups or groups of models.
 - Increasing one option in a full group reduces an available sibling. Decreasing an option lets `refit` return the freed count to the default.

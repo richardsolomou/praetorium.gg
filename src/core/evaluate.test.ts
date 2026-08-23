@@ -168,6 +168,42 @@ describe('per-model parent constraints', () => {
 
     expect(result.errors).toEqual([])
   })
+
+  it('counts an unmarked mandatory group and upgrade once for every aggregated model', () => {
+    const data = catalogue()
+    const veteran = data.sharedSelectionEntries?.[0]?.selectionEntries?.[0]
+    veteran!.selectionEntries = [
+      {
+        id: 'combat-weapon',
+        name: 'Close combat weapon',
+        type: 'upgrade',
+        constraints: [{ id: 'combat-min', type: 'min', value: 1, field: 'selections', scope: 'parent' }],
+      },
+    ]
+    veteran!.selectionEntryGroups![0]!.constraints!.push({
+      id: 'pistol-min',
+      type: 'min',
+      value: 1,
+      field: 'selections',
+      scope: 'parent',
+    })
+
+    const result = evaluateOne(
+      {
+        id: 'squad',
+        selections: [
+          {
+            id: 'veteran',
+            count: 3,
+            selections: [{ id: 'combat-weapon' }, { id: 'pistol-option', selections: [{ id: 'pistol' }] }],
+          },
+        ],
+      },
+      data,
+    )
+
+    expect(result.errors).toEqual([])
+  })
 })
 
 /**

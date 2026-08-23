@@ -2,4 +2,4 @@
 'praetorium.gg': patch
 ---
 
-Stop showing incomplete catalogue validation warnings for recognised primary category modifiers.
+Stop false catalogue validation warnings for recognised primary categories and aggregated model wargear.

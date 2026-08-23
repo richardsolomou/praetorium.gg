@@ -1086,7 +1086,10 @@ function violations(node: Node, root: Node, index: CatalogueIndex, census: Censu
     }
     // A constraint on an entry counts that entry within the scope, so what is
     // being counted is the node itself.
-    const measured = measure({ ...constraint, childId: node.target.id }, node, root, index, census)
+    const raw = measure({ ...constraint, childId: node.target.id }, node, root, index, census)
+    // An unmarked mandatory child beneath an aggregated model is stored once as
+    // the model's template, while its minimum applies once to every model.
+    const measured = constraint.type === 'min' && raw === 1 ? raw * carriers(constraint, node) : raw
     if (constraint.type === 'min' && measured < limit) {
       errors.push({ entryId: node.target.id, entryName: name, message: `needs at least ${limit}, has ${measured}` })
     }
