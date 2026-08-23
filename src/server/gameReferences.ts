@@ -32,11 +32,11 @@ function buildGameReferences(rules: LoadedRules) {
       ...mission,
       card: primaryByKey.get(mission.id) ?? null,
       matchups: (matchupsByMission.get(`${mission.packId ?? 'legacy'}:${mission.id}`) ?? []).map((pair) =>
-        pair.split('|').map((id) => ({ id, name: rules.dispositions.get(id) ?? id })),
+        pair.split('|').map((id) => ({ id, name: rules.dispositions?.get(id) ?? id })),
       ),
     })),
   }))
-  const dispositionDetails = rules.dispositionDetails ?? [...rules.dispositions].map(([id, name]) => ({ id, name, text: null }))
+  const dispositionDetails = rules.dispositionDetails ?? [...(rules.dispositions ?? [])].map(([id, name]) => ({ id, name, text: null }))
   return {
     dispositions: dispositionDetails.map((disposition) => ({ ...disposition })),
     packs,
