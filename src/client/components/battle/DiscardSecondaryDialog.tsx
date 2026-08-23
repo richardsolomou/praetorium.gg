@@ -35,8 +35,8 @@ export function DiscardSecondaryDialog({
           <p className="eyebrow text-discarded">End of turn</p>
           <DialogTitle className="uppercase">Discard tactical secondaries?</DialogTitle>
           <DialogDescription className="text-dim">
-            {sideName(side)} can discard any of their active tactical secondaries, or keep the hand as is. Discarding several at once
-            still gains at most 1 CP.
+            {sideName(side)} can discard any of their active tactical secondaries, or keep the hand as is. Discarding several at once still
+            gains at most 1 CP.
           </DialogDescription>
         </DialogHeader>
         <div className="flex items-center justify-end">
