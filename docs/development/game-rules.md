@@ -22,7 +22,7 @@ Praetorium reads stratagem and mission data from [40kdc-data](https://github.com
 - Ask for a payout only at the moment its `trigger.timing` names: `end-of-phase` with its phase, `end-of-turn`, or `end-of-battle`. A card the source gave no timing for is never put on a schedule.
 - `exclusive_group` defines payout tiers. Selecting one tier clears the other tiers in that group. Ungrouped payouts are independent.
 - Read `vp_max` for the ceiling on a counted payout. A ceiling clamps the total; it does not stop the count one short of it.
-- A tactical secondary is played once: scoring it finishes it, and the hand fills back to two at the top of the next turn. A fixed hand is chosen for the whole battle and is not finished by being scored.
+- A tactical secondary is played once: scoring it finishes it, and any unresolved tactical cards are discarded when the turn ends. The hand fills back to two at the top of the next turn. A fixed hand is chosen for the whole battle and is not finished by being scored.
 - What a payout asks for is the mission pack's `scoringCriteria`, matched to the rules source payout by payout. Never paraphrase a condition id into English: that is a second wording of the same rule, free to drift from the card in the player's hand.
 - Match the two sources by payout value, by position when the sequences already agree. A card whose payouts cannot be matched carries no criteria at all rather than the wrong sentence on a row.
 - A payout on the opponent's turn is settled as the turn comes back, judged against the round that turn was in and against the hand as it stood when it ended. A card dealt afterwards was not in play for that turn and is never asked about for it.

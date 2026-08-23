@@ -373,8 +373,8 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
 }
 
 const discardableSecondaries = (side: Side) =>
-  side.secondaryMode === 'tactical' && side.canGainCp
-    ? side.secondaries.filter((card) => card.status === 'active').map((card) => card.key)
+  side.secondaryMode === 'tactical'
+    ? side.secondaries.filter((card) => !card.secret && card.status === 'active').map((card) => card.key)
     : []
 
 function Fact({ label, value }: { label: string; value: string }) {

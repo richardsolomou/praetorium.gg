@@ -73,6 +73,15 @@ describe('command schema', () => {
     expect(commandSchema.parse({ kind: 'settle-opponent-turn' })).toEqual({ kind: 'settle-opponent-turn' })
   })
 
+  it('accepts resolving a tactical hand with or without its CP choice', () => {
+    expect(commandSchema.parse({ kind: 'resolve-tactical-hand' })).toEqual({ kind: 'resolve-tactical-hand' })
+    expect(commandSchema.parse({ kind: 'resolve-tactical-hand', gainCpFrom: 'beacon', playerId: 'alice' })).toEqual({
+      kind: 'resolve-tactical-hand',
+      gainCpFrom: 'beacon',
+      playerId: 'alice',
+    })
+  })
+
   it('only lets scoring settlements complete a secondary', () => {
     expect(
       commandSchema.safeParse({
