@@ -942,7 +942,8 @@ function grantsOf(root: Node, index: CatalogueIndex, census: Census): Map<Node, 
     for (const modifier of modifiersOf(node)) {
       if (modifier.field !== 'category') continue
       // `set-primary` and `unset-primary` change which keyword shelves a datasheet,
-      // not which keywords it carries.
+      // not which keywords it carries. They are understood but irrelevant here.
+      if (modifier.type === 'set-primary' || modifier.type === 'unset-primary') continue
       if (modifier.type !== 'add' && modifier.type !== 'remove') {
         census.note(`category modifier ${modifier.type}`)
         continue

@@ -664,7 +664,7 @@ describe('a keyword the data grants', () => {
     expect(keywordIds([{ id: 'squad' }], 0, index)).not.toContain('battleline')
   })
 
-  it('says so when it changes which keyword is primary, rather than shelving it silently', () => {
+  it.each(['set-primary', 'unset-primary'] as const)('recognises %s as irrelevant to the keywords a selection carries', (type) => {
     const index = indexOf({
       categoryEntries: [{ id: 'deathwing', name: 'Deathwing' }],
       sharedSelectionEntries: [
@@ -673,12 +673,12 @@ describe('a keyword the data grants', () => {
           name: 'Squad',
           type: 'unit',
           costs: points(40),
-          modifiers: [{ type: 'set-primary', field: 'category', value: 'deathwing' }],
+          modifiers: [{ type, field: 'category', value: 'deathwing' }],
           constraints: [{ id: 'cap', type: 'max', value: 1, field: 'selections', scope: 'roster' }],
         },
       ],
     })
-    expect(evaluate([{ id: 'squad' }], index).unhandled).toContain('category modifier set-primary')
+    expect(evaluate([{ id: 'squad' }], index).unhandled).toEqual([])
   })
 
   it('is withdrawn when the same entry writes the withdrawal last', () => {
