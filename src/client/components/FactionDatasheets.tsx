@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, FileSearch } from 'lucide-react'
 import { useState } from 'react'
 import { factionFor } from '../factions'
 import { collectionQuery, factionDatasheetsQuery, factionsQuery } from '../queries'
+import { useMounted } from '../useMounted'
 import { useSettled } from '../useSettled'
 import { FactionMark, factionColour } from './FactionMark'
 import { CollectionToggle } from './CollectionToggle'
@@ -24,7 +25,11 @@ export function FactionDatasheets() {
     placeholderData: keepPreviousData,
   })
   const { data: collection = [] } = useQuery(collectionQuery())
-  const favourites = new Set(collection)
+  // Favourites come from the per-user collection, resolved from the session
+  // server-side. Sorting on it only after mount keeps the server and the first
+  // client render in the same order, so hydration matches.
+  const mounted = useMounted()
+  const favourites = new Set(mounted ? collection : [])
   if (path !== `/factions/${catalogueId}/datasheets`) return <Outlet />
   if (!faction) return null
 
