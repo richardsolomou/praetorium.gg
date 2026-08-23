@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.23.2
+
+### Patch Changes
+
+- ecefcfc: Allow every model in an aggregated squad to take its per-model equipment choices.
+
 ## 0.23.1
 
 ### Patch Changes
