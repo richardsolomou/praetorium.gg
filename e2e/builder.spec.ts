@@ -253,11 +253,12 @@ test("Pantheon of Woe adds a C'tan shard's required enhancement", async ({ page 
   await page.getByLabel('Add a unit').fill('Imotekh the Stormlord')
   await page.getByRole('button', { name: 'View Imotekh the Stormlord datasheet' }).click()
   const datasheet = page.locator('aside[aria-label="Datasheet"]')
-  const leader = datasheet.getByRole('button', { name: 'Leader', exact: true }).first()
   const noble = datasheet.getByText('Noble', { exact: true })
   await expect(noble).toHaveCSS('color', 'rgb(137, 184, 157)')
   await expect(datasheet.getByText('Character', { exact: true })).toHaveCSS('color', 'rgb(137, 184, 157)')
-  expect(Math.abs((await leader.boundingBox())!.height - (await noble.boundingBox())!.height)).toBeLessThan(1)
+  // Leader is a marker the data keeps for itself, printed on no card. The abilities
+  // list has always left it out and the keyword line now agrees.
+  await expect(datasheet.getByText('Leader', { exact: true })).toHaveCount(0)
   await expect(datasheet.getByRole('button', { name: 'Ignores Cover', exact: true })).toHaveCSS('font-size', '13.5px')
   await shot(datasheet, 'test-results/imotekh-datasheet-tags.png')
   await page.setViewportSize({ width: 390, height: 844 })
