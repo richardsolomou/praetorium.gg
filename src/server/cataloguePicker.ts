@@ -74,6 +74,7 @@ export function unitsIn(
   { restrictions, includeNames }: { restrictions?: FactionRestrictions; includeNames?: ReadonlySet<string> } = {},
 ): UnitSummary[] {
   const wanted = query.trim().toLowerCase()
+  const included = includeNames && new Set([...includeNames].map(referenceName))
   // Faction reference pages use one canonical name set. Cache that complete,
   // priced list so each search does not rebuild every datasheet in the faction.
   const cacheable = restrictions === undefined
@@ -89,7 +90,7 @@ export function unitsIn(
     if (!isMatchedPlayDatasheet(loaded.index, entry)) continue
     const target = targetOf(entry, loaded.index.definitions)
     const name = nameOf(entry, loaded.index.definitions)
-    if (includeNames && !includeNames.has(name)) continue
+    if (included && !includedReferenceName(included, name)) continue
     const keywords = [...(entry.categoryLinks ?? []), ...(target.categoryLinks ?? [])].flatMap((link) => (link.name ? [link.name] : []))
     if (restricted(name, keywords, restrictions)) continue
     // Unaligned Forces is the shared shelf for Legends fortifications and
@@ -121,6 +122,18 @@ export function unitsIn(
     unitSummaryCache.set(loaded, entries)
   }
   return wanted ? summaries.filter((unit) => unit.name.toLowerCase().includes(wanted)) : summaries
+}
+
+/** Catalogue and datacard sources use different apostrophe glyphs in otherwise identical names. */
+const referenceName = (name: string) =>
+  name
+    .normalize('NFKC')
+    .replaceAll(/[‘’ʼ]/g, "'")
+    .toLocaleLowerCase()
+
+const includedReferenceName = (included: ReadonlySet<string>, name: string) => {
+  const normalized = referenceName(name)
+  return included.has(normalized) || included.has(`${normalized}s`) || (normalized.endsWith('s') && included.has(normalized.slice(0, -1)))
 }
 
 const restricted = (name: string, keywords: readonly string[], restrictions?: FactionRestrictions) =>
