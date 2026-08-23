@@ -122,6 +122,11 @@ export function finishesOnScore(category: 'primary' | 'secondary', mode: 'fixed'
   return category === 'secondary' && mode === 'tactical' && scored > 0
 }
 
+/** The category total already banked in the battle round being settled. */
+export function scoredThisRound(round: { primary: number; secondary: number }, category: 'primary' | 'secondary') {
+  return category === 'primary' ? round.primary : round.secondary
+}
+
 /**
  * Which prompt a turn opens with.
  *
