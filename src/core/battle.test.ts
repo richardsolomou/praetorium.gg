@@ -579,11 +579,11 @@ describe('the turn sequence', () => {
     expect(validate(settled, ALICE, { kind: 'advance', playerId: BOB })).toBeNull()
   })
 
-  it('shows pending opponent-turn scoring only to the side captain', () => {
+  it('shows pending opponent-turn scoring and its owner to every seated player', () => {
     const state = reduceBattle(PLAYERS, log(...started(), ...turns(6, ALICE)))
 
-    expect(battleView({ token: 'abc' }, NAMES, state, BOB).settlementRound).toBe(1)
-    expect(battleView({ token: 'abc' }, NAMES, state, ALICE).settlementRound).toBeNull()
+    expect(battleView({ token: 'abc' }, NAMES, state, BOB)).toMatchObject({ settlementRound: 1, settlementPlayerId: BOB })
+    expect(battleView({ token: 'abc' }, NAMES, state, ALICE)).toMatchObject({ settlementRound: 1, settlementPlayerId: BOB })
   })
 
   it('treats an existing owner advance as settling the previous turn', () => {
@@ -593,7 +593,7 @@ describe('the turn sequence', () => {
     expect(battleView({ token: 'abc' }, NAMES, state, BOB).settlementRound).toBeNull()
   })
 
-  it('does not let an ally settle the side captain’s previous turn', () => {
+  it('lets an ally settle the side captain’s previous turn once', () => {
     const configure: Command = {
       kind: 'configure-battle',
       limit: 2000,
@@ -617,7 +617,17 @@ describe('the turn sequence', () => {
       [0, 1, 1],
     )
 
-    expect(validate(state, CAROL, { kind: 'settle-opponent-turn' })).toBe('only the side captain can settle the previous turn')
+    expect(validate(state, CAROL, { kind: 'settle-opponent-turn' })).toBeNull()
+  })
+
+  it('does not let the opposing side dismiss an unrevealed mission', () => {
+    const state = reduceBattle(
+      PLAYERS,
+      log(...started(), [BOB, { kind: 'select-secret', secondary: { key: 'secret', name: 'Hidden purpose' } }], ...turns(6, ALICE)),
+    )
+
+    expect(validate(state, ALICE, { kind: 'settle-opponent-turn' })).toBe('the affected side has a hidden action to settle')
+    expect(validate(state, BOB, { kind: 'settle-opponent-turn' })).toBeNull()
   })
 
   it('keeps settlement bookkeeping out of the report and undo target', () => {

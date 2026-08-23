@@ -161,17 +161,21 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
   // Shared cards are written by one seat, the way prep is, so a 2v1 cannot draw twice
   // or score its one hand twice from two devices.
   const keeper = yours?.captain.id === view.viewerId
-  const settlementRound = keeper ? view.settlementRound : null
-  const settlementRuleResults = ruleResults.filter((_, index) => ruleRequests[index]?.side === yours?.index)
+  const settlementRound = view.settlementRound
+  const settlementSide = table.find((side) => side.captain.id === view.settlementPlayerId)
+  const settlementOwner = settlementSide?.captain.id === view.viewerId
+  const settlementRuleResults = ruleResults.filter((_, index) => ruleRequests[index]?.side === settlementSide?.index)
   const settlementRulesPending = settlementRuleResults.some((result) => result.isPending)
   const owedCards =
-    settlementRound !== null && yours && !finished
-      ? dueFromTheirTurn(settlementRound, yours, (key, mode) => awardsFor(yours, key, mode), heldKeys(yours))
+    settlementRound !== null && settlementSide && !finished
+      ? dueFromTheirTurn(settlementRound, settlementSide, (key, mode) => awardsFor(settlementSide, key, mode), heldKeys(settlementSide))
       : []
   useEffect(() => {
-    if (settlementRound === null || settlementRulesPending || owedCards.length || pending) return
+    // A helper's view may redact a hidden mission that is still owed. Only the owner
+    // may conclude that an apparently empty settlement has no private work behind it.
+    if (!settlementOwner || settlementRound === null || settlementRulesPending || owedCards.length || pending) return
     send({ kind: 'settle-opponent-turn' })
-  }, [owedCards.length, pending, send, settlementRound, settlementRulesPending])
+  }, [owedCards.length, pending, send, settlementOwner, settlementRound, settlementRulesPending])
   // A tactical hand is dealt at the top of your own turn, and only once for it.
   const turnKey = `${view.round}-${view.activePlayerId ?? ''}`
   const handShort =
@@ -314,16 +318,16 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
         />
       ) : null}
 
-      {prompt === 'owed' && yours ? (
+      {prompt === 'owed' && settlementSide ? (
         <ScoringDialog
-          side={yours}
+          side={settlementSide}
           due={owedCards}
           moment="end of their turn"
           confirmLabel="Take the turn"
           pending={pending}
           send={send}
-          referenceFor={(key) => referenceFor(yours, key)}
-          roundSoFar={yours.rounds[(settlementRound ?? view.round) - 1] ?? { primary: 0, secondary: 0 }}
+          referenceFor={(key) => referenceFor(settlementSide, key)}
+          roundSoFar={settlementSide.rounds[(settlementRound ?? view.round) - 1] ?? { primary: 0, secondary: 0 }}
           caps={caps}
           onDone={() => send({ kind: 'settle-opponent-turn' })}
         />
