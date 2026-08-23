@@ -270,7 +270,8 @@ test('a card names its own condition, and what their turn owed is asked as the t
 
   await signUp(bob, bobName)
   const bobRoster = await createRoster(bob, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Necrons' })
-  await signUp(alice, uniqueName('Alice'))
+  const aliceName = uniqueName('Alice')
+  await signUp(alice, aliceName)
   const aliceRoster = await createRoster(alice, { faction: 'Death Guard', detachment: /Shamblerot Vectorium/, name: 'Death Guard' })
   await setupBattle(alice, bob, {
     opponent: bobName,
@@ -308,7 +309,7 @@ test('a card names its own condition, and what their turn owed is asked as the t
   const refereeing = bob.getByRole('dialog', { name: /^Scoring end of their turn points/ })
   await expect(owed).toBeVisible()
   await expect(refereeing).toBeVisible()
-  await expect(refereeing).toContainText('Death Guard')
+  await expect(refereeing).toContainText(aliceName)
   await expect(owed.locator('[data-due="assassination"]')).toContainText('For each enemy CHARACTER model destroyed this turn.')
   await refereeing.getByRole('button', { name: 'Take the turn' }).click()
   await expect(owed).toBeHidden()
