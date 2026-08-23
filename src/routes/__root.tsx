@@ -196,18 +196,18 @@ function PrimaryNavigation({ path }: { path: string }) {
         aria-label="Primary"
       >
         <Link
-          to="/battles"
-          className={linkClass}
-          activeProps={{ className: 'border-parchment bg-raised text-parchment min-[815px]:bg-transparent' }}
-        >
-          Battles
-        </Link>
-        <Link
           to="/rosters"
           className={linkClass}
           activeProps={{ className: 'border-parchment bg-raised text-parchment min-[815px]:bg-transparent' }}
         >
           Rosters
+        </Link>
+        <Link
+          to="/battles"
+          className={linkClass}
+          activeProps={{ className: 'border-parchment bg-raised text-parchment min-[815px]:bg-transparent' }}
+        >
+          Battles
         </Link>
         <Link
           to="/factions"
