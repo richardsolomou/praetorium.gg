@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { categories, points, shelfOf } from './catalogue.fixtures'
 import { searchEverything } from './globalSearch'
+import type { LoadedRules } from './rules'
 
 describe('global datasheet search', () => {
   it('shows a shared allied datasheet under its native faction once', async () => {
@@ -131,5 +132,54 @@ describe('global datasheet search', () => {
       expect.objectContaining({ label: 'Chaplain in Terminator Armour' }),
     ])
     expect(direct.find((result) => result.group === 'Datasheets')?.fuzzy).toBeUndefined()
+  })
+
+  it('uses faction rules rather than the imported catalogue to place detachments', async () => {
+    const catalogue = shelfOf(
+      {
+        name: 'Space Marines',
+        selectionEntries: [{ id: 'marine', name: 'Space Marine', type: 'unit', costs: points(20) }],
+        sharedSelectionEntries: [
+          {
+            id: 'detachment-wrapper',
+            name: 'Detachment',
+            type: 'upgrade',
+            selectionEntryGroups: [
+              { id: 'detachment-choices', name: 'Detachment', selectionEntries: [{ id: 'black-spear', name: 'Black Spear Task Force', type: 'upgrade' }] },
+            ],
+          },
+        ],
+      },
+      {
+        name: 'Deathwatch',
+        selectionEntries: [{ id: 'watch-master', name: 'Watch Master', type: 'model', costs: points(95) }],
+        catalogueLinks: [{ targetId: 'cat', importRootEntries: true }],
+      },
+    )
+    const rules = {
+      factionKeys: new Map([
+        ['space-marines', 'space-marines'],
+        ['deathwatch', 'deathwatch'],
+      ]),
+      detachmentReferences: new Map([
+        ['deathwatch', new Map([['black-spear-task-force', { enhancements: 0, upgrades: 0, stratagems: 0, points: null, dispositions: [] }]])],
+      ]),
+      detachmentDetails: new Map(),
+      factionNames: new Map(),
+      factionIcons: new Map(),
+      factionRules: new Map(),
+      factionRuleCards: new Map(),
+      dispositions: new Map(),
+      missions: new Map(),
+      primaries: [],
+      secondaries: [],
+      deployments: [],
+      attribution: '',
+    } as Partial<LoadedRules> as LoadedRules
+
+    const results = await searchEverything('black spear', { catalogue, rules, own: async () => null })
+    expect(results.filter((result) => result.group === 'Detachments')).toEqual([
+      expect.objectContaining({ label: 'Black Spear Task Force', detail: 'Deathwatch', href: '/factions/deathwatch/reference/detachments/black-spear-task-force' }),
+    ])
   })
 })

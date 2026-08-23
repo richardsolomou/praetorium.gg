@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { detachmentCatalogueDetail } from './catalogueDescriptions'
-import { detachmentsOf, isReferenceDetachment } from './catalogueIndex'
+import { detachmentsOf } from './catalogueIndex'
 import { buildIndex, type Catalogue, type CatalogueFile } from '../core/catalogue'
-import { ability, bookOf, points, shelfOf, system } from './catalogue.fixtures'
+import { ability, bookOf, points, system } from './catalogue.fixtures'
 
 describe('detachment enhancements', () => {
   const detail = (...entries: NonNullable<Catalogue['sharedSelectionEntries']>) => {
@@ -88,33 +88,6 @@ describe('detachment enhancements', () => {
 })
 
 describe('detachments', () => {
-  it('keeps an imported detachment on its defining faction reference page', () => {
-    const loaded = shelfOf(
-      {
-        name: 'Space Marines',
-        selectionEntries: [{ id: 'marine', name: 'Marine', type: 'unit' }],
-        sharedSelectionEntries: [
-          {
-            id: 'wrapper',
-            name: 'Detachment',
-            type: 'upgrade',
-            selectionEntryGroups: [
-              { id: 'choices', name: 'Detachment', selectionEntries: [{ id: 'gladius', name: 'Gladius Task Force', type: 'upgrade' }] },
-            ],
-          },
-        ],
-      },
-      {
-        name: 'Ultramarines',
-        catalogueLinks: [{ targetId: 'cat', importRootEntries: true }],
-      },
-    )
-
-    expect(loaded.detachments.get('cat-1')?.options.map((option) => option.id)).toEqual(['gladius'])
-    expect(isReferenceDetachment(loaded, 'cat', 'gladius')).toBe(true)
-    expect(isReferenceDetachment(loaded, 'cat-1', 'gladius')).toBe(false)
-  })
-
   it('resolve a linked group used by newer catalogues', () => {
     const file: CatalogueFile = {
       catalogue: {

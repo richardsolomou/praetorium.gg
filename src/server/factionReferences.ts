@@ -1,6 +1,6 @@
 import { routeSlug } from '../core/slug'
 import { detachmentCatalogueDetail } from './catalogueDescriptions'
-import { isReferenceDetachment, type LoadedCatalogue } from './catalogueIndex'
+import type { LoadedCatalogue } from './catalogueIndex'
 import { factionDisplayName } from './factionNames'
 import { type LoadedRules, rulesFaction } from './rules'
 import { joinKey } from './rulesSource'
@@ -13,7 +13,6 @@ function factionSummary(loaded: LoadedCatalogue, rules: LoadedRules | null | und
   const rulesId = rulesFaction(rules, routeSlug(faction.name))
   const referenceDetachments = detachments.filter(
     (detachment) =>
-      isReferenceDetachment(loaded, faction.id, detachment.id) &&
       (content
         ? [...content.detachments].some((name) => routeSlug(name) === routeSlug(detachment.name))
         : Boolean(detachmentNamed(rules?.detachmentReferences.get(rulesId), detachment.name))),

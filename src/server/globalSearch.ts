@@ -1,7 +1,7 @@
 import { nameOf, targetOf } from '../core/catalogue'
 import { distance } from 'fastest-levenshtein'
 import type { LoadedCatalogue } from './catalogueIndex'
-import { datasheetSlug, datasheetsOf, isReferenceDatasheet, isReferenceDetachment } from './catalogueIndex'
+import { datasheetSlug, datasheetsOf, isReferenceDatasheet } from './catalogueIndex'
 import { isMatchedPlayDatasheet } from './cataloguePicker'
 import { factionsFor } from './factionReferences'
 import { gameReferencesFor } from './gameReferences'
@@ -76,7 +76,7 @@ function catalogueResults(wanted: string, matches: Matcher, sources: Sources): G
       })
     }
     for (const detachment of faction.detachments) {
-      if (!isReferenceDetachment(loaded, faction.id, detachment.id)) continue
+      if (!detachment.reference) continue
       if (!matches(detachment.name)) continue
       results.push({
         id: `detachment:${faction.id}:${detachment.id}`,
