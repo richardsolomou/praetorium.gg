@@ -74,18 +74,22 @@ export function ScoringDialog({ side, due, moment, confirmLabel, pending, send, 
     })
 
   const confirm = () => {
-    for (const card of due) {
+    const scores = due.reduce<Extract<Command, { kind: 'score-settlement' }>['scores']>((settlement, card) => {
       const delta = scoredFor(card)
-      if (!delta) continue
-      send(
+      if (!delta) return settlement
+      settlement.push(
         card.category === 'primary'
-          ? { kind: 'score', category: 'primary', delta, playerId: side.captain.id }
-          : { kind: 'score-secondary', key: card.key, delta, playerId: side.captain.id },
+          ? { category: 'primary', delta }
+          : {
+              category: 'secondary',
+              key: card.key,
+              delta,
+              status: finishesOnScore(card.category, side.secondaryMode, delta) ? 'achieved' : undefined,
+            },
       )
-      if (finishesOnScore(card.category, side.secondaryMode, delta)) {
-        send({ kind: 'set-secondary-status', key: card.key, status: 'achieved', playerId: side.captain.id })
-      }
-    }
+      return settlement
+    }, [])
+    if (scores.length) send({ kind: 'score-settlement', scores, playerId: side.captain.id })
     onDone(due.filter((card) => finishesOnScore(card.category, side.secondaryMode, scoredFor(card))).map((card) => card.key))
   }
 

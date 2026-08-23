@@ -354,7 +354,7 @@ export class PraetoriumService {
       { battleId: seats.battle.id, userId, expectedSeq, command, now: this.clock() },
       (state) => {
         if (command.kind === 'begin-battle') return rules ? setupReferenceError(state, rules) : null
-        if (command.kind === 'score' || command.kind === 'score-secondary')
+        if (command.kind === 'score' || command.kind === 'score-secondary' || command.kind === 'score-settlement')
           return rules ? scoringCapError(state, userId, command, rules) : null
         return null
       },
@@ -496,13 +496,26 @@ function setupReferenceError(state: ReturnType<typeof reduceBattle>, rules: NonN
 function scoringCapError(
   state: ReturnType<typeof reduceBattle>,
   by: PlayerId,
-  command: Extract<Command, { kind: 'score' } | { kind: 'score-secondary' }>,
+  command: Extract<Command, { kind: 'score' } | { kind: 'score-secondary' } | { kind: 'score-settlement' }>,
   rules: NonNullable<Parameters<typeof missionFor>[0]>,
 ): string | null {
-  if (command.delta <= 0) return null
   const target = scoringTarget(state, by, command)
   if (!target) return null
-  const category = command.kind === 'score' ? command.category : 'secondary'
+  const deltas =
+    command.kind === 'score-settlement'
+      ? {
+          primary: command.scores.filter((score) => score.category === 'primary').reduce((sum, score) => sum + score.delta, 0),
+          secondary: command.scores.filter((score) => score.category === 'secondary').reduce((sum, score) => sum + score.delta, 0),
+        }
+      : {
+          primary: command.kind === 'score' && command.category === 'primary' ? command.delta : 0,
+          secondary:
+            command.kind === 'score' && command.category === 'secondary'
+              ? command.delta
+              : command.kind === 'score-secondary'
+                ? command.delta
+                : 0,
+        }
   const opponentDisposition = state.players.find((player) => player.side !== target.side)?.roster?.built?.disposition ?? null
   const mission = missionFor(
     rules,
@@ -511,14 +524,17 @@ function scoringCapError(
     state.settings.missionPackId,
   )
   if (!mission) return null
-  const roundCap = category === 'primary' ? mission.roundCap : mission.secondaryRoundCap
-  const gameCap = category === 'primary' ? mission.gameCap : mission.secondaryGameCap
-  const roundSoFar = (category === 'primary' ? target.primaryByRound : target.secondaryByRound)[state.round - 1] ?? 0
-  const gameSoFar = category === 'primary' ? target.primary : target.secondary
-  const label = category === 'primary' ? 'primary mission' : 'secondary missions'
-  if (roundCap !== null && roundSoFar + command.delta > roundCap)
-    return `that would score past this round’s ${roundCap} VP cap for ${label}`
-  if (gameCap !== null && gameSoFar + command.delta > gameCap) return `that would score past the battle’s ${gameCap} VP cap for ${label}`
+  for (const category of ['primary', 'secondary'] as const) {
+    const delta = deltas[category]
+    if (delta <= 0) continue
+    const roundCap = category === 'primary' ? mission.roundCap : mission.secondaryRoundCap
+    const gameCap = category === 'primary' ? mission.gameCap : mission.secondaryGameCap
+    const roundSoFar = (category === 'primary' ? target.primaryByRound : target.secondaryByRound)[state.round - 1] ?? 0
+    const gameSoFar = category === 'primary' ? target.primary : target.secondary
+    const label = category === 'primary' ? 'primary mission' : 'secondary missions'
+    if (roundCap !== null && roundSoFar + delta > roundCap) return `that would score past this round’s ${roundCap} VP cap for ${label}`
+    if (gameCap !== null && gameSoFar + delta > gameCap) return `that would score past the battle’s ${gameCap} VP cap for ${label}`
+  }
   return null
 }
 

@@ -90,6 +90,20 @@ describe('the account of the battle', () => {
     expect(text(battleReport(NAMES, withUndo))).not.toContain('Alice scores 5 primary')
   })
 
+  it('reports a scoring settlement as one grouped event', () => {
+    const history = log(...started(), [
+      ALICE,
+      {
+        kind: 'score-settlement',
+        scores: [
+          { category: 'primary', delta: 5 },
+          { category: 'secondary', key: 'beacon', delta: 4 },
+        ],
+      },
+    ])
+    expect(text(battleReport(NAMES, history)).at(-1)).toBe('Alice settles 5 primary VP, 4 VP on a secondary')
+  })
+
   it('records the round a thing happened in', () => {
     const history = log(...started(), ...turns(6, ALICE), ...turns(6, BOB), [BOB, { kind: 'score', category: 'primary', delta: 3 }])
     expect(battleReport(NAMES, history).at(-1)).toMatchObject({ round: 2, text: 'Bob scores 3 primary' })

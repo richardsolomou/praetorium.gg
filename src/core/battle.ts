@@ -254,6 +254,10 @@ export type Command =
   /** `cp` overrides the printed cost, for the stratagems whose price depends on the board. */
   | ({ kind: 'use-stratagem'; key: string; cp?: number } & OnBehalfOf)
   | ({ kind: 'score-secondary'; key: string; delta: number } & OnBehalfOf)
+  | ({
+      kind: 'score-settlement'
+      scores: ({ category: 'primary'; delta: number } | { category: 'secondary'; key: string; delta: number; status?: 'achieved' })[]
+    } & OnBehalfOf)
   | ({ kind: 'set-secondary-status'; key: string; status: SecondaryStatus } & OnBehalfOf)
   | { kind: 'draw-secondary'; secondary: Secondary }
   | { kind: 'select-secret'; secondary: Secondary }
@@ -677,6 +681,23 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
       if ((player.scored[command.key] ?? 0) + command.delta < 0) return 'that would go below zero'
       return null
     }
+    case 'score-settlement': {
+      if (state.status !== 'playing') return 'the battle is not running'
+      if (!command.scores.length) return 'record at least one score'
+      const keys = new Set<string>()
+      for (const score of command.scores) {
+        if (!Number.isInteger(score.delta) || score.delta <= 0) return 'victory points move in positive whole steps'
+        if (score.category === 'primary') {
+          if (keys.has('primary')) return 'record primary scoring once per settlement'
+          keys.add('primary')
+          continue
+        }
+        if (keys.has(score.key)) return 'record each secondary once per settlement'
+        keys.add(score.key)
+        if (!mayNameSecondary(state, by, player, score.key)) return 'that is not one of your secondaries'
+      }
+      return null
+    }
     case 'set-secondary-status': {
       if (state.status !== 'playing') return 'the battle is not running'
       if (!mayNameSecondary(state, by, player, command.key)) return 'that is not one of your secondaries'
@@ -845,13 +866,22 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
       return
     }
     case 'score-secondary': {
-      const scored = (player.scored[command.key] ?? 0) + command.delta
-      player.scored = { ...player.scored, [command.key]: scored }
-      player.secondary = Object.values(player.scored).reduce((total, points) => total + points, player.corrections.secondary)
-      const rounds = [...(player.scoredByRound[command.key] ?? Array(BATTLE_ROUNDS).fill(0))]
-      rounds[state.round - 1] = (rounds[state.round - 1] ?? 0) + command.delta
-      player.scoredByRound = { ...player.scoredByRound, [command.key]: rounds }
-      player.secondaryByRound[state.round - 1] = (player.secondaryByRound[state.round - 1] ?? 0) + command.delta
+      applySecondaryScore(player, command.key, command.delta, state.round)
+      return
+    }
+    case 'score-settlement': {
+      for (const score of command.scores) {
+        if (score.category === 'primary') {
+          player.primary += score.delta
+          player.primaryByRound[state.round - 1] = (player.primaryByRound[state.round - 1] ?? 0) + score.delta
+          continue
+        }
+        applySecondaryScore(player, score.key, score.delta, state.round)
+        if (score.status) {
+          player.secondaryStatus = { ...player.secondaryStatus, [score.key]: score.status }
+          if (score.key === player.secretSecondary) player.secretRevealed = true
+        }
+      }
       return
     }
     case 'set-secondary-status': {
@@ -988,6 +1018,15 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
       throw new Error(`unknown command ${JSON.stringify(unhandled)}`)
     }
   }
+}
+
+function applySecondaryScore(player: PlayerState, key: string, delta: number, round: number) {
+  player.scored = { ...player.scored, [key]: (player.scored[key] ?? 0) + delta }
+  player.secondary = Object.values(player.scored).reduce((total, points) => total + points, player.corrections.secondary)
+  const rounds = [...(player.scoredByRound[key] ?? Array(BATTLE_ROUNDS).fill(0))]
+  rounds[round - 1] = (rounds[round - 1] ?? 0) + delta
+  player.scoredByRound = { ...player.scoredByRound, [key]: rounds }
+  player.secondaryByRound[round - 1] = (player.secondaryByRound[round - 1] ?? 0) + delta
 }
 
 function resetPlayer(player: PlayerState) {

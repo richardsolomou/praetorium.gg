@@ -70,4 +70,13 @@ describe('command schema', () => {
   it('accepts settling the previous turn', () => {
     expect(commandSchema.parse({ kind: 'settle-opponent-turn' })).toEqual({ kind: 'settle-opponent-turn' })
   })
+
+  it('only lets scoring settlements complete a secondary', () => {
+    expect(
+      commandSchema.safeParse({
+        kind: 'score-settlement',
+        scores: [{ category: 'secondary', key: 'beacon', delta: 4, status: 'discarded' }],
+      }).success,
+    ).toBe(false)
+  })
 })
