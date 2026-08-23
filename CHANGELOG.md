@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.21.1
+
+### Patch Changes
+
+- 63e5874: Match fielded roster snapshots to the standard read-only roster presentation and applied unit details.
+
 ## 0.21.0
 
 ### Minor Changes
