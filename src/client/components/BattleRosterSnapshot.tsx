@@ -5,6 +5,7 @@ import type { Roster } from '../../core/battle'
 import { GAME_SIZES } from '../../core/battle'
 import { factionsQuery } from '../queries'
 import { FactionLabel } from './FactionMark'
+import { RosterEditor } from './RosterEditor'
 import { GROUPS } from './builder/groups'
 import { Section } from './builder/Section'
 import { UnitCard } from './builder/UnitCard'
@@ -14,6 +15,26 @@ export function BattleRosterSnapshot({ roster }: { roster: Roster }) {
   const built = roster.built
   const hasRosterCards = built?.units.some((unit) => unit.group !== undefined) ?? false
   const faction = available?.factions.find((entry) => entry.id === built?.catalogueId)
+
+  if (roster.id && built?.detachmentIds && built.picks) {
+    return (
+      <RosterEditor
+        roster={{
+          id: roster.id,
+          name: roster.name,
+          catalogueId: built.catalogueId,
+          detachmentIds: built.detachmentIds,
+          disposition: built.disposition,
+          limit: built.limit,
+          picks: built.picks,
+          visibility: 'private',
+          source: 'editable',
+        }}
+        editable={false}
+        resolvePersistedRoster={false}
+      />
+    )
+  }
 
   return (
     <main className="flex h-full w-full flex-col">

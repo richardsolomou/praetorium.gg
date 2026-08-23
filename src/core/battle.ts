@@ -10,6 +10,7 @@
  */
 
 import type { UnitGroup } from './unitGroups'
+import type { RosterPick } from './roster'
 
 /** The phases of a battle round, in the order 11th edition plays them. */
 export const PHASES = ['command', 'movement', 'shooting', 'charge', 'fight', 'end'] as const
@@ -67,6 +68,9 @@ type BuiltRoster = {
   detachmentPointBudget?: number | null
   /** The chosen force disposition; the pair decides the mission. */
   disposition: string | null
+  /** Frozen selections let a battle roster open the same applied datasheets as a shared roster. */
+  detachmentIds?: string[]
+  picks?: RosterPick[]
   /**
    * The units as submitted, fixed at the moment the list was attached.
    *
