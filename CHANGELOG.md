@@ -1,5 +1,17 @@
 # praetorium
 
+## 0.21.18
+
+### Patch Changes
+
+- fcdd4e8: State a mission pack's per-round victory point cap alongside its per-battle cap.
+- fcdd4e8: Hold each side to the caps of the mission it is playing rather than to those of the mission the player looking at the screen is playing.
+- fcdd4e8: Show how much of a card's claim a mission cap took in that card's own total, so a payout can be given up elsewhere to make room.
+- fcdd4e8: Say what a reached mission cap left room for once beneath the scoring total, naming the cap and the points it refuses, instead of repeating an unnumbered note under every payout.
+- fcdd4e8: Fix a scoring prompt totalling points it will not bank once a mission's round or battle cap is reached, such as a round already holding 4 VP offering 13 more and recording 11.
+- fcdd4e8: Show how each mission category stands against the victory point cap that is limiting it at the top of a scoring prompt, so a round's remaining allowance is known before a payout is pressed.
+- fcdd4e8: Count the points a previous turn owed against the battle round that turn was in, so a side can no longer bank a full round's allowance in its own turn and spend the next round's on what the opponent's turn owed it.
+
 ## 0.21.17
 
 ### Patch Changes
