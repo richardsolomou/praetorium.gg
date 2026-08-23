@@ -264,6 +264,7 @@ export type Command =
     } & OnBehalfOf)
   | ({ kind: 'set-secondary-status'; key: string; status: SecondaryStatus } & OnBehalfOf)
   | { kind: 'draw-secondary'; secondary: Secondary }
+  | { kind: 'draw-secondaries'; secondaries: Secondary[] }
   | { kind: 'select-secret'; secondary: Secondary }
   | ({ kind: 'reveal-secret' } & OnBehalfOf)
   | { kind: 'begin-battle'; firstPlayerId: PlayerId; attackerId?: PlayerId }
@@ -739,6 +740,28 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
       if (player.secondaries.length >= SECONDARY_HISTORY_MAX) return 'the secondary history is full'
       return null
     }
+    case 'draw-secondaries': {
+      if (state.status !== 'playing') return 'the battle is not running'
+      if (player.secondaryMode !== 'tactical') return 'only tactical missions are drawn'
+      const held = player.secondaries.filter((secondary) => player.secondaryStatus[secondary.key] === 'active').length
+      const remaining = (player.secondaryDeck ?? []).filter(
+        (candidate) => !player.secondaries.some((secondary) => secondary.key === candidate.key),
+      ).length
+      const refill = Math.min(TACTICAL_HAND_SIZE - held, remaining, SECONDARY_HISTORY_MAX - player.secondaries.length)
+      if (!command.secondaries.length || command.secondaries.length !== refill) return 'draw every card needed to fill your hand together'
+      const keys = new Set<string>()
+      for (const secondary of command.secondaries) {
+        if (!secondary.name.trim()) return 'name the secondary'
+        if (keys.has(secondary.key)) return 'draw each secondary once'
+        keys.add(secondary.key)
+        if (player.secondaryDeck && !player.secondaryDeck.some((candidate) => candidate.key === secondary.key)) {
+          return 'that secondary is not in your deck'
+        }
+        if (player.secondaries.some((candidate) => candidate.key === secondary.key)) return 'that secondary has already been drawn'
+      }
+      if (player.secondaries.length + command.secondaries.length > SECONDARY_HISTORY_MAX) return 'the secondary history is full'
+      return null
+    }
     case 'select-secret': {
       if (state.status !== 'playing') return 'the battle is not running'
       if (player.secretSecondary) return 'you already have a secret mission'
@@ -915,6 +938,14 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
       const secondary = { ...(player.secondaryDeck?.find((candidate) => candidate.key === command.secondary.key) ?? command.secondary) }
       player.secondaries.push(secondary)
       player.secondaryStatus = { ...player.secondaryStatus, [secondary.key]: 'active' }
+      return
+    }
+    case 'draw-secondaries': {
+      for (const drawn of command.secondaries) {
+        const secondary = { ...(player.secondaryDeck?.find((candidate) => candidate.key === drawn.key) ?? drawn) }
+        player.secondaries.push(secondary)
+        player.secondaryStatus = { ...player.secondaryStatus, [secondary.key]: 'active' }
+      }
       return
     }
     case 'select-secret': {

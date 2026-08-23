@@ -280,6 +280,42 @@ describe('secondaries', () => {
     expect(validate(oneDrawn, ALICE, { kind: 'draw-secondary', secondary: { key: 'd', name: 'Storm Hostile Objective' } })).toBeNull()
   })
 
+  it('draws and undoes a complete tactical refill as one action', () => {
+    const cards = [
+      { key: 'a', name: 'Behind Enemy Lines' },
+      { key: 'b', name: 'Bring It Down' },
+    ]
+    const history = log(
+      ...started(),
+      [ALICE, { kind: 'set-prep', stratagems: [], secondaries: [], secondaryDeck: cards, primary: null, secondaryMode: 'tactical' }],
+      [ALICE, { kind: 'draw-secondaries', secondaries: cards }],
+    )
+    const drawn = reduceBattle(PLAYERS, history)
+    expect(alice(drawn)).toMatchObject({ secondaryStatus: { a: 'active', b: 'active' } })
+
+    const undone = reduceBattle(PLAYERS, [
+      ...history,
+      { seq: history.length + 1, by: BOB, at: 9, command: { kind: 'undo', target: history.length } },
+    ])
+    expect(alice(undone)?.secondaries).toEqual([])
+  })
+
+  it('allows one card in an atomic partial-hand refill', () => {
+    const cards = [
+      { key: 'a', name: 'Behind Enemy Lines' },
+      { key: 'b', name: 'Bring It Down' },
+    ]
+    const state = reduceBattle(
+      PLAYERS,
+      log(
+        ...started(),
+        [ALICE, { kind: 'set-prep', stratagems: [], secondaries: [], secondaryDeck: cards, primary: null, secondaryMode: 'tactical' }],
+        [ALICE, { kind: 'draw-secondary', secondary: cards[0]! }],
+      ),
+    )
+    expect(validate(state, ALICE, { kind: 'draw-secondaries', secondaries: [cards[1]!] })).toBeNull()
+  })
+
   it('keeps a secret mission active when resolving the tactical hand', () => {
     const before = tacticalEnd(
       [ALICE, { kind: 'select-secret', secondary: { key: 'secret', name: 'Hold the Line' } }],

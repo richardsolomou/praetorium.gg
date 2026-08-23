@@ -107,6 +107,32 @@ it('chooses tactical draws on the server instead of trusting the submitted card'
   )
 })
 
+it('chooses a complete tactical refill atomically on the server', async () => {
+  const { token } = await service.createBattle('alice', { opponentId: 'bob', solo: false, missionPackId: null })
+  let seq = 0
+  const send = async (by: string, command: Parameters<PraetoriumService['submit']>[3]) => {
+    const answer = await service.submit(token, by, seq, command)
+    if (answer.result.outcome === 'appended') seq = answer.result.seq
+    return answer
+  }
+  await send('alice', { kind: 'attach-roster', roster: { name: 'Alice army', text: 'Alice army' } })
+  await send('bob', { kind: 'attach-roster', roster: { name: 'Bob army', text: 'Bob army' } })
+  const cards = [
+    { key: 'first', name: 'First card' },
+    { key: 'second', name: 'Second card' },
+  ]
+  await send('alice', { kind: 'set-prep', stratagems: [], secondaries: [], secondaryDeck: cards, primary: null, secondaryMode: 'tactical' })
+  await send('alice', { kind: 'begin-battle', firstPlayerId: 'alice' })
+
+  const clientChoices = [
+    { key: 'chosen-first', name: 'Chosen first' },
+    { key: 'chosen-second', name: 'Chosen second' },
+  ]
+  expect((await send('alice', { kind: 'draw-secondaries', secondaries: clientChoices })).result.outcome).toBe('appended')
+  const drawn = (await view(token, 'alice')).players.find((player) => player.id === 'alice')?.secondaries
+  expect(drawn?.map((card) => card.key).sort()).toEqual(['first', 'second'])
+})
+
 describe('favourite factions', () => {
   it('keeps each player favourites separate', async () => {
     await service.setFavouriteFaction('alice', 'dark-angels', true)

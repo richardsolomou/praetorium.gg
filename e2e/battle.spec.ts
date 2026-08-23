@@ -231,15 +231,11 @@ test('a card the rules let you put back is offered back as it is drawn', async (
   }
   await bob.setViewportSize({ width: 390, height: 844 })
   await confirmUndo()
-  await expect(prompt.locator('[data-drawn]')).toHaveCount(1)
+  await expect(prompt.locator('[data-drawn]')).toHaveCount(returned ? 1 : 0)
   await expect(prompt.getByRole('button', { name: 'Resume drawing' })).toBeVisible()
   if (returned) {
     await undoDraw.click()
     await expect(prompt.locator('[data-drawn]')).toHaveCount(2)
-    await confirmUndo()
-    await expect(prompt.locator('[data-drawn]')).toHaveCount(1)
-    await confirmUndo()
-  } else {
     await confirmUndo()
   }
   await expect(prompt.locator('[data-drawn]')).toHaveCount(0)
@@ -258,7 +254,7 @@ test('a card the rules let you put back is offered back as it is drawn', async (
   await expect(confirmation).toBeVisible()
   await confirmation.getByRole('button', { name: 'Undo draw' }).click()
   await expect(prompt).toBeVisible()
-  await expect(prompt.locator('[data-drawn]')).toHaveCount(1)
+  await expect(prompt.locator('[data-drawn]')).toHaveCount(0)
   await expect(prompt.getByRole('button', { name: 'Resume drawing' })).toBeVisible()
 })
 
@@ -279,10 +275,17 @@ test('a card names its own condition, and what their turn owed is asked as the t
     // Fixed play, so the two cards under test are certain: Outflank pays in tiers the
     // source describes only in prose, and Assassination pays on either player's turn.
     beforeStart: async () => {
-      await alice.getByRole('button', { name: 'Fixed' }).click()
+      const press = async (name: string) => {
+        await expect(async () => {
+          const button = alice.getByRole('button', { name })
+          if ((await button.getAttribute('aria-pressed')) === 'true') return
+          await button.click({ timeout: 1_000 })
+          await expect(button).toHaveAttribute('aria-pressed', 'true', { timeout: 1_000 })
+        }).toPass({ timeout: 10_000 })
+      }
+      await press('Fixed')
       for (const card of ['Assassination', 'Outflank']) {
-        await alice.getByRole('button', { name: card }).click()
-        await expect(alice.getByRole('button', { name: card })).toHaveAttribute('aria-pressed', 'true')
+        await press(card)
       }
     },
   })

@@ -219,7 +219,7 @@ export function battleView(
     })),
     advancePrompt: viewerOwnsActive ? scoringPrompt(state, viewerId) : helperAdvancePrompt(state, viewerId),
     undoable: state.undoable?.seq ?? null,
-    undoableDraw: state.undoable?.kind === 'draw-secondary',
+    undoableDraw: state.undoable?.kind === 'draw-secondary' || state.undoable?.kind === 'draw-secondaries',
   }
 }
 

@@ -369,14 +369,20 @@ export class PraetoriumService {
         return null
       },
       (state, submitted) => {
-        if (submitted.kind !== 'draw-secondary') return submitted
+        if (submitted.kind !== 'draw-secondary' && submitted.kind !== 'draw-secondaries') return submitted
         const actor = state.players.find((candidate) => candidate.id === userId)
         const player = actor ? sideCaptain(state, actor.side) : undefined
         const remaining = (player?.secondaryDeck ?? []).filter(
           (candidate) => !player?.secondaries.some((secondary) => secondary.key === candidate.key),
         )
         if (!remaining.length) return submitted
-        return { ...submitted, secondary: remaining[this.randomIndex(remaining.length)]! }
+        if (submitted.kind === 'draw-secondary') return { ...submitted, secondary: remaining[this.randomIndex(remaining.length)]! }
+        const available = [...remaining]
+        const secondaries = submitted.secondaries
+          .slice(0, available.length)
+          .map(() => available.splice(this.randomIndex(available.length), 1)[0]!)
+          .filter(Boolean)
+        return { ...submitted, secondaries }
       },
     )
     if (result.outcome === 'appended')

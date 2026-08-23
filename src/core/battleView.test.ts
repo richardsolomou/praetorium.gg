@@ -18,6 +18,23 @@ describe('the view', () => {
     expect(battleView({ token: 'abc' }, NAMES, state, BOB)).toMatchObject({ undoable: state.undoable?.seq, undoableDraw: true })
   })
 
+  it('marks a grouped refill as a destructive draw undo', () => {
+    const state = reduceBattle(
+      PLAYERS,
+      log(...started(), [
+        ALICE,
+        {
+          kind: 'draw-secondaries',
+          secondaries: [
+            { key: 'beacon', name: 'Establish Locus' },
+            { key: 'assassination', name: 'Assassination' },
+          ],
+        },
+      ]),
+    )
+    expect(battleView({ token: 'abc' }, NAMES, state, BOB)).toMatchObject({ undoable: state.undoable?.seq, undoableDraw: true })
+  })
+
   it('totals a player’s victory points', () => {
     const state = reduceBattle(
       PLAYERS,
