@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.21.4
+
+### Patch Changes
+
+- 8817242: Show primary and secondary scoring guidance from the applicable battle round.
+
 ## 0.21.3
 
 ### Patch Changes
