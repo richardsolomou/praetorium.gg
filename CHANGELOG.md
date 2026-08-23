@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.21.3
+
+### Patch Changes
+
+- 693a912: Undo every tactical secondary from the same hand refill together.
+
 ## 0.21.2
 
 ### Patch Changes
