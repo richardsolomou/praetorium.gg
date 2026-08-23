@@ -481,7 +481,11 @@ export function ListBuilder({ prep, initial, editable = true, battle, resolvePer
               const rows = units
                 .map((unit, index) => ({ unit, index }))
                 .filter(({ unit }) => unit.group === id)
-                .toSorted((left, right) => Number(collection.has(right.unit.entryId)) - Number(collection.has(left.unit.entryId)))
+                .toSorted(
+                  (left, right) =>
+                    Number(collection.has(right.unit.entryId)) - Number(collection.has(left.unit.entryId)) ||
+                    left.unit.name.localeCompare(right.unit.name),
+                )
               return rows.length ? (
                 <Section key={id} title={plural} count={rows.length}>
                   {rows.map(({ unit, index }) => (
