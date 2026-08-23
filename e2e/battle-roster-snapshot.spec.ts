@@ -20,7 +20,8 @@ test('a fielded roster opens as the frozen read-only roster view', async ({ page
   const token = lastPathSegment(battleUrl)
   await page.goto(`/rosters/${rosterId}?battle=${token}`)
 
-  await expect(page.getByRole('heading', { name: rosterName })).toBeVisible()
+  await expect(page.getByLabel('List name')).toHaveValue(rosterName)
+  await expect(page.getByLabel('List name')).toHaveAttribute('readonly', '')
   await expect(page.getByText('Characters', { exact: true })).toBeVisible()
   await expect(page.locator('[data-unit="Lord of Virulence"]')).toContainText('Lord of Virulence')
   await expect(page.locator('pre')).toHaveCount(0)

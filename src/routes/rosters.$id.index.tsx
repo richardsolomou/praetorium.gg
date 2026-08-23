@@ -81,7 +81,7 @@ function RosterPage() {
 
   if (snapshot && battle && screen?.kind === 'battle') {
     const fielded = fieldedRoster(screen.view, id)
-    return fielded ? <BattleRosterSnapshot roster={fielded} token={battle} /> : null
+    return fielded ? <BattleRosterSnapshot roster={fielded} /> : null
   }
   if (!roster) return null
   return <RosterEditor roster={roster} editable={editable} battle={battle} />
