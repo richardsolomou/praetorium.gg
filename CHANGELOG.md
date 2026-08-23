@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.20.0
+
+### Minor Changes
+
+- e7aa048: Find shared faction datasheets and detachments under their canonical reference page, and offer typo-tolerant datasheet search results.
+
 ## 0.19.6
 
 ### Patch Changes
