@@ -55,9 +55,12 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
   const [focus, setFocus] = useState<Focus>('yours')
   const [scoring, setScoring] = useState<ScoringContext | null>(null)
   const [discarding, setDiscarding] = useState<DiscardContext | null>(null)
-  // Which turn the draw is open for, and which turn has already been taken past it.
+  // Which turn the draw is open for, and every turn already taken past it. A set
+  // rather than the one latest turn, so rewinding across several turn boundaries
+  // and back still recognises a turn whose draw was dismissed long before the most
+  // recent one — otherwise it reads as never drawn and autofills instead of pausing.
   const [drawTurn, setDrawTurn] = useState<string | null>(null)
-  const [drawnFor, setDrawnFor] = useState<string | null>(null)
+  const [drawnForTurns, setDrawnForTurns] = useState<ReadonlySet<string>>(new Set())
   const [drawPaused, setDrawPaused] = useState(false)
   const table = sides(view)
   const yours = table.find((side) => side.isViewer)
@@ -190,12 +193,21 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
   // still has to see what they drew and whether a card may go back.
   useEffect(() => {
     if (!handShort) return
-    const reopening = drawnFor === turnKey
+    const reopening = drawnForTurns.has(turnKey)
     setDrawPaused(reopening)
-    if (reopening) setDrawnFor(null)
+    // Forgotten rather than left marked drawn, so the prompt is free to show again;
+    // taking the turn re-adds it below once the reopened draw is done with.
+    if (reopening) {
+      setDrawnForTurns((current) => {
+        const next = new Set(current)
+        next.delete(turnKey)
+        return next
+      })
+    }
     setDrawTurn(turnKey)
-  }, [handShort, drawnFor, turnKey])
-  const prompt = settlementRound !== null ? (owedCards.length ? 'owed' : null) : turnPrompt(0, drawTurn === turnKey && drawnFor !== turnKey)
+  }, [handShort, drawnForTurns, turnKey])
+  const prompt =
+    settlementRound !== null ? (owedCards.length ? 'owed' : null) : turnPrompt(0, drawTurn === turnKey && !drawnForTurns.has(turnKey))
 
   return (
     <main className={`w-full space-y-3 px-3 lg:pb-8 ${finished ? 'pb-8' : 'pb-32'}`}>
@@ -364,7 +376,7 @@ export function Tracker({ view, mission, present, send, pending, problem }: Prop
           whenDrawnFor={(key) => whenDrawnFor(yours, key)}
           onDone={() => {
             setDrawPaused(false)
-            setDrawnFor(turnKey)
+            setDrawnForTurns((current) => new Set(current).add(turnKey))
           }}
         />
       ) : null}
