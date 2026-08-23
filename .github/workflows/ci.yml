@@ -19,6 +19,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
       - uses: richardsolomou/ras-stack/actions/setup-js@v0.44.0
       - uses: richardsolomou/ras-stack/actions/setup-just@v0.44.0
         with:
