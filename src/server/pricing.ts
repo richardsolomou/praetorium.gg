@@ -506,6 +506,30 @@ function unitModels(
 
   const composition = compositionOf(rules, name)
   if (!composition) return []
+  return composedKinds(
+    composition,
+    modelCountOf(selection, loaded.index),
+    wargear,
+    chosenSwaps,
+    new Set(choices.flatMap((choice) => choice.options.map((option) => routeSlug(option.name)))),
+  )
+}
+
+/**
+ * The kinds of model a datasheet names, read from the rules source rather than the
+ * catalogue, for the datasheets the catalogue describes no kinds for.
+ *
+ * `chooseable` is everything the catalogue already asks the player about, and nothing
+ * named there may be drawn here as well: the catalogue's own control is the one the
+ * player acts on, and a second copy of the question is free to disagree with it.
+ */
+export function composedKinds(
+  composition: UnitComposition,
+  modelsInUnit: number,
+  wargear: readonly { name: string; count: number }[],
+  chosenSwaps: Readonly<Record<string, number>>,
+  chooseable: ReadonlySet<string>,
+): ModelKind[] {
   // Only where the rules source knows kinds the catalogue does not. A squad of one
   // kind of model is one the catalogue describes perfectly well — Immortals are ten
   // Immortals choosing between two guns — and naming its weapons here as well would
@@ -513,8 +537,12 @@ function unitModels(
   if (composition.models.length < 2) return []
   // Nor may a kind claim a weapon the catalogue offers as a choice, for the same
   // reason: the choice is what the player acts on.
-  const chooseable = new Set(choices.flatMap((choice) => choice.options.map((option) => routeSlug(option.name))))
   if (composition.models.some((model) => model.weapons.some((weapon) => chooseable.has(routeSlug(weapon.name))))) return []
+  // Nor may a swap grant one. An Incursor Squad's haywire mine is written both ways —
+  // a wargear option in the rules source and an upgrade in the catalogue — and drawing
+  // both puts a stepper among the squad's weapons beside the choice that already
+  // answers it.
+  const answered = (takes: readonly string[]) => takes.length > 0 && takes.every((name) => chooseable.has(routeSlug(name)))
   /**
    * Which kind a swap belongs to.
    *
@@ -538,7 +566,6 @@ function unitModels(
       listedBy.set(key, (listedBy.get(key) ?? 0) + 1)
     }
   }
-  const modelsInUnit = modelCountOf(selection, loaded.index)
   const tier = composition.tiers?.find((candidate) => {
     const minimum = candidate.models.reduce((total, model) => total + model.min, 0)
     const maximum = candidate.models.reduce((total, model) => total + model.max, 0)
@@ -563,21 +590,23 @@ function unitModels(
     // with it. Every alternative is listed whether taken or not, so the card keeps
     // the same shape as a squad is put together.
     const swaps = mine.flatMap((option) =>
-      option.takes.map((take, at) => {
-        const spent = mine.reduce(
-          (total, other) =>
-            total + other.takes.reduce((sum, _, index) => sum + (other === option && index === at ? 0 : taken(other, index)), 0),
-          0,
-        )
-        return {
-          key: `${option.id}#${at}`,
-          gives: option.gives.map((weapon) => weapon.name),
-          takes: take.map((weapon) => weapon.name),
-          count: option.free ? taken(option, at) : 0,
-          max: option.free ? Math.max(0, count - spent) : 0,
-          free: option.free,
-        }
-      }),
+      option.takes
+        .map((take, at) => {
+          const spent = mine.reduce(
+            (total, other) =>
+              total + other.takes.reduce((sum, _, index) => sum + (other === option && index === at ? 0 : taken(other, index)), 0),
+            0,
+          )
+          return {
+            key: `${option.id}#${at}`,
+            gives: option.gives.map((weapon) => weapon.name),
+            takes: take.map((weapon) => weapon.name),
+            count: option.free ? taken(option, at) : 0,
+            max: option.free ? Math.max(0, count - spent) : 0,
+            free: option.free,
+          }
+        })
+        .filter((swap) => !answered(swap.takes)),
     )
 
     // What a weapon is down to once swaps have taken their share of it.

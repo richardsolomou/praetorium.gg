@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  composedKinds,
   deploymentRules,
   heldWargear,
   isCatalogueSelfContradiction,
@@ -141,6 +142,59 @@ describe('a limit the catalogue breaks itself', () => {
    */
   it('still counts against an enhancement the player chose', () => {
     expect(isCatalogueSelfContradiction({ entryId: 'destroyer-ankh', message: 'allows at most 1, has 2' }, composed)).toBe(false)
+  })
+})
+
+/**
+ * The rules source is only ever a gap-filler. Where the catalogue already asks the
+ * question, asking it again on a model card gives the player two controls for one
+ * piece of wargear, free to disagree about whether it is held.
+ */
+describe('kinds read from the rules source', () => {
+  const composition = {
+    unitId: 'incursor-squad',
+    models: [
+      {
+        name: 'Incursor Sergeant',
+        profile: null,
+        min: 1,
+        max: 1,
+        leader: true,
+        weapons: [{ id: 'occulus-bolt-carbine', name: 'Occulus bolt carbine' }],
+      },
+      {
+        name: 'Incursor',
+        profile: null,
+        min: 4,
+        max: 9,
+        leader: false,
+        weapons: [{ id: 'occulus-bolt-carbine', name: 'Occulus bolt carbine' }],
+      },
+    ],
+    options: [
+      {
+        id: 'incursor-squad-wgo-mfm-1',
+        model: 'Incursor',
+        gives: [],
+        takes: [[{ id: 'haywire-mine', name: 'haywire mine' }]],
+        free: true,
+      },
+    ],
+  }
+
+  it('offers a swap the catalogue says nothing about', () => {
+    const kinds = composedKinds(composition, 5, [], {}, new Set())
+
+    expect(kinds.flatMap((kind) => kind.swaps ?? [])).toEqual([
+      { key: 'incursor-squad-wgo-mfm-1#0', gives: [], takes: ['haywire mine'], count: 0, max: 4, free: true },
+    ])
+  })
+
+  it('leaves out a swap granting what the catalogue already offers as a choice', () => {
+    const kinds = composedKinds(composition, 5, [], {}, new Set(['haywire-mine']))
+
+    expect(kinds.map((kind) => kind.name)).toEqual(['Incursor Sergeant', 'Incursor'])
+    expect(kinds.flatMap((kind) => kind.swaps ?? [])).toEqual([])
   })
 })
 
