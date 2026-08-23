@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.19.5
+
+### Patch Changes
+
+- 892237e: Show shared scoring prompts to every seated player and clearly name the affected side.
+
 ## 0.19.4
 
 ### Patch Changes
