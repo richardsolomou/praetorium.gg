@@ -58,6 +58,35 @@ describe('the wargear a unit is carrying', () => {
     expect(wargearOf(selection, index)).toEqual([{ name: 'Bolt rifle', count: 1 }])
   })
 
+  it('keeps a described weapon when it holds a selected upgrade', () => {
+    const index = indexOf({
+      sharedSelectionEntries: [
+        {
+          id: 'overlord',
+          name: 'Overlord',
+          type: 'model',
+          selectionEntries: [
+            {
+              id: 'blade',
+              name: "Overlord's blade",
+              type: 'upgrade',
+              profiles: [{ id: 'blade-profile', name: "Overlord's blade", typeName: 'Melee Weapons' }],
+              selectionEntries: [{ id: 'orb', name: 'Resurrection orb', type: 'upgrade' }],
+            },
+          ],
+        },
+      ],
+    })
+    const selection = {
+      id: 'overlord',
+      selections: [{ id: 'blade', selections: [{ id: 'orb', count: 1 }] }],
+    }
+    expect(wargearOf(selection, index)).toEqual([
+      { name: "Overlord's blade", count: 1 },
+      { name: 'Resurrection orb', count: 1 },
+    ])
+  })
+
   it('multiplies a weapon by the models carrying it', () => {
     const index = indexOf({
       sharedSelectionEntries: [
