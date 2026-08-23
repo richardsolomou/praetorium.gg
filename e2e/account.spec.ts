@@ -49,7 +49,7 @@ test('a player can edit their display name and profile picture', async ({ page }
   await expect(page.getByRole('button', { name: 'Account menu for Commander Alice' })).toBeVisible()
   await page.reload()
   await expect(page.getByLabel('Display name')).toHaveValue('Commander Alice')
-  await expect(page.locator('main img')).toHaveAttribute('src', /^data:image\/webp;base64,/)
+  await expect(page.locator('main img')).toHaveAttribute('src', /\/avatars\/[0-9a-f]+\.webp$/)
   await expect(page.getByRole('button', { name: 'Save profile' })).toBeDisabled()
   await page.setViewportSize({ width: 390, height: 844 })
   await page.screenshot({ path: 'test-results/profile-phone.png', fullPage: true })

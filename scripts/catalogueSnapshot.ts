@@ -13,8 +13,8 @@ if (command === 'pack') {
 } else if (command === 'verify') {
   verifySnapshotArchive(archive, pointer)
 } else if (command === 'fetch') {
-  const base = process.env.CATALOGUE_SNAPSHOT_BASE_URL
-  if (!base) throw new Error('CATALOGUE_SNAPSHOT_BASE_URL is required')
+  const base = process.env.S3_PUBLIC_BASE_URL
+  if (!base) throw new Error('S3_PUBLIC_BASE_URL is required')
   await fetchCurrentSnapshot(directory, base, (message) => console.log(message))
 } else {
   throw new Error('expected pack, verify, or fetch')

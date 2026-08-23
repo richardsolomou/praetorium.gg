@@ -10,7 +10,8 @@ import {
   type CatalogueSourceConfig,
   type ResolvedCatalogueSources,
 } from '../src/server/catalogueSources'
-import { DEFAULT_CATALOGUE_SNAPSHOT_BASE_URL, fetchCurrentSnapshot } from '../src/server/catalogueSnapshot'
+import { fetchCurrentSnapshot } from '../src/server/catalogueSnapshot'
+import { DEFAULT_S3_PUBLIC_BASE_URL } from '../src/server/objectStorage'
 import { isComplete, syncSources } from '../src/server/sync'
 
 const root = path.join(import.meta.dirname, '..')
@@ -74,6 +75,6 @@ if (argument === '--check') {
   await syncSources(dataDirectory, resolved, (message) => console.log(message))
   if (!isComplete(dataDirectory, resolved)) throw new Error('refusing to publish an incomplete catalogue snapshot')
 } else {
-  const base = process.env.CATALOGUE_SNAPSHOT_BASE_URL || DEFAULT_CATALOGUE_SNAPSHOT_BASE_URL
+  const base = process.env.S3_PUBLIC_BASE_URL || DEFAULT_S3_PUBLIC_BASE_URL
   await fetchCurrentSnapshot(dataDirectory, base, (message) => console.log(message))
 }

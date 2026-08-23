@@ -6,7 +6,8 @@ import { type BattleEvents, RealtimePublisher } from '../adapters/events'
 import { serverTelemetry } from '../adapters/posthog'
 import { catalogueDirectory, type LoadedCatalogue, loadCatalogue } from './catalogueIndex'
 import { type LoadedRules, loadRules } from './rules'
-import { DEFAULT_CATALOGUE_SNAPSHOT_BASE_URL, fetchCurrentSnapshot, installedSnapshot } from './catalogueSnapshot'
+import { fetchCurrentSnapshot, installedSnapshot } from './catalogueSnapshot'
+import { DEFAULT_S3_PUBLIC_BASE_URL } from './objectStorage'
 import type { SyncState } from './sync'
 import { databaseUrl, type PraetoriumDatabase, openDatabase } from '../db/connection'
 import { Repository } from '../db/repository'
@@ -58,7 +59,7 @@ const sync = {
   begin(directory: string, onReady: () => void) {
     if (this.running) return
     const authoritativeReady = Boolean(installedSnapshot(directory))
-    const baseUrl = process.env.CATALOGUE_SNAPSHOT_BASE_URL || DEFAULT_CATALOGUE_SNAPSHOT_BASE_URL
+    const baseUrl = process.env.S3_PUBLIC_BASE_URL || DEFAULT_S3_PUBLIC_BASE_URL
     this.running = true
     this.state = authoritativeReady ? { status: 'ready', detail: null } : { status: 'working', detail: 'fetching the community data' }
     void fetchCurrentSnapshot(directory, baseUrl, (message) => {

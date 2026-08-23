@@ -4,7 +4,7 @@
 
 Private deployments do not include managed support. Read this page and `docker-compose.yml` before you start.
 
-Praetorium runs as one container against a Postgres and a Valkey. The supplied `docker-compose.yml` starts all three. Copy `.env.example` to `.env`, set `POSTGRES_PASSWORD`, then start the Compose project.
+Praetorium runs as one container against a Postgres, a Valkey, and an S3-compatible store. The supplied `docker-compose.yml` starts all four, the last as a bundled MinIO. Copy `.env.example` to `.env`, set `POSTGRES_PASSWORD`, then start the Compose project.
 
 ```sh
 cp .env.example .env
@@ -16,6 +16,8 @@ docker compose up -d
 `DATABASE_URL` is required. Postgres holds accounts, lists, battles, and command logs. Back up this store.
 
 `VALKEY_URL` is optional. Valkey holds sessions, sign-in rate limits, and realtime fan-out. Leave it unset for one replica. Set it for multiple replicas.
+
+`S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY_ID` and `S3_SECRET_ACCESS_KEY` point the app at an S3-compatible store — Compose's bundled MinIO by default. A profile picture is uploaded there, keyed by its own hash, and only that short URL is written to the database; without this set, uploading one fails with a clear error instead of storing the picture somewhere it should not be. `S3_PUBLIC_BASE_URL` is where a browser reads those pictures (and, unset, the community catalogue) back from — Compose points it at MinIO's published port; production behind a proxy should point it at that store's public hostname instead.
 
 The `/data` volume no longer holds game data. What remains is:
 
@@ -37,7 +39,7 @@ just db-migrate
 
 ## Catalogue sync
 
-At startup and once an hour, the app reads `current.json` from Praetorium's shared public snapshot service, or from `CATALOGUE_SNAPSHOT_BASE_URL` when an operator configures a mirror. It downloads an archive only when that immutable snapshot ID differs from its local cache, verifies the archive, manifest, and every file, then swaps the complete directory into place atomically. Battles remain available while an initial snapshot downloads.
+At startup and once an hour, the app reads `current.json` from Praetorium's shared public snapshot service, or from `S3_PUBLIC_BASE_URL` when an operator configures a mirror. It downloads an archive only when that immutable snapshot ID differs from its local cache, verifies the archive, manifest, and every file, then swaps the complete directory into place atomically. Battles remain available while an initial snapshot downloads.
 
 Running instances never contact upstream data providers. A separate hourly publisher resolves their latest revisions, validates a complete candidate, uploads its immutable archive, and replaces `current.json` only after a public read-back succeeds.
 
