@@ -12,22 +12,53 @@ import { authClient } from '../client/authClient'
 import { AccountSecurity } from '../client/components/AccountSecurity'
 import { PlayerAvatar } from '../client/components/PlayerAvatar'
 import { SignInRequired } from '../client/components/SignInRequired'
-import { battlesQuery, friendshipsQuery, meQuery, opponentsQuery } from '../client/queries'
+import { accountMethodsQuery, battlesQuery, friendshipsQuery, meQuery, opponentsQuery } from '../client/queries'
 import { errorMessage } from '../client/queryClient'
 import { prepareProfileImage } from '../client/profileImage'
 
+const accountLinkErrorMessage = (error?: string) => {
+  if (!error) return undefined
+  if (error === 'INVALID_TOKEN' || error === 'TOKEN_EXPIRED') return 'This email verification link is invalid or has expired.'
+  if (error === "email_doesn't_match") return 'This provider uses a different email address. Use matching email addresses before linking.'
+  if (error === 'account_already_linked_to_different_user') return 'This provider is already linked to another Praetorium account.'
+  return 'Could not link this sign-in method. Try again.'
+}
+
 export const Route = createFileRoute('/profile')({
+  validateSearch: (search: Record<string, unknown>) => {
+    const result: { error?: string; verified?: boolean } = {}
+    if (typeof search.error === 'string' && search.error) result.error = search.error
+    if (search.verified === true || search.verified === 'true') result.verified = true
+    return result
+  },
   loader: ({ context }) => context.queryClient.ensureQueryData(meQuery()),
   component: Profile,
 })
 
 function Profile() {
   const { data: me } = useQuery(meQuery())
+  const { data: methods } = useQuery({ ...accountMethodsQuery(), enabled: Boolean(me) })
+  const { error, verified } = Route.useSearch()
+  const callbackError = accountLinkErrorMessage(error)
+  if (!me && callbackError) {
+    return <SignInRequired title="Could not complete account verification" explanation={`${callbackError} Sign in to try again.`} />
+  }
+  if (!me && verified) {
+    return <SignInRequired title="Check your email verification" explanation="Sign in to confirm your email status." />
+  }
   if (!me) return <SignInRequired title="Your profile" explanation="Sign in to edit your profile." />
-  return <ProfileForm me={me} />
+  return <ProfileForm me={me} callbackError={callbackError} verified={verified && methods?.emailVerified} />
 }
 
-function ProfileForm({ me }: { me: NonNullable<Awaited<ReturnType<NonNullable<ReturnType<typeof meQuery>['queryFn']>>>> }) {
+function ProfileForm({
+  me,
+  callbackError,
+  verified,
+}: {
+  me: NonNullable<Awaited<ReturnType<NonNullable<ReturnType<typeof meQuery>['queryFn']>>>>
+  callbackError?: string
+  verified?: boolean
+}) {
   const [name, setName] = useState(me.name)
   const [image, setImage] = useState(me.image)
   const [imageError, setImageError] = useState<string | null>(null)
@@ -89,6 +120,17 @@ function ProfileForm({ me }: { me: NonNullable<Awaited<ReturnType<NonNullable<Re
           </div>
         </div>
       </section>
+
+      {callbackError ? (
+        <p role="alert" className="mx-auto mt-4 max-w-5xl border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+          {callbackError}
+        </p>
+      ) : null}
+      {verified && !callbackError ? (
+        <output className="mx-auto mt-4 block max-w-5xl border border-achieved/40 bg-achieved/10 p-3 text-sm text-achieved">
+          Email address verified.
+        </output>
+      ) : null}
 
       <form
         className="mx-auto mt-4 grid max-w-5xl gap-8 border-y border-edge bg-panel p-5 sm:border md:grid-cols-2 md:p-7"

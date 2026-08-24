@@ -30,11 +30,16 @@ export const adminUsers = createServerFn({ method: 'GET' })
 
 export const accountMethods = createServerFn({ method: 'GET' }).handler(() =>
   rpc(async () => {
-    await requireUser()
-    const linked = await app().auth.api.listUserAccounts({ headers: getRequestHeaders() })
+    const current = await requireUser()
+    const [linked, authoritative] = await Promise.all([
+      app().auth.api.listUserAccounts({ headers: getRequestHeaders() }),
+      app().service.userById(current.id),
+    ])
     return {
       linked: linked.map((entry) => entry.providerId),
       availableProviders: configuredProviders(SOCIAL_PROVIDERS),
+      emailDelivery: Boolean(app().email),
+      emailVerified: Boolean(authoritative?.emailVerified),
     }
   }),
 )
@@ -193,5 +198,5 @@ export const setFavouriteDetachment = createServerFn({ method: 'POST' })
   )
 
 export const signInOptions = createServerFn({ method: 'GET' }).handler(() =>
-  rpc(() => ({ providers: configuredProviders(SOCIAL_PROVIDERS) })),
+  rpc(() => ({ providers: configuredProviders(SOCIAL_PROVIDERS), passwordReset: Boolean(app().email) })),
 )

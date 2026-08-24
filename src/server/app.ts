@@ -15,6 +15,7 @@ import { createAuth } from './auth'
 import { realtimeConfig } from '../adapters/realtime'
 import { openValkey, type ValkeyClient, valkeySecondaryStorage, valkeyUrl } from '../adapters/valkey'
 import { PraetoriumService } from './service'
+import { emailDelivery } from '../adapters/email'
 
 type App = {
   database: PraetoriumDatabase
@@ -29,6 +30,7 @@ type App = {
   /** How the community data is doing, so the interface can say rather than guess. */
   sync: () => SyncState
   auth: ReturnType<typeof createAuth>
+  email: ReturnType<typeof emailDelivery>
   telemetry: ReturnType<typeof serverTelemetry>
   /** Resolves after installed catalogue data has paid its one-time parse cost. */
   ready: () => Promise<void>
@@ -105,13 +107,15 @@ export function app(): App {
     const cache = valkey ? openValkey(valkey) : null
     const realtime = realtimeConfig()
     const events = new RealtimePublisher(realtime.apiUrl, realtime.apiKey)
+    const email = emailDelivery()
     let ready = Promise.resolve()
     const instance: App = {
       database,
       valkey: cache,
       service: new PraetoriumService(new Repository(database), Date.now, events, randomInt),
       events,
-      auth: createAuth(database, persistedSecret({ directory: dataDirectory }), cache ? valkeySecondaryStorage(cache) : undefined),
+      auth: createAuth(database, persistedSecret({ directory: dataDirectory }), cache ? valkeySecondaryStorage(cache) : undefined, email),
+      email,
       catalogue: memoize(loadCatalogue),
       rules: memoize(loadRules),
       sync: () => sync.state,

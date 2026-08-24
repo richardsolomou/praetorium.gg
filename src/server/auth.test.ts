@@ -1,11 +1,27 @@
 import { eq } from 'drizzle-orm'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import type { EmailDelivery, EmailMessage } from 'ras-stack/email'
 import type { PraetoriumConnection } from '../db/connection'
-import { account } from '../db/schema'
+import { account, user } from '../db/schema'
 import { openTestDatabase } from '../db/testDatabase'
 import { createAuth } from './auth'
 
 const SECRET = 'test-secret-0123456789abcdef0123456789abcdef'
+
+function recordingEmail(messages: EmailMessage[]): EmailDelivery {
+  return {
+    send: async (message) => {
+      messages.push(message)
+    },
+    verify: async () => undefined,
+  }
+}
+
+function emailLink(message: EmailMessage) {
+  const match = message.text.match(/(?:https?:\/\/|\/)\S+/)
+  if (!match) throw new Error('email did not contain a link')
+  return new URL(match[0], 'http://localhost')
+}
 
 function memoryStorage(): NonNullable<Parameters<typeof createAuth>[2]> {
   const values = new Map<string, string>()
@@ -91,6 +107,76 @@ describe('account administration', () => {
     vi.stubEnv('GOOGLE_CLIENT_SECRET', missing === 'GOOGLE_CLIENT_SECRET' ? '' : 'client-secret')
 
     expect(() => createAuth(connection!.database, SECRET)).toThrow('GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must be configured together')
+  })
+
+  it('verifies a password account through the emailed link', async () => {
+    connection = await openTestDatabase()
+    vi.stubEnv('APP_URL', 'http://localhost')
+    const messages: EmailMessage[] = []
+    const auth = createAuth(connection.database, SECRET, undefined, recordingEmail(messages))
+
+    const signedUp = await auth.api.signUpEmail({
+      body: { email: 'player@example.com', password: 'password1234', name: 'Player', callbackURL: '/profile' },
+    })
+
+    expect(messages).toEqual([
+      expect.objectContaining({
+        to: 'player@example.com',
+        subject: 'Verify your Praetorium email address',
+        text: expect.stringContaining('/verify-email?token='),
+      }),
+    ])
+    const link = emailLink(messages[0]!)
+    const invalidLink = new URL(link)
+    invalidLink.searchParams.set('token', 'invalid')
+    const invalid = await auth.handler(new Request(invalidLink))
+    expect(new URL(invalid.headers.get('location')!, link).searchParams.get('error')).toBe('INVALID_TOKEN')
+
+    const verified = await auth.handler(new Request(link))
+    expect(new URL(verified.headers.get('location')!, link).pathname).toBe('/profile')
+
+    const [stored] = await connection.database.select({ emailVerified: user.emailVerified }).from(user).where(eq(user.id, signedUp.user.id))
+    expect(stored?.emailVerified).toBe(true)
+  })
+
+  it('resets the password once and revokes secondary-storage sessions', async () => {
+    connection = await openTestDatabase()
+    vi.stubEnv('APP_URL', 'http://localhost')
+    const messages: EmailMessage[] = []
+    const auth = createAuth(connection.database, SECRET, memoryStorage(), recordingEmail(messages))
+    const signedUp = await auth.api.signUpEmail({
+      body: { email: 'player@example.com', password: 'password1234', name: 'Player' },
+      returnHeaders: true,
+    })
+    messages.length = 0
+
+    await auth.api.requestPasswordReset({
+      body: { email: 'player@example.com', redirectTo: '/reset-password?next=%2Fbattles%2F123%3Fseat%3D456' },
+    })
+
+    expect(messages).toEqual([
+      expect.objectContaining({
+        to: 'player@example.com',
+        subject: 'Reset your Praetorium password',
+        text: expect.stringContaining('/reset-password/'),
+      }),
+    ])
+    const link = emailLink(messages[0]!)
+    const callback = await auth.handler(new Request(link))
+    const callbackTarget = new URL(callback.headers.get('location')!, link)
+    expect(callbackTarget.pathname).toBe('/reset-password')
+    expect(callbackTarget.searchParams.get('next')).toBe('/battles/123?seat=456')
+    const token = callbackTarget.searchParams.get('token')!
+    await expect(auth.api.resetPassword({ body: { newPassword: 'replacement1234', token } })).resolves.toEqual({ status: true })
+    expect(await auth.api.getSession({ headers: cookieHeaders(signedUp.headers) })).toBeNull()
+    await expect(auth.api.resetPassword({ body: { newPassword: 'another-password', token } })).rejects.toMatchObject({
+      status: 'BAD_REQUEST',
+    })
+    const expired = await auth.handler(new Request(link))
+    expect(new URL(expired.headers.get('location')!, link).searchParams.get('error')).toBe('INVALID_TOKEN')
+    await expect(auth.api.signInEmail({ body: { email: 'player@example.com', password: 'replacement1234' } })).resolves.toMatchObject({
+      user: { email: 'player@example.com' },
+    })
   })
 
   it('returns the initial administrator role from secondary session storage immediately', async () => {

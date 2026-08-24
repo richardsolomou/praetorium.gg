@@ -162,7 +162,7 @@ function FactionShelf({
                 </Toggle>
               ) : (
                 <Link
-                  to="/signin"
+                  to="/sign-in"
                   search={{ next: '/factions' }}
                   className="m-1 grid size-7 place-items-center"
                   aria-label={`Sign in to add ${entry.displayName} to favourites`}

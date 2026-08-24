@@ -9,6 +9,7 @@ import { postHogBrowserOptions } from 'ras-stack/posthog/client'
 import { tanStackHealthHandler } from 'ras-stack/tanstack/server'
 import { describe, expect, it } from 'vitest'
 import { databaseUrl } from '../db/connection'
+import { POSTHOG_BROWSER_OPTIONS } from '../posthog'
 import { mutationRpc } from './rpc'
 
 describe('shared infrastructure conformance', () => {
@@ -33,8 +34,17 @@ describe('shared infrastructure conformance', () => {
 
   it('keeps PostHog browser and request defaults safe', () => {
     expect(() =>
-      assertPostHogBrowserConformance(postHogBrowserOptions({ apiHost: '/ingest', uiHost: 'https://us.posthog.com' })),
+      assertPostHogBrowserConformance(
+        postHogBrowserOptions({ apiHost: '/ingest', uiHost: 'https://us.posthog.com', options: POSTHOG_BROWSER_OPTIONS }),
+      ),
     ).not.toThrow()
     expect(() => assertPostHogRequestConformance(postHogRequestContext)).not.toThrow()
+  })
+
+  it('masks authentication tokens in browser telemetry URLs', () => {
+    expect(POSTHOG_BROWSER_OPTIONS).toMatchObject({
+      mask_personal_data_properties: true,
+      custom_personal_data_properties: expect.arrayContaining(['token']),
+    })
   })
 })

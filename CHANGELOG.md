@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.26.0
+
+### Minor Changes
+
+- 84c9de5: Add SMTP-backed email verification and password recovery, use a clearer sign-in URL, and explain social authentication failures.
+
 ## 0.25.1
 
 ### Patch Changes

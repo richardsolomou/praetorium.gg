@@ -11,7 +11,7 @@ export const desktopContext = { viewport: { width: 1440, height: 900 } } satisfi
  * per call because the suite shares one database across specs.
  */
 export async function signUp(page: Page, name: string) {
-  await page.goto('/signin')
+  await page.goto('/sign-in')
   await page.getByRole('button', { name: 'I need an account' }).click()
   await page.getByLabel('Your name').fill(name)
   await page.getByLabel('Email').fill(`${name.toLowerCase()}-${crypto.randomUUID()}@example.test`)

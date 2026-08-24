@@ -19,7 +19,7 @@ export function SignInRequired({ title, explanation, next }: { title: string; ex
         explanation={explanation}
         icon={LogIn}
         action={
-          <Link to="/signin" search={{ next }} className={buttonVariants({ className: 'h-11 w-full text-base' })}>
+          <Link to="/sign-in" search={{ next }} className={buttonVariants({ className: 'h-11 w-full text-base' })}>
             Sign in
           </Link>
         }
