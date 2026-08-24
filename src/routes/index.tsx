@@ -59,7 +59,7 @@ function Home() {
                 </>
               ) : (
                 <>
-                  <Link to="/signin" search={{ next: undefined }} className={buttonVariants({ size: 'lg' })}>
+                  <Link to="/sign-in" search={{ next: undefined }} className={buttonVariants({ size: 'lg' })}>
                     Sign in
                   </Link>
                   <Button render={<Link to="/mission-packs" />} variant="outline" size="lg">

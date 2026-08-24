@@ -24,7 +24,7 @@ export function CollectionToggle({ entryId, name, className = 'size-7' }: Props)
   if (!me) {
     return (
       <Link
-        to="/signin"
+        to="/sign-in"
         search={{ next: path }}
         className={`grid shrink-0 place-items-center ${className}`}
         aria-label={`Sign in to add ${name} to your collection`}

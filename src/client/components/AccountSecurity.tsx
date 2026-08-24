@@ -1,8 +1,9 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Check, ShieldCheck } from 'lucide-react'
+import { Check, MailCheck, ShieldCheck } from 'lucide-react'
 import posthog from 'posthog-js'
 import QRCode from 'qrcode'
+import { useAuthAction } from 'ras-stack/auth/react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
@@ -14,6 +15,7 @@ import { accountMethodsQuery, meQuery } from '../queries'
 import { AuthMethodIcon, SOCIAL_AUTH_PROVIDER_NAMES, type SocialAuthProvider } from './AuthMethodIcon'
 
 type AccountIdentity = {
+  email: string
   twoFactorEnabled: boolean
 }
 
@@ -24,6 +26,8 @@ export function AccountSecurity({ me }: { me: AccountIdentity }) {
   const queryClient = useQueryClient()
   const [dialog, setDialog] = useState<DialogKind>()
   const [removing, setRemoving] = useState<'credential' | SocialAuthProvider>()
+  const [verificationSent, setVerificationSent] = useState(false)
+  const verifyEmail = useAuthAction()
   const linked = new Set(methods?.linked ?? [])
   const hasPassword = linked.has('credential')
   const available = new Set<string>(methods?.availableProviders ?? [])
@@ -76,6 +80,42 @@ export function AccountSecurity({ me }: { me: AccountIdentity }) {
         {!methods ? <p className="mt-4 text-sm text-dim">Loading sign-in methods…</p> : null}
         {methods ? (
           <div className="mt-4 space-y-3">
+            {methods.emailDelivery && !methods.emailVerified ? (
+              <div className="border border-edge bg-sunken p-3">
+                <div className="flex items-start gap-3">
+                  <span className="grid size-8 shrink-0 place-items-center bg-raised text-parchment">
+                    <MailCheck className="size-4" aria-hidden />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold text-bone">Verify your email</p>
+                    <p className="mt-1 text-xs text-dim">
+                      Verify {me.email} so a matching Google or Discord account can sign you in safely.
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="mt-3"
+                  disabled={verifyEmail.busy || verificationSent}
+                  onClick={async () => {
+                    verifyEmail.clearError()
+                    const result = await verifyEmail.run(() =>
+                      authClient.sendVerificationEmail({ email: me.email, callbackURL: '/profile?verified=true' }),
+                    )
+                    if (!result.error) setVerificationSent(true)
+                  }}
+                >
+                  {verificationSent ? 'Verification email sent' : 'Send verification email'}
+                </Button>
+                {verifyEmail.error ? (
+                  <p role="alert" className="mt-2 text-sm text-destructive">
+                    {verifyEmail.error}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
             <MethodRow
               method="password"
               name="Password"

@@ -28,7 +28,7 @@ import { ImpersonationBanner } from '../client/components/ImpersonationBanner'
 import { PlayerAvatar } from '../client/components/PlayerAvatar'
 import { PageState } from '../client/components/PageState'
 import { favouriteDetachmentsQuery, favouriteFactionsQuery, meQuery } from '../client/queries'
-import { POSTHOG_INGEST_PATH } from '../posthog'
+import { POSTHOG_BROWSER_OPTIONS, POSTHOG_INGEST_PATH } from '../posthog'
 import appCss from '../styles.css?url'
 
 const TITLE = 'Praetorium'
@@ -145,7 +145,7 @@ function Account() {
             </DropdownMenuItem>
           </>
         ) : (
-          <DropdownMenuItem render={<Link to="/signin" search={{ next: undefined }} />}>
+          <DropdownMenuItem render={<Link to="/sign-in" search={{ next: undefined }} />}>
             <LogIn /> Sign in
           </DropdownMenuItem>
         )}
@@ -243,11 +243,7 @@ function RootComponent() {
         <HeadContent />
       </head>
       <body className={immersive ? 'h-dvh overflow-hidden' : 'min-h-dvh'}>
-        <PostHogIntegration
-          environment={posthog}
-          ingestPath={POSTHOG_INGEST_PATH}
-          options={{ capture_exceptions: true, capture_performance: true }}
-        >
+        <PostHogIntegration environment={posthog} ingestPath={POSTHOG_INGEST_PATH} options={POSTHOG_BROWSER_OPTIONS}>
           <TooltipProvider delay={250} closeDelay={100}>
             {posthog && <PostHogBetterAuthIdentity authClient={authClient} />}
             {/*
