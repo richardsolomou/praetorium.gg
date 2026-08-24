@@ -6,11 +6,12 @@ import { and, count, eq, notExists, sql } from 'drizzle-orm'
 import {
   configuredProviderOptions,
   standardAccountOptions,
+  standardEmailAndPasswordOptions,
   standardRateLimitOptions,
   standardSessionOptions,
   trustedOrigins,
 } from 'ras-stack/auth'
-import type { EmailDelivery } from 'ras-stack/email'
+import { createAuthEmailHandler, type EmailDelivery } from 'ras-stack/email'
 import type { valkeySecondaryStorage } from '../adapters/valkey'
 import { PASSWORD_MIN_LENGTH, SOCIAL_PROVIDERS } from '../authConfig'
 import type { PraetoriumDatabase } from '../db/connection'
@@ -20,6 +21,22 @@ import { profileUpdate } from './profile'
 type AuthStorage = ReturnType<typeof valkeySecondaryStorage>
 
 export function createAuth(database: PraetoriumDatabase, secret: string, storage?: AuthStorage, email?: EmailDelivery) {
+  const sendResetPassword = email
+    ? createAuthEmailHandler(email, ({ user: resetting, url }) => ({
+        to: resetting.email,
+        subject: 'Reset your Praetorium password',
+        text: `Reset your Praetorium password using this link: ${url}\n\nThis link expires in one hour.`,
+        html: `<p>Reset your Praetorium password using the link below.</p><p><a href="${url}">Reset password</a></p><p>This link expires in one hour.</p>`,
+      }))
+    : undefined
+  const sendVerificationEmail = email
+    ? createAuthEmailHandler(email, ({ user: verifying, url }) => ({
+        to: verifying.email,
+        subject: 'Verify your Praetorium email address',
+        text: `Verify your Praetorium email address using this link: ${url}\n\nThis link expires in one hour.`,
+        html: `<p>Verify your Praetorium email address using the link below.</p><p><a href="${url}">Verify email address</a></p><p>This link expires in one hour.</p>`,
+      }))
+    : undefined
   const claimInitialAdmin = async (userId: string) => {
     const promoted = await database.transaction(async (tx) => {
       await tx.execute(sql`select pg_advisory_xact_lock(4021970612)`)
@@ -41,36 +58,16 @@ export function createAuth(database: PraetoriumDatabase, secret: string, storage
     ...(storage ? { secondaryStorage: storage } : {}),
     secret,
     baseURL: process.env.APP_URL?.trim() || undefined,
-    emailAndPassword: {
-      enabled: true,
+    emailAndPassword: standardEmailAndPasswordOptions({
       minPasswordLength: PASSWORD_MIN_LENGTH,
       autoSignIn: true,
       requireEmailVerification: false,
-      revokeSessionsOnPasswordReset: true,
-      ...(email
-        ? {
-            sendResetPassword: async ({ user: resetting, url }: { user: { email: string }; url: string }) => {
-              await email.send({
-                to: resetting.email,
-                subject: 'Reset your Praetorium password',
-                text: `Reset your Praetorium password using this link: ${url}\n\nThis link expires in one hour.`,
-                html: `<p>Reset your Praetorium password using the link below.</p><p><a href="${url}">Reset password</a></p><p>This link expires in one hour.</p>`,
-              })
-            },
-          }
-        : {}),
-    },
-    emailVerification: email
+      ...(sendResetPassword ? { sendResetPassword } : {}),
+    }),
+    emailVerification: sendVerificationEmail
       ? {
           sendOnSignUp: true,
-          sendVerificationEmail: async ({ user: verifying, url }: { user: { email: string }; url: string }) => {
-            await email.send({
-              to: verifying.email,
-              subject: 'Verify your Praetorium email address',
-              text: `Verify your Praetorium email address using this link: ${url}\n\nThis link expires in one hour.`,
-              html: `<p>Verify your Praetorium email address using the link below.</p><p><a href="${url}">Verify email address</a></p><p>This link expires in one hour.</p>`,
-            })
-          },
+          sendVerificationEmail,
         }
       : undefined,
     socialProviders: configuredProviderOptions(SOCIAL_PROVIDERS, process.env, { rejectPartial: true }),
@@ -108,7 +105,7 @@ export function createAuth(database: PraetoriumDatabase, secret: string, storage
      * failing — slowly, and somewhere other than the request that was refused.
      */
     rateLimit: {
-      ...standardRateLimitOptions({ '/send-verification-email': { window: 60, max: 5 } }),
+      ...standardRateLimitOptions(),
       enabled: process.env.AUTH_RATE_LIMIT !== 'off',
       // Counting in Valkey is one atomic increment; counting in the database is a
       // row read and a row write on every request that passes through here.

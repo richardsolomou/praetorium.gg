@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { classifyAuthCallbackFailure, localRedirectPath } from 'ras-stack/auth/client'
 import { useAuthAction } from 'ras-stack/auth/react'
 import posthog from 'posthog-js'
 import { useState } from 'react'
@@ -10,14 +11,16 @@ import { authClient } from '../client/authClient'
 import { AuthMethodIcon, SOCIAL_AUTH_PROVIDER_NAMES } from '../client/components/AuthMethodIcon'
 import { TwoFactorSignIn } from '../client/components/TwoFactorSignIn'
 import { signInOptionsQuery } from '../client/queries'
-import { localRedirectPath, PASSWORD_MIN_LENGTH } from '../authConfig'
+import { PASSWORD_MIN_LENGTH } from '../authConfig'
 
 const socialAuthErrorMessage = (error?: string) => {
   if (!error) return undefined
-  if (error === 'account_not_linked') {
-    return 'An account already uses this email. Sign in with its existing method, then link this provider from your profile.'
+  switch (classifyAuthCallbackFailure(error)) {
+    case 'account_not_linked':
+      return 'An account already uses this email. Sign in with its existing method, then link this provider from your profile.'
+    default:
+      return 'Could not sign in with this provider. Try again.'
   }
-  return 'Could not sign in with this provider. Try again.'
 }
 
 export const Route = createFileRoute('/sign-in')({
