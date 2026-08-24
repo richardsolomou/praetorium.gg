@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.27.1
+
+### Patch Changes
+
+- 50c2d2a: Fix missing and duplicated roster weapons, nested loadout choices, and detachment unit upgrades.
+
 ## 0.27.0
 
 ### Minor Changes
