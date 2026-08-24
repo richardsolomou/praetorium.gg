@@ -55,6 +55,29 @@ test('social account linking errors explain how to recover', async ({ page }) =>
   await page.screenshot({ path: 'test-results/profile-link-error-phone.png', fullPage: true })
 })
 
+test('an unverified account cannot forge a verification success message', async ({ page }) => {
+  await page.request.post('/api/auth/sign-up/email', {
+    data: {
+      email: `verification-state-${crypto.randomUUID()}@example.test`,
+      password: 'a-long-enough-password',
+      name: uniqueName('Verification State'),
+    },
+  })
+
+  await page.goto('/profile?verified=true')
+
+  await expect(page.getByText('Email address verified.', { exact: true })).toBeHidden()
+})
+
+test('email verification callbacks explain their result without an active session', async ({ page }) => {
+  await page.goto('/profile?verified=true')
+  await expect(page.getByRole('heading', { name: 'Email address verified' })).toBeVisible()
+
+  await page.goto('/profile?verified=true&error=INVALID_TOKEN')
+  await expect(page.getByRole('heading', { name: 'Could not complete account verification' })).toBeVisible()
+  await expect(page.getByText('This email verification link is invalid or has expired. Sign in to try again.')).toBeVisible()
+})
+
 test('a player can edit their display name and profile picture', async ({ page }) => {
   await signUp(page, uniqueName('Alice'))
   await page.getByRole('button', { name: /Account menu for/ }).click()

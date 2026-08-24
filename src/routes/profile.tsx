@@ -12,7 +12,7 @@ import { authClient } from '../client/authClient'
 import { AccountSecurity } from '../client/components/AccountSecurity'
 import { PlayerAvatar } from '../client/components/PlayerAvatar'
 import { SignInRequired } from '../client/components/SignInRequired'
-import { battlesQuery, friendshipsQuery, meQuery, opponentsQuery } from '../client/queries'
+import { accountMethodsQuery, battlesQuery, friendshipsQuery, meQuery, opponentsQuery } from '../client/queries'
 import { errorMessage } from '../client/queryClient'
 import { prepareProfileImage } from '../client/profileImage'
 
@@ -37,9 +37,17 @@ export const Route = createFileRoute('/profile')({
 
 function Profile() {
   const { data: me } = useQuery(meQuery())
+  const { data: methods } = useQuery({ ...accountMethodsQuery(), enabled: Boolean(me) })
   const { error, verified } = Route.useSearch()
+  const callbackError = accountLinkErrorMessage(error)
+  if (!me && callbackError) {
+    return <SignInRequired title="Could not complete account verification" explanation={`${callbackError} Sign in to try again.`} />
+  }
+  if (!me && verified) {
+    return <SignInRequired title="Email address verified" explanation="Sign in to continue to your profile." />
+  }
   if (!me) return <SignInRequired title="Your profile" explanation="Sign in to edit your profile." />
-  return <ProfileForm me={me} callbackError={accountLinkErrorMessage(error)} verified={verified} />
+  return <ProfileForm me={me} callbackError={callbackError} verified={verified && methods?.emailVerified} />
 }
 
 function ProfileForm({

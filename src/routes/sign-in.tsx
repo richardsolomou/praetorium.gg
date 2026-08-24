@@ -10,7 +10,7 @@ import { authClient } from '../client/authClient'
 import { AuthMethodIcon, SOCIAL_AUTH_PROVIDER_NAMES } from '../client/components/AuthMethodIcon'
 import { TwoFactorSignIn } from '../client/components/TwoFactorSignIn'
 import { signInOptionsQuery } from '../client/queries'
-import { PASSWORD_MIN_LENGTH } from '../authConfig'
+import { localRedirectPath, PASSWORD_MIN_LENGTH } from '../authConfig'
 
 const socialAuthErrorMessage = (error?: string) => {
   if (!error) return undefined
@@ -21,13 +21,9 @@ const socialAuthErrorMessage = (error?: string) => {
 }
 
 export const Route = createFileRoute('/sign-in')({
-  // Where the visitor was going before they were asked to sign in. An invite link
-  // puts the battle here, so signing in lands in the battle rather than at home.
-  // Only ever a path on this instance: an absolute or protocol-relative URL here
-  // would turn the sign-in page into an open redirect.
   validateSearch: (search: Record<string, unknown>) => {
     const result: { next?: string; error?: string; reset?: boolean } = {}
-    if (typeof search.next === 'string' && /^\/(?!\/)/.test(search.next)) result.next = search.next
+    result.next = localRedirectPath(search.next)
     if (typeof search.error === 'string' && search.error) result.error = search.error
     if (search.reset === true || search.reset === 'true') result.reset = true
     return result

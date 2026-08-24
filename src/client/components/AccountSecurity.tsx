@@ -16,7 +16,6 @@ import { AuthMethodIcon, SOCIAL_AUTH_PROVIDER_NAMES, type SocialAuthProvider } f
 
 type AccountIdentity = {
   email: string
-  emailVerified: boolean
   twoFactorEnabled: boolean
 }
 
@@ -81,7 +80,7 @@ export function AccountSecurity({ me }: { me: AccountIdentity }) {
         {!methods ? <p className="mt-4 text-sm text-dim">Loading sign-in methods…</p> : null}
         {methods ? (
           <div className="mt-4 space-y-3">
-            {methods.emailDelivery && !me.emailVerified ? (
+            {methods.emailDelivery && !methods.emailVerified ? (
               <div className="border border-edge bg-sunken p-3">
                 <div className="flex items-start gap-3">
                   <span className="grid size-8 shrink-0 place-items-center bg-raised text-parchment">

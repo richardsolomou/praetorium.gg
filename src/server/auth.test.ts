@@ -2,7 +2,7 @@ import { eq } from 'drizzle-orm'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { EmailDelivery, EmailMessage } from 'ras-stack/email'
 import type { PraetoriumConnection } from '../db/connection'
-import { account } from '../db/schema'
+import { account, user } from '../db/schema'
 import { openTestDatabase } from '../db/testDatabase'
 import { createAuth } from './auth'
 
@@ -15,6 +15,12 @@ function recordingEmail(messages: EmailMessage[]): EmailDelivery {
     },
     verify: async () => undefined,
   }
+}
+
+function emailLink(message: EmailMessage) {
+  const match = message.text.match(/(?:https?:\/\/|\/)\S+/)
+  if (!match) throw new Error('email did not contain a link')
+  return new URL(match[0], 'http://localhost')
 }
 
 function memoryStorage(): NonNullable<Parameters<typeof createAuth>[2]> {
@@ -103,12 +109,12 @@ describe('account administration', () => {
     expect(() => createAuth(connection!.database, SECRET)).toThrow('GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must be configured together')
   })
 
-  it('sends email verification when a password account is created', async () => {
+  it('verifies a password account through the emailed link', async () => {
     connection = await openTestDatabase()
     const messages: EmailMessage[] = []
     const auth = createAuth(connection.database, SECRET, undefined, recordingEmail(messages))
 
-    await auth.api.signUpEmail({
+    const signedUp = await auth.api.signUpEmail({
       body: { email: 'player@example.com', password: 'password1234', name: 'Player', callbackURL: '/profile' },
     })
 
@@ -119,13 +125,21 @@ describe('account administration', () => {
         text: expect.stringContaining('/verify-email?token='),
       }),
     ])
+    const link = emailLink(messages[0]!)
+    await auth.api.verifyEmail({ query: { token: link.searchParams.get('token')! } })
+
+    const [stored] = await connection.database.select({ emailVerified: user.emailVerified }).from(user).where(eq(user.id, signedUp.user.id))
+    expect(stored?.emailVerified).toBe(true)
   })
 
-  it('sends password reset email when email delivery is configured', async () => {
+  it('resets the password once and revokes secondary-storage sessions', async () => {
     connection = await openTestDatabase()
     const messages: EmailMessage[] = []
-    const auth = createAuth(connection.database, SECRET, undefined, recordingEmail(messages))
-    await auth.api.signUpEmail({ body: { email: 'player@example.com', password: 'password1234', name: 'Player' } })
+    const auth = createAuth(connection.database, SECRET, memoryStorage(), recordingEmail(messages))
+    const signedUp = await auth.api.signUpEmail({
+      body: { email: 'player@example.com', password: 'password1234', name: 'Player' },
+      returnHeaders: true,
+    })
     messages.length = 0
 
     await auth.api.requestPasswordReset({ body: { email: 'player@example.com', redirectTo: '/reset-password' } })
@@ -137,6 +151,15 @@ describe('account administration', () => {
         text: expect.stringContaining('/reset-password/'),
       }),
     ])
+    const token = emailLink(messages[0]!).pathname.split('/').at(-1)!
+    await expect(auth.api.resetPassword({ body: { newPassword: 'replacement1234', token } })).resolves.toEqual({ status: true })
+    expect(await auth.api.getSession({ headers: cookieHeaders(signedUp.headers) })).toBeNull()
+    await expect(auth.api.resetPassword({ body: { newPassword: 'another-password', token } })).rejects.toMatchObject({
+      status: 'BAD_REQUEST',
+    })
+    await expect(auth.api.signInEmail({ body: { email: 'player@example.com', password: 'replacement1234' } })).resolves.toMatchObject({
+      user: { email: 'player@example.com' },
+    })
   })
 
   it('returns the initial administrator role from secondary session storage immediately', async () => {
