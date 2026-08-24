@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
+import posthog from 'posthog-js'
 import { useState } from 'react'
 import { useAuthAction } from 'ras-stack/auth/react'
 import { Button, buttonVariants } from '@/components/ui/button'
@@ -57,7 +58,8 @@ function ResetPassword() {
                 if (!result.error) {
                   const search = new URLSearchParams({ reset: 'true' })
                   if (next) search.set('next', next)
-                  window.location.assign(`/sign-in?${search}`)
+                  posthog.reset()
+                  window.location.replace(`/sign-in?${search}`)
                 }
               }}
             >
@@ -77,7 +79,11 @@ function ResetPassword() {
               <Button type="submit" className="h-11 w-full text-base" disabled={submit.busy}>
                 {submit.busy ? 'Resetting…' : 'Reset password'}
               </Button>
-              {submit.error ? <p className="text-sm text-destructive">{submit.error}</p> : null}
+              {submit.error ? (
+                <p role="alert" className="text-sm text-destructive">
+                  {submit.error}
+                </p>
+              ) : null}
             </form>
           )}
         </div>

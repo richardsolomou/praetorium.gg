@@ -92,8 +92,20 @@ test('password reset refreshes revoked auth state and preserves the destination'
   await page.waitForURL(
     (url) => url.pathname === '/sign-in' && url.searchParams.get('reset') === 'true' && url.searchParams.get('next') === '/battles/123',
   )
-  await expect(page.getByText('Your password was reset. Sign in with the new password.')).toBeVisible()
+  await expect(page.getByText('Sign in with your new password.')).toBeVisible()
   await expect(page.getByRole('button', { name: 'Account menu', exact: true })).toBeVisible()
+  await page.goBack()
+  await expect(page).toHaveURL('/rosters')
+})
+
+test('password reset failures are announced', async ({ page }) => {
+  await page.route('**/api/auth/reset-password', (route) => route.fulfill({ status: 400, json: { message: 'Invalid token' } }))
+  await page.goto('/reset-password?token=test-token')
+
+  await page.getByLabel('New password').fill('replacement-password')
+  await page.getByRole('button', { name: 'Reset password' }).click()
+
+  await expect(page.getByRole('alert')).toHaveText('Could not reset the password. Request a new reset link and try again.')
 })
 
 test('a player can edit their display name and profile picture', async ({ page }) => {

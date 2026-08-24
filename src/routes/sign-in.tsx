@@ -112,7 +112,7 @@ function SignIn() {
           ) : null}
           {reset ? (
             <output className="mt-6 block border border-achieved/40 bg-achieved/10 p-3 text-sm text-achieved">
-              Your password was reset. Sign in with the new password.
+              Sign in with your new password.
             </output>
           ) : null}
           {twoFactorPending ? (
@@ -212,10 +212,11 @@ function SignIn() {
                       className="h-11 w-full text-base"
                       onClick={() => {
                         posthog.capture('account_authentication_started', { method: provider, redirected: Boolean(next) })
+                        const errorCallbackURL = next ? `/sign-in?${new URLSearchParams({ next })}` : '/sign-in'
                         void authClient.signIn.social({
                           provider,
                           callbackURL: next ?? '/rosters',
-                          errorCallbackURL: '/sign-in',
+                          errorCallbackURL,
                           requestSignUp: joining,
                         })
                       }}
