@@ -54,7 +54,7 @@ test('a player can edit their display name and profile picture', async ({ page }
   await page.setViewportSize({ width: 390, height: 844 })
   await page.screenshot({ path: 'test-results/profile-phone.png', fullPage: true })
 
-  await page.getByRole('button', { name: 'Remove' }).click()
+  await page.locator('form').getByRole('button', { name: 'Remove' }).click()
   await page.getByRole('button', { name: 'Save profile' }).click()
   // Wait for the save to be acknowledged, as the first one does. Reloading out of
   // an in-flight mutation cancels it, and the picture is still there afterwards.

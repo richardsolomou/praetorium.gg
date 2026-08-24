@@ -1,4 +1,5 @@
-import { type QueryClient, queryOptions, replaceEqualDeep } from '@tanstack/react-query'
+import { infiniteQueryOptions, type QueryClient, queryOptions, replaceEqualDeep } from '@tanstack/react-query'
+import type { AdminUsersCursor } from '../admin'
 import type { RosterPick } from '../core/roster'
 import {
   battleReport,
@@ -40,7 +41,14 @@ const SSR_STALE_TIME = 30_000
 
 export const meQuery = () => queryOptions({ queryKey: ['me'], queryFn: () => me(), staleTime: SSR_STALE_TIME })
 export const accountMethodsQuery = () => queryOptions({ queryKey: ['account-methods'], queryFn: () => accountMethods() })
-export const adminUsersQuery = () => queryOptions({ queryKey: ['admin-users'], queryFn: () => adminUsers() })
+export const ADMIN_USERS_QUERY_KEY = ['admin-users'] as const
+export const adminUsersQuery = (query: string) =>
+  infiniteQueryOptions({
+    queryKey: [...ADMIN_USERS_QUERY_KEY, query],
+    queryFn: ({ pageParam }) => adminUsers({ data: { query, cursor: pageParam } }),
+    initialPageParam: null as AdminUsersCursor | null,
+    getNextPageParam: (page) => page.nextCursor ?? undefined,
+  })
 
 export const userProfileQuery = (userId: string) =>
   queryOptions({ queryKey: ['user-profile', userId], queryFn: () => userProfile({ data: { userId } }), staleTime: SSR_STALE_TIME })

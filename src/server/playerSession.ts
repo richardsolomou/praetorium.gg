@@ -67,7 +67,17 @@ export async function requireUser(request = getRequest()) {
 }
 
 export async function requireAdmin(request = getRequest()) {
-  const current = await requireUser(request)
-  if (current.role !== 'admin' || current.impersonatedBy) throw new Response('admin access required', { status: 403 })
-  return current
+  const session = await app().auth.api.getSession({ headers: request.headers, query: { disableCookieCache: true } })
+  if (!session) throw new Response('sign in first', { status: 401 })
+  const authoritative = await app().service.userById(session.user.id)
+  if (authoritative?.role !== 'admin' || session.session.impersonatedBy) throw new Response('admin access required', { status: 403 })
+  return {
+    id: authoritative.id,
+    name: authoritative.name,
+    image: authoritative.image ?? null,
+    email: authoritative.email,
+    role: 'admin' as const,
+    twoFactorEnabled: authoritative.twoFactorEnabled,
+    impersonatedBy: null,
+  }
 }

@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { PASSWORD_MIN_LENGTH, SOCIAL_PROVIDERS } from '../../authConfig'
 import { setOwnPassword, unlinkOwnAccount } from '../../server/functions'
 import { authClient } from '../authClient'
 import { accountMethodsQuery, meQuery } from '../queries'
@@ -25,8 +26,9 @@ export function AccountSecurity({ me }: { me: AccountIdentity }) {
   const [removing, setRemoving] = useState<'credential' | SocialAuthProvider>()
   const linked = new Set(methods?.linked ?? [])
   const hasPassword = linked.has('credential')
-  const available = new Set(methods?.availableProviders ?? [])
-  const usableMethods = Number(hasPassword) + [...available].filter((provider) => linked.has(provider)).length
+  const available = new Set<string>(methods?.availableProviders ?? [])
+  const canRemove = (provider: 'credential' | SocialAuthProvider) =>
+    [...linked].some((candidate) => candidate !== provider && (candidate === 'credential' || available.has(candidate)))
   const refresh = async () => {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: accountMethodsQuery().queryKey }),
@@ -89,7 +91,7 @@ export function AccountSecurity({ me }: { me: AccountIdentity }) {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      disabled={usableMethods < 2 || me.twoFactorEnabled}
+                      disabled={!canRemove('credential') || me.twoFactorEnabled}
                       onClick={() => setRemoving('credential')}
                     >
                       Remove
@@ -102,36 +104,34 @@ export function AccountSecurity({ me }: { me: AccountIdentity }) {
                 )
               }
             />
-            {(['google', 'discord'] as const)
-              .filter((provider) => available.has(provider) || linked.has(provider))
-              .map((provider) => (
-                <MethodRow
-                  key={provider}
-                  method={provider}
-                  name={SOCIAL_AUTH_PROVIDER_NAMES[provider]}
-                  linked={linked.has(provider)}
-                  available={available.has(provider)}
-                  action={
-                    linked.has(provider) ? (
-                      <Button type="button" variant="ghost" size="sm" disabled={usableMethods < 2} onClick={() => setRemoving(provider)}>
-                        Unlink
-                      </Button>
-                    ) : (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          posthog.capture('sign_in_method_linking_started', { provider })
-                          void authClient.linkSocial({ provider, callbackURL: '/profile', errorCallbackURL: '/profile' })
-                        }}
-                      >
-                        Link
-                      </Button>
-                    )
-                  }
-                />
-              ))}
+            {SOCIAL_PROVIDERS.filter((provider) => available.has(provider) || linked.has(provider)).map((provider) => (
+              <MethodRow
+                key={provider}
+                method={provider}
+                name={SOCIAL_AUTH_PROVIDER_NAMES[provider]}
+                linked={linked.has(provider)}
+                available={available.has(provider)}
+                action={
+                  linked.has(provider) ? (
+                    <Button type="button" variant="ghost" size="sm" disabled={!canRemove(provider)} onClick={() => setRemoving(provider)}>
+                      Unlink
+                    </Button>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        posthog.capture('sign_in_method_linking_started', { provider })
+                        void authClient.linkSocial({ provider, callbackURL: '/profile', errorCallbackURL: '/profile' })
+                      }}
+                    >
+                      Link
+                    </Button>
+                  )
+                }
+              />
+            ))}
           </div>
         ) : null}
       </section>
@@ -255,7 +255,7 @@ function CreatePasswordForm({ onDone }: { onDone: () => void | Promise<void> }) 
           await setOwnPassword({ data: { password } })
           await onDone()
         } catch {
-          setError('The password was not created. Use at least 10 characters and try again.')
+          setError(`The password was not created. Use at least ${PASSWORD_MIN_LENGTH} characters and try again.`)
         } finally {
           setBusy(false)
         }
@@ -268,14 +268,14 @@ function CreatePasswordForm({ onDone }: { onDone: () => void | Promise<void> }) 
           type="password"
           value={password}
           onChange={(event) => setPassword(event.target.value)}
-          minLength={10}
+          minLength={PASSWORD_MIN_LENGTH}
           autoComplete="new-password"
           required
         />
       </div>
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
       <DialogFooter className="rounded-none border-edge bg-sunken">
-        <Button type="submit" disabled={busy || password.length < 10}>
+        <Button type="submit" disabled={busy || password.length < PASSWORD_MIN_LENGTH}>
           {busy ? 'Creating…' : 'Create password'}
         </Button>
       </DialogFooter>
@@ -296,7 +296,8 @@ function ChangePasswordForm({ onDone }: { onDone: () => void }) {
         setBusy(true)
         setError('')
         const result = await authClient.changePassword({ currentPassword, newPassword, revokeOtherSessions: true })
-        if (result.error) setError('The password was not changed. Check the current password and use at least 10 characters.')
+        if (result.error)
+          setError(`The password was not changed. Check the current password and use at least ${PASSWORD_MIN_LENGTH} characters.`)
         else {
           posthog.capture('password_changed')
           onDone()
@@ -323,14 +324,14 @@ function ChangePasswordForm({ onDone }: { onDone: () => void }) {
           type="password"
           value={newPassword}
           onChange={(event) => setNewPassword(event.target.value)}
-          minLength={10}
+          minLength={PASSWORD_MIN_LENGTH}
           autoComplete="new-password"
           required
         />
       </div>
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
       <DialogFooter className="rounded-none border-edge bg-sunken">
-        <Button type="submit" disabled={busy || newPassword.length < 10}>
+        <Button type="submit" disabled={busy || newPassword.length < PASSWORD_MIN_LENGTH}>
           {busy ? 'Changing…' : 'Change password'}
         </Button>
       </DialogFooter>

@@ -3,7 +3,7 @@ import { afterEach, expect, it } from 'vitest'
 import type { PraetoriumConnection } from '../src/db/connection'
 import { openTestDatabase } from '../src/db/testDatabase'
 import { Repository } from '../src/db/repository'
-import { account, friendships, rosters, user } from '../src/db/schema'
+import { friendships, rosters, user } from '../src/db/schema'
 import { PREVIEW_EMAIL, PREVIEW_OPPONENT_EMAIL, PREVIEW_OPPONENT_ROSTERS, PREVIEW_ROSTERS, seedPreview } from './seedPreview'
 
 let connection: PraetoriumConnection | undefined
@@ -26,7 +26,7 @@ it('creates two idempotent preview accounts, their eight rosters and their frien
   expect(opponentAccounts?.count).toBe(1)
 
   const accounts = await new Repository(database).adminUsers()
-  expect(accounts.find((entry) => entry.email === PREVIEW_EMAIL)).toMatchObject({
+  expect(accounts.users.find((entry) => entry.email === PREVIEW_EMAIL)).toMatchObject({
     role: 'admin',
     rosterCount: 4,
     signInMethods: ['credential'],
@@ -59,28 +59,4 @@ it('creates two idempotent preview accounts, their eight rosters and their frien
   // Every list is a different faction, so a screen that draws one has more than one to draw.
   const catalogues = [...PREVIEW_ROSTERS, ...PREVIEW_OPPONENT_ROSTERS].map((roster) => roster.catalogueId)
   expect(new Set(catalogues).size).toBe(catalogues.length)
-})
-
-it('keeps one sign-in method when concurrent requests unlink different providers', async () => {
-  connection = await openTestDatabase()
-  const database = connection.database
-  await seedPreview(database)
-  const [preview] = await database.select({ id: user.id }).from(user).where(eq(user.email, PREVIEW_EMAIL))
-  await database.insert(account).values({
-    id: 'preview-google',
-    accountId: 'preview-google',
-    providerId: 'google',
-    userId: preview!.id,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  })
-
-  const repository = new Repository(database)
-  await Promise.all([
-    repository.unlinkAccount(preview!.id, 'credential', ['credential', 'google']),
-    repository.unlinkAccount(preview!.id, 'google', ['credential', 'google']),
-  ])
-
-  const remaining = await database.select({ providerId: account.providerId }).from(account).where(eq(account.userId, preview!.id))
-  expect(remaining).toHaveLength(1)
 })

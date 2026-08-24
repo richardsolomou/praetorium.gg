@@ -3,6 +3,8 @@ import { expect, test, type Page } from '@playwright/test'
 
 const ADMIN_EMAIL = 'preview@praetorium.gg'
 const ADMIN_PASSWORD = 'preview-preview-preview'
+const SUPPORT_EMAIL = 'support-player@example.test'
+const SUPPORT_PASSWORD = 'support-player-password'
 
 function decodeBase32(value: string) {
   const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'
@@ -23,15 +25,15 @@ function currentTotp(uri: string) {
   return ((digest.readUInt32BE(offset) & 0x7fffffff) % 1_000_000).toString().padStart(6, '0')
 }
 
-async function signIn(page: Page, twoFactor = false) {
+async function signIn(page: Page, twoFactor = false, email = ADMIN_EMAIL, password = ADMIN_PASSWORD) {
   await page.goto('/signin')
-  await page.getByLabel('Email').fill(ADMIN_EMAIL)
-  await page.getByLabel('Password').fill(ADMIN_PASSWORD)
+  await page.getByLabel('Email').fill(email)
+  await page.getByLabel('Password').fill(password)
   await page.getByRole('button', { name: 'Sign in', exact: true }).click()
   if (!twoFactor) await page.waitForURL('/rosters')
 }
 
-test('an administrator can secure an account and impersonate a player', async ({ page }) => {
+test('an administrator can secure an account and impersonate a player', async ({ browser, page }) => {
   await signIn(page)
   await expect(page.getByRole('button', { name: 'Account menu for Preview Player' })).toBeVisible()
   await page.goto('/admin')
@@ -70,8 +72,8 @@ test('an administrator can secure an account and impersonate a player', async ({
   await page.getByRole('button', { name: 'Add user' }).click()
   const create = page.getByRole('dialog', { name: 'Add user' })
   await create.getByLabel('Name').fill('Support Player')
-  await create.getByLabel('Email').fill('support-player@example.test')
-  await create.getByLabel('Password').fill('support-player-password')
+  await create.getByLabel('Email').fill(SUPPORT_EMAIL)
+  await create.getByLabel('Password').fill(SUPPORT_PASSWORD)
   await create.getByRole('button', { name: 'Create user' }).click()
   await expect(page.getByText('support-player@example.test')).toBeVisible()
   await page.screenshot({ path: 'test-results/admin-desktop.png', fullPage: true })
@@ -89,4 +91,22 @@ test('an administrator can secure an account and impersonate a player', async ({
   await page.getByRole('button', { name: 'Exit' }).click()
   await expect(page).toHaveURL('/admin')
   await page.waitForLoadState('networkidle')
+
+  await page.getByRole('button', { name: 'Actions for Support Player' }).click()
+  await page.getByRole('menuitem', { name: 'Make administrator' }).click()
+  await page.getByRole('dialog', { name: 'Change administrator access' }).getByRole('button', { name: 'Change access' }).click()
+  await expect(page.getByText('Admin', { exact: true })).toHaveCount(2)
+
+  const supportContext = await browser.newContext()
+  const supportPage = await supportContext.newPage()
+  await signIn(supportPage, false, SUPPORT_EMAIL, SUPPORT_PASSWORD)
+  await supportPage.goto('/admin')
+  await expect(supportPage.getByRole('heading', { name: 'Users' })).toBeVisible()
+
+  await page.getByRole('button', { name: 'Actions for Support Player' }).click()
+  await page.getByRole('menuitem', { name: 'Remove admin role' }).click()
+  await page.getByRole('dialog', { name: 'Change administrator access' }).getByRole('button', { name: 'Change access' }).click()
+  await supportPage.goto('/admin')
+  await expect(supportPage).toHaveURL('/')
+  await supportContext.close()
 })

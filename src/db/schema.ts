@@ -14,22 +14,26 @@ import { bigint, boolean, index, integer, pgTable, primaryKey, text, timestamp, 
 // so product columns do not belong here.
 
 /** `user` is a reserved word in Postgres. Drizzle quotes it, so the name still stands. */
-export const user = pgTable('user', {
-  id: text().primaryKey().notNull(),
-  name: text().notNull(),
-  email: text().notNull().unique(),
-  emailVerified: boolean().notNull(),
-  image: text(),
-  createdAt: timestamp({ withTimezone: true, mode: 'date' }).notNull(),
-  updatedAt: timestamp({ withTimezone: true, mode: 'date' }).notNull(),
-  role: text({ enum: ['admin', 'user'] })
-    .notNull()
-    .default('user'),
-  banned: boolean().notNull().default(false),
-  banReason: text(),
-  banExpires: timestamp({ withTimezone: true, mode: 'date' }),
-  twoFactorEnabled: boolean().notNull().default(false),
-})
+export const user = pgTable(
+  'user',
+  {
+    id: text().primaryKey().notNull(),
+    name: text().notNull(),
+    email: text().notNull().unique(),
+    emailVerified: boolean().notNull(),
+    image: text(),
+    createdAt: timestamp({ withTimezone: true, mode: 'date' }).notNull(),
+    updatedAt: timestamp({ withTimezone: true, mode: 'date' }).notNull(),
+    role: text({ enum: ['admin', 'user'] })
+      .notNull()
+      .default('user'),
+    banned: boolean().notNull().default(false),
+    banReason: text(),
+    banExpires: timestamp({ withTimezone: true, mode: 'date' }),
+    twoFactorEnabled: boolean().notNull().default(false),
+  },
+  (table) => [index('user_createdAt_id_idx').on(table.createdAt.desc(), table.id.desc())],
+)
 
 export const session = pgTable(
   'session',

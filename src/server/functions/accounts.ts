@@ -9,6 +9,7 @@ import {
   favouriteDetachmentSchema,
   favouriteFactionSchema,
   friendSchema,
+  adminUsersSchema,
   ownedSchema,
   setAdminRoleSchema,
   setOwnPasswordSchema,
@@ -18,12 +19,14 @@ import {
 
 export const me = createServerFn({ method: 'GET' }).handler(() => rpc(() => currentUser()))
 
-export const adminUsers = createServerFn({ method: 'GET' }).handler(() =>
-  rpc(async () => {
-    await requireAdmin()
-    return app().service.adminUsers()
-  }),
-)
+export const adminUsers = createServerFn({ method: 'GET' })
+  .validator(adminUsersSchema)
+  .handler(({ data }) =>
+    rpc(async () => {
+      await requireAdmin()
+      return app().service.adminUsers(data)
+    }),
+  )
 
 export const accountMethods = createServerFn({ method: 'GET' }).handler(() =>
   rpc(async () => {
@@ -69,8 +72,11 @@ export const setAdminRole = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     mutationRpc(async () => {
       const current = await requireAdmin()
-      if (current.id === data.userId) throw new Response('you cannot change your own administrator role', { status: 409 })
-      await app().auth.api.setRole({ body: data, headers: getRequestHeaders() })
+      const result = await app().auth.changeUserRole(current.id, data.userId, data.role)
+      if (result === 'forbidden') throw new Response('admin access required', { status: 403 })
+      if (result === 'self') throw new Response('you cannot change your own administrator role', { status: 409 })
+      if (result === 'last-admin') throw new Response('at least one administrator must remain', { status: 409 })
+      if (result === 'missing') throw new Response('the user does not exist', { status: 404 })
       await app().telemetry.capture(current.id, 'admin_user_role_changed', { role: data.role })
       return null
     }),

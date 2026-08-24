@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { authClient } from '../client/authClient'
-import { AuthMethodIcon, SOCIAL_AUTH_PROVIDER_NAMES, type SocialAuthProvider } from '../client/components/AuthMethodIcon'
+import { AuthMethodIcon, SOCIAL_AUTH_PROVIDER_NAMES } from '../client/components/AuthMethodIcon'
 import { TwoFactorSignIn } from '../client/components/TwoFactorSignIn'
 import { signInOptionsQuery } from '../client/queries'
 import { PASSWORD_MIN_LENGTH } from '../authConfig'
@@ -174,7 +174,7 @@ function SignIn() {
                       }}
                     >
                       <AuthMethodIcon method={provider} />
-                      Continue with {SOCIAL_AUTH_PROVIDER_NAMES[provider as SocialAuthProvider]}
+                      Continue with {SOCIAL_AUTH_PROVIDER_NAMES[provider]}
                     </Button>
                   ))}
                 </div>

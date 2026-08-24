@@ -1,9 +1,8 @@
 import { KeyRound } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import type { SocialAuthProvider } from '../../authConfig'
 
-export type SocialAuthProvider = 'google' | 'discord'
-
-export const SOCIAL_AUTH_PROVIDER_NAMES = { google: 'Google', discord: 'Discord' } as const
+export { SOCIAL_AUTH_PROVIDER_NAMES, type SocialAuthProvider } from '../../authConfig'
 
 export function AuthMethodIcon({ method, className }: { method: SocialAuthProvider | 'password'; className?: string }) {
   if (method === 'password') return <KeyRound className={cn('size-4', className)} aria-hidden />
