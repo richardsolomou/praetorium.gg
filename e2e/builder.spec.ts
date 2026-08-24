@@ -266,6 +266,12 @@ test("Pantheon of Woe adds a C'tan shard's required enhancement", async ({ page 
   await shot(datasheet, 'test-results/imotekh-datasheet-tags-phone.png')
 
   await page.setViewportSize({ width: 1600, height: 900 })
+  await page.getByLabel('Add a unit').fill('Plasmancer')
+  await page.getByRole('button', { name: 'View Plasmancer datasheet' }).click()
+  await expect(datasheet.getByRole('heading', { name: 'Harbinger of Destruction' })).toBeVisible()
+  await expect(datasheet.getByText('Support', { exact: true })).toHaveCount(0)
+  await shot(datasheet, 'test-results/plasmancer-roster-datasheet.png')
+
   await page.goto('/factions/necrons/datasheets/imotekh-the-stormlord')
   const referenceHeader = page.locator('main > header')
   await expect(referenceHeader.locator('[data-faction-mark="necrons"]')).toBeVisible()

@@ -7,7 +7,7 @@ import { datasheetQuery } from '../../queries'
 import { useSettled } from '../../useSettled'
 import { HoverTooltip } from '../HoverTooltip'
 import { Keyword, KEYWORD_TAG_CLASS, KeywordList } from '../Keyword'
-import { addedKeywords, displayAbilities } from '../../datasheet'
+import { addedKeywords, rosterAbilities } from '../../datasheet'
 import { RuleText } from '../RuleText'
 
 type Props = {
@@ -69,7 +69,7 @@ export function DatasheetPanel({
       {!hideSummary && showWeapons && melee.length ? (
         <WeaponSummary title="Melee weapons" weapons={melee} rules={sheet.keywordRules} />
       ) : null}
-      <AbilitySummary abilities={displayAbilities(sheet.abilities)} rules={sheet.keywordRules} />
+      <AbilitySummary abilities={rosterAbilities(sheet.abilities)} rules={sheet.keywordRules} />
       {sheet.referenceRoute ? (
         <div className="border-t border-edge pt-3">
           <div className="flex flex-wrap gap-1">
