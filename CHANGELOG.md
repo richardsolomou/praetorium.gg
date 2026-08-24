@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.25.1
+
+### Patch Changes
+
+- 8d21a60: Harden social sign-in configuration, OAuth token storage, and two-factor authentication.
+
 ## 0.25.0
 
 ### Minor Changes
