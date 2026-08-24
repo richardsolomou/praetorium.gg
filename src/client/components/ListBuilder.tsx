@@ -15,6 +15,7 @@ import type { RosterPick } from '../../core/roster'
 import type { RosterSource, RosterVisibility } from '../../core/savedRoster'
 import { exportRoster, saveRoster } from '../../server/functions'
 import { collectionQuery, factionsQuery, invalidateSavedRosters, priceQuery } from '../queries'
+import { picksAfterDetachmentChange } from '../rosterPicks'
 import { useCollectionMutation } from '../useCollection'
 import { DatasheetPanel } from './builder/DatasheetPanel'
 import { shortName } from './builder/factions'
@@ -453,6 +454,9 @@ export function ListBuilder({ prep, initial, editable = true, battle, resolvePer
             hasUnits={Boolean(picks.length)}
             onSave={(setup) => {
               const changedFaction = setup.catalogueId !== catalogueId
+              if (!changedFaction) {
+                setPicks((current) => picksAfterDetachmentChange(current, units, detachmentIds, setup.detachmentIds))
+              }
               setName(setup.name)
               setCatalogueId(setup.catalogueId)
               setDetachmentIds(setup.detachmentIds)
