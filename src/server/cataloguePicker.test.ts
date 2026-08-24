@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { datasheetInBySlug } from './catalogue'
 import { groupOfEntry, unitsIn } from './cataloguePicker'
-import { bookOf, categories, offered, points, shelfOf } from './catalogue.fixtures'
+import { ability, bookOf, categories, offered, points, shelfOf } from './catalogue.fixtures'
 
 describe('the shelf a datasheet is filed under', () => {
   const shelfOfTitan = (links: { id: string; targetId: string; name: string; primary?: boolean }[]) =>
@@ -35,6 +35,186 @@ describe('the shelf a datasheet is filed under', () => {
 })
 
 describe('the picker', () => {
+  it('finds datasheets by keyword, ability, weapon and weapon keyword', () => {
+    const book = bookOf({
+      categoryEntries: [{ id: 'cryptek', name: 'Cryptek' }],
+      selectionEntries: [
+        {
+          id: 'technomancer',
+          name: 'Technomancer',
+          type: 'model',
+          costs: points(85),
+          categoryLinks: [{ id: 'cryptek-link', targetId: 'cryptek', name: 'Cryptek' }],
+          profiles: [
+            {
+              id: 'staff',
+              name: 'Staff of light',
+              typeName: 'Ranged Weapons',
+              characteristics: [{ name: 'Keywords', $text: 'Assault, Lethal Hits' }],
+            },
+            {
+              id: 'reanimation',
+              name: 'Rites of Reanimation',
+              typeName: 'Abilities',
+              characteristics: [{ name: 'Description', $text: 'Restore one model.' }],
+            },
+          ],
+          selectionEntryGroups: [
+            {
+              id: 'wargear',
+              name: 'Wargear',
+              constraints: [{ id: 'wargear-max', type: 'max', scope: 'parent', field: 'selections', value: 1 }],
+              selectionEntries: [{ id: 'cloak', name: 'Canoptek cloak', type: 'upgrade' }],
+            },
+          ],
+        },
+        { id: 'warriors', name: 'Necron Warriors', type: 'unit', costs: points(100) },
+      ],
+    })
+
+    expect(unitsIn(book, 'cat', 'cryptek')).toEqual([
+      expect.objectContaining({ name: 'Technomancer', matchReasons: [{ kind: 'keyword', value: 'Cryptek' }] }),
+    ])
+    expect(unitsIn(book, 'cat', 'reanimation')).toEqual([
+      expect.objectContaining({ name: 'Technomancer', matchReasons: [{ kind: 'ability', value: 'Rites of Reanimation' }] }),
+    ])
+    expect(unitsIn(book, 'cat', 'staff')).toEqual([
+      expect.objectContaining({ name: 'Technomancer', matchReasons: [{ kind: 'weapon', value: 'Staff of light' }] }),
+    ])
+    expect(unitsIn(book, 'cat', 'lethal')).toEqual([
+      expect.objectContaining({ name: 'Technomancer', matchReasons: [{ kind: 'weapon keyword', value: 'Lethal Hits' }] }),
+    ])
+    expect(unitsIn(book, 'cat', 'cloak')).toEqual([
+      expect.objectContaining({ name: 'Technomancer', matchReasons: [{ kind: 'wargear', value: 'Canoptek cloak' }] }),
+    ])
+  })
+
+  it('ranks a datasheet name ahead of a keyword match', () => {
+    const book = bookOf({
+      selectionEntries: [
+        { id: 'named', name: 'Cryptek Conclave', type: 'unit', costs: points(100) },
+        {
+          id: 'keyword',
+          name: 'Technomancer',
+          type: 'model',
+          costs: points(85),
+          categoryLinks: [{ id: 'cryptek-link', targetId: 'cryptek', name: 'Cryptek' }],
+        },
+      ],
+    })
+
+    expect(unitsIn(book, 'cat', 'cryptek').map((unit) => unit.name)).toEqual(['Cryptek Conclave', 'Technomancer'])
+  })
+
+  it('does not index hidden fields, conditional shared groups or ability prose', () => {
+    const book = bookOf({
+      categoryEntries: [{ id: 'marker', name: 'Secret marker', hidden: true }],
+      sharedInfoGroups: [{ id: 'conditional', name: 'Conditional', profiles: [ability('null-aegis', 'Null Aegis')] }],
+      selectionEntries: [
+        {
+          id: 'technomancer',
+          name: 'Technomancer',
+          type: 'model',
+          costs: points(85),
+          categoryLinks: [{ id: 'marker-link', targetId: 'marker', name: 'Secret marker' }],
+          infoLinks: [{ id: 'conditional-link', targetId: 'conditional', name: 'Conditional', type: 'infoGroup' }],
+          profiles: [
+            {
+              id: 'hidden-gun',
+              name: 'Hidden gun',
+              typeName: 'Ranged Weapons',
+              hidden: true,
+            },
+            {
+              id: 'reanimation',
+              name: 'Rites of Reanimation',
+              typeName: 'Abilities',
+              characteristics: [{ name: 'Description', $text: 'Restore one destroyed model.' }],
+            },
+          ],
+        },
+      ],
+    })
+
+    expect(unitsIn(book, 'cat', 'secret')).toEqual([])
+    expect(unitsIn(book, 'cat', 'hidden gun')).toEqual([])
+    expect(unitsIn(book, 'cat', 'null aegis')).toEqual([])
+    expect(unitsIn(book, 'cat', 'destroyed')).toEqual([])
+  })
+
+  it('indexes rendered profiles owned by hidden containers and links', () => {
+    const book = bookOf({
+      sharedProfiles: [ability('shared-deceit', 'Shared Deceit')],
+      selectionEntries: [
+        {
+          id: 'deceiver',
+          name: "C'tan Shard of the Deceiver",
+          type: 'model',
+          infoLinks: [{ id: 'hidden-link', targetId: 'shared-deceit', name: 'Shared Deceit', type: 'profile', hidden: true }],
+          selectionEntryGroups: [
+            {
+              id: 'hidden-group',
+              name: 'Hidden group',
+              hidden: true,
+              profiles: [ability('deceit', 'Lord of Deceit')],
+            },
+          ],
+        },
+      ],
+    })
+
+    expect(unitsIn(book, 'cat', 'lord of deceit')).toEqual([
+      expect.objectContaining({ name: "C'tan Shard of the Deceiver", matchReasons: [{ kind: 'ability', value: 'Lord of Deceit' }] }),
+    ])
+    expect(unitsIn(book, 'cat', 'shared deceit')).toEqual([
+      expect.objectContaining({ name: "C'tan Shard of the Deceiver", matchReasons: [{ kind: 'ability', value: 'Shared Deceit' }] }),
+    ])
+  })
+
+  it('keeps offered datasheets whose visibility depends on force context', () => {
+    const book = bookOf({
+      selectionEntries: [
+        {
+          id: 'daemon',
+          name: 'Bloodletter',
+          type: 'model',
+          profiles: [ability('deep-strike', 'Deep Strike')],
+          modifiers: [
+            {
+              type: 'set',
+              field: 'hidden',
+              value: true,
+              conditions: [{ type: 'lessThan', value: 1, field: 'selections', scope: 'force', childId: 'show-daemons' }],
+            },
+          ],
+        },
+      ],
+    })
+
+    expect(unitsIn(book, 'cat', 'deep strike')).toEqual([
+      expect.objectContaining({ name: 'Bloodletter', matchReasons: [{ kind: 'ability', value: 'Deep Strike' }] }),
+    ])
+  })
+
+  it('searches the effective keywords granted in this catalogue', () => {
+    const book = bookOf({
+      categoryEntries: [{ id: 'deathwing', name: 'Deathwing' }],
+      selectionEntries: [
+        {
+          id: 'chaplain',
+          name: 'Chaplain in Terminator Armour',
+          type: 'model',
+          costs: points(75),
+          modifiers: [{ type: 'add', field: 'category', value: 'deathwing' }],
+        },
+      ],
+    })
+
+    expect(unitsIn(book, 'cat', 'deathwing')).toEqual([
+      expect.objectContaining({ name: 'Chaplain in Terminator Armour', matchReasons: [{ kind: 'keyword', value: 'Deathwing' }] }),
+    ])
+  })
+
   it('gives datasheets readable unambiguous route slugs', () => {
     const book = bookOf({
       selectionEntries: [

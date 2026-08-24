@@ -8,6 +8,7 @@ import { Kbd, KbdGroup } from '@/components/ui/kbd'
 import type { GlobalSearchResult } from '../../server/functions'
 import { globalSearchQuery } from '../queries'
 import { useSettled } from '../useSettled'
+import { DatasheetMatchReasons } from './DatasheetMatchReasons'
 import { matchingPages } from './globalSearchPages'
 import { isSearchShortcut, searchShortcutModifier } from './globalSearchShortcut'
 
@@ -63,10 +64,10 @@ export function GlobalSearch() {
           if (!next) setQuery('')
         }}
         title="Search Praetorium"
-        description="Search pages, factions, datasheets, detachments, missions, rosters and battles."
+        description="Search pages, factions, datasheets and their rules, detachments, missions, rosters and battles."
         className="top-1/2 max-w-xl -translate-y-1/2 rounded-none! border border-edge bg-panel"
       >
-        <Command>
+        <Command shouldFilter={false}>
           <CommandInput value={query} onValueChange={setQuery} placeholder="Search everything…" />
           <CommandList className="h-[min(60vh,30rem)] max-h-none">
             {trimmed.length >= 2 && isFetching ? <output className="sr-only">Searching</output> : null}
@@ -90,6 +91,7 @@ export function GlobalSearch() {
                       <span className="min-w-0 flex-1">
                         <span className="block truncate font-semibold uppercase">{result.label}</span>
                         <span className="result-detail block truncate text-xs text-dim">{result.detail}</span>
+                        <DatasheetMatchReasons query={trimmed} reasons={result.matchReasons} />
                       </span>
                     </CommandItem>
                   ))}

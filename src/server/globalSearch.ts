@@ -1,8 +1,10 @@
 import { nameOf, targetOf } from '../core/catalogue'
 import { distance } from 'fastest-levenshtein'
+import { datasheetSearchFieldsIn } from './catalogue'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { datasheetSlug, datasheetsOf, isReferenceDatasheet } from './catalogueIndex'
 import { isMatchedPlayDatasheet } from './cataloguePicker'
+import { matchDatasheet, type DatasheetSearchReason } from './datasheetSearch'
 import { factionsFor } from './factionReferences'
 import { gameReferencesFor } from './gameReferences'
 import type { LoadedRules } from './rules'
@@ -22,6 +24,7 @@ export type GlobalSearchResult = {
   label: string
   detail: string
   href: string
+  matchReasons?: DatasheetSearchReason[]
   /** A typo-tolerant fallback, shown separately from direct matches. */
   fuzzy?: boolean
 }
@@ -64,7 +67,7 @@ function catalogueResults(wanted: string, matches: Matcher, sources: Sources): G
   if (!loaded) return []
 
   const results: GlobalSearchResult[] = []
-  const datasheets = new Map<string, { primary: GlobalSearchResult[]; allied?: GlobalSearchResult }>()
+  const datasheets = new Map<string, { primary: RankedResult[]; allied?: RankedResult }>()
   for (const faction of factionsFor(loaded, sources.rules).factions) {
     if (matches(faction.displayName, faction.name)) {
       results.push({
@@ -91,18 +94,22 @@ function catalogueResults(wanted: string, matches: Matcher, sources: Sources): G
       if (!entry || !isMatchedPlayDatasheet(loaded.index, entry)) continue
       if (!isReferenceDatasheet(loaded, faction.id, entryId)) continue
       const name = nameOf(entry, loaded.index.definitions)
-      if (!name.toLowerCase().includes(wanted)) continue
+      const fields = datasheetSearchFieldsIn(loaded, faction.id, entryId)
+      const match = fields ? matchDatasheet(wanted, fields) : null
+      if (!match) continue
       const result: GlobalSearchResult = {
         id: `datasheet:${faction.id}:${entryId}`,
         group: 'Datasheets',
         label: name,
         detail: faction.displayName,
         href: `/factions/${faction.slug}/datasheets/${datasheetSlug(loaded, faction.id, entryId)}`,
+        ...(match.reasons.length ? { matchReasons: match.reasons } : {}),
       }
       const key = targetOf(entry, loaded.index.definitions).id
       const found = datasheets.get(key) ?? { primary: [] }
-      if (loaded.index.alliedDatasheets.get(faction.id)?.has(entryId)) found.allied ??= result
-      else found.primary.push(result)
+      const ranked = { result, score: match.score }
+      if (loaded.index.alliedDatasheets.get(faction.id)?.has(entryId)) found.allied ??= ranked
+      else found.primary.push(ranked)
       datasheets.set(key, found)
     }
   }
@@ -111,8 +118,13 @@ function catalogueResults(wanted: string, matches: Matcher, sources: Sources): G
   return results
 }
 
-const datasheetResults = (datasheets: ReadonlyMap<string, { primary: GlobalSearchResult[]; allied?: GlobalSearchResult }>) =>
-  [...datasheets.values()].flatMap((found) => (found.primary.length ? found.primary : found.allied ? [found.allied] : []))
+type RankedResult = { result: GlobalSearchResult; score: number }
+
+const datasheetResults = (datasheets: ReadonlyMap<string, { primary: RankedResult[]; allied?: RankedResult }>) =>
+  [...datasheets.values()]
+    .flatMap((found) => (found.primary.length ? found.primary : found.allied ? [found.allied] : []))
+    .toSorted((left, right) => left.score - right.score || left.result.label.localeCompare(right.result.label))
+    .map(({ result }) => result)
 
 function fuzzyDatasheetResults(loaded: LoadedCatalogue, rules: LoadedRules | null, query: string) {
   const found = new Map<string, { result: GlobalSearchResult; score: number }>()
