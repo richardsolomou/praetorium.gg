@@ -141,7 +141,11 @@ export function withChoice(selection: Selection, key: string, optionId: string, 
   // inside a copy of itself and charge for it twice.
   if (resolve(group, index).type !== undefined) return withCounts(selection, [{ path, count: optionId ? 1 : 0 }])
 
-  const options = new Set(childrenOf(resolve(group, index), index).map((option) => option.id))
+  const options = new Set(
+    childrenOf(resolve(group, index), index)
+      .filter((option) => requiredCount(option.definition, index) === 0)
+      .map((option) => option.id),
+  )
   const present = withPlaceFor(selection, path)
   if (!optionId) {
     return updateSelection(present, path, (held) => ({ ...held, selections: held.selections?.filter((child) => !options.has(child.id)) }))

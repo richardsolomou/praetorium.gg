@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { abilityNamesIn, datasheetIn, rulesReferencedIn } from './catalogue'
 import { describeDatasheetAbilities } from './datasheetDescriptions'
 import { ability, bookOf, shelfOf } from './catalogue.fixtures'
+import type { LoadedRules } from './rules'
 
 describe('the abilities and wargear a datasheet lists', () => {
   it('separates faction, core, datasheet, rule and wargear abilities', () => {
@@ -81,6 +82,64 @@ describe('the abilities and wargear a datasheet lists', () => {
         unitSelectionIndex: 0,
       })?.abilities.map(({ name }) => name),
     ).toEqual(['Implacable Eradication', 'Tools of Dominion'])
+  })
+
+  it('identifies a selected detachment unit upgrade separately from wargear', () => {
+    const book = bookOf({
+      sharedSelectionEntries: [
+        {
+          id: 'upgrade',
+          name: 'Death in the Dark',
+          type: 'upgrade',
+          profiles: [ability('upgrade-ability', 'Death in the Dark')],
+        },
+      ],
+      selectionEntries: [
+        {
+          id: 'incursors',
+          name: 'Incursor Squad',
+          type: 'unit',
+          selectionEntryGroups: [
+            {
+              id: 'enhancements',
+              name: 'Enhancements',
+              entryLinks: [{ id: 'selected-upgrade', name: 'Death in the Dark', type: 'selectionEntry', targetId: 'upgrade' }],
+            },
+          ],
+        },
+      ],
+    })
+    const selections = [{ id: 'incursors', selections: [{ id: 'enhancements', selections: [{ id: 'selected-upgrade' }] }] }]
+    const rules = {
+      abilityDescriptions: new Map(),
+      factionKeys: new Map(),
+      detachmentDetails: new Map([
+        [
+          'test-catalogue',
+          new Map([
+            [
+              'subversion-assets',
+              {
+                id: 'subversion-assets',
+                name: 'Subversion Assets',
+                points: null,
+                dispositions: [],
+                rules: [],
+                enhancements: [],
+                upgrades: [{ name: 'Death in the Dark', points: 15, description: 'Strike from concealment.' }],
+                stratagems: [],
+              },
+            ],
+          ]),
+        ],
+      ]),
+    } as Partial<LoadedRules> as LoadedRules
+    const sheet = datasheetIn(book, 'cat', 'incursors', { selections, unitSelectionIndex: 0 })
+
+    expect(datasheetIn(book, 'cat', 'incursors', { selections: [{ id: 'incursors' }], unitSelectionIndex: 0 })?.abilities).toEqual([])
+    expect(describeDatasheetAbilities(book, 'cat', sheet, rules)?.abilities).toContainEqual(
+      expect.objectContaining({ name: 'Death in the Dark', kind: 'upgrade' }),
+    )
   })
 
   it('classifies game-system rules linked by a datasheet as core abilities', () => {

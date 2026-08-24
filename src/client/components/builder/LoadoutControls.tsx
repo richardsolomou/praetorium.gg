@@ -421,7 +421,9 @@ function OptionAbilities({
   rules: Datasheet['keywordRules']
 }) {
   const matching = abilities.filter(
-    (ability) => (ability.kind === 'datasheet' || ability.kind === 'wargear') && wargearMatches(optionName, ability.name),
+    (ability) =>
+      (ability.kind === 'datasheet' || ability.kind === 'upgrade' || ability.kind === 'wargear') &&
+      wargearMatches(optionName, ability.name),
   )
   return matching.length ? (
     <div data-slot="option-abilities" className="space-y-2 border-t border-edge px-2.5 pb-2">

@@ -771,6 +771,53 @@ describe('a wargear group holding both the fixed guns and the optional extras', 
     ])
     expect(evaluate([built.selection], index).errors).toEqual([])
   })
+
+  it('offers one optional extra without replacing the required equipment', () => {
+    const oneExtra = indexOf({
+      sharedSelectionEntries: [
+        {
+          id: 'transport',
+          name: 'Impulsor',
+          type: 'unit',
+          selectionEntryGroups: [
+            {
+              id: 'wargear',
+              name: 'Wargear',
+              selectionEntries: [
+                {
+                  id: 'hull',
+                  name: 'Armoured hull',
+                  type: 'upgrade',
+                  constraints: [
+                    { id: 'hull-min', type: 'min', value: 1, field: 'selections', scope: 'parent' },
+                    { id: 'hull-max', type: 'max', value: 1, field: 'selections', scope: 'parent' },
+                  ],
+                },
+                {
+                  id: 'stubber',
+                  name: 'Ironhail heavy stubber',
+                  type: 'upgrade',
+                  constraints: [{ id: 'stubber-max', type: 'max', value: 1, field: 'selections', scope: 'parent' }],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    })
+
+    expect(buildUnit('transport', oneExtra)?.choices).toContainEqual(
+      expect.objectContaining({
+        key: 'wargear',
+        optional: true,
+        options: [expect.objectContaining({ id: 'stubber', name: 'Ironhail heavy stubber', max: 1 })],
+      }),
+    )
+    expect(wargearOf(buildUnit('transport', oneExtra, undefined, { wargear: 'stubber' })!.selection, oneExtra)).toEqual([
+      { name: 'Armoured hull', count: 1 },
+      { name: 'Ironhail heavy stubber', count: 1 },
+    ])
+  })
 })
 
 describe('who the data lets a list nominate as its Warlord', () => {

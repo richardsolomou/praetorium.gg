@@ -12,18 +12,23 @@ export function describeDatasheetAbilities(
 ) {
   if (!sheet) return null
   const descriptions = loadedRules?.abilityDescriptions
+  const faction = loaded.index.catalogues.get(catalogueId)
+  const detachmentDetails = faction
+    ? [...(loadedRules?.detachmentDetails.get(rulesFaction(loadedRules, routeSlug(faction.name)))?.values() ?? [])]
+    : []
+  const upgradeNames = new Set(detachmentDetails.flatMap((detachment) => detachment.upgrades.map((upgrade) => routeSlug(upgrade.name))))
   const supplied = descriptions
     ? sheet.abilities.some((ability) => !ability.description && findAbilityDescription(descriptions, ability.name))
     : false
   const abilities = sheet.abilities.map((ability) => ({
     ...ability,
+    kind: ability.kind === 'wargear' && upgradeNames.has(routeSlug(ability.name)) ? ('upgrade' as const) : ability.kind,
     description: ability.description ?? (descriptions ? findAbilityDescription(descriptions, ability.name) : null),
   }))
-  const faction = loaded.index.catalogues.get(catalogueId)
   const keywords = new Set(sheet.keywords.map((keyword) => routeSlug(keyword.replace(/^faction:\s*/i, ''))))
   const character = keywords.has('character')
   const detachments = faction
-    ? [...(loadedRules?.detachmentDetails.get(rulesFaction(loadedRules, routeSlug(faction.name)))?.values() ?? [])].map((detachment) => ({
+    ? detachmentDetails.map((detachment) => ({
         id: detachment.id,
         name: detachment.name,
         rules: detachment.rules,

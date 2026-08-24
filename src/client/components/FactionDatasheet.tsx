@@ -114,6 +114,7 @@ const abilitySections: { kind: DisplayAbility['kind']; title: string }[] = [
   { kind: 'faction', title: 'Faction abilities' },
   { kind: 'datasheet', title: 'Datasheet abilities' },
   { kind: 'rule', title: 'Rules' },
+  { kind: 'upgrade', title: 'Unit upgrades' },
   { kind: 'wargear', title: 'Wargear abilities' },
 ]
 
