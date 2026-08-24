@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.25.0
+
+### Minor Changes
+
+- 14e63da: Add account administration, impersonation, linked Google and Discord sign-in, password management, and authenticator two-factor authentication.
+
 ## 0.24.1
 
 ### Patch Changes
