@@ -8,10 +8,9 @@ export const POSTHOG_INGEST_PATH = '/t'
 export const POSTHOG_BROWSER_OPTIONS = {
   capture_exceptions: true,
   capture_performance: true,
-  disable_conversations: true,
   mask_personal_data_properties: true,
   custom_personal_data_properties: ['token'],
-} satisfies Partial<PostHogConfig> & { disable_conversations: boolean }
+} satisfies Partial<PostHogConfig>
 
 export const postHogCoverage = definePostHogCoverage({
   browser: { analytics: true, errorTracking: true, featureFlags: true, identity: true, sessionReplay: true },

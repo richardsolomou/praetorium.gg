@@ -43,7 +43,6 @@ describe('shared infrastructure conformance', () => {
 
   it('masks authentication tokens in browser telemetry URLs', () => {
     expect(POSTHOG_BROWSER_OPTIONS).toMatchObject({
-      disable_conversations: true,
       mask_personal_data_properties: true,
       custom_personal_data_properties: expect.arrayContaining(['token']),
     })
