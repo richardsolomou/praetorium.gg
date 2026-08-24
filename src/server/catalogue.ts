@@ -43,6 +43,16 @@ export type DatasheetRelationship = {
   route: { catalogueId: string; slug: string } | null
 }
 
+export function toughnessOf(profiles: readonly { type: string; values: readonly { name: string; value: string }[] }[]): number | null {
+  const values = profiles
+    .filter((profile) => profile.type.toLocaleLowerCase() === 'unit')
+    .flatMap((profile) => profile.values)
+    .filter((value) => ['t', 'toughness'].includes(value.name.trim().toLocaleLowerCase()))
+    .map((value) => Number.parseInt(value.value, 10))
+    .filter(Number.isFinite)
+  return values.length ? Math.max(...values) : null
+}
+
 type AbilityKind = 'core' | 'faction' | 'datasheet' | 'rule' | 'wargear'
 
 type DatasheetContext = {

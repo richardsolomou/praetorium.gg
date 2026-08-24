@@ -76,7 +76,7 @@ export const units = createServerFn({ method: 'GET' })
       const faction = loaded.factions.find((entry) => entry.id === data.catalogueId)
       const displayName = faction ? factionDisplayName(faction.name, names) : ''
       const restrictions = rules?.factionRestrictions.get(routeSlug(displayName))
-      return unitsIn(loaded, data.catalogueId, data.query, { restrictions }).map((unit) => ({
+      return unitsIn(loaded, data.catalogueId, data.query, { restrictions, battleSize: data.battleSize }).map((unit) => ({
         ...unit,
         alliedFaction: unit.alliedFaction ? factionDisplayName(unit.alliedFaction, names) : null,
       }))

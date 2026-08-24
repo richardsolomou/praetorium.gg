@@ -234,11 +234,29 @@ test('King of the Colosseum creation keeps exactly one detachment selected', asy
 
   await dialog.getByRole('button', { name: 'Create roster' }).click()
   await page.waitForURL(/\/rosters\/[^/]+$/)
+  for (const excluded of ['Imotekh the Stormlord', 'Monolith']) {
+    await page.getByLabel('Add a unit').fill(excluded)
+    await expect(page.getByRole('button', { name: `Add ${excluded}`, exact: true })).toHaveCount(0)
+  }
   await page.getByLabel('Add a unit').fill('Chronomancer')
   const addChronomancer = page.getByRole('button', { name: 'Add Chronomancer', exact: true })
   await addChronomancer.click()
   await expect(page.getByText('1/1 in roster')).toBeVisible()
   await expect(addChronomancer).toBeDisabled()
+  await page.getByLabel('Add a unit').fill('Immortals')
+  const addImmortals = page.getByRole('button', { name: 'Add Immortals', exact: true })
+  await addImmortals.click()
+  await expect(page.getByText('1/2 in roster')).toBeVisible()
+  await expect(addImmortals).toBeEnabled()
+  await addImmortals.click()
+  await expect(page.getByText('2/2 in roster')).toBeVisible()
+  await expect(addImmortals).toBeDisabled()
+  await page.screenshot({ path: 'test-results/kotc-picker-rules.png', fullPage: true })
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.getByRole('button', { name: 'Add units', exact: true }).click()
+  const mobilePicker = page.getByRole('dialog', { name: 'Add units' })
+  await expect(mobilePicker.getByText('2/2 in roster')).toBeVisible()
+  await mobilePicker.screenshot({ path: 'test-results/kotc-picker-rules-mobile.png' })
 })
 
 test('enhancement choices show descriptions when rule and catalogue names differ', async ({ page }) => {
