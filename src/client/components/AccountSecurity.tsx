@@ -109,7 +109,11 @@ export function AccountSecurity({ me }: { me: AccountIdentity }) {
                 >
                   {verificationSent ? 'Verification email sent' : 'Send verification email'}
                 </Button>
-                {verifyEmail.error ? <p className="mt-2 text-sm text-destructive">{verifyEmail.error}</p> : null}
+                {verifyEmail.error ? (
+                  <p role="alert" className="mt-2 text-sm text-destructive">
+                    {verifyEmail.error}
+                  </p>
+                ) : null}
               </div>
             ) : null}
             <MethodRow
