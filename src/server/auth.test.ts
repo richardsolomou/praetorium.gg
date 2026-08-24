@@ -1,5 +1,5 @@
 import { eq } from 'drizzle-orm'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { PraetoriumConnection } from '../db/connection'
 import { account } from '../db/schema'
 import { openTestDatabase } from '../db/testDatabase'
@@ -72,13 +72,25 @@ describe('account administration', () => {
   afterEach(async () => {
     await connection?.close()
     connection = undefined
+    vi.unstubAllEnvs()
   })
 
   it('encrypts social sign-in tokens', async () => {
     connection = await openTestDatabase()
     const auth = createAuth(connection.database, SECRET)
 
-    expect((await auth.$context).options.account).toEqual({ encryptOAuthTokens: true })
+    expect((await auth.$context).options.account).toEqual({
+      encryptOAuthTokens: true,
+      accountLinking: { enabled: true, trustedProviders: ['google', 'discord'] },
+    })
+  })
+
+  it.each(['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET'])('rejects partial Google credentials missing %s', async (missing) => {
+    connection = await openTestDatabase()
+    vi.stubEnv('GOOGLE_CLIENT_ID', missing === 'GOOGLE_CLIENT_ID' ? '' : 'client-id')
+    vi.stubEnv('GOOGLE_CLIENT_SECRET', missing === 'GOOGLE_CLIENT_SECRET' ? '' : 'client-secret')
+
+    expect(() => createAuth(connection!.database, SECRET)).toThrow('GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must be configured together')
   })
 
   it('returns the initial administrator role from secondary session storage immediately', async () => {

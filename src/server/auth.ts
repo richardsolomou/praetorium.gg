@@ -44,7 +44,9 @@ export function createAuth(database: PraetoriumDatabase, secret: string, storage
     // verification step to stall a first game.
     emailAndPassword: { enabled: true, minPasswordLength: PASSWORD_MIN_LENGTH, autoSignIn: true, requireEmailVerification: false },
     socialProviders: configuredProviderOptions(SOCIAL_PROVIDERS, process.env, { rejectPartial: true }),
-    account: standardAccountOptions(),
+    account: standardAccountOptions({
+      accountLinking: { enabled: true, trustedProviders: [...SOCIAL_PROVIDERS] },
+    }),
     disabledPaths: [
       '/unlink-account',
       '/admin/set-role',
