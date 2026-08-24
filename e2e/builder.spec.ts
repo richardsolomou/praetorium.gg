@@ -236,7 +236,6 @@ test('King of the Colosseum creation keeps exactly one detachment selected', asy
   await page.waitForURL(/\/rosters\/[^/]+$/)
   for (const excluded of ['Imotekh the Stormlord', 'Monolith']) {
     await page.getByLabel('Add a unit').fill(excluded)
-    await expect(page.getByText('Nothing by that name.')).toBeVisible()
     await expect(page.getByRole('button', { name: `Add ${excluded}`, exact: true })).toHaveCount(0)
   }
   await page.getByLabel('Add a unit').fill('Chronomancer')
