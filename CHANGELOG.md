@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.28.0
+
+### Minor Changes
+
+- 1884cc4: Add a GitHub Issues link for bug reports and feedback.
+
 ## 0.27.1
 
 ### Patch Changes
