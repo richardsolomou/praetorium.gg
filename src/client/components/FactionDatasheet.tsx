@@ -107,7 +107,7 @@ export function FactionDatasheet() {
   )
 }
 
-type DisplayAbility = { id: string; name: string; description: string | null; kind: 'core' | 'faction' | 'datasheet' | 'rule' | 'wargear' }
+type DisplayAbility = Datasheet['abilities'][number]
 
 const abilitySections: { kind: DisplayAbility['kind']; title: string }[] = [
   { kind: 'core', title: 'Core abilities' },
@@ -125,7 +125,8 @@ function Abilities({ abilities, rules }: { abilities: DisplayAbility[]; rules: K
       <div className="mt-2 grid gap-2 md:grid-cols-2">
         {found.map((ability) => (
           <article key={ability.id} className="border border-edge bg-panel p-3">
-            <h3 className="text-sm">{ability.name}</h3>
+            <h3 className="text-sm">{ability.source ?? ability.name}</h3>
+            {ability.source ? <p className="eyebrow mt-1">{ability.name}</p> : null}
             {ability.description ? <RuleText text={ability.description} rules={rules} /> : null}
           </article>
         ))}
@@ -143,7 +144,13 @@ function Abilities({ abilities, rules }: { abilities: DisplayAbility[]; rules: K
                 key={ability.id}
                 name={ability.name}
                 rules={ability.description ? [{ name: ability.name, description: ability.description }] : []}
-                className={KEYWORD_TAG_CLASS}
+                className={
+                  ability.source
+                    ? 'chip inline-flex min-h-6 items-center justify-center border-info/50 bg-info/10 py-0.5 leading-none !text-info hover:!text-bone'
+                    : KEYWORD_TAG_CLASS
+                }
+                note={ability.source ? `Added by ${ability.source}` : undefined}
+                highlightNote={false}
               />
             ))}
           </div>

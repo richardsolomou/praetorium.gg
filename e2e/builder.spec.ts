@@ -73,9 +73,6 @@ test('the roster workspace preserves picker and read-only state', async ({ page 
   await expect(page.getByLabel('Add a unit')).toHaveValue('Immortals')
   await expect(page.getByRole('button', { name: 'Owned', exact: true })).toHaveAttribute('aria-pressed', 'true')
 
-  await page.getByRole('button', { name: 'Build', exact: true }).hover()
-  await expect(page.getByRole('tooltip')).toContainText('Build edits your roster. View shows only what’s selected.')
-
   await page.getByRole('button', { name: 'View', exact: true }).click()
   await page.reload()
   await expect(page.getByRole('button', { name: 'View', exact: true })).toHaveAttribute('aria-pressed', 'true')

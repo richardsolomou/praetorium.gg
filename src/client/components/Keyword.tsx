@@ -11,12 +11,15 @@ export function Keyword({
   rules,
   className = '',
   note,
+  highlightNote = true,
 }: {
   name: string
   rules: KeywordRule[]
   className?: string
   /** What put this keyword here, when something in the list did rather than the datasheet. */
   note?: string
+  /** Whether an added rule uses the stronger derived-value colour. */
+  highlightNote?: boolean
 }) {
   const rule = rules
     .filter((candidate) => ruleReferenceMatches(name, candidate.name))
@@ -25,7 +28,7 @@ export function Keyword({
 
   return (
     <HoverTooltip
-      className={`${className} ${note ? 'font-semibold text-info' : 'text-azure'} hover:text-bone`}
+      className={`${className} ${note && highlightNote ? 'font-semibold text-info' : 'text-azure'} hover:text-bone`}
       title={rule?.name ?? name}
       body={rule ? rule.description.replaceAll(/\^\^|\*/g, '') : undefined}
       note={note}

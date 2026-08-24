@@ -228,7 +228,18 @@ function AbilitySummary({ abilities, rules }: { abilities: Datasheet['abilities'
           </h2>
           <div className="mt-2 flex flex-wrap gap-1">
             {found.map((ability) => (
-              <Keyword key={ability.id} name={ability.name} rules={described} className={KEYWORD_TAG_CLASS} />
+              <Keyword
+                key={ability.id}
+                name={ability.name}
+                rules={described}
+                className={
+                  ability.source
+                    ? 'chip inline-flex min-h-6 items-center justify-center border-info/50 bg-info/10 py-0.5 leading-none !text-info hover:!text-bone'
+                    : KEYWORD_TAG_CLASS
+                }
+                note={ability.source ? `Added by ${ability.source}` : undefined}
+                highlightNote={false}
+              />
             ))}
           </div>
         </section>
