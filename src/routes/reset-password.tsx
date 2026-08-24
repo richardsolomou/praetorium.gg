@@ -1,5 +1,4 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
-import posthog from 'posthog-js'
 import { useState } from 'react'
 import { useAuthAction } from 'ras-stack/auth/react'
 import { Button, buttonVariants } from '@/components/ui/button'
@@ -7,6 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { localRedirectPath, PASSWORD_MIN_LENGTH } from '../authConfig'
 import { authClient } from '../client/authClient'
+import { finishPasswordRecovery } from '../client/passwordRecovery'
 
 export const Route = createFileRoute('/reset-password')({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -58,8 +58,7 @@ function ResetPassword() {
                 if (!result.error) {
                   const search = new URLSearchParams({ reset: 'true' })
                   if (next) search.set('next', next)
-                  posthog.reset()
-                  window.location.replace(`/sign-in?${search}`)
+                  finishPasswordRecovery(`/sign-in?${search}`)
                 }
               }}
             >
