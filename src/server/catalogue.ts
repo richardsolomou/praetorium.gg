@@ -1,6 +1,6 @@
 import { type Definition, type InfoGroup, type InfoLink, nameOf, type Profile, targetOf } from '../core/catalogue'
 import { attachmentOf } from '../core/attach'
-import { infoLinkHiddenByRules, keywordIds, profileModifiers, type ProfileModifier, type Selection } from '../core/evaluate'
+import { hiddenByRules, infoLinkHiddenByRules, keywordIds, profileModifiers, type ProfileModifier, type Selection } from '../core/evaluate'
 import { defaultSelection } from '../core/expand'
 import { unitChoices } from '../core/unitChoices'
 import { wargearOf } from '../core/wargear'
@@ -59,7 +59,7 @@ type DatasheetContext = {
 const abilityDescription = (profile: Profile) =>
   profile.characteristics?.find((characteristic) => characteristic.name === 'Description')?.$text ?? null
 
-type SearchableProfiles = Pick<DatasheetSearchFields, 'abilities' | 'weapons' | 'weaponKeywords'>
+type SearchableProfiles = Pick<DatasheetSearchFields, 'abilities' | 'weapons' | 'weaponKeywords'> & { pricingAbilities: string[] }
 
 const searchableProfileCache = new WeakMap<LoadedCatalogue, Map<string, SearchableProfiles>>()
 
@@ -71,7 +71,7 @@ const searchableProfileCache = new WeakMap<LoadedCatalogue, Map<string, Searchab
  * small question pay nearly the whole datasheet-page cost.
  */
 export function abilityNamesIn(loaded: LoadedCatalogue, catalogueId: string, entryId: string): string[] {
-  return searchableProfilesIn(loaded, catalogueId, entryId).abilities
+  return searchableProfilesIn(loaded, catalogueId, entryId).pricingAbilities
 }
 
 function searchableProfilesIn(loaded: LoadedCatalogue, catalogueId: string, entryId: string): SearchableProfiles {
@@ -79,18 +79,24 @@ function searchableProfilesIn(loaded: LoadedCatalogue, catalogueId: string, entr
   const cache = searchableProfileCache.get(loaded)
   const cached = cache?.get(key)
   if (cached) return cached
-  const empty = { abilities: [], weapons: [], weaponKeywords: [] }
+  const empty = { abilities: [], weapons: [], weaponKeywords: [], pricingAbilities: [] }
   if (!datasheetsOf(loaded.index, catalogueId).has(entryId)) return empty
   const root = loaded.index.definitions.get(entryId)
   if (!root) return empty
 
   const abilities = new Set<string>()
+  const pricingAbilities = new Set<string>()
   const weapons = new Set<string>()
   const weaponKeywords = new Set<string>()
   const visited = new Set<string>()
-  const addProfile = (profile: Profile) => {
+  const options = { primaryCatalogueId: catalogueId }
+  const addProfile = (profile: Profile, searchable = true) => {
     if (!profile.name || profile.hidden) return
-    if (profile.typeName === 'Abilities') abilities.add(profile.name)
+    if (profile.typeName === 'Abilities') {
+      pricingAbilities.add(profile.name)
+      if (searchable) abilities.add(profile.name)
+    }
+    if (!searchable) return
     if (profile.typeName !== 'Ranged Weapons' && profile.typeName !== 'Melee Weapons') return
     weapons.add(profile.name)
     for (const characteristic of profile.characteristics ?? []) {
@@ -101,46 +107,54 @@ function searchableProfilesIn(loaded: LoadedCatalogue, catalogueId: string, entr
       })
     }
   }
-  const addRule = (link: InfoLink) => {
-    if (link.type !== 'rule' || infoLinkHiddenByRules(link, loaded.index, { primaryCatalogueId: catalogueId })) return
+  const addRule = (link: InfoLink, searchable = true) => {
+    if (link.type !== 'rule' || infoLinkHiddenByRules(link, loaded.index, options)) return
     const rule = loaded.index.rules.get(link.targetId)
     const name = displayRuleName(link, link.name ?? rule?.name)
-    if (name && !rule?.hidden) abilities.add(name)
+    if (!name || rule?.hidden) return
+    pricingAbilities.add(name)
+    if (searchable) abilities.add(name)
   }
-  const addGroup = (group: InfoGroup) => {
+  const addGroup = (group: InfoGroup, searchable = true) => {
     if (group.hidden) return
-    group.profiles?.forEach(addProfile)
-    group.infoLinks?.forEach(addRule)
+    group.profiles?.forEach((profile) => addProfile(profile, searchable))
+    group.infoLinks?.forEach((link) => addRule(link, searchable))
   }
   const addProfiles = (definition: Definition, ownRules: boolean) => {
-    definition.profiles?.forEach(addProfile)
-    definition.infoGroups?.forEach(addGroup)
+    definition.profiles?.forEach((profile) => addProfile(profile))
+    definition.infoGroups?.forEach((group) => addGroup(group))
     for (const link of definition.infoLinks ?? []) {
       if (ownRules) addRule(link)
       const shared = loaded.index.shared.get(link.targetId)
       if (!shared) continue
-      if ('profiles' in shared) addGroup({ ...shared, name: link.name ?? shared.name })
+      if ('profiles' in shared) addGroup({ ...shared, name: link.name ?? shared.name }, false)
       else addProfile({ ...shared, name: link.name ?? shared.name })
     }
   }
   const visit = (definition: Definition, isRoot = false, enhancement = false) => {
-    if (visited.has(definition.id)) return
+    if (visited.has(definition.id) || hiddenByRules(definition, loaded.index, options)) return
     visited.add(definition.id)
     const enhancementEntry = enhancement || definition.name === 'Enhancements'
     if (!enhancementEntry) addProfiles(definition, isRoot)
     definition.selectionEntries?.forEach((entry) => visit(entry, false, enhancementEntry))
     definition.selectionEntryGroups?.forEach((group) => visit(group, false, enhancementEntry))
     for (const link of definition.entryLinks ?? []) {
+      if (hiddenByRules(link, loaded.index, options)) continue
       visit(link)
       const target = loaded.index.definitions.get(link.targetId)
-      if (target) addProfiles(target, false)
+      if (target && !hiddenByRules(target, loaded.index, options)) addProfiles(target, false)
     }
   }
 
   const sheet = targetOf(root, loaded.index.definitions)
   visit(root, true)
   if (sheet !== root) visit(sheet, true)
-  const found = { abilities: [...abilities], weapons: [...weapons], weaponKeywords: [...weaponKeywords] }
+  const found = {
+    abilities: [...abilities],
+    weapons: [...weapons],
+    weaponKeywords: [...weaponKeywords],
+    pricingAbilities: [...pricingAbilities],
+  }
   const entries = cache ?? new Map<string, SearchableProfiles>()
   entries.set(key, found)
   if (!cache) searchableProfileCache.set(loaded, entries)

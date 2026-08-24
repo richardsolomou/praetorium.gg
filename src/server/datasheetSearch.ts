@@ -64,6 +64,21 @@ type MetadataMatch = {
 
 function selectReasons(wanted: readonly string[], nameWords: readonly string[], ranked: readonly MetadataMatch[]) {
   const covered = new Set(nameWords)
+  const missingWords = wanted.filter((word) => !covered.has(word))
+  const seenCoverage = new Set<string>()
+  const candidates = ranked.filter((match) => {
+    if (!match.matchingWords.some((word) => missingWords.includes(word))) return false
+    const coverage = match.matchingWords.join('\0')
+    if (seenCoverage.has(coverage)) return false
+    seenCoverage.add(coverage)
+    return true
+  })
+
+  for (let size = 1; size <= 3; size++) {
+    const exact = reasonCombination(missingWords, candidates, size)
+    if (exact) return exact.map(({ reason }) => reason)
+  }
+
   const remaining = [...ranked]
   const selected: MetadataMatch[] = []
 
@@ -81,6 +96,25 @@ function selectReasons(wanted: readonly string[], nameWords: readonly string[], 
   }
 
   return selected.map(({ reason }) => reason)
+}
+
+function reasonCombination(
+  uncovered: readonly string[],
+  candidates: readonly MetadataMatch[],
+  size: number,
+  start = 0,
+  selected: readonly MetadataMatch[] = [],
+): MetadataMatch[] | null {
+  if (selected.length === size) {
+    return uncovered.every((word) => selected.some((match) => match.matchingWords.includes(word))) ? [...selected] : null
+  }
+  for (let index = start; index <= candidates.length - (size - selected.length); index++) {
+    const candidate = candidates[index]
+    if (!candidate) continue
+    const found = reasonCombination(uncovered, candidates, size, index + 1, [...selected, candidate])
+    if (found) return found
+  }
+  return null
 }
 
 function fieldMatch(wanted: readonly string[], value: string) {

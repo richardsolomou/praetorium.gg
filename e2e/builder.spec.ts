@@ -116,7 +116,6 @@ test('the roster workspace preserves picker and read-only state', async ({ page 
 test('Deathwatch excludes Scouts from its unit picker', async ({ page }) => {
   await openBuilder(page, 'Deathwatch', /Black Spear Task Force/)
   await page.getByLabel('Add a unit').fill('Scout')
-  await expect(page.getByText('No matching units.')).toBeVisible()
   await expect(page.getByRole('button', { name: /Add Scout/ })).toHaveCount(0)
 })
 

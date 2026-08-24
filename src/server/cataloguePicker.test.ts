@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { datasheetInBySlug } from './catalogue'
 import { groupOfEntry, unitsIn } from './cataloguePicker'
-import { bookOf, categories, offered, points, shelfOf } from './catalogue.fixtures'
+import { ability, bookOf, categories, offered, points, shelfOf } from './catalogue.fixtures'
 
 describe('the shelf a datasheet is filed under', () => {
   const shelfOfTitan = (links: { id: string; targetId: string; name: string; primary?: boolean }[]) =>
@@ -59,6 +59,14 @@ describe('the picker', () => {
               characteristics: [{ name: 'Description', $text: 'Restore one model.' }],
             },
           ],
+          selectionEntryGroups: [
+            {
+              id: 'wargear',
+              name: 'Wargear',
+              constraints: [{ id: 'wargear-max', type: 'max', scope: 'parent', field: 'selections', value: 1 }],
+              selectionEntries: [{ id: 'cloak', name: 'Canoptek cloak', type: 'upgrade' }],
+            },
+          ],
         },
         { id: 'warriors', name: 'Necron Warriors', type: 'unit', costs: points(100) },
       ],
@@ -75,6 +83,9 @@ describe('the picker', () => {
     ])
     expect(unitsIn(book, 'cat', 'lethal')).toEqual([
       expect.objectContaining({ name: 'Technomancer', matchReasons: [{ kind: 'weapon keyword', value: 'Lethal Hits' }] }),
+    ])
+    expect(unitsIn(book, 'cat', 'cloak')).toEqual([
+      expect.objectContaining({ name: 'Technomancer', matchReasons: [{ kind: 'wargear', value: 'Canoptek cloak' }] }),
     ])
   })
 
@@ -95,9 +106,10 @@ describe('the picker', () => {
     expect(unitsIn(book, 'cat', 'cryptek').map((unit) => unit.name)).toEqual(['Cryptek Conclave', 'Technomancer'])
   })
 
-  it('does not index hidden fields or ability prose', () => {
+  it('does not index hidden fields, conditional shared groups or ability prose', () => {
     const book = bookOf({
       categoryEntries: [{ id: 'marker', name: 'Secret marker', hidden: true }],
+      sharedInfoGroups: [{ id: 'conditional', name: 'Conditional', profiles: [ability('null-aegis', 'Null Aegis')] }],
       selectionEntries: [
         {
           id: 'technomancer',
@@ -105,6 +117,7 @@ describe('the picker', () => {
           type: 'model',
           costs: points(85),
           categoryLinks: [{ id: 'marker-link', targetId: 'marker', name: 'Secret marker' }],
+          infoLinks: [{ id: 'conditional-link', targetId: 'conditional', name: 'Conditional', type: 'infoGroup' }],
           profiles: [
             {
               id: 'hidden-gun',
@@ -119,12 +132,29 @@ describe('the picker', () => {
               characteristics: [{ name: 'Description', $text: 'Restore one destroyed model.' }],
             },
           ],
+          selectionEntryGroups: [
+            {
+              id: 'hidden-group',
+              name: 'Hidden group',
+              hidden: true,
+              selectionEntries: [
+                {
+                  id: 'buried-gun',
+                  name: 'Buried gun',
+                  type: 'upgrade',
+                  profiles: [{ id: 'buried-profile', name: 'Buried gun', typeName: 'Ranged Weapons' }],
+                },
+              ],
+            },
+          ],
         },
       ],
     })
 
     expect(unitsIn(book, 'cat', 'secret')).toEqual([])
     expect(unitsIn(book, 'cat', 'hidden gun')).toEqual([])
+    expect(unitsIn(book, 'cat', 'buried gun')).toEqual([])
+    expect(unitsIn(book, 'cat', 'null aegis')).toEqual([])
     expect(unitsIn(book, 'cat', 'destroyed')).toEqual([])
   })
 

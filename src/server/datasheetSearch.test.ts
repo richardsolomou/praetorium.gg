@@ -52,6 +52,22 @@ describe('datasheet search', () => {
     ).toEqual([{ kind: 'keyword', value: 'Destroyer Cult' }])
   })
 
+  it('finds the smallest explanation when a greedy choice would use three reasons', () => {
+    expect(
+      matchDatasheet('alpha beta gamma delta epsilon zeta', {
+        name: 'Overlord',
+        keywords: ['Alpha beta gamma delta'],
+        abilities: ['Alpha beta epsilon'],
+        weapons: ['Gamma delta zeta'],
+        weaponKeywords: [],
+        wargear: [],
+      })?.reasons,
+    ).toEqual([
+      { kind: 'ability', value: 'Alpha beta epsilon' },
+      { kind: 'weapon', value: 'Gamma delta zeta' },
+    ])
+  })
+
   it('does not match unrelated words', () => {
     expect(matchDatasheet('tesla', fields)).toBeNull()
   })
