@@ -111,6 +111,7 @@ describe('account administration', () => {
 
   it('verifies a password account through the emailed link', async () => {
     connection = await openTestDatabase()
+    vi.stubEnv('APP_URL', 'http://localhost')
     const messages: EmailMessage[] = []
     const auth = createAuth(connection.database, SECRET, undefined, recordingEmail(messages))
 
@@ -126,7 +127,13 @@ describe('account administration', () => {
       }),
     ])
     const link = emailLink(messages[0]!)
-    await auth.api.verifyEmail({ query: { token: link.searchParams.get('token')! } })
+    const invalidLink = new URL(link)
+    invalidLink.searchParams.set('token', 'invalid')
+    const invalid = await auth.handler(new Request(invalidLink))
+    expect(new URL(invalid.headers.get('location')!, link).searchParams.get('error')).toBe('INVALID_TOKEN')
+
+    const verified = await auth.handler(new Request(link))
+    expect(new URL(verified.headers.get('location')!, link).pathname).toBe('/profile')
 
     const [stored] = await connection.database.select({ emailVerified: user.emailVerified }).from(user).where(eq(user.id, signedUp.user.id))
     expect(stored?.emailVerified).toBe(true)
@@ -134,6 +141,7 @@ describe('account administration', () => {
 
   it('resets the password once and revokes secondary-storage sessions', async () => {
     connection = await openTestDatabase()
+    vi.stubEnv('APP_URL', 'http://localhost')
     const messages: EmailMessage[] = []
     const auth = createAuth(connection.database, SECRET, memoryStorage(), recordingEmail(messages))
     const signedUp = await auth.api.signUpEmail({
@@ -151,12 +159,18 @@ describe('account administration', () => {
         text: expect.stringContaining('/reset-password/'),
       }),
     ])
-    const token = emailLink(messages[0]!).pathname.split('/').at(-1)!
+    const link = emailLink(messages[0]!)
+    const callback = await auth.handler(new Request(link))
+    const callbackTarget = new URL(callback.headers.get('location')!, link)
+    expect(callbackTarget.pathname).toBe('/reset-password')
+    const token = callbackTarget.searchParams.get('token')!
     await expect(auth.api.resetPassword({ body: { newPassword: 'replacement1234', token } })).resolves.toEqual({ status: true })
     expect(await auth.api.getSession({ headers: cookieHeaders(signedUp.headers) })).toBeNull()
     await expect(auth.api.resetPassword({ body: { newPassword: 'another-password', token } })).rejects.toMatchObject({
       status: 'BAD_REQUEST',
     })
+    const expired = await auth.handler(new Request(link))
+    expect(new URL(expired.headers.get('location')!, link).searchParams.get('error')).toBe('INVALID_TOKEN')
     await expect(auth.api.signInEmail({ body: { email: 'player@example.com', password: 'replacement1234' } })).resolves.toMatchObject({
       user: { email: 'player@example.com' },
     })

@@ -44,7 +44,7 @@ function Profile() {
     return <SignInRequired title="Could not complete account verification" explanation={`${callbackError} Sign in to try again.`} />
   }
   if (!me && verified) {
-    return <SignInRequired title="Email address verified" explanation="Sign in to continue to your profile." />
+    return <SignInRequired title="Check your email verification" explanation="Sign in to confirm your email status." />
   }
   if (!me) return <SignInRequired title="Your profile" explanation="Sign in to edit your profile." />
   return <ProfileForm me={me} callbackError={callbackError} verified={verified && methods?.emailVerified} />

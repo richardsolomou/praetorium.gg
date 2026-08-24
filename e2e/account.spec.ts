@@ -71,7 +71,9 @@ test('an unverified account cannot forge a verification success message', async 
 
 test('email verification callbacks explain their result without an active session', async ({ page }) => {
   await page.goto('/profile?verified=true')
-  await expect(page.getByRole('heading', { name: 'Email address verified' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Check your email verification' })).toBeVisible()
+  await expect(page.getByText('Sign in to confirm your email status.')).toBeVisible()
+  await page.screenshot({ path: 'test-results/profile-verification-signed-out.png', fullPage: true })
 
   await page.goto('/profile?verified=true&error=INVALID_TOKEN')
   await expect(page.getByRole('heading', { name: 'Could not complete account verification' })).toBeVisible()

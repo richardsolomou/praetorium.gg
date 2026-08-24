@@ -186,7 +186,7 @@ function SignIn() {
                     Forgot password?
                   </Button>
                 ) : null}
-                {resetSent ? <p className="text-sm text-dim">If that account exists, a reset link has been sent.</p> : null}
+                {resetSent ? <output className="block text-sm text-dim">If that account exists, a reset link has been sent.</output> : null}
               </form>
 
               <Button
