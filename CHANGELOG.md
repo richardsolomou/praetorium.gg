@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.28.2
+
+### Patch Changes
+
+- 787ec46: Keep roster export actions visible and label exported text with the Praetorium version.
+
 ## 0.28.1
 
 ### Patch Changes
