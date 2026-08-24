@@ -61,12 +61,16 @@ Sessions live in Valkey when `VALKEY_URL` is set, so replacing it or clearing it
 
 The first account with a sign-in method becomes the administrator. During an upgrade, the oldest account with a sign-in method becomes the administrator if none exists. Administrators can create accounts, change roles and passwords, revoke sessions, and impersonate another player for up to one hour.
 
-Email and password sign-in needs no additional configuration. To enable Google or Discord, create an OAuth application with the provider and set both matching variables from `.env.example`. Use these callback URLs, replacing the origin with the deployment's public origin:
+Email and password sign-in needs no additional configuration. To add email verification and password recovery, set `SMTP_HOST`, `EMAIL_FROM`, and the other SMTP variables from `.env.example`. `SMTP_PORT` defaults to `587`; set `SMTP_SECURE=true` only when the SMTP service expects an implicit TLS connection. For Plunk, use the SMTP values shown for the sending domain in its dashboard.
+
+To enable Google or Discord, create an OAuth application with the provider and set both matching variables from `.env.example`. Use these callback URLs, replacing the origin with the deployment's public origin:
 
 - Google: `https://example.com/api/auth/callback/google`
 - Discord: `https://example.com/api/auth/callback/discord`
 
 The provider appears only when both its client ID and client secret are set. Set `APP_URL` to the same public origin when proxy headers do not describe it correctly.
+
+If an email and password account already uses the provider's email address, sign in with the password and verify the address from Profile. A provider that reports the same verified email can then sign in to that account. Linking a provider from Profile still requires the provider to report the account's email address.
 
 Upgrades from 0.25.0 or earlier must stop every replica before starting the new image. The upgrade begins encrypting OAuth access and refresh tokens, and an older replica cannot read tokens written by the new release. Stop every replica before a rollback too; users whose tokens were created or refreshed after the upgrade may need to reconnect their provider.
 

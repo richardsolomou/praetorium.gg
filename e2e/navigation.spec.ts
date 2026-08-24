@@ -88,7 +88,22 @@ test('the faction page shows its army rule in full', async ({ page }) => {
 test('saving a faction asks signed-out visitors to sign in', async ({ page }) => {
   await page.goto('/factions')
   await page.getByRole('link', { name: 'Sign in to add Necrons to favourites' }).click()
-  await expect(page).toHaveURL('/signin?next=%2Ffactions')
+  await expect(page).toHaveURL('/sign-in?next=%2Ffactions')
+})
+
+test('the old sign-in URL preserves its destination', async ({ page }) => {
+  await page.goto('/signin?next=%2Ffactions')
+
+  await expect(page).toHaveURL('/sign-in?next=%2Ffactions')
+})
+
+test('an invalid password reset link explains how to recover', async ({ page }) => {
+  await page.goto('/reset-password?error=INVALID_TOKEN')
+
+  await expect(page.getByText('This password reset link is invalid or has expired.')).toBeVisible()
+  await page.screenshot({ path: 'test-results/password-reset-error.png', fullPage: true })
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.screenshot({ path: 'test-results/password-reset-error-phone.png', fullPage: true })
 })
 
 test('faction routes keep a stable content width', async ({ page }) => {
@@ -134,7 +149,7 @@ test('account libraries share their page width and fit a phone', async ({ page }
 
 test('authentication panels and empty states fill the page above the footer', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 })
-  await page.goto('/signin')
+  await page.goto('/sign-in')
   const left = await page.locator('main > aside').boundingBox()
   const right = await page.locator('main > section').boundingBox()
   expect(left?.x).toBe(0)

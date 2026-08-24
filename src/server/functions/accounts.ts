@@ -35,6 +35,7 @@ export const accountMethods = createServerFn({ method: 'GET' }).handler(() =>
     return {
       linked: linked.map((entry) => entry.providerId),
       availableProviders: configuredProviders(SOCIAL_PROVIDERS),
+      emailDelivery: Boolean(app().email),
     }
   }),
 )
@@ -193,5 +194,5 @@ export const setFavouriteDetachment = createServerFn({ method: 'POST' })
   )
 
 export const signInOptions = createServerFn({ method: 'GET' }).handler(() =>
-  rpc(() => ({ providers: configuredProviders(SOCIAL_PROVIDERS) })),
+  rpc(() => ({ providers: configuredProviders(SOCIAL_PROVIDERS), passwordReset: Boolean(app().email) })),
 )

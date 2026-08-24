@@ -145,7 +145,7 @@ function Account() {
             </DropdownMenuItem>
           </>
         ) : (
-          <DropdownMenuItem render={<Link to="/signin" search={{ next: undefined }} />}>
+          <DropdownMenuItem render={<Link to="/sign-in" search={{ next: undefined }} />}>
             <LogIn /> Sign in
           </DropdownMenuItem>
         )}

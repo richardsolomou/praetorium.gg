@@ -18,7 +18,7 @@ test('account forms show the server error', async ({ page }) => {
     data: { email, password: 'a-long-enough-password', name: 'Auth Error' },
   })
 
-  await page.goto('/signin')
+  await page.goto('/sign-in')
   await page.getByLabel('Email').fill(email)
   await page.getByLabel('Password').fill('the-wrong-password')
   await page.getByRole('button', { name: 'Sign in', exact: true }).click()
@@ -29,6 +29,30 @@ test('account forms show the server error', async ({ page }) => {
   await page.getByLabel('Password').fill('a-long-enough-password')
   await page.getByRole('button', { name: 'Create the account' }).click()
   await expect(page.getByText('User already exists. Use another email.', { exact: true })).toBeVisible()
+})
+
+test('social sign-in callback errors explain how to recover', async ({ page }) => {
+  await page.goto('/sign-in?error=account_not_linked')
+
+  await expect(
+    page.getByText('An account already uses this email. Sign in with its existing method, then link this provider from your profile.'),
+  ).toBeVisible()
+})
+
+test('social account linking errors explain how to recover', async ({ page }) => {
+  await page.request.post('/api/auth/sign-up/email', {
+    data: {
+      email: `link-error-${crypto.randomUUID()}@example.test`,
+      password: 'a-long-enough-password',
+      name: uniqueName('Link Error'),
+    },
+  })
+  await page.goto('/profile?error=email_doesn%27t_match')
+
+  await expect(page.getByText('This provider uses a different email address. Use matching email addresses before linking.')).toBeVisible()
+  await page.screenshot({ path: 'test-results/profile-link-error.png', fullPage: true })
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.screenshot({ path: 'test-results/profile-link-error-phone.png', fullPage: true })
 })
 
 test('a player can edit their display name and profile picture', async ({ page }) => {
@@ -69,7 +93,7 @@ test('a list saved under an account is there on another device', async ({ browse
   const page = await first.newPage()
   const email = `alice-${crypto.randomUUID()}@example.test`
 
-  await page.goto('/signin')
+  await page.goto('/sign-in')
   await page.getByRole('button', { name: 'I need an account' }).click()
   await page.getByLabel('Your name').fill('Alice')
   await page.getByLabel('Email').fill(email)
@@ -84,7 +108,7 @@ test('a list saved under an account is there on another device', async ({ browse
   // A different browser entirely: no cookie, no storage, nothing but the account.
   const second = await browser.newContext()
   const elsewhere = await second.newPage()
-  await elsewhere.goto('/signin')
+  await elsewhere.goto('/sign-in')
   await elsewhere.getByLabel('Email').fill(email)
   await elsewhere.getByLabel('Password').fill('a-long-enough-password')
   await elsewhere.getByRole('button', { name: 'Sign in', exact: true }).click()
@@ -113,7 +137,7 @@ test('a seated battle signs the opponent in and drops them back into setup', asy
   const bobName = uniqueName('Bob')
   const bobEmail = `${bobName.toLowerCase()}@example.test`
 
-  await guest.goto('/signin')
+  await guest.goto('/sign-in')
   await guest.getByRole('button', { name: 'I need an account' }).click()
   await guest.getByLabel('Your name').fill(bobName)
   await guest.getByLabel('Email').fill(bobEmail)

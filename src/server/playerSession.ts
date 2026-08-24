@@ -6,6 +6,7 @@ type Player = {
   name: string
   image: string | null
   email: string
+  emailVerified: boolean
   role: 'admin' | 'user'
   twoFactorEnabled: boolean
   impersonatedBy: string | null
@@ -35,6 +36,7 @@ export function currentUser(request = getRequest()): Promise<Player | null> {
             name: session.user.name,
             image: session.user.image ?? null,
             email: session.user.email,
+            emailVerified: session.user.emailVerified,
             role: session.user.role === 'admin' ? ('admin' as const) : ('user' as const),
             twoFactorEnabled: session.user.twoFactorEnabled ?? false,
             impersonatedBy: session.session.impersonatedBy ?? null,
@@ -76,6 +78,7 @@ export async function requireAdmin(request = getRequest()) {
     name: authoritative.name,
     image: authoritative.image ?? null,
     email: authoritative.email,
+    emailVerified: authoritative.emailVerified,
     role: 'admin' as const,
     twoFactorEnabled: authoritative.twoFactorEnabled,
     impersonatedBy: null,

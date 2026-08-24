@@ -1,11 +1,21 @@
 import { eq } from 'drizzle-orm'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import type { EmailDelivery, EmailMessage } from 'ras-stack/email'
 import type { PraetoriumConnection } from '../db/connection'
 import { account } from '../db/schema'
 import { openTestDatabase } from '../db/testDatabase'
 import { createAuth } from './auth'
 
 const SECRET = 'test-secret-0123456789abcdef0123456789abcdef'
+
+function recordingEmail(messages: EmailMessage[]): EmailDelivery {
+  return {
+    send: async (message) => {
+      messages.push(message)
+    },
+    verify: async () => undefined,
+  }
+}
 
 function memoryStorage(): NonNullable<Parameters<typeof createAuth>[2]> {
   const values = new Map<string, string>()
@@ -91,6 +101,42 @@ describe('account administration', () => {
     vi.stubEnv('GOOGLE_CLIENT_SECRET', missing === 'GOOGLE_CLIENT_SECRET' ? '' : 'client-secret')
 
     expect(() => createAuth(connection!.database, SECRET)).toThrow('GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must be configured together')
+  })
+
+  it('sends email verification when a password account is created', async () => {
+    connection = await openTestDatabase()
+    const messages: EmailMessage[] = []
+    const auth = createAuth(connection.database, SECRET, undefined, recordingEmail(messages))
+
+    await auth.api.signUpEmail({
+      body: { email: 'player@example.com', password: 'password1234', name: 'Player', callbackURL: '/profile' },
+    })
+
+    expect(messages).toEqual([
+      expect.objectContaining({
+        to: 'player@example.com',
+        subject: 'Verify your Praetorium email address',
+        text: expect.stringContaining('/verify-email?token='),
+      }),
+    ])
+  })
+
+  it('sends password reset email when email delivery is configured', async () => {
+    connection = await openTestDatabase()
+    const messages: EmailMessage[] = []
+    const auth = createAuth(connection.database, SECRET, undefined, recordingEmail(messages))
+    await auth.api.signUpEmail({ body: { email: 'player@example.com', password: 'password1234', name: 'Player' } })
+    messages.length = 0
+
+    await auth.api.requestPasswordReset({ body: { email: 'player@example.com', redirectTo: '/reset-password' } })
+
+    expect(messages).toEqual([
+      expect.objectContaining({
+        to: 'player@example.com',
+        subject: 'Reset your Praetorium password',
+        text: expect.stringContaining('/reset-password/'),
+      }),
+    ])
   })
 
   it('returns the initial administrator role from secondary session storage immediately', async () => {

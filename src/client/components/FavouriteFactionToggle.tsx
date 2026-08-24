@@ -22,7 +22,7 @@ export function FavouriteFactionToggle({ catalogueId, name, className = 'size-7'
   if (!me) {
     return (
       <Link
-        to="/signin"
+        to="/sign-in"
         search={{ next: path }}
         className={`grid shrink-0 place-items-center ${className}`}
         aria-label={`Sign in to add ${name} to favourites`}

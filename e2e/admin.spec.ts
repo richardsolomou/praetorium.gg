@@ -26,7 +26,7 @@ function currentTotp(uri: string) {
 }
 
 async function signIn(page: Page, twoFactor = false, email = ADMIN_EMAIL, password = ADMIN_PASSWORD) {
-  await page.goto('/signin')
+  await page.goto('/sign-in')
   await page.getByLabel('Email').fill(email)
   await page.getByLabel('Password').fill(password)
   await page.getByRole('button', { name: 'Sign in', exact: true }).click()
