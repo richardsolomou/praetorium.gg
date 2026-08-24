@@ -92,7 +92,7 @@ function readLivePages(directory: string) {
         const heading = $(section).children('h3').first().text().trim()
         if (!heading) return
         const content = $(section).clone()
-        content.find('h3, .ShowFluff').remove()
+        content.find('h3, .ShowFluff, .faqErrataSpoiler').remove()
         const description = toText(content.html() ?? '').trim()
         if (description) rules.push({ name: heading, description })
       })
