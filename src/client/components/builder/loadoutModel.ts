@@ -71,11 +71,16 @@ export function showLoadoutEntry(count: number, showOptions: boolean) {
  * profiles: "Staff of light" and "Staff of light (Melee)" are one staff.
  */
 export function sameWeapon(one: string, other: string) {
-  const base = (name: string) =>
-    name
+  const base = (name: string) => {
+    const trimmed = name.trim()
+    const marked = /^[^\p{L}\p{N}]+/u.test(trimmed)
+    const unmarked = trimmed.replace(/^[^\p{L}\p{N}]+/u, '')
+    const withoutMarkedMode = marked ? unmarked.replace(/\s+-\s+[^-]+$/, '') : unmarked
+    return withoutMarkedMode
       .replace(/\s*\([^)]*\)\s*$/, '')
       .trim()
       .toLocaleLowerCase()
+  }
   return base(one) === base(other)
 }
 

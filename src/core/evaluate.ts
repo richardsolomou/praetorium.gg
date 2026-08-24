@@ -201,7 +201,7 @@ export function profileModifiers(
     const profileType = affects?.match(/(?:^|\.)profiles\.([^.]*)$/)?.[1]
     if (!profileType) return
     const target = parseProfileAffects(affects)
-    for (const origin of resolveScope(modifier.scope ?? 'self', node, root, census)) {
+    for (const origin of resolveScope(modifier.scope ?? 'self', node, root, index, census)) {
       if (!target.forces && origin !== root && !origin.force && !unitNodes.has(origin)) continue
       const applied: ProfileModifier = {
         ...common,
@@ -779,7 +779,7 @@ function groupHolds(group: ConditionGroup, node: Node, root: Node, index: Catalo
  * subject, which is what makes "am I the second of these?" expressible.
  */
 function localHolds(group: LocalConditionGroup, node: Node, root: Node, index: CatalogueIndex, census: Census): boolean {
-  const origins = resolveScope(group.scope, node, root, census)
+  const origins = resolveScope(group.scope, node, root, index, census)
   if (!origins.length) return false
 
   const candidates = new Set<Node>()
@@ -855,7 +855,7 @@ function measure(spec: Measurable, node: Node, root: Node, index: CatalogueIndex
     return spec.childId === root.catalogueId ? 1 : 0
   }
 
-  const origins = resolveScope(spec.scope, node, root, census)
+  const origins = resolveScope(spec.scope, node, root, index, census)
   if (!origins.length) return 0
 
   const seen = new Set<Node>()
@@ -971,7 +971,7 @@ function grantsOf(root: Node, index: CatalogueIndex, census: Census): Map<Node, 
 
 /** The selections a keyword modifier is aimed at: where its scope lands, narrowed by what it affects. */
 function aimedAt(modifier: Modifier, node: Node, root: Node, index: CatalogueIndex, census: Census): Node[] {
-  const origins = resolveScope(modifier.scope ?? 'self', node, root, census)
+  const origins = resolveScope(modifier.scope ?? 'self', node, root, index, census)
   if (!modifier.affects) return origins
   const reach = parseAffects(modifier.affects.split('.'))
   // Which group a keyword written against one is meant to reach is not something
@@ -996,7 +996,7 @@ function aimedAt(modifier: Modifier, node: Node, root: Node, index: CatalogueInd
  *
  * Returns a list because `ancestor` means every ancestor, not one of them.
  */
-function resolveScope(scope: string, node: Node, root: Node, census: Census): Node[] {
+function resolveScope(scope: string, node: Node, root: Node, index: CatalogueIndex, census: Census): Node[] {
   switch (scope) {
     case 'self':
       return [node]
@@ -1045,6 +1045,7 @@ function resolveScope(scope: string, node: Node, root: Node, census: Census): No
       for (let current: Node | null = node; current; current = current.parent) {
         if (current.target.id === scope || current.id === scope) return [current]
       }
+      if (index.definitions.has(scope)) return []
       census.note(`unresolved scope ${scope}`)
       return []
     }

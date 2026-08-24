@@ -566,6 +566,50 @@ describe('an unknown selection', () => {
   })
 })
 
+describe('a condition scoped to another known unit', () => {
+  const resultWith = (scope: string, known: boolean) =>
+    evaluateOne(
+      { id: 'bladeguard', selections: [{ id: 'plasma' }] },
+      {
+        sharedSelectionEntries: [
+          ...(known ? [{ id: scope, name: 'Other unit', type: 'unit' as const }] : []),
+          {
+            id: 'bladeguard',
+            name: 'Bladeguard Veterans',
+            type: 'unit',
+            selectionEntries: [
+              {
+                id: 'plasma',
+                name: 'Plasma pistol',
+                type: 'upgrade',
+                modifiers: [
+                  {
+                    type: 'add',
+                    field: 'error',
+                    value: 'Other-unit loadout error.',
+                    conditions: [{ type: 'atLeast', value: 2, field: 'selections', scope, childId: 'plasma' }],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    )
+
+  it('fails closed without reporting an unsupported rule', () => {
+    const result = resultWith('vanguard', true)
+
+    expect({ errors: result.errors, unhandled: result.unhandled }).toEqual({ errors: [], unhandled: [] })
+  })
+
+  it('still reports a scope the catalogue never defines', () => {
+    const result = resultWith('missing-unit', false)
+
+    expect(result.unhandled).toContain('unresolved scope missing-unit')
+  })
+})
+
 describe('keywords', () => {
   /** A cost that only applies inside a model carrying a category. */
   const catalogue = (): Partial<Catalogue> => ({
