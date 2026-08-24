@@ -1,5 +1,20 @@
 # praetorium
 
+## 0.27.0
+
+### Minor Changes
+
+- cac064f: Add the initial iOS and Android application shell.
+- 27a4590: Search for datasheets by their keywords, abilities, weapons, and wargear.
+
+### Patch Changes
+
+- 32ae6bc: Apply King of the Colosseum eligibility and unit limits while building a roster.
+- ca0af86: Show multi-profile weapons once and remove false catalogue warnings from shared wargear.
+- de654f3: Harden authentication redirects and analytics identity changes.
+- 8cdf33e: Keep broad datasheet searches responsive.
+- b35a558: Restore Leader and Support keywords to faction datasheets.
+
 ## 0.26.0
 
 ### Minor Changes
