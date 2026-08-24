@@ -489,7 +489,10 @@ export function heldWargear(
       0,
     )
     for (const piece of kind.fixed) add(piece.name, piece.count ?? bodies)
-    for (const row of kind.rows) add(row.name, countOf(row.choiceKey, row.optionId))
+    for (const row of kind.rows) {
+      const count = countOf(row.choiceKey, row.optionId)
+      for (const name of row.pieces ?? [row.name]) add(name, count)
+    }
     for (const swap of kind.swaps ?? []) for (const take of swap.takes) add(take, swap.count)
   }
   const swappedAway = new Set(

@@ -31,7 +31,7 @@ export type ModelKind = {
   fixed: { name: string; count?: number }[]
   members: { id: string; choiceKey: string | null; baseCount: number }[]
   /** Wargear taken through a choice, in the order the data holds it. */
-  rows: { name: string; choiceKey: string; optionId: string }[]
+  rows: { name: string; choiceKey: string; optionId: string; pieces?: string[] }[]
   /**
    * Swaps the datasheet allows that the catalogue does not describe, one row per
    * alternative so every one of them is always on screen whether taken or not.
@@ -89,6 +89,14 @@ export function modelKindsOf(entryId: string, selection: Selection, index: Catal
   )
   const carriedOf = (id: string) => carriedBy.get(id) ?? []
   const owns = (id: string) => choices.some((choice) => choice.owner?.id === id)
+  const piecesOf = (option: { id: string; name: string }) => {
+    const definition = index.definitions.get(option.id)
+    const target = definition ? resolve(definition, index) : undefined
+    const described = Boolean(target?.profiles?.length || target?.infoLinks?.some((link) => link.type === 'profile'))
+    const selected = defaultSelection(option.id, index, options)
+    const nested = selected ? wargearOf(selected, index).map((piece) => piece.name) : []
+    return described || !nested.length ? undefined : nested
+  }
 
   // The widest set that still says what the entries said is the one gathered, so the
   // unit gives way to the group and the group to the loadouts, and a pairing that
@@ -137,7 +145,8 @@ export function modelKindsOf(entryId: string, selection: Selection, index: Catal
         for (const choice of owned) {
           for (const option of choice.options) {
             if (rows.some((row) => row.name === option.name)) continue
-            rows.push({ name: option.name, choiceKey: choice.key, optionId: option.id })
+            const pieces = piecesOf(option)
+            rows.push({ name: option.name, choiceKey: choice.key, optionId: option.id, ...(pieces ? { pieces } : {}) })
           }
         }
         return

@@ -514,6 +514,73 @@ describe('choices nested inside a selected loadout', () => {
       errors: [],
     })
   })
+
+  it('fills a required nested choice that becomes visible with its model', () => {
+    const visibleWithModel = {
+      type: 'set' as const,
+      field: 'hidden',
+      value: true,
+      conditions: [
+        {
+          type: 'lessThan' as const,
+          value: 1,
+          field: 'selections',
+          scope: 'roster',
+          childId: 'veteran',
+          includeChildSelections: true,
+        },
+      ],
+    }
+    const conditional = indexOf({
+      sharedSelectionEntries: [
+        {
+          id: 'squad',
+          name: 'Squad',
+          type: 'unit',
+          selectionEntryGroups: [
+            {
+              id: 'composition',
+              name: 'Unit composition',
+              defaultSelectionEntryId: 'five-models',
+              constraints: mandatory('composition-min'),
+              selectionEntries: [
+                {
+                  id: 'five-models',
+                  name: 'Five models',
+                  type: 'upgrade',
+                  selectionEntries: [
+                    {
+                      id: 'veteran',
+                      name: 'Veteran',
+                      type: 'model',
+                      constraints: mandatory('veteran-min'),
+                      selectionEntryGroups: [
+                        {
+                          id: 'weapon',
+                          name: 'Weapon',
+                          defaultSelectionEntryId: 'hammer',
+                          constraints: [
+                            { id: 'weapon-min', type: 'min', value: 1, field: 'selections', scope: 'parent' },
+                            { id: 'weapon-max', type: 'max', value: 1, field: 'selections', scope: 'parent' },
+                          ],
+                          selectionEntries: [
+                            { id: 'hammer', name: 'Heavy thunder hammer', type: 'upgrade', modifiers: [visibleWithModel] },
+                            { id: 'shield', name: 'Shield', type: 'upgrade', modifiers: [visibleWithModel] },
+                          ],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    })
+
+    expect(wargearOf(buildUnit('squad', conditional)!.selection, conditional)).toEqual([{ name: 'Heavy thunder hammer', count: 1 }])
+  })
 })
 
 describe('optional wargear on repeated models', () => {

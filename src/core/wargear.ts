@@ -9,7 +9,7 @@
  */
 
 import type { CatalogueIndex } from './catalogue'
-import { isCollective, isRosterToggle, MAX_DEPTH, resolve } from './definitions'
+import { isCollective, isRosterToggle, resolve } from './definitions'
 import type { Selection } from './evaluate'
 
 export type Wargear = { name: string; count: number }
@@ -22,7 +22,7 @@ export function wargearOf(selection: Selection, index: CatalogueIndex): Wargear[
    * count has to be multiplied by. A collective entry is already a total for the
    * whole unit — five blasters stored as five — so it is taken as it stands.
    */
-  const walk = (node: Selection, depth: number, carried: number) => {
+  const walk = (node: Selection, carried: number) => {
     for (const child of node.selections ?? []) {
       const definition = index.definitions.get(child.id)
       const kind = definition ? resolve(definition, index).type : undefined
@@ -38,10 +38,10 @@ export function wargearOf(selection: Selection, index: CatalogueIndex): Wargear[
         const name = target?.name ?? definition?.name
         if (name && !isRosterToggle(name)) found.set(name, (found.get(name) ?? 0) + count)
       }
-      if (depth < MAX_DEPTH) walk(child, depth + 1, count)
+      walk(child, count)
     }
   }
 
-  walk(selection, 0, 1)
+  walk(selection, 1)
   return [...found].map(([name, count]) => ({ name, count }))
 }
