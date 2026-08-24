@@ -42,7 +42,7 @@ export type DatasheetRelationship = {
   route: { catalogueId: string; slug: string } | null
 }
 
-type AbilityKind = 'core' | 'faction' | 'datasheet' | 'inherited' | 'rule' | 'wargear'
+type AbilityKind = 'core' | 'faction' | 'datasheet' | 'rule' | 'wargear'
 
 type DatasheetContext = {
   selections: readonly Selection[]
@@ -151,8 +151,8 @@ export function datasheetIn(loaded: LoadedCatalogue, catalogueId: string, entryI
   const grantedInvulnerableSaves = context
     ? invulnerableSavesInSelectedUnit(context.selections, context.unitSelectionIndex, loaded.index)
     : []
-  const inheritedAbilities = context
-    ? inheritedAbilitiesInAttachedUnit(context.selections, context.unitSelectionIndex, context.companions ?? [], loaded.index, catalogueId)
+  const grantedAbilities = context
+    ? grantedAbilitiesInAttachedUnit(context.selections, context.unitSelectionIndex, context.companions ?? [], loaded.index, catalogueId)
     : []
   const selected = new Set<string>()
   const selectedCounts = new Map<string, number>()
@@ -321,7 +321,7 @@ export function datasheetIn(loaded: LoadedCatalogue, catalogueId: string, entryI
     points: priceOf(loaded, catalogueId, entryId),
     keywords,
     profiles: uniqueProfiles(displayProfiles),
-    abilities: uniqueAbilities([...abilities.values(), ...inheritedAbilities]),
+    abilities: uniqueAbilities([...abilities.values(), ...grantedAbilities]),
     composition: details?.composition ?? [],
     loadout: details?.loadout ?? null,
     wargearOptions: details?.wargear.length
@@ -433,7 +433,7 @@ export function datasheetViewsIn(
 type GrantedWeaponAbility = { keyword: string; source: string; profileTypes: readonly string[] }
 type GrantedInvulnerableSave = { value: string; source: string; originIds: readonly string[] }
 
-function inheritedAbilitiesInAttachedUnit(
+function grantedAbilitiesInAttachedUnit(
   selections: readonly Selection[],
   unitSelectionIndex: number | undefined,
   companionIndexes: readonly number[],
@@ -441,7 +441,7 @@ function inheritedAbilitiesInAttachedUnit(
   catalogueId: string,
 ): Datasheet['abilities'] {
   if (unitSelectionIndex === undefined) return []
-  const found = new Map<string, { name: string; kind: 'core' | 'inherited'; sources: Set<string>; ids: Set<string> }>()
+  const found = new Map<string, { name: string; sources: Set<string>; ids: Set<string> }>()
   const character = keywordIds(selections, unitSelectionIndex, index, { primaryCatalogueId: catalogueId }).some(
     (id) => index.categories.get(id)?.name?.trim().toLocaleLowerCase() === 'character',
   )
@@ -451,28 +451,27 @@ function inheritedAbilitiesInAttachedUnit(
         const linkedAbilities = linkedAbilityNames(source, index, catalogueId, selections)
         for (const profile of source.profiles ?? []) {
           if (profile.typeName !== 'Abilities' || !profile.name) continue
-          const grant = inheritedAbility(normalizedAbilityDescription(profile), companionIndexes.length > 0, linkedAbilities)
+          const grant = grantedAbility(normalizedAbilityDescription(profile), companionIndexes.length > 0, linkedAbilities)
           if (!grant) continue
           if (grant.recipient === 'bearer' && origin !== 'self') continue
           if (grant.recipient === 'leader' && (origin !== 'companion' || !character)) continue
-          const kind = grant.recipient === 'unit' ? 'inherited' : 'core'
-          const key = `${kind}:${grant.name.toLocaleLowerCase()}`
-          const inherited = found.get(key) ?? { name: grant.name, kind, sources: new Set(), ids: new Set() }
-          inherited.sources.add(profile.name)
-          inherited.ids.add(profile.id)
-          found.set(key, inherited)
+          const key = grant.name.toLocaleLowerCase()
+          const granted = found.get(key) ?? { name: grant.name, sources: new Set(), ids: new Set() }
+          granted.sources.add(profile.name)
+          granted.ids.add(profile.id)
+          found.set(key, granted)
         }
       }
     }
   }
   collect(definitionsInSelections(selections, [unitSelectionIndex], index), 'self')
   collect(definitionsInSelections(selections, companionIndexes, index), 'companion')
-  return [...found.values()].map(({ name, kind, sources, ids }) => ({
-    id: `inherited:${[...ids].toSorted().join(':')}`,
+  return [...found.values()].map(({ name, sources, ids }) => ({
+    id: `granted:${[...ids].toSorted().join(':')}`,
     name,
     source: [...sources].toSorted().join(', '),
     description: null,
-    kind,
+    kind: 'core',
   }))
 }
 
@@ -491,7 +490,7 @@ function linkedAbilityNames(
 }
 
 /** Exact catalogue phrases that grant a named ability to a bearer or every model in its unit. */
-function inheritedAbility(description: string | null | undefined, attached: boolean, linkedAbilities: readonly string[]) {
+function grantedAbility(description: string | null | undefined, attached: boolean, linkedAbilities: readonly string[]) {
   if (!description) return
   const prose = description.replaceAll(/\^\^|\*/g, '')
   const grant = (written: string, recipient: 'bearer' | 'leader' | 'unit') => {
@@ -509,6 +508,8 @@ function inheritedAbility(description: string | null | undefined, attached: bool
     /^While a Character model is leading this unit, that Character model has the \[?([\p{L}\p{N} +'’\p{Pd}]+)\]? ability\.$/iu,
   )
   if (bodyguardGrant && attached) return grant(bodyguardGrant[1]!, 'leader')
+  const thisUnitHasStealth = prose.match(/^(?:[-▪]\s*)?This unit has (Stealth)\.(?:\s|$)/iu)
+  if (thisUnitHasStealth) return grant(thisUnitHasStealth[1]!, 'unit')
   const leadingGrant = prose.match(
     /^While (?:this model|the bearer) is leading a unit, models in that unit have the \[?([\p{L}\p{N} +'’\p{Pd}]+)\]? ability\.$/iu,
   )

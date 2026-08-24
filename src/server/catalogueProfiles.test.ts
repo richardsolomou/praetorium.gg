@@ -463,7 +463,7 @@ describe('the profile modifiers on a datasheet', () => {
     expect(keywords('veterans', 1, [])).toEqual([])
   })
 
-  it('shows named abilities inherited from enhancements and attached units', () => {
+  it('shows abilities granted by enhancements and attached units as core abilities', () => {
     const grantedAbility = (id: string, name: string, description: string) => ({
       id,
       name,
@@ -542,22 +542,22 @@ describe('the profile modifiers on a datasheet', () => {
 
     const veterans = datasheetIn(book, 'cat', 'veterans', { selections, unitSelectionIndex: 1, companions: [0] })?.abilities
     expect(veterans).toContainEqual({
-      id: 'inherited:shadow-training',
+      id: 'granted:shadow-training',
       name: 'Stealth',
       source: 'Shadow Training',
       description: null,
-      kind: 'inherited',
+      kind: 'core',
     })
     expect(veterans).not.toContainEqual(expect.objectContaining({ name: 'Feel No Pain 4+', kind: 'core' }))
     expect(datasheetIn(book, 'cat', 'captain', { selections: [captain], unitSelectionIndex: 0 })?.abilities).toContainEqual({
-      id: 'inherited:enduring-will-rule',
+      id: 'granted:enduring-will-rule',
       name: 'Feel No Pain 5+',
       source: 'Enduring Will',
       description: null,
       kind: 'core',
     })
     expect(datasheetIn(book, 'cat', 'captain', { selections, unitSelectionIndex: 0, companions: [1] })?.abilities).toContainEqual({
-      id: 'inherited:silent-bodyguard',
+      id: 'granted:silent-bodyguard',
       name: 'Feel No Pain 4+',
       source: 'Silent Bodyguard',
       description: null,
@@ -568,7 +568,7 @@ describe('the profile modifiers on a datasheet', () => {
         ?.keywordRules,
     ).toContainEqual({ name: 'Feel No Pain', description: 'Roll when a model would lose a wound.' })
     expect(datasheetIn(book, 'cat', 'captain', { selections: [captain], unitSelectionIndex: 0 })?.abilities).not.toContainEqual(
-      expect.objectContaining({ name: 'Stealth', kind: 'inherited' }),
+      expect.objectContaining({ name: 'Stealth', kind: 'core' }),
     )
     expect(
       datasheetIn(book, 'cat', 'armoured-captain', {
@@ -576,9 +576,44 @@ describe('the profile modifiers on a datasheet', () => {
         unitSelectionIndex: 0,
       })?.abilities,
     ).toContainEqual({
-      id: 'inherited:artificer-armour-rule',
+      id: 'granted:artificer-armour-rule',
       name: 'Feel No Pain 5+',
       source: 'Artificer Armour',
+      description: null,
+      kind: 'core',
+    })
+  })
+
+  it('grants Stealth from a companion whose own unit has Stealth', () => {
+    const book = bookOf({
+      selectionEntries: [
+        {
+          id: 'chronomancer',
+          name: 'Chronomancer',
+          type: 'model',
+          profiles: [
+            {
+              id: 'timesplinter-mantle',
+              name: 'Timesplinter Mantle',
+              typeName: 'Abilities',
+              characteristics: [
+                {
+                  name: 'Description',
+                  $text: '- This unit has Stealth.\u00a0\n- Melee attacks that target this unit have -1 to hit rolls.',
+                },
+              ],
+            },
+          ],
+        },
+        { id: 'immortals', name: 'Immortals', type: 'unit' },
+      ],
+    })
+    const selections = [{ id: 'chronomancer' }, { id: 'immortals' }]
+
+    expect(datasheetIn(book, 'cat', 'immortals', { selections, unitSelectionIndex: 1, companions: [0] })?.abilities).toContainEqual({
+      id: 'granted:timesplinter-mantle',
+      name: 'Stealth',
+      source: 'Timesplinter Mantle',
       description: null,
       kind: 'core',
     })

@@ -207,7 +207,6 @@ export function WeaponProfile({
 const ABILITY_SECTIONS = [
   { kind: 'core', title: 'Core abilities' },
   { kind: 'faction', title: 'Faction abilities' },
-  { kind: 'inherited', title: 'Inherited abilities' },
   { kind: 'datasheet', title: 'Datasheet abilities' },
   { kind: 'rule', title: 'Rules' },
   { kind: 'wargear', title: 'Wargear abilities' },
@@ -217,7 +216,7 @@ function AbilitySummary({ abilities, rules }: { abilities: Datasheet['abilities'
   return ABILITY_SECTIONS.map(({ kind, title }) => {
     const found = abilities.filter((ability) => ability.kind === kind)
     if (!found.length) return null
-    if (kind === 'core' || kind === 'faction' || kind === 'inherited') {
+    if (kind === 'core' || kind === 'faction') {
       const described = [
         ...found.flatMap((ability) => (ability.description ? [{ name: ability.name, description: ability.description }] : [])),
         ...rules,

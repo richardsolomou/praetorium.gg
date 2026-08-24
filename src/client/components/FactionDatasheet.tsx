@@ -112,7 +112,6 @@ type DisplayAbility = Datasheet['abilities'][number]
 const abilitySections: { kind: DisplayAbility['kind']; title: string }[] = [
   { kind: 'core', title: 'Core abilities' },
   { kind: 'faction', title: 'Faction abilities' },
-  { kind: 'inherited', title: 'Inherited abilities' },
   { kind: 'datasheet', title: 'Datasheet abilities' },
   { kind: 'rule', title: 'Rules' },
   { kind: 'wargear', title: 'Wargear abilities' },
@@ -133,7 +132,7 @@ function Abilities({ abilities, rules }: { abilities: DisplayAbility[]; rules: K
         ))}
       </div>
     )
-    if (kind === 'core' || kind === 'faction' || kind === 'inherited') {
+    if (kind === 'core' || kind === 'faction') {
       return (
         <section key={kind}>
           <h2 className="rubric">
