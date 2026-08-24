@@ -1,3 +1,4 @@
+import { version } from '../../package.json'
 import { attachmentOf } from '../core/attach'
 import { fromBattleBaseText } from '../core/battlebase'
 import { nameOf } from '../core/catalogue'
@@ -268,20 +269,23 @@ export function exportRosterFile(
 ) {
   const faction = loaded.index.catalogues.get(data.catalogueId)?.name ?? data.catalogueId
   return {
-    text: toGwText({
-      name: data.name,
-      faction: factionDisplayName(faction),
-      detachments: priced.detachments,
-      disposition: dispositionName,
-      size: GAME_SIZES.find((size) => size.limit === data.limit)?.name ?? 'Battle',
-      limit: data.limit,
-      points: priced.points,
-      units: priced.units.map((unit, index) => ({
-        ...unit,
-        group: exportGroup(unit.group),
-        warlord: Object.values(data.units[index]?.toggles ?? {}).some((count) => count > 0),
-      })),
-    }),
+    text: toGwText(
+      {
+        name: data.name,
+        faction: factionDisplayName(faction),
+        detachments: priced.detachments,
+        disposition: dispositionName,
+        size: GAME_SIZES.find((size) => size.limit === data.limit)?.name ?? 'Battle',
+        limit: data.limit,
+        points: priced.points,
+        units: priced.units.map((unit, index) => ({
+          ...unit,
+          group: exportGroup(unit.group),
+          warlord: Object.values(data.units[index]?.toggles ?? {}).some((count) => count > 0),
+        })),
+      },
+      version,
+    ),
   }
 }
 

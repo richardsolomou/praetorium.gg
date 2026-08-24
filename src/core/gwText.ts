@@ -24,7 +24,7 @@ const headings = {
 } as const
 
 /** A plain-text roster in the same human-readable shape as the official app export. */
-export function toGwText(roster: GwTextRoster): string {
+export function toGwText(roster: GwTextRoster, version: string): string {
   const detachments = roster.detachments.map((detachment) => detachment.name).join(' and ')
   const detachmentPoints = roster.detachments.reduce((total, detachment) => total + (detachment.points ?? 0), 0)
   const lines = [
@@ -48,5 +48,6 @@ export function toGwText(roster: GwTextRoster): string {
     }
   }
 
+  lines.push('', `Exported with Praetorium.gg v${version}`)
   return `${lines.join('\n')}\n`
 }

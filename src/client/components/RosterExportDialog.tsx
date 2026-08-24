@@ -27,7 +27,7 @@ export function RosterExportDialog({ text, onClose }: { text: string | null; onC
         }
       }}
     >
-      <DialogContent className="max-h-[85dvh] rounded-none border border-edge bg-panel text-bone ring-0 sm:max-w-2xl">
+      <DialogContent className="max-h-[85dvh] grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden rounded-none border border-edge bg-panel text-bone ring-0 sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle className="uppercase">Games Workshop text</DialogTitle>
           <DialogDescription className="text-dim">Copy this roster into a message, document, or another tool.</DialogDescription>
