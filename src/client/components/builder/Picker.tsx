@@ -4,6 +4,7 @@ import { Fragment } from 'react'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Toggle } from '@/components/ui/toggle'
+import { isKotcLimit } from '../../../core/battle'
 import { SearchField } from '../SearchField'
 import { DatasheetMatchReasons } from '../DatasheetMatchReasons'
 import { useCollectionMutation } from '../../useCollection'
@@ -152,7 +153,7 @@ export function Picker({ catalogueId, onAdd, onPreview, inRoster, room, battleSi
                             size="sm"
                             className="h-7 shrink-0 px-2 text-[0.6875rem]"
                             aria-label={`Add ${unit.name}`}
-                            disabled={full}
+                            disabled={isKotcLimit(battleSize) && full}
                             onClick={() => onAdd(unit.id)}
                           >
                             <Plus className="size-3" />
