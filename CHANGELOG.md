@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.24.0
+
+### Minor Changes
+
+- 6eb41f7: Show abilities granted by enhancements and attached units on contextual datasheets.
+
 ## 0.23.5
 
 ### Patch Changes
