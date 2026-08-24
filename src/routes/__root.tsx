@@ -18,12 +18,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { CircleUserRound, LogIn, LogOut, Menu, ScrollText, Swords, UserRoundPen, Users, X } from 'lucide-react'
+import { CircleUserRound, LogIn, LogOut, Menu, ScrollText, ShieldCheck, Swords, UserRoundPen, Users, X } from 'lucide-react'
 import { postHogEnvironment } from 'ras-stack/posthog'
 import { PostHogBetterAuthIdentity, PostHogIntegration } from 'ras-stack/posthog/react'
 import { useEffect, useRef, useState } from 'react'
 import { authClient } from '../client/authClient'
 import { GlobalSearch } from '../client/components/GlobalSearch'
+import { ImpersonationBanner } from '../client/components/ImpersonationBanner'
 import { PlayerAvatar } from '../client/components/PlayerAvatar'
 import { PageState } from '../client/components/PageState'
 import { favouriteDetachmentsQuery, favouriteFactionsQuery, meQuery } from '../client/queries'
@@ -125,6 +126,11 @@ function Account() {
             <DropdownMenuItem render={<Link to="/friends" />}>
               <Users /> Friends
             </DropdownMenuItem>
+            {me.role === 'admin' ? (
+              <DropdownMenuItem render={<Link to="/admin" />}>
+                <ShieldCheck /> Admin
+              </DropdownMenuItem>
+            ) : null}
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={() => {
@@ -267,6 +273,7 @@ function RootComponent() {
               <div className={immersive ? 'h-[calc(100dvh-3rem)] min-h-0' : 'flex min-h-0 flex-1 flex-col [&>main]:flex-1'}>
                 <Outlet />
               </div>
+              <Impersonation />
               {/*
                * Said plainly and on every page, because the name is drawn from Games
                * Workshop's setting and nothing about this is theirs or endorsed by them.
@@ -285,4 +292,9 @@ function RootComponent() {
       </body>
     </html>
   )
+}
+
+function Impersonation() {
+  const { data: me } = useQuery(meQuery())
+  return me?.impersonatedBy ? <ImpersonationBanner name={me.name} email={me.email} /> : null
 }

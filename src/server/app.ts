@@ -13,7 +13,7 @@ import { databaseUrl, type PraetoriumDatabase, openDatabase } from '../db/connec
 import { Repository } from '../db/repository'
 import { createAuth } from './auth'
 import { realtimeConfig } from '../adapters/realtime'
-import { openValkey, type ValkeyClient, valkeyUrl } from '../adapters/valkey'
+import { openValkey, type ValkeyClient, valkeySecondaryStorage, valkeyUrl } from '../adapters/valkey'
 import { PraetoriumService } from './service'
 
 type App = {
@@ -111,7 +111,7 @@ export function app(): App {
       valkey: cache,
       service: new PraetoriumService(new Repository(database), Date.now, events, randomInt),
       events,
-      auth: createAuth(database, persistedSecret({ directory: dataDirectory }), cache ?? undefined),
+      auth: createAuth(database, persistedSecret({ directory: dataDirectory }), cache ? valkeySecondaryStorage(cache) : undefined),
       catalogue: memoize(loadCatalogue),
       rules: memoize(loadRules),
       sync: () => sync.state,

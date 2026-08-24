@@ -24,6 +24,7 @@ postgres="praetorium-e2e-postgres-${port}"
 valkey="praetorium-e2e-valkey-${port}"
 minio="praetorium-e2e-minio-${port}"
 minio_port=$((port + 10000))
+postgres_port=$((port + 20000))
 
 # Covers a signal arriving during setup, before the exec below hands this
 # process over to the app container.
@@ -36,9 +37,10 @@ chmod 777 "$root"
 
 docker network create "$network" >/dev/null
 
-# Nothing is published to the host: only the app is reachable, and only on the
-# port Playwright asked for.
+# Postgres is loopback-only so the concurrency specs can use independent clients;
+# no service is reachable beyond the test host.
 docker run --rm --detach --name "$postgres" --network "$network" \
+    --publish "127.0.0.1:${postgres_port}:5432" \
     --env POSTGRES_USER=praetorium \
     --env POSTGRES_PASSWORD=praetorium \
     --env POSTGRES_DB=praetorium \
@@ -84,6 +86,8 @@ exec docker run --rm --name "$app" --network "$network" \
     --env CATALOGUE_DIR=/catalogue \
     --env RULES_DIR=/catalogue/rules \
     --env AUTH_RATE_LIMIT=off \
+    --env APP_URL="http://127.0.0.1:${port}" \
+    --env PRAETORIUM_SEED_PREVIEW=true \
     --env S3_ENDPOINT="http://${minio}:9000" \
     --env S3_BUCKET=praetorium \
     --env S3_ACCESS_KEY_ID=praetorium \

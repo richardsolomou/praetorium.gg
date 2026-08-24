@@ -2,6 +2,7 @@ import { count, eq } from 'drizzle-orm'
 import { afterEach, expect, it } from 'vitest'
 import type { PraetoriumConnection } from '../src/db/connection'
 import { openTestDatabase } from '../src/db/testDatabase'
+import { Repository } from '../src/db/repository'
 import { friendships, rosters, user } from '../src/db/schema'
 import { PREVIEW_EMAIL, PREVIEW_OPPONENT_EMAIL, PREVIEW_OPPONENT_ROSTERS, PREVIEW_ROSTERS, seedPreview } from './seedPreview'
 
@@ -23,6 +24,13 @@ it('creates two idempotent preview accounts, their eight rosters and their frien
   const [opponentAccounts] = await database.select({ count: count() }).from(user).where(eq(user.email, PREVIEW_OPPONENT_EMAIL))
   expect(previewAccounts?.count).toBe(1)
   expect(opponentAccounts?.count).toBe(1)
+
+  const accounts = await new Repository(database).adminUsers()
+  expect(accounts.users.find((entry) => entry.email === PREVIEW_EMAIL)).toMatchObject({
+    role: 'admin',
+    rosterCount: 4,
+    signInMethods: ['credential'],
+  })
 
   const [friendship] = await database.select().from(friendships)
   expect(friendship?.acceptedAt).not.toBeNull()

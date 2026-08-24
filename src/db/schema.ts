@@ -14,15 +14,26 @@ import { bigint, boolean, index, integer, pgTable, primaryKey, text, timestamp, 
 // so product columns do not belong here.
 
 /** `user` is a reserved word in Postgres. Drizzle quotes it, so the name still stands. */
-export const user = pgTable('user', {
-  id: text().primaryKey().notNull(),
-  name: text().notNull(),
-  email: text().notNull().unique(),
-  emailVerified: boolean().notNull(),
-  image: text(),
-  createdAt: timestamp({ withTimezone: true, mode: 'date' }).notNull(),
-  updatedAt: timestamp({ withTimezone: true, mode: 'date' }).notNull(),
-})
+export const user = pgTable(
+  'user',
+  {
+    id: text().primaryKey().notNull(),
+    name: text().notNull(),
+    email: text().notNull().unique(),
+    emailVerified: boolean().notNull(),
+    image: text(),
+    createdAt: timestamp({ withTimezone: true, mode: 'date' }).notNull(),
+    updatedAt: timestamp({ withTimezone: true, mode: 'date' }).notNull(),
+    role: text({ enum: ['admin', 'user'] })
+      .notNull()
+      .default('user'),
+    banned: boolean().notNull().default(false),
+    banReason: text(),
+    banExpires: timestamp({ withTimezone: true, mode: 'date' }),
+    twoFactorEnabled: boolean().notNull().default(false),
+  },
+  (table) => [index('user_createdAt_id_idx').on(table.createdAt.desc(), table.id.desc())],
+)
 
 export const session = pgTable(
   'session',
@@ -37,6 +48,7 @@ export const session = pgTable(
     userId: text()
       .notNull()
       .references(() => user.id, { onDelete: 'cascade' }),
+    impersonatedBy: text(),
   },
   (table) => [index('session_userId_idx').on(table.userId)],
 )
@@ -74,6 +86,22 @@ export const verification = pgTable(
     updatedAt: timestamp({ withTimezone: true, mode: 'date' }).notNull(),
   },
   (table) => [index('verification_identifier_idx').on(table.identifier)],
+)
+
+export const twoFactor = pgTable(
+  'twoFactor',
+  {
+    id: text().primaryKey().notNull(),
+    secret: text().notNull(),
+    backupCodes: text().notNull(),
+    userId: text()
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    verified: boolean().notNull().default(true),
+    failedVerificationCount: integer().notNull().default(0),
+    lockedUntil: timestamp({ withTimezone: true, mode: 'date' }),
+  },
+  (table) => [index('twoFactor_secret_idx').on(table.secret), index('twoFactor_userId_idx').on(table.userId)],
 )
 
 /**
@@ -274,6 +302,7 @@ export const schema = {
   session,
   account,
   verification,
+  twoFactor,
   rateLimit,
   battles,
   battleUsers,

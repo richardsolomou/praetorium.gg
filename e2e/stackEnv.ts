@@ -9,6 +9,7 @@ import path from 'node:path'
  */
 export const port = Number(process.env.PLAYWRIGHT_PORT ?? 4173)
 export const baseURL = `http://127.0.0.1:${port}`
+export const postgresPort = port + 20_000
 // Under /tmp rather than os.tmpdir(): the container mounts this, and a macOS
 // private temp directory is not shared with the Docker VM.
 export const root = process.env.PLAYWRIGHT_DATA_ROOT ?? `/tmp/praetorium-e2e-${port}`

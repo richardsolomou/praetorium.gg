@@ -10,6 +10,7 @@ import {
 } from '../core/battle'
 import { commandSchema, rosterPickSchema } from '../core/commands'
 import { ROSTER_SOURCES, ROSTER_VISIBILITIES } from '../core/savedRoster'
+import { PASSWORD_MIN_LENGTH, SOCIAL_PROVIDERS } from '../authConfig'
 
 const id = z.string().min(1).max(64)
 const token = id
@@ -47,6 +48,13 @@ export const createBattleSchema = z
 export const deleteBattleSchema = z.object({ token })
 export const userSchema = z.object({ userId: id })
 export const friendSchema = z.object({ userId: id })
+export const setOwnPasswordSchema = z.object({ password: z.string().min(PASSWORD_MIN_LENGTH).max(128) })
+export const unlinkOwnAccountSchema = z.object({ provider: z.enum(['credential', ...SOCIAL_PROVIDERS]) })
+export const setAdminRoleSchema = z.object({ userId: id, role: z.enum(['admin', 'user']) })
+export const adminUsersSchema = z.object({
+  query: z.string().trim().max(100).default(''),
+  cursor: z.object({ createdAt: z.coerce.date(), id }).nullable().default(null),
+})
 
 /**
  * `expectedSeq` is the client's claim about the history it has already seen.

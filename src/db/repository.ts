@@ -1,4 +1,5 @@
-import { and, asc, desc, eq, exists, inArray, isNull, ne, notExists, or, sql } from 'drizzle-orm'
+import { and, asc, count, desc, eq, exists, ilike, inArray, isNull, lt, ne, notExists, or, sql } from 'drizzle-orm'
+import type { AdminUserPage, AdminUsersCursor } from '../admin'
 import { battleCapacity, type Command, type LoggedCommand, reduceBattle, type SubmitResult, validate } from '../core/battle'
 import { commandSchema } from '../core/commands'
 import type { RosterSource } from '../core/savedRoster'
@@ -7,6 +8,7 @@ import type { PraetoriumDatabase } from './connection'
 import {
   battleUsers,
   battles,
+  account,
   collection,
   commands,
   favouriteDetachments,
@@ -25,6 +27,9 @@ export type BattleSeats = { battle: BattleRecord; players: BattlePlayer[] }
 export type BattleHistory = BattleSeats & { log: LoggedCommand[] }
 
 export type JoinResult = 'joined' | 'already-in' | 'full'
+export type UnlinkAccountResult = 'removed' | 'missing' | 'two-factor' | 'last-method'
+
+const ADMIN_USERS_PAGE_SIZE = 50
 
 /**
  * Whether the account in a seat is a practice opponent.
@@ -130,6 +135,86 @@ export class Repository {
   async userById(id: string) {
     const [row] = await this.database.select().from(user).where(eq(user.id, id)).limit(1)
     return row
+  }
+
+  async adminUsers(input: { query?: string; cursor?: AdminUsersCursor | null; limit?: number } = {}): Promise<AdminUserPage> {
+    const limit = Math.min(Math.max(input.limit ?? ADMIN_USERS_PAGE_SIZE, 1), 100)
+    const query = input.query?.trim()
+    const conditions = [
+      notExists(
+        this.database.select({ id: practiceOpponents.userId }).from(practiceOpponents).where(eq(practiceOpponents.userId, user.id)),
+      ),
+    ]
+    if (query) {
+      const escaped = query.replaceAll('\\', '\\\\').replaceAll('%', '\\%').replaceAll('_', '\\_')
+      conditions.push(or(ilike(user.name, `%${escaped}%`), ilike(user.email, `%${escaped}%`))!)
+    }
+    if (input.cursor) {
+      conditions.push(
+        or(lt(user.createdAt, input.cursor.createdAt), and(eq(user.createdAt, input.cursor.createdAt), lt(user.id, input.cursor.id)))!,
+      )
+    }
+    const rows = await this.database
+      .select({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        image: user.image,
+        role: user.role,
+        banned: user.banned,
+        twoFactorEnabled: user.twoFactorEnabled,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
+      })
+      .from(user)
+      .where(and(...conditions))
+      .orderBy(desc(user.createdAt), desc(user.id))
+      .limit(limit + 1)
+    const users = rows.slice(0, limit)
+    if (!users.length) return { users: [], nextCursor: null }
+    const ids = users.map(({ id }) => id)
+    const [rosterCounts, battleCounts, methods] = await Promise.all([
+      this.database
+        .select({ userId: rosters.userId, count: count() })
+        .from(rosters)
+        .where(inArray(rosters.userId, ids))
+        .groupBy(rosters.userId),
+      this.database
+        .select({ userId: battleUsers.userId, count: count() })
+        .from(battleUsers)
+        .where(inArray(battleUsers.userId, ids))
+        .groupBy(battleUsers.userId),
+      this.database.select({ userId: account.userId, providerId: account.providerId }).from(account).where(inArray(account.userId, ids)),
+    ])
+    const rosterCountByUser = new Map(rosterCounts.map((row) => [row.userId, row.count]))
+    const battleCountByUser = new Map(battleCounts.map((row) => [row.userId, row.count]))
+    const methodsByUser = new Map<string, Set<string>>()
+    for (const method of methods) {
+      const providers = methodsByUser.get(method.userId) ?? new Set<string>()
+      providers.add(method.providerId)
+      methodsByUser.set(method.userId, providers)
+    }
+    const entries = users.map((entry) => ({
+      ...entry,
+      rosterCount: rosterCountByUser.get(entry.id) ?? 0,
+      battleCount: battleCountByUser.get(entry.id) ?? 0,
+      signInMethods: [...(methodsByUser.get(entry.id) ?? [])].sort((left, right) => left.localeCompare(right)),
+    }))
+    const last = users.at(-1)!
+    return { users: entries, nextCursor: rows.length > limit ? { createdAt: last.createdAt, id: last.id } : null }
+  }
+
+  async unlinkAccount(userId: string, providerId: string, availableProviders: readonly string[]): Promise<UnlinkAccountResult> {
+    return this.database.transaction(async (tx) => {
+      const [owner] = await tx.select({ twoFactorEnabled: user.twoFactorEnabled }).from(user).where(eq(user.id, userId)).for('update')
+      const methods = await tx.select({ providerId: account.providerId }).from(account).where(eq(account.userId, userId))
+      if (!methods.some((method) => method.providerId === providerId)) return 'missing'
+      if (providerId === 'credential' && owner?.twoFactorEnabled) return 'two-factor'
+      const available = new Set(availableProviders)
+      if (!methods.some((method) => method.providerId !== providerId && available.has(method.providerId))) return 'last-method'
+      await tx.delete(account).where(and(eq(account.userId, userId), eq(account.providerId, providerId)))
+      return 'removed'
+    })
   }
 
   async profileByUserId(id: string) {

@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { authClient } from '../client/authClient'
+import { AuthMethodIcon, SOCIAL_AUTH_PROVIDER_NAMES } from '../client/components/AuthMethodIcon'
+import { TwoFactorSignIn } from '../client/components/TwoFactorSignIn'
 import { signInOptionsQuery } from '../client/queries'
 import { PASSWORD_MIN_LENGTH } from '../authConfig'
 
@@ -33,6 +35,7 @@ function SignIn() {
   const [password, setPassword] = useState('')
   const [name, setName] = useState('')
   const [joining, setJoining] = useState(false)
+  const [twoFactorPending, setTwoFactorPending] = useState(false)
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const submit = useAuthAction()
@@ -43,6 +46,17 @@ function SignIn() {
         ? authClient.signUp.email({ email, password, name: name.trim() || email.split('@')[0] || 'Player' })
         : authClient.signIn.email({ email, password }),
     )
+    if (
+      !result.error &&
+      !joining &&
+      'data' in result &&
+      result.data &&
+      'twoFactorRedirect' in result.data &&
+      result.data.twoFactorRedirect
+    ) {
+      setTwoFactorPending(true)
+      return
+    }
     if (!result.error) {
       posthog.capture(joining ? 'account_created' : 'account_signed_in', { method: 'email', redirected: Boolean(next) })
       await queryClient.invalidateQueries()
@@ -76,78 +90,97 @@ function SignIn() {
             Your account is your player: it holds your saved lists, the battles you have played and the ones still going, on whatever device
             you pick up.
           </p>
-          <form
-            className="mt-8 space-y-4"
-            onSubmit={(event) => {
-              event.preventDefault()
-              void authenticate()
-            }}
-          >
-            {joining ? (
-              <div className="space-y-2">
-                <Label htmlFor="name">Your name</Label>
-                <Input id="name" value={name} onChange={(event) => setName(event.target.value)} autoComplete="nickname" />
-              </div>
-            ) : null}
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                autoComplete="email"
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                autoComplete={joining ? 'new-password' : 'current-password'}
-                minLength={PASSWORD_MIN_LENGTH}
-                required
-              />
-              {joining ? <p className="text-xs text-dim">At least {PASSWORD_MIN_LENGTH} characters.</p> : null}
-            </div>
-            <Button type="submit" className="h-11 w-full text-base" disabled={submit.busy}>
-              {joining ? 'Create the account' : 'Sign in'}
-            </Button>
-            {submit.error ? <p className="text-sm text-destructive">{submit.error}</p> : null}
-          </form>
-
-          <Button
-            variant="ghost"
-            size="sm"
-            className="mt-4"
-            onClick={() => {
-              setJoining((current) => !current)
-              submit.clearError()
-            }}
-          >
-            {joining ? 'I already have an account' : 'I need an account'}
-          </Button>
-
-          {options?.providers.length ? (
-            <div className="mt-6 space-y-2 border-t border-edge pt-6">
-              {options.providers.map((provider) => (
-                <Button
-                  key={provider}
-                  variant="outline"
-                  className="h-11 w-full text-base capitalize"
-                  onClick={() => {
-                    posthog.capture('account_authentication_started', { method: provider, redirected: Boolean(next) })
-                    void authClient.signIn.social({ provider, callbackURL: next ?? '/rosters' })
-                  }}
-                >
-                  Continue with {provider}
+          {twoFactorPending ? (
+            <TwoFactorSignIn
+              onBack={() => setTwoFactorPending(false)}
+              onSuccess={() => {
+                posthog.capture('account_signed_in', { method: 'two_factor', redirected: Boolean(next) })
+                if (next) window.location.assign(next)
+                else void navigate({ to: '/rosters' })
+              }}
+            />
+          ) : (
+            <>
+              <form
+                className="mt-8 space-y-4"
+                onSubmit={(event) => {
+                  event.preventDefault()
+                  void authenticate()
+                }}
+              >
+                {joining ? (
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Your name</Label>
+                    <Input id="name" value={name} onChange={(event) => setName(event.target.value)} autoComplete="nickname" />
+                  </div>
+                ) : null}
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                    autoComplete="email"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="password">Password</Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    autoComplete={joining ? 'new-password' : 'current-password'}
+                    minLength={PASSWORD_MIN_LENGTH}
+                    required
+                  />
+                  {joining ? <p className="text-xs text-dim">At least {PASSWORD_MIN_LENGTH} characters.</p> : null}
+                </div>
+                <Button type="submit" className="h-11 w-full text-base" disabled={submit.busy}>
+                  {joining ? 'Create the account' : 'Sign in'}
                 </Button>
-              ))}
-            </div>
-          ) : null}
+                {submit.error ? <p className="text-sm text-destructive">{submit.error}</p> : null}
+              </form>
+
+              <Button
+                variant="ghost"
+                size="sm"
+                className="mt-4"
+                onClick={() => {
+                  setJoining((current) => !current)
+                  submit.clearError()
+                }}
+              >
+                {joining ? 'I already have an account' : 'I need an account'}
+              </Button>
+
+              {options?.providers.length ? (
+                <div className="mt-6 space-y-2 border-t border-edge pt-6">
+                  {options.providers.map((provider) => (
+                    <Button
+                      key={provider}
+                      variant="outline"
+                      className="h-11 w-full text-base"
+                      onClick={() => {
+                        posthog.capture('account_authentication_started', { method: provider, redirected: Boolean(next) })
+                        void authClient.signIn.social({
+                          provider,
+                          callbackURL: next ?? '/rosters',
+                          errorCallbackURL: '/signin',
+                          requestSignUp: joining,
+                        })
+                      }}
+                    >
+                      <AuthMethodIcon method={provider} />
+                      Continue with {SOCIAL_AUTH_PROVIDER_NAMES[provider]}
+                    </Button>
+                  ))}
+                </div>
+              ) : null}
+            </>
+          )}
         </div>
       </section>
     </main>
