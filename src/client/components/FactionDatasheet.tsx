@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Link, useParams } from '@tanstack/react-router'
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbSeparator } from '@/components/ui/breadcrumb'
 import type { Datasheet } from '../../server/catalogue'
-import { compositionCount, referenceAbilities } from '../datasheet'
+import { abilitySections, compositionCount, referenceAbilities } from '../datasheet'
 import { factionFor } from '../factions'
 import { datasheetSlugQuery, factionsQuery } from '../queries'
 import { FactionMark, factionColour } from './FactionMark'
@@ -109,17 +109,8 @@ export function FactionDatasheet() {
 
 type DisplayAbility = Datasheet['abilities'][number]
 
-const abilitySections: { kind: DisplayAbility['kind']; title: string }[] = [
-  { kind: 'core', title: 'Core abilities' },
-  { kind: 'faction', title: 'Faction abilities' },
-  { kind: 'datasheet', title: 'Datasheet abilities' },
-  { kind: 'rule', title: 'Rules' },
-  { kind: 'upgrade', title: 'Unit upgrades' },
-  { kind: 'wargear', title: 'Wargear abilities' },
-]
-
 function Abilities({ abilities, rules }: { abilities: DisplayAbility[]; rules: KeywordRule[] }) {
-  return abilitySections.map(({ kind, title }) => {
+  return Object.entries(abilitySections).map(([kind, title]) => {
     const found = abilities.filter((ability) => ability.kind === kind)
     if (!found.length) return null
     const cards = (

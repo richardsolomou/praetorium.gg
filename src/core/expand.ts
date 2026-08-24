@@ -141,21 +141,17 @@ export function withChoice(selection: Selection, key: string, optionId: string, 
   // inside a copy of itself and charge for it twice.
   if (resolve(group, index).type !== undefined) return withCounts(selection, [{ path, count: optionId ? 1 : 0 }])
 
-  const options = new Set(
-    childrenOf(resolve(group, index), index)
-      .filter((option) => requiredCount(option.definition, index) === 0)
-      .map((option) => option.id),
-  )
+  const occupants = childrenOf(resolve(group, index), index)
+  const options = new Set(occupants.filter((option) => requiredCount(option.definition, index) === 0).map((option) => option.id))
   const present = withPlaceFor(selection, path)
   if (!optionId) {
     return updateSelection(present, path, (held) => ({ ...held, selections: held.selections?.filter((child) => !options.has(child.id)) }))
   }
 
-  const required = Math.max(1, requiredCount(index.definitions.get(optionId) ?? { id: optionId }, index))
-  const definition = index.definitions.get(optionId)
-  const replacement = definition
-    ? expand(optionId, definition, index, MAX_DEPTH, required, new Set(), 1)
-    : { id: optionId, count: required }
+  const option = occupants.find((candidate) => candidate.id === optionId)
+  if (!option || !options.has(option.id)) return present
+  const required = Math.max(1, requiredCount(option.definition, index))
+  const replacement = expand(option.id, option.definition, index, MAX_DEPTH, required, new Set(), 1)
   return updateSelection(present, path, (held) => ({
     ...held,
     selections: [...(held.selections ?? []).filter((child) => !options.has(child.id)), replacement],

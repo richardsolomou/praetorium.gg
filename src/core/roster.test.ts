@@ -495,6 +495,25 @@ describe('choices nested inside a selected loadout', () => {
       ['wargear/standard-loadout/melee-weapon', ['Close combat weapon', 'Power fist']],
     ])
   })
+
+  it.each([
+    ['parent first', { wargear: 'standard-loadout', 'wargear/standard-loadout/melee-weapon': 'power-fist' }],
+    ['child first', { 'wargear/standard-loadout/melee-weapon': 'power-fist', wargear: 'standard-loadout' }],
+  ])('applies nested choices with the %s', (_, choices) => {
+    expect(wargearOf(buildUnit('captain', index, undefined, choices)!.selection, index)).toEqual([{ name: 'Power fist', count: 1 }])
+  })
+
+  it('ignores a nested choice when its parent loadout is not selected', () => {
+    const built = buildUnit('captain', index, undefined, {
+      wargear: 'shield-loadout',
+      'wargear/standard-loadout/melee-weapon': 'power-fist',
+    })!
+
+    expect({ wargear: wargearOf(built.selection, index), errors: evaluate([built.selection], index).errors }).toEqual({
+      wargear: [{ name: 'Relic shield', count: 1 }],
+      errors: [],
+    })
+  })
 })
 
 describe('optional wargear on repeated models', () => {
@@ -902,6 +921,15 @@ describe('a wargear group holding both the fixed guns and the optional extras', 
       { name: 'Storm bolter', count: 1 },
     ])
     expect(evaluate([built.selection], index).errors).toEqual([])
+  })
+
+  it('ignores a saved choice once its option becomes required', () => {
+    const built = buildUnit('tank', index, undefined, { wargear: 'tracks' })!
+
+    expect({ wargear: wargearOf(built.selection, index), errors: evaluate([built.selection], index).errors }).toEqual({
+      wargear: [{ name: 'Armoured tracks', count: 1 }],
+      errors: [],
+    })
   })
 
   it('offers one optional extra without replacing the required equipment', () => {

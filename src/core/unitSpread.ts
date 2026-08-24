@@ -47,7 +47,9 @@ export function withUnitSpread(
 
 export function withUnitChoice(selection: Selection, key: string, optionId: string, index: CatalogueIndex): Selection {
   const path = key.split('/')
-  const chosen = withChoice(withExpandedCarrier(selection, path, index), key, optionId, index)
+  const carrier = withExpandedCarrier(selection, path, index)
+  if (!selectedCarriers(carrier, path, index)) return selection
+  const chosen = withChoice(carrier, key, optionId, index)
   return keepingTheSquad(selection, chosen, path, index)
 }
 
@@ -63,7 +65,9 @@ function spreadOptions(
   const occupants = childrenOf(resolve(group, index), index)
   const byId = new Map(occupants.map((option) => [option.id, option]))
   const asking = Object.values(counts).some((count) => count > 0)
-  return updateSelection(asking ? withExpandedCarrier(selection, path, index) : selection, path, (held) => ({
+  const carrier = asking ? withExpandedCarrier(selection, path, index) : selection
+  if (!selectedCarriers(carrier, path, index)) return selection
+  return updateSelection(withPlaceFor(carrier, path), path, (held) => ({
     ...held,
     selections: [
       ...(held.selections ?? []).filter((child) => !requested.has(child.id)),
@@ -85,7 +89,17 @@ function withExpandedCarrier(selection: Selection, path: readonly string[], inde
     const parent = carrierPath.slice(0, -1)
     return replaceAt(withPlaceFor(selection, parent), parent, id, [expand(id, definition, index, MAX_DEPTH, 1, new Set(), 1)])
   }
-  return withPlaceFor(selection, path)
+  return selection
+}
+
+function selectedCarriers(selection: Selection, path: readonly string[], index: CatalogueIndex) {
+  for (let length = 1; length < path.length; length++) {
+    const carrierPath = path.slice(0, length)
+    const id = carrierPath.at(-1)
+    const definition = id ? index.definitions.get(id) : undefined
+    if (definition && resolve(definition, index).type !== undefined && !at(selection, carrierPath)) return false
+  }
+  return true
 }
 
 /**

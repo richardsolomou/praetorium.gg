@@ -7,7 +7,7 @@ import { datasheetQuery } from '../../queries'
 import { useSettled } from '../../useSettled'
 import { HoverTooltip } from '../HoverTooltip'
 import { Keyword, KEYWORD_TAG_CLASS, KeywordList } from '../Keyword'
-import { addedKeywords, rosterAbilities } from '../../datasheet'
+import { abilitySections, addedKeywords, rosterAbilities } from '../../datasheet'
 import { RuleText } from '../RuleText'
 
 type Props = {
@@ -204,17 +204,8 @@ export function WeaponProfile({
   )
 }
 
-const ABILITY_SECTIONS = [
-  { kind: 'core', title: 'Core abilities' },
-  { kind: 'faction', title: 'Faction abilities' },
-  { kind: 'datasheet', title: 'Datasheet abilities' },
-  { kind: 'rule', title: 'Rules' },
-  { kind: 'upgrade', title: 'Unit upgrades' },
-  { kind: 'wargear', title: 'Wargear abilities' },
-] as const
-
 function AbilitySummary({ abilities, rules }: { abilities: Datasheet['abilities']; rules: Datasheet['keywordRules'] }) {
-  return ABILITY_SECTIONS.map(({ kind, title }) => {
+  return Object.entries(abilitySections).map(([kind, title]) => {
     const found = abilities.filter((ability) => ability.kind === kind)
     if (!found.length) return null
     if (kind === 'core' || kind === 'faction') {
