@@ -150,7 +150,9 @@ describe('account administration', () => {
     })
     messages.length = 0
 
-    await auth.api.requestPasswordReset({ body: { email: 'player@example.com', redirectTo: '/reset-password' } })
+    await auth.api.requestPasswordReset({
+      body: { email: 'player@example.com', redirectTo: '/reset-password?next=%2Fbattles%2F123%3Fseat%3D456' },
+    })
 
     expect(messages).toEqual([
       expect.objectContaining({
@@ -163,6 +165,7 @@ describe('account administration', () => {
     const callback = await auth.handler(new Request(link))
     const callbackTarget = new URL(callback.headers.get('location')!, link)
     expect(callbackTarget.pathname).toBe('/reset-password')
+    expect(callbackTarget.searchParams.get('next')).toBe('/battles/123?seat=456')
     const token = callbackTarget.searchParams.get('token')!
     await expect(auth.api.resetPassword({ body: { newPassword: 'replacement1234', token } })).resolves.toEqual({ status: true })
     expect(await auth.api.getSession({ headers: cookieHeaders(signedUp.headers) })).toBeNull()

@@ -1,24 +1,24 @@
-import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
+import { createFileRoute, Link } from '@tanstack/react-router'
 import { useState } from 'react'
 import { useAuthAction } from 'ras-stack/auth/react'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { PASSWORD_MIN_LENGTH } from '../authConfig'
+import { localRedirectPath, PASSWORD_MIN_LENGTH } from '../authConfig'
 import { authClient } from '../client/authClient'
 
 export const Route = createFileRoute('/reset-password')({
   validateSearch: (search: Record<string, unknown>) => ({
     token: typeof search.token === 'string' ? search.token : undefined,
     error: typeof search.error === 'string' ? search.error : undefined,
+    next: localRedirectPath(search.next),
   }),
   component: ResetPassword,
 })
 
 function ResetPassword() {
-  const { token, error: tokenError } = Route.useSearch()
+  const { token, error: tokenError, next } = Route.useSearch()
   const [password, setPassword] = useState('')
-  const navigate = useNavigate()
   const submit = useAuthAction({ failureMessage: () => 'Could not reset the password. Request a new reset link and try again.' })
   const invalid = tokenError || !token
 
@@ -44,11 +44,7 @@ function ResetPassword() {
               <p role="alert" className="mt-6 border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
                 This password reset link is invalid or has expired.
               </p>
-              <Link
-                to="/sign-in"
-                search={{ next: undefined, error: undefined, reset: undefined }}
-                className={buttonVariants({ className: 'mt-6' })}
-              >
+              <Link to="/sign-in" search={{ next, error: undefined, reset: undefined }} className={buttonVariants({ className: 'mt-6' })}>
                 Return to sign in
               </Link>
             </>
@@ -58,7 +54,11 @@ function ResetPassword() {
               onSubmit={async (event) => {
                 event.preventDefault()
                 const result = await submit.run(() => authClient.resetPassword({ newPassword: password, token }))
-                if (!result.error) await navigate({ to: '/sign-in', search: { reset: true } })
+                if (!result.error) {
+                  const search = new URLSearchParams({ reset: 'true' })
+                  if (next) search.set('next', next)
+                  window.location.assign(`/sign-in?${search}`)
+                }
               }}
             >
               <div className="space-y-2">

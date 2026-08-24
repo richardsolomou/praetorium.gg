@@ -80,6 +80,22 @@ test('email verification callbacks explain their result without an active sessio
   await expect(page.getByText('This email verification link is invalid or has expired. Sign in to try again.')).toBeVisible()
 })
 
+test('password reset refreshes revoked auth state and preserves the destination', async ({ page }) => {
+  await signUp(page, uniqueName('ResetState'))
+  await page.route('**/api/auth/reset-password', (route) => route.fulfill({ json: { status: true } }))
+  await page.goto('/reset-password?token=test-token&next=%2Fbattles%2F123')
+  await page.context().clearCookies()
+
+  await page.getByLabel('New password').fill('replacement-password')
+  await page.getByRole('button', { name: 'Reset password' }).click()
+
+  await page.waitForURL(
+    (url) => url.pathname === '/sign-in' && url.searchParams.get('reset') === 'true' && url.searchParams.get('next') === '/battles/123',
+  )
+  await expect(page.getByText('Your password was reset. Sign in with the new password.')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Account menu', exact: true })).toBeVisible()
+})
+
 test('a player can edit their display name and profile picture', async ({ page }) => {
   await signUp(page, uniqueName('Alice'))
   await page.getByRole('button', { name: /Account menu for/ }).click()

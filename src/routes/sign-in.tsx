@@ -176,7 +176,8 @@ function SignIn() {
                     onClick={async () => {
                       setResetSent(false)
                       submit.clearError()
-                      const result = await submit.run(() => authClient.requestPasswordReset({ email, redirectTo: '/reset-password' }))
+                      const redirectTo = next ? `/reset-password?${new URLSearchParams({ next })}` : '/reset-password'
+                      const result = await submit.run(() => authClient.requestPasswordReset({ email, redirectTo }))
                       if (!result.error) {
                         setResetSent(true)
                         posthog.capture('password_reset_requested')
