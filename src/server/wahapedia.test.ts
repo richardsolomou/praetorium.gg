@@ -44,6 +44,22 @@ it('reads current descriptions from a pinned faction page', () => {
   })
 })
 
+it('keeps errata panels out of detachment rule descriptions', () => {
+  fs.mkdirSync(path.join(directory, 'pages'))
+  write(
+    'pages/necrons.html',
+    '<div class="clFl"><h2 class="outline_header">Obeisance Phalanx2DP</h2><div class="Columns2"><div class="BreakInsideAvoid"><h3>Worthy Foes</h3><p>In your Command phase, select one enemy unit. Until the start of your next Command phase, each time a NOBLE, LYCHGUARD or TRIARCH unit from your army makes an attack that targets that unit, add 1 to the Wound roll.</p><div class="faqErrataSpoiler"><h3>Errata</h3><p>Obeisance Phalanx Detachment, Worthy Foes Detachment Rule Change to: In your Command phase, select one enemy unit. Until the start of your next Command phase, each time a NOBLE, LYCHGUARD or TRIARCH unit from your army makes an attack that targets that unit, add 1 to the Wound roll.</p></div></div></div></div>',
+  )
+
+  expect(loadWahapediaDescriptions(directory)?.detachmentAbilities.get('obeisance-phalanx')).toEqual([
+    {
+      name: 'Worthy Foes',
+      description:
+        'In your Command phase, select one enemy unit. Until the start of your next Command phase, each time a NOBLE, LYCHGUARD or TRIARCH unit from your army makes an attack that targets that unit, add 1 to the Wound roll.',
+    },
+  ])
+})
+
 it('reads army rules from a pinned faction page', () => {
   fs.mkdirSync(path.join(directory, 'pages'))
   write(
