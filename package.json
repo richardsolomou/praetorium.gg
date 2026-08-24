@@ -75,7 +75,7 @@
     "posthog-js": "^1.415.1",
     "posthog-node": "^5.48.1",
     "qrcode": "^1.5.4",
-    "ras-stack": "^0.44.0",
+    "ras-stack": "^0.45.1",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "react-markdown": "10.1.0",

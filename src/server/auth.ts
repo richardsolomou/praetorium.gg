@@ -3,7 +3,13 @@ import { drizzleAdapter } from 'better-auth/adapters/drizzle'
 import { APIError } from 'better-auth/api'
 import { admin, twoFactor } from 'better-auth/plugins'
 import { and, count, eq, notExists, sql } from 'drizzle-orm'
-import { configuredProviderOptions, standardRateLimitOptions, standardSessionOptions, trustedOrigins } from 'ras-stack/auth'
+import {
+  configuredProviderOptions,
+  standardAccountOptions,
+  standardRateLimitOptions,
+  standardSessionOptions,
+  trustedOrigins,
+} from 'ras-stack/auth'
 import type { valkeySecondaryStorage } from '../adapters/valkey'
 import { PASSWORD_MIN_LENGTH, SOCIAL_PROVIDERS } from '../authConfig'
 import type { PraetoriumDatabase } from '../db/connection'
@@ -37,10 +43,10 @@ export function createAuth(database: PraetoriumDatabase, secret: string, storage
     // An account is who you are here, but it still needs no inbox: there is no
     // verification step to stall a first game.
     emailAndPassword: { enabled: true, minPasswordLength: PASSWORD_MIN_LENGTH, autoSignIn: true, requireEmailVerification: false },
-    socialProviders: configuredProviderOptions(SOCIAL_PROVIDERS),
-    // Signing in with Google to an account made with a password should land on the
-    // same account, not a second one.
-    account: { accountLinking: { enabled: true, trustedProviders: [...SOCIAL_PROVIDERS] } },
+    socialProviders: configuredProviderOptions(SOCIAL_PROVIDERS, process.env, { rejectPartial: true }),
+    account: standardAccountOptions({
+      accountLinking: { enabled: true, trustedProviders: [...SOCIAL_PROVIDERS] },
+    }),
     disabledPaths: [
       '/unlink-account',
       '/admin/set-role',
@@ -93,7 +99,7 @@ export function createAuth(database: PraetoriumDatabase, secret: string, storage
         allowImpersonatingAdmins: false,
         impersonationSessionDuration: 60 * 60,
       }),
-      twoFactor({ issuer: 'Praetorium', allowPasswordless: true }),
+      twoFactor({ issuer: 'Praetorium' }),
     ],
   })
 

@@ -21,7 +21,7 @@ docker compose up -d
 
 The `/data` volume no longer holds game data. What remains is:
 
-- `auth.secret` signs account sessions. Replacing it signs everyone out but does not delete their data.
+- `auth.secret` signs account sessions and encrypts OAuth access and refresh tokens. Replacing it signs everyone out and makes stored OAuth tokens unreadable, so affected users must reconnect their provider.
 - `realtime-secret` signs Centrifugo tokens. Replacing it disconnects active realtime clients.
 - `catalogue/` caches verified community data from the snapshot service.
 
@@ -67,6 +67,8 @@ Email and password sign-in needs no additional configuration. To enable Google o
 - Discord: `https://example.com/api/auth/callback/discord`
 
 The provider appears only when both its client ID and client secret are set. Set `APP_URL` to the same public origin when proxy headers do not describe it correctly.
+
+Upgrades from 0.25.0 or earlier must stop every replica before starting the new image. The upgrade begins encrypting OAuth access and refresh tokens, and an older replica cannot read tokens written by the new release. Stop every replica before a rollback too; users whose tokens were created or refreshed after the upgrade may need to reconnect their provider.
 
 ## Reverse proxy
 

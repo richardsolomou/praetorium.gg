@@ -1,5 +1,7 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { eq } from 'drizzle-orm'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { PraetoriumConnection } from '../db/connection'
+import { account } from '../db/schema'
 import { openTestDatabase } from '../db/testDatabase'
 import { createAuth } from './auth'
 
@@ -70,6 +72,25 @@ describe('account administration', () => {
   afterEach(async () => {
     await connection?.close()
     connection = undefined
+    vi.unstubAllEnvs()
+  })
+
+  it('encrypts social sign-in tokens', async () => {
+    connection = await openTestDatabase()
+    const auth = createAuth(connection.database, SECRET)
+
+    expect((await auth.$context).options.account).toEqual({
+      encryptOAuthTokens: true,
+      accountLinking: { enabled: true, trustedProviders: ['google', 'discord'] },
+    })
+  })
+
+  it.each(['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET'])('rejects partial Google credentials missing %s', async (missing) => {
+    connection = await openTestDatabase()
+    vi.stubEnv('GOOGLE_CLIENT_ID', missing === 'GOOGLE_CLIENT_ID' ? '' : 'client-id')
+    vi.stubEnv('GOOGLE_CLIENT_SECRET', missing === 'GOOGLE_CLIENT_SECRET' ? '' : 'client-secret')
+
+    expect(() => createAuth(connection!.database, SECRET)).toThrow('GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must be configured together')
   })
 
   it('returns the initial administrator role from secondary session storage immediately', async () => {
@@ -202,5 +223,22 @@ describe('account administration', () => {
 
     expect(signedIn.response).toMatchObject({ twoFactorRedirect: true })
     expect(await auth.api.getSession({ headers: cookieHeaders(signedIn.headers) })).toBeNull()
+  })
+
+  it('requires a password before a social-only account can enable two-factor authentication', async () => {
+    connection = await openTestDatabase()
+    const auth = createAuth(connection.database, SECRET)
+    const signedUp = await auth.api.signUpEmail({
+      body: { email: 'social@example.com', password: 'password1234', name: 'Social' },
+      returnHeaders: true,
+    })
+    await connection.database
+      .update(account)
+      .set({ providerId: 'google', accountId: 'google-user', password: null })
+      .where(eq(account.providerId, 'credential'))
+
+    await expect(
+      auth.api.enableTwoFactor({ body: { password: 'password1234' }, headers: cookieHeaders(signedUp.headers) }),
+    ).rejects.toMatchObject({ status: 'BAD_REQUEST' })
   })
 })
