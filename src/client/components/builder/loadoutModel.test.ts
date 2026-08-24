@@ -43,8 +43,19 @@ describe('matching a wargear name to what describes it', () => {
     expect(sameWeapon('Staff of light (Ranged)', 'Staff of light (Melee)')).toBe(true)
   })
 
+  it.each([
+    ['➤ Bellicatus missile array - Frag', 'Bellicatus missile array (Icarus)'],
+    ['➤ Plasma pistol - Supercharge', 'Plasma pistol (Standard)'],
+  ])('reads marked and parenthesised modes as the same weapon', (marked, parenthesised) => {
+    expect(sameWeapon(marked, parenthesised)).toBe(true)
+  })
+
   it('keeps two different weapons apart', () => {
     expect(sameWeapon('Gauss flayer', 'Gauss reaper')).toBe(false)
+  })
+
+  it('keeps marked profiles of different weapons apart', () => {
+    expect(sameWeapon('➤ Bellicatus missile array - Frag', 'Multi-melta (Melta)')).toBe(false)
   })
 
   it('matches a profile named after the option, with or without a mode', () => {
