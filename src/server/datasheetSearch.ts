@@ -22,6 +22,9 @@ const METADATA = [
   { field: 'wargear', kind: 'wargear', weight: 400 },
 ] as const
 
+const EXACT_REASON_WORD_LIMIT = 8
+const EXACT_REASON_CANDIDATE_LIMIT = 16
+
 export function matchDatasheet(query: string, fields: DatasheetSearchFields): DatasheetSearchMatch | null {
   const wanted = [...new Set(wordsIn(query))]
   if (!wanted.length) return { score: 0, reasons: [] }
@@ -74,9 +77,11 @@ function selectReasons(wanted: readonly string[], nameWords: readonly string[], 
     return true
   })
 
-  for (let size = 1; size <= 3; size++) {
-    const exact = reasonCombination(missingWords, candidates, size)
-    if (exact) return exact.map(({ reason }) => reason)
+  if (missingWords.length <= EXACT_REASON_WORD_LIMIT && candidates.length <= EXACT_REASON_CANDIDATE_LIMIT) {
+    for (let size = 1; size <= 3; size++) {
+      const exact = reasonCombination(missingWords, candidates, size)
+      if (exact) return exact.map(({ reason }) => reason)
+    }
   }
 
   const remaining = [...ranked]

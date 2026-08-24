@@ -68,6 +68,49 @@ describe('datasheet search', () => {
     ])
   })
 
+  it('bounds explanation search for queries with many words', () => {
+    expect(
+      matchDatasheet('alpha beta gamma delta epsilon zeta eta theta iota', {
+        name: 'Overlord',
+        keywords: ['Alpha beta gamma delta eta'],
+        abilities: ['Alpha beta epsilon zeta eta'],
+        weapons: ['Gamma delta theta iota'],
+        weaponKeywords: [],
+        wargear: [],
+      })?.reasons,
+    ).toEqual([
+      { kind: 'keyword', value: 'Alpha beta gamma delta eta' },
+      { kind: 'ability', value: 'Alpha beta epsilon zeta eta' },
+      { kind: 'weapon', value: 'Gamma delta theta iota' },
+    ])
+  })
+
+  it('bounds explanation search when many fields match', () => {
+    expect(
+      matchDatasheet('alpha beta gamma delta epsilon zeta', {
+        name: 'Overlord',
+        keywords: ['Alpha beta gamma delta'],
+        abilities: ['Alpha beta epsilon'],
+        weapons: ['Gamma delta zeta'],
+        weaponKeywords: [
+          'Alpha gamma',
+          'Alpha delta',
+          'Alpha epsilon',
+          'Alpha zeta',
+          'Beta gamma',
+          'Beta delta',
+          'Beta epsilon',
+          'Beta zeta',
+        ],
+        wargear: ['Gamma epsilon', 'Gamma zeta', 'Delta epsilon', 'Delta zeta', 'Alpha', 'Beta'],
+      })?.reasons,
+    ).toEqual([
+      { kind: 'keyword', value: 'Alpha beta gamma delta' },
+      { kind: 'ability', value: 'Alpha beta epsilon' },
+      { kind: 'weapon', value: 'Gamma delta zeta' },
+    ])
+  })
+
   it('does not match unrelated words', () => {
     expect(matchDatasheet('tesla', fields)).toBeNull()
   })
