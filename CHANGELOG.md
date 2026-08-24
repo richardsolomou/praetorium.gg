@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.24.1
+
+### Patch Changes
+
+- b159de3: Show when one side has completed its turn while the other still has a turn left in the battle round.
+
 ## 0.24.0
 
 ### Minor Changes
