@@ -1,3 +1,6 @@
+packages:
+  - mobile
+
 allowBuilds:
   core-js: true
   esbuild: true

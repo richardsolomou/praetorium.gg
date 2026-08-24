@@ -10,12 +10,12 @@
     "realtime": "sh scripts/realtime.sh",
     "build": "vite build && vite build --config vite.seed.config.ts && esbuild scripts/containerRuntime.ts --bundle --platform=node --format=esm --target=node24 --outfile=.output/server/container-runtime.mjs --log-level=warning && esbuild scripts/migrate.ts --bundle --platform=node --format=esm --target=node24 --outfile=.output/server/migrate.mjs --log-level=warning && esbuild scripts/previewDatabase.ts --bundle --platform=node --format=esm --target=node24 --outfile=.output/server/preview-database.mjs --log-level=warning && ras assets sync",
     "start": "node .output/server/index.mjs",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && pnpm --dir mobile typecheck",
     "lint": "oxlint --type-aware --deny-warnings --report-unused-disable-directives-severity=error .",
     "lint:fix": "oxlint --type-aware --fix .",
     "format": "oxfmt --write .",
     "format:check": "oxfmt --check .",
-    "docs:lint": "markdownlint-cli2 '**/*.md' '#node_modules' '#.output' '#catalogue-data' '#CHANGELOG.md'",
+    "docs:lint": "markdownlint-cli2 '**/*.md' '#**/node_modules' '#.output' '#catalogue-data' '#CHANGELOG.md'",
     "policy:sync": "ras policy sync",
     "policy:check": "ras policy check",
     "check": "pnpm format:check && pnpm lint && pnpm docs:lint && pnpm policy:check && pnpm db:check && pnpm catalogue:check && pnpm check:changesets && pnpm build && pnpm typecheck && pnpm test",
@@ -38,7 +38,10 @@
     "benchmark:roster": "tsx scripts/benchmarkRosterLoading.ts",
     "db:migrate": "tsx scripts/migrate.ts",
     "db:seed": "tsx scripts/seedPreview.ts",
-    "profile-images:migrate": "tsx scripts/migrateProfileImages.ts"
+    "profile-images:migrate": "tsx scripts/migrateProfileImages.ts",
+    "mobile": "pnpm --dir mobile start",
+    "mobile:android": "pnpm --dir mobile android",
+    "mobile:ios": "pnpm --dir mobile ios"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1111.0",

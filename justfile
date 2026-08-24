@@ -31,6 +31,16 @@ dev:
     pnpm db:migrate
     DATA_DIR=./data-dev CATALOGUE_DIR=./catalogue-data RULES_DIR=./catalogue-data/rules pnpm dev
 
+# The iOS and Android shell against the supported production service
+mobile *args:
+    pnpm mobile -- {{ args }}
+
+mobile-ios:
+    pnpm mobile:ios
+
+mobile-android:
+    pnpm mobile:android
+
 # Postgres, Valkey and MinIO alone, for when the dev server is already running
 services *args:
     sh scripts/devServices.sh {{ args }}
