@@ -226,7 +226,7 @@ describe('account administration', () => {
       .where(eq(account.providerId, 'credential'))
 
     await expect(
-      auth.api.enableTwoFactor({ body: {} as { password: string }, headers: cookieHeaders(signedUp.headers) }),
-    ).rejects.toMatchObject({ status: 400 })
+      auth.api.enableTwoFactor({ body: { password: 'password1234' }, headers: cookieHeaders(signedUp.headers) }),
+    ).rejects.toMatchObject({ status: 'BAD_REQUEST' })
   })
 })
