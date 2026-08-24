@@ -1,5 +1,7 @@
+import { eq } from 'drizzle-orm'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { PraetoriumConnection } from '../db/connection'
+import { account } from '../db/schema'
 import { openTestDatabase } from '../db/testDatabase'
 import { createAuth } from './auth'
 
@@ -70,6 +72,13 @@ describe('account administration', () => {
   afterEach(async () => {
     await connection?.close()
     connection = undefined
+  })
+
+  it('encrypts social sign-in tokens', async () => {
+    connection = await openTestDatabase()
+    const auth = createAuth(connection.database, SECRET)
+
+    expect((await auth.$context).options.account).toEqual({ encryptOAuthTokens: true })
   })
 
   it('returns the initial administrator role from secondary session storage immediately', async () => {
@@ -202,5 +211,22 @@ describe('account administration', () => {
 
     expect(signedIn.response).toMatchObject({ twoFactorRedirect: true })
     expect(await auth.api.getSession({ headers: cookieHeaders(signedIn.headers) })).toBeNull()
+  })
+
+  it('requires a password before a social-only account can enable two-factor authentication', async () => {
+    connection = await openTestDatabase()
+    const auth = createAuth(connection.database, SECRET)
+    const signedUp = await auth.api.signUpEmail({
+      body: { email: 'social@example.com', password: 'password1234', name: 'Social' },
+      returnHeaders: true,
+    })
+    await connection.database
+      .update(account)
+      .set({ providerId: 'google', accountId: 'google-user', password: null })
+      .where(eq(account.providerId, 'credential'))
+
+    await expect(
+      auth.api.enableTwoFactor({ body: {} as { password: string }, headers: cookieHeaders(signedUp.headers) }),
+    ).rejects.toMatchObject({ status: 400 })
   })
 })
