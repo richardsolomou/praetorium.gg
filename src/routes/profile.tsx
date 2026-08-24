@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { ImagePlus, ShieldCheck, Trash2 } from 'lucide-react'
+import { classifyAuthCallbackFailure } from 'ras-stack/auth/client'
 import { useAuthAction } from 'ras-stack/auth/react'
 import { useEffect, useRef, useState } from 'react'
 import posthog from 'posthog-js'
@@ -18,10 +19,17 @@ import { prepareProfileImage } from '../client/profileImage'
 
 const accountLinkErrorMessage = (error?: string) => {
   if (!error) return undefined
-  if (error === 'INVALID_TOKEN' || error === 'TOKEN_EXPIRED') return 'This email verification link is invalid or has expired.'
-  if (error === "email_doesn't_match") return 'This provider uses a different email address. Use matching email addresses before linking.'
-  if (error === 'account_already_linked_to_different_user') return 'This provider is already linked to another Praetorium account.'
-  return 'Could not link this sign-in method. Try again.'
+  switch (classifyAuthCallbackFailure(error)) {
+    case 'invalid_token':
+    case 'token_expired':
+      return 'This email verification link is invalid or has expired.'
+    case 'email_mismatch':
+      return 'This provider uses a different email address. Use matching email addresses before linking.'
+    case 'account_already_linked':
+      return 'This provider is already linked to another Praetorium account.'
+    default:
+      return 'Could not link this sign-in method. Try again.'
+  }
 }
 
 export const Route = createFileRoute('/profile')({

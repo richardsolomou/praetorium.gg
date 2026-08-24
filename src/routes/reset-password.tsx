@@ -1,10 +1,11 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { useState } from 'react'
+import { localRedirectPath } from 'ras-stack/auth/client'
 import { useAuthAction } from 'ras-stack/auth/react'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { localRedirectPath, PASSWORD_MIN_LENGTH } from '../authConfig'
+import { PASSWORD_MIN_LENGTH } from '../authConfig'
 import { authClient } from '../client/authClient'
 import { finishPasswordRecovery } from '../client/passwordRecovery'
 

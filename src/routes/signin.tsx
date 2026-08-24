@@ -1,5 +1,5 @@
 import { createFileRoute, redirect } from '@tanstack/react-router'
-import { localRedirectPath } from '../authConfig'
+import { localRedirectPath } from 'ras-stack/auth/client'
 
 export const Route = createFileRoute('/signin')({
   validateSearch: (search: Record<string, unknown>) => {
