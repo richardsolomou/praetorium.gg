@@ -22,7 +22,7 @@ import { defaultSelection, expand, withChoice } from './expand'
 import { countAt, updateSelection, withCounts } from './selection'
 import { type ChoiceOptions, type UnitChoice, unitChoices, type UnitToggle, unitToggles } from './unitChoices'
 import { boundedGroups, modelCountOf, sizeOf, type UnitSize } from './unitSize'
-import { withUnitSpread } from './unitSpread'
+import { withUnitChoice, withUnitSpread } from './unitSpread'
 
 /**
  * What a player picked, in the form a saved list keeps.
@@ -109,7 +109,7 @@ function assemble(
   if (!base) return null
 
   // Choices first: an option can bring its own bodies, so sizing has to see them.
-  const chosen = Object.entries(choices ?? {}).reduce((tree, [key, optionId]) => withChoice(tree, key, optionId, index), base)
+  const chosen = Object.entries(choices ?? {}).reduce((tree, [key, optionId]) => withUnitChoice(tree, key, optionId, index), base)
   const fixedSizes = modelCompositionSizes(entryId, chosen, index, context)
   const requestedModels =
     models === undefined || !fixedSizes.length

@@ -240,7 +240,7 @@ export function unitChoices(entryId: string, selection: Selection, index: Catalo
       }
 
       // What is inside an entry is held by however many of it the selection holds.
-      if (inner.type !== 'upgrade') {
+      if (inner.type !== 'upgrade' || allAt(selection, here).some((selected) => (selected.count ?? 1) > 0)) {
         walk(child.definition, here, left - 1, visited, inner.type === undefined ? carriers : (at(selection, here)?.count ?? 1))
       }
     }

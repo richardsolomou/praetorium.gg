@@ -492,7 +492,19 @@ export function heldWargear(
     for (const row of kind.rows) add(row.name, countOf(row.choiceKey, row.optionId))
     for (const swap of kind.swaps ?? []) for (const take of swap.takes) add(take, swap.count)
   }
-  for (const piece of catalogued) if (!named.has(routeSlug(piece.name))) add(piece.name, piece.count)
+  const swappedAway = new Set(
+    models.flatMap((kind) => (kind.swaps ?? []).flatMap((swap) => (swap.count > 0 ? swap.gives.map(routeSlug) : []))),
+  )
+  for (const piece of catalogued) {
+    const key = routeSlug(piece.name)
+    if (!named.has(key)) {
+      add(piece.name, piece.count)
+      continue
+    }
+    if (swappedAway.has(key)) continue
+    const current = held.get(key)
+    if (!current || current.count < piece.count) held.set(key, { name: current?.name ?? piece.name, count: piece.count })
+  }
   return [...held.values()]
 }
 

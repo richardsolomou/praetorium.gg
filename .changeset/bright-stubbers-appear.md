@@ -2,4 +2,4 @@
 'praetorium.gg': patch
 ---
 
-Show detachment unit upgrades separately and restore missing optional vehicle wargear.
+Fix missing and duplicated roster weapons, nested loadout choices, and detachment unit upgrades.

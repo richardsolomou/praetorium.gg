@@ -227,7 +227,7 @@ export function ModelCard({
           const taken = choice.chosen === option.id
           return (
             <WargearRow
-              key={`${row.choiceKey}/${row.optionId}`}
+              key={`${row.choiceKey}/${row.optionId}/${row.name}`}
               name={row.name}
               count={option.count}
               points={option.points}

@@ -5,7 +5,15 @@ import { Toggle } from '@/components/ui/toggle'
 import type { Datasheet } from '../../../server/catalogue'
 import { RuleText } from '../RuleText'
 import { WeaponProfile } from './DatasheetPanel'
-import { type LoadoutChoice, type LoadoutOption, type SpreadCounts, spreadHandlers, weaponMatches, wargearMatches } from './loadoutModel'
+import {
+  type LoadoutChoice,
+  type LoadoutOption,
+  type SpreadCounts,
+  spreadHandlers,
+  uniqueWeaponProfiles,
+  weaponMatches,
+  wargearMatches,
+} from './loadoutModel'
 import type { WeaponProfileData } from './loadoutModel'
 
 /**
@@ -138,9 +146,7 @@ export function WargearRow({
   note?: string
   highlightSelection?: boolean
 }) {
-  const matching = weapons
-    .filter((weapon) => weaponMatches(name, weapon.name))
-    .filter((weapon, at, all) => all.findIndex((candidate) => candidate.name === weapon.name) === at)
+  const matching = uniqueWeaponProfiles(weapons.filter((weapon) => weaponMatches(name, weapon.name)))
   return (
     <li className={count && highlightSelection ? 'bg-azure/5' : undefined}>
       <div className="flex items-center gap-2 px-2.5 py-1.5">
@@ -446,7 +452,7 @@ function OptionProfiles({
   weapons: readonly WeaponProfileData[]
   rules: Datasheet['keywordRules']
 }) {
-  const matching = weapons.filter((weapon) => weaponMatches(optionName, weapon.name))
+  const matching = uniqueWeaponProfiles(weapons.filter((weapon) => weaponMatches(optionName, weapon.name)))
   return matching.length ? (
     <div className="border-t border-edge">
       {matching.map((weapon) => (

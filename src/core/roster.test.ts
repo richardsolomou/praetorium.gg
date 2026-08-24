@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { buildIndex, type Catalogue, type CatalogueFile } from './catalogue'
 import { evaluate } from './evaluate'
-import { withChoice } from './expand'
+import { defaultSelection, withChoice } from './expand'
 import { buildUnit } from './roster'
 import { unitChoices } from './unitChoices'
+import { withUnitSpread } from './unitSpread'
 import { modelCountOf } from './unitSize'
 import { wargearOf } from './wargear'
 
@@ -362,6 +363,137 @@ describe('repeated specialist models', () => {
     const built = buildUnit('squad', index, 10)!
     expect(built.choices.find((choice) => choice.key === key)?.owner?.profile).toBe('Trooper')
     expect(built.choices.find((choice) => choice.key === 'models')?.options.map((option) => option.profile)).toEqual(['Trooper', 'Trooper'])
+  })
+
+  it('keeps a new specialist model complete when its nested weapon adds it to the squad', () => {
+    const specialistIndex = indexOf({
+      sharedSelectionEntries: [
+        {
+          id: 'terminators',
+          name: 'Terminators',
+          type: 'unit',
+          selectionEntryGroups: [
+            {
+              id: 'members',
+              name: 'Members',
+              defaultSelectionEntryId: 'terminator',
+              constraints: [
+                { id: 'members-min', type: 'min', value: 2, field: 'selections', scope: 'parent' },
+                { id: 'members-max', type: 'max', value: 2, field: 'selections', scope: 'parent' },
+              ],
+              selectionEntries: [
+                {
+                  id: 'terminator',
+                  name: 'Terminator',
+                  type: 'model',
+                  selectionEntries: [{ id: 'bolter', name: 'Storm bolter', type: 'upgrade', constraints: mandatory('bolter-min') }],
+                },
+                {
+                  id: 'heavy-terminator',
+                  name: 'Terminator with heavy weapon',
+                  type: 'model',
+                  selectionEntries: [{ id: 'fist', name: 'Power fist', type: 'upgrade', constraints: mandatory('fist-min') }],
+                  selectionEntryGroups: [
+                    {
+                      id: 'heavy-weapon',
+                      name: 'Heavy weapon',
+                      constraints: [
+                        { id: 'heavy-min', type: 'min', value: 1, field: 'selections', scope: 'parent' },
+                        { id: 'heavy-max', type: 'max', value: 1, field: 'selections', scope: 'parent' },
+                      ],
+                      selectionEntries: [{ id: 'launcher', name: 'Missile launcher', type: 'upgrade' }],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    })
+    const built = buildUnit('terminators', specialistIndex, 2, undefined, {
+      spreads: { 'members/heavy-terminator/heavy-weapon': { launcher: 1 } },
+    })!
+    const chosen = buildUnit('terminators', specialistIndex, undefined, {
+      'members/heavy-terminator/heavy-weapon': 'launcher',
+    })!
+    const spread = withUnitSpread(
+      defaultSelection('terminators', specialistIndex)!,
+      'members/heavy-terminator/heavy-weapon',
+      { launcher: 1 },
+      specialistIndex,
+    )
+
+    expect({ models: modelCountOf(built.selection, specialistIndex), wargear: wargearOf(built.selection, specialistIndex) }).toEqual({
+      models: 2,
+      wargear: [
+        { name: 'Storm bolter', count: 1 },
+        { name: 'Power fist', count: 1 },
+        { name: 'Missile launcher', count: 1 },
+      ],
+    })
+    expect(modelCountOf(spread, specialistIndex)).toBe(2)
+    expect({ models: modelCountOf(chosen.selection, specialistIndex), wargear: wargearOf(chosen.selection, specialistIndex) }).toEqual({
+      models: 2,
+      wargear: [
+        { name: 'Storm bolter', count: 1 },
+        { name: 'Power fist', count: 1 },
+        { name: 'Missile launcher', count: 1 },
+      ],
+    })
+  })
+})
+
+describe('choices nested inside a selected loadout', () => {
+  const index = indexOf({
+    sharedSelectionEntries: [
+      {
+        id: 'captain',
+        name: 'Captain',
+        type: 'model',
+        selectionEntryGroups: [
+          {
+            id: 'wargear',
+            name: 'Wargear',
+            defaultSelectionEntryId: 'standard-loadout',
+            constraints: [
+              { id: 'wargear-min', type: 'min', value: 1, field: 'selections', scope: 'parent' },
+              { id: 'wargear-max', type: 'max', value: 1, field: 'selections', scope: 'parent' },
+            ],
+            selectionEntries: [
+              {
+                id: 'standard-loadout',
+                name: 'Bolt pistol, master-crafted bolter, melee weapon',
+                type: 'upgrade',
+                selectionEntryGroups: [
+                  {
+                    id: 'melee-weapon',
+                    name: 'Melee weapon',
+                    defaultSelectionEntryId: 'close-combat-weapon',
+                    constraints: [
+                      { id: 'melee-min', type: 'min', value: 1, field: 'selections', scope: 'parent' },
+                      { id: 'melee-max', type: 'max', value: 1, field: 'selections', scope: 'parent' },
+                    ],
+                    selectionEntries: [
+                      { id: 'close-combat-weapon', name: 'Close combat weapon', type: 'upgrade' },
+                      { id: 'power-fist', name: 'Power fist', type: 'upgrade' },
+                    ],
+                  },
+                ],
+              },
+              { id: 'shield-loadout', name: 'Relic shield', type: 'upgrade' },
+            ],
+          },
+        ],
+      },
+    ],
+  })
+
+  it('offers the choices inside the selected loadout only', () => {
+    expect(buildUnit('captain', index)?.choices.map(({ key, options }) => [key, options.map(({ name }) => name)])).toEqual([
+      ['wargear', ['Bolt pistol, master-crafted bolter, melee weapon', 'Relic shield']],
+      ['wargear/standard-loadout/melee-weapon', ['Close combat weapon', 'Power fist']],
+    ])
   })
 })
 

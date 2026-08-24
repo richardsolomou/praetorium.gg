@@ -6,6 +6,7 @@ import {
   sameWeapon,
   showLoadoutEntry,
   spreadHandlers,
+  uniqueWeaponProfiles,
   weaponMatches,
   wargearMatches,
   wholeSquadTakes,
@@ -78,10 +79,33 @@ describe('matching a wargear name to what describes it', () => {
     expect(weaponMatches('Missile Launcher', '➤ Multi-melta - Melta')).toBe(false)
   })
 
+  it('matches marked modes of one weapon in a combined option', () => {
+    expect(weaponMatches('Cyclone Missile Launcher & Storm Bolter', '➤ Cyclone missile launcher - frag')).toBe(true)
+    expect(weaponMatches('Cyclone Missile Launcher & Storm Bolter', '➤ Cyclone missile launcher - krak')).toBe(true)
+  })
+
   it('matches a rule the same way a profile is matched', () => {
     expect(wargearMatches('Storm shield', 'Storm shield')).toBe(true)
     expect(wargearMatches('Storm shield and thunder hammer', 'Storm shield')).toBe(true)
     expect(wargearMatches('Storm shield', 'Iron halo')).toBe(false)
+  })
+
+  it('collapses equivalent profiles whose names differ only in presentation', () => {
+    const profiles = [
+      { ...weapon('Storm Bolter', 'Ranged Weapons'), id: 'sergeant', values: [{ name: 'BS', value: '3+' }] },
+      { ...weapon('Storm bolter', 'Ranged Weapons'), id: 'terminator', values: [{ name: 'BS', value: '3+' }] },
+    ]
+
+    expect(uniqueWeaponProfiles(profiles).map(({ id }) => id)).toEqual(['sergeant'])
+  })
+
+  it('preserves genuinely different profiles of the same weapon', () => {
+    const profiles = [
+      { ...weapon('Storm Bolter', 'Ranged Weapons'), id: 'standard', values: [{ name: 'BS', value: '3+' }] },
+      { ...weapon('Storm bolter', 'Ranged Weapons'), id: 'improved', values: [{ name: 'BS', value: '2+' }] },
+    ]
+
+    expect(uniqueWeaponProfiles(profiles).map(({ id }) => id)).toEqual(['standard', 'improved'])
   })
 })
 
