@@ -110,7 +110,6 @@ describe('the picker', () => {
     const book = bookOf({
       categoryEntries: [{ id: 'marker', name: 'Secret marker', hidden: true }],
       sharedInfoGroups: [{ id: 'conditional', name: 'Conditional', profiles: [ability('null-aegis', 'Null Aegis')] }],
-      sharedProfiles: [ability('hidden-link-profile', 'Lord of Deceit')],
       selectionEntries: [
         {
           id: 'technomancer',
@@ -118,10 +117,7 @@ describe('the picker', () => {
           type: 'model',
           costs: points(85),
           categoryLinks: [{ id: 'marker-link', targetId: 'marker', name: 'Secret marker' }],
-          infoLinks: [
-            { id: 'conditional-link', targetId: 'conditional', name: 'Conditional', type: 'infoGroup' },
-            { id: 'hidden-link', targetId: 'hidden-link-profile', name: 'Lord of Deceit', type: 'profile', hidden: true },
-          ],
+          infoLinks: [{ id: 'conditional-link', targetId: 'conditional', name: 'Conditional', type: 'infoGroup' }],
           profiles: [
             {
               id: 'hidden-gun',
@@ -136,31 +132,43 @@ describe('the picker', () => {
               characteristics: [{ name: 'Description', $text: 'Restore one destroyed model.' }],
             },
           ],
-          selectionEntryGroups: [
-            {
-              id: 'hidden-group',
-              name: 'Hidden group',
-              hidden: true,
-              selectionEntries: [
-                {
-                  id: 'buried-gun',
-                  name: 'Buried gun',
-                  type: 'upgrade',
-                  profiles: [{ id: 'buried-profile', name: 'Buried gun', typeName: 'Ranged Weapons' }],
-                },
-              ],
-            },
-          ],
         },
       ],
     })
 
     expect(unitsIn(book, 'cat', 'secret')).toEqual([])
     expect(unitsIn(book, 'cat', 'hidden gun')).toEqual([])
-    expect(unitsIn(book, 'cat', 'buried gun')).toEqual([])
     expect(unitsIn(book, 'cat', 'null aegis')).toEqual([])
-    expect(unitsIn(book, 'cat', 'lord of deceit')).toEqual([])
     expect(unitsIn(book, 'cat', 'destroyed')).toEqual([])
+  })
+
+  it('indexes rendered profiles owned by hidden containers and links', () => {
+    const book = bookOf({
+      sharedProfiles: [ability('shared-deceit', 'Shared Deceit')],
+      selectionEntries: [
+        {
+          id: 'deceiver',
+          name: "C'tan Shard of the Deceiver",
+          type: 'model',
+          infoLinks: [{ id: 'hidden-link', targetId: 'shared-deceit', name: 'Shared Deceit', type: 'profile', hidden: true }],
+          selectionEntryGroups: [
+            {
+              id: 'hidden-group',
+              name: 'Hidden group',
+              hidden: true,
+              profiles: [ability('deceit', 'Lord of Deceit')],
+            },
+          ],
+        },
+      ],
+    })
+
+    expect(unitsIn(book, 'cat', 'lord of deceit')).toEqual([
+      expect.objectContaining({ name: "C'tan Shard of the Deceiver", matchReasons: [{ kind: 'ability', value: 'Lord of Deceit' }] }),
+    ])
+    expect(unitsIn(book, 'cat', 'shared deceit')).toEqual([
+      expect.objectContaining({ name: "C'tan Shard of the Deceiver", matchReasons: [{ kind: 'ability', value: 'Shared Deceit' }] }),
+    ])
   })
 
   it('keeps offered datasheets whose visibility depends on force context', () => {

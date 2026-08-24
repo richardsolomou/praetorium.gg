@@ -90,7 +90,6 @@ function searchableProfilesIn(loaded: LoadedCatalogue, catalogueId: string, entr
   const weaponKeywords = new Set<string>()
   const visited = new Set<string>()
   const options = { primaryCatalogueId: catalogueId }
-  const hidden = (definition: Definition) => definition.hidden || targetOf(definition, loaded.index.definitions).hidden
   const addProfile = (profile: Profile, searchable = true) => {
     if (!profile.name || profile.hidden) return
     if (profile.typeName === 'Abilities') {
@@ -126,7 +125,6 @@ function searchableProfilesIn(loaded: LoadedCatalogue, catalogueId: string, entr
     definition.infoGroups?.forEach((group) => addGroup(group))
     for (const link of definition.infoLinks ?? []) {
       if (ownRules) addRule(link)
-      if (link.hidden) continue
       const shared = loaded.index.shared.get(link.targetId)
       if (!shared) continue
       if ('profiles' in shared) addGroup({ ...shared, name: link.name ?? shared.name }, false)
@@ -134,17 +132,16 @@ function searchableProfilesIn(loaded: LoadedCatalogue, catalogueId: string, entr
     }
   }
   const visit = (definition: Definition, isRoot = false, enhancement = false) => {
-    if (visited.has(definition.id) || hidden(definition)) return
+    if (visited.has(definition.id)) return
     visited.add(definition.id)
     const enhancementEntry = enhancement || definition.name === 'Enhancements'
     if (!enhancementEntry) addProfiles(definition, isRoot)
     definition.selectionEntries?.forEach((entry) => visit(entry, false, enhancementEntry))
     definition.selectionEntryGroups?.forEach((group) => visit(group, false, enhancementEntry))
     for (const link of definition.entryLinks ?? []) {
-      if (hidden(link)) continue
       visit(link)
       const target = loaded.index.definitions.get(link.targetId)
-      if (target && !hidden(target)) addProfiles(target, false)
+      if (target) addProfiles(target, false)
     }
   }
 
