@@ -18,7 +18,19 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { CircleUserRound, LogIn, LogOut, Menu, ScrollText, ShieldCheck, Swords, UserRoundPen, Users, X } from 'lucide-react'
+import {
+  CircleUserRound,
+  LogIn,
+  LogOut,
+  Menu,
+  MessageSquareWarning,
+  ScrollText,
+  ShieldCheck,
+  Swords,
+  UserRoundPen,
+  Users,
+  X,
+} from 'lucide-react'
 import { postHogEnvironment } from 'ras-stack/posthog'
 import { PostHogBetterAuthIdentity, PostHogIntegration } from 'ras-stack/posthog/react'
 import { useEffect, useRef, useState } from 'react'
@@ -131,6 +143,18 @@ function Account() {
                 <ShieldCheck /> Admin
               </DropdownMenuItem>
             ) : null}
+            <DropdownMenuItem
+              render={
+                <a
+                  href="https://github.com/richardsolomou/praetorium.gg/issues"
+                  target="_blank"
+                  rel="noreferrer"
+                  aria-label="Send feedback"
+                />
+              }
+            >
+              <MessageSquareWarning /> Send feedback
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={() => {

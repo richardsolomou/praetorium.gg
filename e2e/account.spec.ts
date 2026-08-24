@@ -141,6 +141,15 @@ test('a player can edit their display name and profile picture', async ({ page }
   await expect(page.locator('main img')).toHaveCount(0)
 })
 
+test('the account menu links feedback to GitHub Issues', async ({ page }) => {
+  await signUp(page, uniqueName('Feedback'))
+  await page.getByRole('button', { name: /Account menu for/ }).click()
+
+  const feedback = page.getByRole('menuitem', { name: 'Send feedback' })
+  await expect(feedback).toHaveAttribute('href', 'https://github.com/richardsolomou/praetorium.gg/issues')
+  await expect(feedback).toHaveAttribute('target', '_blank')
+})
+
 test('a list saved under an account is there on another device', async ({ browser }) => {
   const first = await browser.newContext()
   const page = await first.newPage()
