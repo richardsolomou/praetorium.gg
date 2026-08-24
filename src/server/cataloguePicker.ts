@@ -1,8 +1,9 @@
 import { type CatalogueIndex, type Definition, nameOf, targetOf } from '../core/catalogue'
+import { formatDatasheetLimit, isKotcLimit, kotcDatasheetRepeatable, kotcUnitExclusions } from '../core/battle'
 import { evaluate, rosterLimit } from '../core/evaluate'
 import { buildUnit } from '../core/roster'
 import type { UnitGroup } from '../core/unitGroups'
-import { datasheetSearchFieldsIn, keywordsIn } from './catalogue'
+import { datasheetSearchFieldsIn, datasheetIn, keywordsIn, toughnessOf } from './catalogue'
 import { datasheetSlug, datasheetsOf, type LoadedCatalogue } from './catalogueIndex'
 import { matchDatasheet, type DatasheetSearchReason } from './datasheetSearch'
 import type { FactionRestrictions } from './wahapedia'
@@ -86,14 +87,18 @@ export function unitsIn(
   loaded: LoadedCatalogue,
   catalogueId: string,
   query: string,
-  { restrictions, includeNames }: { restrictions?: FactionRestrictions; includeNames?: ReadonlySet<string> } = {},
+  {
+    restrictions,
+    includeNames,
+    battleSize,
+  }: { restrictions?: FactionRestrictions; includeNames?: ReadonlySet<string>; battleSize?: number } = {},
 ): UnitSummary[] {
   const wanted = query.trim().toLowerCase()
   const included = includeNames && new Set([...includeNames].map(referenceName))
   // Faction reference pages use one canonical name set. Cache that complete,
   // priced list so each search does not rebuild every datasheet in the faction.
   const cacheable = restrictions === undefined
-  const cacheKey = `${catalogueId}:${includeNames ? 'included' : 'all'}`
+  const cacheKey = `${catalogueId}:${includeNames ? 'included' : 'all'}:${battleSize ?? 'all'}`
   const cached = cacheable ? unitSummaryCache.get(loaded)?.get(cacheKey) : undefined
   if (cached) return searchUnits(loaded, catalogueId, wanted, cached)
   const found: { id: string; name: string; group: UnitGroup; alliedFaction: string | null; alliedOrder: number }[] = []
@@ -125,16 +130,24 @@ export function unitsIn(
   const allies = found
     .filter((unit) => unit.alliedFaction)
     .toSorted((left, right) => left.alliedOrder - right.alliedOrder || left.name.localeCompare(right.name))
-  const summaries = [...primary, ...allies].map((unit) => ({
-    id: unit.id,
-    slug: datasheetSlug(loaded, catalogueId, unit.id),
-    name: unit.name,
-    group: unit.group,
-    allied: Boolean(unit.alliedFaction),
-    alliedFaction: unit.alliedFaction,
-    points: priceOf(loaded, catalogueId, unit.id),
-    limit: limitOf(loaded, catalogueId, unit.id),
-  }))
+  const summaries = [...primary, ...allies].flatMap((unit) => {
+    const sheet = battleSize !== undefined && isKotcLimit(battleSize) ? datasheetIn(loaded, catalogueId, unit.id) : null
+    const facts = sheet ? { keywords: sheet.keywords, toughness: toughnessOf(sheet.profiles) } : null
+    if (facts && kotcUnitExclusions(facts).length) return []
+    const formatLimit = facts ? formatDatasheetLimit(battleSize!, kotcDatasheetRepeatable(facts.keywords)) : null
+    return [
+      {
+        id: unit.id,
+        slug: datasheetSlug(loaded, catalogueId, unit.id),
+        name: unit.name,
+        group: unit.group,
+        allied: Boolean(unit.alliedFaction),
+        alliedFaction: unit.alliedFaction,
+        points: sheet?.points ?? priceOf(loaded, catalogueId, unit.id),
+        limit: minimumLimit(limitOf(loaded, catalogueId, unit.id), formatLimit),
+      },
+    ]
+  })
   if (cacheable) {
     const entries = unitSummaryCache.get(loaded) ?? new Map<string, UnitSummary[]>()
     entries.set(cacheKey, summaries)
@@ -175,6 +188,12 @@ const restricted = (name: string, keywords: readonly string[], restrictions: Fac
 function limitOf(loaded: LoadedCatalogue, catalogueId: string, entryId: string) {
   const entry = loaded.index.definitions.get(entryId)
   return entry ? rosterLimit(entry, loaded.index, { primaryCatalogueId: catalogueId }) : null
+}
+
+function minimumLimit(left: number | null, right: number | null) {
+  if (left === null) return right
+  if (right === null) return left
+  return Math.min(left, right)
 }
 
 /** What the smallest legal version of one datasheet costs, or null if it cannot be built. */

@@ -1,6 +1,13 @@
 import { attachmentErrors, attachmentOf } from '../core/attach'
 import { routeSlug } from '../core/slug'
-import { detachmentPointBudget, detachmentPointsError, formatDatasheetLimit, isKotcLimit } from '../core/battle'
+import {
+  detachmentPointBudget,
+  detachmentPointsError,
+  formatDatasheetLimit,
+  isKotcLimit,
+  kotcDatasheetRepeatable,
+  kotcUnitExclusions,
+} from '../core/battle'
 import { targetOf } from '../core/catalogue'
 import { evaluate, evaluateForces, type Selection } from '../core/evaluate'
 import { type ModelKind, modelKindsOf } from '../core/modelKinds'
@@ -8,7 +15,7 @@ import { buildUnit } from '../core/roster'
 import { modelCountOf } from '../core/unitSize'
 import { wargearOf } from '../core/wargear'
 import { app } from './app'
-import { abilityNamesIn, datasheetIn, rulesReferencedIn } from './catalogue'
+import { abilityNamesIn, datasheetIn, rulesReferencedIn, toughnessOf } from './catalogue'
 import { detachmentCatalogueDetail } from './catalogueDescriptions'
 import { groupOfEntry } from './cataloguePicker'
 import { rosterDetachments } from './rosterDetachments'
@@ -324,9 +331,8 @@ export function kotcViolations(detachments: number, units: readonly KotcUnit[], 
   if (units.filter((unit) => hasKeyword(unit, 'infantry')).length < 2) add('needs at least 2 Infantry units')
   if (!units.some((unit) => unit.warlord)) add('needs a Warlord')
   for (const unit of units) {
-    if (hasKeyword(unit, 'epic hero')) add('does not allow Epic Heroes', unit)
+    for (const message of kotcUnitExclusions(unit)) add(message, unit)
     if (unit.toughness === null) add('cannot verify its Toughness from the synced catalogue', unit)
-    else if (unit.toughness > 9) add(`does not allow Toughness ${unit.toughness}`, unit)
   }
   const toughnessNine = units.filter((unit) => unit.toughness === 9)
   if (toughnessNine.length > 1) add(`allows at most 1 Toughness 9 unit, has ${toughnessNine.length}`)
@@ -335,7 +341,7 @@ export function kotcViolations(detachments: number, units: readonly KotcUnit[], 
   for (const copies of byDatasheet.values()) {
     const allowance = formatDatasheetLimit(
       limit,
-      copies.some((unit) => hasKeyword(unit, 'battleline') || hasKeyword(unit, 'dedicated transport')),
+      copies.some((unit) => kotcDatasheetRepeatable(unit.keywords)),
     )!
     if (copies.length > allowance) add(`allows at most ${allowance} of this datasheet, has ${copies.length}`, copies[0])
   }
@@ -623,16 +629,6 @@ export function composedKinds(
       swaps,
     }
   })
-}
-
-function toughnessOf(profiles: readonly { type: string; values: readonly { name: string; value: string }[] }[]): number | null {
-  const values = profiles
-    .filter((profile) => profile.type.toLocaleLowerCase() === 'unit')
-    .flatMap((profile) => profile.values)
-    .filter((value) => ['t', 'toughness'].includes(value.name.trim().toLocaleLowerCase()))
-    .map((value) => Number.parseInt(value.value, 10))
-    .filter(Number.isFinite)
-  return values.length ? Math.max(...values) : null
 }
 
 export function deploymentRules(abilityNames: readonly string[]) {

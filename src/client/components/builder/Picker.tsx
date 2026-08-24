@@ -4,7 +4,6 @@ import { Fragment } from 'react'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Toggle } from '@/components/ui/toggle'
-import { formatDatasheetLimit } from '../../../core/battle'
 import { SearchField } from '../SearchField'
 import { DatasheetMatchReasons } from '../DatasheetMatchReasons'
 import { useCollectionMutation } from '../../useCollection'
@@ -44,16 +43,14 @@ const FILTERS: { id: PickerFilter; label: string; hint: string }[] = [
  * fit, you may not take another, or you do not own it.
  */
 export function Picker({ catalogueId, onAdd, onPreview, inRoster, room, battleSize, query, onQueryChange, active, onFilterToggle }: Props) {
-  const { data: found } = useQuery({ ...unitsQuery(catalogueId, query), placeholderData: keepPreviousData })
+  const { data: found } = useQuery({ ...unitsQuery(catalogueId, query, battleSize), placeholderData: keepPreviousData })
   const { data: owned } = useQuery(collectionQuery())
   const own = useCollectionMutation()
 
   const collection = new Set(owned ?? [])
   const shown = (found ?? []).filter((unit) => {
     if (active.has('fit') && room !== null && unit.points !== null && unit.points > room) return false
-    const formatLimit = formatDatasheetLimit(battleSize, unit.group === 'battleline' || unit.group === 'transport')
-    const effectiveLimit = minimumLimit(unit.limit, formatLimit)
-    if (active.has('limit') && effectiveLimit !== null && (inRoster[unit.id] ?? 0) >= effectiveLimit) return false
+    if (active.has('limit') && unit.limit !== null && (inRoster[unit.id] ?? 0) >= unit.limit) return false
     if (active.has('owned') && !collection.has(unit.id)) return false
     if (active.has('allies') && unit.allied) return false
     return true
@@ -110,10 +107,7 @@ export function Picker({ catalogueId, onAdd, onPreview, inRoster, room, battleSi
                 <Section title={plural} count={rows.length} defaultOpen={!alliedFaction}>
                   {rows.map((unit) => {
                     const held = inRoster[unit.id] ?? 0
-                    const formatLimit = formatDatasheetLimit(battleSize, unit.group === 'battleline' || unit.group === 'transport')
-                    const effectiveLimit = minimumLimit(unit.limit, formatLimit)
-                    const full = effectiveLimit !== null && held >= effectiveLimit
-                    const formatFull = formatLimit !== null && held >= formatLimit
+                    const full = unit.limit !== null && held >= unit.limit
                     return (
                       <div
                         key={unit.id}
@@ -132,7 +126,7 @@ export function Picker({ catalogueId, onAdd, onPreview, inRoster, room, battleSi
                             {held ? (
                               <span className={`readout block text-[0.6875rem] ${full ? 'text-discarded' : 'text-faint'}`}>
                                 {held}
-                                {effectiveLimit === null ? '' : `/${effectiveLimit}`} in roster
+                                {unit.limit === null ? '' : `/${unit.limit}`} in roster
                               </span>
                             ) : null}
                           </span>
@@ -158,7 +152,7 @@ export function Picker({ catalogueId, onAdd, onPreview, inRoster, room, battleSi
                             size="sm"
                             className="h-7 shrink-0 px-2 text-[0.6875rem]"
                             aria-label={`Add ${unit.name}`}
-                            disabled={formatFull}
+                            disabled={full}
                             onClick={() => onAdd(unit.id)}
                           >
                             <Plus className="size-3" />
@@ -180,10 +174,4 @@ export function Picker({ catalogueId, onAdd, onPreview, inRoster, room, battleSi
       </ScrollArea>
     </div>
   )
-}
-
-function minimumLimit(left: number | null, right: number | null) {
-  if (left === null) return right
-  if (right === null) return left
-  return Math.min(left, right)
 }

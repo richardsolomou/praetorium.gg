@@ -119,10 +119,10 @@ export const terrainReferencesQuery = (matchupIds: readonly string[]) =>
 /** The datasheets the player owns models for, so the picker can filter on it. */
 export const collectionQuery = () => queryOptions({ queryKey: ['collection'], queryFn: () => collection(), staleTime: SSR_STALE_TIME })
 
-export const unitsQuery = (catalogueId: string, query: string) =>
+export const unitsQuery = (catalogueId: string, query: string, battleSize?: number) =>
   queryOptions({
-    queryKey: ['units', catalogueId, query],
-    queryFn: () => units({ data: { catalogueId, query } }),
+    queryKey: ['units', catalogueId, query, battleSize ?? null],
+    queryFn: () => units({ data: { catalogueId, query, ...(battleSize === undefined ? {} : { battleSize }) } }),
     enabled: Boolean(catalogueId),
     staleTime: SSR_STALE_TIME,
   })

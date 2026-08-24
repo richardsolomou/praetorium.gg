@@ -65,6 +65,11 @@ export const submitSchema = z.object({ token, expectedSeq: z.number().int().min(
 export const unitsSchema = z.object({
   catalogueId,
   query: z.string().max(80).default(''),
+  battleSize: z
+    .number()
+    .int()
+    .refine((value) => GAME_SIZES.some((size) => size.limit === value))
+    .optional(),
 })
 
 export const globalSearchSchema = z.object({ query: z.string().trim().min(2).max(80) })

@@ -214,6 +214,61 @@ describe('the picker', () => {
       expect.objectContaining({ name: 'Chaplain in Terminator Armour', matchReasons: [{ kind: 'keyword', value: 'Deathwing' }] }),
     ])
   })
+  it('offers only eligible KOTC datasheets with the format copy limits', () => {
+    const profile = (id: string, toughness: number) => [
+      { id: `${id}-profile`, name: id, typeName: 'Unit', characteristics: [{ name: 'T', $text: String(toughness) }] },
+    ]
+    const book = bookOf({
+      selectionEntries: [
+        {
+          id: 'hero',
+          name: 'Named Hero',
+          type: 'model',
+          costs: points(100),
+          categoryLinks: categories('Character', 'Epic Hero'),
+          profiles: profile('hero', 4),
+        },
+        {
+          id: 'tank',
+          name: 'Heavy Tank',
+          type: 'unit',
+          costs: points(150),
+          categoryLinks: categories('Vehicle'),
+          profiles: profile('tank', 10),
+        },
+        {
+          id: 'troops',
+          name: 'Line Troops',
+          type: 'unit',
+          costs: points(80),
+          categoryLinks: categories('Infantry', 'Battleline'),
+          profiles: profile('troops', 4),
+        },
+        {
+          id: 'transport',
+          name: 'Troop Carrier',
+          type: 'unit',
+          costs: points(90),
+          categoryLinks: categories('Vehicle', 'Dedicated Transport'),
+          profiles: profile('transport', 8),
+        },
+        {
+          id: 'scouts',
+          name: 'Scouts',
+          type: 'unit',
+          costs: points(70),
+          categoryLinks: categories('Infantry'),
+          profiles: profile('scouts', 4),
+        },
+      ],
+    })
+
+    expect(Object.fromEntries(unitsIn(book, 'cat', '', { battleSize: 600 }).map((unit) => [unit.name, unit.limit]))).toEqual({
+      'Line Troops': 2,
+      Scouts: 1,
+      'Troop Carrier': 2,
+    })
+  })
 
   it('gives datasheets readable unambiguous route slugs', () => {
     const book = bookOf({

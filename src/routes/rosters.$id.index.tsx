@@ -58,7 +58,10 @@ export const Route = createFileRoute('/rosters/$id/')({
         ),
       ),
       ...(owned
-        ? [context.queryClient.ensureQueryData(collectionQuery()), context.queryClient.ensureQueryData(unitsQuery(roster.catalogueId, ''))]
+        ? [
+            context.queryClient.ensureQueryData(collectionQuery()),
+            context.queryClient.ensureQueryData(unitsQuery(roster.catalogueId, '', roster.limit)),
+          ]
         : []),
     ])
     return { editable: Boolean(owned), snapshot: false }

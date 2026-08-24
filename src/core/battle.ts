@@ -280,6 +280,19 @@ export const battleRoundLimit = (limit: number | null) => (isKotcLimit(limit) ? 
 /** The format-specific cap for copies of one datasheet, before catalogue limits are applied. */
 export const formatDatasheetLimit = (limit: number, repeatable: boolean) => (isKotcLimit(limit) ? (repeatable ? 2 : 1) : null)
 
+const hasUnitKeyword = (keywords: readonly string[], wanted: string) =>
+  keywords.some((keyword) => keyword.trim().toLocaleLowerCase() === wanted)
+
+export const kotcDatasheetRepeatable = (keywords: readonly string[]) =>
+  hasUnitKeyword(keywords, 'battleline') || hasUnitKeyword(keywords, 'dedicated transport')
+
+export function kotcUnitExclusions(unit: { keywords: readonly string[]; toughness: number | null }): string[] {
+  return [
+    ...(hasUnitKeyword(unit.keywords, 'epic hero') ? ['does not allow Epic Heroes'] : []),
+    ...(unit.toughness !== null && unit.toughness > 9 ? [`does not allow Toughness ${unit.toughness}`] : []),
+  ]
+}
+
 export function detachmentPointsError(detachments: readonly { points: number | null }[], allowance: number | null): string | null {
   if (detachments.length <= 1 || allowance === null) return null
   const spent = detachments.reduce((total, detachment) => total + (detachment.points ?? 0), 0)
