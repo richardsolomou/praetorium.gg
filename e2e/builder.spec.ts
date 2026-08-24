@@ -46,11 +46,43 @@ test('the whole book is on the shelves, not the first page of it', async ({ page
   await expect(page.getByRole('button', { name: 'Add Whirlwind', exact: true })).toBeVisible()
 })
 
+test('datasheet metadata is searchable in the picker and global search', async ({ page }) => {
+  await openBuilder(page)
+  await page.getByLabel('Add a unit').fill('cryptek')
+
+  await expect(page.locator('[data-picker-unit="Technomancer"]')).toContainText('Matches Cryptek keyword')
+  await expect(page.locator('[data-picker-unit="Cryptothralls"]')).toContainText('Matches Cryptek Retinue ability')
+  await expect(page.locator('[data-picker-unit="Necron Warriors"]')).toHaveCount(0)
+  await page.getByLabel('Add a unit').fill('cryptek staff')
+  await expect(page.locator('[data-picker-unit="Technomancer"]')).toContainText('Matches Cryptek keyword · Staff of light weapon')
+  await shot(page.locator('[data-pane="picker"]'), 'test-results/roster-picker-metadata-search.png')
+
+  await page.getByRole('button', { name: 'Search Praetorium' }).click()
+  await page.getByRole('combobox').fill('cryptek')
+  await expect(page.getByRole('option', { name: 'Technomancer Necrons Matches Cryptek keyword' })).toBeVisible()
+  await page.getByRole('combobox').fill('cryptek staff')
+  await expect(page.getByRole('option', { name: 'Technomancer Necrons Matches Cryptek keyword · Staff of light weapon' })).toBeVisible()
+  await page.getByRole('combobox').fill('destroyer cult')
+  await expect(page.getByRole('option', { name: 'Hexmark Destroyer Necrons Matches Destroyer Cult keyword' })).toBeVisible()
+  await expect(page.getByRole('option', { name: /Hexmark Destroyer Necrons/ })).not.toContainText('**')
+
+  await page.keyboard.press('Escape')
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.reload()
+  await page.getByRole('button', { name: 'Add units', exact: true }).click()
+  await page.getByLabel('Add a unit').fill('cryptek')
+  await expect(page.locator('[data-picker-unit="Technomancer"]')).toContainText('Matches Cryptek keyword')
+  await expect
+    .poll(() => page.locator('[data-slot="drawer-popup"]').evaluate((element) => getComputedStyle(element).transform))
+    .toBe('matrix(1, 0, 0, 1, 0, 0)')
+  await page.screenshot({ path: 'test-results/mobile-roster-picker-metadata-search.png' })
+})
+
 test('a filter that found nothing can be emptied without selecting it', async ({ page }) => {
   await openBuilder(page)
   const filter = page.getByLabel('Add a unit')
   await filter.fill('nothing by this name')
-  await expect(page.getByText('Nothing by that name.')).toBeVisible()
+  await expect(page.getByText('No matching units.')).toBeVisible()
   await page.getByRole('button', { name: 'Empty the picker filter' }).click()
   await expect(filter).toHaveValue('')
   await expect(page.getByRole('button', { name: 'Empty the picker filter' })).toHaveCount(0)
@@ -84,7 +116,7 @@ test('the roster workspace preserves picker and read-only state', async ({ page 
 test('Deathwatch excludes Scouts from its unit picker', async ({ page }) => {
   await openBuilder(page, 'Deathwatch', /Black Spear Task Force/)
   await page.getByLabel('Add a unit').fill('Scout')
-  await expect(page.getByText('Nothing by that name.')).toBeVisible()
+  await expect(page.getByText('No matching units.')).toBeVisible()
   await expect(page.getByRole('button', { name: /Add Scout/ })).toHaveCount(0)
 })
 
@@ -92,7 +124,7 @@ test('Black Templars exclude prohibited datasheets and Psykers from their unit p
   await openBuilder(page, 'Black Templars', /Companions of Vehemence/)
   for (const name of ['Gladiator Lancer', 'Librarian']) {
     await page.getByLabel('Add a unit').fill(name)
-    await expect(page.getByText('Nothing by that name.')).toBeVisible()
+    await expect(page.getByText('No matching units.')).toBeVisible()
     await expect(page.getByRole('button', { name: `Add ${name}`, exact: true })).toHaveCount(0)
   }
   await page.screenshot({ path: 'test-results/black-templars-restrictions.png', fullPage: true })

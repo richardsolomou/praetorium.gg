@@ -23,7 +23,7 @@ Server catalogue code is split by responsibility:
 
 - `catalogueIndex.ts` loads files and indexes books, detachments, and datasheet membership.
 - `catalogue.ts` projects a datasheet for display and applies contextual profile modifiers.
-- `cataloguePicker.ts` searches, groups, prices, and limits picker results.
+- `cataloguePicker.ts` groups, prices, and limits picker results. `datasheetSearch.ts` matches the same structured datasheet fields for the picker and global search.
 - `catalogueDescriptions.ts` resolves detachment and enhancement text without guessing between conflicting matches.
 - `sync.ts` owns downloads and atomic replacement. It does not interpret game data.
 
@@ -119,6 +119,7 @@ Inspect the generated selection before changing evaluator logic. A mismatch can 
 
 - Price picker rows with `buildUnit`, using the same inputs as the roster. Offer the whole book: results are sorted by name, so a cap ends the list mid-alphabet and hides datasheets a search still finds.
 - Cache each complete faction summary against its immutable catalogue snapshot. Filter that summary for reference-page searches instead of repricing every datasheet.
+- Search datasheets by their visible name, keywords, ability names, weapons, weapon keywords and wargear choices. Rank names ahead of metadata, explain metadata matches, and keep full rules prose out of the index so common phrases do not overwhelm useful results.
 - Keep datasheets from secondary imported books in source-labelled allied sections after the primary picker page so players can include or hide them together.
 - Character attachment targets come from ability text. `attachmentOf` supports bullet-list and inline formats.
 - A missing attachment rule means the unit cannot attach.

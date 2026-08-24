@@ -6,6 +6,7 @@ import { unitChoices } from '../core/unitChoices'
 import { wargearOf } from '../core/wargear'
 import { bracketedRuleReferences, ruleReferenceMatches } from '../core/ruleReference'
 import { datasheetSlug, datasheetsOf, isReferenceDatasheet, referenceDatasheetRoute, type LoadedCatalogue } from './catalogueIndex'
+import type { DatasheetSearchFields } from './datasheetSearch'
 import { isMatchedPlayDatasheet, priceOf } from './cataloguePicker'
 import type { DatasheetDetails } from './datacards'
 
@@ -58,7 +59,9 @@ type DatasheetContext = {
 const abilityDescription = (profile: Profile) =>
   profile.characteristics?.find((characteristic) => characteristic.name === 'Description')?.$text ?? null
 
-const abilityNameCache = new WeakMap<LoadedCatalogue, Map<string, string[]>>()
+type SearchableProfiles = Pick<DatasheetSearchFields, 'abilities' | 'weapons' | 'weaponKeywords'>
+
+const searchableProfileCache = new WeakMap<LoadedCatalogue, Map<string, SearchableProfiles>>()
 
 /**
  * Ability names without projecting a complete display datasheet.
@@ -68,24 +71,41 @@ const abilityNameCache = new WeakMap<LoadedCatalogue, Map<string, string[]>>()
  * small question pay nearly the whole datasheet-page cost.
  */
 export function abilityNamesIn(loaded: LoadedCatalogue, catalogueId: string, entryId: string): string[] {
+  return searchableProfilesIn(loaded, catalogueId, entryId).abilities
+}
+
+function searchableProfilesIn(loaded: LoadedCatalogue, catalogueId: string, entryId: string): SearchableProfiles {
   const key = `${catalogueId}:${entryId}`
-  const cache = abilityNameCache.get(loaded)
+  const cache = searchableProfileCache.get(loaded)
   const cached = cache?.get(key)
   if (cached) return cached
-  if (!datasheetsOf(loaded.index, catalogueId).has(entryId)) return []
+  const empty = { abilities: [], weapons: [], weaponKeywords: [] }
+  if (!datasheetsOf(loaded.index, catalogueId).has(entryId)) return empty
   const root = loaded.index.definitions.get(entryId)
-  if (!root) return []
+  if (!root) return empty
 
-  const names = new Set<string>()
+  const abilities = new Set<string>()
+  const weapons = new Set<string>()
+  const weaponKeywords = new Set<string>()
   const visited = new Set<string>()
   const addProfile = (profile: Profile) => {
-    if (profile.typeName === 'Abilities' && profile.name && !profile.hidden) names.add(profile.name)
+    if (!profile.name || profile.hidden) return
+    if (profile.typeName === 'Abilities') abilities.add(profile.name)
+    if (profile.typeName !== 'Ranged Weapons' && profile.typeName !== 'Melee Weapons') return
+    weapons.add(profile.name)
+    for (const characteristic of profile.characteristics ?? []) {
+      if (characteristic.name?.trim().toLocaleLowerCase() !== 'keywords' || !characteristic.$text) continue
+      characteristic.$text.split(',').forEach((keyword) => {
+        const name = keyword.trim()
+        if (name && name !== '-' && name !== '—') weaponKeywords.add(name)
+      })
+    }
   }
   const addRule = (link: InfoLink) => {
     if (link.type !== 'rule' || infoLinkHiddenByRules(link, loaded.index, { primaryCatalogueId: catalogueId })) return
     const rule = loaded.index.rules.get(link.targetId)
     const name = displayRuleName(link, link.name ?? rule?.name)
-    if (name && !rule?.hidden) names.add(name)
+    if (name && !rule?.hidden) abilities.add(name)
   }
   const addGroup = (group: InfoGroup) => {
     if (group.hidden) return
@@ -120,11 +140,39 @@ export function abilityNamesIn(loaded: LoadedCatalogue, catalogueId: string, ent
   const sheet = targetOf(root, loaded.index.definitions)
   visit(root, true)
   if (sheet !== root) visit(sheet, true)
-  const found = [...names]
-  const entries = cache ?? new Map<string, string[]>()
+  const found = { abilities: [...abilities], weapons: [...weapons], weaponKeywords: [...weaponKeywords] }
+  const entries = cache ?? new Map<string, SearchableProfiles>()
   entries.set(key, found)
-  if (!cache) abilityNameCache.set(loaded, entries)
+  if (!cache) searchableProfileCache.set(loaded, entries)
   return found
+}
+
+const datasheetSearchFieldCache = new WeakMap<LoadedCatalogue, Map<string, DatasheetSearchFields>>()
+
+export function datasheetSearchFieldsIn(loaded: LoadedCatalogue, catalogueId: string, entryId: string): DatasheetSearchFields | null {
+  const key = `${catalogueId}:${entryId}`
+  const cache = datasheetSearchFieldCache.get(loaded)
+  const cached = cache?.get(key)
+  if (cached) return cached
+  const root = loaded.index.definitions.get(entryId)
+  if (!root || !datasheetsOf(loaded.index, catalogueId).has(entryId)) return null
+
+  const name = nameOf(root, loaded.index.definitions)
+  const profiles = searchableProfilesIn(loaded, catalogueId, entryId)
+  const selection = defaultSelection(entryId, loaded.index, { primaryCatalogueId: catalogueId })
+  const choices = selection ? unitChoices(entryId, selection, loaded.index, { primaryCatalogueId: catalogueId }) : []
+  const fields = {
+    name,
+    keywords: keywordsIn(loaded, catalogueId, entryId),
+    abilities: profiles.abilities,
+    weapons: profiles.weapons,
+    weaponKeywords: profiles.weaponKeywords,
+    wargear: [...new Set(choices.flatMap((choice) => [choice.name, ...choice.options.map((option) => option.name)]))],
+  }
+  const entries = cache ?? new Map<string, DatasheetSearchFields>()
+  entries.set(key, fields)
+  if (!cache) datasheetSearchFieldCache.set(loaded, entries)
+  return fields
 }
 
 /** Structured display data for one top-level datasheet, including linked shared profiles. */

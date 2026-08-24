@@ -6,6 +6,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Toggle } from '@/components/ui/toggle'
 import { formatDatasheetLimit } from '../../../core/battle'
 import { SearchField } from '../SearchField'
+import { DatasheetMatchReasons } from '../DatasheetMatchReasons'
 import { useCollectionMutation } from '../../useCollection'
 import { collectionQuery, unitsQuery } from '../../queries'
 import { shortName } from './factions'
@@ -71,7 +72,7 @@ export function Picker({ catalogueId, onAdd, onPreview, inRoster, room, battleSi
         <SearchField
           value={query}
           onChange={onQueryChange}
-          placeholder="Type a datasheet name"
+          placeholder="Search units, keywords, abilities…"
           label="Add a unit"
           clearLabel="Empty the picker filter"
           inputClassName="h-9"
@@ -127,6 +128,7 @@ export function Picker({ catalogueId, onAdd, onPreview, inRoster, room, battleSi
                         >
                           <span className="min-w-0 flex-1">
                             <span className="block text-sm leading-tight font-semibold tracking-[0.02em] uppercase">{unit.name}</span>
+                            <DatasheetMatchReasons query={query} reasons={unit.matchReasons} />
                             {held ? (
                               <span className={`readout block text-[0.6875rem] ${full ? 'text-discarded' : 'text-faint'}`}>
                                 {held}
@@ -172,7 +174,7 @@ export function Picker({ catalogueId, onAdd, onPreview, inRoster, room, battleSi
           })
         ) : (
           <p className="py-3 text-xs text-faint">
-            {found?.length ? 'Everything is filtered out.' : query ? 'Nothing by that name.' : 'Loading the book…'}
+            {found?.length ? 'Everything is filtered out.' : query ? 'No matching units.' : 'Loading the book…'}
           </p>
         )}
       </ScrollArea>

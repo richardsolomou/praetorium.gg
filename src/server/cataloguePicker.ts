@@ -2,8 +2,9 @@ import { type CatalogueIndex, type Definition, nameOf, targetOf } from '../core/
 import { evaluate, rosterLimit } from '../core/evaluate'
 import { buildUnit } from '../core/roster'
 import type { UnitGroup } from '../core/unitGroups'
-import { keywordsIn } from './catalogue'
+import { datasheetSearchFieldsIn, keywordsIn } from './catalogue'
 import { datasheetSlug, datasheetsOf, type LoadedCatalogue } from './catalogueIndex'
+import { matchDatasheet, type DatasheetSearchReason } from './datasheetSearch'
 import type { FactionRestrictions } from './wahapedia'
 
 type UnitSummary = {
@@ -15,6 +16,7 @@ type UnitSummary = {
   limit: number | null
   allied: boolean
   alliedFaction: string | null
+  matchReasons?: DatasheetSearchReason[]
 }
 
 /** Derived from one immutable catalogue snapshot. Search filters this list in memory. */
@@ -93,7 +95,7 @@ export function unitsIn(
   const cacheable = restrictions === undefined
   const cacheKey = `${catalogueId}:${includeNames ? 'included' : 'all'}`
   const cached = cacheable ? unitSummaryCache.get(loaded)?.get(cacheKey) : undefined
-  if (cached) return wanted ? cached.filter((unit) => unit.name.toLowerCase().includes(wanted)) : cached
+  if (cached) return searchUnits(loaded, catalogueId, wanted, cached)
   const found: { id: string; name: string; group: UnitGroup; alliedFaction: string | null; alliedOrder: number }[] = []
   const allied = loaded.index.alliedDatasheets.get(catalogueId) ?? new Map<string, { name: string; order: number }>()
 
@@ -112,7 +114,10 @@ export function unitsIn(
     // the suffix even though they are not matched-play roster choices.
     const ally = allied.get(id)
     if (ally?.name === 'Unaligned Forces') continue
-    if (!cacheable && wanted && !name.toLowerCase().includes(wanted)) continue
+    if (!cacheable && wanted) {
+      const fields = datasheetSearchFieldsIn(loaded, catalogueId, id)
+      if (!fields || !matchDatasheet(wanted, fields)) continue
+    }
     found.push({ id, name, group: groupOf(entry, target), alliedFaction: ally?.name ?? null, alliedOrder: ally?.order ?? -1 })
   }
 
@@ -135,7 +140,19 @@ export function unitsIn(
     entries.set(cacheKey, summaries)
     unitSummaryCache.set(loaded, entries)
   }
-  return wanted ? summaries.filter((unit) => unit.name.toLowerCase().includes(wanted)) : summaries
+  return searchUnits(loaded, catalogueId, wanted, summaries)
+}
+
+function searchUnits(loaded: LoadedCatalogue, catalogueId: string, query: string, units: UnitSummary[]) {
+  if (!query) return units
+  return units
+    .flatMap((unit) => {
+      const fields = datasheetSearchFieldsIn(loaded, catalogueId, unit.id)
+      const match = fields ? matchDatasheet(query, fields) : null
+      return match ? [{ unit: match.reasons.length ? { ...unit, matchReasons: match.reasons } : unit, score: match.score }] : []
+    })
+    .toSorted((left, right) => left.score - right.score || left.unit.name.localeCompare(right.unit.name))
+    .map(({ unit }) => unit)
 }
 
 /** Catalogue and datacard sources use different apostrophe glyphs in otherwise identical names. */

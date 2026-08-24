@@ -35,6 +35,118 @@ describe('the shelf a datasheet is filed under', () => {
 })
 
 describe('the picker', () => {
+  it('finds datasheets by keyword, ability, weapon and weapon keyword', () => {
+    const book = bookOf({
+      categoryEntries: [{ id: 'cryptek', name: 'Cryptek' }],
+      selectionEntries: [
+        {
+          id: 'technomancer',
+          name: 'Technomancer',
+          type: 'model',
+          costs: points(85),
+          categoryLinks: [{ id: 'cryptek-link', targetId: 'cryptek', name: 'Cryptek' }],
+          profiles: [
+            {
+              id: 'staff',
+              name: 'Staff of light',
+              typeName: 'Ranged Weapons',
+              characteristics: [{ name: 'Keywords', $text: 'Assault, Lethal Hits' }],
+            },
+            {
+              id: 'reanimation',
+              name: 'Rites of Reanimation',
+              typeName: 'Abilities',
+              characteristics: [{ name: 'Description', $text: 'Restore one model.' }],
+            },
+          ],
+        },
+        { id: 'warriors', name: 'Necron Warriors', type: 'unit', costs: points(100) },
+      ],
+    })
+
+    expect(unitsIn(book, 'cat', 'cryptek')).toEqual([
+      expect.objectContaining({ name: 'Technomancer', matchReasons: [{ kind: 'keyword', value: 'Cryptek' }] }),
+    ])
+    expect(unitsIn(book, 'cat', 'reanimation')).toEqual([
+      expect.objectContaining({ name: 'Technomancer', matchReasons: [{ kind: 'ability', value: 'Rites of Reanimation' }] }),
+    ])
+    expect(unitsIn(book, 'cat', 'staff')).toEqual([
+      expect.objectContaining({ name: 'Technomancer', matchReasons: [{ kind: 'weapon', value: 'Staff of light' }] }),
+    ])
+    expect(unitsIn(book, 'cat', 'lethal')).toEqual([
+      expect.objectContaining({ name: 'Technomancer', matchReasons: [{ kind: 'weapon keyword', value: 'Lethal Hits' }] }),
+    ])
+  })
+
+  it('ranks a datasheet name ahead of a keyword match', () => {
+    const book = bookOf({
+      selectionEntries: [
+        { id: 'named', name: 'Cryptek Conclave', type: 'unit', costs: points(100) },
+        {
+          id: 'keyword',
+          name: 'Technomancer',
+          type: 'model',
+          costs: points(85),
+          categoryLinks: [{ id: 'cryptek-link', targetId: 'cryptek', name: 'Cryptek' }],
+        },
+      ],
+    })
+
+    expect(unitsIn(book, 'cat', 'cryptek').map((unit) => unit.name)).toEqual(['Cryptek Conclave', 'Technomancer'])
+  })
+
+  it('does not index hidden fields or ability prose', () => {
+    const book = bookOf({
+      categoryEntries: [{ id: 'marker', name: 'Secret marker', hidden: true }],
+      selectionEntries: [
+        {
+          id: 'technomancer',
+          name: 'Technomancer',
+          type: 'model',
+          costs: points(85),
+          categoryLinks: [{ id: 'marker-link', targetId: 'marker', name: 'Secret marker' }],
+          profiles: [
+            {
+              id: 'hidden-gun',
+              name: 'Hidden gun',
+              typeName: 'Ranged Weapons',
+              hidden: true,
+            },
+            {
+              id: 'reanimation',
+              name: 'Rites of Reanimation',
+              typeName: 'Abilities',
+              characteristics: [{ name: 'Description', $text: 'Restore one destroyed model.' }],
+            },
+          ],
+        },
+      ],
+    })
+
+    expect(unitsIn(book, 'cat', 'secret')).toEqual([])
+    expect(unitsIn(book, 'cat', 'hidden gun')).toEqual([])
+    expect(unitsIn(book, 'cat', 'destroyed')).toEqual([])
+  })
+
+  it('searches the effective keywords granted in this catalogue', () => {
+    const book = bookOf({
+      categoryEntries: [{ id: 'deathwing', name: 'Deathwing' }],
+      selectionEntries: [
+        {
+          id: 'chaplain',
+          name: 'Chaplain in Terminator Armour',
+          type: 'model',
+          costs: points(75),
+          modifiers: [{ type: 'add', field: 'category', value: 'deathwing' }],
+        },
+      ],
+    })
+
+    expect(unitsIn(book, 'cat', 'deathwing')).toEqual([
+      expect.objectContaining({ name: 'Chaplain in Terminator Armour', matchReasons: [{ kind: 'keyword', value: 'Deathwing' }] }),
+    ])
+  })
+
   it('gives datasheets readable unambiguous route slugs', () => {
     const book = bookOf({
       selectionEntries: [

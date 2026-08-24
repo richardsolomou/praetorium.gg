@@ -4,6 +4,35 @@ import { searchEverything } from './globalSearch'
 import type { LoadedRules } from './rules'
 
 describe('global datasheet search', () => {
+  it('finds a datasheet by structured metadata and explains the match', async () => {
+    const catalogue = shelfOf({
+      name: 'Necrons',
+      categoryEntries: [{ id: 'cryptek', name: 'Cryptek' }],
+      selectionEntries: [
+        {
+          id: 'technomancer',
+          name: 'Technomancer',
+          type: 'model',
+          costs: points(85),
+          categoryLinks: [
+            { id: 'faction', targetId: 'necrons', name: 'Faction: Necrons' },
+            { id: 'cryptek-link', targetId: 'cryptek', name: 'Cryptek' },
+          ],
+        },
+      ],
+    })
+
+    const results = await searchEverything('cryptek', { catalogue, rules: null, own: async () => null })
+
+    expect(results.filter((result) => result.group === 'Datasheets')).toEqual([
+      expect.objectContaining({
+        label: 'Technomancer',
+        detail: 'Necrons',
+        matchReasons: [{ kind: 'keyword', value: 'Cryptek' }],
+      }),
+    ])
+  })
+
   it('shows a shared allied datasheet under its native faction once', async () => {
     const catalogue = shelfOf(
       {
