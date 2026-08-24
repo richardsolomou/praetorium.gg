@@ -212,7 +212,11 @@ export function unitChoices(entryId: string, selection: Selection, index: Catalo
           adjustable.length > 1 &&
           forbidden.some((set) => ids.every((option) => set.some((named) => option.has(named))) && set.length >= adjustable.length)
         const optionalSingle = !fixed && adjustable.length === 1 && requiredCount(child.definition, index) === 0
-        if ((adjustable.length > 1 || optionalSingle) && adjustableRoom >= 1 && adjustableRoom !== UNBOUNDED) {
+        if (
+          (adjustable.length > 1 || optionalSingle || (separate && adjustable.length > 0)) &&
+          adjustableRoom >= 1 &&
+          adjustableRoom !== UNBOUNDED
+        ) {
           const taken = held.find((present) => (present.count ?? 1) > 0 && adjustable.some((option) => option.id === present.id))
           choices.push({
             key: here.join('/'),
@@ -236,7 +240,7 @@ export function unitChoices(entryId: string, selection: Selection, index: Catalo
       }
 
       // What is inside an entry is held by however many of it the selection holds.
-      if (inner.type !== 'upgrade') {
+      if (inner.type !== 'upgrade' || allAt(selection, here).some((selected) => (selected.count ?? 1) > 0)) {
         walk(child.definition, here, left - 1, visited, inner.type === undefined ? carriers : (at(selection, here)?.count ?? 1))
       }
     }

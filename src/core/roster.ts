@@ -22,7 +22,7 @@ import { defaultSelection, expand, withChoice } from './expand'
 import { countAt, updateSelection, withCounts } from './selection'
 import { type ChoiceOptions, type UnitChoice, unitChoices, type UnitToggle, unitToggles } from './unitChoices'
 import { boundedGroups, modelCountOf, sizeOf, type UnitSize } from './unitSize'
-import { withUnitSpread } from './unitSpread'
+import { withUnitChoice, withUnitSpread } from './unitSpread'
 
 /**
  * What a player picked, in the form a saved list keeps.
@@ -109,7 +109,9 @@ function assemble(
   if (!base) return null
 
   // Choices first: an option can bring its own bodies, so sizing has to see them.
-  const chosen = Object.entries(choices ?? {}).reduce((tree, [key, optionId]) => withChoice(tree, key, optionId, index), base)
+  const chosen = Object.entries(choices ?? {})
+    .toSorted(([left], [right]) => left.split('/').length - right.split('/').length)
+    .reduce((tree, [key, optionId]) => withUnitChoice(tree, key, optionId, index), base)
   const fixedSizes = modelCompositionSizes(entryId, chosen, index, context)
   const requestedModels =
     models === undefined || !fixedSizes.length
@@ -174,10 +176,25 @@ function modelCompositionSizes(entryId: string, selection: Selection, index: Cat
 function finishUnit(entryId: string, selection: Selection, size: UnitSize, index: CatalogueIndex, context?: BuildContext): BuiltUnit {
   const choices = unitChoices(entryId, selection, index, context)
   const completed = choices.reduce((tree, choice) => {
-    const [option] = choice.options
-    const defaulted = choice.name.trim().toLowerCase() === 'unit composition' && choice.optional && choice.options.length === 1
-    if (!defaulted || !option || option.points !== 0 || context?.spreads?.[choice.key] !== undefined) return tree
-    return withUnitSpread(tree, choice.key, { [option.id]: option.max }, index)
+    const path = choice.key.split('/')
+    const group = index.definitions.get(path.at(-1) ?? '')
+    const named = group && 'defaultSelectionEntryId' in group ? group.defaultSelectionEntryId : undefined
+    const option =
+      choice.options.find((candidate) => candidate.id === named) ?? choice.options.toSorted((left, right) => left.points - right.points)[0]
+    const selectedLoadout = path.slice(0, -1).some((id, at) => {
+      const definition = index.definitions.get(id)
+      return definition && resolve(definition, index).type === 'upgrade' && countAt(selection, path.slice(0, at + 1)) > 0
+    })
+    const missingRequired =
+      selectedLoadout &&
+      !choice.optional &&
+      choice.room === 1 &&
+      option?.points === 0 &&
+      choice.options.every((candidate) => candidate.count === 0)
+    const defaultedComposition =
+      choice.name.trim().toLowerCase() === 'unit composition' && choice.optional && choice.options.length === 1 && option?.points === 0
+    if ((!missingRequired && !defaultedComposition) || !option || context?.spreads?.[choice.key] !== undefined) return tree
+    return withUnitSpread(tree, choice.key, { [option.id]: defaultedComposition ? option.max : 1 }, index)
   }, selection)
   /**
    * A squad the data keeps identical, not split by the building of it.

@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { buildIndex, type Catalogue, type CatalogueFile } from './catalogue'
 import { evaluate } from './evaluate'
-import { withChoice } from './expand'
+import { defaultSelection, withChoice } from './expand'
 import { buildUnit } from './roster'
 import { unitChoices } from './unitChoices'
+import { withUnitSpread } from './unitSpread'
 import { modelCountOf } from './unitSize'
 import { wargearOf } from './wargear'
 
@@ -362,6 +363,223 @@ describe('repeated specialist models', () => {
     const built = buildUnit('squad', index, 10)!
     expect(built.choices.find((choice) => choice.key === key)?.owner?.profile).toBe('Trooper')
     expect(built.choices.find((choice) => choice.key === 'models')?.options.map((option) => option.profile)).toEqual(['Trooper', 'Trooper'])
+  })
+
+  it('keeps a new specialist model complete when its nested weapon adds it to the squad', () => {
+    const specialistIndex = indexOf({
+      sharedSelectionEntries: [
+        {
+          id: 'terminators',
+          name: 'Terminators',
+          type: 'unit',
+          selectionEntryGroups: [
+            {
+              id: 'members',
+              name: 'Members',
+              defaultSelectionEntryId: 'terminator',
+              constraints: [
+                { id: 'members-min', type: 'min', value: 2, field: 'selections', scope: 'parent' },
+                { id: 'members-max', type: 'max', value: 2, field: 'selections', scope: 'parent' },
+              ],
+              selectionEntries: [
+                {
+                  id: 'terminator',
+                  name: 'Terminator',
+                  type: 'model',
+                  selectionEntries: [{ id: 'bolter', name: 'Storm bolter', type: 'upgrade', constraints: mandatory('bolter-min') }],
+                },
+                {
+                  id: 'heavy-terminator',
+                  name: 'Terminator with heavy weapon',
+                  type: 'model',
+                  selectionEntries: [{ id: 'fist', name: 'Power fist', type: 'upgrade', constraints: mandatory('fist-min') }],
+                  selectionEntryGroups: [
+                    {
+                      id: 'heavy-weapon',
+                      name: 'Heavy weapon',
+                      constraints: [
+                        { id: 'heavy-min', type: 'min', value: 1, field: 'selections', scope: 'parent' },
+                        { id: 'heavy-max', type: 'max', value: 1, field: 'selections', scope: 'parent' },
+                      ],
+                      selectionEntries: [{ id: 'launcher', name: 'Missile launcher', type: 'upgrade' }],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    })
+    const built = buildUnit('terminators', specialistIndex, 2, undefined, {
+      spreads: { 'members/heavy-terminator/heavy-weapon': { launcher: 1 } },
+    })!
+    const chosen = buildUnit('terminators', specialistIndex, undefined, {
+      'members/heavy-terminator/heavy-weapon': 'launcher',
+    })!
+    const spread = withUnitSpread(
+      defaultSelection('terminators', specialistIndex)!,
+      'members/heavy-terminator/heavy-weapon',
+      { launcher: 1 },
+      specialistIndex,
+    )
+
+    expect({ models: modelCountOf(built.selection, specialistIndex), wargear: wargearOf(built.selection, specialistIndex) }).toEqual({
+      models: 2,
+      wargear: [
+        { name: 'Storm bolter', count: 1 },
+        { name: 'Power fist', count: 1 },
+        { name: 'Missile launcher', count: 1 },
+      ],
+    })
+    expect(modelCountOf(spread, specialistIndex)).toBe(2)
+    expect({ models: modelCountOf(chosen.selection, specialistIndex), wargear: wargearOf(chosen.selection, specialistIndex) }).toEqual({
+      models: 2,
+      wargear: [
+        { name: 'Storm bolter', count: 1 },
+        { name: 'Power fist', count: 1 },
+        { name: 'Missile launcher', count: 1 },
+      ],
+    })
+  })
+})
+
+describe('choices nested inside a selected loadout', () => {
+  const index = indexOf({
+    sharedSelectionEntries: [
+      {
+        id: 'captain',
+        name: 'Captain',
+        type: 'model',
+        selectionEntryGroups: [
+          {
+            id: 'wargear',
+            name: 'Wargear',
+            defaultSelectionEntryId: 'standard-loadout',
+            constraints: [
+              { id: 'wargear-min', type: 'min', value: 1, field: 'selections', scope: 'parent' },
+              { id: 'wargear-max', type: 'max', value: 1, field: 'selections', scope: 'parent' },
+            ],
+            selectionEntries: [
+              {
+                id: 'standard-loadout',
+                name: 'Bolt pistol, master-crafted bolter, melee weapon',
+                type: 'upgrade',
+                selectionEntryGroups: [
+                  {
+                    id: 'melee-weapon',
+                    name: 'Melee weapon',
+                    defaultSelectionEntryId: 'close-combat-weapon',
+                    constraints: [
+                      { id: 'melee-min', type: 'min', value: 1, field: 'selections', scope: 'parent' },
+                      { id: 'melee-max', type: 'max', value: 1, field: 'selections', scope: 'parent' },
+                    ],
+                    selectionEntries: [
+                      { id: 'close-combat-weapon', name: 'Close combat weapon', type: 'upgrade' },
+                      { id: 'power-fist', name: 'Power fist', type: 'upgrade' },
+                    ],
+                  },
+                ],
+              },
+              { id: 'shield-loadout', name: 'Relic shield', type: 'upgrade' },
+            ],
+          },
+        ],
+      },
+    ],
+  })
+
+  it('offers the choices inside the selected loadout only', () => {
+    expect(buildUnit('captain', index)?.choices.map(({ key, options }) => [key, options.map(({ name }) => name)])).toEqual([
+      ['wargear', ['Bolt pistol, master-crafted bolter, melee weapon', 'Relic shield']],
+      ['wargear/standard-loadout/melee-weapon', ['Close combat weapon', 'Power fist']],
+    ])
+  })
+
+  it.each([
+    ['parent first', { wargear: 'standard-loadout', 'wargear/standard-loadout/melee-weapon': 'power-fist' }],
+    ['child first', { 'wargear/standard-loadout/melee-weapon': 'power-fist', wargear: 'standard-loadout' }],
+  ])('applies nested choices with the %s', (_, choices) => {
+    expect(wargearOf(buildUnit('captain', index, undefined, choices)!.selection, index)).toEqual([{ name: 'Power fist', count: 1 }])
+  })
+
+  it('ignores a nested choice when its parent loadout is not selected', () => {
+    const built = buildUnit('captain', index, undefined, {
+      wargear: 'shield-loadout',
+      'wargear/standard-loadout/melee-weapon': 'power-fist',
+    })!
+
+    expect({ wargear: wargearOf(built.selection, index), errors: evaluate([built.selection], index).errors }).toEqual({
+      wargear: [{ name: 'Relic shield', count: 1 }],
+      errors: [],
+    })
+  })
+
+  it('fills a required nested choice that becomes visible with its model', () => {
+    const visibleWithModel = {
+      type: 'set' as const,
+      field: 'hidden',
+      value: true,
+      conditions: [
+        {
+          type: 'lessThan' as const,
+          value: 1,
+          field: 'selections',
+          scope: 'roster',
+          childId: 'veteran',
+          includeChildSelections: true,
+        },
+      ],
+    }
+    const conditional = indexOf({
+      sharedSelectionEntries: [
+        {
+          id: 'squad',
+          name: 'Squad',
+          type: 'unit',
+          selectionEntryGroups: [
+            {
+              id: 'composition',
+              name: 'Unit composition',
+              defaultSelectionEntryId: 'five-models',
+              constraints: mandatory('composition-min'),
+              selectionEntries: [
+                {
+                  id: 'five-models',
+                  name: 'Five models',
+                  type: 'upgrade',
+                  selectionEntries: [
+                    {
+                      id: 'veteran',
+                      name: 'Veteran',
+                      type: 'model',
+                      constraints: mandatory('veteran-min'),
+                      selectionEntryGroups: [
+                        {
+                          id: 'weapon',
+                          name: 'Weapon',
+                          defaultSelectionEntryId: 'hammer',
+                          constraints: [
+                            { id: 'weapon-min', type: 'min', value: 1, field: 'selections', scope: 'parent' },
+                            { id: 'weapon-max', type: 'max', value: 1, field: 'selections', scope: 'parent' },
+                          ],
+                          selectionEntries: [
+                            { id: 'hammer', name: 'Heavy thunder hammer', type: 'upgrade', modifiers: [visibleWithModel] },
+                            { id: 'shield', name: 'Shield', type: 'upgrade', modifiers: [visibleWithModel] },
+                          ],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    })
+
+    expect(wargearOf(buildUnit('squad', conditional)!.selection, conditional)).toEqual([{ name: 'Heavy thunder hammer', count: 1 }])
   })
 })
 
@@ -770,6 +988,62 @@ describe('a wargear group holding both the fixed guns and the optional extras', 
       { name: 'Storm bolter', count: 1 },
     ])
     expect(evaluate([built.selection], index).errors).toEqual([])
+  })
+
+  it('ignores a saved choice once its option becomes required', () => {
+    const built = buildUnit('tank', index, undefined, { wargear: 'tracks' })!
+
+    expect({ wargear: wargearOf(built.selection, index), errors: evaluate([built.selection], index).errors }).toEqual({
+      wargear: [{ name: 'Armoured tracks', count: 1 }],
+      errors: [],
+    })
+  })
+
+  it('offers one optional extra without replacing the required equipment', () => {
+    const oneExtra = indexOf({
+      sharedSelectionEntries: [
+        {
+          id: 'transport',
+          name: 'Impulsor',
+          type: 'unit',
+          selectionEntryGroups: [
+            {
+              id: 'wargear',
+              name: 'Wargear',
+              selectionEntries: [
+                {
+                  id: 'hull',
+                  name: 'Armoured hull',
+                  type: 'upgrade',
+                  constraints: [
+                    { id: 'hull-min', type: 'min', value: 1, field: 'selections', scope: 'parent' },
+                    { id: 'hull-max', type: 'max', value: 1, field: 'selections', scope: 'parent' },
+                  ],
+                },
+                {
+                  id: 'stubber',
+                  name: 'Ironhail heavy stubber',
+                  type: 'upgrade',
+                  constraints: [{ id: 'stubber-max', type: 'max', value: 1, field: 'selections', scope: 'parent' }],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    })
+
+    expect(buildUnit('transport', oneExtra)?.choices).toContainEqual(
+      expect.objectContaining({
+        key: 'wargear',
+        optional: true,
+        options: [expect.objectContaining({ id: 'stubber', name: 'Ironhail heavy stubber', max: 1 })],
+      }),
+    )
+    expect(wargearOf(buildUnit('transport', oneExtra, undefined, { wargear: 'stubber' })!.selection, oneExtra)).toEqual([
+      { name: 'Armoured hull', count: 1 },
+      { name: 'Ironhail heavy stubber', count: 1 },
+    ])
   })
 })
 

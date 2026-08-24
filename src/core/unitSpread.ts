@@ -37,9 +37,20 @@ export function withUnitSpread(
   }
 
   const repeating = repeatedCarrierOn(path, index)
-  if (!repeating) return group ? spreadOptions(selection, path, counts, group, index) : withSpread(selection, key, counts)
+  if (!repeating)
+    return group
+      ? keepingTheSquad(selection, spreadOptions(selection, path, counts, group, index), path, index)
+      : withSpread(selection, key, counts)
 
   return spreadRepeatedGroup(selection, path, counts, repeating, index)
+}
+
+export function withUnitChoice(selection: Selection, key: string, optionId: string, index: CatalogueIndex): Selection {
+  const path = key.split('/')
+  const carrier = withExpandedCarrier(selection, path, index)
+  if (!selectedCarriers(carrier, path, index)) return selection
+  const chosen = withChoice(carrier, key, optionId, index)
+  return keepingTheSquad(selection, chosen, path, index)
 }
 
 /** Expand each spread option so required descendants and their rules survive. */
@@ -54,7 +65,9 @@ function spreadOptions(
   const occupants = childrenOf(resolve(group, index), index)
   const byId = new Map(occupants.map((option) => [option.id, option]))
   const asking = Object.values(counts).some((count) => count > 0)
-  return updateSelection(asking ? withPlaceFor(selection, path) : selection, path, (held) => ({
+  const carrier = asking ? withExpandedCarrier(selection, path, index) : selection
+  if (!selectedCarriers(carrier, path, index)) return selection
+  return updateSelection(withPlaceFor(carrier, path), path, (held) => ({
     ...held,
     selections: [
       ...(held.selections ?? []).filter((child) => !requested.has(child.id)),
@@ -64,6 +77,29 @@ function spreadOptions(
       }),
     ],
   }))
+}
+
+function withExpandedCarrier(selection: Selection, path: readonly string[], index: CatalogueIndex) {
+  for (let length = path.length - 1; length > 0; length--) {
+    const carrierPath = path.slice(0, length)
+    if (at(selection, carrierPath)) break
+    const id = carrierPath.at(-1)
+    const definition = id ? index.definitions.get(id) : undefined
+    if (!id || !definition || resolve(definition, index).type !== 'model') continue
+    const parent = carrierPath.slice(0, -1)
+    return replaceAt(withPlaceFor(selection, parent), parent, id, [expand(id, definition, index, MAX_DEPTH, 1, new Set(), 1)])
+  }
+  return selection
+}
+
+function selectedCarriers(selection: Selection, path: readonly string[], index: CatalogueIndex) {
+  for (let length = 1; length < path.length; length++) {
+    const carrierPath = path.slice(0, length)
+    const id = carrierPath.at(-1)
+    const definition = id ? index.definitions.get(id) : undefined
+    if (definition && resolve(definition, index).type !== undefined && !at(selection, carrierPath)) return false
+  }
+  return true
 }
 
 /**

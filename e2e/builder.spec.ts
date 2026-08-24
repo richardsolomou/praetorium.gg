@@ -700,7 +700,7 @@ test('a free swap shows on the roster card as well as the loadout', async ({ pag
   await expect(card).not.toContainText('Heavy thunder hammer')
   await page.screenshot({ path: 'test-results/decimus-swap-on-card.png', fullPage: true })
 
-  await loadout.getByRole('button', { name: `Fewer ${swap}` }).click()
+  await loadout.getByRole('button', { name: 'More Heavy thunder hammer' }).click()
   await expect(loadout.getByLabel(`${swap} count`)).toHaveText('0')
   await expect(card).toContainText('1x Heavy thunder hammer')
   await expect(card).not.toContainText('Astartes shield')

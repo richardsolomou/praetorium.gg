@@ -186,7 +186,7 @@ export function profileModifiers(
       const applied: ProfileModifier = {
         ...common,
         originIds: [],
-        filters: [exact.id],
+        filters: [exact.id, node.id],
         includeSelf: true,
         includeEntries: false,
         recursive: false,
@@ -1063,7 +1063,7 @@ function enclosing(node: Node, types: readonly string[]): Node[] {
 
 function ancestors(node: Node): Node[] {
   const chain: Node[] = []
-  for (let current = node.parent; current; current = current.parent) chain.push(current)
+  for (let current = node.parent; current && !current.force; current = current.parent) chain.push(current)
   return chain
 }
 

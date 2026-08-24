@@ -134,6 +134,28 @@ describe('the wargear a unit is carrying', () => {
     expect(wargearOf({ id: 'blob' }, index)).toEqual([])
   })
 
+  it('finds wargear inside a deeply nested selected option', () => {
+    const index = indexOf({ sharedSelectionEntries: [{ id: 'shield', name: 'Astartes shield', type: 'upgrade' }] })
+    const selection = {
+      id: 'squad',
+      selections: [
+        {
+          id: 'composition',
+          selections: [
+            {
+              id: 'models',
+              selections: [
+                { id: 'veteran', selections: [{ id: 'weapon', selections: [{ id: 'option', selections: [{ id: 'shield' }] }] }] },
+              ],
+            },
+          ],
+        },
+      ],
+    }
+
+    expect(wargearOf(selection, index)).toEqual([{ name: 'Astartes shield', count: 1 }])
+  })
+
   it('leaves roster toggles and zero-count upgrades out of wargear', () => {
     const index = indexOf({
       sharedSelectionEntries: [

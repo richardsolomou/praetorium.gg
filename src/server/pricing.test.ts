@@ -265,6 +265,38 @@ describe('what a unit is carrying', () => {
     ])
   })
 
+  it('includes selected nested wargear that shares a name with a model row', () => {
+    const models = [
+      kind({
+        rows: [{ name: 'Power fist', choiceKey: 'models', optionId: 'terminator' }],
+      }),
+    ]
+    const choices = [{ key: 'models', options: [{ id: 'terminator', count: 3 }] }]
+
+    expect(heldWargear(models, choices, [{ name: 'Power fist', count: 4 }])).toEqual([{ name: 'Power fist', count: 4 }])
+  })
+
+  it('counts the pieces selected by one composite model row', () => {
+    const models = [
+      kind({
+        rows: [
+          {
+            name: 'Power weapon and Astartes shield',
+            choiceKey: 'weapon',
+            optionId: 'sword-and-shield',
+            pieces: ['Power weapon', 'Astartes shield'],
+          },
+        ],
+      }),
+    ]
+    const choices = [{ key: 'weapon', options: [{ id: 'sword-and-shield', count: 1 }] }]
+
+    expect(heldWargear(models, choices, [])).toEqual([
+      { name: 'Power weapon', count: 1 },
+      { name: 'Astartes shield', count: 1 },
+    ])
+  })
+
   it('leaves a weapon out once a swap has taken the last of it', () => {
     const models = [
       kind({

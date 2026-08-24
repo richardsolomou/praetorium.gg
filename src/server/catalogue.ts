@@ -53,7 +53,7 @@ export function toughnessOf(profiles: readonly { type: string; values: readonly 
   return values.length ? Math.max(...values) : null
 }
 
-type AbilityKind = 'core' | 'faction' | 'datasheet' | 'rule' | 'wargear'
+type AbilityKind = 'core' | 'faction' | 'datasheet' | 'rule' | 'upgrade' | 'wargear'
 
 type DatasheetContext = {
   selections: readonly Selection[]
@@ -308,11 +308,13 @@ export function datasheetIn(loaded: LoadedCatalogue, catalogueId: string, entryI
     definition.selectionEntries?.forEach((entry) => visit(entry, false, lineage, enhancementEntry))
     definition.selectionEntryGroups?.forEach((group) => visit(group, false, lineage, enhancementEntry))
     for (const link of definition.entryLinks ?? []) {
-      visit(link, false, lineage)
+      visit(link, false, lineage, enhancementEntry)
       const target = loaded.index.definitions.get(link.targetId)
       // A linked group may be a catalogue-wide library. Its own profile belongs
       // here; recursively importing all its children does not.
-      if (target) addProfiles(target, [...lineage, ...definitionTokens(link), ...definitionTokens(target)], 'wargear')
+      if (target && (!enhancementEntry || selected.has(link.id) || selected.has(target.id))) {
+        addProfiles(target, [...lineage, ...definitionTokens(link), ...definitionTokens(target)], 'wargear')
+      }
     }
   }
   // A book reaches most of its datasheets through a link, and everything a

@@ -208,6 +208,69 @@ describe('models the datasheet stands in the unit itself', () => {
     expect(kinds[0]?.rows).toEqual([])
   })
 
+  it('lists the pieces inside a composite wargear option', () => {
+    const index = indexOf({
+      sharedSelectionEntries: [
+        {
+          id: 'composite-squad',
+          name: 'Squad',
+          type: 'unit',
+          selectionEntries: [
+            {
+              id: 'veteran',
+              name: 'Veteran',
+              type: 'model',
+              profiles: [{ id: 'veteran-profile', name: 'Veteran', typeName: 'Unit' }],
+              constraints: mandatory('veteran-min'),
+              selectionEntryGroups: [
+                {
+                  id: 'weapon',
+                  name: 'Weapon',
+                  defaultSelectionEntryId: 'hammer',
+                  constraints: bounded('weapon', 1, 1),
+                  selectionEntries: [
+                    {
+                      id: 'hammer',
+                      name: 'Heavy thunder hammer',
+                      type: 'upgrade',
+                      profiles: [{ id: 'hammer-profile', name: 'Heavy thunder hammer' }],
+                    },
+                    {
+                      id: 'sword-and-shield',
+                      name: 'Power weapon and Astartes shield',
+                      type: 'upgrade',
+                      selectionEntries: [
+                        { id: 'sword', name: 'Power weapon', type: 'upgrade', constraints: mandatory('sword-min') },
+                        { id: 'shield', name: 'Astartes shield', type: 'upgrade', constraints: mandatory('shield-min') },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+          selectionEntryGroups: [
+            {
+              id: 'extras',
+              name: 'Extras',
+              constraints: bounded('extras', 0, 1),
+              selectionEntries: [
+                { id: 'banner', name: 'Banner', type: 'upgrade' },
+                { id: 'relic', name: 'Relic', type: 'upgrade' },
+              ],
+            },
+          ],
+        },
+      ],
+    })
+    const rows = modelKindsOf('composite-squad', buildUnit('composite-squad', index)!.selection, index).flatMap((kind) => kind.rows)
+
+    expect(rows.map((row) => [row.name, row.optionId, row.pieces])).toEqual([
+      ['Heavy thunder hammer', 'hammer', undefined],
+      ['Power weapon and Astartes shield', 'sword-and-shield', ['Power weapon', 'Astartes shield']],
+    ])
+  })
+
   /**
    * The rank and file are one kind however the catalogue files their weapons, and the
    * plain entry beside the loadouts is what they are called. The profile is no help:

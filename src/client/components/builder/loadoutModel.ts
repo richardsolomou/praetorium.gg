@@ -71,17 +71,18 @@ export function showLoadoutEntry(count: number, showOptions: boolean) {
  * profiles: "Staff of light" and "Staff of light (Melee)" are one staff.
  */
 export function sameWeapon(one: string, other: string) {
-  const base = (name: string) => {
-    const trimmed = name.trim()
-    const marked = /^[^\p{L}\p{N}]+/u.test(trimmed)
-    const unmarked = trimmed.replace(/^[^\p{L}\p{N}]+/u, '')
-    const withoutMarkedMode = marked ? unmarked.replace(/\s+-\s+[^-]+$/, '') : unmarked
-    return withoutMarkedMode
-      .replace(/\s*\([^)]*\)\s*$/, '')
-      .trim()
-      .toLocaleLowerCase()
-  }
-  return base(one) === base(other)
+  return baseWeaponName(one) === baseWeaponName(other)
+}
+
+const baseWeaponName = (name: string) => {
+  const trimmed = name.trim()
+  const marked = /^[^\p{L}\p{N}]+/u.test(trimmed)
+  const unmarked = trimmed.replace(/^[^\p{L}\p{N}]+/u, '')
+  const withoutMarkedMode = marked ? unmarked.replace(/\s+-\s+[^-]+$/, '') : unmarked
+  return withoutMarkedMode
+    .replace(/\s*\([^)]*\)\s*$/, '')
+    .trim()
+    .toLocaleLowerCase()
 }
 
 export function weaponMatches(optionName: string, profileName: string) {
@@ -90,6 +91,20 @@ export function weaponMatches(optionName: string, profileName: string) {
 
 export function wargearMatches(optionName: string, abilityName: string) {
   return named(optionName, abilityName)
+}
+
+export function uniqueWeaponProfiles(profiles: readonly WeaponProfileData[]) {
+  const seen = new Set<string>()
+  return profiles.filter((profile) => {
+    const signature = JSON.stringify({
+      name: profile.name.trim().toLocaleLowerCase(),
+      type: profile.type,
+      values: profile.values,
+    })
+    if (seen.has(signature)) return false
+    seen.add(signature)
+    return true
+  })
 }
 
 /**
@@ -108,8 +123,14 @@ function named(optionName: string, candidateName: string) {
       .replaceAll(/\s+/g, '')
   const option = normalize(optionName)
   const candidate = normalize(candidateName)
+  const baseCandidate = normalize(baseWeaponName(candidateName))
   const modeOf = candidate.startsWith(option) ? candidate.slice(option.length) : null
-  return candidate === option || (modeOf !== null && /^[^\p{L}\p{N}]/u.test(modeOf)) || option.includes(candidate)
+  return (
+    candidate === option ||
+    (modeOf !== null && /^[^\p{L}\p{N}]/u.test(modeOf)) ||
+    option.includes(candidate) ||
+    option.includes(baseCandidate)
+  )
 }
 
 /**

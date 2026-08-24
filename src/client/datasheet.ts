@@ -1,3 +1,16 @@
+import type { Datasheet } from '../server/catalogue'
+
+type AbilityKind = Datasheet['abilities'][number]['kind']
+
+export const abilitySections = {
+  core: 'Core abilities',
+  faction: 'Faction abilities',
+  datasheet: 'Datasheet abilities',
+  rule: 'Rules',
+  upgrade: 'Unit upgrades',
+  wargear: 'Wargear abilities',
+} satisfies Record<AbilityKind, string>
+
 export function compositionCount(composition: readonly string[]) {
   const alternatives: { minimum: number; maximum: number }[][] = [[]]
   for (const line of composition) {

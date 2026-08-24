@@ -97,6 +97,61 @@ describe('the profile modifiers on a datasheet', () => {
     ).toEqual({ name: 'S', value: '5' })
   })
 
+  it('keeps an attached character weapon modifier on that character copy of a shared weapon', () => {
+    const book = bookOf({
+      categoryEntries: [{ id: 'captain-category', name: 'Captain' }],
+      sharedSelectionEntries: [
+        {
+          id: 'storm-bolter',
+          name: 'Storm bolter',
+          type: 'upgrade',
+          profiles: [
+            {
+              id: 'storm-bolter-profile',
+              name: 'Storm bolter',
+              typeName: 'Ranged Weapons',
+              characteristics: [{ name: 'BS', typeId: 'ballistic-skill', $text: '3+' }],
+              modifiers: [
+                {
+                  type: 'set',
+                  field: 'ballistic-skill',
+                  value: '2+',
+                  conditions: [{ type: 'instanceOf', value: 1, field: 'selections', scope: 'ancestor', childId: 'captain-category' }],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+      selectionEntries: [
+        {
+          id: 'captain',
+          name: 'Captain',
+          type: 'model',
+          categoryLinks: [{ id: 'captain-keyword', targetId: 'captain-category', name: 'Captain' }],
+          entryLinks: [{ id: 'captain-bolter', name: 'Storm bolter', type: 'selectionEntry', targetId: 'storm-bolter' }],
+        },
+        {
+          id: 'squad',
+          name: 'Squad',
+          type: 'unit',
+          entryLinks: [{ id: 'squad-bolter', name: 'Storm bolter', type: 'selectionEntry', targetId: 'storm-bolter' }],
+        },
+      ],
+    })
+    const selections = [
+      { id: 'captain', selections: [{ id: 'captain-bolter' }] },
+      { id: 'squad', selections: [{ id: 'squad-bolter' }] },
+    ]
+    const ballisticSkill = (entryId: string, unitSelectionIndex: number, companions: number[]) =>
+      datasheetIn(book, 'cat', entryId, { selections, unitSelectionIndex, companions })?.profiles[0]?.values[0]?.value
+
+    expect({ captain: ballisticSkill('captain', 0, [1]), squad: ballisticSkill('squad', 1, [0]) }).toEqual({
+      captain: '2+',
+      squad: '3+',
+    })
+  })
+
   it.each(profileOperationCases)(
     'applies the $type profile operation',
     ({ type, base, value, expected, position, join, arg, repeated, skipIfPresent }) => {
