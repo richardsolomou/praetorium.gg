@@ -1,6 +1,6 @@
 import { Link } from '@tanstack/react-router'
 import type { BattleView } from '../../../core/battleView'
-import { completedBattleRound } from '../../battleProgress'
+import { completedSideRound } from '../../battleProgress'
 import { PlayerAvatar } from '../PlayerAvatar'
 import type { Side } from '../../sides'
 import { tint } from './tints'
@@ -31,7 +31,10 @@ export function Scoreboard({ view, sides, outcome }: Props) {
           <SideScore
             key={side.index}
             side={side}
-            completedRound={completedBattleRound(view.status, view.round, view.result?.reason)}
+            completedRound={completedSideRound(
+              view,
+              side.armies.map((army) => army.playerId),
+            )}
             align={position === 0 ? 'start' : 'end'}
           />
         ))}

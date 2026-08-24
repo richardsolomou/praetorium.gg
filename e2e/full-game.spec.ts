@@ -15,6 +15,8 @@ test('two phones complete all five rounds in step', async ({ browser }) => {
 
   for (let round = 1; round <= 5; round += 1) {
     await playTurn(alice)
+    await expect(alice.locator('[data-side-score="0"] .bg-side-a')).toHaveCount(round)
+    await expect(alice.locator('[data-side-score="1"] .bg-side-b')).toHaveCount(round - 1)
     await playTurn(bob)
     if (round < 5) {
       await expect(alice.locator('[data-stat="round"]')).toHaveText(String(round + 1))
