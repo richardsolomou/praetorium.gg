@@ -1028,6 +1028,38 @@ test('an enhancement appears once and can be removed', async ({ page }) => {
   await page.screenshot({ path: 'test-results/enhancement-removed.png', fullPage: true })
 })
 
+test('changing detachments clears enhancements unless another detachment is added', async ({ page }) => {
+  await openBuilder(page, 'Necrons', /Cursed Legion/)
+  await add(page, 'Skorpekh Lord')
+  await page
+    .getByRole('button', { name: /^Skorpekh Lord/ })
+    .first()
+    .click()
+  const card = page.locator('[data-unit="Skorpekh Lord"]')
+  const loadout = page.locator('aside[aria-label="Loadout"]')
+
+  await waitForRosterSave(page, () => loadout.getByRole('button', { name: 'Select Mark of the Nekrosor' }).click())
+  await expect(card).toContainText('Mark of the Nekrosor')
+
+  await page.getByRole('button', { name: 'Roster actions' }).click()
+  await page.getByRole('menuitem', { name: 'Edit roster setup' }).click()
+  let setup = page.getByRole('dialog', { name: 'Edit roster setup' })
+  await setup.getByRole('button', { name: 'Select Skyshroud Spearhead' }).click()
+  await waitForRosterSave(page, () => setup.getByRole('button', { name: 'Save changes' }).click())
+  await expect(card).toContainText('Mark of the Nekrosor')
+
+  await page.getByRole('button', { name: 'Roster actions' }).click()
+  await page.getByRole('menuitem', { name: 'Edit roster setup' }).click()
+  setup = page.getByRole('dialog', { name: 'Edit roster setup' })
+  await setup.getByRole('button', { name: 'Remove Cursed Legion' }).click()
+  await waitForRosterSave(page, () => setup.getByRole('button', { name: 'Save changes' }).click())
+  await expect(card).not.toContainText('Mark of the Nekrosor')
+
+  await page.reload()
+  await expect(page.locator('[data-unit="Skorpekh Lord"]')).not.toContainText('Mark of the Nekrosor')
+  await page.screenshot({ path: 'test-results/enhancement-cleared-after-detachment-change.png', fullPage: true })
+})
+
 test('a smaller desktop moves the picker into a drawer without losing unit detail', async ({ page }) => {
   await page.setViewportSize({ width: 1100, height: 800 })
   await openBuilder(page)
