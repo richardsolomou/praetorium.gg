@@ -1,7 +1,15 @@
 import { getRequest } from '@tanstack/react-start/server'
 import { app } from './app'
 
-type Player = { id: string; name: string; image: string | null; email: string }
+type Player = {
+  id: string
+  name: string
+  image: string | null
+  email: string
+  role: 'admin' | 'user'
+  twoFactorEnabled: boolean
+  impersonatedBy: string | null
+}
 
 /**
  * Who is asking, resolved once per request.
@@ -21,7 +29,17 @@ export function currentUser(request = getRequest()): Promise<Player | null> {
   const asking = app()
     .auth.api.getSession({ headers: request.headers })
     .then((session) =>
-      session ? { id: session.user.id, name: session.user.name, image: session.user.image ?? null, email: session.user.email } : null,
+      session
+        ? {
+            id: session.user.id,
+            name: session.user.name,
+            image: session.user.image ?? null,
+            email: session.user.email,
+            role: session.user.role === 'admin' ? ('admin' as const) : ('user' as const),
+            twoFactorEnabled: session.user.twoFactorEnabled ?? false,
+            impersonatedBy: session.session.impersonatedBy ?? null,
+          }
+        : null,
     )
     // A failed lookup must not be remembered as the answer for the rest of the request.
     .catch((error: unknown) => {
@@ -46,4 +64,10 @@ export async function requireUser(request = getRequest()) {
   const user = await currentUser(request)
   if (!user) throw new Response('sign in first', { status: 401 })
   return user
+}
+
+export async function requireAdmin(request = getRequest()) {
+  const current = await requireUser(request)
+  if (current.role !== 'admin' || current.impersonatedBy) throw new Response('admin access required', { status: 403 })
+  return current
 }

@@ -57,6 +57,17 @@ Without it, run one replica. Live updates then fan out inside a single process, 
 
 Sessions live in Valkey when `VALKEY_URL` is set, so replacing it or clearing it signs everyone in again. Accounts, lists, battles, and logs are unaffected.
 
+## Accounts and OAuth
+
+The first account with a sign-in method becomes the administrator. During an upgrade, the oldest account with a sign-in method becomes the administrator if none exists. Administrators can create accounts, change roles and passwords, revoke sessions, and impersonate another player for up to one hour.
+
+Email and password sign-in needs no additional configuration. To enable Google or Discord, create an OAuth application with the provider and set both matching variables from `.env.example`. Use these callback URLs, replacing the origin with the deployment's public origin:
+
+- Google: `https://example.com/api/auth/callback/google`
+- Discord: `https://example.com/api/auth/callback/discord`
+
+The provider appears only when both its client ID and client secret are set. Set `APP_URL` to the same public origin when proxy headers do not describe it correctly.
+
 ## Reverse proxy
 
 The proxy must forward `X-Forwarded-Host` and `X-Forwarded-Proto`. Set `APP_URL` when those headers do not describe the public origin. When set, `APP_URL` is also the canonical origin. Requests for another host redirect to it and keep their path.

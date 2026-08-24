@@ -47,6 +47,9 @@ export const createBattleSchema = z
 export const deleteBattleSchema = z.object({ token })
 export const userSchema = z.object({ userId: id })
 export const friendSchema = z.object({ userId: id })
+export const setOwnPasswordSchema = z.object({ password: z.string().min(10).max(128) })
+export const unlinkOwnAccountSchema = z.object({ provider: z.enum(['credential', 'google', 'discord']) })
+export const setAdminRoleSchema = z.object({ userId: id, role: z.enum(['admin', 'user']) })
 
 /**
  * `expectedSeq` is the client's claim about the history it has already seen.

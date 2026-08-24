@@ -2,6 +2,8 @@ import { type QueryClient, queryOptions, replaceEqualDeep } from '@tanstack/reac
 import type { RosterPick } from '../core/roster'
 import {
   battleReport,
+  accountMethods,
+  adminUsers,
   catalogueStatus,
   collection,
   deployments,
@@ -37,6 +39,8 @@ import {
 const SSR_STALE_TIME = 30_000
 
 export const meQuery = () => queryOptions({ queryKey: ['me'], queryFn: () => me(), staleTime: SSR_STALE_TIME })
+export const accountMethodsQuery = () => queryOptions({ queryKey: ['account-methods'], queryFn: () => accountMethods() })
+export const adminUsersQuery = () => queryOptions({ queryKey: ['admin-users'], queryFn: () => adminUsers() })
 
 export const userProfileQuery = (userId: string) =>
   queryOptions({ queryKey: ['user-profile', userId], queryFn: () => userProfile({ data: { userId } }), staleTime: SSR_STALE_TIME })

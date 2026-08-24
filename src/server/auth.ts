@@ -1,14 +1,26 @@
 import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
 import { APIError } from 'better-auth/api'
+import { admin, twoFactor } from 'better-auth/plugins'
+import { and, eq, notExists, sql } from 'drizzle-orm'
 import { configuredProviderOptions, standardRateLimitOptions, standardSessionOptions, trustedOrigins } from 'ras-stack/auth'
 import { PASSWORD_MIN_LENGTH, SOCIAL_PROVIDERS } from '../authConfig'
 import { type ValkeyClient, valkeySecondaryStorage } from '../adapters/valkey'
 import type { PraetoriumDatabase } from '../db/connection'
-import { schema } from '../db/schema'
+import { schema, user } from '../db/schema'
 import { profileUpdate } from './profile'
 
 export function createAuth(database: PraetoriumDatabase, secret: string, valkey?: ValkeyClient) {
+  const claimInitialAdmin = async (userId: string) => {
+    await database.transaction(async (tx) => {
+      await tx.execute(sql`select pg_advisory_xact_lock(4021970612)`)
+      await tx
+        .update(user)
+        .set({ role: 'admin' })
+        .where(and(eq(user.id, userId), notExists(tx.select({ id: user.id }).from(user).where(eq(user.role, 'admin')))))
+    })
+  }
+
   return betterAuth({
     database: drizzleAdapter(database, { provider: 'pg', schema }),
     // Sessions and limiter counts live in Valkey when there is one, so a request
@@ -24,6 +36,7 @@ export function createAuth(database: PraetoriumDatabase, secret: string, valkey?
     // Signing in with Google to an account made with a password should land on the
     // same account, not a second one.
     account: { accountLinking: { enabled: true, trustedProviders: [...SOCIAL_PROVIDERS] } },
+    disabledPaths: ['/unlink-account', '/admin/set-role'],
     databaseHooks: {
       user: {
         update: {
@@ -35,6 +48,7 @@ export function createAuth(database: PraetoriumDatabase, secret: string, valkey?
           },
         },
       },
+      account: { create: { after: async (created) => claimInitialAdmin(created.userId) } },
     },
     /*
      * Limits are per IP, and two people at the same table share one: a pair signing
@@ -72,5 +86,14 @@ export function createAuth(database: PraetoriumDatabase, secret: string, valkey?
       ipAddress: { ipAddressHeaders: ['cf-connecting-ip', 'x-forwarded-for'] },
     },
     trustedOrigins: trustedOrigins({ trustForwardedHeaders: true }),
+    plugins: [
+      admin({
+        adminRoles: ['admin'],
+        defaultRole: 'user',
+        allowImpersonatingAdmins: true,
+        impersonationSessionDuration: 60 * 60,
+      }),
+      twoFactor({ issuer: 'Praetorium', allowPasswordless: true }),
+    ],
   })
 }

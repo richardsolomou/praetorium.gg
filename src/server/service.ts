@@ -57,6 +57,14 @@ export class PraetoriumService {
     private readonly randomIndex: (limit: number) => number,
   ) {}
 
+  adminUsers() {
+    return this.repository.adminUsers()
+  }
+
+  unlinkAccount(userId: string, providerId: string, availableProviders: readonly string[]) {
+    return this.repository.unlinkAccount(userId, providerId, availableProviders)
+  }
+
   /**
    * A user's battles with their current state folded from each log.
    *

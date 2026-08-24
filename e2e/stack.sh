@@ -84,6 +84,8 @@ exec docker run --rm --name "$app" --network "$network" \
     --env CATALOGUE_DIR=/catalogue \
     --env RULES_DIR=/catalogue/rules \
     --env AUTH_RATE_LIMIT=off \
+    --env APP_URL="http://127.0.0.1:${port}" \
+    --env PRAETORIUM_SEED_PREVIEW=true \
     --env S3_ENDPOINT="http://${minio}:9000" \
     --env S3_BUCKET=praetorium \
     --env S3_ACCESS_KEY_ID=praetorium \

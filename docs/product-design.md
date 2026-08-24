@@ -31,17 +31,17 @@ Keep screenshots that contain roster or battle data outside version control.
 
 ## Current coverage
 
-| Area              | Coverage                                                                                                                                                                              |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Accounts          | Email and password work without provider configuration. Google and Discord are optional. Players can edit their display name and profile picture.                                     |
-| Battles           | Shared or practice 1v1 and 2v1 setup drafts, server-side legality, corrections, concessions, reopening, and live updates.                                                             |
-| Turn tracker      | Five standard rounds, three King of the Colosseum rounds, six phases, command points, victory points, painted bonuses, tactical decks, stratagems, formations, and battle completion. |
-| Rosters           | Build, import, save, copy, rename, private or unlisted share, print, export, and attach.                                                                                              |
-| Catalogue         | Factions, detachments, units, model counts, loadouts, enhancements, attachments, and points limits.                                                                                   |
-| Validation        | Constraints, modifiers, conditions, categories, force scope, attachments, and catalogue-sensitive costs.                                                                              |
-| Missions          | Force dispositions, deployment zones, objectives, mission cards, and scoring awards.                                                                                                  |
-| Battle review     | Per-round scoring, command points, result reasons, stratagems, unit outcomes, timestamped events, and corrections.                                                                    |
-| Responsive design | Three desktop panes and one mobile roster with movable picker and loadout sheets.                                                                                                     |
+| Area              | Coverage                                                                                                                                                                                                                                      |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Accounts          | Email and password work without provider configuration. Google and Discord are optional and linkable. Players can manage their profile, password, sign-in methods, and authenticator 2FA. Administrators can manage and impersonate accounts. |
+| Battles           | Shared or practice 1v1 and 2v1 setup drafts, server-side legality, corrections, concessions, reopening, and live updates.                                                                                                                     |
+| Turn tracker      | Five standard rounds, three King of the Colosseum rounds, six phases, command points, victory points, painted bonuses, tactical decks, stratagems, formations, and battle completion.                                                         |
+| Rosters           | Build, import, save, copy, rename, private or unlisted share, print, export, and attach.                                                                                                                                                      |
+| Catalogue         | Factions, detachments, units, model counts, loadouts, enhancements, attachments, and points limits.                                                                                                                                           |
+| Validation        | Constraints, modifiers, conditions, categories, force scope, attachments, and catalogue-sensitive costs.                                                                                                                                      |
+| Missions          | Force dispositions, deployment zones, objectives, mission cards, and scoring awards.                                                                                                                                                          |
+| Battle review     | Per-round scoring, command points, result reasons, stratagems, unit outcomes, timestamped events, and corrections.                                                                                                                            |
+| Responsive design | Three desktop panes and one mobile roster with movable picker and loadout sheets.                                                                                                                                                             |
 
 ## Known data limits
 

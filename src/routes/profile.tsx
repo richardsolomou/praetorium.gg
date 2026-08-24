@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { PROFILE_NAME_MAX_LENGTH } from '../authConfig'
 import { authClient } from '../client/authClient'
+import { AccountSecurity } from '../client/components/AccountSecurity'
 import { PlayerAvatar } from '../client/components/PlayerAvatar'
 import { SignInRequired } from '../client/components/SignInRequired'
 import { battlesQuery, friendshipsQuery, meQuery, opponentsQuery } from '../client/queries'
@@ -74,7 +75,7 @@ function ProfileForm({ me }: { me: NonNullable<Awaited<ReturnType<NonNullable<Re
   }
 
   return (
-    <main className="w-full">
+    <main className="ph-no-capture w-full">
       <section className="relative overflow-hidden border-b border-edge bg-panel">
         <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,transparent_35%,color-mix(in_srgb,var(--color-parchment)_8%,transparent),transparent_75%)]" />
         <div className="relative mx-auto flex max-w-5xl items-center gap-4 px-3 py-5 sm:px-4 sm:py-7">
@@ -166,6 +167,7 @@ function ProfileForm({ me }: { me: NonNullable<Awaited<ReturnType<NonNullable<Re
           {saved ? <output className="text-sm text-achieved">Profile saved.</output> : null}
         </div>
       </form>
+      <AccountSecurity me={me} />
     </main>
   )
 }

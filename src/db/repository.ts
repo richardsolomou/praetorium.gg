@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, exists, inArray, isNull, ne, notExists, or, sql } from 'drizzle-orm'
+import { and, asc, count, desc, eq, exists, inArray, isNull, ne, notExists, or, sql } from 'drizzle-orm'
 import { battleCapacity, type Command, type LoggedCommand, reduceBattle, type SubmitResult, validate } from '../core/battle'
 import { commandSchema } from '../core/commands'
 import type { RosterSource } from '../core/savedRoster'
@@ -7,6 +7,7 @@ import type { PraetoriumDatabase } from './connection'
 import {
   battleUsers,
   battles,
+  account,
   collection,
   commands,
   favouriteDetachments,
@@ -25,6 +26,22 @@ export type BattleSeats = { battle: BattleRecord; players: BattlePlayer[] }
 export type BattleHistory = BattleSeats & { log: LoggedCommand[] }
 
 export type JoinResult = 'joined' | 'already-in' | 'full'
+export type UnlinkAccountResult = 'removed' | 'missing' | 'two-factor' | 'last-method'
+
+export type AdminUser = {
+  id: string
+  name: string
+  email: string
+  image: string | null
+  role: 'admin' | 'user'
+  banned: boolean
+  twoFactorEnabled: boolean
+  createdAt: Date
+  updatedAt: Date
+  rosterCount: number
+  battleCount: number
+  signInMethods: string[]
+}
 
 /**
  * Whether the account in a seat is a practice opponent.
@@ -130,6 +147,71 @@ export class Repository {
   async userById(id: string) {
     const [row] = await this.database.select().from(user).where(eq(user.id, id)).limit(1)
     return row
+  }
+
+  async adminUsers(limit = 500): Promise<AdminUser[]> {
+    const users = await this.database
+      .select({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        image: user.image,
+        role: user.role,
+        banned: user.banned,
+        twoFactorEnabled: user.twoFactorEnabled,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
+      })
+      .from(user)
+      .where(
+        notExists(
+          this.database.select({ id: practiceOpponents.userId }).from(practiceOpponents).where(eq(practiceOpponents.userId, user.id)),
+        ),
+      )
+      .orderBy(desc(user.createdAt), asc(user.name))
+      .limit(limit)
+    if (!users.length) return []
+    const ids = users.map(({ id }) => id)
+    const [rosterCounts, battleCounts, methods] = await Promise.all([
+      this.database
+        .select({ userId: rosters.userId, count: count() })
+        .from(rosters)
+        .where(inArray(rosters.userId, ids))
+        .groupBy(rosters.userId),
+      this.database
+        .select({ userId: battleUsers.userId, count: count() })
+        .from(battleUsers)
+        .where(inArray(battleUsers.userId, ids))
+        .groupBy(battleUsers.userId),
+      this.database.select({ userId: account.userId, providerId: account.providerId }).from(account).where(inArray(account.userId, ids)),
+    ])
+    const rosterCountByUser = new Map(rosterCounts.map((row) => [row.userId, row.count]))
+    const battleCountByUser = new Map(battleCounts.map((row) => [row.userId, row.count]))
+    const methodsByUser = new Map<string, Set<string>>()
+    for (const method of methods) {
+      const providers = methodsByUser.get(method.userId) ?? new Set<string>()
+      providers.add(method.providerId)
+      methodsByUser.set(method.userId, providers)
+    }
+    return users.map((entry) => ({
+      ...entry,
+      rosterCount: rosterCountByUser.get(entry.id) ?? 0,
+      battleCount: battleCountByUser.get(entry.id) ?? 0,
+      signInMethods: [...(methodsByUser.get(entry.id) ?? [])].sort((left, right) => left.localeCompare(right)),
+    }))
+  }
+
+  async unlinkAccount(userId: string, providerId: string, availableProviders: readonly string[]): Promise<UnlinkAccountResult> {
+    return this.database.transaction(async (tx) => {
+      const [owner] = await tx.select({ twoFactorEnabled: user.twoFactorEnabled }).from(user).where(eq(user.id, userId)).for('update')
+      const methods = await tx.select({ providerId: account.providerId }).from(account).where(eq(account.userId, userId))
+      if (!methods.some((method) => method.providerId === providerId)) return 'missing'
+      if (providerId === 'credential' && owner?.twoFactorEnabled) return 'two-factor'
+      const available = new Set(availableProviders)
+      if (!methods.some((method) => method.providerId !== providerId && available.has(method.providerId))) return 'last-method'
+      await tx.delete(account).where(and(eq(account.userId, userId), eq(account.providerId, providerId)))
+      return 'removed'
+    })
   }
 
   async profileByUserId(id: string) {
