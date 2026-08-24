@@ -58,13 +58,17 @@ test('server-rendered reference pages keep route-shaped payloads', async ({ requ
   expect(missionPack.byteLength).toBeLessThan(250_000)
 })
 
-test('a datasheet lists leader attachment targets once', async ({ page }) => {
+test('a datasheet shows attachment keywords and lists their targets once', async ({ page }) => {
   await page.goto('/factions/necrons/datasheets/overlord')
 
   await expect(page.getByRole('heading', { name: 'Attachments' })).toBeVisible()
   await expect(page.getByText('Can lead', { exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Leader', exact: true })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Leader', exact: true })).toHaveCount(0)
   await page.screenshot({ path: 'test-results/datasheet-leader-attachments.png', fullPage: true })
+
+  await page.goto('/factions/necrons/datasheets/plasmancer')
+  await expect(page.getByRole('button', { name: 'Support', exact: true })).toBeVisible()
 
   await page.setViewportSize({ width: 390, height: 844 })
   await page.screenshot({ path: 'test-results/datasheet-leader-attachments-phone.png', fullPage: true })

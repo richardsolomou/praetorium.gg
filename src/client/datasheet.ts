@@ -45,7 +45,15 @@ export function addedKeywords(keywords: { value: string; baseValue?: string }): 
 export const splitKeywords = (value: string) => value.split(',').map((keyword) => keyword.trim())
 
 type Ability = { name: string; kind: string }
+type Attachment = { kind?: string }
 
-export function displayAbilities<T extends Ability>(abilities: readonly T[]): T[] {
-  return abilities.filter((ability) => !['leader', 'support'].includes(ability.name.trim().toLocaleLowerCase()))
+const attachmentRole = (ability: Ability) => ability.name.trim().toLocaleLowerCase()
+
+export function referenceAbilities<T extends Ability>(abilities: readonly T[], attachments: readonly Attachment[]): T[] {
+  const roles = new Set(attachments.map(({ kind }) => kind))
+  return abilities.filter((ability) => !roles.has(attachmentRole(ability)) || !['datasheet', 'rule'].includes(ability.kind))
+}
+
+export function rosterAbilities<T extends Ability>(abilities: readonly T[]): T[] {
+  return abilities.filter((ability) => !['leader', 'support'].includes(attachmentRole(ability)))
 }

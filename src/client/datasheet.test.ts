@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { addedKeywords, compositionCount, displayAbilities } from './datasheet'
+import { addedKeywords, compositionCount, referenceAbilities, rosterAbilities } from './datasheet'
 
 describe('datasheet composition count', () => {
   it('adds fixed and ranged model groups', () => {
@@ -18,14 +18,32 @@ describe('datasheet composition count', () => {
 })
 
 describe('datasheet abilities', () => {
-  it('leaves attachment roles to the dedicated attachment section', () => {
+  it('keeps attachment keywords on reference datasheets without repeating their rules', () => {
     const abilities = [
       { name: 'Leader', kind: 'core' },
+      { name: 'Leader', kind: 'rule' },
+      { name: 'Support', kind: 'core' },
       { name: 'Support', kind: 'rule' },
       { name: 'My Will Be Done', kind: 'datasheet' },
     ]
 
-    expect(displayAbilities(abilities)).toEqual([abilities[2]])
+    expect(referenceAbilities(abilities, [{ kind: 'leader' }, { kind: 'support' }])).toEqual([abilities[0], abilities[2], abilities[4]])
+  })
+
+  it('keeps an attachment rule when the datasheet has no parsed targets', () => {
+    const abilities = [{ name: 'Leader', kind: 'rule' }]
+
+    expect(referenceAbilities(abilities, [])).toEqual(abilities)
+  })
+
+  it('leaves attachment roles out of the roster editor', () => {
+    const abilities = [
+      { name: 'Leader', kind: 'core' },
+      { name: 'Support', kind: 'core' },
+      { name: 'My Will Be Done', kind: 'datasheet' },
+    ]
+
+    expect(rosterAbilities(abilities)).toEqual([abilities[2]])
   })
 })
 

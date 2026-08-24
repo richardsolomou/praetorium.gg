@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Link, useParams } from '@tanstack/react-router'
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbSeparator } from '@/components/ui/breadcrumb'
 import type { Datasheet } from '../../server/catalogue'
-import { compositionCount, displayAbilities } from '../datasheet'
+import { compositionCount, referenceAbilities } from '../datasheet'
 import { factionFor } from '../factions'
 import { datasheetSlugQuery, factionsQuery } from '../queries'
 import { FactionMark, factionColour } from './FactionMark'
@@ -90,7 +90,7 @@ export function FactionDatasheet() {
         ) : null}
         {ranged.length ? <ProfileTable title="Ranged weapons" profiles={ranged} keywordRules={sheet.keywordRules} /> : null}
         {melee.length ? <ProfileTable title="Melee weapons" profiles={melee} keywordRules={sheet.keywordRules} /> : null}
-        <Abilities abilities={displayAbilities(sheet.abilities)} rules={sheet.keywordRules} />
+        <Abilities abilities={referenceAbilities(sheet.abilities, sheet.attachments)} rules={sheet.keywordRules} />
         <UnitConfiguration sheet={sheet} rules={sheet.keywordRules} />
         {sheet.transport ? (
           <section>
