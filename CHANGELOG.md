@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.28.1
+
+### Patch Changes
+
+- b1e07c9: Clear unit enhancements and upgrades when changing detachments.
+
 ## 0.28.0
 
 ### Minor Changes
