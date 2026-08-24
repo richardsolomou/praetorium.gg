@@ -19,7 +19,7 @@ describe('datasheet search', () => {
   })
 
   it('normalizes punctuation and partial words', () => {
-    expect(matchDatasheet('rites reanim', fields)?.reasons).toEqual([{ kind: 'ability', value: 'Rites of Reanimation' }])
+    expect(matchDatasheet('rites-reanim', fields)?.reasons).toEqual([{ kind: 'ability', value: 'Rites of Reanimation' }])
   })
 
   it('returns no more than three reasons', () => {

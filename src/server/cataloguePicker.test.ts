@@ -110,6 +110,7 @@ describe('the picker', () => {
     const book = bookOf({
       categoryEntries: [{ id: 'marker', name: 'Secret marker', hidden: true }],
       sharedInfoGroups: [{ id: 'conditional', name: 'Conditional', profiles: [ability('null-aegis', 'Null Aegis')] }],
+      sharedProfiles: [ability('hidden-link-profile', 'Lord of Deceit')],
       selectionEntries: [
         {
           id: 'technomancer',
@@ -117,7 +118,10 @@ describe('the picker', () => {
           type: 'model',
           costs: points(85),
           categoryLinks: [{ id: 'marker-link', targetId: 'marker', name: 'Secret marker' }],
-          infoLinks: [{ id: 'conditional-link', targetId: 'conditional', name: 'Conditional', type: 'infoGroup' }],
+          infoLinks: [
+            { id: 'conditional-link', targetId: 'conditional', name: 'Conditional', type: 'infoGroup' },
+            { id: 'hidden-link', targetId: 'hidden-link-profile', name: 'Lord of Deceit', type: 'profile', hidden: true },
+          ],
           profiles: [
             {
               id: 'hidden-gun',
@@ -155,7 +159,33 @@ describe('the picker', () => {
     expect(unitsIn(book, 'cat', 'hidden gun')).toEqual([])
     expect(unitsIn(book, 'cat', 'buried gun')).toEqual([])
     expect(unitsIn(book, 'cat', 'null aegis')).toEqual([])
+    expect(unitsIn(book, 'cat', 'lord of deceit')).toEqual([])
     expect(unitsIn(book, 'cat', 'destroyed')).toEqual([])
+  })
+
+  it('keeps offered datasheets whose visibility depends on force context', () => {
+    const book = bookOf({
+      selectionEntries: [
+        {
+          id: 'daemon',
+          name: 'Bloodletter',
+          type: 'model',
+          profiles: [ability('deep-strike', 'Deep Strike')],
+          modifiers: [
+            {
+              type: 'set',
+              field: 'hidden',
+              value: true,
+              conditions: [{ type: 'lessThan', value: 1, field: 'selections', scope: 'force', childId: 'show-daemons' }],
+            },
+          ],
+        },
+      ],
+    })
+
+    expect(unitsIn(book, 'cat', 'deep strike')).toEqual([
+      expect.objectContaining({ name: 'Bloodletter', matchReasons: [{ kind: 'ability', value: 'Deep Strike' }] }),
+    ])
   })
 
   it('searches the effective keywords granted in this catalogue', () => {
