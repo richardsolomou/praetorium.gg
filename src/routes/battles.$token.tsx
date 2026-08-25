@@ -9,7 +9,7 @@ import {
   collectionQuery,
   deploymentsQuery,
   detachmentRulesQuery,
-  factionsQuery,
+  factionQuery,
   gameReferencesQuery,
   savedRostersQuery,
   terrainMatchupIds,
@@ -30,7 +30,6 @@ export const Route = createFileRoute('/battles/$token')({
      * failure — a page that never looks must not bring down the loader.
      */
     const instanceData = [
-      context.queryClient.ensureQueryData(factionsQuery()),
       context.queryClient.ensureQueryData(gameReferencesQuery()),
       context.queryClient.ensureQueryData(catalogueStatusQuery()),
       context.queryClient.ensureQueryData(deploymentsQuery()),
@@ -61,6 +60,10 @@ export const Route = createFileRoute('/battles/$token')({
           ? [context.queryClient.ensureQueryData(detachmentRulesQuery(catalogueId, detachmentNames))]
           : []
       }),
+      // Each army's own faction, instead of every faction the instance knows.
+      ...[...new Set(screen.view.players.flatMap((player) => (player.roster?.built ? [player.roster.built.catalogueId] : [])))].map(
+        (catalogueId) => context.queryClient.ensureQueryData(factionQuery(catalogueId)),
+      ),
     ])
   },
   component: BattlePage,

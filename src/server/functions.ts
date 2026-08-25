@@ -23,6 +23,7 @@ import {
   datasheetSlugSchema,
   detachmentRulesSchema,
   detachmentDetailSchema,
+  factionSchema,
   globalSearchSchema,
   savedRosterDatasheetSchema,
   terrainReferencesSchema,
@@ -51,6 +52,24 @@ export const factionIndex = createServerFn({ method: 'GET' }).handler(() =>
     return factionIndexFor(loaded, app().rules())
   }),
 )
+
+/**
+ * One faction, for the routes that render exactly one.
+ *
+ * The same cached derivation as `factions`, so the two cannot disagree; a page
+ * about one faction just stops shipping the other thirty-five in its markup.
+ */
+export const faction = createServerFn({ method: 'GET' })
+  .validator(factionSchema)
+  .handler(({ data }) =>
+    rpc(() => {
+      cacheUntilSnapshotChanges()
+      const loaded = app().catalogue()
+      if (!loaded) return null
+      const { factions: all } = factionsFor(loaded, app().rules())
+      return all.find((candidate) => candidate.slug === data.catalogueId || candidate.id === data.catalogueId) ?? null
+    }),
+  )
 
 export const globalSearch = createServerFn({ method: 'GET' })
   .validator(globalSearchSchema)
@@ -82,8 +101,8 @@ export const units = createServerFn({ method: 'GET' })
       if (!loaded) return []
       const rules = app().rules()
       const names = rules?.factionNames
-      const faction = loaded.factions.find((entry) => entry.id === data.catalogueId)
-      const displayName = faction ? factionDisplayName(faction.name, names) : ''
+      const book = loaded.factions.find((entry) => entry.id === data.catalogueId)
+      const displayName = book ? factionDisplayName(book.name, names) : ''
       const restrictions = rules?.factionRestrictions.get(routeSlug(displayName))
       return unitsIn(loaded, data.catalogueId, data.query, { restrictions, battleSize: data.battleSize }).map((unit) => ({
         ...unit,
@@ -297,8 +316,8 @@ export const detachmentRules = createServerFn({ method: 'GET' })
       const catalogue = app().catalogue()
       if (!rules || !catalogue) return null
 
-      const faction = catalogue.index.catalogues.get(data.catalogueId)
-      const factionSlug = faction ? routeSlug(faction.name) : null
+      const book = catalogue.index.catalogues.get(data.catalogueId)
+      const factionSlug = book ? routeSlug(book.name) : null
       const detachments = factionSlug ? rules.byDetachment.get(rulesFaction(rules, factionSlug)) : undefined
       const details = factionSlug ? rules.detachmentDetails.get(rulesFaction(rules, factionSlug)) : undefined
       // Detachment cards use the same text as their reference page; core cards join them from Game Datacards.

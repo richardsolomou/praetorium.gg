@@ -12,6 +12,7 @@ import {
   datasheetBySlug,
   detachmentRules,
   detachmentDetail,
+  faction,
   factions,
   factionDatasheets,
   factionIndex,
@@ -120,6 +121,9 @@ function battleSequence(value: unknown): number | null {
 }
 
 export const factionsQuery = () => queryOptions({ queryKey: ['factions'], queryFn: () => factions(), staleTime: Infinity })
+/** One faction by route slug or catalogue id, for the pages that render exactly one. */
+export const factionQuery = (catalogueId: string) =>
+  queryOptions({ queryKey: ['faction', catalogueId], queryFn: () => faction({ data: { catalogueId } }), staleTime: Infinity })
 export const factionIndexQuery = () => queryOptions({ queryKey: ['faction-index'], queryFn: () => factionIndex(), staleTime: Infinity })
 export const favouriteFactionsQuery = () =>
   queryOptions({ queryKey: ['favourite-factions'], queryFn: () => favouriteFactions(), staleTime: SSR_STALE_TIME })

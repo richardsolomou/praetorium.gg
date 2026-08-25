@@ -1,12 +1,10 @@
 import { createFileRoute, notFound } from '@tanstack/react-router'
 import { FactionDatasheets } from '../client/components/FactionDatasheets'
-import { factionFor } from '../client/factions'
-import { factionDatasheetsQuery, factionsQuery } from '../client/queries'
+import { factionDatasheetsQuery, factionQuery } from '../client/queries'
 
 export const Route = createFileRoute('/factions/$catalogueId/datasheets')({
   loader: async ({ context, params }) => {
-    const data = await context.queryClient.ensureQueryData(factionsQuery())
-    const faction = factionFor(data, params.catalogueId)
+    const faction = await context.queryClient.ensureQueryData(factionQuery(params.catalogueId))
     if (!faction) throw notFound()
     // Settle the datasheets on the server so the rendered markup and the
     // dehydrated cache agree, which is what keeps the first client render from

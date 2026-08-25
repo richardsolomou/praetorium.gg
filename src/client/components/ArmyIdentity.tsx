@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
 import { factionFor } from '../factions'
-import { factionsQuery } from '../queries'
+import { factionQuery, factionsQuery } from '../queries'
 import { armyRulesRequest } from '../sideRules'
 import type { Army } from '../sides'
 import { FactionMark, type FactionPresentation } from './FactionMark'
@@ -34,13 +34,13 @@ export function ArmyIdentity({
   linked?: boolean
   className?: string
 }) {
-  const { data: factions } = useQuery(factionsQuery())
-  const faction = factionFor(factions, army.roster?.built?.catalogueId ?? '')
+  // One small read for this army's own faction, not the whole catalogue's worth.
+  const { data: faction } = useQuery({ ...factionQuery(army.roster?.built?.catalogueId ?? ''), enabled: Boolean(army.roster?.built) })
   const { detachmentNames } = armyRulesRequest(army.roster)
 
   return (
     <IdentityLine
-      faction={faction}
+      faction={faction ?? undefined}
       detachmentNames={detachmentNames}
       trailing={list ? <ArmyLink army={army} token={token} linked={linked} /> : null}
       linked={linked}

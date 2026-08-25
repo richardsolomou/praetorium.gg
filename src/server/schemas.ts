@@ -179,6 +179,8 @@ export const ownedSchema = z.object({ entryId: id, owned: z.boolean() })
 export const favouriteFactionSchema = z.object({ catalogueId: id, favourite: z.boolean() })
 export const favouriteDetachmentSchema = z.object({ catalogueId: id, detachmentId: id, favourite: z.boolean() })
 export const terrainReferencesSchema = z.object({ matchupIds: z.array(slug).min(1).max(2) })
+/** A faction page addresses its faction by route slug, older links by catalogue id. */
+export const factionSchema = z.object({ catalogueId: slug })
 
 /** Saved rows are read back through these, so a hand-edited one fails loudly. */
 export const picksSchema = z.array(pickSchema).max(100)
