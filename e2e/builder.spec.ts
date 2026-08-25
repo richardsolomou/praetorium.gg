@@ -201,6 +201,31 @@ test('owned units rise to the top of their roster and picker groups', async ({ p
   await page.screenshot({ path: 'test-results/owned-units-first.png', fullPage: true })
 })
 
+test('contained faction datasheet rows stay accessible and resize without horizontal overflow', async ({ page }) => {
+  await page.setViewportSize({ width: 1512, height: 774 })
+  await page.goto('/factions/space-marines/datasheets')
+  const rows = page.locator('[data-datasheet]')
+  const offscreenName = 'Sternguard Veteran Squad'
+  const offscreenRow = page.locator(`[data-datasheet="${offscreenName}"]`)
+  await expect(offscreenRow).toHaveCount(1)
+  expect(await offscreenRow.evaluate((row) => row.getBoundingClientRect().top)).toBeGreaterThan(
+    await page.evaluate(() => window.innerHeight),
+  )
+  const session = await page.context().newCDPSession(page)
+  const tree = await session.send('Accessibility.getFullAXTree')
+  expect(
+    tree.nodes.some(
+      (node) => node.role?.value === 'link' && node.name?.value.toLocaleLowerCase().startsWith(offscreenName.toLocaleLowerCase()),
+    ),
+  ).toBe(true)
+  await rows.last().scrollIntoViewIfNeeded()
+
+  await page.setViewportSize({ width: 390, height: 844 })
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  await expect(rows.last()).toBeVisible()
+  await page.screenshot({ path: 'test-results/faction-datasheets-mobile-bottom.png' })
+})
+
 test('favourite detachments rise to the top of roster setup', async ({ page }) => {
   await signUp(page, 'Richard')
   await page.goto('/rosters')
@@ -1558,6 +1583,39 @@ test('a chapter reaches the whole Codex range, not just its own datasheets', asy
   await openBuilder(page, 'Dark Angels', /Unforgiven Task Force/)
   await add(page, 'Intercessor Squad')
   await expect(page.locator('[data-unit="Intercessor Squad"]')).toBeVisible()
+})
+
+test('a grenade launcher leaves every Intercessor carrying a bolt rifle', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 })
+  await openBuilder(page, 'Space Marines', /Gladius Task Force/)
+  await add(page, 'Intercessor Squad')
+  await page
+    .locator('[data-unit="Intercessor Squad"]')
+    .getByRole('button', { name: /^Intercessor Squad/ })
+    .click()
+
+  const loadout = page.locator('aside[aria-label="Loadout"]')
+  await loadout.getByRole('button', { name: 'Select Bolt Rifle w/ Grenade Launcher' }).click()
+  const equipped = loadout.locator('section').filter({ hasText: 'Equipped ranged weapons' })
+  await expect(equipped.getByText('5× Bolt Rifle', { exact: true })).toBeVisible()
+  await expect(equipped.getByText('5× Bolt pistol', { exact: true })).toBeVisible()
+  await expect(loadout.getByText('➤ Astartes grenade launcher - krak', { exact: true })).toHaveCount(1)
+  await shot(loadout, 'test-results/intercessor-grenade-launcher.png')
+})
+
+test('a selected multi-weapon option is not repeated in the equipped summary', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 })
+  await openBuilder(page, 'Space Marines', /Gladius Task Force/)
+  await add(page, 'Impulsor')
+  await page
+    .locator('[data-unit="Impulsor"]')
+    .getByRole('button', { name: /^Impulsor/ })
+    .click()
+
+  const loadout = page.locator('aside[aria-label="Loadout"]')
+  await expect(loadout.getByText('2 Storm Bolters', { exact: true })).toBeVisible()
+  const equipped = loadout.locator('section').filter({ hasText: 'Equipped ranged weapons' })
+  await expect(equipped.getByText('2× Storm bolter', { exact: true })).toHaveCount(0)
 })
 
 /**

@@ -8,12 +8,12 @@ import { loadoutDatasheetsQuery } from '../../queries'
 import { useSettled } from '../../useSettled'
 import { UnitProfile, WeaponSummary } from './DatasheetPanel'
 import {
+  controlledProfileCount,
   type LoadoutModel,
   type LoadoutUnit,
   orderedChoices,
   sameWeapon,
   type SpreadCounts,
-  weaponMatches,
   wholeSquadTakes,
 } from './loadoutModel'
 import { EitherChoice, LoadoutLoading, SpecialChoice, SpreadChoice } from './LoadoutControls'
@@ -132,11 +132,8 @@ export function Loadout({
     ...modelAbilities,
   ]
 
-  // Weapons a unit with no model cards is simply carrying, as a summary rather than
-  // a set of controls: nothing about them is the player's to change.
-  const chosenNames = unit.choices.flatMap((choice) => choice.options.map((option) => option.name))
   const equipped = (type: string) =>
-    sheet.profiles.filter((profile) => profile.type === type && !chosenNames.some((name) => weaponMatches(name, profile.name)))
+    sheet.profiles.filter((profile) => profile.type === type && (profile.count ?? 1) > controlledProfileCount(unit.choices, profile.name))
   const equippedRanged = equipped('Ranged Weapons')
   const equippedMelee = equipped('Melee Weapons')
   const profile = sheet.profiles.find((candidate) => candidate.type === 'Unit')

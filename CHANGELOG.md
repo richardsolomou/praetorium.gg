@@ -1,5 +1,18 @@
 # praetorium
 
+## 0.34.5
+
+### Patch Changes
+
+- 84d349f: Show every equipped weapon when configuring a unit's wargear.
+- 1765553: Contain and memoize rows in the unit picker, the roster column, and faction datasheet lists, keeping long books responsive without hiding off-screen content from assistive technology.
+
+## 0.34.4
+
+### Patch Changes
+
+- 221e6a7: Keep composite roster loadouts reversible and show every weapon profile they contain.
+
 ## 0.34.3
 
 ### Patch Changes

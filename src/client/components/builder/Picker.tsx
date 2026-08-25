@@ -1,10 +1,11 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { Heart, ListFilter, Plus } from 'lucide-react'
-import { Fragment, useMemo } from 'react'
+import { Fragment, memo, useCallback, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Toggle } from '@/components/ui/toggle'
 import { isKotcLimit } from '../../../core/battle'
+import type { UnitSummary } from '../../../server/cataloguePicker'
 import { SearchField } from '../SearchField'
 import { DatasheetMatchReasons } from '../DatasheetMatchReasons'
 import { useCollectionMutation } from '../../useCollection'
@@ -44,11 +45,24 @@ const FILTERS: { id: PickerFilter; label: string; hint: string }[] = [
  * filters narrow by the reasons a datasheet is not a real option today: it does not
  * fit, you may not take another, or you do not own it.
  */
-export function Picker({ catalogueId, onAdd, onPreview, inRoster, room, battleSize, query, onQueryChange, active, onFilterToggle }: Props) {
+export const Picker = memo(function Picker({
+  catalogueId,
+  onAdd,
+  onPreview,
+  inRoster,
+  room,
+  battleSize,
+  query,
+  onQueryChange,
+  active,
+  onFilterToggle,
+}: Props) {
   const settledQuery = useSettled(query.trim())
   const { data: found } = useQuery({ ...unitsQuery(catalogueId, settledQuery, battleSize), placeholderData: keepPreviousData })
   const { data: owned } = useQuery(collectionQuery())
   const own = useCollectionMutation()
+  const { mutate: mutateCollection } = own
+  const setOwned = useCallback((entryId: string, nextOwned: boolean) => mutateCollection({ entryId, owned: nextOwned }), [mutateCollection])
 
   const collection = useMemo(() => new Set(owned ?? []), [owned])
   const shown = useMemo(
@@ -114,57 +128,19 @@ export function Picker({ catalogueId, onAdd, onPreview, inRoster, room, battleSi
                     const held = inRoster[unit.id] ?? 0
                     const full = unit.limit !== null && held >= unit.limit
                     return (
-                      <div
+                      <PickerRow
                         key={unit.id}
-                        data-picker-unit={unit.name}
-                        className="flex items-center gap-1.5 border border-edge bg-card px-2.5 py-1.5"
-                      >
-                        <button
-                          type="button"
-                          className="flex min-w-0 flex-1 items-center gap-1.5 text-left hover:text-info"
-                          aria-label={`View ${unit.name} datasheet`}
-                          onClick={() => onPreview(unit.id, unit.name)}
-                        >
-                          <span className="min-w-0 flex-1">
-                            <span className="block text-sm leading-tight font-semibold tracking-[0.02em] uppercase">{unit.name}</span>
-                            <DatasheetMatchReasons query={query} reasons={unit.matchReasons} />
-                            {held ? (
-                              <span className={`readout block text-[0.6875rem] ${full ? 'text-discarded' : 'text-faint'}`}>
-                                {held}
-                                {unit.limit === null ? '' : `/${unit.limit}`} in roster
-                              </span>
-                            ) : null}
-                          </span>
-                        </button>
-                        <span className="ml-auto flex shrink-0 items-center gap-1.5">
-                          <Toggle
-                            variant="default"
-                            size="sm"
-                            aria-label={`${collection.has(unit.id) ? 'Remove' : 'Add'} ${unit.name} ${collection.has(unit.id) ? 'from' : 'to'} your collection`}
-                            pressed={collection.has(unit.id)}
-                            disabled={own.isPending && own.variables?.entryId === unit.id}
-                            onPressedChange={(pressed) => own.mutate({ entryId: unit.id, owned: pressed })}
-                            className="size-6 shrink-0 p-0"
-                          >
-                            <Heart
-                              className={`size-3.5 ${collection.has(unit.id) ? 'fill-rust text-rust' : 'text-faint hover:text-dim'}`}
-                            />
-                          </Toggle>
-                          {unit.points === null ? null : (
-                            <span className="chip w-[4.5rem] shrink-0 justify-center text-info">{unit.points} pts</span>
-                          )}
-                          <Button
-                            size="sm"
-                            className="h-7 shrink-0 px-2 text-[0.6875rem]"
-                            aria-label={`Add ${unit.name}`}
-                            disabled={isKotcLimit(battleSize) && full}
-                            onClick={() => onAdd(unit.id)}
-                          >
-                            <Plus className="size-3" />
-                            Add
-                          </Button>
-                        </span>
-                      </div>
+                        unit={unit}
+                        held={held}
+                        full={full}
+                        inCollection={collection.has(unit.id)}
+                        collectionPending={own.isPending && own.variables?.entryId === unit.id}
+                        battleSize={battleSize}
+                        query={settledQuery}
+                        onPreview={onPreview}
+                        onOwned={setOwned}
+                        onAdd={onAdd}
+                      />
                     )
                   })}
                 </Section>
@@ -179,4 +155,76 @@ export function Picker({ catalogueId, onAdd, onPreview, inRoster, room, battleSi
       </ScrollArea>
     </div>
   )
+})
+
+type PickerRowProps = {
+  unit: UnitSummary
+  held: number
+  full: boolean
+  inCollection: boolean
+  collectionPending: boolean
+  battleSize: number
+  query: string
+  onPreview: (entryId: string, name: string) => void
+  onOwned: (entryId: string, owned: boolean) => void
+  onAdd: (entryId: string) => void
 }
+
+const PickerRow = memo(function PickerRow({
+  unit,
+  held,
+  full,
+  inCollection,
+  collectionPending,
+  battleSize,
+  query,
+  onPreview,
+  onOwned,
+  onAdd,
+}: PickerRowProps) {
+  return (
+    <div data-picker-unit={unit.name} className="flex items-center gap-1.5 border border-edge bg-card px-2.5 py-1.5 [contain:layout_style]">
+      <button
+        type="button"
+        className="flex min-w-0 flex-1 items-center gap-1.5 text-left hover:text-info"
+        aria-label={`View ${unit.name} datasheet`}
+        onClick={() => onPreview(unit.id, unit.name)}
+      >
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm leading-tight font-semibold tracking-[0.02em] uppercase">{unit.name}</span>
+          <DatasheetMatchReasons query={query} reasons={unit.matchReasons} />
+          {held ? (
+            <span className={`readout block text-[0.6875rem] ${full ? 'text-discarded' : 'text-faint'}`}>
+              {held}
+              {unit.limit === null ? '' : `/${unit.limit}`} in roster
+            </span>
+          ) : null}
+        </span>
+      </button>
+      <span className="ml-auto flex shrink-0 items-center gap-1.5">
+        <Toggle
+          variant="default"
+          size="sm"
+          aria-label={`${inCollection ? 'Remove' : 'Add'} ${unit.name} ${inCollection ? 'from' : 'to'} your collection`}
+          pressed={inCollection}
+          disabled={collectionPending}
+          onPressedChange={(pressed) => onOwned(unit.id, pressed)}
+          className="size-6 shrink-0 p-0"
+        >
+          <Heart className={`size-3.5 ${inCollection ? 'fill-rust text-rust' : 'text-faint hover:text-dim'}`} />
+        </Toggle>
+        {unit.points === null ? null : <span className="chip w-[4.5rem] shrink-0 justify-center text-info">{unit.points} pts</span>}
+        <Button
+          size="sm"
+          className="h-7 shrink-0 px-2 text-[0.6875rem]"
+          aria-label={`Add ${unit.name}`}
+          disabled={isKotcLimit(battleSize) && full}
+          onClick={() => onAdd(unit.id)}
+        >
+          <Plus className="size-3" />
+          Add
+        </Button>
+      </span>
+    </div>
+  )
+})

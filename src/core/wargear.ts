@@ -14,7 +14,7 @@ import type { Selection } from './evaluate'
 
 export type Wargear = { name: string; count: number }
 
-export function wargearOf(selection: Selection, index: CatalogueIndex): Wargear[] {
+export function wargearOf(selection: Selection, index: CatalogueIndex, carriers = 1): Wargear[] {
   const found = new Map<string, number>()
 
   /**
@@ -43,6 +43,6 @@ export function wargearOf(selection: Selection, index: CatalogueIndex): Wargear[
     }
   }
 
-  walk(selection, 1)
+  walk(selection, carriers)
   return [...found].map(([name, count]) => ({ name, count }))
 }
