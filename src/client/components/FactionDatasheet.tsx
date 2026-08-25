@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Link, useParams } from '@tanstack/react-router'
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbSeparator } from '@/components/ui/breadcrumb'
 import type { Datasheet } from '../../server/catalogue'
-import { abilitySections, compositionCount, referenceAbilities } from '../datasheet'
+import { abilitySections, attachmentGroups, compositionCount, referenceAbilities } from '../datasheet'
 import { factionFor } from '../factions'
 import { datasheetSlugQuery, factionsQuery } from '../queries'
 import { FactionMark, factionColour } from './FactionMark'
@@ -227,12 +227,7 @@ function UnitConfiguration({ sheet, rules }: { sheet: DatasheetDisplay; rules: K
 }
 
 function Relationships({ sheet }: { sheet: DatasheetDisplay }) {
-  const groups = [
-    { title: 'Can lead', relationships: sheet.attachments.filter((entry) => entry.kind === 'leader') },
-    { title: 'Can support', relationships: sheet.attachments.filter((entry) => entry.kind === 'support') },
-    { title: 'Can be led by', relationships: sheet.leaders },
-    { title: 'Can be supported by', relationships: sheet.supporters },
-  ].filter(({ relationships }) => relationships.length)
+  const groups = attachmentGroups(sheet)
   if (!groups.length) return null
   return (
     <section>

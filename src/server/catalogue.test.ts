@@ -30,7 +30,7 @@ describe('a datasheet', () => {
                     characteristics: [
                       {
                         name: 'Description',
-                        $text: 'This model can be attached to the following units:\n■ Eradicator Squad',
+                        $text: 'This model can be attached to the following units:\n■ ERADICATOR SQUAD',
                       },
                     ],
                   },
@@ -44,7 +44,12 @@ describe('a datasheet', () => {
     )
 
     expect(datasheetIn(book, 'cat-1', 'vulkan')?.attachments).toEqual([
-      { kind: 'leader', name: 'Eradicator Squad', route: { catalogueId: 'space-marines', slug: 'eradicator-squad' } },
+      {
+        kind: 'leader',
+        name: 'Eradicator Squad',
+        entryId: 'eradicators',
+        route: { catalogueId: 'space-marines', slug: 'eradicator-squad' },
+      },
     ])
     expect(datasheetIn(book, 'cat-1', 'eradicators')?.referenceRoute).toEqual({
       catalogueId: 'space-marines',

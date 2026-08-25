@@ -18,7 +18,8 @@ test('a list is saved and loaded into another battle', async ({ browser }) => {
   await page.getByRole('button', { name: 'Add Immortals', exact: true }).first().click()
   await page.getByLabel('Add a unit').fill('Overlord')
   await page.getByRole('button', { name: 'Add Overlord', exact: true }).first().click()
-  await page.locator('[data-unit="Overlord"]').getByRole('button', { name: 'Immortals', exact: true }).click()
+  await page.locator('[data-unit="Overlord"]').getByRole('button', { name: 'Attach Overlord to unit' }).click()
+  await page.getByRole('menu').getByRole('menuitem', { name: 'Immortals', exact: true }).click()
   await expect(page.getByText('Leading')).toBeVisible()
   await page
     .getByRole('button', { name: /^Immortals/ })

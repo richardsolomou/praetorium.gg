@@ -60,7 +60,9 @@ export function UnitCard({
   onJoin,
   editable = true,
 }: Props) {
-  const cardClassName = `relative border bg-card transition-colors ${selected ? 'border-parchment' : 'border-edge hover:border-info'}`
+  const cardClassName = `relative min-w-0 max-w-full overflow-hidden border bg-card transition-colors ${
+    selected ? 'border-parchment' : 'border-edge hover:border-info'
+  }`
   const actions = { owned, onOwned, onDuplicate, onRemove }
 
   // One target over the whole card, under everything on it. An enhancement, an
@@ -152,19 +154,28 @@ export function UnitCard({
       ))}
 
       {editable && canJoin.length ? (
-        <div className={`${ROW} pointer-events-none relative z-10 flex-wrap gap-1.5 [&_button]:pointer-events-auto`}>
-          <span className="chip shrink-0">{unit.attachment?.kind === 'leader' ? 'Lead' : 'Support'}</span>
-          {canJoin.map((target) => (
-            <Button
-              key={target.key}
-              variant="ghost"
-              size="xs"
-              className="text-[0.6875rem] tracking-[0.06em] text-azure uppercase hover:bg-transparent hover:text-bone"
-              onClick={() => onJoin(target.key)}
+        <div className={`${ROW} pointer-events-none relative z-10 [&_button]:pointer-events-auto`}>
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="xs"
+                  className="!px-1 text-[0.6875rem] tracking-[0.06em] text-azure uppercase hover:bg-transparent hover:text-bone"
+                  aria-label={`Attach ${unit.name} to unit`}
+                />
+              }
             >
-              {target.name}
-            </Button>
-          ))}
+              Attach to unit
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className={MENU}>
+              {canJoin.map((target) => (
+                <DropdownMenuItem key={target.key} className={ITEM} onClick={() => onJoin(target.key)}>
+                  {target.name}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       ) : null}
     </>

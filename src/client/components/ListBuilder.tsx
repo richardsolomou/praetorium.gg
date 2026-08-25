@@ -1,9 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { Check, Crown, Download, EllipsisVertical, Pencil, SlidersHorizontal, TriangleAlert } from 'lucide-react'
+import { Check, Crown, Download, EllipsisVertical, ExternalLink, Pencil, Plus, SlidersHorizontal, TriangleAlert } from 'lucide-react'
 import posthog from 'posthog-js'
 import { useEffect, useLayoutEffect, useState } from 'react'
-import { Button } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Toggle } from '@/components/ui/toggle'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
@@ -13,6 +13,7 @@ import type { Secondary, Stratagem } from '../../core/battle'
 import { GAME_SIZES, ROSTER_NAME_MAX_LENGTH } from '../../core/battle'
 import type { RosterPick } from '../../core/roster'
 import type { RosterSource, RosterVisibility } from '../../core/savedRoster'
+import type { Datasheet } from '../../server/catalogue'
 import { exportRoster, saveRoster } from '../../server/functions'
 import { collectionQuery, factionsQuery, invalidateSavedRosters, priceQuery } from '../queries'
 import { picksAfterDetachmentChange } from '../rosterPicks'
@@ -79,6 +80,7 @@ export function ListBuilder({ prep, initial, editable = true, battle, resolvePer
   const [visibility, setVisibility] = useState<RosterVisibility>(initial.visibility)
   const [selected, setSelected] = useState<number | null>(null)
   const [preview, setPreview] = useState<{ catalogueId: string; entryId: string; name: string } | null>(null)
+  const [reference, setReference] = useState<{ entryId: string; route: Datasheet['referenceRoute'] } | null>(null)
   const [showing, setShowing] = useState<'picker' | 'loadout' | null>(null)
   const [readOnly, setReadOnly] = useState(!editable)
   const [exportText, setExportText] = useState<string | null>(null)
@@ -226,6 +228,8 @@ export function ListBuilder({ prep, initial, editable = true, battle, resolvePer
       : selectedUnit
   const inspectorView = editable && !readOnly ? 'edit' : 'readonly'
   const warlord = optimisticUnit?.toggles.find((toggle) => toggle.name === 'Warlord')
+  const inspectedEntryId = preview?.entryId ?? optimisticUnit?.entryId ?? null
+  const referenceRoute = reference?.entryId === inspectedEntryId ? reference.route : null
 
   const edit = pickEditor(setPicks, { catalogueId, units })
 
@@ -238,6 +242,12 @@ export function ListBuilder({ prep, initial, editable = true, battle, resolvePer
   const add = (entryId: string) => {
     edit.add(entryId)
     posthog.capture('roster_unit_added', { unit_count: picks.length + 1 })
+  }
+
+  const inspect = (previewCatalogueId: string, entryId: string, unitName: string) => {
+    setPreview({ catalogueId: previewCatalogueId, entryId, name: unitName })
+    setSelected(null)
+    setShowing('loadout')
   }
 
   const duplicate = (index: number) => {
@@ -257,11 +267,7 @@ export function ListBuilder({ prep, initial, editable = true, battle, resolvePer
           <Picker
             catalogueId={catalogueId}
             onAdd={add}
-            onPreview={(entryId, unitName) => {
-              setPreview({ catalogueId, entryId, name: unitName })
-              setSelected(null)
-              setShowing('loadout')
-            }}
+            onPreview={(entryId, unitName) => inspect(catalogueId, entryId, unitName)}
             inRoster={held}
             room={priced ? limit - priced.points : null}
             battleSize={limit}
@@ -301,6 +307,9 @@ export function ListBuilder({ prep, initial, editable = true, battle, resolvePer
           showWeapons
           embedded
           hideSummary
+          showRelationships={!readOnly}
+          onRelationshipSelect={(entryId, unitName) => inspect(datasheetCatalogueId, entryId, unitName)}
+          onReferenceRoute={setReference}
         />
       }
     />
@@ -313,6 +322,9 @@ export function ListBuilder({ prep, initial, editable = true, battle, resolvePer
       picks={positioned}
       pickIndex={preview ? null : selected}
       showWeapons
+      showRelationships={!readOnly}
+      onRelationshipSelect={(entryId, unitName) => inspect(datasheetCatalogueId, entryId, unitName)}
+      onReferenceRoute={setReference}
     />
   )
 
@@ -505,7 +517,7 @@ export function ListBuilder({ prep, initial, editable = true, battle, resolvePer
           </Pane>
         ) : null}
 
-        <div className="min-h-0 min-w-0 flex-1 overflow-y-auto px-3">
+        <div data-slot="roster-units" className="min-h-0 min-w-0 flex-1 overflow-y-auto px-3">
           {units.length ? (
             GROUPS.map(({ id, plural }) => {
               const rows = units
@@ -561,65 +573,73 @@ export function ListBuilder({ prep, initial, editable = true, battle, resolvePer
           ariaLabel={preview ? 'Datasheet' : 'Loadout'}
           onClose={() => setShowing(null)}
           actions={
-            !preview && optimisticUnit ? (
-              <span className="flex shrink-0 flex-wrap items-center justify-start gap-1.5 @max-[30rem]:gap-1">
-                {warlord && inspectorView === 'edit' ? (
-                  <Toggle
-                    variant="outline"
-                    size="sm"
-                    title={`${warlord.selected ? 'Remove' : 'Make'} ${optimisticUnit.name} Warlord`}
-                    aria-label={`${warlord.selected ? 'Remove' : 'Make'} ${optimisticUnit.name} Warlord`}
-                    pressed={warlord.selected}
-                    className={`!h-auto !min-h-0 !min-w-0 gap-1 rounded-sm !px-1.5 !py-px !text-[0.6875rem] !font-semibold !tracking-[0.06em] uppercase ${
-                      warlord.selected
-                        ? 'border-parchment bg-parchment/15 text-parchment'
-                        : 'border-edge-strong text-dim hover:border-info hover:text-bone'
-                    }`}
-                    onPressedChange={(pressed) => selected !== null && edit.toggle(selected, warlord.key, warlord.name, pressed)}
-                  >
-                    <Crown className={warlord.selected ? 'fill-current' : undefined} />
-                    Warlord
-                  </Toggle>
-                ) : null}
-                {warlord?.selected && inspectorView === 'readonly' ? (
-                  <span className="chip gap-1 text-info">
-                    <Crown className="size-3.5 fill-current" /> Warlord
-                  </span>
-                ) : null}
-                <span className="chip w-[4.5rem] justify-center text-info">{optimisticUnit.points} pts</span>
-                {optimisticUnit.size.resizable && inspectorView === 'edit' ? (
-                  <Stepper
-                    label={`models in ${optimisticUnit.name}`}
-                    countLabel={`${optimisticUnit.name} models`}
-                    count={optimisticUnit.size.models}
-                    onRemove={
-                      optimisticUnit.size.models > optimisticUnit.size.min
-                        ? () =>
-                            selected !== null &&
-                            edit.resize(
-                              selected,
-                              optimisticUnit.size.options?.findLast((size) => size < optimisticUnit.size.models) ??
-                                optimisticUnit.size.models - 1,
-                            )
-                        : undefined
-                    }
-                    onAdd={
-                      optimisticUnit.size.models < optimisticUnit.size.max
-                        ? () =>
-                            selected !== null &&
-                            edit.resize(
-                              selected,
-                              optimisticUnit.size.options?.find((size) => size > optimisticUnit.size.models) ??
-                                optimisticUnit.size.models + 1,
-                            )
-                        : undefined
-                    }
-                  />
-                ) : (
-                  <span className="chip normal-case">{optimisticUnit.size.models} models</span>
-                )}
-              </span>
-            ) : undefined
+            <>
+              {preview && editable ? (
+                <Button size="sm" className="h-7 px-2 text-[0.6875rem]" onClick={() => add(preview.entryId)}>
+                  <Plus className="size-3" />
+                  Add to list
+                </Button>
+              ) : optimisticUnit ? (
+                <span className="flex shrink-0 flex-wrap items-center justify-start gap-1.5 @max-[30rem]:gap-1">
+                  {warlord && inspectorView === 'edit' ? (
+                    <Toggle
+                      variant="outline"
+                      size="sm"
+                      title={`${warlord.selected ? 'Remove' : 'Make'} ${optimisticUnit.name} Warlord`}
+                      aria-label={`${warlord.selected ? 'Remove' : 'Make'} ${optimisticUnit.name} Warlord`}
+                      pressed={warlord.selected}
+                      className={`!h-auto !min-h-0 !min-w-0 gap-1 rounded-sm !px-1.5 !py-px !text-[0.6875rem] !font-semibold !tracking-[0.06em] uppercase ${
+                        warlord.selected
+                          ? 'border-parchment bg-parchment/15 text-parchment'
+                          : 'border-edge-strong text-dim hover:border-info hover:text-bone'
+                      }`}
+                      onPressedChange={(pressed) => selected !== null && edit.toggle(selected, warlord.key, warlord.name, pressed)}
+                    >
+                      <Crown className={warlord.selected ? 'fill-current' : undefined} />
+                      Warlord
+                    </Toggle>
+                  ) : null}
+                  {warlord?.selected && inspectorView === 'readonly' ? (
+                    <span className="chip gap-1 text-info">
+                      <Crown className="size-3.5 fill-current" /> Warlord
+                    </span>
+                  ) : null}
+                  <span className="chip w-[4.5rem] justify-center text-info">{optimisticUnit.points} pts</span>
+                  {optimisticUnit.size.resizable && inspectorView === 'edit' ? (
+                    <Stepper
+                      label={`models in ${optimisticUnit.name}`}
+                      countLabel={`${optimisticUnit.name} models`}
+                      count={optimisticUnit.size.models}
+                      onRemove={
+                        optimisticUnit.size.models > optimisticUnit.size.min
+                          ? () =>
+                              selected !== null &&
+                              edit.resize(
+                                selected,
+                                optimisticUnit.size.options?.findLast((size) => size < optimisticUnit.size.models) ??
+                                  optimisticUnit.size.models - 1,
+                              )
+                          : undefined
+                      }
+                      onAdd={
+                        optimisticUnit.size.models < optimisticUnit.size.max
+                          ? () =>
+                              selected !== null &&
+                              edit.resize(
+                                selected,
+                                optimisticUnit.size.options?.find((size) => size > optimisticUnit.size.models) ??
+                                  optimisticUnit.size.models + 1,
+                              )
+                          : undefined
+                      }
+                    />
+                  ) : (
+                    <span className="chip normal-case">{optimisticUnit.size.models} models</span>
+                  )}
+                </span>
+              ) : null}
+              {inspectedEntryId ? referenceRoute ? <FullDatasheetLink route={referenceRoute} /> : <FullDatasheetLinkLoading /> : null}
+            </>
           }
         >
           {preview ? datasheet : loadout}
@@ -691,5 +711,39 @@ export function ListBuilder({ prep, initial, editable = true, battle, resolvePer
       </footer>
       <RosterExportDialog text={exportText} onClose={() => setExportText(null)} />
     </div>
+  )
+}
+
+function FullDatasheetLink({ route }: { route: NonNullable<Datasheet['referenceRoute']> }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        closeOnClick={false}
+        render={
+          <Link
+            data-slot="full-datasheet-link"
+            to="/factions/$catalogueId/datasheets/$entryId"
+            params={{ catalogueId: route.catalogueId, entryId: route.slug }}
+            target="_blank"
+            rel="noreferrer"
+            aria-label="Open full datasheet in a new tab"
+            className={buttonVariants({ variant: 'ghost', size: 'icon-sm' })}
+          />
+        }
+      >
+        <ExternalLink />
+      </TooltipTrigger>
+      <TooltipContent role="tooltip" side="bottom">
+        Open full datasheet in a new tab
+      </TooltipContent>
+    </Tooltip>
+  )
+}
+
+function FullDatasheetLinkLoading() {
+  return (
+    <span data-slot="full-datasheet-link" aria-hidden className={`${buttonVariants({ variant: 'ghost', size: 'icon-sm' })} text-faint`}>
+      <ExternalLink />
+    </span>
   )
 }

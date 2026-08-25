@@ -1,13 +1,13 @@
 import { useQuery } from '@tanstack/react-query'
-import { Link } from '@tanstack/react-router'
+import { useEffect } from 'react'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import type { RosterPick } from '../../../core/roster'
-import type { Datasheet } from '../../../server/catalogue'
+import type { Datasheet, DatasheetRelationship } from '../../../server/catalogue'
 import { datasheetQuery } from '../../queries'
 import { useSettled } from '../../useSettled'
 import { HoverTooltip } from '../HoverTooltip'
 import { Keyword, KEYWORD_TAG_CLASS, KeywordList } from '../Keyword'
-import { abilitySections, addedKeywords, rosterAbilities } from '../../datasheet'
+import { abilitySections, addedKeywords, attachmentGroups, referenceAbilities } from '../../datasheet'
 import { RuleText } from '../RuleText'
 
 type Props = {
@@ -20,6 +20,9 @@ type Props = {
   embedded?: boolean
   hideSummary?: boolean
   providedSheet?: Datasheet | null
+  showRelationships?: boolean
+  onRelationshipSelect?: (entryId: string, name: string) => void
+  onReferenceRoute?: (reference: { entryId: string; route: Datasheet['referenceRoute'] } | null) => void
 }
 
 export function DatasheetPanel({
@@ -32,6 +35,9 @@ export function DatasheetPanel({
   embedded = false,
   hideSummary = false,
   providedSheet,
+  showRelationships = true,
+  onRelationshipSelect,
+  onReferenceRoute,
 }: Props) {
   // Only once the player stops changing the list, so a held stepper asks once.
   const detachments = useSettled(detachmentIds)
@@ -47,6 +53,12 @@ export function DatasheetPanel({
     placeholderData: (previous, previousQuery) => (previousQuery?.queryKey[2] === entryId ? previous : undefined),
   })
   const sheet = providedSheet === undefined ? fetchedSheet : providedSheet
+  const referenceRoute = sheet?.referenceRoute ?? null
+
+  useEffect(() => {
+    onReferenceRoute?.(entryId ? { entryId, route: referenceRoute } : null)
+    return () => onReferenceRoute?.(null)
+  }, [entryId, onReferenceRoute, referenceRoute])
 
   if (!entryId) {
     return (
@@ -61,7 +73,7 @@ export function DatasheetPanel({
   const ranged = sheet.profiles.filter((profile) => profile.type === 'Ranged Weapons')
   const melee = sheet.profiles.filter((profile) => profile.type === 'Melee Weapons')
   const content = (
-    <div className="space-y-4">
+    <div data-slot="datasheet-content" className="w-full min-w-0 space-y-4">
       {!hideSummary && model ? <UnitProfile profile={model} /> : null}
       {!hideSummary && showWeapons && ranged.length ? (
         <WeaponSummary title="Ranged weapons" weapons={ranged} rules={sheet.keywordRules} />
@@ -69,31 +81,67 @@ export function DatasheetPanel({
       {!hideSummary && showWeapons && melee.length ? (
         <WeaponSummary title="Melee weapons" weapons={melee} rules={sheet.keywordRules} />
       ) : null}
-      <AbilitySummary abilities={rosterAbilities(sheet.abilities)} rules={sheet.keywordRules} />
+      <AbilitySummary abilities={referenceAbilities(sheet.abilities, sheet.attachments)} rules={sheet.keywordRules} />
       {sheet.referenceRoute ? (
         <div className="border-t border-edge pt-3">
-          <div className="flex flex-wrap gap-1">
+          <div className="flex min-w-0 flex-wrap gap-1">
             {sheet.keywords.map((keyword) => (
               <Keyword key={keyword} name={keyword} rules={sheet.keywordRules} className={KEYWORD_TAG_CLASS} />
             ))}
           </div>
-          <div className="mt-3 flex justify-end">
-            <Link
-              to="/factions/$catalogueId/datasheets/$entryId"
-              params={{ catalogueId: sheet.referenceRoute.catalogueId, entryId: sheet.referenceRoute.slug }}
-              className="eyebrow text-info hover:text-bone"
-            >
-              Full datasheet
-            </Link>
-          </div>
         </div>
       ) : null}
+      {showRelationships ? <RelationshipSummary sheet={sheet} onSelect={onRelationshipSelect} /> : null}
     </div>
   )
   return embedded ? (
     <div className="border-t border-edge pt-4">{content}</div>
   ) : (
     <ScrollArea className="h-full [&_[data-slot=scroll-area-viewport]]:p-3">{content}</ScrollArea>
+  )
+}
+
+function RelationshipSummary({
+  sheet,
+  onSelect,
+}: {
+  sheet: Pick<Datasheet, 'attachments' | 'leaders' | 'supporters'>
+  onSelect?: (entryId: string, name: string) => void
+}) {
+  const groups = attachmentGroups(sheet)
+  if (!groups.length) return null
+  return (
+    <section className="min-w-0 border-t border-edge pt-3">
+      <h2 className="rubric">Attachments</h2>
+      <div className="mt-2 space-y-2">
+        {groups.map(({ title, relationships }) => (
+          <div key={title} className="min-w-0">
+            <h3 className="eyebrow mb-1.5">{title}</h3>
+            <div className="flex w-full min-w-0 max-w-full flex-wrap gap-1">
+              {relationships.map((relationship) => (
+                <Relationship key={relationship.name} relationship={relationship} onSelect={onSelect} />
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function Relationship({
+  relationship,
+  onSelect,
+}: {
+  relationship: DatasheetRelationship
+  onSelect?: (entryId: string, name: string) => void
+}) {
+  const className = `${KEYWORD_TAG_CLASS} min-w-0 max-w-full whitespace-normal break-words text-left`
+  if (!relationship.entryId || !onSelect) return <span className={className}>{relationship.name}</span>
+  return (
+    <button type="button" className={`${className} hover:text-bone`} onClick={() => onSelect(relationship.entryId!, relationship.name)}>
+      {relationship.name}
+    </button>
   )
 }
 

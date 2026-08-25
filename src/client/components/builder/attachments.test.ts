@@ -53,6 +53,17 @@ describe('joinableUnits', () => {
     expect(joinableUnits(picks, units, 1)).toEqual([{ key: 2, name: 'Intercessor Squad' }])
   })
 
+  it('keeps a second support away from a unit that is already supported', () => {
+    const picks = [pick(0, 'servitors', 2), pick(1, 'apothecary'), pick(2, 'intercessors')]
+    const units = [
+      unit('Servitors', support(['Intercessor Squad'])),
+      unit('Apothecary', support(['Intercessor Squad'])),
+      unit('Intercessor Squad'),
+    ]
+
+    expect(joinableUnits(picks, units, 1)).toEqual([])
+  })
+
   it('offers nothing for a unit that cannot attach at all', () => {
     const picks = [pick(0, 'intercessors'), pick(1, 'terminators')]
     expect(joinableUnits(picks, [unit('Intercessor Squad'), unit('Terminator Squad')], 0)).toEqual([])

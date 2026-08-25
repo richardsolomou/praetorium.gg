@@ -101,7 +101,7 @@ Core catalogue code is split by question:
 - Read the Warlord entry through the same visibility as the loadout choices. Who may be nominated is conditional in the data — on a detachment for a tank, on the primary catalogue for a borrowed datasheet — and walking past those conditions offers the crown to units that may not hold it.
 - Add detachments before units during evaluation. Enhancements and unit limits can depend on them.
 - Apply profile modifiers against the complete roster selection. Support the catalogue's ordered text, numeric, rounding, cumulative, name, annotation, and visibility operations. Keep the base value and each selected rule that changed it so the interface can explain every derived value.
-- An attached unit is one unit however many picks hold it. Read a unit's modifiers with the whole of it present — the bodyguard unit, its Leader and every supporting character attached to it — so an enhancement written against models in the bearer's unit reaches all of them, and two such enhancements in one unit stack. `attachedUnit` decides which picks are the same unit.
+- An attached unit is one unit however many picks hold it. Read a unit's modifiers with the whole of it present — the bodyguard unit, its one Leader and its one Support unit — so an enhancement written against models in the bearer's unit reaches all of them, and two such enhancements in one unit stack. `attachedUnit` decides which picks are the same unit.
 - Show named abilities granted by enhancements or attached units alongside the unit's core abilities, using a blue tag and preserving the granting rule as their source. Take the ability name and parameter from a structured rule link when one exists; recognize only exact catalogue phrases for its recipient or as a fallback when no link exists. Conditional or unfamiliar prose stays as prose rather than being guessed.
 - Resolve a weapon keyword by name when nothing on the datasheet links its rule. A detachment upgrade appends `[ASSAULT]` to the characteristic without linking anything, so `rulesNamed` looks the name up and drops any the catalogues describe two ways.
 - Eleventh-edition detachments are ordered purchases. A roster can use any force disposition offered by a purchased detachment and keeps the player's choice. All purchased detachments contribute their detachment-point cost and stratagems.
@@ -124,6 +124,7 @@ Inspect the generated selection before changing evaluator logic. A mismatch can 
 - Character attachment targets come from ability text. `attachmentOf` supports bullet-list and inline formats.
 - A missing attachment rule means the unit cannot attach.
 - An ability titled `Leader` marks a leader. Other supported attachment abilities default to support.
+- Unless a datasheet says otherwise, a bodyguard unit can have one Leader and one Support unit attached.
 
 ## Saved lists and interchange
 
