@@ -205,10 +205,13 @@ test('contained faction datasheet rows stay accessible and resize without horizo
   await page.setViewportSize({ width: 1512, height: 774 })
   await page.goto('/factions/space-marines/datasheets')
   const rows = page.locator('[data-datasheet]')
-  const lastName = await rows.last().getAttribute('data-datasheet')
+  const offscreenName = 'Sternguard Veteran Squad'
+  const offscreenRow = page.locator(`[data-datasheet="${offscreenName}"]`)
+  await expect(offscreenRow).toHaveCount(1)
+  expect(await offscreenRow.evaluate((row) => row.getBoundingClientRect().top)).toBeGreaterThan(774)
   const session = await page.context().newCDPSession(page)
   const tree = await session.send('Accessibility.getFullAXTree')
-  expect(tree.nodes.some((node) => node.role?.value === 'link' && node.name?.value.includes(lastName ?? ''))).toBe(true)
+  expect(tree.nodes.some((node) => node.role?.value === 'link' && node.name?.value.includes(offscreenName))).toBe(true)
   await rows.last().scrollIntoViewIfNeeded()
 
   await page.setViewportSize({ width: 390, height: 844 })

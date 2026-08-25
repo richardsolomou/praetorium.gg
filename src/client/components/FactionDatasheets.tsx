@@ -107,7 +107,7 @@ const FactionDatasheetRow = memo(function FactionDatasheetRow({ catalogueId, uni
   return (
     <div
       data-datasheet={unit.name}
-      className="flex w-full min-w-0 items-center border border-edge bg-panel [contain:content] hover:border-info"
+      className="flex w-full min-w-0 items-center border border-edge bg-panel [contain:layout_style] hover:border-info"
     >
       <Link
         to="/factions/$catalogueId/datasheets/$entryId"
