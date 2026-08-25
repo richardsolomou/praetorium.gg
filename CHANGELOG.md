@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.32.1
+
+### Patch Changes
+
+- 0f0e4a6: Keep the battles list readable during a deploy that adds a new command kind, by skipping a log row an older replica cannot parse instead of failing the whole list.
+
 ## 0.32.0
 
 ### Minor Changes
