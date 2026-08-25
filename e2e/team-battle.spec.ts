@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Locator, type Page } from '@playwright/test'
 import { inArray } from 'drizzle-orm'
 import {
   attachRoster,
@@ -42,6 +42,18 @@ async function connectPlayers(requesterName: string, addresseeNames: string[]) {
   }
 }
 
+async function inspectBattleDialog(page: Page, dialog: Locator, screenshot: string) {
+  await expect(dialog.getByRole('button', { name: /^Solo vs pair/ })).toHaveCount(1)
+  await expect(dialog.getByRole('button', { name: '1v2', exact: true })).toHaveCount(0)
+  await expect(dialog.getByRole('button', { name: '2v1', exact: true })).toHaveCount(0)
+  await page.screenshot({ path: `test-results/${screenshot}-desktop.png`, fullPage: true })
+  await page.setViewportSize({ width: 390, height: 844 })
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  expect(await dialog.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
+  await page.screenshot({ path: `test-results/${screenshot}-phone.png`, fullPage: true })
+  await page.setViewportSize({ width: 1440, height: 900 })
+}
+
 /**
  * The whole point of the 2v1 layout: the allied pair is one side.
  *
@@ -79,7 +91,14 @@ test('a 2v1 draws the allied pair as one side with one pool of everything', asyn
   await befriend(host, ally)
   await befriend(host, partner)
 
-  const url = await createBattle(host, { opponent: allyName, ally: partnerName })
+  const url = await createBattle(host, {
+    opponent: allyName,
+    ally: partnerName,
+    beforeCreate: async (dialog) => {
+      await expect(dialog.getByRole('button', { name: /^I’m solo/ })).toHaveAttribute('aria-pressed', 'true')
+      await inspectBattleDialog(host, dialog, 'solo-vs-pair-solo')
+    },
+  })
   await ally.goto(url)
   await partner.goto(url)
 
@@ -163,7 +182,14 @@ test('a 2v1 opened from the allied side seats its opener with their ally and pla
   const practiceRoster = await createRoster(host, { faction: 'Necrons', detachment: /Canoptek Court/, name: 'Practice army' })
   await befriend(host, ally)
 
-  const url = await createBattle(host, { yourAlly: allyName, practice: true })
+  const url = await createBattle(host, {
+    yourAlly: allyName,
+    practice: true,
+    beforeCreate: async (dialog) => {
+      await expect(dialog.getByRole('button', { name: /^I’m on the pair/ })).toHaveAttribute('aria-pressed', 'true')
+      await inspectBattleDialog(host, dialog, 'solo-vs-pair-pair')
+    },
+  })
   await ally.goto(url)
 
   await attachRoster(host, hostRoster)

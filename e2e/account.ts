@@ -113,8 +113,7 @@ export const PRACTICE_OPPONENT = 'Practice Opponent'
 /**
  * Opens a battle from the dialog, in whichever supported shape is asked for.
  *
- * `ally` puts the pair across the table (1v2); `yourAlly` puts it on the opener's own
- * side (2v1). Both are the same battle seated the other way round.
+ * `ally` puts the opener on the solo side; `yourAlly` puts them on the pair.
  */
 export async function createBattle(
   page: Page,
@@ -124,27 +123,47 @@ export async function createBattle(
     yourAlly,
     secondOpponent,
     practice = false,
-  }: { opponent?: string; ally?: string; yourAlly?: string; secondOpponent?: string; practice?: boolean } = {},
+    beforeCreate,
+  }: {
+    opponent?: string
+    ally?: string
+    yourAlly?: string
+    secondOpponent?: string
+    practice?: boolean
+    beforeCreate?: (dialog: Locator) => Promise<void>
+  } = {},
 ) {
   await page.goto('/battles')
   const dialog = page.getByRole('dialog', { name: 'Start a battle' })
   await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'New battle' }).click())
-  if (ally) await page.getByRole('button', { name: '1v2' }).click()
-  if (yourAlly) await page.getByRole('button', { name: secondOpponent ? '2v2' : '2v1' }).click()
+  if (secondOpponent) await page.getByRole('button', { name: /^Doubles/ }).click()
+  else if (ally) {
+    await page.getByRole('button', { name: /^Solo vs pair/ }).click()
+    await page.getByRole('button', { name: /^I’m solo/ }).click()
+  } else if (yourAlly) {
+    await page.getByRole('button', { name: /^Solo vs pair/ }).click()
+    await page.getByRole('button', { name: /^I’m on the pair/ }).click()
+  }
   if (yourAlly) {
     await page.getByRole('combobox', { name: 'Your ally' }).click()
     await page.getByRole('option', { name: yourAlly, exact: true }).click()
   }
-  await page.getByRole('combobox', { name: secondOpponent ? 'First opponent' : 'Opponent' }).click()
+  await page.getByRole('combobox', { name: secondOpponent || ally ? 'First opponent' : 'Opponent' }).click()
   await page.getByRole('option', { name: practice ? PRACTICE_OPPONENT : opponent, exact: true }).click()
   if (ally) {
-    await page.getByRole('combobox', { name: 'Their ally' }).click()
+    await page.getByRole('combobox', { name: 'Second opponent' }).click()
     await page.getByRole('option', { name: ally, exact: true }).click()
   }
   if (secondOpponent) {
     await page.getByRole('combobox', { name: 'Second opponent' }).click()
     await page.getByRole('option', { name: secondOpponent, exact: true }).click()
   }
+  const matchup = page.getByLabel('Battle matchup')
+  await expect(matchup).toContainText('You')
+  for (const player of [yourAlly, opponent, ally, secondOpponent].filter((name): name is string => Boolean(name))) {
+    await expect(matchup).toContainText(player)
+  }
+  await beforeCreate?.(dialog)
   await page.getByRole('button', { name: 'Create battle' }).click()
   await page.waitForURL(/\/battles\/[^/]+$/)
   return page.url()
