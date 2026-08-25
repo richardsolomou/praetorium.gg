@@ -1,6 +1,6 @@
 const BRACKETED_RULE = /\[([\p{L}\p{N} +'"’\p{Pd}]+)\]/gu
 
-function normalizeRuleReference(value: string) {
+export function normalizeRuleReference(value: string) {
   return value
     .replace(/^\[|\]$/g, '')
     .replaceAll(/\^\^|\*/g, '')
@@ -36,4 +36,21 @@ export function ruleReferenceMatches(reference: string, rule: string) {
 
 export function bracketedRuleReferences(text: string) {
   return [...text.matchAll(BRACKETED_RULE)].map((match) => match[1])
+}
+
+/**
+ * The normalized rule names this reference can be asking for, for lookup in an
+ * index keyed by normalized name. `ruleReferenceMatches(reference, rule)` holds
+ * exactly when the normalized rule is one of these keys: itself, or — when the
+ * reference ends in a parameter — any prefix cut at a space or hyphen.
+ */
+export function ruleReferenceKeys(reference: string) {
+  const wanted = normalizeRuleReference(reference)
+  const keys = [wanted]
+  for (let at = 0; at < wanted.length; at += 1) {
+    if (wanted[at] !== ' ' && wanted[at] !== '-') continue
+    const rest = wanted.slice(at + 1)
+    if (PARAMETER.test(rest.split(' ').at(-1) ?? '')) keys.push(wanted.slice(0, at))
+  }
+  return keys
 }

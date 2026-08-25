@@ -4,8 +4,15 @@ import { infoLinkHiddenByRules, keywordIds, profileModifiers, type ProfileModifi
 import { defaultSelection } from '../core/expand'
 import { unitChoices } from '../core/unitChoices'
 import { wargearOf } from '../core/wargear'
-import { bracketedRuleReferences, ruleReferenceMatches } from '../core/ruleReference'
-import { datasheetSlug, datasheetsOf, isReferenceDatasheet, referenceDatasheetRoute, type LoadedCatalogue } from './catalogueIndex'
+import { bracketedRuleReferences, normalizeRuleReference, ruleReferenceKeys, ruleReferenceMatches } from '../core/ruleReference'
+import {
+  datasheetIdBySlug,
+  datasheetSlug,
+  datasheetsOf,
+  isReferenceDatasheet,
+  referenceDatasheetRoute,
+  type LoadedCatalogue,
+} from './catalogueIndex'
 import type { DatasheetSearchFields } from './datasheetSearch'
 import { isMatchedPlayDatasheet, priceOf } from './cataloguePicker'
 import type { DatasheetDetails } from './datacards'
@@ -860,7 +867,7 @@ function datacardDetails(loaded: LoadedCatalogue, name: string): DatasheetDetail
 }
 
 export function datasheetInBySlug(loaded: LoadedCatalogue, catalogueId: string, slug: string) {
-  const entryId = [...datasheetsOf(loaded.index, catalogueId)].find((id) => id === slug || datasheetSlug(loaded, catalogueId, id) === slug)
+  const entryId = datasheetIdBySlug(loaded, catalogueId, slug)
   return entryId && isReferenceDatasheet(loaded, catalogueId, entryId) ? datasheetIn(loaded, catalogueId, entryId) : null
 }
 
@@ -1052,17 +1059,37 @@ export function rulesReferencedIn(loaded: LoadedCatalogue, texts: readonly (stri
  * the same as [ASSAULT] on a printed one. A name two catalogues describe differently
  * is dropped rather than guessed between.
  */
-export function rulesNamed(loaded: LoadedCatalogue, names: readonly string[]) {
-  const references = new Set(names)
-  const candidates = new Map<string, Set<string>>()
+type NamedRule = { name: string; descriptions: Set<string>; order: number }
+const ruleNameIndexCache = new WeakMap<LoadedCatalogue, Map<string, NamedRule[]>>()
+
+/** Every catalogue rule, indexed once by its normalized name for lookup by `ruleReferenceKeys`. */
+function ruleNameIndex(loaded: LoadedCatalogue) {
+  const cached = ruleNameIndexCache.get(loaded)
+  if (cached) return cached
+  const index = new Map<string, NamedRule[]>()
+  let order = 0
   for (const rule of loaded.index.rules.values()) {
     if (!rule.name || !rule.description) continue
-    if (![...references].some((reference) => ruleReferenceMatches(reference, rule.name!))) continue
-    const descriptions = candidates.get(rule.name) ?? new Set<string>()
-    descriptions.add(rule.description)
-    candidates.set(rule.name, descriptions)
+    const key = normalizeRuleReference(rule.name)
+    const bucket = index.get(key) ?? []
+    if (!index.has(key)) index.set(key, bucket)
+    const existing = bucket.find((candidate) => candidate.name === rule.name)
+    if (existing) existing.descriptions.add(rule.description)
+    else bucket.push({ name: rule.name, descriptions: new Set([rule.description]), order: order++ })
   }
-  return [...candidates].flatMap(([name, descriptions]) =>
-    descriptions.size === 1 ? [{ name, description: descriptions.values().next().value! }] : [],
-  )
+  ruleNameIndexCache.set(loaded, index)
+  return index
+}
+
+export function rulesNamed(loaded: LoadedCatalogue, names: readonly string[]) {
+  const index = ruleNameIndex(loaded)
+  const matched = new Set<NamedRule>()
+  for (const reference of names) {
+    for (const key of ruleReferenceKeys(reference)) {
+      for (const candidate of index.get(key) ?? []) matched.add(candidate)
+    }
+  }
+  return [...matched]
+    .toSorted((left, right) => left.order - right.order)
+    .flatMap(({ name, descriptions }) => (descriptions.size === 1 ? [{ name, description: descriptions.values().next().value! }] : []))
 }

@@ -18,6 +18,9 @@ const PHASE_LABELS: Record<string, string> = {
 
 const NO_PLAYERS: readonly ReportPlayer[] = []
 
+/** The log grows all game and refetches on every change; only this many lines render until asked. */
+const WINDOW = 100
+
 /**
  * The account of the battle, read back out of the log.
  *
@@ -28,7 +31,10 @@ const NO_PLAYERS: readonly ReportPlayer[] = []
 export function Report({ token, open, players = NO_PLAYERS }: { token: string; open: boolean; players?: readonly ReportPlayer[] }) {
   const { data: entries } = useQuery(reportQuery(token, open))
   const [filter, setFilter] = useState<'all' | 'cp'>('all')
-  const visible = (filter === 'cp' ? (entries ?? []).filter(isCommandPointEntry) : (entries ?? [])).toReversed()
+  const [shownCount, setShownCount] = useState(WINDOW)
+  const filtered = (filter === 'cp' ? (entries ?? []).filter(isCommandPointEntry) : (entries ?? [])).toReversed()
+  const visible = filtered.slice(0, shownCount)
+  const hidden = filtered.length - visible.length
 
   if (!entries?.length) return <p className="mt-3 text-xs text-dim">Nothing has happened yet.</p>
 
@@ -61,6 +67,17 @@ export function Report({ token, open, players = NO_PLAYERS }: { token: string; o
                 <span className="min-w-0 flex-1 text-bone">{colourNames(entry.text, players)}</span>
               </li>
             ))}
+            {hidden > 0 ? (
+              <li>
+                <button
+                  type="button"
+                  className="mt-1 text-xs text-info hover:text-bone"
+                  onClick={() => setShownCount((current) => current + WINDOW)}
+                >
+                  Show earlier events ({hidden} more)
+                </button>
+              </li>
+            ) : null}
           </ol>
         ) : (
           <p className="text-xs text-dim">No command point events yet.</p>

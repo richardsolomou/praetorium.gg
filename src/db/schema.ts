@@ -189,7 +189,11 @@ export const commands = pgTable(
     /** A `Command` as JSON, read back through `commandSchema`. */
     body: text('body').notNull(),
   },
-  (table) => [primaryKey({ columns: [table.battleId, table.seq] })],
+  (table) => [
+    primaryKey({ columns: [table.battleId, table.seq] }),
+    // The user FK cascade otherwise scans the largest table on every account deletion.
+    index('commands_user_id_index').on(table.userId),
+  ],
 )
 
 /**

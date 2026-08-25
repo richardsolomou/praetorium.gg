@@ -128,10 +128,7 @@ export function loadDeployments(core: string): Deployment[] {
           colour: zone.color ?? '#8c9199',
           // A zone's points are relative to its own position, so the offset is
           // applied here: without it every zone piles up in one corner.
-          points: pointsOf(zone.shape).map((point) => ({
-            x: point.x + (zone.position?.x ?? 0),
-            y: point.y + (zone.position?.y ?? 0),
-          })),
+          points: pointsOf(zone.shape).map((point) => boardPoint(point.x + (zone.position?.x ?? 0), point.y + (zone.position?.y ?? 0))),
         })),
       objectives: pattern.objectives ?? [],
     }))
@@ -278,10 +275,7 @@ function terrainReferenceMarkers(area: RawBattlemasterTerrain) {
       label,
       position:
         partCentre && towardCentre && towardCentreLength
-          ? {
-              x: partCentre.x + (towardCentre.x / towardCentreLength) * 2,
-              y: partCentre.y + (towardCentre.y / towardCentreLength) * 2,
-            }
+          ? boardPoint(partCentre.x + (towardCentre.x / towardCentreLength) * 2, partCentre.y + (towardCentre.y / towardCentreLength) * 2)
           : battlemasterBoardPoint({ x: area.footprint.widthIn * fraction, y: area.footprint.heightIn / 2 }, area.footprint),
     }
   })
@@ -310,7 +304,16 @@ function battlemasterBoardPoint(
   }
   placed = rotatePoint(placed, area.rotationDeg)
   placed = { x: placed.x + area.origin.x, y: placed.y + area.origin.y }
-  return { x: placed.x + 30, y: 22 - placed.y }
+  return boardPoint(placed.x + 30, 22 - placed.y)
+}
+
+/**
+ * Rotation trigonometry leaves full IEEE-754 noise on every coordinate, and a
+ * serialized `22.500999999999998` is five times the bytes of `22.501`. A
+ * thousandth of an inch is far below anything the board renders.
+ */
+function boardPoint(x: number, y: number): Point {
+  return { x: Math.round(x * 1000) / 1000, y: Math.round(y * 1000) / 1000 }
 }
 
 function rotatePoint(point: Point, degrees: number): Point {

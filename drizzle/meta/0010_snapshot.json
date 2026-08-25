@@ -1,6 +1,6 @@
 {
-  "id": "372a0b08-94c5-4910-914e-19c46f2fa301",
-  "prevId": "943a6f74-4cf0-4b58-b827-6dd40ade2368",
+  "id": "a9542c44-fe88-42e4-89d7-bf01ff101ce2",
+  "prevId": "372a0b08-94c5-4910-914e-19c46f2fa301",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -549,12 +549,12 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.league_entries": {
-      "name": "league_entries",
+    "public.league_event_entries": {
+      "name": "league_event_entries",
       "schema": "",
       "columns": {
-        "league_id": {
-          "name": "league_id",
+        "event_id": {
+          "name": "event_id",
           "type": "text",
           "primaryKey": false,
           "notNull": true
@@ -603,8 +603,8 @@
         }
       },
       "indexes": {
-        "league_entries_user_id_index": {
-          "name": "league_entries_user_id_index",
+        "league_event_entries_user_id_index": {
+          "name": "league_event_entries_user_id_index",
           "columns": [
             {
               "expression": "user_id",
@@ -620,18 +620,18 @@
         }
       },
       "foreignKeys": {
-        "league_entries_league_id_leagues_id_fk": {
-          "name": "league_entries_league_id_leagues_id_fk",
-          "tableFrom": "league_entries",
-          "tableTo": "leagues",
-          "columnsFrom": ["league_id"],
+        "league_event_entries_event_id_league_events_id_fk": {
+          "name": "league_event_entries_event_id_league_events_id_fk",
+          "tableFrom": "league_event_entries",
+          "tableTo": "league_events",
+          "columnsFrom": ["event_id"],
           "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "league_entries_user_id_user_id_fk": {
-          "name": "league_entries_user_id_user_id_fk",
-          "tableFrom": "league_entries",
+        "league_event_entries_user_id_user_id_fk": {
+          "name": "league_event_entries_user_id_user_id_fk",
+          "tableFrom": "league_event_entries",
           "tableTo": "user",
           "columnsFrom": ["user_id"],
           "columnsTo": ["id"],
@@ -640,11 +640,128 @@
         }
       },
       "compositePrimaryKeys": {
-        "league_entries_league_id_user_id_pk": {
-          "name": "league_entries_league_id_user_id_pk",
-          "columns": ["league_id", "user_id"]
+        "league_event_entries_event_id_user_id_pk": {
+          "name": "league_event_entries_event_id_user_id_pk",
+          "columns": ["event_id", "user_id"]
         }
       },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.league_events": {
+      "name": "league_events",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "token": {
+          "name": "token",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "league_id": {
+          "name": "league_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "number": {
+          "name": "number",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "revealed_at": {
+          "name": "revealed_at",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "league_events_token_unique": {
+          "name": "league_events_token_unique",
+          "columns": [
+            {
+              "expression": "token",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "league_events_league_id_number_unique": {
+          "name": "league_events_league_id_number_unique",
+          "columns": [
+            {
+              "expression": "league_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "number",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "league_events_league_id_created_at_index": {
+          "name": "league_events_league_id_created_at_index",
+          "columns": [
+            {
+              "expression": "league_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "league_events_league_id_leagues_id_fk": {
+          "name": "league_events_league_id_leagues_id_fk",
+          "tableFrom": "league_events",
+          "tableTo": "leagues",
+          "columnsFrom": ["league_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
@@ -702,17 +819,18 @@
           "primaryKey": false,
           "notNull": false
         },
+        "recurring": {
+          "name": "recurring",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "bigint",
           "primaryKey": false,
           "notNull": true
-        },
-        "revealed_at": {
-          "name": "revealed_at",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": false
         }
       },
       "indexes": {

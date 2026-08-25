@@ -1,7 +1,8 @@
 import { execFileSync } from 'node:child_process'
+import fs from 'node:fs'
 import path from 'node:path'
 import { persistedSecret } from 'ras-stack/auth'
-import { runRealtimeStack } from 'ras-stack/runtime'
+import { caddyRealtimeProxy, runRealtimeStack } from 'ras-stack/runtime'
 // From the config module rather than the client: this file is bundled to ESM by
 // esbuild, which `iovalkey` does not survive.
 import { valkeyUrl } from '../src/adapters/valkeyConfig'
@@ -35,6 +36,27 @@ if (process.env.PRAETORIUM_SEED_PREVIEW === 'true' || previewDeployment(process.
   })
 }
 
+/*
+ * Every dynamic response leaves through Caddy, and the proxy config ras-stack
+ * writes has no compression and no hook to add any. Compose the same config with
+ * `encode` inserted and hand caddy that file through a launcher; if the generated
+ * shape ever stops matching the insertion point, fall back to the stock launcher
+ * uncompressed rather than refuse to start.
+ */
+function caddyCommand() {
+  const generated = caddyRealtimeProxy()
+  const compressed = generated.replace('\troute {', '\tencode zstd gzip\n\troute {')
+  if (compressed === generated) {
+    console.warn('caddy proxy config no longer matches the encode insertion point; responses stay uncompressed')
+    return undefined
+  }
+  const configPath = '/tmp/praetorium-Caddyfile-encode'
+  fs.writeFileSync(configPath, compressed)
+  const launcherPath = '/tmp/praetorium-caddy'
+  fs.writeFileSync(launcherPath, `#!/bin/sh\nexec caddy run --config ${configPath} --adapter caddyfile\n`, { mode: 0o755 })
+  return launcherPath
+}
+
 process.exitCode = await runRealtimeStack({
   app: { command: process.execPath, args: ['.output/server/index.mjs'], env: { ...process.env, PORT: '3001' } },
   centrifugo: {
@@ -56,7 +78,7 @@ process.exitCode = await runRealtimeStack({
       redisUrl: valkeyUrl(),
     },
   },
-  caddy: { configPath: '/tmp/praetorium-Caddyfile', env: process.env },
+  caddy: { command: caddyCommand(), configPath: '/tmp/praetorium-Caddyfile', env: process.env },
 })
 
 function previewDeployment(value: string | undefined) {

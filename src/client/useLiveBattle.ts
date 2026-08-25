@@ -45,11 +45,24 @@ export function useLiveBattle(token: string, enabled: boolean) {
     return client
   }, [ask])
   const client = useConnectedRealtimeClient(createClient, enabled, { onError: reportRealtimeError })
-  const refresh = useCallback(() => {
-    void queryClient.invalidateQueries({ queryKey: battleQuery(token).queryKey })
-    void queryClient.invalidateQueries({ queryKey: battlesQuery().queryKey })
-    void queryClient.invalidateQueries({ queryKey: ['report', token] })
-  }, [queryClient, token])
+  const refresh = useCallback(
+    (announcedSeq?: number) => {
+      // A command's publication names the log's new high-water mark. The player who
+      // sent it already holds that screen — `submit` returned it — so refetching the
+      // battle and the report again would only repeat the answer they just wrote.
+      if (announcedSeq !== undefined) {
+        const held = queryClient.getQueryData(battleQuery(token).queryKey) as { kind?: string; view?: { seq?: number } } | undefined
+        if (held?.kind === 'battle' && typeof held.view?.seq === 'number' && held.view.seq >= announcedSeq) {
+          void queryClient.invalidateQueries({ queryKey: battlesQuery().queryKey })
+          return
+        }
+      }
+      void queryClient.invalidateQueries({ queryKey: battleQuery(token).queryKey })
+      void queryClient.invalidateQueries({ queryKey: battlesQuery().queryKey })
+      void queryClient.invalidateQueries({ queryKey: ['report', token] })
+    },
+    [queryClient, token],
+  )
   const subscriptionOptions = useMemo<SubscriptionOptions>(
     () => ({
       getToken: async ({ channel }) =>
@@ -65,11 +78,16 @@ export function useLiveBattle(token: string, enabled: boolean) {
   )
   const configure = useCallback(
     (subscription: Subscription) => {
-      subscription.on('publication', refresh)
-      subscription.on('subscribed', refresh)
+      const publication = (context: { data?: unknown }) => {
+        const seq = (context.data as { seq?: unknown } | undefined)?.seq
+        refresh(typeof seq === 'number' ? seq : undefined)
+      }
+      const subscribed = () => refresh()
+      subscription.on('publication', publication)
+      subscription.on('subscribed', subscribed)
       return () => {
-        subscription.off('publication', refresh)
-        subscription.off('subscribed', refresh)
+        subscription.off('publication', publication)
+        subscription.off('subscribed', subscribed)
       }
     },
     [refresh],

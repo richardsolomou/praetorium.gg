@@ -14,7 +14,8 @@ async function executeMigration(client: PGlite, file: string) {
 it('moves an existing league and its sealed roster into event one', async () => {
   const client = new PGlite()
   try {
-    const migrations = (await readdir(migrationsFolder)).filter((file) => /^000[0-8]_.*\.sql$/.test(file)).sort()
+    const target = '0010_tiresome_randall_flagg.sql'
+    const migrations = (await readdir(migrationsFolder)).filter((file) => /^\d{4}_.*\.sql$/.test(file) && file < target).sort()
     for (const migration of migrations) await executeMigration(client, migration)
     await client.exec(`
       INSERT INTO "user" ("id", "name", "email", "emailVerified", "createdAt", "updatedAt")
@@ -25,7 +26,7 @@ it('moves an existing league and its sealed roster into event one', async () => 
       VALUES ('league', 'owner', 'accepted', 11, 'roster', 'Army', 'sealed', 12);
     `)
 
-    await executeMigration(client, '0009_luxuriant_zodiak.sql')
+    await executeMigration(client, target)
 
     const result = await client.query<{
       recurring: boolean
