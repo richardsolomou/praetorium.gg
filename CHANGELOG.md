@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.34.4
+
+### Patch Changes
+
+- 221e6a7: Keep composite roster loadouts reversible and show every weapon profile they contain.
+
 ## 0.34.3
 
 ### Patch Changes
