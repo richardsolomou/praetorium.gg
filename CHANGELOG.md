@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.34.12
+
+### Patch Changes
+
+- 92c6746: Show profile pictures consistently and link league player names to their profiles.
+
 ## 0.34.11
 
 ### Patch Changes
