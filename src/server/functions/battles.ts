@@ -1,6 +1,7 @@
 import { createServerFn } from '@tanstack/react-start'
 import { app } from '../app'
 import { currentUserId, requireUser, requireUserId } from '../playerSession'
+import { rosterForUse } from '../rosterUsage'
 import { mutationRpc, rpc } from '../rpc'
 import { createBattleSchema, deleteBattleSchema, submitSchema, tokenSchema } from '../schemas'
 
@@ -76,14 +77,19 @@ export const submit = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const player = await requireUser()
       const startedAt = performance.now()
-      const result = await app().service.submit(data.token, player.id, data.expectedSeq, data.command, app().rules())
+      let command = data.command
+      if (command.kind === 'attach-roster' && command.roster.built) {
+        if (!command.roster.id) throw new Response('choose a saved roster', { status: 400 })
+        command = { ...command, roster: (await rosterForUse(player.id, command.roster.id)).snapshot }
+      }
+      const result = await app().service.submit(data.token, player.id, data.expectedSeq, command, app().rules())
       await app().telemetry.capture(player.id, 'battle_command_submitted', {
-        command: data.command.kind,
+        command: command.kind,
         outcome: result.result.outcome,
         duration_ms: Math.round(performance.now() - startedAt),
       })
       if (result.result.outcome === 'appended') {
-        const lifecycleEvent = battleLifecycleEvent(data.command.kind)
+        const lifecycleEvent = battleLifecycleEvent(command.kind)
         if (lifecycleEvent) await app().telemetry.capture(player.id, lifecycleEvent)
       }
       return result

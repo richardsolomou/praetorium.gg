@@ -1,8 +1,7 @@
 import { createServerFn } from '@tanstack/react-start'
-import { rosterSnapshot } from '../../core/rosterSnapshot'
 import { app } from '../app'
 import { currentUserId, requireUser } from '../playerSession'
-import { calculateRosterPrice } from '../pricing'
+import { rosterForUse } from '../rosterUsage'
 import { mutationRpc, rpc } from '../rpc'
 import {
   createLeagueBattleSchema,
@@ -56,17 +55,8 @@ export const submitLeagueRoster = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     mutationRpc(async () => {
       const player = await requireUser()
-      const roster = await app().service.ownRoster(player.id, data.rosterId)
-      if (!roster) throw new Response('you do not own this roster', { status: 403 })
-      const priced = calculateRosterPrice({
-        catalogueId: roster.catalogueId,
-        detachmentIds: roster.detachmentIds,
-        disposition: roster.disposition,
-        limit: roster.limit,
-        units: roster.picks,
-      })
-      if (!priced) throw new Response('this instance has no catalogue', { status: 409 })
-      await app().service.submitLeagueRoster(data.token, player.id, roster, rosterSnapshot(roster, priced))
+      const { saved, snapshot } = await rosterForUse(player.id, data.rosterId)
+      await app().service.submitLeagueRoster(data.token, player.id, saved, snapshot)
       await app().telemetry.capture(player.id, 'league_roster_submitted')
       return null
     }),
