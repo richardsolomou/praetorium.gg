@@ -1,5 +1,18 @@
 # praetorium
 
+## 0.33.5
+
+### Patch Changes
+
+- 5d029ad: Cache faction references, datasheet slugs, rule-name lookups, picker lists for restricted factions, and saved-list points against the immutable catalogue snapshot, making faction pages, search, and the library markedly faster.
+- 5d029ad: Compress every response with zstd or gzip, cutting page and data transfers roughly fourfold.
+- 32e5b9d: Show squad-wide wargear quantities correctly in roster previews.
+- 5d029ad: Index battle commands by account so deleting an account no longer scans the whole command log.
+- 5d029ad: Round battlefield geometry to a thousandth of an inch, shrinking terrain payloads by a quarter.
+- 5d029ad: Wait for held steppers, typed names, and picker searches to settle before saving or searching, instead of sending a request per intermediate value.
+- 5d029ad: Stop refetching the battle screen a player's own command already returned, halving per-tap traffic in a live battle.
+- 5d029ad: Window the battle report to the latest hundred events, with earlier ones a click away.
+
 ## 0.33.4
 
 ### Patch Changes
