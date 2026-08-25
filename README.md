@@ -19,7 +19,7 @@ Praetorium supports private games between up to three friends, 1v1 or 2v1. Every
 Players can:
 
 - Build, import, save, share, print, and export army lists.
-- Run public or private leagues with approved entry, sealed roster submission, and organizer-controlled reveal.
+- Run public or private one-off and recurring league events with approved entry, sealed roster submission, and organizer-controlled reveal.
 - Use faction, detachment, unit, loadout, enhancement, and points data from community catalogues.
 - Configure missions, deployment, terrain, formations, stratagems, and mission cards.
 - Track rounds, phases, command points, victory points, and each unit's models, wounds and losses.

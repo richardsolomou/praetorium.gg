@@ -36,7 +36,7 @@ Praetorium uses a compact, dark interface. See [Product design](../product-desig
 - Keep the global search panel height stable while typing. Settle the query before the server request, and preserve the prior results while it loads.
 - Give top-level home, account, library, faction, and mission pages a clear introduction, useful summaries, and next actions. Empty states must explain how to add the first item.
 - Keep Friends in the signed-in account menu rather than global navigation. A confirmed friend may open the other player's profile before they share a battle.
-- Keep leagues about registration and roster reveal. Before reveal, show only whether an accepted entrant submitted; do not load or expose the snapshot to anyone, including the organizer. After reveal, load one snapshot only when its roster viewer opens.
+- Keep leagues about registration and roster reveal. A recurring league shows its bounded event history, and every event starts with no entrants. Before reveal, show only whether an accepted entrant submitted; do not load or expose the snapshot to anyone, including the organizer. After reveal, load one snapshot only when its roster viewer opens.
 
 ## Components and styles
 

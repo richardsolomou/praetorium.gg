@@ -344,7 +344,7 @@ export type Command =
   | { kind: 'set-side-disposition'; side: number; disposition: string }
   | ({ kind: 'attach-roster'; roster: Roster; prep?: BattlePrep | null; painted?: boolean } & OnBehalfOf)
   | ({ kind: 'detach-roster' } & OnBehalfOf)
-  | { kind: 'lock-league-rosters'; leagueToken: string }
+  | { kind: 'lock-league-rosters'; leagueToken: string; eventToken?: string }
   | ({ kind: 'set-unit'; unitKey: string; destroyed: boolean } & OnBehalfOf)
   | ({ kind: 'wound-unit'; unitKey: string; delta: number } & OnBehalfOf)
   /** `delta` is the change in wounds left, so a unit taking damage is negative, like models. */
@@ -470,6 +470,7 @@ export type BattleState = {
   /** The battlefield both players are using. Shared, so either may set it. */
   deploymentId: string | null
   leagueToken: string | null
+  leagueEventToken: string | null
   settings: BattleSettings
   result: { reason: BattleEndReason; concededBy: PlayerId | null } | null
   players: PlayerState[]
@@ -580,6 +581,7 @@ export function emptyBattle(playerIds: readonly PlayerId[], playerSides?: readon
     pendingSettlement: null,
     deploymentId: null,
     leagueToken: null,
+    leagueEventToken: null,
     settings: { ...DEFAULT_SETTINGS },
     result: null,
     players: playerIds.map((id, index) => ({
@@ -1074,6 +1076,7 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
     }
     case 'lock-league-rosters': {
       state.leagueToken = command.leagueToken
+      state.leagueEventToken = command.eventToken ?? null
       return
     }
     case 'set-unit': {

@@ -18,15 +18,16 @@ import { normalisePicks } from '../client/rosterPicks'
 
 export const Route = createFileRoute('/rosters/$id/')({
   // A battle token is what lets a seated opponent open a list that is otherwise private.
-  validateSearch: (search: Record<string, unknown>): { battle?: string; league?: string; print?: boolean } => ({
+  validateSearch: (search: Record<string, unknown>): { battle?: string; league?: string; event?: string; print?: boolean } => ({
     ...(typeof search.battle === 'string' ? { battle: search.battle } : {}),
     ...(typeof search.league === 'string' ? { league: search.league } : {}),
+    ...(typeof search.event === 'string' ? { event: search.event } : {}),
     ...(search.print === true || search.print === 'true' ? { print: true } : {}),
   }),
-  loaderDeps: ({ search }) => ({ battle: search.battle, league: search.league }),
+  loaderDeps: ({ search }) => ({ battle: search.battle, league: search.league, event: search.event }),
   loader: async ({ context, params, deps }) => {
     if (deps.league) {
-      const roster = await context.queryClient.ensureQueryData(leagueRosterQuery(deps.league, params.id))
+      const roster = await context.queryClient.ensureQueryData(leagueRosterQuery(deps.league, deps.event, params.id))
       if (!roster) throw notFound()
       return { editable: false, snapshot: true, league: true }
     }
@@ -78,10 +79,13 @@ export const Route = createFileRoute('/rosters/$id/')({
 
 function RosterPage() {
   const { id } = Route.useParams()
-  const { battle, league, print } = Route.useSearch()
+  const { battle, league, event, print } = Route.useSearch()
   const { editable, snapshot, league: leagueSnapshot } = Route.useLoaderData()
   const { data: screen } = useQuery({ ...battleQuery(battle ?? ''), enabled: snapshot && Boolean(battle) })
-  const { data: sealed } = useQuery({ ...leagueRosterQuery(league ?? '', id), enabled: Boolean(leagueSnapshot && league) })
+  const { data: sealed } = useQuery({
+    ...leagueRosterQuery(league ?? '', event ?? '', id),
+    enabled: Boolean(leagueSnapshot && league),
+  })
   const { data: shared } = useQuery({ ...sharedRosterQuery(id, battle), enabled: !snapshot })
   const { data: saved = [] } = useQuery({ ...savedRostersQuery(), enabled: editable })
   const roster = saved.find((candidate) => candidate.id === id) ?? shared

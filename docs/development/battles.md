@@ -29,7 +29,7 @@ A roster attached to a battle is a historical snapshot. Battle-qualified roster 
 
 The server reprices a catalogue-backed saved roster before attaching it and refuses points, detachment, disposition, or catalogue legality errors. Incomplete catalogue validation remains a warning and does not prevent play. Plain-text rosters remain usable when no catalogue data is available.
 
-A battle created from a revealed league starts with both accepted entrants seated and their exact stored league snapshots attached. A server-only `lock-league-rosters` command records the league token in the fold and prevents either roster, or the battle size that validates them, from changing. The league page is the authority for starting this 1v1, so league opponents do not also need a friendship.
+A battle created from a revealed league event starts with both accepted entrants seated and their exact stored event snapshots attached. A server-only `lock-league-rosters` command records the league and event tokens in the fold and prevents either roster, or the battle size that validates them, from changing. The event page is the authority for starting this 1v1, so league opponents do not also need a friendship.
 
 Setup settings, roster replacements, formation choices, painted-army bonuses, concessions, reopening, and setup resets are commands too. A reset clears rosters and battlefield choices without erasing the audit trail or the configured game size, mission pack or format. A finished battle remains reopenable; deletion is the only destructive operation and is restricted to the account that created the battle.
 
