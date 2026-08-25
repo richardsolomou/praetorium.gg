@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.33.0
+
+### Minor Changes
+
+- 2378621: Add public and private leagues with configurable player limits, sealed roster battles, and organizer-controlled reveal.
+
 ## 0.32.2
 
 ### Patch Changes
