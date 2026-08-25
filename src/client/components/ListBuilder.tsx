@@ -4,13 +4,12 @@ import { Check, Crown, Download, EllipsisVertical, ExternalLink, Pencil, Plus, S
 import posthog from 'posthog-js'
 import { type ComponentProps, memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Button, buttonVariants } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Toggle } from '@/components/ui/toggle'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import type { Secondary, Stratagem } from '../../core/battle'
-import { GAME_SIZES, ROSTER_NAME_MAX_LENGTH } from '../../core/battle'
+import { ROSTER_NAME_MAX_LENGTH } from '../../core/battle'
 import type { RosterPick } from '../../core/roster'
 import type { RosterSource, RosterVisibility } from '../../core/savedRoster'
 import type { Datasheet } from '../../server/catalogue'
@@ -33,9 +32,8 @@ import { attachmentRows, joinableUnits } from './builder/attachments'
 import { pickEditor, usePicks } from './builder/usePicks'
 import { RosterSetupDialog, type RosterSetup, type RosterSetupFaction } from './RosterSetupDialog'
 import { RosterExportDialog } from './RosterExportDialog'
-import { dispositionTone } from './rosterSetup'
+import { RosterBody, RosterHeader, RosterShell, RosterUnits } from './RosterPresentation'
 import { readWorkspaceState, writeWorkspaceState } from './workspaceState'
-import { FactionLabel } from './FactionMark'
 
 type Props = {
   /** What the player has written down, so a saved list carries it and restores it. */
@@ -288,13 +286,6 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
   const warlord = optimisticUnit?.toggles.find((toggle) => toggle.name === 'Warlord')
   const inspectedEntryId = preview?.entryId ?? optimisticUnit?.entryId ?? null
   const referenceRoute = reference?.entryId === inspectedEntryId ? reference.route : null
-  const shownDisposition = priced?.disposition
-    ? (faction.detachments.flatMap((entry) => entry.dispositions).find((entry) => entry.id === priced.disposition) ?? {
-        id: priced.disposition,
-        name: priced.disposition,
-      })
-    : null
-
   const picker =
     editable && faction ? (
       <div className="flex h-full flex-col">
@@ -364,115 +355,75 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
   )
 
   return (
-    <div
-      data-roster-builder
-      data-saving={save.isPending || settledPicks !== positioned || settledListName !== listName}
-      data-save-error={save.isError}
-      className="flex min-h-0 flex-1 flex-col border border-edge bg-sunken"
-    >
-      <header className="border-b border-edge px-3 py-2">
-        <Input
-          id="listname"
-          value={name}
-          onChange={(event) => setName(event.target.value)}
-          maxLength={ROSTER_NAME_MAX_LENGTH}
-          placeholder={suggested || 'Named from your picks'}
-          aria-label="List name"
-          readOnly={!editable}
-          className="h-8 border-0 bg-transparent px-0 text-lg font-bold tracking-[0.02em] uppercase focus-visible:ring-0"
-        />
-
-        {faction ? (
-          <div className="mt-0.5 flex min-w-0 items-center gap-2 text-xs text-dim">
-            <span className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto whitespace-nowrap [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              <Link
-                to="/factions/$catalogueId"
-                params={{ catalogueId: faction.slug }}
-                className="flex shrink-0 items-center self-stretch text-info hover:text-bone"
-              >
-                <FactionLabel faction={faction} />
-              </Link>
-              <span aria-hidden>·</span>
-              <span className="shrink-0">{GAME_SIZES.find((size) => size.limit === limit)?.name ?? `${limit} points`}</span>
-              {detachmentIds.map((id) => {
-                const detachment = faction.detachments.find((candidate) => candidate.id === id)
-                return detachment ? (
-                  <span key={id} className="contents">
-                    <span aria-hidden>·</span>
-                    <Link
-                      to="/factions/$catalogueId/detachments/$detachmentId"
-                      params={{ catalogueId: faction.slug, detachmentId: detachment.slug }}
-                      className="shrink-0 text-info hover:text-bone"
-                    >
-                      {detachment.name}
-                    </Link>
-                  </span>
-                ) : null
-              })}
-              {shownDisposition ? (
-                <span className="contents">
-                  <span aria-hidden>·</span>
-                  <span className={`chip shrink-0 ${dispositionTone(shownDisposition.id)}`}>{shownDisposition.name}</span>
-                </span>
-              ) : null}
-            </span>
-            <span className="flex shrink-0 items-center gap-1" data-print-hide>
-              {editable ? (
-                <>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger aria-label="Roster actions" className="grid h-7 w-10 place-items-center hover:text-bone">
-                      <EllipsisVertical className="size-4 translate-y-px" />
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="min-w-48">
-                      <DropdownMenuItem
-                        onClick={() => setSetupDraft({ name: listName, catalogueId, detachmentIds, disposition, limit, visibility })}
+    <RosterShell saving={save.isPending || settledPicks !== positioned || settledListName !== listName} saveError={save.isError}>
+      <RosterHeader
+        name={name}
+        nameId="listname"
+        onNameChange={editable ? (event) => setName(event.target.value) : undefined}
+        maxLength={ROSTER_NAME_MAX_LENGTH}
+        placeholder={suggested || 'Named from your picks'}
+        faction={faction}
+        limit={limit}
+        detachments={detachmentIds.flatMap((id) => {
+          const detachment = faction.detachments.find((candidate) => candidate.id === id)
+          return detachment ? [{ id, name: detachment.name }] : []
+        })}
+        disposition={priced?.disposition}
+        actions={
+          editable ? (
+            <>
+              <DropdownMenu>
+                <DropdownMenuTrigger aria-label="Roster actions" className="grid h-7 w-10 place-items-center hover:text-bone">
+                  <EllipsisVertical className="size-4 translate-y-px" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="min-w-48">
+                  <DropdownMenuItem
+                    onClick={() => setSetupDraft({ name: listName, catalogueId, detachmentIds, disposition, limit, visibility })}
+                  >
+                    <Pencil /> Edit roster setup
+                  </DropdownMenuItem>
+                  <DropdownMenuItem disabled={take.isPending || !units.length} onClick={() => take.mutate()}>
+                    <Download /> Export GW text
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <Tooltip>
+                <TooltipTrigger
+                  closeOnClick={false}
+                  render={
+                    <div>
+                      <ToggleGroup
+                        value={[readOnly ? 'view' : 'build']}
+                        onValueChange={(value) => {
+                          if (value[0] === 'view' || value[0] === 'build') setReadOnlyMode(value[0] === 'view')
+                        }}
+                        variant="outline"
+                        size="sm"
+                        spacing={0}
+                        aria-label="Roster mode"
                       >
-                        <Pencil /> Edit roster setup
-                      </DropdownMenuItem>
-                      <DropdownMenuItem disabled={take.isPending || !units.length} onClick={() => take.mutate()}>
-                        <Download /> Export GW text
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                  <Tooltip>
-                    <TooltipTrigger
-                      closeOnClick={false}
-                      render={
-                        <div>
-                          <ToggleGroup
-                            value={[readOnly ? 'view' : 'build']}
-                            onValueChange={(value) => {
-                              if (value[0] === 'view' || value[0] === 'build') setReadOnlyMode(value[0] === 'view')
-                            }}
-                            variant="outline"
-                            size="sm"
-                            spacing={0}
-                            aria-label="Roster mode"
-                          >
-                            <ToggleGroupItem
-                              value="build"
-                              className="border-primary/60 text-primary aria-pressed:bg-primary aria-pressed:text-primary-foreground"
-                            >
-                              Build
-                            </ToggleGroupItem>
-                            <ToggleGroupItem
-                              value="view"
-                              className="border-primary/60 text-primary aria-pressed:bg-primary aria-pressed:text-primary-foreground"
-                            >
-                              View
-                            </ToggleGroupItem>
-                          </ToggleGroup>
-                        </div>
-                      }
-                    />
-                    <TooltipContent side="bottom">Build edits your roster. View shows only what’s selected.</TooltipContent>
-                  </Tooltip>
-                </>
-              ) : null}
-            </span>
-          </div>
-        ) : null}
-
+                        <ToggleGroupItem
+                          value="build"
+                          className="border-primary/60 text-primary aria-pressed:bg-primary aria-pressed:text-primary-foreground"
+                        >
+                          Build
+                        </ToggleGroupItem>
+                        <ToggleGroupItem
+                          value="view"
+                          className="border-primary/60 text-primary aria-pressed:bg-primary aria-pressed:text-primary-foreground"
+                        >
+                          View
+                        </ToggleGroupItem>
+                      </ToggleGroup>
+                    </div>
+                  }
+                />
+                <TooltipContent side="bottom">Build edits your roster. View shows only what’s selected.</TooltipContent>
+              </Tooltip>
+            </>
+          ) : null
+        }
+      >
         {editable && priced?.dispositionError ? (
           <p role="alert" className="mt-1 flex items-center gap-1.5 text-xs text-destructive">
             <TriangleAlert className="size-3 shrink-0" aria-hidden />
@@ -516,13 +467,9 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
             }}
           />
         ) : null}
-      </header>
+      </RosterHeader>
 
-      <div
-        className={`flex min-h-0 flex-1 ${
-          editable ? 'min-[1300px]:grid min-[1300px]:grid-cols-[minmax(0,1.1fr)_minmax(0,1.45fr)_minmax(0,1.45fr)]' : ''
-        }`}
-      >
+      <RosterBody threeColumn={editable}>
         {editable ? (
           <div className="contents min-[1300px]:flex min-[1300px]:min-h-0 min-[1300px]:min-w-0">
             <Pane
@@ -552,7 +499,7 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
           </div>
         ) : null}
 
-        <div data-slot="roster-units" className="min-h-0 min-w-0 flex-1 overflow-y-auto px-3">
+        <RosterUnits>
           {units.length ? (
             GROUPS.map(({ id, plural }) => {
               const rows = units
@@ -595,7 +542,7 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
           ) : (
             <p className="py-6 text-sm text-faint">Pick a book to start building.</p>
           )}
-        </div>
+        </RosterUnits>
 
         <Pane
           variant="loadout"
@@ -676,7 +623,7 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
         >
           {preview ? datasheet : loadout}
         </Pane>
-      </div>
+      </RosterBody>
 
       <footer className="sticky bottom-0 z-20 border-t border-edge bg-panel px-3 py-2">
         <div className="flex flex-wrap items-center gap-2">
@@ -742,7 +689,7 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
         ) : null}
       </footer>
       <RosterExportDialog text={exportText} onClose={() => setExportText(null)} />
-    </div>
+    </RosterShell>
   )
 }
 

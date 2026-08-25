@@ -1,19 +1,15 @@
 import { useQuery } from '@tanstack/react-query'
-import { Link } from '@tanstack/react-router'
 import { useState } from 'react'
-import { Input } from '@/components/ui/input'
 import type { Roster } from '../../core/battle'
-import { GAME_SIZES } from '../../core/battle'
 import { factionQuery, priceQuery } from '../queries'
-import { FactionLabel } from './FactionMark'
 import { RosterEditor } from './RosterEditor'
+import { RosterBody, RosterHeader, RosterShell, RosterUnits } from './RosterPresentation'
 import { DatasheetPanel } from './builder/DatasheetPanel'
 import { GROUPS } from './builder/groups'
 import { Loadout } from './builder/Loadout'
 import { Pane } from './builder/Pane'
 import { Section } from './builder/Section'
 import { UnitCard } from './builder/UnitCard'
-import { dispositionTone } from './rosterSetup'
 
 export function BattleRosterSnapshot({ roster }: { roster: Roster }) {
   const built = roster.built
@@ -29,13 +25,9 @@ export function BattleRosterSnapshot({ roster }: { roster: Roster }) {
   const selectedUnit = selected === null ? null : (built?.units[selected] ?? null)
   const selectedPricedUnit = selected === null ? null : (priced?.units[selected] ?? null)
   const selectedCatalogueId = selected === null ? built?.catalogueId : (built?.picks?.[selected]?.catalogueId ?? built?.catalogueId)
-  const displayedDetachments = built?.detachments ?? (built?.detachment ? [{ name: built.detachment, points: null }] : [])
-  const shownDisposition = built?.disposition
-    ? (faction?.detachments.flatMap((entry) => entry.dispositions).find((entry) => entry.id === built.disposition) ?? {
-        id: built.disposition,
-        name: built.disposition,
-      })
-    : null
+  const displayedDetachments = (built?.detachments ?? (built?.detachment ? [{ name: built.detachment, points: null }] : [])).map(
+    (detachment, index) => ({ ...detachment, id: built?.detachmentIds?.[index] }),
+  )
 
   if (!frozen && roster.id && built?.detachmentIds && built.picks) {
     return (
@@ -60,61 +52,17 @@ export function BattleRosterSnapshot({ roster }: { roster: Roster }) {
 
   return (
     <main className="flex h-full w-full flex-col">
-      <div data-roster-builder className="flex min-h-0 flex-1 flex-col border border-edge bg-sunken">
-        <header className="border-b border-edge px-3 py-2">
-          <Input
-            value={roster.name}
-            aria-label="List name"
-            readOnly
-            className="h-8 border-0 bg-transparent px-0 text-lg font-bold tracking-[0.02em] uppercase focus-visible:ring-0"
-          />
-          {built ? (
-            <div className="flex w-full min-w-0 items-center gap-2 overflow-x-auto text-xs whitespace-nowrap text-dim [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              {faction ? (
-                <Link
-                  to="/factions/$catalogueId"
-                  params={{ catalogueId: faction.slug }}
-                  className="flex shrink-0 items-center self-stretch text-info hover:text-bone"
-                >
-                  <FactionLabel faction={faction} />
-                </Link>
-              ) : null}
-              {faction ? <span aria-hidden>·</span> : null}
-              {frozenPoints !== null ? <span className="chip text-info">{frozenPoints} pts</span> : null}
-              <span className="shrink-0">{GAME_SIZES.find((size) => size.limit === built.limit)?.name ?? `${built.limit} points`}</span>
-              {displayedDetachments.map((detachment, index) => {
-                const id = built.detachmentIds?.[index]
-                const reference = faction?.detachments.find((candidate) => candidate.id === id)
-                const label = `${detachment.name}${detachment.points === null ? '' : ` · ${detachment.points} DP`}`
-                return (
-                  <span key={detachment.name} className="contents">
-                    <span aria-hidden>·</span>
-                    {faction && reference ? (
-                      <Link
-                        to="/factions/$catalogueId/detachments/$detachmentId"
-                        params={{ catalogueId: faction.slug, detachmentId: reference.slug }}
-                        className="shrink-0 text-info hover:text-bone"
-                      >
-                        {label}
-                      </Link>
-                    ) : (
-                      <span className="shrink-0">{label}</span>
-                    )}
-                  </span>
-                )
-              })}
-              {shownDisposition ? (
-                <span className="contents">
-                  <span aria-hidden>·</span>
-                  <span className={`chip shrink-0 ${dispositionTone(shownDisposition.id)}`}>{shownDisposition.name}</span>
-                </span>
-              ) : null}
-            </div>
-          ) : null}
-        </header>
-
-        <div className="flex min-h-0 flex-1">
-          <div data-slot="roster-units" className="min-h-0 min-w-0 flex-1 overflow-y-auto px-3">
+      <RosterShell>
+        <RosterHeader
+          name={roster.name}
+          faction={faction}
+          points={frozenPoints}
+          limit={built?.limit}
+          detachments={displayedDetachments}
+          disposition={built?.disposition}
+        />
+        <RosterBody>
+          <RosterUnits>
             {hasRosterCards && built ? (
               GROUPS.map(({ id, plural }) => {
                 const units = built.units
@@ -150,7 +98,7 @@ export function BattleRosterSnapshot({ roster }: { roster: Roster }) {
                 {roster.text}
               </pre>
             )}
-          </div>
+          </RosterUnits>
           {built?.picks && built.detachmentIds ? (
             <Pane
               variant="loadout"
@@ -197,8 +145,8 @@ export function BattleRosterSnapshot({ roster }: { roster: Roster }) {
               />
             </Pane>
           ) : null}
-        </div>
-      </div>
+        </RosterBody>
+      </RosterShell>
     </main>
   )
 }
