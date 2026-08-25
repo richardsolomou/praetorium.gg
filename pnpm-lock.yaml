@@ -111,8 +111,8 @@ importers:
         specifier: ^1.5.4
         version: 1.5.4
       ras-stack:
-        specifier: ^0.46.0
-        version: 0.46.0(@opentelemetry/api-logs@0.221.0)(@opentelemetry/exporter-logs-otlp-http@0.221.0(@opentelemetry/api@1.9.1))(@opentelemetry/resources@2.10.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-logs@0.221.0(@opentelemetry/api@1.9.1))(@posthog/react@1.10.3(@types/react@19.2.18)(posthog-js@1.417.1)(react@19.2.8))(@tanstack/react-query@5.101.4(react@19.2.8))(@tanstack/react-start@1.168.46(crossws@0.4.10(srvx@0.11.22))(esbuild@0.28.2)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(rolldown@1.2.3)(supports-color@8.1.1)(vite@8.2.1(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0)))(@types/node@24.13.3)(centrifuge@5.7.1)(drizzle-orm@0.45.2(@electric-sql/pglite@0.5.5)(@opentelemetry/api@1.9.1)(@types/better-sqlite3@9.6.0)(kysely@0.29.5)(postgres@3.4.9))(nodemailer@9.0.5)(postgres@3.4.9)(posthog-js@1.417.1)(posthog-node@5.49.1)(react@19.2.8)
+        specifier: ^0.47.0
+        version: 0.47.0(@opentelemetry/api-logs@0.221.0)(@opentelemetry/exporter-logs-otlp-http@0.221.0(@opentelemetry/api@1.9.1))(@opentelemetry/resources@2.10.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-logs@0.221.0(@opentelemetry/api@1.9.1))(@posthog/react@1.10.3(@types/react@19.2.18)(posthog-js@1.417.1)(react@19.2.8))(@tanstack/react-query@5.101.4(react@19.2.8))(@tanstack/react-start@1.168.46(crossws@0.4.10(srvx@0.11.22))(esbuild@0.28.2)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(rolldown@1.2.3)(supports-color@8.1.1)(vite@8.2.1(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0)))(@types/node@24.13.3)(centrifuge@5.7.1)(drizzle-orm@0.45.2(@electric-sql/pglite@0.5.5)(@opentelemetry/api@1.9.1)(@types/better-sqlite3@9.6.0)(kysely@0.29.5)(postgres@3.4.9))(nodemailer@9.0.5)(postgres@3.4.9)(posthog-js@1.417.1)(posthog-node@5.49.1)(react@19.2.8)
       react:
         specifier: ^19.2.7
         version: 19.2.8
@@ -4940,8 +4940,8 @@ packages:
     resolution: {integrity: sha512-Hrgsx+orqoygnmhFbKaHE6c296J+HTAQXoxEF6gNupROmmGJRoyzfG3ccAveqCBrwr/2yxQ5BVd/GTl5agOwSg==}
     engines: {node: '>= 0.6'}
 
-  ras-stack@0.46.0:
-    resolution: {integrity: sha512-m7URi2HcSG3Yqp/M0eV617T6XZHE71cWgWaN5V/N4RrsBuuQfCqBnuWoInQbd2HHnK3RA2kcW+KP0oMhs2u/yw==}
+  ras-stack@0.47.0:
+    resolution: {integrity: sha512-Vo5l/x+l3IYzUYjcD82ZRNfHabkyuS+hwPxy5P1f4LiTS33fUERHJs5WBCVFgX3etVCa44teV6f3I8u982D6yw==}
     engines: {node: '>=24 <25'}
     hasBin: true
     peerDependencies:
@@ -10790,7 +10790,7 @@ snapshots:
 
   range-parser@1.2.1: {}
 
-  ras-stack@0.46.0(@opentelemetry/api-logs@0.221.0)(@opentelemetry/exporter-logs-otlp-http@0.221.0(@opentelemetry/api@1.9.1))(@opentelemetry/resources@2.10.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-logs@0.221.0(@opentelemetry/api@1.9.1))(@posthog/react@1.10.3(@types/react@19.2.18)(posthog-js@1.417.1)(react@19.2.8))(@tanstack/react-query@5.101.4(react@19.2.8))(@tanstack/react-start@1.168.46(crossws@0.4.10(srvx@0.11.22))(esbuild@0.28.2)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(rolldown@1.2.3)(supports-color@8.1.1)(vite@8.2.1(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0)))(@types/node@24.13.3)(centrifuge@5.7.1)(drizzle-orm@0.45.2(@electric-sql/pglite@0.5.5)(@opentelemetry/api@1.9.1)(@types/better-sqlite3@9.6.0)(kysely@0.29.5)(postgres@3.4.9))(nodemailer@9.0.5)(postgres@3.4.9)(posthog-js@1.417.1)(posthog-node@5.49.1)(react@19.2.8):
+  ras-stack@0.47.0(@opentelemetry/api-logs@0.221.0)(@opentelemetry/exporter-logs-otlp-http@0.221.0(@opentelemetry/api@1.9.1))(@opentelemetry/resources@2.10.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-logs@0.221.0(@opentelemetry/api@1.9.1))(@posthog/react@1.10.3(@types/react@19.2.18)(posthog-js@1.417.1)(react@19.2.8))(@tanstack/react-query@5.101.4(react@19.2.8))(@tanstack/react-start@1.168.46(crossws@0.4.10(srvx@0.11.22))(esbuild@0.28.2)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(rolldown@1.2.3)(supports-color@8.1.1)(vite@8.2.1(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0)))(@types/node@24.13.3)(centrifuge@5.7.1)(drizzle-orm@0.45.2(@electric-sql/pglite@0.5.5)(@opentelemetry/api@1.9.1)(@types/better-sqlite3@9.6.0)(kysely@0.29.5)(postgres@3.4.9))(nodemailer@9.0.5)(postgres@3.4.9)(posthog-js@1.417.1)(posthog-node@5.49.1)(react@19.2.8):
     dependencies:
       '@inquirer/confirm': 6.1.1(@types/node@24.13.3)
       '@inquirer/select': 5.2.1(@types/node@24.13.3)

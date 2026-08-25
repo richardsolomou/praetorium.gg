@@ -9,5 +9,5 @@ allowBuilds:
   # so its build script has nothing to do here.
   protobufjs: false
 minimumReleaseAgeExclude:
-  - ras-stack@0.46.0
+  - ras-stack@0.47.0
 minimumReleaseAge: 10080

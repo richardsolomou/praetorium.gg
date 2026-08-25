@@ -1,6 +1,6 @@
 {
   "name": "praetorium.gg",
-  "version": "0.34.3",
+  "version": "0.34.4",
   "private": true,
   "description": "Live Warhammer 40,000 battle tracking: two players, one authoritative command log, no conflicts.",
   "license": "AGPL-3.0-only",
@@ -78,7 +78,7 @@
     "posthog-js": "^1.417.1",
     "posthog-node": "^5.49.1",
     "qrcode": "^1.5.4",
-    "ras-stack": "^0.46.0",
+    "ras-stack": "^0.47.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "react-markdown": "10.1.0",
