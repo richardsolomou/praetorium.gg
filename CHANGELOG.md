@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.33.6
+
+### Patch Changes
+
+- 4c53471: Load the battle list a page at a time, ordered by most recent activity, so it stays fast however many battles an account has played.
+
 ## 0.33.5
 
 ### Patch Changes
