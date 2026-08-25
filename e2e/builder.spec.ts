@@ -802,9 +802,11 @@ test('Cursed Legion does not modify Immortals without an eligible leader', async
   await expect(page.getByRole('button', { name: /modified from 5 by Cursed Legion/ })).toHaveCount(0)
 })
 
-test('a supplement imports its shared detachment group', async ({ page }) => {
+test('a supplement imports shared Space Marine units and its detachment group', async ({ page }) => {
   await signUp(page, 'Richard')
   await createRoster(page, { faction: 'Black Templars', detachment: /Companions of Vehemence/ })
+  await add(page, 'Intercessor Squad')
+  await expect(page.locator('[data-unit="Intercessor Squad"]')).toBeVisible()
   await add(page, 'Crusader Squad')
   await expect(page.locator('[data-unit="Crusader Squad"]')).toBeVisible()
 

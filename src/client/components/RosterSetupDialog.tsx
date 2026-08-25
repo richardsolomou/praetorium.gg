@@ -1,3 +1,4 @@
+import { useQuery } from '@tanstack/react-query'
 import { Check, Layers3 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
@@ -14,6 +15,7 @@ import {
   ROSTER_NAME_MAX_LENGTH,
 } from '../../core/battle'
 import type { RosterVisibility } from '../../core/savedRoster'
+import { factionQuery } from '../queries'
 import { DetachmentReference } from './DetachmentReference'
 import { SearchableSelect, type SearchableGroup } from './SearchableSelect'
 import { factionSelectGroups } from './builder/factions'
@@ -39,6 +41,8 @@ export type RosterSetupFaction = {
   detachments: Detachment[]
 }
 
+export type RosterSetupFactionOption = Omit<RosterSetupFaction, 'detachments'>
+
 export type RosterSetup = {
   name: string
   catalogueId: string
@@ -52,7 +56,8 @@ type Props = {
   open: boolean
   mode?: 'create' | 'edit'
   onOpenChange: (open: boolean) => void
-  factions: RosterSetupFaction[]
+  factionOptions: RosterSetupFactionOption[]
+  initialFaction?: RosterSetupFaction | null
   value: RosterSetup
   onDraftChange?: (value: RosterSetup) => void
   hasUnits: boolean
@@ -71,7 +76,8 @@ export function RosterSetupDialog({
   open,
   mode = 'edit',
   onOpenChange,
-  factions,
+  factionOptions,
+  initialFaction,
   value,
   onDraftChange,
   hasUnits,
@@ -82,6 +88,11 @@ export function RosterSetupDialog({
   const [reference, setReference] = useState<{ catalogueId: string; detachmentId: string; slug: string; name: string } | null>(null)
   const { favourites } = useFavouriteFactions()
   const { favourites: favouriteDetachments } = useFavouriteDetachments()
+  const { data: loadedFaction } = useQuery({
+    ...factionQuery(draft.catalogueId),
+    enabled: open && Boolean(draft.catalogueId) && initialFaction?.id !== draft.catalogueId,
+  })
+  const faction = loadedFaction ?? (initialFaction?.id === draft.catalogueId ? initialFaction : null)
 
   useEffect(() => {
     if (!reference) return
@@ -95,7 +106,7 @@ export function RosterSetupDialog({
     onDraftChange?.(next)
   }
 
-  const faction = factions.find((candidate) => candidate.id === draft.catalogueId)
+  const loadingFaction = Boolean(draft.catalogueId && !faction)
   const selected = faction?.detachments.filter((detachment) => draft.detachmentIds.includes(detachment.id)) ?? []
   const dispositions = dispositionsFor(faction?.detachments ?? [], draft.detachmentIds)
   const selectedDisposition = dispositions.length === 1 ? (dispositions[0]?.id ?? null) : draft.disposition
@@ -117,7 +128,7 @@ export function RosterSetupDialog({
   )
   const factionChanged = value.catalogueId !== draft.catalogueId
   const detachmentsChanged = value.detachmentIds.toSorted().join() !== draft.detachmentIds.toSorted().join()
-  const groups = factionSelectGroups(factions, favourites)
+  const groups = factionSelectGroups(factionOptions, favourites)
 
   const toggleDetachment = (id: string) => {
     const ids = draft.detachmentIds.includes(id)
@@ -168,7 +179,7 @@ export function RosterSetupDialog({
                   groups={groups}
                   value={draft.catalogueId}
                   onValueChange={(catalogueId) => {
-                    const nextFaction = factions.find((entry) => entry.id === catalogueId)
+                    const nextFaction = factionOptions.find((entry) => entry.id === catalogueId)
                     changeDraft({
                       ...draft,
                       name: mode === 'create' ? (nextFaction?.displayName ?? '') : draft.name,
@@ -370,6 +381,7 @@ export function RosterSetupDialog({
               className="sm:min-w-40"
               disabled={
                 pending ||
+                loadingFaction ||
                 !draft.name.trim() ||
                 !draft.catalogueId ||
                 !draft.detachmentIds.length ||
@@ -378,15 +390,15 @@ export function RosterSetupDialog({
               }
               onClick={() => onSave({ ...draft, name: draft.name.trim(), disposition: selectedDisposition })}
             >
-              {pending
-                ? factions.length
+              {loadingFaction
+                ? 'Loading faction…'
+                : pending
                   ? mode === 'create'
                     ? 'Creating…'
                     : 'Saving…'
-                  : 'Loading factions…'
-                : mode === 'create'
-                  ? 'Create roster'
-                  : 'Save changes'}
+                  : mode === 'create'
+                    ? 'Create roster'
+                    : 'Save changes'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -407,7 +419,7 @@ export function RosterSetupDialog({
                 catalogueId={reference.catalogueId}
                 detachmentId={reference.detachmentId}
                 slug={reference.slug}
-                faction={factions.find((entry) => entry.id === reference.catalogueId)}
+                faction={faction?.id === reference.catalogueId ? faction : undefined}
               />
             ) : null}
           </div>
