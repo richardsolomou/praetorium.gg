@@ -16,7 +16,7 @@ jobs:
   release:
     permissions:
       contents: write
-    uses: richardsolomou/ras-stack/.github/workflows/release-changesets.yml@v0.44.0
+    uses: richardsolomou/ras-stack/.github/workflows/release-changesets.yml@v0.47.0
     secrets: inherit
 
   production-image:
@@ -32,7 +32,7 @@ jobs:
           ref: ${{ needs.release.outputs.sha }}
       - name: Build and publish production image
         id: image
-        uses: richardsolomou/ras-stack/actions/publish-production-image@v0.44.0
+        uses: richardsolomou/ras-stack/actions/publish-production-image@v0.47.0
         with:
           image: ghcr.io/${{ github.repository }}
           sha: ${{ needs.release.outputs.sha }}
@@ -43,7 +43,7 @@ jobs:
             VITE_POSTHOG_PROJECT_TOKEN=${{ vars.VITE_POSTHOG_PROJECT_TOKEN }}
       - name: Deploy production image
         if: vars.DOKPLOY_IMAGE_DEPLOY == 'true'
-        uses: richardsolomou/ras-stack/actions/deploy-dokploy-image@v0.44.0
+        uses: richardsolomou/ras-stack/actions/deploy-dokploy-image@v0.47.0
         with:
           url: ${{ secrets.DOKPLOY_URL }}
           api-key: ${{ secrets.DOKPLOY_API_KEY }}
