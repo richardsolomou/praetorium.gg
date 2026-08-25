@@ -201,6 +201,31 @@ test('owned units rise to the top of their roster and picker groups', async ({ p
   await page.screenshot({ path: 'test-results/owned-units-first.png', fullPage: true })
 })
 
+test('contained faction datasheet rows stay accessible and resize without horizontal overflow', async ({ page }) => {
+  await page.setViewportSize({ width: 1512, height: 774 })
+  await page.goto('/factions/space-marines/datasheets')
+  const rows = page.locator('[data-datasheet]')
+  const offscreenName = 'Sternguard Veteran Squad'
+  const offscreenRow = page.locator(`[data-datasheet="${offscreenName}"]`)
+  await expect(offscreenRow).toHaveCount(1)
+  expect(await offscreenRow.evaluate((row) => row.getBoundingClientRect().top)).toBeGreaterThan(
+    await page.evaluate(() => window.innerHeight),
+  )
+  const session = await page.context().newCDPSession(page)
+  const tree = await session.send('Accessibility.getFullAXTree')
+  expect(
+    tree.nodes.some(
+      (node) => node.role?.value === 'link' && node.name?.value.toLocaleLowerCase().startsWith(offscreenName.toLocaleLowerCase()),
+    ),
+  ).toBe(true)
+  await rows.last().scrollIntoViewIfNeeded()
+
+  await page.setViewportSize({ width: 390, height: 844 })
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  await expect(rows.last()).toBeVisible()
+  await page.screenshot({ path: 'test-results/faction-datasheets-mobile-bottom.png' })
+})
+
 test('favourite detachments rise to the top of roster setup', async ({ page }) => {
   await signUp(page, 'Richard')
   await page.goto('/rosters')
