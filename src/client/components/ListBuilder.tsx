@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { Check, Crown, Download, EllipsisVertical, ExternalLink, Pencil, Plus, SlidersHorizontal, TriangleAlert } from 'lucide-react'
 import posthog from 'posthog-js'
-import { useEffect, useLayoutEffect, useState } from 'react'
+import { type ComponentProps, memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Toggle } from '@/components/ui/toggle'
@@ -16,7 +16,7 @@ import type { RosterSource, RosterVisibility } from '../../core/savedRoster'
 import type { Datasheet } from '../../server/catalogue'
 import { exportRoster, saveRoster } from '../../server/functions'
 import { collectionQuery, factionsQuery, invalidateSavedRosters, priceQuery } from '../queries'
-import { picksAfterDetachmentChange } from '../rosterPicks'
+import { type KeyedPick, picksAfterDetachmentChange } from '../rosterPicks'
 import { useCollectionMutation } from '../useCollection'
 import { useSettled } from '../useSettled'
 import { DatasheetPanel } from './builder/DatasheetPanel'
@@ -58,6 +58,7 @@ type Props = {
 }
 
 const READ_ONLY_PREFERENCE = 'praetorium.roster-read-only'
+const NO_UNITS = [] as const
 
 /**
  * Building a list from the catalogue rather than pasting one.
@@ -100,8 +101,8 @@ export function ListBuilder({ prep, initial, editable = true, battle, resolvePer
   const savedId = initial.id
   const queryClient = useQueryClient()
   const { data: owned } = useQuery({ ...collectionQuery(), enabled: editable })
-  const collection = new Set(owned ?? [])
-  const own = useCollectionMutation()
+  const collection = useMemo(() => new Set(owned ?? []), [owned])
+  const { mutate: mutateCollection } = useCollectionMutation()
 
   useEffect(() => setSetupDraftState(readWorkspaceState<RosterSetup>(workspacePath, 'roster-setup')), [workspacePath])
   useLayoutEffect(() => {
@@ -120,12 +121,15 @@ export function ListBuilder({ prep, initial, editable = true, battle, resolvePer
     setReadOnly(next)
     localStorage.setItem(READ_ONLY_PREFERENCE, String(next))
   }
-  const togglePickerFilter = (filter: PickerFilter) =>
-    setPickerFilters((current) => {
-      const next = new Set(current)
-      if (!next.delete(filter)) next.add(filter)
-      return next
-    })
+  const togglePickerFilter = useCallback(
+    (filter: PickerFilter) =>
+      setPickerFilters((current) => {
+        const next = new Set(current)
+        if (!next.delete(filter)) next.add(filter)
+        return next
+      }),
+    [],
+  )
 
   const faction = available?.factions.find((entry) => entry.id === catalogueId)
   const suggested = faction
@@ -200,6 +204,46 @@ export function ListBuilder({ prep, initial, editable = true, battle, resolvePer
     },
   })
 
+  const units = priced?.units ?? NO_UNITS
+  const edit = useMemo(() => pickEditor(setPicks, { catalogueId, units }), [catalogueId, setPicks, units])
+  const editor = useRef({ edit, pickCount: picks.length })
+  useLayoutEffect(() => {
+    editor.current = { edit, pickCount: picks.length }
+  }, [edit, picks.length])
+  const drop = useCallback((index: number) => {
+    editor.current.edit.drop(index)
+    posthog.capture('roster_unit_removed', { unit_count: editor.current.pickCount - 1 })
+    setSelected(null)
+  }, [])
+  const add = useCallback((entryId: string) => {
+    editor.current.edit.add(entryId)
+    posthog.capture('roster_unit_added', { unit_count: editor.current.pickCount + 1 })
+  }, [])
+  const inspect = useCallback((previewCatalogueId: string, entryId: string, unitName: string) => {
+    setPreview({ catalogueId: previewCatalogueId, entryId, name: unitName })
+    setSelected(null)
+    setShowing('loadout')
+  }, [])
+  const previewUnit = useCallback((entryId: string, unitName: string) => inspect(catalogueId, entryId, unitName), [catalogueId, inspect])
+  const duplicate = useCallback((index: number) => {
+    editor.current.edit.duplicate(index)
+    posthog.capture('roster_unit_duplicated', { unit_count: editor.current.pickCount + 1 })
+  }, [])
+  const join = useCallback((index: number, targetKey: number | undefined) => {
+    editor.current.edit.join(index, targetKey)
+    posthog.capture('roster_attachment_updated', { attached: targetKey !== undefined })
+  }, [])
+  const selectUnit = useCallback((index: number) => {
+    setPreview(null)
+    setSelected(index)
+    setShowing('loadout')
+  }, [])
+  const setUnitOwned = useCallback(
+    (entryId: string, nextOwned: boolean) => mutateCollection({ entryId, owned: nextOwned }),
+    [mutateCollection],
+  )
+  const cardRelationships = useCardRelationships(picks, units)
+
   if (!available) {
     return (
       <div className="flex min-h-0 flex-1 items-center justify-center border border-edge bg-sunken p-8 text-center">
@@ -212,7 +256,6 @@ export function ListBuilder({ prep, initial, editable = true, battle, resolvePer
   }
 
   const over = Boolean(priced && priced.points > limit)
-  const units = priced?.units ?? []
   const selectedUnit = selected === null ? null : (units[selected] ?? null)
   const selectedPick = selected === null ? null : (picks[selected] ?? null)
   const optimisticUnit =
@@ -239,35 +282,6 @@ export function ListBuilder({ prep, initial, editable = true, battle, resolvePer
   const inspectedEntryId = preview?.entryId ?? optimisticUnit?.entryId ?? null
   const referenceRoute = reference?.entryId === inspectedEntryId ? reference.route : null
 
-  const edit = pickEditor(setPicks, { catalogueId, units })
-
-  const drop = (index: number) => {
-    edit.drop(index)
-    posthog.capture('roster_unit_removed', { unit_count: picks.length - 1 })
-    setSelected(null)
-  }
-
-  const add = (entryId: string) => {
-    edit.add(entryId)
-    posthog.capture('roster_unit_added', { unit_count: picks.length + 1 })
-  }
-
-  const inspect = (previewCatalogueId: string, entryId: string, unitName: string) => {
-    setPreview({ catalogueId: previewCatalogueId, entryId, name: unitName })
-    setSelected(null)
-    setShowing('loadout')
-  }
-
-  const duplicate = (index: number) => {
-    edit.duplicate(index)
-    posthog.capture('roster_unit_duplicated', { unit_count: picks.length + 1 })
-  }
-
-  const join = (index: number, targetKey: number | undefined) => {
-    edit.join(index, targetKey)
-    posthog.capture('roster_attachment_updated', { attached: targetKey !== undefined })
-  }
-
   const picker =
     editable && faction ? (
       <div className="flex h-full flex-col">
@@ -275,7 +289,7 @@ export function ListBuilder({ prep, initial, editable = true, battle, resolvePer
           <Picker
             catalogueId={catalogueId}
             onAdd={add}
-            onPreview={(entryId, unitName) => inspect(catalogueId, entryId, unitName)}
+            onPreview={previewUnit}
             inRoster={held}
             room={priced ? limit - priced.points : null}
             battleSize={limit}
@@ -539,27 +553,24 @@ export function ListBuilder({ prep, initial, editable = true, battle, resolvePer
               return rows.length ? (
                 <Section key={id} title={plural} count={rows.length}>
                   {rows.map(({ unit, index }) => (
-                    <UnitCard
+                    <BuilderUnitCard
                       key={picks[index]?.key ?? unit.entryId}
                       unit={unit}
+                      index={index}
+                      joined={cardRelationships.get(picks[index]?.key ?? -1)?.joined ?? []}
+                      canJoin={cardRelationships.get(picks[index]?.key ?? -1)?.canJoin ?? []}
                       alliedFaction={
                         picks[index]?.catalogueId === catalogueId
                           ? undefined
                           : available.factions.find((entry) => entry.id === picks[index]?.catalogueId)
                       }
                       selected={selected === index}
-                      onSelect={() => {
-                        setPreview(null)
-                        setSelected(index)
-                        setShowing('loadout')
-                      }}
-                      onRemove={() => drop(index)}
-                      onDuplicate={() => duplicate(index)}
                       owned={collection.has(unit.entryId)}
-                      onOwned={() => own.mutate({ entryId: unit.entryId, owned: !collection.has(unit.entryId) })}
-                      joined={attachmentRows(picks, units, index).map((row) => ({ ...row, onAct: () => join(row.detach, undefined) }))}
-                      canJoin={joinableUnits(picks, units, index)}
-                      onJoin={(targetKey) => join(index, targetKey)}
+                      onSelect={selectUnit}
+                      onRemove={drop}
+                      onDuplicate={duplicate}
+                      onOwned={setUnitOwned}
+                      onJoin={join}
                       editable={editable}
                     />
                   ))}
@@ -719,6 +730,91 @@ export function ListBuilder({ prep, initial, editable = true, battle, resolvePer
       </footer>
       <RosterExportDialog text={exportText} onClose={() => setExportText(null)} />
     </div>
+  )
+}
+
+type BuilderUnitCardProps = {
+  unit: ComponentProps<typeof UnitCard>['unit']
+  index: number
+  joined: ReturnType<typeof attachmentRows>
+  canJoin: ReturnType<typeof joinableUnits>
+  alliedFaction: ComponentProps<typeof UnitCard>['alliedFaction']
+  selected: boolean
+  owned: boolean
+  editable: boolean
+  onSelect: (index: number) => void
+  onRemove: (index: number) => void
+  onDuplicate: (index: number) => void
+  onOwned: (entryId: string, owned: boolean) => void
+  onJoin: (index: number, targetKey: number | undefined) => void
+}
+
+const BuilderUnitCard = memo(function BuilderUnitCard({
+  unit,
+  index,
+  joined,
+  canJoin,
+  alliedFaction,
+  selected,
+  owned,
+  editable,
+  onSelect,
+  onRemove,
+  onDuplicate,
+  onOwned,
+  onJoin,
+}: BuilderUnitCardProps) {
+  return (
+    <UnitCard
+      unit={unit}
+      alliedFaction={alliedFaction}
+      selected={selected}
+      onSelect={() => onSelect(index)}
+      onRemove={() => onRemove(index)}
+      onDuplicate={() => onDuplicate(index)}
+      owned={owned}
+      onOwned={() => onOwned(unit.entryId, !owned)}
+      joined={joined.map((row) => ({ ...row, onAct: () => onJoin(row.detach, undefined) }))}
+      canJoin={canJoin}
+      onJoin={(targetKey) => onJoin(index, targetKey)}
+      editable={editable}
+    />
+  )
+})
+
+type CardRelationships = {
+  joined: ReturnType<typeof attachmentRows>
+  canJoin: ReturnType<typeof joinableUnits>
+}
+
+function useCardRelationships(picks: readonly KeyedPick[], units: Parameters<typeof attachmentRows>[1]) {
+  const previous = useRef(new Map<number, CardRelationships>())
+  const relationships = useMemo(() => {
+    const next = new Map<number, CardRelationships>()
+    for (const [index, pick] of picks.entries()) {
+      const candidate = { joined: attachmentRows(picks, units, index), canJoin: joinableUnits(picks, units, index) }
+      const current = previous.current.get(pick.key)
+      next.set(pick.key, current && sameRelationships(current, candidate) ? current : candidate)
+    }
+    return next
+  }, [picks, units])
+  useLayoutEffect(() => {
+    previous.current = relationships
+  }, [relationships])
+  return relationships
+}
+
+function sameRelationships(left: CardRelationships, right: CardRelationships) {
+  return (
+    left.joined.length === right.joined.length &&
+    left.joined.every((row, index) => {
+      const other = right.joined[index]
+      return Boolean(
+        other && row.label === other.label && row.name === other.name && row.action === other.action && row.detach === other.detach,
+      )
+    }) &&
+    left.canJoin.length === right.canJoin.length &&
+    left.canJoin.every((unit, index) => unit.key === right.canJoin[index]?.key && unit.name === right.canJoin[index]?.name)
   )
 }
 

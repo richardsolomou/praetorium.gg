@@ -1,7 +1,8 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { Link, Outlet, useParams, useRouterState } from '@tanstack/react-router'
 import { ChevronLeft, ChevronRight, FileSearch } from 'lucide-react'
-import { useState } from 'react'
+import { memo, useState } from 'react'
+import type { UnitSummary } from '../../server/cataloguePicker'
 import { collectionQuery, factionDatasheetsQuery, factionQuery } from '../queries'
 import { useMounted } from '../useMounted'
 import { useSettled } from '../useSettled'
@@ -76,18 +77,7 @@ export function FactionDatasheets() {
                 <Section key={group.id} title={group.plural} count={rows.length}>
                   <div className="grid gap-2 sm:grid-cols-2">
                     {rows.map((unit) => (
-                      <div key={unit.id} className="flex items-center border border-edge bg-panel hover:border-info">
-                        <Link
-                          to="/factions/$catalogueId/datasheets/$entryId"
-                          params={{ catalogueId: faction.slug, entryId: unit.slug }}
-                          className="flex min-w-0 flex-1 items-center justify-between px-3 py-2"
-                        >
-                          <span className="truncate text-sm font-bold uppercase">{unit.name}</span>
-                          {unit.points === null ? null : <span className="chip ml-2 shrink-0">{unit.points} pts</span>}
-                        </Link>
-                        <CollectionToggle entryId={unit.id} name={unit.name} />
-                        <ChevronRight className="mr-2 size-4 shrink-0 text-dim" aria-hidden />
-                      </div>
+                      <FactionDatasheetRow key={unit.id} catalogueId={faction.slug} unit={unit} />
                     ))}
                   </div>
                 </Section>
@@ -112,3 +102,23 @@ export function FactionDatasheets() {
     </main>
   )
 }
+
+const FactionDatasheetRow = memo(function FactionDatasheetRow({ catalogueId, unit }: { catalogueId: string; unit: UnitSummary }) {
+  return (
+    <div
+      data-datasheet={unit.name}
+      className="flex w-full min-w-0 items-center border border-edge bg-panel [contain:layout_style] hover:border-info"
+    >
+      <Link
+        to="/factions/$catalogueId/datasheets/$entryId"
+        params={{ catalogueId, entryId: unit.slug }}
+        className="flex min-w-0 flex-1 items-center justify-between px-3 py-2"
+      >
+        <span className="truncate text-sm font-bold uppercase">{unit.name}</span>
+        {unit.points === null ? null : <span className="chip ml-2 shrink-0">{unit.points} pts</span>}
+      </Link>
+      <CollectionToggle entryId={unit.id} name={unit.name} />
+      <ChevronRight className="mr-2 size-4 shrink-0 text-dim" aria-hidden />
+    </div>
+  )
+})

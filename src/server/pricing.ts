@@ -10,7 +10,7 @@ import {
 } from '../core/battle'
 import { type CatalogueIndex, targetOf } from '../core/catalogue'
 import { evaluate, evaluateForces, type Selection } from '../core/evaluate'
-import { type ModelKind, modelKindsOf, modelRowCount, modelRowSources, optionPieces } from '../core/modelKinds'
+import { type ModelKind, modelKindsOf, modelRowCount, modelRowSources, optionWargear } from '../core/modelKinds'
 import { buildUnit } from '../core/roster'
 import { allAt } from '../core/selection'
 import { type ChoiceOptions, unitChoices } from '../core/unitChoices'
@@ -315,8 +315,8 @@ export function calculateRosterPrice(data: PriceInput, loaded = app().catalogue(
           const nested = allAt(unit.selection, [...path, option.id])
           const direct = allAt(unit.selection, path).filter((selection) => selection.id === option.id)
           const selected = nested.length ? nested : direct
-          const pieces = optionPieces(option.id, loaded.index, options, selected)
-          return pieces ? { ...option, pieces } : option
+          const pieceCounts = optionWargear(option.id, loaded.index, options, selected)
+          return pieceCounts.length ? { ...option, pieces: pieceCounts.map((piece) => piece.name), pieceCounts } : option
         })
         if (!choice.name.toLowerCase().includes('enhancement')) return { ...choice, options: choiceOptions }
         const kind = choiceOptions.every((option) => upgradeNames.has(routeSlug(option.name)))
