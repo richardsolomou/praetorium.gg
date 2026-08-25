@@ -98,7 +98,12 @@ export const adminUsersSchema = z.object({
  * `expectedSeq` is the client's claim about the history it has already seen.
  * Sending it is what makes a command conditional on nothing having happened since.
  */
-export const submitSchema = z.object({ token, expectedSeq: z.number().int().min(0), command: commandSchema })
+const attachSavedRosterSchema = z.object({ kind: z.literal('attach-saved-roster'), rosterId: id, playerId: id.optional() }).strict()
+export const submitSchema = z.object({
+  token,
+  expectedSeq: z.number().int().min(0),
+  command: z.union([commandSchema, attachSavedRosterSchema]),
+})
 
 export const unitsSchema = z.object({
   catalogueId,

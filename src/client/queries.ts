@@ -33,7 +33,6 @@ import {
   priceRoster,
   rosterAccess,
   savedRosterSummaries,
-  savedRosters,
   savedRosterPoints,
   savedRosterLoadoutDatasheets,
   savedRosterPrice,
@@ -267,9 +266,6 @@ export const savedRosterPriceQuery = (
     queryFn: () => savedRosterPrice({ data: { id, ...(battle ? { battle } : {}) } }),
   })
 
-export const savedRostersQuery = () =>
-  queryOptions({ queryKey: ['saved-rosters'], queryFn: () => savedRosters(), staleTime: SSR_STALE_TIME })
-
 export const savedRosterSummariesQuery = () =>
   queryOptions({ queryKey: ['saved-roster-summaries'], queryFn: () => savedRosterSummaries(), staleTime: SSR_STALE_TIME })
 
@@ -288,7 +284,6 @@ export function invalidateSavedRosters(queryClient: QueryClient) {
   return Promise.all([
     queryClient.invalidateQueries({ queryKey: ['roster-access'] }),
     queryClient.invalidateQueries({ queryKey: savedRosterSummariesQuery().queryKey }),
-    queryClient.invalidateQueries({ queryKey: savedRostersQuery().queryKey }),
     queryClient.invalidateQueries({ queryKey: savedRosterPointsQuery().queryKey }),
   ])
 }

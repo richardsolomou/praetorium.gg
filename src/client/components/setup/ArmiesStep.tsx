@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from '@tanstack/react-router'
@@ -6,15 +6,20 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { GAME_SIZES, PAINTED_ARMY_POINTS, type Command } from '../../../core/battle'
 import { type BattleView } from '../../../core/battleView'
-import { savedRosterPrice, unitWounds } from '../../../server/functions'
-import { savedRostersQuery } from '../../queries'
-import { errorMessage } from '../../queryClient'
+import { savedRosterSummariesQuery } from '../../queries'
 import type { Army, Side } from '../../sides'
 import { ArmyIdentity, RosterIdentity } from '../ArmyIdentity'
 import { CHOOSABLE, CHOSEN, DispositionChip, SetupNote, SetupSidePanel, useDispositionNames } from './chrome'
-import { battleRoster, type SavedRoster } from './roster'
 
-type Props = { view: BattleView; sides: Side[]; send: (command: Command) => void; pending: boolean }
+type SavedRoster = Awaited<ReturnType<NonNullable<ReturnType<typeof savedRosterSummariesQuery>['queryFn']>>>[number]
+type Props = {
+  view: BattleView
+  sides: Side[]
+  send: (command: Command) => void
+  attachSavedRoster: (rosterId: string, playerId?: string) => Promise<boolean>
+  pending: boolean
+  problem: string | null
+}
 
 /**
  * Every army on the table, grouped by the side that fields it.
@@ -22,10 +27,10 @@ type Props = { view: BattleView; sides: Side[]; send: (command: Command) => void
  * A player only ever changes their own list, but everyone sees every list as soon as
  * it is attached — that is what makes the step worth doing together.
  */
-export function ArmiesStep({ view, sides, send, pending }: Props) {
+export function ArmiesStep({ view, sides, send, attachSavedRoster, pending, problem }: Props) {
   /** The army the chooser is picking for: your own, or a practice opponent's. */
   const [choosing, setChoosing] = useState<Army | null>(null)
-  const { data: saved = [] } = useQuery(savedRostersQuery())
+  const { data: saved = [] } = useQuery(savedRosterSummariesQuery())
   const nameDisposition = useDispositionNames()
   const yourSide = sides.find((side) => side.isViewer)
   const sideOf = (army: Army) => sides.find((side) => side.armies.some((candidate) => candidate.playerId === army.playerId))
@@ -36,27 +41,6 @@ export function ArmiesStep({ view, sides, send, pending }: Props) {
   // The chooser prices against the side it was opened for, which an allied pair splits.
   const chooserLimit = choosing ? limitFor(sideOf(choosing)) : perArmy
   const eligible = chooserLimit === null ? saved : saved.filter((roster) => roster.limit === chooserLimit)
-  const attach = useMutation({
-    mutationFn: async ({ army, savedRoster }: { army: Army; savedRoster: SavedRoster }) => {
-      // What a model of each datasheet can take is asked for beside the price rather
-      // than after it: the picks already name every datasheet, so neither read is
-      // waiting on the other. It is only ever asked here, because it is frozen into
-      // the log from here and never read from the catalogue again.
-      const [priced, wounds] = await Promise.all([
-        savedRosterPrice({ data: { id: savedRoster.id } }),
-        unitWounds({ data: { catalogueId: savedRoster.catalogueId, entryIds: savedRoster.picks.map((pick) => pick.entryId) } }),
-      ])
-      if (!priced) throw new Error('That roster could not be loaded.')
-      return { army, roster: battleRoster(savedRoster, priced, wounds) }
-    },
-    onSuccess: ({ army, roster }) => {
-      // Cards are settled by the battle, not carried in with the list: attaching a roster
-      // starts them fresh. The bonus arrives claimed, because most armies on a table are.
-      send({ kind: 'attach-roster', roster, prep: null, painted: true, playerId: army.playerId })
-      setChoosing(null)
-    },
-  })
-
   return (
     <div className="space-y-4">
       {perArmy !== null && perArmy !== view.settings.limit ? (
@@ -102,7 +86,6 @@ export function ArmiesStep({ view, sides, send, pending }: Props) {
                         size="sm"
                         aria-label={`${army.roster ? 'Change' : 'Choose'} roster for ${army.playerName}`}
                         onClick={() => {
-                          attach.reset()
                           setChoosing(army)
                         }}
                       >
@@ -176,9 +159,11 @@ export function ArmiesStep({ view, sides, send, pending }: Props) {
         savedCount={saved.length}
         requiredLimit={chooserLimit}
         selectedName={choosing?.roster?.name}
-        pending={pending || attach.isPending}
-        onChoose={(savedRoster) => choosing && attach.mutate({ army: choosing, savedRoster })}
-        error={attach.error ? errorMessage(attach.error) : null}
+        pending={pending}
+        onChoose={async (savedRoster) => {
+          if (choosing && (await attachSavedRoster(savedRoster.id, choosing.playerId))) setChoosing(null)
+        }}
+        error={problem}
       />
     </div>
   )
@@ -246,7 +231,7 @@ function RosterChooser({
                   <RosterIdentity roster={roster} linked={false} className="mt-1" />
                   <span className="mt-1 block text-xs text-dim">
                     11th edition · {GAME_SIZES.find((size) => size.limit === roster.limit)?.name ?? `${roster.limit} points`} ·{' '}
-                    {roster.picks.length} units
+                    {roster.unitCount} units
                   </span>
                 </span>
                 <span className="shrink-0 text-right">

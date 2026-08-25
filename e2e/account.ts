@@ -223,12 +223,16 @@ export async function attachRoster(page: Page, name: string, { forPlayer }: { fo
     ? page.getByRole('button', { name: new RegExp(`roster for ${forPlayer}$`) })
     : page.getByRole('button', { name: /^(Choose|Change) roster/ }).first()
   await chooser.click()
-  const attached = page.waitForResponse((response) => response.ok() && response.request().method() === 'POST')
+  const attached = page.waitForResponse(
+    (response) =>
+      response.ok() && response.request().method() === 'POST' && Boolean(response.request().postData()?.includes('attach-saved-roster')),
+  )
   await page
     .getByRole('dialog', { name: /roster$/ })
     .getByRole('button', { name: new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`) })
     .click()
-  await attached
+  const request = (await attached).request()
+  expect(request.postData()).not.toContain(name)
   // The table strip names it too, so this is the first of two rather than the only one.
   await expect(page.getByText(name, { exact: true }).first()).toBeVisible()
 }

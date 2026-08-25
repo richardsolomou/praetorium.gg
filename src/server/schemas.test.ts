@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createBattleSchema, createLeagueSchema, savedRosterDatasheetSchema } from './schemas'
+import { createBattleSchema, createLeagueSchema, savedRosterDatasheetSchema, submitSchema } from './schemas'
 
 describe('battle creation input', () => {
   it('keeps the legacy opponent-only payload valid', () => {
@@ -20,6 +20,22 @@ describe('battle creation input', () => {
 
   it('refuses an ally with nobody to play against', () => {
     expect(createBattleSchema.safeParse({ allyId: 'carol' }).success).toBe(false)
+  })
+})
+
+describe('battle command input', () => {
+  const submission = {
+    token: 'battle',
+    expectedSeq: 4,
+    command: { kind: 'attach-saved-roster', rosterId: 'roster', playerId: 'player' },
+  }
+
+  it('accepts a saved roster reference', () => {
+    expect(submitSchema.parse(submission)).toEqual(submission)
+  })
+
+  it('rejects roster contents beside the saved roster reference', () => {
+    expect(submitSchema.safeParse({ ...submission, command: { ...submission.command, picks: [] } }).success).toBe(false)
   })
 })
 

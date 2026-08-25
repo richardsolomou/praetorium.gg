@@ -7,6 +7,9 @@ import { submit } from '../server/functions'
 import { battleQuery, meQuery } from './queries'
 import { errorMessage } from './queryClient'
 
+type SubmittedCommand = Command | { kind: 'attach-saved-roster'; rosterId: string; playerId?: string }
+type QueuedCommand = { command: SubmittedCommand; basedOn: number; complete?: (appended: boolean) => void }
+
 function explain(result: SubmitResult) {
   if (result.outcome === 'appended') return null
   // A lost race is not a mistake, so it says what happened rather than what the
@@ -36,7 +39,7 @@ export function useCommand(token: string, seq: number) {
   const [pending, setPending] = useState(false)
   /** The history this hook last saw, which runs ahead of props between renders. */
   const seen = useRef(seq)
-  const queued = useRef<{ command: Command; basedOn: number }[]>([])
+  const queued = useRef<QueuedCommand[]>([])
   const draining = useRef(false)
 
   useEffect(() => {
@@ -56,14 +59,20 @@ export function useCommand(token: string, seq: number) {
           queryClient.setQueryData(battleQuery(token).queryKey, screen)
           if (screen?.kind === 'battle') seen.current = Math.max(seen.current, screen.view.seq)
           void queryClient.invalidateQueries({ queryKey: ['report', token] })
+          item.complete?.(result.outcome === 'appended')
           if (result.outcome !== 'appended') {
             const authoritativeSeq = screen?.kind === 'battle' ? screen.view.seq : item.basedOn
-            queued.current = queued.current.filter(
-              (candidate) => candidate.basedOn !== item.basedOn && candidate.basedOn >= authoritativeSeq,
-            )
+            const kept: QueuedCommand[] = []
+            for (const candidate of queued.current) {
+              if (candidate.basedOn !== item.basedOn && candidate.basedOn >= authoritativeSeq) kept.push(candidate)
+              else candidate.complete?.(false)
+            }
+            queued.current = kept
           }
         } catch (error) {
           // Whatever was behind this one was written against a history that never happened.
+          item.complete?.(false)
+          for (const candidate of queued.current) candidate.complete?.(false)
           queued.current = []
           if (isSignedOut(error)) {
             /*
@@ -98,5 +107,20 @@ export function useCommand(token: string, seq: number) {
     [drain, seq],
   )
 
-  return { send, problem, pending }
+  const attachSavedRoster = useCallback(
+    (rosterId: string, playerId?: string) =>
+      new Promise<boolean>((complete) => {
+        queued.current.push({
+          command: { kind: 'attach-saved-roster', rosterId, ...(playerId ? { playerId } : {}) },
+          basedOn: seq,
+          complete,
+        })
+        setProblem(null)
+        setPending(true)
+        void drain()
+      }),
+    [drain, seq],
+  )
+
+  return { send, attachSavedRoster, problem, pending }
 }
