@@ -398,6 +398,24 @@ test('unit upgrades stay separate from character enhancements', async ({ page })
   await page.screenshot({ path: 'test-results/skyshroud-unit-upgrades.png', fullPage: true })
 })
 
+test('a unit upgrade shows the core ability it grants', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 })
+  await openBuilder(page, 'Necrons', /Hand of the Dynasty/)
+  await add(page, 'Necron Warriors')
+  await page.locator('[data-unit="Necron Warriors"]').getByRole('button', { name: 'Necron Warriors', exact: true }).click()
+
+  const loadout = page.locator('aside[aria-label="Loadout"]')
+  await loadout.getByRole('button', { name: 'Select Enlivened Sentinels' }).click()
+  const scouts = loadout.getByRole('button', { name: 'Scouts 5"', exact: true })
+  await expect(scouts).toHaveClass(/text-info/)
+  await scouts.hover()
+  await expect(page.getByRole('tooltip')).toContainText('Added by Enlivened Sentinels')
+  await shot(loadout, 'test-results/enlivened-sentinels-granted-ability.png')
+
+  await page.setViewportSize({ width: 390, height: 844 })
+  await shot(loadout, 'test-results/enlivened-sentinels-granted-ability-phone.png')
+})
+
 test('wargear abilities are explained beside their choices', async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 900 })
   await openBuilder(page)

@@ -554,12 +554,26 @@ function linkedAbilityNames(
   catalogueId: string,
   selections: readonly Selection[],
 ) {
-  return (definition.infoLinks ?? []).flatMap((link) => {
+  const linked = (definition.infoLinks ?? []).flatMap((link) => {
     if (link.type !== 'rule' || infoLinkHiddenByRules(link, index, { primaryCatalogueId: catalogueId, roster: selections })) return []
     const rule = index.rules.get(link.targetId)
     const name = displayRuleName(link, link.name ?? rule?.name)
     return name && !rule?.hidden ? [name] : []
   })
+  const added = (definition.modifiers ?? []).flatMap((modifier) => {
+    if (
+      modifier.type !== 'add' ||
+      modifier.field !== 'add-info' ||
+      typeof modifier.value !== 'string' ||
+      modifier.conditions?.length ||
+      modifier.conditionGroups?.length ||
+      modifier.repeats?.length
+    )
+      return []
+    const rule = index.rules.get(modifier.value)
+    return rule?.name && !rule.hidden ? [rule.name] : []
+  })
+  return [...new Set([...linked, ...added])]
 }
 
 /** Exact catalogue phrases that grant a named ability to a bearer or every model in its unit. */
@@ -581,8 +595,13 @@ function grantedAbility(description: string | null | undefined, attached: boolea
     /^While a Character model is leading this unit, that Character model has the \[?([\p{L}\p{N} +'’\p{Pd}]+)\]? ability\.$/iu,
   )
   if (bodyguardGrant && attached) return grant(bodyguardGrant[1]!, 'leader')
-  const thisUnitHasStealth = prose.match(/^(?:[-▪]\s*)?This unit has (Stealth)\.(?:\s|$)/iu)
-  if (thisUnitHasStealth) return grant(thisUnitHasStealth[1]!, 'unit')
+  const thisUnitGrant = prose.match(/^(?:[-▪]\s*)?This unit has (?:the )?\[?([\p{L}\p{N} +"'’\p{Pd}]+?)\]?(?: ability)?\.(?:\s|$)/iu)
+  if (
+    thisUnitGrant &&
+    (thisUnitGrant[1]?.toLocaleLowerCase() === 'stealth' ||
+      linkedAbilities.some((name) => ruleReferenceMatches(thisUnitGrant[1]!, name) || ruleReferenceMatches(name, thisUnitGrant[1]!)))
+  )
+    return grant(thisUnitGrant[1]!, 'unit')
   const leadingGrant = prose.match(
     /^While (?:this model|the bearer) is leading a unit, models in that unit have the \[?([\p{L}\p{N} +'’\p{Pd}]+)\]? ability\.$/iu,
   )
