@@ -18,6 +18,7 @@ import { Label } from '@/components/ui/label'
 import { PlayerAvatar } from '../PlayerAvatar'
 import { SearchableSelect } from '../SearchableSelect'
 import { errorMessage } from '../../queryClient'
+import { disambiguatedPlayerLabels } from '../../playerLabels'
 import {
   battlesQuery,
   factionIndexQuery,
@@ -30,6 +31,7 @@ import {
 } from '../../queries'
 import {
   assignLeagueRosterRequirement,
+  assignLeagueTeam,
   createLeagueBattle,
   createLeagueEvent,
   joinLeague,
@@ -57,6 +59,7 @@ export function LeaguePage({ token, eventToken }: { token: string; eventToken?: 
   const [choosingBattle, setChoosingBattle] = useState(false)
   const [removing, setRemoving] = useState<{ userId: string; name: string } | null>(null)
   const [reassigning, setReassigning] = useState<{ userId: string; name: string; requiredLimit: number } | null>(null)
+  const [pairing, setPairing] = useState<{ userId: string; name: string } | null>(null)
   const refresh = async () => {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ['league', token] }),
@@ -85,6 +88,13 @@ export function LeaguePage({ token, eventToken }: { token: string; eventToken?: 
       assignLeagueRosterRequirement({ data: { token, eventToken: selectedEventToken, ...input } }),
     onSuccess: refresh,
   })
+  const assignTeam = useMutation({
+    mutationFn: (userIds: string[]) => assignLeagueTeam({ data: { token, eventToken: selectedEventToken, userIds } }),
+    onSuccess: async () => {
+      setPairing(null)
+      await refresh()
+    },
+  })
   const reveal = useMutation({
     mutationFn: () => revealLeague({ data: { token, eventToken: selectedEventToken } }),
     onSuccess: async () => {
@@ -112,6 +122,31 @@ export function LeaguePage({ token, eventToken }: { token: string; eventToken?: 
       await navigate({ to: '/leagues/$token', params: { token }, search: { event: nextEventToken } })
     },
   })
+  const openBattleChooser = () => {
+    battle.reset()
+    setChoosingBattle(true)
+  }
+  const closeBattleChooser = () => {
+    battle.reset()
+    setChoosingBattle(false)
+  }
+  const openTeamChooser = (next: { userId: string; name: string }) => {
+    assignTeam.reset()
+    setPairing(next)
+  }
+  const closeTeamChooser = () => {
+    assignTeam.reset()
+    setPairing(null)
+  }
+  const openRosterChooser = () => {
+    submit.reset()
+    setChoosing(true)
+  }
+  const closeRosterChooser = () => {
+    if (submit.isPending) return
+    submit.reset()
+    setChoosing(false)
+  }
   if (!league) return null
   const isOwner = me?.id === league.ownerId
   const ownEntry = league.entries.find((entry) => entry.userId === me?.id)
@@ -119,7 +154,17 @@ export function LeaguePage({ token, eventToken }: { token: string; eventToken?: 
   const pendingCount = league.entries.filter((entry) => entry.status === 'pending').length
   const latestEvent = league.events[0]
   const viewingLatest = latestEvent?.token === league.eventToken
-  const entrantLabels = disambiguatedEntrantLabels(league.entries)
+  const entrantLabels = disambiguatedPlayerLabels(league.entries.map((entry) => ({ id: entry.userId, name: entry.name })))
+  const teamProjection = projectDoublesTeams(accepted)
+  const { members: teamMembers } = teamProjection
+  const removingEntry = removing ? accepted.find((entry) => entry.userId === removing.userId) : undefined
+  const removingTeammate = removingEntry?.teamId
+    ? teamMembers.get(removingEntry.teamId)?.find((entry) => entry.userId !== removingEntry.userId)
+    : undefined
+  const doublesReady =
+    accepted.length >= 4 &&
+    accepted.length % 2 === 0 &&
+    accepted.every((entry) => entry.teamId && teamMembers.get(entry.teamId)?.length === 2)
   const registrationFull =
     league.admission === 'approval' && league.playerLimit !== null
       ? accepted.length >= league.playerLimit || league.occupiedCount >= LEAGUE_MEMBER_MAX
@@ -131,9 +176,13 @@ export function LeaguePage({ token, eventToken }: { token: string; eventToken?: 
       (accepted.every((entry) => entry.requiredLimit !== null) &&
         accepted.some((entry) => entry.requiredLimit === league.rosterLimit) &&
         accepted.filter((entry) => entry.requiredLimit === alliedLeagueRosterLimit(league.rosterLimit ?? 0)).length >= 2)) &&
+    (league.format !== '2v2' || (doublesReady && pendingCount === 0)) &&
     (league.playerLimit === null || accepted.length === league.playerLimit)
-  const eventRuleBlocked = eventRule.format === '2v1' && league.playerLimit !== null && league.playerLimit < 3
-  const problem = join.error ?? moderate.error ?? (league?.format === '2v1' ? null : battle.error)
+  const eventRuleBlocked =
+    league.playerLimit !== null &&
+    ((eventRule.format === '2v1' && league.playerLimit < 3) ||
+      (eventRule.format === '2v2' && (league.playerLimit < 4 || league.playerLimit % 2 !== 0)))
+  const problem = join.error ?? moderate.error ?? (league?.format === '2v1' || league?.format === '2v2' ? null : battle.error)
   const requestAssignment = (entry: (typeof accepted)[number], requiredLimit: number) => {
     if (entry.requiredLimit === requiredLimit) return
     if (entry.submitted) {
@@ -162,7 +211,9 @@ export function LeaguePage({ token, eventToken }: { token: string; eventToken?: 
                   <span className="chip">
                     {league.format === '2v1'
                       ? `${league.rosterLimit.toLocaleString()} solo / ${alliedLeagueRosterLimit(league.rosterLimit).toLocaleString()} allied`
-                      : `1v1 · ${league.rosterLimit.toLocaleString()} points`}
+                      : league.format === '2v2'
+                        ? `Doubles · ${league.rosterLimit.toLocaleString()} per force / ${alliedLeagueRosterLimit(league.rosterLimit).toLocaleString()} each`
+                        : `1v1 · ${league.rosterLimit.toLocaleString()} points`}
                   </span>
                 ) : null}
                 <span className="chip">
@@ -204,7 +255,7 @@ export function LeaguePage({ token, eventToken }: { token: string; eventToken?: 
       </section>
 
       <div className="mx-auto grid max-w-5xl gap-5 px-3 py-5 sm:px-4 lg:grid-cols-[minmax(0,1fr)_18rem]">
-        <section>
+        <section className="min-w-0">
           <div className="rubric mb-2 flex items-baseline justify-between border-b border-edge pb-2">
             <h2>{league.recurring ? `Event ${league.eventNumber} entrants` : 'Entrants'}</h2>
             <span className="readout">{accepted.length}</span>
@@ -214,7 +265,7 @@ export function LeaguePage({ token, eventToken }: { token: string; eventToken?: 
               {league.entries.map((entry) => {
                 const entrantLabel = entrantLabels.get(entry.userId) ?? entry.name
                 return (
-                  <div key={entry.userId} data-person={entry.name} className="flex flex-wrap items-center gap-3 p-3">
+                  <div key={entry.userId} data-person={entry.name} className="flex min-w-0 flex-wrap items-center gap-3 p-3">
                     <Link
                       to="/users/$userId"
                       params={{ userId: entry.userId }}
@@ -230,12 +281,19 @@ export function LeaguePage({ token, eventToken }: { token: string; eventToken?: 
                           <span className="mt-1 block text-xs text-parchment">
                             {entry.requiredLimit.toLocaleString()}-point roster
                             {league.format === '2v1' ? (entry.requiredLimit === league.rosterLimit ? ' · solo' : ' · allied') : ''}
+                            {league.format === '2v2' && entry.teamId
+                              ? ` · paired with ${
+                                  entrantLabels.get(
+                                    teamMembers.get(entry.teamId)?.find((member) => member.userId !== entry.userId)?.userId ?? '',
+                                  ) ?? 'teammate'
+                                }`
+                              : ''}
                           </span>
                         ) : null}
                       </span>
                     </Link>
                     {isOwner && !league.revealedAt ? (
-                      <div className="flex w-full justify-end gap-1 sm:w-auto">
+                      <div className="flex w-full min-w-0 flex-wrap justify-end gap-1 sm:w-auto">
                         {league.format === '2v1' && entry.status === 'accepted' && league.rosterLimit ? (
                           <>
                             <Button
@@ -258,6 +316,30 @@ export function LeaguePage({ token, eventToken }: { token: string; eventToken?: 
                             >
                               Allied
                             </Button>
+                          </>
+                        ) : null}
+                        {league.format === '2v2' && entry.status === 'accepted' ? (
+                          <>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={assignTeam.isPending}
+                              aria-label={`${entry.teamId ? 'Re-pair' : 'Pair'} ${entrantLabel}`}
+                              onClick={() => openTeamChooser({ userId: entry.userId, name: entrantLabel })}
+                            >
+                              {entry.teamId ? 'Re-pair' : 'Pair'}
+                            </Button>
+                            {entry.teamId ? (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                disabled={assignTeam.isPending}
+                                aria-label={`Unpair ${entrantLabel}`}
+                                onClick={() => openTeamChooser({ userId: entry.userId, name: entrantLabel })}
+                              >
+                                Unpair
+                              </Button>
+                            ) : null}
                           </>
                         ) : null}
                         {assign.error && assign.variables?.userId === entry.userId && reassigning === null ? (
@@ -314,7 +396,9 @@ export function LeaguePage({ token, eventToken }: { token: string; eventToken?: 
                         >
                           <Eye /> View roster
                         </Button>
-                        {ownEntry?.status === 'accepted' && entry.userId !== me?.id && league.format !== '2v1' ? (
+                        {ownEntry?.status === 'accepted' &&
+                        entry.userId !== me?.id &&
+                        (league.format === '1v1' || league.format === null) ? (
                           <Button size="sm" disabled={battle.isPending} onClick={() => battle.mutate({ opponentId: entry.userId })}>
                             <Swords /> Start battle
                           </Button>
@@ -378,6 +462,12 @@ export function LeaguePage({ token, eventToken }: { token: string; eventToken?: 
             <p className="mt-2 text-sm text-dim">
               A submitted roster is copied into this league. Editing or deleting the saved roster cannot change the sealed copy.
             </p>
+            {league.format === '2v2' ? (
+              <p className="mt-3 text-sm text-parchment">
+                Each team must select exactly one eligible CHARACTER as its Warlord. Praetorium checks the selected Warlord markers at
+                reveal; your team and organizer must manually check the remaining official cross-army uniqueness restrictions.
+              </p>
+            ) : null}
             {ownEntry?.status === 'pending' ? (
               <p className="mt-3 text-sm text-parchment">Your request is waiting for organizer approval.</p>
             ) : null}
@@ -386,14 +476,17 @@ export function LeaguePage({ token, eventToken }: { token: string; eventToken?: 
               <Button
                 className="mt-4 w-full"
                 variant={ownEntry.submitted ? 'outline' : 'default'}
-                disabled={league.format === '2v1' && ownEntry.requiredLimit === null}
-                onClick={() => setChoosing(true)}
+                disabled={(league.format === '2v1' || league.format === '2v2') && ownEntry.requiredLimit === null}
+                onClick={openRosterChooser}
               >
                 {ownEntry.submitted ? 'Change roster' : 'Choose roster'}
               </Button>
             ) : null}
             {league.format === '2v1' && ownEntry?.status === 'accepted' && ownEntry.requiredLimit === null && !league.revealedAt ? (
               <p className="mt-3 text-sm text-parchment">Wait for the organizer to assign your solo or allied roster size.</p>
+            ) : null}
+            {league.format === '2v2' && ownEntry?.status === 'accepted' && ownEntry.requiredLimit === null && !league.revealedAt ? (
+              <p className="mt-3 text-sm text-parchment">Wait for the organizer to pair you with a teammate before sealing a roster.</p>
             ) : null}
             {ownEntry?.submitted && !league.revealedAt ? (
               <p className="mt-3 flex items-center gap-2 text-sm text-achieved">
@@ -404,8 +497,13 @@ export function LeaguePage({ token, eventToken }: { token: string; eventToken?: 
               <p className="mt-3 text-sm text-achieved">Every accepted roster is now visible to anyone with this link.</p>
             ) : null}
             {league.revealedAt && league.format === '2v1' && ownEntry?.status === 'accepted' ? (
-              <Button className="mt-4 w-full" disabled={battle.isPending} onClick={() => setChoosingBattle(true)}>
+              <Button className="mt-4 w-full" disabled={battle.isPending} onClick={openBattleChooser}>
                 <Swords /> Start 2v1 battle
+              </Button>
+            ) : null}
+            {league.revealedAt && league.format === '2v2' && ownEntry?.status === 'accepted' ? (
+              <Button className="mt-4 w-full" disabled={battle.isPending} onClick={openBattleChooser}>
+                <Swords /> Start doubles battle
               </Button>
             ) : null}
           </section>
@@ -415,7 +513,14 @@ export function LeaguePage({ token, eventToken }: { token: string; eventToken?: 
               <p className="mt-2 text-sm text-dim">
                 Reveal closes registration and makes every accepted roster visible at once. It cannot be undone.
               </p>
-              <Button className="mt-4 w-full" disabled={!readyToReveal} onClick={() => setRevealing(true)}>
+              <Button
+                className="mt-4 w-full"
+                disabled={!readyToReveal}
+                onClick={() => {
+                  reveal.reset()
+                  setRevealing(true)
+                }}
+              >
                 Reveal all rosters
               </Button>
               {!readyToReveal ? (
@@ -429,11 +534,19 @@ export function LeaguePage({ token, eventToken }: { token: string; eventToken?: 
                         : league.format === '2v1' &&
                             accepted.filter((entry) => entry.requiredLimit === alliedLeagueRosterLimit(league.rosterLimit ?? 0)).length < 2
                           ? 'Assign at least two allied entrants.'
-                          : accepted.some((entry) => !entry.submitted)
-                            ? missingRosterMessage(accepted.filter((entry) => !entry.submitted).length)
-                            : league.playerLimit !== null && accepted.length < league.playerLimit
-                              ? `${league.playerLimit - accepted.length} accepted place${league.playerLimit - accepted.length === 1 ? '' : 's'} still open.`
-                              : 'The league is not ready to reveal.'}
+                          : league.format === '2v2' && pendingCount > 0
+                            ? 'Resolve every pending request before reveal.'
+                            : league.format === '2v2' && accepted.length < 4
+                              ? 'Accept at least four entrants for doubles.'
+                              : league.format === '2v2' && accepted.length % 2 !== 0
+                                ? 'Doubles needs an even number of accepted entrants.'
+                                : league.format === '2v2' && !doublesReady
+                                  ? 'Pair every accepted entrant into a team of exactly two.'
+                                  : accepted.some((entry) => !entry.submitted)
+                                    ? missingRosterMessage(accepted.filter((entry) => !entry.submitted).length)
+                                    : league.playerLimit !== null && accepted.length < league.playerLimit
+                                      ? `${league.playerLimit - accepted.length} accepted place${league.playerLimit - accepted.length === 1 ? '' : 's'} still open.`
+                                      : 'The league is not ready to reveal.'}
                 </p>
               ) : null}
             </section>
@@ -447,11 +560,21 @@ export function LeaguePage({ token, eventToken }: { token: string; eventToken?: 
         pending={submit.isPending}
         error={submit.error}
         requiredLimit={ownEntry?.requiredLimit ?? null}
-        onClose={() => setChoosing(false)}
-        onChoose={(id) => submit.mutate(id)}
+        onClose={closeRosterChooser}
+        onChoose={(id) => {
+          submit.reset()
+          submit.mutate(id)
+        }}
       />
-      <AlertDialog open={revealing} onOpenChange={setRevealing}>
-        <AlertDialogContent className="rounded-none border border-edge bg-panel text-bone">
+      <AlertDialog
+        open={revealing}
+        onOpenChange={(open) => {
+          if (reveal.isPending) return
+          if (!open) reveal.reset()
+          setRevealing(open)
+        }}
+      >
+        <AlertDialogContent aria-busy={reveal.isPending} className="rounded-none border border-edge bg-panel text-bone">
           <AlertDialogHeader>
             <AlertDialogTitle className="uppercase">Reveal every roster?</AlertDialogTitle>
             <AlertDialogDescription className="text-dim">
@@ -459,30 +582,53 @@ export function LeaguePage({ token, eventToken }: { token: string; eventToken?: 
               {pendingCount ? `${pendingCount} pending request${pendingCount === 1 ? '' : 's'} will be rejected. ` : ''}
               Every accepted entrant’s sealed roster becomes visible, and this cannot be undone.
             </AlertDialogDescription>
-            {reveal.error ? <p className="text-sm text-destructive">{errorMessage(reveal.error)}</p> : null}
+            {reveal.error ? (
+              <p role="alert" className="text-sm text-destructive">
+                {errorMessage(reveal.error)}
+              </p>
+            ) : null}
+            {reveal.isPending ? <output className="sr-only">Revealing rosters…</output> : null}
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Keep rosters sealed</AlertDialogCancel>
-            <AlertDialogAction onClick={() => reveal.mutate()}>Reveal all rosters</AlertDialogAction>
+            <AlertDialogCancel disabled={reveal.isPending}>Keep rosters sealed</AlertDialogCancel>
+            <AlertDialogAction disabled={reveal.isPending} onClick={() => reveal.mutate()}>
+              {reveal.isPending ? 'Revealing…' : 'Reveal all rosters'}
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      <AlertDialog open={removing !== null} onOpenChange={(open) => !open && setRemoving(null)}>
-        <AlertDialogContent className="rounded-none border border-edge bg-panel text-bone">
+      <AlertDialog
+        open={removing !== null}
+        onOpenChange={(open) => {
+          if (moderate.isPending) return
+          if (!open) {
+            moderate.reset()
+            setRemoving(null)
+          }
+        }}
+      >
+        <AlertDialogContent aria-busy={moderate.isPending} className="rounded-none border border-edge bg-panel text-bone">
           <AlertDialogHeader>
             <AlertDialogTitle className="uppercase">Remove {removing?.name}?</AlertDialogTitle>
             <AlertDialogDescription className="text-dim">
-              Their submitted roster will be discarded. They must join again and submit another roster to return.
+              {removingTeammate
+                ? `This also unpairs ${entrantLabels.get(removingTeammate.userId) ?? removingTeammate.name}. Both teammates’ sealed rosters will be cleared. ${removing?.name} must join again and submit another roster to return.`
+                : 'Their submitted roster will be discarded. They must join again and submit another roster to return.'}
             </AlertDialogDescription>
-            {moderate.error ? <p className="text-sm text-destructive">{errorMessage(moderate.error)}</p> : null}
+            {moderate.error ? (
+              <p role="alert" className="text-sm text-destructive">
+                {errorMessage(moderate.error)}
+              </p>
+            ) : null}
+            {moderate.isPending ? <output className="sr-only">Removing entrant…</output> : null}
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Keep entrant</AlertDialogCancel>
+            <AlertDialogCancel disabled={moderate.isPending}>Keep entrant</AlertDialogCancel>
             <AlertDialogAction
               disabled={moderate.isPending}
               onClick={() => removing && moderate.mutate({ userId: removing.userId, status: 'rejected' })}
             >
-              Remove entrant
+              {moderate.isPending ? 'Removing…' : 'Remove entrant'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -527,7 +673,11 @@ export function LeaguePage({ token, eventToken }: { token: string; eventToken?: 
             </AlertDialogDescription>
             <LeagueEventRuleFields value={eventRule} disabled={startEvent.isPending} onChange={setEventRule} />
             {eventRuleBlocked ? (
-              <p className="text-sm text-parchment">Raise the league player limit to at least 3 in Edit league first.</p>
+              <p className="text-sm text-parchment">
+                {eventRule.format === '2v2'
+                  ? 'Set the league player limit to an even number of at least 4 in Edit league first.'
+                  : 'Raise the league player limit to at least 3 in Edit league first.'}
+              </p>
             ) : null}
             {startEvent.error ? <p className="text-sm text-destructive">{errorMessage(startEvent.error)}</p> : null}
           </AlertDialogHeader>
@@ -549,8 +699,37 @@ export function LeaguePage({ token, eventToken }: { token: string; eventToken?: 
           entries={accepted}
           pending={battle.isPending}
           error={battle.error}
-          onClose={() => setChoosingBattle(false)}
+          onIntentChange={() => battle.reset()}
+          onClose={closeBattleChooser}
           onStart={(players) => battle.mutate(players, { onSuccess: () => setChoosingBattle(false) })}
+        />
+      ) : null}
+      {league.format === '2v2' && pairing ? (
+        <LeagueTeamChooser
+          open
+          entrant={accepted.find((entry) => entry.userId === pairing.userId)!}
+          entrantName={pairing.name}
+          entries={accepted}
+          projection={teamProjection}
+          pending={assignTeam.isPending}
+          error={assignTeam.error}
+          onIntentChange={() => assignTeam.reset()}
+          onClose={() => !assignTeam.isPending && closeTeamChooser()}
+          onAssign={(userIds) => assignTeam.mutate(userIds)}
+        />
+      ) : null}
+      {league.format === '2v2' && ownEntry?.status === 'accepted' ? (
+        <DoublesBattleChooser
+          key={league.eventToken}
+          open={choosingBattle}
+          ownUserId={ownEntry.userId}
+          entries={accepted}
+          projection={teamProjection}
+          pending={battle.isPending}
+          error={battle.error}
+          onIntentChange={() => battle.reset()}
+          onClose={closeBattleChooser}
+          onStart={(opponentId) => battle.mutate({ opponentId }, { onSuccess: () => setChoosingBattle(false) })}
         />
       ) : null}
     </main>
@@ -643,6 +822,7 @@ function LeagueBattleChooser({
   entries,
   pending,
   error,
+  onIntentChange,
   onClose,
   onStart,
 }: {
@@ -653,6 +833,7 @@ function LeagueBattleChooser({
   entries: { userId: string; name: string; image: string | null; requiredLimit: number | null }[]
   pending: boolean
   error: Error | null
+  onIntentChange: () => void
   onClose: () => void
   onStart: (players: { opponentId: string; allyId?: string; secondOpponentId?: string }) => void
 }) {
@@ -669,7 +850,7 @@ function LeagueBattleChooser({
   const soloEntries = entries.filter((entry) => entry.userId !== ownUserId && entry.requiredLimit === rosterLimit)
   const alliedEntries = entries.filter((entry) => entry.userId !== ownUserId && entry.requiredLimit === alliedLimit)
   const ready = isSolo ? alliedIds.every((id) => id !== null) : soloId !== null && alliedIds[0] !== null
-  const entrantLabels = disambiguatedEntrantLabels(entries)
+  const entrantLabels = disambiguatedPlayerLabels(entries.map((entry) => ({ id: entry.userId, name: entry.name })))
   const groups = (candidates: typeof entries, excluded: (string | null)[] = []) => [
     {
       label: '',
@@ -709,7 +890,10 @@ function LeagueBattleChooser({
               id="league-battle-solo"
               groups={groups(soloEntries)}
               value={soloId ?? ''}
-              onValueChange={setSoloId}
+              onValueChange={(id) => {
+                onIntentChange()
+                setSoloId(id)
+              }}
               placeholder="Choose the solo opponent"
               searchPlaceholder="Search entrants…"
               className="h-11 rounded-none border-edge bg-sunken"
@@ -722,7 +906,10 @@ function LeagueBattleChooser({
             id="league-battle-allied-1"
             groups={groups(alliedEntries, alliedIds[1] ? [alliedIds[1]] : [])}
             value={alliedIds[0] ?? ''}
-            onValueChange={(id) => setAllied(0, id)}
+            onValueChange={(id) => {
+              onIntentChange()
+              setAllied(0, id)
+            }}
             placeholder={isSolo ? 'Choose the first allied opponent' : 'Choose your allied teammate'}
             searchPlaceholder="Search entrants…"
             className="h-11 rounded-none border-edge bg-sunken"
@@ -735,7 +922,10 @@ function LeagueBattleChooser({
               id="league-battle-allied-2"
               groups={groups(alliedEntries, alliedIds[0] ? [alliedIds[0]] : [])}
               value={alliedIds[1] ?? ''}
-              onValueChange={(id) => setAllied(1, id)}
+              onValueChange={(id) => {
+                onIntentChange()
+                setAllied(1, id)
+              }}
               placeholder="Choose the second allied opponent"
               searchPlaceholder="Search entrants…"
               className="h-11 rounded-none border-edge bg-sunken"
@@ -770,13 +960,268 @@ function LeagueBattleChooser({
   )
 }
 
-function disambiguatedEntrantLabels(entries: { userId: string; name: string }[]) {
-  const duplicateNames = new Set(
-    entries.filter((entry, index) => entries.findIndex((candidate) => candidate.name === entry.name) !== index).map((entry) => entry.name),
+function LeagueTeamChooser({
+  open,
+  entrant,
+  entrantName,
+  entries,
+  projection,
+  pending,
+  error,
+  onIntentChange,
+  onClose,
+  onAssign,
+}: {
+  open: boolean
+  entrant: DoublesEntrant
+  entrantName: string
+  entries: DoublesEntrant[]
+  projection: DoublesTeamProjection
+  pending: boolean
+  error: Error | null
+  onIntentChange: () => void
+  onClose: () => void
+  onAssign: (userIds: string[]) => void
+}) {
+  const [teammateId, setTeammateId] = useState<string | null>(null)
+  const [confirmation, setConfirmation] = useState<{ userIds: string[]; sealedNames: string[] } | null>(null)
+  const labels = disambiguatedPlayerLabels(entries.map((entry) => ({ id: entry.userId, name: entry.name })))
+  const candidates = entries.filter((entry) => entry.userId !== entrant.userId)
+  const currentTeam = entrant.teamId ? projection.teams.find((team) => team.id === entrant.teamId) : undefined
+  const currentTeammate = currentTeam?.entries.find((entry) => entry.userId !== entrant.userId)
+  const requestAssignment = (userIds: string[]) => {
+    const selected = entries.filter((entry) => userIds.includes(entry.userId))
+    const existingTeamIds = new Set(selected.flatMap((entry) => (entry.teamId ? [entry.teamId] : [])))
+    const affected = entries.filter((entry) => userIds.includes(entry.userId) || (entry.teamId && existingTeamIds.has(entry.teamId)))
+    const unchanged =
+      userIds.length === 2 && entrant.teamId !== null && selected.length === 2 && selected.every((entry) => entry.teamId === entrant.teamId)
+    const sealedNames = unchanged ? [] : affected.filter((entry) => entry.submitted).map((entry) => labels.get(entry.userId) ?? entry.name)
+    if (sealedNames.length) {
+      setConfirmation({ userIds, sealedNames })
+      return
+    }
+    onIntentChange()
+    onAssign(userIds)
+  }
+  return (
+    <>
+      <Dialog open={open} onOpenChange={(next) => !pending && !next && onClose()}>
+        <DialogContent
+          aria-busy={pending}
+          className="max-h-[85dvh] overflow-y-auto rounded-none border border-edge bg-panel text-bone sm:max-w-lg"
+        >
+          <DialogHeader>
+            <DialogTitle className="text-2xl uppercase">Assign {entrantName}’s team</DialogTitle>
+            <DialogDescription className="text-dim">
+              {currentTeam && currentTeammate
+                ? `Currently paired with ${labels.get(currentTeammate.userId) ?? currentTeammate.name}. `
+                : ''}
+              Choose one teammate. Re-pairing or unpairing changes the official force composition and discards every affected sealed roster.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-1.5">
+            <Label htmlFor="league-team-teammate">Teammate</Label>
+            <SearchableSelect
+              id="league-team-teammate"
+              ariaLabel={`Teammate for ${entrantName}`}
+              groups={[
+                {
+                  label: '',
+                  items: candidates.map((entry) => ({
+                    label: `${labels.get(entry.userId) ?? entry.name}${
+                      entry.teamId
+                        ? ` · paired with ${
+                            labels.get(
+                              projection.members.get(entry.teamId)?.find((member) => member.userId !== entry.userId)?.userId ?? '',
+                            ) ?? 'teammate'
+                          }`
+                        : ''
+                    }`,
+                    value: entry.userId,
+                    icon: <PlayerAvatar name={entry.name} image={entry.image} className="size-6 text-[0.65rem]" />,
+                  })),
+                },
+              ]}
+              value={teammateId ?? ''}
+              onValueChange={(id) => {
+                onIntentChange()
+                setTeammateId(id)
+              }}
+              placeholder="Choose a teammate"
+              searchPlaceholder="Search entrants…"
+              className="h-11 rounded-none border-edge bg-sunken"
+            />
+          </div>
+          {error ? (
+            <p role="alert" className="text-sm text-destructive">
+              {errorMessage(error)}
+            </p>
+          ) : null}
+          {pending ? <output className="sr-only">Changing doubles team…</output> : null}
+          <DialogFooter>
+            {entrant.teamId ? (
+              <Button variant="destructive" disabled={pending} onClick={() => requestAssignment([entrant.userId])}>
+                Unpair team
+              </Button>
+            ) : null}
+            <Button variant="outline" disabled={pending} onClick={onClose}>
+              Cancel
+            </Button>
+            <Button disabled={!teammateId || pending} onClick={() => teammateId && requestAssignment([entrant.userId, teammateId])}>
+              {pending ? 'Assigning…' : 'Assign team'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <AlertDialog
+        open={confirmation !== null}
+        onOpenChange={(next) => {
+          if (!pending && !next) {
+            onIntentChange()
+            setConfirmation(null)
+          }
+        }}
+      >
+        <AlertDialogContent aria-busy={pending} className="rounded-none border border-edge bg-panel text-bone">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="uppercase">Clear sealed doubles rosters?</AlertDialogTitle>
+            <AlertDialogDescription className="text-dim">
+              This team change will clear the sealed {confirmation?.sealedNames.length === 1 ? 'roster' : 'rosters'} for{' '}
+              {confirmation ? formatNames(confirmation.sealedNames) : ''}. Every affected entrant must seal another roster before reveal.
+            </AlertDialogDescription>
+            {error ? (
+              <p role="alert" className="text-sm text-destructive">
+                {errorMessage(error)}
+              </p>
+            ) : null}
+            {pending ? <output className="sr-only">Changing doubles team…</output> : null}
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={pending}>Keep current teams</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={pending}
+              onClick={() => {
+                if (!confirmation) return
+                onIntentChange()
+                onAssign(confirmation.userIds)
+              }}
+            >
+              {pending ? 'Clearing…' : 'Change team and clear rosters'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   )
-  return new Map(
-    entries.map((entry) => [entry.userId, duplicateNames.has(entry.name) ? `${entry.name} · ${entry.userId.slice(0, 8)}` : entry.name]),
+}
+
+function DoublesBattleChooser({
+  open,
+  ownUserId,
+  entries,
+  projection,
+  pending,
+  error,
+  onIntentChange,
+  onClose,
+  onStart,
+}: {
+  open: boolean
+  ownUserId: string
+  entries: DoublesEntrant[]
+  projection: DoublesTeamProjection
+  pending: boolean
+  error: Error | null
+  onIntentChange: () => void
+  onClose: () => void
+  onStart: (opponentId: string) => void
+}) {
+  const [opponentId, setOpponentId] = useState<string | null>(null)
+  useEffect(() => {
+    if (!open) setOpponentId(null)
+  }, [open])
+  const ownTeamId = entries.find((entry) => entry.userId === ownUserId)?.teamId
+  const labels = disambiguatedPlayerLabels(entries.map((entry) => ({ id: entry.userId, name: entry.name })))
+  const options = projection.teams
+    .filter((team) => team.id !== ownTeamId && team.entries.length === 2)
+    .map((team) => ({
+      label: team.entries.map((entry) => labels.get(entry.userId) ?? entry.name).join(' & '),
+      value: team.entries[0]!.userId,
+      icon: <PlayerAvatar name={team.entries[0]!.name} image={team.entries[0]!.image} className="size-6 text-[0.65rem]" />,
+    }))
+  return (
+    <Dialog open={open} onOpenChange={(next) => !pending && !next && onClose()}>
+      <DialogContent
+        aria-busy={pending}
+        className="max-h-[85dvh] overflow-x-hidden overflow-y-auto rounded-none border border-edge bg-panel text-bone sm:max-w-lg [&>*]:min-w-0"
+      >
+        <DialogHeader>
+          <DialogTitle className="text-2xl uppercase">Start doubles battle</DialogTitle>
+          <DialogDescription className="text-dim">
+            Choose an opposing fixed team. Your teammate and all four sealed rosters are added automatically.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-1.5">
+          <Label htmlFor="league-doubles-opponents">Opposing team</Label>
+          <SearchableSelect
+            id="league-doubles-opponents"
+            groups={[{ label: '', items: options }]}
+            value={opponentId ?? ''}
+            onValueChange={(id) => {
+              onIntentChange()
+              setOpponentId(id)
+            }}
+            placeholder="Choose an opposing team"
+            searchPlaceholder="Search teams or entrants…"
+            className="h-11 rounded-none border-edge bg-sunken"
+          />
+        </div>
+        {error ? (
+          <p role="alert" className="text-sm text-destructive">
+            {errorMessage(error)}
+          </p>
+        ) : null}
+        {pending ? <output className="sr-only">Starting doubles battle…</output> : null}
+        <DialogFooter>
+          <Button variant="outline" disabled={pending} onClick={onClose}>
+            Cancel
+          </Button>
+          <Button disabled={!opponentId || pending} onClick={() => opponentId && onStart(opponentId)}>
+            <Swords /> {pending ? 'Starting…' : 'Start battle'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
+}
+
+type DoublesEntrant = {
+  userId: string
+  name: string
+  image: string | null
+  teamId: string | null
+  submitted: boolean
+}
+
+type DoublesTeamProjection = {
+  members: Map<string, DoublesEntrant[]>
+  teams: { id: string; entries: DoublesEntrant[] }[]
+}
+
+function projectDoublesTeams(entries: DoublesEntrant[]): DoublesTeamProjection {
+  const members = new Map<string, DoublesEntrant[]>()
+  for (const entry of entries) {
+    if (entry.teamId) members.set(entry.teamId, [...(members.get(entry.teamId) ?? []), entry])
+  }
+  return {
+    members,
+    teams: [...members].map(([id, teamEntries]) => ({ id, entries: teamEntries })),
+  }
+}
+
+function formatNames(names: string[]) {
+  if (names.length < 2) return names[0] ?? ''
+  return `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`
 }
 
 function entryStatus(status: 'pending' | 'accepted' | 'rejected', submitted: boolean, revealed: boolean) {

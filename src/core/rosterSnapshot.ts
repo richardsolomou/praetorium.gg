@@ -26,6 +26,7 @@ type PricedRoster = {
     name: string
     points: number
     group: UnitGroup
+    toggles: readonly { name: string; selected: boolean }[]
     size: { models: number; resizable: boolean }
     attachment: Attachment | null
     wargear: readonly { name: string; count: number }[]
@@ -68,6 +69,7 @@ export function rosterSnapshot(saved: SavedRoster, priced: PricedRoster, wounds:
         models: unit.size.models,
         ...(woundsOf.has(unit.entryId) ? { wounds: woundsOf.get(unit.entryId) } : {}),
         group: unit.group,
+        warlord: unit.toggles.some((toggle) => toggle.name === 'Warlord' && toggle.selected),
         wargear: unit.wargear.map((piece) => ({ ...piece })),
         enhancements: [...unit.enhancements],
         upgrades: [...unit.upgrades],

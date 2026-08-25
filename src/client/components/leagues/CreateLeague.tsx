@@ -63,7 +63,8 @@ export function CreateLeague() {
           <LeagueFormFields
             idPrefix="create-league"
             value={value}
-            minimumPlayerLimit={eventRule.format === '2v1' ? 3 : 2}
+            minimumPlayerLimit={eventRule.format === '2v2' ? 4 : eventRule.format === '2v1' ? 3 : 2}
+            evenPlayerLimit={eventRule.format === '2v2'}
             disabled={create.isPending}
             onChange={setValue}
           />

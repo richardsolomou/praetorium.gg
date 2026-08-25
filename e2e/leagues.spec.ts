@@ -5,6 +5,8 @@ import { openDatabase } from '../src/db/connection'
 import { leagueEventEntries, leagueEvents, leagues, rosters, user } from '../src/db/schema'
 import { postgresPort } from './stackEnv'
 
+test.setTimeout(180_000)
+
 async function sealEventRosters(leagueToken: string) {
   const connection = openDatabase(`postgres://praetorium:praetorium@127.0.0.1:${postgresPort}/praetorium`)
   try {
@@ -132,6 +134,51 @@ async function sealTeamEventRosters(leagueToken: string) {
   }
 }
 
+async function sealDoublesEventRosters(leagueToken: string, invalidWarlords = false) {
+  const connection = openDatabase(`postgres://praetorium:praetorium@127.0.0.1:${postgresPort}/praetorium`)
+  try {
+    const [event] = await connection.database
+      .select({ id: leagueEvents.id })
+      .from(leagueEvents)
+      .innerJoin(leagues, eq(leagues.id, leagueEvents.leagueId))
+      .where(eq(leagues.token, leagueToken))
+      .orderBy(desc(leagueEvents.number))
+      .limit(1)
+    if (!event) throw new Error('The doubles league event is missing.')
+    const entries = await connection.database
+      .select({ userId: leagueEventEntries.userId, teamId: leagueEventEntries.teamId })
+      .from(leagueEventEntries)
+      .where(and(eq(leagueEventEntries.eventId, event.id), eq(leagueEventEntries.status, 'accepted')))
+    if (entries.length !== 4 || entries.some((entry) => entry.teamId === null)) throw new Error('The doubles teams are incomplete.')
+    const warlords = new Set<string>()
+    for (const entry of entries) {
+      const warlord = invalidWarlords || !warlords.has(entry.teamId!)
+      warlords.add(entry.teamId!)
+      await connection.database
+        .update(leagueEventEntries)
+        .set({
+          rosterName: '1,000-point doubles roster',
+          rosterSnapshot: JSON.stringify({
+            name: '1,000-point doubles roster',
+            text: '1,000 points',
+            built: {
+              catalogueId: 'test-catalogue',
+              revision: 'test-revision',
+              limit: 1_000,
+              detachment: null,
+              disposition: null,
+              units: [{ key: `${entry.userId}-unit`, name: 'Test character', points: 80, models: 1, group: 'character', warlord }],
+            },
+          }),
+          submittedAt: Date.now(),
+        })
+        .where(and(eq(leagueEventEntries.eventId, event.id), eq(leagueEventEntries.userId, entry.userId)))
+    }
+  } finally {
+    await connection.close()
+  }
+}
+
 async function join(page: Page) {
   await page.getByRole('button', { name: 'Join league' }).click()
 }
@@ -141,9 +188,29 @@ async function expectNoHorizontalOverflow(page: Page, ...elements: Locator[]) {
     clientWidth: document.documentElement.clientWidth,
     scrollWidth: document.documentElement.scrollWidth,
   }))
-  expect(documentWidth.scrollWidth).toBe(documentWidth.clientWidth)
+  const overflow = await page.locator('body *').evaluateAll((nodes) =>
+    nodes
+      .map((node) => {
+        const element = node as HTMLElement
+        const bounds = element.getBoundingClientRect()
+        return { className: element.className, left: bounds.left, right: bounds.right, scrollWidth: element.scrollWidth }
+      })
+      .filter((element) => element.left < 0 || element.right > document.documentElement.clientWidth)
+      .slice(0, 12),
+  )
+  expect(documentWidth.scrollWidth, JSON.stringify(overflow)).toBe(documentWidth.clientWidth)
   for (const element of elements) {
-    expect(await element.evaluate((node) => node.scrollWidth <= node.clientWidth)).toBe(true)
+    const visibleOverflow = await element.evaluate((node) => {
+      const container = node.getBoundingClientRect()
+      return [...node.querySelectorAll('*')]
+        .map((child) => {
+          const bounds = child.getBoundingClientRect()
+          return { className: child.className, height: bounds.height, left: bounds.left, right: bounds.right, width: bounds.width }
+        })
+        .filter((child) => child.height > 1 && child.width > 1 && (child.left < container.left || child.right > container.right))
+        .slice(0, 12)
+    })
+    expect(visibleOverflow).toEqual([])
   }
 }
 
@@ -649,4 +716,179 @@ test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle'
   await ownerContext.close()
   await alliedContext.close()
   await secondAlliedContext.close()
+})
+
+test('a doubles event pairs teams, filters half-size rosters, and starts a four-seat battle', async ({ browser, page: owner }) => {
+  const names = ['Doubles owner', 'Doubles teammate', 'Doubles opponent', 'Doubles opponent teammate'].map(uniqueName)
+  const contexts = []
+  const pages = [owner]
+  await signUp(owner, names[0])
+  for (let index = 1; index < 4; index++) {
+    const context = await browser.newContext()
+    contexts.push(context)
+    const participant = await context.newPage()
+    pages.push(participant)
+    await signUp(participant, names[index])
+  }
+  const [, teammate] = pages
+  await seedRosters(names[1], [
+    { name: 'Eligible doubles roster', limit: 1_000 },
+    { name: 'Wrong doubles roster', limit: 2_000 },
+  ])
+
+  await owner.goto('/leagues')
+  await owner.getByRole('button', { name: 'New league' }).click()
+  const create = owner.getByRole('dialog', { name: 'Create league' })
+  await create.getByLabel('Name').fill(uniqueName('Doubles League'))
+  await create.getByRole('button', { name: /^Doubles · 2 vs 2/ }).click()
+  await create.getByLabel('Player limit').fill('4')
+  await create.getByRole('button', { name: /^Automatic/ }).click()
+  await owner.setViewportSize({ width: 390, height: 844 })
+  await expectNoHorizontalOverflow(owner, create)
+  await owner.screenshot({ path: 'test-results/create-doubles-league-phone.png', fullPage: true })
+  await submitLeagueCreation(owner, create)
+  const leagueUrl = owner.url()
+  const leagueToken = new URL(leagueUrl).pathname.split('/').at(-1)
+  if (!leagueToken) throw new Error('The created doubles league URL has no token.')
+
+  await join(owner)
+  for (const page of pages.slice(1)) {
+    await page.goto(leagueUrl)
+    await join(page)
+  }
+  await owner.reload()
+  const pair = async (captain: string, partner: string) => {
+    await owner.getByRole('button', { name: `Pair ${captain}`, exact: true }).click()
+    const dialog = owner.getByRole('dialog', { name: `Assign ${captain}’s team` })
+    await dialog.getByLabel(`Teammate for ${captain}`).click()
+    await owner.getByRole('option', { name: partner, exact: true }).click()
+    await dialog.getByRole('button', { name: 'Assign team' }).click()
+    await expect(dialog).toBeHidden()
+  }
+  await pair(names[0], names[1])
+  await pair(names[2], names[3])
+  await expect(owner.locator(`[data-person="${names[0]}"]`)).toContainText(`paired with ${names[1]}`)
+  await expect(owner.locator(`[data-person="${names[2]}"]`)).toContainText(`paired with ${names[3]}`)
+  await owner.reload()
+  await expect(owner.locator(`[data-person="${names[0]}"]`)).toContainText(`paired with ${names[1]}`)
+  await expect(owner.locator(`[data-person="${names[2]}"]`)).toContainText(`paired with ${names[3]}`)
+  await owner.setViewportSize({ width: 1440, height: 900 })
+  await owner.screenshot({ path: 'test-results/doubles-team-assignments-desktop.png', fullPage: true })
+  await owner.setViewportSize({ width: 390, height: 844 })
+  await expectNoHorizontalOverflow(owner, ...(await owner.locator('[data-person]').all()))
+  await owner.screenshot({ path: 'test-results/doubles-team-assignments-phone.png', fullPage: true })
+
+  await teammate.setViewportSize({ width: 390, height: 844 })
+  await teammate.reload()
+  await teammate.getByRole('button', { name: 'Choose roster' }).click()
+  const rosterChooser = teammate.getByRole('dialog', { name: 'Seal a roster' })
+  await expect(rosterChooser.locator('[data-roster="Eligible doubles roster"]')).toBeVisible()
+  await expect(rosterChooser.locator('[data-roster="Wrong doubles roster"]')).toHaveCount(0)
+  await expectNoHorizontalOverflow(teammate, rosterChooser)
+  await teammate.keyboard.press('Escape')
+
+  await sealDoublesEventRosters(leagueToken, true)
+  await owner.reload()
+  await owner.getByRole('button', { name: `Re-pair ${names[0]}`, exact: true }).click()
+  const rePair = owner.getByRole('dialog', { name: `Assign ${names[0]}’s team` })
+  await expect(rePair).toContainText(`Currently paired with ${names[1]}`)
+  await rePair.getByLabel(`Teammate for ${names[0]}`).click()
+  await owner.getByRole('option', { name: new RegExp(`${names[2]}.*paired with ${names[3]}`) }).click()
+  await rePair.getByRole('button', { name: 'Assign team' }).click()
+  const clearRosters = owner.getByRole('alertdialog', { name: 'Clear sealed doubles rosters?' })
+  for (const name of names) await expect(clearRosters).toContainText(name)
+  await owner.setViewportSize({ width: 1440, height: 900 })
+  await expectNoHorizontalOverflow(
+    owner,
+    clearRosters.locator('[data-slot="alert-dialog-header"]'),
+    clearRosters.locator('[data-slot="alert-dialog-footer"]'),
+  )
+  await owner.screenshot({ path: 'test-results/doubles-repair-confirmation-desktop.png', fullPage: true })
+  await owner.setViewportSize({ width: 390, height: 844 })
+  await expectNoHorizontalOverflow(
+    owner,
+    clearRosters.locator('[data-slot="alert-dialog-header"]'),
+    clearRosters.locator('[data-slot="alert-dialog-footer"]'),
+  )
+  await owner.screenshot({ path: 'test-results/doubles-repair-confirmation-phone.png', fullPage: true })
+  await clearRosters.getByRole('button', { name: 'Keep current teams' }).click()
+  await rePair.getByRole('button', { name: 'Cancel' }).click()
+
+  await owner.getByRole('button', { name: `Remove ${names[0]}`, exact: true }).click()
+  const removeEntrant = owner.getByRole('alertdialog', { name: `Remove ${names[0]}?` })
+  await expect(removeEntrant).toContainText(`This also unpairs ${names[1]}. Both teammates’ sealed rosters will be cleared.`)
+  await owner.setViewportSize({ width: 1440, height: 900 })
+  await expectNoHorizontalOverflow(
+    owner,
+    removeEntrant.locator('[data-slot="alert-dialog-header"]'),
+    removeEntrant.locator('[data-slot="alert-dialog-footer"]'),
+  )
+  await owner.screenshot({ path: 'test-results/doubles-remove-confirmation-desktop.png', fullPage: true })
+  await owner.setViewportSize({ width: 390, height: 844 })
+  await expectNoHorizontalOverflow(
+    owner,
+    removeEntrant.locator('[data-slot="alert-dialog-header"]'),
+    removeEntrant.locator('[data-slot="alert-dialog-footer"]'),
+  )
+  await owner.screenshot({ path: 'test-results/doubles-remove-confirmation-phone.png', fullPage: true })
+  let releaseRemoval = () => {}
+  const removalReleased = new Promise<void>((resolve) => (releaseRemoval = resolve))
+  await owner.route('**/*', async (route) => {
+    if (route.request().method() === 'POST') {
+      await removalReleased
+      await route.abort('failed')
+      return
+    }
+    await route.continue()
+  })
+  await removeEntrant.getByRole('button', { name: 'Remove entrant' }).click()
+  await expect(removeEntrant).toHaveAttribute('aria-busy', 'true')
+  await expect(removeEntrant.getByRole('button', { name: 'Keep entrant' })).toBeDisabled()
+  await expect(removeEntrant.getByRole('button', { name: 'Removing…' })).toBeDisabled()
+  releaseRemoval()
+  await expect(removeEntrant.getByRole('alert')).toBeVisible()
+  await owner.unrouteAll({ behavior: 'wait' })
+  await removeEntrant.getByRole('button', { name: 'Keep entrant' }).click()
+
+  await owner.getByRole('button', { name: 'Reveal all rosters' }).click()
+  const reveal = owner.getByRole('alertdialog', { name: 'Reveal every roster?' })
+  let releaseReveal = () => {}
+  const revealReleased = new Promise<void>((resolve) => (releaseReveal = resolve))
+  await owner.route('**/*', async (route) => {
+    if (route.request().method() === 'POST') await revealReleased
+    await route.continue()
+  })
+  await reveal.getByRole('button', { name: 'Reveal all rosters' }).click()
+  await expect(reveal).toHaveAttribute('aria-busy', 'true')
+  await expect(reveal.getByRole('button', { name: 'Keep rosters sealed' })).toBeDisabled()
+  await expect(reveal.getByRole('button', { name: 'Revealing…' })).toBeDisabled()
+  releaseReveal()
+  await expect(reveal.getByRole('alert')).toHaveText('each doubles team must select exactly one Warlord before reveal')
+  await owner.unrouteAll({ behavior: 'wait' })
+  await sealDoublesEventRosters(leagueToken)
+  await reveal.getByRole('button', { name: 'Reveal all rosters' }).click()
+  await owner.getByRole('button', { name: 'Start doubles battle' }).click()
+  const battleChooser = owner.getByRole('dialog', { name: 'Start doubles battle' })
+  await battleChooser.getByLabel('Opposing team').click()
+  const opposingTeam = owner.getByRole('option', { name: `${names[2]} & ${names[3]}`, exact: true })
+  await expect(opposingTeam).toBeVisible()
+  await opposingTeam.click()
+  await expectNoHorizontalOverflow(owner, battleChooser)
+  await owner.screenshot({ path: 'test-results/doubles-battle-chooser-phone.png', fullPage: true })
+  await battleChooser.getByRole('button', { name: 'Start battle' }).click()
+  await expect(owner).toHaveURL(/\/battles\/[^/?]+$/)
+  const sides = owner.locator('[data-players]')
+  await expect(sides).toHaveCount(2)
+  await expect(sides.nth(0)).toContainText(names[0])
+  await expect(sides.nth(0)).toContainText(names[1])
+  await expect(sides.nth(1)).toContainText(names[2])
+  await expect(sides.nth(1)).toContainText(names[3])
+  await expectNoHorizontalOverflow(owner)
+  await owner.setViewportSize({ width: 1440, height: 900 })
+  await owner.screenshot({ path: 'test-results/doubles-league-battle-desktop.png', fullPage: true })
+  await owner.setViewportSize({ width: 390, height: 844 })
+  await expectNoHorizontalOverflow(owner)
+  await owner.screenshot({ path: 'test-results/doubles-league-battle-phone.png', fullPage: true })
+
+  await Promise.all(contexts.map((context) => context.close()))
 })

@@ -5,6 +5,7 @@ import { rosterForUse } from '../rosterUsage'
 import { mutationRpc, rpc } from '../rpc'
 import {
   assignLeagueRosterRequirementSchema,
+  assignLeagueTeamSchema,
   createLeagueBattleSchema,
   createLeagueEventSchema,
   createLeagueSchema,
@@ -114,6 +115,17 @@ export const assignLeagueRosterRequirement = createServerFn({ method: 'POST' })
         data.eventToken,
       )
       await app().telemetry.capture(player.id, 'league_roster_requirement_assigned', { required_limit: result.requiredLimit })
+      return null
+    }),
+  )
+
+export const assignLeagueTeam = createServerFn({ method: 'POST' })
+  .validator(assignLeagueTeamSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const player = await requireUser()
+      const result = await app().service.assignLeagueTeam(data.token, player.id, data.userIds, data.eventToken)
+      await app().telemetry.capture(player.id, 'league_team_assigned', { team_size: result.teamSize })
       return null
     }),
   )

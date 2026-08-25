@@ -189,7 +189,7 @@ it('keeps league rosters sealed until every accepted entrant has submitted', asy
     ).outcome,
   ).toBe('sealed')
   expect(await repository.leagueRoster('league-token', 'user-001')).toBeNull()
-  expect(await repository.revealLeague('league-token', 'user-000', 6)).toBe(false)
+  expect(await repository.revealLeague('league-token', 'user-000', 6)).toEqual({ outcome: 'not-ready' })
   expect(
     (
       await repository.submitLeagueRoster({
@@ -203,9 +203,378 @@ it('keeps league rosters sealed until every accepted entrant has submitted', asy
       })
     ).outcome,
   ).toBe('sealed')
-  expect(await repository.revealLeague('league-token', 'user-000', 8)).toBe(true)
+  expect(await repository.revealLeague('league-token', 'user-000', 8)).toEqual({ outcome: 'revealed' })
   expect(await repository.leagueRoster('league-token', 'user-001')).toBe(JSON.stringify({ name: 'First army', text: 'First list' }))
   expect(await repository.joinLeague('league-token', 'user-000', 9, 128)).toBe('closed')
+})
+
+it('pairs doubles entrants atomically and clears every roster affected by re-pairing', async () => {
+  const repository = await users(5)
+  await repository.createLeague({
+    id: 'league',
+    token: 'league-token',
+    ownerId: 'user-000',
+    name: 'Doubles',
+    description: '',
+    visibility: 'private',
+    admission: 'automatic',
+    playerLimit: 4,
+    format: '2v2',
+    rosterLimit: 2_000,
+    now: 1,
+  })
+  for (const [index, userId] of ['user-001', 'user-002', 'user-003', 'user-004'].entries()) {
+    expect(await repository.joinLeague('league-token', userId, index + 2, 128)).toBe('accepted')
+  }
+  expect(await repository.assignLeagueTeam('league-token', 'user-000', ['user-001', 'user-002'], 'team-a')).toBe('updated')
+  expect(await repository.assignLeagueTeam('league-token', 'user-000', ['user-003', 'user-004'], 'team-b')).toBe('updated')
+  await connection!.database
+    .update(leagueEventEntries)
+    .set({ rosterName: 'Sealed', rosterSnapshot: JSON.stringify({ name: 'Sealed', text: 'List' }), submittedAt: 10 })
+
+  expect(await repository.assignLeagueTeam('league-token', 'user-000', ['user-001', 'user-003'], 'team-c')).toBe('updated')
+  const entries = await connection!.database
+    .select({ userId: leagueEventEntries.userId, teamId: leagueEventEntries.teamId, snapshot: leagueEventEntries.rosterSnapshot })
+    .from(leagueEventEntries)
+
+  expect(
+    entries.toSorted((left, right) => left.userId.localeCompare(right.userId)).map((entry) => [entry.userId, entry.teamId, entry.snapshot]),
+  ).toEqual([
+    ['user-001', 'team-c', null],
+    ['user-002', null, null],
+    ['user-003', 'team-c', null],
+    ['user-004', null, null],
+  ])
+})
+
+it('removes an accepted doubles entrant and clears their former teammate', async () => {
+  const repository = await users(3)
+  await repository.createLeague({
+    id: 'league',
+    token: 'league-token',
+    ownerId: 'user-000',
+    name: 'Doubles',
+    description: '',
+    visibility: 'private',
+    admission: 'automatic',
+    format: '2v2',
+    rosterLimit: 2_000,
+    now: 1,
+  })
+  await repository.joinLeague('league-token', 'user-001', 2, 128)
+  await repository.joinLeague('league-token', 'user-002', 3, 128)
+  await repository.assignLeagueTeam('league-token', 'user-000', ['user-001', 'user-002'], 'team-a')
+  await connection!.database.update(leagueEventEntries).set({ rosterName: 'Sealed', rosterSnapshot: doublesSnapshot(), submittedAt: 4 })
+
+  expect(await repository.moderateLeagueEntry('league-token', 'user-000', 'user-001', 'rejected', 128)).toBe('updated')
+  const entries = await connection!.database
+    .select({
+      userId: leagueEventEntries.userId,
+      status: leagueEventEntries.status,
+      teamId: leagueEventEntries.teamId,
+      requiredLimit: leagueEventEntries.requiredLimit,
+      snapshot: leagueEventEntries.rosterSnapshot,
+    })
+    .from(leagueEventEntries)
+    .orderBy(leagueEventEntries.userId)
+
+  expect(entries).toEqual([
+    { userId: 'user-001', status: 'rejected', teamId: null, requiredLimit: null, snapshot: null },
+    { userId: 'user-002', status: 'accepted', teamId: null, requiredLimit: null, snapshot: null },
+  ])
+})
+
+it('orders entrants with tied join times by user id', async () => {
+  const repository = await users(3)
+  await repository.createLeague({
+    id: 'league',
+    token: 'league-token',
+    ownerId: 'user-000',
+    name: 'Stable teams',
+    description: '',
+    visibility: 'private',
+    admission: 'automatic',
+    format: '2v2',
+    rosterLimit: 2_000,
+    now: 1,
+  })
+  await repository.joinLeague('league-token', 'user-002', 2, 128)
+  await repository.joinLeague('league-token', 'user-001', 2, 128)
+
+  expect((await repository.leagueByToken('league-token', 'user-000'))?.entries.map((entry) => entry.userId)).toEqual([
+    'user-001',
+    'user-002',
+  ])
+})
+
+it('orders doubles entries used for battle derivation by join time then user id', async () => {
+  const repository = await users(5)
+  await repository.createLeague({
+    id: 'league',
+    token: 'league-token',
+    ownerId: 'user-000',
+    name: 'Stable battle seats',
+    description: '',
+    visibility: 'private',
+    admission: 'automatic',
+    format: '2v2',
+    rosterLimit: 2_000,
+    now: 1,
+  })
+  for (const userId of ['user-002', 'user-001', 'user-004', 'user-003']) {
+    await repository.joinLeague('league-token', userId, 2, 128)
+  }
+  await connection!.database.update(leagueEventEntries).set({ rosterSnapshot: '{}' })
+
+  const ordered = await repository.createLeagueBattle(
+    {
+      id: 'battle',
+      token: 'battle-token',
+      leagueToken: 'league-token',
+      userId: 'user-001',
+      userIds: ['user-001', 'user-002', 'user-003', 'user-004'],
+      now: 5,
+    },
+    (league) => ({
+      allyIds: ['user-002'],
+      opponentIds: ['user-003', 'user-004'],
+      initialCommands: [],
+      result: league.entries.map((entry) => entry.userId),
+    }),
+  )
+
+  expect(ordered).toEqual(['user-001', 'user-002', 'user-003', 'user-004'])
+})
+
+it('reveals doubles only when every accepted entrant belongs to an exact two-player team', async () => {
+  const repository = await users(5)
+  await repository.createLeague({
+    id: 'league',
+    token: 'league-token',
+    ownerId: 'user-000',
+    name: 'Doubles',
+    description: '',
+    visibility: 'private',
+    admission: 'automatic',
+    playerLimit: 4,
+    format: '2v2',
+    rosterLimit: 2_000,
+    now: 1,
+  })
+  for (const [index, userId] of ['user-001', 'user-002', 'user-003', 'user-004'].entries()) {
+    await repository.joinLeague('league-token', userId, index + 2, 128)
+  }
+  await repository.assignLeagueTeam('league-token', 'user-000', ['user-001', 'user-002'], 'team-a')
+  await sealDoublesSnapshots(['user-001', 'user-003'])
+  expect(await repository.revealLeague('league-token', 'user-000', 10)).toEqual({ outcome: 'not-ready' })
+  await repository.assignLeagueTeam('league-token', 'user-000', ['user-003', 'user-004'], 'team-b')
+  await sealDoublesSnapshots(['user-001', 'user-003'])
+
+  expect(await repository.revealLeague('league-token', 'user-000', 11)).toEqual({ outcome: 'revealed' })
+})
+
+it('serializes overlapping doubles pair assignments without leaving a partial team', async () => {
+  const repository = await users(4)
+  await repository.createLeague({
+    id: 'league',
+    token: 'league-token',
+    ownerId: 'user-000',
+    name: 'Doubles',
+    description: '',
+    visibility: 'private',
+    admission: 'automatic',
+    format: '2v2',
+    rosterLimit: 2_000,
+    now: 1,
+  })
+  for (const [index, userId] of ['user-001', 'user-002', 'user-003'].entries()) {
+    await repository.joinLeague('league-token', userId, index + 2, 128)
+  }
+
+  await Promise.all([
+    repository.assignLeagueTeam('league-token', 'user-000', ['user-001', 'user-002'], 'team-a'),
+    repository.assignLeagueTeam('league-token', 'user-000', ['user-001', 'user-003'], 'team-b'),
+  ])
+  const rows = await connection!.database.select({ teamId: leagueEventEntries.teamId }).from(leagueEventEntries)
+  const counts = new Map<string, number>()
+  for (const row of rows) if (row.teamId) counts.set(row.teamId, (counts.get(row.teamId) ?? 0) + 1)
+
+  expect([...counts.values()]).toEqual([2])
+})
+
+function doublesSnapshot(warlord = false, limit = 1_000, group: 'character' | 'epic-hero' | 'infantry' | null = 'character') {
+  return JSON.stringify({
+    name: 'Doubles roster',
+    text: 'List',
+    built: {
+      catalogueId: 'cat',
+      revision: 'rev',
+      limit,
+      detachment: null,
+      disposition: null,
+      units: [{ key: 'unit', name: 'Captain', points: 80, models: 1, ...(group ? { group } : {}), warlord }],
+    },
+  })
+}
+
+async function sealDoublesSnapshots(warlordIds: readonly string[], limits: Readonly<Record<string, number>> = {}) {
+  const entries = await connection!.database
+    .select({ userId: leagueEventEntries.userId })
+    .from(leagueEventEntries)
+    .where(eq(leagueEventEntries.status, 'accepted'))
+  for (const entry of entries) {
+    await connection!.database
+      .update(leagueEventEntries)
+      .set({ rosterSnapshot: doublesSnapshot(warlordIds.includes(entry.userId), limits[entry.userId]) })
+      .where(eq(leagueEventEntries.userId, entry.userId))
+  }
+}
+
+async function doublesEntrants(entrantCount: number, options: { admission?: 'automatic' | 'approval'; playerLimit?: number | null } = {}) {
+  const repository = await users(entrantCount + 1)
+  await repository.createLeague({
+    id: 'league',
+    token: 'league-token',
+    ownerId: 'user-000',
+    name: 'Doubles',
+    description: '',
+    visibility: 'private',
+    admission: options.admission ?? 'automatic',
+    playerLimit: options.playerLimit ?? null,
+    format: '2v2',
+    rosterLimit: 2_000,
+    now: 1,
+  })
+  for (let index = 1; index <= entrantCount; index += 1) {
+    await repository.joinLeague('league-token', `user-${index.toString().padStart(3, '0')}`, index + 1, 128)
+  }
+  return repository
+}
+
+it('refuses doubles reveal with fewer than four accepted entrants', async () => {
+  const repository = await doublesEntrants(2)
+  await repository.assignLeagueTeam('league-token', 'user-000', ['user-001', 'user-002'], 'team-a')
+  await sealDoublesSnapshots(['user-001'])
+
+  expect(await repository.revealLeague('league-token', 'user-000', 10)).toEqual({ outcome: 'not-ready' })
+})
+
+it('refuses doubles reveal with an odd accepted count', async () => {
+  const repository = await doublesEntrants(5)
+  await repository.assignLeagueTeam('league-token', 'user-000', ['user-001', 'user-002'], 'team-a')
+  await repository.assignLeagueTeam('league-token', 'user-000', ['user-003', 'user-004'], 'team-b')
+  await connection!.database
+    .update(leagueEventEntries)
+    .set({ teamId: 'team-c', requiredLimit: 1_000 })
+    .where(eq(leagueEventEntries.userId, 'user-005'))
+  await sealDoublesSnapshots(['user-001', 'user-003', 'user-005'])
+
+  expect(await repository.revealLeague('league-token', 'user-000', 10)).toEqual({ outcome: 'not-ready' })
+})
+
+it('refuses doubles reveal with malformed team cardinality', async () => {
+  const repository = await doublesEntrants(4)
+  await repository.assignLeagueTeam('league-token', 'user-000', ['user-001', 'user-002'], 'team-a')
+  await repository.assignLeagueTeam('league-token', 'user-000', ['user-003', 'user-004'], 'team-b')
+  await connection!.database.update(leagueEventEntries).set({ teamId: 'team-a' }).where(eq(leagueEventEntries.userId, 'user-003'))
+  await sealDoublesSnapshots(['user-001', 'user-004'])
+
+  expect(await repository.revealLeague('league-token', 'user-000', 10)).toEqual({ outcome: 'not-ready' })
+})
+
+it('refuses doubles reveal while a request remains pending', async () => {
+  const repository = await doublesEntrants(5, { admission: 'approval', playerLimit: 4 })
+  for (const userId of ['user-001', 'user-002', 'user-003', 'user-004']) {
+    await repository.moderateLeagueEntry('league-token', 'user-000', userId, 'accepted', 128)
+  }
+  await repository.assignLeagueTeam('league-token', 'user-000', ['user-001', 'user-002'], 'team-a')
+  await repository.assignLeagueTeam('league-token', 'user-000', ['user-003', 'user-004'], 'team-b')
+  await sealDoublesSnapshots(['user-001', 'user-003'])
+
+  expect(await repository.revealLeague('league-token', 'user-000', 10)).toEqual({ outcome: 'not-ready' })
+})
+
+it('refuses doubles reveal while configured places remain open', async () => {
+  const repository = await doublesEntrants(4, { playerLimit: 6 })
+  await repository.assignLeagueTeam('league-token', 'user-000', ['user-001', 'user-002'], 'team-a')
+  await repository.assignLeagueTeam('league-token', 'user-000', ['user-003', 'user-004'], 'team-b')
+  await sealDoublesSnapshots(['user-001', 'user-003'])
+
+  expect(await repository.revealLeague('league-token', 'user-000', 10)).toEqual({ outcome: 'not-ready' })
+})
+
+it('refuses doubles reveal when a sealed roster has the wrong size', async () => {
+  const repository = await doublesEntrants(4)
+  await repository.assignLeagueTeam('league-token', 'user-000', ['user-001', 'user-002'], 'team-a')
+  await repository.assignLeagueTeam('league-token', 'user-000', ['user-003', 'user-004'], 'team-b')
+  await sealDoublesSnapshots(['user-001', 'user-003'], { 'user-004': 2_000 })
+
+  expect(await repository.revealLeague('league-token', 'user-000', 10)).toEqual({ outcome: 'not-ready' })
+})
+
+it('refuses doubles reveal unless each team selected exactly one Warlord', async () => {
+  const repository = await doublesEntrants(4)
+  await repository.assignLeagueTeam('league-token', 'user-000', ['user-001', 'user-002'], 'team-a')
+  await repository.assignLeagueTeam('league-token', 'user-000', ['user-003', 'user-004'], 'team-b')
+  await sealDoublesSnapshots(['user-001', 'user-002', 'user-003'])
+
+  expect(await repository.revealLeague('league-token', 'user-000', 10)).toEqual({ outcome: 'invalid-warlords' })
+})
+
+it('accepts one frozen eligible Character Warlord per doubles team', async () => {
+  const repository = await doublesEntrants(4)
+  await repository.assignLeagueTeam('league-token', 'user-000', ['user-001', 'user-002'], 'team-a')
+  await repository.assignLeagueTeam('league-token', 'user-000', ['user-003', 'user-004'], 'team-b')
+  await sealDoublesSnapshots(['user-001', 'user-003'])
+  await connection!.database
+    .update(leagueEventEntries)
+    .set({ rosterSnapshot: doublesSnapshot(true, 1_000, 'epic-hero') })
+    .where(eq(leagueEventEntries.userId, 'user-003'))
+
+  expect(await repository.revealLeague('league-token', 'user-000', 10)).toEqual({ outcome: 'revealed' })
+})
+
+it('refuses a frozen doubles Warlord marked on a non-Character unit', async () => {
+  const repository = await doublesEntrants(4)
+  await repository.assignLeagueTeam('league-token', 'user-000', ['user-001', 'user-002'], 'team-a')
+  await repository.assignLeagueTeam('league-token', 'user-000', ['user-003', 'user-004'], 'team-b')
+  await sealDoublesSnapshots(['user-001', 'user-003'])
+  await connection!.database
+    .update(leagueEventEntries)
+    .set({ rosterSnapshot: doublesSnapshot(true, 1_000, 'infantry') })
+    .where(eq(leagueEventEntries.userId, 'user-001'))
+
+  expect(await repository.revealLeague('league-token', 'user-000', 10)).toEqual({ outcome: 'invalid-warlords' })
+})
+
+it('refuses a frozen doubles Warlord whose unit group is missing', async () => {
+  const repository = await doublesEntrants(4)
+  await repository.assignLeagueTeam('league-token', 'user-000', ['user-001', 'user-002'], 'team-a')
+  await repository.assignLeagueTeam('league-token', 'user-000', ['user-003', 'user-004'], 'team-b')
+  await sealDoublesSnapshots(['user-001', 'user-003'])
+  await connection!.database
+    .update(leagueEventEntries)
+    .set({ rosterSnapshot: doublesSnapshot(true, 1_000, null) })
+    .where(eq(leagueEventEntries.userId, 'user-001'))
+
+  expect(await repository.revealLeague('league-token', 'user-000', 10)).toEqual({ outcome: 'invalid-warlords' })
+})
+
+it('unpairs both former partners and clears both sealed rosters from one entrant ID', async () => {
+  const repository = await doublesEntrants(2)
+  await repository.assignLeagueTeam('league-token', 'user-000', ['user-001', 'user-002'], 'team-a')
+  await connection!.database.update(leagueEventEntries).set({ rosterName: 'Sealed', rosterSnapshot: doublesSnapshot(), submittedAt: 5 })
+
+  await repository.assignLeagueTeam('league-token', 'user-000', ['user-001'], 'unused-team-id')
+  const entries = await connection!.database
+    .select({ userId: leagueEventEntries.userId, teamId: leagueEventEntries.teamId, snapshot: leagueEventEntries.rosterSnapshot })
+    .from(leagueEventEntries)
+    .orderBy(leagueEventEntries.userId)
+
+  expect(entries.map((entry) => [entry.userId, entry.teamId, entry.snapshot])).toEqual([
+    ['user-001', null, null],
+    ['user-002', null, null],
+  ])
 })
 
 it('replaces a league roster snapshot until reveal', async () => {
@@ -241,7 +610,7 @@ it('replaces a league roster snapshot until reveal', async () => {
   const input = { token: 'league-token', userId: 'user-001', rosterId: 'roster', rosterName: 'Army', rosterUpdatedAt: 3, now: 4 }
   expect((await repository.submitLeagueRoster({ ...input, snapshot: 'first' })).outcome).toBe('sealed')
   expect((await repository.submitLeagueRoster({ ...input, snapshot: 'replacement' })).outcome).toBe('sealed')
-  expect(await repository.revealLeague('league-token', 'user-000', 5)).toBe(true)
+  expect(await repository.revealLeague('league-token', 'user-000', 5)).toEqual({ outcome: 'revealed' })
   expect(await repository.leagueRoster('league-token', 'user-001')).toBe('replacement')
   expect((await repository.submitLeagueRoster({ ...input, snapshot: 'late' })).outcome).toBe('missing')
 })
@@ -356,7 +725,7 @@ it('rejects unresolved approval requests when rosters are revealed', async () =>
     ).outcome,
   ).toBe('sealed')
 
-  expect(await repository.revealLeague('league-token', 'user-000', 6)).toBe(true)
+  expect(await repository.revealLeague('league-token', 'user-000', 6)).toEqual({ outcome: 'revealed' })
   expect((await repository.leagueByToken('league-token', 'user-002'))?.entries.find((entry) => entry.userId === 'user-002')?.status).toBe(
     'rejected',
   )

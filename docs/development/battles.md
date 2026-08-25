@@ -29,7 +29,7 @@ A roster attached to a battle is a historical snapshot. Battle-qualified roster 
 
 The Armies setup step loads saved-roster summaries when the table reaches it. Choosing one sends only its ID; the server checks ownership, loads its picks, reprices it, freezes its wounds, and refuses points, detachment, disposition, or catalogue legality errors before appending the snapshot. Incomplete catalogue validation remains a warning and does not prevent play. Plain-text rosters remain usable when no catalogue data is available.
 
-A battle created from a revealed league event starts with the selected accepted entrants seated and their exact stored event snapshots attached. A 1v1 seats two equal-size entries. A 2v1 seats one solo-size entry against two allied-size entries, whichever role opened the battle. A server-only `lock-league-rosters` command records the league and event tokens in the fold and prevents any selected roster, or the battle size and sides that validate them, from changing. The event page is the authority for starting the battle, so league opponents do not also need a friendship.
+A battle created from a revealed league event starts with the selected accepted entrants seated and their exact stored event snapshots attached. A 1v1 seats two equal-size entries. A 2v1 seats one solo-size entry against two allied-size entries, whichever role opened the battle. A 2v2 seats the creator beside their fixed teammate against the selected opposing fixed team; every roster is half the 2,000-point force size. A server-only `lock-league-rosters` command records the league and event tokens in the fold and prevents any selected roster, or the battle size and sides that validate them, from changing. The event page is the authority for starting the battle, so league opponents do not also need a friendship.
 
 Setup settings, roster replacements, formation choices, painted-army bonuses, concessions, reopening, and setup resets are commands too. A reset clears rosters and battlefield choices without erasing the audit trail or the configured game size, mission pack or format. A finished battle remains reopenable; deletion is the only destructive operation and is restricted to the account that created the battle.
 
@@ -41,7 +41,7 @@ A 2v1 battle has one player on one side and two allied players on the other. Whi
 
 The battle index loads eligible opponents when the New battle dialog opens and game references only when the player submits it. Returning to an existing battle does not need either read.
 
-Allies share a turn, command points, mission cards, stratagems, and victory points. Each ally still attaches and controls a separate roster and its units.
+Allies share a turn, command points, mission cards, stratagems, and victory points. Each ally still attaches and controls a separate roster and its units. A four-seat Doubles battle has two armies on both sides but still only one resource and scoring state per side.
 
 ## Practice opponents
 

@@ -14,7 +14,7 @@ Build a Warhammer 40,000 army list. Track the battle live from each player's pho
 
 ## Product
 
-Praetorium supports private games between up to three friends, 1v1 or 2v1. Every instance also seats practice opponents, so you can play a full battle through on your own.
+Praetorium supports private games between up to four friends: 1v1, 2v1, or 2v2 Doubles. Every instance also seats practice opponents, so you can play a full battle through on your own.
 
 Players can:
 

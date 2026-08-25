@@ -8,6 +8,7 @@ import { GAME_SIZES } from '../../../core/battle'
 import { createBattle } from '../../../server/functions'
 import { battlesQuery, gameReferencesQuery, opponentsQuery } from '../../queries'
 import { errorMessage } from '../../queryClient'
+import { disambiguatedPlayerLabels } from '../../playerLabels'
 import { PlayerAvatar } from '../PlayerAvatar'
 import { SearchableSelect, type SearchableGroup } from '../SearchableSelect'
 
@@ -22,6 +23,7 @@ const FORMATS = [
   { key: 'duel', name: '1v1', detail: 'One army each' },
   { key: 'with-ally', name: '2v1', detail: 'You and an ally against one' },
   { key: 'against-pair', name: '1v2', detail: 'You against two allies' },
+  { key: 'doubles', name: '2v2', detail: 'You and an ally against two' },
 ] as const
 
 type Format = (typeof FORMATS)[number]['key']
@@ -42,6 +44,11 @@ const SEATS: Record<Format, Seat[]> = {
     { id: 'battle-opponent', label: 'Opponent', placeholder: 'Choose a player', side: 'theirs', at: 0 },
     { id: 'battle-opponent-ally', label: 'Their ally', placeholder: 'Choose their ally', side: 'theirs', at: 1 },
   ],
+  doubles: [
+    { id: 'battle-ally', label: 'Your ally', placeholder: 'Choose your ally', side: 'yours', at: 0 },
+    { id: 'battle-opponent', label: 'First opponent', placeholder: 'Choose a player', side: 'theirs', at: 0 },
+    { id: 'battle-opponent-ally', label: 'Second opponent', placeholder: 'Choose their ally', side: 'theirs', at: 1 },
+  ],
 }
 
 /** The size a new battle opens at. Setup's first step is where the table changes it. */
@@ -56,8 +63,9 @@ const OPENING_LIMIT = GAME_SIZES.find((size) => size.limit === 2000)?.limit ?? G
  */
 function seatOptions(opponents: readonly Opponent[], taken: ReadonlySet<string | null>): SearchableGroup[] {
   const free = opponents.filter((opponent) => !taken.has(opponent.id))
+  const labels = disambiguatedPlayerLabels(opponents)
   const option = (opponent: Opponent) => ({
-    label: opponent.name,
+    label: labels.get(opponent.id) ?? opponent.name,
     value: opponent.id,
     icon: <PlayerAvatar name={opponent.name} image={opponent.image} className="size-5 text-[0.625rem]" />,
   })
@@ -117,9 +125,15 @@ export function CreateBattle() {
       return navigate({ to: '/battles/$token', params: { token } })
     },
   })
+  const changeIntent = () => create.reset()
+  const changeOpen = (next: boolean) => {
+    if (create.isPending) return
+    changeIntent()
+    setOpen(next)
+  }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={changeOpen}>
       <DialogTrigger render={<Button />}>New battle</DialogTrigger>
       <DialogContent className="w-[calc(100%-2rem)] rounded-none border-edge bg-panel p-4 sm:max-w-md">
         <DialogHeader>
@@ -128,7 +142,7 @@ export function CreateBattle() {
         </DialogHeader>
         <fieldset>
           <legend className="eyebrow">Format</legend>
-          <div className="mt-1 grid grid-cols-3 gap-2">
+          <div className="mt-1 grid grid-cols-2 gap-2 sm:grid-cols-4">
             {FORMATS.map((entry) => {
               const chosen = entry.key === format
               return (
@@ -137,7 +151,10 @@ export function CreateBattle() {
                   variant={chosen ? 'default' : 'outline'}
                   aria-pressed={chosen}
                   className={`h-auto flex-col items-start gap-0.5 px-2.5 py-2 text-left ${chosen ? 'bg-parchment text-parchment-ink hover:bg-parchment/80' : ''}`}
-                  onClick={() => setFormat(entry.key)}
+                  onClick={() => {
+                    changeIntent()
+                    setFormat(entry.key)
+                  }}
                 >
                   <span className="font-bold uppercase">{entry.name}</span>
                   <span
@@ -158,6 +175,7 @@ export function CreateBattle() {
               // Nobody sits in two chairs, so a player picked elsewhere is not offered here.
               const taken = new Set(seats.filter((other) => other.id !== seat.id).map(seatedIn))
               const pick = (id: string) => {
+                changeIntent()
                 if (seat.side === 'yours') return setAllyId(id)
                 setTheirIds((current) => current.map((held, at) => (at === seat.at ? id : held)))
               }
@@ -187,7 +205,7 @@ export function CreateBattle() {
           <p className="text-sm text-destructive">{errorMessage(create.error ?? opponentQuery.error)}</p>
         ) : null}
         <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)}>
+          <Button variant="outline" disabled={create.isPending} onClick={() => changeOpen(false)}>
             Cancel
           </Button>
           <Button disabled={!seated || opponentQuery.isPending || create.isPending} onClick={() => create.mutate()}>

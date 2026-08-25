@@ -38,6 +38,7 @@ Praetorium uses a compact, dark interface. See [Product design](../product-desig
 - Give top-level home, account, library, faction, and mission pages a clear introduction, useful summaries, and next actions. Empty states must explain how to add the first item.
 - Keep Friends in the signed-in account menu rather than global navigation. A confirmed friend may open the other player's profile before they share a battle.
 - Keep leagues about registration and roster reveal. A recurring league shows its bounded event history, and every event starts with no entrants. Before reveal, show only whether an accepted entrant submitted; do not load or expose the snapshot to anyone, including the organizer. After reveal, load one snapshot only when its roster viewer opens.
+- In a Doubles event, show fixed two-player teams and let the organizer search accepted entrants when pairing them. Starting a battle asks for an opposing team; the server derives the other three seats.
 - Put organizer league actions in one overflow menu on league cards and detail pages. The whole card opens the same menu on right-click, destructive deletion requires confirmation, and the edit dialog reuses the creation controls.
 
 ## Components and styles

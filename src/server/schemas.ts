@@ -49,11 +49,19 @@ function validateLeagueEventRule(
   value: { format: (typeof LEAGUE_EVENT_FORMATS)[number]; rosterLimit: number; playerLimit?: number | null },
   context: z.RefinementCtx,
 ) {
-  if (value.format === '2v1' && !LEAGUE_TEAM_ROSTER_LIMITS.some((limit) => limit === value.rosterLimit)) {
-    context.addIssue({ code: 'custom', path: ['rosterLimit'], message: 'choose a supported 2v1 roster size' })
+  if ((value.format === '2v1' || value.format === '2v2') && !LEAGUE_TEAM_ROSTER_LIMITS.some((limit) => limit === value.rosterLimit)) {
+    context.addIssue({ code: 'custom', path: ['rosterLimit'], message: `choose a supported ${value.format} roster size` })
   }
   if (value.format === '2v1' && value.playerLimit !== undefined && value.playerLimit !== null && value.playerLimit < 3) {
     context.addIssue({ code: 'custom', path: ['playerLimit'], message: 'a 2v1 event needs at least three places' })
+  }
+  if (
+    value.format === '2v2' &&
+    value.playerLimit !== undefined &&
+    value.playerLimit !== null &&
+    (value.playerLimit < 4 || value.playerLimit % 2 !== 0)
+  ) {
+    context.addIssue({ code: 'custom', path: ['playerLimit'], message: 'a 2v2 event needs an even number of at least four places' })
   }
 }
 export const createLeagueSchema = z
@@ -82,25 +90,32 @@ export const assignLeagueRosterRequirementSchema = z.object({
   userId: id,
   requiredLimit: z.number().int(),
 })
+export const assignLeagueTeamSchema = z.object({
+  token,
+  eventToken: token.optional(),
+  userIds: z
+    .array(id)
+    .min(1)
+    .max(2)
+    .refine((ids) => new Set(ids).size === ids.length, 'choose different entrants'),
+})
 export const leagueRosterSchema = z.object({ token, eventToken: token.optional(), userId: id })
-export const createLeagueBattleSchema = z
-  .object({
-    token,
-    eventToken: token.optional(),
-    opponentId: id,
-    allyId: id.optional(),
-    secondOpponentId: id.optional(),
-    missionPackId: id.nullable().default(null),
-  })
-  .refine((value) => !(value.allyId && value.secondOpponentId), 'choose either an ally or a second opponent')
+export const createLeagueBattleSchema = z.object({
+  token,
+  eventToken: token.optional(),
+  opponentId: id,
+  allyId: id.optional(),
+  secondOpponentId: id.optional(),
+  missionPackId: id.nullable().default(null),
+})
 /** A roster read may name the battle that entitles the reader to it. */
 export const rosterInBattleSchema = z.object({ id, battle: token.optional() })
 /**
  * Who is in a new battle, and on which side.
  *
  * `allyId` sits with the creator and `opponentIds` face them, so the same 2v1 can be
- * opened by either player of the allied pair. Three seats is the whole table, which
- * is why the two together are capped rather than each on its own.
+ * opened by either player of the allied pair. A 2v2 adds one ally and two opponents,
+ * and the combined seat count is bounded rather than either side on its own.
  */
 export const createBattleSchema = z
   .object({
@@ -115,8 +130,8 @@ export const createBattleSchema = z
     missionPackId: id.nullable().default(null),
   })
   .refine(
-    (value) => (value.allyId ? 1 : 0) + (value.opponentIds?.length ?? (value.opponentId ? 1 : 0)) <= 2,
-    'a battle seats three players at most',
+    (value) => (value.allyId ? 1 : 0) + (value.opponentIds?.length ?? (value.opponentId ? 1 : 0)) <= 3,
+    'a battle seats four players at most',
   )
   .refine((value) => !value.allyId || Boolean(value.opponentIds?.length || value.opponentId), 'an ally needs someone to play against')
 export const deleteBattleSchema = z.object({ token })

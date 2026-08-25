@@ -7,7 +7,7 @@ export type LeagueAdmission = (typeof LEAGUE_ADMISSIONS)[number]
 export const LEAGUE_ENTRY_STATUSES = ['pending', 'accepted', 'rejected'] as const
 export type LeagueEntryStatus = (typeof LEAGUE_ENTRY_STATUSES)[number]
 
-export const LEAGUE_EVENT_FORMATS = ['1v1', '2v1'] as const
+export const LEAGUE_EVENT_FORMATS = ['1v1', '2v1', '2v2'] as const
 export type LeagueEventFormat = (typeof LEAGUE_EVENT_FORMATS)[number]
 
 export const LEAGUE_DEFAULT_ROSTER_LIMIT = 2_000
@@ -17,9 +17,15 @@ export function alliedLeagueRosterLimit(rosterLimit: number) {
   return rosterLimit / 2
 }
 
-export function requiredLeagueRosterLimit(format: LeagueEventFormat | null, eventLimit: number | null, entryAssignment: number | null) {
+export function requiredLeagueRosterLimit(
+  format: LeagueEventFormat | null,
+  eventLimit: number | null,
+  entryAssignment: number | null,
+  teamId: string | null = null,
+) {
   if (format === '1v1') return eventLimit
   if (format === '2v1') return entryAssignment
+  if (format === '2v2') return teamId === null || eventLimit === null ? null : alliedLeagueRosterLimit(eventLimit)
   return null
 }
 
@@ -37,6 +43,7 @@ export type LeagueEntryView = {
   submitted: boolean
   rosterName: string | null
   requiredLimit: number | null
+  teamId: string | null
 }
 
 export function visibleLeagueEntries(entries: readonly LeagueEntryView[], ownerId: string, viewerId: string | null) {
