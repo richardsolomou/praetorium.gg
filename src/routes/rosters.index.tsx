@@ -12,13 +12,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { Label } from '@/components/ui/label'
 import { CreateRoster } from '../client/components/CreateRoster'
 import { RosterImport } from '../client/components/RosterImport'
 import { RosterExportDialog } from '../client/components/RosterExportDialog'
 import { RosterSetupDialog, type RosterSetup } from '../client/components/RosterSetupDialog'
-import { SearchableSelect, type SearchableGroup } from '../client/components/SearchableSelect'
 import { factionSelectGroups } from '../client/components/builder/factions'
+import { RosterFilters } from '../client/components/rosters/RosterFilters'
 import { RosterRow } from '../client/components/rosters/RosterRow'
 import { type SavedRoster, useRosterActions } from '../client/components/rosters/rosterLibrary'
 import { ROSTER_SORTS, type RosterSort, sortRosters } from '../client/components/rosters/rosterSort'
@@ -37,58 +36,6 @@ type EditingSession = { rosterId: string; draft: RosterSetup }
 
 const WORKSPACE_PATH = '/rosters/'
 const EDITING_STATE = 'roster-setup'
-const BATTLE_SIZE_GROUPS: SearchableGroup[] = [
-  {
-    label: '',
-    items: [
-      { label: 'All battle sizes', value: 'all' },
-      ...GAME_SIZES.map((size) => ({
-        label: `${size.name.replace(` (${size.limit})`, '')} · ${size.limit} points`,
-        value: String(size.limit),
-      })),
-    ],
-  },
-]
-const SHARING_GROUPS: SearchableGroup[] = [
-  {
-    label: '',
-    items: [
-      { label: 'Any sharing status', value: 'all' },
-      { label: 'Private', value: 'private' },
-      { label: 'Unlisted', value: 'unlisted' },
-    ],
-  },
-]
-const SORT_GROUPS: SearchableGroup[] = [
-  {
-    label: 'Created',
-    items: [
-      { label: 'Recently created', value: 'created-desc' },
-      { label: 'Least recently created', value: 'created-asc' },
-    ],
-  },
-  {
-    label: 'Updated',
-    items: [
-      { label: 'Recently updated', value: 'updated-desc' },
-      { label: 'Least recently updated', value: 'updated-asc' },
-    ],
-  },
-  {
-    label: 'Name',
-    items: [
-      { label: 'A to Z', value: 'name-asc' },
-      { label: 'Z to A', value: 'name-desc' },
-    ],
-  },
-  {
-    label: 'Battle size',
-    items: [
-      { label: 'Low to high', value: 'size-asc' },
-      { label: 'High to low', value: 'size-desc' },
-    ],
-  },
-]
 
 export const Route = createFileRoute('/rosters/')({
   validateSearch: (search: Record<string, unknown>): Search => {
@@ -130,7 +77,6 @@ function RosterLibrary() {
     ...group,
     items: group.items.map((faction) => ({ ...faction, value: factionSlugById.get(faction.value) ?? faction.value })),
   }))
-  const rosterFactionGroups: SearchableGroup[] = [{ label: '', items: [{ label: 'All factions', value: 'all' }] }, ...factionGroups]
   const shown = sortRosters(
     saved.filter(
       (roster) =>
@@ -182,39 +128,13 @@ function RosterLibrary() {
         </div>
       </section>
 
-      <div className="mx-auto mt-4 flex max-w-5xl flex-wrap items-end gap-3 px-3 sm:px-4" aria-label="Roster filters">
-        <RosterCombobox
-          label="Battle size"
-          value={search.limit ? String(search.limit) : 'all'}
-          groups={BATTLE_SIZE_GROUPS}
-          className="w-64 max-w-full"
-          onChange={(value) => void navigate({ to: '/rosters', search: { ...search, limit: value === 'all' ? undefined : Number(value) } })}
-        />
-        <RosterCombobox
-          label="Faction"
-          value={search.faction ?? 'all'}
-          groups={rosterFactionGroups}
-          className="w-52 max-w-full"
-          onChange={(value) => void navigate({ to: '/rosters', search: { ...search, faction: value === 'all' ? undefined : value } })}
-        />
-        <RosterCombobox
-          label="Sharing"
-          value={search.visibility ?? 'all'}
-          groups={SHARING_GROUPS}
-          onChange={(value) =>
-            void navigate({ to: '/rosters', search: { ...search, visibility: value === 'all' ? undefined : (value as RosterVisibility) } })
-          }
-        />
-        <RosterCombobox
-          label="Sort"
-          value={search.sort ?? 'created-desc'}
-          groups={SORT_GROUPS}
-          className="w-52 max-w-full"
-          onChange={(value) =>
-            void navigate({ to: '/rosters', search: { ...search, sort: value === 'created-desc' ? undefined : (value as RosterSort) } })
-          }
-        />
-      </div>
+      <RosterFilters
+        value={{ limit: search.limit, faction: search.faction, visibility: search.visibility, sort: search.sort ?? 'created-desc' }}
+        factionGroups={factionGroups}
+        onChange={(next) =>
+          void navigate({ to: '/rosters', search: { ...next, sort: next.sort === 'created-desc' ? undefined : next.sort } })
+        }
+      />
       {actions.shareProblem ? (
         <p className="mx-auto mt-3 max-w-5xl px-3 text-sm text-destructive sm:px-4">Could not copy the link: {actions.shareProblem}</p>
       ) : null}
@@ -287,33 +207,5 @@ function RosterLibrary() {
       ) : null}
       <RosterExportDialog text={actions.exportText} onClose={actions.clearExport} />
     </main>
-  )
-}
-
-function RosterCombobox({
-  label,
-  value,
-  groups,
-  onChange,
-  className,
-}: {
-  label: string
-  value: string
-  groups: SearchableGroup[]
-  onChange: (value: string) => void
-  className?: string
-}) {
-  return (
-    <div>
-      <Label className="eyebrow block">{label}</Label>
-      <SearchableSelect
-        ariaLabel={label}
-        groups={groups}
-        value={value}
-        onValueChange={onChange}
-        placeholder={label}
-        className={`mt-1 h-9 min-w-40 rounded-none border-edge bg-sunken text-xs font-semibold uppercase ${className ?? ''}`}
-      />
-    </div>
   )
 }
