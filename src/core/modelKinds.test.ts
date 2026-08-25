@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { buildIndex, type Catalogue, type CatalogueFile, type Constraint } from './catalogue'
-import { modelKindsOf } from './modelKinds'
+import { modelKindsOf, optionWargear } from './modelKinds'
 import { buildUnit } from './roster'
 
 const PTS = 'cost-pts'
@@ -10,6 +10,26 @@ const indexOf = (catalogue: Partial<Catalogue>) =>
   buildIndex([system, { catalogue: { id: 'cat', name: 'Test catalogue', ...catalogue } }], 'test-revision')
 
 const mandatory = (id: string) => [{ id, type: 'min' as const, value: 1, field: 'selections', scope: 'parent' }]
+
+it('totals wargear across repeated selections of one option', () => {
+  const index = indexOf({
+    sharedSelectionEntries: [
+      {
+        id: 'paired-bolters',
+        name: 'Paired bolters',
+        type: 'upgrade',
+        selectionEntries: [{ id: 'storm-bolter', name: 'Storm bolter', type: 'upgrade', constraints: mandatory('bolter-min') }],
+      },
+    ],
+  })
+
+  expect(
+    optionWargear('paired-bolters', index, {}, [
+      { id: 'paired-bolters', count: 2, selections: [{ id: 'storm-bolter' }] },
+      { id: 'paired-bolters', selections: [{ id: 'storm-bolter' }] },
+    ]),
+  ).toEqual([{ name: 'Storm bolter', count: 3 }])
+})
 
 describe('loadouts the catalogue files a weapon at a time', () => {
   const loadout = (id: string, name: string, weapons: readonly string[], profile?: string) => ({

@@ -143,11 +143,11 @@ export function controlledProfileCount(choices: readonly LoadoutChoice[], profil
   return choices
     .flatMap((choice) => choice.options)
     .reduce((total, option) => {
+      if (!option.count) return total
       const pieces = option.pieceCounts
         ?.filter((piece) => weaponMatches(piece.name, profileName))
         .reduce((count, piece) => count + piece.count, 0)
-      const perSelection = Math.max(pieces ?? 0, weaponMatches(option.name, profileName) ? 1 : 0)
-      return total + option.count * perSelection
+      return total + Math.max(pieces ?? 0, weaponMatches(option.name, profileName) ? option.count : 0)
     }, 0)
 }
 
