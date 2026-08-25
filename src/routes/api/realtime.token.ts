@@ -2,6 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { z } from 'zod'
 import { app } from '../../server/app'
 import { currentUser } from '../../server/playerSession'
+import { SIGN_IN_REQUIRED } from '../../core/session'
 import { battleChannel, connectionToken, realtimeConfig, subscriptionToken, userChannel } from '../../adapters/realtime'
 
 /**
@@ -57,7 +58,7 @@ export const Route = createFileRoute('/api/realtime/token')({
   },
 })
 
-const unauthorised = () => new Response('sign in first', { status: 401 })
+const unauthorised = () => new Response(SIGN_IN_REQUIRED, { status: 401 })
 
 /** The battle this request names, if the player holds a seat in it. */
 async function seatedBattleId(request: Request, userId: string) {

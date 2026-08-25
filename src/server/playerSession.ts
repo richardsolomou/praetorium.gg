@@ -1,5 +1,6 @@
 import { getRequest } from '@tanstack/react-start/server'
 import { app } from './app'
+import { SIGN_IN_REQUIRED } from '../core/session'
 
 type Player = {
   id: string
@@ -58,19 +59,19 @@ export async function currentUserId(request = getRequest()) {
 
 export async function requireUserId(request = getRequest()) {
   const id = await currentUserId(request)
-  if (!id) throw new Response('sign in first', { status: 401 })
+  if (!id) throw new Response(SIGN_IN_REQUIRED, { status: 401 })
   return id
 }
 
 export async function requireUser(request = getRequest()) {
   const user = await currentUser(request)
-  if (!user) throw new Response('sign in first', { status: 401 })
+  if (!user) throw new Response(SIGN_IN_REQUIRED, { status: 401 })
   return user
 }
 
 export async function requireAdmin(request = getRequest()) {
   const session = await app().auth.api.getSession({ headers: request.headers, query: { disableCookieCache: true } })
-  if (!session) throw new Response('sign in first', { status: 401 })
+  if (!session) throw new Response(SIGN_IN_REQUIRED, { status: 401 })
   const authoritative = await app().service.userById(session.user.id)
   if (authoritative?.role !== 'admin' || session.session.impersonatedBy) throw new Response('admin access required', { status: 403 })
   return {
