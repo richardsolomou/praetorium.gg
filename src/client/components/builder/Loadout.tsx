@@ -132,11 +132,13 @@ export function Loadout({
     ...modelAbilities,
   ]
 
-  // Weapons a unit with no model cards is simply carrying, as a summary rather than
-  // a set of controls: nothing about them is the player's to change.
-  const chosenNames = unit.choices.flatMap((choice) => choice.options.map((option) => option.name))
+  const controlledCount = (profileName: string) =>
+    unit.choices
+      .flatMap((choice) => choice.options)
+      .filter((option) => weaponMatches(option.name, profileName))
+      .reduce((total, option) => total + option.count, 0)
   const equipped = (type: string) =>
-    sheet.profiles.filter((profile) => profile.type === type && !chosenNames.some((name) => weaponMatches(name, profile.name)))
+    sheet.profiles.filter((profile) => profile.type === type && (profile.count ?? 1) > controlledCount(profile.name))
   const equippedRanged = equipped('Ranged Weapons')
   const equippedMelee = equipped('Melee Weapons')
   const profile = sheet.profiles.find((candidate) => candidate.type === 'Unit')

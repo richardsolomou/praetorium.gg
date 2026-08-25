@@ -1560,6 +1560,24 @@ test('a chapter reaches the whole Codex range, not just its own datasheets', asy
   await expect(page.locator('[data-unit="Intercessor Squad"]')).toBeVisible()
 })
 
+test('a grenade launcher leaves every Intercessor carrying a bolt rifle', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 })
+  await openBuilder(page, 'Space Marines', /Gladius Task Force/)
+  await add(page, 'Intercessor Squad')
+  await page
+    .locator('[data-unit="Intercessor Squad"]')
+    .getByRole('button', { name: /^Intercessor Squad/ })
+    .click()
+
+  const loadout = page.locator('aside[aria-label="Loadout"]')
+  await loadout.getByRole('button', { name: 'Select Bolt Rifle w/ Grenade Launcher' }).click()
+  const equipped = loadout.locator('section').filter({ hasText: 'Equipped ranged weapons' })
+  await expect(equipped.getByText('5× Bolt Rifle', { exact: true })).toBeVisible()
+  await expect(equipped.getByText('➤ Astartes grenade launcher - krak', { exact: true })).toBeVisible()
+  await expect(equipped.getByText('5× Bolt pistol', { exact: true })).toBeVisible()
+  await shot(equipped, 'test-results/intercessor-grenade-launcher.png')
+})
+
 /**
  * A Plague Marine's meltagun is filed as a model of its own, apart from the marines
  * it is drawn from, so the panel drew it on a card with no squadmate to take a body
