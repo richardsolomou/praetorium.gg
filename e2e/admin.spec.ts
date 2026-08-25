@@ -106,6 +106,7 @@ test('an administrator can secure an account and impersonate a player', async ({
   await page.getByRole('button', { name: 'Actions for Support Player' }).click()
   await page.getByRole('menuitem', { name: 'Remove admin role' }).click()
   await page.getByRole('dialog', { name: 'Change administrator access' }).getByRole('button', { name: 'Change access' }).click()
+  await expect(page.getByText('Admin', { exact: true })).toHaveCount(1)
   await supportPage.goto('/admin')
   await expect(supportPage).toHaveURL('/')
   await supportContext.close()
