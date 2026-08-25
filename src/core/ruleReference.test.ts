@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { bracketedRuleReferences, ruleReferenceMatches } from './ruleReference'
+import { bracketedRuleReferences, normalizeRuleReference, ruleReferenceKeys, ruleReferenceMatches } from './ruleReference'
 
 describe('rule references', () => {
   it.each([
@@ -59,5 +59,41 @@ describe('rule references', () => {
 
   it('discovers source references with either hyphen form', () => {
     expect(bracketedRuleReferences('Gain [ANTI‑MONSTER 5+] and [ANTI-INFANTRY 3+].')).toEqual(['ANTI‑MONSTER 5+', 'ANTI-INFANTRY 3+'])
+  })
+
+  /** An index keyed by normalized rule name must answer exactly what the matcher answers. */
+  describe('ruleReferenceKeys', () => {
+    const references = [
+      '[ANTI-INFANTRY 4+]',
+      '[SUSTAINED HITS D3]',
+      'Rapid Fire D6+3',
+      'Scouts 6"',
+      'Anti-4+',
+      'Heavy Intercessor Squad',
+      'Twin-linked Lascannon',
+      'Feel No Pain 5+',
+      'Deadly Demise D3',
+      'Anti',
+    ]
+    const rules = [
+      'Anti',
+      'Anti-Infantry',
+      'Sustained Hits',
+      'Rapid Fire',
+      'Scouts',
+      'Heavy',
+      'Twin',
+      'Heavy Intercessor Squad',
+      'Feel No Pain',
+      'Deadly Demise',
+      'Lethal Hits',
+    ]
+    it.each(references.flatMap((reference) => rules.map((rule) => [reference, rule] as const)))(
+      'agrees with ruleReferenceMatches for %s against %s',
+      (reference, rule) => {
+        const indexed = ruleReferenceKeys(reference).includes(normalizeRuleReference(rule))
+        expect(indexed).toBe(ruleReferenceMatches(reference, rule))
+      },
+    )
   })
 })

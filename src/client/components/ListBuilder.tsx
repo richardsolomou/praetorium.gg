@@ -18,6 +18,7 @@ import { exportRoster, saveRoster } from '../../server/functions'
 import { collectionQuery, factionsQuery, invalidateSavedRosters, priceQuery } from '../queries'
 import { picksAfterDetachmentChange } from '../rosterPicks'
 import { useCollectionMutation } from '../useCollection'
+import { useSettled } from '../useSettled'
 import { DatasheetPanel } from './builder/DatasheetPanel'
 import { shortName } from './builder/factions'
 import { GROUPS } from './builder/groups'
@@ -151,13 +152,17 @@ export function ListBuilder({ prep, initial, editable = true, battle, resolvePer
     onSuccess: () => invalidateSavedRosters(queryClient),
   })
 
+  // Held steppers and typed names change many times a second; the settled values
+  // trigger one save per pause while the mutation still reads the newest draft.
+  const settledPicks = useSettled(positioned)
+  const settledListName = useSettled(listName)
   useEffect(() => {
-    if (!editable || !catalogueId || !listName) return
+    if (!editable || !catalogueId || !settledListName) return
     save.mutate()
     // The mutation reads the complete rendered draft. A later render queues behind
     // this one, so the final request always contains the newest state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [catalogueId, detachmentIds, disposition, editable, limit, listName, picks, prep, visibility])
+  }, [catalogueId, detachmentIds, disposition, editable, limit, settledListName, settledPicks, prep, visibility])
 
   /** Hands the list to another tool, in the format every one of them reads. */
   const take = useMutation({
@@ -168,6 +173,9 @@ export function ListBuilder({ prep, initial, editable = true, battle, resolvePer
     onSuccess: ({ text }) => setExportText(text),
   })
 
+  // Priced on the live picks, not the settled ones: spread steppers write absolute
+  // counts computed from the answer on screen, so a delayed answer is a press that
+  // divides a squad the roster no longer holds.
   const { data: priced } = useQuery({
     ...priceQuery(catalogueId, detachmentIds, disposition, limit, positioned),
     /**
@@ -331,7 +339,7 @@ export function ListBuilder({ prep, initial, editable = true, battle, resolvePer
   return (
     <div
       data-roster-builder
-      data-saving={save.isPending}
+      data-saving={save.isPending || settledPicks !== positioned || settledListName !== listName}
       data-save-error={save.isError}
       className="flex min-h-0 flex-1 flex-col border border-edge bg-sunken"
     >

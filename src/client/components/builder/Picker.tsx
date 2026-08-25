@@ -1,6 +1,6 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { Heart, ListFilter, Plus } from 'lucide-react'
-import { Fragment } from 'react'
+import { Fragment, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Toggle } from '@/components/ui/toggle'
@@ -8,6 +8,7 @@ import { isKotcLimit } from '../../../core/battle'
 import { SearchField } from '../SearchField'
 import { DatasheetMatchReasons } from '../DatasheetMatchReasons'
 import { useCollectionMutation } from '../../useCollection'
+import { useSettled } from '../../useSettled'
 import { collectionQuery, unitsQuery } from '../../queries'
 import { shortName } from './factions'
 import { GROUPS } from './groups'
@@ -44,21 +45,24 @@ const FILTERS: { id: PickerFilter; label: string; hint: string }[] = [
  * fit, you may not take another, or you do not own it.
  */
 export function Picker({ catalogueId, onAdd, onPreview, inRoster, room, battleSize, query, onQueryChange, active, onFilterToggle }: Props) {
-  const { data: found } = useQuery({ ...unitsQuery(catalogueId, query, battleSize), placeholderData: keepPreviousData })
+  const settledQuery = useSettled(query.trim())
+  const { data: found } = useQuery({ ...unitsQuery(catalogueId, settledQuery, battleSize), placeholderData: keepPreviousData })
   const { data: owned } = useQuery(collectionQuery())
   const own = useCollectionMutation()
 
-  const collection = new Set(owned ?? [])
-  const shown = (found ?? []).filter((unit) => {
-    if (active.has('fit') && room !== null && unit.points !== null && unit.points > room) return false
-    if (active.has('limit') && unit.limit !== null && (inRoster[unit.id] ?? 0) >= unit.limit) return false
-    if (active.has('owned') && !collection.has(unit.id)) return false
-    if (active.has('allies') && unit.allied) return false
-    return true
-  })
-  const alliedFactions = [
-    ...new Set((found ?? []).flatMap((unit) => (unit.alliedFaction && shown.includes(unit) ? [unit.alliedFaction] : []))),
-  ]
+  const collection = useMemo(() => new Set(owned ?? []), [owned])
+  const shown = useMemo(
+    () =>
+      (found ?? []).filter((unit) => {
+        if (active.has('fit') && room !== null && unit.points !== null && unit.points > room) return false
+        if (active.has('limit') && unit.limit !== null && (inRoster[unit.id] ?? 0) >= unit.limit) return false
+        if (active.has('owned') && !collection.has(unit.id)) return false
+        if (active.has('allies') && unit.allied) return false
+        return true
+      }),
+    [found, active, room, inRoster, collection],
+  )
+  const alliedFactions = useMemo(() => [...new Set(shown.flatMap((unit) => (unit.alliedFaction ? [unit.alliedFaction] : [])))], [shown])
   const sections = [
     ...GROUPS.map((group) => ({ ...group, alliedFaction: null })),
     ...alliedFactions.map((alliedFaction) => ({ id: `allied-${alliedFaction}`, plural: shortName(alliedFaction), alliedFaction })),

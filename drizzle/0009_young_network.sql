@@ -1,0 +1,1 @@
+CREATE INDEX "commands_user_id_index" ON "commands" USING btree ("user_id");
