@@ -40,7 +40,7 @@ import { GlobalSearch } from '../client/components/GlobalSearch'
 import { ImpersonationBanner } from '../client/components/ImpersonationBanner'
 import { PlayerAvatar } from '../client/components/PlayerAvatar'
 import { PageState } from '../client/components/PageState'
-import { favouriteDetachmentsQuery, favouriteFactionsQuery, meQuery } from '../client/queries'
+import { meQuery } from '../client/queries'
 import { POSTHOG_BROWSER_OPTIONS, POSTHOG_INGEST_PATH } from '../posthog'
 import appCss from '../styles.css?url'
 
@@ -52,12 +52,7 @@ const posthog = postHogEnvironment({
 })
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
-  loader: ({ context }) =>
-    Promise.all([
-      context.queryClient.ensureQueryData(meQuery()),
-      context.queryClient.ensureQueryData(favouriteFactionsQuery()),
-      context.queryClient.ensureQueryData(favouriteDetachmentsQuery()),
-    ]),
+  loader: ({ context }) => context.queryClient.ensureQueryData(meQuery()),
   head: () => ({
     meta: [
       { charSet: 'utf-8' },

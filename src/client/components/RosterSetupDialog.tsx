@@ -86,8 +86,8 @@ export function RosterSetupDialog({
 }: Props) {
   const [draft, setDraft] = useState(value)
   const [reference, setReference] = useState<{ catalogueId: string; detachmentId: string; slug: string; name: string } | null>(null)
-  const { favourites } = useFavouriteFactions()
-  const { favourites: favouriteDetachments } = useFavouriteDetachments()
+  const { favourites } = useFavouriteFactions(open)
+  const { favourites: favouriteDetachments } = useFavouriteDetachments(open)
   const { data: loadedFaction } = useQuery({
     ...factionQuery(draft.catalogueId),
     enabled: open && Boolean(draft.catalogueId) && initialFaction?.id !== draft.catalogueId,

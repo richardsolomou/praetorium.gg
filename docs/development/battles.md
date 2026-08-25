@@ -27,7 +27,7 @@ What one model of a unit can take is frozen into the log by `attach-roster`, bes
 
 A roster attached to a battle is a historical snapshot. Battle-qualified roster links use the same read-only roster presentation for its frozen selections, grouped unit cards, loadouts and attachments from the command log rather than the mutable saved roster, so later edits or deletion cannot rewrite the battle. Applied datasheet details are rebuilt from those selections against the instance's verified catalogue. Older logs without selections show their frozen cards, and logs without roster-card details show their submitted text.
 
-Battle setup loads saved-roster summaries. Choosing one sends only its ID; the server checks ownership, loads its picks, reprices it, freezes its wounds, and refuses points, detachment, disposition, or catalogue legality errors before appending the snapshot. Incomplete catalogue validation remains a warning and does not prevent play. Plain-text rosters remain usable when no catalogue data is available.
+The Armies setup step loads saved-roster summaries when the table reaches it. Choosing one sends only its ID; the server checks ownership, loads its picks, reprices it, freezes its wounds, and refuses points, detachment, disposition, or catalogue legality errors before appending the snapshot. Incomplete catalogue validation remains a warning and does not prevent play. Plain-text rosters remain usable when no catalogue data is available.
 
 A battle created from a revealed league event starts with both accepted entrants seated and their exact stored event snapshots attached. A server-only `lock-league-rosters` command records the league and event tokens in the fold and prevents either roster, or the battle size that validates them, from changing. The event page is the authority for starting this 1v1, so league opponents do not also need a friendship.
 
@@ -38,6 +38,8 @@ The current setup section is also a command-derived shared value. When one seate
 Deployment and terrain are one battlefield choice. The three layouts for the armies' force dispositions each bind a deployment pattern to exact terrain geometry; `set-battlefield` records both IDs atomically. The setup and live tracker render that same plan, and a selected layout without its pinned geometry cannot start.
 
 A 2v1 battle has one player on one side and two allied players on the other. Which side the pair is on is the creator's to choose: `createBattle` takes an `allyId` who joins their side and `opponentIds` who face them, so either player of an allied pair can be the one who opens the game. The creator always keeps the first seat on side 0, because deleting a battle is theirs alone and the earliest seat on that side is what says so — an ally sits on side 0 too, so the side by itself does not.
+
+The battle index loads eligible opponents when the New battle dialog opens and game references only when the player submits it. Returning to an existing battle does not need either read.
 
 Allies share a turn, command points, mission cards, stratagems, and victory points. Each ally still attaches and controls a separate roster and its units.
 

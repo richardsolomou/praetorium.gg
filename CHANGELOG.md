@@ -1,5 +1,29 @@
 # praetorium
 
+## 0.34.13
+
+### Patch Changes
+
+- b39db79: Allow champions to equip every legal wargear replacement and additive upgrade.
+
+## 0.34.12
+
+### Patch Changes
+
+- 92c6746: Show profile pictures consistently and link league player names to their profiles.
+
+## 0.34.11
+
+### Patch Changes
+
+- 458c226: Speed up navigation by loading account and chooser data only where needed, and keep roster workspaces stable while loading.
+
+## 0.34.10
+
+### Patch Changes
+
+- 64418e3: Reduce complex profile pictures until they fit the upload limit.
+
 ## 0.34.9
 
 ### Patch Changes

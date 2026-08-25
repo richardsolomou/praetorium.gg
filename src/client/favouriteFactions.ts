@@ -3,9 +3,9 @@ import { setFavouriteFaction } from '../server/functions'
 import { useOptimisticFavourites } from './favourites'
 import { favouriteFactionsQuery } from './queries'
 
-export function useFavouriteFactions() {
+export function useFavouriteFactions(enabled = true) {
   const query = favouriteFactionsQuery()
-  const { data = [] } = useQuery(query)
+  const { data = [] } = useQuery({ ...query, enabled })
   const mutation = useOptimisticFavourites<string, { catalogueId: string; favourite: boolean }>(
     query.queryKey,
     ({ catalogueId, favourite }) => setFavouriteFaction({ data: { catalogueId, favourite } }),

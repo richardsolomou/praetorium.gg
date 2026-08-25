@@ -14,6 +14,9 @@ test('battle setup stays in step and shows both players their shared choices', a
   await befriend(alice, bob)
   const url = await createBattle(alice, { opponent: bobName })
   await bob.goto(url)
+  const initialResponse = await alice.reload()
+  if (!initialResponse) throw new Error('The battle page did not return a document response.')
+  expect(await initialResponse.text()).not.toContain(aliceRoster)
 
   await expect(alice.getByRole('combobox', { name: 'Battle size' })).toContainText('Strike Force')
   await expect(alice.getByRole('button', { name: 'Reset setup' })).toHaveCount(0)
@@ -30,6 +33,10 @@ test('battle setup stays in step and shows both players their shared choices', a
   await expect(rosterChooser.getByText('Necrons', { exact: true })).toBeVisible()
   await expect(rosterChooser.getByText('Awakened Dynasty', { exact: true })).toBeVisible()
   await alice.screenshot({ path: 'test-results/setup-roster-dialog.png', fullPage: true })
+  await alice.setViewportSize({ width: 390, height: 844 })
+  expect(await alice.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  await alice.screenshot({ path: 'test-results/setup-roster-dialog-phone.png', fullPage: true })
+  await alice.setViewportSize({ width: 1440, height: 900 })
   await alice.keyboard.press('Escape')
 
   await chooseBattlefield(alice)

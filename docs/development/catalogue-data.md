@@ -59,7 +59,7 @@ Core catalogue code is split by question:
 - A datasheet roster cap usually lives on its same-named category. `rosterLimit` reads that cap for display and filtering. `violations` remains the legality authority.
 - The picker, roster and faction datasheet list shelf each datasheet by its primary category. A datasheet can print more than one, and the first is not always the one a player sorts by: a Reaver Titan prints `Allies: Titanicus Traitoris` ahead of `Vehicle`. Take the first primary category that names a shelf. Unknown or missing primary categories stay under Other rather than being inferred from secondary keywords.
 - The collection stores one membership row per player and datasheet. It does not store model quantities.
-- Faction favourites are account-backed and preloaded during SSR so faction shelves and selectors agree across devices on first render.
+- Faction and detachment favourites are account-backed and preloaded during SSR only on the faction and roster surfaces that render them. Dialog-only favourites load when the dialog opens, while shelves and selectors still agree across devices on first render.
 
 ## Building units
 

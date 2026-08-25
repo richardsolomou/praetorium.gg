@@ -141,6 +141,30 @@ test('a player can edit their display name and profile picture', async ({ page }
   await expect(page.locator('main img')).toHaveCount(0)
 })
 
+test('friends use the profile picture shown elsewhere', async ({ browser }) => {
+  const alice = await (await browser.newContext()).newPage()
+  const bob = await (await browser.newContext()).newPage()
+  const aliceName = uniqueName('Alice')
+
+  await signUp(alice, aliceName)
+  await alice.goto('/profile')
+  await alice.getByLabel('Choose profile picture').setInputFiles({
+    name: 'avatar.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64'),
+  })
+  await alice.getByRole('button', { name: 'Save profile' }).click()
+  await expect(alice.getByText('Profile saved.')).toBeVisible()
+  await signUp(bob, uniqueName('Bob'))
+  await befriend(alice, bob)
+
+  const friend = bob.locator(`[data-person="${aliceName}"]`)
+  await expect(friend.locator('img')).toHaveAttribute('src', /\/avatars\/[0-9a-f]+\.webp$/)
+  await bob.screenshot({ path: 'test-results/friends-profile-picture.png', fullPage: true })
+  await bob.setViewportSize({ width: 390, height: 844 })
+  await bob.screenshot({ path: 'test-results/friends-profile-picture-phone.png', fullPage: true })
+})
+
 test('the account menu links feedback to GitHub Issues', async ({ page }) => {
   await signUp(page, uniqueName('Feedback'))
   await page.getByRole('button', { name: /Account menu for/ }).click()

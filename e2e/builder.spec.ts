@@ -46,6 +46,43 @@ test('the unit picker stays within the roster faction', async ({ page }) => {
   await expect(page.getByRole('combobox', { name: 'Force' })).toHaveCount(0)
 })
 
+test('the roster workspace stays in place while the desktop picker hydrates', async ({ page }) => {
+  await openBuilder(page)
+  await page.getByLabel('Add a unit').fill('Immortals')
+  await waitForRosterSave(page, () => page.getByRole('button', { name: 'Add Immortals', exact: true }).first().click())
+  await expect(page.locator('[data-unit="Immortals"]')).toBeVisible()
+
+  await page.addInitScript(() => {
+    const values: number[] = []
+    Object.assign(window, { __rosterLayoutShiftValues: values })
+    new PerformanceObserver((list) => {
+      for (const entry of list.getEntries()) {
+        const shift = entry as PerformanceEntry & { value: number; hadRecentInput: boolean }
+        if (!shift.hadRecentInput) values.push(shift.value)
+      }
+    }).observe({ type: 'layout-shift', buffered: true })
+  })
+  await page.reload()
+  await page.waitForTimeout(1_500)
+  const values = await page.evaluate(() => (window as typeof window & { __rosterLayoutShiftValues: number[] }).__rosterLayoutShiftValues)
+  expect(values.reduce((total, value) => total + value, 0)).toBeLessThan(0.05)
+  await page.screenshot({ path: 'test-results/stable-roster-workspace.png', fullPage: true })
+
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.reload()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  expect(await page.locator('[data-slot="roster-units"]').evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
+  await page.screenshot({ path: 'test-results/stable-roster-workspace-phone.png', fullPage: true })
+
+  await page.locator('[data-unit="Immortals"]').getByRole('button', { name: 'Immortals', exact: true }).click()
+  const loadout = page.locator('aside[aria-label="Loadout"]')
+  await expect(loadout).toBeVisible()
+  await expect(loadout.getByRole('heading', { name: 'Attachments' })).toBeVisible()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  expect(await loadout.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
+  await page.screenshot({ path: 'test-results/stable-roster-loadout-phone.png', fullPage: true })
+})
+
 test('the whole book is on the shelves, not the first page of it', async ({ page }) => {
   // A Space Marine book runs to well over a hundred datasheets and the picker sorts
   // them by name, so a cut-off page ended mid-alphabet: the infantry shelf stopped at
@@ -1648,6 +1685,48 @@ test('a specialist filed apart from its squad can still be armed', async ({ page
   await expect(page.locator('[data-unit="Plague Marines"]')).toContainText('90 pts')
   await expect(page.getByText('Within the points limit')).toBeAttached()
   await page.screenshot({ path: 'test-results/specialist-filed-apart.png', fullPage: true })
+})
+
+test('Death Guard champions expose their legal wargear', async ({ page }) => {
+  await page.setViewportSize({ width: 720, height: 1200 })
+  await openBuilder(page, 'Death Guard', /Champions of Contagion/)
+  await add(page, 'Deathshroud Terminators')
+  await page.getByRole('dialog').getByRole('button', { name: 'Close' }).click()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(720)
+  expect(await page.locator('[data-slot="roster-units"]').evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
+  await page
+    .locator('[data-unit="Deathshroud Terminators"]')
+    .getByRole('button', { name: /^Deathshroud Terminators/ })
+    .click()
+
+  const loadout = page.locator('aside[aria-label="Loadout"]')
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(720)
+  expect(await loadout.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
+  const deathshroudChampion = loadout.locator('section').filter({ hasText: 'Deathshroud Champion' })
+  await waitForRosterSave(page, () => deathshroudChampion.getByRole('button', { name: 'More Plaguespurt gauntlet' }).click())
+  await expect(deathshroudChampion.getByRole('button', { name: 'More Icon of Despair (Aura)' })).toBeEnabled()
+  await waitForRosterSave(page, () => deathshroudChampion.getByRole('button', { name: 'More Icon of Despair (Aura)' }).click())
+  await expect(deathshroudChampion.getByLabel('Icon of Despair (Aura) count')).toHaveText('1')
+  await shot(deathshroudChampion, 'test-results/deathshroud-champion-wargear.png')
+
+  await loadout.getByRole('button', { name: 'Close' }).click()
+  await page.getByRole('button', { name: 'Add units' }).click()
+  await add(page, 'Plague Marines')
+  await page.getByRole('dialog').getByRole('button', { name: 'Close' }).click()
+  await page
+    .locator('[data-unit="Plague Marines"]')
+    .getByRole('button', { name: /^Plague Marines/ })
+    .first()
+    .click()
+
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(720)
+  expect(await loadout.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
+  const plagueChampion = loadout.locator('section').filter({ hasText: 'Plague Champion' })
+  await expect(plagueChampion.getByRole('button', { name: 'More Power fist' })).toBeEnabled()
+  await waitForRosterSave(page, () => plagueChampion.getByRole('button', { name: 'More Power fist' }).click())
+  await expect(plagueChampion.getByLabel('Power fist count')).toHaveText('1')
+  await expect(plagueChampion.getByLabel('Plague knives count')).toHaveText('0')
+  await shot(plagueChampion, 'test-results/plague-champion-power-fist.png')
 })
 
 test('removing one piece does not choose another piece of the same model as its replacement', async ({ page }) => {

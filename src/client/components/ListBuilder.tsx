@@ -518,30 +518,32 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
         }`}
       >
         {editable ? (
-          <Pane
-            variant="picker"
-            open={pickerOpen}
-            drawer={!wideWorkspace}
-            hideBelowDesktop
-            title="Add units"
-            onClose={() => setShowing(null)}
-            actions={
-              selectedUnit ? (
-                <Button
-                  variant="ghost"
-                  size="xs"
-                  onClick={() => {
-                    setPreview(null)
-                    setShowing('loadout')
-                  }}
-                >
-                  <SlidersHorizontal /> Loadout
-                </Button>
-              ) : null
-            }
-          >
-            {pickerOpen ? picker : null}
-          </Pane>
+          <div className="contents min-[1300px]:flex min-[1300px]:min-h-0 min-[1300px]:min-w-0">
+            <Pane
+              variant="picker"
+              open={pickerOpen}
+              drawer={!wideWorkspace}
+              hideBelowDesktop
+              title="Add units"
+              onClose={() => setShowing(null)}
+              actions={
+                selectedUnit ? (
+                  <Button
+                    variant="ghost"
+                    size="xs"
+                    onClick={() => {
+                      setPreview(null)
+                      setShowing('loadout')
+                    }}
+                  >
+                    <SlidersHorizontal /> Loadout
+                  </Button>
+                ) : null
+              }
+            >
+              {pickerOpen ? picker : null}
+            </Pane>
+          </div>
         ) : null}
 
         <div data-slot="roster-units" className="min-h-0 min-w-0 flex-1 overflow-y-auto px-3">
