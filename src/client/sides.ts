@@ -192,7 +192,8 @@ export function sideName(side: Side): string {
 }
 
 function toArmy(player: ViewPlayer): Army {
-  const units = player.roster?.built?.units
+  // The frozen points travel on the player's units; the view no longer repeats them under `built`.
+  const units = player.roster?.built ? player.units : undefined
   return {
     playerId: player.id,
     playerName: player.name,

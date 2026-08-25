@@ -133,9 +133,19 @@ it('creates a battle from the exact two sealed league snapshots', async () => {
   const screen = await view(battle.token, 'alice')
   const rosters = await Promise.all([service.leagueRoster(league.token, 'alice'), service.leagueRoster(league.token, 'dave')])
 
+  // The view carries the frozen units once, on the player, and the roster beside them without its copy.
+  const withoutUnits = (roster: (typeof rosters)[number]) => {
+    if (!roster?.built) return roster
+    const { units: _units, ...built } = roster.built
+    return { ...roster, built }
+  }
   expect(screen.players.map((player) => [player.id, player.roster])).toEqual([
-    ['alice', rosters[0]],
-    ['dave', rosters[1]],
+    ['alice', withoutUnits(rosters[0])],
+    ['dave', withoutUnits(rosters[1])],
+  ])
+  expect(screen.players.map((player) => player.units.map((unit) => ({ key: unit.key, points: unit.points })))).toEqual([
+    rosters[0]?.built?.units.map((unit) => ({ key: unit.key, points: unit.points })),
+    rosters[1]?.built?.units.map((unit) => ({ key: unit.key, points: unit.points })),
   ])
 })
 
