@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.34.2
+
+### Patch Changes
+
+- 9889f0c: Stop sending each army's frozen unit list twice in every battle read; the tracked units already carry it.
+
 ## 0.34.1
 
 ### Patch Changes
