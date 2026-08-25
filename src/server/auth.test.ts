@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { EmailDelivery, EmailMessage } from 'ras-stack/email'
 import type { PraetoriumConnection } from '../db/connection'
@@ -7,6 +7,58 @@ import { openTestDatabase } from '../db/testDatabase'
 import { createAuth } from './auth'
 
 const SECRET = 'test-secret-0123456789abcdef0123456789abcdef'
+const S3_PUBLIC_BASE_URL = 'https://s3.praetorium.gg/praetorium'
+const GOOGLE_TOKEN_ENDPOINT = 'https://oauth2.googleapis.com/token'
+
+const { configuredObjectStore, putIfAbsent } = vi.hoisted(() => ({
+  configuredObjectStore: vi.fn(),
+  putIfAbsent: vi.fn(async () => undefined),
+}))
+
+vi.mock('./objectStorage', () => ({
+  configuredObjectStore,
+  putIfAbsent,
+  s3PublicBaseUrl: () => 'https://s3.praetorium.gg/praetorium',
+}))
+
+function base64url(value: unknown) {
+  return Buffer.from(JSON.stringify(value)).toString('base64url')
+}
+
+function googleIdToken(claims: Record<string, unknown>) {
+  return `${base64url({ alg: 'none', typ: 'JWT' })}.${base64url(claims)}.signature`
+}
+
+function mockGoogleCallback(idToken: string, avatarUrl: string, avatarBytes: Buffer) {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (input: string | URL | Request) => {
+      const url = typeof input === 'string' ? input : input instanceof Request ? input.url : input.toString()
+      if (url === GOOGLE_TOKEN_ENDPOINT) {
+        return new Response(
+          JSON.stringify({
+            access_token: 'access-token',
+            refresh_token: 'refresh-token',
+            id_token: idToken,
+            token_type: 'Bearer',
+            expires_in: 3600,
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        )
+      }
+      if (url === avatarUrl) return new Response(new Uint8Array(avatarBytes), { status: 200, headers: { 'content-type': 'image/png' } })
+      throw new Error(`unexpected fetch to ${url}`)
+    }),
+  )
+}
+
+async function signInWithGoogleCallback(auth: ReturnType<typeof createAuth>) {
+  const started = await auth.api.signInSocial({ body: { provider: 'google', callbackURL: '/' }, returnHeaders: true })
+  const state = new URL(started.response.url!).searchParams.get('state')!
+  return auth.handler(
+    new Request(`http://localhost/api/auth/callback/google?code=test-code&state=${state}`, { headers: cookieHeaders(started.headers) }),
+  )
+}
 
 function recordingEmail(messages: EmailMessage[]): EmailDelivery {
   return {
@@ -89,6 +141,8 @@ describe('account administration', () => {
     await connection?.close()
     connection = undefined
     vi.unstubAllEnvs()
+    vi.unstubAllGlobals()
+    vi.clearAllMocks()
   })
 
   it('encrypts social sign-in tokens', async () => {
@@ -326,5 +380,93 @@ describe('account administration', () => {
     await expect(
       auth.api.enableTwoFactor({ body: { password: 'password1234' }, headers: cookieHeaders(signedUp.headers) }),
     ).rejects.toMatchObject({ status: 'BAD_REQUEST' })
+  })
+
+  it('adopts the social provider avatar for a brand-new sign-up', async () => {
+    connection = await openTestDatabase()
+    vi.stubEnv('GOOGLE_CLIENT_ID', 'test-client-id')
+    vi.stubEnv('GOOGLE_CLIENT_SECRET', 'test-client-secret')
+    configuredObjectStore.mockReturnValue({ bucket: 'praetorium', publicBaseUrl: S3_PUBLIC_BASE_URL, client: {} })
+    const avatarUrl = 'https://accounts.google.example/avatar.png'
+    const avatarBytes = Buffer.from('google-avatar-bytes')
+    mockGoogleCallback(
+      googleIdToken({ sub: 'google-user-1', email: 'newplayer@example.com', email_verified: true, name: 'New Player', picture: avatarUrl }),
+      avatarUrl,
+      avatarBytes,
+    )
+    const auth = createAuth(connection.database, SECRET)
+
+    const callback = await signInWithGoogleCallback(auth)
+    expect(callback.status).toBeGreaterThanOrEqual(300)
+    expect(callback.status).toBeLessThan(400)
+
+    const [stored] = await connection.database.select({ image: user.image }).from(user).where(eq(user.email, 'newplayer@example.com'))
+    expect(stored?.image).toMatch(new RegExp(`^${S3_PUBLIC_BASE_URL}/avatars/[0-9a-f]{64}\\.png$`))
+    expect(putIfAbsent).toHaveBeenCalledWith(expect.anything(), expect.stringContaining('avatars/'), avatarBytes, 'image/png')
+  })
+
+  it('adopts the social provider avatar when linking to an existing account with no picture', async () => {
+    connection = await openTestDatabase()
+    vi.stubEnv('GOOGLE_CLIENT_ID', 'test-client-id')
+    vi.stubEnv('GOOGLE_CLIENT_SECRET', 'test-client-secret')
+    configuredObjectStore.mockReturnValue({ bucket: 'praetorium', publicBaseUrl: S3_PUBLIC_BASE_URL, client: {} })
+    const auth = createAuth(connection.database, SECRET)
+    const signedUp = await auth.api.signUpEmail({ body: { email: 'linked@example.com', password: 'password1234', name: 'Linked Player' } })
+    await connection.database.update(user).set({ emailVerified: true }).where(eq(user.id, signedUp.user.id))
+
+    const avatarUrl = 'https://accounts.google.example/linked-avatar.png'
+    const avatarBytes = Buffer.from('linked-google-avatar-bytes')
+    mockGoogleCallback(
+      googleIdToken({ sub: 'google-user-2', email: 'linked@example.com', email_verified: true, name: 'Linked Player', picture: avatarUrl }),
+      avatarUrl,
+      avatarBytes,
+    )
+
+    const callback = await signInWithGoogleCallback(auth)
+    expect(callback.status).toBeGreaterThanOrEqual(300)
+    expect(callback.status).toBeLessThan(400)
+
+    const [stored] = await connection.database.select({ image: user.image }).from(user).where(eq(user.id, signedUp.user.id))
+    expect(stored?.image).toMatch(new RegExp(`^${S3_PUBLIC_BASE_URL}/avatars/[0-9a-f]{64}\\.png$`))
+    const [linkedAccount] = await connection.database
+      .select({ providerId: account.providerId })
+      .from(account)
+      .where(and(eq(account.userId, signedUp.user.id), eq(account.providerId, 'google')))
+    expect(linkedAccount).toBeDefined()
+  })
+
+  it('leaves an existing picture untouched when linking a social account', async () => {
+    connection = await openTestDatabase()
+    vi.stubEnv('GOOGLE_CLIENT_ID', 'test-client-id')
+    vi.stubEnv('GOOGLE_CLIENT_SECRET', 'test-client-secret')
+    configuredObjectStore.mockReturnValue({ bucket: 'praetorium', publicBaseUrl: S3_PUBLIC_BASE_URL, client: {} })
+    const auth = createAuth(connection.database, SECRET)
+    const signedUp = await auth.api.signUpEmail({
+      body: { email: 'haspicture@example.com', password: 'password1234', name: 'Has Picture' },
+    })
+    await connection.database
+      .update(user)
+      .set({ emailVerified: true, image: `${S3_PUBLIC_BASE_URL}/avatars/${'a'.repeat(64)}.webp` })
+      .where(eq(user.id, signedUp.user.id))
+
+    const avatarUrl = 'https://accounts.google.example/other-avatar.png'
+    mockGoogleCallback(
+      googleIdToken({
+        sub: 'google-user-3',
+        email: 'haspicture@example.com',
+        email_verified: true,
+        name: 'Has Picture',
+        picture: avatarUrl,
+      }),
+      avatarUrl,
+      Buffer.from('should-not-be-fetched'),
+    )
+
+    const callback = await signInWithGoogleCallback(auth)
+    expect(callback.status).toBeGreaterThanOrEqual(300)
+    expect(callback.status).toBeLessThan(400)
+
+    const [stored] = await connection.database.select({ image: user.image }).from(user).where(eq(user.id, signedUp.user.id))
+    expect(stored?.image).toBe(`${S3_PUBLIC_BASE_URL}/avatars/${'a'.repeat(64)}.webp`)
   })
 })
