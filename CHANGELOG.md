@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.33.2
+
+### Patch Changes
+
+- 43a41a2: Show roster details when choosing a roster to seal in a league.
+
 ## 0.33.1
 
 ### Patch Changes
