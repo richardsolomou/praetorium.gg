@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.33.4
+
+### Patch Changes
+
+- e97d470: Show only the faction abilities available to the selected army.
+
 ## 0.33.3
 
 ### Patch Changes
