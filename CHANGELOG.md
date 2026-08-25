@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.29.0
+
+### Minor Changes
+
+- 10c933a: Show attachment roles and related units in roster datasheets, add valid attachment menus, and enforce one Leader and one Support per unit.
+
 ## 0.28.4
 
 ### Patch Changes
