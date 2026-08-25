@@ -19,7 +19,7 @@ export function GlobalSearch() {
   const [query, setQuery] = useState('')
   const [shortcutModifier, setShortcutModifier] = useState('Ctrl')
   const trimmed = query.trim()
-  const settled = useSettled(trimmed)
+  const settled = useSettled(trimmed, 75)
   const { data = [], isFetching } = useQuery({ ...globalSearchQuery(settled), placeholderData: keepPreviousData })
   const results = [...matchingPages(trimmed), ...data]
 

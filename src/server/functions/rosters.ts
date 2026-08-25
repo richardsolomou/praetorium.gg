@@ -4,6 +4,7 @@ import { currentUserId, requireUser } from '../playerSession'
 import { calculateRosterPoints, calculateRosterPrice } from '../pricing'
 import { mutationRpc, rpc } from '../rpc'
 import { exportRosterFile, importRosterFile } from '../rosterFiles'
+import { factionsFor } from '../factionReferences'
 import {
   exportRosterSchema,
   importRosterSchema,
@@ -130,11 +131,25 @@ export const sharedRoster = createServerFn({ method: 'GET' })
   .validator(rosterInBattleSchema)
   .handler(({ data }) => rpc(async () => app().service.sharedRoster(data.id, await currentUserId(), data.battle ?? null)))
 
+async function accessibleRoster(data: { id: string; battle?: string }) {
+  const access = await app().service.rosterAccess(data.id, await currentUserId(), data.battle ?? null)
+  if (!access) return null
+  const loaded = app().catalogue()
+  const faction = loaded
+    ? (factionsFor(loaded, app().rules()).factions.find((candidate) => candidate.id === access.roster.catalogueId) ?? null)
+    : null
+  return { ...access, faction }
+}
+
 export const rosterAccess = createServerFn({ method: 'GET' })
+  .validator(rosterInBattleSchema)
+  .handler(({ data }) => rpc(() => accessibleRoster(data)))
+
+export const rosterBootstrap = createServerFn({ method: 'GET' })
   .validator(rosterInBattleSchema)
   .handler(({ data }) =>
     rpc(async () => {
-      const access = await app().service.rosterAccess(data.id, await currentUserId(), data.battle ?? null)
+      const access = await accessibleRoster(data)
       return access ? { ...access, price: cachedRosterPrice(access.roster) } : null
     }),
   )

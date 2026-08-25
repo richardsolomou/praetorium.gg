@@ -4,8 +4,9 @@ import { useEffect } from 'react'
 import { fieldedRoster } from '../client/battleRosterSnapshot'
 import { BattleRosterSnapshot } from '../client/components/BattleRosterSnapshot'
 import { RosterEditor } from '../client/components/RosterEditor'
-import { battleQuery, factionsQuery, leagueRosterQuery, rosterAccessQuery, savedRosterPriceQuery } from '../client/queries'
+import { battleQuery, factionIndexQuery, leagueRosterQuery, rosterAccessQuery, savedRosterPriceQuery } from '../client/queries'
 import { normalisePicks } from '../client/rosterPicks'
+import { rosterBootstrap } from '../server/functions'
 
 export const Route = createFileRoute('/rosters/$id/')({
   // A battle token is what lets a seated opponent open a list that is otherwise private.
@@ -27,12 +28,14 @@ export const Route = createFileRoute('/rosters/$id/')({
       if (!screen || screen.kind !== 'battle' || !fieldedRoster(screen.view, params.id)) throw notFound()
       return { editable: false, snapshot: true }
     }
-    const [, access] = await Promise.all([
-      context.queryClient.ensureQueryData(factionsQuery()),
-      context.queryClient.ensureQueryData(rosterAccessQuery(params.id, deps.battle)),
+    const [, bootstrap] = await Promise.all([
+      context.queryClient.ensureQueryData(factionIndexQuery()),
+      rosterBootstrap({ data: { id: params.id, ...(deps.battle ? { battle: deps.battle } : {}) } }),
     ])
-    if (!access) throw notFound()
-    const { roster, editable, price } = access
+    if (!bootstrap) throw notFound()
+    const { roster, editable, faction, price } = bootstrap
+    const access = { roster, editable, faction }
+    context.queryClient.setQueryData(rosterAccessQuery(params.id, deps.battle).queryKey, access)
     const priced = savedRosterPriceQuery(
       roster.id,
       roster.catalogueId,
@@ -70,5 +73,5 @@ function RosterPage() {
     return fielded ? <BattleRosterSnapshot roster={fielded} /> : null
   }
   if (!roster) return null
-  return <RosterEditor roster={roster} editable={editable} battle={battle} />
+  return <RosterEditor roster={roster} faction={access.faction} editable={editable} battle={battle} />
 }

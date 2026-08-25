@@ -25,7 +25,7 @@ import { readWorkspaceState, writeWorkspaceState } from '../client/components/wo
 import { SignInRequired } from '../client/components/SignInRequired'
 import { PageState } from '../client/components/PageState'
 import { useFavouriteFactions } from '../client/favouriteFactions'
-import { factionsQuery, meQuery, savedRosterPointsQuery, savedRosterSummariesQuery } from '../client/queries'
+import { factionIndexQuery, factionsQuery, meQuery, savedRosterPointsQuery, savedRosterSummariesQuery } from '../client/queries'
 import { useMounted } from '../client/useMounted'
 import { useOrigin } from '../client/useOrigin'
 import { GAME_SIZES } from '../core/battle'
@@ -56,7 +56,10 @@ export const Route = createFileRoute('/rosters/')({
     }
   },
   loader: ({ context }) =>
-    Promise.all([context.queryClient.ensureQueryData(savedRosterSummariesQuery()), context.queryClient.ensureQueryData(factionsQuery())]),
+    Promise.all([
+      context.queryClient.ensureQueryData(savedRosterSummariesQuery()),
+      context.queryClient.ensureQueryData(factionIndexQuery()),
+    ]),
   component: RosterLibrary,
 })
 
@@ -65,7 +68,7 @@ function RosterLibrary() {
   const { data: saved = [] } = useQuery(savedRosterSummariesQuery())
   const mounted = useMounted()
   const { data: prices } = useQuery({ ...savedRosterPointsQuery(), enabled: mounted })
-  const { data: available } = useQuery(factionsQuery())
+  const { data: available } = useQuery(factionIndexQuery())
   const search = Route.useSearch()
   const navigate = useNavigate()
   const { favourites } = useFavouriteFactions()
@@ -92,6 +95,7 @@ function RosterLibrary() {
   const [deleting, setDeleting] = useState<SavedRoster | null>(null)
   const [session, setSession] = useState<EditingSession | null>(null)
   const editing = saved.find((roster) => roster.id === session?.rosterId) ?? null
+  const { data: setupOptions } = useQuery({ ...factionsQuery(), enabled: Boolean(editing) })
 
   useEffect(() => setSession(readWorkspaceState<EditingSession>(WORKSPACE_PATH, EDITING_STATE)), [])
   const setEditing = (next: EditingSession | null) => {
@@ -121,7 +125,7 @@ function RosterLibrary() {
           </div>
           <div className="flex flex-wrap gap-2">
             <RosterImport />
-            {available ? <CreateRoster factions={available.factions} /> : null}
+            {available ? <CreateRoster /> : null}
           </div>
         </div>
       </section>
@@ -191,15 +195,15 @@ function RosterLibrary() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {available && editing ? (
+      {editing ? (
         <RosterSetupDialog
           open
           onOpenChange={(open) => !open && setEditing(null)}
-          factions={available.factions}
+          factions={setupOptions?.factions ?? []}
           value={session?.draft ?? setupOf(editing)}
           onDraftChange={(draft) => setEditing({ rosterId: editing.id, draft })}
           hasUnits={Boolean(editing.unitCount)}
-          pending={actions.update.isPending}
+          pending={actions.update.isPending || !setupOptions}
           onSave={(setup) => actions.update.mutate({ roster: editing, setup }, { onSuccess: () => setEditing(null) })}
         />
       ) : null}

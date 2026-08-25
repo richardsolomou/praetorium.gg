@@ -37,6 +37,7 @@ export function BattleRosterSnapshot({ roster }: { roster: Roster }) {
           visibility: 'private',
           source: 'editable',
         }}
+        faction={faction}
         editable={false}
         resolvePersistedRoster={false}
       />
