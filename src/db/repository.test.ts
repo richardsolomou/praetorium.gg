@@ -1,7 +1,8 @@
+import { eq } from 'drizzle-orm'
 import { afterEach, expect, it } from 'vitest'
 import type { PraetoriumConnection } from './connection'
 import { Repository } from './repository'
-import { battleUsers, battles, commands, leagueEvents, leagues, user } from './schema'
+import { battleUsers, battles, commands, leagueEventEntries, leagueEvents, leagues, user } from './schema'
 import { openTestDatabase } from './testDatabase'
 
 let connection: PraetoriumConnection | undefined
@@ -175,29 +176,33 @@ it('keeps league rosters sealed until every accepted entrant has submitted', asy
     })
   }
   expect(
-    await repository.submitLeagueRoster({
-      token: 'league-token',
-      userId: 'user-001',
-      rosterId: 'user-001-roster',
-      rosterName: 'First army',
-      rosterUpdatedAt: 4,
-      snapshot: JSON.stringify({ name: 'First army', text: 'First list' }),
-      now: 5,
-    }),
-  ).toBe(true)
+    (
+      await repository.submitLeagueRoster({
+        token: 'league-token',
+        userId: 'user-001',
+        rosterId: 'user-001-roster',
+        rosterName: 'First army',
+        rosterUpdatedAt: 4,
+        snapshot: JSON.stringify({ name: 'First army', text: 'First list' }),
+        now: 5,
+      })
+    ).outcome,
+  ).toBe('sealed')
   expect(await repository.leagueRoster('league-token', 'user-001')).toBeNull()
   expect(await repository.revealLeague('league-token', 'user-000', 6)).toBe(false)
   expect(
-    await repository.submitLeagueRoster({
-      token: 'league-token',
-      userId: 'user-002',
-      rosterId: 'user-002-roster',
-      rosterName: 'Second army',
-      rosterUpdatedAt: 4,
-      snapshot: JSON.stringify({ name: 'Second army', text: 'Second list' }),
-      now: 7,
-    }),
-  ).toBe(true)
+    (
+      await repository.submitLeagueRoster({
+        token: 'league-token',
+        userId: 'user-002',
+        rosterId: 'user-002-roster',
+        rosterName: 'Second army',
+        rosterUpdatedAt: 4,
+        snapshot: JSON.stringify({ name: 'Second army', text: 'Second list' }),
+        now: 7,
+      })
+    ).outcome,
+  ).toBe('sealed')
   expect(await repository.revealLeague('league-token', 'user-000', 8)).toBe(true)
   expect(await repository.leagueRoster('league-token', 'user-001')).toBe(JSON.stringify({ name: 'First army', text: 'First list' }))
   expect(await repository.joinLeague('league-token', 'user-000', 9, 128)).toBe('closed')
@@ -234,11 +239,11 @@ it('replaces a league roster snapshot until reveal', async () => {
     now: 3,
   })
   const input = { token: 'league-token', userId: 'user-001', rosterId: 'roster', rosterName: 'Army', rosterUpdatedAt: 3, now: 4 }
-  expect(await repository.submitLeagueRoster({ ...input, snapshot: 'first' })).toBe(true)
-  expect(await repository.submitLeagueRoster({ ...input, snapshot: 'replacement' })).toBe(true)
+  expect((await repository.submitLeagueRoster({ ...input, snapshot: 'first' })).outcome).toBe('sealed')
+  expect((await repository.submitLeagueRoster({ ...input, snapshot: 'replacement' })).outcome).toBe('sealed')
   expect(await repository.revealLeague('league-token', 'user-000', 5)).toBe(true)
   expect(await repository.leagueRoster('league-token', 'user-001')).toBe('replacement')
-  expect(await repository.submitLeagueRoster({ ...input, snapshot: 'late' })).toBe(false)
+  expect((await repository.submitLeagueRoster({ ...input, snapshot: 'late' })).outcome).toBe('missing')
 })
 
 it('does not re-accept an entrant after their place has been filled', async () => {
@@ -338,16 +343,18 @@ it('rejects unresolved approval requests when rosters are revealed', async () =>
     now: 4,
   })
   expect(
-    await repository.submitLeagueRoster({
-      token: 'league-token',
-      userId: 'user-001',
-      rosterId: 'roster',
-      rosterName: 'Army',
-      rosterUpdatedAt: 4,
-      snapshot: JSON.stringify({ name: 'Army', text: 'List' }),
-      now: 5,
-    }),
-  ).toBe(true)
+    (
+      await repository.submitLeagueRoster({
+        token: 'league-token',
+        userId: 'user-001',
+        rosterId: 'roster',
+        rosterName: 'Army',
+        rosterUpdatedAt: 4,
+        snapshot: JSON.stringify({ name: 'Army', text: 'List' }),
+        now: 5,
+      })
+    ).outcome,
+  ).toBe('sealed')
 
   expect(await repository.revealLeague('league-token', 'user-000', 6)).toBe(true)
   expect((await repository.leagueByToken('league-token', 'user-002'))?.entries.find((entry) => entry.userId === 'user-002')?.status).toBe(
@@ -431,6 +438,7 @@ it('starts a recurring league event without copying prior entrants', async () =>
       ? {
           eventNumber: previous.eventNumber,
           revealedAt: previous.revealedAt,
+          currentEventFormat: previous.currentEventFormat,
           currentEventRevealedAt: previous.currentEventRevealedAt,
           currentEntrantCount: previous.currentEntrantCount,
           currentAcceptedCount: previous.currentAcceptedCount,
@@ -446,6 +454,7 @@ it('starts a recurring league event without copying prior entrants', async () =>
     previousCurrentState: {
       eventNumber: 1,
       revealedAt: 5,
+      currentEventFormat: null,
       currentEventRevealedAt: null,
       currentEntrantCount: 1,
       currentAcceptedCount: 1,
@@ -575,7 +584,7 @@ it('edits league registration settings only while the current event allows them'
   expect(await repository.leagueByToken('league-token', 'user-000')).toEqual(expect.objectContaining({ ...changed, name: 'Final name' }))
 })
 
-it('locks the player limit after reveal but keeps descriptive fields editable', async () => {
+it('lets the player limit change between recurring events', async () => {
   const repository = await users(1)
   await repository.createLeague({
     id: 'league',
@@ -615,6 +624,56 @@ it('locks the player limit after reveal but keeps descriptive fields editable', 
   await repository.revealLeague('league-token', 'user-000', 5)
   const input = { name: 'After reveal', description: '', visibility: 'public' as const, admission: 'automatic' as const, playerLimit: null }
 
-  expect(await repository.updateLeague('league-token', 'user-000', { ...input, playerLimit: 2 })).toBe('revealed')
+  expect(await repository.updateLeague('league-token', 'user-000', { ...input, playerLimit: 2 })).toBe('updated')
   expect(await repository.updateLeague('league-token', 'user-000', input)).toBe('updated')
+})
+
+it('orders league deletion after an in-flight league battle creation', async () => {
+  const repository = await users(2)
+  await repository.createLeague({
+    id: 'league',
+    token: 'league-token',
+    ownerId: 'user-000',
+    name: 'League',
+    description: '',
+    visibility: 'private',
+    admission: 'automatic',
+    now: 1,
+  })
+  await repository.joinLeague('league-token', 'user-000', 2, 128)
+  await repository.joinLeague('league-token', 'user-001', 3, 128)
+  const [event] = await connection!.database.select({ id: leagueEvents.id }).from(leagueEvents).limit(1)
+  if (!event) throw new Error('expected league event')
+  await connection!.database.update(leagueEvents).set({ revealedAt: 4 }).where(eq(leagueEvents.id, event.id))
+  await connection!.database.update(leagueEventEntries).set({ rosterSnapshot: '{}' }).where(eq(leagueEventEntries.eventId, event.id))
+  let enteredPrepare = () => {}
+  let releasePrepare = () => {}
+  const prepareStarted = new Promise<void>((resolve) => (enteredPrepare = resolve))
+  const prepareReleased = new Promise<void>((resolve) => (releasePrepare = resolve))
+  const creation = repository.createLeagueBattle(
+    {
+      id: 'battle',
+      token: 'battle-token',
+      leagueToken: 'league-token',
+      userId: 'user-000',
+      userIds: ['user-000', 'user-001'],
+      now: 5,
+    },
+    async (league) => {
+      enteredPrepare()
+      await prepareReleased
+      return { allyIds: [], opponentIds: ['user-001'], initialCommands: [], result: league.eventToken }
+    },
+  )
+  await prepareStarted
+  const deletion = repository.deleteLeague('league-token', 'user-000')
+
+  expect(await Promise.race([deletion.then(() => 'deleted'), new Promise((resolve) => setTimeout(() => resolve('blocked'), 100))])).toBe(
+    'blocked',
+  )
+  releasePrepare()
+  expect(await creation).toBe('league-token')
+  expect(await deletion).toBe('deleted')
+  expect(await repository.battleByToken('battle-token')).toBeDefined()
+  expect(await repository.leagueByToken('league-token', 'user-000')).toBeUndefined()
 })

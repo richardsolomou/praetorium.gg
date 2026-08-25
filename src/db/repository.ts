@@ -1,9 +1,16 @@
 import { and, asc, count, desc, eq, exists, ilike, inArray, isNotNull, isNull, lt, ne, notExists, or, sql } from 'drizzle-orm'
 import type { AdminUserPage, AdminUsersCursor } from '../admin'
 import { battleCapacity, type Command, type LoggedCommand, reduceBattle, type SubmitResult, validate } from '../core/battle'
-import { commandSchema } from '../core/commands'
+import { commandSchema, parseRosterSnapshot } from '../core/commands'
 import type { RosterSource } from '../core/savedRoster'
-import type { LeagueAdmission, LeagueEntryStatus, LeagueVisibility } from '../core/league'
+import {
+  alliedLeagueRosterLimit,
+  requiredLeagueRosterLimit,
+  type LeagueAdmission,
+  type LeagueEntryStatus,
+  type LeagueEventFormat,
+  type LeagueVisibility,
+} from '../core/league'
 import { alias } from 'drizzle-orm/pg-core'
 import type { PraetoriumDatabase } from './connection'
 import {
@@ -24,6 +31,17 @@ import {
 } from './schema'
 
 type BattleRecord = { id: string; token: string; createdAt: number }
+type DatabaseTransaction = Parameters<Parameters<PraetoriumDatabase['transaction']>[0]>[0]
+type CreateBattleInput = {
+  id: string
+  token: string
+  userId: string
+  allyIds?: string[]
+  opponentIds?: string[]
+  initialCommand?: Command
+  initialCommands?: Command[]
+  now: number
+}
 /** A seat and the account in it. `automated` is a practice opponent: an account that never signs in. */
 type BattlePlayer = { id: string; name: string; image: string | null; side: number; automated: boolean }
 export type BattleSeats = { battle: BattleRecord; players: BattlePlayer[] }
@@ -36,10 +54,14 @@ export type JoinResult = 'joined' | 'already-in' | 'full'
 export type UnlinkAccountResult = 'removed' | 'missing' | 'two-factor' | 'last-method'
 export type JoinLeagueResult = LeagueEntryStatus | 'missing' | 'closed' | 'full'
 export type ModerateLeagueResult = 'updated' | 'missing' | 'forbidden' | 'closed' | 'full'
-export type CreateLeagueEventResult = 'created' | 'missing' | 'forbidden' | 'one-off' | 'open'
+export type CreateLeagueEventResult = 'created' | 'missing' | 'forbidden' | 'one-off' | 'open' | 'too-small'
 export type MakeLeagueRecurringResult = 'updated' | 'missing' | 'forbidden'
-export type UpdateLeagueResult = 'updated' | 'missing' | 'forbidden' | 'joined' | 'revealed' | 'below-accepted'
+export type UpdateLeagueResult = 'updated' | 'missing' | 'forbidden' | 'joined' | 'below-accepted' | 'team-minimum'
 export type DeleteLeagueResult = 'deleted' | 'missing' | 'forbidden'
+export type AssignLeagueRosterRequirementResult = 'updated' | 'missing' | 'forbidden' | 'closed' | 'wrong-format' | 'wrong-limit'
+export type SubmitLeagueRosterResult =
+  | { outcome: 'sealed'; format: LeagueEventFormat | null; requiredLimit: number | null }
+  | { outcome: 'missing' | 'unassigned' | 'wrong-limit' }
 
 const ADMIN_USERS_PAGE_SIZE = 50
 
@@ -63,52 +85,45 @@ export class Repository {
    * is on is the caller's to decide: `allyIds` join the creator, `opponentIds` face
    * them, so either player of an allied pair can be the one who opens the game.
    */
-  async createBattle(input: {
-    id: string
-    token: string
-    userId: string
-    allyIds?: string[]
-    opponentIds?: string[]
-    initialCommand?: Command
-    initialCommands?: Command[]
-    now: number
-  }) {
-    await this.database.transaction(async (tx) => {
-      await tx.insert(battles).values({ id: input.id, token: input.token, createdAt: input.now })
-      const seats = [
-        { id: input.userId, side: 0 },
-        ...(input.allyIds ?? []).map((id) => ({ id, side: 0 })),
-        ...(input.opponentIds ?? []).map((id) => ({ id, side: 1 })),
-      ]
-      // Seats are read back by side then by when they were taken, so seating order
-      // here is what decides which seat a side folds its shared resources onto.
-      await tx
-        .insert(battleUsers)
-        .values(seats.map((seat, index) => ({ battleId: input.id, userId: seat.id, side: seat.side, joinedAt: input.now + index })))
-      const initialCommands = input.initialCommands ?? (input.initialCommand ? [input.initialCommand] : [])
-      const log: LoggedCommand[] = []
-      for (const [index, command] of initialCommands.entries()) {
-        const state = reduceBattle(
-          seats.map((seat) => seat.id),
-          log,
-          seats.map((seat) => seat.side),
-        )
-        const refusal = validate(state, input.userId, command)
-        if (refusal) throw new Error(`new battle command was refused: ${refusal}`)
-        log.push({ seq: index + 1, by: input.userId, at: input.now, command })
-      }
-      if (log.length) {
-        await tx.insert(commands).values(
-          log.map((entry) => ({
-            battleId: input.id,
-            seq: entry.seq,
-            userId: entry.by,
-            at: entry.at,
-            body: JSON.stringify(entry.command),
-          })),
-        )
-      }
-    })
+  async createBattle(input: CreateBattleInput) {
+    await this.database.transaction((tx) => this.insertBattle(tx, input))
+  }
+
+  private async insertBattle(tx: DatabaseTransaction, input: CreateBattleInput) {
+    await tx.insert(battles).values({ id: input.id, token: input.token, createdAt: input.now })
+    const seats = [
+      { id: input.userId, side: 0 },
+      ...(input.allyIds ?? []).map((id) => ({ id, side: 0 })),
+      ...(input.opponentIds ?? []).map((id) => ({ id, side: 1 })),
+    ]
+    // Seats are read back by side then by when they were taken, so seating order
+    // here is what decides which seat a side folds its shared resources onto.
+    await tx
+      .insert(battleUsers)
+      .values(seats.map((seat, index) => ({ battleId: input.id, userId: seat.id, side: seat.side, joinedAt: input.now + index })))
+    const initialCommands = input.initialCommands ?? (input.initialCommand ? [input.initialCommand] : [])
+    const log: LoggedCommand[] = []
+    for (const [index, command] of initialCommands.entries()) {
+      const state = reduceBattle(
+        seats.map((seat) => seat.id),
+        log,
+        seats.map((seat) => seat.side),
+      )
+      const refusal = validate(state, input.userId, command)
+      if (refusal) throw new Error(`new battle command was refused: ${refusal}`)
+      log.push({ seq: index + 1, by: input.userId, at: input.now, command })
+    }
+    if (log.length) {
+      await tx.insert(commands).values(
+        log.map((entry) => ({
+          battleId: input.id,
+          seq: entry.seq,
+          userId: entry.by,
+          at: entry.at,
+          body: JSON.stringify(entry.command),
+        })),
+      )
+    }
   }
 
   /**
@@ -606,6 +621,8 @@ export class Repository {
     admission: LeagueAdmission
     playerLimit?: number | null
     recurring?: boolean
+    format?: LeagueEventFormat
+    rosterLimit?: number
     now: number
   }) {
     await this.database.transaction(async (tx) => {
@@ -626,6 +643,8 @@ export class Repository {
         token: input.eventToken ?? input.token,
         leagueId: input.id,
         number: 1,
+        format: input.format,
+        rosterLimit: input.rosterLimit,
         createdAt: input.now,
       })
     })
@@ -636,17 +655,20 @@ export class Repository {
     token: string
     leagueToken: string
     ownerId: string
+    format?: LeagueEventFormat
+    rosterLimit?: number
     now: number
   }): Promise<CreateLeagueEventResult> {
     return this.database.transaction(async (tx) => {
       const [league] = await tx
-        .select({ id: leagues.id, ownerId: leagues.ownerId, recurring: leagues.recurring })
+        .select({ id: leagues.id, ownerId: leagues.ownerId, recurring: leagues.recurring, playerLimit: leagues.playerLimit })
         .from(leagues)
         .where(eq(leagues.token, input.leagueToken))
         .for('update')
       if (!league) return 'missing'
       if (league.ownerId !== input.ownerId) return 'forbidden'
       if (!league.recurring) return 'one-off'
+      if (input.format === '2v1' && league.playerLimit !== null && league.playerLimit < 3) return 'too-small'
       const [latest] = await tx
         .select({ number: leagueEvents.number, revealedAt: leagueEvents.revealedAt })
         .from(leagueEvents)
@@ -660,6 +682,8 @@ export class Repository {
         token: input.token,
         leagueId: league.id,
         number: latest.number + 1,
+        format: input.format,
+        rosterLimit: input.rosterLimit,
         createdAt: input.now,
       })
       return 'created'
@@ -705,7 +729,12 @@ export class Repository {
       if (!league) return 'missing'
       if (league.ownerId !== ownerId) return 'forbidden'
       const [current] = await tx
-        .select({ id: leagueEvents.id, revealedAt: leagueEvents.revealedAt })
+        .select({
+          id: leagueEvents.id,
+          format: leagueEvents.format,
+          rosterLimit: leagueEvents.rosterLimit,
+          revealedAt: leagueEvents.revealedAt,
+        })
         .from(leagueEvents)
         .where(eq(leagueEvents.leagueId, league.id))
         .orderBy(desc(leagueEvents.number))
@@ -717,8 +746,8 @@ export class Repository {
         .from(leagueEventEntries)
         .where(eq(leagueEventEntries.eventId, current.id))
       if (input.admission !== league.admission && (entries?.total ?? 0) > 0) return 'joined'
-      if (input.playerLimit !== league.playerLimit) {
-        if (current.revealedAt !== null) return 'revealed'
+      if (input.playerLimit !== league.playerLimit && current.revealedAt === null) {
+        if (current.format === '2v1' && input.playerLimit !== null && input.playerLimit < 3) return 'team-minimum'
         if (input.playerLimit !== null && input.playerLimit < (entries?.accepted ?? 0)) return 'below-accepted'
       }
       await tx.update(leagues).set(input).where(eq(leagues.id, league.id))
@@ -787,6 +816,8 @@ export class Repository {
           token: leagueEvents.token,
           leagueId: leagueEvents.leagueId,
           number: leagueEvents.number,
+          format: leagueEvents.format,
+          rosterLimit: leagueEvents.rosterLimit,
           revealedAt: leagueEvents.revealedAt,
         })
         .from(leagueEvents)
@@ -830,6 +861,8 @@ export class Repository {
           ...row,
           eventToken: event.token,
           eventNumber: event.number,
+          format: event.format,
+          rosterLimit: event.rosterLimit,
           revealedAt: event.revealedAt,
           entrantCount: countByEvent.get(event.id)?.accepted ?? 0,
           currentEntrantCount: countByEvent.get(event.id)?.joined ?? 0,
@@ -869,6 +902,8 @@ export class Repository {
             id: leagueEvents.id,
             token: leagueEvents.token,
             number: leagueEvents.number,
+            format: leagueEvents.format,
+            rosterLimit: leagueEvents.rosterLimit,
             createdAt: leagueEvents.createdAt,
             revealedAt: leagueEvents.revealedAt,
           })
@@ -885,6 +920,8 @@ export class Repository {
             id: leagueEvents.id,
             token: leagueEvents.token,
             number: leagueEvents.number,
+            format: leagueEvents.format,
+            rosterLimit: leagueEvents.rosterLimit,
             createdAt: leagueEvents.createdAt,
             revealedAt: leagueEvents.revealedAt,
           })
@@ -907,6 +944,7 @@ export class Repository {
             status: leagueEventEntries.status,
             joinedAt: leagueEventEntries.joinedAt,
             submitted: sql<boolean>`${leagueEventEntries.rosterSnapshot} is not null`,
+            assignedLimit: leagueEventEntries.requiredLimit,
             rosterName: viewerId
               ? sql<string | null>`case when ${leagueEventEntries.userId} = ${viewerId} then ${leagueEventEntries.rosterName} else null end`
               : sql<string | null>`null`,
@@ -932,14 +970,20 @@ export class Repository {
         eventToken: selected.token,
         eventNumber: selected.number,
         eventCreatedAt: selected.createdAt,
+        format: selected.format,
+        rosterLimit: selected.rosterLimit,
         revealedAt: selected.revealedAt,
         eventCount: eventTotal?.value ?? events.length,
+        currentEventFormat: current.format,
         currentEventRevealedAt: current.revealedAt,
         currentEntrantCount: currentCounts?.total ?? 0,
         currentAcceptedCount: currentCounts?.accepted ?? 0,
         events: visibleEvents.map(({ id: _id, ...event }) => event),
         occupiedCount: entries.filter((entry) => entry.status !== 'rejected').length,
-        entries,
+        entries: entries.map(({ assignedLimit, ...entry }) => ({
+          ...entry,
+          requiredLimit: requiredLeagueRosterLimit(selected.format, selected.rosterLimit, assignedLimit),
+        })),
       }
     })
   }
@@ -953,7 +997,7 @@ export class Repository {
         .for('update')
       if (!league) return 'missing'
       const [event] = await tx
-        .select({ id: leagueEvents.id, revealedAt: leagueEvents.revealedAt })
+        .select({ id: leagueEvents.id, format: leagueEvents.format, revealedAt: leagueEvents.revealedAt })
         .from(leagueEvents)
         .where(and(eq(leagueEvents.leagueId, league.id), eventToken ? eq(leagueEvents.token, eventToken) : undefined))
         .orderBy(desc(leagueEvents.number))
@@ -1030,10 +1074,64 @@ export class Repository {
       }
       const updated = await tx
         .update(leagueEventEntries)
-        .set(status === 'rejected' ? { status, rosterId: null, rosterName: null, rosterSnapshot: null, submittedAt: null } : { status })
+        .set(
+          status === 'rejected'
+            ? { status, rosterId: null, rosterName: null, rosterSnapshot: null, submittedAt: null, requiredLimit: null }
+            : { status },
+        )
         .where(and(eq(leagueEventEntries.eventId, event.id), eq(leagueEventEntries.userId, userId)))
         .returning({ userId: leagueEventEntries.userId })
       return updated.length ? 'updated' : 'missing'
+    })
+  }
+
+  async assignLeagueRosterRequirement(
+    token: string,
+    ownerId: string,
+    userId: string,
+    requiredLimit: number,
+    eventToken?: string,
+  ): Promise<AssignLeagueRosterRequirementResult> {
+    return this.database.transaction(async (tx) => {
+      const [league] = await tx
+        .select({ id: leagues.id, ownerId: leagues.ownerId })
+        .from(leagues)
+        .where(eq(leagues.token, token))
+        .for('update')
+      if (!league) return 'missing'
+      if (league.ownerId !== ownerId) return 'forbidden'
+      const [event] = await tx
+        .select({
+          id: leagueEvents.id,
+          format: leagueEvents.format,
+          rosterLimit: leagueEvents.rosterLimit,
+          revealedAt: leagueEvents.revealedAt,
+        })
+        .from(leagueEvents)
+        .where(and(eq(leagueEvents.leagueId, league.id), eventToken ? eq(leagueEvents.token, eventToken) : undefined))
+        .orderBy(desc(leagueEvents.number))
+        .limit(1)
+        .for('update')
+      if (!event) return 'missing'
+      if (event.revealedAt !== null) return 'closed'
+      if (event.format !== '2v1') return 'wrong-format'
+      if (requiredLimit !== event.rosterLimit && requiredLimit !== alliedLeagueRosterLimit(event.rosterLimit ?? 0)) return 'wrong-limit'
+      const [entry] = await tx
+        .select({ requiredLimit: leagueEventEntries.requiredLimit })
+        .from(leagueEventEntries)
+        .where(
+          and(eq(leagueEventEntries.eventId, event.id), eq(leagueEventEntries.userId, userId), eq(leagueEventEntries.status, 'accepted')),
+        )
+        .limit(1)
+        .for('update')
+      if (!entry) return 'missing'
+      if (entry.requiredLimit !== requiredLimit) {
+        await tx
+          .update(leagueEventEntries)
+          .set({ requiredLimit, rosterId: null, rosterName: null, rosterSnapshot: null, submittedAt: null })
+          .where(and(eq(leagueEventEntries.eventId, event.id), eq(leagueEventEntries.userId, userId)))
+      }
+      return 'updated'
     })
   }
 
@@ -1042,22 +1140,38 @@ export class Repository {
     userId: string
     rosterId: string
     rosterName: string
+    rosterLimit?: number
     rosterUpdatedAt: number
     snapshot: string
     now: number
     eventToken?: string
-  }) {
+  }): Promise<SubmitLeagueRosterResult> {
     return this.database.transaction(async (tx) => {
       const [league] = await tx.select({ id: leagues.id }).from(leagues).where(eq(leagues.token, input.token)).for('update')
-      if (!league) return false
+      if (!league) return { outcome: 'missing' }
       const [event] = await tx
-        .select({ id: leagueEvents.id, revealedAt: leagueEvents.revealedAt })
+        .select({
+          id: leagueEvents.id,
+          format: leagueEvents.format,
+          rosterLimit: leagueEvents.rosterLimit,
+          revealedAt: leagueEvents.revealedAt,
+        })
         .from(leagueEvents)
         .where(and(eq(leagueEvents.leagueId, league.id), input.eventToken ? eq(leagueEvents.token, input.eventToken) : undefined))
         .orderBy(desc(leagueEvents.number))
         .limit(1)
         .for('update')
-      if (!event || event.revealedAt !== null) return false
+      if (!event || event.revealedAt !== null) return { outcome: 'missing' }
+      const [entry] = await tx
+        .select({ status: leagueEventEntries.status, requiredLimit: leagueEventEntries.requiredLimit })
+        .from(leagueEventEntries)
+        .where(and(eq(leagueEventEntries.eventId, event.id), eq(leagueEventEntries.userId, input.userId)))
+        .limit(1)
+        .for('update')
+      if (!entry || entry.status !== 'accepted') return { outcome: 'missing' }
+      const requiredLimit = requiredLeagueRosterLimit(event.format, event.rosterLimit, entry.requiredLimit)
+      if (event.format === '2v1' && requiredLimit === null) return { outcome: 'unassigned' }
+      if (requiredLimit !== null && input.rosterLimit !== requiredLimit) return { outcome: 'wrong-limit' }
       const updated = await tx
         .update(leagueEventEntries)
         .set({ rosterId: input.rosterId, rosterName: input.rosterName, rosterSnapshot: input.snapshot, submittedAt: input.now })
@@ -1070,12 +1184,19 @@ export class Repository {
               tx
                 .select({ one: sql`1` })
                 .from(rosters)
-                .where(and(eq(rosters.id, input.rosterId), eq(rosters.userId, input.userId), eq(rosters.updatedAt, input.rosterUpdatedAt))),
+                .where(
+                  and(
+                    eq(rosters.id, input.rosterId),
+                    eq(rosters.userId, input.userId),
+                    eq(rosters.updatedAt, input.rosterUpdatedAt),
+                    requiredLimit === null ? undefined : eq(rosters.limit, requiredLimit),
+                  ),
+                ),
             ),
           ),
         )
         .returning({ userId: leagueEventEntries.userId })
-      return updated.length > 0
+      return updated.length ? { outcome: 'sealed', format: event.format, requiredLimit } : { outcome: 'missing' }
     })
   }
 
@@ -1088,18 +1209,44 @@ export class Repository {
         .for('update')
       if (!league || league.ownerId !== ownerId) return false
       const [event] = await tx
-        .select({ id: leagueEvents.id, revealedAt: leagueEvents.revealedAt })
+        .select({
+          id: leagueEvents.id,
+          format: leagueEvents.format,
+          rosterLimit: leagueEvents.rosterLimit,
+          revealedAt: leagueEvents.revealedAt,
+        })
         .from(leagueEvents)
         .where(and(eq(leagueEvents.leagueId, league.id), eventToken ? eq(leagueEvents.token, eventToken) : undefined))
         .orderBy(desc(leagueEvents.number))
         .limit(1)
         .for('update')
       if (!event || event.revealedAt !== null) return false
-      const [entries] = await tx
-        .select({ accepted: count(), missing: count(sql`case when ${leagueEventEntries.rosterSnapshot} is null then 1 end`) })
+      const entries = await tx
+        .select({
+          requiredLimit: leagueEventEntries.requiredLimit,
+          snapshot: leagueEventEntries.rosterSnapshot,
+        })
         .from(leagueEventEntries)
         .where(and(eq(leagueEventEntries.eventId, event.id), eq(leagueEventEntries.status, 'accepted')))
-      if (!entries?.accepted || entries.missing || (league.playerLimit !== null && entries.accepted !== league.playerLimit)) return false
+      if (!entries.length || (league.playerLimit !== null && entries.length !== league.playerLimit)) return false
+      if (entries.some((entry) => entry.snapshot === null || (event.format === '2v1' && entry.requiredLimit === null))) return false
+      if (event.format === '2v1') {
+        const solo = entries.filter((entry) => entry.requiredLimit === event.rosterLimit).length
+        const allied = entries.filter((entry) => entry.requiredLimit === alliedLeagueRosterLimit(event.rosterLimit ?? 0)).length
+        if (!solo || allied < 2) return false
+      }
+      if (
+        event.format !== null &&
+        entries.some((entry) => {
+          const requiredLimit = requiredLeagueRosterLimit(event.format, event.rosterLimit, entry.requiredLimit)
+          try {
+            return requiredLimit === null || parseRosterSnapshot(entry.snapshot!).built?.limit !== requiredLimit
+          } catch {
+            return true
+          }
+        })
+      )
+        return false
       await tx
         .update(leagueEventEntries)
         .set({ status: 'rejected' })
@@ -1130,27 +1277,75 @@ export class Repository {
     return row?.snapshot ?? null
   }
 
-  async leagueBattleRosters(token: string, userIds: string[], eventToken?: string) {
-    const [event] = await this.database
-      .select({ id: leagueEvents.id, token: leagueEvents.token, revealedAt: leagueEvents.revealedAt })
-      .from(leagueEvents)
-      .innerJoin(leagues, eq(leagues.id, leagueEvents.leagueId))
-      .where(and(eq(leagues.token, token), eventToken ? eq(leagueEvents.token, eventToken) : undefined))
-      .orderBy(desc(leagueEvents.number))
-      .limit(1)
-    if (!event) return undefined
-    const entries = await this.database
-      .select({ userId: leagueEventEntries.userId, snapshot: leagueEventEntries.rosterSnapshot })
-      .from(leagueEventEntries)
-      .where(
-        and(
-          eq(leagueEventEntries.eventId, event.id),
-          inArray(leagueEventEntries.userId, userIds),
-          eq(leagueEventEntries.status, 'accepted'),
-          isNotNull(leagueEventEntries.rosterSnapshot),
-        ),
-      )
-    return { eventToken: event.token, revealedAt: event.revealedAt, entries }
+  async createLeagueBattle<T>(
+    input: {
+      id: string
+      token: string
+      leagueToken: string
+      eventToken?: string
+      userId: string
+      userIds: string[]
+      now: number
+    },
+    prepare: (league: {
+      eventToken: string
+      format: LeagueEventFormat | null
+      rosterLimit: number | null
+      revealedAt: number | null
+      entries: { userId: string; requiredLimit: number | null; snapshot: string | null }[]
+    }) =>
+      | { allyIds: string[]; opponentIds: string[]; initialCommands: Command[]; result: T }
+      | Promise<{ allyIds: string[]; opponentIds: string[]; initialCommands: Command[]; result: T }>,
+  ): Promise<T | undefined> {
+    return this.database.transaction(async (tx) => {
+      const [event] = await tx
+        .select({
+          id: leagueEvents.id,
+          token: leagueEvents.token,
+          format: leagueEvents.format,
+          rosterLimit: leagueEvents.rosterLimit,
+          revealedAt: leagueEvents.revealedAt,
+        })
+        .from(leagues)
+        .innerJoin(leagueEvents, eq(leagueEvents.leagueId, leagues.id))
+        .where(and(eq(leagues.token, input.leagueToken), input.eventToken ? eq(leagueEvents.token, input.eventToken) : undefined))
+        .orderBy(desc(leagueEvents.number))
+        .limit(1)
+        .for('share', { of: leagues })
+      if (!event) return undefined
+      const entries = await tx
+        .select({
+          userId: leagueEventEntries.userId,
+          requiredLimit: leagueEventEntries.requiredLimit,
+          snapshot: leagueEventEntries.rosterSnapshot,
+        })
+        .from(leagueEventEntries)
+        .where(
+          and(
+            eq(leagueEventEntries.eventId, event.id),
+            inArray(leagueEventEntries.userId, input.userIds),
+            eq(leagueEventEntries.status, 'accepted'),
+            isNotNull(leagueEventEntries.rosterSnapshot),
+          ),
+        )
+      const prepared = await prepare({
+        eventToken: event.token,
+        format: event.format,
+        rosterLimit: event.rosterLimit,
+        revealedAt: event.revealedAt,
+        entries,
+      })
+      await this.insertBattle(tx, {
+        id: input.id,
+        token: input.token,
+        userId: input.userId,
+        allyIds: prepared.allyIds,
+        opponentIds: prepared.opponentIds,
+        initialCommands: prepared.initialCommands,
+        now: input.now,
+      })
+      return prepared.result
+    })
   }
 
   async setRosterVisibility(id: string, userId: string, visibility: 'private' | 'unlisted', now: number) {

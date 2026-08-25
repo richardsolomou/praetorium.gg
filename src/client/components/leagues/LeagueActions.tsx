@@ -16,7 +16,7 @@ import { Button } from '@/components/ui/button'
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import type { LeagueAdmission, LeagueVisibility } from '../../../core/league'
+import type { LeagueAdmission, LeagueEventFormat, LeagueVisibility } from '../../../core/league'
 import { deleteLeague, makeLeagueRecurring, updateLeague } from '../../../server/functions'
 import { leaguesQuery } from '../../queries'
 import { errorMessage } from '../../queryClient'
@@ -30,6 +30,8 @@ export type ManageableLeague = {
   admission: LeagueAdmission
   playerLimit: number | null
   recurring: boolean
+  format: LeagueEventFormat | null
+  currentEventFormat: LeagueEventFormat | null
   currentEventRevealedAt: number | null
   currentEntrantCount: number
   currentAcceptedCount: number
@@ -142,8 +144,8 @@ function LeagueActionDialogs({ actions }: { actions: Controller }) {
               idPrefix="edit-league"
               value={actions.value}
               admissionLocked={actions.league.currentEntrantCount > 0}
-              playerLimitLocked={actions.league.currentEventRevealedAt !== null}
-              acceptedCount={actions.league.currentAcceptedCount}
+              acceptedCount={actions.league.currentEventRevealedAt === null ? actions.league.currentAcceptedCount : 0}
+              minimumPlayerLimit={actions.league.currentEventRevealedAt === null && actions.league.currentEventFormat === '2v1' ? 3 : 2}
               disabled={actions.update.isPending}
               onChange={actions.setValue}
             />
@@ -241,7 +243,7 @@ function useLeagueActions(league: ManageableLeague, onDeleted?: () => void | Pro
     setValue((current) => ({
       ...current,
       ...(league.currentEntrantCount > 0 ? { admission: league.admission } : {}),
-      ...(league.currentEventRevealedAt !== null || (current.playerLimit !== null && current.playerLimit < league.currentAcceptedCount)
+      ...(league.currentEventRevealedAt === null && current.playerLimit !== null && current.playerLimit < league.currentAcceptedCount
         ? { playerLimit: league.playerLimit }
         : {}),
     }))

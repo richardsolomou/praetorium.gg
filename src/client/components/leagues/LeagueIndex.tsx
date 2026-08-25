@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { Eye, LockKeyhole, Users } from 'lucide-react'
+import { alliedLeagueRosterLimit } from '../../../core/league'
 import { leaguesQuery, meQuery } from '../../queries'
 import { PlayerAvatar } from '../PlayerAvatar'
 import { CreateLeague } from './CreateLeague'
@@ -103,6 +104,13 @@ function LeagueShelf({
                       : 'Registration open'}
                 </span>
                 {league.recurring ? <span className="chip text-info">Event {league.eventNumber}</span> : null}
+                {league.format && league.rosterLimit ? (
+                  <span className="chip">
+                    {league.format === '2v1'
+                      ? `2v1 · ${league.rosterLimit.toLocaleString()}/${alliedLeagueRosterLimit(league.rosterLimit).toLocaleString()}`
+                      : `1v1 · ${league.rosterLimit.toLocaleString()}`}
+                  </span>
+                ) : null}
                 {league.ownEntry ? (
                   <span className="chip text-parchment">
                     {league.ownEntry.submitted ? (league.ownEntry.rosterName ?? 'Roster submitted') : league.ownEntry.status}
@@ -127,6 +135,7 @@ function LeagueShelf({
               key={league.id}
               league={{
                 ...league,
+                currentEventFormat: league.format,
                 currentEventRevealedAt: league.revealedAt,
                 currentAcceptedCount: league.entrantCount,
               }}
