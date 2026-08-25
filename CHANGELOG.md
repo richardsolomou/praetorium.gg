@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.34.9
+
+### Patch Changes
+
+- b892a56: Speed up roster setup and roster selection across rosters, battles, and leagues.
+
 ## 0.34.8
 
 ### Patch Changes
