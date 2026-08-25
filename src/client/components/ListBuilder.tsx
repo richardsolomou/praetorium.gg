@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { Check, Crown, Download, EllipsisVertical, ExternalLink, Pencil, Plus, SlidersHorizontal, TriangleAlert } from 'lucide-react'
 import posthog from 'posthog-js'
-import { type ComponentProps, memo, useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react'
+import { type ComponentProps, memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Toggle } from '@/components/ui/toggle'
@@ -16,7 +16,7 @@ import type { RosterSource, RosterVisibility } from '../../core/savedRoster'
 import type { Datasheet } from '../../server/catalogue'
 import { exportRoster, saveRoster } from '../../server/functions'
 import { collectionQuery, factionsQuery, invalidateSavedRosters, priceQuery } from '../queries'
-import { picksAfterDetachmentChange } from '../rosterPicks'
+import { type KeyedPick, picksAfterDetachmentChange } from '../rosterPicks'
 import { useCollectionMutation } from '../useCollection'
 import { useSettled } from '../useSettled'
 import { DatasheetPanel } from './builder/DatasheetPanel'
@@ -206,41 +206,33 @@ export function ListBuilder({ prep, initial, editable = true, battle, resolvePer
 
   const units = priced?.units ?? NO_UNITS
   const edit = useMemo(() => pickEditor(setPicks, { catalogueId, units }), [catalogueId, setPicks, units])
-  const drop = useCallback(
-    (index: number) => {
-      edit.drop(index)
-      posthog.capture('roster_unit_removed', { unit_count: picks.length - 1 })
-      setSelected(null)
-    },
-    [edit, picks.length],
-  )
-  const add = useCallback(
-    (entryId: string) => {
-      edit.add(entryId)
-      posthog.capture('roster_unit_added', { unit_count: picks.length + 1 })
-    },
-    [edit, picks.length],
-  )
+  const editor = useRef({ edit, pickCount: picks.length })
+  useLayoutEffect(() => {
+    editor.current = { edit, pickCount: picks.length }
+  }, [edit, picks.length])
+  const drop = useCallback((index: number) => {
+    editor.current.edit.drop(index)
+    posthog.capture('roster_unit_removed', { unit_count: editor.current.pickCount - 1 })
+    setSelected(null)
+  }, [])
+  const add = useCallback((entryId: string) => {
+    editor.current.edit.add(entryId)
+    posthog.capture('roster_unit_added', { unit_count: editor.current.pickCount + 1 })
+  }, [])
   const inspect = useCallback((previewCatalogueId: string, entryId: string, unitName: string) => {
     setPreview({ catalogueId: previewCatalogueId, entryId, name: unitName })
     setSelected(null)
     setShowing('loadout')
   }, [])
   const previewUnit = useCallback((entryId: string, unitName: string) => inspect(catalogueId, entryId, unitName), [catalogueId, inspect])
-  const duplicate = useCallback(
-    (index: number) => {
-      edit.duplicate(index)
-      posthog.capture('roster_unit_duplicated', { unit_count: picks.length + 1 })
-    },
-    [edit, picks.length],
-  )
-  const join = useCallback(
-    (index: number, targetKey: number | undefined) => {
-      edit.join(index, targetKey)
-      posthog.capture('roster_attachment_updated', { attached: targetKey !== undefined })
-    },
-    [edit],
-  )
+  const duplicate = useCallback((index: number) => {
+    editor.current.edit.duplicate(index)
+    posthog.capture('roster_unit_duplicated', { unit_count: editor.current.pickCount + 1 })
+  }, [])
+  const join = useCallback((index: number, targetKey: number | undefined) => {
+    editor.current.edit.join(index, targetKey)
+    posthog.capture('roster_attachment_updated', { attached: targetKey !== undefined })
+  }, [])
   const selectUnit = useCallback((index: number) => {
     setPreview(null)
     setSelected(index)
@@ -250,6 +242,7 @@ export function ListBuilder({ prep, initial, editable = true, battle, resolvePer
     (entryId: string, nextOwned: boolean) => mutateCollection({ entryId, owned: nextOwned }),
     [mutateCollection],
   )
+  const cardRelationships = useCardRelationships(picks, units)
 
   if (!available) {
     return (
@@ -564,15 +557,15 @@ export function ListBuilder({ prep, initial, editable = true, battle, resolvePer
                       key={picks[index]?.key ?? unit.entryId}
                       unit={unit}
                       index={index}
-                      picks={picks}
-                      units={units}
+                      joined={cardRelationships.get(picks[index]?.key ?? -1)?.joined ?? []}
+                      canJoin={cardRelationships.get(picks[index]?.key ?? -1)?.canJoin ?? []}
                       alliedFaction={
                         picks[index]?.catalogueId === catalogueId
                           ? undefined
                           : available.factions.find((entry) => entry.id === picks[index]?.catalogueId)
                       }
                       selected={selected === index}
-                      collection={collection}
+                      owned={collection.has(unit.entryId)}
                       onSelect={selectUnit}
                       onRemove={drop}
                       onDuplicate={duplicate}
@@ -743,11 +736,11 @@ export function ListBuilder({ prep, initial, editable = true, battle, resolvePer
 type BuilderUnitCardProps = {
   unit: ComponentProps<typeof UnitCard>['unit']
   index: number
-  picks: Parameters<typeof joinableUnits>[0]
-  units: Parameters<typeof attachmentRows>[1]
+  joined: ReturnType<typeof attachmentRows>
+  canJoin: ReturnType<typeof joinableUnits>
   alliedFaction: ComponentProps<typeof UnitCard>['alliedFaction']
   selected: boolean
-  collection: ReadonlySet<string>
+  owned: boolean
   editable: boolean
   onSelect: (index: number) => void
   onRemove: (index: number) => void
@@ -759,11 +752,11 @@ type BuilderUnitCardProps = {
 const BuilderUnitCard = memo(function BuilderUnitCard({
   unit,
   index,
-  picks,
-  units,
+  joined,
+  canJoin,
   alliedFaction,
   selected,
-  collection,
+  owned,
   editable,
   onSelect,
   onRemove,
@@ -779,15 +772,51 @@ const BuilderUnitCard = memo(function BuilderUnitCard({
       onSelect={() => onSelect(index)}
       onRemove={() => onRemove(index)}
       onDuplicate={() => onDuplicate(index)}
-      owned={collection.has(unit.entryId)}
-      onOwned={() => onOwned(unit.entryId, !collection.has(unit.entryId))}
-      joined={attachmentRows(picks, units, index).map((row) => ({ ...row, onAct: () => onJoin(row.detach, undefined) }))}
-      canJoin={joinableUnits(picks, units, index)}
+      owned={owned}
+      onOwned={() => onOwned(unit.entryId, !owned)}
+      joined={joined.map((row) => ({ ...row, onAct: () => onJoin(row.detach, undefined) }))}
+      canJoin={canJoin}
       onJoin={(targetKey) => onJoin(index, targetKey)}
       editable={editable}
     />
   )
 })
+
+type CardRelationships = {
+  joined: ReturnType<typeof attachmentRows>
+  canJoin: ReturnType<typeof joinableUnits>
+}
+
+function useCardRelationships(picks: readonly KeyedPick[], units: Parameters<typeof attachmentRows>[1]) {
+  const previous = useRef(new Map<number, CardRelationships>())
+  const relationships = useMemo(() => {
+    const next = new Map<number, CardRelationships>()
+    for (const [index, pick] of picks.entries()) {
+      const candidate = { joined: attachmentRows(picks, units, index), canJoin: joinableUnits(picks, units, index) }
+      const current = previous.current.get(pick.key)
+      next.set(pick.key, current && sameRelationships(current, candidate) ? current : candidate)
+    }
+    return next
+  }, [picks, units])
+  useLayoutEffect(() => {
+    previous.current = relationships
+  }, [relationships])
+  return relationships
+}
+
+function sameRelationships(left: CardRelationships, right: CardRelationships) {
+  return (
+    left.joined.length === right.joined.length &&
+    left.joined.every((row, index) => {
+      const other = right.joined[index]
+      return Boolean(
+        other && row.label === other.label && row.name === other.name && row.action === other.action && row.detach === other.detach,
+      )
+    }) &&
+    left.canJoin.length === right.canJoin.length &&
+    left.canJoin.every((unit, index) => unit.key === right.canJoin[index]?.key && unit.name === right.canJoin[index]?.name)
+  )
+}
 
 function FullDatasheetLink({ route }: { route: NonNullable<Datasheet['referenceRoute']> }) {
   return (
