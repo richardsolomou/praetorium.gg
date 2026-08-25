@@ -301,8 +301,16 @@ function RootComponent() {
                * data does — see `ATTRIBUTION` in `src/server/rules.ts`.
                */}
               {immersive ? null : (
-                <footer className="border-t border-edge px-4 py-4 text-center text-xs text-faint">
-                  Praetorium is an unofficial product, and is not in any way affiliated with or endorsed by Games Workshop.
+                <footer className="flex flex-col items-center gap-1.5 border-t border-edge px-4 py-4 text-center text-xs text-faint min-[900px]:flex-row min-[900px]:justify-between">
+                  <p>Praetorium is an unofficial product, and is not in any way affiliated with or endorsed by Games Workshop.</p>
+                  <p className="space-x-3">
+                    <Link to="/privacy" className="transition-colors hover:text-bone">
+                      Privacy policy
+                    </Link>
+                    <Link to="/terms" className="transition-colors hover:text-bone">
+                      Terms of service
+                    </Link>
+                  </p>
                 </footer>
               )}
             </div>
