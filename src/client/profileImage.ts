@@ -20,12 +20,17 @@ export async function prepareProfileImage(file: File): Promise<string> {
     if (!context) throw new Error('This browser cannot prepare the profile picture.')
 
     const edge = Math.min(source.width, source.height)
+    let type = 'image/webp'
     for (const size of PROFILE_IMAGE_SIZES) {
       canvas.width = size
       canvas.height = size
       context.drawImage(source, (source.width - edge) / 2, (source.height - edge) / 2, edge, edge, 0, 0, size, size)
       for (const quality of PROFILE_IMAGE_QUALITIES) {
-        const blob = await canvasBlob(canvas, quality)
+        let blob = await canvasBlob(canvas, type, quality)
+        if (type === 'image/webp' && blob.type !== type) {
+          type = 'image/jpeg'
+          blob = await canvasBlob(canvas, type, quality)
+        }
         const image = await dataUrl(blob)
         if (image.length <= PROFILE_IMAGE_MAX_LENGTH) return image
       }
@@ -36,13 +41,9 @@ export async function prepareProfileImage(file: File): Promise<string> {
   }
 }
 
-function canvasBlob(canvas: HTMLCanvasElement, quality: number) {
+function canvasBlob(canvas: HTMLCanvasElement, type: string, quality: number) {
   return new Promise<Blob>((resolve, reject) =>
-    canvas.toBlob(
-      (blob) => (blob ? resolve(blob) : reject(new Error('The profile picture could not be prepared.'))),
-      'image/webp',
-      quality,
-    ),
+    canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('The profile picture could not be prepared.'))), type, quality),
   )
 }
 
