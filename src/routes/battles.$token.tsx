@@ -5,12 +5,10 @@ import { Setup } from '../client/components/Setup'
 import { Tracker } from '../client/components/Tracker'
 import {
   battleQuery,
-  catalogueStatusQuery,
   deploymentsQuery,
   detachmentRulesQuery,
   factionQuery,
   gameReferencesQuery,
-  savedRosterSummariesQuery,
   terrainMatchupIds,
   terrainReferencesQuery,
 } from '../client/queries'
@@ -30,7 +28,6 @@ export const Route = createFileRoute('/battles/$token')({
      */
     const instanceData = [
       context.queryClient.ensureQueryData(gameReferencesQuery()),
-      context.queryClient.ensureQueryData(catalogueStatusQuery()),
       context.queryClient.ensureQueryData(deploymentsQuery()),
     ].map((pending) => pending.catch(() => undefined))
     // Only a loader may throw this: from a render it lands in the error boundary.
@@ -44,7 +41,6 @@ export const Route = createFileRoute('/battles/$token')({
     // The battle decides which independent reads are needed; start them together once it is known.
     await Promise.all([
       ...instanceData,
-      context.queryClient.ensureQueryData(savedRosterSummariesQuery()),
       ...(matchupIds.length ? [context.queryClient.ensureQueryData(terrainReferencesQuery(matchupIds))] : []),
       ...screen.view.players.flatMap((player) => {
         const { catalogueId, detachmentNames } = armyRulesRequest(player.roster)

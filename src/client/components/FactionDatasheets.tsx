@@ -3,7 +3,7 @@ import { Link, Outlet, useParams, useRouterState } from '@tanstack/react-router'
 import { ChevronLeft, ChevronRight, FileSearch } from 'lucide-react'
 import { memo, useState } from 'react'
 import type { UnitSummary } from '../../server/cataloguePicker'
-import { collectionQuery, factionDatasheetsQuery, factionQuery } from '../queries'
+import { collectionQuery, factionDatasheetsQuery, factionQuery, meQuery } from '../queries'
 import { useMounted } from '../useMounted'
 import { useSettled } from '../useSettled'
 import { FactionMark, factionColour } from './FactionMark'
@@ -23,7 +23,8 @@ export function FactionDatasheets() {
     ...factionDatasheetsQuery(faction?.id ?? '', settledQuery),
     placeholderData: keepPreviousData,
   })
-  const { data: collection = [] } = useQuery(collectionQuery())
+  const { data: me } = useQuery(meQuery())
+  const { data: collection = [] } = useQuery({ ...collectionQuery(), enabled: Boolean(me) })
   // Favourites come from the per-user collection, resolved from the session
   // server-side. Sorting on it only after mount keeps the server and the first
   // client render in the same order, so hydration matches.

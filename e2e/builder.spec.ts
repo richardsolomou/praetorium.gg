@@ -46,6 +46,43 @@ test('the unit picker stays within the roster faction', async ({ page }) => {
   await expect(page.getByRole('combobox', { name: 'Force' })).toHaveCount(0)
 })
 
+test('the roster workspace stays in place while the desktop picker hydrates', async ({ page }) => {
+  await openBuilder(page)
+  await page.getByLabel('Add a unit').fill('Immortals')
+  await waitForRosterSave(page, () => page.getByRole('button', { name: 'Add Immortals', exact: true }).first().click())
+  await expect(page.locator('[data-unit="Immortals"]')).toBeVisible()
+
+  await page.addInitScript(() => {
+    const values: number[] = []
+    Object.assign(window, { __rosterLayoutShiftValues: values })
+    new PerformanceObserver((list) => {
+      for (const entry of list.getEntries()) {
+        const shift = entry as PerformanceEntry & { value: number; hadRecentInput: boolean }
+        if (!shift.hadRecentInput) values.push(shift.value)
+      }
+    }).observe({ type: 'layout-shift', buffered: true })
+  })
+  await page.reload()
+  await page.waitForTimeout(1_500)
+  const values = await page.evaluate(() => (window as typeof window & { __rosterLayoutShiftValues: number[] }).__rosterLayoutShiftValues)
+  expect(values.reduce((total, value) => total + value, 0)).toBeLessThan(0.05)
+  await page.screenshot({ path: 'test-results/stable-roster-workspace.png', fullPage: true })
+
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.reload()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  expect(await page.locator('[data-slot="roster-units"]').evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
+  await page.screenshot({ path: 'test-results/stable-roster-workspace-phone.png', fullPage: true })
+
+  await page.locator('[data-unit="Immortals"]').getByRole('button', { name: 'Immortals', exact: true }).click()
+  const loadout = page.locator('aside[aria-label="Loadout"]')
+  await expect(loadout).toBeVisible()
+  await expect(loadout.getByRole('heading', { name: 'Attachments' })).toBeVisible()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  expect(await loadout.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
+  await page.screenshot({ path: 'test-results/stable-roster-loadout-phone.png', fullPage: true })
+})
+
 test('the whole book is on the shelves, not the first page of it', async ({ page }) => {
   // A Space Marine book runs to well over a hundred datasheets and the picker sorts
   // them by name, so a cut-off page ended mid-alphabet: the infantry shelf stopped at

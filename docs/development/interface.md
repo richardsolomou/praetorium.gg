@@ -9,6 +9,7 @@ Praetorium uses a compact, dark interface. See [Product design](../product-desig
 - Use theme red for attacker deployment zones and theme green for defender zones. Use primary green for a neutral zone.
 - Edit squad size on the roster card. Do not add a second squad-size control to the loadout pane.
 - Render each picker or loadout pane once. `src/client/components/builder/Pane.tsx` moves the same instance between a desktop sidebar and a mobile sheet. Two instances create duplicate form controls and accessibility labels.
+- Reserve the desktop picker's grid column in the server-rendered roster workspace. Hydration may replace its mobile drawer with the desktop sidebar, but the roster and loadout panes must not move when it does.
 - Split unit lists into collapsible primary-category shelves and omit empty shelves. Use the same shelf order on rosters, in the picker and on faction datasheet pages.
 - Show allied picker shelves with their short faction name and keep them collapsed until a player needs them.
 - A unit card is one target. Its details open the unit. The menu, detach, and join controls handle their own clicks.

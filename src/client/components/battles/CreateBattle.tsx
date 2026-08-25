@@ -82,9 +82,9 @@ function seatOptions(opponents: readonly Opponent[], taken: ReadonlySet<string |
  * battle opens at the default size and setup is where the table settles it.
  */
 export function CreateBattle() {
-  const { data: opponents = [] } = useQuery(opponentsQuery())
-  const { data: references } = useQuery(gameReferencesQuery())
   const [open, setOpen] = useState(false)
+  const opponentQuery = useQuery({ ...opponentsQuery(), enabled: open })
+  const opponents = opponentQuery.data ?? []
   // A chair apiece rather than a list, so filling the second before the first cannot
   // leave a hole where the request expects a player.
   const [theirIds, setTheirIds] = useState<(string | null)[]>([null, null])
@@ -97,8 +97,9 @@ export function CreateBattle() {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const create = useMutation({
-    mutationFn: () =>
-      createBattle({
+    mutationFn: async () => {
+      const references = await queryClient.ensureQueryData(gameReferencesQuery())
+      return createBattle({
         data: {
           opponentIds,
           // Only a format that seats one names an ally, so switching away from it
@@ -108,7 +109,8 @@ export function CreateBattle() {
           limit: OPENING_LIMIT,
           missionPackId: references?.packs[0]?.id ?? null,
         },
-      }),
+      })
+    },
     onSuccess: async ({ token }) => {
       setOpen(false)
       await queryClient.invalidateQueries({ queryKey: battlesQuery().queryKey })
@@ -148,7 +150,9 @@ export function CreateBattle() {
             })}
           </div>
         </fieldset>
-        {opponents.length ? (
+        {opponentQuery.isPending ? (
+          <p className="border border-edge bg-sunken p-3 text-sm text-dim">Loading players…</p>
+        ) : opponentQuery.error ? null : opponents.length ? (
           <div className="space-y-2">
             {seats.map((seat) => {
               // Nobody sits in two chairs, so a player picked elsewhere is not offered here.
@@ -179,12 +183,14 @@ export function CreateBattle() {
         ) : (
           <p className="border border-edge bg-sunken p-3 text-sm text-dim">This instance seats nobody you can play yet.</p>
         )}
-        {create.error ? <p className="text-sm text-destructive">{errorMessage(create.error)}</p> : null}
+        {create.error || opponentQuery.error ? (
+          <p className="text-sm text-destructive">{errorMessage(create.error ?? opponentQuery.error)}</p>
+        ) : null}
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)}>
             Cancel
           </Button>
-          <Button disabled={!seated || create.isPending} onClick={() => create.mutate()}>
+          <Button disabled={!seated || opponentQuery.isPending || create.isPending} onClick={() => create.mutate()}>
             {create.isPending ? 'Creating…' : 'Create battle'}
           </Button>
         </DialogFooter>

@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, notFound, Outlet, useRouterState } from '@tanstack/react-router'
 import { ChevronLeft, ChevronRight, ShieldQuestion } from 'lucide-react'
 import { favouriteDetachmentsFirst, useFavouriteDetachments } from '../client/favouriteDetachments'
-import { factionQuery } from '../client/queries'
+import { factionQuery, favouriteDetachmentsQuery, favouriteFactionsQuery } from '../client/queries'
 import { FavouriteDetachmentToggle } from '../client/components/FavouriteDetachmentToggle'
 import { FavouriteFactionToggle } from '../client/components/FavouriteFactionToggle'
 import { FactionMark, factionColour } from '../client/components/FactionMark'
@@ -11,8 +11,15 @@ import { RuleText } from '../client/components/RuleText'
 import { PageState } from '../client/components/PageState'
 
 export const Route = createFileRoute('/factions/$catalogueId')({
-  loader: async ({ context, params }) => {
-    if (!(await context.queryClient.ensureQueryData(factionQuery(params.catalogueId)))) throw notFound()
+  loader: async ({ context, location, params }) => {
+    const direct = location.pathname === `/factions/${params.catalogueId}`
+    const [faction] = await Promise.all([
+      context.queryClient.ensureQueryData(factionQuery(params.catalogueId)),
+      ...(direct
+        ? [context.queryClient.ensureQueryData(favouriteFactionsQuery()), context.queryClient.ensureQueryData(favouriteDetachmentsQuery())]
+        : []),
+    ])
+    if (!faction) throw notFound()
   },
   component: FactionPage,
 })

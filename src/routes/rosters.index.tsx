@@ -25,7 +25,7 @@ import { readWorkspaceState, writeWorkspaceState } from '../client/components/wo
 import { SignInRequired } from '../client/components/SignInRequired'
 import { PageState } from '../client/components/PageState'
 import { useFavouriteFactions } from '../client/favouriteFactions'
-import { factionIndexQuery, meQuery, savedRosterPointsQuery, savedRosterSummariesQuery } from '../client/queries'
+import { factionIndexQuery, favouriteFactionsQuery, meQuery, savedRosterPointsQuery, savedRosterSummariesQuery } from '../client/queries'
 import { useMounted } from '../client/useMounted'
 import { useOrigin } from '../client/useOrigin'
 import { GAME_SIZES } from '../core/battle'
@@ -59,6 +59,7 @@ export const Route = createFileRoute('/rosters/')({
     Promise.all([
       context.queryClient.ensureQueryData(savedRosterSummariesQuery()),
       context.queryClient.ensureQueryData(factionIndexQuery()),
+      context.queryClient.ensureQueryData(favouriteFactionsQuery()),
     ]),
   component: RosterLibrary,
 })
