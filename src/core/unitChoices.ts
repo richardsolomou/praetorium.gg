@@ -83,6 +83,8 @@ export type UnitToggle = { key: string; name: string; selected: boolean }
 
 export type ChoiceOptions = { primaryCatalogueId?: string; depth?: number; roster?: readonly Selection[] }
 
+export const isUnitCompositionChoice = ({ name }: Pick<UnitChoice, 'name'>) => name.trim().toLocaleLowerCase() === 'unit composition'
+
 export function unitChoices(entryId: string, selection: Selection, index: CatalogueIndex, options: ChoiceOptions = {}): UnitChoice[] {
   const depth = options.depth ?? MAX_DEPTH
   // The unit's own selection has to be in the roster it is judged against, or a

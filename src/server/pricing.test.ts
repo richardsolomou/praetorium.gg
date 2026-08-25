@@ -467,6 +467,19 @@ describe('what a unit is carrying', () => {
     ).toEqual([{ name: 'Plague knives', count: 4 }])
   })
 
+  it('does not count a fixed-size composition choice as extra wargear', () => {
+    const models = [kind({ fixed: [{ name: 'Heavy thunder hammer' }], members: [{ id: 'veteran', choiceKey: null, baseCount: 1 }] })]
+    const choices = [
+      {
+        key: 'composition',
+        name: 'Unit composition',
+        options: [{ id: 'five-models', count: 1, pieceCounts: [{ name: 'Heavy thunder hammer', count: 1 }] }],
+      },
+    ]
+
+    expect(heldWargear(models, choices, [{ name: 'Heavy thunder hammer', count: 1 }])).toEqual([{ name: 'Heavy thunder hammer', count: 1 }])
+  })
+
   it('counts the pieces selected by one composite model row', () => {
     const models = [
       kind({

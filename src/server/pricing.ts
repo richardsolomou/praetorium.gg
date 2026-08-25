@@ -13,7 +13,7 @@ import { evaluate, evaluateForces, type Selection } from '../core/evaluate'
 import { type ModelKind, modelKindsOf, modelRowCount, modelRowSources, optionWargear } from '../core/modelKinds'
 import { buildUnit } from '../core/roster'
 import { allAt } from '../core/selection'
-import { type ChoiceOptions, unitChoices } from '../core/unitChoices'
+import { type ChoiceOptions, isUnitCompositionChoice, unitChoices } from '../core/unitChoices'
 import { withUnitSpread } from '../core/unitSpread'
 import { modelCountOf } from '../core/unitSize'
 import { wargearKey, wargearOf } from '../core/wargear'
@@ -569,6 +569,7 @@ export function heldWargear(
   models: readonly ModelKind[],
   choices: readonly {
     key: string
+    name?: string
     options: readonly { id: string; name?: string; count: number; pieceCounts?: readonly { name: string; count: number }[] }[]
   }[],
   catalogued: readonly { name: string; count: number }[],
@@ -606,6 +607,7 @@ export function heldWargear(
     ]),
   )
   for (const choice of choices) {
+    if (choice.name && isUnitCompositionChoice({ name: choice.name })) continue
     for (const option of choice.options) {
       if (option.count <= 0 || modeled.has(replacementKey({ choiceKey: choice.key, optionId: option.id }))) continue
       const pieces = option.pieceCounts ?? (option.name ? [{ name: option.name, count: option.count }] : [])
