@@ -14,6 +14,103 @@ import { battleReport } from './battleReport'
 import { ALICE, BOB, CAROL, NAMES, PLAYERS, advance, builtRoster, log, roster, started, text, turns } from './battle.fixtures'
 
 describe('setup', () => {
+  const fourSeatState = (sides: number[], rosterLimits: number[] = [1_000, 1_000, 1_000, 1_000]) => {
+    const ids = [ALICE, BOB, CAROL, 'dave']
+    const configured: Command = {
+      kind: 'configure-battle',
+      limit: 2_000,
+      missionPackId: null,
+      terrainLayoutId: null,
+      twistId: null,
+      teamBattle: true,
+      playerCount: 4,
+      clockLimitMinutes: null,
+    }
+    const list = (playerId: string, limit: number): Command => ({
+      kind: 'attach-roster',
+      playerId,
+      roster: {
+        name: `${playerId} army`,
+        text: 'units',
+        built: { catalogueId: 'cat', revision: 'rev', limit, detachment: null, disposition: null, units: [] },
+      },
+    })
+    return reduceBattle(
+      ids,
+      log([ALICE, configured], ...ids.map((id, index) => [ALICE, list(id, rosterLimits[index]!)] as [string, Command])),
+      sides,
+    )
+  }
+
+  it('requires two armies on each side of a four-seat battle and half-size rosters', () => {
+    const state = fourSeatState([0, 0, 1, 1])
+
+    expect(validate(state, ALICE, { kind: 'begin-battle', firstPlayerId: ALICE })).toBeNull()
+  })
+
+  it('refuses a four-seat battle seated three against one', () => {
+    const state = fourSeatState([0, 0, 0, 1])
+
+    expect(validate(state, ALICE, { kind: 'begin-battle', firstPlayerId: ALICE })).toBe('players must be seated on two valid sides')
+  })
+
+  it('refuses to configure fewer seats than are already occupied', () => {
+    const state = reduceBattle([ALICE, BOB, CAROL, 'dave'], log(), [0, 0, 1, 1])
+
+    expect(
+      validate(state, ALICE, {
+        kind: 'configure-battle',
+        limit: 2_000,
+        missionPackId: null,
+        terrainLayoutId: null,
+        twistId: null,
+        teamBattle: true,
+        playerCount: 3,
+        clockLimitMinutes: null,
+      }),
+    ).toBe('choose enough seats for every player')
+  })
+
+  it('refuses to begin when four occupied seats are configured for three players', () => {
+    const state = fourSeatState([0, 0, 1, 1])
+    state.settings.playerCount = 3
+
+    expect(validate(state, ALICE, { kind: 'begin-battle', firstPlayerId: ALICE })).toBe('too many players are seated')
+  })
+
+  it('refuses a three-seat battle unless its sides contain one and two players', () => {
+    const state = reduceBattle([ALICE, BOB, CAROL], log(), [0, 1, 2])
+    state.settings = { ...state.settings, teamBattle: true, playerCount: 3 }
+
+    expect(validate(state, ALICE, { kind: 'begin-battle', firstPlayerId: ALICE })).toBe('players must be seated on two valid sides')
+  })
+
+  it('refuses a four-seat battle with a roster at the full force size', () => {
+    const state = fourSeatState([0, 0, 1, 1], [1_000, 1_000, 1_000, 2_000])
+
+    expect(validate(state, ALICE, { kind: 'begin-battle', firstPlayerId: ALICE })).toBe('every roster must match the battle size')
+  })
+
+  it('keeps a legacy team-battle command at three seats', () => {
+    const state = reduceBattle(
+      [ALICE, BOB, CAROL],
+      log([
+        ALICE,
+        {
+          kind: 'configure-battle',
+          limit: 2_000,
+          missionPackId: null,
+          terrainLayoutId: null,
+          twistId: null,
+          teamBattle: true,
+          clockLimitMinutes: null,
+        },
+      ]),
+      [0, 1, 1],
+    )
+
+    expect(state.settings.playerCount).toBe(3)
+  })
   const leagueBattle = () =>
     reduceBattle(
       PLAYERS,
@@ -502,6 +599,7 @@ describe('setup', () => {
       terrainLayoutId: null,
       twistId: null,
       teamBattle: false,
+      playerCount: 2,
     })
   })
 

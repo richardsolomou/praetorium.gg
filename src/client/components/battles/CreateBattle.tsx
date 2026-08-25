@@ -8,23 +8,18 @@ import { GAME_SIZES } from '../../../core/battle'
 import { createBattle } from '../../../server/functions'
 import { battlesQuery, gameReferencesQuery, opponentsQuery } from '../../queries'
 import { errorMessage } from '../../queryClient'
+import { disambiguatedPlayerLabels } from '../../playerLabels'
 import { PlayerAvatar } from '../PlayerAvatar'
 import { SearchableSelect, type SearchableGroup } from '../SearchableSelect'
 
-/**
- * The shapes a battle can take, from the point of view of whoever is opening it.
- *
- * A 2v1 is one battle with two ways into it, because either seat may be the one at
- * the keyboard: the allied pair is the opener's own side or the side they face. The
- * points split across the pair whichever side it is.
- */
 const FORMATS = [
-  { key: 'duel', name: '1v1', detail: 'One army each' },
-  { key: 'with-ally', name: '2v1', detail: 'You and an ally against one' },
-  { key: 'against-pair', name: '1v2', detail: 'You against two allies' },
+  { key: 'duel', name: 'Duel', count: '1 vs 1', detail: 'One player on each side' },
+  { key: 'solo-pair', name: 'Solo vs pair', count: '1 vs 2', detail: 'One player faces a two-player team' },
+  { key: 'doubles', name: 'Doubles', count: '2 vs 2', detail: 'Two players on each side' },
 ] as const
 
 type Format = (typeof FORMATS)[number]['key']
+type SoloPairRole = 'solo' | 'pair'
 
 /** A seat this player may fill: a friend, or one of the instance's practice opponents. */
 type Opponent = { id: string; name: string; image: string | null; automated: boolean }
@@ -32,15 +27,20 @@ type Opponent = { id: string; name: string; image: string | null; automated: boo
 /** Which seats a format asks to be filled, in the order the table reads them. */
 type Seat = { id: string; label: string; placeholder: string; side: 'yours' | 'theirs'; at: number }
 
-const SEATS: Record<Format, Seat[]> = {
+const SEATS: Record<'duel' | SoloPairRole | 'doubles', Seat[]> = {
   duel: [{ id: 'battle-opponent', label: 'Opponent', placeholder: 'Choose a player', side: 'theirs', at: 0 }],
-  'with-ally': [
+  pair: [
     { id: 'battle-ally', label: 'Your ally', placeholder: 'Choose your ally', side: 'yours', at: 0 },
     { id: 'battle-opponent', label: 'Opponent', placeholder: 'Choose a player', side: 'theirs', at: 0 },
   ],
-  'against-pair': [
-    { id: 'battle-opponent', label: 'Opponent', placeholder: 'Choose a player', side: 'theirs', at: 0 },
-    { id: 'battle-opponent-ally', label: 'Their ally', placeholder: 'Choose their ally', side: 'theirs', at: 1 },
+  solo: [
+    { id: 'battle-opponent', label: 'First opponent', placeholder: 'Choose a player', side: 'theirs', at: 0 },
+    { id: 'battle-opponent-ally', label: 'Second opponent', placeholder: 'Choose a player', side: 'theirs', at: 1 },
+  ],
+  doubles: [
+    { id: 'battle-ally', label: 'Your ally', placeholder: 'Choose your ally', side: 'yours', at: 0 },
+    { id: 'battle-opponent', label: 'First opponent', placeholder: 'Choose a player', side: 'theirs', at: 0 },
+    { id: 'battle-opponent-ally', label: 'Second opponent', placeholder: 'Choose their ally', side: 'theirs', at: 1 },
   ],
 }
 
@@ -56,8 +56,9 @@ const OPENING_LIMIT = GAME_SIZES.find((size) => size.limit === 2000)?.limit ?? G
  */
 function seatOptions(opponents: readonly Opponent[], taken: ReadonlySet<string | null>): SearchableGroup[] {
   const free = opponents.filter((opponent) => !taken.has(opponent.id))
+  const labels = disambiguatedPlayerLabels(opponents)
   const option = (opponent: Opponent) => ({
-    label: opponent.name,
+    label: labels.get(opponent.id) ?? opponent.name,
     value: opponent.id,
     icon: <PlayerAvatar name={opponent.name} image={opponent.image} className="size-5 text-[0.625rem]" />,
   })
@@ -90,7 +91,8 @@ export function CreateBattle() {
   const [theirIds, setTheirIds] = useState<(string | null)[]>([null, null])
   const [allyId, setAllyId] = useState<string | null>(null)
   const [format, setFormat] = useState<Format>('duel')
-  const seats = SEATS[format]
+  const [soloPairRole, setSoloPairRole] = useState<SoloPairRole>('solo')
+  const seats = SEATS[format === 'solo-pair' ? soloPairRole : format]
   const seatedIn = (seat: Seat) => (seat.side === 'yours' ? allyId : (theirIds[seat.at] ?? null))
   const opponentIds = seats.filter((seat) => seat.side === 'theirs').flatMap((seat) => (seatedIn(seat) ? [seatedIn(seat)!] : []))
   const seated = seats.every(seatedIn)
@@ -117,9 +119,20 @@ export function CreateBattle() {
       return navigate({ to: '/battles/$token', params: { token } })
     },
   })
+  const changeIntent = () => create.reset()
+  const changeOpen = (next: boolean) => {
+    if (create.isPending) return
+    changeIntent()
+    setOpen(next)
+  }
+  const labels = disambiguatedPlayerLabels(opponents)
+  const playerLabel = (id: string | null) =>
+    id ? (labels.get(id) ?? opponents.find((opponent) => opponent.id === id)?.name ?? 'Player') : null
+  const yourSide = ['You', ...seats.filter((seat) => seat.side === 'yours').map((seat) => playerLabel(seatedIn(seat)) ?? 'Choose ally')]
+  const theirSide = seats.filter((seat) => seat.side === 'theirs').map((seat) => playerLabel(seatedIn(seat)) ?? 'Choose opponent')
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={changeOpen}>
       <DialogTrigger render={<Button />}>New battle</DialogTrigger>
       <DialogContent className="w-[calc(100%-2rem)] rounded-none border-edge bg-panel p-4 sm:max-w-md">
         <DialogHeader>
@@ -127,7 +140,7 @@ export function CreateBattle() {
           <DialogDescription>Choose who is playing. A practice opponent needs no friend and no second device.</DialogDescription>
         </DialogHeader>
         <fieldset>
-          <legend className="eyebrow">Format</legend>
+          <legend className="eyebrow">Table shape</legend>
           <div className="mt-1 grid grid-cols-3 gap-2">
             {FORMATS.map((entry) => {
               const chosen = entry.key === format
@@ -136,20 +149,50 @@ export function CreateBattle() {
                   key={entry.key}
                   variant={chosen ? 'default' : 'outline'}
                   aria-pressed={chosen}
-                  className={`h-auto flex-col items-start gap-0.5 px-2.5 py-2 text-left ${chosen ? 'bg-parchment text-parchment-ink hover:bg-parchment/80' : ''}`}
-                  onClick={() => setFormat(entry.key)}
+                  className={`h-auto min-w-0 flex-col items-start gap-1 px-2.5 py-2 text-left ${chosen ? 'bg-parchment text-parchment-ink hover:bg-parchment/80' : ''}`}
+                  onClick={() => {
+                    changeIntent()
+                    setFormat(entry.key)
+                  }}
                 >
-                  <span className="font-bold uppercase">{entry.name}</span>
-                  <span
-                    className={`text-[0.625rem] leading-tight font-normal whitespace-normal ${chosen ? 'text-parchment-ink/75' : 'text-dim'}`}
-                  >
-                    {entry.detail}
-                  </span>
+                  <span className="font-bold leading-tight uppercase">{entry.name}</span>
+                  <span className={`text-[0.625rem] ${chosen ? 'text-parchment-ink/75' : 'text-dim'}`}>{entry.count}</span>
                 </Button>
               )
             })}
           </div>
+          <p className="mt-1.5 text-xs text-dim">{FORMATS.find((entry) => entry.key === format)?.detail}.</p>
         </fieldset>
+        {format === 'solo-pair' ? (
+          <fieldset>
+            <legend className="eyebrow">Your role</legend>
+            <div className="mt-1 grid grid-cols-2 gap-2">
+              {(
+                [
+                  { key: 'solo', name: 'I’m solo', detail: 'Face two opponents' },
+                  { key: 'pair', name: 'I’m on the pair', detail: 'Bring an ally' },
+                ] as const
+              ).map((role) => {
+                const chosen = role.key === soloPairRole
+                return (
+                  <Button
+                    key={role.key}
+                    variant={chosen ? 'default' : 'outline'}
+                    aria-pressed={chosen}
+                    className={`h-auto flex-col items-start gap-0.5 px-2.5 py-2 text-left ${chosen ? 'bg-parchment text-parchment-ink hover:bg-parchment/80' : ''}`}
+                    onClick={() => {
+                      changeIntent()
+                      setSoloPairRole(role.key)
+                    }}
+                  >
+                    <span className="font-bold normal-case">{role.name}</span>
+                    <span className={`text-[0.625rem] font-normal ${chosen ? 'text-parchment-ink/75' : 'text-dim'}`}>{role.detail}</span>
+                  </Button>
+                )
+              })}
+            </div>
+          </fieldset>
+        ) : null}
         {opponentQuery.isPending ? (
           <p className="border border-edge bg-sunken p-3 text-sm text-dim">Loading players…</p>
         ) : opponentQuery.error ? null : opponents.length ? (
@@ -158,6 +201,7 @@ export function CreateBattle() {
               // Nobody sits in two chairs, so a player picked elsewhere is not offered here.
               const taken = new Set(seats.filter((other) => other.id !== seat.id).map(seatedIn))
               const pick = (id: string) => {
+                changeIntent()
                 if (seat.side === 'yours') return setAllyId(id)
                 setTheirIds((current) => current.map((held, at) => (at === seat.at ? id : held)))
               }
@@ -183,11 +227,27 @@ export function CreateBattle() {
         ) : (
           <p className="border border-edge bg-sunken p-3 text-sm text-dim">This instance seats nobody you can play yet.</p>
         )}
+        {opponents.length ? (
+          <div aria-label="Battle matchup" aria-live="polite" className="border border-edge bg-sunken p-3">
+            <p className="eyebrow mb-2">Matchup</p>
+            <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-start gap-2 text-sm">
+              <div className="min-w-0">
+                <span className="block text-[0.625rem] font-bold uppercase text-dim">Your side</span>
+                <span className="block text-balance">{yourSide.join(' + ')}</span>
+              </div>
+              <span className="pt-3 text-[0.625rem] font-bold uppercase text-dim">vs</span>
+              <div className="min-w-0 text-right">
+                <span className="block text-[0.625rem] font-bold uppercase text-dim">Opposing side</span>
+                <span className="block text-balance">{theirSide.join(' + ')}</span>
+              </div>
+            </div>
+          </div>
+        ) : null}
         {create.error || opponentQuery.error ? (
           <p className="text-sm text-destructive">{errorMessage(create.error ?? opponentQuery.error)}</p>
         ) : null}
         <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)}>
+          <Button variant="outline" disabled={create.isPending} onClick={() => changeOpen(false)}>
             Cancel
           </Button>
           <Button disabled={!seated || opponentQuery.isPending || create.isPending} onClick={() => create.mutate()}>

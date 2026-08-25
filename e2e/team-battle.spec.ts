@@ -1,4 +1,5 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Locator, type Page } from '@playwright/test'
+import { inArray } from 'drizzle-orm'
 import {
   attachRoster,
   befriend,
@@ -13,6 +14,45 @@ import {
   takeTheTurn,
   uniqueName,
 } from './account'
+import { openDatabase } from '../src/db/connection'
+import { friendships, user } from '../src/db/schema'
+import { postgresPort } from './stackEnv'
+
+async function connectPlayers(requesterName: string, addresseeNames: string[]) {
+  const connection = openDatabase(`postgres://praetorium:praetorium@127.0.0.1:${postgresPort}/praetorium`)
+  try {
+    const players = await connection.database
+      .select({ id: user.id, name: user.name })
+      .from(user)
+      .where(inArray(user.name, [requesterName, ...addresseeNames]))
+    const requester = players.find((player) => player.name === requesterName)
+    const addressees = addresseeNames.map((name) => players.find((player) => player.name === name))
+    if (!requester || addressees.some((player) => !player)) throw new Error('The doubles test players are missing.')
+    const now = Date.now()
+    await connection.database.insert(friendships).values(
+      addressees.map((addressee, index) => ({
+        requesterId: requester.id,
+        addresseeId: addressee!.id,
+        requestedAt: now + index,
+        acceptedAt: now + index,
+      })),
+    )
+  } finally {
+    await connection.close()
+  }
+}
+
+async function inspectBattleDialog(page: Page, dialog: Locator, screenshot: string) {
+  await expect(dialog.getByRole('button', { name: /^Solo vs pair/ })).toHaveCount(1)
+  await expect(dialog.getByRole('button', { name: '1v2', exact: true })).toHaveCount(0)
+  await expect(dialog.getByRole('button', { name: '2v1', exact: true })).toHaveCount(0)
+  await page.screenshot({ path: `test-results/${screenshot}-desktop.png`, fullPage: true })
+  await page.setViewportSize({ width: 390, height: 844 })
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  expect(await dialog.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
+  await page.screenshot({ path: `test-results/${screenshot}-phone.png`, fullPage: true })
+  await page.setViewportSize({ width: 1440, height: 900 })
+}
 
 /**
  * The whole point of the 2v1 layout: the allied pair is one side.
@@ -51,7 +91,14 @@ test('a 2v1 draws the allied pair as one side with one pool of everything', asyn
   await befriend(host, ally)
   await befriend(host, partner)
 
-  const url = await createBattle(host, { opponent: allyName, ally: partnerName })
+  const url = await createBattle(host, {
+    opponent: allyName,
+    ally: partnerName,
+    beforeCreate: async (dialog) => {
+      await expect(dialog.getByRole('button', { name: /^I’m solo/ })).toHaveAttribute('aria-pressed', 'true')
+      await inspectBattleDialog(host, dialog, 'solo-vs-pair-solo')
+    },
+  })
   await ally.goto(url)
   await partner.goto(url)
 
@@ -135,7 +182,14 @@ test('a 2v1 opened from the allied side seats its opener with their ally and pla
   const practiceRoster = await createRoster(host, { faction: 'Necrons', detachment: /Canoptek Court/, name: 'Practice army' })
   await befriend(host, ally)
 
-  const url = await createBattle(host, { yourAlly: allyName, practice: true })
+  const url = await createBattle(host, {
+    yourAlly: allyName,
+    practice: true,
+    beforeCreate: async (dialog) => {
+      await expect(dialog.getByRole('button', { name: /^I’m on the pair/ })).toHaveAttribute('aria-pressed', 'true')
+      await inspectBattleDialog(host, dialog, 'solo-vs-pair-pair')
+    },
+  })
   await ally.goto(url)
 
   await attachRoster(host, hostRoster)
@@ -176,6 +230,46 @@ test('a 2v1 opened from the allied side seats its opener with their ally and pla
   await expect(ours.getByRole('link', { name: hostName })).toBeVisible()
   await expect(ours.getByRole('link', { name: allyName })).toBeVisible()
   await host.screenshot({ path: 'test-results/team-battle-allied-opener-phone.png', fullPage: true })
+})
+
+test('a manual 2v2 seats two armies on each side with one shared pool', async ({ browser, page: host }) => {
+  test.setTimeout(240_000)
+  const names = ['Doubles captain', 'Doubles teammate', 'Doubles opponent', 'Doubles opponent teammate'].map(uniqueName)
+  const rosters = ['Captain army', 'Teammate army', 'Opponent army', 'Opponent teammate army']
+  const pages = [host]
+  await signUp(host, names[0])
+  await createRoster(host, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: rosters[0], size: /Incursion/ })
+  for (let index = 1; index < 4; index++) {
+    const participant = await (await browser.newContext()).newPage()
+    pages.push(participant)
+    await signUp(participant, names[index])
+    await createRoster(participant, {
+      faction: 'Necrons',
+      detachment: /Awakened Dynasty/,
+      name: rosters[index],
+      size: /Incursion/,
+    })
+  }
+  await connectPlayers(names[0], names.slice(1))
+
+  const url = await createBattle(host, { opponent: names[2], yourAlly: names[1], secondOpponent: names[3] })
+  await Promise.all(pages.slice(1).map((page) => page.goto(url)))
+  for (const [index, page] of pages.entries()) await attachRoster(page, rosters[index])
+  await chooseBattlefield(host)
+  await startBattle(host, `${names[0]} & ${names[1]}`)
+
+  await expect(sidePanels(host)).toHaveCount(2)
+  await expect(side(host, 0)).toContainText(rosters[0])
+  await expect(side(host, 0)).toContainText(rosters[1])
+  await expect(side(host, 1)).toContainText(rosters[2])
+  await expect(side(host, 1)).toContainText(rosters[3])
+  await expect(side(host, 0).locator('[data-stat="cp"]')).toHaveCount(1)
+  await expect(side(host, 1).locator('[data-stat="cp"]')).toHaveCount(1)
+
+  await host.screenshot({ path: 'test-results/doubles-battle-desktop.png', fullPage: true })
+  await host.setViewportSize({ width: 390, height: 844 })
+  expect(await host.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  await host.screenshot({ path: 'test-results/doubles-battle-phone.png', fullPage: true })
 })
 
 const sidePanels = (page: Page) => page.locator('[data-panel="player"]')

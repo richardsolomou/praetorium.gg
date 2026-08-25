@@ -8,7 +8,7 @@ Praetorium includes:
 
 - Catalogue-backed roster construction, validation, import, and export.
 - Compact roster presentation and battle tracking.
-- One synchronized 1v1 or 2v1 battle between signed-in players, against a friend or a practice opponent.
+- One synchronized 1v1, 2v1, or 2v2 battle between signed-in players, against a friend or a practice opponent.
 - Mutual friendships for choosing private battle opponents, and practice opponents for playing without one.
 - Public or private organized-play registration with one-off or recurring events, approved entry, replaceable sealed roster snapshots, and simultaneous reveal.
 
@@ -35,7 +35,7 @@ Keep screenshots that contain roster or battle data outside version control.
 | Area              | Coverage                                                                                                                                                                                                                                      |
 | ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Accounts          | Email and password work without provider configuration. Google and Discord are optional and linkable. Players can manage their profile, password, sign-in methods, and authenticator 2FA. Administrators can manage and impersonate accounts. |
-| Battles           | Shared or practice 1v1 and 2v1 setup drafts, server-side legality, corrections, concessions, reopening, and live updates.                                                                                                                     |
+| Battles           | Shared or practice 1v1, 2v1, and 2v2 setup drafts, server-side legality, corrections, concessions, reopening, and live updates.                                                                                                               |
 | Turn tracker      | Five standard rounds, three King of the Colosseum rounds, six phases, command points, victory points, painted bonuses, tactical decks, stratagems, formations, and battle completion.                                                         |
 | Rosters           | Build, import, save, copy, rename, private or unlisted share, print, export, and attach.                                                                                                                                                      |
 | Leagues           | Public or private one-off and recurring events, automatic or approved entry, replaceable roster snapshots, and organizer-controlled simultaneous reveal.                                                                                      |

@@ -3,6 +3,19 @@ import { FIXED_SECONDARIES, SECONDARIES_MAX, SETUP_STEP_MAX } from './battle'
 import { commandSchema } from './commands'
 
 describe('command schema', () => {
+  it('keeps old team-battle logs readable and accepts an explicit four-seat battle', () => {
+    const legacy = {
+      kind: 'configure-battle' as const,
+      limit: 2_000,
+      missionPackId: null,
+      terrainLayoutId: null,
+      twistId: null,
+      teamBattle: true,
+      clockLimitMinutes: null,
+    }
+    expect(commandSchema.parse(legacy)).toEqual(legacy)
+    expect(commandSchema.parse({ ...legacy, playerCount: 4 })).toEqual({ ...legacy, playerCount: 4 })
+  })
   it('keeps frozen roster-card details on an attached roster', () => {
     const command = {
       kind: 'attach-roster' as const,

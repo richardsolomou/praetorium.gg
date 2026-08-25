@@ -113,6 +113,7 @@ type SubmittedUnit = {
   /** Frozen roster-card details, absent from battle logs created before snapshots had a full roster view. */
   entryId?: string
   group?: UnitGroup
+  warlord?: boolean
   wargear?: { name: string; count: number }[]
   enhancements?: string[]
   upgrades?: string[]
@@ -251,6 +252,7 @@ export type BattleSettings = {
   terrainLayoutId: string | null
   twistId: string | null
   teamBattle: boolean
+  playerCount: 2 | 3 | 4
 }
 
 const DEFAULT_SETTINGS: BattleSettings = {
@@ -259,6 +261,7 @@ const DEFAULT_SETTINGS: BattleSettings = {
   terrainLayoutId: null,
   twistId: null,
   teamBattle: false,
+  playerCount: PLAYERS_PER_BATTLE,
 }
 
 /**
@@ -335,6 +338,7 @@ export type Command =
       terrainLayoutId: string | null
       twistId: string | null
       teamBattle?: boolean
+      playerCount?: 2 | 3 | 4
       clockLimitMinutes: number | null
     }
   | { kind: 'reset-setup' }
@@ -495,8 +499,8 @@ export type BattleState = {
  * is refused by the same rule the interface reads rather than by a separate one
  * that could come to disagree.
  */
-export function battleCapacity(settings: Pick<BattleSettings, 'teamBattle'>) {
-  return settings.teamBattle ? TEAM_BATTLE_PLAYERS : PLAYERS_PER_BATTLE
+export function battleCapacity(settings: { teamBattle?: boolean; playerCount?: 2 | 3 | 4 }) {
+  return settings.playerCount ?? (settings.teamBattle ? TEAM_BATTLE_PLAYERS : PLAYERS_PER_BATTLE)
 }
 
 export function reduceBattle(playerIds: readonly PlayerId[], log: readonly LoggedCommand[], playerSides?: readonly number[]): BattleState {
@@ -639,6 +643,11 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
       if (state.status !== 'setup') return 'the battle has started'
       if (state.leagueToken && command.limit !== state.settings.limit) return 'league roster battle size is sealed'
       if (state.leagueToken && (command.teamBattle ?? false) !== state.settings.teamBattle) return 'league battle sides are sealed'
+      if (state.leagueToken && battleCapacity(command) !== battleCapacity(state.settings)) return 'league battle seats are sealed'
+      if (command.playerCount !== undefined && command.playerCount !== 2 && command.playerCount !== 3 && command.playerCount !== 4)
+        return 'choose a supported player count'
+      if (battleCapacity(command) > PLAYERS_PER_BATTLE !== Boolean(command.teamBattle)) return 'choose matching battle sides and seats'
+      if (battleCapacity(command) < state.players.length) return 'choose enough seats for every player'
       if (!GAME_SIZES.some((size) => size.limit === command.limit)) return 'choose a supported battle size'
       return null
     }
@@ -701,8 +710,19 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
       return state.players.every((candidate) => candidate.roster) ? null : 'every player needs a sealed roster'
     case 'begin-battle': {
       if (state.status !== 'setup') return 'the battle has started'
-      const requiredPlayers = state.settings.teamBattle ? TEAM_BATTLE_PLAYERS : PLAYERS_PER_BATTLE
+      const requiredPlayers = battleCapacity(state.settings)
       if (state.players.length < requiredPlayers) return 'waiting for an opponent'
+      if (state.players.length > requiredPlayers) return 'too many players are seated'
+      const sideSizes = [...new Set(state.players.map((candidate) => candidate.side))].map(
+        (side) => state.players.filter((candidate) => candidate.side === side).length,
+      )
+      if (
+        sideSizes.length !== 2 ||
+        (requiredPlayers === 2 && sideSizes.some((size) => size !== 1)) ||
+        (requiredPlayers === 3 && sideSizes.toSorted((left, right) => left - right).join(',') !== '1,2') ||
+        (requiredPlayers === 4 && sideSizes.some((size) => size !== 2))
+      )
+        return 'players must be seated on two valid sides'
       if (state.players.some((candidate) => !candidate.roster))
         return state.settings.teamBattle ? 'every army needs a list' : 'both armies need a list'
       if (!state.players.some((candidate) => candidate.id === command.firstPlayerId)) return 'that player is not in this battle'
@@ -1007,6 +1027,7 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
         terrainLayoutId: command.terrainLayoutId,
         twistId: command.twistId,
         teamBattle: command.teamBattle ?? false,
+        playerCount: command.playerCount ?? (command.teamBattle ? TEAM_BATTLE_PLAYERS : PLAYERS_PER_BATTLE),
       }
       if (missionPackChanged) {
         state.deploymentId = null

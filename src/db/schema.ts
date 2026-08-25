@@ -271,7 +271,7 @@ export const leagueEvents = pgTable(
       .notNull()
       .references(() => leagues.id, { onDelete: 'cascade' }),
     number: integer('number').notNull(),
-    format: text('format', { enum: ['1v1', '2v1'] }),
+    format: text('format', { enum: ['1v1', '2v1', '2v2'] }),
     rosterLimit: integer('roster_limit'),
     createdAt: bigint('created_at', { mode: 'number' }).notNull(),
     revealedAt: bigint('revealed_at', { mode: 'number' }),
@@ -299,6 +299,7 @@ export const leagueEventEntries = pgTable(
     rosterSnapshot: text('roster_snapshot'),
     submittedAt: bigint('submitted_at', { mode: 'number' }),
     requiredLimit: integer('required_limit'),
+    teamId: text('team_id'),
   },
   (table) => [primaryKey({ columns: [table.eventId, table.userId] }), index('league_event_entries_user_id_index').on(table.userId)],
 )

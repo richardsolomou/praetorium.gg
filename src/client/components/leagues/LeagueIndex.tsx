@@ -108,7 +108,9 @@ function LeagueShelf({
                   <span className="chip">
                     {league.format === '2v1'
                       ? `2v1 · ${league.rosterLimit.toLocaleString()}/${alliedLeagueRosterLimit(league.rosterLimit).toLocaleString()}`
-                      : `1v1 · ${league.rosterLimit.toLocaleString()}`}
+                      : league.format === '2v2'
+                        ? `Doubles · ${league.rosterLimit.toLocaleString()} per force`
+                        : `1v1 · ${league.rosterLimit.toLocaleString()}`}
                   </span>
                 ) : null}
                 {league.ownEntry ? (

@@ -17,6 +17,7 @@ export function LeagueFormFields({
   admissionLocked = false,
   minimumPlayerLimit = 2,
   acceptedCount = 0,
+  evenPlayerLimit = false,
   disabled = false,
   onChange,
 }: {
@@ -25,9 +26,13 @@ export function LeagueFormFields({
   admissionLocked?: boolean
   minimumPlayerLimit?: number
   acceptedCount?: number
+  evenPlayerLimit?: boolean
   disabled?: boolean
   onChange: (value: LeagueFormValue) => void
 }) {
+  const minimum = evenPlayerLimit
+    ? Math.ceil(Math.max(minimumPlayerLimit, acceptedCount) / 2) * 2
+    : Math.max(minimumPlayerLimit, acceptedCount)
   return (
     <>
       <div className="space-y-1.5">
@@ -58,7 +63,8 @@ export function LeagueFormFields({
         <Input
           id={`${idPrefix}-player-limit`}
           type="number"
-          min={Math.max(minimumPlayerLimit, acceptedCount)}
+          min={minimum}
+          step={evenPlayerLimit ? 2 : 1}
           max={128}
           value={value.playerLimit ?? ''}
           placeholder="No fixed limit"
@@ -67,10 +73,12 @@ export function LeagueFormFields({
         />
         <p className="text-xs text-dim">
           {acceptedCount
-            ? `Cannot be lower than ${Math.max(minimumPlayerLimit, acceptedCount)} for this event.`
-            : minimumPlayerLimit === 3
-              ? 'A 2v1 event needs at least three places.'
-              : 'If set, every place must be accepted and sealed before reveal.'}
+            ? `Cannot be lower than ${minimum} for this event.`
+            : evenPlayerLimit
+              ? 'A 2v2 event needs an even number of at least four places.'
+              : minimumPlayerLimit === 3
+                ? 'A 2v1 event needs at least three places.'
+                : 'If set, every place must be accepted and sealed before reveal.'}
         </p>
       </div>
       <Choice

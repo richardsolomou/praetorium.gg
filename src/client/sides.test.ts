@@ -96,6 +96,22 @@ describe('battle sides', () => {
     )
   })
 
+  it('folds doubles into two armies but one resource pool per side', () => {
+    const folded = sides(
+      view([
+        player({ id: 'red-one', side: 0, cp: 3 }),
+        player({ id: 'red-two', side: 0, cp: 3 }),
+        player({ id: 'blue-one', side: 1, cp: 5 }),
+        player({ id: 'blue-two', side: 1, cp: 5 }),
+      ]),
+    )
+
+    expect(folded.map((side) => [side.armies.length, side.cp])).toEqual([
+      [2, 3],
+      [2, 5],
+    ])
+  })
+
   it('reads shared command points from the side rather than each ally', () => {
     const battle = view([player({ id: 'ally', side: 1, cp: 4 }), player({ id: 'other', side: 1, cp: 4 })])
     expect(sides(battle)[0]?.cp).toBe(4)

@@ -185,6 +185,7 @@ export function Setup({ view, mission, missions, send, attachSavedRoster, pendin
       terrainLayoutId: view.settings.terrainLayoutId,
       twistId: view.settings.twistId,
       teamBattle: view.settings.teamBattle,
+      playerCount: view.settings.playerCount,
       clockLimitMinutes: null,
       ...settings,
     })
@@ -384,7 +385,7 @@ const HEADLINES = [
 ]
 
 const BLURBS = [
-  'The points apply to each side. In a 2v1, the allied side splits them evenly.',
+  'The points apply to each side. Every side with two armies splits them evenly.',
   'Everyone chooses their own army. Every attached army is visible here immediately.',
   'Each side finds its opponent’s disposition on its own Force Disposition card, and plays the primary listed there. A twist is optional and bends one rule for the whole battle.',
   'One shared choice sets the deployment zones and the terrain for both sides.',

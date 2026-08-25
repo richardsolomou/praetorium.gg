@@ -24,6 +24,7 @@ import {
   alliedLeagueRosterLimit,
   LEAGUE_DEFAULT_ROSTER_LIMIT,
   LEAGUE_MEMBER_MAX,
+  LEAGUE_TEAM_ROSTER_LIMITS,
   type LeagueAdmission,
   type LeagueEntryStatus,
   type LeagueEventFormat,
@@ -97,8 +98,14 @@ export class PraetoriumService {
     const eventToken = randomToken()
     const format = input.format ?? '1v1'
     const rosterLimit = input.rosterLimit ?? LEAGUE_DEFAULT_ROSTER_LIMIT
+    if (format !== '1v1' && !LEAGUE_TEAM_ROSTER_LIMITS.some((limit) => limit === rosterLimit)) {
+      throw new Response(`choose a supported ${format} roster size`, { status: 400 })
+    }
     if (format === '2v1' && input.playerLimit !== null && input.playerLimit < 3) {
       throw new Response('a 2v1 event needs at least three places', { status: 400 })
+    }
+    if (format === '2v2' && input.playerLimit !== null && (input.playerLimit < 4 || input.playerLimit % 2 !== 0)) {
+      throw new Response('a 2v2 event needs an even number of at least four places', { status: 400 })
     }
     await this.repository.createLeague({ id, token, eventId, eventToken, ownerId, ...input, format, rosterLimit, now: this.clock() })
     return { token, eventToken }
@@ -108,6 +115,9 @@ export class PraetoriumService {
     const eventToken = randomToken()
     const format = rule.format ?? '1v1'
     const rosterLimit = rule.rosterLimit ?? LEAGUE_DEFAULT_ROSTER_LIMIT
+    if (format !== '1v1' && !LEAGUE_TEAM_ROSTER_LIMITS.some((limit) => limit === rosterLimit)) {
+      throw new Response(`choose a supported ${format} roster size`, { status: 400 })
+    }
     const result = await this.repository.createLeagueEvent({
       id: randomId(),
       token: eventToken,
@@ -121,7 +131,13 @@ export class PraetoriumService {
     if (result === 'missing') throw new Response('no such league', { status: 404 })
     if (result === 'forbidden') throw new Response('only the organizer can start an event', { status: 403 })
     if (result === 'one-off') throw new Response('this league is not recurring', { status: 409 })
-    if (result === 'too-small') throw new Response('a 2v1 event needs at least three places', { status: 409 })
+    if (result === 'too-small')
+      throw new Response(
+        format === '2v2' ? 'a 2v2 event needs an even number of at least four places' : 'a 2v1 event needs at least three places',
+        {
+          status: 409,
+        },
+      )
     throw new Response('reveal the current event before starting another', { status: 409 })
   }
 
@@ -148,7 +164,7 @@ export class PraetoriumService {
     if (result === 'missing') throw new Response('no such league', { status: 404 })
     if (result === 'forbidden') throw new Response('only the organizer can edit this league', { status: 403 })
     if (result === 'joined') throw new Response('joining cannot change after someone has joined the current event', { status: 409 })
-    if (result === 'team-minimum') throw new Response('a 2v1 event needs at least three places', { status: 409 })
+    if (result === 'team-minimum') throw new Response('the open team event needs a supported number of places', { status: 409 })
     throw new Response('the player limit cannot be lower than the accepted entrant count', { status: 409 })
   }
 
@@ -202,6 +218,15 @@ export class PraetoriumService {
     throw new Response('no such accepted event entrant', { status: 404 })
   }
 
+  async assignLeagueTeam(token: string, ownerId: string, userIds: readonly string[], eventToken?: string) {
+    const result = await this.repository.assignLeagueTeam(token, ownerId, userIds, randomId(), eventToken)
+    if (result === 'updated') return { teamSize: userIds.length }
+    if (result === 'forbidden') throw new Response('only the organizer can assign teams', { status: 403 })
+    if (result === 'closed') throw new Response('teams cannot change after reveal', { status: 409 })
+    if (result === 'wrong-format') throw new Response('teams are assigned only for 2v2 events', { status: 409 })
+    throw new Response('choose accepted event entrants', { status: 404 })
+  }
+
   async ownRoster(userId: string, rosterId: string) {
     const row = await this.repository.roster(rosterId)
     if (!row || row.userId !== userId) return null
@@ -230,15 +255,17 @@ export class PraetoriumService {
       eventToken,
     })
     if (result.outcome === 'sealed') return result
-    if (result.outcome === 'unassigned') throw new Response('wait for the organizer to assign your roster size', { status: 409 })
+    if (result.outcome === 'unassigned') throw new Response('wait for the organizer to assign your event role or team', { status: 409 })
     if (result.outcome === 'wrong-limit') throw new Response('choose a roster built for your assigned size', { status: 409 })
     throw new Response('the roster could not be sealed; check your entry and roster, then try again', { status: 409 })
   }
 
   async revealLeague(token: string, ownerId: string, eventToken?: string) {
-    if (!(await this.repository.revealLeague(token, ownerId, this.clock(), eventToken))) {
-      throw new Response('fill every configured place and wait for every accepted roster before reveal', { status: 409 })
-    }
+    const result = await this.repository.revealLeague(token, ownerId, this.clock(), eventToken)
+    if (result.outcome === 'revealed') return
+    if (result.outcome === 'invalid-warlords')
+      throw new Response('each doubles team must select exactly one Warlord before reveal', { status: 409 })
+    throw new Response('fill every configured place and wait for every accepted roster before reveal', { status: 409 })
   }
 
   async leagueRoster(token: string, userId: string, eventToken?: string) {
@@ -264,8 +291,11 @@ export class PraetoriumService {
       { id, token, leagueToken, eventToken, userId, userIds: [userId, ...invited], now: this.clock() },
       (league) => {
         if (league.revealedAt === null) throw new Response('reveal the league rosters before starting a battle', { status: 409 })
-        const expectedPlayers = league.format === '2v1' ? 3 : 2
-        if (league.entries.length !== expectedPlayers || invited.length !== expectedPlayers - 1) {
+        const expectedPlayers = league.format === '2v2' ? 4 : league.format === '2v1' ? 3 : 2
+        if (league.format === '2v2' && !LEAGUE_TEAM_ROSTER_LIMITS.some((candidate) => candidate === league.rosterLimit)) {
+          throw new Response('sealed rosters use an unsupported doubles force size', { status: 409 })
+        }
+        if (league.format !== '2v2' && (league.entries.length !== expectedPlayers || invited.length !== expectedPlayers - 1)) {
           throw new Response('choose accepted entrants with sealed rosters', { status: 403 })
         }
         const rosters = new Map(
@@ -274,19 +304,38 @@ export class PraetoriumService {
             return [entry.userId, parseRosterSnapshot(entry.snapshot)] as const
           }),
         )
+        let participantIds = [userId, ...invited]
+        let allyIds: string[] = []
+        let opponentIds = [opponentId]
+        if (league.format === '2v2') {
+          if (invited.length !== 1 || allyId || secondOpponentId) throw new Response('choose one opposing doubles team', { status: 400 })
+          const ownTeamId = league.entries.find((entry) => entry.userId === userId)?.teamId
+          const opposingTeamId = league.entries.find((entry) => entry.userId === opponentId)?.teamId
+          if (!ownTeamId || !opposingTeamId || ownTeamId === opposingTeamId)
+            throw new Response('choose an opposing doubles team', { status: 409 })
+          const ownTeam = league.entries.filter((entry) => entry.teamId === ownTeamId)
+          const opposingTeam = league.entries.filter((entry) => entry.teamId === opposingTeamId)
+          if (ownTeam.length !== 2 || opposingTeam.length !== 2)
+            throw new Response('doubles teams must contain exactly two entrants', { status: 409 })
+          allyIds = ownTeam.filter((entry) => entry.userId !== userId).map((entry) => entry.userId)
+          opponentIds = [opponentId, ...opposingTeam.filter((entry) => entry.userId !== opponentId).map((entry) => entry.userId)]
+          participantIds = [userId, ...allyIds, ...opponentIds]
+        }
         const ownRoster = rosters.get(userId)
-        const opponentRoster = rosters.get(opponentId)
+        const opponentRoster = rosters.get(opponentIds[0]!)
         const limit = league.format === null ? ownRoster?.built?.limit : league.rosterLimit
         if (!ownRoster || !opponentRoster || limit === null || limit === undefined)
           throw new Response('sealed rosters use an invalid battle size', { status: 409 })
-        if (league.format !== '2v1' && (ownRoster.built?.limit !== limit || opponentRoster.built?.limit !== limit)) {
+        if (
+          league.format !== '2v1' &&
+          league.format !== '2v2' &&
+          (ownRoster.built?.limit !== limit || opponentRoster.built?.limit !== limit)
+        ) {
           throw new Response('sealed rosters must use the same battle size', { status: 409 })
         }
         if (!GAME_SIZES.some((size) => size.limit === limit))
           throw new Response('sealed rosters use an unsupported battle size', { status: 409 })
 
-        let allyIds: string[] = []
-        let opponentIds = [opponentId]
         if (league.format === '2v1') {
           const requirements = new Map(league.entries.map((entry) => [entry.userId, entry.requiredLimit]))
           const alliedLimit = alliedLeagueRosterLimit(limit)
@@ -318,6 +367,11 @@ export class PraetoriumService {
             if (rosterLimit !== entry.requiredLimit) throw new Response('a sealed roster does not match its assigned size', { status: 409 })
           }
         }
+        if (league.format === '2v2') {
+          const requiredLimit = alliedLeagueRosterLimit(limit)
+          if (participantIds.some((playerId) => rosters.get(playerId)?.built?.limit !== requiredLimit))
+            throw new Response('every doubles roster must use half the force size', { status: 409 })
+        }
 
         const initialCommands: Command[] = [
           {
@@ -326,13 +380,14 @@ export class PraetoriumService {
             missionPackId,
             terrainLayoutId: null,
             twistId: null,
-            teamBattle: league.format === '2v1',
+            teamBattle: league.format === '2v1' || league.format === '2v2',
+            playerCount: expectedPlayers,
             clockLimitMinutes: null,
           },
           { kind: 'attach-roster', playerId: userId, roster: ownRoster, prep: null, painted: true },
-          { kind: 'attach-roster', playerId: opponentId, roster: opponentRoster, prep: null, painted: true },
-          ...invited
-            .filter((playerId) => playerId !== opponentId)
+          { kind: 'attach-roster', playerId: opponentIds[0]!, roster: opponentRoster, prep: null, painted: true },
+          ...participantIds
+            .filter((playerId) => playerId !== userId && playerId !== opponentIds[0])
             .map((playerId) => ({ kind: 'attach-roster' as const, playerId, roster: rosters.get(playerId)!, prep: null, painted: true })),
           { kind: 'lock-league-rosters', leagueToken, eventToken: league.eventToken },
         ]
@@ -343,13 +398,17 @@ export class PraetoriumService {
           result: {
             token,
             format: league.format,
-            requiredLimit: league.entries.find((entry) => entry.userId === userId)?.requiredLimit ?? limit,
+            requiredLimit:
+              league.format === '2v2'
+                ? alliedLeagueRosterLimit(limit)
+                : (league.entries.find((entry) => entry.userId === userId)?.requiredLimit ?? limit),
+            participantIds,
           },
         }
       },
     )
     if (!result) throw new Response('no such league', { status: 404 })
-    this.events.publish(id, [userId, ...invited])
+    this.events.publish(id, result.participantIds)
     return result
   }
 
@@ -587,9 +646,8 @@ export class PraetoriumService {
   /**
    * Opens a battle and invites the rest of the table.
    *
-   * A 2v1 is the same battle whichever of the allied pair opens it, so the creator
-   * says which side each invitation is for: `allyId` joins them and `opponentIds`
-   * face them. Everyone invited is checked once, together — who may be in a battle
+   * The creator says which side each invitation is for: `allyId` joins them and
+   * `opponentIds` face them. Everyone invited is checked once, together — who may be in a battle
    * is one question, and asking it of the ally and the opponents separately would
    * be two rules about it.
    */
@@ -601,6 +659,9 @@ export class PraetoriumService {
     const opponentIds = typeof input === 'string' ? [input] : (input?.opponentIds ?? (input?.opponentId ? [input.opponentId] : []))
     const allyIds = typeof input === 'object' && input?.allyId ? [input.allyId] : []
     const invited = [...allyIds, ...opponentIds]
+    if (!settings && (allyIds.length > 0 || opponentIds.length > 1)) {
+      throw new Response('choose battle settings for a team battle', { status: 400 })
+    }
     // One query for everyone named rather than one apiece, and both reads at once:
     // who exists and who may be invited are independent questions.
     const [known, invitable] = await Promise.all([this.repository.namesByIds(invited), this.opponents(userId)])
@@ -611,7 +672,8 @@ export class PraetoriumService {
     if (invited.some((id) => !allowed.has(id)))
       throw new Response('battle players must be your friends or a practice opponent', { status: 403 })
     // How many chairs a battle has is `battleCapacity`'s to say, here as everywhere.
-    if (invited.length >= battleCapacity({ teamBattle: true })) throw new Response('a battle seats three players at most', { status: 400 })
+    if (invited.length >= battleCapacity({ teamBattle: true, playerCount: 4 }))
+      throw new Response('a battle seats four players at most', { status: 400 })
     if (allyIds.length && !opponentIds.length) throw new Response('choose an opponent', { status: 400 })
     if (settings && !opponentIds.length) throw new Response('choose an opponent', { status: 400 })
     const practice = invited.some((id) => allowed.get(id)?.automated)
@@ -630,7 +692,8 @@ export class PraetoriumService {
             missionPackId: settings.missionPackId,
             terrainLayoutId: null,
             twistId: null,
-            teamBattle: invited.length === 2,
+            teamBattle: invited.length >= 2,
+            playerCount: (invited.length + 1) as 2 | 3 | 4,
             clockLimitMinutes: null,
           }
         : undefined,

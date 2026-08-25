@@ -22,8 +22,9 @@ describe('battle creation input', () => {
     expect(createBattleSchema.safeParse({ opponentIds: ['bob', 'carol'] }).success).toBe(true)
   })
 
-  it('refuses a fourth chair', () => {
-    expect(createBattleSchema.safeParse({ opponentIds: ['bob', 'carol'], allyId: 'dave' }).success).toBe(false)
+  it('accepts doubles and refuses a fifth chair', () => {
+    expect(createBattleSchema.safeParse({ opponentIds: ['bob', 'carol'], allyId: 'dave' }).success).toBe(true)
+    expect(createBattleSchema.safeParse({ opponentIds: ['bob', 'carol', 'dave'], allyId: 'erin' }).success).toBe(false)
   })
 
   it('refuses an ally with nobody to play against', () => {
@@ -85,7 +86,13 @@ describe('league creation input', () => {
     expect(createLeagueSchema.safeParse({ ...league, format: '2v1', rosterLimit: 2_000, playerLimit: 2 }).success).toBe(false)
   })
 
-  it('keeps league battle ally and second-opponent roles exclusive', () => {
+  it('accepts official doubles and rejects odd or undersized fixed limits', () => {
+    expect(createLeagueSchema.safeParse({ ...league, format: '2v2', rosterLimit: 2_000, playerLimit: 4 }).success).toBe(true)
+    expect(createLeagueSchema.safeParse({ ...league, format: '2v2', rosterLimit: 2_000, playerLimit: 3 }).success).toBe(false)
+    expect(createLeagueSchema.safeParse({ ...league, format: '2v2', rosterLimit: 2_000, playerLimit: 5 }).success).toBe(false)
+  })
+
+  it('accepts all four doubles seats', () => {
     expect(
       createLeagueBattleSchema.safeParse({
         token: 'league',
@@ -93,7 +100,7 @@ describe('league creation input', () => {
         allyId: 'ally',
         secondOpponentId: 'other-ally',
       }).success,
-    ).toBe(false)
+    ).toBe(true)
   })
 
   it('rejects a one-player league', () => {

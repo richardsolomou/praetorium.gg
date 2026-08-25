@@ -61,6 +61,7 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
     terrainLayoutId: id.nullable(),
     twistId: id.nullable(),
     teamBattle: z.boolean().optional(),
+    playerCount: z.union([z.literal(2), z.literal(3), z.literal(4)]).optional(),
     clockLimitMinutes: z.number().int().min(5).max(300).nullable(),
   }),
   z.object({ kind: z.literal('reset-setup') }),
@@ -103,6 +104,7 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
                 wounds: z.number().int().min(1).max(100).optional(),
                 entryId: id.optional(),
                 group: z.enum(UNIT_GROUPS).optional(),
+                warlord: z.boolean().optional(),
                 wargear: z
                   .array(z.object({ name: z.string().min(1).max(ROSTER_NAME_MAX_LENGTH), count: z.number().int().min(1).max(100) }))
                   .max(200)

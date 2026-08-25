@@ -59,9 +59,11 @@ export type MakeLeagueRecurringResult = 'updated' | 'missing' | 'forbidden'
 export type UpdateLeagueResult = 'updated' | 'missing' | 'forbidden' | 'joined' | 'below-accepted' | 'team-minimum'
 export type DeleteLeagueResult = 'deleted' | 'missing' | 'forbidden'
 export type AssignLeagueRosterRequirementResult = 'updated' | 'missing' | 'forbidden' | 'closed' | 'wrong-format' | 'wrong-limit'
+export type AssignLeagueTeamResult = 'updated' | 'missing' | 'forbidden' | 'closed' | 'wrong-format'
 export type SubmitLeagueRosterResult =
   | { outcome: 'sealed'; format: LeagueEventFormat | null; requiredLimit: number | null }
   | { outcome: 'missing' | 'unassigned' | 'wrong-limit' }
+export type RevealLeagueResult = { outcome: 'revealed' | 'not-ready' | 'invalid-warlords' }
 
 const ADMIN_USERS_PAGE_SIZE = 50
 
@@ -669,6 +671,8 @@ export class Repository {
       if (league.ownerId !== input.ownerId) return 'forbidden'
       if (!league.recurring) return 'one-off'
       if (input.format === '2v1' && league.playerLimit !== null && league.playerLimit < 3) return 'too-small'
+      if (input.format === '2v2' && league.playerLimit !== null && (league.playerLimit < 4 || league.playerLimit % 2 !== 0))
+        return 'too-small'
       const [latest] = await tx
         .select({ number: leagueEvents.number, revealedAt: leagueEvents.revealedAt })
         .from(leagueEvents)
@@ -748,6 +752,8 @@ export class Repository {
       if (input.admission !== league.admission && (entries?.total ?? 0) > 0) return 'joined'
       if (input.playerLimit !== league.playerLimit && current.revealedAt === null) {
         if (current.format === '2v1' && input.playerLimit !== null && input.playerLimit < 3) return 'team-minimum'
+        if (current.format === '2v2' && input.playerLimit !== null && (input.playerLimit < 4 || input.playerLimit % 2 !== 0))
+          return 'team-minimum'
         if (input.playerLimit !== null && input.playerLimit < (entries?.accepted ?? 0)) return 'below-accepted'
       }
       await tx.update(leagues).set(input).where(eq(leagues.id, league.id))
@@ -945,6 +951,7 @@ export class Repository {
             joinedAt: leagueEventEntries.joinedAt,
             submitted: sql<boolean>`${leagueEventEntries.rosterSnapshot} is not null`,
             assignedLimit: leagueEventEntries.requiredLimit,
+            teamId: leagueEventEntries.teamId,
             rosterName: viewerId
               ? sql<string | null>`case when ${leagueEventEntries.userId} = ${viewerId} then ${leagueEventEntries.rosterName} else null end`
               : sql<string | null>`null`,
@@ -959,7 +966,7 @@ export class Repository {
                 : ne(leagueEventEntries.status, 'rejected'),
             ),
           )
-          .orderBy(asc(leagueEventEntries.joinedAt)),
+          .orderBy(asc(leagueEventEntries.joinedAt), asc(leagueEventEntries.userId)),
         tx
           .select({ total: count(), accepted: count(sql`case when ${leagueEventEntries.status} = 'accepted' then 1 end`) })
           .from(leagueEventEntries)
@@ -982,7 +989,7 @@ export class Repository {
         occupiedCount: entries.filter((entry) => entry.status !== 'rejected').length,
         entries: entries.map(({ assignedLimit, ...entry }) => ({
           ...entry,
-          requiredLimit: requiredLeagueRosterLimit(selected.format, selected.rosterLimit, assignedLimit),
+          requiredLimit: requiredLeagueRosterLimit(selected.format, selected.rosterLimit, assignedLimit, entry.teamId),
         })),
       }
     })
@@ -1059,7 +1066,7 @@ export class Repository {
       if (!event) return 'missing'
       if (event.revealedAt !== null) return 'closed'
       const [entry] = await tx
-        .select({ status: leagueEventEntries.status })
+        .select({ status: leagueEventEntries.status, teamId: leagueEventEntries.teamId })
         .from(leagueEventEntries)
         .where(and(eq(leagueEventEntries.eventId, event.id), eq(leagueEventEntries.userId, userId)))
         .limit(1)
@@ -1072,11 +1079,17 @@ export class Repository {
         if (league.playerLimit !== null && (members?.accepted ?? 0) >= league.playerLimit) return 'full'
         if (entry.status === 'rejected' && (members?.active ?? 0) >= memberLimit) return 'full'
       }
+      if (status === 'rejected' && entry.teamId) {
+        await tx
+          .update(leagueEventEntries)
+          .set({ teamId: null, requiredLimit: null, rosterId: null, rosterName: null, rosterSnapshot: null, submittedAt: null })
+          .where(and(eq(leagueEventEntries.eventId, event.id), eq(leagueEventEntries.teamId, entry.teamId)))
+      }
       const updated = await tx
         .update(leagueEventEntries)
         .set(
           status === 'rejected'
-            ? { status, rosterId: null, rosterName: null, rosterSnapshot: null, submittedAt: null, requiredLimit: null }
+            ? { status, rosterId: null, rosterName: null, rosterSnapshot: null, submittedAt: null, requiredLimit: null, teamId: null }
             : { status },
         )
         .where(and(eq(leagueEventEntries.eventId, event.id), eq(leagueEventEntries.userId, userId)))
@@ -1135,6 +1148,75 @@ export class Repository {
     })
   }
 
+  async assignLeagueTeam(
+    token: string,
+    ownerId: string,
+    userIds: readonly string[],
+    teamId: string,
+    eventToken?: string,
+  ): Promise<AssignLeagueTeamResult> {
+    return this.database.transaction(async (tx) => {
+      const [league] = await tx
+        .select({ id: leagues.id, ownerId: leagues.ownerId })
+        .from(leagues)
+        .where(eq(leagues.token, token))
+        .for('update')
+      if (!league) return 'missing'
+      if (league.ownerId !== ownerId) return 'forbidden'
+      const [event] = await tx
+        .select({
+          id: leagueEvents.id,
+          format: leagueEvents.format,
+          rosterLimit: leagueEvents.rosterLimit,
+          revealedAt: leagueEvents.revealedAt,
+        })
+        .from(leagueEvents)
+        .where(and(eq(leagueEvents.leagueId, league.id), eventToken ? eq(leagueEvents.token, eventToken) : undefined))
+        .orderBy(desc(leagueEvents.number))
+        .limit(1)
+        .for('update')
+      if (!event) return 'missing'
+      if (event.revealedAt !== null) return 'closed'
+      if (event.format !== '2v2' || event.rosterLimit === null) return 'wrong-format'
+      const uniqueIds = [...new Set(userIds)]
+      if (uniqueIds.length < 1 || uniqueIds.length > 2) return 'missing'
+      const targets = await tx
+        .select({ userId: leagueEventEntries.userId, teamId: leagueEventEntries.teamId })
+        .from(leagueEventEntries)
+        .where(
+          and(
+            eq(leagueEventEntries.eventId, event.id),
+            inArray(leagueEventEntries.userId, uniqueIds),
+            eq(leagueEventEntries.status, 'accepted'),
+          ),
+        )
+        .for('update')
+      if (targets.length !== uniqueIds.length) return 'missing'
+      const previousTeamId = targets[0]?.teamId
+      if (uniqueIds.length === 2 && previousTeamId && targets.every((entry) => entry.teamId === previousTeamId)) return 'updated'
+      const oldTeamIds = targets.flatMap((entry) => (entry.teamId ? [entry.teamId] : []))
+      const formerPartners = oldTeamIds.length
+        ? await tx
+            .select({ userId: leagueEventEntries.userId })
+            .from(leagueEventEntries)
+            .where(and(eq(leagueEventEntries.eventId, event.id), inArray(leagueEventEntries.teamId, oldTeamIds)))
+            .for('update')
+        : []
+      const affectedIds = [...new Set([...uniqueIds, ...formerPartners.map((entry) => entry.userId)])]
+      await tx
+        .update(leagueEventEntries)
+        .set({ teamId: null, requiredLimit: null, rosterId: null, rosterName: null, rosterSnapshot: null, submittedAt: null })
+        .where(and(eq(leagueEventEntries.eventId, event.id), inArray(leagueEventEntries.userId, affectedIds)))
+      if (uniqueIds.length === 2) {
+        await tx
+          .update(leagueEventEntries)
+          .set({ teamId, requiredLimit: alliedLeagueRosterLimit(event.rosterLimit) })
+          .where(and(eq(leagueEventEntries.eventId, event.id), inArray(leagueEventEntries.userId, uniqueIds)))
+      }
+      return 'updated'
+    })
+  }
+
   async submitLeagueRoster(input: {
     token: string
     userId: string
@@ -1163,14 +1245,14 @@ export class Repository {
         .for('update')
       if (!event || event.revealedAt !== null) return { outcome: 'missing' }
       const [entry] = await tx
-        .select({ status: leagueEventEntries.status, requiredLimit: leagueEventEntries.requiredLimit })
+        .select({ status: leagueEventEntries.status, requiredLimit: leagueEventEntries.requiredLimit, teamId: leagueEventEntries.teamId })
         .from(leagueEventEntries)
         .where(and(eq(leagueEventEntries.eventId, event.id), eq(leagueEventEntries.userId, input.userId)))
         .limit(1)
         .for('update')
       if (!entry || entry.status !== 'accepted') return { outcome: 'missing' }
-      const requiredLimit = requiredLeagueRosterLimit(event.format, event.rosterLimit, entry.requiredLimit)
-      if (event.format === '2v1' && requiredLimit === null) return { outcome: 'unassigned' }
+      const requiredLimit = requiredLeagueRosterLimit(event.format, event.rosterLimit, entry.requiredLimit, entry.teamId)
+      if ((event.format === '2v1' || event.format === '2v2') && requiredLimit === null) return { outcome: 'unassigned' }
       if (requiredLimit !== null && input.rosterLimit !== requiredLimit) return { outcome: 'wrong-limit' }
       const updated = await tx
         .update(leagueEventEntries)
@@ -1200,14 +1282,14 @@ export class Repository {
     })
   }
 
-  async revealLeague(token: string, ownerId: string, now: number, eventToken?: string) {
+  async revealLeague(token: string, ownerId: string, now: number, eventToken?: string): Promise<RevealLeagueResult> {
     return this.database.transaction(async (tx) => {
       const [league] = await tx
         .select({ id: leagues.id, ownerId: leagues.ownerId, playerLimit: leagues.playerLimit })
         .from(leagues)
         .where(eq(leagues.token, token))
         .for('update')
-      if (!league || league.ownerId !== ownerId) return false
+      if (!league || league.ownerId !== ownerId) return { outcome: 'not-ready' }
       const [event] = await tx
         .select({
           id: leagueEvents.id,
@@ -1220,39 +1302,67 @@ export class Repository {
         .orderBy(desc(leagueEvents.number))
         .limit(1)
         .for('update')
-      if (!event || event.revealedAt !== null) return false
+      if (!event || event.revealedAt !== null) return { outcome: 'not-ready' }
       const entries = await tx
         .select({
           requiredLimit: leagueEventEntries.requiredLimit,
+          teamId: leagueEventEntries.teamId,
           snapshot: leagueEventEntries.rosterSnapshot,
         })
         .from(leagueEventEntries)
         .where(and(eq(leagueEventEntries.eventId, event.id), eq(leagueEventEntries.status, 'accepted')))
-      if (!entries.length || (league.playerLimit !== null && entries.length !== league.playerLimit)) return false
-      if (entries.some((entry) => entry.snapshot === null || (event.format === '2v1' && entry.requiredLimit === null))) return false
+      if (!entries.length || (league.playerLimit !== null && entries.length !== league.playerLimit)) return { outcome: 'not-ready' }
+      if (entries.some((entry) => entry.snapshot === null || (event.format === '2v1' && entry.requiredLimit === null)))
+        return { outcome: 'not-ready' }
+      let snapshots: ReturnType<typeof parseRosterSnapshot>[] = []
+      if (event.format !== null) {
+        try {
+          snapshots = entries.map((entry) => parseRosterSnapshot(entry.snapshot!))
+        } catch {
+          return { outcome: 'not-ready' }
+        }
+      }
+      let invalidWarlords = false
       if (event.format === '2v1') {
         const solo = entries.filter((entry) => entry.requiredLimit === event.rosterLimit).length
         const allied = entries.filter((entry) => entry.requiredLimit === alliedLeagueRosterLimit(event.rosterLimit ?? 0)).length
-        if (!solo || allied < 2) return false
+        if (!solo || allied < 2) return { outcome: 'not-ready' }
+      }
+      if (event.format === '2v2') {
+        if (entries.length < 4 || entries.length % 2 !== 0 || entries.some((entry) => entry.teamId === null))
+          return { outcome: 'not-ready' }
+        const teams = new Map<string, number>()
+        for (const entry of entries) teams.set(entry.teamId!, (teams.get(entry.teamId!) ?? 0) + 1)
+        if (teams.size < 2 || [...teams.values()].some((size) => size !== 2)) return { outcome: 'not-ready' }
+        const warlords = new Map<string, number>()
+        entries.forEach((entry, index) => {
+          const selected = snapshots[index]!.built?.units.filter((unit) => unit.warlord) ?? []
+          if (selected.some((unit) => unit.group !== 'character' && unit.group !== 'epic-hero')) invalidWarlords = true
+          const eligible = selected.filter((unit) => unit.group === 'character' || unit.group === 'epic-hero').length
+          warlords.set(entry.teamId!, (warlords.get(entry.teamId!) ?? 0) + eligible)
+        })
+        invalidWarlords ||= [...warlords.values()].some((warlordCount) => warlordCount !== 1)
+        const [pending] = await tx
+          .select({ value: count() })
+          .from(leagueEventEntries)
+          .where(and(eq(leagueEventEntries.eventId, event.id), eq(leagueEventEntries.status, 'pending')))
+        if ((pending?.value ?? 0) > 0) return { outcome: 'not-ready' }
       }
       if (
         event.format !== null &&
-        entries.some((entry) => {
-          const requiredLimit = requiredLeagueRosterLimit(event.format, event.rosterLimit, entry.requiredLimit)
-          try {
-            return requiredLimit === null || parseRosterSnapshot(entry.snapshot!).built?.limit !== requiredLimit
-          } catch {
-            return true
-          }
+        entries.some((entry, index) => {
+          const requiredLimit = requiredLeagueRosterLimit(event.format, event.rosterLimit, entry.requiredLimit, entry.teamId)
+          return requiredLimit === null || snapshots[index]!.built?.limit !== requiredLimit
         })
       )
-        return false
+        return { outcome: 'not-ready' }
+      if (invalidWarlords) return { outcome: 'invalid-warlords' }
       await tx
         .update(leagueEventEntries)
         .set({ status: 'rejected' })
         .where(and(eq(leagueEventEntries.eventId, event.id), eq(leagueEventEntries.status, 'pending')))
       await tx.update(leagueEvents).set({ revealedAt: now }).where(eq(leagueEvents.id, event.id))
-      return true
+      return { outcome: 'revealed' }
     })
   }
 
@@ -1292,7 +1402,7 @@ export class Repository {
       format: LeagueEventFormat | null
       rosterLimit: number | null
       revealedAt: number | null
-      entries: { userId: string; requiredLimit: number | null; snapshot: string | null }[]
+      entries: { userId: string; requiredLimit: number | null; snapshot: string | null; teamId: string | null }[]
     }) =>
       | { allyIds: string[]; opponentIds: string[]; initialCommands: Command[]; result: T }
       | Promise<{ allyIds: string[]; opponentIds: string[]; initialCommands: Command[]; result: T }>,
@@ -1318,16 +1428,18 @@ export class Repository {
           userId: leagueEventEntries.userId,
           requiredLimit: leagueEventEntries.requiredLimit,
           snapshot: leagueEventEntries.rosterSnapshot,
+          teamId: leagueEventEntries.teamId,
         })
         .from(leagueEventEntries)
         .where(
           and(
             eq(leagueEventEntries.eventId, event.id),
-            inArray(leagueEventEntries.userId, input.userIds),
+            event.format === '2v2' ? undefined : inArray(leagueEventEntries.userId, input.userIds),
             eq(leagueEventEntries.status, 'accepted'),
             isNotNull(leagueEventEntries.rosterSnapshot),
           ),
         )
+        .orderBy(asc(leagueEventEntries.joinedAt), asc(leagueEventEntries.userId))
       const prepared = await prepare({
         eventToken: event.token,
         format: event.format,

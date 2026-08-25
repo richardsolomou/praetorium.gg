@@ -11,6 +11,7 @@ const entries: LeagueEntryView[] = [
     submitted: true,
     rosterName: 'Army',
     requiredLimit: 2_000,
+    teamId: null,
   },
   {
     userId: 'pending',
@@ -21,6 +22,7 @@ const entries: LeagueEntryView[] = [
     submitted: false,
     rosterName: null,
     requiredLimit: null,
+    teamId: null,
   },
   {
     userId: 'rejected',
@@ -31,6 +33,7 @@ const entries: LeagueEntryView[] = [
     submitted: false,
     rosterName: null,
     requiredLimit: null,
+    teamId: null,
   },
 ]
 
@@ -59,6 +62,11 @@ describe('league roster requirements', () => {
 
   it('derives the allied size from the solo side total', () => {
     expect(alliedLeagueRosterLimit(2_000)).toBe(1_000)
+  })
+
+  it('requires a doubles pairing before deriving half the force size', () => {
+    expect(requiredLeagueRosterLimit('2v2', 2_000, null, null)).toBeNull()
+    expect(requiredLeagueRosterLimit('2v2', 2_000, 1_000, 'team-a')).toBe(1_000)
   })
 
   it('keeps legacy events unrestricted', () => {
