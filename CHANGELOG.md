@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.34.0
+
+### Minor Changes
+
+- 5baafe7: Run recurring league events with fresh registration and sealed rosters.
+
 ## 0.33.6
 
 ### Patch Changes
