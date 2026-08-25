@@ -1,5 +1,5 @@
 import { and, desc, eq } from 'drizzle-orm'
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Locator, type Page } from '@playwright/test'
 import { createRoster, uniqueName, signUp } from './account'
 import { openDatabase } from '../src/db/connection'
 import { leagueEventEntries, leagueEvents, leagues } from '../src/db/schema'
@@ -31,6 +31,33 @@ async function join(page: Page) {
   await page.getByRole('button', { name: 'Join league' }).click()
 }
 
+async function expectNoHorizontalOverflow(page: Page, ...elements: Locator[]) {
+  const documentWidth = await page.evaluate(() => ({
+    clientWidth: document.documentElement.clientWidth,
+    scrollWidth: document.documentElement.scrollWidth,
+  }))
+  expect(documentWidth.scrollWidth).toBe(documentWidth.clientWidth)
+  for (const element of elements) {
+    expect(await element.evaluate((node) => node.scrollWidth <= node.clientWidth)).toBe(true)
+  }
+}
+
+async function expectOrganizerAvatar(row: Locator, ownerName: string) {
+  await expect(row.locator('img')).toHaveAttribute('src', /\/avatars\/[0-9a-f]+\.webp$/)
+  const children = await row.evaluate((element) =>
+    Array.from(element.children).map((child) => ({ left: child.getBoundingClientRect().left, text: child.textContent })),
+  )
+  expect(children.map((child) => child.text)).toEqual(['Organized by', '', ownerName])
+  const leftEdges = children.map((child) => child.left)
+  expect(leftEdges[0]).toBeLessThan(leftEdges[1])
+  expect(leftEdges[1]).toBeLessThan(leftEdges[2])
+}
+
+async function submitLeagueCreation(page: Page, dialog: Locator) {
+  await dialog.getByRole('button', { name: 'Create league' }).click()
+  await expect(page).toHaveURL(/\/leagues\/[^/?]+/)
+}
+
 test('an organizer can make a one-off league recurring without replacing its event', async ({ page }) => {
   const ownerName = uniqueName('LeagueOwner')
   const leagueName = uniqueName('Home League')
@@ -46,7 +73,7 @@ test('an organizer can make a one-off league recurring without replacing its eve
   const create = page.getByRole('dialog', { name: 'Create league' })
   await create.getByLabel('Name').fill(leagueName)
   await create.getByRole('button', { name: /^Automatic/ }).click()
-  await create.getByRole('button', { name: 'Create league' }).click()
+  await submitLeagueCreation(page, create)
   await join(page)
   const eventUrl = page.url()
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(1440)
@@ -65,7 +92,8 @@ test('an organizer can make a one-off league recurring without replacing its eve
   await page.setViewportSize({ width: 1440, height: 900 })
   await page.keyboard.press('Escape')
 
-  await page.getByRole('button', { name: 'Make recurring' }).click()
+  await page.getByRole('button', { name: `Actions for ${leagueName}` }).click()
+  await page.getByRole('menuitem', { name: 'Make recurring' }).click()
   await page.screenshot({ path: 'test-results/make-league-recurring-confirm.png', fullPage: true })
   await page.getByRole('alertdialog', { name: 'Make this league recurring?' }).getByRole('button', { name: 'Make recurring' }).click()
 
@@ -78,6 +106,169 @@ test('an organizer can make a one-off league recurring without replacing its eve
   await page.setViewportSize({ width: 390, height: 844 })
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
   await page.screenshot({ path: 'test-results/one-off-made-recurring-phone.png', fullPage: true })
+})
+
+test('an organizer edits and deletes a league from its card actions', async ({ browser }) => {
+  const ownerContext = await browser.newContext()
+  const entrantContext = await browser.newContext()
+  const owner = await ownerContext.newPage()
+  const entrant = await entrantContext.newPage()
+  const ownerName = uniqueName('LeagueOwner')
+  const entrantName = uniqueName('LeagueEntrant')
+  const leagueName = uniqueName('Editable League')
+  const renamed = `${leagueName} Updated`
+
+  await signUp(owner, ownerName)
+  await signUp(entrant, entrantName)
+  await owner.goto('/profile')
+  await owner.getByLabel('Choose profile picture').setInputFiles({
+    name: 'avatar.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAABAAAAAQAQMAAAAlPW0iAAAAA1BMVEX/W1e1okn/AAAADElEQVQI12NgIA0AAAAwAAHHqoWOAAAAAElFTkSuQmCC',
+      'base64',
+    ),
+  })
+  await owner.getByRole('button', { name: 'Save profile' }).click()
+  await expect(owner.getByText('Profile saved.')).toBeVisible()
+  await owner.goto('/leagues')
+  await owner.getByRole('button', { name: 'New league' }).click()
+  const create = owner.getByRole('dialog', { name: 'Create league' })
+  await create.getByLabel('Name').fill(leagueName)
+  await submitLeagueCreation(owner, create)
+  const leagueUrl = new URL(owner.url())
+  leagueUrl.search = ''
+  const leagueToken = leagueUrl.pathname.split('/').at(-1)
+  if (!leagueToken) throw new Error('The created league URL has no token.')
+  let organizer = owner.getByRole('link', { name: `Organized by ${ownerName}` })
+  await expectOrganizerAvatar(organizer, ownerName)
+  await owner.screenshot({ path: 'test-results/league-detail-organizer-desktop.png', fullPage: true })
+  await owner.setViewportSize({ width: 390, height: 844 })
+  await expectOrganizerAvatar(organizer, ownerName)
+  await expectNoHorizontalOverflow(owner, organizer)
+  await owner.screenshot({ path: 'test-results/league-detail-organizer-phone.png', fullPage: true })
+
+  await owner.goto('/leagues')
+  await owner.setViewportSize({ width: 1440, height: 900 })
+  let card = owner.locator(`[data-league="${leagueToken}"]`)
+  organizer = card.getByText('Organized by', { exact: true }).locator('..')
+  await expectOrganizerAvatar(organizer, ownerName)
+  await expectNoHorizontalOverflow(owner, card)
+  await owner.screenshot({ path: 'test-results/league-card-organizer-desktop.png', fullPage: true })
+  await owner.getByRole('button', { name: `Actions for ${leagueName}` }).click()
+  let dropdown = owner.getByRole('menu')
+  await expectNoHorizontalOverflow(owner, card, dropdown)
+  await owner.screenshot({ path: 'test-results/league-card-overflow-menu-desktop.png', fullPage: true })
+  await owner.keyboard.press('Escape')
+  await expect(dropdown).toBeHidden()
+  await card.click({ button: 'right', position: { x: 2, y: 2 } })
+  let contextMenu = owner.getByRole('menu')
+  await expectNoHorizontalOverflow(owner, card, contextMenu)
+  await owner.screenshot({ path: 'test-results/league-card-context-menu-desktop.png', fullPage: true })
+  await contextMenu.getByRole('menuitem', { name: 'Edit league' }).click()
+  let edit = owner.getByRole('dialog', { name: 'Edit league' })
+  await expectNoHorizontalOverflow(owner, card, edit)
+  await owner.screenshot({ path: 'test-results/edit-league-dialog-desktop.png', fullPage: true })
+  await edit.getByRole('button', { name: 'Cancel' }).click()
+  await expect(edit).toBeHidden()
+
+  await owner.setViewportSize({ width: 390, height: 844 })
+  await expectOrganizerAvatar(organizer, ownerName)
+  await expectNoHorizontalOverflow(owner, card)
+  await owner.screenshot({ path: 'test-results/league-card-organizer-phone.png', fullPage: true })
+  await owner.getByRole('button', { name: `Actions for ${leagueName}` }).click()
+  dropdown = owner.getByRole('menu')
+  await expect(dropdown.getByRole('menuitem', { name: 'View league' })).toBeVisible()
+  await expectNoHorizontalOverflow(owner, card, dropdown)
+  await owner.screenshot({ path: 'test-results/league-card-overflow-menu-phone.png', fullPage: true })
+  await owner.evaluate(() => {
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText: () => Promise.reject(new Error('clipboard unavailable')) },
+    })
+  })
+  await dropdown.getByRole('menuitem', { name: 'Copy invite link' }).click()
+  await expect(dropdown).toBeHidden()
+  const copyError = owner.getByText('Could not copy the invite link. Try again.', { exact: true })
+  await expect(copyError).toBeVisible()
+  await expect(copyError).toHaveAttribute('aria-live', 'polite')
+  await owner.screenshot({ path: 'test-results/league-invite-copy-error-phone.png', fullPage: true })
+  await owner.getByRole('button', { name: `Actions for ${leagueName}` }).click()
+  await owner.getByRole('menuitem', { name: 'Edit league' }).click()
+  await expect(copyError).toBeHidden()
+  edit = owner.getByRole('dialog', { name: 'Edit league' })
+  await edit.getByRole('button', { name: 'Cancel' }).click()
+  await expect(edit).toBeHidden()
+
+  await owner.reload()
+  await card.click({ button: 'right', position: { x: 2, y: 2 } })
+  contextMenu = owner.getByRole('menu')
+  await expect(contextMenu.getByRole('menuitem', { name: 'Edit league' })).toBeVisible()
+  await expectNoHorizontalOverflow(owner, card, contextMenu)
+  await owner.screenshot({ path: 'test-results/league-card-context-menu-phone.png', fullPage: true })
+  await owner.getByRole('menuitem', { name: 'Edit league' }).click()
+  edit = owner.getByRole('dialog', { name: 'Edit league' })
+  await expectNoHorizontalOverflow(owner, card, edit)
+  await owner.screenshot({ path: 'test-results/edit-league-dialog-phone.png', fullPage: true })
+  await edit.getByLabel('Name').fill(renamed)
+  await edit.getByLabel('Details').fill('Updated event details')
+  await edit.getByLabel('Player limit').fill('4')
+  await edit.getByRole('button', { name: /^Public/ }).click()
+  await edit.getByRole('button', { name: /^Automatic/ }).click()
+  await edit.getByRole('button', { name: 'Save changes' }).click()
+  await expect(owner.getByRole('heading', { name: renamed })).toBeVisible()
+  card = owner.locator(`[data-league="${leagueToken}"]`)
+  await expect(card.getByText('Updated event details', { exact: true })).toBeVisible()
+  await expect(card.getByText('Public', { exact: true })).toBeVisible()
+  await expect(card.getByText('0 / 4 accepted', { exact: true })).toBeVisible()
+  await expectNoHorizontalOverflow(owner, card)
+
+  await owner.goto(leagueUrl.toString())
+  await expect(owner.getByText('Updated event details', { exact: true })).toBeVisible()
+  await expect(owner.getByText('Public', { exact: true })).toBeVisible()
+  await expect(owner.getByText('Automatic entry', { exact: true })).toBeVisible()
+  await expect(owner.getByText('0 / 4 accepted', { exact: true })).toBeVisible()
+
+  await entrant.goto(leagueUrl.toString())
+  await join(entrant)
+  await expect(entrant.getByText('Automatic entry', { exact: true })).toBeVisible()
+  await expect(entrant.getByText('1 / 4 accepted', { exact: true })).toBeVisible()
+  await expect(entrant.locator(`[data-person="${entrantName}"]`).getByText('Accepted · roster pending', { exact: true })).toBeVisible()
+  await owner.goto(leagueUrl.toString())
+  organizer = owner.getByRole('link', { name: `Organized by ${ownerName}` })
+  await expectOrganizerAvatar(organizer, ownerName)
+  await owner.getByRole('button', { name: `Actions for ${renamed}` }).click()
+  await owner.getByRole('menuitem', { name: 'Edit league' }).click()
+  edit = owner.getByRole('dialog', { name: 'Edit league' })
+  await expect(edit.getByRole('button', { name: /^Require approval/ })).toBeDisabled()
+  await edit.getByRole('button', { name: 'Cancel' }).click()
+  await expect(edit).toBeHidden()
+
+  const ownerMirror = await ownerContext.newPage()
+  await ownerMirror.goto(leagueUrl.toString())
+  await expect(ownerMirror.getByRole('heading', { name: renamed })).toBeVisible()
+  await owner.setViewportSize({ width: 1440, height: 900 })
+  await owner.getByRole('button', { name: `Actions for ${renamed}` }).click()
+  await owner.getByRole('menuitem', { name: 'Delete league' }).click()
+  let confirmation = owner.getByRole('alertdialog', { name: `Delete ${renamed}?` })
+  await expect(confirmation.getByText('Battles already started from this league stay available.', { exact: false })).toBeVisible()
+  await expectNoHorizontalOverflow(owner, confirmation)
+  await owner.screenshot({ path: 'test-results/delete-league-confirm-desktop.png', fullPage: true })
+  await confirmation.getByRole('button', { name: 'Cancel' }).click()
+  await owner.setViewportSize({ width: 390, height: 844 })
+  await owner.getByRole('button', { name: `Actions for ${renamed}` }).click()
+  await owner.getByRole('menuitem', { name: 'Delete league' }).click()
+  confirmation = owner.getByRole('alertdialog', { name: `Delete ${renamed}?` })
+  await expectNoHorizontalOverflow(owner, confirmation)
+  await owner.screenshot({ path: 'test-results/delete-league-confirm-phone.png', fullPage: true })
+  await confirmation.getByRole('button', { name: 'Delete league' }).click()
+  await expect(owner).toHaveURL(/\/leagues\/?$/)
+  await expect(owner.getByRole('heading', { name: renamed })).toHaveCount(0)
+  await expect(ownerMirror).toHaveURL(/\/leagues\/?$/, { timeout: 10_000 })
+  await expect(ownerMirror.getByRole('heading', { name: renamed })).toHaveCount(0)
+
+  await ownerContext.close()
+  await entrantContext.close()
 })
 
 test('a recurring league starts each event with fresh registration', async ({ browser }) => {
@@ -99,7 +290,7 @@ test('a recurring league starts each event with fresh registration', async ({ br
   await create.getByRole('button', { name: /^Recurring/ }).click()
   await owner.screenshot({ path: 'test-results/recurring-league-create.png', fullPage: true })
   await create.getByRole('button', { name: /^Automatic/ }).click()
-  await create.getByRole('button', { name: 'Create league' }).click()
+  await submitLeagueCreation(owner, create)
   await expect(owner.getByRole('heading', { name: leagueName })).toBeVisible()
   await expect(owner.getByRole('link', { name: `Organized by ${ownerName}` })).toHaveAttribute('href', /^\/users\/[^/?]+$/)
   const leagueUrl = new URL(owner.url())

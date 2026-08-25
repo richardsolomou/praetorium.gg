@@ -117,6 +117,33 @@ export class PraetoriumService {
     throw new Response('only the organizer can make a league recurring', { status: 403 })
   }
 
+  async updateLeague(
+    token: string,
+    ownerId: string,
+    input: {
+      name: string
+      description: string
+      visibility: LeagueVisibility
+      admission: LeagueAdmission
+      playerLimit: number | null
+    },
+  ) {
+    const result = await this.repository.updateLeague(token, ownerId, input)
+    if (result === 'updated') return
+    if (result === 'missing') throw new Response('no such league', { status: 404 })
+    if (result === 'forbidden') throw new Response('only the organizer can edit this league', { status: 403 })
+    if (result === 'joined') throw new Response('joining cannot change after someone has joined the current event', { status: 409 })
+    if (result === 'revealed') throw new Response('the player limit cannot change after the current event reveals', { status: 409 })
+    throw new Response('the player limit cannot be lower than the accepted entrant count', { status: 409 })
+  }
+
+  async deleteLeague(token: string, ownerId: string) {
+    const result = await this.repository.deleteLeague(token, ownerId)
+    if (result === 'deleted') return
+    if (result === 'missing') throw new Response('no such league', { status: 404 })
+    throw new Response('only the organizer can delete this league', { status: 403 })
+  }
+
   leagues(userId: string | null) {
     return this.repository.leaguesVisibleTo(userId)
   }

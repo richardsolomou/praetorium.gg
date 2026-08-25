@@ -10,6 +10,12 @@ Each event starts with no entrants. A player who joined an earlier event must jo
 
 Starting an event creates new rows rather than clearing the previous event. Prior registration, roster snapshots, and battles remain readable. At most one event has open registration: the organizer must reveal the current event before starting the next one.
 
+## Organizer controls
+
+The organizer can rename a league, change its details, and switch its visibility at any time. Admission can change only before anyone has joined the current event. The player limit can change until that event reveals, but cannot be lower than its accepted entrant count. These league properties govern the current and future registration without rewriting earlier event entries, sealed roster snapshots, reveal state, or battles.
+
+Making a league recurring remains one-way. Deleting a league permanently deletes its event history, entries, and sealed league roster snapshots. Battles already created from those snapshots remain available because their command logs contain their own copies.
+
 ## Visibility and entry
 
 Public leagues appear in the leagues index. Private leagues are unlisted and shared by their stable opaque link. Both use the same detail page and require an account to join or submit. A signed-in player continues to see a private recurring league after participating in an earlier event, even before joining the current event.

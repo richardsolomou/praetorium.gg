@@ -12,6 +12,7 @@ import {
   openLeagueSchema,
   submitLeagueRosterSchema,
   tokenSchema,
+  updateLeagueSchema,
 } from '../schemas'
 
 export const listLeagues = createServerFn({ method: 'GET' }).handler(() => rpc(async () => app().service.leagues(await currentUserId())))
@@ -97,6 +98,33 @@ export const makeLeagueRecurring = createServerFn({ method: 'POST' })
       const player = await requireUser()
       await app().service.makeLeagueRecurring(data.token, player.id)
       await app().telemetry.capture(player.id, 'league_recurring_enabled')
+      return null
+    }),
+  )
+
+export const updateLeague = createServerFn({ method: 'POST' })
+  .validator(updateLeagueSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const player = await requireUser()
+      const { token, ...input } = data
+      await app().service.updateLeague(token, player.id, input)
+      await app().telemetry.capture(player.id, 'league_updated', {
+        visibility: input.visibility,
+        admission: input.admission,
+        player_limit_set: input.playerLimit !== null,
+      })
+      return null
+    }),
+  )
+
+export const deleteLeague = createServerFn({ method: 'POST' })
+  .validator(tokenSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const player = await requireUser()
+      await app().service.deleteLeague(data.token, player.id)
+      await app().telemetry.capture(player.id, 'league_deleted')
       return null
     }),
   )
