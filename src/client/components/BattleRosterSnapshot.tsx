@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { Input } from '@/components/ui/input'
 import type { Roster } from '../../core/battle'
 import { GAME_SIZES } from '../../core/battle'
-import { factionsQuery } from '../queries'
+import { factionQuery } from '../queries'
 import { FactionLabel } from './FactionMark'
 import { RosterEditor } from './RosterEditor'
 import { DatasheetPanel } from './builder/DatasheetPanel'
@@ -14,10 +14,9 @@ import { Section } from './builder/Section'
 import { UnitCard } from './builder/UnitCard'
 
 export function BattleRosterSnapshot({ roster }: { roster: Roster }) {
-  const { data: available } = useQuery(factionsQuery())
   const built = roster.built
+  const { data: faction } = useQuery({ ...factionQuery(built?.catalogueId ?? ''), enabled: Boolean(built) })
   const hasRosterCards = built?.units.some((unit) => unit.group !== undefined) ?? false
-  const faction = available?.factions.find((entry) => entry.id === built?.catalogueId)
   const frozen = !roster.id
   const frozenPoints = frozen && built ? built.units.reduce((total, unit) => total + unit.points, 0) : null
   const [selected, setSelected] = useState<number | null>(null)

@@ -3,8 +3,7 @@ import { Link, useParams } from '@tanstack/react-router'
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbSeparator } from '@/components/ui/breadcrumb'
 import type { Datasheet } from '../../server/catalogue'
 import { abilitySections, attachmentGroups, compositionCount, referenceAbilities } from '../datasheet'
-import { factionFor } from '../factions'
-import { datasheetSlugQuery, factionsQuery } from '../queries'
+import { datasheetSlugQuery, factionQuery } from '../queries'
 import { FactionMark, factionColour } from './FactionMark'
 import { CollectionToggle } from './CollectionToggle'
 import { Keyword, KEYWORD_TAG_CLASS, KeywordList, type KeywordRule } from './Keyword'
@@ -12,8 +11,7 @@ import { RuleText } from './RuleText'
 
 export function FactionDatasheet() {
   const params = useParams({ strict: false })
-  const { data } = useQuery(factionsQuery())
-  const faction = factionFor(data, params.catalogueId ?? '')
+  const { data: faction } = useQuery(factionQuery(params.catalogueId ?? ''))
   const { data: sheet } = useQuery(datasheetSlugQuery(faction?.id ?? '', params.entryId ?? ''))
   if (!sheet || !faction) return null
   const profiles = (type: string) => sheet.profiles.filter((profile) => profile.type === type)

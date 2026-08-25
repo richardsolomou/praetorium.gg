@@ -1,14 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link, useParams } from '@tanstack/react-router'
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb'
-import { factionFor } from '../factions'
-import { factionsQuery } from '../queries'
+import { factionQuery } from '../queries'
 import { DetachmentReference } from './DetachmentReference'
 
 export function FactionDetachment() {
   const params = useParams({ strict: false })
-  const { data } = useQuery(factionsQuery())
-  const faction = factionFor(data, params.catalogueId ?? '')
+  const { data: faction } = useQuery(factionQuery(params.catalogueId ?? ''))
   if (!faction) return null
   const detachmentId = faction.detachments.find((detachment) => detachment.slug === params.detachmentId)?.id
 

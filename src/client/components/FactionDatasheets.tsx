@@ -2,8 +2,7 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { Link, Outlet, useParams, useRouterState } from '@tanstack/react-router'
 import { ChevronLeft, ChevronRight, FileSearch } from 'lucide-react'
 import { useState } from 'react'
-import { factionFor } from '../factions'
-import { collectionQuery, factionDatasheetsQuery, factionsQuery } from '../queries'
+import { collectionQuery, factionDatasheetsQuery, factionQuery } from '../queries'
 import { useMounted } from '../useMounted'
 import { useSettled } from '../useSettled'
 import { FactionMark, factionColour } from './FactionMark'
@@ -16,8 +15,7 @@ import { PageState } from './PageState'
 export function FactionDatasheets() {
   const { catalogueId } = useParams({ strict: false })
   const path = useRouterState({ select: (state) => state.location.pathname })
-  const { data } = useQuery(factionsQuery())
-  const faction = factionFor(data, catalogueId ?? '')
+  const { data: faction } = useQuery(factionQuery(catalogueId ?? ''))
   const [query, setQuery] = useState('')
   const settledQuery = useSettled(query.trim())
   const { data: units = [] } = useQuery({
