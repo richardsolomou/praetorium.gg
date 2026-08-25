@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   canAddPooledOption,
   choiceRemoval,
+  controlledProfileCount,
   type LoadoutChoice,
   type LoadoutModel,
   loadoutRowCount,
@@ -46,6 +47,26 @@ describe('showing loadout entries', () => {
 })
 
 describe('matching a wargear name to what describes it', () => {
+  it('counts every copy of a weapon represented by one selected option', () => {
+    const stormBolters = {
+      ...option('storm-bolters', 1, 1),
+      name: '2 Storm Bolters',
+      pieceCounts: [{ name: 'Storm bolter', count: 2 }],
+    }
+
+    expect(controlledProfileCount([choice([stormBolters], 1)], 'Storm bolter')).toBe(2)
+  })
+
+  it('does not multiply totals from repeated selections twice', () => {
+    const rifles = {
+      ...option('rifles', 3, 3),
+      name: 'Bolt Rifle w/ Grenade Launcher',
+      pieceCounts: [{ name: 'Bolt Rifle', count: 3 }],
+    }
+
+    expect(controlledProfileCount([choice([rifles], 3)], 'Bolt Rifle')).toBe(3)
+  })
+
   it('reads a parenthesised mode as the same weapon', () => {
     expect(sameWeapon('Staff of light', 'Staff of light (Melee)')).toBe(true)
     expect(sameWeapon('Staff of light (Ranged)', 'Staff of light (Melee)')).toBe(true)
