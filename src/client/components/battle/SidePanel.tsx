@@ -4,6 +4,7 @@ import type { BattleView } from '../../../core/battleView'
 import { type Side } from '../../sides'
 import { PlayerName } from '../PlayerName'
 import { ArmyIdentity } from '../ArmyIdentity'
+import { ArmyRoster } from './ArmyRoster'
 import { type Award, PrimaryMission, type ReferenceCard, SecondaryMissions, type StratagemText } from './MissionCards'
 import { Stratagems } from './Stratagems'
 import { HEADING, tint } from './tints'
@@ -70,6 +71,12 @@ export function SidePanel({ view, side, coreKeys, pending, send, awardsFor, refe
               <PlayerName army={army} />
             </h2>
             <ArmyIdentity army={army} token={view.token} className="mt-0.5" />
+            {/*
+             * The list itself, over the battle rather than away from it, and where its
+             * losses are recorded. Casualties are a live action, so setup and a finished
+             * battle open the same army with nothing to press.
+             */}
+            <ArmyRoster army={army} side={side} token={view.token} actionable={view.status === 'playing'} send={send} />
           </div>
         ))}
       </div>

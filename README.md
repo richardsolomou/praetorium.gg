@@ -21,14 +21,14 @@ Players can:
 - Build, import, save, share, print, and export army lists.
 - Use faction, detachment, unit, loadout, enhancement, and points data from community catalogues.
 - Configure missions, deployment, terrain, formations, stratagems, and mission cards.
-- Track rounds, phases, command points, victory points, and unit state.
+- Track rounds, phases, command points, victory points, and each unit's models and losses.
 - Review and correct a finished battle without deleting its history.
 
 The app stores one append-only command log for each battle. It derives the current state from that log. The server validates every command before it appends it.
 
 ## Scope
 
-Praetorium does not provide matchmaking, chat, public discovery, a rules encyclopedia, or model-level wound tracking. An account is required.
+Praetorium does not provide matchmaking, chat, public discovery, or a rules encyclopedia. An account is required.
 
 This repository contains no game data. Each instance downloads verified snapshots from the configured community sources.
 

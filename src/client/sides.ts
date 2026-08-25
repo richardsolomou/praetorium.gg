@@ -39,6 +39,8 @@ export type Army = {
   /** The saved list this army came from, when it came from one. */
   rosterId: string | null
   units: ViewPlayer['units']
+  /** How many of them are still on the table, folded by the domain rather than counted again here. */
+  standing: number
   painted: boolean
   /** What the bonus will pay at the end. It is not in the running score. */
   paintedPoints: number
@@ -200,6 +202,7 @@ function toArmy(player: ViewPlayer): Army {
     roster: player.roster,
     rosterId: player.roster?.id ?? null,
     units: player.units,
+    standing: player.standing,
     painted: player.painted,
     paintedPoints: player.paintedPoints,
     points: units?.length ? units.reduce((total, unit) => total + unit.points, 0) : null,

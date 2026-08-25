@@ -1,4 +1,5 @@
 import { Copy, EllipsisVertical, Heart, X } from 'lucide-react'
+import type { ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { ContextMenu, ContextMenuCheckboxItem, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu'
 import {
@@ -22,7 +23,7 @@ type BuiltUnit = {
 }
 
 /** Who this unit is joined to, in whichever direction the card is showing. */
-type Joined = { label: string; name: string; action: string; onAct: () => void }
+type Joined = { label: string; name: string; action?: string; onAct?: () => void }
 
 type Props = {
   unit: BuiltUnit
@@ -30,16 +31,22 @@ type Props = {
   selected: boolean
   /** Omit when the card has no detail pane to open, such as a frozen battle snapshot. */
   onSelect?: () => void
+  /** Rows stating what this unit is attached to, or what is attached to it. */
+  joined?: Joined[]
+  /** A last row of the card's own: what a battle has done to this unit, and what can be done about it. */
+  status?: ReactNode
+  editable?: boolean
+} & Partial<Editing>
+
+/** Everything a card only has while its roster can still be changed. */
+type Editing = {
   onRemove: () => void
   onDuplicate: () => void
   owned: boolean
   onOwned: () => void
-  /** Rows stating what this unit is attached to, or what is attached to it. */
-  joined: Joined[]
   /** Units in the roster this one may join, when it may join any. */
   canJoin: { key: number; name: string }[]
   onJoin: (key: number) => void
-  editable?: boolean
 }
 
 /**
@@ -51,13 +58,14 @@ export function UnitCard({
   alliedFaction,
   selected,
   onSelect,
-  onRemove,
-  onDuplicate,
-  owned,
-  onOwned,
-  joined,
-  canJoin,
-  onJoin,
+  onRemove = noop,
+  onDuplicate = noop,
+  owned = false,
+  onOwned = noop,
+  joined = NONE,
+  canJoin = NONE,
+  onJoin = noop,
+  status,
   editable = true,
 }: Props) {
   const cardClassName = `relative border bg-card transition-colors ${selected ? 'border-parchment' : 'border-edge hover:border-info'}`
@@ -137,7 +145,7 @@ export function UnitCard({
         <div key={`${row.label}-${row.name}`} className={`${ROW} pointer-events-none relative z-10 gap-2 [&_button]:pointer-events-auto`}>
           <span className="chip shrink-0">{row.label}</span>
           <span className="min-w-0 flex-1 text-xs">{row.name}</span>
-          {editable ? (
+          {editable && row.action ? (
             <Button
               data-print-hide
               variant="ghost"
@@ -167,6 +175,8 @@ export function UnitCard({
           ))}
         </div>
       ) : null}
+
+      {status ? <div className={`${ROW} relative z-10 flex-wrap gap-2 [&_button]:pointer-events-auto`}>{status}</div> : null}
     </>
   )
 
@@ -187,6 +197,9 @@ export function UnitCard({
     </ContextMenu>
   )
 }
+
+const noop = () => undefined
+const NONE: never[] = []
 
 /** A line under the unit's name: an enhancement, an upgrade, or who it is standing with. */
 const ROW = 'flex items-center border-t border-edge bg-raised px-2.5 py-1'
