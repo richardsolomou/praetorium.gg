@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.34.1
+
+### Patch Changes
+
+- efb7b29: Let the browser keep faction, datasheet, mission, and terrain reference data for an hour, keyed to the catalogue snapshot, instead of re-downloading it on every visit.
+
 ## 0.34.0
 
 ### Minor Changes
