@@ -1,6 +1,8 @@
+import type { Account, GenericEndpointContext } from 'better-auth'
 import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
 import { APIError } from 'better-auth/api'
+import { decryptOAuthToken } from 'better-auth/oauth2'
 import { admin, twoFactor } from 'better-auth/plugins'
 import { and, count, eq, notExists, sql } from 'drizzle-orm'
 import {
@@ -16,6 +18,7 @@ import type { valkeySecondaryStorage } from '../adapters/valkey'
 import { PASSWORD_MIN_LENGTH, SOCIAL_PROVIDERS } from '../authConfig'
 import type { PraetoriumDatabase } from '../db/connection'
 import { schema, user } from '../db/schema'
+import { storeProfileImageFromUrl } from './avatarStorage'
 import { profileUpdate } from './profile'
 
 type AuthStorage = ReturnType<typeof valkeySecondaryStorage>
@@ -48,6 +51,40 @@ export function createAuth(database: PraetoriumDatabase, secret: string, storage
       return claimed
     })
     if (promoted) await (await auth.$context).internalAdapter.refreshUserSessions(promoted)
+  }
+
+  // A brand-new social sign-up already carries the provider's avatar on `data.image`
+  // (better-auth's own default), but as the provider's raw URL rather than one of our own —
+  // rehost it up front so `user.image` is always empty or one of our own short S3 URLs, matching
+  // an upload, and safe to echo straight back on the next profile save.
+  const rehostSocialAvatarOnSignUp = async (data: { image?: string | null }) => {
+    if (!data.image) return
+    const stored = await storeProfileImageFromUrl(data.image)
+    return { data: { ...data, image: stored } }
+  }
+
+  // Linking a social provider to an existing account does not touch `user.image` by default.
+  // When the account just linked (or the one just created) belongs to a user with no picture yet,
+  // fetch the provider's avatar with the tokens better-auth just stored and adopt it — leaving an
+  // existing picture untouched.
+  const applySocialAvatarIfMissing = async (created: Account, context: GenericEndpointContext | null) => {
+    if (!SOCIAL_PROVIDERS.includes(created.providerId as (typeof SOCIAL_PROVIDERS)[number]) || !context) return
+    const [existing] = await database.select({ image: user.image }).from(user).where(eq(user.id, created.userId)).limit(1)
+    if (!existing || existing.image) return
+    const provider = context.context.socialProviders.find((candidate) => candidate.id === created.providerId)
+    if (!provider) return
+    const info = await provider
+      .getUserInfo({
+        accessToken: created.accessToken ? await decryptOAuthToken(created.accessToken, context.context) : undefined,
+        refreshToken: created.refreshToken ? await decryptOAuthToken(created.refreshToken, context.context) : undefined,
+        idToken: created.idToken ?? undefined,
+      })
+      .catch(() => null)
+    if (!info?.user.image) return
+    const stored = await storeProfileImageFromUrl(info.user.image)
+    if (!stored) return
+    const [updated] = await database.update(user).set({ image: stored }).where(eq(user.id, created.userId)).returning()
+    if (updated) await (await auth.$context).internalAdapter.refreshUserSessions(updated)
   }
 
   const auth = betterAuth({
@@ -84,6 +121,7 @@ export function createAuth(database: PraetoriumDatabase, secret: string, storage
     ],
     databaseHooks: {
       user: {
+        create: { before: rehostSocialAvatarOnSignUp },
         update: {
           before: async (data, context) => {
             if (context?.path !== '/update-user') return
@@ -93,7 +131,14 @@ export function createAuth(database: PraetoriumDatabase, secret: string, storage
           },
         },
       },
-      account: { create: { after: async (created) => claimInitialAdmin(created.userId) } },
+      account: {
+        create: {
+          after: async (created, context) => {
+            await claimInitialAdmin(created.userId)
+            await applySocialAvatarIfMissing(created, context)
+          },
+        },
+      },
     },
     /*
      * Limits are per IP, and two people at the same table share one: a pair signing

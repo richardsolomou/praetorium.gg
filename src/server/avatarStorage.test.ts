@@ -1,6 +1,6 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { PROFILE_IMAGE_MAX_LENGTH } from '../authConfig'
-import { isStoredProfileImageUrl, storeProfileImage } from './avatarStorage'
+import { isStoredProfileImageUrl, storeProfileImage, storeProfileImageFromUrl } from './avatarStorage'
 
 const PUBLIC_BASE_URL = 'https://s3.praetorium.gg/praetorium'
 
@@ -13,6 +13,8 @@ const { configuredObjectStore, putIfAbsent, s3PublicBaseUrl } = vi.hoisted(() =>
 vi.mock('./objectStorage', () => ({ configuredObjectStore, putIfAbsent, s3PublicBaseUrl }))
 
 const STORE = { bucket: 'praetorium', publicBaseUrl: PUBLIC_BASE_URL, client: {} as never }
+
+afterEach(() => vi.clearAllMocks())
 
 describe('storeProfileImage', () => {
   it('rejects a format outside the allowed raster types', async () => {
@@ -48,6 +50,61 @@ describe('storeProfileImage', () => {
     const first = await storeProfileImage('data:image/webp;base64,YXZhdGFy')
     const second = await storeProfileImage('data:image/webp;base64,YXZhdGFy')
     expect(first).toBe(second)
+  })
+})
+
+describe('storeProfileImageFromUrl', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('returns null when the instance has no object storage configured, without fetching', async () => {
+    configuredObjectStore.mockReturnValue(null)
+    const fetchSpy = vi.fn()
+    vi.stubGlobal('fetch', fetchSpy)
+    expect(await storeProfileImageFromUrl('https://provider.example/avatar.png')).toBeNull()
+    expect(fetchSpy).not.toHaveBeenCalled()
+  })
+
+  it('downloads and uploads under a content-addressed key', async () => {
+    configuredObjectStore.mockReturnValue(STORE)
+    const bytes = Buffer.from('provider-avatar-bytes')
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(bytes, { status: 200, headers: { 'content-type': 'image/png' } })),
+    )
+    const url = await storeProfileImageFromUrl('https://provider.example/avatar.png')
+    expect(url).toMatch(/^https:\/\/s3\.praetorium\.gg\/praetorium\/avatars\/[0-9a-f]{64}\.png$/)
+    expect(putIfAbsent).toHaveBeenCalledWith(STORE, expect.stringContaining('avatars/'), bytes, 'image/png')
+  })
+
+  it('returns null for a fetch that fails outright', async () => {
+    configuredObjectStore.mockReturnValue(STORE)
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        throw new Error('network error')
+      }),
+    )
+    expect(await storeProfileImageFromUrl('https://provider.example/avatar.png')).toBeNull()
+    expect(putIfAbsent).not.toHaveBeenCalled()
+  })
+
+  it('returns null for a non-OK response', async () => {
+    configuredObjectStore.mockReturnValue(STORE)
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(null, { status: 404 })),
+    )
+    expect(await storeProfileImageFromUrl('https://provider.example/avatar.png')).toBeNull()
+  })
+
+  it('returns null for a content type outside the allowed raster types', async () => {
+    configuredObjectStore.mockReturnValue(STORE)
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(Buffer.from('<svg/>'), { status: 200, headers: { 'content-type': 'image/svg+xml' } })),
+    )
+    expect(await storeProfileImageFromUrl('https://provider.example/avatar.svg')).toBeNull()
+    expect(putIfAbsent).not.toHaveBeenCalled()
   })
 })
 
