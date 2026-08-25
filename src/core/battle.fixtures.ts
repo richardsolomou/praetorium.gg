@@ -24,8 +24,13 @@ export function log(...entries: [PlayerId: string, command: Command][]): LoggedC
 
 export const roster = (name: string): Command => ({ kind: 'attach-roster', roster: { name, text: '10 Intercessors' } })
 
-/** A list built from the catalogue, whose units the battle can then track. */
-export const builtRoster = (name: string, units: string[]): Command => ({
+/**
+ * A list built from the catalogue, whose units the battle can then track.
+ *
+ * `wounds` is left out by default, because most of what is tested here is a squad
+ * counted in models, and a datasheet whose models disagree records none.
+ */
+export const builtRoster = (name: string, units: string[], each: { models?: number; wounds?: number } = {}): Command => ({
   kind: 'attach-roster',
   roster: {
     name,
@@ -36,7 +41,13 @@ export const builtRoster = (name: string, units: string[]): Command => ({
       limit: 2000,
       detachment: 'Flyblown Host',
       disposition: 'reconnaissance',
-      units: units.map((unit, index) => ({ key: `u${index}`, name: unit, points: 100, models: 5 })),
+      units: units.map((unit, index) => ({
+        key: `u${index}`,
+        name: unit,
+        points: 100,
+        models: each.models ?? 5,
+        ...(each.wounds === undefined ? {} : { wounds: each.wounds }),
+      })),
     },
   },
 })

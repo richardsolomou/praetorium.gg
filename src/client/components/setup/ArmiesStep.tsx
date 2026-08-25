@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { GAME_SIZES, PAINTED_ARMY_POINTS, type Command } from '../../../core/battle'
 import { type BattleView } from '../../../core/battleView'
-import { savedRosterPrice } from '../../../server/functions'
+import { savedRosterPrice, unitWounds } from '../../../server/functions'
 import { savedRostersQuery } from '../../queries'
 import { errorMessage } from '../../queryClient'
 import type { Army, Side } from '../../sides'
@@ -38,9 +38,16 @@ export function ArmiesStep({ view, sides, send, pending }: Props) {
   const eligible = chooserLimit === null ? saved : saved.filter((roster) => roster.limit === chooserLimit)
   const attach = useMutation({
     mutationFn: async ({ army, savedRoster }: { army: Army; savedRoster: SavedRoster }) => {
-      const priced = await savedRosterPrice({ data: { id: savedRoster.id } })
+      // What a model of each datasheet can take is asked for beside the price rather
+      // than after it: the picks already name every datasheet, so neither read is
+      // waiting on the other. It is only ever asked here, because it is frozen into
+      // the log from here and never read from the catalogue again.
+      const [priced, wounds] = await Promise.all([
+        savedRosterPrice({ data: { id: savedRoster.id } }),
+        unitWounds({ data: { catalogueId: savedRoster.catalogueId, entryIds: savedRoster.picks.map((pick) => pick.entryId) } }),
+      ])
       if (!priced) throw new Error('That roster could not be loaded.')
-      return { army, roster: battleRoster(savedRoster, priced) }
+      return { army, roster: battleRoster(savedRoster, priced, wounds) }
     },
     onSuccess: ({ army, roster }) => {
       // Cards are settled by the battle, not carried in with the list: attaching a roster

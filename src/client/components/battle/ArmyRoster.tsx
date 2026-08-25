@@ -115,7 +115,7 @@ function BattleUnit({
   send: (command: Command) => void
 }) {
   // A whole unit on the table with nothing to press has nothing to report, so it says nothing.
-  const worthSaying = actionable || unit.destroyed || unit.alive < unit.models || unit.formation !== 'battlefield'
+  const worthSaying = actionable || unit.destroyed || unit.alive < unit.models || unit.damage > 0 || unit.formation !== 'battlefield'
 
   return (
     <UnitCard
@@ -139,10 +139,14 @@ function BattleUnit({
 /**
  * What the battle has done to one unit, and what can be done about it.
  *
- * Models come off one at a time because that is how they come off a table, and the
- * last one taking the unit with it is the domain's rule rather than this screen's:
- * losing the last model and losing the unit are one event. Losing the unit outright
- * is the separate button, for the squad that is wiped in one go.
+ * Two counters, because a table has two: a squad loses whole models, and the model
+ * currently taking damage loses wounds until it goes. A unit shows whichever of them
+ * it actually has — a lone Dreadnought has only wounds, a squad of one-wound infantry
+ * has only models, and a squad of Terminators has both. Losing the unit outright is
+ * the separate button, for the squad that is wiped in one go.
+ *
+ * Neither counter decides anything. Whether a wound takes a model with it is the
+ * domain's rule, so a press sends one command and reads the answer back.
  */
 function UnitStatus({
   unit,
@@ -155,8 +159,9 @@ function UnitStatus({
   actionable: boolean
   send: (command: Command) => void
 }) {
-  const step = (delta: number) => send({ kind: 'wound-unit', unitKey: unit.key, delta, playerId })
   const mark = (destroyed: boolean) => send({ kind: 'set-unit', unitKey: unit.key, destroyed, playerId })
+  // The wounds a squad still has are the front model's; the ones behind it are whole.
+  const wounds = unit.wounds ? unit.wounds - unit.damage : 0
 
   if (unit.destroyed) {
     return (
@@ -182,28 +187,28 @@ function UnitStatus({
       {/* Where a unit is, when it is anywhere but on the table. */}
       {unit.formation === 'battlefield' ? null : <span className="chip shrink-0">{formationLabel(unit.formation)}</span>}
       {unit.models > 1 ? (
-        <span className="flex shrink-0 items-center gap-1.5">
-          {actionable ? (
-            <Button variant="outline" size="icon-xs" aria-label={`Remove a model from ${unit.name}`} onClick={() => step(-1)}>
-              <Minus aria-hidden />
-            </Button>
-          ) : null}
-          <span className="readout text-xs font-semibold">
-            {unit.alive}/{unit.models}
-          </span>
-          <span className={HEADING}>models</span>
-          {actionable ? (
-            <Button
-              variant="outline"
-              size="icon-xs"
-              disabled={unit.alive === unit.models}
-              aria-label={`Return a model to ${unit.name}`}
-              onClick={() => step(1)}
-            >
-              <Plus aria-hidden />
-            </Button>
-          ) : null}
-        </span>
+        <Counter
+          noun="models"
+          left={unit.alive}
+          of={unit.models}
+          whole={unit.alive === unit.models}
+          actionable={actionable}
+          removeLabel={`Remove a model from ${unit.name}`}
+          returnLabel={`Return a model to ${unit.name}`}
+          onStep={(delta) => send({ kind: 'wound-unit', unitKey: unit.key, delta, playerId })}
+        />
+      ) : null}
+      {unit.wounds && unit.wounds > 1 ? (
+        <Counter
+          noun="wounds"
+          left={wounds}
+          of={unit.wounds}
+          whole={unit.alive === unit.models && unit.damage === 0}
+          actionable={actionable}
+          removeLabel={`Take a wound off ${unit.name}`}
+          returnLabel={`Heal a wound on ${unit.name}`}
+          onStep={(delta) => send({ kind: 'damage-unit', unitKey: unit.key, delta, playerId })}
+        />
       ) : null}
       {actionable ? (
         <Button
@@ -217,5 +222,51 @@ function UnitStatus({
         </Button>
       ) : null}
     </>
+  )
+}
+
+/**
+ * One count of what a unit has left, and the two presses that change it.
+ *
+ * `whole` rather than `left === of`, because a squad's front model can be back to
+ * full wounds with three of its fellows already dead, and there is nothing left to
+ * heal on it.
+ */
+function Counter({
+  noun,
+  left,
+  of,
+  whole,
+  actionable,
+  removeLabel,
+  returnLabel,
+  onStep,
+}: {
+  noun: string
+  left: number
+  of: number
+  whole: boolean
+  actionable: boolean
+  removeLabel: string
+  returnLabel: string
+  onStep: (delta: number) => void
+}) {
+  return (
+    <span className="flex shrink-0 items-center gap-1.5">
+      {actionable ? (
+        <Button variant="outline" size="icon-xs" aria-label={removeLabel} onClick={() => onStep(-1)}>
+          <Minus aria-hidden />
+        </Button>
+      ) : null}
+      <span data-count={noun} className="readout text-xs font-semibold">
+        {left}/{of}
+      </span>
+      <span className={HEADING}>{noun}</span>
+      {actionable ? (
+        <Button variant="outline" size="icon-xs" disabled={whole} aria-label={returnLabel} onClick={() => onStep(1)}>
+          <Plus aria-hidden />
+        </Button>
+      ) : null}
+    </span>
   )
 }

@@ -10,8 +10,13 @@ type PricedRoster = NonNullable<Awaited<ReturnType<typeof savedRosterPrice>>>
  * The list as the battle keeps it: the text an opponent reads on any device, and the
  * priced units behind it. Cards are settled by the battle rather than carried in
  * with the list, so nothing about prep comes across here.
+ *
+ * `wounds` names the datasheets whose models all take the same number of them. The
+ * ones missing from it are the squads whose models disagree and the ones this
+ * instance could not read, and the battle counts both in models.
  */
-export function battleRoster(saved: SavedRoster, priced: PricedRoster): Roster {
+export function battleRoster(saved: SavedRoster, priced: PricedRoster, wounds: readonly { entryId: string; wounds: number }[]): Roster {
+  const woundsOf = new Map(wounds.map((entry) => [entry.entryId, entry.wounds]))
   return {
     name: saved.name,
     // Carried so the battle can link back to the list rather than only naming it.
@@ -40,6 +45,7 @@ export function battleRoster(saved: SavedRoster, priced: PricedRoster): Roster {
         name: unit.name,
         points: unit.points,
         models: unit.size.models,
+        ...(woundsOf.has(unit.entryId) ? { wounds: woundsOf.get(unit.entryId) } : {}),
         group: unit.group,
         wargear: unit.wargear,
         enhancements: unit.enhancements,

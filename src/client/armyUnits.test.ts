@@ -10,6 +10,7 @@ const unit = (overrides: Partial<UnitState> & Pick<UnitState, 'key'>): UnitState
   deployed: true,
   formation: 'battlefield',
   alive: overrides.models ?? 5,
+  damage: 0,
   ...overrides,
 })
 

@@ -3,7 +3,7 @@ import { app } from './app'
 import { routeSlug } from '../core/slug'
 import { attachedUnit } from '../core/attach'
 import { buildUnit, type RosterPick } from '../core/roster'
-import { datasheetIn, datasheetInBySlug, datasheetViewsIn, rulesReferencedIn } from './catalogue'
+import { datasheetIn, datasheetInBySlug, datasheetViewsIn, rulesReferencedIn, woundsOf } from './catalogue'
 import { isReferenceDatasheet } from './catalogueIndex'
 import { describeDatasheetAbilities } from './datasheetDescriptions'
 import { detachmentReference } from './detachmentReference'
@@ -26,6 +26,7 @@ import {
   savedRosterDatasheetSchema,
   terrainReferencesSchema,
   unitsSchema,
+  unitWoundsSchema,
 } from './schemas'
 
 /** How the community data is doing, so a fresh instance can say so rather than look broken. */
@@ -235,6 +236,33 @@ function rosterDatasheet(
     app().rules(),
   )
 }
+
+/**
+ * What one model of each of an army's datasheets can take, asked once as it is fielded.
+ *
+ * Read here rather than in pricing because pricing runs on every keystroke in the
+ * builder and this does not: a battle needs the number once, at the moment the list
+ * is attached, and it is frozen into the log with the rest of the list from then on.
+ *
+ * A datasheet whose models disagree, or that this instance cannot read, is simply
+ * absent from the answer. The unit is then counted in models, which is what it was
+ * before anyone asked.
+ */
+export const unitWounds = createServerFn({ method: 'GET' })
+  .validator(unitWoundsSchema)
+  .handler(({ data }) =>
+    rpc(() => {
+      const loaded = app().catalogue()
+      if (!loaded) return []
+      // Each datasheet once, however many of it the list fields, and resolved against
+      // the catalogue that holds it so an allied unit is read from its own book.
+      return [...new Set(data.entryIds)].flatMap((entryId) => {
+        const catalogueId = loaded.index.catalogueOf.get(entryId) ?? data.catalogueId
+        const wounds = woundsOf(datasheetIn(loaded, catalogueId, entryId)?.profiles ?? [])
+        return wounds === null ? [] : [{ entryId, wounds }]
+      })
+    }),
+  )
 
 export const datasheetBySlug = createServerFn({ method: 'GET' })
   .validator(datasheetSlugSchema)
