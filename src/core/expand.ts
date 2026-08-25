@@ -129,7 +129,13 @@ const kindOf = (option: Option, index: CatalogueIndex) => (resolve(option.defini
  * place, so the group holds exactly what it is allowed to. The group need not be
  * in the tree yet — an optional one is not until something is put in it.
  */
-export function withChoice(selection: Selection, key: string, optionId: string, index: CatalogueIndex): Selection {
+export function withChoice(
+  selection: Selection,
+  key: string,
+  optionId: string,
+  index: CatalogueIndex,
+  context: EvaluateOptions = {},
+): Selection {
   const path = key.split('/')
   const groupId = path.at(-1)
   const group = groupId ? index.definitions.get(groupId) : undefined
@@ -142,7 +148,10 @@ export function withChoice(selection: Selection, key: string, optionId: string, 
   if (resolve(group, index).type !== undefined) return withCounts(selection, [{ path, count: optionId ? 1 : 0 }])
 
   const occupants = childrenOf(resolve(group, index), index)
-  const options = new Set(occupants.filter((option) => requiredCount(option.definition, index) === 0).map((option) => option.id))
+  const roster = [...(context.roster ?? []), selection]
+  const options = new Set(
+    occupants.filter((option) => requiredCount(option.definition, index, { ...context, roster }) === 0).map((option) => option.id),
+  )
   const present = withPlaceFor(selection, path)
   if (!optionId) {
     return updateSelection(present, path, (held) => ({ ...held, selections: held.selections?.filter((child) => !options.has(child.id)) }))

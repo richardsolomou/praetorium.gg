@@ -111,7 +111,7 @@ function assemble(
   // Choices first: an option can bring its own bodies, so sizing has to see them.
   const chosen = Object.entries(choices ?? {})
     .toSorted(([left], [right]) => left.split('/').length - right.split('/').length)
-    .reduce((tree, [key, optionId]) => withUnitChoice(tree, key, optionId, index), base)
+    .reduce((tree, [key, optionId]) => withUnitChoice(tree, key, optionId, index, context), base)
   const fixedSizes = modelCompositionSizes(entryId, chosen, index, context)
   const requestedModels =
     models === undefined || !fixedSizes.length

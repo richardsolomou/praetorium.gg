@@ -10,7 +10,7 @@
 
 import type { CatalogueIndex, Definition } from './catalogue'
 import { childrenOf, MAX_DEPTH, maximumCount, repeatedCarrierOn, repeatedModelOn, requiredCount, resolve, UNBOUNDED } from './definitions'
-import type { Selection } from './evaluate'
+import type { EvaluateOptions, Selection } from './evaluate'
 import { expand, withChoice } from './expand'
 import { allAt, at, replaceAt, updateSelection, withCounts, withoutSelectionAt, withPlaceFor, withSpread } from './selection'
 import { modelCountOf, sizeOf } from './unitSize'
@@ -45,11 +45,17 @@ export function withUnitSpread(
   return spreadRepeatedGroup(selection, path, counts, repeating, index)
 }
 
-export function withUnitChoice(selection: Selection, key: string, optionId: string, index: CatalogueIndex): Selection {
+export function withUnitChoice(
+  selection: Selection,
+  key: string,
+  optionId: string,
+  index: CatalogueIndex,
+  options: EvaluateOptions = {},
+): Selection {
   const path = key.split('/')
   const carrier = withExpandedCarrier(selection, path, index)
   if (!selectedCarriers(carrier, path, index)) return selection
-  const chosen = withChoice(carrier, key, optionId, index)
+  const chosen = withChoice(carrier, key, optionId, index, options)
   return keepingTheSquad(selection, chosen, path, index)
 }
 
