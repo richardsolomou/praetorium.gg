@@ -1,4 +1,5 @@
 import type { Datasheet } from '../../../server/catalogue'
+import { modelRowCount, modelRowSources, type ModelKind, type ModelRow } from '../../../core/modelKinds'
 
 /**
  * What the loadout pane is drawing, and the reasoning that does not need a screen.
@@ -17,13 +18,16 @@ export type LoadoutChoice = {
   room: number
   /** The squad answers this once for all of it, however many models carry it. */
   uniform: boolean
+  owner: { id: string; name: string; profile: string | null } | null
   kind?: 'enhancement' | 'upgrade'
   options: {
     id: string
     name: string
+    pieces?: string[]
     points: number
     count: number
     max: number
+    replacements?: { choiceKey: string; optionId: string }[]
     description?: string | null
     keywordRules?: Datasheet['keywordRules']
   }[]
@@ -31,14 +35,7 @@ export type LoadoutChoice = {
 
 export type LoadoutOption = LoadoutChoice['options'][number]
 
-export type LoadoutModel = {
-  name: string
-  fixed: { name: string; count?: number }[]
-  members: { id: string; choiceKey: string | null; baseCount: number }[]
-  rows: { name: string; choiceKey: string; optionId: string }[]
-  /** Swaps the datasheet allows, one row per alternative, always listed. */
-  swaps?: { key: string; gives: string[]; takes: string[]; count: number; max: number; free: boolean }[]
-}
+export type LoadoutModel = ModelKind
 
 export type LoadoutUnit = {
   entryId: string
@@ -57,6 +54,58 @@ export type LoadoutUnit = {
 }
 
 export type WeaponProfileData = Datasheet['profiles'][number]
+
+export type LoadoutRowSource = { choice: LoadoutChoice; option: LoadoutOption }
+
+export function loadoutRowSources(row: ModelRow, choices: readonly LoadoutChoice[]): LoadoutRowSource[] {
+  return modelRowSources(row).flatMap((source) => {
+    const choice = choices.find((candidate) => candidate.key === source.choiceKey)
+    const option = choice?.options.find((candidate) => candidate.id === source.optionId)
+    return choice && option ? [{ choice, option }] : []
+  })
+}
+
+export const loadoutRowCount = (row: ModelRow, choices: readonly LoadoutChoice[]) =>
+  modelRowCount(row, ({ choiceKey, optionId }) => {
+    const choice = choices.find((candidate) => candidate.key === choiceKey)
+    return choice?.options.find((candidate) => candidate.id === optionId)?.count ?? 0
+  })
+
+export function loadoutRowBand(row: ModelRow, profiles: readonly WeaponProfileData[]) {
+  const matched = weaponProfilesFor(row, profiles)
+  if (matched.some((profile) => profile.type === 'Ranged Weapons')) return 'ranged'
+  if (matched.some((profile) => profile.type === 'Melee Weapons')) return 'melee'
+  return `choice:${row.choiceKey}`
+}
+
+export function replacementChoice(
+  row: ModelRow,
+  model: LoadoutModel,
+  choices: readonly LoadoutChoice[],
+  modelCount: number,
+): LoadoutChoice | null {
+  if (loadoutRowCount(row, choices) >= modelCount) return null
+  for (const candidate of model.rows) {
+    if (candidate === row || !candidate.pieces?.some((piece) => sameWeapon(row.name, piece))) continue
+    const selected = loadoutRowSources(candidate, choices).find(
+      ({ choice, option }) => choice.owner && choice.room === 1 && choice.chosen === option.id,
+    )
+    if (selected) return selected.choice
+  }
+  return null
+}
+
+export function choiceRemoval(choice: LoadoutChoice, option: LoadoutOption, replacesAnotherRow: boolean): string | null {
+  if (option.count <= 0 || choice.chosen !== option.id) return null
+  return choice.optional || (choice.owner && replacesAnotherRow) ? '' : null
+}
+
+export const canAddPooledOption = (option: LoadoutOption, donor?: LoadoutRowSource) =>
+  option.count < option.max ||
+  Boolean(
+    donor &&
+    option.replacements?.some((replacement) => replacement.choiceKey === donor.choice.key && replacement.optionId === donor.option.id),
+  )
 
 /** What a change to one option leaves every option in its group holding. */
 export type SpreadCounts = Record<string, number>
@@ -105,6 +154,11 @@ export function uniqueWeaponProfiles(profiles: readonly WeaponProfileData[]) {
     seen.add(signature)
     return true
   })
+}
+
+export function weaponProfilesFor(option: { name: string; pieces?: readonly string[] }, profiles: readonly WeaponProfileData[]) {
+  const names = [option.name, ...(option.pieces ?? [])]
+  return uniqueWeaponProfiles(profiles.filter((profile) => names.some((name) => weaponMatches(name, profile.name))))
 }
 
 /**

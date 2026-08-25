@@ -1,10 +1,17 @@
 import type { Datasheet } from '../../../server/catalogue'
 import {
+  canAddPooledOption,
   changeBy,
+  choiceRemoval,
   type LoadoutChoice,
   type LoadoutModel,
   type LoadoutOption,
+  loadoutRowBand,
+  loadoutRowCount,
+  loadoutRowSources,
   ordered,
+  replacementChoice,
+  sameWeapon,
   showLoadoutEntry,
   type SpreadCounts,
   spreadHandlers,
@@ -59,6 +66,10 @@ export function ModelCard({
     0,
   )
 
+  const sourcesOf = (row: LoadoutModel['rows'][number]) => loadoutRowSources(row, choices)
+  const rowCount = (row: LoadoutModel['rows'][number]) => loadoutRowCount(row, choices)
+  const bandOf = (row: LoadoutModel['rows'][number]) => loadoutRowBand(row, weapons)
+
   /**
    * Every weapon this kind of model counts by is one of its bodies holding that
    * weapon, so they all draw on the same pool however the catalogue files them.
@@ -66,12 +77,9 @@ export function ModelCard({
    * pyrecannon and pick his bolt rifle back up, because the two are written in
    * different places.
    */
-  const shared = model.rows.flatMap((row) => {
-    const found = optionOf(row.choiceKey, row.optionId)
-    return found && (found.choice.room > 1 || found.choice.carried) ? [{ row, ...found }] : []
-  })
-  const held = shared.reduce((total, entry) => total + entry.option.count, 0)
-
+  const shared = model.rows.flatMap((row) =>
+    sourcesOf(row).flatMap((found) => (found.choice.room > 1 || found.choice.carried ? [{ row, ...found }] : [])),
+  )
   const move = (from: typeof shared, to: typeof shared) => {
     const wanted = new Map<string, Record<string, number>>()
     for (const [entry, delta] of [...from.map((one) => [one, -1] as const), ...to.map((one) => [one, 1] as const)]) {
@@ -83,44 +91,42 @@ export function ModelCard({
   }
 
   const spend = (taker: (typeof shared)[number]) => {
-    if (taker.option.count >= taker.option.max) return null
     // A group with no room left gives up one of its own: the veteran holding the
     // pyrecannon is the one who puts it down for a heavy bolter, and asking a
     // squadmate with a bolt rifle instead would put a second special weapon in a
     // squad allowed one.
     const kin = shared.filter((entry) => entry.choice.key === taker.choice.key)
     const full = kin.reduce((total, entry) => total + entry.option.count, 0) >= taker.choice.room
-    const pool = full ? kin : shared
-    if (!full && held < count) return move([], [taker])
+    const band = bandOf(taker.row)
+    const pool = full ? kin : shared.filter((entry) => bandOf(entry.row) === band)
+    const occupied = model.rows.filter((row) => bandOf(row) === band).reduce((total, row) => total + rowCount(row), 0)
     const giver = pool
-      .filter((entry) => entry !== taker && entry.option.count > 0)
+      .filter((entry) => entry !== taker && entry.option.count > 0 && canAddPooledOption(taker.option, entry))
       .toSorted((one, other) => other.option.count - one.option.count)[0]
+    if (!full && occupied < count) return canAddPooledOption(taker.option) ? move([], [taker]) : null
     if (giver) return move([giver], [taker])
     // A kind with nobody to ask can still be armed while its group has room: the
     // model is what joins the squad rather than something a body already there picks
     // up, and where it joins the squad's own ranks a squadmate gives up their place
     // for it. The Plague Marine holding the meltagun is one of the five.
-    return full ? null : move([], [taker])
+    return !full && canAddPooledOption(taker.option) ? move([], [taker]) : null
   }
 
   const free = (giver: (typeof shared)[number]) => {
     if (giver.option.count <= 0) return null
-    // The weapon being put down is what makes room for the one picked up, so while
-    // the kind is full a squadmate counts as able to take it even though the
-    // selection as it stands allows no more. Only the group's own capacity is a
-    // ceiling: nine veterans with bolt rifles cannot become ten.
-    const headroom = (entry: (typeof shared)[number]) => Math.max(entry.option.max, held >= count ? entry.choice.room : 0)
     const taker = shared
-      .filter((entry) => entry !== giver && entry.option.count < headroom(entry))
+      .filter((entry) => entry !== giver && canAddPooledOption(entry.option, giver))
       .toSorted((one, other) => other.option.count - one.option.count)[0]
     return taker ? move([giver], [taker]) : move([giver], [])
   }
 
   /** The handler for a row's button, or nothing when that row cannot give or take. */
   const pooled = (row: LoadoutModel['rows'][number], decide: (entry: (typeof shared)[number]) => ReturnType<typeof move> | null) => {
-    const entry = shared.find((candidate) => candidate.row === row)
-    const changes = entry ? decide(entry) : null
-    return changes ? () => changes.forEach(([key, counts]) => onSpread(key, counts)) : undefined
+    for (const entry of shared.filter((candidate) => candidate.row === row)) {
+      const changes = decide(entry)
+      if (changes) return () => changes.forEach(([key, counts]) => onSpread(key, counts))
+    }
+    return undefined
   }
 
   /**
@@ -223,13 +229,34 @@ export function ModelCard({
           const found = optionOf(row.choiceKey, row.optionId)
           if (!found) return null
           const { choice, option } = found
-          if (!showLoadoutEntry(option.count, showOptions)) return null
-          const taken = choice.chosen === option.id
+          const displayed = rowCount(row)
+          if (!showLoadoutEntry(displayed, showOptions)) return null
+          const replacement = replacementChoice(row, model, choices, count)
+          const sources = sourcesOf(row)
+          const direct = sources.filter(({ choice: source }) => source.room <= 1 && !source.carried)
+          const replacesAnotherRow = Boolean(
+            row.pieces?.some((piece) => model.rows.some((candidate) => candidate !== row && sameWeapon(candidate.name, piece))),
+          )
+          const addDirect = direct.find(
+            ({ choice: source, option: candidate }) => source.chosen !== candidate.id && candidate.count < candidate.max,
+          )
+          const removeDirect = direct
+            .map((source) => ({ source, replacement: choiceRemoval(source.choice, source.option, replacesAnotherRow) }))
+            .find(({ replacement: candidate }) => candidate !== null)
+          const add =
+            displayed >= count
+              ? undefined
+              : replacement
+                ? () => onChoose(replacement.key, '')
+                : (pooled(row, spend) ?? (addDirect ? () => onChoose(addDirect.choice.key, addDirect.option.id) : undefined))
+          const remove =
+            pooled(row, free) ?? (removeDirect ? () => onChoose(removeDirect.source.choice.key, removeDirect.replacement ?? '') : undefined)
           return (
             <WargearRow
               key={`${row.choiceKey}/${row.optionId}/${row.name}`}
               name={row.name}
-              count={option.count}
+              pieces={row.pieces}
+              count={displayed}
               points={option.points}
               weapons={weapons}
               abilities={abilities}
@@ -241,7 +268,7 @@ export function ModelCard({
                   // than counted: taking it hands it to the whole squad at once.
                   <PickControl
                     name={row.name}
-                    count={option.count}
+                    count={displayed}
                     editable={editable}
                     onPick={
                       option.count > 0
@@ -252,19 +279,7 @@ export function ModelCard({
                     }
                   />
                 ) : (
-                  <PoolStepper
-                    name={row.name}
-                    count={option.count}
-                    editable={editable}
-                    {...(choice.room > 1 || choice.carried
-                      ? { onAdd: pooled(row, spend), onRemove: pooled(row, free) }
-                      : {
-                          onAdd: taken ? undefined : () => onChoose(choice.key, option.id),
-                          // A group that must hold something cannot be emptied, only
-                          // pointed elsewhere, so offering to empty it would lie.
-                          onRemove: taken && choice.optional ? () => onChoose(choice.key, '') : undefined,
-                        })}
-                  />
+                  <PoolStepper name={row.name} count={displayed} editable={editable} onAdd={add} onRemove={remove} />
                 )
               }
             />

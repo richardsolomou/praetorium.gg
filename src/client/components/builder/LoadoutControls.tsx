@@ -10,8 +10,7 @@ import {
   type LoadoutOption,
   type SpreadCounts,
   spreadHandlers,
-  uniqueWeaponProfiles,
-  weaponMatches,
+  weaponProfilesFor,
   wargearMatches,
 } from './loadoutModel'
 import type { WeaponProfileData } from './loadoutModel'
@@ -130,6 +129,7 @@ export function Stepper({
 
 export function WargearRow({
   name,
+  pieces,
   count,
   points,
   weapons,
@@ -140,13 +140,14 @@ export function WargearRow({
   highlightSelection = true,
 }: Described & {
   name: string
+  pieces?: readonly string[]
   count: number
   points?: number
   control?: ReactNode
   note?: string
   highlightSelection?: boolean
 }) {
-  const matching = uniqueWeaponProfiles(weapons.filter((weapon) => weaponMatches(name, weapon.name)))
+  const matching = weaponProfilesFor({ name, pieces }, weapons)
   return (
     <li className={count && highlightSelection ? 'bg-azure/5' : undefined}>
       <div className="flex items-center gap-2 px-2.5 py-1.5">
@@ -162,9 +163,9 @@ export function WargearRow({
         )}
       </div>
       {matching.map((weapon) => (
-        <WeaponProfile key={weapon.id} weapon={weapon} rules={rules} showName={false} embedded />
+        <WeaponProfile key={weapon.id} weapon={weapon} rules={rules} showName={matching.length > 1} showCount={false} embedded />
       ))}
-      <OptionAbilities optionName={name} abilities={abilities} rules={rules} />
+      <OptionAbilities option={{ name, pieces: pieces ? [...pieces] : undefined }} abilities={abilities} rules={rules} />
     </li>
   )
 }
@@ -347,8 +348,8 @@ export function EitherChoice({
             highlightSelection={highlightSelection}
             onSelect={editable ? () => onChoose(choice.key, option.id) : undefined}
           >
-            <OptionProfiles optionName={option.name} weapons={weapons} rules={rules} />
-            <OptionAbilities optionName={option.name} abilities={abilities} rules={rules} />
+            <OptionProfiles option={option} weapons={weapons} rules={rules} />
+            <OptionAbilities option={option} abilities={abilities} rules={rules} />
             {option.description ? (
               <div className="border-t border-edge px-2.5 pb-2">
                 <RuleText text={option.description} rules={option.keywordRules ?? rules} className={PROSE} />
@@ -408,8 +409,8 @@ export function SpreadChoice({
                 onRemove={press(less(option))}
               />
             </div>
-            <OptionProfiles optionName={option.name} weapons={weapons} rules={rules} />
-            <OptionAbilities optionName={option.name} abilities={abilities} rules={rules} />
+            <OptionProfiles option={option} weapons={weapons} rules={rules} />
+            <OptionAbilities option={option} abilities={abilities} rules={rules} />
           </li>
         ))}
       </ul>
@@ -418,24 +419,25 @@ export function SpreadChoice({
 }
 
 function OptionAbilities({
-  optionName,
+  option,
   abilities,
   rules,
 }: {
-  optionName: string
+  option: Pick<LoadoutOption, 'name' | 'pieces'>
   abilities: Datasheet['abilities']
   rules: Datasheet['keywordRules']
 }) {
+  const names = [option.name, ...(option.pieces ?? [])]
   const matching = abilities.filter(
     (ability) =>
       (ability.kind === 'datasheet' || ability.kind === 'upgrade' || ability.kind === 'wargear') &&
-      wargearMatches(optionName, ability.name),
+      names.some((name) => wargearMatches(name, ability.name)),
   )
   return matching.length ? (
     <div data-slot="option-abilities" className="space-y-2 border-t border-edge px-2.5 pb-2">
       {matching.map((ability) => (
         <div key={ability.id}>
-          {ability.name.toLocaleLowerCase() === optionName.toLocaleLowerCase() ? null : <p className="eyebrow pt-2">{ability.name}</p>}
+          {ability.name.toLocaleLowerCase() === option.name.toLocaleLowerCase() ? null : <p className="eyebrow pt-2">{ability.name}</p>}
           {ability.description ? <RuleText text={ability.description} rules={rules} className={PROSE} /> : null}
         </div>
       ))}
@@ -444,19 +446,19 @@ function OptionAbilities({
 }
 
 function OptionProfiles({
-  optionName,
+  option,
   weapons,
   rules,
 }: {
-  optionName: string
+  option: Pick<LoadoutOption, 'name' | 'pieces'>
   weapons: readonly WeaponProfileData[]
   rules: Datasheet['keywordRules']
 }) {
-  const matching = uniqueWeaponProfiles(weapons.filter((weapon) => weaponMatches(optionName, weapon.name)))
+  const matching = weaponProfilesFor(option, weapons)
   return matching.length ? (
     <div className="border-t border-edge">
       {matching.map((weapon) => (
-        <WeaponProfile key={weapon.id} weapon={weapon} rules={rules} showName={matching.length > 1} embedded />
+        <WeaponProfile key={weapon.id} weapon={weapon} rules={rules} showName={matching.length > 1} showCount={false} embedded />
       ))}
     </div>
   ) : null

@@ -219,18 +219,22 @@ export function WeaponProfile({
   weapon,
   rules,
   showName = true,
+  showCount = true,
   embedded = false,
 }: {
   weapon: Profile
   rules: Datasheet['keywordRules']
   showName?: boolean
+  showCount?: boolean
   embedded?: boolean
 }) {
   const keywords = weapon.values.find((value) => value.name === 'Keywords')
   const keywordText = keywords?.value.trim()
   return (
     <div className={`${embedded ? '' : 'border border-edge bg-card '}px-2 py-1.5`}>
-      {showName ? <h3 className="text-xs">{weapon.count && weapon.count > 1 ? `${weapon.count}× ${weapon.name}` : weapon.name}</h3> : null}
+      {showName ? (
+        <h3 className="text-xs">{showCount && weapon.count && weapon.count > 1 ? `${weapon.count}× ${weapon.name}` : weapon.name}</h3>
+      ) : null}
       <div className={`${showName ? 'mt-1 ' : ''}grid grid-cols-6 gap-1`}>
         {weapon.values
           .filter((value) => value.name !== 'Keywords')

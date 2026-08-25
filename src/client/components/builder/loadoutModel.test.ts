@@ -1,13 +1,19 @@
 import { describe, expect, it } from 'vitest'
 import {
+  canAddPooledOption,
+  choiceRemoval,
   type LoadoutChoice,
+  type LoadoutModel,
+  loadoutRowCount,
   ordered,
   orderedChoices,
+  replacementChoice,
   sameWeapon,
   showLoadoutEntry,
   spreadHandlers,
   uniqueWeaponProfiles,
   weaponMatches,
+  weaponProfilesFor,
   wargearMatches,
   wholeSquadTakes,
 } from './loadoutModel'
@@ -22,6 +28,7 @@ const choice = (options: LoadoutChoice['options'], room: number, optional = fals
   carried: false,
   room,
   uniform: false,
+  owner: null,
   options,
 })
 
@@ -84,6 +91,24 @@ describe('matching a wargear name to what describes it', () => {
     expect(weaponMatches('Cyclone Missile Launcher & Storm Bolter', '➤ Cyclone missile launcher - krak')).toBe(true)
   })
 
+  it('finds the selected weapons nested inside a composite option', () => {
+    const profiles = [
+      weapon('Bolt pistol', 'Ranged Weapons'),
+      weapon('Master-crafted bolter', 'Ranged Weapons'),
+      weapon('Close combat weapon', 'Melee Weapons'),
+    ]
+
+    expect(
+      weaponProfilesFor(
+        {
+          name: 'Bolt Pistol, Master-crafted Bolter, Melee Weapon',
+          pieces: ['Bolt pistol', 'Master-crafted bolter', 'Close combat weapon'],
+        },
+        profiles,
+      ).map((profile) => profile.name),
+    ).toEqual(['Bolt pistol', 'Master-crafted bolter', 'Close combat weapon'])
+  })
+
   it('matches a rule the same way a profile is matched', () => {
     expect(wargearMatches('Storm shield', 'Storm shield')).toBe(true)
     expect(wargearMatches('Storm shield and thunder hammer', 'Storm shield')).toBe(true)
@@ -106,6 +131,78 @@ describe('matching a wargear name to what describes it', () => {
     ]
 
     expect(uniqueWeaponProfiles(profiles).map(({ id }) => id)).toEqual(['standard', 'improved'])
+  })
+})
+
+describe('reading model-card rows', () => {
+  const owner = { id: 'terminator', name: 'Terminator', profile: 'Terminator' }
+  const group = (key: string, chosen: string, ...options: LoadoutChoice['options']): LoadoutChoice => ({
+    key,
+    name: key,
+    chosen,
+    optional: false,
+    carried: false,
+    room: 1,
+    uniform: false,
+    owner,
+    options,
+  })
+
+  it('adds the counts of same-named rows from separate choices', () => {
+    const row = {
+      name: 'Accursed weapon',
+      choiceKey: 'left',
+      optionId: 'left-weapon',
+      alternatives: [{ choiceKey: 'right', optionId: 'right-weapon' }],
+    }
+    const choices = [
+      group('left', 'left-weapon', option('left-weapon', 1, 1)),
+      group('right', 'right-weapon', option('right-weapon', 1, 1)),
+    ]
+
+    expect(loadoutRowCount(row, choices)).toBe(2)
+  })
+
+  it('replaces only a composite option that contains the requested weapon', () => {
+    const stormBolter = { name: 'Storm Bolter', choiceKey: 'guns', optionId: 'storm-bolter' }
+    const chainfist = { name: 'Chainfist', choiceKey: 'fists', optionId: 'chainfist' }
+    const cyclone = {
+      name: 'Cyclone Missile Launcher & Storm Bolter',
+      choiceKey: 'heavy',
+      optionId: 'cyclone',
+      pieces: ['Cyclone missile launcher', 'Storm bolter'],
+    }
+    const model: LoadoutModel = {
+      name: 'Terminator',
+      fixed: [],
+      members: [],
+      rows: [stormBolter, chainfist, cyclone],
+    }
+    const choices = [
+      group('guns', 'storm-bolter', option('storm-bolter', 3, 5)),
+      group('fists', 'power-fist', option('power-fist', 4, 5), option('chainfist', 0, 5)),
+      group('heavy', 'cyclone', option('cyclone', 1, 1)),
+    ]
+
+    expect(replacementChoice(stormBolter, model, choices, 5)?.key).toBe('heavy')
+    expect(replacementChoice(chainfist, model, choices, 5)).toBeNull()
+  })
+
+  it('removes optional choices and model-specific composite replacements', () => {
+    const selected = option('cyclone', 1, 1)
+
+    expect(choiceRemoval({ ...group('heavy', 'cyclone', selected), optional: true }, selected, false)).toBe('')
+    expect(choiceRemoval(group('heavy', 'cyclone', selected), selected, true)).toBe('')
+    expect(choiceRemoval(group('fist', 'power-fist', selected), selected, false)).toBeNull()
+  })
+
+  it('allows one full-pool replacement without exceeding the resulting maximum', () => {
+    const donor = { choice: group('guns', 'rifle', option('rifle', 1, 1)), option: option('rifle', 1, 1) }
+    const special = { ...option('special', 0, 0), replacements: [{ choiceKey: 'guns', optionId: 'rifle' }] }
+
+    expect(canAddPooledOption(special, donor)).toBe(true)
+    expect(canAddPooledOption(option('special', 1, 1), donor)).toBe(false)
+    expect(canAddPooledOption(special)).toBe(false)
   })
 })
 

@@ -8,10 +8,13 @@ import {
   kotcDatasheetRepeatable,
   kotcUnitExclusions,
 } from '../core/battle'
-import { targetOf } from '../core/catalogue'
-import { evaluateForces, type Selection } from '../core/evaluate'
-import { type ModelKind, modelKindsOf } from '../core/modelKinds'
+import { type CatalogueIndex, targetOf } from '../core/catalogue'
+import { evaluate, evaluateForces, type Selection } from '../core/evaluate'
+import { type ModelKind, modelKindsOf, modelRowCount, modelRowSources, optionPieces } from '../core/modelKinds'
 import { buildUnit } from '../core/roster'
+import { allAt } from '../core/selection'
+import { type ChoiceOptions, unitChoices } from '../core/unitChoices'
+import { withUnitSpread } from '../core/unitSpread'
 import { modelCountOf } from '../core/unitSize'
 import { wargearOf } from '../core/wargear'
 import { app } from './app'
@@ -53,6 +56,79 @@ function rosterForces(loaded: LoadedCatalogue, data: PriceInput, detachmentSelec
     forceSelections.set(owner, force)
   }
   return { picked, forceSelections }
+}
+
+type ReplacementChoice = {
+  key: string
+  options: readonly { id: string; count: number; max: number }[]
+}
+
+type ReplacementSource = { choiceKey: string; optionId: string }
+
+const replacementKey = ({ choiceKey, optionId }: ReplacementSource) => `${choiceKey}\0${optionId}`
+
+function legalReplacementPairs(
+  entryId: string,
+  selection: Selection,
+  choices: readonly ReplacementChoice[],
+  models: readonly ModelKind[],
+  index: CatalogueIndex,
+  options: ChoiceOptions,
+): ReadonlyMap<string, ReplacementSource[]> {
+  type Found = { choice: ReplacementChoice; option: ReplacementChoice['options'][number] }
+  const find = ({ choiceKey, optionId }: ReplacementSource): Found | null => {
+    const choice = choices.find((candidate) => candidate.key === choiceKey)
+    const option = choice?.options.find((candidate) => candidate.id === optionId)
+    return choice && option ? { choice, option } : null
+  }
+  const evaluated = (candidate: Selection) =>
+    evaluate([...(options.roster ?? []), candidate], index, { primaryCatalogueId: options.primaryCatalogueId })
+  let baseline: Set<string> | null = null
+  const legal = (taker: Found, donor: Found) => {
+    const wanted = new Map<string, Record<string, number>>()
+    for (const [found, delta] of [
+      [donor, -1],
+      [taker, 1],
+    ] as const) {
+      const counts = wanted.get(found.choice.key) ?? {}
+      counts[found.option.id] = found.option.count + delta
+      wanted.set(found.choice.key, counts)
+    }
+    let candidate = selection
+    for (const [key, counts] of wanted) candidate = withUnitSpread(candidate, key, counts, index)
+    const rebuilt = unitChoices(entryId, candidate, index, options)
+    const rebuiltCount = (found: Found) =>
+      rebuilt.find((choice) => choice.key === found.choice.key)?.options.find((option) => option.id === found.option.id)?.count ?? 0
+    if (rebuiltCount(taker) !== taker.option.count + 1 || rebuiltCount(donor) !== donor.option.count - 1) return false
+    baseline ??= new Set(evaluated(selection).errors.map((error) => `${error.entryId}\0${error.message}`))
+    return evaluated(candidate).errors.every((error) => baseline?.has(`${error.entryId}\0${error.message}`))
+  }
+
+  const found = new Map<string, ReplacementSource[]>()
+  for (const model of models) {
+    for (const takerRow of model.rows.filter((row) => row.pieces?.length)) {
+      const donors = model.rows.filter(
+        (row) => row !== takerRow && takerRow.pieces?.some((piece) => routeSlug(piece) === routeSlug(row.name)),
+      )
+      for (const takerSource of modelRowSources(takerRow)) {
+        const taker = find(takerSource)
+        if (!taker || taker.option.count < taker.option.max) continue
+        for (const donorRow of donors) {
+          for (const donorSource of modelRowSources(donorRow)) {
+            const donor = find(donorSource)
+            if (!donor || donor.option.count <= 0 || !legal(taker, donor)) continue
+            const key = replacementKey(takerSource)
+            const replacements = found.get(key) ?? []
+            if (!replacements.some((source) => replacementKey(source) === replacementKey(donorSource))) {
+              replacements.push(donorSource)
+              found.set(key, replacements)
+            }
+          }
+        }
+      }
+    }
+  }
+  return found
 }
 
 /**
@@ -233,9 +309,16 @@ export function calculateRosterPrice(data: PriceInput, loaded = app().catalogue(
     units: picked.map((unit) => {
       const catalogueId = data.units[unit.key]?.catalogueId ?? loaded.index.catalogueOf.get(unit.entryId) ?? data.catalogueId
       const deployment = deploymentRules(abilityNamesIn(loaded, catalogueId, unit.entryId))
-      const choices: ((typeof unit.choices)[number] & { kind?: 'enhancement' | 'upgrade' })[] = unit.choices.map((choice) => {
-        if (!choice.name.toLowerCase().includes('enhancement')) return choice
-        const choiceOptions = choice.options ?? []
+      const describedChoices: ((typeof unit.choices)[number] & { kind?: 'enhancement' | 'upgrade' })[] = unit.choices.map((choice) => {
+        const choiceOptions = (choice.options ?? []).map((option) => {
+          const path = choice.key.split('/')
+          const nested = allAt(unit.selection, [...path, option.id])
+          const direct = allAt(unit.selection, path).filter((selection) => selection.id === option.id)
+          const selected = nested.length ? nested : direct
+          const pieces = optionPieces(option.id, loaded.index, options, selected)
+          return pieces ? { ...option, pieces } : option
+        })
+        if (!choice.name.toLowerCase().includes('enhancement')) return { ...choice, options: choiceOptions }
         const kind = choiceOptions.every((option) => upgradeNames.has(routeSlug(option.name)))
           ? ('upgrade' as const)
           : ('enhancement' as const)
@@ -248,14 +331,8 @@ export function calculateRosterPrice(data: PriceInput, loaded = app().catalogue(
           }),
         }
       })
-      const specialChoices = new Set(
-        choices
-          .filter((choice) => choice.kind)
-          .flatMap((choice) => choice.options.filter((option) => option.count > 0).map((option) => routeSlug(option.name))),
-      )
       const catalogued = wargearOf(unit.selection, loaded.index)
       const automaticEnhancements = catalogued.filter((piece) => enhancementNames.has(routeSlug(piece.name))).map((piece) => piece.name)
-      const specialSelections = new Set([...specialChoices, ...automaticEnhancements.map(routeSlug)])
       const models = unitModels(
         unit.entryId,
         unit.selection,
@@ -265,9 +342,26 @@ export function calculateRosterPrice(data: PriceInput, loaded = app().catalogue(
         options,
         catalogued,
         data.units[unit.key]?.swaps ?? {},
-        unit.choices,
+        describedChoices,
       )
-      const wargear = heldWargear(models, unit.choices, catalogued)
+      const replacementPairs = legalReplacementPairs(unit.entryId, unit.selection, describedChoices, models, loaded.index, {
+        ...options,
+        roster: detachmentSelection,
+      })
+      const choices = describedChoices.map((choice) => ({
+        ...choice,
+        options: choice.options.map((option) => {
+          const replacements = replacementPairs.get(replacementKey({ choiceKey: choice.key, optionId: option.id }))
+          return replacements?.length ? { ...option, replacements } : option
+        }),
+      }))
+      const specialChoices = new Set(
+        choices
+          .filter((choice) => choice.kind)
+          .flatMap((choice) => choice.options.filter((option) => option.count > 0).map((option) => routeSlug(option.name))),
+      )
+      const specialSelections = new Set([...specialChoices, ...automaticEnhancements.map(routeSlug)])
+      const wargear = heldWargear(models, choices, catalogued)
       return {
         key: unit.key,
         entryId: unit.entryId,
@@ -496,7 +590,7 @@ export function heldWargear(
     )
     for (const piece of kind.fixed) add(piece.name, piece.count ?? bodies)
     for (const row of kind.rows) {
-      const count = countOf(row.choiceKey, row.optionId)
+      const count = modelRowCount(row, ({ choiceKey, optionId }) => countOf(choiceKey, optionId))
       for (const name of row.pieces ?? [row.name]) add(name, count)
     }
     for (const swap of kind.swaps ?? []) for (const take of swap.takes) add(take, swap.count)

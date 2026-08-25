@@ -223,6 +223,27 @@ describe('what a unit is carrying', () => {
     expect(heldWargear(models, choices, [])).toEqual([{ name: 'Combi-weapon', count: 3 }])
   })
 
+  it('adds the same weapon selected through more than one choice', () => {
+    const models = [
+      kind({
+        rows: [
+          {
+            name: 'Accursed weapon',
+            choiceKey: 'pistol',
+            optionId: 'pistol-accursed',
+            alternatives: [{ choiceKey: 'bolter', optionId: 'bolter-accursed' }],
+          },
+        ],
+      }),
+    ]
+    const choices = [
+      { key: 'pistol', options: [{ id: 'pistol-accursed', count: 1 }] },
+      { key: 'bolter', options: [{ id: 'bolter-accursed', count: 1 }] },
+    ]
+
+    expect(heldWargear(models, choices, [])).toEqual([{ name: 'Accursed weapon', count: 2 }])
+  })
+
   it('follows a free swap, naming what is taken and not what is given up', () => {
     const models = [
       kind({
