@@ -63,6 +63,7 @@ export class Repository {
     allyIds?: string[]
     opponentIds?: string[]
     initialCommand?: Command
+    initialCommands?: Command[]
     now: number
   }) {
     await this.database.transaction(async (tx) => {
@@ -77,21 +78,28 @@ export class Repository {
       await tx
         .insert(battleUsers)
         .values(seats.map((seat, index) => ({ battleId: input.id, userId: seat.id, side: seat.side, joinedAt: input.now + index })))
-      if (input.initialCommand) {
+      const initialCommands = input.initialCommands ?? (input.initialCommand ? [input.initialCommand] : [])
+      const log: LoggedCommand[] = []
+      for (const [index, command] of initialCommands.entries()) {
         const state = reduceBattle(
           seats.map((seat) => seat.id),
-          [],
+          log,
           seats.map((seat) => seat.side),
         )
-        const refusal = validate(state, input.userId, input.initialCommand)
-        if (refusal) throw new Error(`new battle settings were refused: ${refusal}`)
-        await tx.insert(commands).values({
-          battleId: input.id,
-          seq: 1,
-          userId: input.userId,
-          at: input.now,
-          body: JSON.stringify(input.initialCommand),
-        })
+        const refusal = validate(state, input.userId, command)
+        if (refusal) throw new Error(`new battle command was refused: ${refusal}`)
+        log.push({ seq: index + 1, by: input.userId, at: input.now, command })
+      }
+      if (log.length) {
+        await tx.insert(commands).values(
+          log.map((entry) => ({
+            battleId: input.id,
+            seq: entry.seq,
+            userId: entry.by,
+            at: entry.at,
+            body: JSON.stringify(entry.command),
+          })),
+        )
       }
     })
   }
@@ -815,6 +823,27 @@ export class Repository {
       )
       .limit(1)
     return row?.snapshot ?? null
+  }
+
+  async leagueBattleRosters(token: string, userIds: string[]) {
+    const [league] = await this.database
+      .select({ id: leagues.id, revealedAt: leagues.revealedAt })
+      .from(leagues)
+      .where(eq(leagues.token, token))
+      .limit(1)
+    if (!league) return undefined
+    const entries = await this.database
+      .select({ userId: leagueEntries.userId, snapshot: leagueEntries.rosterSnapshot })
+      .from(leagueEntries)
+      .where(
+        and(
+          eq(leagueEntries.leagueId, league.id),
+          inArray(leagueEntries.userId, userIds),
+          eq(leagueEntries.status, 'accepted'),
+          isNotNull(leagueEntries.rosterSnapshot),
+        ),
+      )
+    return { revealedAt: league.revealedAt, entries }
   }
 
   async setRosterVisibility(id: string, userId: string, visibility: 'private' | 'unlisted', now: number) {

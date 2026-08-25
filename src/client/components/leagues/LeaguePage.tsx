@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Link } from '@tanstack/react-router'
-import { Check, Clipboard, Eye, FileLock2, LockKeyhole, ShieldCheck, UserPlus, X } from 'lucide-react'
+import { Link, useNavigate } from '@tanstack/react-router'
+import { Check, Clipboard, Eye, FileLock2, LockKeyhole, ShieldCheck, Swords, UserPlus, X } from 'lucide-react'
 import { useState } from 'react'
 import {
   AlertDialog,
@@ -14,22 +14,22 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { BattleRosterSnapshot } from '../BattleRosterSnapshot'
 import { PlayerAvatar } from '../PlayerAvatar'
 import { errorMessage } from '../../queryClient'
-import { leagueQuery, leagueRosterQuery, leaguesQuery, meQuery, savedRostersQuery } from '../../queries'
-import { joinLeague, moderateLeagueEntry, revealLeague, submitLeagueRoster } from '../../../server/functions'
+import { battlesQuery, gameReferencesQuery, leagueQuery, leaguesQuery, meQuery, savedRostersQuery } from '../../queries'
+import { createLeagueBattle, joinLeague, moderateLeagueEntry, revealLeague, submitLeagueRoster } from '../../../server/functions'
 import { LEAGUE_MEMBER_MAX } from '../../../core/league'
 
 export function LeaguePage({ token }: { token: string }) {
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
   const { data: me } = useQuery(meQuery())
   const { data: league } = useQuery(leagueQuery(token))
   const { data: rosters = [] } = useQuery(savedRostersQuery())
+  const { data: references } = useQuery(gameReferencesQuery())
   const [choosing, setChoosing] = useState(false)
   const [revealing, setRevealing] = useState(false)
   const [removing, setRemoving] = useState<{ userId: string; name: string } | null>(null)
-  const [viewing, setViewing] = useState<{ userId: string; name: string } | null>(null)
   const [copied, setCopied] = useState(false)
   const refresh = async () => {
     await Promise.all([
@@ -59,9 +59,14 @@ export function LeaguePage({ token }: { token: string }) {
       await refresh()
     },
   })
-  const rosterQuery = leagueRosterQuery(token, viewing?.userId ?? '')
-  const { data: revealedRoster, isLoading: rosterLoading } = useQuery(rosterQuery)
-
+  const battle = useMutation({
+    mutationFn: (opponentId: string) =>
+      createLeagueBattle({ data: { token, opponentId, missionPackId: references?.packs[0]?.id ?? null } }),
+    onSuccess: async ({ token: battleToken }) => {
+      await queryClient.invalidateQueries({ queryKey: battlesQuery().queryKey })
+      await navigate({ to: '/battles/$token', params: { token: battleToken } })
+    },
+  })
   if (!league) return null
   const isOwner = me?.id === league.ownerId
   const ownEntry = league.entries.find((entry) => entry.userId === me?.id)
@@ -75,7 +80,7 @@ export function LeaguePage({ token }: { token: string }) {
     accepted.length > 0 &&
     accepted.every((entry) => entry.submitted) &&
     (league.playerLimit === null || accepted.length === league.playerLimit)
-  const problem = join.error ?? moderate.error
+  const problem = join.error ?? moderate.error ?? battle.error
 
   return (
     <main className="w-full">
@@ -182,9 +187,29 @@ export function LeaguePage({ token }: { token: string }) {
                     </div>
                   ) : null}
                   {league.revealedAt && entry.status === 'accepted' && entry.submitted ? (
-                    <Button variant="outline" size="sm" onClick={() => setViewing({ userId: entry.userId, name: entry.name })}>
-                      <Eye /> View roster
-                    </Button>
+                    <div className="flex gap-1">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        nativeButton={false}
+                        render={
+                          <Link
+                            to="/rosters/$id"
+                            params={{ id: entry.userId }}
+                            search={{ league: token }}
+                            target="_blank"
+                            rel="noreferrer"
+                          />
+                        }
+                      >
+                        <Eye /> View roster
+                      </Button>
+                      {ownEntry?.status === 'accepted' && entry.userId !== me?.id ? (
+                        <Button size="sm" disabled={battle.isPending} onClick={() => battle.mutate(entry.userId)}>
+                          <Swords /> Start battle
+                        </Button>
+                      ) : null}
+                    </div>
                   ) : null}
                 </div>
               ))}
@@ -259,23 +284,6 @@ export function LeaguePage({ token }: { token: string }) {
         onClose={() => setChoosing(false)}
         onChoose={(id) => submit.mutate(id)}
       />
-      <Dialog open={viewing !== null} onOpenChange={(open) => !open && setViewing(null)}>
-        <DialogContent className="h-[85dvh] max-h-[85dvh] rounded-none border border-edge bg-panel p-3 text-bone sm:max-w-5xl">
-          <DialogHeader className="shrink-0">
-            <DialogTitle className="uppercase">{viewing?.name}’s roster</DialogTitle>
-            <DialogDescription className="text-dim">The roster sealed before the organizer revealed the field.</DialogDescription>
-          </DialogHeader>
-          <div className="min-h-0 flex-1 overflow-hidden">
-            {revealedRoster ? (
-              <BattleRosterSnapshot roster={revealedRoster} frozen />
-            ) : rosterLoading ? (
-              <p>Loading roster…</p>
-            ) : (
-              <p>Roster unavailable.</p>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
       <AlertDialog open={revealing} onOpenChange={setRevealing}>
         <AlertDialogContent className="rounded-none border border-edge bg-panel text-bone">
           <AlertDialogHeader>

@@ -2,4 +2,4 @@
 'praetorium.gg': minor
 ---
 
-Add public and private leagues with configurable player limits, replaceable sealed roster submissions, and organizer-controlled reveal.
+Add public and private leagues with configurable player limits, sealed roster battles, and organizer-controlled reveal.

@@ -14,6 +14,70 @@ import { battleReport } from './battleReport'
 import { ALICE, BOB, CAROL, NAMES, PLAYERS, advance, builtRoster, log, roster, started, text, turns } from './battle.fixtures'
 
 describe('setup', () => {
+  const leagueBattle = () =>
+    reduceBattle(
+      PLAYERS,
+      log(
+        [
+          ALICE,
+          {
+            kind: 'configure-battle',
+            limit: 2000,
+            missionPackId: null,
+            terrainLayoutId: null,
+            twistId: null,
+            clockLimitMinutes: null,
+          },
+        ],
+        [ALICE, builtRoster('Alice army', ['Intercessors'])],
+        [BOB, builtRoster('Bob army', ['Plague Marines'])],
+        [ALICE, { kind: 'lock-league-rosters', leagueToken: 'league' }],
+      ),
+    )
+
+  it('shares the league that sealed the battle rosters', () => {
+    expect(battleView({ token: 'league-battle' }, NAMES, leagueBattle(), ALICE).leagueToken).toBe('league')
+  })
+
+  it('refuses to replace a sealed league roster', () => {
+    expect(validate(leagueBattle(), ALICE, builtRoster('Replacement', ['Terminators']))).toBe('league rosters are sealed')
+  })
+
+  it('refuses to remove a sealed league roster', () => {
+    expect(validate(leagueBattle(), ALICE, { kind: 'detach-roster' })).toBe('league rosters are sealed')
+  })
+
+  it('refuses to reset sealed league rosters', () => {
+    expect(validate(leagueBattle(), ALICE, { kind: 'reset-setup' })).toBe('league rosters are sealed')
+  })
+
+  it('refuses to change a sealed league battle size', () => {
+    expect(
+      validate(leagueBattle(), ALICE, {
+        kind: 'configure-battle',
+        limit: 1000,
+        missionPackId: null,
+        terrainLayoutId: null,
+        twistId: null,
+        clockLimitMinutes: null,
+      }),
+    ).toBe('league roster battle size is sealed')
+  })
+
+  it('refuses to add another side to a sealed league battle', () => {
+    expect(
+      validate(leagueBattle(), ALICE, {
+        kind: 'configure-battle',
+        limit: 2000,
+        missionPackId: null,
+        terrainLayoutId: null,
+        twistId: null,
+        teamBattle: true,
+        clockLimitMinutes: null,
+      }),
+    ).toBe('league battle sides are sealed')
+  })
+
   it('shares the current setup section with every player', () => {
     const state = reduceBattle(PLAYERS, log([BOB, { kind: 'set-setup-step', step: 2 }]))
 

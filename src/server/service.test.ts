@@ -3,6 +3,7 @@ import type { PraetoriumConnection, PraetoriumDatabase } from '../db/connection'
 import { openTestDatabase } from '../db/testDatabase'
 import { Repository } from '../db/repository'
 import { battles, battleUsers, user } from '../db/schema'
+import type { Roster } from '../core/battle'
 import { PraetoriumService } from './service'
 import type { LoadedRules } from './rules'
 import { createBattleSchema } from './schemas'
@@ -72,6 +73,91 @@ async function view(token: string, playerId: string) {
   if (screen.kind !== 'battle') throw new Error('expected a seat')
   return screen.view
 }
+
+const leagueSnapshot = (name: string, limit = 2_000): Roster => ({
+  name,
+  text: `${name} · ${limit} pts`,
+  built: {
+    catalogueId: 'catalogue',
+    revision: 'sealed-revision',
+    limit,
+    detachment: null,
+    disposition: null,
+    units: [{ key: `${name}-unit`, name: `${name} unit`, points: 80, models: 5 }],
+  },
+})
+
+async function revealedLeague(aliceRoster = leagueSnapshot('Alice sealed'), opponentRoster = leagueSnapshot('Dave sealed')) {
+  await enrol('dave', 'Dave')
+  const { token } = await service.createLeague('alice', {
+    name: 'League',
+    description: '',
+    visibility: 'private',
+    admission: 'automatic',
+    playerLimit: 2,
+  })
+  await service.joinLeague(token, 'alice')
+  await service.joinLeague(token, 'dave')
+  for (const [userId, id, roster] of [
+    ['alice', 'alice-roster', aliceRoster],
+    ['dave', 'dave-roster', opponentRoster],
+  ] as const) {
+    await service.saveRoster(userId, {
+      id,
+      name: roster.name,
+      catalogueId: 'catalogue',
+      detachmentIds: [],
+      disposition: null,
+      limit: roster.built?.limit ?? 2_000,
+      picks: [],
+      prep: null,
+      visibility: 'private',
+      source: 'editable',
+    })
+    const saved = await service.ownRoster(userId, id)
+    if (!saved) throw new Error('expected saved league roster')
+    await service.submitLeagueRoster(token, userId, saved, roster)
+  }
+  await service.revealLeague(token, 'alice')
+  return { token, aliceRoster, opponentRoster }
+}
+
+it('creates a battle from the exact two sealed league snapshots', async () => {
+  const league = await revealedLeague()
+  const battle = await service.createLeagueBattle('alice', league.token, 'dave', null)
+  const screen = await view(battle.token, 'alice')
+  const rosters = await Promise.all([service.leagueRoster(league.token, 'alice'), service.leagueRoster(league.token, 'dave')])
+
+  expect(screen.players.map((player) => [player.id, player.roster])).toEqual([
+    ['alice', rosters[0]],
+    ['dave', rosters[1]],
+  ])
+})
+
+it('links a sealed-roster battle back to its league', async () => {
+  const league = await revealedLeague()
+  const battle = await service.createLeagueBattle('alice', league.token, 'dave', null)
+
+  expect((await view(battle.token, 'alice')).leagueToken).toBe(league.token)
+})
+
+it('refuses to replace a league roster through the battle service', async () => {
+  const league = await revealedLeague()
+  const battle = await service.createLeagueBattle('alice', league.token, 'dave', null)
+  const screen = await view(battle.token, 'alice')
+  const { result } = await service.submit(battle.token, 'alice', screen.seq, {
+    kind: 'attach-roster',
+    roster: leagueSnapshot('Replacement'),
+  })
+
+  expect(result).toEqual({ outcome: 'refused', reason: 'league rosters are sealed' })
+})
+
+it('requires league battle rosters to use the same battle size', async () => {
+  const league = await revealedLeague(leagueSnapshot('Alice sealed'), leagueSnapshot('Dave sealed', 1_000))
+
+  expect(await refusalStatus(() => service.createLeagueBattle('alice', league.token, 'dave', null))).toBe(409)
+})
 
 it('stores a readable league snapshot without the saved roster capability', async () => {
   const { token } = await service.createLeague('alice', {

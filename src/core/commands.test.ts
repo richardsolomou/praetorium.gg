@@ -62,6 +62,13 @@ describe('command schema', () => {
     expect(commandSchema.parse({ kind: 'set-setup-step', step: 3 })).toEqual({ kind: 'set-setup-step', step: 3 })
   })
 
+  it('accepts a server-created league roster lock', () => {
+    expect(commandSchema.parse({ kind: 'lock-league-rosters', leagueToken: 'league' })).toEqual({
+      kind: 'lock-league-rosters',
+      leagueToken: 'league',
+    })
+  })
+
   it('rejects a setup section outside the wizard', () => {
     // Bound by the constant rather than a number, so adding a section moves both together.
     expect(commandSchema.safeParse({ kind: 'set-setup-step', step: SETUP_STEP_MAX }).success).toBe(true)

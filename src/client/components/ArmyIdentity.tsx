@@ -153,12 +153,11 @@ function IdentityLine({
   )
 }
 
-/** The list itself, when the battle knows which saved list it was. */
 function ArmyLink({ army, token, linked }: { army: Army; token: string; linked: boolean }) {
   if (!army.roster) return <span className="text-faint">No list</span>
-  if (!army.rosterId || !linked) return <span className="truncate">{army.roster.name}</span>
+  if (!linked) return <span className="truncate">{army.roster.name}</span>
   return (
-    <Link to="/rosters/$id" params={{ id: army.rosterId }} search={{ battle: token }} className="truncate hover:underline">
+    <Link to="/rosters/$id" params={{ id: army.rosterId ?? army.playerId }} search={{ battle: token }} className="truncate hover:underline">
       {army.roster.name}
     </Link>
   )

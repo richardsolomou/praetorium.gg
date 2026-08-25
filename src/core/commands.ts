@@ -64,6 +64,7 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
   }),
   z.object({ kind: z.literal('reset-setup') }),
   z.object({ kind: z.literal('detach-roster'), playerId: id.optional() }),
+  z.object({ kind: z.literal('lock-league-rosters'), leagueToken: id }),
   z.object({ kind: z.literal('set-setup-step'), step: z.number().int().min(0).max(SETUP_STEP_MAX) }),
   z.object({ kind: z.literal('set-attacker'), attackerId: id }),
   z.object({ kind: z.literal('set-first-turn'), firstPlayerId: id }),

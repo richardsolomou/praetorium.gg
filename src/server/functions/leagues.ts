@@ -4,7 +4,14 @@ import { app } from '../app'
 import { currentUserId, requireUser } from '../playerSession'
 import { calculateRosterPrice } from '../pricing'
 import { mutationRpc, rpc } from '../rpc'
-import { createLeagueSchema, leagueRosterSchema, moderateLeagueEntrySchema, submitLeagueRosterSchema, tokenSchema } from '../schemas'
+import {
+  createLeagueBattleSchema,
+  createLeagueSchema,
+  leagueRosterSchema,
+  moderateLeagueEntrySchema,
+  submitLeagueRosterSchema,
+  tokenSchema,
+} from '../schemas'
 
 export const listLeagues = createServerFn({ method: 'GET' }).handler(() => rpc(async () => app().service.leagues(await currentUserId())))
 
@@ -79,3 +86,14 @@ export const revealLeague = createServerFn({ method: 'POST' })
 export const openLeagueRoster = createServerFn({ method: 'GET' })
   .validator(leagueRosterSchema)
   .handler(({ data }) => rpc(() => app().service.leagueRoster(data.token, data.userId)))
+
+export const createLeagueBattle = createServerFn({ method: 'POST' })
+  .validator(createLeagueBattleSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const player = await requireUser()
+      const result = await app().service.createLeagueBattle(player.id, data.token, data.opponentId, data.missionPackId)
+      await app().telemetry.capture(player.id, 'league_battle_created')
+      return result
+    }),
+  )

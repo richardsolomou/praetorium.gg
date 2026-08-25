@@ -41,6 +41,7 @@ export const moderateLeagueEntrySchema = z.object({
 })
 export const submitLeagueRosterSchema = z.object({ token, rosterId: id })
 export const leagueRosterSchema = z.object({ token, userId: id })
+export const createLeagueBattleSchema = z.object({ token, opponentId: id, missionPackId: id.nullable().default(null) })
 /** A roster read may name the battle that entitles the reader to it. */
 export const rosterInBattleSchema = z.object({ id, battle: token.optional() })
 /**

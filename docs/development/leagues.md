@@ -17,3 +17,9 @@ The snapshot stays in `league_entries.roster_snapshot`. The league detail read r
 ## Reveal
 
 Reveal is one transaction owned by the organizer. It succeeds only when at least one entrant is accepted and every accepted entrant has submitted. It rejects unresolved approval requests, sets `revealed_at`, closes joining and submission, then makes every accepted snapshot readable. Reveal cannot be undone.
+
+## Battles
+
+After reveal, an accepted entrant may start a 1v1 battle against any other accepted entrant. They do not need a friendship because the revealed league is the shared boundary. This is an ad hoc battle, not a pairing or schedule.
+
+Battle creation copies both stored league snapshots into the command log and then appends `lock-league-rosters` in the same transaction. The lock records the league token and prevents roster replacement, roster removal, setup reset, battle-size changes, and adding another side. The league roster page and battle therefore read the same sealed roster data; later saved-roster or catalogue changes cannot replace it.
