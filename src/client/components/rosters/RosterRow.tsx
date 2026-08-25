@@ -4,12 +4,8 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import { GAME_SIZES } from '../../../core/battle'
-import { formatDate } from '../../dates'
-import { FactionLabel, type FactionPresentation } from '../FactionMark'
 import type { RosterActions, SavedRoster } from './rosterLibrary'
-
-type Faction = FactionPresentation & { detachments: { id: string; name: string }[] }
+import { RosterSummary, type RosterSummaryFaction } from './RosterSummary'
 
 /**
  * One saved list in the library: what it is, what it costs, and what can be done to it.
@@ -27,7 +23,7 @@ export function RosterRow({
   points,
 }: {
   roster: SavedRoster
-  faction?: Faction
+  faction?: RosterSummaryFaction
   actions: RosterActions
   origin: string
   onEdit: () => void
@@ -36,8 +32,6 @@ export function RosterRow({
   points?: number | null
 }) {
   const [menuOpen, setMenuOpen] = useState(false)
-  const detachments = roster.detachmentIds.map((id) => faction?.detachments.find((entry) => entry.id === id)?.name).filter(Boolean)
-  const size = GAME_SIZES.find((entry) => entry.limit === roster.limit)
   const items = { roster, actions, origin, onEdit, onDelete }
 
   return (
@@ -47,26 +41,9 @@ export function RosterRow({
           <article data-roster={roster.name} className="flex items-center gap-2 border border-edge bg-panel p-2 hover:border-azure" />
         }
       >
-        <Link to="/rosters/$id" params={{ id: roster.id }} className="min-w-0 flex-1 p-1 text-left">
-          <span className="block truncate font-bold uppercase">{roster.name}</span>
-          <span className="mt-1 flex flex-wrap gap-1">
-            {faction ? <FactionLabel faction={faction} chip /> : null}
-            {detachments.map((name) => (
-              <span key={name} className="chip">
-                {name}
-              </span>
-            ))}
-          </span>
-          <span className="mt-1 block text-xs text-dim">
-            11th edition · {size?.name ?? `${roster.limit} points`} · {roster.picks.length} units · updated {formatDate(roster.updatedAt)}
-          </span>
+        <Link to="/rosters/$id" params={{ id: roster.id }} className="flex min-w-0 flex-1 flex-wrap items-center gap-2 p-1">
+          <RosterSummary roster={roster} faction={faction} points={points} />
         </Link>
-        <span className="shrink-0 text-right">
-          <span className="readout block text-lg font-bold">
-            {points ?? '—'}/{roster.limit}
-          </span>
-          <span className="text-xs text-dim">{roster.visibility === 'private' ? 'Private' : 'Unlisted'}</span>
-        </span>
         <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
           <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label={`Actions for ${roster.name}`} />}>
             <EllipsisVertical />
