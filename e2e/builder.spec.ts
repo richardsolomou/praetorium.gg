@@ -1689,6 +1689,37 @@ test('a specialist filed apart from its squad can still be armed', async ({ page
   await page.screenshot({ path: 'test-results/specialist-filed-apart.png', fullPage: true })
 })
 
+test('Plague Marine cards and exports omit replaced default wargear', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 })
+  await openBuilder(page, 'Death Guard', /Champions of Contagion/)
+  await add(page, 'Plague Marines')
+  const card = page.locator('[data-unit="Plague Marines"]')
+  await card.getByRole('button', { name: /^Plague Marines/ }).click()
+
+  const loadout = page.locator('aside[aria-label="Loadout"]')
+  const champion = loadout.locator('section').filter({ hasText: 'Plague Champion' })
+  await waitForRosterSave(page, () => champion.getByRole('button', { name: 'More Power fist' }).click())
+  await waitForRosterSave(page, () => champion.getByRole('button', { name: 'More Plasma gun' }).click())
+
+  const heavy = loadout.locator('section').filter({ hasText: 'Plague Marine w/ heavy plague weapon' })
+  await waitForRosterSave(page, () => heavy.getByRole('button', { name: 'More Plague Marine w/ heavy plague weapon' }).click())
+  await waitForRosterSave(page, () => heavy.getByRole('button', { name: 'More Plague Marine w/ heavy plague weapon' }).click())
+  const spewer = loadout.locator('section').filter({ hasText: 'Plague Marine w/ plague spewer' })
+  await waitForRosterSave(page, () => spewer.getByRole('button', { name: 'More Plague Marine w/ plague spewer' }).click())
+  await waitForRosterSave(page, () => loadout.getByRole('button', { name: 'More Plasma gun' }).last().click())
+
+  await expect(card).toContainText('4x Plague knives')
+  await expect(card).not.toContainText('Boltgun')
+  await shot(card, 'test-results/plague-marines-replaced-wargear.png')
+
+  await page.getByRole('button', { name: 'Roster actions' }).click()
+  await page.getByRole('menuitem', { name: 'Export GW text' }).click()
+  const exported = page.getByRole('dialog', { name: 'Games Workshop text' }).locator('pre')
+  await expect(exported).toContainText('4x Plague knives')
+  await expect(exported).not.toContainText('Boltgun')
+  await shot(exported, 'test-results/plague-marines-replaced-wargear-export.png')
+})
+
 test('Death Guard champions expose their legal wargear', async ({ page }) => {
   await page.setViewportSize({ width: 720, height: 1200 })
   await openBuilder(page, 'Death Guard', /Champions of Contagion/)
