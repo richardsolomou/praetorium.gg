@@ -4,7 +4,14 @@ import type { RpcLogger } from 'ras-stack/server'
 import { app } from './app'
 import { requireMutationOrigin } from './mutationOrigin'
 
+/** Only a deployed instance reports to the shared telemetry project. */
+const reportsToTelemetry = process.env.NODE_ENV === 'production'
+
 const reportRpcError: RpcLogger = (error, context, request) => {
+  if (!reportsToTelemetry) {
+    console.error({ event: 'server_function_failed', ...context, error })
+    return
+  }
   void app().telemetry.log({
     body: 'server_function_failed',
     severityText: 'error',
