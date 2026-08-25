@@ -674,6 +674,77 @@ describe('the profile modifiers on a datasheet', () => {
     })
   })
 
+  it('shows an ability granted to a unit by a selected upgrade', () => {
+    const book = bookOf({
+      sharedRules: [{ id: 'scouts-5', name: 'Scouts 5"', description: 'Make a Scout move of up to 5".' }],
+      selectionEntries: [
+        {
+          id: 'warriors',
+          name: 'Warriors',
+          type: 'unit',
+          selectionEntries: [
+            {
+              id: 'enlivened-sentinels',
+              name: 'Enlivened Sentinels',
+              type: 'upgrade',
+              profiles: [
+                {
+                  id: 'enlivened-sentinels-rule',
+                  name: 'Enlivened Sentinels',
+                  typeName: 'Abilities',
+                  characteristics: [{ name: 'Description', $text: 'This unit has Scouts 5".' }],
+                },
+              ],
+              modifiers: [{ type: 'add', field: 'add-info', value: 'scouts-5', scope: 'parent', affects: 'group' }],
+            },
+          ],
+        },
+      ],
+    })
+    const selections = [{ id: 'warriors', selections: [{ id: 'enlivened-sentinels' }] }]
+
+    expect(datasheetIn(book, 'cat', 'warriors', { selections, unitSelectionIndex: 0 })?.abilities).toContainEqual({
+      id: 'granted:enlivened-sentinels-rule',
+      name: 'Scouts 5"',
+      source: 'Enlivened Sentinels',
+      description: null,
+      kind: 'core',
+    })
+  })
+
+  it('does not infer an ability from a conditional structured grant', () => {
+    const book = bookOf({
+      sharedRules: [{ id: 'scouts-6', name: 'Scouts 6"', description: 'Make a Scout move of up to 6".' }],
+      selectionEntries: [
+        {
+          id: 'unit',
+          name: 'Unit',
+          type: 'unit',
+          profiles: [
+            {
+              id: 'conditional-rule',
+              name: 'Conditional rule',
+              typeName: 'Abilities',
+              characteristics: [{ name: 'Description', $text: 'This unit has Scouts 6".' }],
+            },
+          ],
+          modifiers: [
+            {
+              type: 'add',
+              field: 'add-info',
+              value: 'scouts-6',
+              conditions: [{ type: 'atLeast', value: 1, field: 'selections', scope: 'roster', childId: 'condition' }],
+            },
+          ],
+        },
+      ],
+    })
+
+    expect(datasheetIn(book, 'cat', 'unit', { selections: [{ id: 'unit' }], unitSelectionIndex: 0 })?.abilities).not.toContainEqual(
+      expect.objectContaining({ name: 'Scouts 6"', kind: 'core' }),
+    )
+  })
+
   it('shows an invulnerable save set by selected wargear on a blank characteristic', () => {
     const book = bookOf({
       selectionEntries: [
