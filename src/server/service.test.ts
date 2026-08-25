@@ -127,6 +127,50 @@ async function revealedLeague(
   return { token, eventToken, aliceRoster, opponentRoster }
 }
 
+async function revealedTeamLeague() {
+  const { token, eventToken } = await service.createLeague('alice', {
+    name: 'Team league',
+    description: '',
+    visibility: 'private',
+    admission: 'automatic',
+    playerLimit: 3,
+    format: '2v1',
+    rosterLimit: 2_000,
+  })
+  for (const userId of ['alice', 'bob', 'carol']) await service.joinLeague(token, userId)
+  await service.assignLeagueRosterRequirement(token, 'alice', 'alice', 2_000)
+  await service.assignLeagueRosterRequirement(token, 'alice', 'bob', 1_000)
+  await service.assignLeagueRosterRequirement(token, 'alice', 'carol', 1_000)
+  for (const [userId, limit] of [
+    ['alice', 2_000],
+    ['bob', 1_000],
+    ['carol', 1_000],
+  ] as const) {
+    await saveAndSealLeagueRoster(token, userId, limit)
+  }
+  await service.revealLeague(token, 'alice')
+  return { token, eventToken }
+}
+
+async function saveAndSealLeagueRoster(token: string, userId: string, limit: number, suffix = '') {
+  const id = `${userId}-${limit}${suffix}-team-roster`
+  await service.saveRoster(userId, {
+    id,
+    name: `${userId} team roster`,
+    catalogueId: 'catalogue',
+    detachmentIds: [],
+    disposition: null,
+    limit,
+    picks: [],
+    prep: null,
+    visibility: 'private',
+    source: 'editable',
+  })
+  const saved = await service.ownRoster(userId, id)
+  if (!saved) throw new Error('expected saved team roster')
+  await service.submitLeagueRoster(token, userId, saved, leagueSnapshot(`${userId} sealed`, limit))
+}
+
 it('creates a battle from the exact two sealed league snapshots', async () => {
   const league = await revealedLeague()
   const battle = await service.createLeagueBattle('alice', league.token, 'dave', null)
@@ -149,6 +193,199 @@ it('creates a battle from the exact two sealed league snapshots', async () => {
   ])
 })
 
+it('creates a 2v1 league battle when the solo entrant opens it', async () => {
+  const league = await revealedTeamLeague()
+
+  const battle = await service.createLeagueBattle('alice', league.token, 'bob', null, league.eventToken, undefined, 'carol')
+  const screen = await view(battle.token, 'alice')
+
+  expect(screen.players.map((player) => [player.id, player.side, player.roster?.built?.limit])).toEqual([
+    ['alice', 0, 2_000],
+    ['bob', 1, 1_000],
+    ['carol', 1, 1_000],
+  ])
+})
+
+it('creates a 2v1 league battle when an allied entrant opens it', async () => {
+  const league = await revealedTeamLeague()
+
+  const battle = await service.createLeagueBattle('bob', league.token, 'alice', null, league.eventToken, 'carol')
+  const screen = await view(battle.token, 'bob')
+
+  expect(screen.players.map((player) => [player.id, player.side])).toEqual([
+    ['bob', 0],
+    ['carol', 0],
+    ['alice', 1],
+  ])
+})
+
+it('refuses a 2v1 battle whose assigned roles do not form one solo side and one allied side', async () => {
+  const league = await revealedTeamLeague()
+
+  expect(await refusalStatus(() => service.createLeagueBattle('bob', league.token, 'carol', null, league.eventToken, 'alice'))).toBe(409)
+})
+
+it('requires an assigned 2v1 roster size and clears a seal when that assignment changes', async () => {
+  const { token } = await service.createLeague('alice', {
+    name: 'Team league',
+    description: '',
+    visibility: 'private',
+    admission: 'automatic',
+    playerLimit: null,
+    format: '2v1',
+    rosterLimit: 2_000,
+  })
+  await service.joinLeague(token, 'bob')
+  await service.saveRoster('bob', {
+    id: 'bob-team-roster',
+    name: 'Bob team roster',
+    catalogueId: 'catalogue',
+    detachmentIds: [],
+    disposition: null,
+    limit: 1_000,
+    picks: [],
+    prep: null,
+    visibility: 'private',
+    source: 'editable',
+  })
+  const saved = await service.ownRoster('bob', 'bob-team-roster')
+  if (!saved) throw new Error('expected saved team roster')
+
+  expect(await refusalStatus(() => service.submitLeagueRoster(token, 'bob', saved, leagueSnapshot('Bob sealed', 1_000)))).toBe(409)
+  await service.assignLeagueRosterRequirement(token, 'alice', 'bob', 1_000)
+  await service.saveRoster('bob', {
+    id: 'bob-wrong-size-roster',
+    name: 'Bob wrong size',
+    catalogueId: 'catalogue',
+    detachmentIds: [],
+    disposition: null,
+    limit: 2_000,
+    picks: [],
+    prep: null,
+    visibility: 'private',
+    source: 'editable',
+  })
+  const wrongSize = await service.ownRoster('bob', 'bob-wrong-size-roster')
+  if (!wrongSize) throw new Error('expected wrong-size roster')
+  expect(await refusalStatus(() => service.submitLeagueRoster(token, 'bob', wrongSize, leagueSnapshot('Wrong size', 2_000)))).toBe(409)
+  await service.submitLeagueRoster(token, 'bob', saved, leagueSnapshot('Bob sealed', 1_000))
+  await service.assignLeagueRosterRequirement(token, 'alice', 'bob', 2_000)
+
+  expect((await service.league(token, 'bob'))?.entries[0]).toEqual(
+    expect.objectContaining({ requiredLimit: 2_000, submitted: false, rosterName: null }),
+  )
+})
+
+it('only lets the organizer assign sizes before reveal', async () => {
+  const { token } = await service.createLeague('alice', {
+    name: 'Team league',
+    description: '',
+    visibility: 'private',
+    admission: 'automatic',
+    playerLimit: null,
+    format: '2v1',
+    rosterLimit: 2_000,
+  })
+  await service.joinLeague(token, 'bob')
+
+  expect(await refusalStatus(() => service.assignLeagueRosterRequirement(token, 'bob', 'bob', 1_000))).toBe(403)
+
+  const revealed = await revealedTeamLeague()
+  expect(await refusalStatus(() => service.assignLeagueRosterRequirement(revealed.token, 'alice', 'bob', 2_000))).toBe(409)
+})
+
+it('refuses reveal until a 2v1 event has one solo and two allied entrants', async () => {
+  const { token } = await service.createLeague('alice', {
+    name: 'Team league',
+    description: '',
+    visibility: 'private',
+    admission: 'automatic',
+    playerLimit: null,
+    format: '2v1',
+    rosterLimit: 2_000,
+  })
+  await service.joinLeague(token, 'alice')
+  await service.joinLeague(token, 'bob')
+  await service.joinLeague(token, 'carol')
+  await service.assignLeagueRosterRequirement(token, 'alice', 'alice', 2_000)
+  await service.assignLeagueRosterRequirement(token, 'alice', 'bob', 2_000)
+  await service.assignLeagueRosterRequirement(token, 'alice', 'carol', 1_000)
+  await saveAndSealLeagueRoster(token, 'alice', 2_000)
+  await saveAndSealLeagueRoster(token, 'bob', 2_000)
+  await saveAndSealLeagueRoster(token, 'carol', 1_000)
+
+  expect(await refusalStatus(() => service.revealLeague(token, 'alice'))).toBe(409)
+
+  await service.assignLeagueRosterRequirement(token, 'alice', 'alice', 1_000)
+  await saveAndSealLeagueRoster(token, 'alice', 1_000, '-allied')
+  await service.assignLeagueRosterRequirement(token, 'alice', 'bob', 1_000)
+  await saveAndSealLeagueRoster(token, 'bob', 1_000, '-replacement')
+
+  expect(await refusalStatus(() => service.revealLeague(token, 'alice'))).toBe(409)
+
+  await service.assignLeagueRosterRequirement(token, 'alice', 'alice', 2_000)
+  await saveAndSealLeagueRoster(token, 'alice', 2_000, '-solo')
+  await service.revealLeague(token, 'alice')
+  expect((await service.league(token, 'alice'))?.revealedAt).not.toBeNull()
+})
+
+it('refuses reveal when a frozen roster does not match its event size', async () => {
+  const { token } = await service.createLeague('alice', {
+    name: 'Sized league',
+    description: '',
+    visibility: 'private',
+    admission: 'automatic',
+    playerLimit: 2,
+    format: '1v1',
+    rosterLimit: 2_000,
+  })
+  await service.joinLeague(token, 'alice')
+  await service.joinLeague(token, 'bob')
+  await database
+    .update(leagueEventEntries)
+    .set({ rosterSnapshot: JSON.stringify(leagueSnapshot('Wrong size', 1_000)), rosterName: 'Wrong size', submittedAt: 1 })
+
+  expect(await refusalStatus(() => service.revealLeague(token, 'alice'))).toBe(409)
+})
+
+it('does not let league edits reduce an open 2v1 event below three places', async () => {
+  const { token } = await service.createLeague('alice', {
+    name: 'Team league',
+    description: '',
+    visibility: 'private',
+    admission: 'automatic',
+    playerLimit: 3,
+    format: '2v1',
+    rosterLimit: 2_000,
+  })
+
+  expect(
+    await refusalStatus(() =>
+      service.updateLeague(token, 'alice', {
+        name: 'Team league',
+        description: '',
+        visibility: 'private',
+        admission: 'automatic',
+        playerLimit: 2,
+      }),
+    ),
+  ).toBe(409)
+})
+
+it('lets a revealed 2v1 event lower the future player limit', async () => {
+  const { token } = await revealedTeamLeague()
+
+  await service.updateLeague(token, 'alice', {
+    name: 'Team league',
+    description: '',
+    visibility: 'private',
+    admission: 'automatic',
+    playerLimit: 2,
+  })
+
+  expect(await service.league(token, 'alice')).toEqual(expect.objectContaining({ playerLimit: 2 }))
+})
+
 it('links a sealed-roster battle back to its league', async () => {
   const league = await revealedLeague()
   const battle = await service.createLeagueBattle('alice', league.token, 'dave', null)
@@ -160,18 +397,54 @@ it('links a sealed-roster battle back to its league', async () => {
   })
 })
 
+it('rechecks the event size when creating a 1v1 league battle', async () => {
+  const league = await revealedLeague()
+  await database.update(leagueEventEntries).set({ rosterSnapshot: JSON.stringify(leagueSnapshot('Changed snapshot', 1_000)) })
+
+  expect(await refusalStatus(() => service.createLeagueBattle('alice', league.token, 'dave', null))).toBe(409)
+})
+
 it('keeps prior event entrants out of a new recurring event', async () => {
   const league = await revealedLeague(leagueSnapshot('Alice sealed'), leagueSnapshot('Dave sealed'), true)
-  const next = await service.createLeagueEvent(league.token, 'alice')
+  const next = await service.createLeagueEvent(league.token, 'alice', { format: '1v1', rosterLimit: 600 })
 
   const current = await service.league(league.token, 'dave', next.eventToken)
   const previous = await service.league(league.token, 'dave', league.eventToken)
 
-  expect({ currentEntries: current?.entries, currentNumber: current?.eventNumber, previousEntries: previous?.entries.length }).toEqual({
+  expect({
+    currentEntries: current?.entries,
+    currentNumber: current?.eventNumber,
+    currentFormat: current?.format,
+    currentLimit: current?.rosterLimit,
+    previousEntries: previous?.entries.length,
+    previousFormat: previous?.format,
+    previousLimit: previous?.rosterLimit,
+  }).toEqual({
     currentEntries: [],
     currentNumber: 2,
+    currentFormat: '1v1',
+    currentLimit: 600,
     previousEntries: 2,
+    previousFormat: '1v1',
+    previousLimit: 2_000,
   })
+})
+
+it('lets a recurring two-player league raise its limit before starting a 2v1 event', async () => {
+  const league = await revealedLeague(leagueSnapshot('Alice sealed'), leagueSnapshot('Dave sealed'), true)
+  await service.updateLeague(league.token, 'alice', {
+    name: 'League',
+    description: '',
+    visibility: 'private',
+    admission: 'automatic',
+    playerLimit: 3,
+  })
+
+  const next = await service.createLeagueEvent(league.token, 'alice', { format: '2v1', rosterLimit: 2_000 })
+
+  expect(await service.league(league.token, 'alice', next.eventToken)).toEqual(
+    expect.objectContaining({ format: '2v1', playerLimit: 3, rosterLimit: 2_000 }),
+  )
 })
 
 it('turns a revealed one-off league into a recurring league without changing event one', async () => {
@@ -250,10 +523,8 @@ it('refuses to replace a league roster through the battle service', async () => 
   expect(result).toEqual({ outcome: 'refused', reason: 'league rosters are sealed' })
 })
 
-it('requires league battle rosters to use the same battle size', async () => {
-  const league = await revealedLeague(leagueSnapshot('Alice sealed'), leagueSnapshot('Dave sealed', 1_000))
-
-  expect(await refusalStatus(() => service.createLeagueBattle('alice', league.token, 'dave', null))).toBe(409)
+it('requires sealed 1v1 rosters to use the event size', async () => {
+  expect(await refusalStatus(() => revealedLeague(leagueSnapshot('Alice sealed'), leagueSnapshot('Dave sealed', 1_000)))).toBe(409)
 })
 
 it('stores a readable league snapshot without the saved roster capability', async () => {

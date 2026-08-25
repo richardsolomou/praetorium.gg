@@ -1,10 +1,37 @@
 import { describe, expect, it } from 'vitest'
-import { visibleLeagueEntries, type LeagueEntryView } from './league'
+import { alliedLeagueRosterLimit, requiredLeagueRosterLimit, visibleLeagueEntries, type LeagueEntryView } from './league'
 
 const entries: LeagueEntryView[] = [
-  { userId: 'accepted', name: 'Accepted', image: null, status: 'accepted', joinedAt: 1, submitted: true, rosterName: 'Army' },
-  { userId: 'pending', name: 'Pending', image: null, status: 'pending', joinedAt: 2, submitted: false, rosterName: null },
-  { userId: 'rejected', name: 'Rejected', image: null, status: 'rejected', joinedAt: 3, submitted: false, rosterName: null },
+  {
+    userId: 'accepted',
+    name: 'Accepted',
+    image: null,
+    status: 'accepted',
+    joinedAt: 1,
+    submitted: true,
+    rosterName: 'Army',
+    requiredLimit: 2_000,
+  },
+  {
+    userId: 'pending',
+    name: 'Pending',
+    image: null,
+    status: 'pending',
+    joinedAt: 2,
+    submitted: false,
+    rosterName: null,
+    requiredLimit: null,
+  },
+  {
+    userId: 'rejected',
+    name: 'Rejected',
+    image: null,
+    status: 'rejected',
+    joinedAt: 3,
+    submitted: false,
+    rosterName: null,
+    requiredLimit: null,
+  },
 ]
 
 describe('visibleLeagueEntries', () => {
@@ -18,5 +45,23 @@ describe('visibleLeagueEntries', () => {
 
   it('shows every entry to the organizer', () => {
     expect(visibleLeagueEntries(entries, 'owner', 'owner')).toEqual(entries)
+  })
+})
+
+describe('league roster requirements', () => {
+  it('uses the event size for every 1v1 entrant', () => {
+    expect(requiredLeagueRosterLimit('1v1', 600, null)).toBe(600)
+  })
+
+  it('uses the per-entry assignment for a 2v1 entrant', () => {
+    expect(requiredLeagueRosterLimit('2v1', 2_000, 1_000)).toBe(1_000)
+  })
+
+  it('derives the allied size from the solo side total', () => {
+    expect(alliedLeagueRosterLimit(2_000)).toBe(1_000)
+  })
+
+  it('keeps legacy events unrestricted', () => {
+    expect(requiredLeagueRosterLimit(null, null, null)).toBeNull()
   })
 })

@@ -2,7 +2,7 @@ import { and, desc, eq } from 'drizzle-orm'
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import { createRoster, uniqueName, signUp } from './account'
 import { openDatabase } from '../src/db/connection'
-import { leagueEventEntries, leagueEvents, leagues } from '../src/db/schema'
+import { leagueEventEntries, leagueEvents, leagues, rosters, user } from '../src/db/schema'
 import { postgresPort } from './stackEnv'
 
 async function sealEventRosters(leagueToken: string) {
@@ -22,6 +22,80 @@ async function sealEventRosters(leagueToken: string) {
       .where(and(eq(leagueEventEntries.eventId, event.id), eq(leagueEventEntries.status, 'accepted')))
       .returning({ userId: leagueEventEntries.userId })
     if (sealed.length !== 2) throw new Error('The league test entrants are missing.')
+  } finally {
+    await connection.close()
+  }
+}
+
+async function seedRosters(playerName: string, values: { name: string; limit: number }[]) {
+  const connection = openDatabase(`postgres://praetorium:praetorium@127.0.0.1:${postgresPort}/praetorium`)
+  try {
+    const [player] = await connection.database.select({ id: user.id }).from(user).where(eq(user.name, playerName)).limit(1)
+    if (!player) throw new Error('The roster test player is missing.')
+    const now = Date.now()
+    await connection.database.insert(rosters).values(
+      values.map((value, index) => ({
+        id: `${player.id}-${value.limit}-${index}`,
+        userId: player.id,
+        name: value.name,
+        catalogueId: 'test-catalogue',
+        detachmentId: null,
+        disposition: null,
+        limit: value.limit,
+        picks: '[]',
+        prep: null,
+        tags: '[]',
+        visibility: 'private' as const,
+        source: 'editable' as const,
+        createdAt: now + index,
+        updatedAt: now + index,
+      })),
+    )
+  } finally {
+    await connection.close()
+  }
+}
+
+async function sealTeamEventRosters(leagueToken: string) {
+  const connection = openDatabase(`postgres://praetorium:praetorium@127.0.0.1:${postgresPort}/praetorium`)
+  try {
+    const [event] = await connection.database
+      .select({ id: leagueEvents.id })
+      .from(leagueEvents)
+      .innerJoin(leagues, eq(leagues.id, leagueEvents.leagueId))
+      .where(eq(leagues.token, leagueToken))
+      .orderBy(desc(leagueEvents.number))
+      .limit(1)
+    if (!event) throw new Error('The team league event is missing.')
+    const entries = await connection.database
+      .select({ userId: leagueEventEntries.userId, requiredLimit: leagueEventEntries.requiredLimit })
+      .from(leagueEventEntries)
+      .where(and(eq(leagueEventEntries.eventId, event.id), eq(leagueEventEntries.status, 'accepted')))
+    if (entries.length !== 3 || entries.some((entry) => entry.requiredLimit === null)) {
+      throw new Error('The team league assignments are incomplete.')
+    }
+    for (const entry of entries) {
+      const limit = entry.requiredLimit!
+      await connection.database
+        .update(leagueEventEntries)
+        .set({
+          rosterName: `${limit.toLocaleString()}-point roster`,
+          rosterSnapshot: JSON.stringify({
+            name: `${limit.toLocaleString()}-point roster`,
+            text: `${limit.toLocaleString()} points`,
+            built: {
+              catalogueId: 'test-catalogue',
+              revision: 'test-revision',
+              limit,
+              detachment: null,
+              disposition: null,
+              units: [{ key: `${entry.userId}-unit`, name: 'Test unit', points: 80, models: 5 }],
+            },
+          }),
+          submittedAt: Date.now(),
+        })
+        .where(and(eq(leagueEventEntries.eventId, event.id), eq(leagueEventEntries.userId, entry.userId)))
+    }
   } finally {
     await connection.close()
   }
@@ -337,4 +411,114 @@ test('a recurring league starts each event with fresh registration', async ({ br
 
   await ownerContext.close()
   await entrantContext.close()
+})
+
+test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle', async ({ browser }) => {
+  const ownerContext = await browser.newContext()
+  const alliedContext = await browser.newContext()
+  const secondAlliedContext = await browser.newContext()
+  const owner = await ownerContext.newPage()
+  const allied = await alliedContext.newPage()
+  const secondAllied = await secondAlliedContext.newPage()
+  const ownerName = uniqueName('SoloEntrant')
+  const alliedName = uniqueName('AlliedEntrant')
+  const secondAlliedName = uniqueName('SecondAlliedEntrant')
+
+  await signUp(owner, ownerName)
+  await signUp(allied, alliedName)
+  await signUp(secondAllied, secondAlliedName)
+  const alliedRoster = 'Allied 1,000 roster'
+  const wrongRoster = 'Solo 2,000 roster'
+  await seedRosters(alliedName, [
+    { name: alliedRoster, limit: 1_000 },
+    { name: wrongRoster, limit: 2_000 },
+  ])
+
+  await owner.goto('/leagues')
+  await owner.getByRole('button', { name: 'New league' }).click()
+  const create = owner.getByRole('dialog', { name: 'Create league' })
+  await create.getByLabel('Name').fill(uniqueName('Team League'))
+  await create.getByRole('button', { name: /^2 vs 1/ }).click()
+  await create.getByRole('button', { name: /^Automatic/ }).click()
+  await owner.setViewportSize({ width: 390, height: 844 })
+  await expectNoHorizontalOverflow(owner, create)
+  await owner.screenshot({ path: 'test-results/create-2v1-league-phone.png', fullPage: true })
+  await create.getByText('Battle format', { exact: true }).scrollIntoViewIfNeeded()
+  await expect(create.getByText('Roster size', { exact: true })).toBeVisible()
+  await expectNoHorizontalOverflow(owner, create)
+  await owner.screenshot({ path: 'test-results/create-2v1-league-rule-phone.png', fullPage: true })
+  await submitLeagueCreation(owner, create)
+  const leagueUrl = owner.url()
+  const leagueToken = new URL(leagueUrl).pathname.split('/').at(-1)
+  if (!leagueToken) throw new Error('The created team league URL has no token.')
+
+  await join(owner)
+  await allied.goto(leagueUrl)
+  await join(allied)
+  await secondAllied.goto(leagueUrl)
+  await join(secondAllied)
+  await owner.reload()
+  await owner.getByRole('button', { name: `Assign ${ownerName} a solo roster` }).click()
+  await owner.getByRole('button', { name: `Assign ${alliedName} a solo roster` }).click()
+  await owner.getByRole('button', { name: `Assign ${secondAlliedName} an allied roster` }).click()
+  await sealTeamEventRosters(leagueToken)
+  await owner.reload()
+  await expect(owner.getByRole('button', { name: 'Reveal all rosters' })).toBeDisabled()
+  await expect(owner.getByText('Assign at least two allied entrants.')).toBeVisible()
+  const assignmentRows = owner.locator('[data-person]')
+  await expectNoHorizontalOverflow(owner, ...(await assignmentRows.all()))
+  await owner.screenshot({ path: 'test-results/league-2v1-assignments-phone.png', fullPage: true })
+
+  await owner.getByRole('button', { name: `Assign ${alliedName} an allied roster` }).click()
+  const reassignment = owner.getByRole('alertdialog', { name: `Change ${alliedName}’s roster size?` })
+  await expectNoHorizontalOverflow(owner, reassignment)
+  await reassignment.getByRole('button', { name: 'Change size' }).click()
+  await sealTeamEventRosters(leagueToken)
+  await owner.reload()
+  await expect(owner.getByRole('button', { name: 'Reveal all rosters' })).toBeEnabled()
+
+  await allied.setViewportSize({ width: 390, height: 844 })
+  await allied.reload()
+  await expect(allied.locator(`[data-person="${alliedName}"]`).getByText('1,000-point roster · allied', { exact: true })).toBeVisible()
+  await allied.getByRole('button', { name: 'Change roster' }).click()
+  const chooser = allied.getByRole('dialog', { name: 'Seal a roster' })
+  await expect(chooser.locator(`[data-roster="${alliedRoster}"]`)).toBeVisible()
+  await expect(chooser.locator(`[data-roster="${wrongRoster}"]`)).toHaveCount(0)
+  await expectNoHorizontalOverflow(allied, chooser)
+  await allied.screenshot({ path: 'test-results/league-2v1-roster-filter.png', fullPage: true })
+  await allied.keyboard.press('Escape')
+
+  await owner.getByRole('button', { name: 'Reveal all rosters' }).click()
+  await owner.getByRole('alertdialog', { name: 'Reveal every roster?' }).getByRole('button', { name: 'Reveal all rosters' }).click()
+  await owner.getByRole('button', { name: 'Start 2v1 battle' }).click()
+  const battleChooser = owner.getByRole('dialog', { name: 'Start 2v1 battle' })
+  await expectNoHorizontalOverflow(owner, battleChooser)
+  await battleChooser.getByLabel('Second allied opponent').click()
+  await owner.getByRole('option', { name: secondAlliedName }).click()
+  await expect(battleChooser.getByLabel('Second allied opponent')).toHaveText(secondAlliedName)
+  await battleChooser.getByLabel('First allied opponent').click()
+  await owner.getByRole('option', { name: alliedName }).click()
+  await expect(battleChooser.getByRole('button', { name: 'Start battle' })).toBeEnabled()
+  await owner.screenshot({ path: 'test-results/league-2v1-battle-chooser-phone.png', fullPage: true })
+  await battleChooser.getByRole('button', { name: 'Start battle' }).click()
+  await expect(owner).toHaveURL(/\/battles\/[^/?]+$/)
+  await expect(owner.locator('[data-players]').filter({ hasText: alliedName })).toContainText(secondAlliedName)
+  await expect(owner.locator('[data-players]').filter({ hasText: ownerName })).toHaveCount(1)
+
+  await allied.reload()
+  await allied.getByRole('button', { name: 'Start 2v1 battle' }).click()
+  const alliedBattleChooser = allied.getByRole('dialog', { name: 'Start 2v1 battle' })
+  await expectNoHorizontalOverflow(allied, alliedBattleChooser)
+  await alliedBattleChooser.getByLabel('Solo opponent').click()
+  await allied.getByRole('option', { name: ownerName }).click()
+  await alliedBattleChooser.getByLabel('Allied teammate').click()
+  await allied.getByRole('option', { name: secondAlliedName }).click()
+  await alliedBattleChooser.getByRole('button', { name: 'Start battle' }).click()
+  await expect(allied).toHaveURL(/\/battles\/[^/?]+$/)
+  await expect(allied.locator('[data-players]').filter({ hasText: alliedName })).toContainText(secondAlliedName)
+  await expect(allied.locator('[data-players]').filter({ hasText: ownerName })).toHaveCount(1)
+
+  await ownerContext.close()
+  await alliedContext.close()
+  await secondAlliedContext.close()
 })

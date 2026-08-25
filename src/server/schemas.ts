@@ -13,9 +13,12 @@ import { ROSTER_SOURCES, ROSTER_VISIBILITIES } from '../core/savedRoster'
 import {
   LEAGUE_ADMISSIONS,
   LEAGUE_DESCRIPTION_MAX_LENGTH,
+  LEAGUE_DEFAULT_ROSTER_LIMIT,
+  LEAGUE_EVENT_FORMATS,
   LEAGUE_MEMBER_MAX,
   LEAGUE_MEMBER_MIN,
   LEAGUE_NAME_MAX_LENGTH,
+  LEAGUE_TEAM_ROSTER_LIMITS,
   LEAGUE_VISIBILITIES,
 } from '../core/league'
 import { PASSWORD_MIN_LENGTH, SOCIAL_PROVIDERS } from '../authConfig'
@@ -34,14 +37,37 @@ const leagueFields = {
   admission: z.enum(LEAGUE_ADMISSIONS),
   playerLimit: z.number().int().min(LEAGUE_MEMBER_MIN).max(LEAGUE_MEMBER_MAX).nullable(),
 }
-export const createLeagueSchema = z.object({
-  ...leagueFields,
-  description: leagueFields.description.default(''),
-  playerLimit: leagueFields.playerLimit.default(null),
-  recurring: z.boolean().default(false),
-})
+const leagueEventRuleFields = {
+  format: z.enum(LEAGUE_EVENT_FORMATS).default('1v1'),
+  rosterLimit: z
+    .number()
+    .int()
+    .refine((value) => GAME_SIZES.some((size) => size.limit === value))
+    .default(LEAGUE_DEFAULT_ROSTER_LIMIT),
+}
+function validateLeagueEventRule(
+  value: { format: (typeof LEAGUE_EVENT_FORMATS)[number]; rosterLimit: number; playerLimit?: number | null },
+  context: z.RefinementCtx,
+) {
+  if (value.format === '2v1' && !LEAGUE_TEAM_ROSTER_LIMITS.some((limit) => limit === value.rosterLimit)) {
+    context.addIssue({ code: 'custom', path: ['rosterLimit'], message: 'choose a supported 2v1 roster size' })
+  }
+  if (value.format === '2v1' && value.playerLimit !== undefined && value.playerLimit !== null && value.playerLimit < 3) {
+    context.addIssue({ code: 'custom', path: ['playerLimit'], message: 'a 2v1 event needs at least three places' })
+  }
+}
+export const createLeagueSchema = z
+  .object({
+    ...leagueFields,
+    ...leagueEventRuleFields,
+    description: leagueFields.description.default(''),
+    playerLimit: leagueFields.playerLimit.default(null),
+    recurring: z.boolean().default(false),
+  })
+  .superRefine(validateLeagueEventRule)
 export const updateLeagueSchema = z.object({ token, ...leagueFields })
 export const leagueEventSchema = z.object({ token, eventToken: token.optional() })
+export const createLeagueEventSchema = z.object({ token, ...leagueEventRuleFields }).superRefine(validateLeagueEventRule)
 export const openLeagueSchema = z.object({ token, eventToken: token.optional() })
 export const moderateLeagueEntrySchema = z.object({
   token,
@@ -50,13 +76,23 @@ export const moderateLeagueEntrySchema = z.object({
   status: z.enum(['accepted', 'rejected']),
 })
 export const submitLeagueRosterSchema = z.object({ token, eventToken: token.optional(), rosterId: id })
-export const leagueRosterSchema = z.object({ token, eventToken: token.optional(), userId: id })
-export const createLeagueBattleSchema = z.object({
+export const assignLeagueRosterRequirementSchema = z.object({
   token,
   eventToken: token.optional(),
-  opponentId: id,
-  missionPackId: id.nullable().default(null),
+  userId: id,
+  requiredLimit: z.number().int(),
 })
+export const leagueRosterSchema = z.object({ token, eventToken: token.optional(), userId: id })
+export const createLeagueBattleSchema = z
+  .object({
+    token,
+    eventToken: token.optional(),
+    opponentId: id,
+    allyId: id.optional(),
+    secondOpponentId: id.optional(),
+    missionPackId: id.nullable().default(null),
+  })
+  .refine((value) => !(value.allyId && value.secondOpponentId), 'choose either an ally or a second opponent')
 /** A roster read may name the battle that entitles the reader to it. */
 export const rosterInBattleSchema = z.object({ id, battle: token.optional() })
 /**

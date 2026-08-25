@@ -16,5 +16,5 @@ export const Route = createFileRoute('/leagues/$token')({
 function LeagueRoute() {
   const { token } = Route.useParams()
   const { event } = Route.useSearch()
-  return <LeaguePage token={token} eventToken={event} />
+  return <LeaguePage key={event ?? ''} token={token} eventToken={event} />
 }

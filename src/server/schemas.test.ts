@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { createBattleSchema, createLeagueSchema, savedRosterDatasheetSchema, submitSchema, updateLeagueSchema } from './schemas'
+import {
+  createBattleSchema,
+  createLeagueBattleSchema,
+  createLeagueEventSchema,
+  createLeagueSchema,
+  savedRosterDatasheetSchema,
+  submitSchema,
+  updateLeagueSchema,
+} from './schemas'
 
 describe('battle creation input', () => {
   it('keeps the legacy opponent-only payload valid', () => {
@@ -58,6 +66,34 @@ describe('league creation input', () => {
 
   it('allows an optional bounded player limit', () => {
     expect(createLeagueSchema.parse({ ...league, playerLimit: 16 })).toMatchObject({ playerLimit: 16 })
+  })
+
+  it('defaults an older create payload to a 2,000-point 1v1 event', () => {
+    expect(createLeagueSchema.parse(league)).toMatchObject({ format: '1v1', rosterLimit: 2_000 })
+  })
+
+  it('accepts the supported 2v1 roster-size pair', () => {
+    expect(createLeagueEventSchema.safeParse({ token: 'league', format: '2v1', rosterLimit: 2_000 }).success).toBe(true)
+  })
+
+  it('rejects a 2v1 size whose allied half is unsupported', () => {
+    expect(createLeagueSchema.safeParse({ ...league, format: '2v1', rosterLimit: 1_000 }).success).toBe(false)
+    expect(createLeagueSchema.safeParse({ ...league, format: '2v1', rosterLimit: 600 }).success).toBe(false)
+  })
+
+  it('rejects a fixed two-player 2v1 event', () => {
+    expect(createLeagueSchema.safeParse({ ...league, format: '2v1', rosterLimit: 2_000, playerLimit: 2 }).success).toBe(false)
+  })
+
+  it('keeps league battle ally and second-opponent roles exclusive', () => {
+    expect(
+      createLeagueBattleSchema.safeParse({
+        token: 'league',
+        opponentId: 'solo',
+        allyId: 'ally',
+        secondOpponentId: 'other-ally',
+      }).success,
+    ).toBe(false)
   })
 
   it('rejects a one-player league', () => {

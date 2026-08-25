@@ -15,7 +15,7 @@ export function LeagueFormFields({
   idPrefix,
   value,
   admissionLocked = false,
-  playerLimitLocked = false,
+  minimumPlayerLimit = 2,
   acceptedCount = 0,
   disabled = false,
   onChange,
@@ -23,7 +23,7 @@ export function LeagueFormFields({
   idPrefix: string
   value: LeagueFormValue
   admissionLocked?: boolean
-  playerLimitLocked?: boolean
+  minimumPlayerLimit?: number
   acceptedCount?: number
   disabled?: boolean
   onChange: (value: LeagueFormValue) => void
@@ -58,18 +58,18 @@ export function LeagueFormFields({
         <Input
           id={`${idPrefix}-player-limit`}
           type="number"
-          min={Math.max(2, acceptedCount)}
+          min={Math.max(minimumPlayerLimit, acceptedCount)}
           max={128}
           value={value.playerLimit ?? ''}
           placeholder="No fixed limit"
-          disabled={disabled || playerLimitLocked}
+          disabled={disabled}
           onChange={(event) => onChange({ ...value, playerLimit: event.target.value ? Number(event.target.value) : null })}
         />
         <p className="text-xs text-dim">
-          {playerLimitLocked
-            ? 'Locked because the current event has revealed its rosters.'
-            : acceptedCount
-              ? `Cannot be lower than ${acceptedCount} accepted entrant${acceptedCount === 1 ? '' : 's'}.`
+          {acceptedCount
+            ? `Cannot be lower than ${Math.max(minimumPlayerLimit, acceptedCount)} for this event.`
+            : minimumPlayerLimit === 3
+              ? 'A 2v1 event needs at least three places.'
               : 'If set, every place must be accepted and sealed before reveal.'}
         </p>
       </div>

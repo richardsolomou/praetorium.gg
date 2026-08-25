@@ -13,6 +13,7 @@ import {
   STRATAGEM_SOURCE_MAX_LENGTH,
   STRATAGEMS_MAX,
   UNIT_FORMATIONS,
+  type Roster,
 } from './battle'
 import { UNIT_GROUPS } from './unitGroups'
 
@@ -200,3 +201,9 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('reopen-battle') }),
   z.object({ kind: z.literal('undo'), target: z.number().int().positive() }),
 ])
+
+export function parseRosterSnapshot(snapshot: string): Roster {
+  const command = commandSchema.parse({ kind: 'attach-roster', roster: JSON.parse(snapshot) })
+  if (command.kind !== 'attach-roster') throw new Error('expected a roster snapshot')
+  return command.roster
+}

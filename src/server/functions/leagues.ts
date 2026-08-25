@@ -4,7 +4,9 @@ import { currentUserId, requireUser } from '../playerSession'
 import { rosterForUse } from '../rosterUsage'
 import { mutationRpc, rpc } from '../rpc'
 import {
+  assignLeagueRosterRequirementSchema,
   createLeagueBattleSchema,
+  createLeagueEventSchema,
   createLeagueSchema,
   leagueEventSchema,
   leagueRosterSchema,
@@ -27,7 +29,12 @@ export const createLeague = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const player = await requireUser()
       const result = await app().service.createLeague(player.id, data)
-      await app().telemetry.capture(player.id, 'league_created', { visibility: data.visibility, admission: data.admission })
+      await app().telemetry.capture(player.id, 'league_created', {
+        visibility: data.visibility,
+        admission: data.admission,
+        format: data.format,
+        roster_limit: data.rosterLimit,
+      })
       return result
     }),
   )
@@ -59,8 +66,11 @@ export const submitLeagueRoster = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const player = await requireUser()
       const { saved, snapshot } = await rosterForUse(player.id, data.rosterId)
-      await app().service.submitLeagueRoster(data.token, player.id, saved, snapshot, data.eventToken)
-      await app().telemetry.capture(player.id, 'league_roster_submitted')
+      const result = await app().service.submitLeagueRoster(data.token, player.id, saved, snapshot, data.eventToken)
+      await app().telemetry.capture(player.id, 'league_roster_submitted', {
+        format: result.format,
+        required_limit: result.requiredLimit,
+      })
       return null
     }),
   )
@@ -81,13 +91,30 @@ export const openLeagueRoster = createServerFn({ method: 'GET' })
   .handler(({ data }) => rpc(() => app().service.leagueRoster(data.token, data.userId, data.eventToken)))
 
 export const createLeagueEvent = createServerFn({ method: 'POST' })
-  .validator(tokenSchema)
+  .validator(createLeagueEventSchema)
   .handler(({ data }) =>
     mutationRpc(async () => {
       const player = await requireUser()
-      const result = await app().service.createLeagueEvent(data.token, player.id)
-      await app().telemetry.capture(player.id, 'league_event_created')
+      const result = await app().service.createLeagueEvent(data.token, player.id, data)
+      await app().telemetry.capture(player.id, 'league_event_created', { format: data.format, roster_limit: data.rosterLimit })
       return result
+    }),
+  )
+
+export const assignLeagueRosterRequirement = createServerFn({ method: 'POST' })
+  .validator(assignLeagueRosterRequirementSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const player = await requireUser()
+      const result = await app().service.assignLeagueRosterRequirement(
+        data.token,
+        player.id,
+        data.userId,
+        data.requiredLimit,
+        data.eventToken,
+      )
+      await app().telemetry.capture(player.id, 'league_roster_requirement_assigned', { required_limit: result.requiredLimit })
+      return null
     }),
   )
 
@@ -134,8 +161,19 @@ export const createLeagueBattle = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     mutationRpc(async () => {
       const player = await requireUser()
-      const result = await app().service.createLeagueBattle(player.id, data.token, data.opponentId, data.missionPackId, data.eventToken)
-      await app().telemetry.capture(player.id, 'league_battle_created')
-      return result
+      const result = await app().service.createLeagueBattle(
+        player.id,
+        data.token,
+        data.opponentId,
+        data.missionPackId,
+        data.eventToken,
+        data.allyId,
+        data.secondOpponentId,
+      )
+      await app().telemetry.capture(player.id, 'league_battle_created', {
+        format: result.format,
+        required_limit: result.requiredLimit,
+      })
+      return { token: result.token }
     }),
   )
