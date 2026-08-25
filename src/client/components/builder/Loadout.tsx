@@ -261,7 +261,13 @@ function divide(unit: LoadoutUnit): { models: Map<LoadoutModel, Stood>; loose: L
   const stood = new Map(unit.models.flatMap((model) => (standingFor(model) ? [[model, standingFor(model)!] as const] : [])))
   const modelled = new Set(unit.models.flatMap((model) => model.rows.map((row) => row.choiceKey)))
   const carded = new Set([...stood.values()].map((found) => found.option.id))
-  const loose = unit.choices.filter((choice) => !modelled.has(choice.key) && !choice.options.every((option) => carded.has(option.id)))
+  const swapped = unit.models.flatMap((model) => (model.swaps ?? []).flatMap((swap) => swap.takes))
+  const loose = unit.choices.filter(
+    (choice) =>
+      !modelled.has(choice.key) &&
+      !choice.options.every((option) => carded.has(option.id)) &&
+      !choice.options.every((option) => swapped.some((name) => sameWeapon(option.name, name))),
+  )
 
   // A card only counts its own option where the group is not drawn below as well.
   const models = new Map([...stood].filter(([, found]) => !loose.includes(found.choice)))
