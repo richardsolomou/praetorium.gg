@@ -31,9 +31,8 @@ export function openValkey(url: string): ValkeyClient {
 /**
  * better-auth's secondary storage, spoken in Valkey.
  *
- * `getAndDelete` and `increment` are optional in the interface and implemented
- * here anyway: without them better-auth reads then deletes, and counts by
- * reading then writing, both of which are races under more than one replica.
+ * Atomic consume and increment operations keep credentials and limits safe
+ * across replicas.
  */
 export function valkeySecondaryStorage(client: ValkeyClient) {
   return {

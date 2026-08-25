@@ -344,10 +344,11 @@ describe('account administration', () => {
     })
     const sessionHeaders = cookieHeaders(signedUp.headers)
     const enrollment = await auth.api.enableTwoFactor({
-      body: { password: 'password1234' },
+      body: { password: 'password1234', method: 'totp' },
       headers: sessionHeaders,
       returnHeaders: true,
     })
+    if (enrollment.response.method !== 'totp') throw new Error('Expected TOTP enrollment')
     const secret = new URL(enrollment.response.totpURI).searchParams.get('secret')
     expect(secret).toBeTruthy()
 
@@ -374,11 +375,11 @@ describe('account administration', () => {
     })
     await connection.database
       .update(account)
-      .set({ providerId: 'google', accountId: 'google-user', password: null })
+      .set({ providerId: 'google', issuer: 'https://accounts.google.com', accountId: 'google-user', password: null })
       .where(eq(account.providerId, 'credential'))
 
     await expect(
-      auth.api.enableTwoFactor({ body: { password: 'password1234' }, headers: cookieHeaders(signedUp.headers) }),
+      auth.api.enableTwoFactor({ body: { password: 'password1234', method: 'totp' }, headers: cookieHeaders(signedUp.headers) }),
     ).rejects.toMatchObject({ status: 'BAD_REQUEST' })
   })
 
