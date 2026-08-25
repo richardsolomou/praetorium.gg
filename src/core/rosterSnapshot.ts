@@ -36,8 +36,9 @@ type PricedRoster = {
   }[]
 }
 
-export function rosterSnapshot(saved: SavedRoster, priced: PricedRoster): Roster {
+export function rosterSnapshot(saved: SavedRoster, priced: PricedRoster, wounds: readonly { entryId: string; wounds: number }[]): Roster {
   const keyedPicks = saved.picks.map((pick, key) => ({ ...pick, key }))
+  const woundsOf = new Map(wounds.map((entry) => [entry.entryId, entry.wounds]))
   return {
     name: saved.name,
     id: saved.id,
@@ -65,6 +66,7 @@ export function rosterSnapshot(saved: SavedRoster, priced: PricedRoster): Roster
         name: unit.name,
         points: unit.points,
         models: unit.size.models,
+        ...(woundsOf.has(unit.entryId) ? { wounds: woundsOf.get(unit.entryId) } : {}),
         group: unit.group,
         wargear: unit.wargear.map((piece) => ({ ...piece })),
         enhancements: [...unit.enhancements],

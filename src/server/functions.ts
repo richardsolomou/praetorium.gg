@@ -3,7 +3,7 @@ import { app } from './app'
 import { routeSlug } from '../core/slug'
 import { attachedUnit } from '../core/attach'
 import { buildUnit, type RosterPick } from '../core/roster'
-import { datasheetIn, datasheetInBySlug, datasheetViewsIn, rulesReferencedIn, woundsOf } from './catalogue'
+import { datasheetIn, datasheetInBySlug, datasheetViewsIn, rulesReferencedIn, unitWoundsIn } from './catalogue'
 import { isReferenceDatasheet } from './catalogueIndex'
 import { describeDatasheetAbilities } from './datasheetDescriptions'
 import { detachmentReference } from './detachmentReference'
@@ -254,13 +254,7 @@ export const unitWounds = createServerFn({ method: 'GET' })
     rpc(() => {
       const loaded = app().catalogue()
       if (!loaded) return []
-      // Each datasheet once, however many of it the list fields, and resolved against
-      // the catalogue that holds it so an allied unit is read from its own book.
-      return [...new Set(data.entryIds)].flatMap((entryId) => {
-        const catalogueId = loaded.index.catalogueOf.get(entryId) ?? data.catalogueId
-        const wounds = woundsOf(datasheetIn(loaded, catalogueId, entryId)?.profiles ?? [])
-        return wounds === null ? [] : [{ entryId, wounds }]
-      })
+      return unitWoundsIn(loaded, data.catalogueId, data.entryIds)
     }),
   )
 

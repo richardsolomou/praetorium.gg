@@ -75,6 +75,14 @@ export function woundsOf(profiles: readonly { type: string; values: readonly { n
   return values.size === 1 ? [...values][0]! : null
 }
 
+export function unitWoundsIn(loaded: LoadedCatalogue, catalogueId: string, entryIds: readonly string[]) {
+  return [...new Set(entryIds)].flatMap((entryId) => {
+    const ownerId = loaded.index.catalogueOf.get(entryId) ?? catalogueId
+    const wounds = woundsOf(datasheetIn(loaded, ownerId, entryId)?.profiles ?? [])
+    return wounds === null ? [] : [{ entryId, wounds }]
+  })
+}
+
 type AbilityKind = 'core' | 'faction' | 'datasheet' | 'rule' | 'upgrade' | 'wargear'
 
 type DatasheetContext = {

@@ -73,8 +73,7 @@ export function calculateRosterPoints(data: PriceInput) {
   return evaluateForces([...forceSelections.values()], loaded.index, { primaryCatalogueId: data.catalogueId }).points
 }
 
-export function calculateRosterPrice(data: PriceInput) {
-  const loaded = app().catalogue()
+export function calculateRosterPrice(data: PriceInput, loaded = app().catalogue()) {
   if (!loaded) return null
 
   const { chosen, selections: detachmentSelection } = rosterDetachments(loaded, data.catalogueId, data.detachmentIds)
