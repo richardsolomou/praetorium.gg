@@ -89,6 +89,8 @@ export function ModelCard({
     }
     return [...wanted]
   }
+  const sameSource = (one: (typeof shared)[number], other: (typeof shared)[number]) =>
+    one.choice.key === other.choice.key && one.option.id === other.option.id
 
   const spend = (taker: (typeof shared)[number]) => {
     // A group with no room left gives up one of its own: the veteran holding the
@@ -101,7 +103,7 @@ export function ModelCard({
     const pool = full ? kin : shared.filter((entry) => bandOf(entry.row) === band)
     const occupied = model.rows.filter((row) => bandOf(row) === band).reduce((total, row) => total + rowCount(row), 0)
     const giver = pool
-      .filter((entry) => entry !== taker && entry.option.count > 0 && canAddPooledOption(taker.option, entry))
+      .filter((entry) => !sameSource(entry, taker) && entry.option.count > 0 && canAddPooledOption(taker.option, entry))
       .toSorted((one, other) => other.option.count - one.option.count)[0]
     if (!full && occupied < count) return canAddPooledOption(taker.option) ? move([], [taker]) : null
     if (giver) return move([giver], [taker])
@@ -115,7 +117,7 @@ export function ModelCard({
   const free = (giver: (typeof shared)[number]) => {
     if (giver.option.count <= 0) return null
     const taker = shared
-      .filter((entry) => entry !== giver && canAddPooledOption(entry.option, giver))
+      .filter((entry) => !sameSource(entry, giver) && canAddPooledOption(entry.option, giver))
       .toSorted((one, other) => other.option.count - one.option.count)[0]
     return taker ? move([giver], [taker]) : move([giver], [])
   }
@@ -233,6 +235,9 @@ export function ModelCard({
           if (!showLoadoutEntry(displayed, showOptions)) return null
           const replacement = replacementChoice(row, model, choices, count)
           const sources = sourcesOf(row)
+          const addsModel = sources.some(({ choice: source, option: candidate }) =>
+            model.members.some((member) => member.choiceKey === source.key && member.id === candidate.id),
+          )
           const direct = sources.filter(({ choice: source }) => source.room <= 1 && !source.carried)
           const replacesAnotherRow = Boolean(
             row.pieces?.some((piece) => model.rows.some((candidate) => candidate !== row && sameWeapon(candidate.name, piece))),
@@ -244,7 +249,7 @@ export function ModelCard({
             .map((source) => ({ source, replacement: choiceRemoval(source.choice, source.option, replacesAnotherRow) }))
             .find(({ replacement: candidate }) => candidate !== null)
           const add =
-            displayed >= count
+            displayed >= count && !addsModel
               ? undefined
               : replacement
                 ? () => onChoose(replacement.key, '')

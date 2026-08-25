@@ -1588,3 +1588,19 @@ test('a specialist filed apart from its squad can still be armed', async ({ page
   await expect(page.getByText('Within the points limit')).toBeAttached()
   await page.screenshot({ path: 'test-results/specialist-filed-apart.png', fullPage: true })
 })
+
+test('removing one piece does not choose another piece of the same model as its replacement', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 })
+  await openBuilder(page, 'Black Templars', /Companions of Vehemence/)
+  await add(page, 'Crusader Squad')
+  await page
+    .locator('[data-unit="Crusader Squad"]')
+    .getByRole('button', { name: /^Crusader Squad/ })
+    .click()
+
+  const loadout = page.locator('aside[aria-label="Loadout"]')
+  await expect(loadout.getByLabel('Bolt Rifle count')).toHaveText('5')
+  await loadout.getByRole('button', { name: 'Fewer Bolt Rifle' }).click()
+  await expect(loadout.getByLabel('Bolt Rifle count')).toHaveText('4')
+  await expect(page.getByLabel('Crusader Squad models')).toHaveText('10')
+})
