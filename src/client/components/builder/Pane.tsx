@@ -22,12 +22,12 @@ const VARIANTS = {
   // Written out rather than composed: Tailwind only sees class names it can read.
   picker:
     'min-[1300px]:static min-[1300px]:z-auto min-[1300px]:inset-auto min-[1300px]:flex min-[1300px]:min-w-0 min-[1300px]:!w-full min-[1300px]:shrink-0 min-[1300px]:border-r min-[1300px]:border-l-0',
-  loadout: 'md:static md:z-auto md:inset-auto md:flex md:w-1/2 md:shrink-0 md:border-l min-[1300px]:min-w-0 min-[1300px]:!w-full',
+  loadout: 'md:static md:z-auto md:inset-auto md:flex md:min-w-0 md:w-1/2 md:shrink-0 md:border-l min-[1300px]:!w-full',
 } as const
 
 const TWO_COLUMN_VARIANTS = {
   ...VARIANTS,
-  loadout: 'md:static md:z-auto md:inset-auto md:flex md:w-1/2 md:shrink-0 md:border-l',
+  loadout: 'md:static md:z-auto md:inset-auto md:flex md:min-w-0 md:w-1/2 md:shrink-0 md:border-l',
 } as const
 
 const CLOSERS = { picker: 'min-[1300px]:hidden', loadout: '' } as const
@@ -82,7 +82,7 @@ export function Pane({
           <X />
         </Button>
       </div>
-      <div className="flex min-h-0 flex-1 flex-col">{children}</div>
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">{children}</div>
     </>
   )
 

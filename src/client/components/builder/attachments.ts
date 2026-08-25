@@ -57,9 +57,9 @@ export function attachmentRows(
  * roster, and not already holding it. A unit it is already attached to is not offered
  * again, which is what stops the row and the offer both being on screen.
  *
- * A unit already led is not offered to a second Leader either. `attachmentErrors` is
- * what decides that, and says so about a list however it was built; this only keeps
- * the offer from being made when the answer is already known.
+ * A unit whose Leader or Support place is occupied is not offered another of that
+ * kind. `attachmentErrors` remains the legality authority for every imported or
+ * edited list; this only keeps a known-illegal offer off the screen.
  */
 export function joinableUnits(
   picks: readonly KeyedPick[],
@@ -71,16 +71,13 @@ export function joinableUnits(
   if (!pick || !unit?.attachment || pick.attachedTo !== undefined) return []
 
   const wanted = new Set(unit.attachment.targets.map(normalizedName))
-  const led = new Set(
+  const occupied = new Set(
     picks.flatMap((candidate, at) =>
-      candidate.attachedTo !== undefined && units[at]?.attachment?.kind === 'leader' ? [candidate.attachedTo] : [],
+      candidate.attachedTo !== undefined && units[at]?.attachment?.kind === unit.attachment?.kind ? [candidate.attachedTo] : [],
     ),
   )
   return picks.flatMap((candidate, at) =>
-    at !== index &&
-    units[at] &&
-    wanted.has(normalizedName(units[at]?.name ?? '')) &&
-    !(unit.attachment?.kind === 'leader' && led.has(candidate.key))
+    at !== index && units[at] && wanted.has(normalizedName(units[at]?.name ?? '')) && !occupied.has(candidate.key)
       ? [{ key: candidate.key, name: units[at]?.name ?? '' }]
       : [],
   )

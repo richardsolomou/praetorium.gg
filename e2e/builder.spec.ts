@@ -32,6 +32,15 @@ async function add(page: Page, name: string) {
     .click()
 }
 
+async function attach(page: Page, unit: string, target: string) {
+  await page
+    .locator(`[data-unit="${unit}"]`)
+    .first()
+    .getByRole('button', { name: `Attach ${unit} to unit` })
+    .click()
+  await page.getByRole('menu').getByRole('menuitem', { name: target, exact: true }).click()
+}
+
 test('the unit picker stays within the roster faction', async ({ page }) => {
   await openBuilder(page)
   await expect(page.getByRole('combobox', { name: 'Force' })).toHaveCount(0)
@@ -111,6 +120,10 @@ test('the roster workspace preserves picker and read-only state', async ({ page 
   await page.getByRole('button', { name: 'Add Immortals', exact: true }).click()
   await page.locator('[data-unit="Immortals"]').getByRole('button', { name: 'Immortals', exact: true }).click()
   await expect(page.getByRole('button', { name: /More models in Immortals/ })).toHaveCount(0)
+  const loadout = page.locator('aside[aria-label="Loadout"]')
+  await expect(loadout.getByRole('heading', { name: 'Attachments' })).toHaveCount(0)
+  await page.getByRole('button', { name: 'Build', exact: true }).click()
+  await expect(loadout.getByRole('heading', { name: 'Attachments' })).toBeVisible()
 })
 
 test('Deathwatch excludes Scouts from its unit picker', async ({ page }) => {
@@ -305,9 +318,10 @@ test("Pantheon of Woe adds a C'tan shard's required enhancement", async ({ page 
   const noble = datasheet.getByText('Noble', { exact: true })
   await expect(noble).toHaveCSS('color', 'rgb(137, 184, 157)')
   await expect(datasheet.getByText('Character', { exact: true })).toHaveCSS('color', 'rgb(137, 184, 157)')
-  // Leader is a marker the data keeps for itself, printed on no card. The abilities
-  // list has always left it out and the keyword line now agrees.
-  await expect(datasheet.getByText('Leader', { exact: true })).toHaveCount(0)
+  await expect(datasheet.getByRole('button', { name: 'Leader', exact: true })).toBeVisible()
+  const canLead = datasheet.getByRole('heading', { name: 'Can lead' }).locator('..')
+  await expect(canLead.getByRole('button', { name: 'Immortals', exact: true })).toBeVisible()
+  await expect(datasheet.getByRole('button', { name: 'Add to list' })).toBeVisible()
   await expect(datasheet.getByRole('button', { name: 'Ignores Cover', exact: true })).toHaveCSS('font-size', '13.5px')
   await shot(datasheet, 'test-results/imotekh-datasheet-tags.png')
   await page.setViewportSize({ width: 390, height: 844 })
@@ -318,7 +332,14 @@ test("Pantheon of Woe adds a C'tan shard's required enhancement", async ({ page 
   await page.getByLabel('Add a unit').fill('Plasmancer')
   await page.getByRole('button', { name: 'View Plasmancer datasheet' }).click()
   await expect(datasheet.getByRole('heading', { name: 'Harbinger of Destruction' })).toBeVisible()
-  await expect(datasheet.getByText('Support', { exact: true })).toHaveCount(0)
+  await expect(datasheet.getByRole('button', { name: 'Support', exact: true })).toBeVisible()
+  const canSupport = datasheet.getByRole('heading', { name: 'Can support' }).locator('..')
+  await canSupport.getByRole('button', { name: 'Immortals', exact: true }).click()
+  await expect(datasheet.getByRole('heading', { name: 'Immortals', exact: true })).toBeVisible()
+  await expect(datasheet.getByRole('heading', { name: 'Can be led by' })).toBeVisible()
+  await expect(datasheet.getByRole('heading', { name: 'Can be supported by' })).toBeVisible()
+  await datasheet.getByRole('button', { name: 'Add to list' }).click()
+  await expect(page.locator('[data-unit="Immortals"]')).toBeVisible()
   await shot(datasheet, 'test-results/plasmancer-roster-datasheet.png')
 
   await page.goto('/factions/necrons/datasheets/imotekh-the-stormlord')
@@ -538,7 +559,7 @@ test('an enhancement changes the weapons of the model bearing it', async ({ page
   // Attached, the two are one unit: the ankh moves the models it has joined, and
   // leaves their weapons alone.
   await add(page, 'Immortals')
-  await page.locator('[data-unit="Overlord"]').getByRole('button', { name: 'Immortals', exact: true }).click()
+  await attach(page, 'Overlord', 'Immortals')
   await expect(page.locator('[data-roster-builder]')).toHaveAttribute('data-saving', 'false')
   await expect(page.locator('[data-unit="Overlord"]')).toContainText('Leading')
   await page.locator('[data-unit="Immortals"]').getByRole('button', { name: 'Immortals', exact: true }).click()
@@ -554,7 +575,7 @@ test('an enhancement changes the weapons of the model bearing it', async ({ page
    */
   await add(page, 'Chronomancer')
   const chronomancer = page.locator('[data-unit="Chronomancer"]')
-  await chronomancer.getByRole('button', { name: 'Immortals', exact: true }).click()
+  await attach(page, 'Chronomancer', 'Immortals')
   await expect(page.locator('[data-roster-builder]')).toHaveAttribute('data-saving', 'false')
   await chronomancer.getByRole('button', { name: 'Chronomancer', exact: true }).click()
   await loadout.getByRole('button', { name: 'Select Murdermind' }).click()
@@ -580,7 +601,7 @@ test('an enhancement changes the weapons of the model bearing it', async ({ page
   await add(page, 'Overlord')
   const second = page.locator('[data-unit="Overlord"]').nth(1)
   await expect(second).toBeVisible()
-  await expect(second.getByRole('button', { name: 'Immortals', exact: true })).toHaveCount(0)
+  await expect(second.getByRole('button', { name: 'Attach Overlord to unit' })).toHaveCount(0)
 
   // One relic, one army. The catalogue says so itself, and it is the player's to undo.
   await second.getByRole('button', { name: 'Overlord', exact: true }).click()
@@ -899,12 +920,13 @@ test('a character joins the unit it leads, and both cards say so', async ({ page
   await add(page, 'Immortals')
 
   // Each character offers the units its own rules name, and only those.
-  const overlord = page.locator('[data-unit="Overlord"]')
-  await overlord.getByRole('button', { name: 'Immortals', exact: true }).click()
+  await attach(page, 'Overlord', 'Immortals')
   await expect(page.getByText('Leading')).toBeVisible()
 
-  const plasmancer = page.locator('[data-unit="Plasmancer"]')
-  await plasmancer.getByRole('button', { name: 'Immortals', exact: true }).click()
+  await attach(page, 'Plasmancer', 'Immortals')
+
+  await add(page, 'Chronomancer')
+  await expect(page.locator('[data-unit="Chronomancer"]').getByRole('button', { name: 'Attach Chronomancer to unit' })).toHaveCount(0)
 
   // The unit states both, from its own side.
   await expect(page.getByText('Leader', { exact: true })).toBeVisible()
@@ -1105,17 +1127,81 @@ test('a smaller desktop moves the picker into a drawer without losing unit detai
     .locator('[data-unit="C\'tan Shard of the Deceiver"]')
     .getByRole('button', { name: /^C'tan Shard of the Deceiver/ })
     .click()
+  await expect(loadout.locator('[data-slot="full-datasheet-link"]')).toBeVisible()
   await expect(loadout.getByRole('heading', { name: "C'tan Shard of the Deceiver" })).toBeVisible()
   await expect(loadout.getByText('330 pts')).toBeVisible()
   await expect(loadout.getByText('Monster', { exact: true })).toBeVisible()
   await expect(loadout.getByText('Invulnerable save', { exact: true })).toBeVisible()
   await expect(loadout.getByText('Grand Illusion', { exact: true })).toBeVisible()
-  await expect(loadout.getByRole('link', { name: 'Full datasheet' })).toHaveAttribute('href', /\/factions\/necrons\/datasheets\//)
+  const fullDatasheet = loadout.getByRole('link', { name: 'Open full datasheet in a new tab' })
+  await expect(fullDatasheet).toHaveAttribute('href', /\/factions\/necrons\/datasheets\//)
+  await expect(fullDatasheet).toHaveAttribute('target', '_blank')
+  await fullDatasheet.hover()
+  await expect(page.getByRole('tooltip')).toHaveText('Open full datasheet in a new tab')
+  const opened = page.waitForEvent('popup')
+  await fullDatasheet.click()
+  const fullDatasheetPage = await opened
+  await expect(fullDatasheetPage).toHaveURL(/\/factions\/necrons\/datasheets\//)
+  await fullDatasheetPage.close()
 
   await page.setViewportSize({ width: 1440, height: 900 })
   await expect(page.locator('aside[aria-label="Add units"]')).toBeVisible()
   await expect(loadout.getByText('Equipped ranged weapons', { exact: true })).toBeVisible()
   await page.screenshot({ path: 'test-results/builder-three-columns.png', fullPage: true })
+})
+
+test('attachment relationships stay inside the two-column unit pane', async ({ page }) => {
+  await page.setViewportSize({ width: 1024, height: 768 })
+  await openBuilder(page, 'Space Marines', /Gladius Task Force/)
+
+  const picker = page.getByRole('dialog', { name: 'Add units' })
+  await picker.getByLabel('Add a unit').fill('Ancient')
+  await picker.getByRole('button', { name: 'Add Ancient', exact: true }).click()
+  await picker.getByRole('button', { name: 'Close' }).click()
+  await page.locator('[data-unit="Ancient"]').getByRole('button', { name: 'Ancient', exact: true }).click()
+
+  const loadout = page.locator('aside[aria-label="Loadout"]')
+  await expect(loadout.getByRole('heading', { name: 'Attachments' })).toBeVisible()
+  const widths = await loadout.locator('[data-slot="scroll-area-viewport"]').evaluate((element) => ({
+    client: element.clientWidth,
+    scroll: element.scrollWidth,
+  }))
+  expect(widths.scroll).toBe(widths.client)
+})
+
+test('the attachment menu stays inside the unopened three-column roster', async ({ page }) => {
+  await page.setViewportSize({ width: 1512, height: 774 })
+  await openBuilder(page, 'Space Marines', /Gladius Task Force/)
+  for (const name of ['Ancient', 'Intercessor Squad', 'Assault Intercessor Squad', 'Hellblaster Squad']) await add(page, name)
+
+  const ancient = page.locator('[data-unit="Ancient"]')
+  const attachButton = ancient.getByRole('button', { name: 'Attach Ancient to unit' })
+  await expect(attachButton).toBeVisible()
+  const rosterWidths = await page.locator('[data-slot="roster-units"]').evaluate((element) => ({
+    client: element.clientWidth,
+    scroll: element.scrollWidth,
+  }))
+  expect(rosterWidths.scroll).toBe(rosterWidths.client)
+  const unopenedWidths = await page.evaluate(() => ({
+    client: document.documentElement.clientWidth,
+    scroll: document.documentElement.scrollWidth,
+  }))
+  expect(unopenedWidths.scroll).toBe(unopenedWidths.client)
+
+  await attachButton.click()
+  const targets = page.getByRole('menu')
+  await expect(targets.getByRole('menuitem', { name: 'Intercessor Squad', exact: true })).toBeVisible()
+  await expect(targets.getByRole('menuitem', { name: 'Assault Intercessor Squad', exact: true })).toBeVisible()
+  await expect(targets.getByRole('menuitem', { name: 'Hellblaster Squad', exact: true })).toBeVisible()
+  await targets.getByRole('menuitem', { name: 'Intercessor Squad', exact: true }).click()
+  await expect(ancient).toContainText('Supporting')
+  await expect(ancient).toContainText('Intercessor Squad')
+  const attachedWidths = await page.evaluate(() => ({
+    client: document.documentElement.clientWidth,
+    scroll: document.documentElement.scrollWidth,
+  }))
+  expect(attachedWidths.scroll).toBe(attachedWidths.client)
+  await page.screenshot({ path: 'test-results/attachment-suggestions-three-columns.png', fullPage: true })
 })
 
 test('mobile roster sheets move directly between units, loadout and datasheet', async ({ page }) => {

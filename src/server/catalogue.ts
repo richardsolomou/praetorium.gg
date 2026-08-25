@@ -40,6 +40,7 @@ export type Datasheet = {
 export type DatasheetRelationship = {
   kind?: DatasheetDetails['attachesTo'][number]['kind']
   name: string
+  entryId: string | null
   route: { catalogueId: string; slug: string } | null
 }
 
@@ -403,10 +404,11 @@ export function datasheetIn(loaded: LoadedCatalogue, catalogueId: string, entryI
     baseSize: details?.baseSize ?? null,
     transport: details?.transport ?? null,
     costs: details?.points ?? [],
-    attachments:
-      attachment?.targets.map((target) => ({ kind: attachment.kind, name: target, route: referenceDatasheetRoute(loaded, target) })) ?? [],
-    leaders: relationships.leaders.map((leader) => ({ name: leader, route: referenceDatasheetRoute(loaded, leader) })),
-    supporters: relationships.supporters.map((supporter) => ({ name: supporter, route: referenceDatasheetRoute(loaded, supporter) })),
+    attachments: attachment?.targets.map((target) => relationshipFor(loaded, catalogueId, target, attachment.kind)) ?? [],
+    leaders: relationships.leaders.map((leader) => relationshipFor(loaded, catalogueId, leader.name, undefined, leader.entryId)),
+    supporters: relationships.supporters.map((supporter) =>
+      relationshipFor(loaded, catalogueId, supporter.name, undefined, supporter.entryId),
+    ),
     keywordRules: [...keywordRules.values()],
   }
 }
@@ -736,7 +738,36 @@ function addGrantedWeaponAbilities(
   return values.map((value) => (value === keywords ? changed : value))
 }
 
-const relationshipCache = new WeakMap<LoadedCatalogue, Map<string, { leaders: string[]; supporters: string[] }>>()
+type RelatedDatasheet = { entryId: string; name: string }
+
+const relationshipCache = new WeakMap<LoadedCatalogue, Map<string, { leaders: RelatedDatasheet[]; supporters: RelatedDatasheet[] }>>()
+
+function relationshipFor(
+  loaded: LoadedCatalogue,
+  catalogueId: string,
+  name: string,
+  kind?: DatasheetRelationship['kind'],
+  knownEntryId?: string,
+): DatasheetRelationship {
+  const matches = knownEntryId
+    ? [knownEntryId]
+    : [...datasheetsOf(loaded.index, catalogueId)].filter((entryId) => {
+        const entry = loaded.index.definitions.get(entryId)
+        return (
+          entry &&
+          isMatchedPlayDatasheet(loaded.index, entry) &&
+          nameOf(entry, loaded.index.definitions).localeCompare(name, undefined, { sensitivity: 'accent' }) === 0
+        )
+      })
+  const resolved = matches.length === 1 ? matches[0]! : null
+  const entry = resolved ? loaded.index.definitions.get(resolved) : undefined
+  return {
+    ...(kind ? { kind } : {}),
+    name: entry ? nameOf(entry, loaded.index.definitions) : name,
+    entryId: resolved,
+    route: referenceDatasheetRoute(loaded, name),
+  }
+}
 
 function relationshipsFor(loaded: LoadedCatalogue, catalogueId: string, entryId: string, name: string) {
   const key = `${catalogueId}:${entryId}`
@@ -744,8 +775,8 @@ function relationshipsFor(loaded: LoadedCatalogue, catalogueId: string, entryId:
   const cached = cache?.get(key)
   if (cached) return cached
 
-  const leaders = new Set<string>()
-  const supporters = new Set<string>()
+  const leaders = new Map<string, RelatedDatasheet>()
+  const supporters = new Map<string, RelatedDatasheet>()
   for (const candidateId of datasheetsOf(loaded.index, catalogueId)) {
     if (candidateId === entryId) continue
     const candidate = loaded.index.definitions.get(candidateId)
@@ -753,10 +784,10 @@ function relationshipsFor(loaded: LoadedCatalogue, catalogueId: string, entryId:
     const attachment = attachmentOf(candidate, loaded.index)
     if (!attachment?.targets.some((target) => target.localeCompare(name, undefined, { sensitivity: 'accent' }) === 0)) continue
     const found = attachment.kind === 'leader' ? leaders : supporters
-    found.add(nameOf(candidate, loaded.index.definitions))
+    found.set(candidateId, { entryId: candidateId, name: nameOf(candidate, loaded.index.definitions) })
   }
-  const relationships = { leaders: [...leaders], supporters: [...supporters] }
-  const entries = cache ?? new Map<string, { leaders: string[]; supporters: string[] }>()
+  const relationships = { leaders: [...leaders.values()], supporters: [...supporters.values()] }
+  const entries = cache ?? new Map<string, { leaders: RelatedDatasheet[]; supporters: RelatedDatasheet[] }>()
   entries.set(key, relationships)
   if (!cache) relationshipCache.set(loaded, entries)
   return relationships

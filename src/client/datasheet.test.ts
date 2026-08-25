@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { addedKeywords, compositionCount, referenceAbilities, rosterAbilities } from './datasheet'
+import { addedKeywords, attachmentGroups, compositionCount, referenceAbilities } from './datasheet'
 
 describe('datasheet composition count', () => {
   it('adds fixed and ranged model groups', () => {
@@ -36,14 +36,27 @@ describe('datasheet abilities', () => {
     expect(referenceAbilities(abilities, [])).toEqual(abilities)
   })
 
-  it('leaves attachment roles out of the roster editor', () => {
-    const abilities = [
-      { name: 'Leader', kind: 'core' },
-      { name: 'Support', kind: 'core' },
-      { name: 'My Will Be Done', kind: 'datasheet' },
-    ]
+  it('groups every attachment direction in display order', () => {
+    const leader = { name: 'Leader target', entryId: 'leader-target', route: null }
+    const support = { name: 'Support target', entryId: 'support-target', route: null }
+    const led = { name: 'Attached leader', entryId: 'attached-leader', route: null }
+    const supported = { name: 'Attached support', entryId: 'attached-support', route: null }
 
-    expect(rosterAbilities(abilities)).toEqual([abilities[2]])
+    expect(
+      attachmentGroups({
+        attachments: [
+          { ...leader, kind: 'leader' },
+          { ...support, kind: 'support' },
+        ],
+        leaders: [led],
+        supporters: [supported],
+      }),
+    ).toEqual([
+      { title: 'Can lead', relationships: [{ ...leader, kind: 'leader' }] },
+      { title: 'Can support', relationships: [{ ...support, kind: 'support' }] },
+      { title: 'Can be led by', relationships: [led] },
+      { title: 'Can be supported by', relationships: [supported] },
+    ])
   })
 })
 

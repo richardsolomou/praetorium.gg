@@ -67,6 +67,13 @@ export function referenceAbilities<T extends Ability>(abilities: readonly T[], a
   return abilities.filter((ability) => !roles.has(attachmentRole(ability)) || !['datasheet', 'rule'].includes(ability.kind))
 }
 
-export function rosterAbilities<T extends Ability>(abilities: readonly T[]): T[] {
-  return abilities.filter((ability) => !['leader', 'support'].includes(attachmentRole(ability)))
+type AttachmentSheet = Pick<Datasheet, 'attachments' | 'leaders' | 'supporters'>
+
+export function attachmentGroups(sheet: AttachmentSheet) {
+  return [
+    { title: 'Can lead', relationships: sheet.attachments.filter((entry) => entry.kind === 'leader') },
+    { title: 'Can support', relationships: sheet.attachments.filter((entry) => entry.kind === 'support') },
+    { title: 'Can be led by', relationships: sheet.leaders },
+    { title: 'Can be supported by', relationships: sheet.supporters },
+  ].filter(({ relationships }) => relationships.length)
 }

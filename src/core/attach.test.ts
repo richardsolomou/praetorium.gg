@@ -44,6 +44,23 @@ describe('a character that can join a unit', () => {
     expect(attachmentOf(index.definitions.get('plasmancer')!, index)).toEqual({ kind: 'support', targets: ['IMMORTALS'] })
   })
 
+  it('reads a single attachment target', () => {
+    const index = indexOf({
+      sharedSelectionEntries: [
+        {
+          id: 'ancient',
+          name: 'Bladeguard Ancient',
+          type: 'model',
+          profiles: [ability('Support', 'This model can be attached to the following unit:\n■ BLADEGUARD VETERAN SQUAD')],
+        },
+      ],
+    })
+    expect(attachmentOf(index.definitions.get('ancient')!, index)).toEqual({
+      kind: 'support',
+      targets: ['BLADEGUARD VETERAN SQUAD'],
+    })
+  })
+
   it('reads the comma-separated form the data also uses', () => {
     const index = indexOf({
       sharedSelectionEntries: [
@@ -252,11 +269,7 @@ describe('attachment legality', () => {
     expect(attachmentErrors([{ entryId: 'leader', attachedTo: 1 }, { entryId: 'squad' }], index)).toEqual([])
   })
 
-  /**
-   * One character leads a unit. A supporting character joins one alongside — that is
-   * what makes it supporting — so only a second Leader is a mistake.
-   */
-  it('allows one leader and refuses a second', () => {
+  it('allows one leader and one support, then refuses another of either kind', () => {
     const leader = (id: string, name: string) => ({
       id,
       name,
@@ -285,21 +298,41 @@ describe('attachment legality', () => {
             },
           ],
         },
+        {
+          id: 'apothecary',
+          name: 'Apothecary',
+          type: 'model',
+          infoGroups: [
+            {
+              id: 'apothecary-g',
+              name: 'Apothecary',
+              profiles: [ability('Apothecary', 'This model can be attached to the following units:\n■ SQUAD')],
+            },
+          ],
+        },
         { id: 'squad', name: 'SQUAD', type: 'unit' },
       ],
     })
 
-    const one = [{ entryId: 'overlord', attachedTo: 3 }, { entryId: 'ancient', attachedTo: 3 }, { entryId: 'lord' }, { entryId: 'squad' }]
-    expect(attachmentErrors(one, index)).toEqual([])
-
-    const two = [
-      { entryId: 'overlord', attachedTo: 3 },
-      { entryId: 'ancient', attachedTo: 3 },
-      { entryId: 'lord', attachedTo: 3 },
+    const one = [
+      { entryId: 'overlord', attachedTo: 4 },
+      { entryId: 'ancient', attachedTo: 4 },
+      { entryId: 'lord' },
+      { entryId: 'apothecary' },
       { entryId: 'squad' },
     ]
-    expect(attachmentErrors(two, index).map((error) => `${error.entryName}: ${error.message}`)).toEqual([
+    expect(attachmentErrors(one, index)).toEqual([])
+
+    const twoOfEach = [
+      { entryId: 'overlord', attachedTo: 4 },
+      { entryId: 'ancient', attachedTo: 4 },
+      { entryId: 'lord', attachedTo: 4 },
+      { entryId: 'apothecary', attachedTo: 4 },
+      { entryId: 'squad' },
+    ]
+    expect(attachmentErrors(twoOfEach, index).map((error) => `${error.entryName}: ${error.message}`)).toEqual([
       'Lord: cannot lead SQUAD, which is already led by Overlord',
+      'Apothecary: cannot support SQUAD, which is already supported by Ancient',
     ])
   })
 })

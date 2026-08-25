@@ -13,7 +13,7 @@ import type { EvaluationError } from './evaluate'
  */
 export type Attachment = { kind: 'leader' | 'support'; targets: string[] }
 
-const CLAIM = 'can be attached to the following units'
+const CLAIM = /can be attached to the following units?/i
 
 const BULLETED = /(?:^|\n)\s*(?:■|-)\s*([^\n]+)/g
 
@@ -50,7 +50,7 @@ export function attachmentOf(definition: Definition, index: CatalogueIndex): Att
 
 function findAttachment(definition: Definition, index: CatalogueIndex): Attachment | null {
   for (const [title, text] of statements(definition, index)) {
-    if (!text.toLowerCase().includes(CLAIM)) continue
+    if (!CLAIM.test(text)) continue
     const named = names(text)
     if (!named.length) continue
     const categorized = named.flatMap((name) => [name, ...categoryTargets(name, index)])
@@ -125,7 +125,7 @@ function uniqueNames(values: readonly string[]) {
  * The other units in the list that are the same unit as this one, by position.
  *
  * An Attached unit is one unit however many entries the list keeps it in: the
- * bodyguard unit, the Leader, and every supporting character joined to it. So a
+ * bodyguard unit, its Leader, and its Support unit. So a
  * character reaches its siblings through the unit they all joined rather than
  * through each other — asking only what this entry is attached to would tell a
  * Chronomancer nothing about the Overlord standing beside it, and an enhancement
@@ -138,7 +138,7 @@ export function attachedUnit(units: readonly { attachedTo?: number }[], position
 
 export function attachmentErrors(units: readonly { entryId: string; attachedTo?: number }[], index: CatalogueIndex): EvaluationError[] {
   const errors: EvaluationError[] = []
-  const leaders = new Map<number, number>()
+  const occupied = { leader: new Map<number, number>(), support: new Map<number, number>() }
   units.forEach((unit, position) => {
     if (unit.attachedTo === undefined) return
     const definition = index.definitions.get(unit.entryId)
@@ -166,17 +166,18 @@ export function attachmentErrors(units: readonly { entryId: string; attachedTo?:
       ?.filter((constraint) => constraint.type === 'max' && constraint.field === 'associations')
       .map((constraint) => constraint.value)
     if (associationMax?.length && Math.min(...associationMax) < 1) error('allows no attachments')
-    // A unit is led by one character. Others may still be attached alongside — that
-    // is what a supporting character is — but a second Leader is not a loadout
-    // question the player can resolve later, so it is said plainly here.
-    if (attachment?.kind === 'leader') {
-      const already = leaders.get(unit.attachedTo)
-      if (already === undefined) leaders.set(unit.attachedTo, position)
-      else
-        error(
-          `cannot lead ${hostName}, which is already led by ${nameOf(index.definitions.get(units[already]?.entryId ?? '') ?? { id: '' }, index.definitions)}`,
-        )
+    if (!attachment) return
+    const already = occupied[attachment.kind].get(unit.attachedTo)
+    if (already === undefined) {
+      occupied[attachment.kind].set(unit.attachedTo, position)
+      return
     }
+    const other = nameOf(index.definitions.get(units[already]?.entryId ?? '') ?? { id: '' }, index.definitions)
+    error(
+      attachment.kind === 'leader'
+        ? `cannot lead ${hostName}, which is already led by ${other}`
+        : `cannot support ${hostName}, which is already supported by ${other}`,
+    )
   })
   return errors
 }
@@ -221,16 +222,14 @@ function statements(definition: Definition, index: CatalogueIndex): [string, str
 }
 
 function names(text: string): string[] {
-  const bulleted = [...text.matchAll(BULLETED)].flatMap((match) => (match[1] ? [match[1]] : []))
+  const claim = CLAIM.exec(text)
+  if (!claim || claim.index === undefined) return []
+  const afterClaim = text.slice(claim.index + claim[0].length)
+  const bulleted = [...afterClaim.matchAll(BULLETED)].flatMap((match) => (match[1] ? [match[1]] : []))
   if (bulleted.length) return bulleted.map(clean).filter(Boolean)
-  const emphasised = EMPHASISED.exec(text.slice(text.toLowerCase().indexOf(CLAIM)))
+  const emphasised = EMPHASISED.exec(afterClaim)
   if (emphasised?.[1]) return emphasised[1].split(',').map(clean).filter(Boolean)
-  return text
-    .slice(text.toLowerCase().indexOf(CLAIM) + CLAIM.length)
-    .replace(/^:\s*/, '')
-    .split(',')
-    .map(clean)
-    .filter(Boolean)
+  return afterClaim.replace(/^:\s*/, '').split(',').map(clean).filter(Boolean)
 }
 
 /** Strips the markup the text carries and the case it shouts in. */
