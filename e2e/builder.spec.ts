@@ -1306,6 +1306,40 @@ test('a squad the datasheet keeps identical is asked once, not counted', async (
   await page.screenshot({ path: 'test-results/loadout.png', fullPage: true })
 })
 
+test('a squad-wide choice has the same count on its roster card and loadout', async ({ page }) => {
+  await openBuilder(page, 'Dark Angels', /Inner Circle Task Force/)
+  await add(page, 'Vanguard Veteran Squad with Jump Packs')
+
+  const card = page.locator('[data-unit="Vanguard Veteran Squad with Jump Packs"]')
+  await expect(card).toContainText('4x Storm Shield')
+  await page.setViewportSize({ width: 390, height: 844 })
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  const rosterWidths = await page.locator('[data-slot="roster-units"]').evaluate((element) => ({
+    client: element.clientWidth,
+    scroll: element.scrollWidth,
+  }))
+  expect(rosterWidths.scroll).toBe(rosterWidths.client)
+  await page.screenshot({ path: 'test-results/vanguard-veteran-shield-count.png', fullPage: true })
+  await card.getByRole('button', { name: 'Vanguard Veteran Squad with Jump Packs', exact: true }).click()
+
+  const loadout = page.locator('aside[aria-label="Loadout"]')
+  const loadoutWidths = await loadout.locator('[data-slot="scroll-area-viewport"]').evaluate((element) => ({
+    client: element.clientWidth,
+    scroll: element.scrollWidth,
+  }))
+  expect(loadoutWidths.scroll).toBe(loadoutWidths.client)
+  const masterCrafted = loadout.getByRole('button', { name: 'Select Master-crafted Power Weapon' })
+  await masterCrafted.first().click()
+  const sergeant = loadout.locator('section').filter({ hasText: 'Vanguard Veteran Sergeant with Jump Pack' })
+  await sergeant.getByRole('button', { name: 'Select Master-crafted Power Weapon' }).click()
+  await expect(loadout.getByLabel('Master-crafted Power Weapon count')).toHaveText(['4', '1'])
+  await expect(card).toContainText('5x Master-crafted Power Weapon')
+
+  await loadout.getByRole('button', { name: 'Close', exact: true }).click()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  await shot(card, 'test-results/vanguard-veteran-wargear-count.png')
+})
+
 /**
  * The catalogue files a Necron Warrior once per gun it can hold, which is bookkeeping
  * rather than two kinds of model. Drawn as written, the panel gave each of them a card

@@ -60,6 +60,11 @@ export function isCollective(definition: Definition, index: CatalogueIndex): boo
   return Boolean(('collective' in definition && definition.collective) || ('collective' in target && target.collective))
 }
 
+export function isCollectiveGroup(definition: Definition, index: CatalogueIndex): boolean {
+  const target = resolve(definition, index)
+  return target.type === undefined && childrenOf(target, index).some((child) => isCollective(child.definition, index))
+}
+
 /**
  * How many carriers a child's `@parent` constraint is counted against: the models
  * holding it when it is collective, one otherwise. A group takes the factor of what
@@ -69,7 +74,7 @@ export function scaleOf(definition: Definition, index: CatalogueIndex, carriers:
   if (isCollective(definition, index)) return carriers
   const target = resolve(definition, index)
   if (target.type !== undefined) return 1
-  return childrenOf(target, index).some((child) => isCollective(child.definition, index)) ? carriers : 1
+  return isCollectiveGroup(definition, index) ? carriers : 1
 }
 
 /** The binding cap on how many of this may be taken, or null when nothing limits it. */
@@ -188,7 +193,7 @@ function modelOnPath(
 export function repeatedCarrierOn(groupPath: readonly string[], index: CatalogueIndex) {
   const groupId = groupPath.at(-1)
   const group = groupId ? index.definitions.get(groupId) : undefined
-  if (!group || childrenOf(resolve(group, index), index).some((option) => isCollective(option.definition, index))) return null
+  if (!group || isCollectiveGroup(group, index)) return null
   const modelPath = groupPath.slice(0, -1)
   return repeatedModelOn(modelPath, index) ?? repeatableModelOn(modelPath, index)
 }
