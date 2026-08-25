@@ -126,6 +126,7 @@ export type BattleView = {
   /** The conventional ceilings, for display beside a total. */
   guides: { primary: number; secondary: number }
   deploymentId: string | null
+  leagueToken: string | null
   turns: { playerId: PlayerId; playerName: string; round: number; minutes: number | null }[]
   advancePrompt: string | null
   /** The latest active command any seated player may take back. */
@@ -266,6 +267,7 @@ export function battleView(
     }),
     guides: { primary: PRIMARY_GUIDE, secondary: SECONDARY_GUIDE },
     deploymentId: state.deploymentId,
+    leagueToken: state.leagueToken,
     turns: state.turns.map((turn) => ({
       playerId: turn.playerId,
       playerName: named.get(turn.playerId) ?? 'Unknown',

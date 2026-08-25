@@ -1,0 +1,1 @@
+ALTER TABLE "league_entries" ADD COLUMN "roster_name" text;

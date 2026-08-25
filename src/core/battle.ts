@@ -344,6 +344,7 @@ export type Command =
   | { kind: 'set-side-disposition'; side: number; disposition: string }
   | ({ kind: 'attach-roster'; roster: Roster; prep?: BattlePrep | null; painted?: boolean } & OnBehalfOf)
   | ({ kind: 'detach-roster' } & OnBehalfOf)
+  | { kind: 'lock-league-rosters'; leagueToken: string }
   | ({ kind: 'set-unit'; unitKey: string; destroyed: boolean } & OnBehalfOf)
   | ({ kind: 'wound-unit'; unitKey: string; delta: number } & OnBehalfOf)
   /** `delta` is the change in wounds left, so a unit taking damage is negative, like models. */
@@ -468,6 +469,7 @@ export type BattleState = {
   pendingSettlement: { playerId: PlayerId; round: number } | null
   /** The battlefield both players are using. Shared, so either may set it. */
   deploymentId: string | null
+  leagueToken: string | null
   settings: BattleSettings
   result: { reason: BattleEndReason; concededBy: PlayerId | null } | null
   players: PlayerState[]
@@ -559,7 +561,7 @@ function recordProgress(state: BattleState, entry: LoggedCommand, before: Battle
   } else if (entry.command.kind === 'end-battle') closeTurn(entry.at)
   else if (entry.command.kind === 'reopen-battle') openTurn(entry.at)
 
-  if (entry.command.kind === 'begin-battle') state.undoable = null
+  if (entry.command.kind === 'begin-battle' || entry.command.kind === 'lock-league-rosters') state.undoable = null
   else if (entry.command.kind !== 'settle-opponent-turn') state.undoable = { seq: entry.seq, by: entry.by, kind: entry.command.kind }
 }
 
@@ -577,6 +579,7 @@ export function emptyBattle(playerIds: readonly PlayerId[], playerSides?: readon
     resumePlayerId: null,
     pendingSettlement: null,
     deploymentId: null,
+    leagueToken: null,
     settings: { ...DEFAULT_SETTINGS },
     result: null,
     players: playerIds.map((id, index) => ({
@@ -632,10 +635,13 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
   switch (command.kind) {
     case 'configure-battle': {
       if (state.status !== 'setup') return 'the battle has started'
+      if (state.leagueToken && command.limit !== state.settings.limit) return 'league roster battle size is sealed'
+      if (state.leagueToken && (command.teamBattle ?? false) !== state.settings.teamBattle) return 'league battle sides are sealed'
       if (!GAME_SIZES.some((size) => size.limit === command.limit)) return 'choose a supported battle size'
       return null
     }
     case 'reset-setup':
+      if (state.leagueToken) return 'league rosters are sealed'
       return state.status === 'setup' ? null : 'the battle has started'
     case 'set-setup-step':
       if (state.status !== 'setup') return 'the battle has started'
@@ -656,6 +662,7 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
       return brought ? null : 'that force disposition is not one this side brought'
     }
     case 'attach-roster': {
+      if (state.leagueToken) return 'league rosters are sealed'
       if (state.status === 'finished') return 'the battle is over'
       // Correcting a list mid-battle stays allowed; bringing a different set of cards with it does not.
       if (state.status === 'playing' && command.prep) return 'cards are settled before the battle begins'
@@ -678,6 +685,7 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
       return null
     }
     case 'detach-roster': {
+      if (state.leagueToken) return 'league rosters are sealed'
       // Correcting a list mid-battle stays allowed, because a corrected list is still
       // an army. Taking one away is not: the units on the table would have nothing
       // behind them, so a seat is only emptied while the table is being set.
@@ -685,6 +693,10 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
       if (!player.roster) return 'that seat has no army'
       return null
     }
+    case 'lock-league-rosters':
+      if (state.status !== 'setup') return 'the battle has started'
+      if (state.leagueToken) return 'league rosters are already sealed'
+      return state.players.every((candidate) => candidate.roster) ? null : 'every player needs a sealed roster'
     case 'begin-battle': {
       if (state.status !== 'setup') return 'the battle has started'
       const requiredPlayers = state.settings.teamBattle ? TEAM_BATTLE_PLAYERS : PLAYERS_PER_BATTLE
@@ -1058,6 +1070,10 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
       applyPrep(player, null)
       state.deploymentId = null
       state.settings.terrainLayoutId = null
+      return
+    }
+    case 'lock-league-rosters': {
+      state.leagueToken = command.leagueToken
       return
     }
     case 'set-unit': {

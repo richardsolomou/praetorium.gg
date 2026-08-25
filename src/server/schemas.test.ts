@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createBattleSchema, savedRosterDatasheetSchema } from './schemas'
+import { createBattleSchema, createLeagueSchema, savedRosterDatasheetSchema } from './schemas'
 
 describe('battle creation input', () => {
   it('keeps the legacy opponent-only payload valid', () => {
@@ -34,5 +34,17 @@ describe('saved roster datasheet input', () => {
 
   it('rejects out-of-range pick indexes', () => {
     expect(savedRosterDatasheetSchema.safeParse({ id: 'roster', pickIndex: 100 }).success).toBe(false)
+  })
+})
+
+describe('league creation input', () => {
+  const league = { name: 'League', visibility: 'public', admission: 'approval' }
+
+  it('allows an optional bounded player limit', () => {
+    expect(createLeagueSchema.parse({ ...league, playerLimit: 16 })).toMatchObject({ playerLimit: 16 })
+  })
+
+  it('rejects a one-player league', () => {
+    expect(createLeagueSchema.safeParse({ ...league, playerLimit: 1 }).success).toBe(false)
   })
 })

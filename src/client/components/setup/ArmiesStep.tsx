@@ -93,7 +93,9 @@ export function ArmiesStep({ view, sides, send, pending }: Props) {
                      */}
                     <DispositionChip disposition={nameDisposition(army.roster?.built?.disposition)} className="mt-1" />
                   </div>
-                  {army.isViewer || army.automated ? (
+                  {view.leagueToken ? (
+                    <span className="chip shrink-0 text-achieved">League roster</span>
+                  ) : army.isViewer || army.automated ? (
                     <div className="flex shrink-0 items-center gap-1">
                       <Button
                         variant="outline"

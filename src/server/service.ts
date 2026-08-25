@@ -4,7 +4,9 @@ import {
   battleCapacity,
   type Command,
   commandArmy,
+  GAME_SIZES,
   type PlayerId,
+  type Roster,
   reduceBattle,
   type Secondary,
   scoringTarget,
@@ -18,6 +20,14 @@ import { type BattleView, battleView } from '../core/battleView'
 import { battleReport } from '../core/battleReport'
 import type { RosterPick } from '../core/roster'
 import type { RosterSource } from '../core/savedRoster'
+import {
+  LEAGUE_MEMBER_MAX,
+  type LeagueAdmission,
+  type LeagueEntryStatus,
+  type LeagueVisibility,
+  visibleLeagueEntries,
+} from '../core/league'
+import { commandSchema } from '../core/commands'
 import type { BattleHistory, BattleSeats, JoinResult, Repository } from '../db/repository'
 import { type Mission, missionFor } from './rules'
 import { picksSchema, savedPrepSchema } from './schemas'
@@ -63,6 +73,122 @@ export class PraetoriumService {
 
   userById(id: string) {
     return this.repository.userById(id)
+  }
+
+  async createLeague(
+    ownerId: string,
+    input: { name: string; description: string; visibility: LeagueVisibility; admission: LeagueAdmission; playerLimit: number | null },
+  ) {
+    const id = randomId()
+    const token = randomToken()
+    await this.repository.createLeague({ id, token, ownerId, ...input, now: this.clock() })
+    return { token }
+  }
+
+  leagues(userId: string | null) {
+    return this.repository.leaguesVisibleTo(userId)
+  }
+
+  async league(token: string, viewerId: string | null) {
+    const league = await this.repository.leagueByToken(token, viewerId)
+    if (!league) return null
+    return { ...league, entries: visibleLeagueEntries(league.entries, league.ownerId, viewerId) }
+  }
+
+  async joinLeague(token: string, userId: string) {
+    const result = await this.repository.joinLeague(token, userId, this.clock(), LEAGUE_MEMBER_MAX)
+    if (result === 'missing') throw new Response('no such league', { status: 404 })
+    if (result === 'closed') throw new Response('this league has already revealed its rosters', { status: 409 })
+    if (result === 'full') throw new Response('this league is full', { status: 409 })
+    return result
+  }
+
+  async moderateLeagueEntry(token: string, ownerId: string, userId: string, status: Extract<LeagueEntryStatus, 'accepted' | 'rejected'>) {
+    const result = await this.repository.moderateLeagueEntry(token, ownerId, userId, status, LEAGUE_MEMBER_MAX)
+    if (result === 'updated') return
+    if (result === 'forbidden') throw new Response('only the organizer can change entrants', { status: 403 })
+    if (result === 'closed') throw new Response('this league has already revealed its rosters', { status: 409 })
+    if (result === 'full') throw new Response('this league is full', { status: 409 })
+    throw new Response('no such league entrant', { status: 404 })
+  }
+
+  async ownRoster(userId: string, rosterId: string) {
+    const row = await this.repository.roster(rosterId)
+    if (!row || row.userId !== userId) return null
+    return rosterFromRow(row)
+  }
+
+  async submitLeagueRoster(token: string, userId: string, roster: { id: string; updatedAt: number }, snapshot: Roster) {
+    const command = commandSchema.parse({ kind: 'attach-roster', roster: snapshot })
+    if (command.kind !== 'attach-roster') throw new Error('expected a roster snapshot')
+    const { id: _savedRosterId, ...sealed } = command.roster
+    if (
+      !(await this.repository.submitLeagueRoster({
+        token,
+        userId,
+        rosterId: roster.id,
+        rosterName: sealed.name,
+        rosterUpdatedAt: roster.updatedAt,
+        snapshot: JSON.stringify(sealed),
+        now: this.clock(),
+      }))
+    ) {
+      throw new Response('the roster could not be sealed; check your entry and roster, then try again', { status: 409 })
+    }
+  }
+
+  async revealLeague(token: string, ownerId: string) {
+    if (!(await this.repository.revealLeague(token, ownerId, this.clock()))) {
+      throw new Response('fill every configured place and wait for every accepted roster before reveal', { status: 409 })
+    }
+  }
+
+  async leagueRoster(token: string, userId: string) {
+    const stored = await this.repository.leagueRoster(token, userId)
+    if (!stored) return null
+    return storedRoster(stored)
+  }
+
+  async createLeagueBattle(userId: string, leagueToken: string, opponentId: string, missionPackId: string | null) {
+    if (opponentId === userId) throw new Response('choose another league entrant', { status: 400 })
+    const league = await this.repository.leagueBattleRosters(leagueToken, [userId, opponentId])
+    if (!league) throw new Response('no such league', { status: 404 })
+    if (league.revealedAt === null) throw new Response('reveal the league rosters before starting a battle', { status: 409 })
+    if (league.entries.length !== 2) throw new Response('both players must be accepted league entrants', { status: 403 })
+    const rosters = new Map(
+      league.entries.map((entry) => {
+        if (!entry.snapshot) throw new Error('accepted league entrant has no roster snapshot')
+        return [entry.userId, storedRoster(entry.snapshot)] as const
+      }),
+    )
+    const ownRoster = rosters.get(userId)
+    const opponentRoster = rosters.get(opponentId)
+    const limit = ownRoster?.built?.limit
+    if (!ownRoster || !opponentRoster || limit === undefined || opponentRoster.built?.limit !== limit) {
+      throw new Response('sealed rosters must use the same battle size', { status: 409 })
+    }
+    if (!GAME_SIZES.some((size) => size.limit === limit))
+      throw new Response('sealed rosters use an unsupported battle size', { status: 409 })
+
+    const token = randomToken()
+    const id = randomId()
+    const initialCommands: Command[] = [
+      {
+        kind: 'configure-battle',
+        limit,
+        missionPackId,
+        terrainLayoutId: null,
+        twistId: null,
+        teamBattle: false,
+        clockLimitMinutes: null,
+      },
+      { kind: 'attach-roster', playerId: userId, roster: ownRoster, prep: null, painted: true },
+      { kind: 'attach-roster', playerId: opponentId, roster: opponentRoster, prep: null, painted: true },
+      { kind: 'lock-league-rosters', leagueToken },
+    ]
+    await this.repository.createBattle({ id, token, userId, opponentIds: [opponentId], initialCommands, now: this.clock() })
+    this.events.publish(id, [userId, opponentId])
+    return { token }
   }
 
   unlinkAccount(userId: string, providerId: string, availableProviders: readonly string[]) {
@@ -408,6 +534,7 @@ export class PraetoriumService {
     rules?: Parameters<typeof missionFor>[0] | null,
   ): Promise<SubmitAnswer> {
     const seats = await this.mustSeat(token, userId)
+    if (command.kind === 'lock-league-rosters') throw new Response('league roster locks are created by the server', { status: 403 })
     // The log comes back with the answer, so a refusal and a lost race both report
     // the state that refused them rather than the one the caller was holding —
     // and without a second read of a history the append had already in hand.
@@ -500,6 +627,12 @@ export class PraetoriumService {
     if (!history) throw new Response('no such battle', { status: 404 })
     return history
   }
+}
+
+function storedRoster(snapshot: string): Roster {
+  const command = commandSchema.parse({ kind: 'attach-roster', roster: JSON.parse(snapshot) })
+  if (command.kind !== 'attach-roster') throw new Error('expected a roster snapshot')
+  return command.roster
 }
 
 /**

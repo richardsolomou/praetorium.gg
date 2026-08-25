@@ -4,7 +4,7 @@ Read [README.md](README.md) for what the product is and [CONTRIBUTING.md](CONTRI
 
 ## Product boundary
 
-Live state for one game of Warhammer 40,000 between opposing sides of up to three friends, and the list building that feeds it. Social scope stops at mutual friendships used to form private battles: no chat, feeds, groups, or public discovery. No rules encyclopedia and **no game data in this repository** — an instance fetches the community catalogues itself.
+Live state for one game of Warhammer 40,000 between opposing sides of up to three friends, the list building that feeds it, and simple organized-play registration with sealed roster reveal. Social scope stops at mutual friendships used to form private battles and public league listings: no chat, feeds, groups, matchmaking, standings, or public battle discovery. No rules encyclopedia and **no game data in this repository** — an instance fetches the community catalogues itself.
 
 ## Where the detail lives
 
@@ -14,6 +14,7 @@ Each of these is a short read, and the one that matches what you are touching is
 | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------ |
 | Points, legality, the picker, saved lists  | [docs/development/catalogue-data.md](docs/development/catalogue-data.md)                                     |
 | The battle log, phases, undo, live updates | [docs/development/battles.md](docs/development/battles.md)                                                   |
+| Leagues, entry approval, roster sealing    | [docs/development/leagues.md](docs/development/leagues.md)                                                   |
 | Stratagems, missions, scoring              | [docs/development/game-rules.md](docs/development/game-rules.md)                                             |
 | Any screen                                 | [docs/development/interface.md](docs/development/interface.md)                                               |
 | Product scope and interface design         | [docs/product-design.md](docs/product-design.md)                                                             |

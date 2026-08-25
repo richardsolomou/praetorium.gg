@@ -1,7 +1,7 @@
 import type { Roster } from '../../../core/battle'
+import { rosterSnapshot } from '../../../core/rosterSnapshot'
 import type { savedRosterPrice } from '../../../server/functions'
 import type { savedRostersQuery } from '../../queries'
-import { attachmentRows } from '../builder/attachments'
 
 export type SavedRoster = Awaited<ReturnType<NonNullable<ReturnType<typeof savedRostersQuery>['queryFn']>>>[number]
 type PricedRoster = NonNullable<Awaited<ReturnType<typeof savedRosterPrice>>>
@@ -16,51 +16,5 @@ type PricedRoster = NonNullable<Awaited<ReturnType<typeof savedRosterPrice>>>
  * instance could not read, and the battle counts both in models.
  */
 export function battleRoster(saved: SavedRoster, priced: PricedRoster, wounds: readonly { entryId: string; wounds: number }[]): Roster {
-  const woundsOf = new Map(wounds.map((entry) => [entry.entryId, entry.wounds]))
-  return {
-    name: saved.name,
-    // Carried so the battle can link back to the list rather than only naming it.
-    id: saved.id,
-    text: [
-      `${priced.points} / ${saved.limit} pts`,
-      ...priced.detachments.map(
-        (detachment, index) => `${index ? 'Detachment' : 'Primary detachment'}: ${detachment.name} (${detachment.points ?? '?'} DP)`,
-      ),
-      '',
-      ...priced.units.map((unit) => `${unit.name}${unit.size.resizable ? ` (${unit.size.models})` : ''} — ${unit.points}`),
-    ].join('\n'),
-    built: {
-      catalogueId: saved.catalogueId,
-      revision: priced.revision,
-      limit: saved.limit,
-      detachment: priced.detachment,
-      detachments: priced.detachments,
-      detachmentPointBudget: priced.detachmentPointBudget,
-      disposition: priced.disposition ?? null,
-      detachmentIds: [...saved.detachmentIds],
-      picks: saved.picks.map((pick) => ({ ...pick })),
-      units: priced.units.map((unit, index) => ({
-        key: `${index}-${unit.entryId}`,
-        entryId: unit.entryId,
-        name: unit.name,
-        points: unit.points,
-        models: unit.size.models,
-        ...(woundsOf.has(unit.entryId) ? { wounds: woundsOf.get(unit.entryId) } : {}),
-        group: unit.group,
-        wargear: unit.wargear,
-        enhancements: unit.enhancements,
-        upgrades: unit.upgrades,
-        joined: attachmentRows(
-          saved.picks.map((pick, key) => ({ ...pick, key })),
-          priced.units,
-          index,
-        ).map(({ label, name }) => ({
-          label,
-          name,
-        })),
-        formationOptions: [...unit.formationOptions],
-        prebattleRules: unit.prebattleRules,
-      })),
-    },
-  }
+  return rosterSnapshot(saved, priced, wounds)
 }

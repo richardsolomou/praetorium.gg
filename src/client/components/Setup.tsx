@@ -221,19 +221,31 @@ export function Setup({ view, mission, missions, send, pending, problem }: Props
             <>
               <SetupPanel className="space-y-4">
                 <div className="max-w-sm">
-                  <Label htmlFor="battle-size" className="eyebrow">
-                    Battle size
-                  </Label>
-                  <SearchableSelect
-                    id="battle-size"
-                    ariaLabel="Battle size"
-                    groups={SIZE_OPTIONS}
-                    value={view.settings.limit === null ? '' : String(view.settings.limit)}
-                    onValueChange={(value) => configure({ limit: Number(value) })}
-                    placeholder="Choose a battle size"
-                    searchPlaceholder="Search sizes…"
-                    className="mt-1 h-11 rounded-none border-edge bg-sunken"
-                  />
+                  {view.leagueToken ? (
+                    <>
+                      <p className="eyebrow">Battle size</p>
+                      <p className="mt-1 flex h-11 items-center border border-edge bg-sunken px-3 text-sm font-bold uppercase">
+                        {GAME_SIZES.find((size) => size.limit === view.settings.limit)?.name ?? `${view.settings.limit} points`} ·{' '}
+                        {view.settings.limit}
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <Label htmlFor="battle-size" className="eyebrow">
+                        Battle size
+                      </Label>
+                      <SearchableSelect
+                        id="battle-size"
+                        ariaLabel="Battle size"
+                        groups={SIZE_OPTIONS}
+                        value={view.settings.limit === null ? '' : String(view.settings.limit)}
+                        onValueChange={(value) => configure({ limit: Number(value) })}
+                        placeholder="Choose a battle size"
+                        searchPlaceholder="Search sizes…"
+                        className="mt-1 h-11 rounded-none border-edge bg-sunken"
+                      />
+                    </>
+                  )}
                 </div>
                 {references?.packs.length ? (
                   <fieldset>

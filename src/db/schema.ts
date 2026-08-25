@@ -234,6 +234,48 @@ export const rosters = pgTable(
   (table) => [index('rosters_user_id_created_at_index').on(table.userId, table.createdAt)],
 )
 
+export const leagues = pgTable(
+  'leagues',
+  {
+    id: text('id').primaryKey(),
+    token: text('token').notNull(),
+    ownerId: text('owner_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    description: text('description').notNull(),
+    visibility: text('visibility', { enum: ['public', 'private'] }).notNull(),
+    admission: text('admission', { enum: ['automatic', 'approval'] }).notNull(),
+    playerLimit: integer('player_limit'),
+    createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+    revealedAt: bigint('revealed_at', { mode: 'number' }),
+  },
+  (table) => [
+    uniqueIndex('leagues_token_unique').on(table.token),
+    index('leagues_visibility_created_at_index').on(table.visibility, table.createdAt),
+    index('leagues_owner_id_created_at_index').on(table.ownerId, table.createdAt),
+  ],
+)
+
+export const leagueEntries = pgTable(
+  'league_entries',
+  {
+    leagueId: text('league_id')
+      .notNull()
+      .references(() => leagues.id, { onDelete: 'cascade' }),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    status: text('status', { enum: ['pending', 'accepted', 'rejected'] }).notNull(),
+    joinedAt: bigint('joined_at', { mode: 'number' }).notNull(),
+    rosterId: text('roster_id'),
+    rosterName: text('roster_name'),
+    rosterSnapshot: text('roster_snapshot'),
+    submittedAt: bigint('submitted_at', { mode: 'number' }),
+  },
+  (table) => [primaryKey({ columns: [table.leagueId, table.userId] }), index('league_entries_user_id_index').on(table.userId)],
+)
+
 /**
  * The datasheets a player owns models for.
  *
@@ -309,6 +351,8 @@ export const schema = {
   friendships,
   commands,
   rosters,
+  leagues,
+  leagueEntries,
   collection,
   favouriteFactions,
   favouriteDetachments,

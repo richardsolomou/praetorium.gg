@@ -27,6 +27,7 @@ import {
   ScrollText,
   ShieldCheck,
   Swords,
+  Trophy,
   UserRoundPen,
   Users,
   X,
@@ -135,6 +136,9 @@ function Account() {
             <DropdownMenuItem render={<Link to="/rosters" />}>
               <ScrollText /> My rosters
             </DropdownMenuItem>
+            <DropdownMenuItem render={<Link to="/leagues" />}>
+              <Trophy /> Leagues
+            </DropdownMenuItem>
             <DropdownMenuItem render={<Link to="/friends" />}>
               <Users /> Friends
             </DropdownMenuItem>
@@ -238,6 +242,13 @@ function PrimaryNavigation({ path }: { path: string }) {
           activeProps={{ className: 'border-parchment bg-raised text-parchment min-[815px]:bg-transparent' }}
         >
           Battles
+        </Link>
+        <Link
+          to="/leagues"
+          className={linkClass}
+          activeProps={{ className: 'border-parchment bg-raised text-parchment min-[815px]:bg-transparent' }}
+        >
+          Leagues
         </Link>
         <Link
           to="/factions"

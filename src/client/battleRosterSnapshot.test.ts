@@ -10,4 +10,11 @@ describe('fielded roster snapshots', () => {
     expect(fieldedRoster(view, 'roster')).toBe(snapshot)
     expect(fieldedRoster(view, 'another-roster')).toBeNull()
   })
+
+  it('reads a sealed roster without a saved-list identifier from its player seat', () => {
+    const snapshot = { name: 'Sealed name', text: 'Sealed units' }
+    const view = { players: [{ id: 'player', roster: snapshot }] } as BattleView
+
+    expect(fieldedRoster(view, 'player')).toBe(snapshot)
+  })
 })
