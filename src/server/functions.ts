@@ -59,8 +59,13 @@ export const globalSearch = createServerFn({ method: 'GET' })
         own: async () => {
           const userId = await currentUserId()
           if (!userId) return null
-          const [rosters, battles] = await Promise.all([app().service.savedRosters(userId), app().service.battles(userId, app().rules())])
-          return { rosters, battles }
+          // Bounded: search offers the recently active battles, not a fold of every
+          // battle the account has ever played on each keystroke.
+          const [rosters, page] = await Promise.all([
+            app().service.savedRosters(userId),
+            app().service.battles(userId, app().rules(), { limit: 50 }),
+          ])
+          return { rosters, battles: page.battles }
         },
       }),
     ),

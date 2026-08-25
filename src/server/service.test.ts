@@ -1119,13 +1119,13 @@ describe('battle history', () => {
   it('lists only battles the player is seated in', async () => {
     await service.createBattle('bob')
     await started()
-    expect(await service.battles('alice')).toHaveLength(1)
+    expect((await service.battles('alice')).battles).toHaveLength(1)
   })
 
   it('folds the current status and scores from the log', async () => {
     const { send } = await started()
     await send('alice', { kind: 'score', category: 'primary', delta: 5 })
-    expect((await service.battles('alice'))[0]).toMatchObject({
+    expect((await service.battles('alice')).battles[0]).toMatchObject({
       status: 'playing',
       round: 1,
       phase: 'command',

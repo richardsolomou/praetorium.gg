@@ -58,7 +58,70 @@ it('reads a log past a command kind it does not recognise', async () => {
   const history = await repository.battlesByUser('user-000')
 
   expect(log.map((entry) => entry.command.kind)).toEqual(['reopen-battle', 'pause-clock'])
-  expect(history[0]?.log.map((entry) => entry.command.kind)).toEqual(['reopen-battle', 'pause-clock'])
+  expect(history.battles[0]?.log.map((entry) => entry.command.kind)).toEqual(['reopen-battle', 'pause-clock'])
+})
+
+async function seedBattles(count: number, seatUser = 'user-000') {
+  const database = connection!.database
+  for (let index = 0; index < count; index += 1) {
+    const id = `battle-${index.toString().padStart(3, '0')}`
+    await database.insert(battles).values({ id, token: `token-${index}`, createdAt: index })
+    await database.insert(battleUsers).values({ battleId: id, userId: seatUser, side: 0, joinedAt: index })
+  }
+}
+
+it('orders battles by their newest command rather than creation', async () => {
+  const repository = await users(1)
+  await seedBattles(2)
+  // The older battle is the one still being played.
+  await connection!.database
+    .insert(commands)
+    .values({ battleId: 'battle-000', seq: 1, userId: 'user-000', at: 100, body: JSON.stringify({ kind: 'reopen-battle' }) })
+
+  const { battles: page } = await repository.battlesByUser('user-000', { limit: 10 })
+
+  expect(page.map(({ battle }) => battle.id)).toEqual(['battle-000', 'battle-001'])
+})
+
+it('walks battle pages without skipping or repeating across the boundary', async () => {
+  const repository = await users(1)
+  await seedBattles(5)
+
+  const first = await repository.battlesByUser('user-000', { limit: 2 })
+  expect(first.battles).toHaveLength(2)
+  expect(first.nextCursor).not.toBeNull()
+  const second = await repository.battlesByUser('user-000', { limit: 2, before: first.nextCursor! })
+  const third = await repository.battlesByUser('user-000', { limit: 2, before: second.nextCursor! })
+
+  const seen = [...first.battles, ...second.battles, ...third.battles].map(({ battle }) => battle.id)
+  expect(new Set(seen).size).toBe(5)
+  expect(third.nextCursor).toBeNull()
+})
+
+it('breaks battle activity ties by id so a page boundary stays stable', async () => {
+  const repository = await users(1)
+  const database = connection!.database
+  for (let index = 0; index < 4; index += 1) {
+    const id = `battle-${index.toString().padStart(3, '0')}`
+    await database.insert(battles).values({ id, token: `token-${index}`, createdAt: 7 })
+    await database.insert(battleUsers).values({ battleId: id, userId: 'user-000', side: 0, joinedAt: 0 })
+  }
+
+  const first = await repository.battlesByUser('user-000', { limit: 3 })
+  const second = await repository.battlesByUser('user-000', { limit: 3, before: first.nextCursor! })
+
+  const seen = [...first.battles, ...second.battles].map(({ battle }) => battle.id)
+  expect(new Set(seen).size).toBe(4)
+})
+
+it('filters battles to the ones shared with one other player', async () => {
+  const repository = await users(2)
+  await seedBattles(2)
+  await connection!.database.insert(battleUsers).values({ battleId: 'battle-001', userId: 'user-001', side: 1, joinedAt: 0 })
+
+  const { battles: page } = await repository.battlesByUser('user-000', { limit: 10, withUserId: 'user-001' })
+
+  expect(page.map(({ battle }) => battle.id)).toEqual(['battle-001'])
 })
 
 it('keeps league rosters sealed until every accepted entrant has submitted', async () => {

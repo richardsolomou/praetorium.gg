@@ -28,6 +28,7 @@ import {
   myBattles,
   openBattle,
   opponents,
+  sharedBattles,
   userProfile,
   priceRoster,
   savedRosters,
@@ -56,7 +57,28 @@ export const adminUsersQuery = (query: string) =>
 export const userProfileQuery = (userId: string) =>
   queryOptions({ queryKey: ['user-profile', userId], queryFn: () => userProfile({ data: { userId } }), staleTime: SSR_STALE_TIME })
 
-export const battlesQuery = () => queryOptions({ queryKey: ['battles'], queryFn: () => myBattles(), staleTime: SSR_STALE_TIME })
+/** Where the previous battles page ended; matches the server's cursor schema. */
+type BattlesCursor = { activity: number; id: string }
+
+export const battlesQuery = () =>
+  infiniteQueryOptions({
+    queryKey: ['battles'],
+    queryFn: ({ pageParam }) => myBattles({ data: { before: pageParam } }),
+    initialPageParam: null as BattlesCursor | null,
+    getNextPageParam: (page) => page.nextCursor ?? undefined,
+    staleTime: SSR_STALE_TIME,
+  })
+
+/** The loaded battle pages as one list, however many the reader has asked for. */
+export const battlesFrom = (data: { pages: { battles: unknown[] }[] } | undefined) =>
+  (data?.pages.flatMap((page) => page.battles) ?? []) as Awaited<ReturnType<typeof myBattles>>['battles']
+
+export const sharedBattlesQuery = (userId: string) =>
+  queryOptions({
+    queryKey: ['shared-battles', userId],
+    queryFn: () => sharedBattles({ data: { userId } }),
+    staleTime: SSR_STALE_TIME,
+  })
 export const opponentsQuery = () => queryOptions({ queryKey: ['opponents'], queryFn: () => opponents(), staleTime: SSR_STALE_TIME })
 export const friendshipsQuery = () => queryOptions({ queryKey: ['friendships'], queryFn: () => friendships(), staleTime: SSR_STALE_TIME })
 export const leaguesQuery = () => queryOptions({ queryKey: ['leagues'], queryFn: () => listLeagues(), staleTime: SSR_STALE_TIME })

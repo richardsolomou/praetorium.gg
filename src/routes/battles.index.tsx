@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { Swords } from 'lucide-react'
 import { useState } from 'react'
@@ -12,11 +12,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { Button } from '@/components/ui/button'
 import type { Battle } from '../client/components/battles/battle'
 import { BattleShelf } from '../client/components/battles/BattleShelf'
 import { CreateBattle } from '../client/components/battles/CreateBattle'
 import { SignInRequired } from '../client/components/SignInRequired'
-import { battlesQuery, gameReferencesQuery, meQuery, opponentsQuery } from '../client/queries'
+import { battlesFrom, battlesQuery, gameReferencesQuery, meQuery, opponentsQuery } from '../client/queries'
 import { useLiveBattles } from '../client/useLiveBattle'
 import { deleteBattle } from '../server/functions'
 
@@ -24,7 +25,7 @@ export const Route = createFileRoute('/battles/')({
   loader: ({ context }) =>
     Promise.all([
       context.queryClient.ensureQueryData(meQuery()),
-      context.queryClient.ensureQueryData(battlesQuery()),
+      context.queryClient.ensureInfiniteQueryData(battlesQuery()),
       context.queryClient.ensureQueryData(opponentsQuery()),
       context.queryClient.ensureQueryData(gameReferencesQuery()),
     ]),
@@ -33,7 +34,8 @@ export const Route = createFileRoute('/battles/')({
 
 function Battles() {
   const { data: me } = useQuery(meQuery())
-  const { data: battles = [] } = useQuery(battlesQuery())
+  const { data: pages, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery(battlesQuery())
+  const battles = battlesFrom(pages)
   const [deleting, setDeleting] = useState<Battle | null>(null)
   const queryClient = useQueryClient()
   const remove = useMutation({
@@ -65,6 +67,13 @@ function Battles() {
           <BattleShelf title="Active" battles={active} viewerId={me.id} onDelete={setDeleting} />
           <BattleShelf title="Setup" battles={setup} viewerId={me.id} onDelete={setDeleting} />
           <BattleShelf title="Finished" battles={finished} viewerId={me.id} onDelete={setDeleting} />
+          {hasNextPage ? (
+            <div className="pb-2">
+              <Button variant="outline" size="sm" disabled={isFetchingNextPage} onClick={() => void fetchNextPage()}>
+                {isFetchingNextPage ? 'Loading…' : 'Show earlier battles'}
+              </Button>
+            </div>
+          ) : null}
         </div>
       ) : (
         <div className="mx-auto mt-4 grid max-w-5xl place-items-center border-y border-edge bg-panel px-6 py-10 text-center sm:border sm:py-12">

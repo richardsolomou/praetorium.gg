@@ -69,6 +69,12 @@ export const createBattleSchema = z
   )
   .refine((value) => !value.allyId || Boolean(value.opponentIds?.length || value.opponentId), 'an ally needs someone to play against')
 export const deleteBattleSchema = z.object({ token })
+export const battlesPageSchema = z.object({
+  before: z
+    .object({ activity: z.number().int().min(0), id })
+    .nullable()
+    .default(null),
+})
 export const userSchema = z.object({ userId: id })
 export const friendSchema = z.object({ userId: id })
 export const setOwnPasswordSchema = z.object({ password: z.string().min(PASSWORD_MIN_LENGTH).max(128) })

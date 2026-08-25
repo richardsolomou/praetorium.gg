@@ -28,7 +28,7 @@ import {
   visibleLeagueEntries,
 } from '../core/league'
 import { commandSchema } from '../core/commands'
-import type { BattleHistory, BattleSeats, JoinResult, Repository } from '../db/repository'
+import type { BattleHistory, BattleSeats, BattlesCursor, JoinResult, Repository } from '../db/repository'
 import { type Mission, missionFor } from './rules'
 import { picksSchema, savedPrepSchema } from './schemas'
 
@@ -201,9 +201,13 @@ export class PraetoriumService {
    * The logs arrive with the seats, so the cost of this page does not grow by a
    * round trip for every battle the player has ever opened.
    */
-  async battles(userId: string, rules?: Parameters<typeof missionFor>[0] | null) {
-    const histories = await this.repository.battlesByUser(userId)
-    return histories.map(({ battle, players, log }) => {
+  async battles(
+    userId: string,
+    rules?: Parameters<typeof missionFor>[0] | null,
+    page?: { limit: number; before?: BattlesCursor; withUserId?: string },
+  ) {
+    const { battles: histories, nextCursor } = await this.repository.battlesByUser(userId, page)
+    const summaries = histories.map(({ battle, players, log }) => {
       const state = reduceBattle(
         players.map((player) => player.id),
         log,
@@ -241,6 +245,7 @@ export class PraetoriumService {
         lastActivity: log.at(-1)?.at ?? battle.createdAt,
       }
     })
+    return { battles: summaries, nextCursor }
   }
 
   /**

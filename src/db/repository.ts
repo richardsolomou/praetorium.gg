@@ -28,6 +28,8 @@ type BattlePlayer = { id: string; name: string; image: string | null; side: numb
 export type BattleSeats = { battle: BattleRecord; players: BattlePlayer[] }
 /** Seats and history together, so a list of battles costs no query per battle. */
 export type BattleHistory = BattleSeats & { log: LoggedCommand[] }
+/** Where the previous page of battles ended: its last row's newest-command time and battle id. */
+export type BattlesCursor = { activity: number; id: string }
 
 export type JoinResult = 'joined' | 'already-in' | 'full'
 export type UnlinkAccountResult = 'removed' | 'missing' | 'two-factor' | 'last-method'
@@ -371,22 +373,56 @@ export class Repository {
   }
 
   /**
-   * Battles this player has a seat in, newest first, with every log.
+   * A page of battles this player has a seat in, most recently active first,
+   * with every log on the page.
    *
-   * Three queries whatever the count: the battles, then all their seats, then all
-   * their commands. Reading a seat or a log per battle would put a round trip on
-   * the page for every game a player has ever opened.
+   * Ordered by the newest command rather than creation, so a battle being played
+   * is always on the first page whatever its age, and only history pages behind
+   * it grow with an account's lifetime. The cursor is the previous page's last
+   * (activity, id) pair; ties on activity fall back to the id so a page boundary
+   * cannot skip or repeat a battle.
+   *
+   * Three queries whatever the count: the battles, then the page's seats, then
+   * the page's commands. Reading a seat or a log per battle would put a round
+   * trip on the page for every game it shows.
    */
-  async battlesByUser(userId: string): Promise<BattleHistory[]> {
-    const rows = await this.database
-      .select({ id: battles.id, token: battles.token, createdAt: battles.createdAt })
+  async battlesByUser(
+    userId: string,
+    page?: { limit: number; before?: BattlesCursor; withUserId?: string },
+  ): Promise<{ battles: (BattleHistory & { activity: number })[]; nextCursor: BattlesCursor | null }> {
+    const activity = sql<number>`coalesce(max(${commands.at}), ${battles.createdAt})`.mapWith(Number)
+    const theirs = alias(battleUsers, 'theirs')
+    const cursor = page?.before
+    let query = this.database
+      .select({ id: battles.id, token: battles.token, createdAt: battles.createdAt, activity })
       .from(battles)
       .innerJoin(battleUsers, eq(battleUsers.battleId, battles.id))
+      .leftJoin(commands, eq(commands.battleId, battles.id))
       .where(eq(battleUsers.userId, userId))
-      .orderBy(desc(battles.createdAt))
-    const ids = rows.map((row) => row.id)
+      .groupBy(battles.id)
+      .orderBy(desc(activity), desc(battles.id))
+      .$dynamic()
+    if (page?.withUserId) {
+      query = query.innerJoin(theirs, and(eq(theirs.battleId, battles.id), eq(theirs.userId, page.withUserId)))
+    }
+    if (cursor) {
+      query = query.having(or(sql`${activity} < ${cursor.activity}`, and(sql`${activity} = ${cursor.activity}`, lt(battles.id, cursor.id))))
+    }
+    // One row past the page says whether another page exists without a count query.
+    const rows = await (page ? query.limit(page.limit + 1) : query)
+    const shown = page ? rows.slice(0, page.limit) : rows
+    const ids = shown.map((row) => row.id)
     const [players, logs] = await Promise.all([this.playersByBattles(ids), this.logsByBattles(ids)])
-    return rows.map((battle) => ({ battle, players: players.get(battle.id) ?? [], log: logs.get(battle.id) ?? [] }))
+    const last = shown.at(-1)
+    return {
+      battles: shown.map((battle) => ({
+        battle,
+        activity: battle.activity,
+        players: players.get(battle.id) ?? [],
+        log: logs.get(battle.id) ?? [],
+      })),
+      nextCursor: page && rows.length > page.limit && last ? { activity: last.activity, id: last.id } : null,
+    }
   }
 
   /**

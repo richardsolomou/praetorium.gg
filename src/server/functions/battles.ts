@@ -3,7 +3,7 @@ import { app } from '../app'
 import { currentUserId, requireUser, requireUserId } from '../playerSession'
 import { rosterForUse } from '../rosterUsage'
 import { mutationRpc, rpc } from '../rpc'
-import { createBattleSchema, deleteBattleSchema, submitSchema, tokenSchema } from '../schemas'
+import { battlesPageSchema, createBattleSchema, deleteBattleSchema, submitSchema, tokenSchema, userSchema } from '../schemas'
 
 async function orNull<T>(work: () => Promise<T>) {
   try {
@@ -22,12 +22,30 @@ function battleLifecycleEvent(kind: string) {
   return null
 }
 
-export const myBattles = createServerFn({ method: 'GET' }).handler(() =>
-  rpc(async () => {
-    const id = await currentUserId()
-    return id ? app().service.battles(id, app().rules()) : []
-  }),
-)
+/** A page of the battle list. History grows for an account's lifetime; a page does not. */
+const BATTLES_PAGE = 25
+
+export const myBattles = createServerFn({ method: 'GET' })
+  .validator(battlesPageSchema)
+  .handler(({ data }) =>
+    rpc(async () => {
+      const id = await currentUserId()
+      if (!id) return { battles: [], nextCursor: null }
+      return app().service.battles(id, app().rules(), { limit: BATTLES_PAGE, before: data.before ?? undefined })
+    }),
+  )
+
+/** The most recently active battles the viewer shares with one other player. */
+export const sharedBattles = createServerFn({ method: 'GET' })
+  .validator(userSchema)
+  .handler(({ data }) =>
+    rpc(async () => {
+      const id = await currentUserId()
+      if (!id) return []
+      const { battles } = await app().service.battles(id, app().rules(), { limit: BATTLES_PAGE, withUserId: data.userId })
+      return battles
+    }),
+  )
 
 export const openBattle = createServerFn({ method: 'GET' })
   .validator(tokenSchema)
