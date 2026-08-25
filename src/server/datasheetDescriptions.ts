@@ -13,14 +13,20 @@ export function describeDatasheetAbilities(
   if (!sheet) return null
   const descriptions = loadedRules?.abilityDescriptions
   const faction = loaded.index.catalogues.get(catalogueId)
-  const detachmentDetails = faction
-    ? [...(loadedRules?.detachmentDetails.get(rulesFaction(loadedRules, routeSlug(faction.name)))?.values() ?? [])]
-    : []
+  const factionSlug = faction ? rulesFaction(loadedRules, routeSlug(faction.name)) : null
+  const detachmentDetails = factionSlug ? [...(loadedRules?.detachmentDetails.get(factionSlug)?.values() ?? [])] : []
+  const factionContent = factionSlug ? loaded.factionContents.get(factionSlug) : undefined
+  const factionAbilityNames = factionContent?.armyRules.length
+    ? new Set(factionContent.armyRules.map((rule) => routeSlug(rule.name)))
+    : null
   const upgradeNames = new Set(detachmentDetails.flatMap((detachment) => detachment.upgrades.map((upgrade) => routeSlug(upgrade.name))))
+  const visibleAbilities = sheet.abilities.filter(
+    (ability) => ability.kind !== 'faction' || !factionAbilityNames || factionAbilityNames.has(routeSlug(ability.name)),
+  )
   const supplied = descriptions
-    ? sheet.abilities.some((ability) => !ability.description && findAbilityDescription(descriptions, ability.name))
+    ? visibleAbilities.some((ability) => !ability.description && findAbilityDescription(descriptions, ability.name))
     : false
-  const abilities = sheet.abilities.map((ability) => ({
+  const abilities = visibleAbilities.map((ability) => ({
     ...ability,
     kind: ability.kind === 'wargear' && upgradeNames.has(routeSlug(ability.name)) ? ('upgrade' as const) : ability.kind,
     description: ability.description ?? (descriptions ? findAbilityDescription(descriptions, ability.name) : null),

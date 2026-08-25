@@ -53,6 +53,55 @@ describe('the abilities and wargear a datasheet lists', () => {
     ])
   })
 
+  it.each([
+    {
+      catalogueName: 'Imperium - Adeptus Astartes - Black Templars',
+      factionSlug: 'black-templars',
+      rulesFaction: 'black-templars',
+      expected: 'Templar Vows',
+    },
+    {
+      catalogueName: 'Imperium - Adeptus Astartes - Space Marines',
+      factionSlug: 'space-marines',
+      rulesFaction: 'adeptus-astartes',
+      expected: 'Oath of Moment',
+    },
+  ])('shows only $expected for $catalogueName', ({ catalogueName, factionSlug, rulesFaction, expected }) => {
+    const book = bookOf({
+      name: catalogueName,
+      sharedRules: [
+        { id: 'oath', name: 'Oath of Moment', description: 'Mark a target.' },
+        { id: 'vows', name: 'Templar Vows', description: 'Select a vow.' },
+      ],
+      selectionEntries: [
+        {
+          id: 'judiciar',
+          name: 'Judiciar',
+          type: 'model',
+          infoLinks: [
+            { id: 'oath-link', targetId: 'oath', name: 'Oath of Moment', type: 'rule' },
+            { id: 'vows-link', targetId: 'vows', name: 'Templar Vows', type: 'rule' },
+          ],
+        },
+      ],
+    })
+    book.factionContents.set(rulesFaction, {
+      datasheets: new Set(),
+      datasheetDetails: new Map(),
+      detachments: new Set(),
+      armyRules: [{ name: expected, description: 'Army rule.' }],
+    })
+    const rules = {
+      abilityDescriptions: new Map(),
+      detachmentDetails: new Map(),
+      factionKeys: new Map([[factionSlug, rulesFaction]]),
+    } as Partial<LoadedRules> as LoadedRules
+
+    expect(describeDatasheetAbilities(book, 'cat', datasheetIn(book, 'cat', 'judiciar'), rules)?.abilities.map(({ name }) => name)).toEqual(
+      [expected],
+    )
+  })
+
   it('shows a unit enhancement ability only when the enhancement is selected', () => {
     const book = bookOf({
       selectionEntries: [
