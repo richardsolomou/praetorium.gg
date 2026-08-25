@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { buildIndex, type CatalogueFile } from '../core/catalogue'
 import { buildUnit } from '../core/roster'
 import { wargearOf } from '../core/wargear'
-import { importRosterFile } from './rosterFiles'
+import { exportRosterFile, importRosterFile } from './rosterFiles'
 import type { LoadedCatalogue } from './catalogueIndex'
 
 const system: CatalogueFile = { gameSystem: { id: 'gs', name: 'Test', costTypes: [{ id: 'pts', name: 'pts' }] } }
@@ -188,6 +188,54 @@ const loaded: LoadedCatalogue = {
   ]),
   factionContents: new Map(),
 }
+
+describe('roster export', () => {
+  it('includes upgrades and both sides of an attachment', () => {
+    const exported = exportRosterFile(
+      {
+        catalogueId: 'necrons',
+        detachmentIds: [],
+        disposition: null,
+        limit: 2000,
+        name: 'Attached force',
+        units: [{ entryId: 'lord', attachedTo: 1 }, { entryId: 'immortals' }],
+      },
+      loaded,
+      {
+        points: 300,
+        disposition: null,
+        detachments: [],
+        units: [
+          {
+            key: 0,
+            name: 'Lokhust Lord',
+            points: 100,
+            group: 'character',
+            attachment: { kind: 'leader', targets: ['Immortals'] },
+            enhancements: ['Murdermind'],
+            upgrades: [],
+            wargear: [],
+          },
+          {
+            key: 1,
+            name: 'Immortals',
+            points: 200,
+            group: 'other',
+            attachment: null,
+            enhancements: [],
+            upgrades: ['Deepening Madness'],
+            wargear: [],
+          },
+        ],
+      },
+      ['Purge the Foe', 'Reconnaissance'],
+    )
+
+    expect(exported.text).toContain('Force Dispositions: Purge the Foe, Reconnaissance')
+    expect(exported.text).toContain('Lokhust Lord (100 Points)\n    • Leading: Immortals\n    • Enhancement: Murdermind')
+    expect(exported.text).toContain('Immortals (200 Points)\n    • Leader: Lokhust Lord\n    • Enhancement: Deepening Madness')
+  })
+})
 
 describe('BattleBase roster import', () => {
   it('identifies the imported text source', () => {

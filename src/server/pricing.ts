@@ -9,7 +9,7 @@ import {
   kotcUnitExclusions,
 } from '../core/battle'
 import { targetOf } from '../core/catalogue'
-import { evaluate, evaluateForces, type Selection } from '../core/evaluate'
+import { evaluateForces, type Selection } from '../core/evaluate'
 import { type ModelKind, modelKindsOf } from '../core/modelKinds'
 import { buildUnit } from '../core/roster'
 import { modelCountOf } from '../core/unitSize'
@@ -132,8 +132,13 @@ export function calculateRosterPrice(data: PriceInput, loaded = app().catalogue(
 
   const { picked, forceSelections } = rosterForces(loaded, data, detachmentSelection)
   const options = { primaryCatalogueId: data.catalogueId }
-  const selections = [...forceSelections.values()].flat()
-  const whole = evaluateForces([...forceSelections.values()], loaded.index, options)
+  const forces = [...forceSelections.values()]
+  const selections = forces.flat()
+  const whole = evaluateForces(forces, loaded.index, options)
+  const selectionPoints = new Map<Selection, number>()
+  forces.forEach((force, forceAt) =>
+    force.forEach((selection, selectionAt) => selectionPoints.set(selection, whole.selectionPoints[forceAt]?.[selectionAt] ?? 0)),
+  )
   const restrictions = rules?.factionRestrictions.get(factionSlug)
   // Keywords and Toughness are only inputs to these two construction rule sets.
   // Projecting every contextual datasheet for an ordinary roster made pricing
@@ -187,6 +192,7 @@ export function calculateRosterPrice(data: PriceInput, loaded = app().catalogue(
     walk(composed.selection)
   }
   const selfContradictory = new Set(whole.errors.filter((error) => isCatalogueSelfContradiction(error, composedByCatalogue)))
+  const pickedSelections = data.units.map((_, key) => picked.find((unit) => unit.key === key)?.selection)
 
   // The 10e catalogue wrapper caps detachments at one; the 11e rules source
   // replaces that constraint with the DP budget checked above.
@@ -196,7 +202,7 @@ export function calculateRosterPrice(data: PriceInput, loaded = app().catalogue(
         !(chosen.length > 1 && error.entryName.toLowerCase().includes('detachment') && error.message.includes('allows at most 1, has ')) &&
         !selfContradictory.has(error),
     ),
-    ...attachmentErrors(data.units, loaded.index),
+    ...attachmentErrors(data.units, loaded.index, pickedSelections),
     ...factionRestrictionViolations(restrictions, constructionUnits),
     ...(isKotcLimit(data.limit) ? kotcViolations(chosen.length, constructionUnits, data.limit) : []),
   ]
@@ -215,6 +221,7 @@ export function calculateRosterPrice(data: PriceInput, loaded = app().catalogue(
     detachmentPointsOver: Boolean(detachmentError),
     detachmentError,
     disposition,
+    dispositions: allowedDispositions,
     dispositionError,
     points: whole.points,
     errors,
@@ -265,7 +272,7 @@ export function calculateRosterPrice(data: PriceInput, loaded = app().catalogue(
         key: unit.key,
         entryId: unit.entryId,
         name: unit.name,
-        points: evaluate([unit.selection], loaded.index, options).points,
+        points: selectionPoints.get(unit.selection) ?? 0,
         size: {
           min: unit.size.min,
           max: unit.size.max,
@@ -293,7 +300,7 @@ export function calculateRosterPrice(data: PriceInput, loaded = app().catalogue(
           .flatMap((choice) => choice.options.filter((option) => option.count > 0).map((option) => option.name)),
         wargear: wargear.filter((piece) => !specialSelections.has(routeSlug(piece.name))),
         group: groupOfEntry(loaded.index, unit.entryId),
-        attachment: attachmentOf(loaded.index.definitions.get(unit.entryId) ?? { id: unit.entryId }, loaded.index),
+        attachment: attachmentOf(loaded.index.definitions.get(unit.entryId) ?? { id: unit.entryId }, loaded.index, unit.selection),
       }
     }),
   }

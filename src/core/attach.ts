@@ -1,5 +1,15 @@
-import { type CatalogueIndex, type Definition, type InfoGroup, nameOf, type Profile, targetOf } from './catalogue'
-import type { EvaluationError } from './evaluate'
+import {
+  type Association,
+  type CatalogueIndex,
+  type Condition,
+  type ConditionGroup,
+  type Definition,
+  type InfoGroup,
+  nameOf,
+  type Profile,
+  targetOf,
+} from './catalogue'
+import type { EvaluationError, Selection } from './evaluate'
 
 /**
  * A character joining a unit, as eleventh edition writes it.
@@ -26,6 +36,7 @@ const GENERIC_SUBSTITUTION =
 const attachmentCache = new WeakMap<CatalogueIndex, WeakMap<Definition, Attachment | null>>()
 const substitutionCache = new WeakMap<CatalogueIndex, ReadonlyMap<string, readonly string[]>>()
 const categoryTargetCache = new WeakMap<CatalogueIndex, readonly string[]>()
+const associationCandidateCache = new WeakMap<CatalogueIndex, readonly Definition[]>()
 
 /**
  * Which units this entry may be attached to, read out of its own ability text.
@@ -37,15 +48,115 @@ const categoryTargetCache = new WeakMap<CatalogueIndex, readonly string[]>()
  * simply cannot be attached, and every name that fails to match a datasheet is
  * dropped rather than guessed at.
  */
-export function attachmentOf(definition: Definition, index: CatalogueIndex): Attachment | null {
+export function attachmentOf(definition: Definition, index: CatalogueIndex, selection?: Selection): Attachment | null {
   const cached = attachmentCache.get(index)
-  if (cached?.has(definition)) return cached.get(definition) ?? null
+  let attachment = cached?.get(definition)
+  if (!cached?.has(definition)) {
+    attachment = findAttachment(definition, index)
+    const entries = cached ?? new WeakMap<Definition, Attachment | null>()
+    entries.set(definition, attachment)
+    if (!cached) attachmentCache.set(index, entries)
+  }
+  if (!selection) return attachment ?? null
 
-  const attachment = findAttachment(definition, index)
-  const entries = cached ?? new WeakMap<Definition, Attachment | null>()
-  entries.set(definition, attachment)
-  if (!cached) attachmentCache.set(index, entries)
-  return attachment
+  const associated = attachmentFromAssociations(definition, selection, index)
+  if (!associated) return attachment ?? null
+  return {
+    kind: attachment?.kind ?? associated.kind,
+    targets: uniqueNames([...(attachment?.targets ?? []), ...associated.targets]),
+  }
+}
+
+function attachmentFromAssociations(definition: Definition, selection: Selection, index: CatalogueIndex): Attachment | null {
+  const sources = [...new Set([definition, targetOf(definition, index.definitions)])]
+  const associations = sources.flatMap((source) =>
+    (source.associations ?? []).flatMap((association) => {
+      const kind = associationKind(association)
+      return kind && association.action === 'group' && association.childId === 'unit' ? [{ association, kind }] : []
+    }),
+  )
+  if (!associations.length) return null
+
+  const candidates =
+    associationCandidateCache.get(index) ??
+    [...new Set([...index.datasheets.values()].flatMap((entries) => [...entries]))]
+      .map((id) => index.definitions.get(id))
+      .filter((candidate): candidate is Definition => Boolean(candidate))
+  if (!associationCandidateCache.has(index)) associationCandidateCache.set(index, candidates)
+  const found: Attachment[] = []
+  for (const { association, kind } of associations) {
+    const targets = candidates
+      .filter((candidate) => associationHolds(association, selection, candidate, index))
+      .map((candidate) => nameOf(candidate, index.definitions))
+    if (targets.length) found.push({ kind, targets })
+  }
+  if (!found.length) return null
+  return { kind: found[0]!.kind, targets: uniqueNames(found.flatMap((attachment) => attachment.targets)) }
+}
+
+const associationKind = (association: Association): Attachment['kind'] | null => {
+  const name = association.name?.trim().toLocaleLowerCase()
+  if (name === 'leading') return 'leader'
+  if (name === 'supporting') return 'support'
+  return null
+}
+
+function associationHolds(association: Association, selection: Selection, candidate: Definition, index: CatalogueIndex): boolean {
+  const results = [
+    ...(association.conditions ?? []).map((condition) => associationConditionHolds(condition, selection, candidate, index)),
+    ...(association.conditionGroups ?? []).map((group) => associationGroupHolds(group, selection, candidate, index)),
+  ]
+  return results.length > 0 && results.every(Boolean)
+}
+
+function associationGroupHolds(group: ConditionGroup, selection: Selection, candidate: Definition, index: CatalogueIndex): boolean {
+  const results = [
+    ...(group.conditions ?? []).map((condition) => associationConditionHolds(condition, selection, candidate, index)),
+    ...(group.conditionGroups ?? []).map((nested) => associationGroupHolds(nested, selection, candidate, index)),
+  ]
+  if (!results.length) return false
+  const met = results.filter(Boolean).length
+  if (group.type === 'and') return met === results.length
+  if (group.type === 'or') return met > 0
+  if (group.type === 'atLeast') return met >= (group.value ?? 1)
+  if (group.type === 'atMost') return met <= (group.value ?? 0)
+  if (group.type === 'equalTo') return met === (group.value ?? 0)
+  if (group.type === 'count') return met >= (group.min ?? 0) && met <= (group.max ?? Number.POSITIVE_INFINITY)
+  return false
+}
+
+function associationConditionHolds(condition: Condition, selection: Selection, candidate: Definition, index: CatalogueIndex): boolean {
+  let measured: number
+  if (condition.field === 'associations') measured = 0
+  else if (condition.field !== 'selections') return false
+  else if (condition.queryFromSelf)
+    measured = selectionHas(selection, condition.childId, condition.includeChildSelections === true, index) ? 1 : 0
+  else measured = definitionHas(candidate, condition.childId, index) ? 1 : 0
+
+  if (condition.type === 'instanceOf') return measured > 0
+  if (condition.type === 'notInstanceOf') return measured === 0
+  if (condition.type === 'atLeast') return measured >= condition.value
+  if (condition.type === 'atMost') return measured <= condition.value
+  if (condition.type === 'equalTo') return measured === condition.value
+  if (condition.type === 'greaterThan') return measured > condition.value
+  if (condition.type === 'lessThan') return measured < condition.value
+  return false
+}
+
+function selectionHas(selection: Selection, childId: string | undefined, deep: boolean, index: CatalogueIndex): boolean {
+  const definition = index.definitions.get(selection.id)
+  if (definition && definitionHas(definition, childId, index)) return true
+  return deep && Boolean(selection.selections?.some((child) => selectionHas(child, childId, true, index)))
+}
+
+function definitionHas(definition: Definition, childId: string | undefined, index: CatalogueIndex): boolean {
+  if (!childId || childId === 'any') return true
+  const target = targetOf(definition, index.definitions)
+  if (childId === 'model-or-unit') return target.type === 'model' || target.type === 'unit'
+  if (childId === 'model' || childId === 'unit' || childId === 'upgrade') return target.type === childId
+  return [definition, target].some(
+    (source) => source.id === childId || source.categoryLinks?.some((category) => category.targetId === childId),
+  )
 }
 
 function findAttachment(definition: Definition, index: CatalogueIndex): Attachment | null {
@@ -136,7 +247,11 @@ export function attachedUnit(units: readonly { attachedTo?: number }[], position
   return units.flatMap((unit, at) => (at !== position && (at === host || unit.attachedTo === host) ? [at] : []))
 }
 
-export function attachmentErrors(units: readonly { entryId: string; attachedTo?: number }[], index: CatalogueIndex): EvaluationError[] {
+export function attachmentErrors(
+  units: readonly { entryId: string; attachedTo?: number }[],
+  index: CatalogueIndex,
+  selections: readonly (Selection | undefined)[] = [],
+): EvaluationError[] {
   const errors: EvaluationError[] = []
   const occupied = { leader: new Map<number, number>(), support: new Map<number, number>() }
   units.forEach((unit, position) => {
@@ -153,7 +268,7 @@ export function attachmentErrors(units: readonly { entryId: string; attachedTo?:
       error('names a missing attachment target')
       return
     }
-    const attachment = definition && attachmentOf(definition, index)
+    const attachment = definition && attachmentOf(definition, index, selections[position])
     if (!attachment) {
       error('cannot be attached to another unit')
       return

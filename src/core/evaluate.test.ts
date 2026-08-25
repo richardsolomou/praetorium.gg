@@ -877,6 +877,20 @@ describe('a second copy of the same unit', () => {
   it('charges it on every copy after the first', () => {
     expect(evaluate([{ id: 'tank' }, { id: 'tank' }, { id: 'tank' }], indexOf(catalogue())).points).toBe(700)
   })
+
+  it('counts earlier top-level units when the parent scope includes child forces', () => {
+    const current = catalogue()
+    const tank = current.sharedSelectionEntries?.[0]
+    const modifier = tank?.modifiers?.[0]
+    const local = modifier?.conditionGroups?.[0]?.localConditionGroups?.[0]
+    if (!local) throw new Error('expected the escalating cost fixture')
+    local.scope = 'parent'
+    local.includeChildForces = true
+    local.value = 2
+
+    const result = evaluate([{ id: 'tank' }, { id: 'tank' }, { id: 'tank' }], indexOf(current))
+    expect({ points: result.points, selectionPoints: result.selectionPoints }).toEqual({ points: 680, selectionPoints: [[220, 220, 240]] })
+  })
 })
 
 describe("the roster's force", () => {
