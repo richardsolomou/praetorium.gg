@@ -1,5 +1,8 @@
 import type { Datasheet } from '../../../server/catalogue'
 import { modelRowCount, modelRowSources, type ModelKind, type ModelRow } from '../../../core/modelKinds'
+import { sameWargear, wargearBaseName } from '../../../core/wargear'
+
+export { sameWargear as sameWeapon } from '../../../core/wargear'
 
 /**
  * What the loadout pane is drawing, and the reasoning that does not need a screen.
@@ -87,7 +90,7 @@ export function replacementChoice(
 ): LoadoutChoice | null {
   if (loadoutRowCount(row, choices) >= modelCount) return null
   for (const candidate of model.rows) {
-    if (candidate === row || !candidate.pieces?.some((piece) => sameWeapon(row.name, piece))) continue
+    if (candidate === row || !candidate.pieces?.some((piece) => sameWargear(row.name, piece))) continue
     const selected = loadoutRowSources(candidate, choices).find(
       ({ choice, option }) => choice.owner && choice.room === 1 && choice.chosen === option.id,
     )
@@ -111,28 +114,33 @@ export const canAddPooledOption = (option: LoadoutOption, donor?: LoadoutRowSour
 /** What a change to one option leaves every option in its group holding. */
 export type SpreadCounts = Record<string, number>
 
+export type ChoiceEdit = { key: string; optionId: string } | { key: string; counts: SpreadCounts }
+
 /** Editing shows every available option; a finished roster shows only what is held. */
 export function showLoadoutEntry(count: number, showOptions: boolean) {
   return showOptions || count > 0
 }
 
-/**
- * Whether two profile names are the same weapon, whichever of them names its
- * profiles: "Staff of light" and "Staff of light (Melee)" are one staff.
- */
-export function sameWeapon(one: string, other: string) {
-  return baseWeaponName(one) === baseWeaponName(other)
+export function selectedFallbackAnswers(choice: LoadoutChoice, models: readonly LoadoutModel[]) {
+  const selected = models.flatMap((model) => (model.swaps ?? []).flatMap((swap) => (swap.free && swap.count > 0 ? swap.takes : [])))
+  return choice.options.every((option) => selected.some((name) => sameWargear(option.name, name)))
 }
 
-const baseWeaponName = (name: string) => {
-  const trimmed = name.trim()
-  const marked = /^[^\p{L}\p{N}]+/u.test(trimmed)
-  const unmarked = trimmed.replace(/^[^\p{L}\p{N}]+/u, '')
-  const withoutMarkedMode = marked ? unmarked.replace(/\s+-\s+[^-]+$/, '') : unmarked
-  return withoutMarkedMode
-    .replace(/\s*\([^)]*\)\s*$/, '')
-    .trim()
-    .toLocaleLowerCase()
+export function catalogueRemovalsForFallback(takes: readonly string[], choices: readonly LoadoutChoice[]): ChoiceEdit[] {
+  return choices.flatMap((choice): ChoiceEdit[] => {
+    const matched = choice.options.filter(
+      (option) => (option.count > 0 || choice.chosen === option.id) && takes.some((name) => sameWargear(option.name, name)),
+    )
+    if (!matched.length) return []
+    if (choice.room <= 1) return matched.some((option) => choice.chosen === option.id) ? [{ key: choice.key, optionId: '' }] : []
+    const removed = new Set(matched.map((option) => option.id))
+    return [
+      {
+        key: choice.key,
+        counts: Object.fromEntries(choice.options.map((option) => [option.id, removed.has(option.id) ? 0 : option.count])),
+      },
+    ]
+  })
 }
 
 export function weaponMatches(optionName: string, profileName: string) {
@@ -190,7 +198,7 @@ function named(optionName: string, candidateName: string) {
       .replaceAll(/\s+/g, '')
   const option = normalize(optionName)
   const candidate = normalize(candidateName)
-  const baseCandidate = normalize(baseWeaponName(candidateName))
+  const baseCandidate = normalize(wargearBaseName(candidateName))
   const modeOf = candidate.startsWith(option) ? candidate.slice(option.length) : null
   return (
     candidate === option ||
