@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.36.0
+
+### Minor Changes
+
+- 8dd543f: Add event-specific roster sizes and 2v1 roster assignments.
+
 ## 0.35.1
 
 ### Patch Changes
