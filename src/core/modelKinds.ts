@@ -22,6 +22,14 @@ import { wargearOf } from './wargear'
  * Counts are deliberately absent: they live on the choice each row points at, so a
  * caller reads one number rather than holding a second copy free to disagree.
  */
+export type ModelRowSource = { choiceKey: string; optionId: string }
+
+export type ModelRow = ModelRowSource & {
+  name: string
+  alternatives?: ModelRowSource[]
+  pieces?: string[]
+}
+
 export type ModelKind = {
   name: string
   /**
@@ -31,12 +39,37 @@ export type ModelKind = {
   fixed: { name: string; count?: number }[]
   members: { id: string; choiceKey: string | null; baseCount: number }[]
   /** Wargear taken through a choice, in the order the data holds it. */
-  rows: { name: string; choiceKey: string; optionId: string; pieces?: string[] }[]
+  rows: ModelRow[]
   /**
    * Swaps the datasheet allows that the catalogue does not describe, one row per
    * alternative so every one of them is always on screen whether taken or not.
    */
   swaps?: { key: string; gives: string[]; takes: string[]; count: number; max: number; free: boolean }[]
+}
+
+export const modelRowSources = (row: ModelRow): readonly ModelRowSource[] => [row, ...(row.alternatives ?? [])]
+
+export const modelRowCount = (row: ModelRow, countOf: (source: ModelRowSource) => number) =>
+  modelRowSources(row).reduce((total, source) => total + countOf(source), 0)
+
+export function optionPieces(
+  optionId: string,
+  index: CatalogueIndex,
+  options: ChoiceOptions = {},
+  selected: readonly Selection[] = [],
+): string[] | undefined {
+  const fallback = selected.length ? null : defaultSelection(optionId, index, options)
+  const selections = selected.length ? selected : fallback ? [fallback] : []
+  const seen = new Set<string>()
+  const pieces = selections
+    .flatMap((selection) => wargearOf(selection, index).map((piece) => piece.name))
+    .filter((name) => {
+      const key = name.trim().toLocaleLowerCase()
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
+  return pieces.length ? pieces : undefined
 }
 
 type Member = { id: string; name: string; choiceKey: string | null; baseCount: number }
@@ -89,15 +122,6 @@ export function modelKindsOf(entryId: string, selection: Selection, index: Catal
   )
   const carriedOf = (id: string) => carriedBy.get(id) ?? []
   const owns = (id: string) => choices.some((choice) => choice.owner?.id === id)
-  const piecesOf = (option: { id: string; name: string }) => {
-    const definition = index.definitions.get(option.id)
-    const target = definition ? resolve(definition, index) : undefined
-    const described = Boolean(target?.profiles?.length || target?.infoLinks?.some((link) => link.type === 'profile'))
-    const selected = defaultSelection(option.id, index, options)
-    const nested = selected ? wargearOf(selected, index).map((piece) => piece.name) : []
-    return described || !nested.length ? undefined : nested
-  }
-
   // The widest set that still says what the entries said is the one gathered, so the
   // unit gives way to the group and the group to the loadouts, and a pairing that
   // cannot be drawn as rows costs only its own card. Only the entries a choice offers:
@@ -139,14 +163,23 @@ export function modelKindsOf(entryId: string, selection: Selection, index: Catal
     // One loadout at a time, in the order the data holds them, so the weapons read
     // down the card the way the datasheet lists them.
     const rows: ModelKind['rows'] = []
+    const addRow = (row: ModelKind['rows'][number]) => {
+      const existing = rows.find((candidate) => candidate.name.trim().toLocaleLowerCase() === row.name.trim().toLocaleLowerCase())
+      if (!existing) {
+        rows.push(row)
+        return
+      }
+      const source = { choiceKey: row.choiceKey, optionId: row.optionId }
+      if (existing.choiceKey === source.choiceKey && existing.optionId === source.optionId) return
+      existing.alternatives = [...(existing.alternatives ?? []), source]
+    }
     members.forEach((member, position) => {
       const owned = choices.filter((choice) => choice.owner?.id === member.id)
       if (owned.length) {
         for (const choice of owned) {
           for (const option of choice.options) {
-            if (rows.some((row) => row.name === option.name)) continue
-            const pieces = piecesOf(option)
-            rows.push({ name: option.name, choiceKey: choice.key, optionId: option.id, ...(pieces ? { pieces } : {}) })
+            const pieces = optionPieces(option.id, index, options)
+            addRow({ name: option.name, choiceKey: choice.key, optionId: option.id, ...(pieces ? { pieces } : {}) })
           }
         }
         return
@@ -155,8 +188,8 @@ export function modelKindsOf(entryId: string, selection: Selection, index: Catal
       // the weapon that tells it apart from its siblings.
       if (!member.choiceKey) return
       for (const name of carried[position] ?? []) {
-        if (shared.includes(name) || rows.some((row) => row.name === name)) continue
-        rows.push({ name, choiceKey: member.choiceKey, optionId: member.id })
+        if (shared.includes(name)) continue
+        addRow({ name, choiceKey: member.choiceKey, optionId: member.id })
       }
     })
 

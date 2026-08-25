@@ -1421,6 +1421,64 @@ test('a squad can take the heavy weapon its datasheet offers', async ({ page }) 
   await expect(warriors.getByLabel('Hearthkyn Warrior models')).toHaveText('9')
 })
 
+test('a composite heavy weapon keeps the model armed and can be put back', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 })
+  await openBuilder(page, 'Dark Angels', /Unforgiven Task Force/)
+  await add(page, 'Deathwing Terminator Squad')
+  await page
+    .locator('[data-unit="Deathwing Terminator Squad"]')
+    .getByRole('button', { name: /^Deathwing Terminator Squad/ })
+    .click()
+
+  const loadout = page.locator('aside[aria-label="Loadout"]')
+  const terminators = loadout.locator('section').filter({ has: page.getByLabel('Deathwing Terminator models') })
+  const cyclone = 'Cyclone Missile Launcher & Storm Bolter'
+
+  await expect(terminators.getByLabel('Power Fist count')).toHaveText('4')
+  await terminators.getByRole('button', { name: `More ${cyclone}` }).click()
+  await expect(terminators.getByLabel(`${cyclone} count`)).toHaveText('1')
+  await expect(terminators.getByLabel('Power Fist count')).toHaveText('4')
+  await expect(page.locator('[data-unit="Deathwing Terminator Squad"]').getByText('4x Power Fist')).toBeVisible()
+  await expect(terminators.getByRole('heading', { name: /^➤?\s*Cyclone missile launcher.*frag$/i })).toBeVisible()
+  await expect(terminators.getByRole('heading', { name: /^➤?\s*Cyclone missile launcher.*krak$/i })).toBeVisible()
+  await expect(terminators.getByRole('heading', { name: /^5× Storm Bolter$/i })).toHaveCount(0)
+
+  await terminators.getByRole('button', { name: 'More Chainfist' }).click()
+  await expect(terminators.getByLabel('Chainfist count')).toHaveText('1')
+  await expect(terminators.getByLabel(`${cyclone} count`)).toHaveText('1')
+  await expect(terminators.getByLabel('Power Fist count')).toHaveText('3')
+  await terminators.getByRole('button', { name: 'Fewer Chainfist' }).click()
+  await expect(terminators.getByLabel('Chainfist count')).toHaveText('0')
+  await expect(terminators.getByLabel('Power Fist count')).toHaveText('4')
+
+  await terminators.getByRole('button', { name: `Fewer ${cyclone}` }).click()
+  await expect(terminators.getByLabel(`${cyclone} count`)).toHaveText('0')
+  await expect(terminators.getByLabel('Storm Bolter count', { exact: true })).toHaveText('4')
+
+  await terminators.getByRole('button', { name: `More ${cyclone}` }).click()
+  await terminators.getByRole('button', { name: 'More Storm Bolter' }).click()
+  await expect(terminators.getByLabel(`${cyclone} count`)).toHaveText('0')
+  await expect(terminators.getByLabel('Storm Bolter count', { exact: true })).toHaveText('4')
+})
+
+test('a composite character loadout shows its selected melee weapon', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 })
+  await openBuilder(page, 'Space Marines', /Gladius Task Force/)
+  await add(page, 'Captain')
+  await page
+    .locator('[data-unit="Captain"]')
+    .getByRole('button', { name: /^Captain/ })
+    .click()
+
+  const loadout = page.locator('aside[aria-label="Loadout"]')
+  const starting = loadout.locator('article').filter({ has: page.getByRole('button', { name: /^Select Bolt Pistol,/ }) })
+  await expect(starting.getByRole('heading', { name: 'Close combat weapon', exact: true })).toBeVisible()
+
+  await loadout.getByRole('button', { name: 'Select Power fist' }).click()
+  await expect(starting.getByRole('heading', { name: 'Power fist', exact: true })).toBeVisible()
+  await expect(starting.getByRole('heading', { name: 'Close combat weapon', exact: true })).toHaveCount(0)
+})
+
 /**
  * Six wraiths, each a pairing of claws or coils with a gun the player cannot break
  * apart, so each keeps a card of its own — and the card is then where the squad says
@@ -1529,4 +1587,20 @@ test('a specialist filed apart from its squad can still be armed', async ({ page
   await expect(page.locator('[data-unit="Plague Marines"]')).toContainText('90 pts')
   await expect(page.getByText('Within the points limit')).toBeAttached()
   await page.screenshot({ path: 'test-results/specialist-filed-apart.png', fullPage: true })
+})
+
+test('removing one piece does not choose another piece of the same model as its replacement', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 })
+  await openBuilder(page, 'Black Templars', /Companions of Vehemence/)
+  await add(page, 'Crusader Squad')
+  await page
+    .locator('[data-unit="Crusader Squad"]')
+    .getByRole('button', { name: /^Crusader Squad/ })
+    .click()
+
+  const loadout = page.locator('aside[aria-label="Loadout"]')
+  await expect(loadout.getByLabel('Bolt Rifle count')).toHaveText('5')
+  await loadout.getByRole('button', { name: 'Fewer Bolt Rifle' }).click()
+  await expect(loadout.getByLabel('Bolt Rifle count')).toHaveText('4')
+  await expect(page.getByLabel('Crusader Squad models')).toHaveText('10')
 })
