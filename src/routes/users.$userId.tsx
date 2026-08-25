@@ -5,29 +5,27 @@ import { SignInRequired } from '../client/components/SignInRequired'
 import { formatDate } from '../client/dates'
 import { PlayerAvatar } from '../client/components/PlayerAvatar'
 import { PageState } from '../client/components/PageState'
-import { battlesQuery, meQuery, userProfileQuery } from '../client/queries'
+import { meQuery, sharedBattlesQuery, userProfileQuery } from '../client/queries'
 
 export const Route = createFileRoute('/users/$userId')({
   loader: ({ context, params }) =>
     Promise.all([
       context.queryClient.ensureQueryData(meQuery()),
-      context.queryClient.ensureQueryData(battlesQuery()),
+      context.queryClient.ensureQueryData(sharedBattlesQuery(params.userId)),
       context.queryClient.ensureQueryData(userProfileQuery(params.userId)),
     ]),
   component: PlayerProfile,
 })
 
-type Battle = Awaited<ReturnType<NonNullable<ReturnType<typeof battlesQuery>['queryFn']>>>[number]
+type Battle = Awaited<ReturnType<NonNullable<ReturnType<typeof sharedBattlesQuery>['queryFn']>>>[number]
 
 /** Every fact comes from a battle the viewer already sits in. */
 function PlayerProfile() {
   const { userId } = Route.useParams()
   const { data: me } = useQuery(meQuery())
-  const { data: battles = [] } = useQuery(battlesQuery())
+  const { data: shared = [] } = useQuery(sharedBattlesQuery(userId))
   const { data: profile } = useQuery(userProfileQuery(userId))
   if (!me) return <SignInRequired title="User" explanation="Sign in to see the users you have shared a battle with." />
-
-  const shared = battles.filter((battle) => battle.playerIds.includes(userId))
   if (!profile) {
     return (
       <main className="flex w-full">
