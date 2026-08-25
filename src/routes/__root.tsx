@@ -302,7 +302,15 @@ function RootComponent() {
                */}
               {immersive ? null : (
                 <footer className="border-t border-edge px-4 py-4 text-center text-xs text-faint">
-                  Praetorium is an unofficial product, and is not in any way affiliated with or endorsed by Games Workshop.
+                  <p>Praetorium is an unofficial product, and is not in any way affiliated with or endorsed by Games Workshop.</p>
+                  <p className="mt-1 space-x-3">
+                    <Link to="/privacy" className="transition-colors hover:text-bone">
+                      Privacy policy
+                    </Link>
+                    <Link to="/terms" className="transition-colors hover:text-bone">
+                      Terms of service
+                    </Link>
+                  </p>
                 </footer>
               )}
             </div>
