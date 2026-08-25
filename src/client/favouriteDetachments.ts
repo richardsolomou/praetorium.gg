@@ -9,9 +9,9 @@ type FavouriteDetachment = Omit<z.infer<typeof favouriteDetachmentSchema>, 'favo
 
 export const favouriteDetachmentKey = (catalogueId: string, detachmentId: string) => JSON.stringify([catalogueId, detachmentId])
 
-export function useFavouriteDetachments() {
+export function useFavouriteDetachments(enabled = true) {
   const query = favouriteDetachmentsQuery()
-  const { data = [] } = useQuery(query)
+  const { data = [] } = useQuery({ ...query, enabled })
   const mutation = useOptimisticFavourites<FavouriteDetachment, FavouriteDetachment & { favourite: boolean }>(
     query.queryKey,
     ({ catalogueId, detachmentId, favourite }) => setFavouriteDetachment({ data: { catalogueId, detachmentId, favourite } }),

@@ -2,4 +2,4 @@
 'praetorium.gg': patch
 ---
 
-Speed up league and battle pages by loading chooser data only when needed and keep roster workspaces stable while loading.
+Speed up navigation by loading account and chooser data only where needed, and keep roster workspaces stable while loading.

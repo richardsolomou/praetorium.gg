@@ -3,7 +3,7 @@ import { createFileRoute, Link, Outlet, useRouterState } from '@tanstack/react-r
 import { ChevronRight, Heart } from 'lucide-react'
 import { useState } from 'react'
 import { Toggle } from '@/components/ui/toggle'
-import { factionIndexQuery, meQuery } from '../client/queries'
+import { factionIndexQuery, favouriteFactionsQuery, meQuery } from '../client/queries'
 import { useFavouriteFactions } from '../client/favouriteFactions'
 import { FactionMark, factionColour } from '../client/components/FactionMark'
 import { SearchField } from '../client/components/SearchField'
@@ -11,7 +11,12 @@ import { PageState } from '../client/components/PageState'
 
 export const Route = createFileRoute('/factions')({
   loader: ({ context, location }) =>
-    location.pathname === '/factions' ? context.queryClient.ensureQueryData(factionIndexQuery()) : undefined,
+    location.pathname === '/factions'
+      ? Promise.all([
+          context.queryClient.ensureQueryData(factionIndexQuery()),
+          context.queryClient.ensureQueryData(favouriteFactionsQuery()),
+        ])
+      : undefined,
   component: Factions,
 })
 

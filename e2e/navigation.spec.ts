@@ -89,6 +89,18 @@ test('the faction page shows its army rule in full', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Reanimation Protocols', exact: true })).toBeVisible()
 })
 
+test('signed-out faction browsing does not load account collection data', async ({ page }) => {
+  const serverReads: string[] = []
+  page.on('request', (request) => {
+    if (request.method() === 'GET' && request.url().includes('/_serverFn/')) serverReads.push(request.url())
+  })
+
+  await page.goto('/factions/necrons/datasheets')
+  await expect(page.getByRole('heading', { name: 'Datasheets' })).toBeVisible()
+  await page.waitForTimeout(500)
+  expect(serverReads).toHaveLength(0)
+})
+
 test('saving a faction asks signed-out visitors to sign in', async ({ page }) => {
   await page.goto('/factions')
   await page.getByRole('link', { name: 'Sign in to add Necrons to favourites' }).click()

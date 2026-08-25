@@ -6,7 +6,10 @@ test('opening a battle is operable from the keyboard', async ({ page }) => {
   await page.goto('/battles')
   const initialResponse = await page.reload()
   if (!initialResponse) throw new Error('The battles page did not return a document response.')
-  expect(await initialResponse.text()).not.toContain('Practice Opponent')
+  const initialDocument = await initialResponse.text()
+  expect(initialDocument).not.toContain('Practice Opponent')
+  expect(initialDocument).not.toContain('favourite-factions')
+  expect(initialDocument).not.toContain('favourite-detachments')
 
   for (let tabs = 0; tabs < 10; tabs++) {
     if (await page.getByRole('button', { name: 'New battle' }).evaluate((element) => element === document.activeElement)) break
