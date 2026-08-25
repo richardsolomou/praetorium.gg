@@ -67,13 +67,10 @@ export function optionWargear(optionId: string, index: CatalogueIndex, options: 
   const selections = selected.length ? selected : fallback ? [fallback] : []
   const found = new Map<string, { name: string; count: number }>()
   for (const selection of selections) {
-    for (const piece of wargearOf(selection, index)) {
+    for (const piece of wargearOf(selection, index, selection.count ?? 1)) {
       const key = piece.name.trim().toLocaleLowerCase()
       const present = found.get(key)
-      found.set(key, {
-        name: present?.name ?? piece.name,
-        count: (present?.count ?? 0) + piece.count * (selection.count ?? 1),
-      })
+      found.set(key, { name: present?.name ?? piece.name, count: (present?.count ?? 0) + piece.count })
     }
   }
   return [...found.values()]

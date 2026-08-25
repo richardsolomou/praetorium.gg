@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { buildIndex, type Catalogue, type CatalogueFile, type Constraint } from './catalogue'
 import { modelKindsOf, optionWargear } from './modelKinds'
 import { buildUnit } from './roster'
+import { allAt } from './selection'
 
 const PTS = 'cost-pts'
 const system: CatalogueFile = { gameSystem: { id: 'gs', name: 'Test', costTypes: [{ id: PTS, name: 'pts' }] } }
@@ -15,20 +16,40 @@ it('totals wargear across repeated selections of one option', () => {
   const index = indexOf({
     sharedSelectionEntries: [
       {
-        id: 'paired-bolters',
-        name: 'Paired bolters',
-        type: 'upgrade',
-        selectionEntries: [{ id: 'storm-bolter', name: 'Storm bolter', type: 'upgrade', constraints: mandatory('bolter-min') }],
+        id: 'squad',
+        name: 'Bike Squad',
+        type: 'unit',
+        selectionEntryGroups: [
+          {
+            id: 'models',
+            name: 'Models',
+            defaultSelectionEntryId: 'bike',
+            constraints: [
+              { id: 'models-min', type: 'min', value: 3, field: 'selections', scope: 'parent' },
+              { id: 'models-max', type: 'max', value: 3, field: 'selections', scope: 'parent' },
+            ],
+            selectionEntries: [
+              {
+                id: 'bike',
+                name: 'Bike',
+                type: 'model',
+                selectionEntries: [
+                  { id: 'bolt-pistol', name: 'Bolt pistol', type: 'upgrade', constraints: mandatory('pistol-min') },
+                  { id: 'twin-bolter', name: 'Twin bolter', type: 'upgrade', collective: true, constraints: mandatory('bolter-min') },
+                ],
+              },
+            ],
+          },
+        ],
       },
     ],
   })
+  const selected = allAt(buildUnit('squad', index)!.selection, ['models', 'bike'])
 
-  expect(
-    optionWargear('paired-bolters', index, {}, [
-      { id: 'paired-bolters', count: 2, selections: [{ id: 'storm-bolter' }] },
-      { id: 'paired-bolters', selections: [{ id: 'storm-bolter' }] },
-    ]),
-  ).toEqual([{ name: 'Storm bolter', count: 3 }])
+  expect(optionWargear('bike', index, {}, selected)).toEqual([
+    { name: 'Bolt pistol', count: 3 },
+    { name: 'Twin bolter', count: 3 },
+  ])
 })
 
 describe('loadouts the catalogue files a weapon at a time', () => {
