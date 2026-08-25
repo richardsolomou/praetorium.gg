@@ -16,7 +16,7 @@ export const Route = createFileRoute('/friends')({
   component: Friends,
 })
 
-type Person = { id: string; name: string }
+type Person = { id: string; name: string; image?: string | null }
 
 function Friends() {
   const { data: me } = useQuery(meQuery())
@@ -162,7 +162,7 @@ function PersonRow({
       className="flex items-center justify-between gap-3 border border-edge bg-panel p-3 hover:border-edge-strong"
     >
       <Link to="/users/$userId" params={{ userId: person.id }} className="flex min-w-0 items-center gap-3 hover:text-info">
-        <PlayerAvatar name={person.name} className="size-9 text-xs" />
+        <PlayerAvatar name={person.name} image={person.image} className="size-9 text-xs" />
         <span className="truncate font-bold uppercase">{person.name}</span>
       </Link>
       <Button variant={destructive ? 'destructive' : 'outline'} size="sm" onClick={onAction}>
