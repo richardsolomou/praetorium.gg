@@ -13,7 +13,7 @@ import { evaluate, evaluateForces, type Selection } from '../core/evaluate'
 import { type ModelKind, modelKindsOf, modelRowCount, modelRowSources, optionWargear } from '../core/modelKinds'
 import { buildUnit } from '../core/roster'
 import { allAt } from '../core/selection'
-import { type ChoiceOptions, unitChoices } from '../core/unitChoices'
+import { type ChoiceOptions, isUnitCompositionChoice, unitChoices } from '../core/unitChoices'
 import { withUnitSpread } from '../core/unitSpread'
 import { modelCountOf } from '../core/unitSize'
 import { wargearKey, wargearOf } from '../core/wargear'
@@ -567,7 +567,11 @@ function weaponProfiles(composition: UnitComposition | null, rules: LoadedRules 
  */
 export function heldWargear(
   models: readonly ModelKind[],
-  choices: readonly { key: string; options: readonly { id: string; count: number }[] }[],
+  choices: readonly {
+    key: string
+    name?: string
+    options: readonly { id: string; name?: string; count: number; pieceCounts?: readonly { name: string; count: number }[] }[]
+  }[],
   catalogued: readonly { name: string; count: number }[],
 ): { name: string; count: number }[] {
   if (!models.length) return [...catalogued]
@@ -596,19 +600,23 @@ export function heldWargear(
     }
     for (const swap of kind.swaps ?? []) for (const take of swap.takes) add(take, swap.count)
   }
-  const swappedAway = new Set(
-    models.flatMap((kind) => (kind.swaps ?? []).flatMap((swap) => (swap.count > 0 ? swap.gives.map(wargearKey) : []))),
+  const modeled = new Set(
+    models.flatMap((kind) => [
+      ...kind.members.flatMap((member) => (member.choiceKey ? [replacementKey({ choiceKey: member.choiceKey, optionId: member.id })] : [])),
+      ...kind.rows.flatMap((row) => modelRowSources(row).map(replacementKey)),
+    ]),
   )
+  for (const choice of choices) {
+    if (choice.name && isUnitCompositionChoice({ name: choice.name })) continue
+    for (const option of choice.options) {
+      if (option.count <= 0 || modeled.has(replacementKey({ choiceKey: choice.key, optionId: option.id }))) continue
+      const pieces = option.pieceCounts ?? (option.name ? [{ name: option.name, count: option.count }] : [])
+      for (const piece of pieces) add(piece.name, piece.count)
+    }
+  }
   for (const piece of catalogued) {
     const key = wargearKey(piece.name)
-    if (!named.has(key)) {
-      add(piece.name, piece.count)
-      continue
-    }
-    if (swappedAway.has(key)) continue
-    const current = held.get(key)
-    if (!current) held.set(key, { name: piece.name, count: piece.count })
-    else if (current.count < piece.count) current.count = piece.count
+    if (!named.has(key)) add(piece.name, piece.count)
   }
   return [...held.values()]
 }

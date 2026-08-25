@@ -20,7 +20,7 @@ import { childrenOf, isCollective, MAX_DEPTH, maximumCount, type Option, pointsO
 import { evaluate, type Selection } from './evaluate'
 import { defaultSelection, expand, withChoice } from './expand'
 import { countAt, updateSelection, withCounts } from './selection'
-import { type ChoiceOptions, type UnitChoice, unitChoices, type UnitToggle, unitToggles } from './unitChoices'
+import { type ChoiceOptions, isUnitCompositionChoice, type UnitChoice, unitChoices, type UnitToggle, unitToggles } from './unitChoices'
 import { boundedGroups, modelCountOf, sizeOf, type UnitSize } from './unitSize'
 import { withUnitChoice, withUnitSpread } from './unitSpread'
 
@@ -165,7 +165,7 @@ function assemble(
 function modelCompositionSizes(entryId: string, selection: Selection, index: CatalogueIndex, context?: ChoiceOptions): number[] {
   const current = modelCountOf(selection, index)
   for (const choice of unitChoices(entryId, selection, index, context)) {
-    if (choice.name.trim().toLocaleLowerCase() !== 'unit composition' || choice.room !== 1 || choice.options.length < 2) continue
+    if (!isUnitCompositionChoice(choice) || choice.room !== 1 || choice.options.length < 2) continue
     const counts = [current, ...choice.options.map((option) => modelCountOf(withChoice(selection, choice.key, option.id, index), index))]
     const sizes = [...new Set(counts)].toSorted((left, right) => left - right)
     if (sizes.length > 1) return sizes
@@ -191,8 +191,7 @@ function finishUnit(entryId: string, selection: Selection, size: UnitSize, index
       choice.room === 1 &&
       option?.points === 0 &&
       choice.options.every((candidate) => candidate.count === 0)
-    const defaultedComposition =
-      choice.name.trim().toLowerCase() === 'unit composition' && choice.optional && choice.options.length === 1 && option?.points === 0
+    const defaultedComposition = isUnitCompositionChoice(choice) && choice.optional && choice.options.length === 1 && option?.points === 0
     if ((!missingRequired && !defaultedComposition) || !option || context?.spreads?.[choice.key] !== undefined) return tree
     return withUnitSpread(tree, choice.key, { [option.id]: defaultedComposition ? option.max : 1 }, index)
   }, selection)

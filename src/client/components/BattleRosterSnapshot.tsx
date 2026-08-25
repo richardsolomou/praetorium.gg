@@ -1,14 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
-import { Link } from '@tanstack/react-router'
 import { useState } from 'react'
-import { Input } from '@/components/ui/input'
 import type { Roster } from '../../core/battle'
-import { GAME_SIZES } from '../../core/battle'
-import { factionQuery } from '../queries'
-import { FactionLabel } from './FactionMark'
+import { factionQuery, priceQuery } from '../queries'
 import { RosterEditor } from './RosterEditor'
+import { RosterBody, RosterHeader, RosterShell, RosterUnits } from './RosterPresentation'
 import { DatasheetPanel } from './builder/DatasheetPanel'
 import { GROUPS } from './builder/groups'
+import { Loadout } from './builder/Loadout'
 import { Pane } from './builder/Pane'
 import { Section } from './builder/Section'
 import { UnitCard } from './builder/UnitCard'
@@ -16,12 +14,20 @@ import { UnitCard } from './builder/UnitCard'
 export function BattleRosterSnapshot({ roster }: { roster: Roster }) {
   const built = roster.built
   const { data: faction } = useQuery({ ...factionQuery(built?.catalogueId ?? ''), enabled: Boolean(built) })
+  const { data: priced } = useQuery({
+    ...priceQuery(built?.catalogueId ?? '', built?.detachmentIds ?? [], built?.disposition ?? null, built?.limit ?? 0, built?.picks ?? []),
+    enabled: Boolean(built?.picks && built.detachmentIds),
+  })
   const hasRosterCards = built?.units.some((unit) => unit.group !== undefined) ?? false
   const frozen = !roster.id
   const frozenPoints = frozen && built ? built.units.reduce((total, unit) => total + unit.points, 0) : null
   const [selected, setSelected] = useState<number | null>(null)
   const selectedUnit = selected === null ? null : (built?.units[selected] ?? null)
+  const selectedPricedUnit = selected === null ? null : (priced?.units[selected] ?? null)
   const selectedCatalogueId = selected === null ? built?.catalogueId : (built?.picks?.[selected]?.catalogueId ?? built?.catalogueId)
+  const displayedDetachments = (built?.detachments ?? (built?.detachment ? [{ name: built.detachment, points: null }] : [])).map(
+    (detachment, index) => ({ ...detachment, id: built?.detachmentIds?.[index] }),
+  )
 
   if (!frozen && roster.id && built?.detachmentIds && built.picks) {
     return (
@@ -46,41 +52,17 @@ export function BattleRosterSnapshot({ roster }: { roster: Roster }) {
 
   return (
     <main className="flex h-full w-full flex-col">
-      <div data-roster-builder className="flex min-h-0 flex-1 flex-col border border-edge bg-sunken">
-        <header className="border-b border-edge px-3 py-2">
-          <Input
-            value={roster.name}
-            aria-label="List name"
-            readOnly
-            className="h-8 border-0 bg-transparent px-0 text-lg font-bold tracking-[0.02em] uppercase focus-visible:ring-0"
-          />
-          {built ? (
-            <div className="flex min-w-0 items-center gap-2 text-xs text-dim">
-              {faction ? (
-                <Link to="/factions/$catalogueId" params={{ catalogueId: faction.slug }} className="truncate text-info hover:text-bone">
-                  <FactionLabel faction={faction} />
-                </Link>
-              ) : null}
-              {faction ? <span aria-hidden>·</span> : null}
-              {frozenPoints !== null ? <span className="chip text-info">{frozenPoints} pts</span> : null}
-              <Link to="/rosters" search={{ limit: built.limit }} className="shrink-0 text-info hover:text-bone">
-                {GAME_SIZES.find((size) => size.limit === built.limit)?.name ?? `${built.limit} points`}
-              </Link>
-              {(built.detachments ?? (built.detachment ? [{ name: built.detachment, points: null }] : [])).map((detachment) => (
-                <span key={detachment.name} className="contents">
-                  <span aria-hidden>·</span>
-                  <span>
-                    {detachment.name}
-                    {frozen && detachment.points !== null ? ` · ${detachment.points} DP` : ''}
-                  </span>
-                </span>
-              ))}
-            </div>
-          ) : null}
-        </header>
-
-        <div className="flex min-h-0 flex-1">
-          <div data-slot="roster-units" className="min-h-0 min-w-0 flex-1 overflow-y-auto px-3">
+      <RosterShell>
+        <RosterHeader
+          name={roster.name}
+          faction={faction}
+          points={frozenPoints}
+          limit={built?.limit}
+          detachments={displayedDetachments}
+          disposition={built?.disposition}
+        />
+        <RosterBody>
+          <RosterUnits>
             {hasRosterCards && built ? (
               GROUPS.map(({ id, plural }) => {
                 const units = built.units
@@ -116,7 +98,7 @@ export function BattleRosterSnapshot({ roster }: { roster: Roster }) {
                 {roster.text}
               </pre>
             )}
-          </div>
+          </RosterUnits>
           {built?.picks && built.detachmentIds ? (
             <Pane
               variant="loadout"
@@ -136,19 +118,35 @@ export function BattleRosterSnapshot({ roster }: { roster: Roster }) {
                 ) : null
               }
             >
-              <DatasheetPanel
+              <Loadout
                 catalogueId={selectedCatalogueId ?? built.catalogueId}
-                entryId={selectedUnit?.entryId ?? null}
+                unit={selectedPricedUnit}
                 detachmentIds={built.detachmentIds}
                 picks={built.picks}
                 pickIndex={selected}
-                showWeapons
-                showRelationships={false}
+                onChoose={() => {}}
+                onSpread={() => {}}
+                onSwap={() => {}}
+                editable={false}
+                showOptions={false}
+                reference={
+                  <DatasheetPanel
+                    catalogueId={selectedCatalogueId ?? built.catalogueId}
+                    entryId={selectedPricedUnit?.entryId ?? null}
+                    detachmentIds={built.detachmentIds}
+                    picks={built.picks}
+                    pickIndex={selected}
+                    showWeapons
+                    embedded
+                    hideSummary
+                    showRelationships={false}
+                  />
+                }
               />
             </Pane>
           ) : null}
-        </div>
-      </div>
+        </RosterBody>
+      </RosterShell>
     </main>
   )
 }
