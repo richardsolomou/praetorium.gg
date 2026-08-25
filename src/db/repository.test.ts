@@ -1,7 +1,7 @@
 import { afterEach, expect, it } from 'vitest'
 import type { PraetoriumConnection } from './connection'
 import { Repository } from './repository'
-import { user } from './schema'
+import { battleUsers, battles, commands, user } from './schema'
 import { openTestDatabase } from './testDatabase'
 
 let connection: PraetoriumConnection | undefined
@@ -41,4 +41,22 @@ it('searches users outside the first administrator page', async () => {
   const found = await repository.adminUsers({ query: 'Needle', limit: 10 })
 
   expect(found.users.map((entry) => entry.name)).toEqual(['Needle Player'])
+})
+
+it('reads a log past a command kind it does not recognise', async () => {
+  const repository = await users(1)
+  const database = connection!.database
+  await database.insert(battles).values({ id: 'battle-000', token: 'token-000', createdAt: 0 })
+  await database.insert(battleUsers).values({ battleId: 'battle-000', userId: 'user-000', side: 0, joinedAt: 0 })
+  await database.insert(commands).values([
+    { battleId: 'battle-000', seq: 1, userId: 'user-000', at: 1, body: JSON.stringify({ kind: 'reopen-battle' }) },
+    { battleId: 'battle-000', seq: 2, userId: 'user-000', at: 2, body: JSON.stringify({ kind: 'command-from-a-newer-release' }) },
+    { battleId: 'battle-000', seq: 3, userId: 'user-000', at: 3, body: JSON.stringify({ kind: 'pause-clock' }) },
+  ])
+
+  const log = await repository.log('battle-000')
+  const history = await repository.battlesByUser('user-000')
+
+  expect(log.map((entry) => entry.command.kind)).toEqual(['reopen-battle', 'pause-clock'])
+  expect(history[0]?.log.map((entry) => entry.command.kind)).toEqual(['reopen-battle', 'pause-clock'])
 })

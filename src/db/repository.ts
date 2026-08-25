@@ -593,7 +593,7 @@ export class Repository {
       .from(commands)
       .where(eq(commands.battleId, battleId))
       .orderBy(asc(commands.seq))
-    return rows.map(toLoggedCommand)
+    return rows.map(toLoggedCommand).filter((command) => command !== null)
   }
 
   /** Every log for a set of battles, grouped. The primary key already orders it. */
@@ -606,8 +606,10 @@ export class Repository {
       .where(inArray(commands.battleId, [...battleIds]))
       .orderBy(asc(commands.battleId), asc(commands.seq))
     for (const row of rows) {
+      const command = toLoggedCommand(row)
+      if (!command) continue
       const log = grouped.get(row.battleId) ?? []
-      log.push(toLoggedCommand(row))
+      log.push(command)
       grouped.set(row.battleId, log)
     }
     return grouped
@@ -660,6 +662,17 @@ function lockBattle(tx: PraetoriumDatabase, battleId: string) {
   return tx.select({ id: battles.id }).from(battles).where(eq(battles.id, battleId)).for('update')
 }
 
-function toLoggedCommand(row: { seq: number; by: string; at: number; body: string }): LoggedCommand {
-  return { seq: row.seq, by: row.by, at: row.at, command: commandSchema.parse(JSON.parse(row.body)) }
+/**
+ * Reads one stored row back into a command, or `null` if it cannot.
+ *
+ * A row with a `kind` this replica does not recognise fails the schema closed —
+ * the same rule the rest of the domain follows. A rolling deploy runs both
+ * versions at once, so an old replica reads a command kind a new replica already
+ * wrote. Skipping that one row degrades its battle; parsing it fails the whole
+ * list, because one log feeds every battle a player owns.
+ */
+function toLoggedCommand(row: { seq: number; by: string; at: number; body: string }): LoggedCommand | null {
+  const command = commandSchema.safeParse(JSON.parse(row.body))
+  if (!command.success) return null
+  return { seq: row.seq, by: row.by, at: row.at, command: command.data }
 }
