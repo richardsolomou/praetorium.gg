@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.32.2
+
+### Patch Changes
+
+- 2c03bcb: Offer sign-in when a session lapses mid-battle, instead of an error the player cannot act on.
+
 ## 0.32.1
 
 ### Patch Changes
