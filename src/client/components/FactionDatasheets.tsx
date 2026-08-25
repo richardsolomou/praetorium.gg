@@ -78,7 +78,7 @@ export function FactionDatasheets() {
                     {rows.map((unit) => (
                       <div
                         key={unit.id}
-                        className="flex items-center border border-edge bg-panel [contain-intrinsic-block-size:auto_38px] [content-visibility:auto] hover:border-info"
+                        className="flex w-full min-w-0 items-center border border-edge bg-panel [contain-intrinsic-block-size:auto_38px] [content-visibility:auto] hover:border-info"
                       >
                         <Link
                           to="/factions/$catalogueId/datasheets/$entryId"

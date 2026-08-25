@@ -201,6 +201,18 @@ test('owned units rise to the top of their roster and picker groups', async ({ p
   await page.screenshot({ path: 'test-results/owned-units-first.png', fullPage: true })
 })
 
+test('faction datasheet rows resize without horizontal overflow', async ({ page }) => {
+  await page.setViewportSize({ width: 1512, height: 774 })
+  await page.goto('/factions/space-marines/datasheets')
+  const rows = page.locator('[class*="[content-visibility:auto]"]')
+  await rows.last().scrollIntoViewIfNeeded()
+
+  await page.setViewportSize({ width: 390, height: 844 })
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  await expect(rows.last()).toBeVisible()
+  await page.screenshot({ path: 'test-results/faction-datasheets-mobile-bottom.png' })
+})
+
 test('favourite detachments rise to the top of roster setup', async ({ page }) => {
   await signUp(page, 'Richard')
   await page.goto('/rosters')
