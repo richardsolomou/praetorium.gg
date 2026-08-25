@@ -35,6 +35,7 @@ export type UnlinkAccountResult = 'removed' | 'missing' | 'two-factor' | 'last-m
 export type JoinLeagueResult = LeagueEntryStatus | 'missing' | 'closed' | 'full'
 export type ModerateLeagueResult = 'updated' | 'missing' | 'forbidden' | 'closed' | 'full'
 export type CreateLeagueEventResult = 'created' | 'missing' | 'forbidden' | 'one-off' | 'open'
+export type MakeLeagueRecurringResult = 'updated' | 'missing' | 'forbidden'
 
 const ADMIN_USERS_PAGE_SIZE = 50
 
@@ -603,6 +604,20 @@ export class Repository {
         createdAt: input.now,
       })
       return 'created'
+    })
+  }
+
+  async makeLeagueRecurring(token: string, ownerId: string): Promise<MakeLeagueRecurringResult> {
+    return this.database.transaction(async (tx) => {
+      const [league] = await tx
+        .select({ id: leagues.id, ownerId: leagues.ownerId, recurring: leagues.recurring })
+        .from(leagues)
+        .where(eq(leagues.token, token))
+        .for('update')
+      if (!league) return 'missing'
+      if (league.ownerId !== ownerId) return 'forbidden'
+      if (!league.recurring) await tx.update(leagues).set({ recurring: true }).where(eq(leagues.id, league.id))
+      return 'updated'
     })
   }
 

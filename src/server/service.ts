@@ -110,6 +110,13 @@ export class PraetoriumService {
     throw new Response('reveal the current event before starting another', { status: 409 })
   }
 
+  async makeLeagueRecurring(token: string, ownerId: string) {
+    const result = await this.repository.makeLeagueRecurring(token, ownerId)
+    if (result === 'updated') return
+    if (result === 'missing') throw new Response('no such league', { status: 404 })
+    throw new Response('only the organizer can make a league recurring', { status: 403 })
+  }
+
   leagues(userId: string | null) {
     return this.repository.leaguesVisibleTo(userId)
   }

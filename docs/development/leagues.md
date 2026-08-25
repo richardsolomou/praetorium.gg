@@ -4,7 +4,7 @@ A league is a lightweight organized-play home for one or more events. An event c
 
 ## Events
 
-Every league contains events. A one-off league contains one event and hides the extra hierarchy. A recurring league exposes its event history and lets the organizer start another event after the current event reveals.
+Every league contains events. A one-off league contains one event and hides the extra hierarchy. Its organizer can make it recurring later without changing the current event, but cannot change it back to one-off. A recurring league exposes its event history and lets the organizer start another event after the current event reveals.
 
 Each event starts with no entrants. A player who joined an earlier event must join again, so returning players and new players follow the same registration path. League identity, organizer, visibility, admission policy, player limit, and invite link persist between events. Entrants, roster snapshots, and reveal state do not.
 

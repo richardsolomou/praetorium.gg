@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
-import { CalendarPlus, Check, Clipboard, Eye, FileLock2, LockKeyhole, ShieldCheck, Swords, UserPlus, X } from 'lucide-react'
+import { CalendarPlus, Check, Clipboard, Eye, FileLock2, LockKeyhole, Repeat2, ShieldCheck, Swords, UserPlus, X } from 'lucide-react'
 import { useState } from 'react'
 import {
   AlertDialog,
@@ -30,6 +30,7 @@ import {
   createLeagueBattle,
   createLeagueEvent,
   joinLeague,
+  makeLeagueRecurring,
   moderateLeagueEntry,
   revealLeague,
   submitLeagueRoster,
@@ -47,6 +48,7 @@ export function LeaguePage({ token, eventToken }: { token: string; eventToken?: 
   const [choosing, setChoosing] = useState(false)
   const [revealing, setRevealing] = useState(false)
   const [starting, setStarting] = useState(false)
+  const [converting, setConverting] = useState(false)
   const [removing, setRemoving] = useState<{ userId: string; name: string } | null>(null)
   const [copied, setCopied] = useState(false)
   const refresh = async () => {
@@ -95,6 +97,13 @@ export function LeaguePage({ token, eventToken }: { token: string; eventToken?: 
       await navigate({ to: '/leagues/$token', params: { token }, search: { event: nextEventToken } })
     },
   })
+  const enableRecurring = useMutation({
+    mutationFn: () => makeLeagueRecurring({ data: { token } }),
+    onSuccess: async () => {
+      setConverting(false)
+      await refresh()
+    },
+  })
   if (!league) return null
   const isOwner = me?.id === league.ownerId
   const ownEntry = league.entries.find((entry) => entry.userId === me?.id)
@@ -110,7 +119,7 @@ export function LeaguePage({ token, eventToken }: { token: string; eventToken?: 
     accepted.length > 0 &&
     accepted.every((entry) => entry.submitted) &&
     (league.playerLimit === null || accepted.length === league.playerLimit)
-  const problem = join.error ?? moderate.error ?? battle.error ?? startEvent.error
+  const problem = join.error ?? moderate.error ?? battle.error ?? startEvent.error ?? enableRecurring.error
 
   return (
     <main className="w-full">
@@ -292,6 +301,18 @@ export function LeaguePage({ token, eventToken }: { token: string; eventToken?: 
               ) : null}
             </section>
           ) : null}
+          {isOwner && !league.recurring ? (
+            <section className="border border-edge bg-panel p-4">
+              <div className="flex items-center gap-2">
+                <Repeat2 className="size-5 text-parchment" />
+                <h2 className="font-bold uppercase">League format</h2>
+              </div>
+              <p className="mt-2 text-sm text-dim">Keep this event and run more events from the same league page.</p>
+              <Button className="mt-4 w-full" variant="outline" onClick={() => setConverting(true)}>
+                Make recurring
+              </Button>
+            </section>
+          ) : null}
           <section className="border border-edge bg-panel p-4">
             <div className="flex items-center gap-2">
               <FileLock2 className="size-5 text-parchment" />
@@ -402,6 +423,23 @@ export function LeaguePage({ token, eventToken }: { token: string; eventToken?: 
             <AlertDialogCancel>Keep current event</AlertDialogCancel>
             <AlertDialogAction disabled={startEvent.isPending} onClick={() => startEvent.mutate()}>
               Start new event
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <AlertDialog open={converting} onOpenChange={setConverting}>
+        <AlertDialogContent className="rounded-none border border-edge bg-panel text-bone">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="uppercase">Make this league recurring?</AlertDialogTitle>
+            <AlertDialogDescription className="text-dim">
+              This event becomes Event 1. Its entrants, sealed rosters, reveal state, and invite link stay the same. This cannot be undone.
+            </AlertDialogDescription>
+            {enableRecurring.error ? <p className="text-sm text-destructive">{errorMessage(enableRecurring.error)}</p> : null}
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep one-off</AlertDialogCancel>
+            <AlertDialogAction disabled={enableRecurring.isPending} onClick={() => enableRecurring.mutate()}>
+              Make recurring
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

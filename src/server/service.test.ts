@@ -164,6 +164,27 @@ it('keeps prior event entrants out of a new recurring event', async () => {
   })
 })
 
+it('turns a revealed one-off league into a recurring league without changing event one', async () => {
+  const league = await revealedLeague()
+
+  await service.makeLeagueRecurring(league.token, 'alice')
+  const first = await service.league(league.token, 'alice', league.eventToken)
+  const next = await service.createLeagueEvent(league.token, 'alice')
+  const current = await service.league(league.token, 'alice', next.eventToken)
+
+  expect({ recurring: first?.recurring, firstEntries: first?.entries.length, currentNumber: current?.eventNumber }).toEqual({
+    recurring: true,
+    firstEntries: 2,
+    currentNumber: 2,
+  })
+})
+
+it('only lets the organizer make a league recurring', async () => {
+  const league = await revealedLeague()
+
+  expect(await refusalStatus(() => service.makeLeagueRecurring(league.token, 'dave'))).toBe(403)
+})
+
 it('refuses to replace a league roster through the battle service', async () => {
   const league = await revealedLeague()
   const battle = await service.createLeagueBattle('alice', league.token, 'dave', null)

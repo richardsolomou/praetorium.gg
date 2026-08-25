@@ -31,6 +31,36 @@ async function join(page: Page) {
   await page.getByRole('button', { name: 'Join league' }).click()
 }
 
+test('an organizer can make a one-off league recurring without replacing its event', async ({ page }) => {
+  const ownerName = uniqueName('LeagueOwner')
+  const leagueName = uniqueName('Home League')
+
+  await signUp(page, ownerName)
+  await page.goto('/leagues')
+  await page.getByRole('button', { name: 'New league' }).click()
+  const create = page.getByRole('dialog', { name: 'Create league' })
+  await create.getByLabel('Name').fill(leagueName)
+  await create.getByRole('button', { name: /^Automatic/ }).click()
+  await create.getByRole('button', { name: 'Create league' }).click()
+  await join(page)
+  const eventUrl = page.url()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(1440)
+
+  await page.getByRole('button', { name: 'Make recurring' }).click()
+  await page.screenshot({ path: 'test-results/make-league-recurring-confirm.png', fullPage: true })
+  await page.getByRole('alertdialog', { name: 'Make this league recurring?' }).getByRole('button', { name: 'Make recurring' }).click()
+
+  await expect(page.getByRole('heading', { name: 'Events' })).toBeVisible()
+  await expect(page.getByRole('link', { name: /Event 1/ })).toBeVisible()
+  await expect(page.locator(`[data-person="${ownerName}"]`)).toBeVisible()
+  expect(page.url()).toBe(eventUrl)
+  await page.screenshot({ path: 'test-results/one-off-made-recurring.png', fullPage: true })
+
+  await page.setViewportSize({ width: 390, height: 844 })
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  await page.screenshot({ path: 'test-results/one-off-made-recurring-phone.png', fullPage: true })
+})
+
 test('a recurring league starts each event with fresh registration', async ({ browser }) => {
   const ownerContext = await browser.newContext()
   const entrantContext = await browser.newContext()
