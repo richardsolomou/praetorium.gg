@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.34.7
+
+### Patch Changes
+
+- 2d587dc: Speed up initial global searches and roster loading.
+
 ## 0.34.6
 
 ### Patch Changes
