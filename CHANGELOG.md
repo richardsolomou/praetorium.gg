@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.30.0
+
+### Minor Changes
+
+- 7208abf: Add a privacy policy at /privacy and terms of service at /terms
+
 ## 0.29.0
 
 ### Minor Changes
