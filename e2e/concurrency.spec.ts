@@ -70,6 +70,7 @@ test('concurrent unlinks on independent connections preserve one sign-in method'
     await left.database.insert(account).values({
       id: 'google-account',
       accountId: 'google-account',
+      issuer: 'https://accounts.google.com',
       providerId: 'google',
       userId: signedUp.user.id,
       createdAt: new Date(),
