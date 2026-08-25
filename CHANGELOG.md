@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.37.0
+
+### Minor Changes
+
+- ff153a0: Add fixed-team Doubles events and four-player battles.
+
 ## 0.36.0
 
 ### Minor Changes
