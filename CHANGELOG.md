@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.28.4
+
+### Patch Changes
+
+- 15fb7bf: Remove origin labels from saved rosters in the roster library.
+
 ## 0.28.3
 
 ### Patch Changes
