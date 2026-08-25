@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createBattleSchema, createLeagueSchema, savedRosterDatasheetSchema, submitSchema } from './schemas'
+import { createBattleSchema, createLeagueSchema, savedRosterDatasheetSchema, submitSchema, updateLeagueSchema } from './schemas'
 
 describe('battle creation input', () => {
   it('keeps the legacy opponent-only payload valid', () => {
@@ -62,5 +62,18 @@ describe('league creation input', () => {
 
   it('rejects a one-player league', () => {
     expect(createLeagueSchema.safeParse({ ...league, playerLimit: 1 }).success).toBe(false)
+  })
+
+  it('requires the league token when editing the same fields', () => {
+    expect(updateLeagueSchema.safeParse({ ...league, description: '', playerLimit: null }).success).toBe(false)
+    expect(updateLeagueSchema.safeParse({ ...league, token: 'league', description: '', playerLimit: null }).success).toBe(true)
+  })
+
+  it('requires an explicit description when editing', () => {
+    expect(updateLeagueSchema.safeParse({ ...league, token: 'league', playerLimit: null }).success).toBe(false)
+  })
+
+  it('requires an explicit player limit when editing', () => {
+    expect(updateLeagueSchema.safeParse({ ...league, token: 'league', description: '' }).success).toBe(false)
   })
 })
