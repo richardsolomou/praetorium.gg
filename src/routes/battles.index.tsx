@@ -17,18 +17,13 @@ import type { Battle } from '../client/components/battles/battle'
 import { BattleShelf } from '../client/components/battles/BattleShelf'
 import { CreateBattle } from '../client/components/battles/CreateBattle'
 import { SignInRequired } from '../client/components/SignInRequired'
-import { battlesFrom, battlesQuery, gameReferencesQuery, meQuery, opponentsQuery } from '../client/queries'
+import { battlesFrom, battlesQuery, meQuery } from '../client/queries'
 import { useLiveBattles } from '../client/useLiveBattle'
 import { deleteBattle } from '../server/functions'
 
 export const Route = createFileRoute('/battles/')({
   loader: ({ context }) =>
-    Promise.all([
-      context.queryClient.ensureQueryData(meQuery()),
-      context.queryClient.ensureInfiniteQueryData(battlesQuery()),
-      context.queryClient.ensureQueryData(opponentsQuery()),
-      context.queryClient.ensureQueryData(gameReferencesQuery()),
-    ]),
+    Promise.all([context.queryClient.ensureQueryData(meQuery()), context.queryClient.ensureInfiniteQueryData(battlesQuery())]),
   component: Battles,
 })
 

@@ -39,6 +39,8 @@ Deployment and terrain are one battlefield choice. The three layouts for the arm
 
 A 2v1 battle has one player on one side and two allied players on the other. Which side the pair is on is the creator's to choose: `createBattle` takes an `allyId` who joins their side and `opponentIds` who face them, so either player of an allied pair can be the one who opens the game. The creator always keeps the first seat on side 0, because deleting a battle is theirs alone and the earliest seat on that side is what says so — an ally sits on side 0 too, so the side by itself does not.
 
+The battle index loads eligible opponents when the New battle dialog opens and game references only when the player submits it. Returning to an existing battle does not need either read.
+
 Allies share a turn, command points, mission cards, stratagems, and victory points. Each ally still attaches and controls a separate roster and its units.
 
 ## Practice opponents

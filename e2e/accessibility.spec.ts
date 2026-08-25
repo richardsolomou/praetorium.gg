@@ -4,6 +4,9 @@ import { signUp } from './account'
 test('opening a battle is operable from the keyboard', async ({ page }) => {
   await signUp(page, 'Alice')
   await page.goto('/battles')
+  const initialResponse = await page.reload()
+  if (!initialResponse) throw new Error('The battles page did not return a document response.')
+  expect(await initialResponse.text()).not.toContain('Practice Opponent')
 
   for (let tabs = 0; tabs < 10; tabs++) {
     if (await page.getByRole('button', { name: 'New battle' }).evaluate((element) => element === document.activeElement)) break
@@ -15,6 +18,7 @@ test('opening a battle is operable from the keyboard', async ({ page }) => {
   await expect(page.getByRole('dialog', { name: 'Start a battle' })).toBeVisible()
   await page.getByRole('combobox', { name: 'Opponent' }).click()
   await page.getByRole('option', { name: 'Practice Opponent', exact: true }).click()
+  await page.screenshot({ path: 'test-results/new-battle-dialog.png', fullPage: true })
   await page.getByRole('button', { name: 'Create battle' }).click()
   await expect(page).toHaveURL(/\/battles\/[^/]+$/)
 })
