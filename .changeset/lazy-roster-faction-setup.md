@@ -2,4 +2,4 @@
 'praetorium.gg': patch
 ---
 
-Speed up opening roster setup and changing factions.
+Speed up roster setup and roster selection across rosters, battles, and leagues.

@@ -1,8 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
+import { routeSlug } from '../../core/slug'
 import { factionFor } from '../factions'
-import { factionQuery, factionsQuery } from '../queries'
+import { factionIndexQuery, factionQuery } from '../queries'
 import { armyRulesRequest } from '../sideRules'
 import type { Army } from '../sides'
 import { FactionMark, type FactionPresentation } from './FactionMark'
@@ -65,7 +66,7 @@ export function RosterIdentity({
   linked?: boolean
   className?: string
 }) {
-  const { data: factions } = useQuery(factionsQuery())
+  const { data: factions } = useQuery(factionIndexQuery())
   const faction = factionFor(factions, roster.catalogueId)
   const detachmentNames = roster.detachmentIds.flatMap((id) => {
     const named = faction?.detachments.find((candidate) => candidate.id === id)
@@ -74,7 +75,7 @@ export function RosterIdentity({
   return <IdentityLine faction={faction} detachmentNames={detachmentNames} trailing={null} linked={linked} className={className} />
 }
 
-type Faction = FactionPresentation & { detachments: { id: string; name: string; slug: string }[] }
+type Faction = FactionPresentation & { detachments: { id: string; name: string; slug?: string }[] }
 
 function IdentityLine({
   faction,
@@ -118,7 +119,7 @@ function IdentityLine({
         <Link
           key={name}
           to="/factions/$catalogueId/detachments/$detachmentId"
-          params={{ catalogueId: faction!.slug, detachmentId: detachment.slug }}
+          params={{ catalogueId: faction!.slug, detachmentId: detachment.slug ?? routeSlug(detachment.name) }}
           title={name}
           className="truncate hover:text-bone hover:underline"
         >

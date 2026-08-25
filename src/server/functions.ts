@@ -34,16 +34,6 @@ import {
 /** How the community data is doing, so a fresh instance can say so rather than look broken. */
 export const catalogueStatus = createServerFn({ method: 'GET' }).handler(() => rpc(() => app().sync()))
 
-/** Null on an instance with no catalogue data, so the interface can simply not offer list building. */
-export const factions = createServerFn({ method: 'GET' }).handler(() =>
-  rpc(() => {
-    cacheUntilSnapshotChanges()
-    const loaded = app().catalogue()
-    if (!loaded) return null
-    return factionsFor(loaded, app().rules())
-  }),
-)
-
 export const factionIndex = createServerFn({ method: 'GET' }).handler(() =>
   rpc(() => {
     cacheUntilSnapshotChanges()
@@ -53,12 +43,7 @@ export const factionIndex = createServerFn({ method: 'GET' }).handler(() =>
   }),
 )
 
-/**
- * One faction, for the routes that render exactly one.
- *
- * The same cached derivation as `factions`, so the two cannot disagree; a page
- * about one faction just stops shipping the other thirty-five in its markup.
- */
+/** One faction by slug or id, for pages that should not ship every faction. */
 export const faction = createServerFn({ method: 'GET' })
   .validator(factionSchema)
   .handler(({ data }) =>
