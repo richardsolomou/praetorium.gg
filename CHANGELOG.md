@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.34.10
+
+### Patch Changes
+
+- 64418e3: Reduce complex profile pictures until they fit the upload limit.
+
 ## 0.34.9
 
 ### Patch Changes
