@@ -8,12 +8,12 @@ import { loadoutDatasheetsQuery } from '../../queries'
 import { useSettled } from '../../useSettled'
 import { UnitProfile, WeaponSummary } from './DatasheetPanel'
 import {
+  controlledProfileCount,
   type LoadoutModel,
   type LoadoutUnit,
   orderedChoices,
   sameWeapon,
   type SpreadCounts,
-  weaponMatches,
   wholeSquadTakes,
 } from './loadoutModel'
 import { EitherChoice, LoadoutLoading, SpecialChoice, SpreadChoice } from './LoadoutControls'
@@ -132,13 +132,8 @@ export function Loadout({
     ...modelAbilities,
   ]
 
-  const controlledCount = (profileName: string) =>
-    unit.choices
-      .flatMap((choice) => choice.options)
-      .filter((option) => weaponMatches(option.name, profileName))
-      .reduce((total, option) => total + option.count, 0)
   const equipped = (type: string) =>
-    sheet.profiles.filter((profile) => profile.type === type && (profile.count ?? 1) > controlledCount(profile.name))
+    sheet.profiles.filter((profile) => profile.type === type && (profile.count ?? 1) > controlledProfileCount(unit.choices, profile.name))
   const equippedRanged = equipped('Ranged Weapons')
   const equippedMelee = equipped('Melee Weapons')
   const profile = sheet.profiles.find((candidate) => candidate.type === 'Unit')

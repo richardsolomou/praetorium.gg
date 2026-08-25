@@ -58,18 +58,20 @@ export function optionPieces(
   options: ChoiceOptions = {},
   selected: readonly Selection[] = [],
 ): string[] | undefined {
+  const pieces = optionWargear(optionId, index, options, selected).map((piece) => piece.name)
+  return pieces.length ? pieces : undefined
+}
+
+export function optionWargear(optionId: string, index: CatalogueIndex, options: ChoiceOptions = {}, selected: readonly Selection[] = []) {
   const fallback = selected.length ? null : defaultSelection(optionId, index, options)
   const selections = selected.length ? selected : fallback ? [fallback] : []
-  const seen = new Set<string>()
-  const pieces = selections
-    .flatMap((selection) => wargearOf(selection, index).map((piece) => piece.name))
-    .filter((name) => {
-      const key = name.trim().toLocaleLowerCase()
-      if (seen.has(key)) return false
-      seen.add(key)
-      return true
-    })
-  return pieces.length ? pieces : undefined
+  const found = new Map<string, { name: string; count: number }>()
+  for (const piece of selections.flatMap((selection) => wargearOf(selection, index))) {
+    const key = piece.name.trim().toLocaleLowerCase()
+    const present = found.get(key)
+    found.set(key, { name: present?.name ?? piece.name, count: (present?.count ?? 0) + piece.count })
+  }
+  return [...found.values()]
 }
 
 type Member = { id: string; name: string; choiceKey: string | null; baseCount: number }

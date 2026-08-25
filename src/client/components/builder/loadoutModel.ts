@@ -24,6 +24,7 @@ export type LoadoutChoice = {
     id: string
     name: string
     pieces?: string[]
+    pieceCounts?: { name: string; count: number }[]
     points: number
     count: number
     max: number
@@ -136,6 +137,18 @@ const baseWeaponName = (name: string) => {
 
 export function weaponMatches(optionName: string, profileName: string) {
   return named(optionName, profileName)
+}
+
+export function controlledProfileCount(choices: readonly LoadoutChoice[], profileName: string) {
+  return choices
+    .flatMap((choice) => choice.options)
+    .reduce((total, option) => {
+      const pieces = option.pieceCounts
+        ?.filter((piece) => weaponMatches(piece.name, profileName))
+        .reduce((count, piece) => count + piece.count, 0)
+      const perSelection = Math.max(pieces ?? 0, weaponMatches(option.name, profileName) ? 1 : 0)
+      return total + option.count * perSelection
+    }, 0)
 }
 
 export function wargearMatches(optionName: string, abilityName: string) {

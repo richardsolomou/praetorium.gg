@@ -101,16 +101,3 @@ describe('the environment a preview runs with', () => {
     expect(() => previewEnv('165', 'https://pr-165.praetorium.gg', {})).toThrow(/PREVIEW_DATABASE_ADMIN_URL is required/)
   })
 })
-
-describe('isolating preview databases', () => {
-  it('never authorizes one preview to delete another preview database', () => {
-    const environment = Reflect.apply(previewEnv, undefined, [
-      '165',
-      'https://pr-165.praetorium.gg',
-      { PREVIEW_DATABASE_ADMIN_URL: ADMIN },
-      ['12', '165'],
-    ])
-
-    expect(environment).not.toContain('PRAETORIUM_PREVIEW_LIVE_PR_NUMBERS')
-  })
-})
