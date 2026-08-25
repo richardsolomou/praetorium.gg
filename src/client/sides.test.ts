@@ -154,17 +154,25 @@ describe('battle sides', () => {
         limit: 2000,
         detachment: null,
         disposition: null,
-        units: [
-          { key: 'a', name: 'A', points: 120, models: 1 },
-          { key: 'b', name: 'B', points: 95, models: 5 },
-        ],
       },
     } satisfies ViewPlayer['roster']
-    expect(sides(view([player({ id: 'you', side: 0, roster })]))[0]?.armies[0]?.points).toBe(215)
+    const units = [
+      { key: 'a', name: 'A', points: 120, models: 1, destroyed: false, deployed: true, formation: 'battlefield', alive: 1, damage: 0 },
+      { key: 'b', name: 'B', points: 95, models: 5, destroyed: false, deployed: true, formation: 'battlefield', alive: 5, damage: 0 },
+    ] satisfies ViewPlayer['units']
+    expect(sides(view([player({ id: 'you', side: 0, roster, units })]))[0]?.armies[0]?.points).toBe(215)
   })
 
   it('leaves an army unpriced when no list is attached', () => {
     expect(sides(view([player({ id: 'you', side: 0 })]))[0]?.armies[0]?.points).toBeNull()
+  })
+
+  it('leaves a pasted army unpriced even while its units are tracked', () => {
+    const roster = { name: 'Pasted', text: 'the list as text' } satisfies ViewPlayer['roster']
+    const units = [
+      { key: 'a', name: 'A', points: 0, models: 3, destroyed: false, deployed: true, formation: 'battlefield', alive: 3, damage: 0 },
+    ] satisfies ViewPlayer['units']
+    expect(sides(view([player({ id: 'you', side: 0, roster, units })]))[0]?.armies[0]?.points).toBeNull()
   })
 })
 

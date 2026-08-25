@@ -142,6 +142,15 @@ describe('units on the table', () => {
     const state = reduceBattle(PLAYERS, log([ALICE, roster('Ultramarines')]))
     expect(state.players.find((player) => player.id === ALICE)?.units).toEqual([])
   })
+
+  it('travel once in the view: on the player, never repeated under the roster', () => {
+    const state = reduceBattle(PLAYERS, log(...withUnits()))
+    const seen = battleView({ token: 'abc' }, NAMES, state, ALICE).players.find((player) => player.isViewer)
+    expect({
+      repeated: seen?.roster?.built && 'units' in seen.roster.built,
+      units: seen?.units.map((unit) => unit.name),
+    }).toEqual({ repeated: false, units: ['Intercessors', 'Captain'] })
+  })
 })
 
 describe('models within a unit', () => {

@@ -1,4 +1,5 @@
-import type { Roster, Stratagem } from '../core/battle'
+import type { Stratagem } from '../core/battle'
+import type { RosterView } from '../core/battleView'
 import { STRATAGEMS_MAX } from '../core/battle'
 
 /**
@@ -9,7 +10,7 @@ import { STRATAGEMS_MAX } from '../core/battle'
  * a second cache key for the same six stratagems, and in a 2v1 it is worse than
  * wasteful: the side's pool would depend on which screen assembled it.
  */
-export function armyRulesRequest(roster: Roster | null | undefined): { catalogueId: string; detachmentNames: string[] } {
+export function armyRulesRequest(roster: RosterView | null | undefined): { catalogueId: string; detachmentNames: string[] } {
   const built = roster?.built
   return {
     catalogueId: built?.catalogueId ?? '',

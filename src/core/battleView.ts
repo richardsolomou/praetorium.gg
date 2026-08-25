@@ -36,6 +36,15 @@ import {
  * and unrevealed secret missions are held back for their owner here.
  */
 
+/**
+ * The attached list as a screen reads it.
+ *
+ * The frozen units are deliberately absent: `units` on the same player carries
+ * every submitted field plus the battle state, so shipping `built.units` beside
+ * it sent both armies twice in every read of every battle.
+ */
+export type RosterView = Omit<Roster, 'built'> & { built?: Omit<NonNullable<Roster['built']>, 'units'> }
+
 export type BattleView = {
   token: string
   status: BattleState['status']
@@ -84,7 +93,7 @@ export type BattleView = {
     painted: boolean
     paintedPoints: number
     rounds: { round: number; primary: number; secondary: number; total: number }[]
-    roster: Roster | null
+    roster: RosterView | null
     units: UnitState[]
     /** What is still on the table, for the line a player actually glances at. */
     standing: number
@@ -219,7 +228,7 @@ export function battleView(
           secondary: resources.secondaryByRound[round] ?? 0,
           total: (resources.primaryByRound[round] ?? 0) + (resources.secondaryByRound[round] ?? 0),
         })),
-        roster: player.roster,
+        roster: viewRoster(player.roster),
         units: player.units,
         standing: player.units.filter((unit) => !unit.destroyed).length,
         deployed: player.units.filter((unit) => unit.deployed && !unit.destroyed).length,
@@ -291,6 +300,13 @@ export function battleView(
  * viewer's: a card held face down is named to its own side and called a secret
  * mission to the other.
  */
+/** The roster without its frozen units, which travel once as the player's `units`. */
+function viewRoster(roster: Roster | null): RosterView | null {
+  if (!roster?.built) return roster
+  const { units: _frozen, ...built } = roster.built
+  return { ...roster, built }
+}
+
 function advancePrompt(state: BattleState, viewerId: PlayerId): string | null {
   const active = state.activePlayerId ? state.players.find((player) => player.id === state.activePlayerId) : undefined
   const player = active ? sideCaptain(state, active.side) : undefined
