@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.34.6
+
+### Patch Changes
+
+- 4807376: Keep account sign-ins compatible with Better Auth 1.7.
+
 ## 0.34.5
 
 ### Patch Changes
