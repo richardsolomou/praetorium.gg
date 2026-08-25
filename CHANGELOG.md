@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.34.11
+
+### Patch Changes
+
+- 458c226: Speed up navigation by loading account and chooser data only where needed, and keep roster workspaces stable while loading.
+
 ## 0.34.10
 
 ### Patch Changes
