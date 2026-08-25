@@ -33,6 +33,7 @@ import { attachmentRows, joinableUnits } from './builder/attachments'
 import { pickEditor, usePicks } from './builder/usePicks'
 import { RosterSetupDialog, type RosterSetup, type RosterSetupFaction } from './RosterSetupDialog'
 import { RosterExportDialog } from './RosterExportDialog'
+import { dispositionTone } from './rosterSetup'
 import { readWorkspaceState, writeWorkspaceState } from './workspaceState'
 import { FactionLabel } from './FactionMark'
 
@@ -287,6 +288,12 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
   const warlord = optimisticUnit?.toggles.find((toggle) => toggle.name === 'Warlord')
   const inspectedEntryId = preview?.entryId ?? optimisticUnit?.entryId ?? null
   const referenceRoute = reference?.entryId === inspectedEntryId ? reference.route : null
+  const shownDisposition = priced?.disposition
+    ? (faction.detachments.flatMap((entry) => entry.dispositions).find((entry) => entry.id === priced.disposition) ?? {
+        id: priced.disposition,
+        name: priced.disposition,
+      })
+    : null
 
   const picker =
     editable && faction ? (
@@ -378,35 +385,34 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
         {faction ? (
           <div className="mt-0.5 flex min-w-0 items-center gap-2 text-xs text-dim">
             <span className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto whitespace-nowrap [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              <Link to="/factions/$catalogueId" params={{ catalogueId: faction.slug }} className="shrink-0 text-info hover:text-bone">
+              <Link
+                to="/factions/$catalogueId"
+                params={{ catalogueId: faction.slug }}
+                className="flex shrink-0 items-center self-stretch text-info hover:text-bone"
+              >
                 <FactionLabel faction={faction} />
               </Link>
               <span aria-hidden>·</span>
-              <Link to="/rosters" search={{ limit }} className="shrink-0 text-info hover:text-bone">
-                {GAME_SIZES.find((size) => size.limit === limit)?.name ?? `${limit} points`}
-              </Link>
+              <span className="shrink-0">{GAME_SIZES.find((size) => size.limit === limit)?.name ?? `${limit} points`}</span>
               {detachmentIds.map((id) => {
                 const detachment = faction.detachments.find((candidate) => candidate.id === id)
                 return detachment ? (
                   <span key={id} className="contents">
                     <span aria-hidden>·</span>
                     <Link
-                      to="/factions/$catalogueId/reference/detachments/$detachmentId"
+                      to="/factions/$catalogueId/detachments/$detachmentId"
                       params={{ catalogueId: faction.slug, detachmentId: detachment.slug }}
-                      className="shrink-0 hover:text-bone"
+                      className="shrink-0 text-info hover:text-bone"
                     >
                       {detachment.name}
                     </Link>
                   </span>
                 ) : null
               })}
-              {priced?.disposition ? (
+              {shownDisposition ? (
                 <span className="contents">
                   <span aria-hidden>·</span>
-                  <span className="shrink-0">
-                    {faction.detachments.flatMap((entry) => entry.dispositions).find((entry) => entry.id === priced.disposition)?.name ??
-                      priced.disposition}
-                  </span>
+                  <span className={`chip shrink-0 ${dispositionTone(shownDisposition.id)}`}>{shownDisposition.name}</span>
                 </span>
               ) : null}
             </span>

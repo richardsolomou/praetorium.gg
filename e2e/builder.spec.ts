@@ -310,6 +310,8 @@ test('King of the Colosseum creation keeps exactly one detachment selected', asy
 
   await dialog.getByRole('button', { name: 'Create roster' }).click()
   await page.waitForURL(/\/rosters\/[^/]+$/)
+  await expect(page.getByText('King of the Colosseum (600)', { exact: true })).toBeVisible()
+  await expect(page.getByRole('link', { name: 'King of the Colosseum (600)' })).toHaveCount(0)
   for (const excluded of ['Imotekh the Stormlord', 'Monolith']) {
     await page.getByLabel('Add a unit').fill(excluded)
     await expect(page.getByRole('button', { name: `Add ${excluded}`, exact: true })).toHaveCount(0)
@@ -1703,10 +1705,15 @@ test('Death Guard champions expose their legal wargear', async ({ page }) => {
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(720)
   expect(await loadout.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
   const deathshroudChampion = loadout.locator('section').filter({ hasText: 'Deathshroud Champion' })
-  await waitForRosterSave(page, () => deathshroudChampion.getByRole('button', { name: 'More Plaguespurt gauntlet' }).click())
-  await expect(deathshroudChampion.getByRole('button', { name: 'More Icon of Despair (Aura)' })).toBeEnabled()
-  await waitForRosterSave(page, () => deathshroudChampion.getByRole('button', { name: 'More Icon of Despair (Aura)' }).click())
-  await expect(deathshroudChampion.getByLabel('Icon of Despair (Aura) count')).toHaveText('1')
+  const additionalGauntlet = deathshroudChampion.getByRole('button', { name: 'More Plaguespurt gauntlet' }).locator('..')
+  const icon = deathshroudChampion.getByRole('button', { name: 'More Icon of Despair (Aura)' }).locator('..')
+  await expect(additionalGauntlet.getByLabel('Plaguespurt gauntlet count')).toHaveText('0')
+  await expect(icon.getByLabel('Icon of Despair (Aura) count')).toHaveText('0')
+  await waitForRosterSave(page, () => additionalGauntlet.getByRole('button', { name: 'More Plaguespurt gauntlet' }).click())
+  await expect(additionalGauntlet.getByLabel('Plaguespurt gauntlet count')).toHaveText('1')
+  await expect(icon.getByRole('button', { name: 'More Icon of Despair (Aura)' })).toBeEnabled()
+  await waitForRosterSave(page, () => icon.getByRole('button', { name: 'More Icon of Despair (Aura)' }).click())
+  await expect(icon.getByLabel('Icon of Despair (Aura) count')).toHaveText('1')
   await shot(deathshroudChampion, 'test-results/deathshroud-champion-wargear.png')
 
   await loadout.getByRole('button', { name: 'Close' }).click()
