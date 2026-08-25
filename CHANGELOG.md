@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.32.0
+
+### Minor Changes
+
+- a83123d: Adopt a Google or Discord profile picture for players who don't have one yet, on sign-up and when linking a new sign-in method.
+
 ## 0.31.0
 
 ### Minor Changes
