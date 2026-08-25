@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.34.8
+
+### Patch Changes
+
+- 7342664: Speed up initial global searches and roster page loads.
+
 ## 0.34.7
 
 ### Patch Changes
