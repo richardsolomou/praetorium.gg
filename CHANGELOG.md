@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.34.3
+
+### Patch Changes
+
+- 8e8d48c: Load one faction on the pages that render one faction, instead of shipping the whole catalogue's worth in their markup.
+
 ## 0.34.2
 
 ### Patch Changes
