@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.33.3
+
+### Patch Changes
+
+- 0929f4e: Narrow and order the roster library from a Filter button and a Sort button that fit every screen size.
+
 ## 0.33.2
 
 ### Patch Changes
