@@ -16,9 +16,19 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { PlayerAvatar } from '../PlayerAvatar'
 import { errorMessage } from '../../queryClient'
-import { battlesQuery, gameReferencesQuery, leagueQuery, leaguesQuery, meQuery, savedRostersQuery } from '../../queries'
+import {
+  battlesQuery,
+  factionsQuery,
+  gameReferencesQuery,
+  leagueQuery,
+  leaguesQuery,
+  meQuery,
+  savedRosterPointsQuery,
+  savedRostersQuery,
+} from '../../queries'
 import { createLeagueBattle, joinLeague, moderateLeagueEntry, revealLeague, submitLeagueRoster } from '../../../server/functions'
 import { LEAGUE_MEMBER_MAX } from '../../../core/league'
+import { RosterSummary } from '../rosters/RosterSummary'
 
 export function LeaguePage({ token }: { token: string }) {
   const queryClient = useQueryClient()
@@ -124,7 +134,9 @@ export function LeaguePage({ token }: { token: string }) {
                 <span className="chip self-center">League full</span>
               ) : null}
               {!league.revealedAt && !me ? (
-                <Button render={<Link to="/sign-in" search={{ next: `/leagues/${token}` }} />}>Sign in to join</Button>
+                <Button nativeButton={false} render={<Link to="/sign-in" search={{ next: `/leagues/${token}` }} />}>
+                  Sign in to join
+                </Button>
               ) : null}
             </div>
           </div>
@@ -340,6 +352,10 @@ function RosterChooser({
   onClose: () => void
   onChoose: (id: string) => void
 }) {
+  const { data: available } = useQuery(factionsQuery())
+  const { data: prices } = useQuery(savedRosterPointsQuery())
+  const points = new Map((prices ?? []).map((entry) => [entry.id, entry.points]))
+
   return (
     <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
       <DialogContent className="max-h-[85dvh] overflow-y-auto rounded-none border border-edge bg-panel text-bone sm:max-w-2xl">
@@ -356,22 +372,24 @@ function RosterChooser({
               <button
                 key={roster.id}
                 type="button"
-                className="flex w-full items-center justify-between gap-3 border border-edge bg-sunken p-3 text-left hover:border-info hover:bg-raised"
+                data-roster={roster.name}
+                className="flex w-full flex-wrap items-center gap-2 border border-edge bg-panel p-2 hover:border-azure disabled:cursor-wait disabled:opacity-70"
                 disabled={pending}
                 onClick={() => onChoose(roster.id)}
               >
-                <span>
-                  <span className="block font-bold uppercase">{roster.name}</span>
-                  <span className="mt-1 block text-xs text-dim">{roster.limit} points</span>
-                </span>
-                <FileLock2 className="size-4 shrink-0 text-parchment" />
+                <RosterSummary
+                  roster={roster}
+                  faction={available?.factions.find((entry) => entry.id === roster.catalogueId)}
+                  points={points.get(roster.id)}
+                />
+                <FileLock2 className="ml-1 size-4 shrink-0 text-parchment" />
               </button>
             ))}
           </div>
         ) : (
           <div className="border border-dashed border-edge p-5 text-center">
             <p className="text-sm text-dim">Build or import a roster before submitting.</p>
-            <Button className="mt-3" render={<Link to="/rosters" />}>
+            <Button className="mt-3" nativeButton={false} render={<Link to="/rosters" />}>
               Go to rosters
             </Button>
           </div>
