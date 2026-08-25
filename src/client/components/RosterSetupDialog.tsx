@@ -378,7 +378,15 @@ export function RosterSetupDialog({
               }
               onClick={() => onSave({ ...draft, name: draft.name.trim(), disposition: selectedDisposition })}
             >
-              {pending ? (mode === 'create' ? 'Creating…' : 'Saving…') : mode === 'create' ? 'Create roster' : 'Save changes'}
+              {pending
+                ? factions.length
+                  ? mode === 'create'
+                    ? 'Creating…'
+                    : 'Saving…'
+                  : 'Loading factions…'
+                : mode === 'create'
+                  ? 'Create roster'
+                  : 'Save changes'}
             </Button>
           </DialogFooter>
         </DialogContent>

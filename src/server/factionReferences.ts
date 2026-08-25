@@ -52,6 +52,7 @@ function factionSummary(loaded: LoadedCatalogue, rules: LoadedRules | null | und
         datasheets: content?.datasheets.size ?? reference.datasheets,
         detachments: referenceDetachments.length,
       })),
+      detachments: detachments.map(({ id, name }) => ({ id, name })),
     },
     detachments,
     referenceDetachments,

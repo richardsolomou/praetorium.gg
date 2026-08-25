@@ -1,12 +1,12 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { Plus } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { DEFAULT_GAME_LIMIT } from '../../core/battle'
 import { saveRoster } from '../../server/functions'
-import { invalidateSavedRosters } from '../queries'
-import { RosterSetupDialog, type RosterSetup, type RosterSetupFaction } from './RosterSetupDialog'
+import { factionsQuery, invalidateSavedRosters } from '../queries'
+import { RosterSetupDialog, type RosterSetup } from './RosterSetupDialog'
 
 const EMPTY_SETUP: RosterSetup = {
   name: '',
@@ -17,8 +17,9 @@ const EMPTY_SETUP: RosterSetup = {
   visibility: 'private',
 }
 
-export function CreateRoster({ factions }: { factions: RosterSetupFaction[] }) {
+export function CreateRoster() {
   const [open, setOpen] = useState(false)
+  const { data: available } = useQuery({ ...factionsQuery(), enabled: open })
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const create = useMutation({
@@ -46,10 +47,10 @@ export function CreateRoster({ factions }: { factions: RosterSetupFaction[] }) {
         mode="create"
         open={open}
         onOpenChange={setOpen}
-        factions={factions}
+        factions={available?.factions ?? []}
         value={EMPTY_SETUP}
         hasUnits={false}
-        pending={create.isPending}
+        pending={create.isPending || (open && !available)}
         onSave={(setup) => create.mutate(setup)}
       />
     </>

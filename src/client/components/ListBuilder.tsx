@@ -15,7 +15,7 @@ import type { RosterPick } from '../../core/roster'
 import type { RosterSource, RosterVisibility } from '../../core/savedRoster'
 import type { Datasheet } from '../../server/catalogue'
 import { exportRoster, saveRoster } from '../../server/functions'
-import { collectionQuery, factionsQuery, invalidateSavedRosters, priceQuery } from '../queries'
+import { collectionQuery, factionIndexQuery, factionsQuery, invalidateSavedRosters, priceQuery } from '../queries'
 import { type KeyedPick, picksAfterDetachmentChange } from '../rosterPicks'
 import { useCollectionMutation } from '../useCollection'
 import { useSettled } from '../useSettled'
@@ -31,7 +31,7 @@ import { UnitCard } from './builder/UnitCard'
 import { survivingUnits } from './builder/pricePlaceholder'
 import { attachmentRows, joinableUnits } from './builder/attachments'
 import { pickEditor, usePicks } from './builder/usePicks'
-import { RosterSetupDialog, type RosterSetup } from './RosterSetupDialog'
+import { RosterSetupDialog, type RosterSetup, type RosterSetupFaction } from './RosterSetupDialog'
 import { RosterExportDialog } from './RosterExportDialog'
 import { readWorkspaceState, writeWorkspaceState } from './workspaceState'
 import { FactionLabel } from './FactionMark'
@@ -50,6 +50,7 @@ type Props = {
     visibility: RosterVisibility
     source: RosterSource
   }
+  initialFaction?: RosterSetupFaction | null
   editable?: boolean
   /** A battle token may entitle a read-only viewer to resolve a private roster. */
   battle?: string
@@ -71,8 +72,8 @@ const NO_UNITS = [] as const
  * The price and the legality both come from the server, because the catalogue is
  * 90MB and the browser has no business holding it.
  */
-export function ListBuilder({ prep, initial, editable = true, battle, resolvePersistedRoster = true }: Props) {
-  const { data: available } = useQuery(factionsQuery())
+export function ListBuilder({ prep, initial, initialFaction, editable = true, battle, resolvePersistedRoster = true }: Props) {
+  const { data: factionIndex } = useQuery(factionIndexQuery())
   const [catalogueId, setCatalogueId] = useState(initial.catalogueId)
   const { picks, setPicks, positioned, held } = usePicks(initial.picks)
   const [limit, setLimit] = useState(initial.limit)
@@ -92,6 +93,7 @@ export function ListBuilder({ prep, initial, editable = true, battle, resolvePer
   const [pickerQuery, setPickerQuery] = useState('')
   const [pickerFilters, setPickerFilters] = useState<Set<PickerFilter>>(new Set())
   const editingSetup = setupDraft !== null
+  const { data: setupOptions } = useQuery({ ...factionsQuery(), enabled: editingSetup })
   const pickerOpen = wideWorkspace || showing === 'picker'
 
   const setSetupDraft = (draft: RosterSetup | null) => {
@@ -132,7 +134,8 @@ export function ListBuilder({ prep, initial, editable = true, battle, resolvePer
     [],
   )
 
-  const faction = available?.factions.find((entry) => entry.id === catalogueId)
+  const faction =
+    setupOptions?.factions.find((entry) => entry.id === catalogueId) ?? (initialFaction?.id === catalogueId ? initialFaction : null)
   const suggested = faction
     ? [shortName(faction.name), faction.detachments.find((entry) => entry.id === detachmentIds[0])?.name].filter(Boolean).join(' — ')
     : ''
@@ -245,7 +248,7 @@ export function ListBuilder({ prep, initial, editable = true, battle, resolvePer
   )
   const cardRelationships = useCardRelationships(picks, units)
 
-  if (!available) {
+  if (!faction) {
     return (
       <div className="flex min-h-0 flex-1 items-center justify-center border border-edge bg-sunken p-8 text-center">
         <div>
@@ -399,10 +402,8 @@ export function ListBuilder({ prep, initial, editable = true, battle, resolvePer
                 <span className="contents">
                   <span aria-hidden>·</span>
                   <span className="shrink-0">
-                    {available.factions
-                      .flatMap((entry) => entry.detachments)
-                      .flatMap((entry) => entry.dispositions)
-                      .find((entry) => entry.id === priced.disposition)?.name ?? priced.disposition}
+                    {faction.detachments.flatMap((entry) => entry.dispositions).find((entry) => entry.id === priced.disposition)?.name ??
+                      priced.disposition}
                   </span>
                 </span>
               ) : null}
@@ -479,14 +480,15 @@ export function ListBuilder({ prep, initial, editable = true, battle, resolvePer
           </p>
         ) : null}
 
-        {editable && available && editingSetup ? (
+        {editable && editingSetup ? (
           <RosterSetupDialog
             open={editingSetup}
             onOpenChange={(open) => !open && setSetupDraft(null)}
-            factions={available.factions}
+            factions={setupOptions?.factions ?? []}
             value={setupDraft}
             onDraftChange={setSetupDraft}
             hasUnits={Boolean(picks.length)}
+            pending={!setupOptions}
             onSave={(setup) => {
               const changedFaction = setup.catalogueId !== catalogueId
               if (!changedFaction) {
@@ -563,7 +565,7 @@ export function ListBuilder({ prep, initial, editable = true, battle, resolvePer
                       alliedFaction={
                         picks[index]?.catalogueId === catalogueId
                           ? undefined
-                          : available.factions.find((entry) => entry.id === picks[index]?.catalogueId)
+                          : factionIndex?.factions.find((entry) => entry.id === picks[index]?.catalogueId)
                       }
                       selected={selected === index}
                       owned={collection.has(unit.entryId)}
