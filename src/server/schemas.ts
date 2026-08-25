@@ -27,14 +27,20 @@ const slug = z.string().min(1).max(160)
 const rosterLimit = z.number().int().min(0).max(10_000)
 
 export const tokenSchema = z.object({ token })
-export const createLeagueSchema = z.object({
+const leagueFields = {
   name: z.string().trim().min(1, 'name the league').max(LEAGUE_NAME_MAX_LENGTH),
-  description: z.string().trim().max(LEAGUE_DESCRIPTION_MAX_LENGTH).default(''),
+  description: z.string().trim().max(LEAGUE_DESCRIPTION_MAX_LENGTH),
   visibility: z.enum(LEAGUE_VISIBILITIES),
   admission: z.enum(LEAGUE_ADMISSIONS),
-  playerLimit: z.number().int().min(LEAGUE_MEMBER_MIN).max(LEAGUE_MEMBER_MAX).nullable().default(null),
+  playerLimit: z.number().int().min(LEAGUE_MEMBER_MIN).max(LEAGUE_MEMBER_MAX).nullable(),
+}
+export const createLeagueSchema = z.object({
+  ...leagueFields,
+  description: leagueFields.description.default(''),
+  playerLimit: leagueFields.playerLimit.default(null),
   recurring: z.boolean().default(false),
 })
+export const updateLeagueSchema = z.object({ token, ...leagueFields })
 export const leagueEventSchema = z.object({ token, eventToken: token.optional() })
 export const openLeagueSchema = z.object({ token, eventToken: token.optional() })
 export const moderateLeagueEntrySchema = z.object({

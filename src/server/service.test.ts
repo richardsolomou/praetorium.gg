@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { PraetoriumConnection, PraetoriumDatabase } from '../db/connection'
 import { openTestDatabase } from '../db/testDatabase'
 import { Repository } from '../db/repository'
-import { battles, battleUsers, user } from '../db/schema'
+import { battles, battleUsers, leagueEventEntries, leagueEvents, user } from '../db/schema'
 import type { Roster } from '../core/battle'
 import { PraetoriumService } from './service'
 import type { LoadedRules } from './rules'
@@ -193,6 +193,49 @@ it('only lets the organizer make a league recurring', async () => {
   const league = await revealedLeague()
 
   expect(await refusalStatus(() => service.makeLeagueRecurring(league.token, 'dave'))).toBe(403)
+})
+
+it('only lets the organizer edit and delete a league', async () => {
+  await enrol('dave', 'Dave')
+  const league = await service.createLeague('alice', {
+    name: 'League',
+    description: '',
+    visibility: 'private',
+    admission: 'approval',
+    playerLimit: null,
+  })
+  const update = {
+    name: 'Renamed league',
+    description: 'New details',
+    visibility: 'public' as const,
+    admission: 'automatic' as const,
+    playerLimit: 4,
+  }
+
+  expect(await refusalStatus(() => service.updateLeague(league.token, 'dave', update))).toBe(403)
+  await service.updateLeague(league.token, 'alice', update)
+  expect(await service.league(league.token, 'alice')).toEqual(expect.objectContaining(update))
+  expect(await refusalStatus(() => service.deleteLeague(league.token, 'dave'))).toBe(403)
+  await service.deleteLeague(league.token, 'alice')
+  expect(await service.league(league.token, 'alice')).toBeNull()
+})
+
+it('deletes league history while preserving a battle made from its sealed rosters', async () => {
+  const league = await revealedLeague()
+  const battle = await service.createLeagueBattle('alice', league.token, 'dave', null)
+
+  await service.deleteLeague(league.token, 'alice')
+
+  const [screen, events, entries] = await Promise.all([
+    view(battle.token, 'alice'),
+    database.select().from(leagueEvents),
+    database.select().from(leagueEventEntries),
+  ])
+  expect({ league: await service.league(league.token, 'alice'), events, entries }).toEqual({ league: null, events: [], entries: [] })
+  expect(screen.players.map((player) => [player.id, player.roster?.name])).toEqual([
+    ['alice', league.aliceRoster.name],
+    ['dave', league.opponentRoster.name],
+  ])
 })
 
 it('refuses to replace a league roster through the battle service', async () => {

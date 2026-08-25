@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.35.0
+
+### Minor Changes
+
+- 9fd6333: Let organizers edit, manage, and delete their leagues.
+
 ## 0.34.15
 
 ### Patch Changes

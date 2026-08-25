@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
-import { CalendarPlus, Check, Clipboard, Eye, FileLock2, LockKeyhole, Repeat2, ShieldCheck, Swords, UserPlus, X } from 'lucide-react'
-import { useState } from 'react'
+import { CalendarPlus, Check, Eye, FileLock2, LockKeyhole, ShieldCheck, Swords, UserPlus, X } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,25 +30,26 @@ import {
   createLeagueBattle,
   createLeagueEvent,
   joinLeague,
-  makeLeagueRecurring,
   moderateLeagueEntry,
   revealLeague,
   submitLeagueRoster,
 } from '../../../server/functions'
 import { LEAGUE_MEMBER_MAX } from '../../../core/league'
 import { RosterSummary } from '../rosters/RosterSummary'
+import { LeaguePageActions } from './LeagueActions'
 
 export function LeaguePage({ token, eventToken }: { token: string; eventToken?: string }) {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const { data: me } = useQuery(meQuery())
   const { data: league } = useQuery(leagueQuery(token, eventToken))
+  useEffect(() => {
+    if (league === null) void navigate({ to: '/leagues' })
+  }, [league, navigate])
   const [choosing, setChoosing] = useState(false)
   const [revealing, setRevealing] = useState(false)
   const [starting, setStarting] = useState(false)
-  const [converting, setConverting] = useState(false)
   const [removing, setRemoving] = useState<{ userId: string; name: string } | null>(null)
-  const [copied, setCopied] = useState(false)
   const refresh = async () => {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ['league', token] }),
@@ -99,13 +100,6 @@ export function LeaguePage({ token, eventToken }: { token: string; eventToken?: 
       await navigate({ to: '/leagues/$token', params: { token }, search: { event: nextEventToken } })
     },
   })
-  const enableRecurring = useMutation({
-    mutationFn: () => makeLeagueRecurring({ data: { token } }),
-    onSuccess: async () => {
-      setConverting(false)
-      await refresh()
-    },
-  })
   if (!league) return null
   const isOwner = me?.id === league.ownerId
   const ownEntry = league.entries.find((entry) => entry.userId === me?.id)
@@ -121,7 +115,7 @@ export function LeaguePage({ token, eventToken }: { token: string; eventToken?: 
     accepted.length > 0 &&
     accepted.every((entry) => entry.submitted) &&
     (league.playerLimit === null || accepted.length === league.playerLimit)
-  const problem = join.error ?? moderate.error ?? battle.error ?? startEvent.error ?? enableRecurring.error
+  const problem = join.error ?? moderate.error ?? battle.error ?? startEvent.error
 
   return (
     <main className="w-full">
@@ -147,16 +141,7 @@ export function LeaguePage({ token, eventToken }: { token: string; eventToken?: 
               </div>
             </div>
             <div className="flex flex-wrap gap-2">
-              {isOwner ? (
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    void navigator.clipboard.writeText(`${window.location.origin}/leagues/${token}`).then(() => setCopied(true))
-                  }}
-                >
-                  {copied ? <Check /> : <Clipboard />} {copied ? 'Copied' : 'Copy invite link'}
-                </Button>
-              ) : null}
+              {isOwner ? <LeaguePageActions league={league} onDeleted={() => navigate({ to: '/leagues' })} /> : null}
               {!league.revealedAt && me && (!ownEntry || ownEntry.status === 'rejected') && !registrationFull ? (
                 <Button onClick={() => join.mutate()} disabled={join.isPending}>
                   <UserPlus /> {ownEntry ? 'Request to join again' : 'Join league'}
@@ -180,10 +165,9 @@ export function LeaguePage({ token, eventToken }: { token: string; eventToken?: 
             params={{ userId: league.ownerId }}
             className="group mt-5 flex w-fit items-center gap-2 text-sm text-dim"
           >
+            <span>Organized by</span>
             <PlayerAvatar name={league.ownerName} image={league.ownerImage} className="size-7 text-xs" />
-            <span>
-              Organized by <span className="text-bone group-hover:underline">{league.ownerName}</span>
-            </span>
+            <span className="text-bone group-hover:underline">{league.ownerName}</span>
           </Link>
         </div>
       </section>
@@ -317,18 +301,6 @@ export function LeaguePage({ token, eventToken }: { token: string; eventToken?: 
               ) : null}
             </section>
           ) : null}
-          {isOwner && !league.recurring ? (
-            <section className="border border-edge bg-panel p-4">
-              <div className="flex items-center gap-2">
-                <Repeat2 className="size-5 text-parchment" />
-                <h2 className="font-bold uppercase">League format</h2>
-              </div>
-              <p className="mt-2 text-sm text-dim">Keep this event and run more events from the same league page.</p>
-              <Button className="mt-4 w-full" variant="outline" onClick={() => setConverting(true)}>
-                Make recurring
-              </Button>
-            </section>
-          ) : null}
           <section className="border border-edge bg-panel p-4">
             <div className="flex items-center gap-2">
               <FileLock2 className="size-5 text-parchment" />
@@ -438,23 +410,6 @@ export function LeaguePage({ token, eventToken }: { token: string; eventToken?: 
             <AlertDialogCancel>Keep current event</AlertDialogCancel>
             <AlertDialogAction disabled={startEvent.isPending} onClick={() => startEvent.mutate()}>
               Start new event
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-      <AlertDialog open={converting} onOpenChange={setConverting}>
-        <AlertDialogContent className="rounded-none border border-edge bg-panel text-bone">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="uppercase">Make this league recurring?</AlertDialogTitle>
-            <AlertDialogDescription className="text-dim">
-              This event becomes Event 1. Its entrants, sealed rosters, reveal state, and invite link stay the same. This cannot be undone.
-            </AlertDialogDescription>
-            {enableRecurring.error ? <p className="text-sm text-destructive">{errorMessage(enableRecurring.error)}</p> : null}
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Keep one-off</AlertDialogCancel>
-            <AlertDialogAction disabled={enableRecurring.isPending} onClick={() => enableRecurring.mutate()}>
-              Make recurring
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

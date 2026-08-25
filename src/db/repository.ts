@@ -38,6 +38,8 @@ export type JoinLeagueResult = LeagueEntryStatus | 'missing' | 'closed' | 'full'
 export type ModerateLeagueResult = 'updated' | 'missing' | 'forbidden' | 'closed' | 'full'
 export type CreateLeagueEventResult = 'created' | 'missing' | 'forbidden' | 'one-off' | 'open'
 export type MakeLeagueRecurringResult = 'updated' | 'missing' | 'forbidden'
+export type UpdateLeagueResult = 'updated' | 'missing' | 'forbidden' | 'joined' | 'revealed' | 'below-accepted'
+export type DeleteLeagueResult = 'deleted' | 'missing' | 'forbidden'
 
 const ADMIN_USERS_PAGE_SIZE = 50
 
@@ -651,6 +653,7 @@ export class Repository {
         .where(eq(leagueEvents.leagueId, league.id))
         .orderBy(desc(leagueEvents.number))
         .limit(1)
+        .for('update')
       if (!latest || latest.revealedAt === null) return 'open'
       await tx.insert(leagueEvents).values({
         id: input.id,
@@ -677,197 +680,282 @@ export class Repository {
     })
   }
 
-  async leaguesVisibleTo(userId: string | null, limit = 100) {
-    const personal = userId
-      ? or(
-          eq(leagues.ownerId, userId),
-          exists(
-            this.database
-              .select({ one: sql`1` })
-              .from(leagueEventEntries)
-              .innerJoin(leagueEvents, eq(leagueEvents.id, leagueEventEntries.eventId))
-              .where(and(eq(leagueEvents.leagueId, leagues.id), eq(leagueEventEntries.userId, userId))),
-          ),
-        )
-      : undefined
-    const visible = userId ? or(eq(leagues.visibility, 'public'), personal) : eq(leagues.visibility, 'public')
-    const rows = await this.database
-      .select({
-        id: leagues.id,
-        token: leagues.token,
-        ownerId: leagues.ownerId,
-        ownerName: user.name,
-        name: leagues.name,
-        description: leagues.description,
-        visibility: leagues.visibility,
-        admission: leagues.admission,
-        playerLimit: leagues.playerLimit,
-        recurring: leagues.recurring,
-        createdAt: leagues.createdAt,
-        personal: personal ? sql<boolean>`${personal}` : sql<boolean>`false`,
-      })
-      .from(leagues)
-      .innerJoin(user, eq(user.id, leagues.ownerId))
-      .where(visible)
-      .orderBy(
-        ...(personal ? [asc(sql<number>`case when ${personal} then 0 else 1 end`), desc(leagues.createdAt)] : [desc(leagues.createdAt)]),
-      )
-      .limit(Math.min(Math.max(limit, 1), 100))
-    if (!rows.length) return []
-    const ids = rows.map((row) => row.id)
-    const latestEvents = await this.database
-      .selectDistinctOn([leagueEvents.leagueId], {
-        id: leagueEvents.id,
-        token: leagueEvents.token,
-        leagueId: leagueEvents.leagueId,
-        number: leagueEvents.number,
-        revealedAt: leagueEvents.revealedAt,
-      })
-      .from(leagueEvents)
-      .where(inArray(leagueEvents.leagueId, ids))
-      .orderBy(leagueEvents.leagueId, desc(leagueEvents.number))
-    const eventIds = latestEvents.map((event) => event.id)
-    const [counts, ownEntries] = await Promise.all([
-      this.database
+  async updateLeague(
+    token: string,
+    ownerId: string,
+    input: {
+      name: string
+      description: string
+      visibility: LeagueVisibility
+      admission: LeagueAdmission
+      playerLimit: number | null
+    },
+  ): Promise<UpdateLeagueResult> {
+    return this.database.transaction(async (tx) => {
+      const [league] = await tx
         .select({
-          eventId: leagueEventEntries.eventId,
-          accepted: count(sql`case when ${leagueEventEntries.status} = 'accepted' then 1 end`),
-          occupied: count(sql`case when ${leagueEventEntries.status} <> 'rejected' then 1 end`),
+          id: leagues.id,
+          ownerId: leagues.ownerId,
+          admission: leagues.admission,
+          playerLimit: leagues.playerLimit,
         })
-        .from(leagueEventEntries)
-        .where(inArray(leagueEventEntries.eventId, eventIds))
-        .groupBy(leagueEventEntries.eventId),
-      userId
-        ? this.database
-            .select({
-              eventId: leagueEventEntries.eventId,
-              status: leagueEventEntries.status,
-              submitted: sql<boolean>`${leagueEventEntries.rosterSnapshot} is not null`,
-              rosterName: leagueEventEntries.rosterName,
-            })
-            .from(leagueEventEntries)
-            .where(and(inArray(leagueEventEntries.eventId, eventIds), eq(leagueEventEntries.userId, userId)))
-        : Promise.resolve([]),
-    ])
-    const eventByLeague = new Map(latestEvents.map((event) => [event.leagueId, event]))
-    const countByEvent = new Map(counts.map((entry) => [entry.eventId, { accepted: entry.accepted, occupied: entry.occupied }]))
-    const ownByEvent = new Map(
-      ownEntries.map((entry) => [entry.eventId, { status: entry.status, submitted: entry.submitted, rosterName: entry.rosterName }]),
-    )
-    return rows.map((row) => ({
-      ...row,
-      eventToken: eventByLeague.get(row.id)?.token ?? '',
-      eventNumber: eventByLeague.get(row.id)?.number ?? 1,
-      revealedAt: eventByLeague.get(row.id)?.revealedAt ?? null,
-      entrantCount: countByEvent.get(eventByLeague.get(row.id)?.id ?? '')?.accepted ?? 0,
-      occupiedCount: countByEvent.get(eventByLeague.get(row.id)?.id ?? '')?.occupied ?? 0,
-      ownEntry: ownByEvent.get(eventByLeague.get(row.id)?.id ?? '') ?? null,
-    }))
-  }
-
-  async leagueByToken(token: string, viewerId: string | null = null, eventToken?: string) {
-    const [league] = await this.database
-      .select({
-        id: leagues.id,
-        token: leagues.token,
-        ownerId: leagues.ownerId,
-        ownerName: user.name,
-        ownerImage: user.image,
-        name: leagues.name,
-        description: leagues.description,
-        visibility: leagues.visibility,
-        admission: leagues.admission,
-        playerLimit: leagues.playerLimit,
-        recurring: leagues.recurring,
-        createdAt: leagues.createdAt,
-      })
-      .from(leagues)
-      .innerJoin(user, eq(user.id, leagues.ownerId))
-      .where(eq(leagues.token, token))
-      .limit(1)
-    if (!league) return undefined
-    const [events, [eventTotal]] = await Promise.all([
-      this.database
-        .select({
-          id: leagueEvents.id,
-          token: leagueEvents.token,
-          number: leagueEvents.number,
-          createdAt: leagueEvents.createdAt,
-          revealedAt: leagueEvents.revealedAt,
-        })
+        .from(leagues)
+        .where(eq(leagues.token, token))
+        .for('update')
+      if (!league) return 'missing'
+      if (league.ownerId !== ownerId) return 'forbidden'
+      const [current] = await tx
+        .select({ id: leagueEvents.id, revealedAt: leagueEvents.revealedAt })
         .from(leagueEvents)
         .where(eq(leagueEvents.leagueId, league.id))
         .orderBy(desc(leagueEvents.number))
-        .limit(100),
-      this.database.select({ value: count() }).from(leagueEvents).where(eq(leagueEvents.leagueId, league.id)),
-    ])
-    let selected = eventToken ? events.find((event) => event.token === eventToken) : events[0]
-    if (!selected && eventToken) {
-      const [older] = await this.database
+        .limit(1)
+        .for('update')
+      if (!current) return 'missing'
+      const [entries] = await tx
+        .select({ total: count(), accepted: count(sql`case when ${leagueEventEntries.status} = 'accepted' then 1 end`) })
+        .from(leagueEventEntries)
+        .where(eq(leagueEventEntries.eventId, current.id))
+      if (input.admission !== league.admission && (entries?.total ?? 0) > 0) return 'joined'
+      if (input.playerLimit !== league.playerLimit) {
+        if (current.revealedAt !== null) return 'revealed'
+        if (input.playerLimit !== null && input.playerLimit < (entries?.accepted ?? 0)) return 'below-accepted'
+      }
+      await tx.update(leagues).set(input).where(eq(leagues.id, league.id))
+      return 'updated'
+    })
+  }
+
+  async deleteLeague(token: string, ownerId: string): Promise<DeleteLeagueResult> {
+    return this.database.transaction(async (tx) => {
+      const [league] = await tx
+        .select({ id: leagues.id, ownerId: leagues.ownerId })
+        .from(leagues)
+        .where(eq(leagues.token, token))
+        .for('update')
+      if (!league) return 'missing'
+      if (league.ownerId !== ownerId) return 'forbidden'
+      await tx.delete(leagues).where(eq(leagues.id, league.id))
+      return 'deleted'
+    })
+  }
+
+  async leaguesVisibleTo(userId: string | null, limit = 100) {
+    return this.database.transaction(async (tx) => {
+      const personal = userId
+        ? or(
+            eq(leagues.ownerId, userId),
+            exists(
+              tx
+                .select({ one: sql`1` })
+                .from(leagueEventEntries)
+                .innerJoin(leagueEvents, eq(leagueEvents.id, leagueEventEntries.eventId))
+                .where(and(eq(leagueEvents.leagueId, leagues.id), eq(leagueEventEntries.userId, userId))),
+            ),
+          )
+        : undefined
+      const visible = userId ? or(eq(leagues.visibility, 'public'), personal) : eq(leagues.visibility, 'public')
+      const rows = await tx
         .select({
+          id: leagues.id,
+          token: leagues.token,
+          ownerId: leagues.ownerId,
+          ownerName: user.name,
+          ownerImage: user.image,
+          name: leagues.name,
+          description: leagues.description,
+          visibility: leagues.visibility,
+          admission: leagues.admission,
+          playerLimit: leagues.playerLimit,
+          recurring: leagues.recurring,
+          createdAt: leagues.createdAt,
+          personal: personal ? sql<boolean>`${personal}` : sql<boolean>`false`,
+        })
+        .from(leagues)
+        .innerJoin(user, eq(user.id, leagues.ownerId))
+        .where(visible)
+        .orderBy(
+          ...(personal ? [asc(sql<number>`case when ${personal} then 0 else 1 end`), desc(leagues.createdAt)] : [desc(leagues.createdAt)]),
+        )
+        .limit(Math.min(Math.max(limit, 1), 100))
+        .for('share', { of: leagues })
+      if (!rows.length) return []
+      const ids = rows.map((row) => row.id)
+      const latestEvents = await tx
+        .selectDistinctOn([leagueEvents.leagueId], {
           id: leagueEvents.id,
           token: leagueEvents.token,
+          leagueId: leagueEvents.leagueId,
           number: leagueEvents.number,
-          createdAt: leagueEvents.createdAt,
           revealedAt: leagueEvents.revealedAt,
         })
         .from(leagueEvents)
-        .where(and(eq(leagueEvents.leagueId, league.id), eq(leagueEvents.token, eventToken)))
-        .limit(1)
-      selected = older
-    }
-    if (!selected) return undefined
-    const visibleEvents = events.some((event) => event.id === selected.id)
-      ? events
-      : [selected, ...events.slice(0, 99)].toSorted((left, right) => right.number - left.number)
-    const entries = await this.database
-      .select({
-        userId: leagueEventEntries.userId,
-        name: user.name,
-        image: user.image,
-        status: leagueEventEntries.status,
-        joinedAt: leagueEventEntries.joinedAt,
-        submitted: sql<boolean>`${leagueEventEntries.rosterSnapshot} is not null`,
-        rosterName: viewerId
-          ? sql<string | null>`case when ${leagueEventEntries.userId} = ${viewerId} then ${leagueEventEntries.rosterName} else null end`
-          : sql<string | null>`null`,
-      })
-      .from(leagueEventEntries)
-      .innerJoin(user, eq(user.id, leagueEventEntries.userId))
-      .where(
-        and(
-          eq(leagueEventEntries.eventId, selected.id),
-          viewerId
-            ? or(ne(leagueEventEntries.status, 'rejected'), eq(leagueEventEntries.userId, viewerId))
-            : ne(leagueEventEntries.status, 'rejected'),
-        ),
+        .where(inArray(leagueEvents.leagueId, ids))
+        .orderBy(leagueEvents.leagueId, desc(leagueEvents.number))
+      const eventIds = latestEvents.map((event) => event.id)
+      const [counts, ownEntries] = await Promise.all([
+        tx
+          .select({
+            eventId: leagueEventEntries.eventId,
+            joined: count(),
+            accepted: count(sql`case when ${leagueEventEntries.status} = 'accepted' then 1 end`),
+            occupied: count(sql`case when ${leagueEventEntries.status} <> 'rejected' then 1 end`),
+          })
+          .from(leagueEventEntries)
+          .where(inArray(leagueEventEntries.eventId, eventIds))
+          .groupBy(leagueEventEntries.eventId),
+        userId
+          ? tx
+              .select({
+                eventId: leagueEventEntries.eventId,
+                status: leagueEventEntries.status,
+                submitted: sql<boolean>`${leagueEventEntries.rosterSnapshot} is not null`,
+                rosterName: leagueEventEntries.rosterName,
+              })
+              .from(leagueEventEntries)
+              .where(and(inArray(leagueEventEntries.eventId, eventIds), eq(leagueEventEntries.userId, userId)))
+          : Promise.resolve([]),
+      ])
+      const eventByLeague = new Map(latestEvents.map((event) => [event.leagueId, event]))
+      const countByEvent = new Map(
+        counts.map((entry) => [entry.eventId, { joined: entry.joined, accepted: entry.accepted, occupied: entry.occupied }]),
       )
-      .orderBy(asc(leagueEventEntries.joinedAt))
-    return {
-      ...league,
-      eventToken: selected.token,
-      eventNumber: selected.number,
-      eventCreatedAt: selected.createdAt,
-      revealedAt: selected.revealedAt,
-      eventCount: eventTotal?.value ?? events.length,
-      events: visibleEvents.map(({ id: _id, ...event }) => event),
-      occupiedCount: entries.filter((entry) => entry.status !== 'rejected').length,
-      entries,
-    }
+      const ownByEvent = new Map(
+        ownEntries.map((entry) => [entry.eventId, { status: entry.status, submitted: entry.submitted, rosterName: entry.rosterName }]),
+      )
+      return rows.flatMap((row) => {
+        const event = eventByLeague.get(row.id)
+        if (!event) return []
+        return {
+          ...row,
+          eventToken: event.token,
+          eventNumber: event.number,
+          revealedAt: event.revealedAt,
+          entrantCount: countByEvent.get(event.id)?.accepted ?? 0,
+          currentEntrantCount: countByEvent.get(event.id)?.joined ?? 0,
+          occupiedCount: countByEvent.get(event.id)?.occupied ?? 0,
+          ownEntry: ownByEvent.get(event.id) ?? null,
+        }
+      })
+    })
+  }
+
+  async leagueByToken(token: string, viewerId: string | null = null, eventToken?: string) {
+    return this.database.transaction(async (tx) => {
+      const [league] = await tx
+        .select({
+          id: leagues.id,
+          token: leagues.token,
+          ownerId: leagues.ownerId,
+          ownerName: user.name,
+          ownerImage: user.image,
+          name: leagues.name,
+          description: leagues.description,
+          visibility: leagues.visibility,
+          admission: leagues.admission,
+          playerLimit: leagues.playerLimit,
+          recurring: leagues.recurring,
+          createdAt: leagues.createdAt,
+        })
+        .from(leagues)
+        .innerJoin(user, eq(user.id, leagues.ownerId))
+        .where(eq(leagues.token, token))
+        .limit(1)
+        .for('share', { of: leagues })
+      if (!league) return undefined
+      const [events, [eventTotal]] = await Promise.all([
+        tx
+          .select({
+            id: leagueEvents.id,
+            token: leagueEvents.token,
+            number: leagueEvents.number,
+            createdAt: leagueEvents.createdAt,
+            revealedAt: leagueEvents.revealedAt,
+          })
+          .from(leagueEvents)
+          .where(eq(leagueEvents.leagueId, league.id))
+          .orderBy(desc(leagueEvents.number))
+          .limit(100),
+        tx.select({ value: count() }).from(leagueEvents).where(eq(leagueEvents.leagueId, league.id)),
+      ])
+      let selected = eventToken ? events.find((event) => event.token === eventToken) : events[0]
+      if (!selected && eventToken) {
+        const [older] = await tx
+          .select({
+            id: leagueEvents.id,
+            token: leagueEvents.token,
+            number: leagueEvents.number,
+            createdAt: leagueEvents.createdAt,
+            revealedAt: leagueEvents.revealedAt,
+          })
+          .from(leagueEvents)
+          .where(and(eq(leagueEvents.leagueId, league.id), eq(leagueEvents.token, eventToken)))
+          .limit(1)
+        selected = older
+      }
+      const current = events[0]
+      if (!selected || !current) return undefined
+      const visibleEvents = events.some((event) => event.id === selected.id)
+        ? events
+        : [selected, ...events.slice(0, 99)].toSorted((left, right) => right.number - left.number)
+      const [entries, [currentCounts]] = await Promise.all([
+        tx
+          .select({
+            userId: leagueEventEntries.userId,
+            name: user.name,
+            image: user.image,
+            status: leagueEventEntries.status,
+            joinedAt: leagueEventEntries.joinedAt,
+            submitted: sql<boolean>`${leagueEventEntries.rosterSnapshot} is not null`,
+            rosterName: viewerId
+              ? sql<string | null>`case when ${leagueEventEntries.userId} = ${viewerId} then ${leagueEventEntries.rosterName} else null end`
+              : sql<string | null>`null`,
+          })
+          .from(leagueEventEntries)
+          .innerJoin(user, eq(user.id, leagueEventEntries.userId))
+          .where(
+            and(
+              eq(leagueEventEntries.eventId, selected.id),
+              viewerId
+                ? or(ne(leagueEventEntries.status, 'rejected'), eq(leagueEventEntries.userId, viewerId))
+                : ne(leagueEventEntries.status, 'rejected'),
+            ),
+          )
+          .orderBy(asc(leagueEventEntries.joinedAt)),
+        tx
+          .select({ total: count(), accepted: count(sql`case when ${leagueEventEntries.status} = 'accepted' then 1 end`) })
+          .from(leagueEventEntries)
+          .where(eq(leagueEventEntries.eventId, current.id)),
+      ])
+      return {
+        ...league,
+        eventToken: selected.token,
+        eventNumber: selected.number,
+        eventCreatedAt: selected.createdAt,
+        revealedAt: selected.revealedAt,
+        eventCount: eventTotal?.value ?? events.length,
+        currentEventRevealedAt: current.revealedAt,
+        currentEntrantCount: currentCounts?.total ?? 0,
+        currentAcceptedCount: currentCounts?.accepted ?? 0,
+        events: visibleEvents.map(({ id: _id, ...event }) => event),
+        occupiedCount: entries.filter((entry) => entry.status !== 'rejected').length,
+        entries,
+      }
+    })
   }
 
   async joinLeague(token: string, userId: string, now: number, memberLimit: number, eventToken?: string): Promise<JoinLeagueResult> {
     return this.database.transaction(async (tx) => {
+      const [league] = await tx
+        .select({ id: leagues.id, admission: leagues.admission, playerLimit: leagues.playerLimit })
+        .from(leagues)
+        .where(eq(leagues.token, token))
+        .for('update')
+      if (!league) return 'missing'
       const [event] = await tx
-        .select({
-          id: leagueEvents.id,
-          admission: leagues.admission,
-          playerLimit: leagues.playerLimit,
-          revealedAt: leagueEvents.revealedAt,
-        })
+        .select({ id: leagueEvents.id, revealedAt: leagueEvents.revealedAt })
         .from(leagueEvents)
-        .innerJoin(leagues, eq(leagues.id, leagueEvents.leagueId))
-        .where(and(eq(leagues.token, token), eventToken ? eq(leagueEvents.token, eventToken) : undefined))
+        .where(and(eq(leagueEvents.leagueId, league.id), eventToken ? eq(leagueEvents.token, eventToken) : undefined))
         .orderBy(desc(leagueEvents.number))
         .limit(1)
         .for('update')
@@ -884,11 +972,11 @@ export class Repository {
         .from(leagueEventEntries)
         .where(and(eq(leagueEventEntries.eventId, event.id), ne(leagueEventEntries.status, 'rejected')))
       const full =
-        event.admission === 'approval' && event.playerLimit !== null
-          ? (members?.accepted ?? 0) >= event.playerLimit || (members?.active ?? 0) >= memberLimit
-          : (members?.active ?? 0) >= (event.playerLimit ?? memberLimit)
+        league.admission === 'approval' && league.playerLimit !== null
+          ? (members?.accepted ?? 0) >= league.playerLimit || (members?.active ?? 0) >= memberLimit
+          : (members?.active ?? 0) >= (league.playerLimit ?? memberLimit)
       if (full) return 'full'
-      const status = event.admission === 'automatic' ? 'accepted' : 'pending'
+      const status = league.admission === 'automatic' ? 'accepted' : 'pending'
       if (existing) {
         await tx
           .update(leagueEventEntries)
@@ -910,21 +998,21 @@ export class Repository {
     eventToken?: string,
   ): Promise<ModerateLeagueResult> {
     return this.database.transaction(async (tx) => {
+      const [league] = await tx
+        .select({ id: leagues.id, ownerId: leagues.ownerId, playerLimit: leagues.playerLimit })
+        .from(leagues)
+        .where(eq(leagues.token, token))
+        .for('update')
+      if (!league) return 'missing'
+      if (league.ownerId !== ownerId) return 'forbidden'
       const [event] = await tx
-        .select({
-          id: leagueEvents.id,
-          ownerId: leagues.ownerId,
-          playerLimit: leagues.playerLimit,
-          revealedAt: leagueEvents.revealedAt,
-        })
+        .select({ id: leagueEvents.id, revealedAt: leagueEvents.revealedAt })
         .from(leagueEvents)
-        .innerJoin(leagues, eq(leagues.id, leagueEvents.leagueId))
-        .where(and(eq(leagues.token, token), eventToken ? eq(leagueEvents.token, eventToken) : undefined))
+        .where(and(eq(leagueEvents.leagueId, league.id), eventToken ? eq(leagueEvents.token, eventToken) : undefined))
         .orderBy(desc(leagueEvents.number))
         .limit(1)
         .for('update')
       if (!event) return 'missing'
-      if (event.ownerId !== ownerId) return 'forbidden'
       if (event.revealedAt !== null) return 'closed'
       const [entry] = await tx
         .select({ status: leagueEventEntries.status })
@@ -937,7 +1025,7 @@ export class Repository {
           .select({ active: count(), accepted: count(sql`case when ${leagueEventEntries.status} = 'accepted' then 1 end`) })
           .from(leagueEventEntries)
           .where(and(eq(leagueEventEntries.eventId, event.id), ne(leagueEventEntries.status, 'rejected')))
-        if (event.playerLimit !== null && (members?.accepted ?? 0) >= event.playerLimit) return 'full'
+        if (league.playerLimit !== null && (members?.accepted ?? 0) >= league.playerLimit) return 'full'
         if (entry.status === 'rejected' && (members?.active ?? 0) >= memberLimit) return 'full'
       }
       const updated = await tx
@@ -960,11 +1048,12 @@ export class Repository {
     eventToken?: string
   }) {
     return this.database.transaction(async (tx) => {
+      const [league] = await tx.select({ id: leagues.id }).from(leagues).where(eq(leagues.token, input.token)).for('update')
+      if (!league) return false
       const [event] = await tx
         .select({ id: leagueEvents.id, revealedAt: leagueEvents.revealedAt })
         .from(leagueEvents)
-        .innerJoin(leagues, eq(leagues.id, leagueEvents.leagueId))
-        .where(and(eq(leagues.token, input.token), input.eventToken ? eq(leagueEvents.token, input.eventToken) : undefined))
+        .where(and(eq(leagueEvents.leagueId, league.id), input.eventToken ? eq(leagueEvents.token, input.eventToken) : undefined))
         .orderBy(desc(leagueEvents.number))
         .limit(1)
         .for('update')
@@ -992,11 +1081,16 @@ export class Repository {
 
   async revealLeague(token: string, ownerId: string, now: number, eventToken?: string) {
     return this.database.transaction(async (tx) => {
+      const [league] = await tx
+        .select({ id: leagues.id, ownerId: leagues.ownerId, playerLimit: leagues.playerLimit })
+        .from(leagues)
+        .where(eq(leagues.token, token))
+        .for('update')
+      if (!league || league.ownerId !== ownerId) return false
       const [event] = await tx
-        .select({ id: leagueEvents.id, playerLimit: leagues.playerLimit, revealedAt: leagueEvents.revealedAt })
+        .select({ id: leagueEvents.id, revealedAt: leagueEvents.revealedAt })
         .from(leagueEvents)
-        .innerJoin(leagues, eq(leagues.id, leagueEvents.leagueId))
-        .where(and(eq(leagues.token, token), eq(leagues.ownerId, ownerId), eventToken ? eq(leagueEvents.token, eventToken) : undefined))
+        .where(and(eq(leagueEvents.leagueId, league.id), eventToken ? eq(leagueEvents.token, eventToken) : undefined))
         .orderBy(desc(leagueEvents.number))
         .limit(1)
         .for('update')
@@ -1005,7 +1099,7 @@ export class Repository {
         .select({ accepted: count(), missing: count(sql`case when ${leagueEventEntries.rosterSnapshot} is null then 1 end`) })
         .from(leagueEventEntries)
         .where(and(eq(leagueEventEntries.eventId, event.id), eq(leagueEventEntries.status, 'accepted')))
-      if (!entries?.accepted || entries.missing || (event.playerLimit !== null && entries.accepted !== event.playerLimit)) return false
+      if (!entries?.accepted || entries.missing || (league.playerLimit !== null && entries.accepted !== league.playerLimit)) return false
       await tx
         .update(leagueEventEntries)
         .set({ status: 'rejected' })
