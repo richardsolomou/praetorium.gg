@@ -7,8 +7,8 @@ const bad: string[] = []
 for await (const file of fs.glob('.changeset/*.md')) {
   if (file.endsWith('README.md')) continue
   const contents = await fs.readFile(file, 'utf8')
-  const frontmatter = contents.match(/^---\n([\s\S]*?)\n---/)?.[1]
-  if (!frontmatter) {
+  const frontmatter = contents.match(/^---\n([\s\S]*?)^---(?:\n|$)/m)?.[1]
+  if (frontmatter === undefined) {
     bad.push(`${file}: missing frontmatter`)
     continue
   }
