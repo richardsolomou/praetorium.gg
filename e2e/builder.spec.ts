@@ -1687,6 +1687,48 @@ test('a specialist filed apart from its squad can still be armed', async ({ page
   await page.screenshot({ path: 'test-results/specialist-filed-apart.png', fullPage: true })
 })
 
+test('Death Guard champions expose their legal wargear', async ({ page }) => {
+  await page.setViewportSize({ width: 720, height: 1200 })
+  await openBuilder(page, 'Death Guard', /Champions of Contagion/)
+  await add(page, 'Deathshroud Terminators')
+  await page.getByRole('dialog').getByRole('button', { name: 'Close' }).click()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(720)
+  expect(await page.locator('[data-slot="roster-units"]').evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
+  await page
+    .locator('[data-unit="Deathshroud Terminators"]')
+    .getByRole('button', { name: /^Deathshroud Terminators/ })
+    .click()
+
+  const loadout = page.locator('aside[aria-label="Loadout"]')
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(720)
+  expect(await loadout.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
+  const deathshroudChampion = loadout.locator('section').filter({ hasText: 'Deathshroud Champion' })
+  await waitForRosterSave(page, () => deathshroudChampion.getByRole('button', { name: 'More Plaguespurt gauntlet' }).click())
+  await expect(deathshroudChampion.getByRole('button', { name: 'More Icon of Despair (Aura)' })).toBeEnabled()
+  await waitForRosterSave(page, () => deathshroudChampion.getByRole('button', { name: 'More Icon of Despair (Aura)' }).click())
+  await expect(deathshroudChampion.getByLabel('Icon of Despair (Aura) count')).toHaveText('1')
+  await shot(deathshroudChampion, 'test-results/deathshroud-champion-wargear.png')
+
+  await loadout.getByRole('button', { name: 'Close' }).click()
+  await page.getByRole('button', { name: 'Add units' }).click()
+  await add(page, 'Plague Marines')
+  await page.getByRole('dialog').getByRole('button', { name: 'Close' }).click()
+  await page
+    .locator('[data-unit="Plague Marines"]')
+    .getByRole('button', { name: /^Plague Marines/ })
+    .first()
+    .click()
+
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(720)
+  expect(await loadout.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
+  const plagueChampion = loadout.locator('section').filter({ hasText: 'Plague Champion' })
+  await expect(plagueChampion.getByRole('button', { name: 'More Power fist' })).toBeEnabled()
+  await waitForRosterSave(page, () => plagueChampion.getByRole('button', { name: 'More Power fist' }).click())
+  await expect(plagueChampion.getByLabel('Power fist count')).toHaveText('1')
+  await expect(plagueChampion.getByLabel('Plague knives count')).toHaveText('0')
+  await shot(plagueChampion, 'test-results/plague-champion-power-fist.png')
+})
+
 test('removing one piece does not choose another piece of the same model as its replacement', async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 900 })
   await openBuilder(page, 'Black Templars', /Companions of Vehemence/)

@@ -89,6 +89,7 @@ export function unitChoices(entryId: string, selection: Selection, index: Catalo
   // question about its surroundings has nothing to look at.
   const roster = [...(options.roster ?? []), selection]
   const visible = (definition: Definition) => !hiddenByRules(definition, index, { ...options, roster })
+  const minimum = (definition: Definition) => requiredCount(definition, index, { primaryCatalogueId: options.primaryCatalogueId, roster })
   const entry = index.definitions.get(entryId)
   if (!entry) return []
 
@@ -123,7 +124,7 @@ export function unitChoices(entryId: string, selection: Selection, index: Catalo
       const here = [...trail, child.id]
 
       const repeatingEntry = inner.type === 'upgrade' ? repeatedModelOn(trail, index) : null
-      const single = inner.type === 'upgrade' && requiredCount(child.definition, index) === 0 && maximumCount(child.definition, index) === 1
+      const single = inner.type === 'upgrade' && minimum(child.definition) === 0 && maximumCount(child.definition, index) === 1
       const onRepeatedModel = Boolean(repeatingEntry && repeatingEntry.path.length === trail.length)
       if (repeatingEntry && onRepeatedModel && single) {
         const room = effectiveCount(selection, repeatingEntry.path, repeatingEntry.definition, index, options)
@@ -183,8 +184,8 @@ export function unitChoices(entryId: string, selection: Selection, index: Catalo
           : scaleOf(child.definition, index, carriers)
         const capacity = maximumCount(child.definition, index)
         const room = capacity === null ? occupantRoom(choosable, index) : capacity * scale
-        const fixed = choosable.some((option) => requiredCount(option.definition, index) > 0)
-        const adjustable = fixed ? choosable.filter((option) => requiredCount(option.definition, index) === 0) : choosable
+        const fixed = choosable.some((option) => minimum(option.definition) > 0)
+        const adjustable = fixed ? choosable.filter((option) => minimum(option.definition) === 0) : choosable
         const held = repeating
           ? repeatedOptions(selection, repeating.path, here.slice(repeating.path.length))
           : allAt(selection, here).flatMap((group) => group.selections ?? [])
@@ -211,7 +212,7 @@ export function unitChoices(entryId: string, selection: Selection, index: Catalo
         const uniform =
           adjustable.length > 1 &&
           forbidden.some((set) => ids.every((option) => set.some((named) => option.has(named))) && set.length >= adjustable.length)
-        const optionalSingle = !fixed && adjustable.length === 1 && requiredCount(child.definition, index) === 0
+        const optionalSingle = !fixed && adjustable.length === 1 && minimum(child.definition) === 0
         if (
           (adjustable.length > 1 || optionalSingle || (separate && adjustable.length > 0)) &&
           adjustableRoom >= 1 &&
@@ -222,7 +223,7 @@ export function unitChoices(entryId: string, selection: Selection, index: Catalo
             key: here.join('/'),
             name: inner.name ?? 'Choice',
             chosen: taken?.id ?? '',
-            optional: requiredCount(child.definition, index) === 0,
+            optional: minimum(child.definition) === 0,
             room: adjustableRoom,
             options: adjustable.map((option) => ({
               id: option.id,

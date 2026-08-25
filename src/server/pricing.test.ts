@@ -196,6 +196,87 @@ describe('kinds read from the rules source', () => {
     expect(kinds.map((kind) => kind.name)).toEqual(['Incursor Sergeant', 'Incursor'])
     expect(kinds.flatMap((kind) => kind.swaps ?? [])).toEqual([])
   })
+
+  it('lets one model take additive upgrades from separate options', () => {
+    const kinds = composedKinds(
+      {
+        unitId: 'terminators',
+        models: [
+          { name: 'Champion', profile: null, min: 1, max: 1, leader: true, weapons: [] },
+          { name: 'Warrior', profile: null, min: 0, max: 1, leader: false, weapons: [] },
+        ],
+        options: [
+          { id: 'gauntlet', model: 'Champion', gives: [], takes: [[{ id: 'gauntlet', name: 'Gauntlet' }]], free: true },
+          { id: 'icon', model: 'Champion', gives: [], takes: [[{ id: 'icon', name: 'Icon' }]], free: true },
+        ],
+      },
+      1,
+      [],
+      { 'gauntlet#0': 1, 'icon#0': 1 },
+      new Set(),
+    )
+
+    expect(kinds.flatMap((kind) => kind.swaps ?? []).map(({ key, count, max }) => ({ key, count, max }))).toEqual([
+      { key: 'gauntlet#0', count: 1, max: 1 },
+      { key: 'icon#0', count: 1, max: 1 },
+    ])
+  })
+
+  it('keeps alternatives from one additive option mutually exclusive', () => {
+    const kinds = composedKinds(
+      {
+        unitId: 'terminators',
+        models: [
+          { name: 'Champion', profile: null, min: 1, max: 1, leader: true, weapons: [] },
+          { name: 'Warrior', profile: null, min: 0, max: 1, leader: false, weapons: [] },
+        ],
+        options: [
+          {
+            id: 'relic',
+            model: 'Champion',
+            gives: [],
+            takes: [[{ id: 'icon', name: 'Icon' }], [{ id: 'banner', name: 'Banner' }]],
+            free: true,
+          },
+        ],
+      },
+      1,
+      [],
+      { 'relic#0': 1 },
+      new Set(),
+    )
+
+    expect(kinds.flatMap((kind) => kind.swaps ?? []).map(({ key, max }) => ({ key, max }))).toEqual([
+      { key: 'relic#0', max: 1 },
+      { key: 'relic#1', max: 0 },
+    ])
+  })
+
+  it('keeps separate replacements of the same wargear mutually exclusive', () => {
+    const plagueKnife = { id: 'plague-knife', name: 'Plague knife' }
+    const kinds = composedKinds(
+      {
+        unitId: 'marines',
+        models: [
+          { name: 'Champion', profile: null, min: 1, max: 1, leader: true, weapons: [plagueKnife] },
+          { name: 'Warrior', profile: null, min: 0, max: 1, leader: false, weapons: [] },
+        ],
+        options: [
+          { id: 'fist', model: 'Champion', gives: [plagueKnife], takes: [[{ id: 'fist', name: 'Power fist' }]], free: true },
+          { id: 'sword', model: 'Champion', gives: [plagueKnife], takes: [[{ id: 'sword', name: 'Plague sword' }]], free: true },
+        ],
+      },
+      1,
+      [{ name: 'Plague knife', count: 1 }],
+      { 'fist#0': 1 },
+      new Set(),
+    )
+
+    expect(kinds.flatMap((kind) => kind.swaps ?? []).map(({ key, max }) => ({ key, max }))).toEqual([
+      { key: 'fist#0', max: 1 },
+      { key: 'sword#0', max: 0 },
+    ])
+  })
 })
 
 /**

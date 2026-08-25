@@ -706,6 +706,8 @@ export function composedKinds(
     const count = own.length ? Math.min(...own) : (tierModel?.min ?? model.min)
     const mine = optionsFor(model)
     const taken = (option: (typeof mine)[number], at: number) => chosenSwaps[`${option.id}#${at}`] ?? 0
+    const sharesGivenWargear = (one: (typeof mine)[number], other: (typeof mine)[number]) =>
+      one.gives.some((given) => other.gives.some((candidate) => candidate.id === given.id))
 
     // A swap spends one of this kind's bodies, and the weapon it replaces loses one
     // with it. Every alternative is listed whether taken or not, so the card keeps
@@ -713,11 +715,10 @@ export function composedKinds(
     const swaps = mine.flatMap((option) =>
       option.takes
         .map((take, at) => {
-          const spent = mine.reduce(
-            (total, other) =>
-              total + other.takes.reduce((sum, _, index) => sum + (other === option && index === at ? 0 : taken(other, index)), 0),
-            0,
-          )
+          const spent = mine.reduce((total, other) => {
+            if (other !== option && !sharesGivenWargear(option, other)) return total
+            return total + other.takes.reduce((sum, _, index) => sum + (other === option && index === at ? 0 : taken(other, index)), 0)
+          }, 0)
           return {
             key: `${option.id}#${at}`,
             gives: option.gives.map((weapon) => weapon.name),

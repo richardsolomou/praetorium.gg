@@ -1047,6 +1047,75 @@ describe('a wargear group holding both the fixed guns and the optional extras', 
   })
 })
 
+describe('a replacement group whose default is relaxed by a modifier', () => {
+  const index = indexOf({
+    sharedSelectionEntries: [
+      {
+        id: 'champion',
+        name: 'Champion',
+        type: 'model',
+        selectionEntryGroups: [
+          {
+            id: 'weapons',
+            name: 'Weapons',
+            constraints: [
+              { id: 'weapons-min', type: 'min', value: 1, field: 'selections', scope: 'parent' },
+              { id: 'weapons-max', type: 'max', value: 1, field: 'selections', scope: 'parent' },
+            ],
+            defaultSelectionEntryId: 'knife-link',
+            entryLinks: [
+              {
+                id: 'knife-link',
+                name: 'Plague knives',
+                type: 'selectionEntry',
+                targetId: 'knives',
+                modifiers: [{ type: 'set', field: 'knives-min', value: 0 }],
+              },
+            ],
+            selectionEntries: [
+              {
+                id: 'fist',
+                name: 'Power fist',
+                type: 'upgrade',
+                constraints: [{ id: 'fist-max', type: 'max', value: 1, field: 'selections', scope: 'parent' }],
+              },
+            ],
+          },
+        ],
+      },
+      {
+        id: 'knives',
+        name: 'Plague knives',
+        type: 'upgrade',
+        constraints: [
+          { id: 'knives-min', type: 'min', value: 1, field: 'selections', scope: 'parent' },
+          { id: 'knives-max', type: 'max', value: 1, field: 'selections', scope: 'parent' },
+        ],
+      },
+    ],
+  })
+
+  it('offers the default and its replacement', () => {
+    expect(buildUnit('champion', index)?.choices[0]).toMatchObject({
+      key: 'weapons',
+      chosen: 'knife-link',
+      options: [
+        { id: 'fist', name: 'Power fist' },
+        { id: 'knife-link', name: 'Plague knives' },
+      ],
+    })
+  })
+
+  it('replaces the default without leaving both weapons selected', () => {
+    const built = buildUnit('champion', index, undefined, { weapons: 'fist' })!
+
+    expect({ wargear: wargearOf(built.selection, index), errors: evaluate([built.selection], index).errors }).toEqual({
+      wargear: [{ name: 'Power fist', count: 1 }],
+      errors: [],
+    })
+  })
+})
+
 describe('who the data lets a list nominate as its Warlord', () => {
   // A tank carries the entry only underneath an upgrade a detachment unlocks, and the
   // data hides it until then. Walking past that offered a crown to every vehicle.
