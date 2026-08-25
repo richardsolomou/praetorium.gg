@@ -209,6 +209,16 @@ function describe(
         ? `${who} removes ${count} ${models} from ${whose} ${name}`
         : `${who} returns ${count} ${models} to ${whose} ${name}`
     }
+    case 'damage-unit': {
+      const unit = player?.units.find((candidate) => candidate.key === command.unitKey)
+      const name = unit?.name ?? 'a unit'
+      if (unit && unit.alive === 0) return targetId === by ? `${who} loses ${name}` : `${who} destroys ${whose} ${name}`
+      const count = Math.abs(command.delta)
+      const wounds = count === 1 ? 'wound' : 'wounds'
+      if (command.delta > 0)
+        return targetId === by ? `${who} heals ${count} ${wounds} on ${name}` : `${who} heals ${count} ${wounds} on ${whose} ${name}`
+      return targetId === by ? `${who} takes ${count} ${wounds} on ${name}` : `${who} puts ${count} ${wounds} on ${whose} ${name}`
+    }
     case 'pause-clock':
     case 'resume-clock':
       return null

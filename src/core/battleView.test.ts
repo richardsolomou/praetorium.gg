@@ -209,3 +209,117 @@ describe('models within a unit', () => {
     expect(text(battleReport(NAMES, history))).toContain('Alice loses 1 model from Intercessors')
   })
 })
+
+describe('wounds within a unit', () => {
+  /** A squad whose models each take three wounds, so a model dies part-way through a volley. */
+  const squad = (): [string, Command][] => [
+    [ALICE, builtRoster('Ultramarines', ['Terminators'], { models: 5, wounds: 3 })],
+    [BOB, roster('Death Guard')],
+    [ALICE, { kind: 'begin-battle', firstPlayerId: ALICE }],
+  ]
+
+  /** One model with twelve wounds, which is the case models alone could say nothing about. */
+  const walker = (): [string, Command][] => [
+    [ALICE, builtRoster('Ultramarines', ['Redemptor Dreadnought'], { models: 1, wounds: 12 })],
+    [BOB, roster('Death Guard')],
+    [ALICE, { kind: 'begin-battle', firstPlayerId: ALICE }],
+  ]
+
+  const unit = (state: ReturnType<typeof reduceBattle>) =>
+    state.players.find((player) => player.id === ALICE)?.units.find((entry) => entry.key === 'u0')
+
+  it('start out unharmed', () => {
+    expect(unit(reduceBattle(PLAYERS, log(...walker())))?.damage).toBe(0)
+  })
+
+  it('come off the one model taking them', () => {
+    const state = reduceBattle(PLAYERS, log(...walker(), [ALICE, { kind: 'damage-unit', unitKey: 'u0', delta: -5 }]))
+    expect(unit(state)?.damage).toBe(5)
+  })
+
+  it('leave a single model standing until its last wound goes', () => {
+    const state = reduceBattle(PLAYERS, log(...walker(), [ALICE, { kind: 'damage-unit', unitKey: 'u0', delta: -11 }]))
+    expect(unit(state)?.alive).toBe(1)
+  })
+
+  it('destroy the unit as the last wound goes', () => {
+    const state = reduceBattle(PLAYERS, log(...walker(), [ALICE, { kind: 'damage-unit', unitKey: 'u0', delta: -12 }]))
+    expect(unit(state)?.destroyed).toBe(true)
+  })
+
+  it('take a model off the squad once they run past one model’s worth', () => {
+    const state = reduceBattle(PLAYERS, log(...squad(), [ALICE, { kind: 'damage-unit', unitKey: 'u0', delta: -4 }]))
+    expect(unit(state)?.alive).toBe(4)
+  })
+
+  it('carry the remainder onto the next model rather than rounding it away', () => {
+    const state = reduceBattle(PLAYERS, log(...squad(), [ALICE, { kind: 'damage-unit', unitKey: 'u0', delta: -4 }]))
+    expect(unit(state)?.damage).toBe(1)
+  })
+
+  it('give the model back when the wounds are', () => {
+    const history = log(
+      ...squad(),
+      [ALICE, { kind: 'damage-unit', unitKey: 'u0', delta: -4 }],
+      [ALICE, { kind: 'damage-unit', unitKey: 'u0', delta: 4 }],
+    )
+    expect(unit(reduceBattle(PLAYERS, history))).toMatchObject({ alive: 5, damage: 0 })
+  })
+
+  it('cannot go below none', () => {
+    const state = reduceBattle(PLAYERS, log(...walker()))
+    expect(validate(state, ALICE, { kind: 'damage-unit', unitKey: 'u0', delta: -13 })).toBe('there are not that many wounds left')
+  })
+
+  it('cannot exceed what the unit was fielded with', () => {
+    const state = reduceBattle(PLAYERS, log(...walker()))
+    expect(validate(state, ALICE, { kind: 'damage-unit', unitKey: 'u0', delta: 1 })).toBe('that is more wounds than the unit has')
+  })
+
+  it('are refused for a unit whose datasheet gives no single wounds characteristic', () => {
+    const unspecified: [string, Command][] = [
+      [ALICE, builtRoster('Ultramarines', ['Wolf Guard Terminators'])],
+      [BOB, roster('Death Guard')],
+      [ALICE, { kind: 'begin-battle', firstPlayerId: ALICE }],
+    ]
+    const state = reduceBattle(PLAYERS, log(...unspecified))
+    expect(validate(state, ALICE, { kind: 'damage-unit', unitKey: 'u0', delta: -1 })).toBe(
+      'the datasheet does not give this unit a single wounds characteristic',
+    )
+  })
+
+  it('are cleared when a whole model is taken off instead', () => {
+    // The model carrying the damage is the one that just left the table.
+    const history = log(
+      ...squad(),
+      [ALICE, { kind: 'damage-unit', unitKey: 'u0', delta: -1 }],
+      [ALICE, { kind: 'wound-unit', unitKey: 'u0', delta: -1 }],
+    )
+    expect(unit(reduceBattle(PLAYERS, history))).toMatchObject({ alive: 4, damage: 0 })
+  })
+
+  it('are cleared when the unit is brought back', () => {
+    const history = log(
+      ...squad(),
+      [ALICE, { kind: 'damage-unit', unitKey: 'u0', delta: -1 }],
+      [ALICE, { kind: 'set-unit', unitKey: 'u0', destroyed: true }],
+      [ALICE, { kind: 'set-unit', unitKey: 'u0', destroyed: false }],
+    )
+    expect(unit(reduceBattle(PLAYERS, history))).toMatchObject({ alive: 5, damage: 0 })
+  })
+
+  it('read as wounds in the account', () => {
+    const history = log(...walker(), [ALICE, { kind: 'damage-unit', unitKey: 'u0', delta: -5 }])
+    expect(text(battleReport(NAMES, history))).toContain('Alice takes 5 wounds on Redemptor Dreadnought')
+  })
+
+  it('name the recorder and owner when another player deals them', () => {
+    const history = log(...walker(), [BOB, { kind: 'damage-unit', unitKey: 'u0', delta: -5, playerId: ALICE }])
+    expect(text(battleReport(NAMES, history))).toContain('Bob puts 5 wounds on Alice\u2019s Redemptor Dreadnought')
+  })
+
+  it('read as a loss in the account when the last wound goes', () => {
+    const history = log(...walker(), [ALICE, { kind: 'damage-unit', unitKey: 'u0', delta: -12 }])
+    expect(text(battleReport(NAMES, history))).toContain('Alice loses Redemptor Dreadnought')
+  })
+})

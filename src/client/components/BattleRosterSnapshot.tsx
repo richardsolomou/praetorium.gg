@@ -88,13 +88,7 @@ export function BattleRosterSnapshot({ roster }: { roster: Roster }) {
                         upgrades: unit.upgrades ?? [],
                       }}
                       selected={false}
-                      onRemove={() => undefined}
-                      onDuplicate={() => undefined}
-                      owned={false}
-                      onOwned={() => undefined}
-                      joined={(unit.joined ?? []).map((row) => ({ ...row, action: '', onAct: () => undefined }))}
-                      canJoin={[]}
-                      onJoin={() => undefined}
+                      joined={unit.joined ?? []}
                       editable={false}
                     />
                   ))}

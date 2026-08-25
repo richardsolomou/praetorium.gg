@@ -99,6 +99,17 @@ type SubmittedUnit = {
   name: string
   points: number
   models: number
+  /**
+   * What one model of this unit can take, frozen with the rest of the list.
+   *
+   * Absent for two reasons, and the difference does not matter to anything reading
+   * it: a log written before this was recorded, or a datasheet whose models do not
+   * all have the same wounds. A squad of a sergeant and his veterans has no single
+   * answer, and a unit is one row here, so the honest reply is to say nothing and
+   * let the models be counted instead of naming a number that is wrong for most of
+   * them.
+   */
+  wounds?: number
   /** Frozen roster-card details, absent from battle logs created before snapshots had a full roster view. */
   entryId?: string
   group?: UnitGroup
@@ -124,6 +135,19 @@ export type UnitState = SubmittedUnit & {
    * things that can disagree.
    */
   alive: number
+  /**
+   * Wounds already suffered by the model currently taking them, below `wounds`.
+   *
+   * Damage lands on one model at a time, so this is the front model's alone and the
+   * ones behind it are whole. Always zero for a unit whose wounds the log does not
+   * know: there is nothing for a wound to be counted against.
+   */
+  damage: number
+}
+
+/** What is left of a unit, in wounds, which is the one number both halves fold to. */
+export function unitWoundsLeft(unit: UnitState): number | null {
+  return unit.wounds ? unit.alive * unit.wounds - unit.damage : null
 }
 
 /**
@@ -322,6 +346,8 @@ export type Command =
   | ({ kind: 'detach-roster' } & OnBehalfOf)
   | ({ kind: 'set-unit'; unitKey: string; destroyed: boolean } & OnBehalfOf)
   | ({ kind: 'wound-unit'; unitKey: string; delta: number } & OnBehalfOf)
+  /** `delta` is the change in wounds left, so a unit taking damage is negative, like models. */
+  | ({ kind: 'damage-unit'; unitKey: string; delta: number } & OnBehalfOf)
   | ({ kind: 'deploy-unit'; unitKey: string; deployed: boolean } & OnBehalfOf)
   | ({ kind: 'set-unit-formation'; unitKey: string; formation: UnitFormation } & OnBehalfOf)
   | ({ kind: 'set-painted'; painted: boolean } & OnBehalfOf)
@@ -792,6 +818,20 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
       if (unit.alive + command.delta > unit.models) return 'that is more models than the unit has'
       return null
     }
+    case 'damage-unit': {
+      if (state.status !== 'playing') return 'the battle is not running'
+      const unit = player.units.find((candidate) => candidate.key === command.unitKey)
+      if (!unit) return 'that is not one of your units'
+      // Refused rather than guessed at: a unit whose models do not share a wounds
+      // characteristic has no single number to count against, and inventing one
+      // would put a squad's sergeant and his veterans on the same track.
+      const left = unitWoundsLeft(unit)
+      if (left === null || !unit.wounds) return 'the datasheet does not give this unit a single wounds characteristic'
+      if (!Number.isInteger(command.delta) || command.delta === 0) return 'wounds come off in whole numbers'
+      if (left + command.delta < 0) return 'there are not that many wounds left'
+      if (left + command.delta > unit.models * unit.wounds) return 'that is more wounds than the unit has'
+      return null
+    }
     case 'set-deployment':
     case 'set-battlefield': {
       // The battlefield is shared, so either player may set it, and only before the
@@ -997,7 +1037,7 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
       player.roster = { ...command.roster, name: command.roster.name.trim() }
       // A replaced list is a different army, so nothing about the old one survives.
       player.units = (command.roster.built?.units ?? []).map((unit) =>
-        Object.assign({ destroyed: false, deployed: true, formation: 'battlefield' as const, alive: unit.models }, unit),
+        Object.assign({ destroyed: false, deployed: true, formation: 'battlefield' as const, alive: unit.models, damage: 0 }, unit),
       )
       if (command.prep !== undefined) applyPrep(player, command.prep)
       // Most armies on a table are painted, so a list arrives claiming the bonus and
@@ -1024,8 +1064,10 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
       const unit = player.units.find((candidate) => candidate.key === command.unitKey)
       if (!unit) return
       unit.destroyed = command.destroyed
-      // The two stay in step in both directions: a unit brought back is whole again.
+      // The three stay in step in both directions: a unit brought back is whole again,
+      // and a unit that is gone has nothing left standing to be carrying a wound.
       unit.alive = command.destroyed ? 0 : unit.models
+      unit.damage = 0
       return
     }
     case 'deploy-unit': {
@@ -1052,8 +1094,29 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
       const unit = player.units.find((candidate) => candidate.key === command.unitKey)
       if (!unit) return
       unit.alive += command.delta
+      // The model that was carrying the damage is the one that just left, and a model
+      // returning to the unit arrives whole, so either way nothing is still wounded.
+      unit.damage = 0
       // Losing the last model is losing the unit: one event, not two states that
       // could contradict each other.
+      unit.destroyed = unit.alive === 0
+      return
+    }
+    case 'damage-unit': {
+      const unit = player.units.find((candidate) => candidate.key === command.unitKey)
+      const left = unit ? unitWoundsLeft(unit) : null
+      if (!unit || left === null || !unit.wounds) return
+      /*
+       * Wounds are the whole of it, and the models fall out of the arithmetic.
+       *
+       * Damage lands on one model until that model is gone and then moves to the next,
+       * so what a unit has left is a single number of wounds and where the model line
+       * falls inside it is division. Keeping the two as separate counters to be nudged
+       * in step is how they end up disagreeing.
+       */
+      const remaining = left + command.delta
+      unit.alive = Math.ceil(remaining / unit.wounds)
+      unit.damage = unit.alive * unit.wounds - remaining
       unit.destroyed = unit.alive === 0
       return
     }
@@ -1406,9 +1469,16 @@ function namesAnotherArmy(command: Command, actor: PlayerState): boolean {
 }
 
 function armyCommand(command: Command): boolean {
-  return ['attach-roster', 'detach-roster', 'set-unit', 'wound-unit', 'deploy-unit', 'set-unit-formation', 'set-painted'].includes(
-    command.kind,
-  )
+  return [
+    'attach-roster',
+    'detach-roster',
+    'set-unit',
+    'wound-unit',
+    'damage-unit',
+    'deploy-unit',
+    'set-unit-formation',
+    'set-painted',
+  ].includes(command.kind)
 }
 
 /**

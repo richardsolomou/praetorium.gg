@@ -11,7 +11,7 @@ Praetorium includes:
 - One synchronized 1v1 or 2v1 battle between signed-in players, against a friend or a practice opponent.
 - Mutual friendships for choosing private battle opponents, and practice opponents for playing without one.
 
-It does not include rankings, events, leagues, locations, public battle discovery, chat, matchmaking, a rules encyclopedia, model positions, or wound allocation.
+It does not include rankings, events, leagues, locations, public battle discovery, chat, matchmaking, a rules encyclopedia, or model positions.
 
 ## Interface
 

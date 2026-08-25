@@ -54,6 +54,27 @@ export function toughnessOf(profiles: readonly { type: string; values: readonly 
   return values.length ? Math.max(...values) : null
 }
 
+/**
+ * What one model of a datasheet can take, where every model of it takes the same.
+ *
+ * Null where the profiles disagree, which is a squad built from a sergeant and his
+ * veterans: a unit is tracked as one row, so there is no honest single answer and
+ * naming one would be wrong for most of the models in it. Null too where nothing
+ * states a wounds characteristic at all, and the two are the same answer to whoever
+ * is asking — the unit is counted in models instead.
+ */
+export function woundsOf(profiles: readonly { type: string; values: readonly { name: string; value: string }[] }[]): number | null {
+  const values = new Set(
+    profiles
+      .filter((profile) => profile.type.toLocaleLowerCase() === 'unit')
+      .flatMap((profile) => profile.values)
+      .filter((value) => ['w', 'wounds'].includes(value.name.trim().toLocaleLowerCase()))
+      .map((value) => Number.parseInt(value.value, 10))
+      .filter((value) => Number.isFinite(value) && value > 0),
+  )
+  return values.size === 1 ? [...values][0]! : null
+}
+
 type AbilityKind = 'core' | 'faction' | 'datasheet' | 'rule' | 'upgrade' | 'wargear'
 
 type DatasheetContext = {

@@ -98,6 +98,7 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
                 name: z.string().min(1).max(ROSTER_NAME_MAX_LENGTH),
                 points: z.number().int().min(0).max(10_000),
                 models: z.number().int().min(0).max(100),
+                wounds: z.number().int().min(1).max(100).optional(),
                 entryId: id.optional(),
                 group: z.enum(UNIT_GROUPS).optional(),
                 wargear: z
@@ -137,6 +138,7 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('set-unit-formation'), unitKey: id, formation: z.enum(UNIT_FORMATIONS), playerId: id.optional() }),
   z.object({ kind: z.literal('set-painted'), painted: z.boolean(), playerId: id.optional() }),
   z.object({ kind: z.literal('wound-unit'), unitKey: id, delta: z.number().int(), playerId: id.optional() }),
+  z.object({ kind: z.literal('damage-unit'), unitKey: id, delta: z.number().int(), playerId: id.optional() }),
   z.object({ kind: z.literal('set-deployment'), patternId: id.nullable() }),
   z.object({ kind: z.literal('set-battlefield'), patternId: id, terrainLayoutId: id }),
   z.object({

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { datasheetIn, datasheetViewsIn } from './catalogue'
+import { datasheetIn, datasheetViewsIn, woundsOf } from './catalogue'
 import { bookOf, categories, shelfOf } from './catalogue.fixtures'
 
 describe('a datasheet', () => {
@@ -439,5 +439,38 @@ describe('a datasheet', () => {
     expect(bearer?.profiles[0]?.values[0]).toEqual({ name: 'S', value: '10', baseValue: '8', modifiers: ['Destroyer Ankh'] })
     const other = datasheetIn(book, 'cat', 'lord', { selections, unitSelectionIndex: 1 })
     expect(other?.profiles[0]?.values[0]).toEqual({ name: 'S', value: '8' })
+  })
+})
+
+describe('the wounds one model of a datasheet takes', () => {
+  const profile = (type: string, ...wounds: string[]) => ({
+    type,
+    values: wounds.map((value) => ({ name: 'W', value })),
+  })
+
+  it('is read off the unit profile', () => {
+    expect(woundsOf([profile('Unit', '12')])).toBe(12)
+  })
+
+  it('is read whatever case the book writes the profile type in', () => {
+    expect(woundsOf([{ type: 'unit', values: [{ name: 'Wounds', value: '4' }] }])).toBe(4)
+  })
+
+  it('is the shared number when several kinds of model agree on it', () => {
+    expect(woundsOf([profile('Unit', '3'), profile('Unit', '3')])).toBe(3)
+  })
+
+  it('is unknown when the kinds of model disagree', () => {
+    // A sergeant standing with his veterans. A unit is one row here, so naming either
+    // number would be wrong for the rest of the squad.
+    expect(woundsOf([profile('Unit', '4'), profile('Unit', '3')])).toBeNull()
+  })
+
+  it('is unknown when nothing states it', () => {
+    expect(woundsOf([{ type: 'Unit', values: [{ name: 'T', value: '5' }] }])).toBeNull()
+  })
+
+  it('ignores a weapon profile that happens to carry the same letter', () => {
+    expect(woundsOf([profile('Ranged Weapons', '2'), profile('Unit', '6')])).toBe(6)
   })
 })

@@ -92,6 +92,9 @@ export const datasheetSchema = z.object({
 export const savedRosterDatasheetSchema = rosterInBattleSchema.extend({ pickIndex: z.number().int().min(0).max(99) })
 export const datasheetSlugSchema = z.object({ catalogueId, slug })
 
+/** The datasheets of one army, asked about together because a list is attached in one go. */
+export const unitWoundsSchema = z.object({ catalogueId, entryIds: z.array(id).max(200) })
+
 const prepSchema = z.object({
   stratagems: z
     .array(
