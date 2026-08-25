@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.28.3
+
+### Patch Changes
+
+- d45692a: Show core abilities granted by selected unit upgrades.
+
 ## 0.28.2
 
 ### Patch Changes
