@@ -17,6 +17,7 @@ import { type GlobalSearchResult, searchEverything } from './globalSearch'
 import { mutationRpc, rpc } from './rpc'
 import { rosterDetachments } from './pricing'
 import { currentUserId } from './playerSession'
+import { cacheUntilSnapshotChanges } from './snapshotCache'
 import {
   datasheetSchema,
   datasheetSlugSchema,
@@ -35,6 +36,7 @@ export const catalogueStatus = createServerFn({ method: 'GET' }).handler(() => r
 /** Null on an instance with no catalogue data, so the interface can simply not offer list building. */
 export const factions = createServerFn({ method: 'GET' }).handler(() =>
   rpc(() => {
+    cacheUntilSnapshotChanges()
     const loaded = app().catalogue()
     if (!loaded) return null
     return factionsFor(loaded, app().rules())
@@ -43,6 +45,7 @@ export const factions = createServerFn({ method: 'GET' }).handler(() =>
 
 export const factionIndex = createServerFn({ method: 'GET' }).handler(() =>
   rpc(() => {
+    cacheUntilSnapshotChanges()
     const loaded = app().catalogue()
     if (!loaded) return null
     return factionIndexFor(loaded, app().rules())
@@ -267,6 +270,7 @@ export const datasheetBySlug = createServerFn({ method: 'GET' })
   .validator(datasheetSlugSchema)
   .handler(({ data }) =>
     rpc(() => {
+      cacheUntilSnapshotChanges()
       const loaded = app().catalogue()
       return loaded
         ? describeDatasheetAbilities(loaded, data.catalogueId, datasheetInBySlug(loaded, data.catalogueId, data.slug), app().rules())
@@ -288,6 +292,7 @@ export const detachmentRules = createServerFn({ method: 'GET' })
   .validator(detachmentRulesSchema)
   .handler(({ data }) =>
     rpc(() => {
+      cacheUntilSnapshotChanges()
       const rules = app().rules()
       const catalogue = app().catalogue()
       if (!rules || !catalogue) return null
@@ -316,6 +321,7 @@ export const detachmentDetail = createServerFn({ method: 'GET' })
   .validator(detachmentDetailSchema)
   .handler(({ data }) =>
     rpc(() => {
+      cacheUntilSnapshotChanges()
       const rules = app().rules()
       const catalogue = app().catalogue()
       return rules && catalogue ? detachmentReference(catalogue, rules, data.catalogueId, data.slug) : null
@@ -325,6 +331,7 @@ export const detachmentDetail = createServerFn({ method: 'GET' })
 /** The battlefields on offer, as polygons, so the interface can draw one. */
 export const deployments = createServerFn({ method: 'GET' }).handler(() =>
   rpc(() => {
+    cacheUntilSnapshotChanges()
     const rules = app().rules()
     return rules?.deployments ?? []
   }),
@@ -332,6 +339,7 @@ export const deployments = createServerFn({ method: 'GET' }).handler(() =>
 
 export const gameReferences = createServerFn({ method: 'GET' }).handler(() =>
   rpc(() => {
+    cacheUntilSnapshotChanges()
     const rules = app().rules()
     if (!rules) return null
     return gameReferencesFor(rules)
@@ -342,6 +350,7 @@ export const terrainReferences = createServerFn({ method: 'GET' })
   .validator(terrainReferencesSchema)
   .handler(({ data }) =>
     rpc(() => {
+      cacheUntilSnapshotChanges()
       const rules = app().rules()
       if (!rules) return { layouts: [], templates: [] }
       const wanted = new Set(data.matchupIds)
