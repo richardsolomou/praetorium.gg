@@ -50,6 +50,9 @@ test('an organizer can make a one-off league recurring without replacing its eve
   await join(page)
   const eventUrl = page.url()
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(1440)
+  const initialResponse = await page.reload()
+  if (!initialResponse) throw new Error('The league page did not return a document response.')
+  expect(await initialResponse.text()).not.toContain(rosterName)
 
   await page.getByRole('button', { name: 'Choose roster' }).click()
   const roster = page.getByRole('dialog', { name: 'Seal a roster' }).locator(`[data-roster="${rosterName}"]`)

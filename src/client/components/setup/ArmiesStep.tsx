@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { GAME_SIZES, PAINTED_ARMY_POINTS, type Command } from '../../../core/battle'
 import { type BattleView } from '../../../core/battleView'
+import { errorMessage } from '../../queryClient'
 import { savedRosterSummariesQuery } from '../../queries'
 import type { Army, Side } from '../../sides'
 import { ArmyIdentity, RosterIdentity } from '../ArmyIdentity'
@@ -30,7 +31,8 @@ type Props = {
 export function ArmiesStep({ view, sides, send, attachSavedRoster, pending, problem }: Props) {
   /** The army the chooser is picking for: your own, or a practice opponent's. */
   const [choosing, setChoosing] = useState<Army | null>(null)
-  const { data: saved = [] } = useQuery(savedRosterSummariesQuery())
+  const rosterQuery = useQuery(savedRosterSummariesQuery())
+  const saved = rosterQuery.data ?? []
   const nameDisposition = useDispositionNames()
   const yourSide = sides.find((side) => side.isViewer)
   const sideOf = (army: Army) => sides.find((side) => side.armies.some((candidate) => candidate.playerId === army.playerId))
@@ -159,11 +161,12 @@ export function ArmiesStep({ view, sides, send, attachSavedRoster, pending, prob
         savedCount={saved.length}
         requiredLimit={chooserLimit}
         selectedName={choosing?.roster?.name}
+        loading={rosterQuery.isPending}
         pending={pending}
         onChoose={async (savedRoster) => {
           if (choosing && (await attachSavedRoster(savedRoster.id, choosing.playerId))) setChoosing(null)
         }}
-        error={problem}
+        error={rosterQuery.error ? errorMessage(rosterQuery.error) : problem}
       />
     </div>
   )
@@ -177,6 +180,7 @@ function RosterChooser({
   savedCount,
   requiredLimit,
   selectedName,
+  loading,
   pending,
   onChoose,
   error,
@@ -188,6 +192,7 @@ function RosterChooser({
   savedCount: number
   requiredLimit: number | null
   selectedName?: string
+  loading: boolean
   pending: boolean
   onChoose: (roster: SavedRoster) => void
   error: string | null
@@ -212,7 +217,11 @@ function RosterChooser({
           <span className="readout">{rosters.length}</span>
         </p>
         <div className="space-y-2">
-          {rosters.length ? (
+          {loading ? (
+            <div className="border border-edge bg-sunken p-4">
+              <p className="text-sm text-dim">Loading rosters…</p>
+            </div>
+          ) : rosters.length ? (
             rosters.map((roster) => (
               <button
                 key={roster.id}

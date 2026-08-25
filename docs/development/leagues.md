@@ -18,7 +18,7 @@ The organizer chooses automatic entry or approval when creating the league. Appr
 
 ## Roster sealing
 
-Only an accepted event entrant may submit. The server prices the saved roster, refuses points, detachment, disposition, or catalogue legality errors, validates the complete snapshot shape used when attaching a roster to a battle, and removes the saved roster identifier before storage. Incomplete catalogue validation is a warning and does not block submission. Later edits or deletion of the saved roster do not change that snapshot. An entrant may deliberately replace the snapshot by submitting again until reveal.
+Only an accepted event entrant may submit. The event page loads saved-roster summaries, prices, and faction names when the chooser opens. The server prices the selected saved roster, refuses points, detachment, disposition, or catalogue legality errors, validates the complete snapshot shape used when attaching a roster to a battle, and removes the saved roster identifier before storage. Incomplete catalogue validation is a warning and does not block submission. Later edits or deletion of the saved roster do not change that snapshot. An entrant may deliberately replace the snapshot by submitting again until reveal.
 
 The snapshot stays in `league_event_entries.roster_snapshot`. The league detail read returns only a submitted flag and the frozen roster name to its submitter, never the JSON. The dedicated roster read returns a snapshot only after the event's `revealed_at` is set, including when the requester is the organizer.
 
