@@ -1097,6 +1097,34 @@ describe('saved rosters', () => {
     })
   })
 
+  it('summarises saved rosters without returning their picks', async () => {
+    await service.saveRoster('alice', {
+      name: 'Recon force',
+      catalogueId: 'necrons',
+      detachmentIds: ['awakened-dynasty'],
+      disposition: 'reconnaissance',
+      limit: 2000,
+      picks: [{ entryId: 'warriors' }],
+      prep: null,
+      visibility: 'private',
+      source: 'editable',
+    })
+
+    expect((await service.savedRosterSummaries('alice'))[0]).toEqual({
+      id: expect.any(String),
+      name: 'Recon force',
+      catalogueId: 'necrons',
+      detachmentIds: ['awakened-dynasty'],
+      disposition: 'reconnaissance',
+      limit: 2000,
+      unitCount: 1,
+      visibility: 'private',
+      source: 'editable',
+      createdAt: expect.any(Number),
+      updatedAt: expect.any(Number),
+    })
+  })
+
   it('mints a compact URL-safe id', async () => {
     expect((await save()).id).toMatch(/^[A-Za-z0-9_-]{11}$/)
   })
@@ -1109,6 +1137,13 @@ describe('saved rosters', () => {
   it('shows a private roster to its owner', async () => {
     const { id } = await save()
     expect((await service.sharedRoster(id, 'alice'))?.name).toBe('Recon force')
+  })
+
+  it('reports whether a roster viewer may edit it', async () => {
+    const { id } = await save('unlisted')
+
+    expect(await service.rosterAccess(id, 'alice')).toMatchObject({ editable: true, roster: { name: 'Recon force' } })
+    expect(await service.rosterAccess(id, 'bob')).toMatchObject({ editable: false, roster: { name: 'Recon force' } })
   })
 
   it('shows a private roster to another player seated in the battle where it is fielded', async () => {

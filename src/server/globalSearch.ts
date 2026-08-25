@@ -4,7 +4,7 @@ import { datasheetSearchFieldsIn } from './catalogue'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { datasheetSlug, datasheetsOf, isReferenceDatasheet } from './catalogueIndex'
 import { isMatchedPlayDatasheet } from './cataloguePicker'
-import { matchDatasheet, type DatasheetSearchReason } from './datasheetSearch'
+import { matchDatasheet, type DatasheetSearchFields, type DatasheetSearchReason } from './datasheetSearch'
 import { factionsFor } from './factionReferences'
 import { gameReferencesFor } from './gameReferences'
 import type { LoadedRules } from './rules'
@@ -49,11 +49,84 @@ type Sources = {
   own: () => Promise<{ rosters: SavedRoster[]; battles: Battle[] } | null>
 }
 
+type IndexedResult = { search: string; result: GlobalSearchResult }
+type IndexedDatasheet = {
+  targetId: string
+  allied: boolean
+  name: string
+  fields: DatasheetSearchFields
+  result: GlobalSearchResult
+}
+type GlobalSearchIndex = { factions: IndexedResult[]; detachments: IndexedResult[]; datasheets: IndexedDatasheet[] }
+
+const globalSearchIndexes = new WeakMap<LoadedCatalogue, { rules: LoadedRules | null; index: GlobalSearchIndex }>()
+
+export function prepareGlobalSearch(catalogue: LoadedCatalogue | null, rules: LoadedRules | null) {
+  if (catalogue) globalSearchIndexFor(catalogue, rules)
+}
+
+function globalSearchIndexFor(loaded: LoadedCatalogue, rules: LoadedRules | null): GlobalSearchIndex {
+  const cached = globalSearchIndexes.get(loaded)
+  if (cached?.rules === rules) return cached.index
+
+  const factions: IndexedResult[] = []
+  const detachments: IndexedResult[] = []
+  const datasheets: IndexedDatasheet[] = []
+  for (const faction of factionsFor(loaded, rules).factions) {
+    factions.push({
+      search: `${faction.displayName} ${faction.name}`.toLowerCase(),
+      result: {
+        id: `faction:${faction.id}`,
+        group: 'Factions',
+        label: faction.displayName,
+        detail: 'Faction reference',
+        href: `/factions/${faction.slug}`,
+      },
+    })
+    for (const detachment of faction.detachments) {
+      if (!faction.referenceDetachmentIds.includes(detachment.id)) continue
+      detachments.push({
+        search: detachment.name.toLowerCase(),
+        result: {
+          id: `detachment:${faction.id}:${detachment.id}`,
+          group: 'Detachments',
+          label: detachment.name,
+          detail: faction.displayName,
+          href: `/factions/${faction.slug}/reference/detachments/${detachment.slug}`,
+        },
+      })
+    }
+    for (const entryId of datasheetsOf(loaded.index, faction.id)) {
+      const entry = loaded.index.definitions.get(entryId)
+      if (!entry || !isMatchedPlayDatasheet(loaded.index, entry) || !isReferenceDatasheet(loaded, faction.id, entryId)) continue
+      const fields = datasheetSearchFieldsIn(loaded, faction.id, entryId)
+      if (!fields) continue
+      const name = nameOf(entry, loaded.index.definitions)
+      datasheets.push({
+        targetId: targetOf(entry, loaded.index.definitions).id,
+        allied: Boolean(loaded.index.alliedDatasheets.get(faction.id)?.has(entryId)),
+        name,
+        fields,
+        result: {
+          id: `datasheet:${faction.id}:${entryId}`,
+          group: 'Datasheets',
+          label: name,
+          detail: faction.displayName,
+          href: `/factions/${faction.slug}/datasheets/${datasheetSlug(loaded, faction.id, entryId)}`,
+        },
+      })
+    }
+  }
+  const index = { factions, detachments, datasheets }
+  globalSearchIndexes.set(loaded, { rules, index })
+  return index
+}
+
 export async function searchEverything(query: string, sources: Sources): Promise<GlobalSearchResult[]> {
   const wanted = query.toLowerCase()
   const matches = (...text: (string | null | undefined)[]) => text.filter(Boolean).join(' ').toLowerCase().includes(wanted)
   const results: GlobalSearchResult[] = [
-    ...catalogueResults(wanted, matches, sources),
+    ...catalogueResults(wanted, sources),
     ...missionResults(matches, sources.rules),
     ...(await ownResults(matches, sources.own)),
   ]
@@ -62,59 +135,28 @@ export async function searchEverything(query: string, sources: Sources): Promise
 
 type Matcher = (...text: (string | null | undefined)[]) => boolean
 
-function catalogueResults(wanted: string, matches: Matcher, sources: Sources): GlobalSearchResult[] {
+function catalogueResults(wanted: string, sources: Sources): GlobalSearchResult[] {
   const loaded = sources.catalogue
   if (!loaded) return []
 
-  const results: GlobalSearchResult[] = []
+  const index = globalSearchIndexFor(loaded, sources.rules)
+  const results: GlobalSearchResult[] = [
+    ...index.factions.filter((entry) => entry.search.includes(wanted)).map((entry) => entry.result),
+    ...index.detachments.filter((entry) => entry.search.includes(wanted)).map((entry) => entry.result),
+  ]
   const datasheets = new Map<string, { primary: RankedResult[]; allied?: RankedResult }>()
-  for (const faction of factionsFor(loaded, sources.rules).factions) {
-    if (matches(faction.displayName, faction.name)) {
-      results.push({
-        id: `faction:${faction.id}`,
-        group: 'Factions',
-        label: faction.displayName,
-        detail: 'Faction reference',
-        href: `/factions/${faction.slug}`,
-      })
-    }
-    for (const detachment of faction.detachments) {
-      if (!faction.referenceDetachmentIds.includes(detachment.id)) continue
-      if (!matches(detachment.name)) continue
-      results.push({
-        id: `detachment:${faction.id}:${detachment.id}`,
-        group: 'Detachments',
-        label: detachment.name,
-        detail: faction.displayName,
-        href: `/factions/${faction.slug}/reference/detachments/${detachment.slug}`,
-      })
-    }
-    for (const entryId of datasheetsOf(loaded.index, faction.id)) {
-      const entry = loaded.index.definitions.get(entryId)
-      if (!entry || !isMatchedPlayDatasheet(loaded.index, entry)) continue
-      if (!isReferenceDatasheet(loaded, faction.id, entryId)) continue
-      const name = nameOf(entry, loaded.index.definitions)
-      const fields = datasheetSearchFieldsIn(loaded, faction.id, entryId)
-      const match = fields ? matchDatasheet(wanted, fields) : null
-      if (!match) continue
-      const result: GlobalSearchResult = {
-        id: `datasheet:${faction.id}:${entryId}`,
-        group: 'Datasheets',
-        label: name,
-        detail: faction.displayName,
-        href: `/factions/${faction.slug}/datasheets/${datasheetSlug(loaded, faction.id, entryId)}`,
-        ...(match.reasons.length ? { matchReasons: match.reasons } : {}),
-      }
-      const key = targetOf(entry, loaded.index.definitions).id
-      const found = datasheets.get(key) ?? { primary: [] }
-      const ranked = { result, score: match.score }
-      if (loaded.index.alliedDatasheets.get(faction.id)?.has(entryId)) found.allied ??= ranked
-      else found.primary.push(ranked)
-      datasheets.set(key, found)
-    }
+  for (const entry of index.datasheets) {
+    const match = matchDatasheet(wanted, entry.fields)
+    if (!match) continue
+    const result = match.reasons.length ? { ...entry.result, matchReasons: match.reasons } : entry.result
+    const found = datasheets.get(entry.targetId) ?? { primary: [] }
+    const ranked = { result, score: match.score }
+    if (entry.allied) found.allied ??= ranked
+    else found.primary.push(ranked)
+    datasheets.set(entry.targetId, found)
   }
   const direct = datasheetResults(datasheets)
-  results.push(...(direct.length ? direct : fuzzyDatasheetResults(loaded, sources.rules, wanted)))
+  results.push(...(direct.length ? direct : fuzzyDatasheetResults(index.datasheets, wanted)))
   return results
 }
 
@@ -126,30 +168,14 @@ const datasheetResults = (datasheets: ReadonlyMap<string, { primary: RankedResul
     .toSorted((left, right) => left.score - right.score || left.result.label.localeCompare(right.result.label))
     .map(({ result }) => result)
 
-function fuzzyDatasheetResults(loaded: LoadedCatalogue, rules: LoadedRules | null, query: string) {
+function fuzzyDatasheetResults(datasheets: readonly IndexedDatasheet[], query: string) {
   const found = new Map<string, { result: GlobalSearchResult; score: number }>()
-  for (const faction of factionsFor(loaded, rules).factions) {
-    for (const entryId of datasheetsOf(loaded.index, faction.id)) {
-      const entry = loaded.index.definitions.get(entryId)
-      if (!entry || !isMatchedPlayDatasheet(loaded.index, entry) || !isReferenceDatasheet(loaded, faction.id, entryId)) continue
-      const name = nameOf(entry, loaded.index.definitions)
-      const score = fuzzyScore(query, name)
-      if (score === null) continue
-      const key = targetOf(entry, loaded.index.definitions).id
-      const existing = found.get(key)
-      if (existing && existing.score <= score) continue
-      found.set(key, {
-        score,
-        result: {
-          id: `datasheet:${faction.id}:${entryId}`,
-          group: 'Datasheets',
-          label: name,
-          detail: faction.displayName,
-          href: `/factions/${faction.slug}/datasheets/${datasheetSlug(loaded, faction.id, entryId)}`,
-          fuzzy: true,
-        },
-      })
-    }
+  for (const entry of datasheets) {
+    const score = fuzzyScore(query, entry.name)
+    if (score === null) continue
+    const existing = found.get(entry.targetId)
+    if (existing && existing.score <= score) continue
+    found.set(entry.targetId, { score, result: { ...entry.result, fuzzy: true } })
   }
   return [...found.values()]
     .toSorted((left, right) => left.score - right.score || left.result.label.localeCompare(right.result.label))

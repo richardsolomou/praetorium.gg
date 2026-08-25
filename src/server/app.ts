@@ -16,6 +16,7 @@ import { realtimeConfig } from '../adapters/realtime'
 import { openValkey, type ValkeyClient, valkeySecondaryStorage, valkeyUrl } from '../adapters/valkey'
 import { PraetoriumService } from './service'
 import { emailDelivery } from '../adapters/email'
+import { prepareGlobalSearch } from './globalSearch'
 
 type App = {
   database: PraetoriumDatabase
@@ -32,7 +33,7 @@ type App = {
   auth: ReturnType<typeof createAuth>
   email: ReturnType<typeof emailDelivery>
   telemetry: ReturnType<typeof serverTelemetry>
-  /** Resolves after installed catalogue data has paid its one-time parse cost. */
+  /** Resolves after installed catalogue data has paid its one-time preparation cost. */
   ready: () => Promise<void>
 }
 
@@ -82,13 +83,12 @@ const sync = {
   },
 }
 
-/** Pays the one-time parse cost after startup, before a player opens the catalogue. */
+/** Pays the one-time preparation cost after startup, before a player opens the catalogue. */
 export function warm(instance: Pick<App, 'catalogue' | 'rules'>): Promise<void> {
   return new Promise((resolve) => {
     setImmediate(() => {
       try {
-        instance.catalogue()
-        instance.rules()
+        prepareGlobalSearch(instance.catalogue(), instance.rules())
       } catch (error) {
         sync.state = { status: 'failed', detail: error instanceof Error ? error.message : 'the catalogue could not be loaded' }
       }

@@ -183,7 +183,10 @@ const PickerRow = memo(function PickerRow({
   onAdd,
 }: PickerRowProps) {
   return (
-    <div data-picker-unit={unit.name} className="flex items-center gap-1.5 border border-edge bg-card px-2.5 py-1.5 [contain:layout_style]">
+    <div
+      data-picker-unit={unit.name}
+      className="flex items-center gap-1.5 border border-edge bg-card px-2.5 py-1.5 [contain:layout_style] [contain-intrinsic-size:auto_3.25rem] [content-visibility:auto]"
+    >
       <button
         type="button"
         className="flex min-w-0 flex-1 items-center gap-1.5 text-left hover:text-info"

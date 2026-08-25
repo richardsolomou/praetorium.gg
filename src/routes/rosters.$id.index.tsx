@@ -4,16 +4,7 @@ import { useEffect } from 'react'
 import { fieldedRoster } from '../client/battleRosterSnapshot'
 import { BattleRosterSnapshot } from '../client/components/BattleRosterSnapshot'
 import { RosterEditor } from '../client/components/RosterEditor'
-import {
-  battleQuery,
-  collectionQuery,
-  factionsQuery,
-  leagueRosterQuery,
-  savedRosterPriceQuery,
-  savedRostersQuery,
-  sharedRosterQuery,
-  unitsQuery,
-} from '../client/queries'
+import { battleQuery, factionsQuery, leagueRosterQuery, rosterAccessQuery, savedRosterPriceQuery } from '../client/queries'
 import { normalisePicks } from '../client/rosterPicks'
 
 export const Route = createFileRoute('/rosters/$id/')({
@@ -36,43 +27,23 @@ export const Route = createFileRoute('/rosters/$id/')({
       if (!screen || screen.kind !== 'battle' || !fieldedRoster(screen.view, params.id)) throw notFound()
       return { editable: false, snapshot: true }
     }
-    /*
-     * Who is asking, what they are asking for, and the factions, all at once.
-     *
-     * None of the three depends on the others — the reads resolve the viewer
-     * themselves, and a signed-out one is answered with no lists rather than
-     * having to be asked about first — so waiting on the account before starting
-     * put a round trip in front of the page for nothing.
-     */
-    const [, shared, saved] = await Promise.all([
+    const [, access] = await Promise.all([
       context.queryClient.ensureQueryData(factionsQuery()),
-      context.queryClient.ensureQueryData(sharedRosterQuery(params.id, deps.battle)),
-      context.queryClient.ensureQueryData(savedRostersQuery()),
+      context.queryClient.ensureQueryData(rosterAccessQuery(params.id, deps.battle)),
     ])
-    const owned = saved.find((candidate) => candidate.id === params.id)
-    const roster = owned ?? shared
-    if (!roster) throw notFound()
-
-    await Promise.all([
-      context.queryClient.ensureQueryData(
-        savedRosterPriceQuery(
-          roster.id,
-          roster.catalogueId,
-          roster.detachmentIds,
-          roster.disposition,
-          roster.limit,
-          normalisePicks(roster.picks),
-          deps.battle,
-        ),
-      ),
-      ...(owned
-        ? [
-            context.queryClient.ensureQueryData(collectionQuery()),
-            context.queryClient.ensureQueryData(unitsQuery(roster.catalogueId, '', roster.limit)),
-          ]
-        : []),
-    ])
-    return { editable: Boolean(owned), snapshot: false }
+    if (!access) throw notFound()
+    const { roster, editable, price } = access
+    const priced = savedRosterPriceQuery(
+      roster.id,
+      roster.catalogueId,
+      roster.detachmentIds,
+      roster.disposition,
+      roster.limit,
+      normalisePicks(roster.picks),
+      deps.battle,
+    )
+    context.queryClient.setQueryData(priced.queryKey, price)
+    return { editable, snapshot: false }
   },
   component: RosterPage,
 })
@@ -86,9 +57,8 @@ function RosterPage() {
     ...leagueRosterQuery(league ?? '', event ?? '', id),
     enabled: Boolean(leagueSnapshot && league),
   })
-  const { data: shared } = useQuery({ ...sharedRosterQuery(id, battle), enabled: !snapshot })
-  const { data: saved = [] } = useQuery({ ...savedRostersQuery(), enabled: editable })
-  const roster = saved.find((candidate) => candidate.id === id) ?? shared
+  const { data: access } = useQuery({ ...rosterAccessQuery(id, battle), enabled: !snapshot })
+  const roster = access?.roster
 
   useEffect(() => {
     if (print) window.print()

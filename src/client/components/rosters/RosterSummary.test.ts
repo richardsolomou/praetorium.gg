@@ -13,8 +13,7 @@ const roster = {
   limit: 2_000,
   createdAt: 0,
   updatedAt: 0,
-  picks: [],
-  prep: null,
+  unitCount: 0,
   visibility: 'private',
   source: 'editable',
 } satisfies SavedRoster

@@ -340,9 +340,13 @@ export class PraetoriumService {
   /** A user's own saved lists, newest first. Their picks come back parsed. */
   async savedRosters(userId: string) {
     const rows = await this.repository.rostersByUser(userId)
-    return rows.map((row) => ({
-      ...rosterFromRow(row),
-      prep: row.prep ? savedPrepSchema.parse(JSON.parse(row.prep)) : null,
+    return rows.map((row) => rosterFromRow(row, true))
+  }
+
+  async savedRosterSummaries(userId: string) {
+    return (await this.repository.rosterSummariesByUser(userId)).map(({ detachmentId, ...row }) => ({
+      ...row,
+      detachmentIds: detachmentIds(detachmentId),
     }))
   }
 
@@ -354,12 +358,17 @@ export class PraetoriumService {
    * and its units, so the reader can see this list either way. The battle has to be
    * named, so the check stays one log rather than a scan of every battle they play.
    */
-  async sharedRoster(id: string, userId: string | null = null, token: string | null = null) {
+  async rosterAccess(id: string, userId: string | null = null, token: string | null = null) {
     const row = await this.repository.roster(id)
     if (!row) return null
-    if (row.visibility === 'unlisted' || row.userId === userId) return rosterFromRow(row)
+    if (row.userId === userId) return { roster: rosterFromRow(row, true), editable: true }
+    if (row.visibility === 'unlisted') return { roster: rosterFromRow(row), editable: false }
     if (!userId || !token) return null
-    return (await this.fieldedIn(token, userId, id)) ? rosterFromRow(row) : null
+    return (await this.fieldedIn(token, userId, id)) ? { roster: rosterFromRow(row), editable: false } : null
+  }
+
+  async sharedRoster(id: string, userId: string | null = null, token: string | null = null) {
+    return (await this.rosterAccess(id, userId, token))?.roster ?? null
   }
 
   /** Whether a reader shares a battle with the list they are asking about. */
@@ -702,7 +711,7 @@ function sortedFriends(relationships: Awaited<ReturnType<Repository['relationshi
   }
 }
 
-function rosterFromRow(row: NonNullable<Awaited<ReturnType<Repository['roster']>>>) {
+function rosterFromRow(row: NonNullable<Awaited<ReturnType<Repository['roster']>>>, includePrep = false) {
   return {
     id: row.id,
     name: row.name,
@@ -713,6 +722,7 @@ function rosterFromRow(row: NonNullable<Awaited<ReturnType<Repository['roster']>
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
     picks: picksSchema.parse(JSON.parse(row.picks)),
+    prep: includePrep && row.prep ? savedPrepSchema.parse(JSON.parse(row.prep)) : null,
     visibility: row.visibility,
     source: row.source,
   }

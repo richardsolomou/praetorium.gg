@@ -88,10 +88,11 @@ export function ListBuilder({ prep, initial, editable = true, battle, resolvePer
   const [exportText, setExportText] = useState<string | null>(null)
   const workspacePath = `/rosters/${initial.id}`
   const [setupDraft, setSetupDraftState] = useState<RosterSetup | null>(null)
-  const [wideWorkspace, setWideWorkspace] = useState(true)
+  const [wideWorkspace, setWideWorkspace] = useState(false)
   const [pickerQuery, setPickerQuery] = useState('')
   const [pickerFilters, setPickerFilters] = useState<Set<PickerFilter>>(new Set())
   const editingSetup = setupDraft !== null
+  const pickerOpen = wideWorkspace || showing === 'picker'
 
   const setSetupDraft = (draft: RosterSetup | null) => {
     setSetupDraftState(draft)
@@ -100,7 +101,7 @@ export function ListBuilder({ prep, initial, editable = true, battle, resolvePer
 
   const savedId = initial.id
   const queryClient = useQueryClient()
-  const { data: owned } = useQuery({ ...collectionQuery(), enabled: editable })
+  const { data: owned } = useQuery({ ...collectionQuery(), enabled: editable && pickerOpen })
   const collection = useMemo(() => new Set(owned ?? []), [owned])
   const { mutate: mutateCollection } = useCollectionMutation()
 
@@ -515,7 +516,7 @@ export function ListBuilder({ prep, initial, editable = true, battle, resolvePer
         {editable ? (
           <Pane
             variant="picker"
-            open={wideWorkspace || showing === 'picker'}
+            open={pickerOpen}
             drawer={!wideWorkspace}
             hideBelowDesktop
             title="Add units"
@@ -535,7 +536,7 @@ export function ListBuilder({ prep, initial, editable = true, battle, resolvePer
               ) : null
             }
           >
-            {picker}
+            {pickerOpen ? picker : null}
           </Pane>
         ) : null}
 
