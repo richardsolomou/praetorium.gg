@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.35.1
+
+### Patch Changes
+
+- ad53f2d: Show complete roster details, reference links, and accurate equipped wargear across roster views and exports.
+
 ## 0.35.0
 
 ### Minor Changes

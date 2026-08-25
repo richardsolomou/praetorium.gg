@@ -438,9 +438,46 @@ describe('what a unit is carrying', () => {
         rows: [{ name: 'Power fist', choiceKey: 'models', optionId: 'terminator' }],
       }),
     ]
-    const choices = [{ key: 'models', options: [{ id: 'terminator', count: 3 }] }]
+    const choices = [
+      { key: 'models', options: [{ id: 'terminator', count: 3 }] },
+      { key: 'sergeant-weapon', options: [{ id: 'fist', name: 'Power fist', count: 1 }] },
+    ]
 
     expect(heldWargear(models, choices, [{ name: 'Power fist', count: 4 }])).toEqual([{ name: 'Power fist', count: 4 }])
+  })
+
+  it('does not restore catalogue defaults that the drawn models replaced', () => {
+    const models = [
+      kind({
+        fixed: [{ name: 'Plague knives' }],
+        members: [{ id: 'specialist', choiceKey: 'models', baseCount: 0 }],
+        rows: [{ name: 'Boltgun', choiceKey: 'guns', optionId: 'boltgun' }],
+      }),
+    ]
+    const choices = [
+      { key: 'models', options: [{ id: 'specialist', count: 4 }] },
+      { key: 'guns', options: [{ id: 'boltgun', count: 0 }] },
+    ]
+
+    expect(
+      heldWargear(models, choices, [
+        { name: 'Plague knives', count: 5 },
+        { name: 'Boltgun', count: 1 },
+      ]),
+    ).toEqual([{ name: 'Plague knives', count: 4 }])
+  })
+
+  it('does not count a fixed-size composition choice as extra wargear', () => {
+    const models = [kind({ fixed: [{ name: 'Heavy thunder hammer' }], members: [{ id: 'veteran', choiceKey: null, baseCount: 1 }] })]
+    const choices = [
+      {
+        key: 'composition',
+        name: 'Unit composition',
+        options: [{ id: 'five-models', count: 1, pieceCounts: [{ name: 'Heavy thunder hammer', count: 1 }] }],
+      },
+    ]
+
+    expect(heldWargear(models, choices, [{ name: 'Heavy thunder hammer', count: 1 }])).toEqual([{ name: 'Heavy thunder hammer', count: 1 }])
   })
 
   it('counts the pieces selected by one composite model row', () => {
