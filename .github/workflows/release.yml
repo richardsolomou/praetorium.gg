@@ -16,7 +16,7 @@ jobs:
   release:
     permissions:
       contents: write
-    uses: richardsolomou/ras-stack/.github/workflows/release-changesets.yml@v0.44.0
+    uses: richardsolomou/ras-stack/.github/workflows/release-changesets.yml@v0.47.0
     secrets: inherit
 
   production-image:
