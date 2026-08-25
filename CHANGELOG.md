@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.34.13
+
+### Patch Changes
+
+- b39db79: Allow champions to equip every legal wargear replacement and additive upgrade.
+
 ## 0.34.12
 
 ### Patch Changes
