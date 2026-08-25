@@ -8,7 +8,7 @@ import { datasheetSlug, datasheetsOf, type LoadedCatalogue } from './catalogueIn
 import { matchDatasheet, type DatasheetSearchReason } from './datasheetSearch'
 import type { FactionRestrictions } from './wahapedia'
 
-type UnitSummary = {
+export type UnitSummary = {
   id: string
   slug: string
   name: string

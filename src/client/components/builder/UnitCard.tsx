@@ -69,7 +69,7 @@ export function UnitCard({
   status,
   editable = true,
 }: Props) {
-  const cardClassName = `relative min-w-0 max-w-full overflow-hidden border bg-card transition-colors [contain-intrinsic-block-size:auto_72px] [content-visibility:auto] ${
+  const cardClassName = `relative min-w-0 max-w-full overflow-hidden border bg-card transition-colors [contain:content] ${
     selected ? 'border-parchment' : 'border-edge hover:border-info'
   }`
   const actions = { owned, onOwned, onDuplicate, onRemove }

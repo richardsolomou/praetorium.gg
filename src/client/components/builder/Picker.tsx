@@ -1,6 +1,6 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { Heart, ListFilter, Plus } from 'lucide-react'
-import { Fragment, useMemo } from 'react'
+import { Fragment, memo, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Toggle } from '@/components/ui/toggle'
@@ -44,7 +44,18 @@ const FILTERS: { id: PickerFilter; label: string; hint: string }[] = [
  * filters narrow by the reasons a datasheet is not a real option today: it does not
  * fit, you may not take another, or you do not own it.
  */
-export function Picker({ catalogueId, onAdd, onPreview, inRoster, room, battleSize, query, onQueryChange, active, onFilterToggle }: Props) {
+export const Picker = memo(function Picker({
+  catalogueId,
+  onAdd,
+  onPreview,
+  inRoster,
+  room,
+  battleSize,
+  query,
+  onQueryChange,
+  active,
+  onFilterToggle,
+}: Props) {
   const settledQuery = useSettled(query.trim())
   const { data: found } = useQuery({ ...unitsQuery(catalogueId, settledQuery, battleSize), placeholderData: keepPreviousData })
   const { data: owned } = useQuery(collectionQuery())
@@ -117,7 +128,7 @@ export function Picker({ catalogueId, onAdd, onPreview, inRoster, room, battleSi
                       <div
                         key={unit.id}
                         data-picker-unit={unit.name}
-                        className="flex items-center gap-1.5 border border-edge bg-card px-2.5 py-1.5 [contain-intrinsic-block-size:auto_44px] [content-visibility:auto]"
+                        className="flex items-center gap-1.5 border border-edge bg-card px-2.5 py-1.5 [contain:content]"
                       >
                         <button
                           type="button"
@@ -179,4 +190,4 @@ export function Picker({ catalogueId, onAdd, onPreview, inRoster, room, battleSi
       </ScrollArea>
     </div>
   )
-}
+})

@@ -201,10 +201,14 @@ test('owned units rise to the top of their roster and picker groups', async ({ p
   await page.screenshot({ path: 'test-results/owned-units-first.png', fullPage: true })
 })
 
-test('faction datasheet rows resize without horizontal overflow', async ({ page }) => {
+test('contained faction datasheet rows stay accessible and resize without horizontal overflow', async ({ page }) => {
   await page.setViewportSize({ width: 1512, height: 774 })
   await page.goto('/factions/space-marines/datasheets')
-  const rows = page.locator('[class*="[content-visibility:auto]"]')
+  const rows = page.locator('[data-datasheet]')
+  const lastName = await rows.last().getAttribute('data-datasheet')
+  const session = await page.context().newCDPSession(page)
+  const tree = await session.send('Accessibility.getFullAXTree')
+  expect(tree.nodes.some((node) => node.role?.value === 'link' && node.name?.value.includes(lastName ?? ''))).toBe(true)
   await rows.last().scrollIntoViewIfNeeded()
 
   await page.setViewportSize({ width: 390, height: 844 })
