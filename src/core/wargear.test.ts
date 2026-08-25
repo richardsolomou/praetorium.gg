@@ -105,6 +105,47 @@ describe('the wargear a unit is carrying', () => {
     expect(wargearOf(selection, index)).toEqual([{ name: 'Gauss blaster', count: 5 }])
   })
 
+  it('does not multiply a squad-wide option lacking the collective marker its sibling has', () => {
+    const index = indexOf({
+      sharedSelectionEntries: [
+        {
+          id: 'squad',
+          name: 'Squad',
+          type: 'unit',
+          selectionEntries: [
+            {
+              id: 'body',
+              name: 'Veteran',
+              type: 'model',
+              selectionEntryGroups: [
+                {
+                  id: 'pistols',
+                  name: 'Pistol option',
+                  selectionEntries: [
+                    { id: 'shield', name: 'Storm shield', type: 'upgrade' },
+                    { id: 'pistol', name: 'Bolt pistol', type: 'upgrade', collective: true },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    })
+    const selection = {
+      id: 'squad',
+      selections: [
+        {
+          id: 'body',
+          count: 4,
+          selections: [{ id: 'pistols', selections: [{ id: 'shield', count: 4 }] }],
+        },
+      ],
+    }
+
+    expect(wargearOf(selection, index)).toEqual([{ name: 'Storm shield', count: 4 }])
+  })
+
   it('adds up the same weapon reached by more than one route', () => {
     const index = indexOf({
       sharedSelectionEntries: [

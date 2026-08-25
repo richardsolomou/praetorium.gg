@@ -9,7 +9,7 @@
  */
 
 import type { CatalogueIndex } from './catalogue'
-import { isCollective, isRosterToggle, resolve } from './definitions'
+import { isCollective, isCollectiveGroup, isRosterToggle, resolve } from './definitions'
 import type { Selection } from './evaluate'
 
 export type Wargear = { name: string; count: number }
@@ -18,16 +18,17 @@ export function wargearOf(selection: Selection, index: CatalogueIndex): Wargear[
   const found = new Map<string, number>()
 
   /**
-   * `carried` is the number of things holding this one, which is what a per-model
-   * count has to be multiplied by. A collective entry is already a total for the
-   * whole unit — five blasters stored as five — so it is taken as it stands.
+   * `carried` multiplies per-model counts. Collective entries and their sibling
+   * options store unit totals, so their own counts stand as written.
    */
   const walk = (node: Selection, carried: number) => {
+    const parent = index.definitions.get(node.id)
+    const collectiveGroup = parent ? isCollectiveGroup(parent, index) : false
     for (const child of node.selections ?? []) {
       const definition = index.definitions.get(child.id)
       const kind = definition ? resolve(definition, index).type : undefined
       const own = child.count ?? 1
-      const count = definition && isCollective(definition, index) ? own : carried * own
+      const count = definition && (collectiveGroup || isCollective(definition, index)) ? own : carried * own
       const grandchildren = child.selections ?? []
       const target = definition && resolve(definition, index)
       // Most upgrades with children are only headings, but a described weapon can
