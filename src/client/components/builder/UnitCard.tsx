@@ -69,7 +69,8 @@ export function UnitCard({
   status,
   editable = true,
 }: Props) {
-  const cardClassName = `relative min-w-0 max-w-full overflow-hidden border bg-card transition-colors ${
+  // Off-screen cards skip layout and paint; the hint keeps the scrollbar honest.
+  const cardClassName = `relative min-w-0 max-w-full overflow-hidden border bg-card transition-colors [contain-intrinsic-block-size:auto_72px] [content-visibility:auto] ${
     selected ? 'border-parchment' : 'border-edge hover:border-info'
   }`
   const actions = { owned, onOwned, onDuplicate, onRemove }

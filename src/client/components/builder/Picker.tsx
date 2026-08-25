@@ -117,7 +117,8 @@ export function Picker({ catalogueId, onAdd, onPreview, inRoster, room, battleSi
                       <div
                         key={unit.id}
                         data-picker-unit={unit.name}
-                        className="flex items-center gap-1.5 border border-edge bg-card px-2.5 py-1.5"
+                        // Off-screen rows skip layout and paint; the hint keeps the scrollbar honest.
+                        className="flex items-center gap-1.5 border border-edge bg-card px-2.5 py-1.5 [contain-intrinsic-block-size:auto_44px] [content-visibility:auto]"
                       >
                         <button
                           type="button"

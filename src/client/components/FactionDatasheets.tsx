@@ -76,7 +76,11 @@ export function FactionDatasheets() {
                 <Section key={group.id} title={group.plural} count={rows.length}>
                   <div className="grid gap-2 sm:grid-cols-2">
                     {rows.map((unit) => (
-                      <div key={unit.id} className="flex items-center border border-edge bg-panel hover:border-info">
+                      // Off-screen rows skip layout and paint; the hint keeps the scrollbar honest.
+                      <div
+                        key={unit.id}
+                        className="flex items-center border border-edge bg-panel [contain-intrinsic-block-size:auto_38px] [content-visibility:auto] hover:border-info"
+                      >
                         <Link
                           to="/factions/$catalogueId/datasheets/$entryId"
                           params={{ catalogueId: faction.slug, entryId: unit.slug }}
