@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button'
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { GAME_SIZES } from '../../../core/battle'
-import { ROSTER_SOURCE_LABELS } from '../../../core/savedRoster'
 import { formatDate } from '../../dates'
 import { FactionLabel, type FactionPresentation } from '../FactionMark'
 import type { RosterActions, SavedRoster } from './rosterLibrary'
@@ -59,8 +58,7 @@ export function RosterRow({
             ))}
           </span>
           <span className="mt-1 block text-xs text-dim">
-            11th edition · {size?.name ?? `${roster.limit} points`} · {roster.picks.length} units · {ROSTER_SOURCE_LABELS[roster.source]} ·
-            updated {formatDate(roster.updatedAt)}
+            11th edition · {size?.name ?? `${roster.limit} points`} · {roster.picks.length} units · updated {formatDate(roster.updatedAt)}
           </span>
         </Link>
         <span className="shrink-0 text-right">
