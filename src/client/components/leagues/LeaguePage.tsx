@@ -119,6 +119,7 @@ export function LeaguePage({ token, eventToken }: { token: string; eventToken?: 
   const pendingCount = league.entries.filter((entry) => entry.status === 'pending').length
   const latestEvent = league.events[0]
   const viewingLatest = latestEvent?.token === league.eventToken
+  const entrantLabels = disambiguatedEntrantLabels(league.entries)
   const registrationFull =
     league.admission === 'approval' && league.playerLimit !== null
       ? accepted.length >= league.playerLimit || league.occupiedCount >= LEAGUE_MEMBER_MAX
@@ -135,8 +136,9 @@ export function LeaguePage({ token, eventToken }: { token: string; eventToken?: 
   const problem = join.error ?? moderate.error ?? (league?.format === '2v1' ? null : battle.error)
   const requestAssignment = (entry: (typeof accepted)[number], requiredLimit: number) => {
     if (entry.requiredLimit === requiredLimit) return
-    if (entry.submitted) setReassigning({ userId: entry.userId, name: entry.name, requiredLimit })
-    else assign.mutate({ userId: entry.userId, requiredLimit })
+    if (entry.submitted) {
+      setReassigning({ userId: entry.userId, name: entrantLabels.get(entry.userId) ?? entry.name, requiredLimit })
+    } else assign.mutate({ userId: entry.userId, requiredLimit })
   }
 
   return (
@@ -209,116 +211,119 @@ export function LeaguePage({ token, eventToken }: { token: string; eventToken?: 
           </div>
           {league.entries.length ? (
             <div className="divide-y divide-edge border border-edge bg-panel">
-              {league.entries.map((entry) => (
-                <div key={entry.userId} data-person={entry.name} className="flex flex-wrap items-center gap-3 p-3">
-                  <Link
-                    to="/users/$userId"
-                    params={{ userId: entry.userId }}
-                    className="group flex min-w-0 flex-1 items-center gap-3 hover:text-info"
-                  >
-                    <PlayerAvatar name={entry.name} image={entry.image} className="size-9 text-xs" />
-                    <span className="min-w-0">
-                      <span className="block truncate font-bold uppercase group-hover:underline">{entry.name}</span>
-                      <span className="block text-xs text-dim">
-                        {entryStatus(entry.status, entry.submitted, Boolean(league.revealedAt))}
-                      </span>
-                      {entry.status === 'accepted' && entry.requiredLimit !== null ? (
-                        <span className="mt-1 block text-xs text-parchment">
-                          {entry.requiredLimit.toLocaleString()}-point roster
-                          {league.format === '2v1' ? (entry.requiredLimit === league.rosterLimit ? ' · solo' : ' · allied') : ''}
+              {league.entries.map((entry) => {
+                const entrantLabel = entrantLabels.get(entry.userId) ?? entry.name
+                return (
+                  <div key={entry.userId} data-person={entry.name} className="flex flex-wrap items-center gap-3 p-3">
+                    <Link
+                      to="/users/$userId"
+                      params={{ userId: entry.userId }}
+                      className="group flex min-w-0 flex-1 items-center gap-3 hover:text-info"
+                    >
+                      <PlayerAvatar name={entry.name} image={entry.image} className="size-9 text-xs" />
+                      <span className="min-w-0">
+                        <span className="block truncate font-bold uppercase group-hover:underline">{entrantLabel}</span>
+                        <span className="block text-xs text-dim">
+                          {entryStatus(entry.status, entry.submitted, Boolean(league.revealedAt))}
                         </span>
-                      ) : null}
-                    </span>
-                  </Link>
-                  {isOwner && !league.revealedAt ? (
-                    <div className="flex w-full justify-end gap-1 sm:w-auto">
-                      {league.format === '2v1' && entry.status === 'accepted' && league.rosterLimit ? (
-                        <>
+                        {entry.status === 'accepted' && entry.requiredLimit !== null ? (
+                          <span className="mt-1 block text-xs text-parchment">
+                            {entry.requiredLimit.toLocaleString()}-point roster
+                            {league.format === '2v1' ? (entry.requiredLimit === league.rosterLimit ? ' · solo' : ' · allied') : ''}
+                          </span>
+                        ) : null}
+                      </span>
+                    </Link>
+                    {isOwner && !league.revealedAt ? (
+                      <div className="flex w-full justify-end gap-1 sm:w-auto">
+                        {league.format === '2v1' && entry.status === 'accepted' && league.rosterLimit ? (
+                          <>
+                            <Button
+                              size="sm"
+                              variant={entry.requiredLimit === league.rosterLimit ? 'default' : 'outline'}
+                              aria-label={`Assign ${entrantLabel} a solo roster`}
+                              aria-pressed={entry.requiredLimit === league.rosterLimit}
+                              disabled={assign.isPending}
+                              onClick={() => requestAssignment(entry, league.rosterLimit!)}
+                            >
+                              Solo
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant={entry.requiredLimit === alliedLeagueRosterLimit(league.rosterLimit) ? 'default' : 'outline'}
+                              aria-label={`Assign ${entrantLabel} an allied roster`}
+                              aria-pressed={entry.requiredLimit === alliedLeagueRosterLimit(league.rosterLimit)}
+                              disabled={assign.isPending}
+                              onClick={() => requestAssignment(entry, alliedLeagueRosterLimit(league.rosterLimit!))}
+                            >
+                              Allied
+                            </Button>
+                          </>
+                        ) : null}
+                        {assign.error && assign.variables?.userId === entry.userId && reassigning === null ? (
+                          <p role="alert" className="w-full text-right text-xs text-destructive">
+                            {errorMessage(assign.error)}
+                          </p>
+                        ) : null}
+                        {entry.status !== 'accepted' ? (
                           <Button
                             size="sm"
-                            variant={entry.requiredLimit === league.rosterLimit ? 'default' : 'outline'}
-                            aria-label={`Assign ${entry.name} a solo roster`}
-                            aria-pressed={entry.requiredLimit === league.rosterLimit}
-                            disabled={assign.isPending}
-                            onClick={() => requestAssignment(entry, league.rosterLimit!)}
+                            variant="outline"
+                            aria-label={`Accept ${entrantLabel}`}
+                            disabled={moderate.isPending}
+                            onClick={() => moderate.mutate({ userId: entry.userId, status: 'accepted' })}
                           >
-                            Solo
+                            <Check /> Accept
                           </Button>
+                        ) : null}
+                        {entry.status !== 'rejected' ? (
                           <Button
                             size="sm"
-                            variant={entry.requiredLimit === alliedLeagueRosterLimit(league.rosterLimit) ? 'default' : 'outline'}
-                            aria-label={`Assign ${entry.name} an allied roster`}
-                            aria-pressed={entry.requiredLimit === alliedLeagueRosterLimit(league.rosterLimit)}
-                            disabled={assign.isPending}
-                            onClick={() => requestAssignment(entry, alliedLeagueRosterLimit(league.rosterLimit!))}
+                            variant={entry.status === 'accepted' ? 'outline' : 'ghost'}
+                            aria-label={`${entry.status === 'accepted' ? 'Remove' : 'Reject'} ${entrantLabel}`}
+                            disabled={moderate.isPending}
+                            onClick={() => {
+                              if (entry.status === 'accepted') {
+                                moderate.reset()
+                                setRemoving({ userId: entry.userId, name: entrantLabel })
+                              } else {
+                                moderate.mutate({ userId: entry.userId, status: 'rejected' })
+                              }
+                            }}
                           >
-                            Allied
+                            <X /> {entry.status === 'accepted' ? 'Remove' : null}
                           </Button>
-                        </>
-                      ) : null}
-                      {assign.error && assign.variables?.userId === entry.userId && reassigning === null ? (
-                        <p role="alert" className="w-full text-right text-xs text-destructive">
-                          {errorMessage(assign.error)}
-                        </p>
-                      ) : null}
-                      {entry.status !== 'accepted' ? (
+                        ) : null}
+                      </div>
+                    ) : null}
+                    {league.revealedAt && entry.status === 'accepted' && entry.submitted ? (
+                      <div className="flex gap-1">
                         <Button
-                          size="sm"
                           variant="outline"
-                          aria-label={`Accept ${entry.name}`}
-                          disabled={moderate.isPending}
-                          onClick={() => moderate.mutate({ userId: entry.userId, status: 'accepted' })}
-                        >
-                          <Check /> Accept
-                        </Button>
-                      ) : null}
-                      {entry.status !== 'rejected' ? (
-                        <Button
                           size="sm"
-                          variant={entry.status === 'accepted' ? 'outline' : 'ghost'}
-                          aria-label={`${entry.status === 'accepted' ? 'Remove' : 'Reject'} ${entry.name}`}
-                          disabled={moderate.isPending}
-                          onClick={() => {
-                            if (entry.status === 'accepted') {
-                              moderate.reset()
-                              setRemoving({ userId: entry.userId, name: entry.name })
-                            } else {
-                              moderate.mutate({ userId: entry.userId, status: 'rejected' })
-                            }
-                          }}
+                          nativeButton={false}
+                          render={
+                            <Link
+                              to="/rosters/$id"
+                              params={{ id: entry.userId }}
+                              search={{ league: token, event: league.eventToken }}
+                              target="_blank"
+                              rel="noreferrer"
+                            />
+                          }
                         >
-                          <X /> {entry.status === 'accepted' ? 'Remove' : null}
+                          <Eye /> View roster
                         </Button>
-                      ) : null}
-                    </div>
-                  ) : null}
-                  {league.revealedAt && entry.status === 'accepted' && entry.submitted ? (
-                    <div className="flex gap-1">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        nativeButton={false}
-                        render={
-                          <Link
-                            to="/rosters/$id"
-                            params={{ id: entry.userId }}
-                            search={{ league: token, event: league.eventToken }}
-                            target="_blank"
-                            rel="noreferrer"
-                          />
-                        }
-                      >
-                        <Eye /> View roster
-                      </Button>
-                      {ownEntry?.status === 'accepted' && entry.userId !== me?.id && league.format !== '2v1' ? (
-                        <Button size="sm" disabled={battle.isPending} onClick={() => battle.mutate({ opponentId: entry.userId })}>
-                          <Swords /> Start battle
-                        </Button>
-                      ) : null}
-                    </div>
-                  ) : null}
-                </div>
-              ))}
+                        {ownEntry?.status === 'accepted' && entry.userId !== me?.id && league.format !== '2v1' ? (
+                          <Button size="sm" disabled={battle.isPending} onClick={() => battle.mutate({ opponentId: entry.userId })}>
+                            <Swords /> Start battle
+                          </Button>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </div>
+                )
+              })}
             </div>
           ) : (
             <div className="border border-dashed border-edge bg-panel px-5 py-9 text-center">
@@ -664,16 +669,14 @@ function LeagueBattleChooser({
   const soloEntries = entries.filter((entry) => entry.userId !== ownUserId && entry.requiredLimit === rosterLimit)
   const alliedEntries = entries.filter((entry) => entry.userId !== ownUserId && entry.requiredLimit === alliedLimit)
   const ready = isSolo ? alliedIds.every((id) => id !== null) : soloId !== null && alliedIds[0] !== null
-  const duplicateNames = new Set(
-    entries.filter((entry, index) => entries.findIndex((candidate) => candidate.name === entry.name) !== index).map((entry) => entry.name),
-  )
+  const entrantLabels = disambiguatedEntrantLabels(entries)
   const groups = (candidates: typeof entries, excluded: (string | null)[] = []) => [
     {
       label: '',
       items: candidates
         .filter((entry) => !excluded.includes(entry.userId))
         .map((entry) => ({
-          label: duplicateNames.has(entry.name) ? `${entry.name} · ${entry.userId.slice(0, 8)}` : entry.name,
+          label: entrantLabels.get(entry.userId) ?? entry.name,
           value: entry.userId,
           icon: <PlayerAvatar name={entry.name} image={entry.image} className="size-6 text-[0.65rem]" />,
         })),
@@ -764,6 +767,15 @@ function LeagueBattleChooser({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  )
+}
+
+function disambiguatedEntrantLabels(entries: { userId: string; name: string }[]) {
+  const duplicateNames = new Set(
+    entries.filter((entry, index) => entries.findIndex((candidate) => candidate.name === entry.name) !== index).map((entry) => entry.name),
+  )
+  return new Map(
+    entries.map((entry) => [entry.userId, duplicateNames.has(entry.name) ? `${entry.name} · ${entry.userId.slice(0, 8)}` : entry.name]),
   )
 }
 

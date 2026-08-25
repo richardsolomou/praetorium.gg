@@ -438,6 +438,7 @@ it('starts a recurring league event without copying prior entrants', async () =>
       ? {
           eventNumber: previous.eventNumber,
           revealedAt: previous.revealedAt,
+          currentEventFormat: previous.currentEventFormat,
           currentEventRevealedAt: previous.currentEventRevealedAt,
           currentEntrantCount: previous.currentEntrantCount,
           currentAcceptedCount: previous.currentAcceptedCount,
@@ -453,6 +454,7 @@ it('starts a recurring league event without copying prior entrants', async () =>
     previousCurrentState: {
       eventNumber: 1,
       revealedAt: 5,
+      currentEventFormat: null,
       currentEventRevealedAt: null,
       currentEntrantCount: 1,
       currentAcceptedCount: 1,

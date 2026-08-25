@@ -974,6 +974,7 @@ export class Repository {
         rosterLimit: selected.rosterLimit,
         revealedAt: selected.revealedAt,
         eventCount: eventTotal?.value ?? events.length,
+        currentEventFormat: current.format,
         currentEventRevealedAt: current.revealedAt,
         currentEntrantCount: currentCounts?.total ?? 0,
         currentAcceptedCount: currentCounts?.accepted ?? 0,

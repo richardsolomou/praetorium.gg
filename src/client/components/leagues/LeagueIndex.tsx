@@ -135,6 +135,7 @@ function LeagueShelf({
               key={league.id}
               league={{
                 ...league,
+                currentEventFormat: league.format,
                 currentEventRevealedAt: league.revealedAt,
                 currentAcceptedCount: league.entrantCount,
               }}
