@@ -1,5 +1,6 @@
 import { version } from '../../package.json'
-import { attachmentOf } from '../core/attach'
+import { type Attachment, attachmentOf } from '../core/attach'
+import { attachmentRows } from '../core/attachmentRows'
 import { fromBattleBaseText } from '../core/battlebase'
 import { nameOf } from '../core/catalogue'
 import type { Selection } from '../core/evaluate'
@@ -62,7 +63,7 @@ export function importRosterFile(data: ImportRosterInput, loaded: LoadedCatalogu
       const context = { primaryCatalogueId: catalogueId ?? undefined, roster: detachmentSelections }
       const decisions = unitChoices(selection.id, selection, loaded.index, context)
       const entry = loaded.index.definitions.get(selection.id)
-      const attachedTo = parent !== null && entry && attachmentOf(entry, loaded.index) ? parent : undefined
+      const attachedTo = parent !== null && entry && attachmentOf(entry, loaded.index, selection) ? parent : undefined
       return {
         entryId: selection.id,
         catalogueId: forceCatalogueId ?? loaded.index.catalogueOf.get(selection.id),
@@ -258,30 +259,36 @@ export function exportRosterFile(
     disposition: string | null
     detachments: { name: string; points: number | null }[]
     units: {
+      key: number
       name: string
       points: number
       group: UnitGroup
+      attachment: Attachment | null
       enhancements: string[]
+      upgrades: string[]
       wargear: { name: string; count: number }[]
     }[]
   },
-  dispositionName: string | null,
+  dispositionNames: string[],
 ) {
   const faction = loaded.index.catalogues.get(data.catalogueId)?.name ?? data.catalogueId
+  const keyedPicks = data.units.map((pick, key) => ({ ...pick, key }))
+  const unitsByPick = data.units.map((_, index) => priced.units.find((unit) => unit.key === index))
   return {
     text: toGwText(
       {
         name: data.name,
         faction: factionDisplayName(faction),
         detachments: priced.detachments,
-        disposition: dispositionName,
+        dispositions: dispositionNames,
         size: GAME_SIZES.find((size) => size.limit === data.limit)?.name ?? 'Battle',
         limit: data.limit,
         points: priced.points,
-        units: priced.units.map((unit, index) => ({
+        units: priced.units.map((unit) => ({
           ...unit,
           group: exportGroup(unit.group),
-          warlord: Object.values(data.units[index]?.toggles ?? {}).some((count) => count > 0),
+          warlord: Object.values(data.units[unit.key]?.toggles ?? {}).some((count) => count > 0),
+          joined: attachmentRows(keyedPicks, unitsByPick, unit.key).map(({ label, name }) => ({ label, name })),
         })),
       },
       version,

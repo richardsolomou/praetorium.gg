@@ -37,6 +37,8 @@ test('a list can be copied as Games Workshop text', async ({ browser }) => {
   await expect(dialog).toContainText('Immortals')
   await expect(dialog).toContainText('10x Tesla carbine')
   await expect(dialog).toContainText('Overlord')
+  await expect(dialog).toContainText('Leading: Immortals')
+  await expect(dialog).toContainText('Leader: Overlord')
   await expect(text).toContainText(/Exported with Praetorium\.gg v\d+\.\d+\.\d+\s*$/)
   await expect.poll(() => dialog.evaluate((element) => element.scrollHeight - element.clientHeight)).toBe(0)
   await expect.poll(() => text.evaluate((element) => element.scrollHeight - element.clientHeight)).toBeGreaterThan(0)

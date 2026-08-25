@@ -386,6 +386,13 @@ test('unit upgrades stay separate from character enhancements', async ({ page })
   await expect(card.getByText('1x Deepening Madness', { exact: true })).toHaveCount(0)
   await shot(card, 'test-results/deepening-madness-upgrade.png')
 
+  await page.getByRole('button', { name: 'Roster actions' }).click()
+  await page.getByRole('menuitem', { name: 'Export GW text' }).click()
+  const exportDialog = page.getByRole('dialog', { name: 'Games Workshop text' })
+  await expect(exportDialog).toContainText('Enhancement: Deepening Madness')
+  await shot(exportDialog, 'test-results/deepening-madness-export.png')
+  await exportDialog.getByRole('button', { name: 'Close' }).click()
+
   // The upgrade appends [ASSAULT] to the weapon, and a keyword nothing on the
   // datasheet links is still a rule a player can read — with what put it there.
   const assault = page.getByRole('button', { name: 'Assault', exact: true }).first()
@@ -944,6 +951,25 @@ test('a character joins the unit it leads, and both cards say so', async ({ page
   await expect(page.locator('[data-unit="Overlord"]')).toBeVisible()
 })
 
+test('Murdermind lets a Chronomancer support Destroyer Cult units', async ({ page }) => {
+  await openBuilder(page, 'Necrons', /Cursed Legion/)
+  await add(page, 'Chronomancer')
+  await add(page, 'Lokhust Heavy Destroyers')
+  const chronomancer = page.locator('[data-unit="Chronomancer"]')
+  const attachButton = chronomancer.getByRole('button', { name: 'Attach Chronomancer to unit' })
+  await expect(attachButton).toHaveCount(0)
+
+  await chronomancer.getByRole('button', { name: 'Chronomancer', exact: true }).click()
+  await page.locator('aside[aria-label="Loadout"]').getByRole('button', { name: 'Select Murdermind' }).click()
+  await expect(attachButton).toBeVisible()
+  await attachButton.click()
+  await page.getByRole('menu').getByRole('menuitem', { name: 'Lokhust Heavy Destroyers', exact: true }).click()
+
+  await expect(chronomancer).toContainText('Supporting')
+  await expect(chronomancer).toContainText('Lokhust Heavy Destroyers')
+  await page.screenshot({ path: 'test-results/murdermind-destroyer-support.png', fullPage: true })
+})
+
 test('a unit that leads nothing is offered no one to lead', async ({ page }) => {
   await openBuilder(page)
   await add(page, 'Immortals')
@@ -1087,6 +1113,13 @@ test('changing detachments clears enhancements unless another detachment is adde
   await setup.getByRole('button', { name: 'Select Skyshroud Spearhead' }).click()
   await waitForRosterSave(page, () => setup.getByRole('button', { name: 'Save changes' }).click())
   await expect(card).toContainText('Mark of the Nekrosor')
+
+  await page.getByRole('button', { name: 'Roster actions' }).click()
+  await page.getByRole('menuitem', { name: 'Export GW text' }).click()
+  const exported = page.getByRole('dialog', { name: 'Games Workshop text' })
+  await expect(exported.locator('pre')).toContainText('Force Dispositions: Purge the Foe, Reconnaissance')
+  await exported.screenshot({ path: 'test-results/multiple-dispositions-export.png' })
+  await exported.getByRole('button', { name: 'Close' }).click()
 
   await page.getByRole('button', { name: 'Roster actions' }).click()
   await page.getByRole('menuitem', { name: 'Edit roster setup' }).click()

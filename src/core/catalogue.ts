@@ -6,10 +6,9 @@
  * eight condition types, seven modifier types — and stop short of the display-only
  * parts, which no legality or points question depends on.
  *
- * With one exception, and it is not decoration: which units a character may be
- * attached to exists nowhere in the structure. It is a sentence inside an ability's
- * description, so `profiles` and `infoGroups` are carried for that alone. See
- * `attachmentOf`.
+ * Base attachment targets are sentences inside ability descriptions, so `profiles`
+ * and `infoGroups` are carried for them. Conditional additions can be structured
+ * associations gated by a selected enhancement. See `attachmentOf`.
  *
  * Nothing in this file reads the filesystem or the network.
  */
@@ -35,6 +34,7 @@ export type Condition = {
   shared?: boolean
   includeChildSelections?: boolean
   includeChildForces?: boolean
+  queryFromSelf?: boolean
 }
 
 type LogicalConditionGroupType = 'and' | 'or' | 'atLeast' | 'atMost' | 'equalTo'
@@ -63,6 +63,7 @@ export type LocalConditionGroup = {
   scope: string
   childId?: string
   includeChildSelections?: boolean
+  includeChildForces?: boolean
   repeats?: number
   conditions?: Condition[]
   conditionGroups?: ConditionGroup[]
@@ -167,6 +168,14 @@ type CategoryEntry = {
   modifierGroups?: ModifierGroup[]
 }
 
+export type Association = {
+  name?: string
+  childId?: string
+  action?: string
+  conditions?: Condition[]
+  conditionGroups?: ConditionGroup[]
+}
+
 /** `$text` is where the JSON puts a characteristic's words. */
 type Characteristic = { name?: string; typeId?: string; $text?: string }
 
@@ -213,6 +222,7 @@ type Common = {
   profiles?: Profile[]
   infoGroups?: InfoGroup[]
   infoLinks?: InfoLink[]
+  associations?: Association[]
   rules?: Rule[]
 }
 

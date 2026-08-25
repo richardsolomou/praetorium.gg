@@ -176,6 +176,68 @@ describe('a character that can join a unit', () => {
     expect(attachmentOf(index.definitions.get('captain')!, index)?.targets).toEqual(['TERMINATOR SQUAD', 'Deathwing Terminator Squad'])
   })
 
+  it('adds targets unlocked by a selected enhancement', () => {
+    const index = indexOf({
+      sharedSelectionEntries: [
+        {
+          id: 'chronomancer',
+          name: 'Chronomancer',
+          type: 'model',
+          profiles: [ability('Support', 'This model can be attached to the following units:\n■ IMMORTALS')],
+          selectionEntries: [{ id: 'murdermind', name: 'Murdermind', type: 'upgrade' }],
+          associations: [
+            {
+              name: 'Supporting',
+              childId: 'unit',
+              action: 'group',
+              conditionGroups: [
+                {
+                  type: 'or',
+                  conditions: [{ type: 'instanceOf', value: 1, field: 'selections', scope: 'self', childId: 'immortals' }],
+                  conditionGroups: [
+                    {
+                      type: 'and',
+                      conditions: [
+                        {
+                          type: 'atLeast',
+                          value: 1,
+                          field: 'selections',
+                          scope: 'self',
+                          childId: 'murdermind',
+                          includeChildSelections: true,
+                          queryFromSelf: true,
+                        },
+                      ],
+                      conditionGroups: [
+                        {
+                          type: 'or',
+                          conditions: [{ type: 'instanceOf', value: 1, field: 'selections', scope: 'self', childId: 'heavy-destroyers' }],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+        { id: 'immortals', name: 'Immortals', type: 'unit' },
+        { id: 'heavy-destroyers', name: 'Lokhust Heavy Destroyers', type: 'unit' },
+      ],
+      entryLinks: [
+        { id: 'immortals-link', name: 'Immortals', type: 'selectionEntry', targetId: 'immortals' },
+        { id: 'heavy-link', name: 'Lokhust Heavy Destroyers', type: 'selectionEntry', targetId: 'heavy-destroyers' },
+      ],
+    })
+    const chronomancer = index.definitions.get('chronomancer')!
+
+    expect(attachmentOf(chronomancer, index, { id: 'chronomancer' })?.targets).toEqual(['IMMORTALS'])
+    expect(attachmentOf(chronomancer, index, { id: 'chronomancer', selections: [{ id: 'murdermind' }] })?.targets).toEqual([
+      'IMMORTALS',
+      'Lokhust Heavy Destroyers',
+    ])
+  })
+
   it('does not broaden substitutions limited to a named kind of character', () => {
     const index = indexOf({
       sharedSelectionEntries: [

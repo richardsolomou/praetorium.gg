@@ -2,7 +2,7 @@ export type GwTextRoster = {
   name: string
   faction: string
   detachments: { name: string; points: number | null }[]
-  disposition: string | null
+  dispositions: string[]
   size: string
   limit: number
   points: number
@@ -11,7 +11,9 @@ export type GwTextRoster = {
     points: number
     group: 'character' | 'battleline' | 'transport' | 'other'
     warlord: boolean
+    joined: { label: string; name: string }[]
     enhancements: string[]
+    upgrades: string[]
     wargear: { name: string; count: number }[]
   }[]
 }
@@ -32,7 +34,9 @@ export function toGwText(roster: GwTextRoster, version: string): string {
     '',
     roster.faction,
     detachments ? `${detachments} (${detachmentPoints} Detachment ${detachmentPoints === 1 ? 'Point' : 'Points'})` : 'No detachment',
-    ...(roster.disposition ? [`Force Disposition: ${roster.disposition}`] : []),
+    ...(roster.dispositions.length
+      ? [`Force Disposition${roster.dispositions.length === 1 ? '' : 's'}: ${roster.dispositions.join(', ')}`]
+      : []),
     `${roster.size} (${roster.limit.toLocaleString('en-GB')} Points)`,
   ]
 
@@ -42,9 +46,11 @@ export function toGwText(roster: GwTextRoster, version: string): string {
     lines.push('', headings[group])
     for (const unit of units) {
       lines.push('', `${unit.name} (${unit.points.toLocaleString('en-GB')} Points)`)
+      for (const relation of unit.joined) lines.push(`    • ${relation.label}: ${relation.name}`)
       if (unit.warlord) lines.push('    • Warlord')
       for (const item of unit.wargear) lines.push(`    • ${item.count}x ${item.name}`)
       for (const enhancement of unit.enhancements) lines.push(`    • Enhancement: ${enhancement}`)
+      for (const upgrade of unit.upgrades) lines.push(`    • Enhancement: ${upgrade}`)
     }
   }
 

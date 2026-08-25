@@ -34,6 +34,7 @@ type Evaluation = {
   /** Totals per cost type name, so `pts` reads the way the data names it. */
   costs: Record<string, number>
   points: number
+  selectionPoints: number[][]
   errors: EvaluationError[]
   /** Features this evaluator met and did not act on. Empty is the goal, silence is not. */
   unhandled: string[]
@@ -403,17 +404,29 @@ export function evaluateForces(
   options: EvaluateOptions = {},
 ): Evaluation {
   const census = new Census()
-  const { root } = rosterContext(forces, index, census, options)
+  const { root, forces: builtForces } = rosterContext(forces, index, census, options)
   // Read up front rather than on the first question about a keyword, so a list that
   // asks none still reports the keyword rules this evaluator did not act on.
   grantsOf(root, index, census)
 
   const totals = new Map<string, number>()
+  const selectionPoints = builtForces.map((force) => force.children.map(() => 0))
+  const positions = new Map<Node, [number, number]>()
+  builtForces.forEach((force, forceAt) =>
+    force.children.forEach((selection, selectionAt) => positions.set(selection, [forceAt, selectionAt])),
+  )
   const errors: EvaluationError[] = []
 
   for (const node of descendants(root)) {
     for (const [typeId, value] of costsOf(node, root, index, census)) {
-      totals.set(typeId, (totals.get(typeId) ?? 0) + value * node.count)
+      const amount = value * node.count
+      totals.set(typeId, (totals.get(typeId) ?? 0) + amount)
+      if (typeId === index.pointsTypeId) {
+        let selection: Node | null = node
+        while (selection?.parent && !selection.parent.force) selection = selection.parent
+        const position = selection && positions.get(selection)
+        if (position) selectionPoints[position[0]]![position[1]]! += amount
+      }
     }
     errors.push(...violations(node, root, index, census))
     errors.push(...modifierErrors(node, root, index, census))
@@ -425,7 +438,7 @@ export function evaluateForces(
     costs[name] = (costs[name] ?? 0) + value
   }
 
-  return { costs, points: totals.get(index.pointsTypeId) ?? 0, errors, unhandled: census.list }
+  return { costs, points: totals.get(index.pointsTypeId) ?? 0, selectionPoints, errors, unhandled: census.list }
 }
 
 function modifierErrors(node: Node, root: Node, index: CatalogueIndex, census: Census): EvaluationError[] {
@@ -779,7 +792,10 @@ function groupHolds(group: ConditionGroup, node: Node, root: Node, index: Catalo
  * subject, which is what makes "am I the second of these?" expressible.
  */
 function localHolds(group: LocalConditionGroup, node: Node, root: Node, index: CatalogueIndex, census: Census): boolean {
-  const origins = resolveScope(group.scope, node, root, index, census)
+  const origins =
+    group.scope === 'parent' && group.includeChildForces && node.parent?.force
+      ? [node.parent]
+      : resolveScope(group.scope, node, root, index, census)
   if (!origins.length) return false
 
   const candidates = new Set<Node>()

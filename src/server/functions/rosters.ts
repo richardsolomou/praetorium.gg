@@ -138,8 +138,8 @@ export const exportRoster = createServerFn({ method: 'POST' })
       if (!loaded) throw new Response('this instance has no catalogue', { status: 409 })
       const priced = calculateRosterPrice(data)
       if (!priced) throw new Response('this instance has no catalogue', { status: 409 })
-      const dispositionName = priced.disposition ? (app().rules()?.dispositions.get(priced.disposition) ?? priced.disposition) : null
-      const result = exportRosterFile(data, loaded, { ...priced, disposition: priced.disposition ?? null }, dispositionName)
+      const dispositionNames = priced.dispositions.map((disposition) => app().rules()?.dispositions.get(disposition) ?? disposition)
+      const result = exportRosterFile(data, loaded, { ...priced, disposition: priced.disposition ?? null }, dispositionNames)
       const userId = await currentUserId()
       if (userId) await app().telemetry.capture(userId, 'roster_exported', { unit_count: data.units.length })
       return result

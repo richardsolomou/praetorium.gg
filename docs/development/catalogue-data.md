@@ -121,7 +121,7 @@ Inspect the generated selection before changing evaluator logic. A mismatch can 
 - Cache each complete faction summary against its immutable catalogue snapshot. Filter that summary for reference-page searches instead of repricing every datasheet.
 - Search datasheets by their visible name, keywords, ability names, weapons, weapon keywords and wargear choices. Rank names ahead of metadata, explain metadata matches, and keep full rules prose out of the index so common phrases do not overwhelm useful results.
 - Keep datasheets from secondary imported books in source-labelled allied sections after the primary picker page so players can include or hide them together.
-- Character attachment targets come from ability text. `attachmentOf` supports bullet-list and inline formats.
+- Character attachment targets come from ability text. `attachmentOf` supports bullet-list and inline formats, then adds any targets that a selected enhancement unlocks through the catalogue's structured association conditions.
 - A missing attachment rule means the unit cannot attach.
 - An ability titled `Leader` marks a leader. Other supported attachment abilities default to support.
 - Unless a datasheet says otherwise, a bodyguard unit can have one Leader and one Support unit attached.
