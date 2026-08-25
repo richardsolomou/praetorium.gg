@@ -34,13 +34,6 @@ export const priceRoster = createServerFn({ method: 'POST' })
     }),
   )
 
-export const savedRosters = createServerFn({ method: 'GET' }).handler(() =>
-  rpc(async () => {
-    const id = await currentUserId()
-    return id ? app().service.savedRosters(id) : []
-  }),
-)
-
 export const savedRosterSummaries = createServerFn({ method: 'GET' }).handler(() =>
   rpc(async () => {
     const id = await currentUserId()

@@ -31,6 +31,7 @@ type Props = {
   /** Every side's matchup, so a side the table plays settles its cards from its own. */
   missions: { side: number; mission: SideMission | null }[]
   send: (command: Command) => void
+  attachSavedRoster: (rosterId: string, playerId?: string) => Promise<boolean>
   pending: boolean
   problem: string | null
 }
@@ -58,7 +59,7 @@ const SIZE_OPTIONS: SearchableGroup[] = [
  * seated device at once — it is one conversation across the table rather than five
  * private wizards that have to be reconciled at the end.
  */
-export function Setup({ view, mission, missions, send, pending, problem }: Props) {
+export function Setup({ view, mission, missions, send, attachSavedRoster, pending, problem }: Props) {
   const table = foldSides(view, missions)
   const yours = table.find((side) => side.isViewer)
   const { data: references } = useQuery(gameReferencesQuery())
@@ -277,7 +278,9 @@ export function Setup({ view, mission, missions, send, pending, problem }: Props
             </>
           ) : null}
 
-          {at === 1 ? <ArmiesStep view={view} sides={table} send={send} pending={pending} /> : null}
+          {at === 1 ? (
+            <ArmiesStep view={view} sides={table} send={send} attachSavedRoster={attachSavedRoster} pending={pending} problem={problem} />
+          ) : null}
 
           {/*
            * The mission and the twist are one thing to settle: what this battle is

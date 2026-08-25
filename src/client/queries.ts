@@ -13,7 +13,6 @@ import {
   detachmentRules,
   detachmentDetail,
   faction,
-  factions,
   factionDatasheets,
   factionIndex,
   favouriteFactions,
@@ -34,7 +33,6 @@ import {
   priceRoster,
   rosterAccess,
   savedRosterSummaries,
-  savedRosters,
   savedRosterPoints,
   savedRosterLoadoutDatasheets,
   savedRosterPrice,
@@ -122,7 +120,6 @@ function battleSequence(value: unknown): number | null {
   return screen.kind === 'battle' && typeof screen.view?.seq === 'number' ? screen.view.seq : null
 }
 
-export const factionsQuery = () => queryOptions({ queryKey: ['factions'], queryFn: () => factions(), staleTime: Infinity })
 /** One faction by route slug or catalogue id, for the pages that render exactly one. */
 export const factionQuery = (catalogueId: string) =>
   queryOptions({ queryKey: ['faction', catalogueId], queryFn: () => faction({ data: { catalogueId } }), staleTime: Infinity })
@@ -269,9 +266,6 @@ export const savedRosterPriceQuery = (
     queryFn: () => savedRosterPrice({ data: { id, ...(battle ? { battle } : {}) } }),
   })
 
-export const savedRostersQuery = () =>
-  queryOptions({ queryKey: ['saved-rosters'], queryFn: () => savedRosters(), staleTime: SSR_STALE_TIME })
-
 export const savedRosterSummariesQuery = () =>
   queryOptions({ queryKey: ['saved-roster-summaries'], queryFn: () => savedRosterSummaries(), staleTime: SSR_STALE_TIME })
 
@@ -290,7 +284,6 @@ export function invalidateSavedRosters(queryClient: QueryClient) {
   return Promise.all([
     queryClient.invalidateQueries({ queryKey: ['roster-access'] }),
     queryClient.invalidateQueries({ queryKey: savedRosterSummariesQuery().queryKey }),
-    queryClient.invalidateQueries({ queryKey: savedRostersQuery().queryKey }),
     queryClient.invalidateQueries({ queryKey: savedRosterPointsQuery().queryKey }),
   ])
 }

@@ -6,12 +6,11 @@ import { Tracker } from '../client/components/Tracker'
 import {
   battleQuery,
   catalogueStatusQuery,
-  collectionQuery,
   deploymentsQuery,
   detachmentRulesQuery,
   factionQuery,
   gameReferencesQuery,
-  savedRostersQuery,
+  savedRosterSummariesQuery,
   terrainMatchupIds,
   terrainReferencesQuery,
 } from '../client/queries'
@@ -42,17 +41,10 @@ export const Route = createFileRoute('/battles/$token')({
       .map((side) => screen.view.players.find((player) => player.side === side)?.disposition)
       .filter((value): value is string => Boolean(value))
     const matchupIds = terrainMatchupIds(dispositions)
-    /*
-     * One round for everything the battle's own contents decide.
-     *
-     * The player's lists, their collection, the battlefield and the armies' rules
-     * are facts about this battle or about them, not about each other, so waiting
-     * on them in sequence only added round trips.
-     */
+    // The battle decides which independent reads are needed; start them together once it is known.
     await Promise.all([
       ...instanceData,
-      context.queryClient.ensureQueryData(savedRostersQuery()),
-      context.queryClient.ensureQueryData(collectionQuery()),
+      context.queryClient.ensureQueryData(savedRosterSummariesQuery()),
       ...(matchupIds.length ? [context.queryClient.ensureQueryData(terrainReferencesQuery(matchupIds))] : []),
       ...screen.view.players.flatMap((player) => {
         const { catalogueId, detachmentNames } = armyRulesRequest(player.roster)
@@ -78,11 +70,21 @@ function BattleSession({ token }: { token: string }) {
   const { data: screen } = useQuery(battleQuery(token))
   const seated = screen?.kind === 'battle'
   useLiveBattle(token, seated)
-  const { send, problem, pending } = useCommand(token, seated ? screen.view.seq : 0)
+  const { send, attachSavedRoster, problem, pending } = useCommand(token, seated ? screen.view.seq : 0)
 
   if (!screen) return <Navigate to="/battles" replace />
   if (screen.kind === 'invitation') return <Invitation token={token} free={screen.free} />
   if (screen.view.status === 'setup')
-    return <Setup view={screen.view} mission={screen.mission} missions={screen.missions} send={send} pending={pending} problem={problem} />
+    return (
+      <Setup
+        view={screen.view}
+        mission={screen.mission}
+        missions={screen.missions}
+        send={send}
+        attachSavedRoster={attachSavedRoster}
+        pending={pending}
+        problem={problem}
+      />
+    )
   return <Tracker view={screen.view} missions={screen.missions} send={send} pending={pending} problem={problem} />
 }

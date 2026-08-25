@@ -18,7 +18,7 @@ import { PlayerAvatar } from '../PlayerAvatar'
 import { errorMessage } from '../../queryClient'
 import {
   battlesQuery,
-  factionsQuery,
+  factionIndexQuery,
   gameReferencesQuery,
   leagueQuery,
   leaguesQuery,
@@ -463,7 +463,7 @@ function RosterChooser({
   onClose: () => void
   onChoose: (id: string) => void
 }) {
-  const { data: available } = useQuery(factionsQuery())
+  const { data: available } = useQuery(factionIndexQuery())
   const { data: prices } = useQuery(savedRosterPointsQuery())
   const points = new Map((prices ?? []).map((entry) => [entry.id, entry.points]))
 

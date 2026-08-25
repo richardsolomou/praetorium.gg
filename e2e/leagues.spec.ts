@@ -1,6 +1,6 @@
 import { and, desc, eq } from 'drizzle-orm'
 import { expect, test, type Page } from '@playwright/test'
-import { uniqueName, signUp } from './account'
+import { createRoster, uniqueName, signUp } from './account'
 import { openDatabase } from '../src/db/connection'
 import { leagueEventEntries, leagueEvents, leagues } from '../src/db/schema'
 import { postgresPort } from './stackEnv'
@@ -36,6 +36,11 @@ test('an organizer can make a one-off league recurring without replacing its eve
   const leagueName = uniqueName('Home League')
 
   await signUp(page, ownerName)
+  const rosterName = await createRoster(page, {
+    faction: 'Black Templars',
+    detachment: /Companions of Vehemence/,
+    name: 'Templar roster',
+  })
   await page.goto('/leagues')
   await page.getByRole('button', { name: 'New league' }).click()
   const create = page.getByRole('dialog', { name: 'Create league' })
@@ -45,6 +50,17 @@ test('an organizer can make a one-off league recurring without replacing its eve
   await join(page)
   const eventUrl = page.url()
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(1440)
+
+  await page.getByRole('button', { name: 'Choose roster' }).click()
+  const roster = page.getByRole('dialog', { name: 'Seal a roster' }).locator(`[data-roster="${rosterName}"]`)
+  await expect(roster.getByText('Black Templars', { exact: true })).toBeVisible()
+  await expect(roster.getByText('Companions of Vehemence', { exact: true })).toBeVisible()
+  await page.screenshot({ path: 'test-results/league-roster-dialog.png', fullPage: true })
+  await page.setViewportSize({ width: 390, height: 844 })
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  await page.screenshot({ path: 'test-results/league-roster-dialog-phone.png', fullPage: true })
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.keyboard.press('Escape')
 
   await page.getByRole('button', { name: 'Make recurring' }).click()
   await page.screenshot({ path: 'test-results/make-league-recurring-confirm.png', fullPage: true })

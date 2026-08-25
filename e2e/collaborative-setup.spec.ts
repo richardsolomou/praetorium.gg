@@ -25,7 +25,10 @@ test('battle setup stays in step and shows both players their shared choices', a
   await expect(alice.getByText(bobRoster, { exact: true }).first()).toBeVisible()
 
   await alice.getByRole('button', { name: 'Change roster' }).click()
-  await expect(alice.getByRole('dialog', { name: 'Choose your roster' })).toBeVisible()
+  const rosterChooser = alice.getByRole('dialog', { name: 'Choose your roster' })
+  await expect(rosterChooser).toBeVisible()
+  await expect(rosterChooser.getByText('Necrons', { exact: true })).toBeVisible()
+  await expect(rosterChooser.getByText('Awakened Dynasty', { exact: true })).toBeVisible()
   await alice.screenshot({ path: 'test-results/setup-roster-dialog.png', fullPage: true })
   await alice.keyboard.press('Escape')
 

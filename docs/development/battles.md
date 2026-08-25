@@ -27,7 +27,7 @@ What one model of a unit can take is frozen into the log by `attach-roster`, bes
 
 A roster attached to a battle is a historical snapshot. Battle-qualified roster links use the same read-only roster presentation for its frozen selections, grouped unit cards, loadouts and attachments from the command log rather than the mutable saved roster, so later edits or deletion cannot rewrite the battle. Applied datasheet details are rebuilt from those selections against the instance's verified catalogue. Older logs without selections show their frozen cards, and logs without roster-card details show their submitted text.
 
-The server reprices a catalogue-backed saved roster before attaching it and refuses points, detachment, disposition, or catalogue legality errors. Incomplete catalogue validation remains a warning and does not prevent play. Plain-text rosters remain usable when no catalogue data is available.
+Battle setup loads saved-roster summaries. Choosing one sends only its ID; the server checks ownership, loads its picks, reprices it, freezes its wounds, and refuses points, detachment, disposition, or catalogue legality errors before appending the snapshot. Incomplete catalogue validation remains a warning and does not prevent play. Plain-text rosters remain usable when no catalogue data is available.
 
 A battle created from a revealed league event starts with both accepted entrants seated and their exact stored event snapshots attached. A server-only `lock-league-rosters` command records the league and event tokens in the fold and prevents either roster, or the battle size that validates them, from changing. The event page is the authority for starting this 1v1, so league opponents do not also need a friendship.
 

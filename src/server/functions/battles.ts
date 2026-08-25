@@ -1,4 +1,5 @@
 import { createServerFn } from '@tanstack/react-start'
+import type { Command } from '../../core/battle'
 import { app } from '../app'
 import { currentUserId, requireUser, requireUserId } from '../playerSession'
 import { rosterForUse } from '../rosterUsage'
@@ -95,10 +96,22 @@ export const submit = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const player = await requireUser()
       const startedAt = performance.now()
-      let command = data.command
-      if (command.kind === 'attach-roster' && command.roster.built) {
-        if (!command.roster.id) throw new Response('choose a saved roster', { status: 400 })
-        command = { ...command, roster: (await rosterForUse(player.id, command.roster.id)).snapshot }
+      const submitted = data.command
+      let command: Command
+      if (submitted.kind === 'attach-saved-roster') {
+        const { snapshot } = await rosterForUse(player.id, submitted.rosterId)
+        command = {
+          kind: 'attach-roster',
+          roster: snapshot,
+          prep: null,
+          painted: true,
+          ...(submitted.playerId ? { playerId: submitted.playerId } : {}),
+        }
+      } else if (submitted.kind === 'attach-roster' && submitted.roster.built) {
+        if (!submitted.roster.id) throw new Response('choose a saved roster', { status: 400 })
+        command = { ...submitted, roster: (await rosterForUse(player.id, submitted.roster.id)).snapshot }
+      } else {
+        command = submitted
       }
       const result = await app().service.submit(data.token, player.id, data.expectedSeq, command, app().rules())
       await app().telemetry.capture(player.id, 'battle_command_submitted', {

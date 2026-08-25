@@ -15,7 +15,7 @@ import type { RosterPick } from '../../core/roster'
 import type { RosterSource, RosterVisibility } from '../../core/savedRoster'
 import type { Datasheet } from '../../server/catalogue'
 import { exportRoster, saveRoster } from '../../server/functions'
-import { collectionQuery, factionIndexQuery, factionsQuery, invalidateSavedRosters, priceQuery } from '../queries'
+import { collectionQuery, factionIndexQuery, factionQuery, invalidateSavedRosters, priceQuery } from '../queries'
 import { type KeyedPick, picksAfterDetachmentChange } from '../rosterPicks'
 import { useCollectionMutation } from '../useCollection'
 import { useSettled } from '../useSettled'
@@ -93,7 +93,11 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
   const [pickerQuery, setPickerQuery] = useState('')
   const [pickerFilters, setPickerFilters] = useState<Set<PickerFilter>>(new Set())
   const editingSetup = setupDraft !== null
-  const { data: setupOptions } = useQuery({ ...factionsQuery(), enabled: editingSetup })
+  const { data: loadedFaction } = useQuery({
+    ...factionQuery(catalogueId),
+    enabled: Boolean(catalogueId) && initialFaction?.id !== catalogueId,
+  })
+  const faction = loadedFaction ?? (initialFaction?.id === catalogueId ? initialFaction : null)
   const pickerOpen = wideWorkspace || showing === 'picker'
 
   const setSetupDraft = (draft: RosterSetup | null) => {
@@ -134,8 +138,6 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
     [],
   )
 
-  const faction =
-    setupOptions?.factions.find((entry) => entry.id === catalogueId) ?? (initialFaction?.id === catalogueId ? initialFaction : null)
   const suggested = faction
     ? [shortName(faction.name), faction.detachments.find((entry) => entry.id === detachmentIds[0])?.name].filter(Boolean).join(' — ')
     : ''
@@ -484,11 +486,11 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
           <RosterSetupDialog
             open={editingSetup}
             onOpenChange={(open) => !open && setSetupDraft(null)}
-            factions={setupOptions?.factions ?? []}
+            factionOptions={factionIndex?.factions ?? []}
+            initialFaction={faction}
             value={setupDraft}
             onDraftChange={setSetupDraft}
             hasUnits={Boolean(picks.length)}
-            pending={!setupOptions}
             onSave={(setup) => {
               const changedFaction = setup.catalogueId !== catalogueId
               if (!changedFaction) {
