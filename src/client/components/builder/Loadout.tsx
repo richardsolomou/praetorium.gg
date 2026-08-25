@@ -8,11 +8,13 @@ import { loadoutDatasheetsQuery } from '../../queries'
 import { useSettled } from '../../useSettled'
 import { UnitProfile, WeaponSummary } from './DatasheetPanel'
 import {
+  catalogueRemovalsForFallback,
   controlledProfileCount,
   type LoadoutModel,
   type LoadoutUnit,
   orderedChoices,
   sameWeapon,
+  selectedFallbackAnswers,
   type SpreadCounts,
   wholeSquadTakes,
 } from './loadoutModel'
@@ -139,6 +141,16 @@ export function Loadout({
   const profile = sheet.profiles.find((candidate) => candidate.type === 'Unit')
 
   const { models, loose } = divide(unit)
+  const changeSwap = (key: string, count: number) => {
+    onSwap(key, count)
+    if (count > 0) return
+    const swap = unit.models.flatMap((model) => model.swaps ?? []).find((candidate) => candidate.key === key)
+    if (!swap) return
+    for (const edit of catalogueRemovalsForFallback(swap.takes, unit.choices)) {
+      if ('counts' in edit) onSpread(edit.key, edit.counts)
+      else onChoose(edit.key, edit.optionId)
+    }
+  }
   const visibleLoose = showOptions
     ? loose
     : loose.filter((choice) => choice.options.some((option) => option.count || choice.chosen === option.id))
@@ -161,7 +173,7 @@ export function Loadout({
                   stands={models.get(model) ?? null}
                   onChoose={onChoose}
                   onSpread={onSpread}
-                  onSwap={onSwap}
+                  onSwap={changeSwap}
                   editable={editable}
                   showOptions={showOptions}
                   {...described}
@@ -261,7 +273,12 @@ function divide(unit: LoadoutUnit): { models: Map<LoadoutModel, Stood>; loose: L
   const stood = new Map(unit.models.flatMap((model) => (standingFor(model) ? [[model, standingFor(model)!] as const] : [])))
   const modelled = new Set(unit.models.flatMap((model) => model.rows.map((row) => row.choiceKey)))
   const carded = new Set([...stood.values()].map((found) => found.option.id))
-  const loose = unit.choices.filter((choice) => !modelled.has(choice.key) && !choice.options.every((option) => carded.has(option.id)))
+  const loose = unit.choices.filter(
+    (choice) =>
+      !modelled.has(choice.key) &&
+      !choice.options.every((option) => carded.has(option.id)) &&
+      !selectedFallbackAnswers(choice, unit.models),
+  )
 
   // A card only counts its own option where the group is not drawn below as well.
   const models = new Map([...stood].filter(([, found]) => !loose.includes(found.choice)))

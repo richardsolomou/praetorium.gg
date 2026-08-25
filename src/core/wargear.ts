@@ -11,8 +11,28 @@
 import type { CatalogueIndex } from './catalogue'
 import { isCollective, isCollectiveGroup, isRosterToggle, resolve } from './definitions'
 import type { Selection } from './evaluate'
+import { routeSlug } from './slug'
 
 export type Wargear = { name: string; count: number }
+
+/** Whether two names describe the same piece of wargear, including a named mode or aura. */
+export function sameWargear(one: string, other: string) {
+  return wargearKey(one) === wargearKey(other)
+}
+
+export const wargearKey = (name: string) => routeSlug(wargearBaseName(name))
+
+/** The shared name without a profile mode, aura label, or source marker. */
+export const wargearBaseName = (name: string) => {
+  const trimmed = name.trim()
+  const marked = /^[^\p{L}\p{N}]+/u.test(trimmed)
+  const unmarked = trimmed.replace(/^[^\p{L}\p{N}]+/u, '')
+  const withoutMarkedMode = marked ? unmarked.replace(/\s+-\s+[^-]+$/, '') : unmarked
+  return withoutMarkedMode
+    .replace(/\s*\([^)]*\)\s*$/, '')
+    .trim()
+    .toLocaleLowerCase()
+}
 
 export function wargearOf(selection: Selection, index: CatalogueIndex, carriers = 1): Wargear[] {
   const found = new Map<string, number>()

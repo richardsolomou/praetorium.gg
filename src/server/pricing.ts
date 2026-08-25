@@ -16,7 +16,7 @@ import { allAt } from '../core/selection'
 import { type ChoiceOptions, unitChoices } from '../core/unitChoices'
 import { withUnitSpread } from '../core/unitSpread'
 import { modelCountOf } from '../core/unitSize'
-import { wargearOf } from '../core/wargear'
+import { wargearKey, wargearOf } from '../core/wargear'
 import { app } from './app'
 import { abilityNamesIn, datasheetIn, rulesReferencedIn, toughnessOf } from './catalogue'
 import { detachmentCatalogueDetail } from './catalogueDescriptions'
@@ -576,11 +576,12 @@ export function heldWargear(
   const held = new Map<string, { name: string; count: number }>()
   const named = new Set<string>()
   const add = (name: string, count: number) => {
-    named.add(routeSlug(name))
+    const key = wargearKey(name)
+    named.add(key)
     if (count <= 0) return
-    const seen = held.get(routeSlug(name))
+    const seen = held.get(key)
     if (seen) seen.count += count
-    else held.set(routeSlug(name), { name, count })
+    else held.set(key, { name, count })
   }
 
   for (const kind of models) {
@@ -596,17 +597,18 @@ export function heldWargear(
     for (const swap of kind.swaps ?? []) for (const take of swap.takes) add(take, swap.count)
   }
   const swappedAway = new Set(
-    models.flatMap((kind) => (kind.swaps ?? []).flatMap((swap) => (swap.count > 0 ? swap.gives.map(routeSlug) : []))),
+    models.flatMap((kind) => (kind.swaps ?? []).flatMap((swap) => (swap.count > 0 ? swap.gives.map(wargearKey) : []))),
   )
   for (const piece of catalogued) {
-    const key = routeSlug(piece.name)
+    const key = wargearKey(piece.name)
     if (!named.has(key)) {
       add(piece.name, piece.count)
       continue
     }
     if (swappedAway.has(key)) continue
     const current = held.get(key)
-    if (!current || current.count < piece.count) held.set(key, { name: current?.name ?? piece.name, count: piece.count })
+    if (!current) held.set(key, { name: piece.name, count: piece.count })
+    else if (current.count < piece.count) current.count = piece.count
   }
   return [...held.values()]
 }
@@ -632,7 +634,7 @@ function unitModels(
     modelCountOf(selection, loaded.index),
     wargear,
     chosenSwaps,
-    new Set(choices.flatMap((choice) => choice.options.map((option) => routeSlug(option.name)))),
+    new Set(choices.flatMap((choice) => choice.options.map((option) => wargearKey(option.name)))),
   )
 }
 
@@ -651,6 +653,7 @@ export function composedKinds(
   chosenSwaps: Readonly<Record<string, number>>,
   chooseable: ReadonlySet<string>,
 ): ModelKind[] {
+  const catalogueAnswers = (name: string) => chooseable.has(wargearKey(name))
   // Only where the rules source knows kinds the catalogue does not. A squad of one
   // kind of model is one the catalogue describes perfectly well — Immortals are ten
   // Immortals choosing between two guns — and naming its weapons here as well would
@@ -658,12 +661,12 @@ export function composedKinds(
   if (composition.models.length < 2) return []
   // Nor may a kind claim a weapon the catalogue offers as a choice, for the same
   // reason: the choice is what the player acts on.
-  if (composition.models.some((model) => model.weapons.some((weapon) => chooseable.has(routeSlug(weapon.name))))) return []
+  if (composition.models.some((model) => model.weapons.some((weapon) => catalogueAnswers(weapon.name)))) return []
   // Nor may a swap grant one. An Incursor Squad's haywire mine is written both ways —
   // a wargear option in the rules source and an upgrade in the catalogue — and drawing
   // both puts a stepper among the squad's weapons beside the choice that already
   // answers it.
-  const answered = (takes: readonly string[]) => takes.length > 0 && takes.every((name) => chooseable.has(routeSlug(name)))
+  const answered = (takes: readonly string[]) => takes.length > 0 && takes.every(catalogueAnswers)
   /**
    * Which kind a swap belongs to.
    *
@@ -709,9 +712,8 @@ export function composedKinds(
     const sharesGivenWargear = (one: (typeof mine)[number], other: (typeof mine)[number]) =>
       one.gives.some((given) => other.gives.some((candidate) => candidate.id === given.id))
 
-    // A swap spends one of this kind's bodies, and the weapon it replaces loses one
-    // with it. Every alternative is listed whether taken or not, so the card keeps
-    // the same shape as a squad is put together.
+    // A selected catalogue-backed fallback stays visible so older saved rosters can
+    // remove it; otherwise the catalogue owns that control.
     const swaps = mine.flatMap((option) =>
       option.takes
         .map((take, at) => {
@@ -728,7 +730,7 @@ export function composedKinds(
             free: option.free,
           }
         })
-        .filter((swap) => !answered(swap.takes)),
+        .filter((swap) => swap.count > 0 || !answered(swap.takes)),
     )
 
     // What a weapon is down to once swaps have taken their share of it.

@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.34.15
+
+### Patch Changes
+
+- 0ffff03: Show each champion wargear option only once in the loadout.
+
 ## 0.34.14
 
 ### Patch Changes

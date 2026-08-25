@@ -197,6 +197,61 @@ describe('kinds read from the rules source', () => {
     expect(kinds.flatMap((kind) => kind.swaps ?? [])).toEqual([])
   })
 
+  it('leaves out a suffixed swap granting what the catalogue already offers as a choice', () => {
+    const aura = {
+      ...composition,
+      options: [
+        {
+          id: 'icon',
+          model: 'Incursor Sergeant',
+          gives: [],
+          takes: [[{ id: 'icon', name: 'Icon of Despair (Aura)' }]],
+          free: true,
+        },
+      ],
+    }
+
+    expect(composedKinds(aura, 5, [], {}, new Set(['icon-of-despair'])).flatMap((kind) => kind.swaps ?? [])).toEqual([])
+  })
+
+  it('leaves out a punctuation variant of a catalogue choice', () => {
+    const variants = {
+      ...composition,
+      options: [
+        {
+          id: 'flamer',
+          model: 'Incursor Sergeant',
+          gives: [],
+          takes: [[{ id: 'flamer', name: 'Dragon’s Breath Flamer' }]],
+          free: true,
+        },
+      ],
+    }
+
+    expect(composedKinds(variants, 5, [], {}, new Set(['dragons-breath-flamer'])).flatMap((kind) => kind.swaps ?? [])).toEqual([])
+  })
+
+  it('retains a selected fallback swap when the catalogue also offers it', () => {
+    const aura = {
+      ...composition,
+      options: [
+        {
+          id: 'icon',
+          model: 'Incursor Sergeant',
+          gives: [],
+          takes: [[{ id: 'icon', name: 'Icon of Despair (Aura)' }]],
+          free: true,
+        },
+      ],
+    }
+
+    expect(
+      composedKinds(aura, 5, [], { 'icon#0': 1 }, new Set(['icon-of-despair']))
+        .flatMap((kind) => kind.swaps ?? [])
+        .map(({ key, count }) => ({ key, count })),
+    ).toEqual([{ key: 'icon#0', count: 1 }])
+  })
+
   it('lets one model take additive upgrades from separate options', () => {
     const kinds = composedKinds(
       {
@@ -323,6 +378,16 @@ describe('what a unit is carrying', () => {
     ]
 
     expect(heldWargear(models, choices, [])).toEqual([{ name: 'Accursed weapon', count: 2 }])
+  })
+
+  it('does not count a catalogue choice and its suffixed fallback twice', () => {
+    const models = [
+      kind({
+        swaps: [{ key: 'icon#0', gives: [], takes: ['Icon of Despair (Aura)'], count: 1, max: 1, free: true }],
+      }),
+    ]
+
+    expect(heldWargear(models, [], [{ name: 'Icon of Despair', count: 1 }])).toEqual([{ name: 'Icon of Despair (Aura)', count: 1 }])
   })
 
   it('follows a free swap, naming what is taken and not what is given up', () => {
