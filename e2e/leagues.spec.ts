@@ -101,6 +101,7 @@ test('a recurring league starts each event with fresh registration', async ({ br
   await create.getByRole('button', { name: /^Automatic/ }).click()
   await create.getByRole('button', { name: 'Create league' }).click()
   await expect(owner.getByRole('heading', { name: leagueName })).toBeVisible()
+  await expect(owner.getByRole('link', { name: `Organized by ${ownerName}` })).toHaveAttribute('href', /^\/users\/[^/?]+$/)
   const leagueUrl = new URL(owner.url())
   leagueUrl.search = ''
   const leagueToken = leagueUrl.pathname.split('/').at(-1)
@@ -113,6 +114,10 @@ test('a recurring league starts each event with fresh registration', async ({ br
 
   await owner.reload()
   await expect(owner.getByText('2 accepted')).toBeVisible()
+  await expect(owner.locator(`[data-person="${entrantName}"]`).getByRole('link', { name: entrantName })).toHaveAttribute(
+    'href',
+    /^\/users\/[^/?]+$/,
+  )
   await owner.getByRole('button', { name: 'Reveal all rosters' }).click()
   await owner.getByRole('alertdialog', { name: 'Reveal every roster?' }).getByRole('button', { name: 'Reveal all rosters' }).click()
   await expect(owner.getByRole('button', { name: 'Start new event' })).toBeVisible()

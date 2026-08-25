@@ -175,10 +175,16 @@ export function LeaguePage({ token, eventToken }: { token: string; eventToken?: 
           {league.description ? (
             <p className="mt-5 max-w-3xl whitespace-pre-wrap font-rules text-sm text-dim">{league.description}</p>
           ) : null}
-          <div className="mt-5 flex items-center gap-2 text-sm text-dim">
+          <Link
+            to="/users/$userId"
+            params={{ userId: league.ownerId }}
+            className="group mt-5 flex w-fit items-center gap-2 text-sm text-dim"
+          >
             <PlayerAvatar name={league.ownerName} image={league.ownerImage} className="size-7 text-xs" />
-            Organized by <span className="text-bone">{league.ownerName}</span>
-          </div>
+            <span>
+              Organized by <span className="text-bone group-hover:underline">{league.ownerName}</span>
+            </span>
+          </Link>
         </div>
       </section>
 
@@ -192,11 +198,19 @@ export function LeaguePage({ token, eventToken }: { token: string; eventToken?: 
             <div className="divide-y divide-edge border border-edge bg-panel">
               {league.entries.map((entry) => (
                 <div key={entry.userId} data-person={entry.name} className="flex flex-wrap items-center gap-3 p-3">
-                  <PlayerAvatar name={entry.name} image={entry.image} className="size-9 text-xs" />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-bold uppercase">{entry.name}</p>
-                    <p className="text-xs text-dim">{entryStatus(entry.status, entry.submitted, Boolean(league.revealedAt))}</p>
-                  </div>
+                  <Link
+                    to="/users/$userId"
+                    params={{ userId: entry.userId }}
+                    className="group flex min-w-0 flex-1 items-center gap-3 hover:text-info"
+                  >
+                    <PlayerAvatar name={entry.name} image={entry.image} className="size-9 text-xs" />
+                    <span className="min-w-0">
+                      <span className="block truncate font-bold uppercase group-hover:underline">{entry.name}</span>
+                      <span className="block text-xs text-dim">
+                        {entryStatus(entry.status, entry.submitted, Boolean(league.revealedAt))}
+                      </span>
+                    </span>
+                  </Link>
                   {isOwner && !league.revealedAt ? (
                     <div className="flex gap-1">
                       {entry.status !== 'accepted' ? (
