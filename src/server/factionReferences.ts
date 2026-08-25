@@ -58,14 +58,50 @@ function factionSummary(loaded: LoadedCatalogue, rules: LoadedRules | null | und
   }
 }
 
+/** Both derivations are pure over the two memoized snapshots, so compute each once per snapshot pair. */
+type FactionReferenceCache = {
+  rules: LoadedRules | null | undefined
+  index?: ReturnType<typeof buildFactionIndex>
+  full?: ReturnType<typeof buildFactions>
+}
+const factionReferenceCache = new WeakMap<LoadedCatalogue, FactionReferenceCache>()
+
+function cacheFor(loaded: LoadedCatalogue, rules: LoadedRules | null | undefined) {
+  const existing = factionReferenceCache.get(loaded)
+  if (existing && existing.rules === rules) return existing
+  const fresh: FactionReferenceCache = { rules }
+  factionReferenceCache.set(loaded, fresh)
+  return fresh
+}
+
 export function factionIndexFor(loaded: LoadedCatalogue, rules: LoadedRules | null | undefined) {
+  const cache = cacheFor(loaded, rules)
+  cache.index ??= buildFactionIndex(loaded, rules)
+  return cache.index
+}
+
+export function factionsFor(loaded: LoadedCatalogue, rules: LoadedRules | null | undefined) {
+  const cache = cacheFor(loaded, rules)
+  cache.full ??= buildFactions(loaded, rules)
+  return cache.full
+}
+
+function buildFactionIndex(loaded: LoadedCatalogue, rules: LoadedRules | null | undefined) {
   return {
     revision: loaded.index.revision,
     factions: loaded.factions.map((faction) => factionSummary(loaded, rules, faction).summary),
   }
 }
 
-export function factionsFor(loaded: LoadedCatalogue, rules: LoadedRules | null | undefined) {
+function buildFactions(loaded: LoadedCatalogue, rules: LoadedRules | null | undefined) {
+  // The first faction whose cards carry a slug answers alias lookups for it.
+  const cardsByCardSlug = new Map<string, readonly { name: string; description: string }[]>()
+  for (const cards of rules?.factionRuleCards.values() ?? []) {
+    for (const card of cards) {
+      const slug = routeSlug(card.name)
+      if (!cardsByCardSlug.has(slug)) cardsByCardSlug.set(slug, cards)
+    }
+  }
   return {
     revision: loaded.index.revision,
     factions: loaded.factions.map((faction) => {
@@ -73,9 +109,7 @@ export function factionsFor(loaded: LoadedCatalogue, rules: LoadedRules | null |
       const content = loaded.factionContents.get(summary.slug)
       const rulesId = rulesFaction(rules, routeSlug(faction.name))
       const pageRules = rules?.factionRuleCards.get(summary.slug)
-      const aliasedPageRules = [...(rules?.factionRuleCards.values() ?? [])].find((cards) =>
-        cards.some((card) => routeSlug(card.name) === summary.slug),
-      )
+      const aliasedPageRules = cardsByCardSlug.get(summary.slug)
       return {
         ...summary,
         armyRules: content?.armyRules.length

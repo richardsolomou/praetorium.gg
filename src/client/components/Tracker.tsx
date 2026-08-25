@@ -1,6 +1,6 @@
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { deleteBattle } from '../../server/functions'
 import { battleQuery, battlesQuery, deploymentsQuery, detachmentRulesQuery, gameReferencesQuery } from '../queries'
@@ -33,6 +33,8 @@ type Props = {
   problem: string | null
 }
 
+const EMPTY_KEYS: ReadonlySet<string> = new Set()
+
 /** Narrow screens cannot hold three columns, so they hold one at a time. */
 const VIEWS = ['yours', 'battle', 'theirs'] as const
 type Focus = (typeof VIEWS)[number]
@@ -57,14 +59,20 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
   const [drawTurn, setDrawTurn] = useState<string | null>(null)
   const [drawnForTurns, setDrawnForTurns] = useState<ReadonlySet<string>>(new Set())
   const [drawPaused, setDrawPaused] = useState(false)
-  const table = sides(view, missions)
+  // Refetches that change nothing keep their object identity through the query
+  // cache's structural sharing, so these memos hold between commands too.
+  const table = useMemo(() => sides(view, missions), [view, missions])
   const yours = table.find((side) => side.isViewer)
   const active = table.find((side) => side.isActive)
-  const ruleRequests = table.flatMap((side) =>
-    side.armies.flatMap((army) => {
-      const request = armyRulesRequest(army.roster)
-      return request.catalogueId ? [{ side: side.index, ...request }] : []
-    }),
+  const ruleRequests = useMemo(
+    () =>
+      table.flatMap((side) =>
+        side.armies.flatMap((army) => {
+          const request = armyRulesRequest(army.roster)
+          return request.catalogueId ? [{ side: side.index, ...request }] : []
+        }),
+      ),
+    [table],
   )
   const ruleResults = useQueries({
     queries: ruleRequests.map((request) => detachmentRulesQuery(request.catalogueId, request.detachmentNames)),
@@ -90,36 +98,70 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
       await navigate({ to: '/battles' })
     },
   })
-  const rulesFor = (side: Side) =>
-    ruleResults.flatMap((result, index) => (ruleRequests[index]?.side === side.index && result.data ? [result.data] : []))
+  const rulesFor = useCallback(
+    (side: Side) => ruleResults.flatMap((result, index) => (ruleRequests[index]?.side === side.index && result.data ? [result.data] : [])),
+    [ruleResults, ruleRequests],
+  )
   // The cards are the instance's, not a side's: one deck, read the same way for both.
-  const deck = [...primaryCards(references), ...secondaryCards(references)]
-  const awardsFor = (key: string, mode?: string): Award[] =>
-    (deck.find((card) => card.key === key)?.awards ?? []).filter((award) => appliesInMode(award, mode))
-  const referenceFor = (key: string): ReferenceCard | undefined => deck.find((card) => card.key === key)
-  const writtenFor = (side: Side, key: string): StratagemText | undefined => {
-    const rules = rulesFor(side).find((candidate) => candidate.written.some((entry) => entry.key === key))
-    const written = rules?.written.find((entry) => entry.key === key)
-    return written ? { ...written, keywordRules: rules?.keywordRules ?? [] } : undefined
-  }
-  const whenDrawnFor = (key: string): WhenDrawn | undefined =>
-    secondaryCards(references).find((card) => card.key === key)?.whenDrawn ?? undefined
-  const coreKeysFor = (side: Side) => new Set(rulesFor(side).flatMap((rules) => rules.core.map((stratagem) => stratagem.key)))
+  const secondaryDeck = useMemo(() => secondaryCards(references), [references])
+  const deck = useMemo(() => [...primaryCards(references), ...secondaryDeck], [references, secondaryDeck])
+  // The first card claiming a key answers for it, the way `find` over the deck did.
+  const cardsByKey = useMemo(() => {
+    const cards = new Map<string, ReferenceCard>()
+    for (const card of deck) if (!cards.has(card.key)) cards.set(card.key, card)
+    return cards
+  }, [deck])
+  const awardsFor = useCallback(
+    (key: string, mode?: string): Award[] => (cardsByKey.get(key)?.awards ?? []).filter((award) => appliesInMode(award, mode)),
+    [cardsByKey],
+  )
+  const referenceFor = useCallback((key: string): ReferenceCard | undefined => cardsByKey.get(key), [cardsByKey])
+  const writtenFor = useCallback(
+    (side: Side, key: string): StratagemText | undefined => {
+      const rules = rulesFor(side).find((candidate) => candidate.written.some((entry) => entry.key === key))
+      const written = rules?.written.find((entry) => entry.key === key)
+      return written ? { ...written, keywordRules: rules?.keywordRules ?? [] } : undefined
+    },
+    [rulesFor],
+  )
+  const whenDrawnFor = useCallback(
+    (key: string): WhenDrawn | undefined => secondaryDeck.find((card) => card.key === key)?.whenDrawn ?? undefined,
+    [secondaryDeck],
+  )
+  const coreKeysBySide = useMemo(
+    () =>
+      new Map(table.map((side) => [side.index, new Set(rulesFor(side).flatMap((rules) => rules.core.map((stratagem) => stratagem.key)))])),
+    [table, rulesFor],
+  )
   // Seats are ordered by side, so both devices agree on which player is which colour.
-  const reportPlayers: ReportPlayer[] = view.players.map((player) => ({
-    id: player.id,
-    name: player.name,
-    className: player.side === 0 ? 'text-side-a' : 'text-side-b',
-  }))
+  const reportPlayers: ReportPlayer[] = useMemo(
+    () =>
+      view.players.map((player) => ({
+        id: player.id,
+        name: player.name,
+        className: player.side === 0 ? 'text-side-a' : 'text-side-b',
+      })),
+    [view.players],
+  )
   const finished = view.status === 'finished'
   // A battle whose second seat is still empty draws one side, not a gap where the other goes.
   const oneSided = table.length < 2
   // A side's own mission can state a lower ceiling than the conventional one, and the
   // two sides need not be playing the same mission, so this is asked of each side.
-  const guidesFor = (side: Side) => ({
-    primary: side.mission?.gameCap ?? view.guides.primary,
-    secondary: side.mission?.secondaryGameCap ?? view.guides.secondary,
-  })
+  const guidesBySide = useMemo(
+    () =>
+      new Map(
+        table.map((side) => [
+          side.index,
+          {
+            primary: side.mission?.gameCap ?? view.guides.primary,
+            secondary: side.mission?.secondaryGameCap ?? view.guides.secondary,
+          },
+        ]),
+      ),
+    [table, view.guides.primary, view.guides.secondary],
+  )
+  const guidesFor = (side: Side) => guidesBySide.get(side.index) ?? view.guides
   /** Which panel a narrow screen is showing, in the order the columns sit on a wide one. */
   const shown = (side: Side) => (side.isViewer ? 'yours' : 'theirs')
 
@@ -237,7 +279,7 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
             key={side.index}
             view={view}
             side={side}
-            coreKeys={coreKeysFor(side)}
+            coreKeys={coreKeysBySide.get(side.index) ?? EMPTY_KEYS}
             pending={pending}
             send={send}
             awardsFor={awardsFor}

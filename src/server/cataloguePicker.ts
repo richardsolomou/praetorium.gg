@@ -23,6 +23,18 @@ type UnitSummary = {
 /** Derived from one immutable catalogue snapshot. Search filters this list in memory. */
 const unitSummaryCache = new WeakMap<LoadedCatalogue, Map<string, UnitSummary[]>>()
 
+/** Restriction sets live on the rules snapshot, so identity is a stable cache key. */
+const restrictionsKeys = new WeakMap<FactionRestrictions, string>()
+let nextRestrictionsKey = 0
+function restrictionsKey(restrictions: FactionRestrictions | undefined) {
+  if (!restrictions) return 'none'
+  const existing = restrictionsKeys.get(restrictions)
+  if (existing) return existing
+  const key = `r${++nextRestrictionsKey}`
+  restrictionsKeys.set(restrictions, key)
+  return key
+}
+
 const GROUP_BY_CATEGORY = new Map<string, UnitGroup>([
   ['epic hero', 'epic-hero'],
   ['character', 'character'],
@@ -95,11 +107,11 @@ export function unitsIn(
 ): UnitSummary[] {
   const wanted = query.trim().toLowerCase()
   const included = includeNames && new Set([...includeNames].map(referenceName))
-  // Faction reference pages use one canonical name set. Cache that complete,
-  // priced list so each search does not rebuild every datasheet in the faction.
-  const cacheable = restrictions === undefined
-  const cacheKey = `${catalogueId}:${includeNames ? 'included' : 'all'}:${battleSize ?? 'all'}`
-  const cached = cacheable ? unitSummaryCache.get(loaded)?.get(cacheKey) : undefined
+  // Faction reference pages use one canonical name set, and a restriction set is
+  // one stable value per rules snapshot. Cache the complete, priced list so each
+  // search filters in memory instead of rebuilding every datasheet in the faction.
+  const cacheKey = `${catalogueId}:${includeNames ? 'included' : 'all'}:${battleSize ?? 'all'}:${restrictionsKey(restrictions)}`
+  const cached = unitSummaryCache.get(loaded)?.get(cacheKey)
   if (cached) return searchUnits(loaded, catalogueId, wanted, cached)
   const found: { id: string; name: string; group: UnitGroup; alliedFaction: string | null; alliedOrder: number }[] = []
   const allied = loaded.index.alliedDatasheets.get(catalogueId) ?? new Map<string, { name: string; order: number }>()
@@ -119,10 +131,6 @@ export function unitsIn(
     // the suffix even though they are not matched-play roster choices.
     const ally = allied.get(id)
     if (ally?.name === 'Unaligned Forces') continue
-    if (!cacheable && wanted) {
-      const fields = datasheetSearchFieldsIn(loaded, catalogueId, id)
-      if (!fields || !matchDatasheet(wanted, fields)) continue
-    }
     found.push({ id, name, group: groupOf(entry, target), alliedFaction: ally?.name ?? null, alliedOrder: ally?.order ?? -1 })
   }
 
@@ -148,11 +156,9 @@ export function unitsIn(
       },
     ]
   })
-  if (cacheable) {
-    const entries = unitSummaryCache.get(loaded) ?? new Map<string, UnitSummary[]>()
-    entries.set(cacheKey, summaries)
-    unitSummaryCache.set(loaded, entries)
-  }
+  const entries = unitSummaryCache.get(loaded) ?? new Map<string, UnitSummary[]>()
+  entries.set(cacheKey, summaries)
+  unitSummaryCache.set(loaded, entries)
   return searchUnits(loaded, catalogueId, wanted, summaries)
 }
 

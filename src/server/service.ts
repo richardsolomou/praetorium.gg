@@ -568,6 +568,7 @@ export class PraetoriumService {
       this.events.publish(
         seats.battle.id,
         seats.players.map((player) => player.id),
+        result.seq,
       )
     return { result, screen: this.seatedScreen({ ...seats, log }, userId, rules) }
   }

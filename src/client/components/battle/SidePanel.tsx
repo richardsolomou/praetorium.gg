@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { Button } from '@/components/ui/button'
 import type { Command } from '../../../core/battle'
 import type { BattleView } from '../../../core/battleView'
@@ -29,8 +30,22 @@ type Props = {
  * Command points, victory points, mission cards and stratagems belong to the side.
  * A 2v1 ally does not get a second copy of them, which is why an allied pair fills
  * one of these rather than two.
+ *
+ * Memoized: every prop keeps its identity while the battle stands still, so a
+ * dialog opening in the centre column does not redraw both armies.
  */
-export function SidePanel({ view, side, coreKeys, pending, send, awardsFor, referenceFor, writtenFor, guides, className = '' }: Props) {
+export const SidePanel = memo(function SidePanel({
+  view,
+  side,
+  coreKeys,
+  pending,
+  send,
+  awardsFor,
+  referenceFor,
+  writtenFor,
+  guides,
+  className = '',
+}: Props) {
   const colours = tint(side.index)
   const finished = view.status === 'finished'
   const actionable = !finished
@@ -150,4 +165,4 @@ export function SidePanel({ view, side, coreKeys, pending, send, awardsFor, refe
       </div>
     </section>
   )
-}
+})

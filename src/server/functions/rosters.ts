@@ -40,21 +40,48 @@ export const savedRosters = createServerFn({ method: 'GET' }).handler(() =>
   }),
 )
 
+/**
+ * A list's points change only when the list or the catalogue does, and both are in
+ * the key: `updatedAt` moves with every save and the revision with every snapshot.
+ * A stale entry can therefore never be served, only evicted.
+ */
+const rosterPointsCache = new Map<string, number | null>()
+const ROSTER_POINTS_CACHE_LIMIT = 10_000
+
+function cachedRosterPoints(roster: {
+  id: string
+  updatedAt: Date | number
+  catalogueId: string
+  detachmentIds: string[]
+  disposition: string | null
+  limit: number
+  picks: Parameters<typeof calculateRosterPoints>[0]['units']
+}) {
+  const revision = app().catalogue()?.index.revision ?? 'none'
+  const key = `${roster.id}:${new Date(roster.updatedAt).getTime()}:${revision}`
+  const cached = rosterPointsCache.get(key)
+  if (cached !== undefined || rosterPointsCache.has(key)) return cached ?? null
+  const points = calculateRosterPoints({
+    catalogueId: roster.catalogueId,
+    detachmentIds: roster.detachmentIds,
+    disposition: roster.disposition,
+    limit: roster.limit,
+    units: roster.picks,
+  })
+  if (rosterPointsCache.size >= ROSTER_POINTS_CACHE_LIMIT) {
+    const oldest = rosterPointsCache.keys().next().value
+    if (oldest !== undefined) rosterPointsCache.delete(oldest)
+  }
+  rosterPointsCache.set(key, points)
+  return points
+}
+
 export const savedRosterPoints = createServerFn({ method: 'GET' }).handler(() =>
   rpc(async () => {
     const id = await currentUserId()
     if (!id) return []
     const saved = await app().service.savedRosters(id)
-    return saved.map((roster) => ({
-      id: roster.id,
-      points: calculateRosterPoints({
-        catalogueId: roster.catalogueId,
-        detachmentIds: roster.detachmentIds,
-        disposition: roster.disposition,
-        limit: roster.limit,
-        units: roster.picks,
-      }),
-    }))
+    return saved.map((roster) => ({ id: roster.id, points: cachedRosterPoints(roster) }))
   }),
 )
 
