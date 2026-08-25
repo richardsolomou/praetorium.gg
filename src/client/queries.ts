@@ -21,7 +21,10 @@ import {
   gameReferences,
   globalSearch,
   loadoutDatasheets,
+  listLeagues,
   me,
+  openLeague,
+  openLeagueRoster,
   myBattles,
   openBattle,
   opponents,
@@ -56,6 +59,21 @@ export const userProfileQuery = (userId: string) =>
 export const battlesQuery = () => queryOptions({ queryKey: ['battles'], queryFn: () => myBattles(), staleTime: SSR_STALE_TIME })
 export const opponentsQuery = () => queryOptions({ queryKey: ['opponents'], queryFn: () => opponents(), staleTime: SSR_STALE_TIME })
 export const friendshipsQuery = () => queryOptions({ queryKey: ['friendships'], queryFn: () => friendships(), staleTime: SSR_STALE_TIME })
+export const leaguesQuery = () => queryOptions({ queryKey: ['leagues'], queryFn: () => listLeagues(), staleTime: SSR_STALE_TIME })
+export const leagueQuery = (token: string) =>
+  queryOptions({
+    queryKey: ['league', token],
+    queryFn: () => openLeague({ data: { token } }),
+    staleTime: SSR_STALE_TIME,
+    refetchInterval: ({ state }) => (state.data?.revealedAt ? false : 5_000),
+  })
+export const leagueRosterQuery = (token: string, userId: string) =>
+  queryOptions({
+    queryKey: ['league-roster', token, userId],
+    queryFn: () => openLeagueRoster({ data: { token, userId } }),
+    enabled: Boolean(token && userId),
+    staleTime: Infinity,
+  })
 
 // No polling: `useLiveBattle` refetches this when the server says the battle changed.
 export const battleQuery = (token: string) =>

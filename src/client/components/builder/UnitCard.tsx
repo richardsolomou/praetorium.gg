@@ -16,6 +16,7 @@ type BuiltUnit = {
   entryId: string
   name: string
   points: number
+  modelCount?: number
   wargear: { name: string; count: number }[]
   attachment: Attachment | null
   enhancements: string[]
@@ -113,6 +114,11 @@ export function UnitCard({
             {alliedFaction ? (
               <span className="eyebrow mt-1 flex items-center gap-1 text-info">
                 Allied unit · <FactionLabel faction={alliedFaction} />
+              </span>
+            ) : null}
+            {unit.modelCount !== undefined ? (
+              <span className="mt-1 block text-xs text-dim">
+                {unit.modelCount} {unit.modelCount === 1 ? 'model' : 'models'}
               </span>
             ) : null}
           </span>

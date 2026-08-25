@@ -10,13 +10,14 @@ import { GROUPS } from './builder/groups'
 import { Section } from './builder/Section'
 import { UnitCard } from './builder/UnitCard'
 
-export function BattleRosterSnapshot({ roster }: { roster: Roster }) {
+export function BattleRosterSnapshot({ roster, frozen = false }: { roster: Roster; frozen?: boolean }) {
   const { data: available } = useQuery(factionsQuery())
   const built = roster.built
   const hasRosterCards = built?.units.some((unit) => unit.group !== undefined) ?? false
   const faction = available?.factions.find((entry) => entry.id === built?.catalogueId)
+  const frozenPoints = frozen && built ? built.units.reduce((total, unit) => total + unit.points, 0) : null
 
-  if (roster.id && built?.detachmentIds && built.picks) {
+  if (!frozen && roster.id && built?.detachmentIds && built.picks) {
     return (
       <RosterEditor
         roster={{
@@ -54,13 +55,17 @@ export function BattleRosterSnapshot({ roster }: { roster: Roster }) {
                 </Link>
               ) : null}
               {faction ? <span aria-hidden>·</span> : null}
+              {frozenPoints !== null ? <span className="chip text-info">{frozenPoints} pts</span> : null}
               <Link to="/rosters" search={{ limit: built.limit }} className="shrink-0 text-info hover:text-bone">
                 {GAME_SIZES.find((size) => size.limit === built.limit)?.name ?? `${built.limit} points`}
               </Link>
               {(built.detachments ?? (built.detachment ? [{ name: built.detachment, points: null }] : [])).map((detachment) => (
                 <span key={detachment.name} className="contents">
                   <span aria-hidden>·</span>
-                  <span>{detachment.name}</span>
+                  <span>
+                    {detachment.name}
+                    {frozen && detachment.points !== null ? ` · ${detachment.points} DP` : ''}
+                  </span>
                 </span>
               ))}
             </div>
@@ -82,6 +87,7 @@ export function BattleRosterSnapshot({ roster }: { roster: Roster }) {
                         entryId: unit.entryId ?? unit.key,
                         name: unit.name,
                         points: unit.points,
+                        modelCount: frozen ? unit.models : undefined,
                         wargear: unit.wargear ?? [],
                         attachment: null,
                         enhancements: unit.enhancements ?? [],

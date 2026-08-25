@@ -73,6 +73,101 @@ async function view(token: string, playerId: string) {
   return screen.view
 }
 
+it('stores a readable league snapshot without the saved roster capability', async () => {
+  const { token } = await service.createLeague('alice', {
+    name: 'League',
+    description: '',
+    visibility: 'private',
+    admission: 'automatic',
+    playerLimit: null,
+  })
+  await service.joinLeague(token, 'bob')
+  await service.saveRoster('bob', {
+    id: 'bob-roster',
+    name: 'Bob army',
+    catalogueId: 'catalogue',
+    detachmentIds: [],
+    disposition: null,
+    limit: 2_000,
+    picks: [],
+    prep: null,
+    visibility: 'private',
+    source: 'editable',
+  })
+  const roster = await service.ownRoster('bob', 'bob-roster')
+  if (!roster) throw new Error('expected saved roster')
+  await service.submitLeagueRoster(token, 'bob', roster, {
+    id: 'bob-roster',
+    name: 'Bob army',
+    text: '2,000 pts',
+    built: {
+      catalogueId: 'catalogue',
+      revision: 'revision',
+      limit: 2_000,
+      detachment: null,
+      disposition: null,
+      picks: [],
+      units: [{ key: 'unit', entryId: 'unit', name: 'Intercessors', points: 80, models: 5, group: 'character' }],
+    },
+  })
+  await service.revealLeague(token, 'alice')
+
+  expect(await service.leagueRoster(token, 'bob')).toEqual({
+    name: 'Bob army',
+    text: '2,000 pts',
+    built: {
+      catalogueId: 'catalogue',
+      revision: 'revision',
+      limit: 2_000,
+      detachment: null,
+      disposition: null,
+      picks: [],
+      units: [{ key: 'unit', entryId: 'unit', name: 'Intercessors', points: 80, models: 5, group: 'character' }],
+    },
+  })
+})
+
+it('rejects a league snapshot that cannot be read back', async () => {
+  const { token } = await service.createLeague('alice', {
+    name: 'League',
+    description: '',
+    visibility: 'private',
+    admission: 'automatic',
+    playerLimit: null,
+  })
+  await service.joinLeague(token, 'bob')
+  await service.saveRoster('bob', {
+    id: 'bob-roster',
+    name: 'Bob army',
+    catalogueId: 'catalogue',
+    detachmentIds: [],
+    disposition: null,
+    limit: 2_000,
+    picks: [],
+    prep: null,
+    visibility: 'private',
+    source: 'editable',
+  })
+  const roster = await service.ownRoster('bob', 'bob-roster')
+  if (!roster) throw new Error('expected saved roster')
+
+  await expect(
+    service.submitLeagueRoster(token, 'bob', roster, {
+      name: 'Bob army',
+      text: '2,000 pts',
+      built: {
+        catalogueId: 'catalogue',
+        revision: 'revision',
+        limit: 2_000,
+        detachment: null,
+        disposition: null,
+        units: [{ key: 'unit', name: 'x'.repeat(81), points: 80, models: 5 }],
+      },
+    }),
+  ).rejects.toThrow()
+  expect(await refusalStatus(() => service.revealLeague(token, 'alice'))).toBe(409)
+})
+
 it('chooses tactical draws on the server instead of trusting the submitted card', async () => {
   const { token } = await service.createBattle('alice')
   await service.join(token, 'bob')

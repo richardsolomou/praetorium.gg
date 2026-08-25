@@ -10,6 +10,14 @@ import {
 } from '../core/battle'
 import { commandSchema, rosterPickSchema } from '../core/commands'
 import { ROSTER_SOURCES, ROSTER_VISIBILITIES } from '../core/savedRoster'
+import {
+  LEAGUE_ADMISSIONS,
+  LEAGUE_DESCRIPTION_MAX_LENGTH,
+  LEAGUE_MEMBER_MAX,
+  LEAGUE_MEMBER_MIN,
+  LEAGUE_NAME_MAX_LENGTH,
+  LEAGUE_VISIBILITIES,
+} from '../core/league'
 import { PASSWORD_MIN_LENGTH, SOCIAL_PROVIDERS } from '../authConfig'
 
 const id = z.string().min(1).max(64)
@@ -19,6 +27,20 @@ const slug = z.string().min(1).max(160)
 const rosterLimit = z.number().int().min(0).max(10_000)
 
 export const tokenSchema = z.object({ token })
+export const createLeagueSchema = z.object({
+  name: z.string().trim().min(1, 'name the league').max(LEAGUE_NAME_MAX_LENGTH),
+  description: z.string().trim().max(LEAGUE_DESCRIPTION_MAX_LENGTH).default(''),
+  visibility: z.enum(LEAGUE_VISIBILITIES),
+  admission: z.enum(LEAGUE_ADMISSIONS),
+  playerLimit: z.number().int().min(LEAGUE_MEMBER_MIN).max(LEAGUE_MEMBER_MAX).nullable().default(null),
+})
+export const moderateLeagueEntrySchema = z.object({
+  token,
+  userId: id,
+  status: z.enum(['accepted', 'rejected']),
+})
+export const submitLeagueRosterSchema = z.object({ token, rosterId: id })
+export const leagueRosterSchema = z.object({ token, userId: id })
 /** A roster read may name the battle that entitles the reader to it. */
 export const rosterInBattleSchema = z.object({ id, battle: token.optional() })
 /**

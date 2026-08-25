@@ -19,6 +19,7 @@ Praetorium supports private games between up to three friends, 1v1 or 2v1. Every
 Players can:
 
 - Build, import, save, share, print, and export army lists.
+- Run public or private leagues with approved entry, sealed roster submission, and organizer-controlled reveal.
 - Use faction, detachment, unit, loadout, enhancement, and points data from community catalogues.
 - Configure missions, deployment, terrain, formations, stratagems, and mission cards.
 - Track rounds, phases, command points, victory points, and each unit's models, wounds and losses.
@@ -28,7 +29,7 @@ The app stores one append-only command log for each battle. It derives the curre
 
 ## Scope
 
-Praetorium does not provide matchmaking, chat, public discovery, or a rules encyclopedia. An account is required.
+Praetorium does not provide matchmaking, chat, public battle discovery, rankings, standings, tournament pairings, or a rules encyclopedia. An account is required to participate.
 
 This repository contains no game data. Each instance downloads verified snapshots from the configured community sources.
 

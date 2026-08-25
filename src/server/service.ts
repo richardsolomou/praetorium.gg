@@ -5,6 +5,7 @@ import {
   type Command,
   commandArmy,
   type PlayerId,
+  type Roster,
   reduceBattle,
   type Secondary,
   scoringTarget,
@@ -18,6 +19,14 @@ import { type BattleView, battleView } from '../core/battleView'
 import { battleReport } from '../core/battleReport'
 import type { RosterPick } from '../core/roster'
 import type { RosterSource } from '../core/savedRoster'
+import {
+  LEAGUE_MEMBER_MAX,
+  type LeagueAdmission,
+  type LeagueEntryStatus,
+  type LeagueVisibility,
+  visibleLeagueEntries,
+} from '../core/league'
+import { commandSchema } from '../core/commands'
 import type { BattleHistory, BattleSeats, JoinResult, Repository } from '../db/repository'
 import { type Mission, missionFor } from './rules'
 import { picksSchema, savedPrepSchema } from './schemas'
@@ -63,6 +72,81 @@ export class PraetoriumService {
 
   userById(id: string) {
     return this.repository.userById(id)
+  }
+
+  async createLeague(
+    ownerId: string,
+    input: { name: string; description: string; visibility: LeagueVisibility; admission: LeagueAdmission; playerLimit: number | null },
+  ) {
+    const id = randomId()
+    const token = randomToken()
+    await this.repository.createLeague({ id, token, ownerId, ...input, now: this.clock() })
+    return { token }
+  }
+
+  leagues(userId: string | null) {
+    return this.repository.leaguesVisibleTo(userId)
+  }
+
+  async league(token: string, viewerId: string | null) {
+    const league = await this.repository.leagueByToken(token, viewerId)
+    if (!league) return null
+    return { ...league, entries: visibleLeagueEntries(league.entries, league.ownerId, viewerId) }
+  }
+
+  async joinLeague(token: string, userId: string) {
+    const result = await this.repository.joinLeague(token, userId, this.clock(), LEAGUE_MEMBER_MAX)
+    if (result === 'missing') throw new Response('no such league', { status: 404 })
+    if (result === 'closed') throw new Response('this league has already revealed its rosters', { status: 409 })
+    if (result === 'full') throw new Response('this league is full', { status: 409 })
+    return result
+  }
+
+  async moderateLeagueEntry(token: string, ownerId: string, userId: string, status: Extract<LeagueEntryStatus, 'accepted' | 'rejected'>) {
+    const result = await this.repository.moderateLeagueEntry(token, ownerId, userId, status, LEAGUE_MEMBER_MAX)
+    if (result === 'updated') return
+    if (result === 'forbidden') throw new Response('only the organizer can change entrants', { status: 403 })
+    if (result === 'closed') throw new Response('this league has already revealed its rosters', { status: 409 })
+    if (result === 'full') throw new Response('this league is full', { status: 409 })
+    throw new Response('no such league entrant', { status: 404 })
+  }
+
+  async ownRoster(userId: string, rosterId: string) {
+    const row = await this.repository.roster(rosterId)
+    if (!row || row.userId !== userId) return null
+    return rosterFromRow(row)
+  }
+
+  async submitLeagueRoster(token: string, userId: string, roster: { id: string; updatedAt: number }, snapshot: Roster) {
+    const command = commandSchema.parse({ kind: 'attach-roster', roster: snapshot })
+    if (command.kind !== 'attach-roster') throw new Error('expected a roster snapshot')
+    const { id: _savedRosterId, ...sealed } = command.roster
+    if (
+      !(await this.repository.submitLeagueRoster({
+        token,
+        userId,
+        rosterId: roster.id,
+        rosterName: sealed.name,
+        rosterUpdatedAt: roster.updatedAt,
+        snapshot: JSON.stringify(sealed),
+        now: this.clock(),
+      }))
+    ) {
+      throw new Response('the roster could not be sealed; check your entry and roster, then try again', { status: 409 })
+    }
+  }
+
+  async revealLeague(token: string, ownerId: string) {
+    if (!(await this.repository.revealLeague(token, ownerId, this.clock()))) {
+      throw new Response('fill every configured place and wait for every accepted roster before reveal', { status: 409 })
+    }
+  }
+
+  async leagueRoster(token: string, userId: string) {
+    const stored = await this.repository.leagueRoster(token, userId)
+    if (!stored) return null
+    const command = commandSchema.parse({ kind: 'attach-roster', roster: JSON.parse(stored) })
+    return command.kind === 'attach-roster' ? command.roster : null
   }
 
   unlinkAccount(userId: string, providerId: string, availableProviders: readonly string[]) {
