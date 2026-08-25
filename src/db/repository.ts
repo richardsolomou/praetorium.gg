@@ -567,6 +567,26 @@ export class Repository {
     return this.database.select().from(rosters).where(eq(rosters.userId, userId)).orderBy(desc(rosters.createdAt))
   }
 
+  async rosterSummariesByUser(userId: string) {
+    return this.database
+      .select({
+        id: rosters.id,
+        name: rosters.name,
+        catalogueId: rosters.catalogueId,
+        detachmentId: rosters.detachmentId,
+        disposition: rosters.disposition,
+        limit: rosters.limit,
+        unitCount: sql<number>`jsonb_array_length(${rosters.picks}::jsonb)`,
+        visibility: rosters.visibility,
+        source: rosters.source,
+        createdAt: rosters.createdAt,
+        updatedAt: rosters.updatedAt,
+      })
+      .from(rosters)
+      .where(eq(rosters.userId, userId))
+      .orderBy(desc(rosters.createdAt))
+  }
+
   async roster(id: string) {
     const [row] = await this.database.select().from(rosters).where(eq(rosters.id, id)).limit(1)
     return row

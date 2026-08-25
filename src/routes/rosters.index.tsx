@@ -25,7 +25,8 @@ import { readWorkspaceState, writeWorkspaceState } from '../client/components/wo
 import { SignInRequired } from '../client/components/SignInRequired'
 import { PageState } from '../client/components/PageState'
 import { useFavouriteFactions } from '../client/favouriteFactions'
-import { factionsQuery, meQuery, savedRosterPointsQuery, savedRostersQuery } from '../client/queries'
+import { factionsQuery, meQuery, savedRosterPointsQuery, savedRosterSummariesQuery } from '../client/queries'
+import { useMounted } from '../client/useMounted'
 import { useOrigin } from '../client/useOrigin'
 import { GAME_SIZES } from '../core/battle'
 import { ROSTER_VISIBILITIES, type RosterVisibility } from '../core/savedRoster'
@@ -55,18 +56,15 @@ export const Route = createFileRoute('/rosters/')({
     }
   },
   loader: ({ context }) =>
-    Promise.all([
-      context.queryClient.ensureQueryData(savedRostersQuery()),
-      context.queryClient.ensureQueryData(savedRosterPointsQuery()),
-      context.queryClient.ensureQueryData(factionsQuery()),
-    ]),
+    Promise.all([context.queryClient.ensureQueryData(savedRosterSummariesQuery()), context.queryClient.ensureQueryData(factionsQuery())]),
   component: RosterLibrary,
 })
 
 function RosterLibrary() {
   const { data: me } = useQuery(meQuery())
-  const { data: saved = [] } = useQuery(savedRostersQuery())
-  const { data: prices } = useQuery(savedRosterPointsQuery())
+  const { data: saved = [] } = useQuery(savedRosterSummariesQuery())
+  const mounted = useMounted()
+  const { data: prices } = useQuery({ ...savedRosterPointsQuery(), enabled: mounted })
   const { data: available } = useQuery(factionsQuery())
   const search = Route.useSearch()
   const navigate = useNavigate()
@@ -200,7 +198,7 @@ function RosterLibrary() {
           factions={available.factions}
           value={session?.draft ?? setupOf(editing)}
           onDraftChange={(draft) => setEditing({ rosterId: editing.id, draft })}
-          hasUnits={Boolean(editing.picks.length)}
+          hasUnits={Boolean(editing.unitCount)}
           pending={actions.update.isPending}
           onSave={(setup) => actions.update.mutate({ roster: editing, setup }, { onSuccess: () => setEditing(null) })}
         />

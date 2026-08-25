@@ -40,6 +40,13 @@ export const savedRosters = createServerFn({ method: 'GET' }).handler(() =>
   }),
 )
 
+export const savedRosterSummaries = createServerFn({ method: 'GET' }).handler(() =>
+  rpc(async () => {
+    const id = await currentUserId()
+    return id ? app().service.savedRosterSummaries(id) : []
+  }),
+)
+
 /**
  * A list's points change only when the list or the catalogue does, and both are in
  * the key: `updatedAt` moves with every save and the revision with every snapshot.
@@ -47,6 +54,11 @@ export const savedRosters = createServerFn({ method: 'GET' }).handler(() =>
  */
 const rosterPointsCache = new Map<string, number | null>()
 const ROSTER_POINTS_CACHE_LIMIT = 10_000
+
+function rosterRevisionKey(roster: { id: string; updatedAt: Date | number }) {
+  const revision = app().catalogue()?.index.revision ?? 'none'
+  return `${roster.id}:${new Date(roster.updatedAt).getTime()}:${revision}`
+}
 
 function cachedRosterPoints(roster: {
   id: string
@@ -57,8 +69,7 @@ function cachedRosterPoints(roster: {
   limit: number
   picks: Parameters<typeof calculateRosterPoints>[0]['units']
 }) {
-  const revision = app().catalogue()?.index.revision ?? 'none'
-  const key = `${roster.id}:${new Date(roster.updatedAt).getTime()}:${revision}`
+  const key = rosterRevisionKey(roster)
   const cached = rosterPointsCache.get(key)
   if (cached !== undefined || rosterPointsCache.has(key)) return cached ?? null
   const points = calculateRosterPoints({
@@ -85,24 +96,55 @@ export const savedRosterPoints = createServerFn({ method: 'GET' }).handler(() =>
   }),
 )
 
+const rosterPriceCache = new Map<string, ReturnType<typeof calculateRosterPrice>>()
+const ROSTER_PRICE_CACHE_LIMIT = 500
+
+function cachedRosterPrice(roster: {
+  id: string
+  updatedAt: Date | number
+  catalogueId: string
+  detachmentIds: string[]
+  disposition: string | null
+  limit: number
+  picks: Parameters<typeof calculateRosterPrice>[0]['units']
+}) {
+  const key = rosterRevisionKey(roster)
+  const cached = rosterPriceCache.get(key)
+  if (cached !== undefined || rosterPriceCache.has(key)) return cached ?? null
+  const price = calculateRosterPrice({
+    catalogueId: roster.catalogueId,
+    detachmentIds: roster.detachmentIds,
+    disposition: roster.disposition,
+    limit: roster.limit,
+    units: roster.picks,
+  })
+  if (rosterPriceCache.size >= ROSTER_PRICE_CACHE_LIMIT) {
+    const oldest = rosterPriceCache.keys().next().value
+    if (oldest !== undefined) rosterPriceCache.delete(oldest)
+  }
+  rosterPriceCache.set(key, price)
+  return price
+}
+
 export const sharedRoster = createServerFn({ method: 'GET' })
   .validator(rosterInBattleSchema)
   .handler(({ data }) => rpc(async () => app().service.sharedRoster(data.id, await currentUserId(), data.battle ?? null)))
+
+export const rosterAccess = createServerFn({ method: 'GET' })
+  .validator(rosterInBattleSchema)
+  .handler(({ data }) =>
+    rpc(async () => {
+      const access = await app().service.rosterAccess(data.id, await currentUserId(), data.battle ?? null)
+      return access ? { ...access, price: cachedRosterPrice(access.roster) } : null
+    }),
+  )
 
 export const savedRosterPrice = createServerFn({ method: 'GET' })
   .validator(rosterInBattleSchema)
   .handler(({ data }) =>
     rpc(async () => {
       const roster = await app().service.sharedRoster(data.id, await currentUserId(), data.battle ?? null)
-      return roster
-        ? calculateRosterPrice({
-            catalogueId: roster.catalogueId,
-            detachmentIds: roster.detachmentIds,
-            disposition: roster.disposition,
-            limit: roster.limit,
-            units: roster.picks,
-          })
-        : null
+      return roster ? cachedRosterPrice(roster) : null
     }),
   )
 

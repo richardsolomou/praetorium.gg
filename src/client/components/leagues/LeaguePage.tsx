@@ -24,7 +24,7 @@ import {
   leaguesQuery,
   meQuery,
   savedRosterPointsQuery,
-  savedRostersQuery,
+  savedRosterSummariesQuery,
 } from '../../queries'
 import {
   createLeagueBattle,
@@ -43,7 +43,7 @@ export function LeaguePage({ token, eventToken }: { token: string; eventToken?: 
   const navigate = useNavigate()
   const { data: me } = useQuery(meQuery())
   const { data: league } = useQuery(leagueQuery(token, eventToken))
-  const { data: rosters = [] } = useQuery(savedRostersQuery())
+  const { data: rosters = [] } = useQuery(savedRosterSummariesQuery())
   const { data: references } = useQuery(gameReferencesQuery())
   const [choosing, setChoosing] = useState(false)
   const [revealing, setRevealing] = useState(false)
@@ -457,7 +457,7 @@ function RosterChooser({
   onChoose,
 }: {
   open: boolean
-  rosters: Awaited<ReturnType<NonNullable<ReturnType<typeof savedRostersQuery>['queryFn']>>>
+  rosters: Awaited<ReturnType<NonNullable<ReturnType<typeof savedRosterSummariesQuery>['queryFn']>>>
   pending: boolean
   error: Error | null
   onClose: () => void

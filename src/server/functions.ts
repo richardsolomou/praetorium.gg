@@ -84,7 +84,7 @@ export const globalSearch = createServerFn({ method: 'GET' })
           // Bounded: search offers the recently active battles, not a fold of every
           // battle the account has ever played on each keystroke.
           const [rosters, page] = await Promise.all([
-            app().service.savedRosters(userId),
+            app().service.savedRosterSummaries(userId),
             app().service.battles(userId, app().rules(), { limit: 50 }),
           ])
           return { rosters, battles: page.battles }

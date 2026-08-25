@@ -32,6 +32,8 @@ import {
   sharedBattles,
   userProfile,
   priceRoster,
+  rosterAccess,
+  savedRosterSummaries,
   savedRosters,
   savedRosterPoints,
   savedRosterLoadoutDatasheets,
@@ -270,6 +272,9 @@ export const savedRosterPriceQuery = (
 export const savedRostersQuery = () =>
   queryOptions({ queryKey: ['saved-rosters'], queryFn: () => savedRosters(), staleTime: SSR_STALE_TIME })
 
+export const savedRosterSummariesQuery = () =>
+  queryOptions({ queryKey: ['saved-roster-summaries'], queryFn: () => savedRosterSummaries(), staleTime: SSR_STALE_TIME })
+
 /** Every list's total in one answer, so a library of twenty rows is one request rather than twenty. */
 export const savedRosterPointsQuery = () =>
   queryOptions({ queryKey: ['saved-roster-points'], queryFn: () => savedRosterPoints(), staleTime: SSR_STALE_TIME })
@@ -283,6 +288,8 @@ export const savedRosterPointsQuery = () =>
  */
 export function invalidateSavedRosters(queryClient: QueryClient) {
   return Promise.all([
+    queryClient.invalidateQueries({ queryKey: ['roster-access'] }),
+    queryClient.invalidateQueries({ queryKey: savedRosterSummariesQuery().queryKey }),
     queryClient.invalidateQueries({ queryKey: savedRostersQuery().queryKey }),
     queryClient.invalidateQueries({ queryKey: savedRosterPointsQuery().queryKey }),
   ])
@@ -293,6 +300,13 @@ export const sharedRosterQuery = (id: string, battle?: string) =>
   queryOptions({
     queryKey: ['shared-roster', id, battle ?? null],
     queryFn: () => sharedRoster({ data: { id, ...(battle ? { battle } : {}) } }),
+    staleTime: SSR_STALE_TIME,
+  })
+
+export const rosterAccessQuery = (id: string, battle?: string) =>
+  queryOptions({
+    queryKey: ['roster-access', id, battle ?? null],
+    queryFn: () => rosterAccess({ data: { id, ...(battle ? { battle } : {}) } }),
     staleTime: SSR_STALE_TIME,
   })
 

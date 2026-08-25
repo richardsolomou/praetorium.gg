@@ -2,13 +2,13 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import posthog from 'posthog-js'
 import { useState } from 'react'
 import { ROSTER_NAME_MAX_LENGTH } from '../../../core/battle'
-import { deleteRoster, exportRoster, saveRoster, setRosterVisibility } from '../../../server/functions'
-import { invalidateSavedRosters, savedRostersQuery } from '../../queries'
+import { deleteRoster, exportRoster, saveRoster, setRosterVisibility, sharedRoster } from '../../../server/functions'
+import { invalidateSavedRosters, savedRosterSummariesQuery } from '../../queries'
 import { errorMessage } from '../../queryClient'
 import type { RosterSetup } from '../RosterSetupDialog'
 
 /** One saved list, as the library reads it back. */
-export type SavedRoster = Awaited<ReturnType<NonNullable<ReturnType<typeof savedRostersQuery>['queryFn']>>>[number]
+export type SavedRoster = Awaited<ReturnType<NonNullable<ReturnType<typeof savedRosterSummariesQuery>['queryFn']>>>[number]
 
 /**
  * Everything a saved list can have done to it from the library.
@@ -24,10 +24,16 @@ export function useRosterActions(origin: string) {
   const [copiedFor, setCopiedFor] = useState<string | null>(null)
   const [shareProblem, setShareProblem] = useState<string | null>(null)
   const [exportText, setExportText] = useState<string | null>(null)
+  const load = async (roster: SavedRoster) => {
+    const complete = await sharedRoster({ data: { id: roster.id } })
+    if (!complete) throw new Error('That roster could not be loaded.')
+    return complete
+  }
 
   const duplicate = useMutation({
-    mutationFn: (roster: SavedRoster) =>
-      saveRoster({
+    mutationFn: async (summary: SavedRoster) => {
+      const roster = await load(summary)
+      return saveRoster({
         data: {
           name: `Copy of ${roster.name}`.slice(0, ROSTER_NAME_MAX_LENGTH),
           catalogueId: roster.catalogueId,
@@ -39,9 +45,10 @@ export function useRosterActions(origin: string) {
           visibility: roster.visibility,
           source: roster.source,
         },
-      }),
+      })
+    },
     onSuccess: (_result, roster) => {
-      posthog.capture('roster_duplicated', { unit_count: roster.picks.length })
+      posthog.capture('roster_duplicated', { unit_count: roster.unitCount })
       return refresh()
     },
   })
@@ -55,8 +62,9 @@ export function useRosterActions(origin: string) {
   })
 
   const take = useMutation({
-    mutationFn: (roster: SavedRoster) =>
-      exportRoster({
+    mutationFn: async (summary: SavedRoster) => {
+      const roster = await load(summary)
+      return exportRoster({
         data: {
           catalogueId: roster.catalogueId,
           detachmentIds: roster.detachmentIds,
@@ -65,13 +73,15 @@ export function useRosterActions(origin: string) {
           name: roster.name,
           units: roster.picks,
         },
-      }),
+      })
+    },
     onSuccess: ({ text }) => setExportText(text),
   })
 
   const update = useMutation({
-    mutationFn: ({ roster, setup }: { roster: SavedRoster; setup: RosterSetup }) =>
-      saveRoster({
+    mutationFn: async ({ roster: summary, setup }: { roster: SavedRoster; setup: RosterSetup }) => {
+      const roster = await load(summary)
+      return saveRoster({
         data: {
           id: roster.id,
           ...setup,
@@ -81,7 +91,8 @@ export function useRosterActions(origin: string) {
           visibility: setup.visibility,
           source: roster.source,
         },
-      }),
+      })
+    },
     onSuccess: refresh,
   })
 
