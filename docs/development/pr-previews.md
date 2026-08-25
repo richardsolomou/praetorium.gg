@@ -22,7 +22,7 @@ Previews use a Postgres server that is separate from production. Each preview ha
 
 Any other key is refused rather than passed through. The preview Postgres is reachable from Dokploy and not from a CI runner, which is why the database is created inside the container rather than by the workflow.
 
-The next preview deployment removes databases for closed pull requests. Dokploy supplies the active preview list. If that request fails, cleanup removes nothing. The pull request comment contains both test logins. Each preview downloads the current verified snapshot.
+Each deployment may reset only its own database. This keeps concurrent previews isolated even when Dokploy restarts an older deployment. The pull request comment contains both test logins. Each preview downloads the current verified snapshot.
 
 Closing or merging removes the instance and its preview images. A weekly prune removes previews and images left behind by a failed cleanup.
 
