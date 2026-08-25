@@ -69,6 +69,14 @@ describe('command schema', () => {
     })
   })
 
+  it('accepts the event behind a league roster lock', () => {
+    expect(commandSchema.parse({ kind: 'lock-league-rosters', leagueToken: 'league', eventToken: 'event' })).toEqual({
+      kind: 'lock-league-rosters',
+      leagueToken: 'league',
+      eventToken: 'event',
+    })
+  })
+
   it('rejects a setup section outside the wizard', () => {
     // Bound by the constant rather than a number, so adding a section moves both together.
     expect(commandSchema.safeParse({ kind: 'set-setup-step', step: SETUP_STEP_MAX }).success).toBe(true)

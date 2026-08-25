@@ -251,8 +251,8 @@ export const leagues = pgTable(
     visibility: text('visibility', { enum: ['public', 'private'] }).notNull(),
     admission: text('admission', { enum: ['automatic', 'approval'] }).notNull(),
     playerLimit: integer('player_limit'),
+    recurring: boolean('recurring').notNull().default(false),
     createdAt: bigint('created_at', { mode: 'number' }).notNull(),
-    revealedAt: bigint('revealed_at', { mode: 'number' }),
   },
   (table) => [
     uniqueIndex('leagues_token_unique').on(table.token),
@@ -261,12 +261,31 @@ export const leagues = pgTable(
   ],
 )
 
-export const leagueEntries = pgTable(
-  'league_entries',
+export const leagueEvents = pgTable(
+  'league_events',
   {
+    id: text('id').primaryKey(),
+    token: text('token').notNull(),
     leagueId: text('league_id')
       .notNull()
       .references(() => leagues.id, { onDelete: 'cascade' }),
+    number: integer('number').notNull(),
+    createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+    revealedAt: bigint('revealed_at', { mode: 'number' }),
+  },
+  (table) => [
+    uniqueIndex('league_events_token_unique').on(table.token),
+    uniqueIndex('league_events_league_id_number_unique').on(table.leagueId, table.number),
+    index('league_events_league_id_created_at_index').on(table.leagueId, table.createdAt),
+  ],
+)
+
+export const leagueEventEntries = pgTable(
+  'league_event_entries',
+  {
+    eventId: text('event_id')
+      .notNull()
+      .references(() => leagueEvents.id, { onDelete: 'cascade' }),
     userId: text('user_id')
       .notNull()
       .references(() => user.id, { onDelete: 'cascade' }),
@@ -277,7 +296,7 @@ export const leagueEntries = pgTable(
     rosterSnapshot: text('roster_snapshot'),
     submittedAt: bigint('submitted_at', { mode: 'number' }),
   },
-  (table) => [primaryKey({ columns: [table.leagueId, table.userId] }), index('league_entries_user_id_index').on(table.userId)],
+  (table) => [primaryKey({ columns: [table.eventId, table.userId] }), index('league_event_entries_user_id_index').on(table.userId)],
 )
 
 /**
@@ -356,7 +375,8 @@ export const schema = {
   commands,
   rosters,
   leagues,
-  leagueEntries,
+  leagueEvents,
+  leagueEventEntries,
   collection,
   favouriteFactions,
   favouriteDetachments,

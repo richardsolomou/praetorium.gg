@@ -18,16 +18,26 @@ export function CreateLeague() {
   const [description, setDescription] = useState('')
   const [visibility, setVisibility] = useState<LeagueVisibility>('private')
   const [admission, setAdmission] = useState<LeagueAdmission>('approval')
+  const [cadence, setCadence] = useState<'one-off' | 'recurring'>('one-off')
   const [playerLimit, setPlayerLimit] = useState<number | ''>('')
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const create = useMutation({
     mutationFn: () =>
-      createLeague({ data: { name, description, visibility, admission, playerLimit: playerLimit === '' ? null : playerLimit } }),
-    onSuccess: async ({ token }) => {
+      createLeague({
+        data: {
+          name,
+          description,
+          visibility,
+          admission,
+          playerLimit: playerLimit === '' ? null : playerLimit,
+          recurring: cadence === 'recurring',
+        },
+      }),
+    onSuccess: async ({ token, eventToken }) => {
       await queryClient.invalidateQueries({ queryKey: leaguesQuery().queryKey })
       setOpen(false)
-      await navigate({ to: '/leagues/$token', params: { token } })
+      await navigate({ to: '/leagues/$token', params: { token }, search: { event: eventToken } })
     },
   })
 
@@ -76,6 +86,15 @@ export function CreateLeague() {
             />
             <p className="text-xs text-dim">If set, every place must be accepted and sealed before reveal.</p>
           </div>
+          <Choice
+            label="Events"
+            value={cadence}
+            options={[
+              { value: 'one-off', title: 'One-off', detail: 'Run one registration and roster reveal.' },
+              { value: 'recurring', title: 'Recurring', detail: 'Open fresh events from the same league page.' },
+            ]}
+            onChange={setCadence}
+          />
           <Choice
             label="Visibility"
             value={visibility}

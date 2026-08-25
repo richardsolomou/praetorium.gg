@@ -33,15 +33,24 @@ export const createLeagueSchema = z.object({
   visibility: z.enum(LEAGUE_VISIBILITIES),
   admission: z.enum(LEAGUE_ADMISSIONS),
   playerLimit: z.number().int().min(LEAGUE_MEMBER_MIN).max(LEAGUE_MEMBER_MAX).nullable().default(null),
+  recurring: z.boolean().default(false),
 })
+export const leagueEventSchema = z.object({ token, eventToken: token.optional() })
+export const openLeagueSchema = z.object({ token, eventToken: token.optional() })
 export const moderateLeagueEntrySchema = z.object({
   token,
+  eventToken: token.optional(),
   userId: id,
   status: z.enum(['accepted', 'rejected']),
 })
-export const submitLeagueRosterSchema = z.object({ token, rosterId: id })
-export const leagueRosterSchema = z.object({ token, userId: id })
-export const createLeagueBattleSchema = z.object({ token, opponentId: id, missionPackId: id.nullable().default(null) })
+export const submitLeagueRosterSchema = z.object({ token, eventToken: token.optional(), rosterId: id })
+export const leagueRosterSchema = z.object({ token, eventToken: token.optional(), userId: id })
+export const createLeagueBattleSchema = z.object({
+  token,
+  eventToken: token.optional(),
+  opponentId: id,
+  missionPackId: id.nullable().default(null),
+})
 /** A roster read may name the battle that entitles the reader to it. */
 export const rosterInBattleSchema = z.object({ id, battle: token.optional() })
 /**

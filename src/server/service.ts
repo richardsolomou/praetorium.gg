@@ -77,39 +77,77 @@ export class PraetoriumService {
 
   async createLeague(
     ownerId: string,
-    input: { name: string; description: string; visibility: LeagueVisibility; admission: LeagueAdmission; playerLimit: number | null },
+    input: {
+      name: string
+      description: string
+      visibility: LeagueVisibility
+      admission: LeagueAdmission
+      playerLimit: number | null
+      recurring?: boolean
+    },
   ) {
     const id = randomId()
     const token = randomToken()
-    await this.repository.createLeague({ id, token, ownerId, ...input, now: this.clock() })
-    return { token }
+    const eventId = randomId()
+    const eventToken = randomToken()
+    await this.repository.createLeague({ id, token, eventId, eventToken, ownerId, ...input, now: this.clock() })
+    return { token, eventToken }
+  }
+
+  async createLeagueEvent(token: string, ownerId: string) {
+    const eventToken = randomToken()
+    const result = await this.repository.createLeagueEvent({
+      id: randomId(),
+      token: eventToken,
+      leagueToken: token,
+      ownerId,
+      now: this.clock(),
+    })
+    if (result === 'created') return { eventToken }
+    if (result === 'missing') throw new Response('no such league', { status: 404 })
+    if (result === 'forbidden') throw new Response('only the organizer can start an event', { status: 403 })
+    if (result === 'one-off') throw new Response('this league is not recurring', { status: 409 })
+    throw new Response('reveal the current event before starting another', { status: 409 })
+  }
+
+  async makeLeagueRecurring(token: string, ownerId: string) {
+    const result = await this.repository.makeLeagueRecurring(token, ownerId)
+    if (result === 'updated') return
+    if (result === 'missing') throw new Response('no such league', { status: 404 })
+    throw new Response('only the organizer can make a league recurring', { status: 403 })
   }
 
   leagues(userId: string | null) {
     return this.repository.leaguesVisibleTo(userId)
   }
 
-  async league(token: string, viewerId: string | null) {
-    const league = await this.repository.leagueByToken(token, viewerId)
+  async league(token: string, viewerId: string | null, eventToken?: string) {
+    const league = await this.repository.leagueByToken(token, viewerId, eventToken)
     if (!league) return null
     return { ...league, entries: visibleLeagueEntries(league.entries, league.ownerId, viewerId) }
   }
 
-  async joinLeague(token: string, userId: string) {
-    const result = await this.repository.joinLeague(token, userId, this.clock(), LEAGUE_MEMBER_MAX)
+  async joinLeague(token: string, userId: string, eventToken?: string) {
+    const result = await this.repository.joinLeague(token, userId, this.clock(), LEAGUE_MEMBER_MAX, eventToken)
     if (result === 'missing') throw new Response('no such league', { status: 404 })
-    if (result === 'closed') throw new Response('this league has already revealed its rosters', { status: 409 })
-    if (result === 'full') throw new Response('this league is full', { status: 409 })
+    if (result === 'closed') throw new Response('this event has already revealed its rosters', { status: 409 })
+    if (result === 'full') throw new Response('this event is full', { status: 409 })
     return result
   }
 
-  async moderateLeagueEntry(token: string, ownerId: string, userId: string, status: Extract<LeagueEntryStatus, 'accepted' | 'rejected'>) {
-    const result = await this.repository.moderateLeagueEntry(token, ownerId, userId, status, LEAGUE_MEMBER_MAX)
+  async moderateLeagueEntry(
+    token: string,
+    ownerId: string,
+    userId: string,
+    status: Extract<LeagueEntryStatus, 'accepted' | 'rejected'>,
+    eventToken?: string,
+  ) {
+    const result = await this.repository.moderateLeagueEntry(token, ownerId, userId, status, LEAGUE_MEMBER_MAX, eventToken)
     if (result === 'updated') return
     if (result === 'forbidden') throw new Response('only the organizer can change entrants', { status: 403 })
-    if (result === 'closed') throw new Response('this league has already revealed its rosters', { status: 409 })
-    if (result === 'full') throw new Response('this league is full', { status: 409 })
-    throw new Response('no such league entrant', { status: 404 })
+    if (result === 'closed') throw new Response('this event has already revealed its rosters', { status: 409 })
+    if (result === 'full') throw new Response('this event is full', { status: 409 })
+    throw new Response('no such event entrant', { status: 404 })
   }
 
   async ownRoster(userId: string, rosterId: string) {
@@ -118,7 +156,13 @@ export class PraetoriumService {
     return rosterFromRow(row)
   }
 
-  async submitLeagueRoster(token: string, userId: string, roster: { id: string; updatedAt: number }, snapshot: Roster) {
+  async submitLeagueRoster(
+    token: string,
+    userId: string,
+    roster: { id: string; updatedAt: number },
+    snapshot: Roster,
+    eventToken?: string,
+  ) {
     const command = commandSchema.parse({ kind: 'attach-roster', roster: snapshot })
     if (command.kind !== 'attach-roster') throw new Error('expected a roster snapshot')
     const { id: _savedRosterId, ...sealed } = command.roster
@@ -131,27 +175,28 @@ export class PraetoriumService {
         rosterUpdatedAt: roster.updatedAt,
         snapshot: JSON.stringify(sealed),
         now: this.clock(),
+        eventToken,
       }))
     ) {
       throw new Response('the roster could not be sealed; check your entry and roster, then try again', { status: 409 })
     }
   }
 
-  async revealLeague(token: string, ownerId: string) {
-    if (!(await this.repository.revealLeague(token, ownerId, this.clock()))) {
+  async revealLeague(token: string, ownerId: string, eventToken?: string) {
+    if (!(await this.repository.revealLeague(token, ownerId, this.clock(), eventToken))) {
       throw new Response('fill every configured place and wait for every accepted roster before reveal', { status: 409 })
     }
   }
 
-  async leagueRoster(token: string, userId: string) {
-    const stored = await this.repository.leagueRoster(token, userId)
+  async leagueRoster(token: string, userId: string, eventToken?: string) {
+    const stored = await this.repository.leagueRoster(token, userId, eventToken)
     if (!stored) return null
     return storedRoster(stored)
   }
 
-  async createLeagueBattle(userId: string, leagueToken: string, opponentId: string, missionPackId: string | null) {
+  async createLeagueBattle(userId: string, leagueToken: string, opponentId: string, missionPackId: string | null, eventToken?: string) {
     if (opponentId === userId) throw new Response('choose another league entrant', { status: 400 })
-    const league = await this.repository.leagueBattleRosters(leagueToken, [userId, opponentId])
+    const league = await this.repository.leagueBattleRosters(leagueToken, [userId, opponentId], eventToken)
     if (!league) throw new Response('no such league', { status: 404 })
     if (league.revealedAt === null) throw new Response('reveal the league rosters before starting a battle', { status: 409 })
     if (league.entries.length !== 2) throw new Response('both players must be accepted league entrants', { status: 403 })
@@ -184,7 +229,7 @@ export class PraetoriumService {
       },
       { kind: 'attach-roster', playerId: userId, roster: ownRoster, prep: null, painted: true },
       { kind: 'attach-roster', playerId: opponentId, roster: opponentRoster, prep: null, painted: true },
-      { kind: 'lock-league-rosters', leagueToken },
+      { kind: 'lock-league-rosters', leagueToken, eventToken: league.eventToken },
     ]
     await this.repository.createBattle({ id, token, userId, opponentIds: [opponentId], initialCommands, now: this.clock() })
     this.events.publish(id, [userId, opponentId])

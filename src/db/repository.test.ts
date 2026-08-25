@@ -337,3 +337,157 @@ it('rejects unresolved approval requests when rosters are revealed', async () =>
     'rejected',
   )
 })
+
+it('starts a recurring league event without copying prior entrants', async () => {
+  const repository = await users(2)
+  await repository.createLeague({
+    id: 'league',
+    token: 'league-token',
+    ownerId: 'user-000',
+    name: 'League',
+    description: '',
+    visibility: 'private',
+    admission: 'automatic',
+    recurring: true,
+    now: 1,
+  })
+  await repository.joinLeague('league-token', 'user-001', 2, 128)
+  await repository.saveRoster({
+    id: 'roster',
+    userId: 'user-001',
+    name: 'Army',
+    catalogueId: 'catalogue',
+    detachmentId: null,
+    disposition: null,
+    limit: 2_000,
+    picks: '[]',
+    prep: null,
+    tags: '[]',
+    visibility: 'private',
+    source: 'editable',
+    now: 3,
+  })
+  await repository.submitLeagueRoster({
+    token: 'league-token',
+    eventToken: 'league-token',
+    userId: 'user-001',
+    rosterId: 'roster',
+    rosterName: 'First army',
+    rosterUpdatedAt: 3,
+    snapshot: 'first snapshot',
+    now: 4,
+  })
+  await repository.revealLeague('league-token', 'user-000', 5, 'league-token')
+
+  const results = (
+    await Promise.all([
+      repository.createLeagueEvent({
+        id: 'event-2',
+        token: 'event-token-2',
+        leagueToken: 'league-token',
+        ownerId: 'user-000',
+        now: 6,
+      }),
+      repository.createLeagueEvent({
+        id: 'event-3',
+        token: 'event-token-3',
+        leagueToken: 'league-token',
+        ownerId: 'user-000',
+        now: 6,
+      }),
+    ])
+  ).toSorted()
+  const current = await repository.leagueByToken('league-token', 'user-001')
+  const previousRoster = await repository.leagueRoster('league-token', 'user-001', 'league-token')
+  const [listed] = await repository.leaguesVisibleTo('user-001')
+
+  expect({
+    results,
+    eventCount: current?.eventCount,
+    eventNumber: current?.eventNumber,
+    entries: current?.entries,
+    previousRoster,
+    listed,
+  }).toEqual({
+    results: ['created', 'open'],
+    eventCount: 2,
+    eventNumber: 2,
+    entries: [],
+    previousRoster: 'first snapshot',
+    listed: expect.objectContaining({ personal: true, ownEntry: null }),
+  })
+})
+
+it('does not start another event for a one-off league', async () => {
+  const repository = await users(1)
+  await repository.createLeague({
+    id: 'league',
+    token: 'league-token',
+    ownerId: 'user-000',
+    name: 'League',
+    description: '',
+    visibility: 'private',
+    admission: 'automatic',
+    now: 1,
+  })
+
+  expect(
+    await repository.createLeagueEvent({
+      id: 'event-2',
+      token: 'event-token-2',
+      leagueToken: 'league-token',
+      ownerId: 'user-000',
+      now: 2,
+    }),
+  ).toBe('one-off')
+})
+
+it('does not start another recurring event before reveal', async () => {
+  const repository = await users(1)
+  await repository.createLeague({
+    id: 'league',
+    token: 'league-token',
+    ownerId: 'user-000',
+    name: 'League',
+    description: '',
+    visibility: 'private',
+    admission: 'automatic',
+    recurring: true,
+    now: 1,
+  })
+
+  expect(
+    await repository.createLeagueEvent({
+      id: 'event-2',
+      token: 'event-token-2',
+      leagueToken: 'league-token',
+      ownerId: 'user-000',
+      now: 2,
+    }),
+  ).toBe('open')
+})
+
+it('only lets the recurring league organizer start an event', async () => {
+  const repository = await users(2)
+  await repository.createLeague({
+    id: 'league',
+    token: 'league-token',
+    ownerId: 'user-000',
+    name: 'League',
+    description: '',
+    visibility: 'private',
+    admission: 'automatic',
+    recurring: true,
+    now: 1,
+  })
+
+  expect(
+    await repository.createLeagueEvent({
+      id: 'event-2',
+      token: 'event-token-2',
+      leagueToken: 'league-token',
+      ownerId: 'user-001',
+      now: 2,
+    }),
+  ).toBe('forbidden')
+})

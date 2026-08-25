@@ -87,14 +87,19 @@ const leagueSnapshot = (name: string, limit = 2_000): Roster => ({
   },
 })
 
-async function revealedLeague(aliceRoster = leagueSnapshot('Alice sealed'), opponentRoster = leagueSnapshot('Dave sealed')) {
+async function revealedLeague(
+  aliceRoster = leagueSnapshot('Alice sealed'),
+  opponentRoster = leagueSnapshot('Dave sealed'),
+  recurring = false,
+) {
   await enrol('dave', 'Dave')
-  const { token } = await service.createLeague('alice', {
+  const { token, eventToken } = await service.createLeague('alice', {
     name: 'League',
     description: '',
     visibility: 'private',
     admission: 'automatic',
     playerLimit: 2,
+    recurring,
   })
   await service.joinLeague(token, 'alice')
   await service.joinLeague(token, 'dave')
@@ -119,7 +124,7 @@ async function revealedLeague(aliceRoster = leagueSnapshot('Alice sealed'), oppo
     await service.submitLeagueRoster(token, userId, saved, roster)
   }
   await service.revealLeague(token, 'alice')
-  return { token, aliceRoster, opponentRoster }
+  return { token, eventToken, aliceRoster, opponentRoster }
 }
 
 it('creates a battle from the exact two sealed league snapshots', async () => {
@@ -137,8 +142,47 @@ it('creates a battle from the exact two sealed league snapshots', async () => {
 it('links a sealed-roster battle back to its league', async () => {
   const league = await revealedLeague()
   const battle = await service.createLeagueBattle('alice', league.token, 'dave', null)
+  const battleView = await view(battle.token, 'alice')
 
-  expect((await view(battle.token, 'alice')).leagueToken).toBe(league.token)
+  expect({ leagueToken: battleView.leagueToken, eventToken: battleView.leagueEventToken }).toEqual({
+    leagueToken: league.token,
+    eventToken: league.eventToken,
+  })
+})
+
+it('keeps prior event entrants out of a new recurring event', async () => {
+  const league = await revealedLeague(leagueSnapshot('Alice sealed'), leagueSnapshot('Dave sealed'), true)
+  const next = await service.createLeagueEvent(league.token, 'alice')
+
+  const current = await service.league(league.token, 'dave', next.eventToken)
+  const previous = await service.league(league.token, 'dave', league.eventToken)
+
+  expect({ currentEntries: current?.entries, currentNumber: current?.eventNumber, previousEntries: previous?.entries.length }).toEqual({
+    currentEntries: [],
+    currentNumber: 2,
+    previousEntries: 2,
+  })
+})
+
+it('turns a revealed one-off league into a recurring league without changing event one', async () => {
+  const league = await revealedLeague()
+
+  await service.makeLeagueRecurring(league.token, 'alice')
+  const first = await service.league(league.token, 'alice', league.eventToken)
+  const next = await service.createLeagueEvent(league.token, 'alice')
+  const current = await service.league(league.token, 'alice', next.eventToken)
+
+  expect({ recurring: first?.recurring, firstEntries: first?.entries.length, currentNumber: current?.eventNumber }).toEqual({
+    recurring: true,
+    firstEntries: 2,
+    currentNumber: 2,
+  })
+})
+
+it('only lets the organizer make a league recurring', async () => {
+  const league = await revealedLeague()
+
+  expect(await refusalStatus(() => service.makeLeagueRecurring(league.token, 'dave'))).toBe(403)
 })
 
 it('refuses to replace a league roster through the battle service', async () => {

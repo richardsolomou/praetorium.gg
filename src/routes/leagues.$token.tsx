@@ -3,9 +3,12 @@ import { LeaguePage } from '../client/components/leagues/LeaguePage'
 import { factionsQuery, leagueQuery, savedRosterPointsQuery, savedRostersQuery } from '../client/queries'
 
 export const Route = createFileRoute('/leagues/$token')({
-  loader: async ({ context, params }) => {
+  validateSearch: (search: Record<string, unknown>): { event?: string } =>
+    typeof search.event === 'string' ? { event: search.event } : {},
+  loaderDeps: ({ search }) => ({ event: search.event }),
+  loader: async ({ context, params, deps }) => {
     const [league] = await Promise.all([
-      context.queryClient.ensureQueryData(leagueQuery(params.token)),
+      context.queryClient.ensureQueryData(leagueQuery(params.token, deps.event)),
       context.queryClient.ensureQueryData(savedRostersQuery()),
       context.queryClient.ensureQueryData(savedRosterPointsQuery()),
       context.queryClient.ensureQueryData(factionsQuery()),
@@ -17,5 +20,6 @@ export const Route = createFileRoute('/leagues/$token')({
 
 function LeagueRoute() {
   const { token } = Route.useParams()
-  return <LeaguePage token={token} />
+  const { event } = Route.useSearch()
+  return <LeaguePage token={token} eventToken={event} />
 }

@@ -82,17 +82,17 @@ export const sharedBattlesQuery = (userId: string) =>
 export const opponentsQuery = () => queryOptions({ queryKey: ['opponents'], queryFn: () => opponents(), staleTime: SSR_STALE_TIME })
 export const friendshipsQuery = () => queryOptions({ queryKey: ['friendships'], queryFn: () => friendships(), staleTime: SSR_STALE_TIME })
 export const leaguesQuery = () => queryOptions({ queryKey: ['leagues'], queryFn: () => listLeagues(), staleTime: SSR_STALE_TIME })
-export const leagueQuery = (token: string) =>
+export const leagueQuery = (token: string, eventToken?: string) =>
   queryOptions({
-    queryKey: ['league', token],
-    queryFn: () => openLeague({ data: { token } }),
+    queryKey: ['league', token, eventToken ?? 'current'],
+    queryFn: () => openLeague({ data: { token, eventToken } }),
     staleTime: SSR_STALE_TIME,
     refetchInterval: ({ state }) => (state.data?.revealedAt ? false : 5_000),
   })
-export const leagueRosterQuery = (token: string, userId: string) =>
+export const leagueRosterQuery = (token: string, eventToken: string | undefined, userId: string) =>
   queryOptions({
-    queryKey: ['league-roster', token, userId],
-    queryFn: () => openLeagueRoster({ data: { token, userId } }),
+    queryKey: ['league-roster', token, eventToken, userId],
+    queryFn: () => openLeagueRoster({ data: { token, eventToken, userId } }),
     enabled: Boolean(token && userId),
     staleTime: Infinity,
   })

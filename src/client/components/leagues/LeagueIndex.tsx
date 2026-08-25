@@ -7,7 +7,7 @@ import { CreateLeague } from './CreateLeague'
 export function LeagueIndex() {
   const { data: me } = useQuery(meQuery())
   const { data: leagues = [] } = useQuery(leaguesQuery())
-  const mine = leagues.filter((league) => league.ownerId === me?.id || league.ownEntry)
+  const mine = leagues.filter((league) => league.personal)
   const publicLeagues = leagues.filter((league) => league.visibility === 'public' && !mine.includes(league))
 
   return (
@@ -94,6 +94,7 @@ function LeagueShelf({
                     ? 'Registration full'
                     : 'Registration open'}
               </span>
+              {league.recurring ? <span className="chip text-info">Event {league.eventNumber}</span> : null}
               {league.ownEntry ? (
                 <span className="chip text-parchment">
                   {league.ownEntry.submitted ? (league.ownEntry.rosterName ?? 'Roster submitted') : league.ownEntry.status}

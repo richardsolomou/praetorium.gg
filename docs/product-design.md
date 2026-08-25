@@ -10,7 +10,7 @@ Praetorium includes:
 - Compact roster presentation and battle tracking.
 - One synchronized 1v1 or 2v1 battle between signed-in players, against a friend or a practice opponent.
 - Mutual friendships for choosing private battle opponents, and practice opponents for playing without one.
-- Public or private organized-play registration with approved entry, replaceable sealed roster snapshots, and simultaneous reveal.
+- Public or private organized-play registration with one-off or recurring events, approved entry, replaceable sealed roster snapshots, and simultaneous reveal.
 
 It does not include rankings, standings, pairings, brackets, locations, public battle discovery, chat, matchmaking, a rules encyclopedia, or model positions.
 
@@ -38,7 +38,7 @@ Keep screenshots that contain roster or battle data outside version control.
 | Battles           | Shared or practice 1v1 and 2v1 setup drafts, server-side legality, corrections, concessions, reopening, and live updates.                                                                                                                     |
 | Turn tracker      | Five standard rounds, three King of the Colosseum rounds, six phases, command points, victory points, painted bonuses, tactical decks, stratagems, formations, and battle completion.                                                         |
 | Rosters           | Build, import, save, copy, rename, private or unlisted share, print, export, and attach.                                                                                                                                                      |
-| Leagues           | Public or private listings, automatic or approved entry, replaceable roster snapshots, and organizer-controlled simultaneous reveal.                                                                                                          |
+| Leagues           | Public or private one-off and recurring events, automatic or approved entry, replaceable roster snapshots, and organizer-controlled simultaneous reveal.                                                                                      |
 | Catalogue         | Factions, detachments, units, model counts, loadouts, enhancements, attachments, and points limits.                                                                                                                                           |
 | Validation        | Constraints, modifiers, conditions, categories, force scope, attachments, and catalogue-sensitive costs.                                                                                                                                      |
 | Missions          | Force dispositions, deployment zones, objectives, mission cards, and scoring awards.                                                                                                                                                          |

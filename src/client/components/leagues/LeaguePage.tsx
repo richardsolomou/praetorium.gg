@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
-import { Check, Clipboard, Eye, FileLock2, LockKeyhole, ShieldCheck, Swords, UserPlus, X } from 'lucide-react'
+import { CalendarPlus, Check, Clipboard, Eye, FileLock2, LockKeyhole, Repeat2, ShieldCheck, Swords, UserPlus, X } from 'lucide-react'
 import { useState } from 'react'
 import {
   AlertDialog,
@@ -26,44 +26,56 @@ import {
   savedRosterPointsQuery,
   savedRostersQuery,
 } from '../../queries'
-import { createLeagueBattle, joinLeague, moderateLeagueEntry, revealLeague, submitLeagueRoster } from '../../../server/functions'
+import {
+  createLeagueBattle,
+  createLeagueEvent,
+  joinLeague,
+  makeLeagueRecurring,
+  moderateLeagueEntry,
+  revealLeague,
+  submitLeagueRoster,
+} from '../../../server/functions'
 import { LEAGUE_MEMBER_MAX } from '../../../core/league'
 import { RosterSummary } from '../rosters/RosterSummary'
 
-export function LeaguePage({ token }: { token: string }) {
+export function LeaguePage({ token, eventToken }: { token: string; eventToken?: string }) {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const { data: me } = useQuery(meQuery())
-  const { data: league } = useQuery(leagueQuery(token))
+  const { data: league } = useQuery(leagueQuery(token, eventToken))
   const { data: rosters = [] } = useQuery(savedRostersQuery())
   const { data: references } = useQuery(gameReferencesQuery())
   const [choosing, setChoosing] = useState(false)
   const [revealing, setRevealing] = useState(false)
+  const [starting, setStarting] = useState(false)
+  const [converting, setConverting] = useState(false)
   const [removing, setRemoving] = useState<{ userId: string; name: string } | null>(null)
   const [copied, setCopied] = useState(false)
   const refresh = async () => {
     await Promise.all([
-      queryClient.invalidateQueries({ queryKey: leagueQuery(token).queryKey }),
+      queryClient.invalidateQueries({ queryKey: ['league', token] }),
       queryClient.invalidateQueries({ queryKey: leaguesQuery().queryKey }),
     ])
   }
-  const join = useMutation({ mutationFn: () => joinLeague({ data: { token } }), onSuccess: refresh })
+  const selectedEventToken = league?.eventToken ?? ''
+  const join = useMutation({ mutationFn: () => joinLeague({ data: { token, eventToken: selectedEventToken } }), onSuccess: refresh })
   const moderate = useMutation({
-    mutationFn: (input: { userId: string; status: 'accepted' | 'rejected' }) => moderateLeagueEntry({ data: { token, ...input } }),
+    mutationFn: (input: { userId: string; status: 'accepted' | 'rejected' }) =>
+      moderateLeagueEntry({ data: { token, eventToken: selectedEventToken, ...input } }),
     onSuccess: async () => {
       setRemoving(null)
       await refresh()
     },
   })
   const submit = useMutation({
-    mutationFn: (rosterId: string) => submitLeagueRoster({ data: { token, rosterId } }),
+    mutationFn: (rosterId: string) => submitLeagueRoster({ data: { token, eventToken: selectedEventToken, rosterId } }),
     onSuccess: async () => {
       setChoosing(false)
       await refresh()
     },
   })
   const reveal = useMutation({
-    mutationFn: () => revealLeague({ data: { token } }),
+    mutationFn: () => revealLeague({ data: { token, eventToken: selectedEventToken } }),
     onSuccess: async () => {
       setRevealing(false)
       await refresh()
@@ -71,10 +83,25 @@ export function LeaguePage({ token }: { token: string }) {
   })
   const battle = useMutation({
     mutationFn: (opponentId: string) =>
-      createLeagueBattle({ data: { token, opponentId, missionPackId: references?.packs[0]?.id ?? null } }),
+      createLeagueBattle({ data: { token, eventToken: selectedEventToken, opponentId, missionPackId: references?.packs[0]?.id ?? null } }),
     onSuccess: async ({ token: battleToken }) => {
       await queryClient.invalidateQueries({ queryKey: battlesQuery().queryKey })
       await navigate({ to: '/battles/$token', params: { token: battleToken } })
+    },
+  })
+  const startEvent = useMutation({
+    mutationFn: () => createLeagueEvent({ data: { token } }),
+    onSuccess: async ({ eventToken: nextEventToken }) => {
+      setStarting(false)
+      await refresh()
+      await navigate({ to: '/leagues/$token', params: { token }, search: { event: nextEventToken } })
+    },
+  })
+  const enableRecurring = useMutation({
+    mutationFn: () => makeLeagueRecurring({ data: { token } }),
+    onSuccess: async () => {
+      setConverting(false)
+      await refresh()
     },
   })
   if (!league) return null
@@ -82,6 +109,8 @@ export function LeaguePage({ token }: { token: string }) {
   const ownEntry = league.entries.find((entry) => entry.userId === me?.id)
   const accepted = league.entries.filter((entry) => entry.status === 'accepted')
   const pendingCount = league.entries.filter((entry) => entry.status === 'pending').length
+  const latestEvent = league.events[0]
+  const viewingLatest = latestEvent?.token === league.eventToken
   const registrationFull =
     league.admission === 'approval' && league.playerLimit !== null
       ? accepted.length >= league.playerLimit || league.occupiedCount >= LEAGUE_MEMBER_MAX
@@ -90,7 +119,7 @@ export function LeaguePage({ token }: { token: string }) {
     accepted.length > 0 &&
     accepted.every((entry) => entry.submitted) &&
     (league.playerLimit === null || accepted.length === league.playerLimit)
-  const problem = join.error ?? moderate.error ?? battle.error
+  const problem = join.error ?? moderate.error ?? battle.error ?? startEvent.error ?? enableRecurring.error
 
   return (
     <main className="w-full">
@@ -99,6 +128,7 @@ export function LeaguePage({ token }: { token: string }) {
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="min-w-0">
               <p className="eyebrow text-parchment">
+                {league.recurring ? `Event ${league.eventNumber} · ` : ''}
                 {league.revealedAt ? 'Rosters revealed' : registrationFull ? 'Registration full' : 'Registration open'}
               </p>
               <h1 className="mt-1 text-3xl">{league.name}</h1>
@@ -119,7 +149,7 @@ export function LeaguePage({ token }: { token: string }) {
                 <Button
                   variant="outline"
                   onClick={() => {
-                    void navigator.clipboard.writeText(window.location.href).then(() => setCopied(true))
+                    void navigator.clipboard.writeText(`${window.location.origin}/leagues/${token}`).then(() => setCopied(true))
                   }}
                 >
                   {copied ? <Check /> : <Clipboard />} {copied ? 'Copied' : 'Copy invite link'}
@@ -153,7 +183,7 @@ export function LeaguePage({ token }: { token: string }) {
       <div className="mx-auto grid max-w-5xl gap-5 px-3 py-5 sm:px-4 lg:grid-cols-[minmax(0,1fr)_18rem]">
         <section>
           <div className="rubric mb-2 flex items-baseline justify-between border-b border-edge pb-2">
-            <h2>Entrants</h2>
+            <h2>{league.recurring ? `Event ${league.eventNumber} entrants` : 'Entrants'}</h2>
             <span className="readout">{accepted.length}</span>
           </div>
           {league.entries.length ? (
@@ -208,7 +238,7 @@ export function LeaguePage({ token }: { token: string }) {
                           <Link
                             to="/rosters/$id"
                             params={{ id: entry.userId }}
-                            search={{ league: token }}
+                            search={{ league: token, event: league.eventToken }}
                             target="_blank"
                             rel="noreferrer"
                           />
@@ -236,6 +266,53 @@ export function LeaguePage({ token }: { token: string }) {
         </section>
 
         <aside className="space-y-3">
+          {league.recurring ? (
+            <section className="border border-edge bg-panel p-4">
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="font-bold uppercase">Events</h2>
+                <span className="readout">{league.eventCount}</span>
+              </div>
+              <div className="mt-3 space-y-1">
+                {league.events.map((event) => (
+                  <Button
+                    key={event.token}
+                    variant={event.token === league.eventToken ? 'outline' : 'ghost'}
+                    className="w-full justify-between"
+                    render={<Link to="/leagues/$token" params={{ token }} search={{ event: event.token }} />}
+                  >
+                    <span>Event {event.number}</span>
+                    <span className="text-xs text-dim">{event.revealedAt ? 'Revealed' : 'Open'}</span>
+                  </Button>
+                ))}
+              </div>
+              {isOwner && viewingLatest && league.revealedAt ? (
+                <Button className="mt-3 w-full" onClick={() => setStarting(true)}>
+                  <CalendarPlus /> Start new event
+                </Button>
+              ) : null}
+              {!viewingLatest && latestEvent ? (
+                <Button
+                  className="mt-3 w-full"
+                  variant="outline"
+                  render={<Link to="/leagues/$token" params={{ token }} search={{ event: latestEvent.token }} />}
+                >
+                  View current event
+                </Button>
+              ) : null}
+            </section>
+          ) : null}
+          {isOwner && !league.recurring ? (
+            <section className="border border-edge bg-panel p-4">
+              <div className="flex items-center gap-2">
+                <Repeat2 className="size-5 text-parchment" />
+                <h2 className="font-bold uppercase">League format</h2>
+              </div>
+              <p className="mt-2 text-sm text-dim">Keep this event and run more events from the same league page.</p>
+              <Button className="mt-4 w-full" variant="outline" onClick={() => setConverting(true)}>
+                Make recurring
+              </Button>
+            </section>
+          ) : null}
           <section className="border border-edge bg-panel p-4">
             <div className="flex items-center gap-2">
               <FileLock2 className="size-5 text-parchment" />
@@ -329,6 +406,40 @@ export function LeaguePage({ token }: { token: string }) {
               onClick={() => removing && moderate.mutate({ userId: removing.userId, status: 'rejected' })}
             >
               Remove entrant
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <AlertDialog open={starting} onOpenChange={setStarting}>
+        <AlertDialogContent className="rounded-none border border-edge bg-panel text-bone">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="uppercase">Start event {league.eventNumber + 1}?</AlertDialogTitle>
+            <AlertDialogDescription className="text-dim">
+              Registration will open with no entrants. Players from earlier events can join again and submit new sealed rosters.
+            </AlertDialogDescription>
+            {startEvent.error ? <p className="text-sm text-destructive">{errorMessage(startEvent.error)}</p> : null}
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep current event</AlertDialogCancel>
+            <AlertDialogAction disabled={startEvent.isPending} onClick={() => startEvent.mutate()}>
+              Start new event
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <AlertDialog open={converting} onOpenChange={setConverting}>
+        <AlertDialogContent className="rounded-none border border-edge bg-panel text-bone">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="uppercase">Make this league recurring?</AlertDialogTitle>
+            <AlertDialogDescription className="text-dim">
+              This event becomes Event 1. Its entrants, sealed rosters, reveal state, and invite link stay the same. This cannot be undone.
+            </AlertDialogDescription>
+            {enableRecurring.error ? <p className="text-sm text-destructive">{errorMessage(enableRecurring.error)}</p> : null}
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep one-off</AlertDialogCancel>
+            <AlertDialogAction disabled={enableRecurring.isPending} onClick={() => enableRecurring.mutate()}>
+              Make recurring
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
