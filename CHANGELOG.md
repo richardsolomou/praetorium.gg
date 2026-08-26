@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.38.0
+
+### Minor Changes
+
+- d8d61e7: Follow league-event battles live or review them later with their frozen rosters.
+
 ## 0.37.1
 
 ### Patch Changes
