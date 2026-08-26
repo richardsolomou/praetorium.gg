@@ -9,7 +9,7 @@ import { normalisePicks } from '../client/rosterPicks'
 import { rosterBootstrap } from '../server/functions'
 
 export const Route = createFileRoute('/rosters/$id/')({
-  // A battle token is what lets a seated opponent open a list that is otherwise private.
+  // A battle token is what lets an entitled battle reader open a list that is otherwise private.
   validateSearch: (search: Record<string, unknown>): { battle?: string; league?: string; event?: string; print?: boolean } => ({
     ...(typeof search.battle === 'string' ? { battle: search.battle } : {}),
     ...(typeof search.league === 'string' ? { league: search.league } : {}),
@@ -25,7 +25,7 @@ export const Route = createFileRoute('/rosters/$id/')({
     }
     if (deps.battle) {
       const screen = await context.queryClient.ensureQueryData(battleQuery(deps.battle))
-      if (!screen || screen.kind !== 'battle' || !fieldedRoster(screen.view, params.id)) throw notFound()
+      if (!screen || screen.kind === 'invitation' || !fieldedRoster(screen.view, params.id)) throw notFound()
       return { editable: false, snapshot: true }
     }
     const [, bootstrap] = await Promise.all([
@@ -68,7 +68,7 @@ function RosterPage() {
   }, [print])
 
   if (leagueSnapshot) return sealed ? <BattleRosterSnapshot roster={sealed} /> : null
-  if (snapshot && battle && screen?.kind === 'battle') {
+  if (snapshot && battle && screen && screen.kind !== 'invitation') {
     const fielded = fieldedRoster(screen.view, id)
     return fielded ? <BattleRosterSnapshot roster={fielded} /> : null
   }

@@ -56,8 +56,12 @@ export const adminUsersQuery = (query: string) =>
     getNextPageParam: (page) => page.nextCursor ?? undefined,
   })
 
-export const userProfileQuery = (userId: string) =>
-  queryOptions({ queryKey: ['user-profile', userId], queryFn: () => userProfile({ data: { userId } }), staleTime: SSR_STALE_TIME })
+export const userProfileQuery = (userId: string, battle?: string) =>
+  queryOptions({
+    queryKey: ['user-profile', userId, battle],
+    queryFn: () => userProfile({ data: { userId, battle } }),
+    staleTime: SSR_STALE_TIME,
+  })
 
 /** Where the previous battles page ended; matches the server's cursor schema. */
 type BattlesCursor = { activity: number; id: string }

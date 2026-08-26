@@ -967,6 +967,19 @@ describe('player profiles', () => {
     expect(await service.userProfile('alice', 'alice')).toEqual({ id: 'alice', name: 'Alice', image: null })
   })
 
+  it('shows players named by a revealed league battle to its spectators', async () => {
+    const league = await revealedLeague()
+    const battle = await service.createLeagueBattle('alice', league.token, 'dave', null)
+
+    expect(await service.userProfile(null, 'dave', battle.token)).toEqual({ id: 'dave', name: 'Dave', image: null })
+  })
+
+  it('does not let an invitation token reveal a player profile', async () => {
+    const battle = await service.createBattle('alice', { opponentId: 'bob', limit: 2000, missionPackId: null })
+
+    expect(await service.userProfile(null, 'bob', battle.token)).toBeNull()
+  })
+
   it('includes profile pictures in the battle view', async () => {
     const { token } = await service.createBattle('alice', { opponentId: 'bob', limit: 2000, missionPackId: null })
 

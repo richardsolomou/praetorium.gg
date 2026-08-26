@@ -31,6 +31,7 @@ export function Scoreboard({ view, sides, outcome }: Props) {
           <SideScore
             key={side.index}
             side={side}
+            battle={view.token}
             completedRound={completedSideRound(
               view,
               side.armies.map((army) => army.playerId),
@@ -63,7 +64,17 @@ export function Scoreboard({ view, sides, outcome }: Props) {
   )
 }
 
-function SideScore({ side, completedRound, align }: { side: Side; completedRound: number; align: 'start' | 'end' }) {
+function SideScore({
+  side,
+  battle,
+  completedRound,
+  align,
+}: {
+  side: Side
+  battle: string
+  completedRound: number
+  align: 'start' | 'end'
+}) {
   const colours = tint(side.index)
   const end = align === 'end'
   return (
@@ -87,7 +98,12 @@ function SideScore({ side, completedRound, align }: { side: Side; completedRound
           {side.armies.map((army, at) => (
             <span key={army.playerId} className="inline-flex items-center gap-x-1">
               {at ? <span className="text-dim">&amp;</span> : null}
-              <Link to="/users/$userId" params={{ userId: army.playerId }} className="group inline-flex items-center gap-1 align-middle">
+              <Link
+                to="/users/$userId"
+                params={{ userId: army.playerId }}
+                search={{ battle }}
+                className="group inline-flex items-center gap-1 align-middle"
+              >
                 <PlayerAvatar name={army.playerName} image={army.playerImage} className="size-5 text-[0.625rem]" />
                 <span className="sr-only whitespace-nowrap group-hover:underline sm:not-sr-only">{army.playerName}</span>
               </Link>
