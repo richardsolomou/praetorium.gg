@@ -741,6 +741,7 @@ it('starts a league event without copying prior entrants', async () => {
     description: '',
     visibility: 'private',
     admission: 'automatic',
+    recurring: false,
     now: 1,
   })
   await repository.joinLeague('league-token', 'user-001', 2, 128)

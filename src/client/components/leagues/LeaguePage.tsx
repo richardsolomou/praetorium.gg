@@ -37,6 +37,7 @@ import {
   createLeagueBattle,
   createLeagueEvent,
   joinLeague,
+  makeLeagueRecurring,
   moderateLeagueEntry,
   revealLeague,
   submitLeagueRoster,
@@ -125,7 +126,10 @@ export function LeaguePage({ token, eventToken }: { token: string; eventToken?: 
     },
   })
   const startEvent = useMutation({
-    mutationFn: () => createLeagueEvent({ data: { token, ...eventRule } }),
+    mutationFn: async () => {
+      await makeLeagueRecurring({ data: { token } })
+      return createLeagueEvent({ data: { token, ...eventRule } })
+    },
     onSuccess: async ({ eventToken: nextEventToken }) => {
       setStarting(false)
       await refresh()
