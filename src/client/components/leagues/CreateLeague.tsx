@@ -28,6 +28,7 @@ export function CreateLeague() {
         data: {
           ...value,
           ...eventRule,
+          recurring: true,
         },
       }),
     onSuccess: async ({ token, eventToken }) => {

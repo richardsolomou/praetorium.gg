@@ -252,6 +252,7 @@ export const leagues = pgTable(
     visibility: text('visibility', { enum: ['public', 'private'] }).notNull(),
     admission: text('admission', { enum: ['automatic', 'approval'] }).notNull(),
     playerLimit: integer('player_limit'),
+    recurring: boolean('recurring').notNull().default(false),
     createdAt: bigint('created_at', { mode: 'number' }).notNull(),
   },
   (table) => [

@@ -70,7 +70,7 @@ describe('league creation input', () => {
   })
 
   it('defaults an older create payload to a 2,000-point 1v1 event', () => {
-    expect(createLeagueSchema.parse(league)).toMatchObject({ format: '1v1', rosterLimit: 2_000 })
+    expect(createLeagueSchema.parse(league)).toMatchObject({ format: '1v1', rosterLimit: 2_000, recurring: true })
   })
 
   it('accepts the supported 2v1 roster-size pair', () => {

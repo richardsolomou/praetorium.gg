@@ -575,6 +575,14 @@ test('a league starts each event with fresh registration', async ({ browser }) =
   await owner.goto('/leagues')
   await expect(owner.locator(`[data-league="${leagueToken}"]`).getByText('2 events', { exact: true })).toBeVisible()
 
+  await owner.goto(leagueUrl.toString())
+  const events = owner.getByRole('heading', { name: 'League events' }).locator('..').locator('..')
+  await expect(events.getByText('Current', { exact: true })).toBeVisible()
+  await expect(events.getByRole('link', { name: 'Current event Active' })).toBeVisible()
+  await expect(events.getByText('Archive', { exact: true })).toBeVisible()
+  await events.getByRole('link', { name: 'Event 1 Revealed' }).click()
+  await expect(owner.getByText('Archived event 1 · Rosters revealed')).toBeVisible()
+
   await entrant.goto(leagueUrl.toString())
   await expect(entrant.getByText('Current event · Registration open')).toBeVisible()
   await entrant.getByRole('button', { name: 'Join league' }).click()

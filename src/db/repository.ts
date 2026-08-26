@@ -56,6 +56,7 @@ export type UnlinkAccountResult = 'removed' | 'missing' | 'two-factor' | 'last-m
 export type JoinLeagueResult = LeagueEntryStatus | 'missing' | 'closed' | 'full'
 export type ModerateLeagueResult = 'updated' | 'missing' | 'forbidden' | 'closed' | 'full'
 export type CreateLeagueEventResult = 'created' | 'missing' | 'forbidden' | 'open' | 'too-small'
+export type MakeLeagueRecurringResult = 'updated' | 'missing' | 'forbidden'
 export type UpdateLeagueResult = 'updated' | 'missing' | 'forbidden' | 'joined' | 'below-accepted' | 'team-minimum'
 export type DeleteLeagueResult = 'deleted' | 'missing' | 'forbidden'
 export type AssignLeagueRosterRequirementResult = 'updated' | 'missing' | 'forbidden' | 'closed' | 'wrong-format' | 'wrong-limit'
@@ -659,6 +660,7 @@ export class Repository {
     visibility: LeagueVisibility
     admission: LeagueAdmission
     playerLimit?: number | null
+    recurring?: boolean
     format?: TableShape
     rosterLimit?: number
     now: number
@@ -673,6 +675,7 @@ export class Repository {
         visibility: input.visibility,
         admission: input.admission,
         playerLimit: input.playerLimit ?? null,
+        recurring: input.recurring ?? true,
         createdAt: input.now,
       })
       await tx.insert(leagueEvents).values({
@@ -725,6 +728,20 @@ export class Repository {
         createdAt: input.now,
       })
       return 'created'
+    })
+  }
+
+  async makeLeagueRecurring(token: string, ownerId: string): Promise<MakeLeagueRecurringResult> {
+    return this.database.transaction(async (tx) => {
+      const [league] = await tx
+        .select({ id: leagues.id, ownerId: leagues.ownerId, recurring: leagues.recurring })
+        .from(leagues)
+        .where(eq(leagues.token, token))
+        .for('update')
+      if (!league) return 'missing'
+      if (league.ownerId !== ownerId) return 'forbidden'
+      if (!league.recurring) await tx.update(leagues).set({ recurring: true }).where(eq(leagues.id, league.id))
+      return 'updated'
     })
   }
 
@@ -822,6 +839,7 @@ export class Repository {
           visibility: leagues.visibility,
           admission: leagues.admission,
           playerLimit: leagues.playerLimit,
+          recurring: leagues.recurring,
           createdAt: leagues.createdAt,
           personal: personal ? sql<boolean>`${personal}` : sql<boolean>`false`,
         })
@@ -912,6 +930,7 @@ export class Repository {
           visibility: leagues.visibility,
           admission: leagues.admission,
           playerLimit: leagues.playerLimit,
+          recurring: leagues.recurring,
           createdAt: leagues.createdAt,
         })
         .from(leagues)

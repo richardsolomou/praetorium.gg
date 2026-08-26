@@ -137,6 +137,16 @@ export const assignLeagueTeam = createServerFn({ method: 'POST' })
     }),
   )
 
+export const makeLeagueRecurring = createServerFn({ method: 'POST' })
+  .validator(tokenSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const player = await requireUser()
+      await app().service.makeLeagueRecurring(data.token, player.id)
+      return null
+    }),
+  )
+
 export const updateLeague = createServerFn({ method: 'POST' })
   .validator(updateLeagueSchema)
   .handler(({ data }) =>

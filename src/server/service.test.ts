@@ -538,6 +538,21 @@ it('keeps league battle history scoped to its event', async () => {
   expect((await service.leagueBattles(league.token, next.eventToken, { limit: 25 })).battles).toEqual([])
 })
 
+it('keeps legacy cadence clients compatible while every league supports events', async () => {
+  const { token, eventToken } = await service.createLeague('alice', {
+    name: 'League',
+    description: '',
+    visibility: 'private',
+    admission: 'automatic',
+    playerLimit: 2,
+    recurring: false,
+  })
+
+  await service.makeLeagueRecurring(token, 'alice')
+
+  expect((await service.league(token, 'alice', eventToken))?.recurring).toBe(true)
+})
+
 it('rechecks the event size when creating a 1v1 league battle', async () => {
   const league = await revealedLeague()
   await database.update(leagueEventEntries).set({ rosterSnapshot: JSON.stringify(leagueSnapshot('Changed snapshot', 1_000)) })
