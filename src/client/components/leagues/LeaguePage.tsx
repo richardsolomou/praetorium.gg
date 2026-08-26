@@ -51,7 +51,7 @@ import { BattleShelf } from '../battles/BattleShelf'
 import { LeaguePageActions } from './LeagueActions'
 import { LeagueEventRuleFields, type LeagueEventRuleValue } from './LeagueEventRuleFields'
 
-export function LeaguePage({ token, eventToken }: { token: string; eventToken?: string }) {
+export function LeaguePage({ token, eventToken, startBattle }: { token: string; eventToken?: string; startBattle?: boolean }) {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const { data: me } = useQuery(meQuery())
@@ -67,7 +67,7 @@ export function LeaguePage({ token, eventToken }: { token: string; eventToken?: 
   const [revealing, setRevealing] = useState(false)
   const [starting, setStarting] = useState(false)
   const [eventRule, setEventRule] = useState<LeagueEventRuleValue>({ format: '1v1', rosterLimit: 2_000 })
-  const [choosingBattle, setChoosingBattle] = useState(false)
+  const [choosingBattle, setChoosingBattle] = useState(Boolean(startBattle))
   const [removing, setRemoving] = useState<{ userId: string; name: string } | null>(null)
   const [reassigning, setReassigning] = useState<{ userId: string; name: string; requiredLimit: number } | null>(null)
   const [pairing, setPairing] = useState<{ userId: string; name: string } | null>(null)
@@ -409,13 +409,6 @@ export function LeaguePage({ token, eventToken }: { token: string; eventToken?: 
                         >
                           <Eye /> View roster
                         </Button>
-                        {ownEntry?.status === 'accepted' &&
-                        entry.userId !== me?.id &&
-                        (league.format === '1v1' || league.format === null) ? (
-                          <Button size="sm" disabled={battle.isPending} onClick={() => battle.mutate({ opponentId: entry.userId })}>
-                            <Swords /> Start battle
-                          </Button>
-                        ) : null}
                       </div>
                     ) : null}
                   </div>
@@ -552,7 +545,7 @@ export function LeaguePage({ token, eventToken }: { token: string; eventToken?: 
             {league.revealedAt ? (
               <p className="mt-3 text-sm text-achieved">Every accepted roster is now visible to anyone with this link.</p>
             ) : null}
-            {league.revealedAt && league.format && league.format !== '1v1' && ownEntry?.status === 'accepted' ? (
+            {league.revealedAt && league.format && ownEntry?.status === 'accepted' ? (
               <Button className="mt-4 w-full" disabled={battle.isPending} onClick={openBattleChooser}>
                 <Swords /> {startBattleLabel(league.format)}
               </Button>
@@ -740,6 +733,19 @@ export function LeaguePage({ token, eventToken }: { token: string; eventToken?: 
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      {league.format === '1v1' && ownEntry?.status === 'accepted' ? (
+        <OneOnOneBattleChooser
+          key={league.eventToken}
+          open={choosingBattle}
+          ownUserId={ownEntry.userId}
+          entries={accepted}
+          pending={battle.isPending}
+          error={battle.error}
+          onIntentChange={() => battle.reset()}
+          onClose={closeBattleChooser}
+          onStart={(opponentId) => battle.mutate({ opponentId }, { onSuccess: () => setChoosingBattle(false) })}
+        />
+      ) : null}
       {league.format === '2v1' && ownEntry?.status === 'accepted' && league.rosterLimit ? (
         <LeagueBattleChooser
           key={league.eventToken}
@@ -868,6 +874,77 @@ function RosterChooser({
 /** One name for the button that starts a shape's battle and the dialog it opens. */
 function startBattleLabel(format: TableShape) {
   return `Start ${TABLE_SHAPE_LABELS[format].count} battle`
+}
+
+function OneOnOneBattleChooser({
+  open,
+  ownUserId,
+  entries,
+  pending,
+  error,
+  onIntentChange,
+  onClose,
+  onStart,
+}: {
+  open: boolean
+  ownUserId: string
+  entries: { userId: string; name: string; image: string | null }[]
+  pending: boolean
+  error: Error | null
+  onIntentChange: () => void
+  onClose: () => void
+  onStart: (opponentId: string) => void
+}) {
+  const [opponentId, setOpponentId] = useState<string | null>(null)
+  useEffect(() => {
+    if (!open) setOpponentId(null)
+  }, [open])
+  const labels = disambiguatedPlayerLabels(entries.map((entry) => ({ id: entry.userId, name: entry.name })))
+  const options = entries
+    .filter((entry) => entry.userId !== ownUserId)
+    .map((entry) => ({
+      label: labels.get(entry.userId) ?? entry.name,
+      value: entry.userId,
+      icon: <PlayerAvatar name={entry.name} image={entry.image} className="size-6 text-[0.65rem]" />,
+    }))
+  return (
+    <Dialog open={open} onOpenChange={(next) => !pending && !next && onClose()}>
+      <DialogContent className="rounded-none border border-edge bg-panel text-bone sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="text-2xl uppercase">{startBattleLabel('1v1')}</DialogTitle>
+          <DialogDescription className="text-dim">Choose another entrant. Both sealed rosters are added automatically.</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-1.5">
+          <Label htmlFor="league-opponent">Opponent</Label>
+          <SearchableSelect
+            id="league-opponent"
+            groups={[{ label: '', items: options }]}
+            value={opponentId ?? ''}
+            onValueChange={(id) => {
+              onIntentChange()
+              setOpponentId(id)
+            }}
+            placeholder="Choose an opponent"
+            searchPlaceholder="Search entrants…"
+            className="h-11 rounded-none border-edge bg-sunken"
+          />
+        </div>
+        {error ? (
+          <p role="alert" className="text-sm text-destructive">
+            {errorMessage(error)}
+          </p>
+        ) : null}
+        <DialogFooter>
+          <Button variant="outline" disabled={pending} onClick={onClose}>
+            Cancel
+          </Button>
+          <Button disabled={!opponentId || pending} onClick={() => opponentId && onStart(opponentId)}>
+            <Swords /> {pending ? 'Starting…' : 'Start battle'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
 }
 
 function LeagueBattleChooser({

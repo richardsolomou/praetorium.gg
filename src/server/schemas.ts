@@ -110,6 +110,12 @@ export const createLeagueBattleSchema = z.object({
   secondOpponentId: id.optional(),
   missionPackId: id.nullable().default(null),
 })
+const newBattlePlayers = {
+  opponentId: id.optional(),
+  opponentIds: z.array(id).min(1).max(2).optional(),
+  allyId: id.optional(),
+}
+export const leagueBattleOptionsSchema = z.object(newBattlePlayers)
 /** A roster read may name the battle that entitles the reader to it. */
 export const rosterInBattleSchema = z.object({ id, battle: token.optional() })
 /**
@@ -121,15 +127,14 @@ export const rosterInBattleSchema = z.object({ id, battle: token.optional() })
  */
 export const createBattleSchema = z
   .object({
-    opponentId: id.optional(),
-    opponentIds: z.array(id).min(1).max(2).optional(),
-    allyId: id.optional(),
+    ...newBattlePlayers,
     limit: z
       .number()
       .int()
       .refine((value) => GAME_SIZES.some((size) => size.limit === value))
       .optional(),
     missionPackId: id.nullable().default(null),
+    casual: z.boolean().default(false),
   })
   .refine(
     (value) => (value.allyId ? 1 : 0) + (value.opponentIds?.length ?? (value.opponentId ? 1 : 0)) <= 3,

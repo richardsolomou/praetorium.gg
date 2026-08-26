@@ -67,6 +67,14 @@ const SPECTATOR_ID = ''
  * from before its own command, or naming the wrong command to undo.
  */
 type SubmitAnswer = { result: SubmitResult; screen: SeatedScreen }
+type NewBattlePlayers = { opponentId?: string; opponentIds?: string[]; allyId?: string }
+type CreateBattleInput = NewBattlePlayers & { limit?: number; missionPackId: string | null; casual?: boolean }
+
+function newBattleSeats(input?: string | NewBattlePlayers) {
+  const opponentIds = typeof input === 'string' ? [input] : (input?.opponentIds ?? (input?.opponentId ? [input.opponentId] : []))
+  const allyIds = typeof input === 'object' && input.allyId ? [input.allyId] : []
+  return { allyIds, opponentIds, invited: [...allyIds, ...opponentIds] }
+}
 
 export class PraetoriumService {
   constructor(
@@ -679,14 +687,9 @@ export class PraetoriumService {
    * is one question, and asking it of the ally and the opponents separately would
    * be two rules about it.
    */
-  async createBattle(
-    userId: string,
-    input?: string | { opponentId?: string; opponentIds?: string[]; allyId?: string; limit?: number; missionPackId: string | null },
-  ) {
+  async createBattle(userId: string, input?: string | CreateBattleInput) {
     const settings = typeof input === 'object' && input.limit !== undefined ? { ...input, limit: input.limit } : null
-    const opponentIds = typeof input === 'string' ? [input] : (input?.opponentIds ?? (input?.opponentId ? [input.opponentId] : []))
-    const allyIds = typeof input === 'object' && input?.allyId ? [input.allyId] : []
-    const invited = [...allyIds, ...opponentIds]
+    const { allyIds, opponentIds, invited } = newBattleSeats(input)
     if (!settings && (allyIds.length > 0 || opponentIds.length > 1)) {
       throw new Response('choose battle settings for a team battle', { status: 400 })
     }
@@ -704,6 +707,12 @@ export class PraetoriumService {
       throw new Response('a battle seats four players at most', { status: 400 })
     if (allyIds.length && !opponentIds.length) throw new Response('choose an opponent', { status: 400 })
     if (settings && !opponentIds.length) throw new Response('choose an opponent', { status: 400 })
+    if (invited.length && (typeof input !== 'object' || !input.casual)) {
+      const leagueMatches = await this.leagueBattleOptions(userId, input)
+      if (leagueMatches.length) {
+        throw new Response('start this matchup from its league page, or confirm a casual battle', { status: 409 })
+      }
+    }
     const practice = invited.some((id) => allowed.get(id)?.automated)
     const token = randomToken()
     const id = randomId()
@@ -731,6 +740,41 @@ export class PraetoriumService {
     // it on their list without a reload.
     this.events.publish(id, [userId, ...invited])
     return { token, practice }
+  }
+
+  async leagueBattleOptions(userId: string, input?: string | NewBattlePlayers) {
+    const { allyIds, opponentIds, invited } = newBattleSeats(input)
+    const participantIds = [userId, ...invited]
+    if (!opponentIds.length || new Set(participantIds).size !== participantIds.length) return []
+    const candidates = await this.repository.leagueBattleCandidates(userId, participantIds)
+    const sideIds = [[userId, ...allyIds], opponentIds]
+    return candidates
+      .filter((candidate) => {
+        const entries = new Map(candidate.entries.map((entry) => [entry.userId, entry]))
+        if (candidate.format === '1v1') return participantIds.length === 2 && allyIds.length === 0
+        if (candidate.format === '2v1' && candidate.rosterLimit !== null && participantIds.length === 3) {
+          const alliedLimit = alliedLeagueRosterLimit(candidate.rosterLimit)
+          const roles = sideIds.map((side) =>
+            side
+              .map((id) => entries.get(id)?.requiredLimit)
+              .every((limit) => limit === (side.length === 1 ? candidate.rosterLimit : alliedLimit)),
+          )
+          return sideIds.some((side) => side.length === 1) && sideIds.some((side) => side.length === 2) && roles.every(Boolean)
+        }
+        if (candidate.format === '2v2' && participantIds.length === 4 && sideIds.every((side) => side.length === 2)) {
+          const ownTeam = entries.get(userId)?.teamId
+          const opposingTeam = entries.get(opponentIds[0]!)?.teamId
+          return Boolean(
+            ownTeam &&
+            opposingTeam &&
+            ownTeam !== opposingTeam &&
+            sideIds[0]!.every((id) => entries.get(id)?.teamId === ownTeam) &&
+            sideIds[1]!.every((id) => entries.get(id)?.teamId === opposingTeam),
+          )
+        }
+        return false
+      })
+      .map(({ token, name, eventToken, eventNumber, format }) => ({ token, name, eventToken, eventNumber, format: format! }))
   }
 
   async deleteBattle(token: string, userId: string) {

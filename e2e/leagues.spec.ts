@@ -1,6 +1,6 @@
 import { and, desc, eq } from 'drizzle-orm'
 import { expect, test, type Locator, type Page } from '@playwright/test'
-import { createRoster, uniqueName, signUp, waitForRosterSave } from './account'
+import { befriend, createRoster, uniqueName, signUp, waitForRosterSave } from './account'
 import { openDatabase } from '../src/db/connection'
 import { leagueEventEntries, leagueEvents, leagues, rosters, user } from '../src/db/schema'
 import { postgresPort } from './stackEnv'
@@ -274,6 +274,65 @@ test('a new league starts with its first event and can seal a roster', async ({ 
   await page.setViewportSize({ width: 390, height: 844 })
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
   await page.screenshot({ path: 'test-results/league-first-event-phone.png', fullPage: true })
+})
+
+test('an eligible casual matchup is directed through its league event', async ({ browser }) => {
+  const ownerContext = await browser.newContext({ viewport: { width: 1440, height: 900 } })
+  const entrantContext = await browser.newContext()
+  const owner = await ownerContext.newPage()
+  const entrant = await entrantContext.newPage()
+  const ownerName = uniqueName('LeagueOwner')
+  const entrantName = uniqueName('LeagueEntrant')
+  const leagueName = uniqueName('Guarded League')
+
+  await signUp(owner, ownerName)
+  await signUp(entrant, entrantName)
+  await befriend(owner, entrant)
+  await owner.goto('/leagues')
+  await owner.getByRole('button', { name: 'New league' }).click()
+  const create = owner.getByRole('dialog', { name: 'Create league' })
+  await create.getByLabel('Name').fill(leagueName)
+  await create.getByRole('button', { name: /^Automatic/ }).click()
+  await submitLeagueCreation(owner, create)
+  const leagueUrl = new URL(owner.url())
+  leagueUrl.search = ''
+  const leagueToken = leagueUrl.pathname.split('/').at(-1)
+  if (!leagueToken) throw new Error('The created league URL has no token.')
+
+  await join(owner)
+  await entrant.goto(leagueUrl.toString())
+  await join(entrant)
+  await sealEventRosters(leagueToken)
+  await owner.reload()
+  await owner.getByRole('button', { name: 'Reveal all rosters' }).click()
+  await owner.getByRole('alertdialog', { name: 'Reveal every roster?' }).getByRole('button', { name: 'Reveal all rosters' }).click()
+
+  await owner.goto('/battles')
+  await owner.getByRole('button', { name: 'New casual battle' }).click()
+  const casual = owner.getByRole('dialog', { name: 'Start a casual battle' })
+  await casual.getByRole('combobox', { name: 'Opponent' }).click()
+  await owner.getByRole('option', { name: entrantName, exact: true }).click()
+  await casual.getByRole('button', { name: 'Create casual battle' }).click()
+  const warning = owner.getByRole('dialog', { name: 'League battle available' })
+  await expect(warning.getByRole('button', { name: 'Start casual instead' })).toBeVisible()
+  await expectNoHorizontalOverflow(owner, warning)
+  await owner.screenshot({ path: 'test-results/league-battle-guard-desktop.png', fullPage: true })
+  await owner.setViewportSize({ width: 390, height: 844 })
+  await expectNoHorizontalOverflow(owner, warning)
+  await owner.screenshot({ path: 'test-results/league-battle-guard-phone.png', fullPage: true })
+  await warning.getByRole('button', { name: new RegExp(leagueName) }).click()
+
+  const leagueChooser = owner.getByRole('dialog', { name: 'Start 1 vs 1 battle' })
+  await expect(leagueChooser).toBeVisible()
+  await leagueChooser.getByRole('combobox', { name: 'Opponent' }).click()
+  await owner.getByRole('option', { name: entrantName, exact: true }).click()
+  await leagueChooser.getByRole('button', { name: 'Start battle' }).click()
+  await expect(owner).toHaveURL(/\/battles\/[^/?]+$/)
+  await owner.goto(leagueUrl.toString())
+  await expect(owner.locator('[data-battle-shelf="Battles"]')).toContainText(entrantName)
+
+  await ownerContext.close()
+  await entrantContext.close()
 })
 
 test('a revealed roster keeps its selected upgrades and reference metadata', async ({ browser }) => {

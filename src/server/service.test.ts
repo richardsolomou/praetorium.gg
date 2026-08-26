@@ -210,6 +210,30 @@ it('creates a battle from the exact two sealed league snapshots', async () => {
   ])
 })
 
+it('finds a revealed league for the exact casual battle seats', async () => {
+  const league = await revealedLeague()
+
+  await expect(service.leagueBattleOptions('alice', { opponentId: 'dave' })).resolves.toEqual([
+    {
+      token: league.token,
+      name: 'League',
+      eventToken: league.eventToken,
+      eventNumber: 1,
+      format: '1v1',
+    },
+  ])
+})
+
+it('requires an explicit casual confirmation for a revealed league matchup', async () => {
+  await revealedLeague()
+  await befriend('alice', 'dave')
+
+  expect(await refusalStatus(() => service.createBattle('alice', { opponentId: 'dave', limit: 2_000, missionPackId: null }))).toBe(409)
+  await expect(
+    service.createBattle('alice', { opponentId: 'dave', limit: 2_000, missionPackId: null, casual: true }),
+  ).resolves.toMatchObject({ token: expect.any(String) })
+})
+
 it('creates a 2v1 league battle when the solo entrant opens it', async () => {
   const league = await revealedTeamLeague()
 
@@ -221,6 +245,15 @@ it('creates a 2v1 league battle when the solo entrant opens it', async () => {
     ['bob', 1, 1_000],
     ['carol', 1, 1_000],
   ])
+})
+
+it('only offers a 2v1 league for seats that preserve its assigned sides', async () => {
+  const league = await revealedTeamLeague()
+
+  await expect(service.leagueBattleOptions('alice', { opponentIds: ['bob', 'carol'] })).resolves.toMatchObject([
+    { token: league.token, eventToken: league.eventToken, format: '2v1' },
+  ])
+  await expect(service.leagueBattleOptions('alice', { opponentId: 'bob', allyId: 'carol' })).resolves.toEqual([])
 })
 
 it('creates a 2v1 league battle when an allied entrant opens it', async () => {
@@ -254,6 +287,15 @@ it('creates a doubles league battle from fixed teams and sealed half-size roster
     ['carol', 1, 1_000],
     ['dave', 1, 1_000],
   ])
+})
+
+it('only offers a doubles league for the fixed teams', async () => {
+  const league = await revealedDoublesLeague()
+
+  await expect(service.leagueBattleOptions('alice', { allyId: 'bob', opponentIds: ['carol', 'dave'] })).resolves.toMatchObject([
+    { token: league.token, eventToken: league.eventToken, format: '2v2' },
+  ])
+  await expect(service.leagueBattleOptions('alice', { allyId: 'carol', opponentIds: ['bob', 'dave'] })).resolves.toEqual([])
 })
 
 it('keeps the selected doubles opponent in the first opposing seat', async () => {

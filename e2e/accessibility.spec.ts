@@ -12,17 +12,17 @@ test('opening a battle is operable from the keyboard', async ({ page }) => {
   expect(initialDocument).not.toContain('favourite-detachments')
 
   for (let tabs = 0; tabs < 10; tabs++) {
-    if (await page.getByRole('button', { name: 'New battle' }).evaluate((element) => element === document.activeElement)) break
+    if (await page.getByRole('button', { name: 'New casual battle' }).evaluate((element) => element === document.activeElement)) break
     await page.keyboard.press('Tab')
   }
-  const newBattle = page.getByRole('button', { name: 'New battle' })
+  const newBattle = page.getByRole('button', { name: 'New casual battle' })
   await expect(newBattle).toBeFocused()
   await page.keyboard.press('Enter')
-  await expect(page.getByRole('dialog', { name: 'Start a battle' })).toBeVisible()
+  await expect(page.getByRole('dialog', { name: 'Start a casual battle' })).toBeVisible()
   await page.getByRole('combobox', { name: 'Opponent' }).click()
   await page.getByRole('option', { name: 'Practice Opponent', exact: true }).click()
   await page.screenshot({ path: 'test-results/new-battle-dialog.png', fullPage: true })
-  await page.getByRole('button', { name: 'Create battle' }).click()
+  await page.getByRole('button', { name: 'Create casual battle' }).click()
   await expect(page).toHaveURL(/\/battles\/[^/]+$/)
 })
 
@@ -32,7 +32,7 @@ test('reduced motion removes meaningful transitions', async ({ page }) => {
   await page.goto('/battles')
 
   const duration = await page
-    .getByRole('button', { name: 'New battle' })
+    .getByRole('button', { name: 'New casual battle' })
     .evaluate((element) => getComputedStyle(element).transitionDuration)
   expect(Number.parseFloat(duration)).toBeLessThanOrEqual(0.00001)
 })

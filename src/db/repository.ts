@@ -65,8 +65,18 @@ export type SubmitLeagueRosterResult =
   | { outcome: 'sealed'; format: TableShape | null; requiredLimit: number | null }
   | { outcome: 'missing' | 'unassigned' | 'wrong-limit' }
 export type RevealLeagueResult = { outcome: 'revealed' | 'not-ready' | 'invalid-warlords' }
+export type LeagueBattleCandidate = {
+  token: string
+  name: string
+  eventToken: string
+  eventNumber: number
+  format: TableShape | null
+  rosterLimit: number | null
+  entries: { userId: string; requiredLimit: number | null; teamId: string | null }[]
+}
 
 const ADMIN_USERS_PAGE_SIZE = 50
+const LEAGUE_BATTLE_CANDIDATE_MAX = 50
 
 /**
  * Whether the account in a seat is a practice opponent.
@@ -912,6 +922,79 @@ export class Repository {
           occupiedCount: countByEvent.get(event.id)?.occupied ?? 0,
           ownEntry: ownByEvent.get(event.id) ?? null,
         }
+      })
+    })
+  }
+
+  async leagueBattleCandidates(userId: string, participantIds: readonly string[]): Promise<LeagueBattleCandidate[]> {
+    return this.database.transaction(async (tx) => {
+      const ownEntry = alias(leagueEventEntries, 'own_entry')
+      const participantEntry = alias(leagueEventEntries, 'participant_entry')
+      const events = await tx
+        .select({
+          id: leagueEvents.id,
+          token: leagues.token,
+          name: leagues.name,
+          eventToken: leagueEvents.token,
+          eventNumber: leagueEvents.number,
+          format: leagueEvents.format,
+          rosterLimit: leagueEvents.rosterLimit,
+        })
+        .from(ownEntry)
+        .innerJoin(leagueEvents, eq(leagueEvents.id, ownEntry.eventId))
+        .innerJoin(leagues, eq(leagues.id, leagueEvents.leagueId))
+        .innerJoin(
+          participantEntry,
+          and(
+            eq(participantEntry.eventId, leagueEvents.id),
+            inArray(participantEntry.userId, participantIds),
+            eq(participantEntry.status, 'accepted'),
+            isNotNull(participantEntry.rosterSnapshot),
+          ),
+        )
+        .where(
+          and(
+            eq(ownEntry.userId, userId),
+            eq(ownEntry.status, 'accepted'),
+            isNotNull(ownEntry.rosterSnapshot),
+            isNotNull(leagueEvents.revealedAt),
+          ),
+        )
+        .groupBy(leagueEvents.id, leagues.id)
+        .having(sql`count(${participantEntry.userId}) = ${participantIds.length}`)
+        .orderBy(desc(leagueEvents.revealedAt), desc(leagueEvents.number))
+        .limit(LEAGUE_BATTLE_CANDIDATE_MAX)
+      if (!events.length) return []
+      const entries = await tx
+        .select({
+          eventId: leagueEventEntries.eventId,
+          userId: leagueEventEntries.userId,
+          requiredLimit: leagueEventEntries.requiredLimit,
+          teamId: leagueEventEntries.teamId,
+        })
+        .from(leagueEventEntries)
+        .where(
+          and(
+            inArray(
+              leagueEventEntries.eventId,
+              events.map((event) => event.id),
+            ),
+            inArray(leagueEventEntries.userId, participantIds),
+            eq(leagueEventEntries.status, 'accepted'),
+            isNotNull(leagueEventEntries.rosterSnapshot),
+          ),
+        )
+      const entriesByEvent = new Map<string, typeof entries>()
+      for (const entry of entries) {
+        const grouped = entriesByEvent.get(entry.eventId) ?? []
+        grouped.push(entry)
+        entriesByEvent.set(entry.eventId, grouped)
+      }
+      return events.flatMap((event) => {
+        const eventEntries = entriesByEvent.get(event.id) ?? []
+        if (eventEntries.length !== participantIds.length) return []
+        const { id: _eventId, ...candidate } = event
+        return [{ ...candidate, entries: eventEntries.map(({ eventId: _entryEventId, ...entry }) => entry) }]
       })
     })
   }
