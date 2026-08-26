@@ -71,8 +71,12 @@ test('a tactical hand is dealt rather than chosen, and pays out when the card sa
   await expect(faction.locator('[data-faction-mark="death-guard"]')).toBeVisible()
   const detachment = ownPanel.getByRole('link', { name: 'Shamblerot Vectorium' })
   await expect(detachment).toHaveAttribute('href', '/factions/death-guard/detachments/shamblerot-vectorium')
+  const roster = ownPanel.getByRole('link', { name: aliceRoster, exact: true })
+  const factionColour = await faction.evaluate((link) => getComputedStyle(link).color)
+  await expect(detachment).toHaveCSS('color', factionColour)
+  await expect(roster).toHaveCSS('color', factionColour)
   // The list is named after what it is, whether the width puts them on one line or two.
-  const rosterPosition = await ownPanel.getByRole('link', { name: aliceRoster, exact: true }).boundingBox()
+  const rosterPosition = await roster.boundingBox()
   const detachmentPosition = await detachment.boundingBox()
   expect(rosterPosition && detachmentPosition).toBeTruthy()
   const reads = (later: typeof rosterPosition, earlier: typeof detachmentPosition) =>

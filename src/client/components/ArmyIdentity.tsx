@@ -121,7 +121,7 @@ function IdentityLine({
           to="/factions/$catalogueId/detachments/$detachmentId"
           params={{ catalogueId: faction!.slug, detachmentId: detachment.slug ?? routeSlug(detachment.name) }}
           title={name}
-          className="truncate hover:text-bone hover:underline"
+          className="truncate text-bone hover:text-azure"
         >
           {name}
         </Link>
@@ -158,7 +158,12 @@ function ArmyLink({ army, token, linked }: { army: Army; token: string; linked: 
   if (!army.roster) return <span className="text-faint">No list</span>
   if (!linked) return <span className="truncate">{army.roster.name}</span>
   return (
-    <Link to="/rosters/$id" params={{ id: army.rosterId ?? army.playerId }} search={{ battle: token }} className="truncate hover:underline">
+    <Link
+      to="/rosters/$id"
+      params={{ id: army.rosterId ?? army.playerId }}
+      search={{ battle: token }}
+      className="truncate text-bone hover:text-azure"
+    >
       {army.roster.name}
     </Link>
   )
