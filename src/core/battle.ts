@@ -10,6 +10,7 @@
  */
 
 import { attachedUnits } from './attachedUnits'
+import { appliesInMode, cardsDue, type MissionAward } from './scoring'
 import type { UnitGroup } from './unitGroups'
 import type { RosterPick } from './roster'
 
@@ -209,7 +210,7 @@ export const STRATAGEMS_MAX = 48
 export const STRATAGEM_CP_MAX = 6
 
 /** A secondary mission, named by the player because the deck is not in the data either. */
-export type Secondary = { key: string; name: string }
+export type Secondary = { key: string; name: string; awards?: MissionAward[] }
 export type SecondaryStatus = 'active' | 'achieved' | 'discarded' | 'returned'
 
 /**
@@ -299,7 +300,6 @@ export function sidePaintedPoints(state: BattleState, side: number): number {
 
 /** The matched-play game sizes, smallest first. */
 const KOTC_LIMITS = [500, 600] as const
-const KOTC_ROUNDS = 3
 export const DEFAULT_GAME_LIMIT = 2000
 
 export const GAME_SIZES = [
@@ -312,7 +312,7 @@ export const GAME_SIZES = [
 export const detachmentPointBudget = (limit: number) => GAME_SIZES.find((size) => size.limit === limit)?.detachmentPoints ?? null
 export const isKotcLimit = (limit: number | null): boolean => limit !== null && KOTC_LIMITS.some((candidate) => candidate === limit)
 export const detachmentLimit = (limit: number) => (isKotcLimit(limit) ? 1 : 3)
-export const battleRoundLimit = (limit: number | null) => (isKotcLimit(limit) ? KOTC_ROUNDS : BATTLE_ROUNDS)
+export const battleRoundLimit = (_limit: number | null) => BATTLE_ROUNDS
 
 /** The format-specific cap for copies of one datasheet, before catalogue limits are applied. */
 export const formatDatasheetLimit = (limit: number, repeatable: boolean) => (isKotcLimit(limit) ? (repeatable ? 2 : 1) : null)
@@ -849,9 +849,22 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
     case 'advance': {
       if (state.status !== 'playing') return 'the battle is not running'
       if (!sameSide(state, state.activePlayerId, player.id)) return 'it is not your turn'
-      // What the active side still owes is a prompt, not a refusal. One person
-      // refereeing for the table can do every one of those things on that side's
-      // behalf, so refusing them the turn only stopped the game they were running.
+      const owed = sideOwes(state, player)
+      if (owed === 'settlement') return 'settle the previous turn before ending the command phase'
+      if (owed === 'cards') return 'draw every card owed before ending the command phase'
+      if (state.phase === 'command' && player.secondariesDrawnThisTurn.length && !state.drawAcknowledged) {
+        return 'review the new secondary missions before ending the command phase'
+      }
+      const due = scoringDue(state, player)
+      if (due.length && !state.advanceRequested) return 'review mission scoring before ending the phase'
+      if (due.length && !state.scoringAcknowledged) return 'finish mission scoring before ending the phase'
+      const unresolvedTactical =
+        state.phase === 'end' &&
+        player.secondaryMode === 'tactical' &&
+        player.secondaries.some(
+          (secondary) => secondary.key !== player.secretSecondary && player.secondaryStatus[secondary.key] === 'active',
+        )
+      if (unresolvedTactical && !state.advanceRequested) return 'review the tactical hand before ending the turn'
       return null
     }
     case 'end-battle': {
@@ -866,7 +879,9 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
       return state.status === 'finished' ? null : 'the battle is not over'
     case 'set-unit': {
       if (state.status !== 'playing') return 'the battle is not running'
-      if (!player.units.some((unit) => unit.key === command.unitKey)) return 'that is not one of your units'
+      const unit = player.units.find((candidate) => candidate.key === command.unitKey)
+      if (!unit) return 'that is not one of your units'
+      if (unit.destroyed === command.destroyed) return command.destroyed ? 'the unit is already lost' : 'the unit is already standing'
       return null
     }
     case 'deploy-unit': {
@@ -1698,6 +1713,26 @@ export function sideOwes(state: BattleState, player: PlayerState): 'settlement' 
   }
   if (state.phase === 'end' && player.secretSecondary && !player.secretRevealed) return 'secret'
   return null
+}
+
+function scoringDue(state: BattleState, player: PlayerState) {
+  const primary = player.primaryCard?.awards
+    ? [{ ...player.primaryCard, category: 'primary' as const, awards: player.primaryCard.awards }]
+    : []
+  const secondaries = player.secondaries.flatMap((secondary) => {
+    if (player.secondaryStatus[secondary.key] !== 'active' || !secondary.awards) return []
+    return [
+      {
+        ...secondary,
+        category: 'secondary' as const,
+        awards: secondary.awards.filter((award) => appliesInMode(award, player.secondaryMode)),
+      },
+    ]
+  })
+  return cardsDue({ phase: state.phase, round: state.round, rounds: battleRoundLimit(state.settings.limit) }, true, [
+    ...primary,
+    ...secondaries,
+  ])
 }
 
 /** Whether a card may be named to this viewer, or is being held face down from them. */

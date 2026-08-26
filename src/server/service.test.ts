@@ -1444,6 +1444,143 @@ describe('battle setup references', () => {
     })
   })
 
+  it('records mission timing from the server rules instead of the submitted card', async () => {
+    const authoritative = {
+      vp: 5,
+      per: null,
+      mode: null,
+      max: null,
+      group: null,
+      cumulative: false,
+      criteria: 'Control an objective marker.',
+      trigger: { timing: 'end-of-phase', phase: 'command', playerTurn: 'your-turn', roundMin: 2, roundMax: null },
+    }
+    const card = { name: 'Card', text: null, whenDrawn: null }
+    const loaded = {
+      ...rules(),
+      primaries: [
+        { ...card, key: 'mission-a', awards: [authoritative] },
+        { ...card, key: 'mission-b', awards: [authoritative] },
+      ],
+      secondaries: [{ ...card, key: 'secondary-a', awards: [authoritative] }],
+    }
+    const battle = await configured(loaded)
+    const submitted = { ...authoritative, trigger: { ...authoritative.trigger, phase: 'fight' } }
+    const result = await battle.send('alice', {
+      kind: 'set-prep',
+      stratagems: [],
+      secondaries: [],
+      secondaryDeck: [{ key: 'secondary-a', name: 'Altered', awards: [submitted] }],
+      primary: { key: 'mission-a', name: 'Altered', awards: [submitted] },
+      secondaryMode: 'tactical',
+    })
+    if (result.outcome === 'appended') battle.setSeq(result.seq)
+    const screen = await service.screen(battle.token, 'alice', loaded)
+
+    expect(screen.kind === 'battle' ? screen.view.players[0]?.primaryCard?.awards : null).toEqual([authoritative])
+
+    const changed = {
+      ...loaded,
+      primaries: loaded.primaries.map((primary) => ({ ...primary, awards: [{ ...authoritative, vp: 10 }] })),
+    }
+    const unchanged = await service.screen(battle.token, 'alice', changed)
+    expect(unchanged.kind === 'battle' ? unchanged.view.players[0]?.primaryCard?.awards : null).toEqual([authoritative])
+  })
+
+  it('restores authoritative scoring timing for battles prepared before timing was frozen', async () => {
+    const commandAward = {
+      vp: 5,
+      per: null,
+      mode: null,
+      max: null,
+      group: null,
+      cumulative: false,
+      criteria: 'Control an objective marker.',
+      trigger: { timing: 'end-of-phase', phase: 'command', playerTurn: 'your-turn', roundMin: 1, roundMax: null },
+    }
+    const card = { name: 'Card', text: null, whenDrawn: null }
+    const loaded = {
+      ...rules(),
+      primaries: [
+        { ...card, key: 'mission-a', awards: [commandAward] },
+        { ...card, key: 'mission-b', awards: [commandAward] },
+      ],
+      secondaries: [
+        { ...card, key: 'secondary-a', awards: [] },
+        { ...card, key: 'secondary-b', awards: [] },
+      ],
+    }
+    const battle = await configured(loaded)
+    for (const [playerId, primary] of [
+      ['alice', 'mission-a'],
+      ['bob', 'mission-b'],
+    ] as const) {
+      const { result } = await service.submit(battle.token, 'alice', battle.seq(), {
+        kind: 'set-prep',
+        playerId,
+        stratagems: [],
+        secondaries: [
+          { key: 'secondary-a', name: 'Secondary A' },
+          { key: 'secondary-b', name: 'Secondary B' },
+        ],
+        primary: { key: primary, name: 'Primary' },
+        secondaryMode: 'fixed',
+      })
+      if (result.outcome === 'appended') battle.setSeq(result.seq)
+    }
+    for (const command of [
+      { kind: 'set-deployment', patternId: 'valid-deployment' },
+      { kind: 'begin-battle', firstPlayerId: 'alice' },
+    ] as const) {
+      const result = await battle.send('alice', command)
+      if (result.outcome === 'appended') battle.setSeq(result.seq)
+    }
+
+    const screen = await service.screen(battle.token, 'alice', loaded)
+    expect(screen.kind === 'battle' ? screen.view.players[0]?.primaryCard?.awards : null).toEqual([commandAward])
+    expect(await battle.send('alice', { kind: 'advance' })).toEqual({
+      outcome: 'refused',
+      reason: 'review mission scoring before ending the phase',
+    })
+  })
+
+  it('refuses to begin with a fixed mission outside the server deck', async () => {
+    const card = { name: 'Card', text: null, awards: [], whenDrawn: null }
+    const loaded = {
+      ...rules(),
+      primaries: [
+        { ...card, key: 'mission-a' },
+        { ...card, key: 'mission-b' },
+      ],
+      secondaries: [
+        { ...card, key: 'secondary-a' },
+        { ...card, key: 'secondary-b' },
+      ],
+    }
+    const battle = await configured(loaded)
+    for (const [playerId, primary, secondaries] of [
+      ['alice', 'mission-a', ['secondary-a', 'made-up']],
+      ['bob', 'mission-b', ['secondary-a', 'secondary-b']],
+    ] as const) {
+      const result = await battle.send('alice', {
+        kind: 'set-prep',
+        playerId,
+        stratagems: [],
+        secondaries: secondaries.map((key) => ({ key, name: key })),
+        primary: { key: primary, name: primary },
+        secondaryMode: 'fixed',
+      })
+      if (result.outcome === 'appended') battle.setSeq(result.seq)
+    }
+    const deployment = await battle.send('alice', { kind: 'set-deployment', patternId: 'valid-deployment' })
+    if (deployment.outcome === 'appended') battle.setSeq(deployment.seq)
+
+    expect(await battle.send('alice', { kind: 'begin-battle', firstPlayerId: 'alice' })).toEqual({
+      outcome: 'refused',
+      reason: 'every side must prepare its mission cards',
+    })
+  })
+
   it('gives each side its directional primary mission', async () => {
     const battle = await configured()
     const alice = await service.screen(battle.token, 'alice', rules())
@@ -1601,6 +1738,7 @@ describe('scoring caps', () => {
     /** Both sides take a turn before the round turns over, so both are played out. */
     const nextRound = async () => {
       for (const playerId of ['alice', 'bob'] as const) {
+        if (playerId === 'bob') await send({ kind: 'settle-opponent-turn' })
         for (let phase = 0; phase < 6; phase += 1) await send({ kind: 'advance', playerId })
       }
     }

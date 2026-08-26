@@ -121,6 +121,26 @@ export function abilityNamesIn(loaded: LoadedCatalogue, catalogueId: string, ent
   return searchableProfilesIn(loaded, catalogueId, entryId).pricingAbilities
 }
 
+export function contextualAbilityNamesIn(
+  loaded: LoadedCatalogue,
+  catalogueId: string,
+  entryId: string,
+  context: Pick<DatasheetContext, 'selections' | 'unitSelectionIndex' | 'companions'>,
+): string[] {
+  return [
+    ...new Set([
+      ...abilityNamesIn(loaded, catalogueId, entryId),
+      ...grantedAbilitiesInAttachedUnit(
+        context.selections,
+        context.unitSelectionIndex,
+        context.companions ?? [],
+        loaded.index,
+        catalogueId,
+      ).map((ability) => ability.name),
+    ]),
+  ]
+}
+
 function searchableProfilesIn(loaded: LoadedCatalogue, catalogueId: string, entryId: string): SearchableProfiles {
   const key = `${catalogueId}:${entryId}`
   const cache = searchableProfileCache.get(loaded)
@@ -562,7 +582,18 @@ function grantedAbilitiesInAttachedUnit(
         const linkedAbilities = linkedAbilityNames(source, index, catalogueId, selections)
         for (const profile of source.profiles ?? []) {
           if (profile.typeName !== 'Abilities' || !profile.name) continue
-          const grant = grantedAbility(normalizedAbilityDescription(profile), companionIndexes.length > 0, linkedAbilities)
+          const hasConditionalAbilityLink = (source.modifiers ?? []).some(
+            (modifier) =>
+              modifier.type === 'add' &&
+              modifier.field === 'add-info' &&
+              Boolean(modifier.conditions?.length || modifier.conditionGroups?.length || modifier.repeats?.length),
+          )
+          const grant = grantedAbility(
+            normalizedAbilityDescription(profile),
+            companionIndexes.length > 0,
+            linkedAbilities,
+            !hasConditionalAbilityLink,
+          )
           if (!grant) continue
           if (grant.recipient === 'bearer' && origin !== 'self') continue
           if (grant.recipient === 'leader' && (origin !== 'companion' || !character)) continue
@@ -615,7 +646,12 @@ function linkedAbilityNames(
 }
 
 /** Exact catalogue phrases that grant a named ability to a bearer or every model in its unit. */
-function grantedAbility(description: string | null | undefined, attached: boolean, linkedAbilities: readonly string[]) {
+function grantedAbility(
+  description: string | null | undefined,
+  attached: boolean,
+  linkedAbilities: readonly string[],
+  allowUnlinkedDeployment: boolean,
+) {
   if (!description) return
   const prose = description.replaceAll(/\^\^|\*/g, '')
   const grant = (written: string, recipient: 'bearer' | 'leader' | 'unit') => {
@@ -627,16 +663,22 @@ function grantedAbility(description: string | null | undefined, attached: boolea
     /^(?:[\p{L} ]+ model only\. )?The bearer has a Save characteristic of \d+\+ and the \[?([\p{L}\p{N} +'’\p{Pd}]+)\]? ability\.$/iu,
   )
   if (saveAndAbilityGrant) return grant(saveAndAbilityGrant[1]!, 'bearer')
-  const bearerGrant = prose.match(/^The bearer has the \[?([\p{L}\p{N} +'’\p{Pd}]+)\]? ability\.$/iu)
+  const bearerGrant = prose.match(
+    /^(?:[^.\n]{1,160} model only\.\s*)?The bearer has the \[?([\p{L}\p{N} +'’\p{Pd}]+)\]? ability(?:[.,]|$)/iu,
+  )
   if (bearerGrant) return grant(bearerGrant[1]!, 'bearer')
   const bodyguardGrant = prose.match(
     /^While a Character model is leading this unit, that Character model has the \[?([\p{L}\p{N} +'’\p{Pd}]+)\]? ability\.$/iu,
   )
   if (bodyguardGrant && attached) return grant(bodyguardGrant[1]!, 'leader')
-  const thisUnitGrant = prose.match(/^(?:[-▪]\s*)?This unit has (?:the )?\[?([\p{L}\p{N} +"'’\p{Pd}]+?)\]?(?: ability)?\.(?:\s|$)/iu)
+  const thisUnitGrant = prose.match(
+    /^(?:[^.\n]{1,160} (?:model|unit) only\.\s*)?(?:[-▪]\s*)?This unit has (?:the )?\[?([\p{L}\p{N} +"'’\p{Pd}]+?)\]?(?: ability)?\.(?:\s|$)/iu,
+  )
   if (
     thisUnitGrant &&
-    (thisUnitGrant[1]?.toLocaleLowerCase() === 'stealth' ||
+    ((allowUnlinkedDeployment &&
+      (['stealth', 'infiltrators', 'deep strike'].includes(thisUnitGrant[1]?.toLocaleLowerCase() ?? '') ||
+        /^scouts \d+["″]$/iu.test(thisUnitGrant[1] ?? ''))) ||
       linkedAbilities.some((name) => ruleReferenceMatches(thisUnitGrant[1]!, name) || ruleReferenceMatches(name, thisUnitGrant[1]!)))
   )
     return grant(thisUnitGrant[1]!, 'unit')
@@ -645,7 +687,7 @@ function grantedAbility(description: string | null | undefined, attached: boolea
   )
   if (leadingGrant) return attached ? grant(leadingGrant[1]!, 'unit') : undefined
   const ownUnitGrant = prose.match(
-    /^Models in (?:this model's|the bearer's|the bearer’s) unit have the \[?([\p{L}\p{N} +'’\p{Pd}]+)\]? ability\.$/iu,
+    /^(?:[^.\n]{1,160} model only\.\s*)?(?:[-▪]\s*)?Models in (?:this model's|the bearer's|the bearer’s) unit have the \[?([\p{L}\p{N} +'’\p{Pd}]+)\]? ability(?:[.,]|$)/iu,
   )
   return ownUnitGrant ? grant(ownUnitGrant[1]!, 'unit') : undefined
 }

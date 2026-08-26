@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { datasheetIn } from './catalogue'
+import { contextualAbilityNamesIn, datasheetIn } from './catalogue'
 import { bookOf, profileOperationCases } from './catalogue.fixtures'
 import { describeDatasheetAbilities } from './datasheetDescriptions'
 
@@ -695,7 +695,6 @@ describe('the profile modifiers on a datasheet', () => {
                   characteristics: [{ name: 'Description', $text: 'This unit has Scouts 5".' }],
                 },
               ],
-              modifiers: [{ type: 'add', field: 'add-info', value: 'scouts-5', scope: 'parent', affects: 'group' }],
             },
           ],
         },
@@ -710,6 +709,7 @@ describe('the profile modifiers on a datasheet', () => {
       description: null,
       kind: 'core',
     })
+    expect(contextualAbilityNamesIn(book, 'cat', 'warriors', { selections, unitSelectionIndex: 0 })).toContain('Scouts 5"')
   })
 
   it('does not infer an ability from a conditional structured grant', () => {
@@ -743,6 +743,46 @@ describe('the profile modifiers on a datasheet', () => {
     expect(datasheetIn(book, 'cat', 'unit', { selections: [{ id: 'unit' }], unitSelectionIndex: 0 })?.abilities).not.toContainEqual(
       expect.objectContaining({ name: 'Scouts 6"', kind: 'core' }),
     )
+  })
+
+  it.each([
+    ["CRYPTEK model only. Models in the bearer's unit have the Infiltrators ability.", 'Infiltrators'],
+    [
+      'ADEPTUS ASTARTES model only. Models in the bearer’s unit have the Deep Strike ability. In addition, Rapid Ingress costs 0CP.',
+      'Deep Strike',
+    ],
+  ])('includes a selected enhancement deployment grant after its eligibility sentence', (description, ability) => {
+    const ruleId = ability.toLocaleLowerCase().replaceAll(' ', '-')
+    const book = bookOf({
+      sharedRules: [{ id: ruleId, name: ability, description: `${ability} rule.` }],
+      selectionEntries: [
+        {
+          id: 'leader',
+          name: 'Leader',
+          type: 'model',
+          selectionEntries: [
+            {
+              id: 'enhancement',
+              name: 'Enhancement',
+              type: 'upgrade',
+              profiles: [
+                {
+                  id: 'enhancement-rule',
+                  name: 'Enhancement',
+                  typeName: 'Abilities',
+                  characteristics: [{ name: 'Description', $text: description }],
+                },
+              ],
+              modifiers: [{ type: 'add', field: 'add-info', value: ruleId, scope: 'parent', affects: 'group' }],
+            },
+          ],
+        },
+        { id: 'bodyguard', name: 'Bodyguard', type: 'unit' },
+      ],
+    })
+    const selections = [{ id: 'leader', selections: [{ id: 'enhancement' }] }, { id: 'bodyguard' }]
+
+    expect(contextualAbilityNamesIn(book, 'cat', 'bodyguard', { selections, unitSelectionIndex: 1, companions: [0] })).toContain(ability)
   })
 
   it('shows an invulnerable save set by selected wargear on a blank characteristic', () => {

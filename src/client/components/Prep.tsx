@@ -61,10 +61,10 @@ export function Prep({ view, side, missionId, send, pending }: Props) {
    * it pays when fixed is a card that can be fixed, and one that says nothing cannot.
    */
   const fixedCards = deck.filter((card) => card.awards.some((award) => award.mode === 'fixed'))
-  const primary: Secondary | null = primaryCard ? { key: primaryCard.key, name: primaryCard.name } : null
+  const primary: Secondary | null = primaryCard ? { key: primaryCard.key, name: primaryCard.name, awards: primaryCard.awards } : null
   const storedMode: SecondaryMode = captain.secondaryMode
   const mode: SecondaryMode = tacticalOnly ? 'tactical' : storedMode
-  const chosen = captain.secondaries.map(({ key, name }) => ({ key, name }))
+  const chosen = captain.secondaries.map(({ key, name, awards }) => ({ key, name, awards }))
   const deckReady = mode !== 'tactical' || captain.secondaryDeckReady
 
   const save = (next: { mode?: SecondaryMode; secondaries?: Secondary[] }) => {
@@ -79,8 +79,14 @@ export function Prep({ view, side, missionId, send, pending }: Props) {
       // when the picker offered six is still holding them: sending those back
       // verbatim is refused by the rule this now sends, and a refusal here would
       // wedge every other prep write the side makes.
-      secondaries: nextMode === 'tactical' ? [] : (next.secondaries ?? chosen).slice(-FIXED_SECONDARIES),
-      secondaryDeck: nextMode === 'tactical' ? deck.map(({ key, name }) => ({ key, name })) : undefined,
+      secondaries:
+        nextMode === 'tactical'
+          ? []
+          : (next.secondaries ?? chosen)
+              .slice(-FIXED_SECONDARIES)
+              .map((secondary) => deck.find((card) => card.key === secondary.key) ?? secondary)
+              .map(({ key, name, awards }) => ({ key, name, awards })),
+      secondaryDeck: nextMode === 'tactical' ? deck.map(({ key, name, awards }) => ({ key, name, awards })) : undefined,
       primary,
       secondaryMode: nextMode,
     })

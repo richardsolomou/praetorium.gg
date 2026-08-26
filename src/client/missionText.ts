@@ -5,19 +5,11 @@
  * the same thing about the same card, so both read these rather than each writing
  * their own phrasing.
  */
-export type MissionAward = {
-  vp: number
-  per: string | null
-  mode: string | null
-  /** The ceiling on a per-something payout, when the card sets one. */
-  max: number | null
-  /** Payouts sharing a group are alternatives: the card pays one of them, not both. */
-  group: string | null
-  cumulative: boolean
-  /** What the mission pack says this payout asks for, when the source pairs it up. */
-  criteria: string | null
-  trigger: { timing: string | null; phase: string | null; playerTurn: string | null; roundMin: number | null; roundMax: number | null }
-}
+import { appliesInMode, type MissionAward } from '../core/scoring'
+
+export type { MissionAward } from '../core/scoring'
+
+export const missionFlavourText = (text: string | null, type: string) => (type === 'Secondary mission' ? null : text)
 
 /**
  * What to call a payout the source described only in the card's own words.
@@ -122,7 +114,7 @@ export function roundLabel(min: number | null, max: number | null) {
  * that asks whether it paid out have to admit exactly the same payouts — two copies
  * of this is a card advertising a payout the prompt will never offer.
  */
-export const appliesInMode = (award: Pick<MissionAward, 'mode'>, mode?: string) => !award.mode || !mode || award.mode === mode
+export { appliesInMode }
 
 export const groupKey = (award: MissionAward) =>
   [award.mode, award.trigger.timing, award.trigger.phase, award.trigger.playerTurn, award.trigger.roundMin, award.trigger.roundMax].join(

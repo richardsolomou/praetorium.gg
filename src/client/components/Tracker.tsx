@@ -153,7 +153,7 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
       playerId: repairSide.captain.id,
       stratagems: repairSide.stratagems,
       secondaries: [],
-      secondaryDeck: secondaryDeck.map(({ key: cardKey, name }) => ({ key: cardKey, name })),
+      secondaryDeck: secondaryDeck.map(({ key: cardKey, name, awards }) => ({ key: cardKey, name, awards })),
       primary: repairSide.primaryCard,
       secondaryMode: 'tactical',
     })
@@ -181,17 +181,11 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
 
   // Only what the card itself says pays out at this moment, so the ask arrives with the phase that ends.
   const due = active && !finished ? dueForAdvance(view, active, awardsFor) : []
-  const activeNeedsRules = Boolean(active?.primaryCard || active?.secondaries.some((card) => card.status === 'active'))
-  const activeRuleResults = ruleResults.filter((_, index) => ruleRequests[index]?.side === active?.index)
-  // The only thing that still holds the turn back is not knowing what the cards say.
-  // What the active side still owes is shown as a reminder: one person refereeing the
-  // table can do every one of those things, and refusing them the turn only stopped
-  // the game they were running.
-  const blockReason =
-    (activeNeedsRules && !activeRuleResults.some((result) => result.data) && activeRuleResults.some((result) => result.isPending)) ||
-    (activeNeedsRules && deckUnknown)
-      ? 'Loading the active side’s rules…'
-      : null
+  const activeNeedsReferences = Boolean(
+    (active?.primaryCard && active.primaryCard.awards === undefined) ||
+    active?.secondaries.some((card) => card.status === 'active' && card.awards === undefined),
+  )
+  const blockReason = activeNeedsReferences && deckUnknown ? 'Loading the active side’s mission cards…' : null
   const advanceBlocked = Boolean(blockReason)
   const advance = () => {
     if (advanceBlocked || !active) return
@@ -208,7 +202,11 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
   // opponent cannot make it, so the table playing that side makes it instead.
   const settlementOwner = settlementSide?.writer.id === view.viewerId || Boolean(settlementSide?.automated)
   const settlementRuleResults = ruleResults.filter((_, index) => ruleRequests[index]?.side === settlementSide?.index)
-  const settlementRulesPending = settlementRuleResults.some((result) => result.isPending) || deckUnknown
+  const settlementNeedsReferences = Boolean(
+    (settlementSide?.primaryCard && settlementSide.primaryCard.awards === undefined) ||
+    settlementSide?.secondaries.some((secondary) => secondary.status === 'active' && secondary.awards === undefined),
+  )
+  const settlementRulesPending = settlementNeedsReferences && (settlementRuleResults.some((result) => result.isPending) || deckUnknown)
   const owedCards =
     settlementRound !== null && settlementSide && !finished
       ? dueFromTheirTurn(settlementRound, settlementSide, awardsFor, heldKeys(settlementSide))
@@ -370,6 +368,7 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
           onDone={(completedSecondaryKeys, scored) => {
             const unresolved = discardableSecondaries(active).filter((key) => !completedSecondaryKeys.includes(key))
             if (view.phase !== 'end' || !unresolved.length) {
+              if (!scored) send({ kind: 'acknowledge-scoring', playerId: active.captain.id })
               send({ kind: 'advance', playerId: active.captain.id })
             } else if (!scored) {
               send({ kind: 'acknowledge-scoring', playerId: active.captain.id })

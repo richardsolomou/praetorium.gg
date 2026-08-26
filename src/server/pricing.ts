@@ -1,4 +1,4 @@
-import { attachmentErrors, attachmentOf } from '../core/attach'
+import { attachedUnit, attachmentErrors, attachmentOf } from '../core/attach'
 import { routeSlug } from '../core/slug'
 import {
   detachmentPointBudget,
@@ -18,7 +18,7 @@ import { withUnitSpread } from '../core/unitSpread'
 import { modelCountOf } from '../core/unitSize'
 import { wargearKey, wargearOf } from '../core/wargear'
 import { app } from './app'
-import { abilityNamesIn, datasheetIn, rulesReferencedIn, toughnessOf } from './catalogue'
+import { contextualAbilityNamesIn, datasheetIn, rulesReferencedIn, toughnessOf } from './catalogue'
 import { detachmentCatalogueDetail } from './catalogueDescriptions'
 import { groupOfEntry } from './cataloguePicker'
 import { rosterDetachments } from './rosterDetachments'
@@ -308,7 +308,18 @@ export function calculateRosterPrice(data: PriceInput, loaded = app().catalogue(
     selections,
     units: picked.map((unit) => {
       const catalogueId = data.units[unit.key]?.catalogueId ?? loaded.index.catalogueOf.get(unit.entryId) ?? data.catalogueId
-      const deployment = deploymentRules(abilityNamesIn(loaded, catalogueId, unit.entryId))
+      const companions = attachedUnit(data.units, unit.key).flatMap((key) => {
+        const companion = picked.find((candidate) => candidate.key === key)
+        const index = companion ? selections.indexOf(companion.selection) : -1
+        return index >= 0 && companion !== unit ? [index] : []
+      })
+      const deployment = deploymentRules(
+        contextualAbilityNamesIn(loaded, catalogueId, unit.entryId, {
+          selections,
+          unitSelectionIndex: selections.indexOf(unit.selection),
+          companions,
+        }),
+      )
       const describedChoices: ((typeof unit.choices)[number] & { kind?: 'enhancement' | 'upgrade' })[] = unit.choices.map((choice) => {
         const choiceOptions = (choice.options ?? []).map((option) => {
           const path = choice.key.split('/')

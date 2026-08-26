@@ -2,6 +2,7 @@ import type { BattleEvents } from '../adapters/events'
 import { randomId, randomToken } from 'ras-stack/auth'
 import {
   battleCapacity,
+  type BattleState,
   type Command,
   commandArmy,
   FIXED_SECONDARIES,
@@ -19,6 +20,7 @@ import {
 } from '../core/battle'
 import { type BattleView, battleView } from '../core/battleView'
 import { battleReport } from '../core/battleReport'
+import type { MissionAward } from '../core/scoring'
 import type { RosterPick } from '../core/roster'
 import type { RosterSource } from '../core/savedRoster'
 import {
@@ -871,6 +873,11 @@ export class PraetoriumService {
         return null
       },
       (state, submitted) => {
+        if (rules) hydrateAuthoritativeAwards(state, rules)
+        if (rules && submitted.kind === 'set-prep') return withAuthoritativeAwards(submitted, rules)
+        if (rules && submitted.kind === 'attach-roster' && submitted.prep) {
+          return { ...submitted, prep: withAuthoritativeAwards(submitted.prep, rules) }
+        }
         if (submitted.kind !== 'draw-secondary' && submitted.kind !== 'draw-secondaries') return submitted
         if (submitted.kind === 'draw-secondaries' && submitted.selected) return submitted
         // Whose deck this is comes from the domain, so the cards cannot be taken off
@@ -911,6 +918,7 @@ export class PraetoriumService {
       history.log,
       history.players.map((player) => player.side),
     )
+    if (rules) hydrateAuthoritativeAwards(state, rules)
     const view = battleView(history.battle, history.players, state, userId, this.clock())
     const missionForSide = (side: number) => {
       const ownDisposition = sideDisposition(state, side)
@@ -924,7 +932,7 @@ export class PraetoriumService {
         // Only when the rules answer. A matchup this instance cannot resolve — a log
         // from before both dispositions were required, or a pack no longer synced —
         // keeps the primary its own `set-prep` recorded rather than losing it.
-        if (primary) player.primaryCard = { key: primary.id, name: primary.name }
+        if (primary) player.primaryCard = { ...player.primaryCard, key: primary.id, name: primary.name }
       }
     }
     const viewerSide = view.players.find((player) => player.id === userId)?.side
@@ -952,6 +960,41 @@ export class PraetoriumService {
     const history = await this.repository.battleHistoryByToken(token)
     if (!history) throw new Response('no such battle', { status: 404 })
     return history
+  }
+}
+
+function withAuthoritativeAwards<T extends Pick<Extract<Command, { kind: 'set-prep' }>, 'primary' | 'secondaries' | 'secondaryDeck'>>(
+  prep: T,
+  rules: NonNullable<Parameters<typeof missionFor>[0]>,
+): T {
+  const primaryByKey = new Map((rules.primaries ?? []).map((card) => [card.key, card]))
+  const secondaryByKey = new Map((rules.secondaries ?? []).map((card) => [card.key, card]))
+  return {
+    ...prep,
+    primary: prep.primary ? authoritativeCard(prep.primary, primaryByKey) : null,
+    secondaries: prep.secondaries.map((secondary) => authoritativeCard(secondary, secondaryByKey)),
+    secondaryDeck: prep.secondaryDeck?.map((secondary) => authoritativeCard(secondary, secondaryByKey)),
+  }
+}
+
+type AvailableCard = { key: string; name: string; awards: MissionAward[] }
+
+function authoritativeCard(submitted: Secondary, available: Map<string, AvailableCard>): Secondary {
+  const authoritative = available.get(submitted.key)
+  return authoritative
+    ? { key: authoritative.key, name: authoritative.name, awards: authoritative.awards }
+    : { key: submitted.key, name: submitted.name }
+}
+
+function hydrateAuthoritativeAwards(state: BattleState, rules: NonNullable<Parameters<typeof missionFor>[0]>) {
+  const primaryByKey = new Map((rules.primaries ?? []).map((card) => [card.key, card]))
+  const secondaryByKey = new Map((rules.secondaries ?? []).map((card) => [card.key, card]))
+  const hydrate = (card: Secondary, available: Map<string, AvailableCard>) =>
+    card.awards === undefined ? authoritativeCard(card, available) : card
+  for (const player of state.players) {
+    if (player.primaryCard) player.primaryCard = hydrate(player.primaryCard, primaryByKey)
+    player.secondaries = player.secondaries.map((secondary) => hydrate(secondary, secondaryByKey))
+    player.secondaryDeck = player.secondaryDeck?.map((secondary) => hydrate(secondary, secondaryByKey)) ?? null
   }
 }
 
@@ -1010,7 +1053,9 @@ function setupReferenceError(state: ReturnType<typeof reduceBattle>, rules: NonN
     if (!primaries.some((card) => card.key === mission.id) || expectedSecondaries.size === 0) return true
     const player = sideCaptain(state, sides[index]!)
     if (player.primaryCard?.key !== mission.id) return false
-    if (player.secondaryMode === 'fixed') return player.secondaries.length === FIXED_SECONDARIES
+    if (player.secondaryMode === 'fixed') {
+      return player.secondaries.length === FIXED_SECONDARIES && player.secondaries.every((card) => expectedSecondaries.has(card.key))
+    }
     return completeDeck(player.secondaryDeck, expectedSecondaries)
   })
   if (!prepared) return 'every side must prepare its mission cards'

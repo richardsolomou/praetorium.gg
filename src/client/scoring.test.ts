@@ -26,7 +26,7 @@ const payout = (vp: number, on: Partial<AwardTrigger>): MissionAward => ({
   criteria: null,
   trigger: trigger(on),
 })
-const at = (phase: string, round = 1, rounds = 5) => ({ phase, round, rounds }) as Parameters<typeof dueNow>[1]
+const at = (phase: string, round = 1, rounds = 5) => ({ phase, round, rounds })
 
 describe('round scoring guidance', () => {
   it('uses only the applicable round total as already scored', () => {

@@ -17,7 +17,7 @@ A scoring-dialog confirmation is one `score-settlement` command, including every
 
 Live commands can name the affected player or army. Any seated player can operate either side, including bringing an army, settling its cards, and selecting or revealing its Secret Mission. The log records the submitting player. Concessions remain personal.
 
-What the active side still owes before a turn moves on — cards to draw, a previous turn to settle, a secret mission to answer — is a prompt and never a refusal. One person refereeing for the table can do all of it, so refusing them the turn only stopped the game they were running.
+What the active side still owes before a turn moves on — cards to draw or review, a previous turn to settle, mission scoring, a tactical hand, or a secret mission to answer — is a shared prompt and an advance guard. Any seated player can complete it for either side, so the guard prevents omissions without preventing one person from refereeing the table.
 
 Every required live prompt is shared. A phase or turn advance opens the same scoring and tactical-discard sequence on every seated device, and either player may complete it once. Tactical draws and prior-turn scoring work the same way. Prompt requests and acknowledgements are folded from the log so reloads and realtime updates preserve them, but they are not battle report entries or undo targets.
 
@@ -62,7 +62,7 @@ There is no solo format. A battle is between two sides, and a side nobody signs 
 
 ## Cards
 
-What an army brings is not a choice a player makes twice. The stratagems are every detachment the side fields plus the core ones every army has, and its primary comes from its ordered force-disposition matchup against the opposing side — both are recorded by `set-prep` as soon as they are known rather than offered as a picker.
+What an army brings is not a choice a player makes twice. The stratagems are every detachment the side fields plus the core ones every army has, and its primary comes from its ordered force-disposition matchup against the opposing side — both are recorded by `set-prep` as soon as they are known rather than offered as a picker. Mission cards freeze their server-verified payouts and timing into that command, so a rules refetch cannot change or erase a live battle's next scoring moment.
 
 A side is one stratagem pool, so a 2v1 pools both allies' detachments into it, keyed by the dataset's own stratagem id. Only the seat the domain folds a side's resources onto writes that pool: `set-prep` targets the side captain, and letting both allies write their own left the survivor down to whichever request landed last. `sideStratagems` in `src/client/sideRules.ts` assembles it, and `armyRulesRequest` beside it is the one derivation of what an army's rules are looked up by.
 

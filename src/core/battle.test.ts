@@ -720,6 +720,14 @@ describe('the turn sequence', () => {
     expect(state.players.find((player) => player.id === ALICE)?.cp).toBe(1)
   })
 
+  it('grants each side a command point at the start of every turn', () => {
+    const firstTurns = reduceBattle(PLAYERS, log(...started(), ...turns(6, ALICE)))
+    expect(firstTurns.players.map((player) => player.cp)).toEqual([1, 1])
+
+    const nextRound = reduceBattle(PLAYERS, log(...started(), ...turns(6, ALICE), ...turns(6, BOB)))
+    expect(nextRound.players.map((player) => player.cp)).toEqual([2, 1])
+  })
+
   it('steps through the phases in order', () => {
     const state = reduceBattle(PLAYERS, log(...started(), ...turns(2, ALICE)))
     expect(state.phase).toBe('shooting')
@@ -767,7 +775,7 @@ describe('the turn sequence', () => {
     expect(state.status).toBe('finished')
   })
 
-  it.each([500, 600])('finishes %i-point King of the Colosseum after three rounds', (limit) => {
+  it.each([500, 600])('finishes %i-point King of the Colosseum after five rounds', (limit) => {
     const configured: [string, Command] = [
       ALICE,
       {
@@ -779,13 +787,13 @@ describe('the turn sequence', () => {
         clockLimitMinutes: null,
       },
     ]
-    const rounds = Array.from({ length: 3 }, () => [...turns(6, ALICE), ...turns(6, BOB)]).flat()
+    const rounds = Array.from({ length: BATTLE_ROUNDS }, () => [...turns(6, ALICE), ...turns(6, BOB)]).flat()
     const state = reduceBattle(PLAYERS, log(configured, ...started(), ...rounds))
     const view = battleView({ token: 'abc' }, NAMES, state, ALICE)
 
-    expect(state).toMatchObject({ status: 'finished', round: 3, result: { reason: 'completed' } })
-    expect(view.rounds).toBe(3)
-    expect(view.players[0]?.rounds).toHaveLength(3)
+    expect(state).toMatchObject({ status: 'finished', round: 5, result: { reason: 'completed' } })
+    expect(view.rounds).toBe(5)
+    expect(view.players[0]?.rounds).toHaveLength(5)
   })
 
   it('keeps the final battle round within the five-round ledger', () => {
@@ -893,6 +901,41 @@ describe('the turn sequence', () => {
     expect(battleReport(NAMES, history).some((entry) => entry.commandKind === 'acknowledge-scoring')).toBe(false)
   })
 
+  it('refuses to pass a scoring moment recorded with the battle until it is reviewed', () => {
+    const award = {
+      vp: 5,
+      per: null,
+      mode: null,
+      max: null,
+      group: null,
+      cumulative: false,
+      criteria: 'Control an objective marker.',
+      trigger: { timing: 'end-of-phase', phase: 'command', playerTurn: 'your-turn', roundMin: null, roundMax: null },
+    }
+    const prepared: [string, Command][] = [
+      ...started().slice(0, 2),
+      [
+        ALICE,
+        {
+          kind: 'set-prep',
+          stratagems: [],
+          secondaries: [],
+          primary: { key: 'primary', name: 'Take and Hold', awards: [award] },
+          secondaryMode: 'fixed',
+        },
+      ],
+      [ALICE, { kind: 'begin-battle', firstPlayerId: ALICE }],
+    ]
+    const before = reduceBattle(PLAYERS, log(...prepared))
+    const requested = reduceBattle(PLAYERS, log(...prepared, [ALICE, { kind: 'request-advance' }]))
+    const reviewed = reduceBattle(PLAYERS, log(...prepared, [ALICE, { kind: 'request-advance' }], [ALICE, { kind: 'acknowledge-scoring' }]))
+
+    expect(validate(before, ALICE, { kind: 'advance' })).toBe('review mission scoring before ending the phase')
+    expect(validate(requested, ALICE, { kind: 'advance' })).toBe('finish mission scoring before ending the phase')
+    expect(validate(reviewed, ALICE, { kind: 'advance' })).toBeNull()
+    expect(battleView({ token: 'abc' }, NAMES, before, ALICE).players[0]?.primaryCard?.awards).toEqual([award])
+  })
+
   it('moves a shared advance request past scoring when points are recorded', () => {
     const state = reduceBattle(
       PLAYERS,
@@ -984,7 +1027,7 @@ describe('the turn sequence', () => {
     expect(validate(selected, ALICE, { kind: 'reveal-secret', playerId: BOB })).toBeNull()
   })
 
-  it('lets anyone at the table advance a side with cards still to draw, and says what is owed', () => {
+  it('lets anyone at the table draw for a side but refuses to skip the draw', () => {
     const history = log(
       [ALICE, roster('Ultramarines')],
       [BOB, roster('Death Guard')],
@@ -1004,15 +1047,15 @@ describe('the turn sequence', () => {
 
     const state = reduceBattle(PLAYERS, history)
 
-    expect(validate(state, BOB, { kind: 'advance', playerId: ALICE })).toBeNull()
+    expect(validate(state, BOB, { kind: 'advance', playerId: ALICE })).toBe('draw every card owed before ending the command phase')
     expect(battleView({ token: 'abc' }, NAMES, state, BOB).advancePrompt).toBe('The active side has secondary missions to draw.')
   })
 
-  it('says the previous turn is unsettled without holding the turn back for it', () => {
+  it('holds the command phase until the previous turn is settled', () => {
     const history = log(...started(), ...turns(6, ALICE))
     const pending = reduceBattle(PLAYERS, history)
 
-    expect(validate(pending, ALICE, { kind: 'advance', playerId: BOB })).toBeNull()
+    expect(validate(pending, ALICE, { kind: 'advance', playerId: BOB })).toBe('settle the previous turn before ending the command phase')
     expect(battleView({ token: 'abc' }, NAMES, pending, ALICE).advancePrompt).toBe('The previous turn is still to be settled.')
     expect(validate(pending, BOB, { kind: 'settle-opponent-turn' })).toBeNull()
 
@@ -1078,7 +1121,7 @@ describe('the turn sequence', () => {
     expect(battleReport(NAMES, history).some((entry) => entry.commandKind === 'settle-opponent-turn')).toBe(false)
   })
 
-  it('lets an ally draw and advance for the side they share', () => {
+  it('lets an ally draw for the side they share but refuses to skip the draw', () => {
     const configure: Command = {
       kind: 'configure-battle',
       limit: 2000,
@@ -1110,7 +1153,7 @@ describe('the turn sequence', () => {
     const state = reduceBattle([ALICE, BOB, CAROL], history, [0, 1, 1])
     const named = [...NAMES, { id: CAROL, name: 'Carol' }]
 
-    expect(validate(state, CAROL, { kind: 'advance', playerId: BOB })).toBeNull()
+    expect(validate(state, CAROL, { kind: 'advance', playerId: BOB })).toBe('draw every card owed before ending the command phase')
     // The pair share one hand, so the ally can see the deck it is drawn from.
     expect(battleView({ token: 'abc' }, named, state, CAROL).players.find((player) => player.id === CAROL)?.remainingSecondaries).toEqual([
       { key: 'a', name: 'Area Denial' },
@@ -1641,5 +1684,18 @@ describe('deployment', () => {
       [ALICE, { kind: 'set-unit', unitKey: 'u0', destroyed: true }],
     )
     expect(battleView({ token: 'abc' }, NAMES, reduceBattle(PLAYERS, history), ALICE).players[0]?.deployed).toBe(1)
+  })
+
+  it('refuses to mark an already lost unit lost again', () => {
+    const state = reduceBattle(
+      PLAYERS,
+      log(
+        ...withUnits(),
+        [ALICE, { kind: 'begin-battle', firstPlayerId: ALICE }],
+        [ALICE, { kind: 'set-unit', unitKey: 'u0', destroyed: true }],
+      ),
+    )
+
+    expect(validate(state, ALICE, { kind: 'set-unit', unitKey: 'u0', destroyed: true })).toBe('the unit is already lost')
   })
 })

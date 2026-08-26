@@ -117,6 +117,7 @@ export type BattleView = {
     secondaries: {
       key: string
       name: string
+      awards?: NonNullable<Secondary['awards']>
       points: number
       rounds: number[]
       status: SecondaryStatus
@@ -268,6 +269,7 @@ export function battleView(
           return {
             key: nameable ? secondary.key : 'secret',
             name: nameable ? secondary.name : 'Secret mission',
+            awards: nameable ? secondary.awards : undefined,
             points: resources.scored[secondary.key] ?? 0,
             rounds: (resources.scoredByRound[secondary.key] ?? Array(BATTLE_ROUNDS).fill(0)).slice(
               0,

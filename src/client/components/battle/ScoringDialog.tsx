@@ -4,7 +4,16 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import type { Command } from '../../../core/battle'
 import type { BattleView } from '../../../core/battleView'
-import { alternatives, awardLimit, awardTotal, conditionLabel, counted, type MissionAward, payoutLabel } from '../../missionText'
+import {
+  alternatives,
+  appliesInMode,
+  awardLimit,
+  awardTotal,
+  conditionLabel,
+  counted,
+  type MissionAward,
+  payoutLabel,
+} from '../../missionText'
 import { capRoom, cardsDue, cardsDueFromTheirTurn, type DueCard, finishesOnScore, scoredThisRound, settleAgainstCaps } from '../../scoring'
 import { type Side, sideName } from '../../sides'
 import { RuleText } from '../RuleText'
@@ -389,14 +398,18 @@ export function dueFromTheirTurn(
 /** A side's primary and whatever is still live in its hand, with the payouts each carries. */
 function playable(side: Side, awardsFor: (key: string, mode?: string) => MissionAward[]) {
   return [
-    ...(side.primaryCard ? [{ ...side.primaryCard, category: 'primary' as const, awards: awardsFor(side.primaryCard.key) }] : []),
+    ...(side.primaryCard
+      ? [{ ...side.primaryCard, category: 'primary' as const, awards: side.primaryCard.awards ?? awardsFor(side.primaryCard.key) }]
+      : []),
     ...side.secondaries
       .filter((secondary) => secondary.status === 'active')
       .map((secondary) => ({
         key: secondary.key,
         name: secondary.name,
         category: 'secondary' as const,
-        awards: awardsFor(secondary.key, side.secondaryMode),
+        awards: (secondary.awards ?? awardsFor(secondary.key, side.secondaryMode)).filter((award) =>
+          appliesInMode(award, side.secondaryMode),
+        ),
       })),
   ]
 }

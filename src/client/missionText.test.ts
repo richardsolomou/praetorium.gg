@@ -1,7 +1,26 @@
 import { describe, expect, it } from 'vitest'
-import { alternatives, awardLimit, awardTotal, conditionLabel, counted, type MissionAward, payoutLabel } from './missionText'
+import {
+  alternatives,
+  awardLimit,
+  awardTotal,
+  conditionLabel,
+  counted,
+  missionFlavourText,
+  type MissionAward,
+  payoutLabel,
+} from './missionText'
 
 const per = (vp: number, max: number | null) => ({ vp, max, per: 'enemy-unit-destroyed-this-turn' })
+
+describe('mission flavour text', () => {
+  it('is omitted from secondary mission references', () => {
+    expect(missionFlavourText('Atmospheric flavour.', 'Secondary mission')).toBeNull()
+  })
+
+  it('stays on primary mission references', () => {
+    expect(missionFlavourText('Mission briefing.', 'Primary mission')).toBe('Mission briefing.')
+  })
+})
 
 describe('what a payout is worth', () => {
   it('counts on past the last whole multiple of a ceiling', () => {

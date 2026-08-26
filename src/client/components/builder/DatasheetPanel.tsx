@@ -241,7 +241,7 @@ export function WeaponProfile({
           .map((value) => (
             <div key={value.name} className="min-w-0 text-center">
               <p className="eyebrow text-[0.625rem]">{value.name}</p>
-              <p className="readout text-xs text-faint">
+              <p className="readout text-[0.8125rem] text-faint">
                 <ProfileValue value={value} />
               </p>
             </div>

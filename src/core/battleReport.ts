@@ -115,15 +115,20 @@ function describe(
     }
     case 'set-painted':
       return command.painted ? `${who} marks ${whose} army battle ready` : `${who} removes the battle ready bonus from ${whose} army`
-    case 'begin-battle':
-      return `The battle begins, ${named.get(command.attackerId ?? command.firstPlayerId) ?? 'someone'} attacking and ${named.get(command.firstPlayerId) ?? 'someone'} taking the first turn`
+    case 'begin-battle': {
+      const first = named.get(command.firstPlayerId) ?? 'someone'
+      return `The battle begins, ${named.get(command.attackerId ?? command.firstPlayerId) ?? 'someone'} attacking and ${first} taking the first turn and gaining 1 CP`
+    }
     case 'advance': {
       if (after.status === 'finished') return targetId === by ? 'The last round ends' : `${who} ends the last round${forTarget}`
-      if (after.round !== before.round)
-        return targetId === by ? `Round ${after.round} begins` : `${who} ends the turn${forTarget}; round ${after.round} begins`
+      const next = named.get(after.activePlayerId ?? '') ?? 'the other player'
+      if (after.round !== before.round) {
+        return targetId === by
+          ? `Round ${after.round} begins; ${next} gains 1 CP`
+          : `${who} ends the turn${forTarget}; round ${after.round} begins and ${next} gains 1 CP`
+      }
       if (after.activePlayerId !== before.active) {
-        const next = named.get(after.activePlayerId ?? '') ?? 'the other player'
-        return targetId === by ? `The turn passes to ${next}` : `${who} passes ${whose} turn to ${next}`
+        return targetId === by ? `The turn passes to ${next}, who gains 1 CP` : `${who} passes ${whose} turn to ${next}, who gains 1 CP`
       }
       return `${who} ends the ${before.phase} phase${forTarget}`
     }
