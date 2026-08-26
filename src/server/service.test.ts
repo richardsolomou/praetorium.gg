@@ -539,7 +539,7 @@ it('keeps league battle history scoped to its event', async () => {
   expect((await service.leagueBattles(league.token, next.eventToken, { limit: 25 })).battles).toEqual([])
 })
 
-it('keeps legacy cadence clients compatible while every league supports events', async () => {
+it('normalizes a legacy one-off create payload to reusable events', async () => {
   const { token, eventToken } = await service.createLeague('alice', {
     name: 'League',
     description: '',
@@ -548,11 +548,36 @@ it('keeps legacy cadence clients compatible while every league supports events',
     playerLimit: 2,
     recurring: false,
   })
+
+  expect((await service.league(token, 'alice', eventToken))?.recurring).toBe(true)
+})
+
+it('converts a persisted one-off league for legacy replicas', async () => {
+  const { token, eventToken } = await service.createLeague('alice', {
+    name: 'League',
+    description: '',
+    visibility: 'private',
+    admission: 'automatic',
+    playerLimit: 2,
+  })
   await database.update(leagues).set({ recurring: false }).where(eq(leagues.token, token))
 
   await service.makeLeagueRecurring(token, 'alice')
 
   expect((await service.league(token, 'alice', eventToken))?.recurring).toBe(true)
+})
+
+it('only lets the organizer convert a persisted one-off league', async () => {
+  const { token } = await service.createLeague('alice', {
+    name: 'League',
+    description: '',
+    visibility: 'private',
+    admission: 'automatic',
+    playerLimit: 2,
+  })
+  await database.update(leagues).set({ recurring: false }).where(eq(leagues.token, token))
+
+  expect(await refusalStatus(() => service.makeLeagueRecurring(token, 'bob'))).toBe(403)
 })
 
 it('rechecks the event size when creating a 1v1 league battle', async () => {
