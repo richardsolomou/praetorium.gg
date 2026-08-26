@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.39.3
+
+### Patch Changes
+
+- 9823cbd: Direct eligible league matchups through their event before starting a casual battle.
+- eea3629: Share every live mission prompt across seated devices.
+
 ## 0.39.2
 
 ### Patch Changes
