@@ -158,3 +158,31 @@ it('keeps account inserts compatible during a rolling deployment', async () => {
     await client.close()
   }
 })
+
+it('backfills league event battles from their roster lock command', async () => {
+  const client = new PGlite()
+  try {
+    const target = '0014_colossal_puma.sql'
+    await executeMigrationsBefore(client, target)
+    await client.exec(`
+      INSERT INTO "user" ("id", "name", "email", "emailVerified", "createdAt", "updatedAt")
+      VALUES ('owner', 'Owner', 'owner@example.test', false, now(), now());
+      INSERT INTO "leagues" ("id", "token", "owner_id", "name", "description", "visibility", "admission", "created_at")
+      VALUES ('league', 'league-token', 'owner', 'League', '', 'private', 'automatic', 1);
+      INSERT INTO "league_events" ("id", "token", "league_id", "number", "created_at", "revealed_at")
+      VALUES ('event', 'event-token', 'league', 1, 1, 2);
+      INSERT INTO "battles" ("id", "token", "created_at") VALUES ('battle', 'battle-token', 3);
+      INSERT INTO "commands" ("battle_id", "seq", "user_id", "at", "body")
+      VALUES ('battle', 1, 'owner', 3, '{"kind":"lock-league-rosters","leagueToken":"league-token","eventToken":"event-token"}');
+    `)
+
+    await executeMigration(client, target)
+
+    const result = await client.query<{ battleId: string; eventId: string }>(
+      'SELECT "battle_id" AS "battleId", "event_id" AS "eventId" FROM "league_event_battles"',
+    )
+    expect(result.rows).toEqual([{ battleId: 'battle', eventId: 'event' }])
+  } finally {
+    await client.close()
+  }
+})

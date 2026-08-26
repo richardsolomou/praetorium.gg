@@ -9,6 +9,7 @@ import {
   createLeagueBattleSchema,
   createLeagueEventSchema,
   createLeagueSchema,
+  leagueBattlesSchema,
   leagueEventSchema,
   leagueRosterSchema,
   moderateLeagueEntrySchema,
@@ -23,6 +24,12 @@ export const listLeagues = createServerFn({ method: 'GET' }).handler(() => rpc(a
 export const openLeague = createServerFn({ method: 'GET' })
   .validator(openLeagueSchema)
   .handler(({ data }) => rpc(async () => app().service.league(data.token, await currentUserId(), data.eventToken)))
+
+export const listLeagueBattles = createServerFn({ method: 'GET' })
+  .validator(leagueBattlesSchema)
+  .handler(({ data }) =>
+    rpc(() => app().service.leagueBattles(data.token, data.eventToken, { limit: 25, before: data.before ?? undefined }, app().rules())),
+  )
 
 export const createLeague = createServerFn({ method: 'POST' })
   .validator(createLeagueSchema)

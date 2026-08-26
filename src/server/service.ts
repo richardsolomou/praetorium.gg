@@ -27,10 +27,10 @@ import {
   LEAGUE_TEAM_ROSTER_LIMITS,
   type LeagueAdmission,
   type LeagueEntryStatus,
-  type LeagueEventFormat,
   type LeagueVisibility,
   visibleLeagueEntries,
 } from '../core/league'
+import type { TableShape } from '../core/tableShape'
 import { commandSchema, parseRosterSnapshot } from '../core/commands'
 import type { BattleHistory, BattleSeats, BattlesCursor, JoinResult, Repository } from '../db/repository'
 import { type Mission, missionFor } from './rules'
@@ -45,13 +45,17 @@ type SavedPrep = { stratagems: Stratagem[]; secondaries: Secondary[] }
  * in to has its cards settled by the table facing it.
  */
 type SeatedScreen = { kind: 'battle'; view: BattleView; mission: Mission | null; missions: { side: number; mission: Mission | null }[] }
+type SpectatorScreen = {
+  kind: 'spectator'
+  view: BattleView
+  missions: { side: number; mission: Mission | null }[]
+  report: ReturnType<typeof battleReport>
+}
 
-/**
- * What someone holding the link gets: the battle itself once they have a seat,
- * or the invitation until they take one. Reading a battle never seats anyone —
- * a link preview must not be able to take the second chair.
- */
-type BattleScreen = SeatedScreen | { kind: 'invitation'; free: boolean }
+/** A link resolves to a seated screen, a revealed league spectator, or an invitation; reads never claim seats. */
+type BattleScreen = SeatedScreen | SpectatorScreen | { kind: 'invitation'; free: boolean }
+
+const SPECTATOR_ID = ''
 
 /**
  * What a command answers: what happened to it, and what the battle now is.
@@ -87,7 +91,7 @@ export class PraetoriumService {
       visibility: LeagueVisibility
       admission: LeagueAdmission
       playerLimit: number | null
-      format?: LeagueEventFormat
+      format?: TableShape
       rosterLimit?: number
     },
   ) {
@@ -110,7 +114,7 @@ export class PraetoriumService {
     return { token, eventToken }
   }
 
-  async createLeagueEvent(token: string, ownerId: string, rule: { format?: LeagueEventFormat; rosterLimit?: number } = {}) {
+  async createLeagueEvent(token: string, ownerId: string, rule: { format?: TableShape; rosterLimit?: number } = {}) {
     const eventToken = randomToken()
     const format = rule.format ?? '1v1'
     const rosterLimit = rule.rosterLimit ?? LEAGUE_DEFAULT_ROSTER_LIMIT
@@ -419,13 +423,27 @@ export class PraetoriumService {
     page?: { limit: number; before?: BattlesCursor; withUserId?: string },
   ) {
     const { battles: histories, nextCursor } = await this.repository.battlesByUser(userId, page)
-    const summaries = histories.map(({ battle, players, log }) => {
+    return { battles: this.battleSummaries(histories, userId, rules), nextCursor }
+  }
+
+  async leagueBattles(
+    leagueToken: string,
+    eventToken: string,
+    page: { limit: number; before?: BattlesCursor },
+    rules?: Parameters<typeof missionFor>[0] | null,
+  ) {
+    const { battles: histories, nextCursor } = await this.repository.battlesByLeagueEvent(leagueToken, eventToken, page)
+    return { battles: this.battleSummaries(histories, null, rules), nextCursor }
+  }
+
+  private battleSummaries(histories: readonly BattleHistory[], viewerId: string | null, rules?: Parameters<typeof missionFor>[0] | null) {
+    return histories.map(({ battle, players, log }) => {
       const state = reduceBattle(
         players.map((player) => player.id),
         log,
         players.map((player) => player.side),
       )
-      const viewerSide = state.players.find((player) => player.id === userId)?.side ?? 0
+      const viewerSide = state.players.find((player) => player.id === viewerId)?.side ?? 0
       const opposingSide = state.players.find((player) => player.side !== viewerSide)?.side
       const ownDisposition = sideDisposition(state, viewerSide)
       const opposingDisposition = opposingSide === undefined ? null : sideDisposition(state, opposingSide)
@@ -457,7 +475,6 @@ export class PraetoriumService {
         lastActivity: log.at(-1)?.at ?? battle.createdAt,
       }
     })
-    return { battles: summaries, nextCursor }
   }
 
   /**
@@ -732,15 +749,24 @@ export class PraetoriumService {
    */
   async screen(token: string, userId: string | null, rules?: Parameters<typeof missionFor>[0] | null): Promise<BattleScreen> {
     const history = await this.mustFind(token)
-    if (!userId || !this.seated(history, userId)) {
-      const state = reduceBattle(
-        history.players.map((player) => player.id),
-        history.log,
-        history.players.map((player) => player.side),
-      )
-      return { kind: 'invitation', free: history.players.length < battleCapacity(state.settings) }
+    const viewerId = userId && this.seated(history, userId) ? userId : SPECTATOR_ID
+    const screen = this.battleScreen(history, viewerId, rules)
+    if (viewerId !== SPECTATOR_ID) return screen
+    if (screen.view.leagueToken) {
+      return {
+        kind: 'spectator',
+        view: screen.view,
+        missions: screen.missions,
+        report: battleReport(
+          history.players,
+          history.log,
+          history.players.map((player) => player.id),
+          SPECTATOR_ID,
+          history.players.map((player) => player.side),
+        ),
+      }
     }
-    return this.seatedScreen(history, userId, rules)
+    return { kind: 'invitation', free: history.players.length < battleCapacity(screen.view.settings) }
   }
 
   /** A readable account of the battle. Derived from the log, so nothing is stored for it. */
@@ -800,7 +826,7 @@ export class PraetoriumService {
         seats.players.map((player) => player.id),
         result.seq,
       )
-    return { result, screen: this.seatedScreen({ ...seats, log }, userId, rules) }
+    return { result, screen: this.battleScreen({ ...seats, log }, userId, rules) }
   }
 
   /** Opening a battle stream is an authorization decision. */
@@ -809,8 +835,8 @@ export class PraetoriumService {
     return seats.battle.id
   }
 
-  /** One battle as one player may see it. The only place a seated view is built. */
-  private seatedScreen(history: BattleHistory, userId: string, rules?: Parameters<typeof missionFor>[0] | null): SeatedScreen {
+  /** The only place a visibility-filtered battle view is built. */
+  private battleScreen(history: BattleHistory, userId: string, rules?: Parameters<typeof missionFor>[0] | null): SeatedScreen {
     const state = reduceBattle(
       history.players.map((player) => player.id),
       history.log,

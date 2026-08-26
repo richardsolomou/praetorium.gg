@@ -22,7 +22,7 @@ import {
 } from './battle'
 
 /** One thing that happened, in the words a player would use about it. */
-type ReportEntry = { seq: number; at: number; round: number; phase: Phase; by: string; commandKind: Command['kind']; text: string }
+export type ReportEntry = { seq: number; at: number; round: number; phase: Phase; by: string; commandKind: Command['kind']; text: string }
 
 export function battleReport(
   players: readonly { id: PlayerId; name: string }[],

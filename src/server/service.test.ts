@@ -498,6 +498,46 @@ it('links a sealed-roster battle back to its league', async () => {
   })
 })
 
+it('lists an event battle and gives a non-player a read-only spectator screen', async () => {
+  const league = await revealedLeague()
+  const battle = await service.createLeagueBattle('alice', league.token, 'dave', null, league.eventToken)
+
+  const page = await service.leagueBattles(league.token, league.eventToken, { limit: 25 })
+  const screen = await service.screen(battle.token, 'carol')
+
+  expect(page).toEqual(
+    expect.objectContaining({
+      nextCursor: null,
+      battles: [expect.objectContaining({ token: battle.token, players: ['Alice', 'Dave'], armies: ['Alice sealed', 'Dave sealed'] })],
+    }),
+  )
+  expect(screen).toEqual(
+    expect.objectContaining({
+      kind: 'spectator',
+      view: expect.objectContaining({
+        leagueToken: league.token,
+        leagueEventToken: league.eventToken,
+        players: [
+          expect.objectContaining({ id: 'alice', isViewer: false, roster: expect.objectContaining({ name: 'Alice sealed' }) }),
+          expect.objectContaining({ id: 'dave', isViewer: false, roster: expect.objectContaining({ name: 'Dave sealed' }) }),
+        ],
+      }),
+      report: expect.arrayContaining([expect.objectContaining({ text: expect.stringContaining('Alice sealed') })]),
+    }),
+  )
+})
+
+it('keeps league battle history scoped to its event', async () => {
+  const league = await revealedLeague(leagueSnapshot('Alice sealed'), leagueSnapshot('Dave sealed'))
+  const battle = await service.createLeagueBattle('alice', league.token, 'dave', null, league.eventToken)
+  const next = await service.createLeagueEvent(league.token, 'alice', { format: '1v1', rosterLimit: 600 })
+
+  expect((await service.leagueBattles(league.token, league.eventToken, { limit: 25 })).battles.map((entry) => entry.token)).toEqual([
+    battle.token,
+  ])
+  expect((await service.leagueBattles(league.token, next.eventToken, { limit: 25 })).battles).toEqual([])
+})
+
 it('rechecks the event size when creating a 1v1 league battle', async () => {
   const league = await revealedLeague()
   await database.update(leagueEventEntries).set({ rosterSnapshot: JSON.stringify(leagueSnapshot('Changed snapshot', 1_000)) })

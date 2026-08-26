@@ -303,6 +303,19 @@ export const leagueEventEntries = pgTable(
   (table) => [primaryKey({ columns: [table.eventId, table.userId] }), index('league_event_entries_user_id_index').on(table.userId)],
 )
 
+export const leagueEventBattles = pgTable(
+  'league_event_battles',
+  {
+    battleId: text('battle_id')
+      .primaryKey()
+      .references(() => battles.id, { onDelete: 'cascade' }),
+    eventId: text('event_id')
+      .notNull()
+      .references(() => leagueEvents.id, { onDelete: 'cascade' }),
+  },
+  (table) => [index('league_event_battles_event_id_index').on(table.eventId)],
+)
+
 /**
  * The datasheets a player owns models for.
  *
@@ -381,6 +394,7 @@ export const schema = {
   leagues,
   leagueEvents,
   leagueEventEntries,
+  leagueEventBattles,
   collection,
   favouriteFactions,
   favouriteDetachments,

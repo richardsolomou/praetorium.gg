@@ -1,6 +1,6 @@
 {
-  "id": "62c4feea-bab1-4d9e-9c59-b61b2bdf0fb7",
-  "prevId": "8ccbf38f-55cb-41b8-979c-5a00684b5898",
+  "id": "bb302a63-90a4-4318-b32f-58dee9893d56",
+  "prevId": "62c4feea-bab1-4d9e-9c59-b61b2bdf0fb7",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -929,13 +929,6 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": false
-        },
-        "recurring": {
-          "name": "recurring",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
         },
         "created_at": {
           "name": "created_at",
