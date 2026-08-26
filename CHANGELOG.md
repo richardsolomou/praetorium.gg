@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.38.1
+
+### Patch Changes
+
+- 1659ac8: List Deep Strike units before other Strategic Reserves choices during battle setup.
+
 ## 0.38.0
 
 ### Minor Changes
