@@ -22,7 +22,7 @@ type Props = {
   pending: boolean
   send: (command: Command) => void
   referenceFor: (key: string) => ReferenceCard | undefined
-  onDone: (completedSecondaryKeys: string[]) => void
+  onDone: (completedSecondaryKeys: string[], scored: boolean) => void
   onCancel?: () => void
   /** What pressing through the prompt does next. */
   confirmLabel: string
@@ -142,7 +142,7 @@ export function ScoringDialog({ side, due, moment, confirmLabel, pending, send, 
       return settlement
     }, [])
     if (scores.length) send({ kind: 'score-settlement', scores, round, playerId: side.captain.id })
-    onDone(finished)
+    onDone(finished, scores.length > 0)
   }
 
   const colours = tint(side.index)

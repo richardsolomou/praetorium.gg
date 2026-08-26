@@ -50,11 +50,7 @@ export function PrimaryMission({ side, referenceFor, guides }: Props) {
 export function SecondaryMissions({ side, actionable, pending, send, referenceFor, guides }: Props) {
   // A tactical deck deals its own cards, so naming one would be choosing what you were dealt.
   const choosingSecret =
-    actionable &&
-    side.isViewer &&
-    side.secondaryMode === 'fixed' &&
-    !side.secondaries.some((card) => card.secret) &&
-    side.remainingSecondaries.length > 0
+    actionable && side.secondaryMode === 'fixed' && !side.secondaries.some((card) => card.secret) && side.remainingSecondaries.length > 0
   // A card put back into the deck was never really held, so it does not belong in this list at all.
   const drawn = side.secondaries.filter((secondary) => secondary.status !== 'returned')
   return (
@@ -75,7 +71,7 @@ export function SecondaryMissions({ side, actionable, pending, send, referenceFo
             </span>
             <span className="readout shrink-0 font-bold">{secondary.points}</span>
           </div>
-          {actionable && side.isViewer && secondary.secret && !secondary.revealed ? (
+          {actionable && secondary.secret && !secondary.revealed ? (
             <Button
               variant="ghost"
               size="xs"

@@ -857,6 +857,133 @@ describe('the turn sequence', () => {
     expect(reduceBattle(PLAYERS, history).phase).toBe('movement')
   })
 
+  it('shares an advance request without making it an undoable battle event', () => {
+    const history = log(
+      ...started(),
+      [ALICE, { kind: 'score', category: 'primary', delta: 1 }],
+      [BOB, { kind: 'request-advance', playerId: ALICE }],
+    )
+    const state = reduceBattle(PLAYERS, history)
+
+    expect(validate(reduceBattle(PLAYERS, log(...started())), BOB, { kind: 'request-advance', playerId: ALICE })).toBeNull()
+    expect(battleView({ token: 'abc' }, NAMES, state, ALICE).advanceRequested).toBe(true)
+    expect(battleView({ token: 'abc' }, NAMES, state, BOB).advanceRequested).toBe(true)
+    expect(state.undoable?.seq).toBe(history.at(-2)?.seq)
+    expect(battleReport(NAMES, history).some((entry) => entry.commandKind === 'request-advance')).toBe(false)
+
+    const cancelled = reduceBattle(
+      PLAYERS,
+      log(...started(), [BOB, { kind: 'request-advance', playerId: ALICE }], [ALICE, { kind: 'cancel-advance', playerId: ALICE }]),
+    )
+    expect(cancelled.advanceRequested).toBe(false)
+  })
+
+  it('shares that scoring was reviewed even when it paid no points', () => {
+    const history = log(...started(), [ALICE, { kind: 'request-advance' }], [BOB, { kind: 'acknowledge-scoring', playerId: ALICE }])
+    const state = reduceBattle(PLAYERS, history)
+
+    expect(
+      validate(reduceBattle(PLAYERS, log(...started(), [ALICE, { kind: 'request-advance' }])), BOB, {
+        kind: 'acknowledge-scoring',
+        playerId: ALICE,
+      }),
+    ).toBeNull()
+    expect(battleView({ token: 'abc' }, NAMES, state, ALICE).scoringAcknowledged).toBe(true)
+    expect(battleView({ token: 'abc' }, NAMES, state, BOB).scoringAcknowledged).toBe(true)
+    expect(battleReport(NAMES, history).some((entry) => entry.commandKind === 'acknowledge-scoring')).toBe(false)
+  })
+
+  it('moves a shared advance request past scoring when points are recorded', () => {
+    const state = reduceBattle(
+      PLAYERS,
+      log(
+        ...started(),
+        [ALICE, { kind: 'request-advance' }],
+        [BOB, { kind: 'score-settlement', playerId: ALICE, scores: [{ category: 'primary', delta: 3 }] }],
+      ),
+    )
+
+    expect(state.scoringAcknowledged).toBe(true)
+  })
+
+  it('shares a completed tactical draw without replacing its undo target', () => {
+    const actions: [string, Command][] = [
+      ...started(),
+      [
+        ALICE,
+        {
+          kind: 'set-prep',
+          stratagems: [],
+          secondaries: [],
+          secondaryDeck: [{ key: 'a', name: 'Area Denial' }],
+          primary: null,
+          secondaryMode: 'tactical',
+        },
+      ],
+      [ALICE, { kind: 'draw-secondaries', secondaries: [{ key: 'a', name: 'Area Denial' }] }],
+    ]
+    const before = reduceBattle(PLAYERS, log(...actions))
+    const acknowledgedHistory = log(...actions, [BOB, { kind: 'acknowledge-draw', playerId: ALICE }])
+    const acknowledged = reduceBattle(PLAYERS, acknowledgedHistory)
+
+    expect(validate(before, BOB, { kind: 'acknowledge-draw', playerId: ALICE })).toBeNull()
+    expect(battleView({ token: 'abc' }, NAMES, acknowledged, ALICE).drawAcknowledged).toBe(true)
+    expect(battleView({ token: 'abc' }, NAMES, acknowledged, BOB).drawAcknowledged).toBe(true)
+    expect(acknowledged.undoable?.kind).toBe('draw-secondaries')
+    expect(battleReport(NAMES, acknowledgedHistory).some((entry) => entry.commandKind === 'acknowledge-draw')).toBe(false)
+
+    const repaired = reduceBattle(
+      PLAYERS,
+      log(
+        ...actions,
+        [BOB, { kind: 'acknowledge-draw', playerId: ALICE }],
+        [
+          ALICE,
+          {
+            kind: 'set-prep',
+            stratagems: [],
+            secondaries: [],
+            secondaryDeck: [{ key: 'a', name: 'Area Denial' }],
+            primary: null,
+            secondaryMode: 'tactical',
+          },
+        ],
+      ),
+    )
+    expect(repaired.drawAcknowledged).toBe(false)
+
+    const drawSeq = acknowledged.undoable?.seq
+    if (!drawSeq) throw new Error('The draw must be undoable')
+    const undoneActions: [string, Command][] = [
+      ...actions,
+      [BOB, { kind: 'acknowledge-draw', playerId: ALICE }],
+      [ALICE, { kind: 'undo', target: drawSeq }],
+    ]
+    expect(reduceBattle(PLAYERS, log(...undoneActions)).drawAcknowledged).toBe(true)
+
+    const redrawn = reduceBattle(
+      PLAYERS,
+      log(...undoneActions, [BOB, { kind: 'draw-secondaries', playerId: ALICE, secondaries: [{ key: 'a', name: 'Area Denial' }] }]),
+    )
+    expect(redrawn.drawAcknowledged).toBe(false)
+  })
+
+  it('lets one seated player select and reveal the other side’s Secret Mission', () => {
+    const selected = reduceBattle(
+      PLAYERS,
+      log(...started(), [ALICE, { kind: 'select-secret', playerId: BOB, secondary: { key: 'secret', name: 'Hidden purpose' } }]),
+    )
+
+    expect(
+      validate(reduceBattle(PLAYERS, log(...started())), ALICE, {
+        kind: 'select-secret',
+        playerId: BOB,
+        secondary: { key: 'secret', name: 'Hidden purpose' },
+      }),
+    ).toBeNull()
+    expect(validate(selected, ALICE, { kind: 'reveal-secret', playerId: BOB })).toBeNull()
+  })
+
   it('lets anyone at the table advance a side with cards still to draw, and says what is owed', () => {
     const history = log(
       [ALICE, roster('Ultramarines')],

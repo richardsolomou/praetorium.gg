@@ -367,13 +367,13 @@ describe('secondaries', () => {
     expect(text(battleReport(NAMES, history, PLAYERS, BOB)).join(' ')).not.toContain('Hold the Line')
   })
 
-  it('keep an opponent from revealing a secret mission', () => {
+  it('let an opponent reveal a secret mission from the device refereeing the battle', () => {
     const state = reduceBattle(
       PLAYERS,
       log(...started(), [ALICE, { kind: 'select-secret', secondary: { key: 'secret-a', name: 'Hold the Line' } }]),
     )
 
-    expect(validate(state, BOB, { kind: 'reveal-secret', playerId: ALICE })).toBe('that is not one of your secondaries')
+    expect(validate(state, BOB, { kind: 'reveal-secret', playerId: ALICE })).toBeNull()
   })
 
   it('give the same answer when an opponent guesses a hidden or absent secondary key', () => {
@@ -443,7 +443,7 @@ describe('secondaries', () => {
     expect(battleView({ token: 'abc' }, NAMES, state, ALICE).players[0]?.remainingSecondaries).toEqual([cards[2]])
   })
 
-  it('withholds the remaining tactical deck from the opponent', () => {
+  it('shows the remaining tactical deck to the opponent', () => {
     const cards = [
       { key: 'a', name: 'Behind Enemy Lines' },
       { key: 'b', name: 'Bring It Down' },
@@ -463,7 +463,7 @@ describe('secondaries', () => {
       ]),
     )
 
-    expect(battleView({ token: 'abc' }, NAMES, state, BOB).players[0]?.remainingSecondaries).toEqual([])
+    expect(battleView({ token: 'abc' }, NAMES, state, BOB).players[0]?.remainingSecondaries).toEqual([cards[1]])
   })
 
   it('shows a side’s remaining tactical deck to an ally, who draws from the same hand', () => {
@@ -508,7 +508,7 @@ describe('secondaries', () => {
     expect(ally?.remainingSecondaries).toEqual([cards[1]])
   })
 
-  it('withholds a side’s remaining tactical deck from the side it is playing against', () => {
+  it('shows a side’s remaining tactical deck to the side it is playing against', () => {
     const cards = [
       { key: 'a', name: 'Behind Enemy Lines' },
       { key: 'b', name: 'Bring It Down' },
@@ -522,7 +522,7 @@ describe('secondaries', () => {
     )
 
     expect(battleView({ token: 'abc' }, NAMES, state, ALICE).players[0]?.remainingSecondaries).toEqual(cards)
-    expect(battleView({ token: 'abc' }, NAMES, state, BOB).players[0]?.remainingSecondaries).toEqual([])
+    expect(battleView({ token: 'abc' }, NAMES, state, BOB).players[0]?.remainingSecondaries).toEqual(cards)
   })
 
   it('says an unrevealed secret is outstanding without naming it to the opponent', () => {
@@ -538,11 +538,11 @@ describe('secondaries', () => {
     }
   })
 
-  it('refuses a secret mission chosen for the side across the table', () => {
+  it('lets one side choose a secret mission for the side across the table', () => {
     const state = reduceBattle(PLAYERS, log(...started()))
     const command = { kind: 'select-secret', secondary: { key: 'secret-a', name: 'Hold the Line' } } as const
 
-    expect(validate(state, BOB, { ...command, playerId: ALICE })).toBe('that is not one of your secondaries')
+    expect(validate(state, BOB, { ...command, playerId: ALICE })).toBeNull()
     expect(validate(state, ALICE, command)).toBeNull()
   })
 

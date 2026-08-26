@@ -5,7 +5,7 @@ import { battleView } from './battleView'
 import { ALICE, BOB, NAMES, PLAYERS, builtRoster, log, roster, started, text, turns } from './battle.fixtures'
 
 describe('the view', () => {
-  it('shows a practice opponent’s deck and seat to the table playing it', () => {
+  it('shows every tactical deck to the table', () => {
     const cards = [
       { key: 'a', name: 'Area Denial' },
       { key: 'b', name: 'Bring It Down' },
@@ -32,10 +32,43 @@ describe('the view', () => {
 
     const view = battleView({ token: 'abc' }, seats, state, ALICE)
     expect(view.players[1]).toMatchObject({ automated: true, secondaryDeckReady: true, remainingSecondaries: cards })
-    // A seat someone does sign in to keeps its deck to itself.
     expect(battleView({ token: 'abc' }, NAMES, state, ALICE).players[1]).toMatchObject({
       secondaryDeckReady: true,
+      remainingSecondaries: cards,
+    })
+  })
+
+  it('hides only the fixed card held as an unrevealed Secret Mission', () => {
+    const cards = [
+      { key: 'secret', name: 'Hidden purpose' },
+      { key: 'spare', name: 'Spare purpose' },
+    ]
+    const state = reduceBattle(
+      PLAYERS,
+      log(
+        ...started(),
+        [
+          BOB,
+          {
+            kind: 'set-prep',
+            stratagems: [],
+            secondaries: [],
+            secondaryDeck: cards,
+            primary: null,
+            secondaryMode: 'fixed',
+          },
+        ],
+        [ALICE, { kind: 'select-secret', playerId: BOB, secondary: cards[0]! }],
+      ),
+    )
+
+    expect(battleView({ token: 'abc' }, NAMES, state, ALICE).players[1]).toMatchObject({
       remainingSecondaries: [],
+      secondaries: [{ key: 'secret', name: 'Secret mission', secret: true, revealed: false }],
+    })
+    expect(battleView({ token: 'abc' }, NAMES, state, BOB).players[1]).toMatchObject({
+      remainingSecondaries: [cards[1]],
+      secondaries: [{ key: 'secret', name: 'Hidden purpose', secret: true, revealed: false }],
     })
   })
 

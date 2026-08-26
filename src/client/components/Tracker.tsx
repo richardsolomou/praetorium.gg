@@ -38,8 +38,6 @@ const EMPTY_KEYS: ReadonlySet<string> = new Set()
 /** Narrow screens cannot hold three columns, so they hold one at a time. */
 const VIEWS = ['yours', 'battle', 'theirs'] as const
 type Focus = (typeof VIEWS)[number]
-type ScoringContext = Pick<BattleView, 'seq' | 'round' | 'phase' | 'activePlayerId'>
-type DiscardContext = Pick<BattleView, 'round' | 'phase' | 'activePlayerId'> & { keys: string[] }
 
 /**
  * The live battle, laid out as the table is: a side, the battle, the other side.
@@ -50,14 +48,6 @@ type DiscardContext = Pick<BattleView, 'round' | 'phase' | 'activePlayerId'> & {
  */
 export function Tracker({ view, missions, send, pending, problem }: Props) {
   const [focus, setFocus] = useState<Focus>('yours')
-  const [scoring, setScoring] = useState<ScoringContext | null>(null)
-  const [discarding, setDiscarding] = useState<DiscardContext | null>(null)
-  // Which turn the draw is open for, and every turn already taken past it. A set
-  // rather than the one latest turn, so rewinding across several turn boundaries
-  // and back still recognises a turn whose draw was dismissed long before the most
-  // recent one — otherwise it reads as never drawn and autofills instead of pausing.
-  const [drawTurn, setDrawTurn] = useState<string | null>(null)
-  const [drawnForTurns, setDrawnForTurns] = useState<ReadonlySet<string>>(new Set())
   // Refetches that change nothing keep their object identity through the query
   // cache's structural sharing, so these memos hold between commands too.
   const table = useMemo(() => sides(view, missions), [view, missions])
@@ -205,33 +195,13 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
   const advanceBlocked = Boolean(blockReason)
   const advance = () => {
     if (advanceBlocked || !active) return
-    if (due.length) {
-      setScoring({ seq: view.seq, round: view.round, phase: view.phase, activePlayerId: view.activePlayerId })
-      return
-    }
     const discardable = discardableSecondaries(active)
-    if (view.phase === 'end' && discardable.length) {
-      setDiscarding({ round: view.round, phase: view.phase, activePlayerId: view.activePlayerId, keys: discardable })
+    if (due.length || (view.phase === 'end' && discardable.length)) {
+      send({ kind: 'request-advance', playerId: active.captain.id })
       return
     }
     send({ kind: 'advance', playerId: active.captain.id })
   }
-  const scoringCurrent =
-    scoring?.seq === view.seq &&
-    scoring.round === view.round &&
-    scoring.phase === view.phase &&
-    scoring.activePlayerId === view.activePlayerId
-  // Shared cards are written by one seat, the way prep is, so a 2v1 cannot draw twice
-  // or score its one hand twice from two devices.
-  const keeper = yours?.writer.id === view.viewerId
-  /**
-   * The active side, when this device is the one that deals its hand.
-   *
-   * A side with players on it is dealt by the one seat that writes for it, so two
-   * devices in a shared battle never deal the same hand twice. A side of practice
-   * opponents has no such seat, so the table facing it deals instead.
-   */
-  const dealing = active && (active.isViewer ? keeper : active.automated) ? active : undefined
   const settlementRound = view.settlementRound
   const settlementSide = table.find((side) => side.captain.id === view.settlementPlayerId)
   // Concluding that nothing private remains is the side's own call. A practice
@@ -249,33 +219,21 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
     if (!settlementOwner || settlementRound === null || settlementRulesPending || owedCards.length || pending) return
     send({ kind: 'settle-opponent-turn' })
   }, [owedCards.length, pending, send, settlementOwner, settlementRound, settlementRulesPending])
-  // Two tactical cards are dealt at the top of your own turn, and only once for it.
   const turnKey = `${view.round}-${view.activePlayerId ?? ''}`
-  const owedDraw =
+  const needsDraw =
     !finished &&
-    dealing &&
-    dealing.secondaryMode === 'tactical' &&
+    active?.secondaryMode === 'tactical' &&
     view.phase === 'command' &&
-    dealing.secondariesDrawnThisTurn.length < HAND_SIZE &&
-    dealing.remainingSecondaries.length > 0
-  // Latched, because the turn stops owing a draw the moment it is dealt and the player
-  // still has to see what they drew and whether a card may go back.
-  useEffect(() => {
-    if (!owedDraw) return
-    const reopening = drawnForTurns.has(turnKey)
-    // Forgotten rather than left marked drawn, so the prompt is free to show again;
-    // taking the turn re-adds it below once the reopened draw is done with.
-    if (reopening) {
-      setDrawnForTurns((current) => {
-        const next = new Set(current)
-        next.delete(turnKey)
-        return next
-      })
-    }
-    setDrawTurn(turnKey)
-  }, [owedDraw, drawnForTurns, turnKey])
-  const prompt =
-    settlementRound !== null ? (owedCards.length ? 'owed' : null) : turnPrompt(0, drawTurn === turnKey && !drawnForTurns.has(turnKey))
+    active.secondariesDrawnThisTurn.length < HAND_SIZE &&
+    active.remainingSecondaries.length > 0
+  const needsDrawAcknowledgement =
+    !finished &&
+    active?.secondaryMode === 'tactical' &&
+    view.phase === 'command' &&
+    active.secondariesDrawnThisTurn.length > 0 &&
+    !view.drawAcknowledged
+  const prompt = settlementRound !== null ? (owedCards.length ? 'owed' : null) : turnPrompt(0, needsDraw || needsDrawAcknowledgement)
+  const discardable = active ? discardableSecondaries(active) : []
 
   return (
     <main className={`w-full space-y-3 px-3 lg:pb-8 ${finished ? 'pb-8' : 'pb-32'}`}>
@@ -398,7 +356,7 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
         </div>
       </div>
 
-      {scoringCurrent && active ? (
+      {view.advanceRequested && !view.scoringAcknowledged && due.length && active ? (
         <ScoringDialog
           side={active}
           due={due}
@@ -408,13 +366,14 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
           send={send}
           referenceFor={referenceFor}
           round={view.round}
-          onCancel={() => setScoring(null)}
-          onDone={(completedSecondaryKeys) => {
-            setScoring(null)
-            const discardable = discardableSecondaries(active).filter((key) => !completedSecondaryKeys.includes(key))
-            if (view.phase === 'end' && discardable.length) {
-              setDiscarding({ round: view.round, phase: view.phase, activePlayerId: view.activePlayerId, keys: discardable })
-            } else send({ kind: 'advance', playerId: active.captain.id })
+          onCancel={() => send({ kind: 'cancel-advance', playerId: active.captain.id })}
+          onDone={(completedSecondaryKeys, scored) => {
+            const unresolved = discardableSecondaries(active).filter((key) => !completedSecondaryKeys.includes(key))
+            if (view.phase !== 'end' || !unresolved.length) {
+              send({ kind: 'advance', playerId: active.captain.id })
+            } else if (!scored) {
+              send({ kind: 'acknowledge-scoring', playerId: active.captain.id })
+            }
           }}
         />
       ) : null}
@@ -433,27 +392,22 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
         />
       ) : null}
 
-      {discarding &&
-      active &&
-      discarding.round === view.round &&
-      discarding.phase === view.phase &&
-      discarding.activePlayerId === view.activePlayerId ? (
+      {view.advanceRequested && (view.scoringAcknowledged || !due.length) && view.phase === 'end' && discardable.length && active ? (
         <DiscardSecondaryDialog
           side={active}
-          keys={discarding.keys}
+          keys={discardable}
           pending={pending}
           send={send}
           onDone={() => {
-            setDiscarding(null)
             send({ kind: 'advance', playerId: active.captain.id })
           }}
         />
       ) : null}
 
-      {prompt === 'draw' && dealing ? (
+      {prompt === 'draw' && active ? (
         <DrawDialog
           key={turnKey}
-          side={dealing}
+          side={active}
           round={view.round}
           undoable={view.undoable}
           confirmUndo={view.undoableDraw}
@@ -461,9 +415,7 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
           send={send}
           referenceFor={referenceFor}
           whenDrawnFor={whenDrawnFor}
-          onDone={() => {
-            setDrawnForTurns((current) => new Set(current).add(turnKey))
-          }}
+          onDone={() => send({ kind: 'acknowledge-draw', playerId: active.captain.id })}
         />
       ) : null}
     </main>

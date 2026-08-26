@@ -350,9 +350,16 @@ export async function advance(page: Page) {
       .catch(() => false)
     if (clicked) {
       const scoring = page.getByRole('dialog', { name: /^Scoring end of (turn|command|movement|shooting|charge|fight) / })
+      const discard = page.getByRole('dialog', { name: 'Discard tactical secondaries?' })
       await expect
         .poll(async () =>
-          (await scoring.isVisible().catch(() => false)) ? 'scoring' : (await phase.textContent()) === before ? 'waiting' : 'advanced',
+          (await scoring.isVisible().catch(() => false))
+            ? 'scoring'
+            : (await discard.isVisible().catch(() => false))
+              ? 'discard'
+              : (await phase.textContent()) === before
+                ? 'waiting'
+                : 'advanced',
         )
         .not.toBe('waiting')
       if (await scoring.isVisible().catch(() => false)) {
@@ -360,8 +367,12 @@ export async function advance(page: Page) {
           .getByRole('button', { name: /^(Pass the turn|End the phase)$/ })
           .click({ timeout: 3_000 })
           .catch(() => undefined)
+        await expect
+          .poll(async () =>
+            (await discard.isVisible().catch(() => false)) ? 'discard' : (await phase.textContent()) === before ? 'waiting' : 'advanced',
+          )
+          .not.toBe('waiting')
       }
-      const discard = page.getByRole('dialog', { name: 'Discard tactical secondaries?' })
       if (await discard.isVisible().catch(() => false)) {
         await discard.getByRole('button', { name: 'Keep hand' }).click()
       }
@@ -372,7 +383,7 @@ export async function advance(page: Page) {
   }
 }
 
-export async function startBattle(page: Page, firstSide?: string) {
+export async function startBattle(page: Page, firstSide?: string, takeOpeningTurn = true) {
   await chooseBattlefield(page)
   await setupStep(page, 'Secondaries')
   // One per side this table settles cards for, so every one of them has to be ready.
@@ -384,12 +395,14 @@ export async function startBattle(page: Page, firstSide?: string) {
   // tree, so the prompt has to be cleared before the phase can be read.
   await expect(
     page
-      .getByRole('dialog', { name: 'Your secondary missions' })
+      .getByRole('dialog', { name: /secondary missions$/ })
       .or(page.getByRole('heading', { name: 'command phase' }))
       .first(),
   ).toBeVisible()
-  await takeTheTurn(page)
-  await expect(page.getByRole('heading', { name: 'command phase' })).toBeVisible()
+  if (takeOpeningTurn) {
+    await takeTheTurn(page)
+    await expect(page.getByRole('heading', { name: 'command phase' })).toBeVisible()
+  }
 }
 
 export async function setupBattle(
