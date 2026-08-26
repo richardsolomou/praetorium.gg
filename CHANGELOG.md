@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.38.2
+
+### Patch Changes
+
+- efb4270: Choose the defender after the setup roll-off.
+
 ## 0.38.1
 
 ### Patch Changes
