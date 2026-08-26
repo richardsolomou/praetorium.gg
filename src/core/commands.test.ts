@@ -114,6 +114,15 @@ describe('command schema', () => {
     })
   })
 
+  it('records when tactical secondaries were selected instead of drawn at random', () => {
+    const command = {
+      kind: 'draw-secondaries' as const,
+      secondaries: [{ key: 'beacon', name: 'Establish Locus' }],
+      selected: true as const,
+    }
+    expect(commandSchema.parse(command)).toEqual(command)
+  })
+
   it('only lets scoring settlements complete a secondary', () => {
     expect(
       commandSchema.safeParse({

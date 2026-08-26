@@ -1,4 +1,4 @@
-import { Undo2 } from 'lucide-react'
+import { Check, Undo2 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -17,7 +17,6 @@ type Props = {
   round: number
   undoable: number | null
   confirmUndo: boolean
-  initiallyPaused: boolean
   pending: boolean
   send: (command: Command) => void
   referenceFor: (key: string) => ReferenceCard | undefined
@@ -28,25 +27,11 @@ type Props = {
 /**
  * The tactical hand, drawn at the top of a turn.
  *
- * Cards come off the deck at random and are never picked: choosing which one you
- * are dealt is not a move the game has. Putting one back is, but only where the
- * card itself says so, which is why each offer names the condition it rests on.
- *
- * The hand belongs to whichever side this was opened for, which is a practice
- * opponent's when the table is playing that side as well as its own.
+ * Random draws stay server-chosen. Manual selection keeps a corrected command log
+ * aligned with a physical hand. The named side owns either draw, including a
+ * practice opponent's hand.
  */
-export function DrawDialog({
-  side,
-  round,
-  undoable,
-  confirmUndo,
-  initiallyPaused,
-  pending,
-  send,
-  referenceFor,
-  whenDrawnFor,
-  onDone,
-}: Props) {
+export function DrawDialog({ side, round, undoable, confirmUndo, pending, send, referenceFor, whenDrawnFor, onDone }: Props) {
   const held = side.secondaries.filter((card) => card.status === 'active')
   /**
    * What this turn dealt, apart from what the hand was already carrying.
@@ -59,9 +44,14 @@ export function DrawDialog({
   const dealtNow = new Set(side.secondariesDrawnThisTurn)
   const drawn = held.filter((card) => dealtNow.has(card.key))
   const carried = held.filter((card) => !dealtNow.has(card.key))
-  const [paused, setPaused] = useState(initiallyPaused)
+  const [paused, setPaused] = useState(true)
+  const [selecting, setSelecting] = useState(false)
+  const [selected, setSelected] = useState<string[]>([])
   const [inspected, setInspected] = useState<MissionDetails | null>(null)
   const [confirmingUndo, setConfirmingUndo] = useState<number | null>(null)
+  const owed = Math.min(HAND_SIZE - side.secondariesDrawnThisTurn.length, side.remainingSecondaries.length)
+  const needsDraw = owed > 0
+  const canUndo = side.secondariesDrawnThisTurn.length > 0 && undoable !== null
   /**
    * What this prompt has already asked the deck for.
    *
@@ -82,10 +72,9 @@ export function DrawDialog({
     }
   }, [pending, side.secondaries])
 
-  // Drawing is not a decision, so it happens as soon as the hand is short rather than
-  // waiting behind a button that has only one thing it can do. What to ask for is
-  // decided here rather than during a render: two renders can be prepared before
-  // either effect runs, and both would read the same tally and ask the deck twice.
+  // Once random drawing is chosen, what to ask for is decided here rather than during
+  // a render: two renders can be prepared before either effect runs, and both would
+  // read the same tally and ask the deck twice.
   useEffect(() => {
     if (paused) return
     const requested = new Set(asked.current)
@@ -102,6 +91,27 @@ export function DrawDialog({
     send({ kind: 'draw-secondaries', secondaries, playerId: side.captain.id })
   }, [side.secondariesDrawnThisTurn, paused, side.captain.id, side.secondaries, side.remainingSecondaries, send])
 
+  useEffect(() => {
+    setSelected((current) => {
+      const next = current.filter((key) => side.remainingSecondaries.some((card) => card.key === key))
+      return next.length === current.length ? current : next
+    })
+  }, [side.remainingSecondaries])
+
+  const toggleSelected = (key: string) =>
+    setSelected((current) => {
+      if (current.includes(key)) return current.filter((candidate) => candidate !== key)
+      return current.length < owed ? [...current, key] : current
+    })
+
+  const chooseSelected = () => {
+    const secondaries = side.remainingSecondaries.filter((card) => selected.includes(card.key))
+    if (secondaries.length !== owed) return
+    setSelected([])
+    setSelecting(false)
+    send({ kind: 'draw-secondaries', secondaries, selected: true, playerId: side.captain.id })
+  }
+
   return (
     <>
       <Dialog open>
@@ -114,51 +124,92 @@ export function DrawDialog({
               {side.isViewer ? 'Your secondary missions' : `${sideName(side)}’s secondary missions`}
             </DialogTitle>
             <DialogDescription className="text-dim">
-              {carried.length
-                ? `${drawn.length} drawn at random from the deck, on top of the ${carried.length} your hand was already holding. `
-                : 'Drawn at random from the deck. '}
-              {side.remainingSecondaries.length} cards left. Some cards may be put back the moment they are drawn.
+              {needsDraw
+                ? `Draw ${owed} at random or select the exact ${owed === 1 ? 'mission' : 'missions'} from the deck. `
+                : carried.length
+                  ? `${drawn.length} drawn this turn, on top of the ${carried.length} your hand was already holding. `
+                  : `${drawn.length} drawn this turn. `}
+              {side.remainingSecondaries.length} cards left. Some missions may be put back the moment they are drawn.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
-            {carried.length ? <p className="eyebrow">Drawn this turn</p> : null}
-            {drawn.map((card) => {
-              const rule = whenDrawnFor(card.key)
-              const offer = redrawOffer(rule, round, held)
-              return (
-                <div key={card.key} data-drawn={card.key} className={`${CARD} space-y-1.5`}>
-                  <MissionName
-                    name={card.name}
-                    card={referenceFor(card.key)}
-                    type="Secondary mission"
-                    mode={side.secondaryMode}
-                    onRead={setInspected}
-                  />
-                  {offer ? (
-                    <>
-                      <p className="text-[0.6875rem] text-dim">{offer.message}</p>
-                      <Button
-                        variant="outline"
-                        size="xs"
-                        className="text-discarded"
-                        disabled={pending || !side.remainingSecondaries.length}
-                        onClick={() =>
-                          send({ kind: 'set-secondary-status', key: card.key, status: offer.status, playerId: side.captain.id })
-                        }
+            {selecting && needsDraw ? (
+              <>
+                <p className="eyebrow">
+                  Select {owed} mission{owed === 1 ? '' : 's'} · {selected.length}/{owed}
+                </p>
+                <ul className="space-y-1.5">
+                  {side.remainingSecondaries.map((card) => {
+                    const chosen = selected.includes(card.key)
+                    return (
+                      <li
+                        key={card.key}
+                        className={`flex items-center justify-between gap-2 rounded-sm px-2.5 py-1.5 ${chosen ? 'bg-parchment/10' : 'bg-sunken'}`}
                       >
-                        {offer.label}
-                      </Button>
-                    </>
-                  ) : null}
-                </div>
-              )
-            })}
+                        <MissionName
+                          name={card.name}
+                          card={referenceFor(card.key)}
+                          type="Secondary mission"
+                          mode={side.secondaryMode}
+                          onRead={setInspected}
+                        />
+                        <Button
+                          variant="outline"
+                          size="xs"
+                          aria-pressed={chosen}
+                          aria-label={`${chosen ? 'Remove' : 'Select'} ${card.name}`}
+                          className={`shrink-0 ${chosen ? 'border-parchment text-parchment' : ''}`}
+                          disabled={pending || (!chosen && selected.length >= owed)}
+                          onClick={() => toggleSelected(card.key)}
+                        >
+                          {chosen ? <Check aria-hidden /> : null}
+                          {chosen ? 'Selected' : 'Select'}
+                        </Button>
+                      </li>
+                    )
+                  })}
+                </ul>
+              </>
+            ) : null}
+            {!selecting && carried.length ? <p className="eyebrow">Drawn this turn</p> : null}
+            {!selecting &&
+              drawn.map((card) => {
+                const rule = whenDrawnFor(card.key)
+                const offer = redrawOffer(rule, round, held)
+                return (
+                  <div key={card.key} data-drawn={card.key} className={`${CARD} space-y-1.5`}>
+                    <MissionName
+                      name={card.name}
+                      card={referenceFor(card.key)}
+                      type="Secondary mission"
+                      mode={side.secondaryMode}
+                      onRead={setInspected}
+                    />
+                    {offer ? (
+                      <>
+                        <p className="text-[0.6875rem] text-dim">{offer.message}</p>
+                        <Button
+                          variant="outline"
+                          size="xs"
+                          className="text-discarded"
+                          disabled={pending || !side.remainingSecondaries.length}
+                          onClick={() =>
+                            send({ kind: 'set-secondary-status', key: card.key, status: offer.status, playerId: side.captain.id })
+                          }
+                        >
+                          {offer.label}
+                        </Button>
+                      </>
+                    ) : null}
+                  </div>
+                )
+              })}
             {/*
              * Named for what they are: still in hand, and not this turn's to put back.
              * Drawn under the new cards rather than above them, because the question the
              * prompt is asking is about the ones that just arrived.
              */}
-            {carried.length ? (
+            {!selecting && carried.length ? (
               <>
                 <p className="eyebrow pt-1">Still in hand</p>
                 {carried.map((card) => (
@@ -174,15 +225,12 @@ export function DrawDialog({
                 ))}
               </>
             ) : null}
-            {paused && side.secondariesDrawnThisTurn.length < HAND_SIZE ? (
-              <p className="text-sm text-dim">Drawing paused while you undo.</p>
-            ) : null}
-            {!paused && side.secondariesDrawnThisTurn.length < HAND_SIZE ? <p className="text-sm text-discarded">Drawing…</p> : null}
+            {!selecting && !paused && needsDraw ? <p className="text-sm text-discarded">Drawing…</p> : null}
           </div>
           <DialogFooter className="rounded-none border-edge bg-sunken">
             <Button
               variant="outline"
-              disabled={pending || undoable === null}
+              disabled={pending || !canUndo}
               onClick={() => {
                 if (undoable === null) return
                 if (confirmUndo) {
@@ -190,18 +238,41 @@ export function DrawDialog({
                   return
                 }
                 setPaused(true)
+                setSelecting(false)
+                setSelected([])
                 send({ kind: 'undo', target: undoable })
               }}
             >
               <Undo2 />
               Undo latest action
             </Button>
-            {paused && side.secondariesDrawnThisTurn.length < HAND_SIZE ? (
-              <Button disabled={pending} onClick={() => setPaused(false)}>
-                Resume drawing
-              </Button>
+            {selecting && needsDraw ? (
+              <>
+                <Button
+                  variant="outline"
+                  disabled={pending}
+                  onClick={() => {
+                    setSelected([])
+                    setSelecting(false)
+                  }}
+                >
+                  Cancel selection
+                </Button>
+                <Button disabled={pending || selected.length !== owed} onClick={chooseSelected}>
+                  Add selected missions
+                </Button>
+              </>
+            ) : paused && needsDraw ? (
+              <>
+                <Button variant="outline" disabled={pending} onClick={() => setSelecting(true)}>
+                  Select missions
+                </Button>
+                <Button disabled={pending} onClick={() => setPaused(false)}>
+                  Draw at random
+                </Button>
+              </>
             ) : (
-              <Button disabled={pending || side.secondariesDrawnThisTurn.length < HAND_SIZE} onClick={onDone}>
+              <Button disabled={pending || needsDraw} onClick={onDone}>
                 Take the turn
               </Button>
             )}
@@ -217,6 +288,8 @@ export function DrawDialog({
         onConfirm={() => {
           if (confirmingUndo === null) return
           setPaused(true)
+          setSelecting(false)
+          setSelected([])
           setConfirmingUndo(null)
           send({ kind: 'undo', target: confirmingUndo })
         }}

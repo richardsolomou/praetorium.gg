@@ -58,7 +58,6 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
   // recent one — otherwise it reads as never drawn and autofills instead of pausing.
   const [drawTurn, setDrawTurn] = useState<string | null>(null)
   const [drawnForTurns, setDrawnForTurns] = useState<ReadonlySet<string>>(new Set())
-  const [drawPaused, setDrawPaused] = useState(false)
   // Refetches that change nothing keep their object identity through the query
   // cache's structural sharing, so these memos hold between commands too.
   const table = useMemo(() => sides(view, missions), [view, missions])
@@ -239,7 +238,6 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
   useEffect(() => {
     if (!owedDraw) return
     const reopening = drawnForTurns.has(turnKey)
-    setDrawPaused(reopening)
     // Forgotten rather than left marked drawn, so the prompt is free to show again;
     // taking the turn re-adds it below once the reopened draw is done with.
     if (reopening) {
@@ -434,13 +432,11 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
           round={view.round}
           undoable={view.undoable}
           confirmUndo={view.undoableDraw}
-          initiallyPaused={drawPaused}
           pending={pending}
           send={send}
           referenceFor={referenceFor}
           whenDrawnFor={whenDrawnFor}
           onDone={() => {
-            setDrawPaused(false)
             setDrawnForTurns((current) => new Set(current).add(turnKey))
           }}
         />
