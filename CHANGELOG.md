@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.38.3
+
+### Patch Changes
+
+- c8a3e77: Highlight detachment and roster links in battle views.
+
 ## 0.38.2
 
 ### Patch Changes
