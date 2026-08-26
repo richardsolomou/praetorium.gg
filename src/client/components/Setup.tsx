@@ -12,7 +12,7 @@ import { Battlefield } from './Battlefield'
 import { ArmiesStep } from './setup/ArmiesStep'
 import { CHOOSABLE, CHOSEN, DispositionChip, SetupNote, SetupPanel, useDispositionNames } from './setup/chrome'
 import { TwistChoice } from './setup/TwistChoice'
-import { AttackerStep } from './setup/AttackerStep'
+import { DefenderStep } from './setup/DefenderStep'
 import { FirstTurnStep } from './setup/FirstTurnStep'
 import { DeployStep } from './setup/DeployStep'
 import { PreBattleRulesStep } from './setup/PreBattleRulesStep'
@@ -67,7 +67,6 @@ export function Setup({ view, mission, missions, send, attachSavedRoster, pendin
   const nameDisposition = useDispositionNames()
   const { data: deployments } = useQuery(deploymentsQuery())
   const deployment = deployments?.find((entry) => entry.id === view.deploymentId)
-  // The attacker deploys second, so the other side is the one that starts.
   const attacker = table.find((side) => side.armies.some((army) => army.playerId === view.attackerId))
   const defender = attacker ? table.find((side) => side.index !== attacker.index) : undefined
   // The roll-off is recorded a section before the battle begins, and read back in the
@@ -100,7 +99,7 @@ export function Setup({ view, mission, missions, send, attachSavedRoster, pendin
     const undecided = table.filter((side) => side.dispositionChoices.length > 1 && !side.disposition)
     if (step === 2 && undecided.length) return 'Choose the Force Disposition each allied side plays to continue.'
     if (step === 3 && !view.deploymentId) return 'Choose a battlefield layout to continue.'
-    if (step === 4 && !view.attackerId) return 'Roll off and record the attacker to continue.'
+    if (step === 4 && !view.attackerId) return 'Roll off and record the defender to continue.'
     // Fixed play is two cards, and a side of practice opponents is this table's to pick for.
     const short = table.filter((side) => side.played && side.secondaryMode === 'fixed' && side.secondaries.length < FIXED_SECONDARIES)
     if (step === 5 && short.length) return `Choose ${FIXED_SECONDARIES} fixed secondary missions to continue.`
@@ -131,8 +130,8 @@ export function Setup({ view, mission, missions, send, attachSavedRoster, pendin
       reachable: reachable(3),
     },
     {
-      name: 'Attacker',
-      detail: view.attackerId ? 'Attacker chosen' : 'Roll off for it',
+      name: 'Defender',
+      detail: view.attackerId ? 'Defender chosen' : 'Roll off for it',
       complete: Boolean(view.attackerId),
       reachable: reachable(4),
     },
@@ -152,7 +151,7 @@ export function Setup({ view, mission, missions, send, attachSavedRoster, pendin
     // Where the models actually stand is the table's, so nothing here is completed.
     {
       name: 'Deploy',
-      detail: attacker ? 'Alternate from the defender' : 'Choose the attacker first',
+      detail: defender ? 'Alternate from the defender' : 'Choose the defender first',
       complete: false,
       reachable: reachable(7),
     },
@@ -348,7 +347,7 @@ export function Setup({ view, mission, missions, send, attachSavedRoster, pendin
             </SetupPanel>
           ) : null}
 
-          {at === 4 ? <AttackerStep sides={table} attackerId={view.attackerId} token={view.token} send={send} /> : null}
+          {at === 4 ? <DefenderStep sides={table} attackerId={view.attackerId} token={view.token} send={send} /> : null}
 
           {at === 5 && youHaveAnArmy ? <SecondariesStep view={view} sides={table} send={send} pending={pending} /> : null}
 
@@ -376,7 +375,7 @@ const HEADLINES = [
   'Choose the armies',
   'Read the mission',
   'Choose the battlefield',
-  'Choose the attacker',
+  'Choose the defender',
   'Choose how your secondaries are drawn',
   'Set your reserves',
   'Deploy the armies',
