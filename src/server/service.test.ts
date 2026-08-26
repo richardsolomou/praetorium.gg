@@ -342,7 +342,9 @@ it('atomically re-pairs doubles entrants and clears every affected seal', async 
   for (const userId of ['alice', 'bob', 'carol', 'dave']) await service.joinLeague(token, userId)
   await service.assignLeagueTeam(token, 'alice', ['alice', 'bob'])
   await service.assignLeagueTeam(token, 'alice', ['carol', 'dave'])
-  for (const userId of ['alice', 'bob', 'carol', 'dave']) await saveAndSealLeagueRoster(token, userId, 1_000)
+  for (const userId of ['alice', 'bob', 'carol', 'dave']) {
+    await saveAndSealLeagueRoster(token, userId, 1_000, '', userId === 'alice' || userId === 'carol')
+  }
 
   await service.assignLeagueTeam(token, 'alice', ['alice', 'carol'])
   const league = await service.league(token, 'alice')
@@ -353,6 +355,55 @@ it('atomically re-pairs doubles entrants and clears every affected seal', async 
     ['carol', true, false],
     ['dave', false, false],
   ])
+})
+
+it('rejects the seal that would complete a doubles team without exactly one Warlord', async () => {
+  const { token } = await service.createLeague('alice', {
+    name: 'Doubles league',
+    description: '',
+    visibility: 'private',
+    admission: 'automatic',
+    playerLimit: 4,
+    format: '2v2',
+    rosterLimit: 2_000,
+  })
+  for (const userId of ['alice', 'bob']) await service.joinLeague(token, userId)
+  await service.assignLeagueTeam(token, 'alice', ['alice', 'bob'])
+  await saveAndSealLeagueRoster(token, 'alice', 1_000)
+
+  let refusal: Response | null = null
+  try {
+    await saveAndSealLeagueRoster(token, 'bob', 1_000)
+  } catch (error) {
+    if (error instanceof Response) refusal = error
+  }
+  expect(refusal && { status: refusal.status, message: await refusal.text() }).toEqual({
+    status: 409,
+    message: 'a doubles team must seal exactly one Character or Epic Hero Warlord between both rosters',
+  })
+  expect((await service.league(token, 'bob'))?.entries.find((entry) => entry.userId === 'bob')).toMatchObject({ submitted: false })
+})
+
+it('rejects a replacement that would give a doubles team two Warlords', async () => {
+  const { token } = await service.createLeague('alice', {
+    name: 'Doubles league',
+    description: '',
+    visibility: 'private',
+    admission: 'automatic',
+    playerLimit: 4,
+    format: '2v2',
+    rosterLimit: 2_000,
+  })
+  for (const userId of ['alice', 'bob']) await service.joinLeague(token, userId)
+  await service.assignLeagueTeam(token, 'alice', ['alice', 'bob'])
+  await saveAndSealLeagueRoster(token, 'alice', 1_000)
+  await saveAndSealLeagueRoster(token, 'bob', 1_000, '', true)
+
+  expect(await refusalStatus(() => saveAndSealLeagueRoster(token, 'alice', 1_000, '-replacement', true))).toBe(409)
+  expect((await service.league(token, 'alice'))?.entries.find((entry) => entry.userId === 'alice')).toMatchObject({
+    submitted: true,
+    rosterName: 'alice sealed',
+  })
 })
 
 it('explains the exact doubles Warlord requirement when reveal is refused', async () => {
@@ -369,7 +420,10 @@ it('explains the exact doubles Warlord requirement when reveal is refused', asyn
   for (const userId of ['alice', 'bob', 'carol', 'dave']) await service.joinLeague(token, userId)
   await service.assignLeagueTeam(token, 'alice', ['alice', 'bob'])
   await service.assignLeagueTeam(token, 'alice', ['carol', 'dave'])
-  for (const userId of ['alice', 'bob', 'carol', 'dave']) await saveAndSealLeagueRoster(token, userId, 1_000)
+  for (const userId of ['alice', 'bob', 'carol', 'dave']) {
+    await saveAndSealLeagueRoster(token, userId, 1_000, '', userId === 'alice' || userId === 'carol')
+  }
+  await database.update(leagueEventEntries).set({ rosterSnapshot: JSON.stringify(leagueSnapshot('Invalid doubles roster', 1_000)) })
 
   let refusal: Response | null = null
   try {

@@ -280,6 +280,8 @@ export class PraetoriumService {
     if (result.outcome === 'sealed') return result
     if (result.outcome === 'unassigned') throw new Response('wait for the organizer to assign your event role or team', { status: 409 })
     if (result.outcome === 'wrong-limit') throw new Response('choose a roster built for your assigned size', { status: 409 })
+    if (result.outcome === 'invalid-warlords')
+      throw new Response('a doubles team must seal exactly one Character or Epic Hero Warlord between both rosters', { status: 409 })
     throw new Response('the roster could not be sealed; check your entry and roster, then try again', { status: 409 })
   }
 

@@ -331,6 +331,7 @@ test('an eligible casual matchup is directed through its league event', async ({
   await makeLeagueEventLegacy(leagueToken)
   await owner.reload()
   await expect(owner.getByRole('button', { name: 'Start 1 vs 1 battle' })).toBeVisible()
+  expect(await owner.locator('aside h2').allTextContents()).toEqual(['Sealed rosters', 'League events'])
   await expectNoHorizontalOverflow(owner)
   await owner.screenshot({ path: 'test-results/legacy-league-battle-button.png', fullPage: true })
 
@@ -913,6 +914,7 @@ test('a doubles event pairs teams, filters half-size rosters, and starts a four-
   await owner.reload()
   await expect(owner.locator(`[data-person="${names[0]}"]`)).toContainText(`paired with ${names[1]}`)
   await expect(owner.locator(`[data-person="${names[2]}"]`)).toContainText(`paired with ${names[3]}`)
+  expect(await owner.locator('aside h2').allTextContents()).toEqual(['Sealed rosters', 'Organizer', 'League events'])
   await owner.setViewportSize({ width: 1440, height: 900 })
   await owner.screenshot({ path: 'test-results/doubles-team-assignments-desktop.png', fullPage: true })
   await owner.setViewportSize({ width: 390, height: 844 })

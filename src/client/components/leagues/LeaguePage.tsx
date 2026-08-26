@@ -455,56 +455,6 @@ export function LeaguePage({ token, eventToken, startBattle }: { token: string; 
 
         <aside className="space-y-3">
           <section className="border border-edge bg-panel p-4">
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="font-bold uppercase">League events</h2>
-              <span className="readout">{league.eventCount}</span>
-            </div>
-            {latestEvent ? (
-              <div className="mt-3">
-                <p className="eyebrow mb-1 text-dim">Current</p>
-                <Link
-                  to="/leagues/$token"
-                  params={{ token }}
-                  search={{ event: latestEvent.token }}
-                  className={buttonVariants({
-                    variant: latestEvent.token === league.eventToken ? 'outline' : 'ghost',
-                    className: 'w-full justify-between',
-                  })}
-                >
-                  <span>Current event</span>
-                  <span className="text-xs text-dim">{latestEvent.revealedAt ? 'Revealed' : 'Active'}</span>
-                </Link>
-              </div>
-            ) : null}
-            {isOwner && viewingLatest && league.revealedAt ? (
-              <Button className="mt-3 w-full" onClick={() => setStarting(true)}>
-                <CalendarPlus /> Create new event
-              </Button>
-            ) : null}
-            {archivedEvents.length ? (
-              <div className="mt-4">
-                <p className="eyebrow mb-1 text-dim">Archive</p>
-                <div className="space-y-1">
-                  {archivedEvents.map((event) => (
-                    <Link
-                      key={event.token}
-                      to="/leagues/$token"
-                      params={{ token }}
-                      search={{ event: event.token }}
-                      className={buttonVariants({
-                        variant: event.token === league.eventToken ? 'outline' : 'ghost',
-                        className: 'w-full justify-between',
-                      })}
-                    >
-                      <span>Event {event.number}</span>
-                      <span className="text-xs text-dim">Revealed</span>
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-          </section>
-          <section className="border border-edge bg-panel p-4">
             <div className="flex items-center gap-2">
               <FileLock2 className="size-5 text-parchment" />
               <h2 className="font-bold uppercase">Sealed rosters</h2>
@@ -512,10 +462,14 @@ export function LeaguePage({ token, eventToken, startBattle }: { token: string; 
             <p className="mt-2 text-sm text-dim">
               A submitted roster is copied into this league. Editing or deleting the saved roster cannot change the sealed copy.
             </p>
+            <p className="mt-3 text-sm text-dim">
+              Praetorium checks the event format, assigned size, points, and every roster construction rule it can verify before sealing it.
+            </p>
             {league.format === '2v2' ? (
               <p className="mt-3 text-sm text-parchment">
-                Each team must select exactly one eligible CHARACTER as its Warlord. Praetorium checks the selected Warlord markers at
-                reveal; your team and organizer must manually check the remaining official cross-army uniqueness restrictions.
+                Each team must select exactly one eligible CHARACTER or EPIC HERO as its Warlord. Praetorium checks both rosters when the
+                team seals them and rechecks at reveal; your team and organizer must manually check the remaining official cross-army
+                uniqueness restrictions.
               </p>
             ) : null}
             {ownEntry?.status === 'pending' ? (
@@ -597,6 +551,56 @@ export function LeaguePage({ token, eventToken, startBattle }: { token: string; 
             </section>
           ) : null}
           {problem ? <p className="text-sm text-destructive">{errorMessage(problem)}</p> : null}
+          <section className="border border-edge bg-panel p-4">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="font-bold uppercase">League events</h2>
+              <span className="readout">{league.eventCount}</span>
+            </div>
+            {latestEvent ? (
+              <div className="mt-3">
+                <p className="eyebrow mb-1 text-dim">Current</p>
+                <Link
+                  to="/leagues/$token"
+                  params={{ token }}
+                  search={{ event: latestEvent.token }}
+                  className={buttonVariants({
+                    variant: latestEvent.token === league.eventToken ? 'outline' : 'ghost',
+                    className: 'w-full justify-between',
+                  })}
+                >
+                  <span>Current event</span>
+                  <span className="text-xs text-dim">{latestEvent.revealedAt ? 'Revealed' : 'Active'}</span>
+                </Link>
+              </div>
+            ) : null}
+            {isOwner && viewingLatest && league.revealedAt ? (
+              <Button className="mt-3 w-full" onClick={() => setStarting(true)}>
+                <CalendarPlus /> Create new event
+              </Button>
+            ) : null}
+            {archivedEvents.length ? (
+              <div className="mt-4">
+                <p className="eyebrow mb-1 text-dim">Archive</p>
+                <div className="space-y-1">
+                  {archivedEvents.map((event) => (
+                    <Link
+                      key={event.token}
+                      to="/leagues/$token"
+                      params={{ token }}
+                      search={{ event: event.token }}
+                      className={buttonVariants({
+                        variant: event.token === league.eventToken ? 'outline' : 'ghost',
+                        className: 'w-full justify-between',
+                      })}
+                    >
+                      <span>Event {event.number}</span>
+                      <span className="text-xs text-dim">Revealed</span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+          </section>
         </aside>
       </div>
 

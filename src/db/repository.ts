@@ -1,6 +1,6 @@
 import { and, asc, count, desc, eq, exists, ilike, inArray, isNotNull, isNull, lt, ne, notExists, or, sql } from 'drizzle-orm'
 import type { AdminUserPage, AdminUsersCursor } from '../admin'
-import { battleCapacity, type Command, type LoggedCommand, reduceBattle, type SubmitResult, validate } from '../core/battle'
+import { battleCapacity, type Command, type LoggedCommand, reduceBattle, type Roster, type SubmitResult, validate } from '../core/battle'
 import { commandSchema, parseRosterSnapshot } from '../core/commands'
 import type { RosterSource } from '../core/savedRoster'
 import {
@@ -63,7 +63,7 @@ export type AssignLeagueRosterRequirementResult = 'updated' | 'missing' | 'forbi
 export type AssignLeagueTeamResult = 'updated' | 'missing' | 'forbidden' | 'closed' | 'wrong-format'
 export type SubmitLeagueRosterResult =
   | { outcome: 'sealed'; format: TableShape | null; requiredLimit: number | null }
-  | { outcome: 'missing' | 'unassigned' | 'wrong-limit' }
+  | { outcome: 'missing' | 'unassigned' | 'wrong-limit' | 'invalid-warlords' }
 export type RevealLeagueResult = { outcome: 'revealed' | 'not-ready' | 'invalid-warlords' }
 export type LeagueBattleCandidate = {
   token: string
@@ -77,6 +77,11 @@ export type LeagueBattleCandidate = {
 
 const ADMIN_USERS_PAGE_SIZE = 50
 const LEAGUE_BATTLE_CANDIDATE_MAX = 50
+
+function doublesWarlordCount(snapshots: readonly Roster[]): number | null {
+  const selected = snapshots.flatMap((snapshot) => snapshot.built?.units.filter((unit) => unit.warlord) ?? [])
+  return selected.every((unit) => unit.group === 'character' || unit.group === 'epic-hero') ? selected.length : null
+}
 
 /**
  * Whether the account in a seat is a practice opponent.
@@ -1374,6 +1379,39 @@ export class Repository {
       const requiredLimit = requiredLeagueRosterLimit(event.format, event.rosterLimit, entry.requiredLimit, entry.teamId)
       if ((event.format === '2v1' || event.format === '2v2') && requiredLimit === null) return { outcome: 'unassigned' }
       if (requiredLimit !== null && input.rosterLimit !== requiredLimit) return { outcome: 'wrong-limit' }
+      if (event.format === '2v2') {
+        const [teammate] = await tx
+          .select({ snapshot: leagueEventEntries.rosterSnapshot })
+          .from(leagueEventEntries)
+          .where(
+            and(
+              eq(leagueEventEntries.eventId, event.id),
+              eq(leagueEventEntries.teamId, entry.teamId!),
+              ne(leagueEventEntries.userId, input.userId),
+              eq(leagueEventEntries.status, 'accepted'),
+            ),
+          )
+          .limit(1)
+          .for('update')
+        if (!teammate) return { outcome: 'unassigned' }
+        let submitted: Roster
+        try {
+          submitted = parseRosterSnapshot(input.snapshot)
+        } catch {
+          return { outcome: 'missing' }
+        }
+        const submittedWarlords = doublesWarlordCount([submitted])
+        if (submittedWarlords === null || submittedWarlords > 1) return { outcome: 'invalid-warlords' }
+        if (teammate.snapshot !== null) {
+          let teammateRoster: Roster
+          try {
+            teammateRoster = parseRosterSnapshot(teammate.snapshot)
+          } catch {
+            return { outcome: 'missing' }
+          }
+          if (doublesWarlordCount([submitted, teammateRoster]) !== 1) return { outcome: 'invalid-warlords' }
+        }
+      }
       const updated = await tx
         .update(leagueEventEntries)
         .set({ rosterId: input.rosterId, rosterName: input.rosterName, rosterSnapshot: input.snapshot, submittedAt: input.now })
@@ -1442,7 +1480,6 @@ export class Repository {
           return { outcome: 'not-ready' }
         }
       }
-      let invalidWarlords = false
       if (event.format === '2v1') {
         const solo = entries.filter((entry) => entry.requiredLimit === event.rosterLimit).length
         const allied = entries.filter((entry) => entry.requiredLimit === alliedLeagueRosterLimit(event.rosterLimit ?? 0)).length
@@ -1451,17 +1488,14 @@ export class Repository {
       if (event.format === '2v2') {
         if (entries.length < 4 || entries.length % 2 !== 0 || entries.some((entry) => entry.teamId === null))
           return { outcome: 'not-ready' }
-        const teams = new Map<string, number>()
-        for (const entry of entries) teams.set(entry.teamId!, (teams.get(entry.teamId!) ?? 0) + 1)
-        if (teams.size < 2 || [...teams.values()].some((size) => size !== 2)) return { outcome: 'not-ready' }
-        const warlords = new Map<string, number>()
+        const teams = new Map<string, Roster[]>()
         entries.forEach((entry, index) => {
-          const selected = snapshots[index]!.built?.units.filter((unit) => unit.warlord) ?? []
-          if (selected.some((unit) => unit.group !== 'character' && unit.group !== 'epic-hero')) invalidWarlords = true
-          const eligible = selected.filter((unit) => unit.group === 'character' || unit.group === 'epic-hero').length
-          warlords.set(entry.teamId!, (warlords.get(entry.teamId!) ?? 0) + eligible)
+          const teamRosters = teams.get(entry.teamId!) ?? []
+          teamRosters.push(snapshots[index]!)
+          teams.set(entry.teamId!, teamRosters)
         })
-        invalidWarlords ||= [...warlords.values()].some((warlordCount) => warlordCount !== 1)
+        if (teams.size < 2 || [...teams.values()].some((teamRosters) => teamRosters.length !== 2)) return { outcome: 'not-ready' }
+        if ([...teams.values()].some((teamRosters) => doublesWarlordCount(teamRosters) !== 1)) return { outcome: 'invalid-warlords' }
         const [pending] = await tx
           .select({ value: count() })
           .from(leagueEventEntries)
@@ -1476,7 +1510,6 @@ export class Repository {
         })
       )
         return { outcome: 'not-ready' }
-      if (invalidWarlords) return { outcome: 'invalid-warlords' }
       await tx
         .update(leagueEventEntries)
         .set({ status: 'rejected' })
