@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.37.1
+
+### Patch Changes
+
+- dc4b0c2: Show the live side preview when starting a 2v1 battle from a league event.
+- dc4b0c2: Name every table shape the same way when starting a battle and when setting up a league event.
+
 ## 0.37.0
 
 ### Minor Changes
