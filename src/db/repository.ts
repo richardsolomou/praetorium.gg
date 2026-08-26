@@ -8,9 +8,9 @@ import {
   requiredLeagueRosterLimit,
   type LeagueAdmission,
   type LeagueEntryStatus,
-  type LeagueEventFormat,
   type LeagueVisibility,
 } from '../core/league'
+import type { TableShape } from '../core/tableShape'
 import { alias } from 'drizzle-orm/pg-core'
 import type { PraetoriumDatabase } from './connection'
 import {
@@ -61,7 +61,7 @@ export type DeleteLeagueResult = 'deleted' | 'missing' | 'forbidden'
 export type AssignLeagueRosterRequirementResult = 'updated' | 'missing' | 'forbidden' | 'closed' | 'wrong-format' | 'wrong-limit'
 export type AssignLeagueTeamResult = 'updated' | 'missing' | 'forbidden' | 'closed' | 'wrong-format'
 export type SubmitLeagueRosterResult =
-  | { outcome: 'sealed'; format: LeagueEventFormat | null; requiredLimit: number | null }
+  | { outcome: 'sealed'; format: TableShape | null; requiredLimit: number | null }
   | { outcome: 'missing' | 'unassigned' | 'wrong-limit' }
 export type RevealLeagueResult = { outcome: 'revealed' | 'not-ready' | 'invalid-warlords' }
 
@@ -623,7 +623,7 @@ export class Repository {
     admission: LeagueAdmission
     playerLimit?: number | null
     recurring?: boolean
-    format?: LeagueEventFormat
+    format?: TableShape
     rosterLimit?: number
     now: number
   }) {
@@ -657,7 +657,7 @@ export class Repository {
     token: string
     leagueToken: string
     ownerId: string
-    format?: LeagueEventFormat
+    format?: TableShape
     rosterLimit?: number
     now: number
   }): Promise<CreateLeagueEventResult> {
@@ -1399,7 +1399,7 @@ export class Repository {
     },
     prepare: (league: {
       eventToken: string
-      format: LeagueEventFormat | null
+      format: TableShape | null
       rosterLimit: number | null
       revealedAt: number | null
       entries: { userId: string; requiredLimit: number | null; snapshot: string | null; teamId: string | null }[]

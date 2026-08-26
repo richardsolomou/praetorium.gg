@@ -16,7 +16,8 @@ import { Button } from '@/components/ui/button'
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import type { LeagueAdmission, LeagueEventFormat, LeagueVisibility } from '../../../core/league'
+import type { LeagueAdmission, LeagueVisibility } from '../../../core/league'
+import type { TableShape } from '../../../core/tableShape'
 import { deleteLeague, makeLeagueRecurring, updateLeague } from '../../../server/functions'
 import { leaguesQuery } from '../../queries'
 import { errorMessage } from '../../queryClient'
@@ -30,8 +31,8 @@ export type ManageableLeague = {
   admission: LeagueAdmission
   playerLimit: number | null
   recurring: boolean
-  format: LeagueEventFormat | null
-  currentEventFormat: LeagueEventFormat | null
+  format: TableShape | null
+  currentEventFormat: TableShape | null
   currentEventRevealedAt: number | null
   currentEntrantCount: number
   currentAcceptedCount: number
