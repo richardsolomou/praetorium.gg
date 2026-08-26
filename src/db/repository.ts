@@ -55,7 +55,7 @@ export type JoinResult = 'joined' | 'already-in' | 'full'
 export type UnlinkAccountResult = 'removed' | 'missing' | 'two-factor' | 'last-method'
 export type JoinLeagueResult = LeagueEntryStatus | 'missing' | 'closed' | 'full'
 export type ModerateLeagueResult = 'updated' | 'missing' | 'forbidden' | 'closed' | 'full'
-export type CreateLeagueEventResult = 'created' | 'missing' | 'forbidden' | 'one-off' | 'open' | 'too-small'
+export type CreateLeagueEventResult = 'created' | 'missing' | 'forbidden' | 'open' | 'too-small'
 export type MakeLeagueRecurringResult = 'updated' | 'missing' | 'forbidden'
 export type UpdateLeagueResult = 'updated' | 'missing' | 'forbidden' | 'joined' | 'below-accepted' | 'team-minimum'
 export type DeleteLeagueResult = 'deleted' | 'missing' | 'forbidden'
@@ -675,7 +675,7 @@ export class Repository {
         visibility: input.visibility,
         admission: input.admission,
         playerLimit: input.playerLimit ?? null,
-        recurring: input.recurring ?? false,
+        recurring: input.recurring ?? true,
         createdAt: input.now,
       })
       await tx.insert(leagueEvents).values({
@@ -701,13 +701,12 @@ export class Repository {
   }): Promise<CreateLeagueEventResult> {
     return this.database.transaction(async (tx) => {
       const [league] = await tx
-        .select({ id: leagues.id, ownerId: leagues.ownerId, recurring: leagues.recurring, playerLimit: leagues.playerLimit })
+        .select({ id: leagues.id, ownerId: leagues.ownerId, playerLimit: leagues.playerLimit })
         .from(leagues)
         .where(eq(leagues.token, input.leagueToken))
         .for('update')
       if (!league) return 'missing'
       if (league.ownerId !== input.ownerId) return 'forbidden'
-      if (!league.recurring) return 'one-off'
       if (input.format === '2v1' && league.playerLimit !== null && league.playerLimit < 3) return 'too-small'
       if (input.format === '2v2' && league.playerLimit !== null && (league.playerLimit < 4 || league.playerLimit % 2 !== 0))
         return 'too-small'

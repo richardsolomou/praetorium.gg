@@ -112,7 +112,18 @@ export class PraetoriumService {
     if (format === '2v2' && input.playerLimit !== null && (input.playerLimit < 4 || input.playerLimit % 2 !== 0)) {
       throw new Response('a 2v2 event needs an even number of at least four places', { status: 400 })
     }
-    await this.repository.createLeague({ id, token, eventId, eventToken, ownerId, ...input, format, rosterLimit, now: this.clock() })
+    await this.repository.createLeague({
+      id,
+      token,
+      eventId,
+      eventToken,
+      ownerId,
+      ...input,
+      recurring: true,
+      format,
+      rosterLimit,
+      now: this.clock(),
+    })
     return { token, eventToken }
   }
 
@@ -135,7 +146,6 @@ export class PraetoriumService {
     if (result === 'created') return { eventToken }
     if (result === 'missing') throw new Response('no such league', { status: 404 })
     if (result === 'forbidden') throw new Response('only the organizer can start an event', { status: 403 })
-    if (result === 'one-off') throw new Response('this league is not recurring', { status: 409 })
     if (result === 'too-small')
       throw new Response(
         format === '2v2' ? 'a 2v2 event needs an even number of at least four places' : 'a 2v1 event needs at least three places',

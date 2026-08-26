@@ -1,8 +1,9 @@
+import { eq } from 'drizzle-orm'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { PraetoriumConnection, PraetoriumDatabase } from '../db/connection'
 import { openTestDatabase } from '../db/testDatabase'
 import { Repository } from '../db/repository'
-import { battles, battleUsers, leagueEventEntries, leagueEvents, user } from '../db/schema'
+import { battles, battleUsers, leagueEventEntries, leagueEvents, leagues, user } from '../db/schema'
 import type { Roster } from '../core/battle'
 import { PraetoriumService } from './service'
 import type { LoadedRules } from './rules'
@@ -87,11 +88,7 @@ const leagueSnapshot = (name: string, limit = 2_000, warlord = false): Roster =>
   },
 })
 
-async function revealedLeague(
-  aliceRoster = leagueSnapshot('Alice sealed'),
-  opponentRoster = leagueSnapshot('Dave sealed'),
-  recurring = false,
-) {
+async function revealedLeague(aliceRoster = leagueSnapshot('Alice sealed'), opponentRoster = leagueSnapshot('Dave sealed')) {
   await enrol('dave', 'Dave')
   const { token, eventToken } = await service.createLeague('alice', {
     name: 'League',
@@ -99,7 +96,6 @@ async function revealedLeague(
     visibility: 'private',
     admission: 'automatic',
     playerLimit: 2,
-    recurring,
   })
   await service.joinLeague(token, 'alice')
   await service.joinLeague(token, 'dave')
@@ -533,7 +529,7 @@ it('lists an event battle and gives a non-player a read-only spectator screen', 
 })
 
 it('keeps league battle history scoped to its event', async () => {
-  const league = await revealedLeague(leagueSnapshot('Alice sealed'), leagueSnapshot('Dave sealed'), true)
+  const league = await revealedLeague(leagueSnapshot('Alice sealed'), leagueSnapshot('Dave sealed'))
   const battle = await service.createLeagueBattle('alice', league.token, 'dave', null, league.eventToken)
   const next = await service.createLeagueEvent(league.token, 'alice', { format: '1v1', rosterLimit: 600 })
 
@@ -543,6 +539,47 @@ it('keeps league battle history scoped to its event', async () => {
   expect((await service.leagueBattles(league.token, next.eventToken, { limit: 25 })).battles).toEqual([])
 })
 
+it('normalizes a legacy one-off create payload to reusable events', async () => {
+  const { token, eventToken } = await service.createLeague('alice', {
+    name: 'League',
+    description: '',
+    visibility: 'private',
+    admission: 'automatic',
+    playerLimit: 2,
+    recurring: false,
+  })
+
+  expect((await service.league(token, 'alice', eventToken))?.recurring).toBe(true)
+})
+
+it('converts a persisted one-off league for legacy replicas', async () => {
+  const { token, eventToken } = await service.createLeague('alice', {
+    name: 'League',
+    description: '',
+    visibility: 'private',
+    admission: 'automatic',
+    playerLimit: 2,
+  })
+  await database.update(leagues).set({ recurring: false }).where(eq(leagues.token, token))
+
+  await service.makeLeagueRecurring(token, 'alice')
+
+  expect((await service.league(token, 'alice', eventToken))?.recurring).toBe(true)
+})
+
+it('only lets the organizer convert a persisted one-off league', async () => {
+  const { token } = await service.createLeague('alice', {
+    name: 'League',
+    description: '',
+    visibility: 'private',
+    admission: 'automatic',
+    playerLimit: 2,
+  })
+  await database.update(leagues).set({ recurring: false }).where(eq(leagues.token, token))
+
+  expect(await refusalStatus(() => service.makeLeagueRecurring(token, 'bob'))).toBe(403)
+})
+
 it('rechecks the event size when creating a 1v1 league battle', async () => {
   const league = await revealedLeague()
   await database.update(leagueEventEntries).set({ rosterSnapshot: JSON.stringify(leagueSnapshot('Changed snapshot', 1_000)) })
@@ -550,8 +587,8 @@ it('rechecks the event size when creating a 1v1 league battle', async () => {
   expect(await refusalStatus(() => service.createLeagueBattle('alice', league.token, 'dave', null))).toBe(409)
 })
 
-it('keeps prior event entrants out of a new recurring event', async () => {
-  const league = await revealedLeague(leagueSnapshot('Alice sealed'), leagueSnapshot('Dave sealed'), true)
+it('keeps prior event entrants out of a new event', async () => {
+  const league = await revealedLeague(leagueSnapshot('Alice sealed'), leagueSnapshot('Dave sealed'))
   const next = await service.createLeagueEvent(league.token, 'alice', { format: '1v1', rosterLimit: 600 })
 
   const current = await service.league(league.token, 'dave', next.eventToken)
@@ -576,8 +613,8 @@ it('keeps prior event entrants out of a new recurring event', async () => {
   })
 })
 
-it('lets a recurring two-player league raise its limit before starting a 2v1 event', async () => {
-  const league = await revealedLeague(leagueSnapshot('Alice sealed'), leagueSnapshot('Dave sealed'), true)
+it('lets a two-player league raise its limit before starting a 2v1 event', async () => {
+  const league = await revealedLeague(leagueSnapshot('Alice sealed'), leagueSnapshot('Dave sealed'))
   await service.updateLeague(league.token, 'alice', {
     name: 'League',
     description: '',
@@ -591,27 +628,6 @@ it('lets a recurring two-player league raise its limit before starting a 2v1 eve
   expect(await service.league(league.token, 'alice', next.eventToken)).toEqual(
     expect.objectContaining({ format: '2v1', playerLimit: 3, rosterLimit: 2_000 }),
   )
-})
-
-it('turns a revealed one-off league into a recurring league without changing event one', async () => {
-  const league = await revealedLeague()
-
-  await service.makeLeagueRecurring(league.token, 'alice')
-  const first = await service.league(league.token, 'alice', league.eventToken)
-  const next = await service.createLeagueEvent(league.token, 'alice')
-  const current = await service.league(league.token, 'alice', next.eventToken)
-
-  expect({ recurring: first?.recurring, firstEntries: first?.entries.length, currentNumber: current?.eventNumber }).toEqual({
-    recurring: true,
-    firstEntries: 2,
-    currentNumber: 2,
-  })
-})
-
-it('only lets the organizer make a league recurring', async () => {
-  const league = await revealedLeague()
-
-  expect(await refusalStatus(() => service.makeLeagueRecurring(league.token, 'dave'))).toBe(403)
 })
 
 it('only lets the organizer edit and delete a league', async () => {

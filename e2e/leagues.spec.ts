@@ -230,7 +230,7 @@ async function submitLeagueCreation(page: Page, dialog: Locator) {
   await expect(page).toHaveURL(/\/leagues\/[^/?]+/)
 }
 
-test('an organizer can make a one-off league recurring without replacing its event', async ({ page }) => {
+test('a new league starts with its first event and can seal a roster', async ({ page }) => {
   const ownerName = uniqueName('LeagueOwner')
   const leagueName = uniqueName('Home League')
 
@@ -244,10 +244,11 @@ test('an organizer can make a one-off league recurring without replacing its eve
   await page.getByRole('button', { name: 'New league' }).click()
   const create = page.getByRole('dialog', { name: 'Create league' })
   await create.getByLabel('Name').fill(leagueName)
+  await expect(create.getByText('One-off', { exact: true })).toHaveCount(0)
+  await expect(create.getByText('Recurring', { exact: true })).toHaveCount(0)
   await create.getByRole('button', { name: /^Automatic/ }).click()
   await submitLeagueCreation(page, create)
   await join(page)
-  const eventUrl = page.url()
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(1440)
   const initialResponse = await page.reload()
   if (!initialResponse) throw new Error('The league page did not return a document response.')
@@ -264,20 +265,15 @@ test('an organizer can make a one-off league recurring without replacing its eve
   await page.setViewportSize({ width: 1440, height: 900 })
   await page.keyboard.press('Escape')
 
-  await page.getByRole('button', { name: `Actions for ${leagueName}` }).click()
-  await page.getByRole('menuitem', { name: 'Make recurring' }).click()
-  await page.screenshot({ path: 'test-results/make-league-recurring-confirm.png', fullPage: true })
-  await page.getByRole('alertdialog', { name: 'Make this league recurring?' }).getByRole('button', { name: 'Make recurring' }).click()
-
-  await expect(page.getByRole('heading', { name: 'Events' })).toBeVisible()
-  await expect(page.getByRole('link', { name: /Event 1/ })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'League events' })).toBeVisible()
+  await expect(page.getByRole('link', { name: /Current event/ })).toBeVisible()
+  await expect(page.getByRole('link', { name: /Event 1/ })).toHaveCount(0)
   await expect(page.locator(`[data-person="${ownerName}"]`)).toBeVisible()
-  expect(page.url()).toBe(eventUrl)
-  await page.screenshot({ path: 'test-results/one-off-made-recurring.png', fullPage: true })
+  await page.screenshot({ path: 'test-results/league-first-event.png', fullPage: true })
 
   await page.setViewportSize({ width: 390, height: 844 })
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
-  await page.screenshot({ path: 'test-results/one-off-made-recurring-phone.png', fullPage: true })
+  await page.screenshot({ path: 'test-results/league-first-event-phone.png', fullPage: true })
 })
 
 test('a revealed roster keeps its selected upgrades and reference metadata', async ({ browser }) => {
@@ -520,7 +516,7 @@ test('an organizer edits and deletes a league from its card actions', async ({ b
   await entrantContext.close()
 })
 
-test('a recurring league starts each event with fresh registration', async ({ browser }) => {
+test('a league starts each event with fresh registration', async ({ browser }) => {
   const ownerContext = await browser.newContext()
   const entrantContext = await browser.newContext()
   const owner = await ownerContext.newPage()
@@ -536,12 +532,18 @@ test('a recurring league starts each event with fresh registration', async ({ br
   await owner.getByRole('button', { name: 'New league' }).click()
   const create = owner.getByRole('dialog', { name: 'Create league' })
   await create.getByLabel('Name').fill(leagueName)
-  await create.getByRole('button', { name: /^Recurring/ }).click()
-  await owner.screenshot({ path: 'test-results/recurring-league-create.png', fullPage: true })
+  await expect(create.getByText('One-off', { exact: true })).toHaveCount(0)
+  await expect(create.getByText('Recurring', { exact: true })).toHaveCount(0)
+  await owner.screenshot({ path: 'test-results/league-create.png', fullPage: true })
   await create.getByRole('button', { name: /^Automatic/ }).click()
   await submitLeagueCreation(owner, create)
   await expect(owner.getByRole('heading', { name: leagueName })).toBeVisible()
   await expect(owner.getByRole('link', { name: `Organized by ${ownerName}` })).toHaveAttribute('href', /^\/users\/[^/?]+$/)
+  await expect(owner.getByText('Current event · Registration open')).toBeVisible()
+  await expect(owner.getByRole('heading', { name: 'League events' })).toBeVisible()
+  await expect(owner.getByRole('link', { name: 'Current event Active' })).toBeVisible()
+  await expect(owner.getByRole('link', { name: /Event 1/ })).toHaveCount(0)
+  await owner.screenshot({ path: 'test-results/league-current-event.png', fullPage: true })
   const leagueUrl = new URL(owner.url())
   leagueUrl.search = ''
   const leagueToken = leagueUrl.pathname.split('/').at(-1)
@@ -560,18 +562,29 @@ test('a recurring league starts each event with fresh registration', async ({ br
   )
   await owner.getByRole('button', { name: 'Reveal all rosters' }).click()
   await owner.getByRole('alertdialog', { name: 'Reveal every roster?' }).getByRole('button', { name: 'Reveal all rosters' }).click()
-  await expect(owner.getByRole('button', { name: 'Start new event' })).toBeVisible()
-  await owner.screenshot({ path: 'test-results/recurring-league-event-1.png', fullPage: true })
+  await expect(owner.getByRole('button', { name: 'Create new event' })).toBeVisible()
+  await owner.screenshot({ path: 'test-results/league-event-1.png', fullPage: true })
 
-  await owner.getByRole('button', { name: 'Start new event' }).click()
-  await owner.getByRole('alertdialog', { name: 'Start event 2?' }).getByRole('button', { name: 'Start new event' }).click()
-  await expect(owner.getByText('Event 2 · Registration open')).toBeVisible()
+  await owner.getByRole('button', { name: 'Create new event' }).click()
+  await owner.getByRole('alertdialog', { name: 'Create a new event?' }).getByRole('button', { name: 'Create event' }).click()
+  await expect(owner.getByText('Current event · Registration open')).toBeVisible()
   await expect(owner.getByText('No entrants yet', { exact: true })).toBeVisible()
   expect(await owner.evaluate(() => document.documentElement.scrollWidth)).toBe(1440)
-  await owner.screenshot({ path: 'test-results/recurring-league-event-2.png', fullPage: true })
+  await owner.screenshot({ path: 'test-results/league-event-2.png', fullPage: true })
+
+  await owner.goto('/leagues')
+  await expect(owner.locator(`[data-league="${leagueToken}"]`).getByText('2 events', { exact: true })).toBeVisible()
+
+  await owner.goto(leagueUrl.toString())
+  const events = owner.getByRole('heading', { name: 'League events' }).locator('..').locator('..')
+  await expect(events.getByText('Current', { exact: true })).toBeVisible()
+  await expect(events.getByRole('link', { name: 'Current event Active' })).toBeVisible()
+  await expect(events.getByText('Archive', { exact: true })).toBeVisible()
+  await events.getByRole('link', { name: 'Event 1 Revealed' }).click()
+  await expect(owner.getByText('Archived event 1 · Rosters revealed')).toBeVisible()
 
   await entrant.goto(leagueUrl.toString())
-  await expect(entrant.getByText('Event 2 · Registration open')).toBeVisible()
+  await expect(entrant.getByText('Current event · Registration open')).toBeVisible()
   await entrant.getByRole('button', { name: 'Join league' }).click()
   await expect(entrant.locator(`[data-person="${entrantName}"]`)).toBeVisible()
 
@@ -582,7 +595,7 @@ test('a recurring league starts each event with fresh registration', async ({ br
   await owner.setViewportSize({ width: 390, height: 844 })
   await owner.goto(leagueUrl.toString())
   expect(await owner.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
-  await owner.screenshot({ path: 'test-results/recurring-league-phone.png', fullPage: true })
+  await owner.screenshot({ path: 'test-results/league-events-phone.png', fullPage: true })
 
   await ownerContext.close()
   await entrantContext.close()
@@ -614,7 +627,6 @@ test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle'
   await owner.getByRole('button', { name: 'New league' }).click()
   const create = owner.getByRole('dialog', { name: 'Create league' })
   await create.getByLabel('Name').fill(leagueName)
-  await create.getByRole('button', { name: /^Recurring/ }).click()
   await create.getByRole('button', { name: /^Solo vs pair/ }).click()
   await create.getByRole('button', { name: /^Automatic/ }).click()
   await owner.setViewportSize({ width: 390, height: 844 })
@@ -676,9 +688,9 @@ test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle'
   await edit.getByLabel('Player limit').fill('2')
   await edit.getByRole('button', { name: 'Save changes' }).click()
   await expect(edit).toBeHidden()
-  await owner.getByRole('button', { name: 'Start new event' }).click()
-  await owner.getByRole('alertdialog', { name: 'Start event 2?' }).getByRole('button', { name: 'Start new event' }).click()
-  await expect(owner.getByText('Event 2 · Registration open')).toBeVisible()
+  await owner.getByRole('button', { name: 'Create new event' }).click()
+  await owner.getByRole('alertdialog', { name: 'Create a new event?' }).getByRole('button', { name: 'Create event' }).click()
+  await expect(owner.getByText('Current event · Registration open')).toBeVisible()
   await owner.getByRole('link', { name: /Event 1/ }).click()
   await owner.getByRole('button', { name: `Actions for ${leagueName}` }).click()
   await owner.getByRole('menuitem', { name: 'Edit league' }).click()

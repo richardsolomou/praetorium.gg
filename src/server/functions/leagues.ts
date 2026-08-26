@@ -143,7 +143,6 @@ export const makeLeagueRecurring = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const player = await requireUser()
       await app().service.makeLeagueRecurring(data.token, player.id)
-      await app().telemetry.capture(player.id, 'league_recurring_enabled')
       return null
     }),
   )

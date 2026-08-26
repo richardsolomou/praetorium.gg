@@ -4,7 +4,7 @@ A league is a lightweight organized-play home for one or more events. An event c
 
 ## Events
 
-Every league contains events. A one-off league contains one event and hides the extra hierarchy. Its organizer can make it recurring later without changing the current event, but cannot change it back to one-off. A recurring league exposes its event history and lets the organizer start another event after the current event reveals.
+Every league starts with Event 1, exposes its event history, and lets the organizer start another event after the current event reveals. A league used once remains a single-event league without requiring a separate mode.
 
 Each event starts with no entrants. A player who joined an earlier event must join again, so returning players and new players follow the same registration path. League identity, organizer, visibility, admission policy, player limit, and invite link persist between events. The organizer chooses a fresh battle format and roster size when starting each event. Entrants, roster-size assignments, roster snapshots, and reveal state do not carry between events.
 
@@ -18,13 +18,13 @@ Starting an event creates new rows rather than clearing the previous event. Prio
 
 ## Organizer controls
 
-The organizer can rename a league, change its details, and switch its visibility at any time. Admission can change only before anyone has joined the current event. While registration is open, the player limit cannot be lower than the accepted entrant count or the three places a 2v1 event needs. It can change freely between events so a recurring league can move between 1v1 and 2v1. These league properties govern the current and future registration without rewriting earlier event entries, sealed roster snapshots, reveal state, or battles.
+The organizer can rename a league, change its details, and switch its visibility at any time. Admission can change only before anyone has joined the current event. While registration is open, the player limit cannot be lower than the accepted entrant count or the three places a 2v1 event needs. It can change freely between events so a league can move between 1v1 and 2v1. These league properties govern the current and future registration without rewriting earlier event entries, sealed roster snapshots, reveal state, or battles.
 
-Making a league recurring remains one-way. Deleting a league permanently deletes its event history, entries, and sealed league roster snapshots. Battles already created from those snapshots remain available because their command logs contain their own copies.
+Deleting a league permanently deletes its event history, entries, and sealed league roster snapshots. Battles already created from those snapshots remain available because their command logs contain their own copies.
 
 ## Visibility and entry
 
-Public leagues appear in the leagues index. Private leagues are unlisted and shared by their stable opaque link. Both use the same detail page and require an account to join or submit. A signed-in player continues to see a private recurring league after participating in an earlier event, even before joining the current event.
+Public leagues appear in the leagues index. Private leagues are unlisted and shared by their stable opaque link. Both use the same detail page and require an account to join or submit. A signed-in player continues to see a private league after participating in an earlier event, even before joining the current event.
 
 The organizer chooses automatic entry or approval when creating the league. Approval events create pending entries. The organizer may accept, reject, or remove entrants until reveal. An event accepts at most 128 active entries and may use the league's lower accepted-player limit. Approval requests do not consume those configured places, but total active requests remain bounded at 128. When a player limit is set, every place must be accepted before reveal.
 
@@ -36,7 +36,7 @@ The snapshot stays in `league_event_entries.roster_snapshot`. The league detail 
 
 ## Reveal
 
-Reveal is one transaction owned by the organizer. It succeeds only when at least one entrant is accepted, every accepted entrant has a requirement and submitted roster, and a 2v1 event has at least one solo and two allied entrants. A 2v2 event also requires at least four accepted entrants, an even accepted count, no unresolved requests, and every team to contain exactly two entrants. Reveal rejects unresolved approval requests, sets the event's `revealed_at`, closes joining, assignment, and submission for that event, then makes every accepted snapshot readable. Reveal cannot be undone. Revealing a recurring event does not close its league.
+Reveal is one transaction owned by the organizer. It succeeds only when at least one entrant is accepted, every accepted entrant has a requirement and submitted roster, and a 2v1 event has at least one solo and two allied entrants. A 2v2 event also requires at least four accepted entrants, an even accepted count, no unresolved requests, and every team to contain exactly two entrants. Reveal rejects unresolved approval requests, sets the event's `revealed_at`, closes joining, assignment, and submission for that event, then makes every accepted snapshot readable. Reveal cannot be undone and does not close the league.
 
 ## Battles
 
