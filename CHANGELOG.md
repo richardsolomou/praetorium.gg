@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.38.4
+
+### Patch Changes
+
+- c46226c: Move battle setup forward with one button in the corner of the page instead of arrows on the section rail.
+
 ## 0.38.3
 
 ### Patch Changes
