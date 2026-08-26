@@ -22,6 +22,8 @@ type PricedRoster = {
   detachmentPointBudget: number | null
   disposition: string | null | undefined
   units: readonly {
+    /** The position of the pick this was priced from, since a pick that cannot be built has no unit. */
+    key: number
     entryId: string
     name: string
     points: number
@@ -39,6 +41,17 @@ type PricedRoster = {
 
 export function rosterSnapshot(saved: SavedRoster, priced: PricedRoster, wounds: readonly { entryId: string; wounds: number }[]): Roster {
   const keyedPicks = saved.picks.map((pick, key) => ({ ...pick, key }))
+  // Both spaces of the same army: what each pick was priced into, and what the
+  // snapshot calls it. A pick the catalogue could not build has neither.
+  const unitsByPick = saved.picks.map((_, at) => priced.units.find((unit) => unit.key === at))
+  const keysByPick = new Map(priced.units.map((unit, index) => [unit.key, `${index}-${unit.entryId}`]))
+  // What a character joined, in the keys the snapshot names units by.
+  const hostsByPick = new Map(
+    saved.picks.flatMap((pick, at) => {
+      const host = pick.attachedTo === undefined ? undefined : keysByPick.get(pick.attachedTo)
+      return host === undefined ? [] : [[at, host] as const]
+    }),
+  )
   const woundsOf = new Map(wounds.map((entry) => [entry.entryId, entry.wounds]))
   return {
     name: saved.name,
@@ -73,7 +86,8 @@ export function rosterSnapshot(saved: SavedRoster, priced: PricedRoster, wounds:
         wargear: unit.wargear.map((piece) => ({ ...piece })),
         enhancements: [...unit.enhancements],
         upgrades: [...unit.upgrades],
-        joined: attachmentRows(keyedPicks, priced.units, index).map(({ label, name }) => ({ label, name })),
+        joined: attachmentRows(keyedPicks, unitsByPick, unit.key).map(({ label, name }) => ({ label, name })),
+        ...(hostsByPick.has(unit.key) ? { attachedTo: hostsByPick.get(unit.key) } : {}),
         formationOptions: [...unit.formationOptions],
         prebattleRules: [...unit.prebattleRules],
       })),

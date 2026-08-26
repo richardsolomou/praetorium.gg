@@ -5,7 +5,7 @@
  * to a battle that has already begun. Imported only by tests, so nothing here ships.
  */
 
-import type { Command, LoggedCommand } from './battle'
+import type { Command, LoggedCommand, UnitFormation } from './battle'
 import type { battleReport } from './battleReport'
 
 export const ALICE = 'alice'
@@ -51,6 +51,40 @@ export const builtRoster = (name: string, units: string[], each: { models?: numb
     },
   },
 })
+
+/**
+ * A bodyguard unit and the character who joined it, which the game plays as one unit.
+ *
+ * `formations` is what each datasheet says on its own, so a test can give the
+ * character somewhere to be that the unit he joined cannot follow him to.
+ */
+export const attachedRoster = (formations: { marines: UnitFormation[]; lord: UnitFormation[] } = { marines: [], lord: [] }): Command => ({
+  kind: 'attach-roster',
+  roster: {
+    name: 'Death Guard',
+    text: 'Plague Marines\nLord of Contagion',
+    built: {
+      catalogueId: 'cat',
+      revision: 'rev',
+      limit: 2000,
+      detachment: 'Flyblown Host',
+      disposition: 'reconnaissance',
+      units: [
+        { key: 'u0', name: 'Plague Marines', points: 100, models: 5, group: 'battleline', formationOptions: formations.marines },
+        {
+          key: 'u1',
+          name: 'Lord of Contagion',
+          points: 100,
+          models: 1,
+          group: 'character',
+          attachedTo: 'u0',
+          formationOptions: formations.lord,
+        },
+      ],
+    },
+  },
+})
+
 export const advance = (): Command => ({ kind: 'advance' })
 
 /** Both lists in, Alice going first. */

@@ -11,7 +11,21 @@ import {
 } from './battle'
 import { battleView } from './battleView'
 import { battleReport } from './battleReport'
-import { ALICE, BOB, CAROL, NAMES, PLAYERS, advance, builtRoster, log, roster, started, text, turns } from './battle.fixtures'
+import {
+  ALICE,
+  BOB,
+  CAROL,
+  NAMES,
+  PLAYERS,
+  advance,
+  attachedRoster,
+  builtRoster,
+  log,
+  roster,
+  started,
+  text,
+  turns,
+} from './battle.fixtures'
 
 describe('setup', () => {
   const fourSeatState = (sides: number[], rosterLimits: number[] = [1_000, 1_000, 1_000, 1_000]) => {
@@ -1318,6 +1332,42 @@ describe('battle management', () => {
     expect(validate(state, ALICE, { kind: 'set-unit-formation', unitKey: 'u0', formation: 'deep-strike' })).toBe(
       'the roster data does not support that formation',
     )
+  })
+
+  it('holds a character and the unit they joined back together', () => {
+    const state = reduceBattle(
+      PLAYERS,
+      log([ALICE, attachedRoster()], [ALICE, { kind: 'set-unit-formation', unitKey: 'u0', formation: 'strategic-reserves' }]),
+    )
+
+    expect(state.players[0]?.units.map((unit) => unit.formation)).toEqual(['strategic-reserves', 'strategic-reserves'])
+  })
+
+  it('puts a character and the unit they joined back on the battlefield together', () => {
+    const state = reduceBattle(
+      PLAYERS,
+      log(
+        [ALICE, attachedRoster()],
+        [ALICE, { kind: 'set-unit-formation', unitKey: 'u0', formation: 'strategic-reserves' }],
+        [ALICE, { kind: 'set-unit-formation', unitKey: 'u1', formation: 'battlefield' }],
+      ),
+    )
+
+    expect(state.players[0]?.units.every((unit) => unit.formation === 'battlefield' && unit.deployed)).toBe(true)
+  })
+
+  it('refuses a deep strike the unit a character joined cannot make', () => {
+    const state = reduceBattle(PLAYERS, log([ALICE, attachedRoster({ marines: [], lord: ['deep-strike'] })]))
+
+    expect(validate(state, ALICE, { kind: 'set-unit-formation', unitKey: 'u1', formation: 'deep-strike' })).toBe(
+      'the roster data does not support that formation',
+    )
+  })
+
+  it('allows a deep strike every part of an attached unit can make', () => {
+    const state = reduceBattle(PLAYERS, log([ALICE, attachedRoster({ marines: ['deep-strike'], lord: ['deep-strike'] })]))
+
+    expect(validate(state, ALICE, { kind: 'set-unit-formation', unitKey: 'u1', formation: 'deep-strike' })).toBeNull()
   })
 })
 

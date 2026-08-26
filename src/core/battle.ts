@@ -9,6 +9,7 @@
  * No IO and no framework imports belong in this file.
  */
 
+import { attachedUnits } from './attachedUnits'
 import type { UnitGroup } from './unitGroups'
 import type { RosterPick } from './roster'
 
@@ -118,12 +119,21 @@ type SubmittedUnit = {
   enhancements?: string[]
   upgrades?: string[]
   joined?: { label: string; name: string }[]
+  /**
+   * The unit this character joined, by key.
+   *
+   * `joined` says the same thing in words for a player to read, and two squads of
+   * Plague Marines are two units with one name — so the key is what a screen groups
+   * an attached unit by. Absent from logs written before it was recorded, which read
+   * as an army of units standing alone.
+   */
+  attachedTo?: string
   formationOptions?: UnitFormation[]
   prebattleRules?: ('infiltrators' | 'scouts')[]
 }
 
 export const UNIT_FORMATIONS = ['battlefield', 'strategic-reserves', 'deep-strike', 'embarked'] as const
-type UnitFormation = (typeof UNIT_FORMATIONS)[number]
+export type UnitFormation = (typeof UNIT_FORMATIONS)[number]
 
 /** A unit's standing in the battle. Attached rosters begin on the battlefield. */
 export type UnitState = SubmittedUnit & {
@@ -833,9 +843,15 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
     }
     case 'set-unit-formation': {
       if (state.status === 'finished') return 'the battle is over'
-      const unit = player.units.find((candidate) => candidate.key === command.unitKey)
-      if (!unit) return namesAnotherArmy(command, actor) ? 'that is not one of their units' : 'that is not one of your units'
-      if (!['battlefield', 'strategic-reserves'].includes(command.formation) && !unit.formationOptions?.includes(command.formation)) {
+      const attached = attachedUnits(player.units, command.unitKey)
+      if (!attached.length) return namesAnotherArmy(command, actor) ? 'that is not one of their units' : 'that is not one of your units'
+      // Asked of the whole attached unit, because a deployment ability needs every
+      // model in it: a character who can deep strike cannot take a bodyguard unit
+      // that cannot with him.
+      if (
+        !['battlefield', 'strategic-reserves'].includes(command.formation) &&
+        !attached.every((unit) => unit.formationOptions?.includes(command.formation))
+      ) {
         return 'the roster data does not support that formation'
       }
       return null
@@ -1121,8 +1137,8 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
       return
     }
     case 'set-unit-formation': {
-      const unit = player.units.find((candidate) => candidate.key === command.unitKey)
-      if (unit) {
+      // The character and the unit he joined start together, so one press moves both.
+      for (const unit of attachedUnits(player.units, command.unitKey)) {
         unit.formation = command.formation
         unit.deployed = command.formation === 'battlefield'
       }
