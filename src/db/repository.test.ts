@@ -175,6 +175,8 @@ it('keeps league rosters sealed until every accepted entrant has submitted', asy
       now: 4,
     })
   }
+  const firstSnapshot = standardSnapshot('First army', 'First list')
+  const secondSnapshot = standardSnapshot('Second army', 'Second list')
   expect(
     (
       await repository.submitLeagueRoster({
@@ -183,7 +185,7 @@ it('keeps league rosters sealed until every accepted entrant has submitted', asy
         rosterId: 'user-001-roster',
         rosterName: 'First army',
         rosterUpdatedAt: 4,
-        snapshot: JSON.stringify({ name: 'First army', text: 'First list' }),
+        snapshot: firstSnapshot,
         now: 5,
       })
     ).outcome,
@@ -198,13 +200,13 @@ it('keeps league rosters sealed until every accepted entrant has submitted', asy
         rosterId: 'user-002-roster',
         rosterName: 'Second army',
         rosterUpdatedAt: 4,
-        snapshot: JSON.stringify({ name: 'Second army', text: 'Second list' }),
+        snapshot: secondSnapshot,
         now: 7,
       })
     ).outcome,
   ).toBe('sealed')
   expect(await repository.revealLeague('league-token', 'user-000', 8)).toEqual({ outcome: 'revealed' })
-  expect(await repository.leagueRoster('league-token', 'user-001')).toBe(JSON.stringify({ name: 'First army', text: 'First list' }))
+  expect(await repository.leagueRoster('league-token', 'user-001')).toBe(firstSnapshot)
   expect(await repository.joinLeague('league-token', 'user-000', 9, 128)).toBe('closed')
 })
 
@@ -417,6 +419,21 @@ function doublesSnapshot(warlord = false, limit = 1_000, group: 'character' | 'e
   })
 }
 
+function standardSnapshot(name = 'Army', text = 'List') {
+  return JSON.stringify({
+    name,
+    text,
+    built: {
+      catalogueId: 'cat',
+      revision: 'rev',
+      limit: 2_000,
+      detachment: null,
+      disposition: null,
+      units: [{ key: 'unit', name: 'Captain', points: 80, models: 1, group: 'character', warlord: true }],
+    },
+  })
+}
+
 async function sealDoublesSnapshots(warlordIds: readonly string[], limits: Readonly<Record<string, number>> = {}) {
   const entries = await connection!.database
     .select({ userId: leagueEventEntries.userId })
@@ -608,11 +625,13 @@ it('replaces a league roster snapshot until reveal', async () => {
     now: 3,
   })
   const input = { token: 'league-token', userId: 'user-001', rosterId: 'roster', rosterName: 'Army', rosterUpdatedAt: 3, now: 4 }
-  expect((await repository.submitLeagueRoster({ ...input, snapshot: 'first' })).outcome).toBe('sealed')
-  expect((await repository.submitLeagueRoster({ ...input, snapshot: 'replacement' })).outcome).toBe('sealed')
+  const firstSnapshot = standardSnapshot('First')
+  const replacementSnapshot = standardSnapshot('Replacement')
+  expect((await repository.submitLeagueRoster({ ...input, snapshot: firstSnapshot })).outcome).toBe('sealed')
+  expect((await repository.submitLeagueRoster({ ...input, snapshot: replacementSnapshot })).outcome).toBe('sealed')
   expect(await repository.revealLeague('league-token', 'user-000', 5)).toEqual({ outcome: 'revealed' })
-  expect(await repository.leagueRoster('league-token', 'user-001')).toBe('replacement')
-  expect((await repository.submitLeagueRoster({ ...input, snapshot: 'late' })).outcome).toBe('missing')
+  expect(await repository.leagueRoster('league-token', 'user-001')).toBe(replacementSnapshot)
+  expect((await repository.submitLeagueRoster({ ...input, snapshot: standardSnapshot('Late') })).outcome).toBe('missing')
 })
 
 it('does not re-accept an entrant after their place has been filled', async () => {
@@ -719,7 +738,7 @@ it('rejects unresolved approval requests when rosters are revealed', async () =>
         rosterId: 'roster',
         rosterName: 'Army',
         rosterUpdatedAt: 4,
-        snapshot: JSON.stringify({ name: 'Army', text: 'List' }),
+        snapshot: standardSnapshot(),
         now: 5,
       })
     ).outcome,
@@ -767,7 +786,7 @@ it('starts a league event without copying prior entrants', async () => {
     rosterId: 'roster',
     rosterName: 'First army',
     rosterUpdatedAt: 3,
-    snapshot: 'first snapshot',
+    snapshot: standardSnapshot('First army'),
     now: 4,
   })
   await repository.revealLeague('league-token', 'user-000', 5, 'league-token')
@@ -818,7 +837,7 @@ it('starts a league event without copying prior entrants', async () => {
     eventCount: 2,
     eventNumber: 2,
     entries: [],
-    previousRoster: 'first snapshot',
+    previousRoster: standardSnapshot('First army'),
     listed: expect.objectContaining({ personal: true, ownEntry: null }),
     previousCurrentState: {
       eventNumber: 1,
@@ -961,7 +980,7 @@ it('lets the player limit change between events', async () => {
     rosterId: 'roster',
     rosterName: 'Army',
     rosterUpdatedAt: 3,
-    snapshot: '{}',
+    snapshot: standardSnapshot(),
     now: 4,
   })
   await repository.revealLeague('league-token', 'user-000', 5)

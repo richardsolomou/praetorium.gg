@@ -75,7 +75,7 @@ async function view(token: string, playerId: string) {
   return screen.view
 }
 
-const leagueSnapshot = (name: string, limit = 2_000, warlord = false): Roster => ({
+const leagueSnapshot = (name: string, limit = 2_000, warlord = true): Roster => ({
   name,
   text: `${name} · ${limit} pts`,
   built: {
@@ -169,7 +169,7 @@ async function revealedDoublesLeague() {
   return { token, eventToken }
 }
 
-async function saveAndSealLeagueRoster(token: string, userId: string, limit: number, suffix = '', warlord = false) {
+async function saveAndSealLeagueRoster(token: string, userId: string, limit: number, suffix = '', warlord = true) {
   const id = `${userId}-${limit}${suffix}-team-roster`
   await service.saveRoster(userId, {
     id,
@@ -369,11 +369,11 @@ it('rejects the seal that would complete a doubles team without exactly one Warl
   })
   for (const userId of ['alice', 'bob']) await service.joinLeague(token, userId)
   await service.assignLeagueTeam(token, 'alice', ['alice', 'bob'])
-  await saveAndSealLeagueRoster(token, 'alice', 1_000)
+  await saveAndSealLeagueRoster(token, 'alice', 1_000, '', false)
 
   let refusal: Response | null = null
   try {
-    await saveAndSealLeagueRoster(token, 'bob', 1_000)
+    await saveAndSealLeagueRoster(token, 'bob', 1_000, '', false)
   } catch (error) {
     if (error instanceof Response) refusal = error
   }
@@ -382,6 +382,46 @@ it('rejects the seal that would complete a doubles team without exactly one Warl
     message: 'a doubles team must seal exactly one Character or Epic Hero Warlord between both rosters',
   })
   expect((await service.league(token, 'bob'))?.entries.find((entry) => entry.userId === 'bob')).toMatchObject({ submitted: false })
+})
+
+it('rejects a standard league roster without exactly one eligible Warlord', async () => {
+  const { token } = await service.createLeague('alice', {
+    name: 'Strike Force league',
+    description: '',
+    visibility: 'private',
+    admission: 'automatic',
+    playerLimit: 2,
+    format: '1v1',
+    rosterLimit: 2_000,
+  })
+  await service.joinLeague(token, 'alice')
+  await service.saveRoster('alice', {
+    id: 'alice-strike-force',
+    name: 'Alice Strike Force',
+    catalogueId: 'catalogue',
+    detachmentIds: [],
+    disposition: null,
+    limit: 2_000,
+    picks: [],
+    prep: null,
+    visibility: 'private',
+    source: 'editable',
+  })
+  const saved = await service.ownRoster('alice', 'alice-strike-force')
+  if (!saved) throw new Error('expected saved Strike Force roster')
+
+  let refusal: Response | null = null
+  try {
+    await service.submitLeagueRoster(token, 'alice', saved, leagueSnapshot('Alice Strike Force', 2_000, false))
+  } catch (error) {
+    if (error instanceof Response) refusal = error
+  }
+
+  expect(refusal && { status: refusal.status, message: await refusal.text() }).toEqual({
+    status: 409,
+    message: 'a league roster must seal exactly one Character or Epic Hero Warlord',
+  })
+  expect((await service.league(token, 'alice'))?.entries.find((entry) => entry.userId === 'alice')).toMatchObject({ submitted: false })
 })
 
 it('rejects a replacement that would give a doubles team two Warlords', async () => {
@@ -396,7 +436,7 @@ it('rejects a replacement that would give a doubles team two Warlords', async ()
   })
   for (const userId of ['alice', 'bob']) await service.joinLeague(token, userId)
   await service.assignLeagueTeam(token, 'alice', ['alice', 'bob'])
-  await saveAndSealLeagueRoster(token, 'alice', 1_000)
+  await saveAndSealLeagueRoster(token, 'alice', 1_000, '', false)
   await saveAndSealLeagueRoster(token, 'bob', 1_000, '', true)
 
   expect(await refusalStatus(() => saveAndSealLeagueRoster(token, 'alice', 1_000, '-replacement', true))).toBe(409)
@@ -834,7 +874,7 @@ it('stores a readable league snapshot without the saved roster capability', asyn
       detachment: null,
       disposition: null,
       picks: [],
-      units: [{ key: 'unit', entryId: 'unit', name: 'Intercessors', points: 80, models: 5, group: 'character' }],
+      units: [{ key: 'unit', entryId: 'unit', name: 'Intercessors', points: 80, models: 5, group: 'character', warlord: true }],
     },
   })
   await service.revealLeague(token, 'alice')
@@ -849,7 +889,7 @@ it('stores a readable league snapshot without the saved roster capability', asyn
       detachment: null,
       disposition: null,
       picks: [],
-      units: [{ key: 'unit', entryId: 'unit', name: 'Intercessors', points: 80, models: 5, group: 'character' }],
+      units: [{ key: 'unit', entryId: 'unit', name: 'Intercessors', points: 80, models: 5, group: 'character', warlord: true }],
     },
   })
 })
