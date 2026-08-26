@@ -497,18 +497,19 @@ export class PraetoriumService {
     })
   }
 
-  /**
-   * Someone's name and picture, to a viewer allowed to see it.
-   *
-   * A mutual friendship or shared battle permits this small public profile.
-   */
-  async userProfile(viewerId: string, userId: string) {
+  /** Someone's name and picture, to a viewer allowed to see it. */
+  async userProfile(viewerId: string | null, userId: string, battleToken?: string) {
     const profile = await this.repository.profileByUserId(userId)
     if (!profile) return null
-    if (viewerId === userId) return profile
-    const friends = sortedFriends(await this.repository.relationships(viewerId), viewerId).friends
-    if (friends.some((friend) => friend.id === userId)) return profile
-    return (await this.repository.shareBattle(viewerId, userId)) ? profile : null
+    if (viewerId) {
+      if (viewerId === userId) return profile
+      const friends = sortedFriends(await this.repository.relationships(viewerId), viewerId).friends
+      if (friends.some((friend) => friend.id === userId)) return profile
+      if (await this.repository.shareBattle(viewerId, userId)) return profile
+    }
+    if (!battleToken) return null
+    const screen = await this.screen(battleToken, viewerId)
+    return screen.kind === 'spectator' && screen.view.players.some((player) => player.id === userId) ? profile : null
   }
 
   async saveRoster(

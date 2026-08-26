@@ -14,7 +14,7 @@ import {
   setAdminRoleSchema,
   setOwnPasswordSchema,
   unlinkOwnAccountSchema,
-  userSchema,
+  userProfileSchema,
 } from '../schemas'
 
 export const me = createServerFn({ method: 'GET' }).handler(() => rpc(() => currentUser()))
@@ -88,11 +88,11 @@ export const setAdminRole = createServerFn({ method: 'POST' })
   )
 
 export const userProfile = createServerFn({ method: 'GET' })
-  .validator(userSchema)
+  .validator(userProfileSchema)
   .handler(({ data }) =>
     rpc(async () => {
       const viewerId = await currentUserId()
-      return viewerId ? app().service.userProfile(viewerId, data.userId) : null
+      return app().service.userProfile(viewerId, data.userId, data.battle)
     }),
   )
 

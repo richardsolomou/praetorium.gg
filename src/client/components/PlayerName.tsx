@@ -10,7 +10,17 @@ import { tint } from './battle/tints'
  * and the strip above setup — so a player is recognised the same way from the first
  * screen of a game to the last.
  */
-export function PlayerName({ army, linked = true, className = '' }: { army: Army; linked?: boolean; className?: string }) {
+export function PlayerName({
+  army,
+  linked = true,
+  battle,
+  className = '',
+}: {
+  army: Army
+  linked?: boolean
+  battle?: string
+  className?: string
+}) {
   const inner = (
     <>
       <PlayerAvatar name={army.playerName} image={army.playerImage} className="size-6 text-xs" />
@@ -21,7 +31,12 @@ export function PlayerName({ army, linked = true, className = '' }: { army: Army
   // neither valid nor pressable, and the way out to a profile is on screen elsewhere.
   if (!linked) return <span className={`inline-flex min-w-0 items-center gap-1.5 ${className}`}>{inner}</span>
   return (
-    <Link to="/users/$userId" params={{ userId: army.playerId }} className={`group inline-flex min-w-0 items-center gap-1.5 ${className}`}>
+    <Link
+      to="/users/$userId"
+      params={{ userId: army.playerId }}
+      search={battle ? { battle } : {}}
+      className={`group inline-flex min-w-0 items-center gap-1.5 ${className}`}
+    >
       {inner}
     </Link>
   )
