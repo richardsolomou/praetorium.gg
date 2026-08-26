@@ -14,13 +14,13 @@ import {
   LEAGUE_ADMISSIONS,
   LEAGUE_DESCRIPTION_MAX_LENGTH,
   LEAGUE_DEFAULT_ROSTER_LIMIT,
-  LEAGUE_EVENT_FORMATS,
   LEAGUE_MEMBER_MAX,
   LEAGUE_MEMBER_MIN,
   LEAGUE_NAME_MAX_LENGTH,
   LEAGUE_TEAM_ROSTER_LIMITS,
   LEAGUE_VISIBILITIES,
 } from '../core/league'
+import { TABLE_SHAPES, type TableShape } from '../core/tableShape'
 import { PASSWORD_MIN_LENGTH, SOCIAL_PROVIDERS } from '../authConfig'
 
 const id = z.string().min(1).max(64)
@@ -38,7 +38,7 @@ const leagueFields = {
   playerLimit: z.number().int().min(LEAGUE_MEMBER_MIN).max(LEAGUE_MEMBER_MAX).nullable(),
 }
 const leagueEventRuleFields = {
-  format: z.enum(LEAGUE_EVENT_FORMATS).default('1v1'),
+  format: z.enum(TABLE_SHAPES).default('1v1'),
   rosterLimit: z
     .number()
     .int()
@@ -46,7 +46,7 @@ const leagueEventRuleFields = {
     .default(LEAGUE_DEFAULT_ROSTER_LIMIT),
 }
 function validateLeagueEventRule(
-  value: { format: (typeof LEAGUE_EVENT_FORMATS)[number]; rosterLimit: number; playerLimit?: number | null },
+  value: { format: TableShape; rosterLimit: number; playerLimit?: number | null },
   context: z.RefinementCtx,
 ) {
   if ((value.format === '2v1' || value.format === '2v2') && !LEAGUE_TEAM_ROSTER_LIMITS.some((limit) => limit === value.rosterLimit)) {

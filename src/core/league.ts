@@ -1,3 +1,5 @@
+import type { TableShape } from './tableShape'
+
 export const LEAGUE_VISIBILITIES = ['public', 'private'] as const
 export type LeagueVisibility = (typeof LEAGUE_VISIBILITIES)[number]
 
@@ -7,9 +9,6 @@ export type LeagueAdmission = (typeof LEAGUE_ADMISSIONS)[number]
 export const LEAGUE_ENTRY_STATUSES = ['pending', 'accepted', 'rejected'] as const
 export type LeagueEntryStatus = (typeof LEAGUE_ENTRY_STATUSES)[number]
 
-export const LEAGUE_EVENT_FORMATS = ['1v1', '2v1', '2v2'] as const
-export type LeagueEventFormat = (typeof LEAGUE_EVENT_FORMATS)[number]
-
 export const LEAGUE_DEFAULT_ROSTER_LIMIT = 2_000
 export const LEAGUE_TEAM_ROSTER_LIMITS = [2_000] as const
 
@@ -17,8 +16,20 @@ export function alliedLeagueRosterLimit(rosterLimit: number) {
   return rosterLimit / 2
 }
 
+/**
+ * How a shape splits an event's roster size between the players on a side.
+ *
+ * A 1v1 splits nothing, so it has no phrasing here and each surface prints the size in
+ * whatever density it has room for.
+ */
+export function leagueRosterSplit(format: TableShape, rosterLimit: number) {
+  if (format === '2v1') return `${rosterLimit.toLocaleString()} solo / ${alliedLeagueRosterLimit(rosterLimit).toLocaleString()} allied`
+  if (format === '2v2') return `${rosterLimit.toLocaleString()} per force / ${alliedLeagueRosterLimit(rosterLimit).toLocaleString()} each`
+  return null
+}
+
 export function requiredLeagueRosterLimit(
-  format: LeagueEventFormat | null,
+  format: TableShape | null,
   eventLimit: number | null,
   entryAssignment: number | null,
   teamId: string | null = null,

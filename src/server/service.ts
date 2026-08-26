@@ -27,10 +27,10 @@ import {
   LEAGUE_TEAM_ROSTER_LIMITS,
   type LeagueAdmission,
   type LeagueEntryStatus,
-  type LeagueEventFormat,
   type LeagueVisibility,
   visibleLeagueEntries,
 } from '../core/league'
+import type { TableShape } from '../core/tableShape'
 import { commandSchema, parseRosterSnapshot } from '../core/commands'
 import type { BattleHistory, BattleSeats, BattlesCursor, JoinResult, Repository } from '../db/repository'
 import { type Mission, missionFor } from './rules'
@@ -88,7 +88,7 @@ export class PraetoriumService {
       admission: LeagueAdmission
       playerLimit: number | null
       recurring?: boolean
-      format?: LeagueEventFormat
+      format?: TableShape
       rosterLimit?: number
     },
   ) {
@@ -111,7 +111,7 @@ export class PraetoriumService {
     return { token, eventToken }
   }
 
-  async createLeagueEvent(token: string, ownerId: string, rule: { format?: LeagueEventFormat; rosterLimit?: number } = {}) {
+  async createLeagueEvent(token: string, ownerId: string, rule: { format?: TableShape; rosterLimit?: number } = {}) {
     const eventToken = randomToken()
     const format = rule.format ?? '1v1'
     const rosterLimit = rule.rosterLimit ?? LEAGUE_DEFAULT_ROSTER_LIMIT
