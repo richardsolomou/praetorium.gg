@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { BattleView } from '../core/battleView'
-import { facingSides, missionCardsReady, type SideMission, sideName, sides } from './sides'
+import { canWritePrep, facingSides, missionCardsReady, type SideMission, sideName, sides } from './sides'
 
 type ViewPlayer = BattleView['players'][number]
 
@@ -32,6 +32,7 @@ function player(overrides: Partial<ViewPlayer> & Pick<ViewPlayer, 'id' | 'side'>
     secondaries: [],
     primaryCard: null,
     secondaryMode: 'tactical',
+    secondaryDeckReady: false,
     remainingSecondaries: [],
     secondariesDrawnThisTurn: [],
     ...overrides,
@@ -192,6 +193,24 @@ describe('battle sides', () => {
   })
 })
 
+describe('writing mission-card setup', () => {
+  const table = sides(
+    view([player({ id: 'you', side: 0, isViewer: true }), player({ id: 'them', side: 1 }), player({ id: 'their-ally', side: 1 })]),
+  )
+
+  it('lets the side writer settle its choices', () => {
+    expect(canWritePrep(table[0]!, 'you', false)).toBe(true)
+  })
+
+  it('leaves another side choices to its writer', () => {
+    expect(canWritePrep(table[1]!, 'you', false)).toBe(false)
+  })
+
+  it('lets either device record a mandatory tactical configuration', () => {
+    expect(canWritePrep(table[1]!, 'you', true)).toBe(true)
+  })
+})
+
 describe('the order a hand is drawn in', () => {
   const card = (key: string, status: 'active' | 'achieved' | 'discarded' | 'returned') =>
     ({ key, name: key, status, points: 0, secret: false, revealed: false }) as ViewPlayer['secondaries'][number]
@@ -247,7 +266,7 @@ describe('the mission a side is held to', () => {
           id: 'alice',
           side: 0,
           primaryCard: { key: 'mission-a', name: 'Mission A' },
-          remainingSecondaries: [{ key: 'secondary-a', name: 'Secondary A' }],
+          secondaryDeckReady: true,
         }),
       ]),
       [{ side: 0, mission: mission('mission-a', 15) }],

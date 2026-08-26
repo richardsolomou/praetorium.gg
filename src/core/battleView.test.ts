@@ -31,9 +31,12 @@ describe('the view', () => {
     ]
 
     const view = battleView({ token: 'abc' }, seats, state, ALICE)
-    expect(view.players[1]).toMatchObject({ automated: true, remainingSecondaries: cards })
+    expect(view.players[1]).toMatchObject({ automated: true, secondaryDeckReady: true, remainingSecondaries: cards })
     // A seat someone does sign in to keeps its deck to itself.
-    expect(battleView({ token: 'abc' }, NAMES, state, ALICE).players[1]?.remainingSecondaries).toEqual([])
+    expect(battleView({ token: 'abc' }, NAMES, state, ALICE).players[1]).toMatchObject({
+      secondaryDeckReady: true,
+      remainingSecondaries: [],
+    })
   })
 
   it('offers the latest undo to both players', () => {

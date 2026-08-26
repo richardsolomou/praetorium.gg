@@ -1,5 +1,15 @@
 import { expect, test } from '@playwright/test'
-import { attachRoster, befriend, chooseBattlefield, createBattle, createRoster, setupStep, signUp, uniqueName } from './account'
+import {
+  attachRoster,
+  befriend,
+  chooseBattlefield,
+  createBattle,
+  createRoster,
+  setupStep,
+  signUp,
+  uniqueName,
+  waitForRosterSave,
+} from './account'
 
 test('battle setup stays in step and shows both players their shared choices', async ({ browser }) => {
   const alice = await (await browser.newContext()).newPage()
@@ -68,10 +78,73 @@ test('battle setup stays in step and shows both players their shared choices', a
     'step',
   )
   // Both sides are drawn, so each name appears on the table strip and again on its own column.
-  await expect(alice.getByRole('main').getByText(aliceName, { exact: true }).first()).toBeVisible()
-  await expect(alice.getByRole('main').getByText(bobName, { exact: true }).first()).toBeVisible()
+  await expect(alice.getByRole('main').getByText(aliceName, { exact: true })).toHaveCount(2)
+  await expect(alice.getByRole('main').getByText(bobName, { exact: true })).toHaveCount(2)
   await alice.evaluate(() => window.scrollTo(0, 0))
   await alice.screenshot({ path: 'test-results/setup-armies.png', fullPage: true })
   await alice.setViewportSize({ width: 390, height: 844 })
   await alice.screenshot({ path: 'test-results/setup-armies-phone.png', fullPage: true })
+})
+
+test('one device settles mandatory tactical cards for both sides', async ({ browser }) => {
+  const alice = await (await browser.newContext()).newPage()
+  const bob = await (await browser.newContext()).newPage()
+  const aliceName = uniqueName('Alice')
+  const bobName = uniqueName('Bob')
+
+  await signUp(bob, bobName)
+  const bobRoster = await createRoster(bob, {
+    faction: 'Death Guard',
+    detachment: /Shamblerot Vectorium/,
+    name: 'Bob KOTC army',
+    size: /King of the Colosseum \(500\)/,
+  })
+  for (const unit of ['Plague Marines', 'Lord of Virulence']) {
+    await bob.getByLabel('Add a unit').fill(unit)
+    await waitForRosterSave(bob, () =>
+      bob
+        .getByRole('button', { name: `Add ${unit}`, exact: true })
+        .first()
+        .click(),
+    )
+  }
+  await bob.locator('[data-unit="Lord of Virulence"]').getByRole('button', { name: 'Lord of Virulence', exact: true }).click()
+  await waitForRosterSave(bob, () => bob.getByRole('button', { name: 'Make Lord of Virulence Warlord' }).click())
+  await signUp(alice, aliceName)
+  const aliceRoster = await createRoster(alice, {
+    faction: 'Necrons',
+    detachment: /Awakened Dynasty/,
+    name: 'Alice KOTC army',
+    size: /King of the Colosseum \(500\)/,
+  })
+  for (const unit of ['Immortals', 'Overlord']) {
+    await alice.getByLabel('Add a unit').fill(unit)
+    await waitForRosterSave(alice, () =>
+      alice
+        .getByRole('button', { name: `Add ${unit}`, exact: true })
+        .first()
+        .click(),
+    )
+  }
+  await alice.locator('[data-unit="Overlord"]').getByRole('button', { name: 'Overlord', exact: true }).click()
+  await waitForRosterSave(alice, () => alice.getByRole('button', { name: 'Make Overlord Warlord' }).click())
+  await befriend(alice, bob)
+  const url = await createBattle(alice, { opponent: bobName })
+  await bob.goto(url)
+
+  const size = alice.getByRole('combobox', { name: 'Battle size' })
+  await size.click()
+  await alice.getByRole('option', { name: /King of the Colosseum \(500\)/ }).click()
+  await expect(size).toContainText('King of the Colosseum (500)')
+  await attachRoster(alice, aliceRoster)
+  await attachRoster(bob, bobRoster)
+  await expect(alice.getByText(bobRoster, { exact: true }).first()).toBeVisible()
+  await bob.close()
+
+  await chooseBattlefield(alice)
+  await setupStep(alice, 'Secondaries')
+  await expect(alice.getByRole('main').getByText(aliceName, { exact: true })).toHaveCount(2)
+  await expect(alice.getByRole('main').getByText(bobName, { exact: true })).toHaveCount(2)
+  await expect(alice.getByRole('button', { name: 'Next', exact: true })).toBeEnabled()
+  await alice.screenshot({ path: 'test-results/setup-mandatory-secondaries.png', fullPage: true })
 })

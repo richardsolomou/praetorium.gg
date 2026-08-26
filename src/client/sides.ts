@@ -109,6 +109,7 @@ export type Side = {
   primaryCard: ViewPlayer['primaryCard']
   secondaries: ViewPlayer['secondaries']
   secondaryMode: ViewPlayer['secondaryMode']
+  secondaryDeckReady: ViewPlayer['secondaryDeckReady']
   remainingSecondaries: ViewPlayer['remainingSecondaries']
   secondariesDrawnThisTurn: ViewPlayer['secondariesDrawnThisTurn']
   stratagems: ViewPlayer['stratagems']
@@ -159,6 +160,7 @@ export function sides(view: BattleView, missions: readonly { side: number; missi
         primaryCard: captain.primaryCard,
         secondaries: unsettledFirst(captain.secondaries),
         secondaryMode: captain.secondaryMode,
+        secondaryDeckReady: captain.secondaryDeckReady,
         remainingSecondaries: captain.remainingSecondaries,
         secondariesDrawnThisTurn: captain.secondariesDrawnThisTurn,
         stratagems: captain.stratagems,
@@ -192,14 +194,16 @@ export function sideName(side: Side): string {
   return side.armies.map((army) => army.playerName).join(' & ')
 }
 
+export function canWritePrep(side: Pick<Side, 'played' | 'writer' | 'automated'>, viewerId: string, tacticalOnly: boolean): boolean {
+  return tacticalOnly || (side.played && (side.writer.id === viewerId || side.automated))
+}
+
 export function missionCardsReady(
-  side: Pick<Side, 'mission' | 'primaryCard' | 'secondaryMode' | 'secondaries' | 'remainingSecondaries'>,
+  side: Pick<Side, 'mission' | 'primaryCard' | 'secondaryMode' | 'secondaryDeckReady' | 'secondaries'>,
 ): boolean {
   if (!side.mission) return true
   if (side.primaryCard?.key !== side.mission.id) return false
-  return side.secondaryMode === 'fixed'
-    ? side.secondaries.length === FIXED_SECONDARIES
-    : side.secondaries.length + side.remainingSecondaries.length > 0
+  return side.secondaryMode === 'fixed' ? side.secondaries.length === FIXED_SECONDARIES : side.secondaryDeckReady
 }
 
 function toArmy(player: ViewPlayer): Army {

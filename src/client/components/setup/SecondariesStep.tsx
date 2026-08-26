@@ -13,17 +13,13 @@ type Props = { view: BattleView; sides: Side[]; send: (command: Command) => void
  * thing the table agrees before the roll-off and it is a different conversation —
  * the reserves are each army's, and this belongs to the side.
  *
- * Side by side and tinted, so a table settling two of them at once can tell at a
- * glance which is which. Your own side, then any side of practice opponents: nobody
- * signs in to those, so their cards are settled here rather than waiting for a
- * player who never arrives.
+ * Both sides stay visible so the table can see what is still outstanding. A player
+ * chooses only for their side, except when the battle format mandates tactical play.
  */
 export function SecondariesStep({ view, sides, send, pending }: Props) {
-  const played = sides.filter((side) => side.played)
-
   return (
-    <div className={`grid gap-3 ${played.length > 1 ? 'lg:grid-cols-2' : ''}`}>
-      {played.map((side) => (
+    <div className={`grid gap-3 ${sides.length > 1 ? 'lg:grid-cols-2' : ''}`}>
+      {sides.map((side) => (
         <SetupSidePanel key={side.index} side={side} className="space-y-3">
           {/* Said where the choice is made, because a hand short of its two is the one
               thing on this section that stops the table moving on. */}
