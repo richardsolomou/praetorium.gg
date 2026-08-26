@@ -875,9 +875,11 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
     }
     case 'set-prep': {
       if (state.status === 'finished') return 'the battle is over'
-      // What an army brings is settled before the first turn, so the log cannot be
-      // rewritten mid-game to a different set of cards.
-      if (state.status === 'playing') return 'cards are settled before the battle begins'
+      if (state.status === 'playing') {
+        const missingTacticalDeck = player.secondaryMode === 'tactical' && !player.secondaryDeck?.length && player.secondaries.length === 0
+        if (!missingTacticalDeck) return 'cards are settled before the battle begins'
+        if (command.secondaryMode !== 'tactical' || command.secondaries.length) return 'cards are settled before the battle begins'
+      }
       if (isKotcLimit(state.settings.limit) && command.secondaryMode !== 'tactical')
         return 'King of the Colosseum requires tactical secondaries'
       return validatePrep(command)

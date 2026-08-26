@@ -4,6 +4,7 @@ import {
   battleCapacity,
   type Command,
   commandArmy,
+  FIXED_SECONDARIES,
   GAME_SIZES,
   type PlayerId,
   type Roster,
@@ -807,6 +808,9 @@ export class PraetoriumService {
       { battleId: seats.battle.id, userId, expectedSeq, command, now: this.clock() },
       (state) => {
         if (command.kind === 'begin-battle') return rules ? setupReferenceError(state, rules) : null
+        if (command.kind === 'set-prep' && state.status === 'playing') {
+          return rules ? repairPrepReferenceError(state, userId, command, rules) : null
+        }
         if (command.kind === 'score' || command.kind === 'score-secondary' || command.kind === 'score-settlement')
           return rules ? scoringCapError(state, userId, command, rules) : null
         return null
@@ -942,6 +946,18 @@ function setupReferenceError(state: ReturnType<typeof reduceBattle>, rules: NonN
   if (one && two && state.settings.missionPackId && missions.some((mission) => !mission)) {
     return 'the selected mission pack does not contain this matchup'
   }
+  const sides = [...new Set(state.players.map((player) => player.side))].toSorted((left, right) => left - right)
+  const primaries = rules.primaries ?? []
+  const expectedSecondaries = new Set((rules.secondaries ?? []).map((card) => card.key))
+  const prepared = missions.every((mission, index) => {
+    if (!mission) return true
+    if (!primaries.some((card) => card.key === mission.id) || expectedSecondaries.size === 0) return true
+    const player = sideCaptain(state, sides[index]!)
+    if (player.primaryCard?.key !== mission.id) return false
+    if (player.secondaryMode === 'fixed') return player.secondaries.length === FIXED_SECONDARIES
+    return completeDeck(player.secondaryDeck, expectedSecondaries)
+  })
+  if (!prepared) return 'every side must prepare its mission cards'
   const deploymentId = state.deploymentId
   if (!deploymentId) return 'choose a deployment'
   if (!rules.deployments.some((deployment) => deployment.id === deploymentId)) return 'that deployment is not available'
@@ -954,6 +970,36 @@ function setupReferenceError(state: ReturnType<typeof reduceBattle>, rules: NonN
   if (matchups.size && !matchups.has(terrain.matchupId)) return 'that terrain layout does not match the armies'
   if (terrain.deploymentId && terrain.deploymentId !== state.deploymentId) return 'that terrain layout does not match the deployment'
   if (!terrain.geometry) return 'exact terrain data is not available yet'
+  return null
+}
+
+function completeDeck(cards: { key: string }[] | null | undefined, expected: Set<string>): boolean {
+  return cards?.length === expected.size && cards.every((card) => expected.has(card.key))
+}
+
+function repairPrepReferenceError(
+  state: ReturnType<typeof reduceBattle>,
+  by: PlayerId,
+  command: Extract<Command, { kind: 'set-prep' }>,
+  rules: NonNullable<Parameters<typeof missionFor>[0]>,
+): string | null {
+  const player = commandArmy(state, by, command)
+  if (!player) return null
+  const ownDisposition = sideDisposition(state, player.side)
+  const opposingSide = state.players.find((candidate) => candidate.side !== player.side)?.side
+  const opposingDisposition = opposingSide === undefined ? null : sideDisposition(state, opposingSide)
+  const mission = missionFor(rules, ownDisposition, opposingDisposition, state.settings.missionPackId)
+  const expectedSecondaries = new Set((rules.secondaries ?? []).map((card) => card.key))
+  const primaryExists = (rules.primaries ?? []).some((card) => card.key === mission?.id)
+  if (
+    !mission ||
+    !primaryExists ||
+    command.primary?.key !== mission.id ||
+    !expectedSecondaries.size ||
+    !completeDeck(command.secondaryDeck, expectedSecondaries)
+  ) {
+    return 'those mission cards do not match this battle'
+  }
   return null
 }
 

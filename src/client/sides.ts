@@ -1,3 +1,4 @@
+import { FIXED_SECONDARIES } from '../core/battle'
 import type { BattleView } from '../core/battleView'
 
 type ViewPlayer = BattleView['players'][number]
@@ -189,6 +190,16 @@ export function facingSides(view: BattleView): { yours: Side | undefined; theirs
 /** What a side is called: every player on it, in seating order. */
 export function sideName(side: Side): string {
   return side.armies.map((army) => army.playerName).join(' & ')
+}
+
+export function missionCardsReady(
+  side: Pick<Side, 'mission' | 'primaryCard' | 'secondaryMode' | 'secondaries' | 'remainingSecondaries'>,
+): boolean {
+  if (!side.mission) return true
+  if (side.primaryCard?.key !== side.mission.id) return false
+  return side.secondaryMode === 'fixed'
+    ? side.secondaries.length === FIXED_SECONDARIES
+    : side.secondaries.length + side.remainingSecondaries.length > 0
 }
 
 function toArmy(player: ViewPlayer): Army {

@@ -7,7 +7,7 @@ import type { Command } from '../../core/battle'
 import type { BattleView } from '../../core/battleView'
 import { FIXED_SECONDARIES, GAME_SIZES, isKotcLimit } from '../../core/battle'
 import { deploymentsQuery, gameReferencesQuery } from '../queries'
-import { type Side, type SideMission, sideName, sides as foldSides } from '../sides'
+import { missionCardsReady, type Side, type SideMission, sideName, sides as foldSides } from '../sides'
 import { SearchableSelect, type SearchableGroup } from './SearchableSelect'
 import { Battlefield } from './Battlefield'
 import { ArmiesStep } from './setup/ArmiesStep'
@@ -101,9 +101,8 @@ export function Setup({ view, mission, missions, send, attachSavedRoster, pendin
     if (step === 2 && undecided.length) return 'Choose the Force Disposition each allied side plays to continue.'
     if (step === 3 && !view.deploymentId) return 'Choose a battlefield layout to continue.'
     if (step === 4 && !view.attackerId) return 'Roll off and record the defender to continue.'
-    // Fixed play is two cards, and a side of practice opponents is this table's to pick for.
-    const short = table.filter((side) => side.played && side.secondaryMode === 'fixed' && side.secondaries.length < FIXED_SECONDARIES)
-    if (step === 5 && short.length) return `Choose ${FIXED_SECONDARIES} fixed secondary missions to continue.`
+    const missingCards = table.filter((side) => !missionCardsReady(side))
+    if (step >= 5 && missingCards.length) return 'Wait for every side’s mission cards before continuing.'
     return null
   }
   const blocked = blockedAt(at)
