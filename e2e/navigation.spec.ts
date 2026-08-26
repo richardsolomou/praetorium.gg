@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { devices, expect, test } from '@playwright/test'
 import { signUp } from './account'
 
 test('primary navigation collapses below 815 pixels', async ({ page }) => {
@@ -48,6 +48,25 @@ test('public reference data renders without client JavaScript', async ({ browser
   await expect(page.getByRole('heading', { name: 'Chapter Approved 2026-2027' })).toBeVisible()
 
   await context.close()
+})
+
+test('rule tooltips open on touch and hover', async ({ browser, page }) => {
+  const context = await browser.newContext(devices['iPhone 13'])
+  const touchPage = await context.newPage()
+
+  await touchPage.goto('/factions/necrons/detachments/hand-of-the-dynasty')
+  await touchPage.getByRole('button', { name: '[RAPID FIRE 1]' }).tap()
+  await expect(touchPage.getByRole('tooltip')).toContainText('Rapid Fire')
+  await touchPage.screenshot({ path: 'test-results/rule-tooltip-touch.png', fullPage: true })
+  await touchPage.getByRole('heading', { name: 'Hand of the Dynasty', exact: true }).tap()
+  await expect(touchPage.getByRole('tooltip')).toHaveCount(0)
+
+  await context.close()
+
+  await page.goto('/factions/necrons/detachments/hand-of-the-dynasty')
+  await page.getByRole('button', { name: '[RAPID FIRE 1]' }).hover()
+  await expect(page.getByRole('tooltip')).toContainText('Rapid Fire')
+  await page.screenshot({ path: 'test-results/rule-tooltip-hover.png', fullPage: true })
 })
 
 test('server-rendered reference pages keep route-shaped payloads', async ({ request }) => {
@@ -405,12 +424,6 @@ test('a player can enter through the roster library and browse the product', asy
   await expect(page.getByRole('tooltip')).toContainText('Rapid Fire')
   await page.getByRole('heading', { name: 'Hand of the Dynasty', exact: true }).hover()
   await expect(page.getByRole('tooltip')).toHaveCount(0)
-  await page.setViewportSize({ width: 390, height: 844 })
-  await rapidFire.click()
-  await expect(page.getByRole('tooltip')).toContainText('Rapid Fire')
-  await page.getByRole('heading', { name: 'Hand of the Dynasty', exact: true }).click()
-  await expect(page.getByRole('tooltip')).toHaveCount(0)
-  await page.setViewportSize({ width: 1280, height: 720 })
   await page.getByRole('link', { name: 'Necrons' }).click()
   await page.getByRole('link', { name: /Cryptek Conclave/ }).click()
   await expect(page).toHaveURL('/factions/necrons/detachments/cryptek-conclave')
