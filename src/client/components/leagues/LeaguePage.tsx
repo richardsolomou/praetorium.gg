@@ -12,7 +12,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { Button } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { PlayerAvatar } from '../PlayerAvatar'
@@ -197,7 +197,7 @@ export function LeaguePage({ token, eventToken }: { token: string; eventToken?: 
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="min-w-0">
               <p className="eyebrow text-parchment">
-                {league.recurring ? `Event ${league.eventNumber} · ` : ''}
+                Event {league.eventNumber} ·{' '}
                 {league.revealedAt ? 'Rosters revealed' : registrationFull ? 'Registration full' : 'Registration open'}
               </p>
               <h1 className="mt-1 text-3xl">{league.name}</h1>
@@ -257,7 +257,7 @@ export function LeaguePage({ token, eventToken }: { token: string; eventToken?: 
       <div className="mx-auto grid max-w-5xl gap-5 px-3 py-5 sm:px-4 lg:grid-cols-[minmax(0,1fr)_18rem]">
         <section className="min-w-0">
           <div className="rubric mb-2 flex items-baseline justify-between border-b border-edge pb-2">
-            <h2>{league.recurring ? `Event ${league.eventNumber} entrants` : 'Entrants'}</h2>
+            <h2>Event {league.eventNumber} entrants</h2>
             <span className="readout">{accepted.length}</span>
           </div>
           {league.entries.length ? (
@@ -419,41 +419,44 @@ export function LeaguePage({ token, eventToken }: { token: string; eventToken?: 
         </section>
 
         <aside className="space-y-3">
-          {league.recurring ? (
-            <section className="border border-edge bg-panel p-4">
-              <div className="flex items-center justify-between gap-3">
-                <h2 className="font-bold uppercase">Events</h2>
-                <span className="readout">{league.eventCount}</span>
-              </div>
-              <div className="mt-3 space-y-1">
-                {league.events.map((event) => (
-                  <Button
-                    key={event.token}
-                    variant={event.token === league.eventToken ? 'outline' : 'ghost'}
-                    className="w-full justify-between"
-                    render={<Link to="/leagues/$token" params={{ token }} search={{ event: event.token }} />}
-                  >
-                    <span>Event {event.number}</span>
-                    <span className="text-xs text-dim">{event.revealedAt ? 'Revealed' : 'Open'}</span>
-                  </Button>
-                ))}
-              </div>
-              {isOwner && viewingLatest && league.revealedAt ? (
-                <Button className="mt-3 w-full" onClick={() => setStarting(true)}>
-                  <CalendarPlus /> Start new event
-                </Button>
-              ) : null}
-              {!viewingLatest && latestEvent ? (
-                <Button
-                  className="mt-3 w-full"
-                  variant="outline"
-                  render={<Link to="/leagues/$token" params={{ token }} search={{ event: latestEvent.token }} />}
+          <section className="border border-edge bg-panel p-4">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="font-bold uppercase">Events</h2>
+              <span className="readout">{league.eventCount}</span>
+            </div>
+            <div className="mt-3 space-y-1">
+              {league.events.map((event) => (
+                <Link
+                  key={event.token}
+                  to="/leagues/$token"
+                  params={{ token }}
+                  search={{ event: event.token }}
+                  className={buttonVariants({
+                    variant: event.token === league.eventToken ? 'outline' : 'ghost',
+                    className: 'w-full justify-between',
+                  })}
                 >
-                  View current event
-                </Button>
-              ) : null}
-            </section>
-          ) : null}
+                  <span>Event {event.number}</span>
+                  <span className="text-xs text-dim">{event.revealedAt ? 'Revealed' : 'Open'}</span>
+                </Link>
+              ))}
+            </div>
+            {isOwner && viewingLatest && league.revealedAt ? (
+              <Button className="mt-3 w-full" onClick={() => setStarting(true)}>
+                <CalendarPlus /> Start new event
+              </Button>
+            ) : null}
+            {!viewingLatest && latestEvent ? (
+              <Link
+                to="/leagues/$token"
+                params={{ token }}
+                search={{ event: latestEvent.token }}
+                className={buttonVariants({ variant: 'outline', className: 'mt-3 w-full' })}
+              >
+                View current event
+              </Link>
+            ) : null}
+          </section>
           <section className="border border-edge bg-panel p-4">
             <div className="flex items-center gap-2">
               <FileLock2 className="size-5 text-parchment" />

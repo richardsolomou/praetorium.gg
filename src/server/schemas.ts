@@ -70,7 +70,6 @@ export const createLeagueSchema = z
     ...leagueEventRuleFields,
     description: leagueFields.description.default(''),
     playerLimit: leagueFields.playerLimit.default(null),
-    recurring: z.boolean().default(false),
   })
   .superRefine(validateLeagueEventRule)
 export const updateLeagueSchema = z.object({ token, ...leagueFields })

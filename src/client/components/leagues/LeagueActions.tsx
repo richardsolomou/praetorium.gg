@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { Check, Clipboard, EllipsisVertical, Eye, Pencil, Repeat2, Trash2 } from 'lucide-react'
+import { Check, Clipboard, EllipsisVertical, Eye, Pencil, Trash2 } from 'lucide-react'
 import { type ReactNode, useEffect, useState } from 'react'
 import {
   AlertDialog,
@@ -17,7 +17,7 @@ import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } 
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import type { LeagueAdmission, LeagueEventFormat, LeagueVisibility } from '../../../core/league'
-import { deleteLeague, makeLeagueRecurring, updateLeague } from '../../../server/functions'
+import { deleteLeague, updateLeague } from '../../../server/functions'
 import { leaguesQuery } from '../../queries'
 import { errorMessage } from '../../queryClient'
 import { LeagueFormFields, type LeagueFormValue } from './LeagueForm'
@@ -29,7 +29,6 @@ export type ManageableLeague = {
   visibility: LeagueVisibility
   admission: LeagueAdmission
   playerLimit: number | null
-  recurring: boolean
   format: LeagueEventFormat | null
   currentEventFormat: LeagueEventFormat | null
   currentEventRevealedAt: number | null
@@ -106,11 +105,6 @@ function LeagueActionItems({
       <Item onClick={actions.openEdit}>
         <Pencil /> Edit league
       </Item>
-      {!actions.league.recurring ? (
-        <Item onClick={actions.openConverting}>
-          <Repeat2 /> Make recurring
-        </Item>
-      ) : null}
       <Item variant="destructive" onClick={actions.openDeleting}>
         <Trash2 /> Delete league
       </Item>
@@ -175,28 +169,6 @@ function LeagueActionDialogs({ actions }: { actions: Controller }) {
           </form>
         </DialogContent>
       </Dialog>
-      <AlertDialog open={actions.converting} onOpenChange={(open) => !actions.recurring.isPending && actions.setConverting(open)}>
-        <AlertDialogContent aria-busy={actions.recurring.isPending} className="rounded-none border border-edge bg-panel text-bone">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="uppercase">Make this league recurring?</AlertDialogTitle>
-            <AlertDialogDescription className="text-dim">
-              This keeps the current event and lets you start another after reveal. A recurring league cannot become one-off again.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          {actions.recurring.isPending ? <output className="sr-only">Making the league recurring…</output> : null}
-          {actions.recurring.error ? (
-            <p role="alert" className="text-sm text-destructive">
-              {errorMessage(actions.recurring.error)}
-            </p>
-          ) : null}
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={actions.recurring.isPending}>Cancel</AlertDialogCancel>
-            <AlertDialogAction disabled={actions.recurring.isPending} onClick={() => actions.recurring.mutate()}>
-              {actions.recurring.isPending ? 'Making recurring…' : 'Make recurring'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
       <AlertDialog open={actions.deleting} onOpenChange={(open) => !actions.remove.isPending && actions.setDeleting(open)}>
         <AlertDialogContent aria-busy={actions.remove.isPending} className="rounded-none border border-edge bg-panel text-bone">
           <AlertDialogHeader>
@@ -239,7 +211,6 @@ function LeagueActionFeedback({ feedback }: { feedback: 'success' | 'error' | nu
 function useLeagueActions(league: ManageableLeague, onDeleted?: () => void | Promise<void>) {
   const queryClient = useQueryClient()
   const [editing, setEditing] = useState(false)
-  const [converting, setConverting] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [copyFeedback, setCopyFeedback] = useState<'success' | 'error' | null>(null)
   const [value, setValue] = useState<LeagueFormValue>(formValue(league))
@@ -271,14 +242,6 @@ function useLeagueActions(league: ManageableLeague, onDeleted?: () => void | Pro
       setEditing(false)
     },
   })
-  const recurring = useMutation({
-    mutationFn: () => makeLeagueRecurring({ data: { token: league.token } }),
-    onError: refresh,
-    onSuccess: async () => {
-      await refresh()
-      setConverting(false)
-    },
-  })
   const remove = useMutation({
     mutationFn: () => deleteLeague({ data: { token: league.token } }),
     onError: refresh,
@@ -292,26 +255,18 @@ function useLeagueActions(league: ManageableLeague, onDeleted?: () => void | Pro
     league,
     editing,
     setEditing,
-    converting,
-    setConverting,
     deleting,
     setDeleting,
     copyFeedback,
     value,
     setValue,
     update,
-    recurring,
     remove,
     openEdit: () => {
       setCopyFeedback(null)
       update.reset()
       setValue(formValue(league))
       setEditing(true)
-    },
-    openConverting: () => {
-      setCopyFeedback(null)
-      recurring.reset()
-      setConverting(true)
     },
     openDeleting: () => {
       setCopyFeedback(null)

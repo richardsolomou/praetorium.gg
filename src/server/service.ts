@@ -87,7 +87,6 @@ export class PraetoriumService {
       visibility: LeagueVisibility
       admission: LeagueAdmission
       playerLimit: number | null
-      recurring?: boolean
       format?: LeagueEventFormat
       rosterLimit?: number
     },
@@ -130,7 +129,6 @@ export class PraetoriumService {
     if (result === 'created') return { eventToken }
     if (result === 'missing') throw new Response('no such league', { status: 404 })
     if (result === 'forbidden') throw new Response('only the organizer can start an event', { status: 403 })
-    if (result === 'one-off') throw new Response('this league is not recurring', { status: 409 })
     if (result === 'too-small')
       throw new Response(
         format === '2v2' ? 'a 2v2 event needs an even number of at least four places' : 'a 2v1 event needs at least three places',
@@ -139,13 +137,6 @@ export class PraetoriumService {
         },
       )
     throw new Response('reveal the current event before starting another', { status: 409 })
-  }
-
-  async makeLeagueRecurring(token: string, ownerId: string) {
-    const result = await this.repository.makeLeagueRecurring(token, ownerId)
-    if (result === 'updated') return
-    if (result === 'missing') throw new Response('no such league', { status: 404 })
-    throw new Response('only the organizer can make a league recurring', { status: 403 })
   }
 
   async updateLeague(

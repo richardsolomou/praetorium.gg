@@ -103,7 +103,7 @@ function LeagueShelf({
                       ? 'Registration full'
                       : 'Registration open'}
                 </span>
-                {league.recurring ? <span className="chip text-info">Event {league.eventNumber}</span> : null}
+                <span className="chip text-info">Event {league.eventNumber}</span>
                 {league.format && league.rosterLimit ? (
                   <span className="chip">
                     {league.format === '2v1'

@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { createLeague } from '../../../server/functions'
 import { leaguesQuery } from '../../queries'
 import { errorMessage } from '../../queryClient'
-import { Choice, LeagueFormFields, type LeagueFormValue } from './LeagueForm'
+import { LeagueFormFields, type LeagueFormValue } from './LeagueForm'
 import { LeagueEventRuleFields, type LeagueEventRuleValue } from './LeagueEventRuleFields'
 
 export function CreateLeague() {
@@ -19,7 +19,6 @@ export function CreateLeague() {
     admission: 'approval',
     playerLimit: null,
   })
-  const [cadence, setCadence] = useState<'one-off' | 'recurring'>('one-off')
   const [eventRule, setEventRule] = useState<LeagueEventRuleValue>({ format: '1v1', rosterLimit: 2_000 })
   const queryClient = useQueryClient()
   const navigate = useNavigate()
@@ -29,7 +28,6 @@ export function CreateLeague() {
         data: {
           ...value,
           ...eventRule,
-          recurring: cadence === 'recurring',
         },
       }),
     onSuccess: async ({ token, eventToken }) => {
@@ -51,7 +49,7 @@ export function CreateLeague() {
       >
         <DialogHeader>
           <DialogTitle className="text-2xl uppercase">Create league</DialogTitle>
-          <DialogDescription className="text-dim">Open roster registration for a league, tournament, or one-off event.</DialogDescription>
+          <DialogDescription className="text-dim">Open roster registration for a league, tournament, or private event.</DialogDescription>
         </DialogHeader>
         <form
           className="space-y-4"
@@ -69,16 +67,6 @@ export function CreateLeague() {
             onChange={setValue}
           />
           <LeagueEventRuleFields value={eventRule} disabled={create.isPending} onChange={setEventRule} />
-          <Choice
-            label="Events"
-            value={cadence}
-            options={[
-              { value: 'one-off', title: 'One-off', detail: 'Run one registration and roster reveal.' },
-              { value: 'recurring', title: 'Recurring', detail: 'Open fresh events from the same league page.' },
-            ]}
-            disabled={create.isPending}
-            onChange={setCadence}
-          />
           {create.isPending ? <output className="sr-only">Creating league…</output> : null}
           {create.error ? <p className="text-sm text-destructive">{errorMessage(create.error)}</p> : null}
           <DialogFooter>

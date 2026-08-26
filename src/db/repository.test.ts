@@ -731,7 +731,7 @@ it('rejects unresolved approval requests when rosters are revealed', async () =>
   )
 })
 
-it('starts a recurring league event without copying prior entrants', async () => {
+it('starts a league event without copying prior entrants', async () => {
   const repository = await users(2)
   await repository.createLeague({
     id: 'league',
@@ -741,7 +741,6 @@ it('starts a recurring league event without copying prior entrants', async () =>
     description: '',
     visibility: 'private',
     admission: 'automatic',
-    recurring: true,
     now: 1,
   })
   await repository.joinLeague('league-token', 'user-001', 2, 128)
@@ -848,7 +847,7 @@ it('does not list a league without an event', async () => {
   expect(await repository.leaguesVisibleTo(null)).toEqual([])
 })
 
-it('does not start another event for a one-off league', async () => {
+it('does not start another event before reveal', async () => {
   const repository = await users(1)
   await repository.createLeague({
     id: 'league',
@@ -858,31 +857,6 @@ it('does not start another event for a one-off league', async () => {
     description: '',
     visibility: 'private',
     admission: 'automatic',
-    now: 1,
-  })
-
-  expect(
-    await repository.createLeagueEvent({
-      id: 'event-2',
-      token: 'event-token-2',
-      leagueToken: 'league-token',
-      ownerId: 'user-000',
-      now: 2,
-    }),
-  ).toBe('one-off')
-})
-
-it('does not start another recurring event before reveal', async () => {
-  const repository = await users(1)
-  await repository.createLeague({
-    id: 'league',
-    token: 'league-token',
-    ownerId: 'user-000',
-    name: 'League',
-    description: '',
-    visibility: 'private',
-    admission: 'automatic',
-    recurring: true,
     now: 1,
   })
 
@@ -897,7 +871,7 @@ it('does not start another recurring event before reveal', async () => {
   ).toBe('open')
 })
 
-it('only lets the recurring league organizer start an event', async () => {
+it('only lets the league organizer start an event', async () => {
   const repository = await users(2)
   await repository.createLeague({
     id: 'league',
@@ -907,7 +881,6 @@ it('only lets the recurring league organizer start an event', async () => {
     description: '',
     visibility: 'private',
     admission: 'automatic',
-    recurring: true,
     now: 1,
   })
 
@@ -953,7 +926,7 @@ it('edits league registration settings only while the current event allows them'
   expect(await repository.leagueByToken('league-token', 'user-000')).toEqual(expect.objectContaining({ ...changed, name: 'Final name' }))
 })
 
-it('lets the player limit change between recurring events', async () => {
+it('lets the player limit change between events', async () => {
   const repository = await users(1)
   await repository.createLeague({
     id: 'league',
