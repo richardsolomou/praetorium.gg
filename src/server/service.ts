@@ -752,7 +752,7 @@ export class PraetoriumService {
     return candidates
       .filter((candidate) => {
         const entries = new Map(candidate.entries.map((entry) => [entry.userId, entry]))
-        if (candidate.format === '1v1') return participantIds.length === 2 && allyIds.length === 0
+        if ((candidate.format ?? '1v1') === '1v1') return participantIds.length === 2 && allyIds.length === 0
         if (candidate.format === '2v1' && candidate.rosterLimit !== null && participantIds.length === 3) {
           const alliedLimit = alliedLeagueRosterLimit(candidate.rosterLimit)
           const roles = sideIds.map((side) =>
@@ -775,7 +775,13 @@ export class PraetoriumService {
         }
         return false
       })
-      .map(({ token, name, eventToken, eventNumber, format }) => ({ token, name, eventToken, eventNumber, format: format! }))
+      .map(({ token, name, eventToken, eventNumber, format }) => ({
+        token,
+        name,
+        eventToken,
+        eventNumber,
+        format: format ?? '1v1',
+      }))
   }
 
   async deleteBattle(token: string, userId: string) {

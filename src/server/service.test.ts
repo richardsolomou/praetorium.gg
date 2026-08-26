@@ -224,6 +224,21 @@ it('finds a revealed league for the exact casual battle seats', async () => {
   ])
 })
 
+it('treats a legacy revealed league as a 1v1 casual battle match', async () => {
+  const league = await revealedLeague()
+  await database.update(leagueEvents).set({ format: null, rosterLimit: null }).where(eq(leagueEvents.token, league.eventToken))
+
+  await expect(service.leagueBattleOptions('alice', { opponentId: 'dave' })).resolves.toEqual([
+    {
+      token: league.token,
+      name: 'League',
+      eventToken: league.eventToken,
+      eventNumber: 1,
+      format: '1v1',
+    },
+  ])
+})
+
 it('requires an explicit casual confirmation for a revealed league matchup', async () => {
   await revealedLeague()
   await befriend('alice', 'dave')

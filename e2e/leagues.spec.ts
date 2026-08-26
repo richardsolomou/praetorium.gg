@@ -44,6 +44,28 @@ async function sealEventRosters(leagueToken: string) {
   }
 }
 
+async function makeLeagueEventLegacy(leagueToken: string) {
+  const connection = openDatabase(`postgres://praetorium:praetorium@127.0.0.1:${postgresPort}/praetorium`)
+  try {
+    const [event] = await connection.database
+      .select({ id: leagueEvents.id })
+      .from(leagueEvents)
+      .innerJoin(leagues, eq(leagues.id, leagueEvents.leagueId))
+      .where(eq(leagues.token, leagueToken))
+      .orderBy(desc(leagueEvents.number))
+      .limit(1)
+    if (!event) throw new Error('The legacy league test event is missing.')
+    const updated = await connection.database
+      .update(leagueEvents)
+      .set({ format: null, rosterLimit: null })
+      .where(eq(leagueEvents.id, event.id))
+      .returning({ id: leagueEvents.id })
+    if (updated.length !== 1) throw new Error('The legacy league test event is missing.')
+  } finally {
+    await connection.close()
+  }
+}
+
 async function seedRosters(playerName: string, values: { name: string; limit: number }[]) {
   const connection = openDatabase(`postgres://praetorium:praetorium@127.0.0.1:${postgresPort}/praetorium`)
   try {
@@ -306,6 +328,11 @@ test('an eligible casual matchup is directed through its league event', async ({
   await owner.reload()
   await owner.getByRole('button', { name: 'Reveal all rosters' }).click()
   await owner.getByRole('alertdialog', { name: 'Reveal every roster?' }).getByRole('button', { name: 'Reveal all rosters' }).click()
+  await makeLeagueEventLegacy(leagueToken)
+  await owner.reload()
+  await expect(owner.getByRole('button', { name: 'Start 1 vs 1 battle' })).toBeVisible()
+  await expectNoHorizontalOverflow(owner)
+  await owner.screenshot({ path: 'test-results/legacy-league-battle-button.png', fullPage: true })
 
   await owner.goto('/battles')
   await owner.getByRole('button', { name: 'New casual battle' }).click()

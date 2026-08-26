@@ -165,6 +165,7 @@ export function LeaguePage({ token, eventToken, startBattle }: { token: string; 
   const eventBattles = leagueBattlesFrom(battleHistory.data)
   const isOwner = me?.id === league.ownerId
   const ownEntry = league.entries.find((entry) => entry.userId === me?.id)
+  const battleFormat = league.format ?? '1v1'
   const accepted = league.entries.filter((entry) => entry.status === 'accepted')
   const pendingCount = league.entries.filter((entry) => entry.status === 'pending').length
   const latestEvent = league.events[0]
@@ -545,9 +546,9 @@ export function LeaguePage({ token, eventToken, startBattle }: { token: string; 
             {league.revealedAt ? (
               <p className="mt-3 text-sm text-achieved">Every accepted roster is now visible to anyone with this link.</p>
             ) : null}
-            {league.revealedAt && league.format && ownEntry?.status === 'accepted' ? (
+            {league.revealedAt && ownEntry?.status === 'accepted' ? (
               <Button className="mt-4 w-full" disabled={battle.isPending} onClick={openBattleChooser}>
-                <Swords /> {startBattleLabel(league.format)}
+                <Swords /> {startBattleLabel(battleFormat)}
               </Button>
             ) : null}
           </section>
@@ -733,7 +734,7 @@ export function LeaguePage({ token, eventToken, startBattle }: { token: string; 
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      {league.format === '1v1' && ownEntry?.status === 'accepted' ? (
+      {battleFormat === '1v1' && ownEntry?.status === 'accepted' ? (
         <OneOnOneBattleChooser
           key={league.eventToken}
           open={choosingBattle}
