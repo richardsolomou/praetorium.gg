@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { ChevronRight } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
@@ -12,7 +13,7 @@ import { Battlefield } from './Battlefield'
 import { ArmiesStep } from './setup/ArmiesStep'
 import { CHOOSABLE, CHOSEN, DispositionChip, SetupNote, SetupPanel, useDispositionNames } from './setup/chrome'
 import { TwistChoice } from './setup/TwistChoice'
-import { AttackerStep } from './setup/AttackerStep'
+import { DefenderStep } from './setup/DefenderStep'
 import { FirstTurnStep } from './setup/FirstTurnStep'
 import { DeployStep } from './setup/DeployStep'
 import { PreBattleRulesStep } from './setup/PreBattleRulesStep'
@@ -67,7 +68,6 @@ export function Setup({ view, mission, missions, send, attachSavedRoster, pendin
   const nameDisposition = useDispositionNames()
   const { data: deployments } = useQuery(deploymentsQuery())
   const deployment = deployments?.find((entry) => entry.id === view.deploymentId)
-  // The attacker deploys second, so the other side is the one that starts.
   const attacker = table.find((side) => side.armies.some((army) => army.playerId === view.attackerId))
   const defender = attacker ? table.find((side) => side.index !== attacker.index) : undefined
   // The roll-off is recorded a section before the battle begins, and read back in the
@@ -100,7 +100,7 @@ export function Setup({ view, mission, missions, send, attachSavedRoster, pendin
     const undecided = table.filter((side) => side.dispositionChoices.length > 1 && !side.disposition)
     if (step === 2 && undecided.length) return 'Choose the Force Disposition each allied side plays to continue.'
     if (step === 3 && !view.deploymentId) return 'Choose a battlefield layout to continue.'
-    if (step === 4 && !view.attackerId) return 'Roll off and record the attacker to continue.'
+    if (step === 4 && !view.attackerId) return 'Roll off and record the defender to continue.'
     // Fixed play is two cards, and a side of practice opponents is this table's to pick for.
     const short = table.filter((side) => side.played && side.secondaryMode === 'fixed' && side.secondaries.length < FIXED_SECONDARIES)
     if (step === 5 && short.length) return `Choose ${FIXED_SECONDARIES} fixed secondary missions to continue.`
@@ -131,8 +131,8 @@ export function Setup({ view, mission, missions, send, attachSavedRoster, pendin
       reachable: reachable(3),
     },
     {
-      name: 'Attacker',
-      detail: view.attackerId ? 'Attacker chosen' : 'Roll off for it',
+      name: 'Defender',
+      detail: view.attackerId ? 'Defender chosen' : 'Roll off for it',
       complete: Boolean(view.attackerId),
       reachable: reachable(4),
     },
@@ -152,7 +152,7 @@ export function Setup({ view, mission, missions, send, attachSavedRoster, pendin
     // Where the models actually stand is the table's, so nothing here is completed.
     {
       name: 'Deploy',
-      detail: attacker ? 'Alternate from the defender' : 'Choose the attacker first',
+      detail: defender ? 'Alternate from the defender' : 'Choose the defender first',
       complete: false,
       reachable: reachable(7),
     },
@@ -191,7 +191,7 @@ export function Setup({ view, mission, missions, send, attachSavedRoster, pendin
     })
 
   return (
-    <main className="w-full pb-8">
+    <main className="flex w-full flex-col">
       {/*
        * Where the table is, banded across the top and pinned there the way the tracker
        * pins its scoreboard — the same offset under the same header, so setup and the
@@ -202,7 +202,7 @@ export function Setup({ view, mission, missions, send, attachSavedRoster, pendin
        * gutter than rail.
        */}
       <div className="sticky top-12 z-20 border-b border-edge bg-void/95 backdrop-blur">
-        <StepRail steps={steps} at={at} blocked={blocked} onGo={(step) => send({ kind: 'set-setup-step', step })} />
+        <StepRail steps={steps} at={at} onGo={(step) => send({ kind: 'set-setup-step', step })} />
       </div>
 
       <div className="mx-auto w-full max-w-5xl space-y-5 px-4 py-6">
@@ -348,7 +348,7 @@ export function Setup({ view, mission, missions, send, attachSavedRoster, pendin
             </SetupPanel>
           ) : null}
 
-          {at === 4 ? <AttackerStep sides={table} attackerId={view.attackerId} token={view.token} send={send} /> : null}
+          {at === 4 ? <DefenderStep sides={table} attackerId={view.attackerId} token={view.token} send={send} /> : null}
 
           {at === 5 && youHaveAnArmy ? <SecondariesStep view={view} sides={table} send={send} pending={pending} /> : null}
 
@@ -367,6 +367,29 @@ export function Setup({ view, mission, missions, send, attachSavedRoster, pendin
           {problem ? <p className="text-sm text-destructive">{problem}</p> : null}
         </section>
       </div>
+
+      {/*
+       * The way on, in the corner of the page rather than on the rail: setup is a
+       * column of questions of any length, and the one control that answers "and then?"
+       * belongs within reach of a thumb wherever the section has been read to. Why it
+       * will not move is already said under the heading, so the button only closes.
+       *
+       * Stuck to the bottom of setup rather than to the window, so scrolling to the end
+       * sets it down above the site footer instead of over its links. The strip it rides
+       * takes no clicks of its own, since it crosses the width of whatever is under it.
+       */}
+      {at < steps.length - 1 ? (
+        <div className="pointer-events-none sticky bottom-0 z-30 mt-auto flex justify-end px-4 pt-4 pb-4">
+          <Button
+            className="pointer-events-auto h-11 gap-1.5 px-5 text-base shadow-lg"
+            disabled={blocked !== null}
+            onClick={() => send({ kind: 'set-setup-step', step: at + 1 })}
+          >
+            Next
+            <ChevronRight className="size-4" />
+          </Button>
+        </div>
+      ) : null}
     </main>
   )
 }
@@ -376,7 +399,7 @@ const HEADLINES = [
   'Choose the armies',
   'Read the mission',
   'Choose the battlefield',
-  'Choose the attacker',
+  'Choose the defender',
   'Choose how your secondaries are drawn',
   'Set your reserves',
   'Deploy the armies',

@@ -1,5 +1,29 @@
 # praetorium
 
+## 0.38.4
+
+### Patch Changes
+
+- c46226c: Move battle setup forward with one button in the corner of the page instead of arrows on the section rail.
+
+## 0.38.3
+
+### Patch Changes
+
+- c8a3e77: Highlight detachment and roster links in battle views.
+
+## 0.38.2
+
+### Patch Changes
+
+- efb4270: Choose the defender after the setup roll-off.
+
+## 0.38.1
+
+### Patch Changes
+
+- 1659ac8: List Deep Strike units before other Strategic Reserves choices during battle setup.
+
 ## 0.38.0
 
 ### Minor Changes

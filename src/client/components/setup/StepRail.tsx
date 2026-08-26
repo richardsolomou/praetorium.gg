@@ -1,5 +1,4 @@
-import { Check, ChevronLeft, ChevronRight } from 'lucide-react'
-import type { ReactNode } from 'react'
+import { Check } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 
 export type Step = {
@@ -14,18 +13,15 @@ type Props = {
   steps: Step[]
   at: number
   onGo: (step: number) => void
-  /** Why the step will not be left yet, which is what closes the way forward. */
-  blocked: string | null
 }
 
 /**
- * The sections of setup and the two arrows that move between them, as one rail.
+ * The sections of setup, as one rail.
  *
  * The section is folded from the log, so pressing one moves every seated device to
- * it — this is the shared place in setup, not a private table of contents. Back and
- * next are ends of the same rail rather than buttons beside it: they answer the
- * question the rail asks, and drawn as their own controls they read as a second
- * thing to look at above a step that is already asking for something.
+ * it — this is the shared place in setup, not a private table of contents. The way
+ * forward is not on the rail: arrows at its ends read as the rail's own scroll
+ * controls, so moving on is a single button over the section that is asking.
  *
  * Which sections can be pressed is the caller's to say, because it is the same
  * question as what still has to be settled before one is left behind.
@@ -37,18 +33,15 @@ type Props = {
  * every width and the rail slides, carrying the current one into view whenever the
  * table moves.
  */
-export function StepRail({ steps, at, onGo, blocked }: Props) {
+export function StepRail({ steps, at, onGo }: Props) {
   const current = useRef<HTMLLIElement>(null)
   useEffect(() => {
     current.current?.scrollIntoView({ block: 'nearest', inline: 'center' })
   }, [at])
 
   return (
-    <nav aria-label="Setup sections" className="flex items-stretch gap-1">
-      <RailArrow label="Back" disabled={at === 0} onClick={() => onGo(Math.max(0, at - 1))}>
-        <ChevronLeft className="size-4" />
-      </RailArrow>
-      <ol className="flex min-w-0 flex-1 gap-1 overflow-x-auto">
+    <nav aria-label="Setup sections">
+      <ol className="flex items-stretch gap-1 overflow-x-auto">
         {steps.map((step, index) => {
           const here = index === at
           return (
@@ -80,42 +73,6 @@ export function StepRail({ steps, at, onGo, blocked }: Props) {
           )
         })}
       </ol>
-      <RailArrow label="Next" forward disabled={at === steps.length - 1 || blocked !== null} onClick={() => onGo(at + 1)}>
-        <ChevronRight className="size-4" />
-      </RailArrow>
     </nav>
-  )
-}
-
-/**
- * An end of the rail. Built from the same parts as a section rather than from a
- * button, so the row reads as one control with the steps laid along it.
- */
-function RailArrow({
-  label,
-  forward = false,
-  disabled,
-  onClick,
-  children,
-}: {
-  label: string
-  /** The way on, which is the one end of the rail that is an instruction. */
-  forward?: boolean
-  disabled: boolean
-  onClick: () => void
-  children: ReactNode
-}) {
-  return (
-    <button
-      type="button"
-      aria-label={label}
-      disabled={disabled}
-      onClick={onClick}
-      className={`grid shrink-0 place-items-center border-t-2 border-t-edge-strong px-2 transition-colors hover:bg-panel hover:text-bone disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent ${
-        forward && !disabled ? 'text-bone' : 'text-dim'
-      }`}
-    >
-      {children}
-    </button>
   )
 }
