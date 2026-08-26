@@ -21,6 +21,7 @@ it('freezes unit wounds into a roster snapshot', () => {
       disposition: null,
       units: [
         {
+          key: 0,
           entryId: 'unit',
           name: 'Unit',
           points: 80,
@@ -62,6 +63,7 @@ it('freezes the selected Warlord marker into a roster snapshot', () => {
       disposition: null,
       units: [
         {
+          key: 0,
           entryId: 'captain',
           name: 'Captain',
           points: 80,
@@ -81,4 +83,86 @@ it('freezes the selected Warlord marker into a roster snapshot', () => {
   )
 
   expect(roster.built?.units[0]?.warlord).toBe(true)
+})
+
+it('freezes the unit a character joined into a roster snapshot', () => {
+  const unit = {
+    points: 80,
+    toggles: [],
+    size: { models: 5, resizable: false },
+    attachment: null,
+    wargear: [],
+    enhancements: [],
+    upgrades: [],
+    formationOptions: [] as const,
+    prebattleRules: [] as const,
+  }
+  const roster = rosterSnapshot(
+    {
+      id: 'roster',
+      name: 'Army',
+      catalogueId: 'catalogue',
+      detachmentIds: [],
+      disposition: null,
+      limit: 2_000,
+      picks: [{ entryId: 'marines' }, { entryId: 'lord', attachedTo: 0 }],
+    },
+    {
+      points: 160,
+      revision: 'revision',
+      detachment: null,
+      detachments: [],
+      detachmentPointBudget: null,
+      disposition: null,
+      units: [
+        { ...unit, key: 0, entryId: 'marines', name: 'Plague Marines', group: 'battleline' },
+        { ...unit, key: 1, entryId: 'lord', name: 'Lord of Contagion', group: 'character' },
+      ],
+    },
+    [],
+  )
+
+  expect(roster.built?.units[1]?.attachedTo).toBe(roster.built?.units[0]?.key)
+})
+
+it('leaves a character the list joined to nothing unattached', () => {
+  const roster = rosterSnapshot(
+    {
+      id: 'roster',
+      name: 'Army',
+      catalogueId: 'catalogue',
+      detachmentIds: [],
+      disposition: null,
+      limit: 2_000,
+      picks: [{ entryId: 'lord' }],
+    },
+    {
+      points: 80,
+      revision: 'revision',
+      detachment: null,
+      detachments: [],
+      detachmentPointBudget: null,
+      disposition: null,
+      units: [
+        {
+          key: 0,
+          entryId: 'lord',
+          name: 'Lord of Contagion',
+          points: 80,
+          group: 'character',
+          toggles: [],
+          size: { models: 1, resizable: false },
+          attachment: null,
+          wargear: [],
+          enhancements: [],
+          upgrades: [],
+          formationOptions: ['deep-strike'],
+          prebattleRules: [],
+        },
+      ],
+    },
+    [],
+  )
+
+  expect(roster.built?.units[0]).not.toHaveProperty('attachedTo')
 })

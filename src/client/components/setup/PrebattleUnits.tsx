@@ -1,3 +1,4 @@
+import { attachedUnitList } from '../../../core/attachedUnits'
 import type { Army, Side } from '../../sides'
 import { HEADING } from '../battle/tints'
 import { GROUPS } from '../builder/groups'
@@ -15,6 +16,9 @@ type Rule = 'infiltrators' | 'scouts'
  * Said plainly rather than implied, because a list that looks complete and is not is
  * worse than no list: `prebattleRules` is read off a datasheet's own abilities, and
  * nothing here reads an army rule, a detachment or an enhancement granting the same.
+ *
+ * An attached unit is one unit and is listed once, carrying only what every part of
+ * it carries — both these abilities ask that every model in the unit has them.
  */
 export function PrebattleUnits({ sides, rule, empty }: { sides: Side[]; rule: Rule; empty: string }) {
   return (
@@ -37,9 +41,10 @@ export function PrebattleUnits({ sides, rule, empty }: { sides: Side[]; rule: Ru
 }
 
 function ArmyRules({ army, rule, empty, multiple }: { army: Army; rule: Rule; empty: string; multiple: boolean }) {
-  // A unit held back is not on the table to do any of this.
-  const onTable = army.units.filter((unit) => unit.formation === 'battlefield')
-  const carrying = onTable.filter((unit) => unit.prebattleRules?.includes(rule))
+  // A unit held back is not on the table to do any of this, and a character and the
+  // unit he joined are one unit doing it together or not at all.
+  const onTable = attachedUnitList(army.units).filter((unit) => unit.host.formation === 'battlefield')
+  const carrying = onTable.filter((unit) => unit.prebattleRules.includes(rule))
 
   return (
     <article className="space-y-2">
@@ -52,14 +57,21 @@ function ArmyRules({ army, rule, empty, multiple }: { army: Army; rule: Rule; em
       </div>
       {carrying.length ? (
         GROUPS.flatMap((group) => {
-          const units = carrying.filter((unit) => (unit.group ?? 'other') === group.id)
+          const units = carrying.filter((unit) => (unit.host.group ?? 'other') === group.id)
           return units.length
             ? [
                 <section key={group.id} className="space-y-1">
                   <p className={HEADING}>{group.plural}</p>
-                  {units.map((unit) => (
-                    <div key={unit.key} className="flex flex-wrap items-center justify-between gap-2 rounded-sm bg-sunken px-2.5 py-1.5">
-                      <span className="min-w-0 truncate text-sm font-semibold">{unit.name}</span>
+                  {units.map(({ host, joined }) => (
+                    <div key={host.key} className="flex flex-wrap items-center justify-between gap-2 rounded-sm bg-sunken px-2.5 py-1.5">
+                      <span className="min-w-0">
+                        <span className="block truncate text-sm font-semibold">{host.name}</span>
+                        {joined.length ? (
+                          <span className="block text-[0.625rem] text-dim">
+                            with {joined.map((character) => character.name).join(', ')}
+                          </span>
+                        ) : null}
+                      </span>
                       <span className="chip shrink-0 border-discarded/60 text-discarded">{formationLabel(rule)}</span>
                     </div>
                   ))}

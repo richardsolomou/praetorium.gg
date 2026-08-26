@@ -120,6 +120,7 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
                   )
                   .max(20)
                   .optional(),
+                attachedTo: id.optional(),
                 formationOptions: z.array(z.enum(UNIT_FORMATIONS)).max(4).optional(),
                 prebattleRules: z
                   .array(z.enum(['infiltrators', 'scouts']))
