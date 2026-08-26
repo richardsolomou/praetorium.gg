@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.39.2
+
+### Patch Changes
+
+- 7f0b23c: Let battle spectators open player profiles, faction and detachment references, and frozen rosters.
+
 ## 0.39.1
 
 ### Patch Changes
