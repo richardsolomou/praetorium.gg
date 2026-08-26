@@ -1,8 +1,9 @@
+import { eq } from 'drizzle-orm'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { PraetoriumConnection, PraetoriumDatabase } from '../db/connection'
 import { openTestDatabase } from '../db/testDatabase'
 import { Repository } from '../db/repository'
-import { battles, battleUsers, leagueEventEntries, leagueEvents, user } from '../db/schema'
+import { battles, battleUsers, leagueEventEntries, leagueEvents, leagues, user } from '../db/schema'
 import type { Roster } from '../core/battle'
 import { PraetoriumService } from './service'
 import type { LoadedRules } from './rules'
@@ -547,6 +548,7 @@ it('keeps legacy cadence clients compatible while every league supports events',
     playerLimit: 2,
     recurring: false,
   })
+  await database.update(leagues).set({ recurring: false }).where(eq(leagues.token, token))
 
   await service.makeLeagueRecurring(token, 'alice')
 
