@@ -294,7 +294,12 @@ export class PraetoriumService {
     const result = await this.repository.revealLeague(token, ownerId, this.clock(), eventToken)
     if (result.outcome === 'revealed') return
     if (result.outcome === 'invalid-warlords')
-      throw new Response('each doubles team must select exactly one Warlord before reveal', { status: 409 })
+      throw new Response(
+        result.format === '2v2'
+          ? 'each doubles team must select exactly one eligible Warlord before reveal'
+          : 'each league roster must select exactly one eligible Warlord before reveal',
+        { status: 409 },
+      )
     throw new Response('fill every configured place and wait for every accepted roster before reveal', { status: 409 })
   }
 

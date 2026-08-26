@@ -65,7 +65,7 @@ export type SubmitLeagueRosterResult =
   | { outcome: 'sealed'; format: TableShape | null; requiredLimit: number | null }
   | { outcome: 'missing' | 'unassigned' | 'wrong-limit' }
   | { outcome: 'invalid-warlords'; format: TableShape | null }
-export type RevealLeagueResult = { outcome: 'revealed' | 'not-ready' | 'invalid-warlords' }
+export type RevealLeagueResult = { outcome: 'revealed' | 'not-ready' } | { outcome: 'invalid-warlords'; format: TableShape }
 export type LeagueBattleCandidate = {
   token: string
   name: string
@@ -79,9 +79,14 @@ export type LeagueBattleCandidate = {
 const ADMIN_USERS_PAGE_SIZE = 50
 const LEAGUE_BATTLE_CANDIDATE_MAX = 50
 
-function eligibleWarlordCount(snapshots: readonly Roster[]): number | null {
+function warlordSelection(snapshots: readonly Roster[], trustLegacySelection = false) {
   const selected = snapshots.flatMap((snapshot) => snapshot.built?.units.filter((unit) => unit.warlord) ?? [])
-  return selected.every((unit) => unit.group === 'character' || unit.group === 'epic-hero') ? selected.length : null
+  return {
+    count: selected.length,
+    eligible: selected.every(
+      (unit) => unit.warlordEligible ?? (trustLegacySelection || unit.group === 'character' || unit.group === 'epic-hero'),
+    ),
+  }
 }
 
 /**
@@ -1386,8 +1391,9 @@ export class Repository {
       } catch {
         return { outcome: 'missing' }
       }
-      const submittedWarlords = eligibleWarlordCount([submitted])
-      if (event.format !== '2v2' && submittedWarlords !== 1) return { outcome: 'invalid-warlords', format: event.format }
+      const submittedWarlords = warlordSelection([submitted])
+      if (event.format !== '2v2' && (!submittedWarlords.eligible || submittedWarlords.count !== 1))
+        return { outcome: 'invalid-warlords', format: event.format }
       if (event.format === '2v2') {
         const [teammate] = await tx
           .select({ snapshot: leagueEventEntries.rosterSnapshot })
@@ -1403,7 +1409,7 @@ export class Repository {
           .limit(1)
           .for('update')
         if (!teammate) return { outcome: 'unassigned' }
-        if (submittedWarlords === null || submittedWarlords > 1) return { outcome: 'invalid-warlords', format: event.format }
+        if (!submittedWarlords.eligible || submittedWarlords.count > 1) return { outcome: 'invalid-warlords', format: event.format }
         if (teammate.snapshot !== null) {
           let teammateRoster: Roster
           try {
@@ -1411,7 +1417,8 @@ export class Repository {
           } catch {
             return { outcome: 'missing' }
           }
-          if (eligibleWarlordCount([submitted, teammateRoster]) !== 1) return { outcome: 'invalid-warlords', format: event.format }
+          const teamWarlords = warlordSelection([submitted, teammateRoster])
+          if (!teamWarlords.eligible || teamWarlords.count !== 1) return { outcome: 'invalid-warlords', format: event.format }
         }
       }
       const updated = await tx
@@ -1487,6 +1494,13 @@ export class Repository {
         const allied = entries.filter((entry) => entry.requiredLimit === alliedLeagueRosterLimit(event.rosterLimit ?? 0)).length
         if (!solo || allied < 2) return { outcome: 'not-ready' }
       }
+      if (event.format !== null && event.format !== '2v2') {
+        const invalidWarlord = snapshots.some((snapshot) => {
+          const selection = warlordSelection([snapshot], true)
+          return !selection.eligible || selection.count !== 1
+        })
+        if (invalidWarlord) return { outcome: 'invalid-warlords', format: event.format }
+      }
       if (event.format === '2v2') {
         if (entries.length < 4 || entries.length % 2 !== 0 || entries.some((entry) => entry.teamId === null))
           return { outcome: 'not-ready' }
@@ -1497,7 +1511,11 @@ export class Repository {
           teams.set(entry.teamId!, teamRosters)
         })
         if (teams.size < 2 || [...teams.values()].some((teamRosters) => teamRosters.length !== 2)) return { outcome: 'not-ready' }
-        if ([...teams.values()].some((teamRosters) => eligibleWarlordCount(teamRosters) !== 1)) return { outcome: 'invalid-warlords' }
+        const invalidWarlord = [...teams.values()].some((teamRosters) => {
+          const selection = warlordSelection(teamRosters)
+          return !selection.eligible || selection.count !== 1
+        })
+        if (invalidWarlord) return { outcome: 'invalid-warlords', format: event.format }
         const [pending] = await tx
           .select({ value: count() })
           .from(leagueEventEntries)

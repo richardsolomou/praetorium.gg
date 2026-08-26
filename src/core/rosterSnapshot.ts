@@ -83,6 +83,7 @@ export function rosterSnapshot(saved: SavedRoster, priced: PricedRoster, wounds:
         ...(woundsOf.has(unit.entryId) ? { wounds: woundsOf.get(unit.entryId) } : {}),
         group: unit.group,
         warlord: unit.toggles.some((toggle) => toggle.name === 'Warlord' && toggle.selected),
+        warlordEligible: unit.toggles.some((toggle) => toggle.name === 'Warlord'),
         wargear: unit.wargear.map((piece) => ({ ...piece })),
         enhancements: [...unit.enhancements],
         upgrades: [...unit.upgrades],

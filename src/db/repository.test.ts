@@ -535,7 +535,7 @@ it('refuses doubles reveal unless each team selected exactly one Warlord', async
   await repository.assignLeagueTeam('league-token', 'user-000', ['user-003', 'user-004'], 'team-b')
   await sealDoublesSnapshots(['user-001', 'user-002', 'user-003'])
 
-  expect(await repository.revealLeague('league-token', 'user-000', 10)).toEqual({ outcome: 'invalid-warlords' })
+  expect(await repository.revealLeague('league-token', 'user-000', 10)).toEqual({ outcome: 'invalid-warlords', format: '2v2' })
 })
 
 it('accepts one frozen eligible Character Warlord per doubles team', async () => {
@@ -561,7 +561,7 @@ it('refuses a frozen doubles Warlord marked on a non-Character unit', async () =
     .set({ rosterSnapshot: doublesSnapshot(true, 1_000, 'infantry') })
     .where(eq(leagueEventEntries.userId, 'user-001'))
 
-  expect(await repository.revealLeague('league-token', 'user-000', 10)).toEqual({ outcome: 'invalid-warlords' })
+  expect(await repository.revealLeague('league-token', 'user-000', 10)).toEqual({ outcome: 'invalid-warlords', format: '2v2' })
 })
 
 it('refuses a frozen doubles Warlord whose unit group is missing', async () => {
@@ -574,7 +574,7 @@ it('refuses a frozen doubles Warlord whose unit group is missing', async () => {
     .set({ rosterSnapshot: doublesSnapshot(true, 1_000, null) })
     .where(eq(leagueEventEntries.userId, 'user-001'))
 
-  expect(await repository.revealLeague('league-token', 'user-000', 10)).toEqual({ outcome: 'invalid-warlords' })
+  expect(await repository.revealLeague('league-token', 'user-000', 10)).toEqual({ outcome: 'invalid-warlords', format: '2v2' })
 })
 
 it('unpairs both former partners and clears both sealed rosters from one entrant ID', async () => {

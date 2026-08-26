@@ -382,6 +382,7 @@ test('a revealed roster keeps its selected upgrades and reference metadata', asy
   await owner.getByRole('button', { name: 'Add Skorpekh Lord', exact: true }).first().click()
   await owner.locator('[data-unit="Skorpekh Lord"]').getByRole('button', { name: 'Skorpekh Lord', exact: true }).click()
   await waitForRosterSave(owner, () => owner.getByRole('button', { name: 'Select Mark of the Nekrosor' }).click())
+  await waitForRosterSave(owner, () => owner.getByRole('button', { name: 'Make Skorpekh Lord Warlord' }).click())
 
   await owner.getByRole('button', { name: 'Roster actions' }).click()
   await owner.getByRole('menuitem', { name: 'Edit roster setup' }).click()

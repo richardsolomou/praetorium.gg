@@ -75,7 +75,13 @@ async function view(token: string, playerId: string) {
   return screen.view
 }
 
-const leagueSnapshot = (name: string, limit = 2_000, warlord = true): Roster => ({
+const leagueSnapshot = (
+  name: string,
+  limit = 2_000,
+  warlord = true,
+  group: 'character' | 'epic-hero' | 'vehicle' = 'character',
+  warlordEligible?: boolean,
+): Roster => ({
   name,
   text: `${name} · ${limit} pts`,
   built: {
@@ -84,7 +90,17 @@ const leagueSnapshot = (name: string, limit = 2_000, warlord = true): Roster => 
     limit,
     detachment: null,
     disposition: null,
-    units: [{ key: `${name}-unit`, name: `${name} unit`, points: 80, models: 5, group: 'character', warlord }],
+    units: [
+      {
+        key: `${name}-unit`,
+        name: `${name} unit`,
+        points: 80,
+        models: 5,
+        group,
+        warlord,
+        ...(warlordEligible === undefined ? {} : { warlordEligible }),
+      },
+    ],
   },
 })
 
@@ -185,7 +201,7 @@ async function saveAndSealLeagueRoster(token: string, userId: string, limit: num
   })
   const saved = await service.ownRoster(userId, id)
   if (!saved) throw new Error('expected saved team roster')
-  await service.submitLeagueRoster(token, userId, saved, leagueSnapshot(`${userId} sealed`, limit, warlord))
+  await service.submitLeagueRoster(token, userId, saved, leagueSnapshot(`${userId}${suffix} sealed`, limit, warlord))
 }
 
 it('creates a battle from the exact two sealed league snapshots', async () => {
@@ -424,6 +440,66 @@ it('rejects a standard league roster without exactly one eligible Warlord', asyn
   expect((await service.league(token, 'alice'))?.entries.find((entry) => entry.userId === 'alice')).toMatchObject({ submitted: false })
 })
 
+it('accepts catalogue-derived Warlord eligibility on an upgraded unit', async () => {
+  const { token } = await service.createLeague('alice', {
+    name: 'Strike Force league',
+    description: '',
+    visibility: 'private',
+    admission: 'automatic',
+    playerLimit: 2,
+    format: '1v1',
+    rosterLimit: 2_000,
+  })
+  await service.joinLeague(token, 'alice')
+  await service.saveRoster('alice', {
+    id: 'alice-tank-ace',
+    name: 'Alice Tank Ace',
+    catalogueId: 'catalogue',
+    detachmentIds: [],
+    disposition: null,
+    limit: 2_000,
+    picks: [],
+    prep: null,
+    visibility: 'private',
+    source: 'editable',
+  })
+  const saved = await service.ownRoster('alice', 'alice-tank-ace')
+  if (!saved) throw new Error('expected saved Tank Ace roster')
+
+  await expect(
+    service.submitLeagueRoster(token, 'alice', saved, leagueSnapshot('Alice Tank Ace', 2_000, true, 'vehicle', true)),
+  ).resolves.toMatchObject({ outcome: 'sealed' })
+})
+
+it('revalidates standard Warlords before revealing existing sealed snapshots', async () => {
+  const { token } = await service.createLeague('alice', {
+    name: 'Strike Force league',
+    description: '',
+    visibility: 'private',
+    admission: 'automatic',
+    playerLimit: 2,
+    format: '1v1',
+    rosterLimit: 2_000,
+  })
+  for (const userId of ['alice', 'bob']) {
+    await service.joinLeague(token, userId)
+    await saveAndSealLeagueRoster(token, userId, 2_000)
+  }
+  await database.update(leagueEventEntries).set({ rosterSnapshot: JSON.stringify(leagueSnapshot('Old invalid seal', 2_000, false)) })
+
+  let refusal: Response | null = null
+  try {
+    await service.revealLeague(token, 'alice')
+  } catch (error) {
+    if (error instanceof Response) refusal = error
+  }
+
+  expect(refusal && { status: refusal.status, message: await refusal.text() }).toEqual({
+    status: 409,
+    message: 'each league roster must select exactly one eligible Warlord before reveal',
+  })
+})
+
 it('rejects a replacement that would give a doubles team two Warlords', async () => {
   const { token } = await service.createLeague('alice', {
     name: 'Doubles league',
@@ -474,7 +550,7 @@ it('explains the exact doubles Warlord requirement when reveal is refused', asyn
 
   expect(refusal && { status: refusal.status, message: await refusal.text() }).toEqual({
     status: 409,
-    message: 'each doubles team must select exactly one Warlord before reveal',
+    message: 'each doubles team must select exactly one eligible Warlord before reveal',
   })
 })
 
