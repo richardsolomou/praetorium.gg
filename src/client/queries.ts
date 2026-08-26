@@ -22,6 +22,7 @@ import {
   globalSearch,
   loadoutDatasheets,
   listLeagues,
+  listLeagueBattles,
   me,
   openLeague,
   openLeagueRoster,
@@ -98,12 +99,26 @@ export const leagueRosterQuery = (token: string, eventToken: string | undefined,
     staleTime: Infinity,
   })
 
-// No polling: `useLiveBattle` refetches this when the server says the battle changed.
+export const leagueBattlesQuery = (token: string, eventToken: string) =>
+  infiniteQueryOptions({
+    queryKey: ['league-battles', token, eventToken],
+    queryFn: ({ pageParam }) => listLeagueBattles({ data: { token, eventToken, before: pageParam } }),
+    initialPageParam: null as BattlesCursor | null,
+    getNextPageParam: (page) => page.nextCursor ?? undefined,
+    staleTime: SSR_STALE_TIME,
+    refetchInterval: 5_000,
+  })
+
+export const leagueBattlesFrom = (data: { pages: { battles: unknown[] }[] } | undefined) =>
+  (data?.pages.flatMap((page) => page.battles) ?? []) as Awaited<ReturnType<typeof listLeagueBattles>>['battles']
+
+// Seated battles use realtime; read-only spectators poll while the battle is active.
 export const battleQuery = (token: string) =>
   queryOptions({
     queryKey: ['battle', token],
     queryFn: () => openBattle({ data: { token } }),
     staleTime: SSR_STALE_TIME,
+    refetchInterval: ({ state }) => (state.data?.kind === 'spectator' && state.data.view.status !== 'finished' ? 5_000 : false),
     structuralSharing: newestBattleScreen,
   })
 

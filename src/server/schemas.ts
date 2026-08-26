@@ -14,13 +14,13 @@ import {
   LEAGUE_ADMISSIONS,
   LEAGUE_DESCRIPTION_MAX_LENGTH,
   LEAGUE_DEFAULT_ROSTER_LIMIT,
-  LEAGUE_EVENT_FORMATS,
   LEAGUE_MEMBER_MAX,
   LEAGUE_MEMBER_MIN,
   LEAGUE_NAME_MAX_LENGTH,
   LEAGUE_TEAM_ROSTER_LIMITS,
   LEAGUE_VISIBILITIES,
 } from '../core/league'
+import { TABLE_SHAPES, type TableShape } from '../core/tableShape'
 import { PASSWORD_MIN_LENGTH, SOCIAL_PROVIDERS } from '../authConfig'
 
 const id = z.string().min(1).max(64)
@@ -28,6 +28,7 @@ const token = id
 const catalogueId = id
 const slug = z.string().min(1).max(160)
 const rosterLimit = z.number().int().min(0).max(10_000)
+const battlesCursor = z.object({ activity: z.number().int().min(0), id })
 
 export const tokenSchema = z.object({ token })
 const leagueFields = {
@@ -38,7 +39,7 @@ const leagueFields = {
   playerLimit: z.number().int().min(LEAGUE_MEMBER_MIN).max(LEAGUE_MEMBER_MAX).nullable(),
 }
 const leagueEventRuleFields = {
-  format: z.enum(LEAGUE_EVENT_FORMATS).default('1v1'),
+  format: z.enum(TABLE_SHAPES).default('1v1'),
   rosterLimit: z
     .number()
     .int()
@@ -46,7 +47,7 @@ const leagueEventRuleFields = {
     .default(LEAGUE_DEFAULT_ROSTER_LIMIT),
 }
 function validateLeagueEventRule(
-  value: { format: (typeof LEAGUE_EVENT_FORMATS)[number]; rosterLimit: number; playerLimit?: number | null },
+  value: { format: TableShape; rosterLimit: number; playerLimit?: number | null },
   context: z.RefinementCtx,
 ) {
   if ((value.format === '2v1' || value.format === '2v2') && !LEAGUE_TEAM_ROSTER_LIMITS.some((limit) => limit === value.rosterLimit)) {
@@ -100,6 +101,7 @@ export const assignLeagueTeamSchema = z.object({
     .refine((ids) => new Set(ids).size === ids.length, 'choose different entrants'),
 })
 export const leagueRosterSchema = z.object({ token, eventToken: token.optional(), userId: id })
+export const leagueBattlesSchema = z.object({ token, eventToken: token, before: battlesCursor.nullable().default(null) })
 export const createLeagueBattleSchema = z.object({
   token,
   eventToken: token.optional(),
@@ -136,10 +138,7 @@ export const createBattleSchema = z
   .refine((value) => !value.allyId || Boolean(value.opponentIds?.length || value.opponentId), 'an ally needs someone to play against')
 export const deleteBattleSchema = z.object({ token })
 export const battlesPageSchema = z.object({
-  before: z
-    .object({ activity: z.number().int().min(0), id })
-    .nullable()
-    .default(null),
+  before: battlesCursor.nullable().default(null),
 })
 export const userSchema = z.object({ userId: id })
 export const friendSchema = z.object({ userId: id })

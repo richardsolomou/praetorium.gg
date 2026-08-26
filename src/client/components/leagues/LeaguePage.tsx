@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { CalendarPlus, Check, Eye, FileLock2, LockKeyhole, ShieldCheck, Swords, UserPlus, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
@@ -23,6 +23,8 @@ import {
   battlesQuery,
   factionIndexQuery,
   gameReferencesQuery,
+  leagueBattlesFrom,
+  leagueBattlesQuery,
   leagueQuery,
   leaguesQuery,
   meQuery,
@@ -39,8 +41,12 @@ import {
   revealLeague,
   submitLeagueRoster,
 } from '../../../server/functions'
-import { alliedLeagueRosterLimit, LEAGUE_MEMBER_MAX } from '../../../core/league'
+import { alliedLeagueRosterLimit, leagueRosterSplit, LEAGUE_MEMBER_MAX } from '../../../core/league'
+import { TABLE_SHAPE_LABELS, type TableShape } from '../../../core/tableShape'
+import { seatedPlayers, seatsFor, type Seat } from '../../seats'
+import { SeatMatchup, SeatRows, seatLabel, seatOption } from '../Seats'
 import { RosterSummary } from '../rosters/RosterSummary'
+import { BattleShelf } from '../battles/BattleShelf'
 import { LeaguePageActions } from './LeagueActions'
 import { LeagueEventRuleFields, type LeagueEventRuleValue } from './LeagueEventRuleFields'
 
@@ -49,6 +55,10 @@ export function LeaguePage({ token, eventToken }: { token: string; eventToken?: 
   const navigate = useNavigate()
   const { data: me } = useQuery(meQuery())
   const { data: league } = useQuery(leagueQuery(token, eventToken))
+  const battleHistory = useInfiniteQuery({
+    ...leagueBattlesQuery(token, league?.eventToken ?? ''),
+    enabled: Boolean(league?.revealedAt && league.eventToken),
+  })
   useEffect(() => {
     if (league === null) void navigate({ to: '/leagues' })
   }, [league, navigate])
@@ -148,6 +158,7 @@ export function LeaguePage({ token, eventToken }: { token: string; eventToken?: 
     setChoosing(false)
   }
   if (!league) return null
+  const eventBattles = leagueBattlesFrom(battleHistory.data)
   const isOwner = me?.id === league.ownerId
   const ownEntry = league.entries.find((entry) => entry.userId === me?.id)
   const accepted = league.entries.filter((entry) => entry.status === 'accepted')
@@ -209,11 +220,8 @@ export function LeaguePage({ token, eventToken }: { token: string; eventToken?: 
                 <span className="chip">{league.admission === 'approval' ? 'Approval required' : 'Automatic entry'}</span>
                 {league.format && league.rosterLimit ? (
                   <span className="chip">
-                    {league.format === '2v1'
-                      ? `${league.rosterLimit.toLocaleString()} solo / ${alliedLeagueRosterLimit(league.rosterLimit).toLocaleString()} allied`
-                      : league.format === '2v2'
-                        ? `Doubles · ${league.rosterLimit.toLocaleString()} per force / ${alliedLeagueRosterLimit(league.rosterLimit).toLocaleString()} each`
-                        : `1v1 · ${league.rosterLimit.toLocaleString()} points`}
+                    {TABLE_SHAPE_LABELS[league.format].name} ·{' '}
+                    {leagueRosterSplit(league.format, league.rosterLimit) ?? `${league.rosterLimit.toLocaleString()} points`}
                   </span>
                 ) : null}
                 <span className="chip">
@@ -416,6 +424,34 @@ export function LeaguePage({ token, eventToken }: { token: string; eventToken?: 
               <p className="mt-1 text-sm text-dim">Share this page to open registration.</p>
             </div>
           )}
+
+          {league.revealedAt ? (
+            <div className="mt-5">
+              {eventBattles.length ? (
+                <>
+                  <BattleShelf title="Battles" battles={eventBattles} />
+                  {battleHistory.hasNextPage ? (
+                    <Button
+                      className="mt-3 w-full"
+                      variant="outline"
+                      disabled={battleHistory.isFetchingNextPage}
+                      onClick={() => battleHistory.fetchNextPage()}
+                    >
+                      {battleHistory.isFetchingNextPage ? 'Loading…' : 'Show more battles'}
+                    </Button>
+                  ) : null}
+                </>
+              ) : battleHistory.isPending ? (
+                <div className="border border-dashed border-edge bg-panel px-5 py-7 text-center text-sm text-dim">Loading battles…</div>
+              ) : (
+                <div className="border border-dashed border-edge bg-panel px-5 py-7 text-center">
+                  <Swords className="mx-auto size-7 text-faint" />
+                  <p className="mt-3 font-bold uppercase">No battles yet</p>
+                  <p className="mt-1 text-sm text-dim">Battles started from this event will appear here for live viewing and review.</p>
+                </div>
+              )}
+            </div>
+          ) : null}
         </section>
 
         <aside className="space-y-3">
@@ -496,14 +532,9 @@ export function LeaguePage({ token, eventToken }: { token: string; eventToken?: 
             {league.revealedAt ? (
               <p className="mt-3 text-sm text-achieved">Every accepted roster is now visible to anyone with this link.</p>
             ) : null}
-            {league.revealedAt && league.format === '2v1' && ownEntry?.status === 'accepted' ? (
+            {league.revealedAt && league.format && league.format !== '1v1' && ownEntry?.status === 'accepted' ? (
               <Button className="mt-4 w-full" disabled={battle.isPending} onClick={openBattleChooser}>
-                <Swords /> Start 2v1 battle
-              </Button>
-            ) : null}
-            {league.revealedAt && league.format === '2v2' && ownEntry?.status === 'accepted' ? (
-              <Button className="mt-4 w-full" disabled={battle.isPending} onClick={openBattleChooser}>
-                <Swords /> Start doubles battle
+                <Swords /> {startBattleLabel(league.format)}
               </Button>
             ) : null}
           </section>
@@ -814,6 +845,11 @@ function RosterChooser({
   )
 }
 
+/** One name for the button that starts a shape's battle and the dialog it opens. */
+function startBattleLabel(format: TableShape) {
+  return `Start ${TABLE_SHAPE_LABELS[format].count} battle`
+}
+
 function LeagueBattleChooser({
   open,
   ownUserId,
@@ -837,38 +873,36 @@ function LeagueBattleChooser({
   onClose: () => void
   onStart: (players: { opponentId: string; allyId?: string; secondOpponentId?: string }) => void
 }) {
-  const [soloId, setSoloId] = useState<string | null>(null)
-  const [alliedIds, setAlliedIds] = useState<[string | null, string | null]>([null, null])
+  const [theirIds, setTheirIds] = useState<(string | null)[]>([null, null])
+  const [allyId, setAllyId] = useState<string | null>(null)
   useEffect(() => {
     if (!open) {
-      setSoloId(null)
-      setAlliedIds([null, null])
+      setTheirIds([null, null])
+      setAllyId(null)
     }
   }, [open])
   const alliedLimit = alliedLeagueRosterLimit(rosterLimit)
+  // The organizer's roster assignment already says which side of the table this entrant is on.
   const isSolo = ownRequiredLimit === rosterLimit
-  const soloEntries = entries.filter((entry) => entry.userId !== ownUserId && entry.requiredLimit === rosterLimit)
-  const alliedEntries = entries.filter((entry) => entry.userId !== ownUserId && entry.requiredLimit === alliedLimit)
-  const ready = isSolo ? alliedIds.every((id) => id !== null) : soloId !== null && alliedIds[0] !== null
-  const entrantLabels = disambiguatedPlayerLabels(entries.map((entry) => ({ id: entry.userId, name: entry.name })))
-  const groups = (candidates: typeof entries, excluded: (string | null)[] = []) => [
-    {
-      label: '',
-      items: candidates
-        .filter((entry) => !excluded.includes(entry.userId))
-        .map((entry) => ({
-          label: entrantLabels.get(entry.userId) ?? entry.name,
-          value: entry.userId,
-          icon: <PlayerAvatar name={entry.name} image={entry.image} className="size-6 text-[0.65rem]" />,
-        })),
-    },
-  ]
-  const setAllied = (index: number, userId: string) => {
-    setAlliedIds((current) => {
-      const next: [string | null, string | null] = [...current]
-      next[index] = userId
-      return next
-    })
+  const seats = seatsFor('2v1', isSolo ? 'solo' : 'pair')
+  const seatedIn = (seat: Seat) => (seat.side === 'yours' ? allyId : (theirIds[seat.at] ?? null))
+  const labels = disambiguatedPlayerLabels(entries.map((entry) => ({ id: entry.userId, name: entry.name })))
+  const candidates = entries.map((entry) => ({
+    id: entry.userId,
+    name: entry.name,
+    image: entry.image,
+    requiredLimit: entry.requiredLimit,
+  }))
+  // An ally seat is filled by an entrant assigned the allied size; the solo seat of a
+  // pair's opponent by one assigned the full size. A seat nobody can fill offers nobody.
+  const groupsFor = (seat: Seat, taken: ReadonlySet<string | null>) => {
+    const wantsSolo = seat.side === 'theirs' && !isSolo
+    const label = wantsSolo ? 'Solo entrants' : 'Allied entrants'
+    const items = candidates
+      .filter((entry) => entry.id !== ownUserId && !taken.has(entry.id))
+      .filter((entry) => entry.requiredLimit === (wantsSolo ? rosterLimit : alliedLimit))
+      .map((entry) => seatOption(entry, labels))
+    return items.length ? [{ label, items }] : []
   }
 
   return (
@@ -878,60 +912,23 @@ function LeagueBattleChooser({
         className="max-h-[85dvh] overflow-y-auto rounded-none border border-edge bg-panel text-bone sm:max-w-lg"
       >
         <DialogHeader>
-          <DialogTitle className="text-2xl uppercase">Start 2v1 battle</DialogTitle>
+          <DialogTitle className="text-2xl uppercase">{startBattleLabel('2v1')}</DialogTitle>
           <DialogDescription className="text-dim">
             {isSolo ? 'Choose two allied entrants to face.' : 'Choose your allied teammate and the solo entrant to face.'}
           </DialogDescription>
         </DialogHeader>
-        {!isSolo ? (
-          <div className="space-y-1.5">
-            <Label htmlFor="league-battle-solo">Solo opponent</Label>
-            <SearchableSelect
-              id="league-battle-solo"
-              groups={groups(soloEntries)}
-              value={soloId ?? ''}
-              onValueChange={(id) => {
-                onIntentChange()
-                setSoloId(id)
-              }}
-              placeholder="Choose the solo opponent"
-              searchPlaceholder="Search entrants…"
-              className="h-11 rounded-none border-edge bg-sunken"
-            />
-          </div>
-        ) : null}
-        <div className="space-y-1.5">
-          <Label htmlFor="league-battle-allied-1">{isSolo ? 'First allied opponent' : 'Allied teammate'}</Label>
-          <SearchableSelect
-            id="league-battle-allied-1"
-            groups={groups(alliedEntries, alliedIds[1] ? [alliedIds[1]] : [])}
-            value={alliedIds[0] ?? ''}
-            onValueChange={(id) => {
-              onIntentChange()
-              setAllied(0, id)
-            }}
-            placeholder={isSolo ? 'Choose the first allied opponent' : 'Choose your allied teammate'}
-            searchPlaceholder="Search entrants…"
-            className="h-11 rounded-none border-edge bg-sunken"
-          />
-        </div>
-        {isSolo ? (
-          <div className="space-y-1.5">
-            <Label htmlFor="league-battle-allied-2">Second allied opponent</Label>
-            <SearchableSelect
-              id="league-battle-allied-2"
-              groups={groups(alliedEntries, alliedIds[0] ? [alliedIds[0]] : [])}
-              value={alliedIds[1] ?? ''}
-              onValueChange={(id) => {
-                onIntentChange()
-                setAllied(1, id)
-              }}
-              placeholder="Choose the second allied opponent"
-              searchPlaceholder="Search entrants…"
-              className="h-11 rounded-none border-edge bg-sunken"
-            />
-          </div>
-        ) : null}
+        <SeatRows
+          idPrefix="league-battle"
+          seats={seats}
+          seatedIn={seatedIn}
+          groupsFor={groupsFor}
+          onPick={(seat, id) => {
+            onIntentChange()
+            if (seat.side === 'yours') return setAllyId(id)
+            setTheirIds((current) => current.map((held, at) => (at === seat.at ? id : held)))
+          }}
+        />
+        <SeatMatchup seats={seats} labelFor={(seat) => seatLabel(seatedIn(seat), labels, candidates)} />
         {error ? (
           <p role="alert" className="text-sm text-destructive">
             {errorMessage(error)}
@@ -943,13 +940,12 @@ function LeagueBattleChooser({
             Cancel
           </Button>
           <Button
-            disabled={!ready || pending}
+            disabled={!seats.every(seatedIn) || pending}
             onClick={() => {
-              if (isSolo && alliedIds[0] && alliedIds[1]) {
-                onStart({ opponentId: alliedIds[0], secondOpponentId: alliedIds[1] })
-              } else if (soloId && alliedIds[0]) {
-                onStart({ opponentId: soloId, allyId: alliedIds[0] })
-              }
+              const players = seatedPlayers(seats, seatedIn)
+              const [opponentId, secondOpponentId] = players.opponentIds
+              if (!opponentId) return
+              onStart(players.allyId ? { opponentId, allyId: players.allyId } : { opponentId, secondOpponentId })
             }}
           >
             <Swords /> {pending ? 'Starting…' : 'Start battle'}
@@ -1156,7 +1152,7 @@ function DoublesBattleChooser({
         className="max-h-[85dvh] overflow-x-hidden overflow-y-auto rounded-none border border-edge bg-panel text-bone sm:max-w-lg [&>*]:min-w-0"
       >
         <DialogHeader>
-          <DialogTitle className="text-2xl uppercase">Start doubles battle</DialogTitle>
+          <DialogTitle className="text-2xl uppercase">{startBattleLabel('2v2')}</DialogTitle>
           <DialogDescription className="text-dim">
             Choose an opposing fixed team. Your teammate and all four sealed rosters are added automatically.
           </DialogDescription>

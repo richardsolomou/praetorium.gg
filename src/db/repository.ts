@@ -8,9 +8,9 @@ import {
   requiredLeagueRosterLimit,
   type LeagueAdmission,
   type LeagueEntryStatus,
-  type LeagueEventFormat,
   type LeagueVisibility,
 } from '../core/league'
+import type { TableShape } from '../core/tableShape'
 import { alias } from 'drizzle-orm/pg-core'
 import type { PraetoriumDatabase } from './connection'
 import {
@@ -22,6 +22,7 @@ import {
   favouriteDetachments,
   favouriteFactions,
   friendships,
+  leagueEventBattles,
   leagueEventEntries,
   leagueEvents,
   leagues,
@@ -61,7 +62,7 @@ export type DeleteLeagueResult = 'deleted' | 'missing' | 'forbidden'
 export type AssignLeagueRosterRequirementResult = 'updated' | 'missing' | 'forbidden' | 'closed' | 'wrong-format' | 'wrong-limit'
 export type AssignLeagueTeamResult = 'updated' | 'missing' | 'forbidden' | 'closed' | 'wrong-format'
 export type SubmitLeagueRosterResult =
-  | { outcome: 'sealed'; format: LeagueEventFormat | null; requiredLimit: number | null }
+  | { outcome: 'sealed'; format: TableShape | null; requiredLimit: number | null }
   | { outcome: 'missing' | 'unassigned' | 'wrong-limit' }
 export type RevealLeagueResult = { outcome: 'revealed' | 'not-ready' | 'invalid-warlords' }
 
@@ -447,6 +448,43 @@ export class Repository {
     }
   }
 
+  async battlesByLeagueEvent(
+    leagueToken: string,
+    eventToken: string,
+    page: { limit: number; before?: BattlesCursor },
+  ): Promise<{ battles: (BattleHistory & { activity: number })[]; nextCursor: BattlesCursor | null }> {
+    const activity = sql<number>`coalesce(max(${commands.at}), ${battles.createdAt})`.mapWith(Number)
+    const cursor = page.before
+    let query = this.database
+      .select({ id: battles.id, token: battles.token, createdAt: battles.createdAt, activity })
+      .from(leagueEventBattles)
+      .innerJoin(leagueEvents, eq(leagueEvents.id, leagueEventBattles.eventId))
+      .innerJoin(leagues, eq(leagues.id, leagueEvents.leagueId))
+      .innerJoin(battles, eq(battles.id, leagueEventBattles.battleId))
+      .leftJoin(commands, eq(commands.battleId, battles.id))
+      .where(and(eq(leagues.token, leagueToken), eq(leagueEvents.token, eventToken), isNotNull(leagueEvents.revealedAt)))
+      .groupBy(battles.id)
+      .orderBy(desc(activity), desc(battles.id))
+      .$dynamic()
+    if (cursor) {
+      query = query.having(or(sql`${activity} < ${cursor.activity}`, and(sql`${activity} = ${cursor.activity}`, lt(battles.id, cursor.id))))
+    }
+    const rows = await query.limit(page.limit + 1)
+    const shown = rows.slice(0, page.limit)
+    const ids = shown.map((row) => row.id)
+    const [players, logs] = await Promise.all([this.playersByBattles(ids), this.logsByBattles(ids)])
+    const last = shown.at(-1)
+    return {
+      battles: shown.map((battle) => ({
+        battle,
+        activity: battle.activity,
+        players: players.get(battle.id) ?? [],
+        log: logs.get(battle.id) ?? [],
+      })),
+      nextCursor: rows.length > page.limit && last ? { activity: last.activity, id: last.id } : null,
+    }
+  }
+
   /**
    * Whether two players share any battle.
    *
@@ -623,7 +661,7 @@ export class Repository {
     admission: LeagueAdmission
     playerLimit?: number | null
     recurring?: boolean
-    format?: LeagueEventFormat
+    format?: TableShape
     rosterLimit?: number
     now: number
   }) {
@@ -657,7 +695,7 @@ export class Repository {
     token: string
     leagueToken: string
     ownerId: string
-    format?: LeagueEventFormat
+    format?: TableShape
     rosterLimit?: number
     now: number
   }): Promise<CreateLeagueEventResult> {
@@ -1399,7 +1437,7 @@ export class Repository {
     },
     prepare: (league: {
       eventToken: string
-      format: LeagueEventFormat | null
+      format: TableShape | null
       rosterLimit: number | null
       revealedAt: number | null
       entries: { userId: string; requiredLimit: number | null; snapshot: string | null; teamId: string | null }[]
@@ -1456,6 +1494,7 @@ export class Repository {
         initialCommands: prepared.initialCommands,
         now: input.now,
       })
+      await tx.insert(leagueEventBattles).values({ battleId: input.id, eventId: event.id })
       return prepared.result
     })
   }

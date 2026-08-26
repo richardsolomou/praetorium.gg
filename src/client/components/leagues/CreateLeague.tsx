@@ -7,7 +7,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { createLeague } from '../../../server/functions'
 import { leaguesQuery } from '../../queries'
 import { errorMessage } from '../../queryClient'
-import { Choice, LeagueFormFields, type LeagueFormValue } from './LeagueForm'
+import { Choice } from '../Choice'
+import { LeagueFormFields, type LeagueFormValue } from './LeagueForm'
 import { LeagueEventRuleFields, type LeagueEventRuleValue } from './LeagueEventRuleFields'
 
 export function CreateLeague() {
@@ -73,8 +74,8 @@ export function CreateLeague() {
             label="Events"
             value={cadence}
             options={[
-              { value: 'one-off', title: 'One-off', detail: 'Run one registration and roster reveal.' },
-              { value: 'recurring', title: 'Recurring', detail: 'Open fresh events from the same league page.' },
+              { value: 'one-off', name: 'One-off', detail: 'Run one registration and roster reveal.' },
+              { value: 'recurring', name: 'Recurring', detail: 'Open fresh events from the same league page.' },
             ]}
             disabled={create.isPending}
             onChange={setCadence}

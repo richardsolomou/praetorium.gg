@@ -21,8 +21,8 @@ export function BattleShelf({
 }: {
   title: string
   battles: Battle[]
-  viewerId: string
-  onDelete: (battle: Battle) => void
+  viewerId?: string
+  onDelete?: (battle: Battle) => void
 }) {
   if (!battles.length) return null
   return (
@@ -33,7 +33,7 @@ export function BattleShelf({
       </p>
       <div className="mt-2 space-y-2">
         {battles.map((battle) => {
-          const canDelete = battle.playerIds[0] === viewerId
+          const canDelete = Boolean(viewerId && onDelete && battle.playerIds[0] === viewerId)
           // Folded into sides rather than read seat by seat: an ally of a 2v1 sits second.
           const [ours, theirs] = summarySides(battle)
           const label = battle.players.join(' versus ')
@@ -43,7 +43,7 @@ export function BattleShelf({
                 <Eye /> Open battle
               </DropdownMenuItem>
               {canDelete ? (
-                <DropdownMenuItem variant="destructive" onClick={() => onDelete(battle)}>
+                <DropdownMenuItem variant="destructive" onClick={() => onDelete?.(battle)}>
                   <Trash2 /> Delete battle
                 </DropdownMenuItem>
               ) : null}
@@ -103,7 +103,7 @@ export function BattleShelf({
                   <Eye /> Open battle
                 </ContextMenuItem>
                 {canDelete ? (
-                  <ContextMenuItem variant="destructive" onClick={() => onDelete(battle)}>
+                  <ContextMenuItem variant="destructive" onClick={() => onDelete?.(battle)}>
                     <Trash2 /> Delete battle
                   </ContextMenuItem>
                 ) : null}

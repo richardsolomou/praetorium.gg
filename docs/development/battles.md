@@ -76,7 +76,9 @@ Undoing a logged draw returns hidden random state to the deck, so both the draw 
 
 One thing in the game is genuinely hidden: a card a side playing fixed secondaries has put face down, until it reveals it. Everything else about the cards is public, because the log already says it — every draw, put-back and discard is named to both sides in the report. What a side has left in its deck is therefore withheld only from the sides playing against it, and for one reason: the pack is public, so the deck minus what is held would name the face-down card.
 
-A read never claims a battle seat. `PraetoriumService.screen` returns an invitation until the player sends the join mutation. This prevents link-preview crawlers from taking a seat.
+A read never claims a battle seat. For a manual battle, `PraetoriumService.screen` returns an invitation until the player sends the join mutation. This prevents link-preview crawlers from taking a seat.
+
+A battle locked to a revealed league event returns a read-only spectator screen instead of an invitation to anyone outside its seats. It uses `battleView` with no player side, so hidden fixed missions stay masked for both sides. Spectators poll the same folded log while the battle is active; they cannot obtain a command or realtime subscription.
 
 ## Realtime updates
 
