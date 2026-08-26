@@ -1,5 +1,18 @@
 # praetorium
 
+## 0.39.0
+
+### Minor Changes
+
+- 75c4333: Let every league add another event after revealing the current one.
+- 6af78a7: Let players select the exact tactical secondary missions they draw.
+
+### Patch Changes
+
+- 46c2dea: Restore missing tactical draws and primary scoring prompts in running battles.
+- d1eb804: List a character and the unit they joined as one unit when setting reserves, and hold them back together.
+- 10769b1: Open rule tooltips when tapped on a touch device.
+
 ## 0.38.4
 
 ### Patch Changes
