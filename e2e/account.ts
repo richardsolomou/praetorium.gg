@@ -218,7 +218,7 @@ export async function setupStep(page: Page, label: string) {
     const next = page.getByRole('button', { name: 'Next', exact: true })
     // An allied side whose two armies brought different Force Dispositions has to say
     // which one it plays before the matchup is settled. Tests that are not about that
-    // choice take the first card offered, the same way they take the first attacker.
+    // choice take the first card offered.
     if (/mission/i.test(previous) && !(await next.isEnabled())) {
       await expect(async () => {
         if (await next.isEnabled()) return
@@ -230,11 +230,10 @@ export async function setupStep(page: Page, label: string) {
       }).toPass({ timeout: 20_000 })
     }
     // Tests that are not about deployment order use the first side as their deterministic default.
-    // The attacker step is required, so choose that default before walking past it.
-    if (/attacker/i.test(previous) && !(await next.isEnabled())) {
+    if (/defender/i.test(previous) && !(await next.isEnabled())) {
       await expect(async () => {
         if (await next.isEnabled()) return
-        await page.getByRole('group', { name: 'Attacker' }).getByRole('button').first().click({ timeout: 1_000 })
+        await page.getByRole('group', { name: 'Defender' }).getByRole('button').first().click({ timeout: 1_000 })
         await expect(next).toBeEnabled({ timeout: 1_000 })
       }).toPass({ timeout: 20_000 })
     }

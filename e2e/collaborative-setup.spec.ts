@@ -50,11 +50,17 @@ test('battle setup stays in step and shows both players their shared choices', a
   await alice.screenshot({ path: 'test-results/setup-battlefield-dialog.png', fullPage: true })
   await alice.keyboard.press('Escape')
 
-  await setupStep(bob, 'Attacker')
-  await bob
-    .getByRole('group', { name: 'Attacker' })
-    .getByRole('button', { name: new RegExp(aliceName) })
-    .click()
+  await setupStep(bob, 'Defender')
+  const defenderChoice = bob.getByRole('group', { name: 'Defender' })
+  const defender = defenderChoice.getByRole('button', { name: new RegExp(aliceName) })
+  await defender.click()
+  await expect(defender).toContainText('Defender · deploys first')
+  await expect(defenderChoice.getByRole('button', { name: new RegExp(bobName) })).toContainText('Attacker · deploys second')
+  await bob.screenshot({ path: 'test-results/setup-defender.png', fullPage: true })
+  await bob.setViewportSize({ width: 390, height: 844 })
+  expect(await bob.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  await bob.screenshot({ path: 'test-results/setup-defender-phone.png', fullPage: true })
+  await bob.setViewportSize({ width: 1440, height: 900 })
   await setupStep(bob, 'Secondaries')
   // The rail is the shared place in setup, so Bob moving it moves Alice's screen too.
   await expect(alice.getByRole('navigation', { name: 'Setup sections' }).getByRole('button', { name: /Secondaries/ })).toHaveAttribute(
