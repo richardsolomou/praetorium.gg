@@ -153,6 +153,7 @@ export function LeaguePage({ token, eventToken }: { token: string; eventToken?: 
   const accepted = league.entries.filter((entry) => entry.status === 'accepted')
   const pendingCount = league.entries.filter((entry) => entry.status === 'pending').length
   const latestEvent = league.events[0]
+  const archivedEvents = league.events.slice(1)
   const viewingLatest = latestEvent?.token === league.eventToken
   const entrantLabels = disambiguatedPlayerLabels(league.entries.map((entry) => ({ id: entry.userId, name: entry.name })))
   const teamProjection = projectDoublesTeams(accepted)
@@ -197,7 +198,7 @@ export function LeaguePage({ token, eventToken }: { token: string; eventToken?: 
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="min-w-0">
               <p className="eyebrow text-parchment">
-                Event {league.eventNumber} ·{' '}
+                {viewingLatest ? 'Current event' : `Archived event ${league.eventNumber}`} ·{' '}
                 {league.revealedAt ? 'Rosters revealed' : registrationFull ? 'Registration full' : 'Registration open'}
               </p>
               <h1 className="mt-1 text-3xl">{league.name}</h1>
@@ -257,7 +258,7 @@ export function LeaguePage({ token, eventToken }: { token: string; eventToken?: 
       <div className="mx-auto grid max-w-5xl gap-5 px-3 py-5 sm:px-4 lg:grid-cols-[minmax(0,1fr)_18rem]">
         <section className="min-w-0">
           <div className="rubric mb-2 flex items-baseline justify-between border-b border-edge pb-2">
-            <h2>Event {league.eventNumber} entrants</h2>
+            <h2>{viewingLatest ? 'Entrants' : `Event ${league.eventNumber} entrants`}</h2>
             <span className="readout">{accepted.length}</span>
           </div>
           {league.entries.length ? (
@@ -421,40 +422,52 @@ export function LeaguePage({ token, eventToken }: { token: string; eventToken?: 
         <aside className="space-y-3">
           <section className="border border-edge bg-panel p-4">
             <div className="flex items-center justify-between gap-3">
-              <h2 className="font-bold uppercase">Events</h2>
+              <h2 className="font-bold uppercase">League events</h2>
               <span className="readout">{league.eventCount}</span>
             </div>
-            <div className="mt-3 space-y-1">
-              {league.events.map((event) => (
+            {latestEvent ? (
+              <div className="mt-3">
+                <p className="eyebrow mb-1 text-dim">Current</p>
                 <Link
-                  key={event.token}
                   to="/leagues/$token"
                   params={{ token }}
-                  search={{ event: event.token }}
+                  search={{ event: latestEvent.token }}
                   className={buttonVariants({
-                    variant: event.token === league.eventToken ? 'outline' : 'ghost',
+                    variant: latestEvent.token === league.eventToken ? 'outline' : 'ghost',
                     className: 'w-full justify-between',
                   })}
                 >
-                  <span>Event {event.number}</span>
-                  <span className="text-xs text-dim">{event.revealedAt ? 'Revealed' : 'Open'}</span>
+                  <span>Current event</span>
+                  <span className="text-xs text-dim">{latestEvent.revealedAt ? 'Revealed' : 'Active'}</span>
                 </Link>
-              ))}
-            </div>
+              </div>
+            ) : null}
             {isOwner && viewingLatest && league.revealedAt ? (
               <Button className="mt-3 w-full" onClick={() => setStarting(true)}>
-                <CalendarPlus /> Start new event
+                <CalendarPlus /> Create new event
               </Button>
             ) : null}
-            {!viewingLatest && latestEvent ? (
-              <Link
-                to="/leagues/$token"
-                params={{ token }}
-                search={{ event: latestEvent.token }}
-                className={buttonVariants({ variant: 'outline', className: 'mt-3 w-full' })}
-              >
-                View current event
-              </Link>
+            {archivedEvents.length ? (
+              <div className="mt-4">
+                <p className="eyebrow mb-1 text-dim">Archive</p>
+                <div className="space-y-1">
+                  {archivedEvents.map((event) => (
+                    <Link
+                      key={event.token}
+                      to="/leagues/$token"
+                      params={{ token }}
+                      search={{ event: event.token }}
+                      className={buttonVariants({
+                        variant: event.token === league.eventToken ? 'outline' : 'ghost',
+                        className: 'w-full justify-between',
+                      })}
+                    >
+                      <span>Event {event.number}</span>
+                      <span className="text-xs text-dim">Revealed</span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
             ) : null}
           </section>
           <section className="border border-edge bg-panel p-4">
@@ -670,7 +683,7 @@ export function LeaguePage({ token, eventToken }: { token: string; eventToken?: 
       <AlertDialog open={starting} onOpenChange={(open) => !startEvent.isPending && setStarting(open)}>
         <AlertDialogContent aria-busy={startEvent.isPending} className="rounded-none border border-edge bg-panel text-bone">
           <AlertDialogHeader>
-            <AlertDialogTitle className="uppercase">Start event {league.eventNumber + 1}?</AlertDialogTitle>
+            <AlertDialogTitle className="uppercase">Create a new event?</AlertDialogTitle>
             <AlertDialogDescription className="text-dim">
               Registration will open with no entrants. Players from earlier events can join again and submit new sealed rosters.
             </AlertDialogDescription>
@@ -685,9 +698,9 @@ export function LeaguePage({ token, eventToken }: { token: string; eventToken?: 
             {startEvent.error ? <p className="text-sm text-destructive">{errorMessage(startEvent.error)}</p> : null}
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={startEvent.isPending}>Keep current event</AlertDialogCancel>
+            <AlertDialogCancel disabled={startEvent.isPending}>Cancel</AlertDialogCancel>
             <AlertDialogAction disabled={startEvent.isPending || eventRuleBlocked} onClick={() => startEvent.mutate()}>
-              {startEvent.isPending ? 'Starting…' : 'Start new event'}
+              {startEvent.isPending ? 'Creating…' : 'Create event'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
