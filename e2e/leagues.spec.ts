@@ -572,6 +572,9 @@ test('a league starts each event with fresh registration', async ({ browser }) =
   expect(await owner.evaluate(() => document.documentElement.scrollWidth)).toBe(1440)
   await owner.screenshot({ path: 'test-results/league-event-2.png', fullPage: true })
 
+  await owner.goto('/leagues')
+  await expect(owner.locator(`[data-league="${leagueToken}"]`).getByText('2 events', { exact: true })).toBeVisible()
+
   await entrant.goto(leagueUrl.toString())
   await expect(entrant.getByText('Current event · Registration open')).toBeVisible()
   await entrant.getByRole('button', { name: 'Join league' }).click()
