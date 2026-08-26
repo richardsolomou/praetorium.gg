@@ -393,6 +393,8 @@ export type Command =
   | ({ kind: 'set-secondary-status'; key: string; status: SecondaryStatus } & OnBehalfOf)
   | ({ kind: 'draw-secondary'; secondary: Secondary } & OnBehalfOf)
   | ({ kind: 'draw-secondaries'; secondaries: Secondary[]; selected?: true } & OnBehalfOf)
+  | ({ kind: 'acknowledge-draw' } & OnBehalfOf)
+  | ({ kind: 'acknowledge-scoring' } & OnBehalfOf)
   | ({ kind: 'select-secret'; secondary: Secondary } & OnBehalfOf)
   | ({ kind: 'reveal-secret' } & OnBehalfOf)
   | { kind: 'begin-battle'; firstPlayerId: PlayerId; attackerId?: PlayerId }
@@ -401,6 +403,8 @@ export type Command =
   | ({ kind: 'score'; category: 'primary' | 'secondary'; delta: number } & OnBehalfOf)
   | { kind: 'correct-player'; playerId: PlayerId; resource: 'cp' | 'primary' | 'secondary'; delta: number }
   | { kind: 'settle-opponent-turn' }
+  | ({ kind: 'request-advance' } & OnBehalfOf)
+  | ({ kind: 'cancel-advance' } & OnBehalfOf)
   | ({ kind: 'advance' } & OnBehalfOf)
   | { kind: 'pause-clock' }
   | { kind: 'resume-clock' }
@@ -481,6 +485,9 @@ export type BattleState = {
   sideDispositions: Record<number, string>
   resumePlayerId: PlayerId | null
   pendingSettlement: { playerId: PlayerId; round: number } | null
+  advanceRequested: boolean
+  scoringAcknowledged: boolean
+  drawAcknowledged: boolean
   /** The battlefield both players are using. Shared, so either may set it. */
   deploymentId: string | null
   leagueToken: string | null
@@ -577,7 +584,11 @@ function recordProgress(state: BattleState, entry: LoggedCommand, before: Battle
   else if (entry.command.kind === 'reopen-battle') openTurn(entry.at)
 
   if (entry.command.kind === 'begin-battle' || entry.command.kind === 'lock-league-rosters') state.undoable = null
-  else if (entry.command.kind !== 'settle-opponent-turn') state.undoable = { seq: entry.seq, by: entry.by, kind: entry.command.kind }
+  else if (
+    !['settle-opponent-turn', 'request-advance', 'cancel-advance', 'acknowledge-draw', 'acknowledge-scoring'].includes(entry.command.kind)
+  ) {
+    state.undoable = { seq: entry.seq, by: entry.by, kind: entry.command.kind }
+  }
 }
 
 /** A battle before anything has happened in it, which is what a replay folds into. */
@@ -593,6 +604,9 @@ export function emptyBattle(playerIds: readonly PlayerId[], playerSides?: readon
     sideDispositions: {},
     resumePlayerId: null,
     pendingSettlement: null,
+    advanceRequested: false,
+    scoringAcknowledged: false,
+    drawAcknowledged: false,
     deploymentId: null,
     leagueToken: null,
     leagueEventToken: null,
@@ -813,6 +827,25 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
       }
       return null
     }
+    case 'request-advance': {
+      if (state.status !== 'playing') return 'the battle is not running'
+      if (!sameSide(state, state.activePlayerId, player.id)) return 'it is not your turn'
+      if (state.advanceRequested) return 'the phase is already waiting to advance'
+      return null
+    }
+    case 'cancel-advance': {
+      if (state.status !== 'playing') return 'the battle is not running'
+      if (!sameSide(state, state.activePlayerId, player.id)) return 'it is not your turn'
+      if (!state.advanceRequested) return 'the phase is not waiting to advance'
+      return null
+    }
+    case 'acknowledge-scoring': {
+      if (state.status !== 'playing') return 'the battle is not running'
+      if (!sameSide(state, state.activePlayerId, player.id)) return 'it is not your turn'
+      if (!state.advanceRequested) return 'the phase is not waiting for scoring'
+      if (state.scoringAcknowledged) return 'scoring has already been reviewed'
+      return null
+    }
     case 'advance': {
       if (state.status !== 'playing') return 'the battle is not running'
       if (!sameSide(state, state.activePlayerId, player.id)) return 'it is not your turn'
@@ -991,12 +1024,16 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
       if (player.secondaries.length + command.secondaries.length > SECONDARY_HISTORY_MAX) return 'the secondary history is full'
       return null
     }
+    case 'acknowledge-draw': {
+      if (state.status !== 'playing') return 'the battle is not running'
+      if (!sameSide(state, state.activePlayerId, player.id)) return 'it is not your turn'
+      if (sideOwes(state, player) === 'cards') return 'draw every card owed before taking the turn'
+      if (!player.secondariesDrawnThisTurn.length) return 'there is no new hand to acknowledge'
+      if (state.drawAcknowledged) return 'the hand has already been acknowledged'
+      return null
+    }
     case 'select-secret': {
       if (state.status !== 'playing') return 'the battle is not running'
-      // Only the side that would keep it may put a card face down. Revealing one
-      // is already the owner's alone, so allowing anyone to select it let a seat
-      // create a hidden state that nobody at the table could get back out of.
-      if (!sameSide(state, by, player.id)) return 'that is not one of your secondaries'
       if (player.secretSecondary) return 'you already have a secret mission'
       if (!command.secondary.name.trim()) return 'name the secret mission'
       if (player.secondaryDeck && !player.secondaryDeck.some((secondary) => secondary.key === command.secondary.key)) {
@@ -1007,7 +1044,6 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
     }
     case 'reveal-secret': {
       if (state.status !== 'playing') return 'the battle is not running'
-      if (!sameSide(state, by, player.id)) return 'that is not one of your secondaries'
       if (!player.secretSecondary) return 'you have no secret mission'
       if (player.secretRevealed) return 'the secret mission is already revealed'
       return null
@@ -1190,6 +1226,7 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
     }
     case 'set-prep': {
       applyPrep(player, command)
+      if (state.status === 'playing' && sameSide(state, state.activePlayerId, player.id)) state.drawAcknowledged = false
       return
     }
     case 'use-stratagem': {
@@ -1222,6 +1259,7 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
           if (score.key === player.secretSecondary) player.secretRevealed = true
         }
       }
+      if (state.advanceRequested) state.scoringAcknowledged = true
       return
     }
     case 'set-secondary-status': {
@@ -1241,6 +1279,7 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
       player.secondaries.push(secondary)
       player.secondaryStatus = { ...player.secondaryStatus, [secondary.key]: 'active' }
       player.secondariesDrawnThisTurn = [...player.secondariesDrawnThisTurn, secondary.key]
+      state.drawAcknowledged = false
       return
     }
     case 'draw-secondaries': {
@@ -1250,6 +1289,15 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
         player.secondaryStatus = { ...player.secondaryStatus, [secondary.key]: 'active' }
       }
       player.secondariesDrawnThisTurn = [...player.secondariesDrawnThisTurn, ...command.secondaries.map((drawn) => drawn.key)]
+      state.drawAcknowledged = false
+      return
+    }
+    case 'acknowledge-draw': {
+      state.drawAcknowledged = true
+      return
+    }
+    case 'acknowledge-scoring': {
+      state.scoringAcknowledged = true
       return
     }
     case 'select-secret': {
@@ -1323,7 +1371,19 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
       state.pendingSettlement = null
       return
     }
+    case 'request-advance': {
+      state.advanceRequested = true
+      state.scoringAcknowledged = false
+      return
+    }
+    case 'cancel-advance': {
+      state.advanceRequested = false
+      state.scoringAcknowledged = false
+      return
+    }
     case 'advance': {
+      state.advanceRequested = false
+      state.scoringAcknowledged = false
       const next = PHASES.indexOf(state.phase) + 1
       if (next < PHASES.length) {
         if (state.phase === 'command' && state.pendingSettlement?.playerId === player.id) state.pendingSettlement = null
@@ -1354,6 +1414,8 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
       return
     }
     case 'end-battle': {
+      state.advanceRequested = false
+      state.scoringAcknowledged = false
       state.status = 'finished'
       state.result = { reason: command.reason ?? 'finished-early', concededBy: command.concededBy ?? null }
       state.resumePlayerId = state.activePlayerId
@@ -1361,6 +1423,8 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
       return
     }
     case 'reopen-battle': {
+      state.advanceRequested = false
+      state.scoringAcknowledged = false
       state.status = 'playing'
       state.result = null
       state.activePlayerId = state.resumePlayerId ?? state.firstPlayerId
@@ -1477,6 +1541,7 @@ function enterTurn(state: BattleState, playerId: PlayerId, settlementRound: numb
   const player = activeSide === undefined ? undefined : sideCaptain(state, activeSide)
   if (player) {
     state.pendingSettlement = settlementRound === null ? null : { playerId: player.id, round: settlementRound }
+    state.drawAcknowledged = false
     player.cp += COMMAND_PHASE_CP
     player.cpGained += COMMAND_PHASE_CP
     player.cpByRound[state.round - 1] = player.cp

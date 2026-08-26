@@ -41,6 +41,7 @@ test('a running battle restores mission prompts when its tactical prep is missin
 
   const draw = page.getByRole('dialog', { name: 'Your secondary missions' })
   await expect(draw).toBeVisible()
+  await draw.getByRole('button', { name: 'Draw at random' }).click()
   await expect(draw.locator('[data-drawn]')).toHaveCount(2)
   await page.screenshot({ path: 'test-results/repaired-secondary-draw.png', fullPage: true })
   await draw.getByRole('button', { name: 'Take the turn' }).click()
@@ -141,7 +142,9 @@ test('a tactical hand pays out when the card says', async ({ browser }) => {
   // Passing the turn is the moment an end-of-turn card pays, so that is when it is offered.
   await alice.getByRole('button', { name: 'Pass the turn' }).click()
   const scoring = alice.getByRole('dialog', { name: /^Scoring end of turn points/ })
+  const bobScoring = bob.getByRole('dialog', { name: /^Scoring end of turn points/ })
   await expect(scoring).toBeVisible()
+  await expect(bobScoring).toBeVisible()
   // Whichever cards the matchup dealt, a flat payout is a yes or no rather than
   // something that can be pressed twice for double the points.
   const answer = scoring.getByRole('button', { name: /plus \d+$/ }).first()
@@ -153,8 +156,6 @@ test('a tactical hand pays out when the card says', async ({ browser }) => {
   await answer.click()
 
   // Hold Bob's first submission so Alice deterministically wins this race.
-  await bob.getByRole('button', { name: 'Pass the turn' }).click()
-  const bobScoring = bob.getByRole('dialog', { name: /^Scoring end of turn points/ })
   const answerName = await answer.getAttribute('aria-label')
   await bobScoring.getByRole('button', { name: answerName ?? '', exact: true }).click()
   let releaseBob = () => {}
@@ -179,7 +180,9 @@ test('a tactical hand pays out when the card says', async ({ browser }) => {
   try {
     await scoring.getByRole('button', { name: 'Pass the turn' }).click()
     const discard = alice.getByRole('dialog', { name: 'Discard tactical secondaries?' })
+    const bobDiscard = bob.getByRole('dialog', { name: 'Discard tactical secondaries?' })
     await expect(discard).toBeVisible()
+    await expect(bobDiscard).toBeVisible()
     await discard.locator('button[aria-pressed]').first().click()
     await discard.getByRole('button', { name: 'Discard 1 and gain 1 CP' }).click()
     await expect(alice.getByRole('heading', { name: 'command phase' })).toBeVisible()
@@ -190,8 +193,9 @@ test('a tactical hand pays out when the card says', async ({ browser }) => {
   await bobConfirmation
   await bob.unroute('**/*')
   await expect(bob.getByRole('dialog', { name: 'Your secondary missions' })).toBeVisible()
-  await takeTheTurn(bob)
-  await expect(alice.getByText(new RegExp(`${bobName} draws `)).first()).toBeVisible()
+  await expect(alice.getByRole('dialog', { name: `${bobName}’s secondary missions` })).toBeVisible()
+  await takeTheTurn(alice)
+  await expect(alice.getByText(new RegExp(`${aliceName} draws .+ for ${bobName}`)).first()).toBeVisible()
   await expect(alice.getByText(new RegExp(`${bobName} marks `))).toHaveCount(0)
   await expect(panel.locator('[data-stat="vp"]')).toHaveText(String(scored))
   await expect(panel.locator('[data-stat="cp"]')).toHaveText('1')
@@ -236,10 +240,11 @@ test('a card the rules let you put back is offered back as it is drawn', async (
   // The battlefield follows from both dispositions, so the host has to have seen both armies.
   await expect(alice.getByText(bobRoster, { exact: true }).first()).toBeVisible()
   // Bob takes the first turn, so his is the hand dealt as the battle opens.
-  await startBattle(alice, bobName)
+  await startBattle(alice, bobName, false)
 
   const prompt = bob.getByRole('dialog', { name: 'Your secondary missions' })
   await expect(prompt).toBeVisible()
+  await expect(alice.getByRole('dialog', { name: `${bobName}’s secondary missions` })).toBeVisible()
   await prompt.getByRole('button', { name: 'Select missions' }).click()
   await prompt
     .getByRole('button', { name: /^Select / })

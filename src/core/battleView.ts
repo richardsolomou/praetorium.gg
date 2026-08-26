@@ -32,8 +32,8 @@ import {
  * from `battle.ts` for that reason: what a player may see is one question with one
  * answer, and it is easier to hold to when it has a file of its own.
  *
- * Drawn cards, lists and points are public to both players. Undrawn tactical cards
- * and unrevealed secret missions are held back for their owner here.
+ * Cards, lists and points are public to both players. Only an unrevealed Secret
+ * Mission and the deck state that would identify it are held back here.
  */
 
 /**
@@ -63,6 +63,9 @@ export type BattleView = {
   settlementRound: number | null
   /** The side captain whose previous-turn scoring is being settled, visible to every seat. */
   settlementPlayerId: PlayerId | null
+  advanceRequested: boolean
+  scoringAcknowledged: boolean
+  drawAcknowledged: boolean
   settings: BattleSettings
   result: { reason: BattleEndReason; concededBy: PlayerId | null } | null
   players: {
@@ -152,8 +155,8 @@ export type BattleView = {
  * reads a battle through here, so a new field cannot leak by being added to a
  * shape someone else assembled by hand.
  *
- * Drawn cards, lists, and points are public to both players. Undrawn tactical
- * cards and unrevealed secret missions are held back for their owner here.
+ * Cards, lists, and points are public to both players. Only an unrevealed Secret
+ * Mission and the deck state that would identify it are held back here.
  */
 export function battleView(
   battle: { token: string },
@@ -190,6 +193,9 @@ export function battleView(
     firstPlayerId: state.firstPlayerId,
     settlementRound: state.pendingSettlement?.round ?? null,
     settlementPlayerId: state.pendingSettlement?.playerId ?? null,
+    advanceRequested: state.advanceRequested,
+    scoringAcknowledged: state.scoringAcknowledged,
+    drawAcknowledged: state.drawAcknowledged,
     settings: state.settings,
     result: state.result,
     players: state.players.map((player) => {
@@ -248,18 +254,14 @@ export function battleView(
           mayNameCard(state, viewerId, resources, key) ? key : 'secret',
         ),
         /**
-         * What is left in this side's deck, to the people playing that side.
-         *
-         * An ally sees it too: the pair share one hand, and reading it only from
-         * the seat the domain folds resources onto left the other unable to draw.
-         * It stays off an opponent's screen because the deck minus what is held
-         * would name a card played face down.
+         * A face-down card is identifiable from what disappeared from its public deck.
          */
-        remainingSecondaries: plays(player.side)
-          ? (resources.secondaryDeck ?? []).filter(
-              (candidate) => !resources.secondaries.some((secondary) => secondary.key === candidate.key),
-            )
-          : [],
+        remainingSecondaries:
+          !resources.secretSecondary || resources.secretRevealed || plays(player.side)
+            ? (resources.secondaryDeck ?? []).filter(
+                (candidate) => !resources.secondaries.some((secondary) => secondary.key === candidate.key),
+              )
+            : [],
         secondaries: resources.secondaries.map((secondary) => {
           // The one thing in the game that is genuinely hidden, masked in one place.
           const nameable = mayNameCard(state, viewerId, resources, secondary.key)

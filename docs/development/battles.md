@@ -15,11 +15,13 @@ Undo appends an `undo` command that names the latest active command. It does not
 
 A scoring-dialog confirmation is one `score-settlement` command, including every primary and secondary payout and any achieved-card status. Its report entry and undo target are therefore the whole settlement rather than each score inside it.
 
-Live commands can name the affected player or army. Any seated player can operate either side, including bringing an army and settling a side's cards during setup. The log records the submitting player. Concessions remain personal, and only a side may put one of its own cards face down or reveal it.
+Live commands can name the affected player or army. Any seated player can operate either side, including bringing an army, settling its cards, and selecting or revealing its Secret Mission. The log records the submitting player. Concessions remain personal.
 
 What the active side still owes before a turn moves on — cards to draw, a previous turn to settle, a secret mission to answer — is a prompt and never a refusal. One person refereeing for the table can do all of it, so refusing them the turn only stopped the game they were running.
 
-After a turn changes, every seated player sees the prior-turn scoring owed to the incoming side and either player may settle it once. The affected side is named prominently. This acknowledgement is not a report entry or undo target. A helper cannot dismiss an apparently empty settlement because their view may be withholding a hidden mission; only its own side can conclude that no private work remains. A side of practice opponents has no such seat, so the table playing it concludes that instead.
+Every required live prompt is shared. A phase or turn advance opens the same scoring and tactical-discard sequence on every seated device, and either player may complete it once. Tactical draws and prior-turn scoring work the same way. Prompt requests and acknowledgements are folded from the log so reloads and realtime updates preserve them, but they are not battle report entries or undo targets.
+
+After a turn changes, the prior-turn scoring owed to the incoming side is settled before its tactical draw. A helper cannot dismiss an apparently empty settlement because their view may be withholding a hidden mission; only its own side can conclude that no private work remains. A side of practice opponents has no such seat, so the table playing it concludes that instead.
 
 Losing models is a command like any other. `wound-unit` takes models off a unit one at a time, `damage-unit` takes wounds off the model currently taking them, and `set-unit` takes the whole unit. None of the three can disagree with the others, because what a unit has left is one number of wounds and where the model line falls inside it is division: `apply` folds a damage command to `alive` and `damage` together, and losing the last wound is losing the model is losing the unit. All three are in the report and all three are undoable, and either seated player may record either army's losses — nothing about a unit is hidden from anyone.
 
@@ -51,7 +53,7 @@ Everything they need follows from having no player behind the seat:
 
 - They need no friendship. `PraetoriumService.opponents` answers "who may this player open a battle with" once, for both the picker and the check that guards creation, and they are excluded from the strangers the friends page offers.
 - They own no lists. The table brings the army a practice opponent fields from its own library, through `attach-roster` naming that seat, and settles its cards through `set-prep` naming its side.
-- Their cards are the table's to play. `battleView` shows a side's undrawn deck to the people playing it — its own players, or anyone at all when nobody signs in to it — and the tracker deals its hand and settles its turns from the device facing it.
+- Their cards are the table's to play. Every seated device can deal their hand and settle their turns.
 - They never concede, and nothing badges their seat: the account is named after what it is, so saying so again told nobody anything.
 
 `draw-secondary` and `draw-secondaries` name their side, and the server resolves whose deck to deal from through `commandArmy` rather than from the submitting player, so cards cannot come off one deck and be recorded against another.
@@ -74,7 +76,7 @@ Undoing a logged draw returns hidden random state to the deck, so both the draw 
 
 `battleView` in `src/core/battleView.ts` is the only place that decides what a player can see. Routes and realtime messages must not build a second view.
 
-One thing in the game is genuinely hidden: a card a side playing fixed secondaries has put face down, until it reveals it. Everything else about the cards is public, because the log already says it — every draw, put-back and discard is named to both sides in the report. What a side has left in its deck is therefore withheld only from the sides playing against it, and for one reason: the pack is public, so the deck minus what is held would name the face-down card.
+One thing in the game is genuinely hidden: the identity of a fixed Secret Mission played face down, until it is revealed. Everything else about the cards is public, including both tactical decks, because every draw, put-back and discard is named to both sides in the report. After a Secret Mission is selected, its side's remaining deck is withheld from the opposing side because the public pack minus that deck would identify the hidden card.
 
 A read never claims a battle seat. For a manual battle, `PraetoriumService.screen` returns an invitation until the player sends the join mutation. This prevents link-preview crawlers from taking a seat.
 

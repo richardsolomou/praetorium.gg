@@ -98,6 +98,12 @@ describe('command schema', () => {
 
   it('accepts a player target on a live action', () => {
     expect(commandSchema.parse({ kind: 'advance', playerId: 'alice' })).toEqual({ kind: 'advance', playerId: 'alice' })
+    expect(commandSchema.parse({ kind: 'request-advance', playerId: 'alice' })).toEqual({ kind: 'request-advance', playerId: 'alice' })
+    expect(commandSchema.parse({ kind: 'cancel-advance', playerId: 'alice' })).toEqual({ kind: 'cancel-advance', playerId: 'alice' })
+    expect(commandSchema.parse({ kind: 'acknowledge-scoring', playerId: 'alice' })).toEqual({
+      kind: 'acknowledge-scoring',
+      playerId: 'alice',
+    })
   })
 
   it('accepts settling the previous turn', () => {
@@ -121,6 +127,7 @@ describe('command schema', () => {
       selected: true as const,
     }
     expect(commandSchema.parse(command)).toEqual(command)
+    expect(commandSchema.parse({ kind: 'acknowledge-draw', playerId: 'alice' })).toEqual({ kind: 'acknowledge-draw', playerId: 'alice' })
   })
 
   it('only lets scoring settlements complete a secondary', () => {
