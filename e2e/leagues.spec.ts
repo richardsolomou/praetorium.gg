@@ -616,7 +616,6 @@ test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle'
   await owner.getByRole('button', { name: 'New league' }).click()
   const create = owner.getByRole('dialog', { name: 'Create league' })
   await create.getByLabel('Name').fill(leagueName)
-  await create.getByRole('button', { name: /^Recurring/ }).click()
   await create.getByRole('button', { name: /^2 vs 1/ }).click()
   await create.getByRole('button', { name: /^Automatic/ }).click()
   await owner.setViewportSize({ width: 390, height: 844 })
