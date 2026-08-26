@@ -40,11 +40,6 @@ export type ModelKind = {
   members: { id: string; choiceKey: string | null; baseCount: number }[]
   /** Wargear taken through a choice, in the order the data holds it. */
   rows: ModelRow[]
-  /**
-   * Swaps the datasheet allows that the catalogue does not describe, one row per
-   * alternative so every one of them is always on screen whether taken or not.
-   */
-  swaps?: { key: string; gives: string[]; takes: string[]; count: number; max: number; free: boolean }[]
 }
 
 export const modelRowSources = (row: ModelRow): readonly ModelRowSource[] => [row, ...(row.alternatives ?? [])]
@@ -107,12 +102,7 @@ export function modelKindsOf(entryId: string, selection: Selection, index: Catal
       baseCount: depth < 0 ? 0 : countAt(selection, trail.slice(0, depth + 1)),
     })
   }
-  /*
-   * The models the data insists on complete a set of cards; they do not begin one.
-   * A datasheet the catalogue offers no kind of model for is one the rules source
-   * describes better — it names the weapons, the abilities and the swaps a card needs
-   * — and saying nothing here is how that reading gets asked for.
-   */
+  // The models the data insists on complete a set of cards; they do not begin one.
   if (!found.length) return []
   for (const standing of standingModels(entryId, selection, index, options)) remember(standing.profile, standing.member)
 

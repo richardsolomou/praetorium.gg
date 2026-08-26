@@ -13,7 +13,7 @@ import {
 import { hiddenByRules } from '../core/evaluate'
 import { routeSlug } from '../core/slug'
 import { type FactionContent, loadFactionContents } from './datacards'
-import { factionDisplayName } from './factionNames'
+import { catalogueFactionName, factionDisplayName } from './factionNames'
 
 type CatalogueReference = { id: string; name: string; datasheets: number; detachments: number }
 export type DetachmentOptions = { wrapperId: string; groupId: string; options: DetachmentOption[] }
@@ -169,13 +169,6 @@ export function isReferenceDatasheet(loaded: LoadedCatalogue, catalogueId: strin
 }
 
 const FACTION_CATEGORY = /^Faction:\s*(.+)$/i
-const REFERENCE_FACTION_ALIASES = new Map([
-  ['adeptus astartes', 'Space Marines'],
-  ['heretic astartes', 'Chaos Space Marines'],
-  ['asuryani', 'Aeldari'],
-  ['harlequins', 'Aeldari'],
-  ['legiones daemonica', 'Chaos Daemons'],
-])
 
 const factionNamesCache = new WeakMap<LoadedCatalogue, ReadonlySet<string>>()
 
@@ -188,7 +181,7 @@ function referenceFactionOf(loaded: LoadedCatalogue, categories: readonly (strin
     categories.flatMap((category) => {
       const name = category?.match(FACTION_CATEGORY)?.[1]?.trim()
       if (!name) return []
-      const canonical = REFERENCE_FACTION_ALIASES.get(name.toLocaleLowerCase()) ?? name
+      const canonical = catalogueFactionName(name)
       return factionNames.has(canonical.toLocaleLowerCase()) ? [canonical] : []
     }),
   )

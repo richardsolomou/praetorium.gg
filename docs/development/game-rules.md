@@ -1,12 +1,12 @@
 # Stratagems, missions, and scoring
 
-Praetorium reads stratagem and mission data from [40kdc-data](https://github.com/tabletop-developer-consortium/40kdc-data) under CC BY 4.0. Descriptions come from Wahapedia exports. Every related screen must show the attribution from `src/server/rules.ts`.
+Praetorium reads stratagem and mission data from [40kdc-data](https://github.com/tabletop-developer-consortium/40kdc-data) under CC BY 4.0. Descriptions come from Game Datacards, matched by detachment and card name. Every related screen must show the attribution from `src/server/rules.ts`.
 
 ## Rules data
 
 - Players choose stratagems, missions, secondaries, and loadouts from fetched data. Do not replace a missing data field with free text.
-- Core stratagem timing comes from the rules source; its description comes from Game Datacards at `11th/gdc/core.json`, matched by name. Leave an unmatched card undescribed.
-- Faction army rules prefer structured Game Datacards. A pinned Wahapedia faction page fills a faction whose structured sources have no army-rule card; an exact rule name can alias that card to the faction it names.
+- Stratagem timing comes from the rules source; every description comes from Game Datacards, matched by name (core cards from `11th/gdc/core.json`, faction cards from their faction file). Leave an unmatched card undescribed.
+- Faction army rules come from Game Datacards. A datasheet's faction ability is described by its own faction's card first, then by the one card of that name the files agree on.
 - An unknown stratagem timing maps to `unlimited`. Do not invent a usage limit.
 - Phase and player-turn restrictions are enforced only when the synced source supplies them. Missing timing remains unrestricted.
 - A pasted roster has no structured faction or detachment. It cannot provide catalogue-backed stratagems or mission cards.

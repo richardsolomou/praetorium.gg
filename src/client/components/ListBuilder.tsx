@@ -319,7 +319,6 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
       pickIndex={selected}
       onChoose={(key, optionId) => selected !== null && edit.choose(selected, key, optionId)}
       onSpread={(key, counts) => selected !== null && edit.spread(selected, key, counts)}
-      onSwap={(key, count) => selected !== null && edit.swap(selected, key, count)}
       editable={editable && inspectorView === 'edit'}
       showOptions={inspectorView !== 'readonly'}
       persistedRoster={editable || !resolvePersistedRoster ? undefined : { id: savedId, ...(battle ? { battle } : {}) }}

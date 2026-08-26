@@ -1,8 +1,9 @@
-import { datasheetIn, rulesNamed, rulesReferencedIn } from './catalogue'
 import { routeSlug } from '../core/slug'
+import { datasheetIn, rulesNamed, rulesReferencedIn } from './catalogue'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { type LoadedRules, rulesFaction } from './rules'
-import { findAbilityDescription, WAHAPEDIA_ATTRIBUTION } from './wahapedia'
+import { DATACARDS_ATTRIBUTION } from './datacards'
+import { factionContentOf } from './factionNames'
 
 export function describeDatasheetAbilities(
   loaded: LoadedCatalogue,
@@ -15,21 +16,25 @@ export function describeDatasheetAbilities(
   const faction = loaded.index.catalogues.get(catalogueId)
   const factionSlug = faction ? rulesFaction(loadedRules, routeSlug(faction.name)) : null
   const detachmentDetails = factionSlug ? [...(loadedRules?.detachmentDetails.get(factionSlug)?.values() ?? [])] : []
-  const factionContent = factionSlug ? loaded.factionContents.get(factionSlug) : undefined
-  const factionAbilityNames = factionContent?.armyRules.length
-    ? new Set(factionContent.armyRules.map((rule) => routeSlug(rule.name)))
+  const factionContent = faction ? factionContentOf(loaded, faction.name) : undefined
+  const factionAbilityNames = factionContent
+    ? new Set([...factionContent.armyRules.map((rule) => routeSlug(rule.name)), ...[...factionContent.factionAbilityNames].map(routeSlug)])
     : null
   const upgradeNames = new Set(detachmentDetails.flatMap((detachment) => detachment.upgrades.map((upgrade) => routeSlug(upgrade.name))))
   const visibleAbilities = sheet.abilities.filter(
     (ability) => ability.kind !== 'faction' || !factionAbilityNames || factionAbilityNames.has(routeSlug(ability.name)),
   )
-  const supplied = descriptions
-    ? visibleAbilities.some((ability) => !ability.description && findAbilityDescription(descriptions, ability.name))
-    : false
+  // An army rule is printed on the datasheet by name alone. Its own faction's card is
+  // asked first: the Deathwatch and the Space Marines each state Oath of Moment.
+  const armyRule = (name: string) =>
+    factionContent?.armyRules.find((card) => routeSlug(card.name) === routeSlug(name))?.description ??
+    descriptions?.get(routeSlug(name)) ??
+    null
+  const supplied = visibleAbilities.some((ability) => !ability.description && armyRule(ability.name))
   const abilities = visibleAbilities.map((ability) => ({
     ...ability,
     kind: ability.kind === 'wargear' && upgradeNames.has(routeSlug(ability.name)) ? ('upgrade' as const) : ability.kind,
-    description: ability.description ?? (descriptions ? findAbilityDescription(descriptions, ability.name) : null),
+    description: ability.description ?? armyRule(ability.name),
   }))
   const keywords = new Set(sheet.keywords.map((keyword) => routeSlug(keyword.replace(/^faction:\s*/i, ''))))
   const character = keywords.has('character')
@@ -66,7 +71,7 @@ export function describeDatasheetAbilities(
       sheet.keywordRules,
     ),
     detachments,
-    attribution: supplied || suppliedDetachmentDescriptions ? WAHAPEDIA_ATTRIBUTION : null,
+    attribution: supplied || suppliedDetachmentDescriptions ? DATACARDS_ATTRIBUTION : null,
   }
 }
 

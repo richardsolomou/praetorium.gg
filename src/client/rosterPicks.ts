@@ -39,13 +39,12 @@ export function picksAfterDetachmentChange<T extends RosterPick>(
  * have to produce the same object or the page refetches what it was just given.
  */
 export const normalisePicks = (picks: readonly RosterPick[]): RosterPick[] =>
-  picks.map(({ entryId, catalogueId, models, choices, spreads, swaps, toggles, attachedTo }) => ({
+  picks.map(({ entryId, catalogueId, models, choices, spreads, toggles, attachedTo }) => ({
     entryId,
     catalogueId,
     models,
     choices,
     spreads,
-    swaps,
     toggles,
     attachedTo,
   }))

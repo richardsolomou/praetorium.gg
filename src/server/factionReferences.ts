@@ -1,7 +1,7 @@
 import { routeSlug } from '../core/slug'
 import { detachmentCatalogueDetail } from './catalogueDescriptions'
 import type { LoadedCatalogue } from './catalogueIndex'
-import { factionDisplayName } from './factionNames'
+import { factionContentOf, factionDisplayName } from './factionNames'
 import { type LoadedRules, rulesFaction } from './rules'
 import { joinKey } from './rulesSource'
 
@@ -95,33 +95,19 @@ function buildFactionIndex(loaded: LoadedCatalogue, rules: LoadedRules | null | 
 }
 
 function buildFactions(loaded: LoadedCatalogue, rules: LoadedRules | null | undefined) {
-  // The first faction whose cards carry a slug answers alias lookups for it.
-  const cardsByCardSlug = new Map<string, readonly { name: string; description: string }[]>()
-  for (const cards of rules?.factionRuleCards.values() ?? []) {
-    for (const card of cards) {
-      const slug = routeSlug(card.name)
-      if (!cardsByCardSlug.has(slug)) cardsByCardSlug.set(slug, cards)
-    }
-  }
   return {
     revision: loaded.index.revision,
     factions: loaded.factions.map((faction) => {
       const { summary, detachments, referenceDetachments } = factionSummary(loaded, rules, faction)
-      const content = loaded.factionContents.get(summary.slug)
+      const content = factionContentOf(loaded, faction.name)
       const rulesId = rulesFaction(rules, routeSlug(faction.name))
-      const pageRules = rules?.factionRuleCards.get(summary.slug)
-      const aliasedPageRules = cardsByCardSlug.get(summary.slug)
       return {
         ...summary,
         armyRules: content?.armyRules.length
           ? content.armyRules
-          : pageRules?.length
-            ? pageRules
-            : aliasedPageRules?.length
-              ? aliasedPageRules
-              : rules?.factionRules?.get(summary.slug)
-                ? [rules.factionRules.get(summary.slug)!]
-                : [],
+          : rules?.factionRules?.get(summary.slug)
+            ? [rules.factionRules.get(summary.slug)!]
+            : [],
         referenceDetachmentIds: referenceDetachments.map((detachment) => detachment.id),
         detachments: detachments.map((detachment) => {
           const reference = detachmentNamed(rules?.detachmentReferences?.get(rulesId), detachment.name)

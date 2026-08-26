@@ -6,7 +6,7 @@ Praetorium builds and validates rosters from community data. Domain code stays i
 
 - `catalogue/sources.json` defines each upstream source. Revisions and file hashes live in immutable snapshot manifests outside Git.
 - The Game Datacards source extracts only `11th/gdc`; data for other games and editions is excluded from snapshots.
-- Mission cards are read from both sources: the rules source says when a payout is due and how a card's payouts relate, and the Game Datacards mission pack says what each one asks for.
+- Mission cards are read from both sources: the rules source says when a payout is due and how a card's payouts relate, and the Game Datacards mission pack says what each one asks for. The same split holds everywhere: the rules source says what exists and how it behaves, Game Datacards says what it reads, and nothing is joined by a fuzzy match.
 - `catalogue-data/` contains fetched data and is gitignored. Do not commit game data or copied rules text.
 - An hourly automation checks upstream revisions and publishes a complete immutable snapshot. It replaces the remote `current.json` pointer only after reading and verifying the published archive.
 - Running instances check that pointer hourly, download a changed snapshot from the shared store, and swap it into place atomically. They never contact an upstream data provider.
@@ -14,7 +14,6 @@ Praetorium builds and validates rosters from community data. Domain code stays i
 - `src/server/sync.ts` fetches upstream data only for the snapshot publisher. `src/server/catalogueSnapshot.ts` owns packing, verification, and instance downloads.
 - Repository sources extract only their configured path. The sync checks archive size, output size, paths, and required contents before replacement.
 - Each download uses a staging directory. It replaces the current source only after the download finishes and its revision or hashes match.
-- Optional description exports still refresh when the authoritative sources are current. Live faction pages are best-effort additions and do not make the verified exports unavailable.
 - Battlemaster supplies the exact terrain footprints, labels, and setup measurements. A layout without its pinned geometry remains visible as unavailable, cannot be selected, and cannot start a battle.
 - `just catalogue-sync` calls the same sync code as the server.
 - The server loads the catalogue on first use. An instance without catalogue data can still serve battles and pasted rosters.
@@ -25,9 +24,10 @@ Server catalogue code is split by responsibility:
 - `catalogue.ts` projects a datasheet for display and applies contextual profile modifiers.
 - `cataloguePicker.ts` groups, prices, and limits picker results. `datasheetSearch.ts` matches the same structured datasheet fields for the picker and global search.
 - `catalogueDescriptions.ts` resolves detachment and enhancement text without guessing between conflicting matches.
+- `datacards.ts` reads Game Datacards, and `datasheetJoin.ts` is the one join from a catalogue datasheet to its card: the book's own file first, then any file where every file agrees, comparing names with apostrophes folded and a trailing plural forgiven. `just points` reports every name the join cannot carry across.
 - `sync.ts` owns downloads and atomic replacement. It does not interpret game data.
 
-The rules dataset is split the same way. `rules.ts` only assembles `LoadedRules`; `rulesSource.ts` reads the files and keys what it finds, and `rulesCards.ts`, `rulesDatasheets.ts`, `rulesFactions.ts` and `rulesTerrain.ts` each own one part of it. An absent source leaves its part empty rather than guessed.
+The rules dataset is split the same way. `rules.ts` only assembles `LoadedRules`; `rulesSource.ts` reads the files and keys what it finds, and `rulesCards.ts`, `rulesFactions.ts` and `rulesTerrain.ts` each own one part of it. An absent source leaves its part empty rather than guessed.
 
 Core catalogue code is split by question:
 
@@ -49,12 +49,12 @@ Core catalogue code is split by question:
 - `isDatasheetId` can fall back to any synced book when an imported roster names an unavailable catalogue.
 - A book's own detachments take priority. A book without detachments uses the detachments from the book that contributes most of its roster.
 - Key the rules dataset by its faction directory and by every alias that directory declares. The catalogues call the Adeptus Astartes book Space Marines, and a lookup by the name a player sees must still find its detachment points and stratagems.
-- Read every structured army rule from Game Datacards. Use the rules dataset only when that faction has no Game Datacards rule.
+- Read every army rule from Game Datacards, keyed by the faction's own name and by the name the catalogues give it (Adeptus Astartes is the Space Marines book). Use the rules dataset's named rule only when that faction has no Game Datacards card.
 - Show only detachments named by Game Datacards or the rules dataset. A catalogue import does not make another faction's detachments its own, and a detachment without reference detail must not link to a missing page.
 - A detachment's stratagems are the union of the ids it names and the records filed under it. The dataset writes a shared stratagem down once and the other detachments reach it by id only; a card reached both ways is kept once, as the copy filed under this detachment.
 - Legends datasheets are not legal roster choices and are never returned by the picker.
 - A detachment has a wrapper, a group, and its choices. Any layer can be inline or linked. Match wrapper names by the `Detachment` prefix.
-- Enhancement names and points come from the rules source. Description text prefers the catalogue, then the pinned Wahapedia export; leave conflicting matches blank.
+- Enhancement names and points come from the rules source. Description text prefers the catalogue, then Game Datacards, matched by detachment and name with any `(Aura)` or `(Upgrade)` suffix ignored; leave conflicting matches blank.
 - Unit upgrades marked by the rules source stay separate from character enhancements in detachment references and unit loadouts.
 - A datasheet roster cap usually lives on its same-named category. `rosterLimit` reads that cap for display and filtering. `violations` remains the legality authority.
 - The picker, roster and faction datasheet list shelf each datasheet by its primary category. A datasheet can print more than one, and the first is not always the one a player sorts by: a Reaver Titan prints `Allies: Titanicus Traitoris` ahead of `Vehicle`. Take the first primary category that names a shelf. Unknown or missing primary categories stay under Other rather than being inferred from secondary keywords.
@@ -65,7 +65,7 @@ Core catalogue code is split by question:
 
 - A `collective` count is the total for the unit. Constraints with `scope: parent` are per model and must scale with the number of carriers.
 - An aggregated model's unmarked mandatory child is stored once as the model template. Its parent-scoped minimum is satisfied once per model even though the stored selection count is one; parent-scoped maximums still scale to allow choices across the squad.
-- `expand`, `unitChoices`, `violations`, and `wargearOf` must use the same collective-count rules.
+- `collective.ts` alone says whether a stored count is the unit's total or one model's share. `expand`, `unitChoices`, `violations`, and `wargearOf` all read it and none re-derives it.
 - `refit` fills required per-model upgrade groups after a model-count change. It uses the declared default, then the cheapest option. It does not fill optional groups or groups of models.
 - Increasing one option in a full group reduces an available sibling. Decreasing an option lets `refit` return the freed count to the default.
 - Preserve `spreads` through pricing, saving, import, and export.
@@ -92,7 +92,7 @@ Core catalogue code is split by question:
 - `set-primary` and `unset-primary` are recognised and ignored. They name the force slot that holds a selection, which is not a question this app asks: most of them set an `Allies: <faction>` category that shelves nothing here, and the rest re-shelve a unit for one detachment. A shelf that moved with the roster would also break the one thing `groupOfEntry` exists to guarantee — that the picker and the roster sort a unit the same way. Because their meaning is known and irrelevant, they do not produce an incomplete-validation warning.
 - A datasheet's canonical reference page is a separate question from the keywords it carries, and `isReferenceDatasheet` keeps reading the written faction links for it. A granted faction keyword is conditional on the book, so honouring it would give one datasheet several homes.
 - Call `hiddenByRules` with the current roster. Visibility can depend on its detachment and force type.
-- Parse prose-only army exclusions into typed faction restrictions. Roster legality and picker visibility consume the same restrictions; `just points` fails when a named exclusion in the synced rules was not captured.
+- Parse the army rules' prose-only exclusions into typed faction restrictions, keeping the keyword that exempts a unit from a list (a Black Templars Impulsor is not a Codex one). Roster legality and picker visibility consume the same restrictions through `restrictedBy`; `just points` fails when a named exclusion in the synced cards was not captured.
 - Treat conditional modifiers targeting the catalogue `error` field as legality errors. These carry cross-unit and loadout restrictions that cannot be represented as numeric constraints.
 - Read available choices from the datasheet definition, not only from the built selection. Optional groups are absent from the default selection.
 - A capped group shares its cap between occupants. In an uncapped group, each occupant uses its own maximum. Optional equipment does not compete without a group cap.
@@ -114,6 +114,8 @@ Core catalogue code is split by question:
 Legends reference entries are compared only with catalogue entries explicitly marked as Legends. Active and Legends datasheets with the same name are distinct entries. A lower match rate is a regression unless the generated check set changed and the new baseline is explained.
 
 Inspect the generated selection before changing evaluator logic. A mismatch can come from the evaluator, the catalogue, or the check harness.
+
+`pnpm catalogue:coverage out.json` writes everything the app can say about the synced data — every datasheet's profiles, abilities, model cards, wargear and choices, every detachment's rules, enhancements and stratagems — and `--compare before.json` lists what an earlier snapshot had that this one does not. Run it from a checkout of `main` first when changing how a source is read: a field that goes missing shows up as a name, not a feeling. Note that `app()` refreshes the catalogue snapshot from the shared store when it starts, so take both snapshots against the same `revision.json`.
 
 ## Picker and attachments
 

@@ -24,8 +24,6 @@ it('packs and verifies a complete catalogue', () => {
   }
   fs.mkdirSync(path.join(catalogue, 'battlemaster', 'layouts'), { recursive: true })
   fs.writeFileSync(path.join(catalogue, 'battlemaster', 'layouts', 'test.json'), '{}\n')
-  fs.mkdirSync(path.join(catalogue, 'wahapedia', 'pages'), { recursive: true })
-  fs.writeFileSync(path.join(catalogue, 'wahapedia', 'test.csv'), 'test\n')
   fs.writeFileSync(
     path.join(catalogue, 'revision.json'),
     `${JSON.stringify({
@@ -34,7 +32,6 @@ it('packs and verifies a complete catalogue', () => {
       rules: 'rules-revision',
       datacards: 'datacards-revision',
       battlemaster: 'battlemaster-revision',
-      wahapedia: 'wahapedia-revision',
     })}\n`,
   )
   const environment = { ...process.env, CATALOGUE_DIR: catalogue, CATALOGUE_SNAPSHOT_FILE: archive }
@@ -66,13 +63,11 @@ it('installs the previous snapshot format during the source rollout', async () =
       points: 'points-revision',
       rules: 'rules-revision',
       battlemaster: 'battlemaster-revision',
-      wahapedia: 'wahapedia-revision',
     }),
     'definitions/test.json': '{}',
     'points/test.json': '{}',
     'rules/test.json': '{}',
     'battlemaster/layouts/test.json': '{}',
-    'wahapedia/test.csv': 'test',
   }
   const sha256 = (value: Uint8Array | string) => createHash('sha256').update(value).digest('hex')
   const manifest = new TextEncoder().encode(

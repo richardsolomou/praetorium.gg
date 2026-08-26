@@ -24,6 +24,7 @@ import type {
   ModifierGroup,
   Repeat,
 } from './catalogue'
+import { isCollective, isCollectiveGroup } from './collective'
 
 /** What the player picked: an entry, group or link id, how many, and what sits under it. */
 export type Selection = { id: string; count?: number; selections?: readonly Selection[] }
@@ -1095,7 +1096,7 @@ function violations(node: Node, root: Node, index: CatalogueIndex, census: Censu
   const name = node.target.name ?? node.target.id
 
   for (const constraint of sourcesOf(node).flatMap((source) => source.constraints ?? [])) {
-    const limit = constraintValue(constraint, node, root, index, census) * carriers(constraint, node)
+    const limit = constraintValue(constraint, node, root, index, census) * carriers(constraint, node, index)
     if (limit < 0) continue
     if (constraint.percentValue) {
       census.note('constraint percentValue')
@@ -1106,7 +1107,7 @@ function violations(node: Node, root: Node, index: CatalogueIndex, census: Censu
     const raw = measure({ ...constraint, childId: node.target.id }, node, root, index, census)
     // An unmarked mandatory child beneath an aggregated model is stored once as
     // the model's template, while its minimum applies once to every model.
-    const measured = constraint.type === 'min' && raw === 1 ? raw * carriers(constraint, node) : raw
+    const measured = constraint.type === 'min' && raw === 1 ? raw * carriers(constraint, node, index) : raw
     if (constraint.type === 'min' && measured < limit) {
       errors.push({ entryId: node.target.id, entryName: name, message: `needs at least ${limit}, has ${measured}` })
     }
@@ -1127,10 +1128,8 @@ function violations(node: Node, root: Node, index: CatalogueIndex, census: Censu
  * selection still holds the squad's total. Reading the one literally called every
  * such squad illegal.
  */
-function carriers(constraint: Constraint, node: Node): number {
+function carriers(constraint: Constraint, node: Node, index: CatalogueIndex): number {
   if (constraint.scope !== 'parent') return 1
-  const collective = Boolean(node.target.type !== undefined && 'collective' in node.target && node.target.collective)
-  const holdsCollective = isGroup(node) && node.children.some((child) => 'collective' in child.target && child.target.collective === true)
   // Groups hold no carrier count of their own, so the models holding this are the
   // nearest entry above them. An aggregated model scales every parent-scoped child:
   // the catalogue can omit `collective` even though the selection stores one total
@@ -1138,7 +1137,7 @@ function carriers(constraint: Constraint, node: Node): number {
   let holder = node.parent
   while (holder && isGroup(holder)) holder = holder.parent
   const aggregatedModel = holder?.target.type === 'model' && holder.count > 1
-  if (!collective && !holdsCollective && !aggregatedModel) return 1
+  if (!isCollective(node.target, index) && !isCollectiveGroup(node.target, index) && !aggregatedModel) return 1
   return Math.max(1, holder?.count ?? 1)
 }
 

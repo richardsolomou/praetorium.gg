@@ -1,8 +1,8 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import { compile } from 'html-to-text'
 import type { Stratagem, StratagemLimit } from '../core/battle'
 import { routeSlug } from '../core/slug'
+import { localizedField, stratagemText } from './datacards'
 import { criteriaIn, criteriaKey, pairCriteria, type Payout } from './missionCriteria'
 import { type MissionPack, readMissionPacks } from './missionPacks'
 import { byName, readOptionalList, titleCase } from './rulesSource'
@@ -37,19 +37,7 @@ export type RawStratagem = {
   game_version?: { edition?: string; dataslate?: string }
 }
 
-type Localized = { en?: string }
-
-type RawCoreStratagem = {
-  name?: Localized
-  type?: string
-  fluff?: Localized
-  when?: Localized
-  target?: Localized
-  effect?: Localized
-  restrictions?: Localized
-}
-
-type RawCoreCards = { stratagems?: RawCoreStratagem[] }
+type RawCoreCards = { stratagems?: Record<string, unknown>[] }
 
 type RawCard = {
   id: string
@@ -196,31 +184,18 @@ export function loadCards(
   }
 }
 
-const coreText = compile({ wordwrap: false })
-
 /** Core stratagem prose lives in Game Datacards' `11th/gdc/core.json`, keyed to the rules source by name. */
 function coreDescriptions(datacardsDirectory: string, rules: readonly RawStratagem[]): LoadedCards['coreDetails'] {
   const file = path.join(datacardsDirectory, 'core.json')
   if (!fs.existsSync(file)) return []
   const cards = JSON.parse(fs.readFileSync(file, 'utf8')) as RawCoreCards
-  const descriptionsByName = new Map((cards.stratagems ?? []).map((card) => [criteriaKey(card.name?.en ?? ''), card]))
+  const descriptionsByName = new Map((cards.stratagems ?? []).map((card) => [criteriaKey(localizedField(card, 'name') ?? ''), card]))
   return rules.flatMap((rule) => {
     const card = descriptionsByName.get(criteriaKey(rule.name))
-    if (!card) return []
-    const sections = [
-      card.fluff?.en ? coreText(card.fluff.en).trim() : null,
-      describedSection('When', card.when?.en),
-      describedSection('Target', card.target?.en),
-      describedSection('Effect', card.effect?.en),
-      describedSection('Restrictions', card.restrictions?.en),
-    ].filter((section): section is string => Boolean(section))
-    return sections.length ? [{ id: rule.id, type: card.type ?? null, description: sections.join('\n\n') }] : []
+    const description = card ? stratagemText(card) : null
+    const type = card?.type
+    return description ? [{ id: rule.id, type: typeof type === 'string' ? type : null, description }] : []
   })
-}
-
-const describedSection = (label: string, value: string | undefined) => {
-  const text = value ? coreText(value).trim() : ''
-  return text ? `**${label}:** ${text}` : null
 }
 
 /**
