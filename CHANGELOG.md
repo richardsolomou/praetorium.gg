@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.39.1
+
+### Patch Changes
+
+- fc305e5: Show both sides during secondary setup and settle mandatory tactical cards without waiting for another device.
+
 ## 0.39.0
 
 ### Minor Changes
