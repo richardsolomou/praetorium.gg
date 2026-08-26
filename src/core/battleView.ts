@@ -141,7 +141,7 @@ export type BattleView = {
   advancePrompt: string | null
   /** The latest active command any seated player may take back. */
   undoable: number | null
-  /** Whether taking back that command returns a randomly drawn mission to its deck. */
+  /** Whether taking back that command returns missions from this turn to the deck. */
   undoableDraw: boolean
 }
 

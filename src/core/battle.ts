@@ -392,7 +392,7 @@ export type Command =
     } & OnBehalfOf)
   | ({ kind: 'set-secondary-status'; key: string; status: SecondaryStatus } & OnBehalfOf)
   | ({ kind: 'draw-secondary'; secondary: Secondary } & OnBehalfOf)
-  | ({ kind: 'draw-secondaries'; secondaries: Secondary[] } & OnBehalfOf)
+  | ({ kind: 'draw-secondaries'; secondaries: Secondary[]; selected?: true } & OnBehalfOf)
   | ({ kind: 'select-secret'; secondary: Secondary } & OnBehalfOf)
   | ({ kind: 'reveal-secret' } & OnBehalfOf)
   | { kind: 'begin-battle'; firstPlayerId: PlayerId; attackerId?: PlayerId }

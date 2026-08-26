@@ -26,7 +26,7 @@ export function DrawUndoAlert({
         <AlertDialogHeader>
           <AlertDialogTitle className="uppercase">Undo mission draw?</AlertDialogTitle>
           <AlertDialogDescription className="text-dim">
-            This returns drawn secondary missions to the deck. Any replacement draw will be random.
+            This returns those secondary missions to the deck. You can draw replacements at random or select them yourself.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter className="rounded-none border-edge bg-sunken">

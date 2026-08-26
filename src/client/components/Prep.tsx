@@ -127,7 +127,7 @@ export function Prep({ view, side, missionId, send, pending }: Props) {
       <div data-secondary-deck-ready={deckReady} className="space-y-1">
         <p className="text-sm font-bold uppercase">{mode === 'fixed' ? 'Fixed cards' : 'Tactical cards'}</p>
         <p className="text-xs text-dim">
-          {mode === 'fixed' ? 'Chosen now and played for the whole battle.' : 'Drawn at random as the battle runs.'}
+          {mode === 'fixed' ? 'Chosen now and played for the whole battle.' : 'Drawn at random or selected as the battle runs.'}
         </p>
         <p className="text-xs text-dim">
           {side.writer.name} sets the cards and stratagems your side plays. You both draw from the one hand.
@@ -166,7 +166,7 @@ export function Prep({ view, side, missionId, send, pending }: Props) {
               <span className="text-[0.6875rem] leading-tight font-normal whitespace-normal text-dim">
                 {entry === 'fixed'
                   ? `Select ${FIXED_SECONDARIES} secondary missions for the battle now`
-                  : 'Draw secondary missions randomly during the battle'}
+                  : 'Draw secondary missions at random or select them during the battle'}
               </span>
             </Button>
           ))}

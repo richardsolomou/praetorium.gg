@@ -827,6 +827,7 @@ export class PraetoriumService {
       },
       (state, submitted) => {
         if (submitted.kind !== 'draw-secondary' && submitted.kind !== 'draw-secondaries') return submitted
+        if (submitted.kind === 'draw-secondaries' && submitted.selected) return submitted
         // Whose deck this is comes from the domain, so the cards cannot be taken off
         // one side's deck and recorded against another's.
         const player = commandArmy(state, userId, submitted)

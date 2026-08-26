@@ -52,7 +52,7 @@ test('a running battle restores mission prompts when its tactical prep is missin
   await page.screenshot({ path: 'test-results/repaired-primary-scoring.png', fullPage: true })
 })
 
-test('a tactical hand is dealt rather than chosen, and pays out when the card says', async ({ browser }) => {
+test('a tactical hand pays out when the card says', async ({ browser }) => {
   const alice = await (await browser.newContext(desktopContext)).newPage()
   const bob = await (await browser.newContext(desktopContext)).newPage()
   const aliceName = uniqueName('Alice')
@@ -77,11 +77,8 @@ test('a tactical hand is dealt rather than chosen, and pays out when the card sa
   await waitForRosterSave(alice, () => alice.getByRole('button', { name: 'Add Lord of Virulence', exact: true }).first().click())
   await setupBattle(alice, bob, { opponent: bobName, hostRoster: aliceRoster, guestRoster: bobRoster })
 
-  // Two cards off the deck, and no way to say which two.
   const hand = alice.locator('[data-panel="player"]').filter({ hasText: 'Death Guard' }).locator('[data-secondary]')
   await expect(hand).toHaveCount(2)
-  await expect(alice.getByRole('button', { name: 'Choose a card' })).toHaveCount(0)
-  await expect(alice.getByRole('button', { name: 'Draw at random' })).toHaveCount(0)
   await expect(alice.getByRole('button', { name: 'Select secret mission' })).toHaveCount(0)
   // The same two cards on the other device: a hand is public once it is drawn.
   const drawn = await hand.evaluateAll((cards) => cards.map((card) => card.getAttribute('data-secondary')))
@@ -192,6 +189,7 @@ test('a tactical hand is dealt rather than chosen, and pays out when the card sa
   }
   await bobConfirmation
   await bob.unroute('**/*')
+  await expect(bob.getByRole('dialog', { name: 'Your secondary missions' })).toBeVisible()
   await takeTheTurn(bob)
   await expect(alice.getByText(new RegExp(`${bobName} draws `)).first()).toBeVisible()
   await expect(alice.getByText(new RegExp(`${bobName} marks `))).toHaveCount(0)
@@ -242,6 +240,17 @@ test('a card the rules let you put back is offered back as it is drawn', async (
 
   const prompt = bob.getByRole('dialog', { name: 'Your secondary missions' })
   await expect(prompt).toBeVisible()
+  await prompt.getByRole('button', { name: 'Select missions' }).click()
+  await prompt
+    .getByRole('button', { name: /^Select / })
+    .first()
+    .click()
+  await prompt
+    .getByRole('button', { name: /^Select / })
+    .first()
+    .click()
+  await bob.screenshot({ path: 'test-results/secondary-picker.png' })
+  await prompt.getByRole('button', { name: 'Add selected missions' }).click()
   await expect(prompt.locator('[data-drawn]')).toHaveCount(2)
   const firstCard = prompt.locator('[data-drawn]').first()
   const readCard = firstCard.getByRole('button', { name: /^Read / })
@@ -252,8 +261,6 @@ test('a card the rules let you put back is offered back as it is drawn', async (
   await bob.mouse.click(8, 400)
   await expect(reference).toBeHidden()
   await expect(prompt).toBeVisible()
-  // Whatever was dealt, the deck itself is never on offer.
-  await expect(prompt.getByRole('button', { name: 'Choose a card' })).toHaveCount(0)
   // A card that may go back says why, and putting it back deals another.
   const returnable = prompt.getByRole('button', { name: 'Put back and draw another' })
   const returned = await returnable
@@ -263,6 +270,7 @@ test('a card the rules let you put back is offered back as it is drawn', async (
   if (returned) {
     const before = await prompt.locator('[data-drawn]').evaluateAll((cards) => cards.map((card) => card.getAttribute('data-drawn')))
     await returnable.first().click()
+    await prompt.getByRole('button', { name: 'Draw at random' }).click()
     await expect
       .poll(() => prompt.locator('[data-drawn]').evaluateAll((c) => c.map((d) => d.getAttribute('data-drawn'))))
       .not.toEqual(before)
@@ -283,14 +291,24 @@ test('a card the rules let you put back is offered back as it is drawn', async (
   await bob.setViewportSize({ width: 390, height: 844 })
   await confirmUndo()
   await expect(prompt.locator('[data-drawn]')).toHaveCount(returned ? 1 : 0)
-  await expect(prompt.getByRole('button', { name: 'Resume drawing' })).toBeVisible()
+  await expect(prompt.getByRole('button', { name: 'Select missions' })).toBeVisible()
   if (returned) {
     await undoDraw.click()
     await expect(prompt.locator('[data-drawn]')).toHaveCount(2)
     await confirmUndo()
   }
   await expect(prompt.locator('[data-drawn]')).toHaveCount(0)
-  await prompt.getByRole('button', { name: 'Resume drawing' }).click()
+  await prompt.getByRole('button', { name: 'Select missions' }).click()
+  await prompt
+    .getByRole('button', { name: /^Select / })
+    .first()
+    .click()
+  await prompt
+    .getByRole('button', { name: /^Select / })
+    .first()
+    .click()
+  await bob.screenshot({ path: 'test-results/secondary-picker-phone.png' })
+  await prompt.getByRole('button', { name: 'Add selected missions' }).click()
   await expect(prompt.locator('[data-drawn]')).toHaveCount(2)
   // The hand is not something to dismiss: it is the one chance to see what was dealt.
   await bob.mouse.click(8, 400)
@@ -306,7 +324,7 @@ test('a card the rules let you put back is offered back as it is drawn', async (
   await confirmation.getByRole('button', { name: 'Undo draw' }).click()
   await expect(prompt).toBeVisible()
   await expect(prompt.locator('[data-drawn]')).toHaveCount(0)
-  await expect(prompt.getByRole('button', { name: 'Resume drawing' })).toBeVisible()
+  await expect(prompt.getByRole('button', { name: 'Select missions' })).toBeVisible()
 })
 
 test('a card names its own condition, and what their turn owed is asked as the turn comes back', async ({ browser }) => {
