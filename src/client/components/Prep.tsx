@@ -7,6 +7,7 @@ import { FIXED_SECONDARIES, isKotcLimit, SECONDARY_MODES } from '../../core/batt
 import { detachmentRulesQuery, gameReferencesQuery } from '../queries'
 import { primaryCards, secondaryCards } from '../missionDeck'
 import { armyRulesRequest, sideStratagems } from '../sideRules'
+import { canWritePrep } from '../sides'
 import { MissionName, type ReferenceCard } from './battle/MissionCards'
 import { CHOOSABLE, CHOSEN } from './setup/chrome'
 import type { Side } from '../sides'
@@ -29,7 +30,8 @@ type Props = { view: BattleView; side: Side; missionId: string | null; send: (co
  */
 export function Prep({ view, side, missionId, send, pending }: Props) {
   const captain = side.captain
-  const writes = side.played && (side.writer.id === view.viewerId || side.automated)
+  const tacticalOnly = isKotcLimit(view.settings.limit)
+  const writes = canWritePrep(side, view.viewerId, tacticalOnly)
   const requests = side.armies.map((army) => armyRulesRequest(army.roster))
   const { data: references } = useQuery(gameReferencesQuery())
   const results = useQueries({ queries: requests.map((request) => detachmentRulesQuery(request.catalogueId, request.detachmentNames)) })
@@ -60,11 +62,10 @@ export function Prep({ view, side, missionId, send, pending }: Props) {
    */
   const fixedCards = deck.filter((card) => card.awards.some((award) => award.mode === 'fixed'))
   const primary: Secondary | null = primaryCard ? { key: primaryCard.key, name: primaryCard.name } : null
-  const tacticalOnly = isKotcLimit(view.settings.limit)
   const storedMode: SecondaryMode = captain.secondaryMode
   const mode: SecondaryMode = tacticalOnly ? 'tactical' : storedMode
   const chosen = captain.secondaries.map(({ key, name }) => ({ key, name }))
-  const deckReady = mode !== 'tactical' || Boolean(captain.remainingSecondaries.length)
+  const deckReady = mode !== 'tactical' || captain.secondaryDeckReady
 
   const save = (next: { mode?: SecondaryMode; secondaries?: Secondary[] }) => {
     if (!rules) return
@@ -100,7 +101,7 @@ export function Prep({ view, side, missionId, send, pending }: Props) {
     // and a pool an arriving ally changes is rewritten exactly once.
     const wrongStratagems = pooled && wanted.length > 0 && wanted !== recorded
     const wrongPrimary = primary?.key !== captain.primaryCard?.key
-    const missingDeck = mode === 'tactical' && deck.length > 0 && captain.remainingSecondaries.length === 0
+    const missingDeck = mode === 'tactical' && deck.length > 0 && !captain.secondaryDeckReady
     const invalidMode = tacticalOnly && storedMode !== 'tactical'
     if (!wrongStratagems && !wrongPrimary && !missingDeck && !invalidMode) return
     save({})
@@ -113,6 +114,7 @@ export function Prep({ view, side, missionId, send, pending }: Props) {
     wanted,
     recorded,
     captain.primaryCard,
+    captain.secondaryDeckReady,
     captain.remainingSecondaries.length,
     primary?.key,
     mode,

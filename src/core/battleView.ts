@@ -122,6 +122,8 @@ export type BattleView = {
     }[]
     primaryCard: Secondary | null
     secondaryMode: SecondaryMode
+    /** Whether this side has a tactical deck, without exposing the cards in it. */
+    secondaryDeckReady: boolean
     remainingSecondaries: Secondary[]
     /**
      * The cards this side's turn has dealt, out of `TACTICAL_HAND_SIZE`.
@@ -241,6 +243,7 @@ export function battleView(
         })),
         primaryCard: resources.primaryCard,
         secondaryMode: resources.secondaryMode,
+        secondaryDeckReady: Boolean(resources.secondaryDeck?.length),
         secondariesDrawnThisTurn: resources.secondariesDrawnThisTurn.map((key) =>
           mayNameCard(state, viewerId, resources, key) ? key : 'secret',
         ),
