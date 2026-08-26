@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { ChevronRight } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
@@ -191,7 +192,7 @@ export function Setup({ view, mission, missions, send, attachSavedRoster, pendin
     })
 
   return (
-    <main className="w-full pb-8">
+    <main className="flex w-full flex-col">
       {/*
        * Where the table is, banded across the top and pinned there the way the tracker
        * pins its scoreboard — the same offset under the same header, so setup and the
@@ -202,7 +203,7 @@ export function Setup({ view, mission, missions, send, attachSavedRoster, pendin
        * gutter than rail.
        */}
       <div className="sticky top-12 z-20 border-b border-edge bg-void/95 backdrop-blur">
-        <StepRail steps={steps} at={at} blocked={blocked} onGo={(step) => send({ kind: 'set-setup-step', step })} />
+        <StepRail steps={steps} at={at} onGo={(step) => send({ kind: 'set-setup-step', step })} />
       </div>
 
       <div className="mx-auto w-full max-w-5xl space-y-5 px-4 py-6">
@@ -367,6 +368,29 @@ export function Setup({ view, mission, missions, send, attachSavedRoster, pendin
           {problem ? <p className="text-sm text-destructive">{problem}</p> : null}
         </section>
       </div>
+
+      {/*
+       * The way on, in the corner of the page rather than on the rail: setup is a
+       * column of questions of any length, and the one control that answers "and then?"
+       * belongs within reach of a thumb wherever the section has been read to. Why it
+       * will not move is already said under the heading, so the button only closes.
+       *
+       * Stuck to the bottom of setup rather than to the window, so scrolling to the end
+       * sets it down above the site footer instead of over its links. The strip it rides
+       * takes no clicks of its own, since it crosses the width of whatever is under it.
+       */}
+      {at < steps.length - 1 ? (
+        <div className="pointer-events-none sticky bottom-0 z-30 mt-auto flex justify-end px-4 pt-4 pb-4">
+          <Button
+            className="pointer-events-auto h-11 gap-1.5 px-5 text-base shadow-lg"
+            disabled={blocked !== null}
+            onClick={() => send({ kind: 'set-setup-step', step: at + 1 })}
+          >
+            Next
+            <ChevronRight className="size-4" />
+          </Button>
+        </div>
+      ) : null}
     </main>
   )
 }
