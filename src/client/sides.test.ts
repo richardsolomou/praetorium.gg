@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { BattleView } from '../core/battleView'
-import { facingSides, type SideMission, sideName, sides } from './sides'
+import { facingSides, missionCardsReady, type SideMission, sideName, sides } from './sides'
 
 type ViewPlayer = BattleView['players'][number]
 
@@ -237,5 +237,23 @@ describe('the mission a side is held to', () => {
 
   it('leaves a caller that asks for none wearing nobody’s', () => {
     expect(sides(view(table)).every((side) => side.mission === null)).toBe(true)
+  })
+
+  it('does not call mission cards ready until the primary and tactical deck are present', () => {
+    const [missing] = sides(view([player({ id: 'alice', side: 0 })]), [{ side: 0, mission: mission('mission-a', 15) }])
+    const [ready] = sides(
+      view([
+        player({
+          id: 'alice',
+          side: 0,
+          primaryCard: { key: 'mission-a', name: 'Mission A' },
+          remainingSecondaries: [{ key: 'secondary-a', name: 'Secondary A' }],
+        }),
+      ]),
+      [{ side: 0, mission: mission('mission-a', 15) }],
+    )
+
+    expect(missionCardsReady(missing!)).toBe(false)
+    expect(missionCardsReady(ready!)).toBe(true)
   })
 })

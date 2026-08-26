@@ -1,4 +1,5 @@
 import { expect, test, type Locator } from '@playwright/test'
+import postgres from 'postgres'
 import {
   advance,
   advanceButton,
@@ -7,6 +8,7 @@ import {
   createBattle,
   createRoster,
   desktopContext,
+  PRACTICE_OPPONENT,
   setupBattle,
   setupStep,
   signUp,
@@ -15,6 +17,40 @@ import {
   uniqueName,
   waitForRosterSave,
 } from './account'
+import { postgresPort } from './stackEnv'
+
+test('a running battle restores mission prompts when its tactical prep is missing', async ({ page }) => {
+  await signUp(page, uniqueName('Repair'))
+  const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Repair roster' })
+  await createBattle(page, { practice: true })
+  await attachRoster(page, roster)
+  await attachRoster(page, roster, { forPlayer: PRACTICE_OPPONENT })
+  await startBattle(page)
+
+  const token = new URL(page.url()).pathname.split('/').at(-1)!
+  const database = postgres(`postgres://praetorium:praetorium@127.0.0.1:${postgresPort}/praetorium`, { max: 1 })
+  await database`
+    delete from commands
+    using battles
+    where commands.battle_id = battles.id
+      and battles.token = ${token}
+      and commands.body::jsonb->>'kind' in ('set-prep', 'draw-secondaries')
+  `
+  await database.end()
+  await page.reload()
+
+  const draw = page.getByRole('dialog', { name: 'Your secondary missions' })
+  await expect(draw).toBeVisible()
+  await expect(draw.locator('[data-drawn]')).toHaveCount(2)
+  await page.screenshot({ path: 'test-results/repaired-secondary-draw.png', fullPage: true })
+  await draw.getByRole('button', { name: 'Take the turn' }).click()
+  for (const phase of ['command', 'movement', 'shooting', 'charge', 'fight']) {
+    await page.getByRole('button', { name: `End the ${phase} phase` }).click()
+  }
+  await page.getByRole('button', { name: 'Pass the turn' }).click()
+  await expect(page.getByRole('dialog', { name: /^Scoring end of turn points/ })).toContainText('Primary mission')
+  await page.screenshot({ path: 'test-results/repaired-primary-scoring.png', fullPage: true })
+})
 
 test('a tactical hand is dealt rather than chosen, and pays out when the card says', async ({ browser }) => {
   const alice = await (await browser.newContext(desktopContext)).newPage()

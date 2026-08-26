@@ -1,6 +1,6 @@
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { deleteBattle } from '../../server/functions'
 import { battleQuery, battlesQuery, deploymentsQuery, detachmentRulesQuery, gameReferencesQuery } from '../queries'
@@ -144,6 +144,31 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
     [view.players],
   )
   const finished = view.status === 'finished'
+  const attemptedPrepRepairs = useRef(new Set<string>())
+  const repairSide = table.find(
+    (side) =>
+      side.played &&
+      side.mission &&
+      side.primaryCard &&
+      side.secondaryMode === 'tactical' &&
+      side.secondaries.length === 0 &&
+      side.remainingSecondaries.length === 0,
+  )
+  useEffect(() => {
+    if (finished || pending || !references || !secondaryDeck.length || !repairSide?.primaryCard) return
+    const key = `${view.seq}:${repairSide.captain.id}`
+    if (attemptedPrepRepairs.current.has(key)) return
+    attemptedPrepRepairs.current.add(key)
+    send({
+      kind: 'set-prep',
+      playerId: repairSide.captain.id,
+      stratagems: repairSide.stratagems,
+      secondaries: [],
+      secondaryDeck: secondaryDeck.map(({ key: cardKey, name }) => ({ key: cardKey, name })),
+      primary: repairSide.primaryCard,
+      secondaryMode: 'tactical',
+    })
+  }, [finished, pending, references, repairSide, secondaryDeck, send, view.seq])
   // A battle whose second seat is still empty draws one side, not a gap where the other goes.
   const oneSided = table.length < 2
   // A side's own mission can state a lower ceiling than the conventional one, and the

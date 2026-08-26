@@ -433,6 +433,22 @@ describe('setup', () => {
     expect(validate(state, ALICE, prep)).toBe('cards are settled before the battle begins')
   })
 
+  it('allows a missing tactical deck to be restored after the battle begins', () => {
+    const repair: Command = {
+      kind: 'set-prep',
+      stratagems: [],
+      secondaries: [],
+      secondaryDeck: [{ key: 'a', name: 'Behind Enemy Lines' }],
+      primary: { key: 'primary', name: 'Battlefield Dominance' },
+      secondaryMode: 'tactical',
+    }
+    const missing = reduceBattle(PLAYERS, log(...started()))
+    const restored = reduceBattle(PLAYERS, log(...started(), [ALICE, repair]))
+
+    expect(validate(missing, ALICE, repair)).toBeNull()
+    expect(validate(restored, ALICE, repair)).toBe('cards are settled before the battle begins')
+  })
+
   it('refuses cards carried in with a replacement list', () => {
     const state = reduceBattle(PLAYERS, log(...started()))
     const command: Command = {

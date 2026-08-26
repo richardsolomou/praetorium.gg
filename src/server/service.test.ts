@@ -1270,7 +1270,7 @@ describe('battle setup references', () => {
       ],
     }) as unknown as LoadedRules
 
-  const configured = async () => {
+  const configured = async (loadedRules = rules()) => {
     const { token } = await service.createBattle('alice', {
       opponentId: 'bob',
       limit: 2000,
@@ -1298,7 +1298,7 @@ describe('battle setup references', () => {
               },
             },
           },
-          rules(),
+          loadedRules,
         )
       ).result
       if (result.outcome === 'appended') seq = result.seq
@@ -1307,8 +1307,9 @@ describe('battle setup references', () => {
     await attach('bob', 'Bob army', 'disruption')
     return {
       token,
+      seq: () => seq,
       send: async (by: string, command: Parameters<PraetoriumService['submit']>[3]) =>
-        (await service.submit(token, by, seq, command, rules())).result,
+        (await service.submit(token, by, seq, command, loadedRules)).result,
       setSeq: (next: number) => (seq = next),
     }
   }
@@ -1321,6 +1322,30 @@ describe('battle setup references', () => {
     expect(await battle.send('alice', { kind: 'begin-battle', firstPlayerId: 'alice' })).toEqual({
       outcome: 'refused',
       reason: 'that deployment does not match the mission',
+    })
+  })
+
+  it('refuses to begin before both sides have prepared their mission cards', async () => {
+    const card = {
+      name: 'Card',
+      text: null,
+      awards: [],
+      whenDrawn: null,
+    }
+    const battle = await configured({
+      ...rules(),
+      primaries: [
+        { ...card, key: 'mission-a' },
+        { ...card, key: 'mission-b' },
+      ],
+      secondaries: [{ ...card, key: 'secondary-a' }],
+    })
+    const deployment = await battle.send('alice', { kind: 'set-deployment', patternId: 'valid-deployment' })
+    if (deployment.outcome === 'appended') battle.setSeq(deployment.seq)
+
+    expect(await battle.send('alice', { kind: 'begin-battle', firstPlayerId: 'alice' })).toEqual({
+      outcome: 'refused',
+      reason: 'every side must prepare its mission cards',
     })
   })
 
@@ -1344,6 +1369,44 @@ describe('battle setup references', () => {
     const bob = await service.screen(battle.token, 'bob', rules())
     expect(alice.kind === 'battle' ? alice.view.players.find((player) => player.id === 'alice')?.primaryCard?.name : null).toBe('Mission A')
     expect(bob.kind === 'battle' ? bob.view.players.find((player) => player.id === 'bob')?.primaryCard?.name : null).toBe('Mission B')
+  })
+
+  it('only restores the resolved mission cards to a running battle', async () => {
+    const battle = await configured()
+    let result = await battle.send('alice', { kind: 'set-deployment', patternId: 'valid-deployment' })
+    if (result.outcome === 'appended') battle.setSeq(result.seq)
+    result = await battle.send('alice', { kind: 'begin-battle', firstPlayerId: 'alice' })
+    if (result.outcome === 'appended') battle.setSeq(result.seq)
+    const card = { name: 'Card', text: null, awards: [], whenDrawn: null }
+    const loadedRules = {
+      ...rules(),
+      primaries: [
+        { ...card, key: 'mission-a' },
+        { ...card, key: 'mission-b' },
+      ],
+      secondaries: [{ ...card, key: 'secondary-a' }],
+    }
+    const repair = {
+      kind: 'set-prep' as const,
+      stratagems: [],
+      secondaries: [],
+      secondaryDeck: [{ key: 'secondary-a', name: 'Card' }],
+      primary: { key: 'mission-a', name: 'Mission A' },
+      secondaryMode: 'tactical' as const,
+    }
+
+    expect(
+      (
+        await service.submit(
+          battle.token,
+          'alice',
+          battle.seq(),
+          { ...repair, secondaryDeck: [{ key: 'made-up', name: 'Made up' }] },
+          loadedRules,
+        )
+      ).result,
+    ).toEqual({ outcome: 'refused', reason: 'those mission cards do not match this battle' })
+    expect((await service.submit(battle.token, 'alice', battle.seq(), repair, loadedRules)).result.outcome).toBe('appended')
   })
 
   it('refuses terrain that belongs to another deployment', async () => {
