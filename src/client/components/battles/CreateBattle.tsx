@@ -1,11 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useNavigate } from '@tanstack/react-router'
+import { Link, useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { GAME_SIZES } from '../../../core/battle'
 import { TABLE_SHAPES, TABLE_SHAPE_LABELS, type TableShape } from '../../../core/tableShape'
-import { createBattle } from '../../../server/functions'
+import { createBattle, leagueBattleOptions } from '../../../server/functions'
 import { battlesQuery, gameReferencesQuery, opponentsQuery } from '../../queries'
 import { errorMessage } from '../../queryClient'
 import { disambiguatedPlayerLabels } from '../../playerLabels'
@@ -70,34 +70,58 @@ export function CreateBattle() {
   const [allyId, setAllyId] = useState<string | null>(null)
   const [shape, setShape] = useState<TableShape>('1v1')
   const [soloPairRole, setSoloPairRole] = useState<SoloPairRole>('solo')
+  const [leagueMatches, setLeagueMatches] = useState<Awaited<ReturnType<typeof leagueBattleOptions>>>([])
   const seats = seatsFor(shape, soloPairRole)
   const seatedIn = (seat: Seat) => (seat.side === 'yours' ? allyId : (theirIds[seat.at] ?? null))
   const seated = seats.every(seatedIn)
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const create = useMutation({
-    mutationFn: async () => {
-      const references = await queryClient.ensureQueryData(gameReferencesQuery())
+    mutationFn: async (casual: boolean) => {
       const players = seatedPlayers(seats, seatedIn)
-      return createBattle({
-        data: {
-          opponentIds: players.opponentIds,
-          // Only a shape that seats one names an ally, so switching away from it
-          // cannot smuggle a stale pick into the request.
-          ...(players.allyId ? { allyId: players.allyId } : {}),
-          // What the table opens with, and what its first setup step is for changing.
-          limit: OPENING_LIMIT,
-          missionPackId: references?.packs[0]?.id ?? null,
-        },
-      })
+      const playerData = {
+        opponentIds: players.opponentIds,
+        ...(players.allyId ? { allyId: players.allyId } : {}),
+      }
+      if (!casual) {
+        const matches = await leagueBattleOptions({ data: playerData })
+        if (matches.length) return { kind: 'league' as const, matches }
+      }
+      const references = await queryClient.ensureQueryData(gameReferencesQuery())
+      let battle
+      try {
+        battle = await createBattle({
+          data: {
+            ...playerData,
+            // What the table opens with, and what its first setup step is for changing.
+            limit: OPENING_LIMIT,
+            missionPackId: references?.packs[0]?.id ?? null,
+            casual,
+          },
+        })
+      } catch (error) {
+        if (!casual) {
+          const matches = await leagueBattleOptions({ data: playerData })
+          if (matches.length) return { kind: 'league' as const, matches }
+        }
+        throw error
+      }
+      return { kind: 'battle' as const, battle }
     },
-    onSuccess: async ({ token }) => {
+    onSuccess: async (result) => {
+      if (result.kind === 'league') {
+        setLeagueMatches(result.matches)
+        return
+      }
       setOpen(false)
       await queryClient.invalidateQueries({ queryKey: battlesQuery().queryKey })
-      return navigate({ to: '/battles/$token', params: { token } })
+      return navigate({ to: '/battles/$token', params: { token: result.battle.token } })
     },
   })
-  const changeIntent = () => create.reset()
+  const changeIntent = () => {
+    create.reset()
+    setLeagueMatches([])
+  }
   const changeOpen = (next: boolean) => {
     if (create.isPending) return
     changeIntent()
@@ -106,71 +130,116 @@ export function CreateBattle() {
   const labels = disambiguatedPlayerLabels(opponents)
 
   return (
-    <Dialog open={open} onOpenChange={changeOpen}>
-      <DialogTrigger render={<Button />}>New battle</DialogTrigger>
-      <DialogContent className="w-[calc(100%-2rem)] rounded-none border-edge bg-panel p-4 sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="text-xl uppercase">Start a battle</DialogTitle>
-          <DialogDescription>Choose who is playing. A practice opponent needs no friend and no second device.</DialogDescription>
-        </DialogHeader>
-        <div>
-          <Choice
-            label="Table shape"
-            value={shape}
-            options={TABLE_SHAPES.map((candidate) => ({ value: candidate, ...TABLE_SHAPE_LABELS[candidate] }))}
-            columns={3}
-            onChange={(next) => {
-              changeIntent()
-              setShape(next)
-            }}
-          />
-          <p className="mt-1.5 text-xs text-dim">{SEATING[shape]}.</p>
-        </div>
-        {shape === '2v1' ? (
-          <Choice
-            label="Your role"
-            value={soloPairRole}
-            options={[
-              { value: 'solo', name: 'I’m solo', detail: 'Face two opponents' },
-              { value: 'pair', name: 'I’m on the pair', detail: 'Bring an ally' },
-            ]}
-            columns={2}
-            onChange={(role) => {
-              changeIntent()
-              setSoloPairRole(role)
-            }}
-          />
-        ) : null}
-        {opponentQuery.isPending ? (
-          <p className="border border-edge bg-sunken p-3 text-sm text-dim">Loading players…</p>
-        ) : opponentQuery.error ? null : opponents.length ? (
-          <SeatRows
-            idPrefix="battle"
-            seats={seats}
-            seatedIn={seatedIn}
-            groupsFor={(_seat, taken) => seatOptions(opponents, labels, taken)}
-            onPick={(seat, id) => {
-              changeIntent()
-              if (seat.side === 'yours') return setAllyId(id)
-              setTheirIds((current) => current.map((held, at) => (at === seat.at ? id : held)))
-            }}
-          />
-        ) : (
-          <p className="border border-edge bg-sunken p-3 text-sm text-dim">This instance seats nobody you can play yet.</p>
-        )}
-        {opponents.length ? <SeatMatchup seats={seats} labelFor={(seat) => seatLabel(seatedIn(seat), labels, opponents)} /> : null}
-        {create.error || opponentQuery.error ? (
-          <p className="text-sm text-destructive">{errorMessage(create.error ?? opponentQuery.error)}</p>
-        ) : null}
-        <DialogFooter>
-          <Button variant="outline" disabled={create.isPending} onClick={() => changeOpen(false)}>
-            Cancel
-          </Button>
-          <Button disabled={!seated || opponentQuery.isPending || create.isPending} onClick={() => create.mutate()}>
-            {create.isPending ? 'Creating…' : 'Create battle'}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <div className="flex flex-wrap gap-2">
+      <Button variant="outline" nativeButton={false} render={<Link to="/leagues" />}>
+        League battle
+      </Button>
+      <Dialog open={open} onOpenChange={changeOpen}>
+        <DialogTrigger render={<Button />}>New casual battle</DialogTrigger>
+        <DialogContent className="max-h-[85dvh] w-[calc(100%-2rem)] overflow-y-auto rounded-none border-edge bg-panel p-4 sm:max-w-md">
+          {leagueMatches.length ? (
+            <>
+              <DialogHeader>
+                <DialogTitle className="text-xl uppercase">League battle available</DialogTitle>
+                <DialogDescription>
+                  Start from the league to attach every sealed roster and add the battle to its event history.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-2">
+                {leagueMatches.map((match) => (
+                  <Button
+                    key={match.eventToken}
+                    className="w-full justify-between"
+                    onClick={() =>
+                      navigate({
+                        to: '/leagues/$token',
+                        params: { token: match.token },
+                        search: { event: match.eventToken, start: true },
+                      })
+                    }
+                  >
+                    <span className="truncate">{match.name}</span>
+                    <span className="shrink-0 text-xs">Event {match.eventNumber}</span>
+                  </Button>
+                ))}
+              </div>
+              {create.error ? <p className="text-sm text-destructive">{errorMessage(create.error)}</p> : null}
+              <DialogFooter>
+                <Button variant="outline" disabled={create.isPending} onClick={() => setLeagueMatches([])}>
+                  Go back
+                </Button>
+                <Button variant="outline" disabled={create.isPending} onClick={() => create.mutate(true)}>
+                  {create.isPending ? 'Creating…' : 'Start casual instead'}
+                </Button>
+              </DialogFooter>
+            </>
+          ) : (
+            <>
+              <DialogHeader>
+                <DialogTitle className="text-xl uppercase">Start a casual battle</DialogTitle>
+                <DialogDescription>Choose who is playing. A practice opponent needs no friend and no second device.</DialogDescription>
+              </DialogHeader>
+              <div>
+                <Choice
+                  label="Table shape"
+                  value={shape}
+                  options={TABLE_SHAPES.map((candidate) => ({ value: candidate, ...TABLE_SHAPE_LABELS[candidate] }))}
+                  columns={3}
+                  onChange={(next) => {
+                    changeIntent()
+                    setShape(next)
+                  }}
+                />
+                <p className="mt-1.5 text-xs text-dim">{SEATING[shape]}.</p>
+              </div>
+              {shape === '2v1' ? (
+                <Choice
+                  label="Your role"
+                  value={soloPairRole}
+                  options={[
+                    { value: 'solo', name: 'I’m solo', detail: 'Face two opponents' },
+                    { value: 'pair', name: 'I’m on the pair', detail: 'Bring an ally' },
+                  ]}
+                  columns={2}
+                  onChange={(role) => {
+                    changeIntent()
+                    setSoloPairRole(role)
+                  }}
+                />
+              ) : null}
+              {opponentQuery.isPending ? (
+                <p className="border border-edge bg-sunken p-3 text-sm text-dim">Loading players…</p>
+              ) : opponentQuery.error ? null : opponents.length ? (
+                <SeatRows
+                  idPrefix="battle"
+                  seats={seats}
+                  seatedIn={seatedIn}
+                  groupsFor={(_seat, taken) => seatOptions(opponents, labels, taken)}
+                  onPick={(seat, id) => {
+                    changeIntent()
+                    if (seat.side === 'yours') return setAllyId(id)
+                    setTheirIds((current) => current.map((held, at) => (at === seat.at ? id : held)))
+                  }}
+                />
+              ) : (
+                <p className="border border-edge bg-sunken p-3 text-sm text-dim">This instance seats nobody you can play yet.</p>
+              )}
+              {opponents.length ? <SeatMatchup seats={seats} labelFor={(seat) => seatLabel(seatedIn(seat), labels, opponents)} /> : null}
+              {create.error || opponentQuery.error ? (
+                <p className="text-sm text-destructive">{errorMessage(create.error ?? opponentQuery.error)}</p>
+              ) : null}
+              <DialogFooter>
+                <Button variant="outline" disabled={create.isPending} onClick={() => changeOpen(false)}>
+                  Cancel
+                </Button>
+                <Button disabled={!seated || opponentQuery.isPending || create.isPending} onClick={() => create.mutate(false)}>
+                  {create.isPending ? 'Checking…' : 'Create casual battle'}
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
   )
 }

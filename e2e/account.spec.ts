@@ -8,7 +8,7 @@ import { befriend, createBattle, createRoster, signUp, uniqueName, waitForRoster
  */
 test('a battle cannot be opened without an account', async ({ page }) => {
   await page.goto('/battles')
-  await expect(page.getByRole('button', { name: 'New battle' })).toBeHidden()
+  await expect(page.getByRole('button', { name: 'New casual battle' })).toBeHidden()
   await expect(page.getByRole('link', { name: 'Sign in' }).first()).toBeVisible()
 })
 

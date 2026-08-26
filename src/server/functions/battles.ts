@@ -4,7 +4,15 @@ import { app } from '../app'
 import { currentUserId, requireUser, requireUserId } from '../playerSession'
 import { rosterForUse } from '../rosterUsage'
 import { mutationRpc, rpc } from '../rpc'
-import { battlesPageSchema, createBattleSchema, deleteBattleSchema, submitSchema, tokenSchema, userSchema } from '../schemas'
+import {
+  battlesPageSchema,
+  createBattleSchema,
+  deleteBattleSchema,
+  leagueBattleOptionsSchema,
+  submitSchema,
+  tokenSchema,
+  userSchema,
+} from '../schemas'
 
 async function orNull<T>(work: () => Promise<T>) {
   try {
@@ -54,6 +62,15 @@ export const openBattle = createServerFn({ method: 'GET' })
     rpc(async () => {
       const userId = await currentUserId()
       return orNull(() => app().service.screen(data.token, userId, app().rules()))
+    }),
+  )
+
+export const leagueBattleOptions = createServerFn({ method: 'GET' })
+  .validator(leagueBattleOptionsSchema)
+  .handler(({ data }) =>
+    rpc(async () => {
+      const player = await requireUser()
+      return app().service.leagueBattleOptions(player.id, data)
     }),
   )
 

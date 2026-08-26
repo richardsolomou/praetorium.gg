@@ -4,6 +4,7 @@ import {
   createLeagueBattleSchema,
   createLeagueEventSchema,
   createLeagueSchema,
+  leagueBattleOptionsSchema,
   savedRosterDatasheetSchema,
   submitSchema,
   updateLeagueSchema,
@@ -14,6 +15,15 @@ describe('battle creation input', () => {
     expect(createBattleSchema.parse({ opponentId: 'bob' })).toEqual({
       opponentId: 'bob',
       missionPackId: null,
+      casual: false,
+    })
+  })
+
+  it('requires an explicit casual confirmation to bypass a league match', () => {
+    expect(createBattleSchema.parse({ opponentId: 'bob', casual: true }).casual).toBe(true)
+    expect(leagueBattleOptionsSchema.parse({ opponentIds: ['bob', 'carol'], allyId: 'dave' })).toEqual({
+      opponentIds: ['bob', 'carol'],
+      allyId: 'dave',
     })
   })
 
