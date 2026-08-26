@@ -28,6 +28,7 @@ const token = id
 const catalogueId = id
 const slug = z.string().min(1).max(160)
 const rosterLimit = z.number().int().min(0).max(10_000)
+const battlesCursor = z.object({ activity: z.number().int().min(0), id })
 
 export const tokenSchema = z.object({ token })
 const leagueFields = {
@@ -100,6 +101,7 @@ export const assignLeagueTeamSchema = z.object({
     .refine((ids) => new Set(ids).size === ids.length, 'choose different entrants'),
 })
 export const leagueRosterSchema = z.object({ token, eventToken: token.optional(), userId: id })
+export const leagueBattlesSchema = z.object({ token, eventToken: token, before: battlesCursor.nullable().default(null) })
 export const createLeagueBattleSchema = z.object({
   token,
   eventToken: token.optional(),
@@ -136,10 +138,7 @@ export const createBattleSchema = z
   .refine((value) => !value.allyId || Boolean(value.opponentIds?.length || value.opponentId), 'an ally needs someone to play against')
 export const deleteBattleSchema = z.object({ token })
 export const battlesPageSchema = z.object({
-  before: z
-    .object({ activity: z.number().int().min(0), id })
-    .nullable()
-    .default(null),
+  before: battlesCursor.nullable().default(null),
 })
 export const userSchema = z.object({ userId: id })
 export const friendSchema = z.object({ userId: id })

@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { CalendarPlus, Check, Eye, FileLock2, LockKeyhole, ShieldCheck, Swords, UserPlus, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
@@ -23,6 +23,8 @@ import {
   battlesQuery,
   factionIndexQuery,
   gameReferencesQuery,
+  leagueBattlesFrom,
+  leagueBattlesQuery,
   leagueQuery,
   leaguesQuery,
   meQuery,
@@ -44,6 +46,7 @@ import { TABLE_SHAPE_LABELS, type TableShape } from '../../../core/tableShape'
 import { seatedPlayers, seatsFor, type Seat } from '../../seats'
 import { SeatMatchup, SeatRows, seatLabel, seatOption } from '../Seats'
 import { RosterSummary } from '../rosters/RosterSummary'
+import { BattleShelf } from '../battles/BattleShelf'
 import { LeaguePageActions } from './LeagueActions'
 import { LeagueEventRuleFields, type LeagueEventRuleValue } from './LeagueEventRuleFields'
 
@@ -52,6 +55,10 @@ export function LeaguePage({ token, eventToken }: { token: string; eventToken?: 
   const navigate = useNavigate()
   const { data: me } = useQuery(meQuery())
   const { data: league } = useQuery(leagueQuery(token, eventToken))
+  const battleHistory = useInfiniteQuery({
+    ...leagueBattlesQuery(token, league?.eventToken ?? ''),
+    enabled: Boolean(league?.revealedAt && league.eventToken),
+  })
   useEffect(() => {
     if (league === null) void navigate({ to: '/leagues' })
   }, [league, navigate])
@@ -151,6 +158,7 @@ export function LeaguePage({ token, eventToken }: { token: string; eventToken?: 
     setChoosing(false)
   }
   if (!league) return null
+  const eventBattles = leagueBattlesFrom(battleHistory.data)
   const isOwner = me?.id === league.ownerId
   const ownEntry = league.entries.find((entry) => entry.userId === me?.id)
   const accepted = league.entries.filter((entry) => entry.status === 'accepted')
@@ -416,6 +424,34 @@ export function LeaguePage({ token, eventToken }: { token: string; eventToken?: 
               <p className="mt-1 text-sm text-dim">Share this page to open registration.</p>
             </div>
           )}
+
+          {league.revealedAt ? (
+            <div className="mt-5">
+              {eventBattles.length ? (
+                <>
+                  <BattleShelf title="Battles" battles={eventBattles} />
+                  {battleHistory.hasNextPage ? (
+                    <Button
+                      className="mt-3 w-full"
+                      variant="outline"
+                      disabled={battleHistory.isFetchingNextPage}
+                      onClick={() => battleHistory.fetchNextPage()}
+                    >
+                      {battleHistory.isFetchingNextPage ? 'Loading…' : 'Show more battles'}
+                    </Button>
+                  ) : null}
+                </>
+              ) : battleHistory.isPending ? (
+                <div className="border border-dashed border-edge bg-panel px-5 py-7 text-center text-sm text-dim">Loading battles…</div>
+              ) : (
+                <div className="border border-dashed border-edge bg-panel px-5 py-7 text-center">
+                  <Swords className="mx-auto size-7 text-faint" />
+                  <p className="mt-3 font-bold uppercase">No battles yet</p>
+                  <p className="mt-1 text-sm text-dim">Battles started from this event will appear here for live viewing and review.</p>
+                </div>
+              )}
+            </div>
+          ) : null}
         </section>
 
         <aside className="space-y-3">

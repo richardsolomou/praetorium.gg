@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import type { ReportEntry } from '../../core/battleReport'
 import { formatTime } from '../dates'
 import { reportQuery } from '../queries'
 
@@ -28,8 +29,19 @@ const WINDOW = 100
  * so this is a rendering of it. Newest first, and windowed, because it grows all
  * game and the page refetches on every change.
  */
-export function Report({ token, open, players = NO_PLAYERS }: { token: string; open: boolean; players?: readonly ReportPlayer[] }) {
-  const { data: entries } = useQuery(reportQuery(token, open))
+export function Report({
+  token,
+  open,
+  players = NO_PLAYERS,
+  entries: suppliedEntries,
+}: {
+  token: string
+  open: boolean
+  players?: readonly ReportPlayer[]
+  entries?: readonly ReportEntry[]
+}) {
+  const { data: fetchedEntries } = useQuery(reportQuery(token, open && suppliedEntries === undefined))
+  const entries = suppliedEntries ?? fetchedEntries
   const [filter, setFilter] = useState<'all' | 'cp'>('all')
   const [shownCount, setShownCount] = useState(WINDOW)
   const filtered = (filter === 'cp' ? (entries ?? []).filter(isCommandPointEntry) : (entries ?? [])).toReversed()
@@ -53,18 +65,21 @@ export function Report({ token, open, players = NO_PLAYERS }: { token: string; o
         <ToggleGroupItem value="all">All</ToggleGroupItem>
         <ToggleGroupItem value="cp">CP only</ToggleGroupItem>
       </ToggleGroup>
-      <div className="mt-3 h-96 overflow-y-auto pr-1">
+      <div className="mt-3 h-96 overflow-x-hidden overflow-y-auto pr-1">
         {visible.length ? (
           <ol className="w-full space-y-1">
             {visible.map((entry) => (
-              <li key={entry.seq} className="flex w-full gap-3 text-sm">
-                <span className="readout w-20 shrink-0 text-right text-xs text-dim">
+              <li
+                key={entry.seq}
+                className="grid w-full grid-cols-[3.5rem_minmax(0,1fr)] gap-2 text-sm sm:grid-cols-[5rem_minmax(0,1fr)] sm:gap-3"
+              >
+                <span className="readout text-right text-xs text-dim">
                   {formatTime(entry.at)}
                   <span className="block text-[0.625rem] text-faint">
                     {entry.round ? `R${entry.round}` : '—'} {PHASE_LABELS[entry.phase] ?? entry.phase}
                   </span>
                 </span>
-                <span className="min-w-0 flex-1 text-bone">{colourNames(entry.text, players)}</span>
+                <span className="min-w-0 break-words text-bone">{colourNames(entry.text, players)}</span>
               </li>
             ))}
             {hidden > 0 ? (
@@ -116,7 +131,7 @@ function colourNames(text: string, players: readonly ReportPlayer[]) {
     typeof part === 'string' ? (
       part
     ) : (
-      <span key={part.key} className={`font-semibold ${part.className}`}>
+      <span key={part.key} className={`break-all font-semibold ${part.className}`}>
         {part.name}
       </span>
     ),
