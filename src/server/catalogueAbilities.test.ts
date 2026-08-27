@@ -153,7 +153,7 @@ describe('the abilities and wargear a datasheet lists', () => {
           selectionEntryGroups: [
             {
               id: 'enhancements',
-              name: 'Enhancements',
+              name: 'Subversion Assets Enhancements',
               entryLinks: [{ id: 'selected-upgrade', name: 'Death in the Dark', type: 'selectionEntry', targetId: 'upgrade' }],
             },
           ],

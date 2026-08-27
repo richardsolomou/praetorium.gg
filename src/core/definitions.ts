@@ -19,7 +19,7 @@ import {
   targetOf,
 } from './catalogue'
 import { isCollectiveGroup } from './collective'
-import { type EvaluateOptions, selectionCountBounds } from './evaluate'
+import { type EvaluateOptions, flattenedModifiers, selectionCountBounds } from './evaluate'
 
 export { isCollective, isCollectiveGroup, scaleOf } from './collective'
 
@@ -66,6 +66,18 @@ export function requiredCount(definition: Definition, index: CatalogueIndex, opt
     .filter(isSelectionMinimum)
     .map((constraint) => constraint.value)
   return minimums.length ? Math.max(...minimums) : 0
+}
+
+export function hasMutableMinimum(definition: Definition, index: CatalogueIndex): boolean {
+  const minimums = new Set(
+    constraintsOn(definition, index)
+      .filter(isSelectionMinimum)
+      .map((constraint) => constraint.id),
+  )
+  const target = resolve(definition, index)
+  return flattenedModifiers([definition, ...(target === definition ? [] : [target])]).some(
+    (modifier) => minimums.has(modifier.field) && ['set', 'increment', 'decrement'].includes(modifier.type),
+  )
 }
 
 /** What the entry says about itself, plus what the link's target says, without repeating either. */

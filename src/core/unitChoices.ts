@@ -10,6 +10,7 @@ import type { CatalogueIndex, Definition } from './catalogue'
 import {
   childrenOf,
   exclusiveSets,
+  hasMutableMinimum,
   isRosterToggle,
   MAX_DEPTH,
   maximumCount,
@@ -187,7 +188,9 @@ export function unitChoices(entryId: string, selection: Selection, index: Catalo
         const capacity = maximumCount(child.definition, index)
         const room = capacity === null ? occupantRoom(choosable, index) : capacity * scale
         const fixed = choosable.some((option) => minimum(option.definition) > 0)
-        const adjustable = fixed ? choosable.filter((option) => minimum(option.definition) === 0) : choosable
+        const adjustable = fixed
+          ? choosable.filter((option) => minimum(option.definition) === 0 || hasMutableMinimum(option.definition, index))
+          : choosable
         const held = repeating
           ? repeatedOptions(selection, repeating.path, here.slice(repeating.path.length))
           : allAt(selection, here).flatMap((group) => group.selections ?? [])
@@ -344,7 +347,7 @@ function legalMaximum(
     if (other) counts[other.id] = room - count
     const candidate = withSpread(selection, path.join('/'), counts)
     const result = evaluate([...(context.roster ?? []), candidate], index, { primaryCatalogueId: context.primaryCatalogueId })
-    if (result.errors.some((error) => error.entryId === targetId && error.message.startsWith('allows at most'))) return count - 1
+    if (result.errors.some((error) => error.entryId === targetId)) return count - 1
   }
   return room
 }
