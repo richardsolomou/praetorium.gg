@@ -26,7 +26,7 @@ export function uniqueName(base: string) {
 }
 
 /** Retries interactions that can reach server-rendered controls before hydration. */
-async function retryUntilVisible(outcome: Locator, action: () => Promise<void>) {
+export async function retryUntilVisible(outcome: Locator, action: () => Promise<void>) {
   await expect(async () => {
     if (await outcome.isVisible()) return
     await action()
