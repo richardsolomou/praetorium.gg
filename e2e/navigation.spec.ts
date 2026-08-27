@@ -187,6 +187,7 @@ test('account libraries share their page width and fit a phone', async ({ page }
   const widths: number[] = []
   for (const path of ['/rosters', '/battles', '/friends']) {
     await page.goto(path)
+    if (path === '/rosters') await expect(page.getByLabel('Loading roster count')).toHaveCount(0)
     widths.push((await page.locator('main').boundingBox())?.width ?? 0)
   }
   expect(new Set(widths).size).toBe(1)
