@@ -103,7 +103,7 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
   const [exportText, setExportText] = useState<string | null>(null)
   const workspacePath = `/rosters/${initial.id}`
   const [setupDraft, setSetupDraftState] = useState<RosterSetup | null>(null)
-  const [wideWorkspace, setWideWorkspace] = useState(false)
+  const [wideWorkspace, setWideWorkspace] = useState(true)
   const [pickerQuery, setPickerQuery] = useState('')
   const [pickerFilters, setPickerFilters] = useState<Set<PickerFilter>>(new Set())
   const editingSetup = setupDraft !== null

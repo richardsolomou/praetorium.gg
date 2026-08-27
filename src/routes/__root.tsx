@@ -178,6 +178,7 @@ function Account() {
 }
 
 function PrimaryNavigation({ path }: { path: string }) {
+  const { data: me } = useQuery(meQuery())
   const [open, setOpen] = useState(false)
   const root = useRef<HTMLDivElement>(null)
   const trigger = useRef<HTMLButtonElement>(null)
@@ -226,6 +227,7 @@ function PrimaryNavigation({ path }: { path: string }) {
       >
         <Link
           to="/rosters"
+          preload={me ? 'render' : 'intent'}
           className={linkClass}
           activeProps={{ className: 'border-parchment bg-raised text-parchment min-[815px]:bg-transparent' }}
         >

@@ -1,6 +1,24 @@
 import { expect, test } from '@playwright/test'
 import { createRoster, signUp, uniqueName, waitForRosterSave } from './account'
 
+test('the roster library is ready before its first navigation', async ({ page }) => {
+  await signUp(page, 'Preload')
+  const rosterName = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Prefetched roster' })
+  let rosterPreloaded = false
+  await page.route('**/_serverFn/**', async (route) => {
+    const response = await route.fetch()
+    const body = await response.body()
+    if (body.toString().includes(rosterName)) rosterPreloaded = true
+    await route.fulfill({ response, body })
+  })
+
+  await page.goto('/')
+  await expect.poll(() => rosterPreloaded, { timeout: 2_000 }).toBe(true)
+  await page.getByRole('link', { name: 'Rosters', exact: true }).click()
+  await expect(page.locator(`[data-roster="${rosterName}"]`)).toBeVisible()
+  await page.screenshot({ path: 'test-results/first-roster-library-navigation.png', fullPage: true })
+})
+
 /**
  * A list kept between battles. What is stored is the picks, so loading it re-prices
  * against the catalogue the instance currently holds — which is what a player

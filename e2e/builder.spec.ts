@@ -46,13 +46,25 @@ test('the unit picker stays within the roster faction', async ({ page }) => {
   await expect(page.getByRole('combobox', { name: 'Force' })).toHaveCount(0)
 })
 
-test('the roster workspace arrives with the desktop picker ready', async ({ page }) => {
+test('the roster workspace arrives with the desktop picker ready', async ({ browser, page }) => {
   await openBuilder(page)
   await page.getByLabel('Add a unit').fill('Immortals')
   await waitForRosterSave(page, () => page.getByRole('button', { name: 'Add Immortals', exact: true }).first().click())
   await expect(page.locator('[data-unit="Immortals"]')).toBeVisible()
   await page.getByLabel('Add a unit').fill('')
   await expect(page.getByRole('button', { name: 'Add Lychguard', exact: true }).first()).toBeVisible()
+
+  const serverContext = await browser.newContext({
+    javaScriptEnabled: false,
+    storageState: await page.context().storageState(),
+    viewport: { width: 1440, height: 900 },
+  })
+  const serverPage = await serverContext.newPage()
+  await serverPage.goto(page.url())
+  await expect(serverPage.getByLabel('Add units')).toBeVisible()
+  await expect(serverPage.getByRole('button', { name: 'Add Lychguard', exact: true }).first()).toBeVisible()
+  await serverPage.screenshot({ path: 'test-results/server-rendered-roster-workspace.png', fullPage: true })
+  await serverContext.close()
 
   const clientUnitRequests: string[] = []
   page.on('request', (request) => {
