@@ -1,5 +1,23 @@
 # praetorium
 
+## 0.41.0
+
+### Minor Changes
+
+- ea4c473: Complete native social sign-in and let players delete their accounts.
+
+## 0.40.4
+
+### Patch Changes
+
+- 392b01a: Collapse a weapon's firing modes and casing variants to one search result, so a match chip names the weapon you searched.
+
+## 0.40.3
+
+### Patch Changes
+
+- add6272: Speed up roster pricing so the list builder responds faster on each edit.
+
 ## 0.40.2
 
 ### Patch Changes

@@ -1,6 +1,6 @@
 {
   "name": "praetorium.gg",
-  "version": "0.40.2",
+  "version": "0.41.0",
   "private": true,
   "description": "Live Warhammer 40,000 battle tracking: two players, one authoritative command log, no conflicts.",
   "license": "AGPL-3.0-only",

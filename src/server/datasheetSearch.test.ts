@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { matchDatasheet } from './datasheetSearch'
+import { dedupeWeapons, matchDatasheet } from './datasheetSearch'
 
 const fields = {
   name: 'Technomancer',
@@ -108,6 +108,13 @@ describe('datasheet search', () => {
       { kind: 'keyword', value: 'Alpha beta gamma delta' },
       { kind: 'ability', value: 'Alpha beta epsilon' },
       { kind: 'weapon', value: 'Gamma delta zeta' },
+    ])
+  })
+
+  it('collapses firing modes and casing variants to the first printed weapon name', () => {
+    expect(dedupeWeapons(['➤ Plasma pistol - Standard', '➤ Plasma pistol - Supercharge', 'Power Fist', 'Power fist'])).toEqual([
+      '➤ Plasma pistol - Standard',
+      'Power Fist',
     ])
   })
 

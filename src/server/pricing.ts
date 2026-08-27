@@ -13,7 +13,7 @@ import { evaluate, evaluateForces, keywordIdsBySelection, type Selection } from 
 import { type ModelKind, modelKindsOf, modelRowCount, modelRowSources, optionWargear } from '../core/modelKinds'
 import { buildUnit } from '../core/roster'
 import { allAt } from '../core/selection'
-import { type ChoiceOptions, isUnitCompositionChoice, unitChoices } from '../core/unitChoices'
+import { type ChoiceOptions, isUnitCompositionChoice, type UnitChoice, unitChoices } from '../core/unitChoices'
 import { withUnitSpread } from '../core/unitSpread'
 import { wargearKey, wargearOf } from '../core/wargear'
 import { app } from './app'
@@ -65,6 +65,9 @@ type ReplacementChoice = {
 type ReplacementSource = { choiceKey: string; optionId: string }
 
 const replacementKey = ({ choiceKey, optionId }: ReplacementSource) => `${choiceKey}\0${optionId}`
+
+/** A malformed catalogue choice must not make the whole roster impossible to price. */
+export const choiceOptionsForPricing = (choice: { options?: UnitChoice['options'] }) => choice.options ?? []
 
 function legalReplacementPairs(
   entryId: string,
@@ -148,13 +151,13 @@ export function calculateRosterPoints(data: PriceInput) {
   return evaluateForces([...forceSelections.values()], loaded.index, { primaryCatalogueId: data.catalogueId }).points
 }
 
-export function calculateRosterPrice(data: PriceInput, loaded = app().catalogue()) {
+export function calculateRosterPrice(data: PriceInput, loaded = app().catalogue(), loadedRules = app().rules()) {
   if (!loaded) return null
 
   const { chosen, selections: detachmentSelection } = rosterDetachments(loaded, data.catalogueId, data.detachmentIds)
   // Enhancements and unit limits can depend on the detachment already being in
   // the roster when units are expanded.
-  const rules = app().rules()
+  const rules = loadedRules
   const factionSlug = routeSlug(loaded.index.catalogues.get(data.catalogueId)?.name ?? '')
   const references = rules?.detachmentReferences.get(rulesFaction(rules, factionSlug))
   const allowedDispositions = [
@@ -201,6 +204,18 @@ export function calculateRosterPrice(data: PriceInput, loaded = app().catalogue(
     return keywords
   }
   const keywordsFor = (catalogueId: string, at: number) => keywordMatrixFor(catalogueId)[at] ?? []
+  // Model kinds are the dear part of a unit's projection, and the price reads them
+  // twice: once to find units the catalogue composes itself, and once to draw each
+  // unit's card. Project each unit once and keep the result for the request.
+  const modelKindsByUnit = new Map<(typeof picked)[number], ModelKind[]>()
+  const modelKindsFor = (unit: (typeof picked)[number]) => {
+    let kinds = modelKindsByUnit.get(unit)
+    if (!kinds) {
+      kinds = modelKindsOf(unit.entryId, unit.selection, loaded.index, options)
+      modelKindsByUnit.set(unit, kinds)
+    }
+    return kinds
+  }
   const whole = evaluateForces(forces, loaded.index, options)
   const selectionPoints = new Map<Selection, number>()
   forces.forEach((force, forceAt) =>
@@ -243,7 +258,7 @@ export function calculateRosterPrice(data: PriceInput, loaded = app().catalogue(
    */
   const composedByCatalogue = new Map<string, string>()
   for (const unit of picked) {
-    if (modelKindsOf(unit.entryId, unit.selection, loaded.index, options).length) continue
+    if (modelKindsFor(unit).length) continue
     const composed = buildUnit(unit.entryId, loaded.index, unit.size.models, undefined, {
       primaryCatalogueId: data.catalogueId,
       roster: detachmentSelection,
@@ -322,7 +337,7 @@ export function calculateRosterPrice(data: PriceInput, loaded = app().catalogue(
         }),
       )
       const describedChoices: ((typeof unit.choices)[number] & { kind?: 'enhancement' | 'upgrade' })[] = unit.choices.map((choice) => {
-        const choiceOptions = (choice.options ?? []).map((option) => {
+        const choiceOptions = choiceOptionsForPricing(choice).map((option) => {
           const path = choice.key.split('/')
           const nested = allAt(unit.selection, [...path, option.id])
           const direct = allAt(unit.selection, path).filter((selection) => selection.id === option.id)
@@ -345,7 +360,7 @@ export function calculateRosterPrice(data: PriceInput, loaded = app().catalogue(
       })
       const catalogued = wargearOf(unit.selection, loaded.index)
       const automaticEnhancements = catalogued.filter((piece) => enhancementNames.has(routeSlug(piece.name))).map((piece) => piece.name)
-      const models = modelKindsOf(unit.entryId, unit.selection, loaded.index, options)
+      const models = modelKindsFor(unit)
       const replacementPairs = legalReplacementPairs(unit.entryId, unit.selection, describedChoices, models, loaded.index, {
         ...options,
         roster: detachmentSelection,

@@ -1,3 +1,19 @@
+import { wargearKey } from '../core/wargear'
+
+/**
+ * One entry per weapon, keyed by base name so firing modes (`- Standard`) and
+ * casing variants collapse to a single index entry. The first printed name is
+ * kept as the stored value, since a match reason chip is shown to the player.
+ */
+export function dedupeWeapons(names: string[]): string[] {
+  const seen = new Map<string, string>()
+  for (const name of names) {
+    const key = wargearKey(name)
+    if (!seen.has(key)) seen.set(key, name)
+  }
+  return [...seen.values()]
+}
+
 export type DatasheetSearchFields = {
   name: string
   keywords: string[]

@@ -155,6 +155,28 @@ test('a player can edit their display name and profile picture', async ({ page }
   await expect(page.locator('main img')).toHaveCount(0)
 })
 
+test('a player can permanently delete their account', async ({ page }) => {
+  await signUp(page, uniqueName('DeleteAccount'))
+  await page.goto('/profile')
+
+  await page.getByRole('button', { name: 'Delete account' }).click()
+  const dialog = page.getByRole('dialog', { name: 'Delete your account' })
+  await expect(dialog).toContainText('Shared battles are deleted too')
+  await page.screenshot({ path: 'test-results/delete-account-confirm-desktop.png', fullPage: true })
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.screenshot({ path: 'test-results/delete-account-confirm-phone.png', fullPage: true })
+
+  await dialog.getByLabel('Confirm your password').fill('a-long-enough-password')
+  await dialog.getByLabel('I understand that my account and its battles cannot be recovered.').check()
+  await dialog.getByRole('button', { name: 'Permanently delete account' }).click()
+
+  await page.waitForURL('/')
+  await expect(page.getByRole('link', { name: 'Sign in' }).first()).toBeVisible()
+  await page.goto('/profile')
+  await expect(page.getByRole('heading', { name: 'Your profile' })).toBeVisible()
+  await expect(page.getByText('Sign in to edit your profile.')).toBeVisible()
+})
+
 test('friends use the profile picture shown elsewhere', async ({ browser }) => {
   const alice = await (await browser.newContext()).newPage()
   const bob = await (await browser.newContext()).newPage()

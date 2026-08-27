@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Check, MailCheck, ShieldCheck } from 'lucide-react'
+import { Check, MailCheck, ShieldCheck, Trash2 } from 'lucide-react'
 import posthog from 'posthog-js'
 import QRCode from 'qrcode'
 import { useAuthAction } from 'ras-stack/auth/react'
@@ -12,6 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { PASSWORD_MIN_LENGTH, SOCIAL_PROVIDERS } from '../../authConfig'
 import { setOwnPassword, unlinkOwnAccount } from '../../server/functions'
 import { authClient } from '../authClient'
+import { hasNativeAuthBridge, requestNativeAuth } from '../nativeAuth'
 import { accountMethodsQuery, meQuery } from '../queries'
 import { AuthMethodIcon, SOCIAL_AUTH_PROVIDER_NAMES, type SocialAuthProvider } from './AuthMethodIcon'
 
@@ -20,7 +21,7 @@ type AccountIdentity = {
   twoFactorEnabled: boolean
 }
 
-type DialogKind = 'create-password' | 'change-password' | 'two-factor-setup' | 'two-factor-disable'
+type DialogKind = 'create-password' | 'change-password' | 'delete-account' | 'two-factor-setup' | 'two-factor-disable'
 
 export function AccountSecurity({ me }: { me: AccountIdentity }) {
   const { data: methods, isPending: methodsPending } = useQuery(accountMethodsQuery())
@@ -28,6 +29,7 @@ export function AccountSecurity({ me }: { me: AccountIdentity }) {
   const [dialog, setDialog] = useState<DialogKind>()
   const [removing, setRemoving] = useState<'credential' | SocialAuthProvider>()
   const [verificationSent, setVerificationSent] = useState(false)
+  const [linkError, setLinkError] = useState(false)
   const verifyEmail = useAuthAction()
   const linked = new Set(methods?.linked ?? [])
   const hasPassword = linked.has('credential')
@@ -177,8 +179,18 @@ export function AccountSecurity({ me }: { me: AccountIdentity }) {
                       type="button"
                       variant="outline"
                       size="sm"
-                      onClick={() => {
+                      onClick={async () => {
                         posthog.capture('sign_in_method_linking_started', { provider })
+                        setLinkError(false)
+                        if (hasNativeAuthBridge()) {
+                          const token = await authClient.oneTimeToken.generate()
+                          if (token.error || !token.data?.token) {
+                            if (token.error) posthog.captureException(token.error, { operation: 'native_auth_link_start' })
+                            setLinkError(true)
+                            return
+                          }
+                          if (requestNativeAuth({ action: 'link', provider, next: '/profile', sessionToken: token.data.token })) return
+                        }
                         void authClient.linkSocial({ provider, callbackURL: '/profile', errorCallbackURL: '/profile' })
                       }}
                     >
@@ -188,8 +200,26 @@ export function AccountSecurity({ me }: { me: AccountIdentity }) {
                 }
               />
             ))}
+            {linkError ? (
+              <p role="alert" className="text-sm text-destructive">
+                Secure provider linking could not start. Try again.
+              </p>
+            ) : null}
           </div>
         ) : null}
+      </section>
+
+      <section className="border border-destructive/40 bg-panel p-5 md:p-7 lg:col-span-2">
+        <p className="rubric border-b border-edge pb-2 text-destructive">Delete account</p>
+        <div className="mt-4 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-base">Permanently delete your Praetorium account</h2>
+            <p className="mt-1 text-sm text-dim">This removes your rosters, friendships, leagues and every battle you participated in.</p>
+          </div>
+          <Button type="button" variant="destructive" disabled={!methods} onClick={() => setDialog('delete-account')}>
+            <Trash2 /> Delete account
+          </Button>
+        </div>
       </section>
 
       {dialog === 'create-password' ? (
@@ -231,6 +261,15 @@ export function AccountSecurity({ me }: { me: AccountIdentity }) {
           />
         </AccountDialog>
       ) : null}
+      {dialog === 'delete-account' ? (
+        <AccountDialog
+          title="Delete your account"
+          description="This cannot be undone. Shared battles are deleted too, because their command logs cannot remain valid without every participant."
+          onClose={() => setDialog(undefined)}
+        >
+          <DeleteAccountForm hasPassword={hasPassword} />
+        </AccountDialog>
+      ) : null}
       {removing ? (
         <RemoveMethodDialog
           method={removing}
@@ -259,6 +298,69 @@ function AccountMethodsSkeleton() {
         </div>
       ))}
     </div>
+  )
+}
+
+function DeleteAccountForm({ hasPassword }: { hasPassword: boolean }) {
+  const [password, setPassword] = useState('')
+  const [confirmed, setConfirmed] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+
+  return (
+    <form
+      className="space-y-4"
+      onSubmit={async (event) => {
+        event.preventDefault()
+        setBusy(true)
+        setError('')
+        const result = await authClient.deleteUser(hasPassword ? { password } : {})
+        if (result.error) {
+          posthog.captureException(result.error, { operation: 'account_delete' })
+          setError(
+            hasPassword
+              ? 'The account was not deleted. Check your password and try again.'
+              : 'The account was not deleted. Sign out, sign in again, then retry while the session is fresh.',
+          )
+          setBusy(false)
+          return
+        }
+        posthog.capture('account_deleted')
+        posthog.reset()
+        window.location.assign('/')
+      }}
+    >
+      {hasPassword ? (
+        <div className="space-y-2">
+          <Label htmlFor="delete-account-password">Confirm your password</Label>
+          <Input
+            id="delete-account-password"
+            type="password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            autoComplete="current-password"
+            required
+          />
+        </div>
+      ) : (
+        <p className="text-sm text-dim">Your recent Google or Discord sign-in confirms this request.</p>
+      )}
+      <label className="flex items-start gap-3 text-sm text-dim">
+        <input
+          type="checkbox"
+          className="mt-0.5 size-4 accent-destructive"
+          checked={confirmed}
+          onChange={(event) => setConfirmed(event.target.checked)}
+        />
+        <span>I understand that my account and its battles cannot be recovered.</span>
+      </label>
+      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      <DialogFooter className="rounded-none border-edge bg-sunken">
+        <Button type="submit" variant="destructive" disabled={busy || !confirmed || (hasPassword && !password)}>
+          {busy ? 'Deleting…' : 'Permanently delete account'}
+        </Button>
+      </DialogFooter>
+    </form>
   )
 }
 
