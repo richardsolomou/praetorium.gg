@@ -93,6 +93,13 @@ export function unitWoundsIn(loaded: LoadedCatalogue, catalogueId: string, entry
 
 type AbilityKind = 'core' | 'faction' | 'datasheet' | 'rule' | 'upgrade' | 'wargear'
 
+/** The keywords a weapon profile prints as one comma-joined characteristic, none where it prints a dash. */
+export const weaponKeywordsOf = (value: string | undefined) =>
+  (value ?? '')
+    .split(',')
+    .map((keyword) => keyword.trim())
+    .filter((keyword) => keyword && keyword !== '-' && keyword !== '—')
+
 type DatasheetContext = {
   selections: readonly Selection[]
   unitSelectionIndex?: number
@@ -148,11 +155,8 @@ function searchableProfilesIn(loaded: LoadedCatalogue, catalogueId: string, entr
     if (profile.typeName !== 'Ranged Weapons' && profile.typeName !== 'Melee Weapons') return
     weapons.add(profile.name)
     for (const characteristic of profile.characteristics ?? []) {
-      if (characteristic.name?.trim().toLocaleLowerCase() !== 'keywords' || !characteristic.$text) continue
-      characteristic.$text.split(',').forEach((keyword) => {
-        const name = keyword.trim()
-        if (name && name !== '-' && name !== '—') weaponKeywords.add(name)
-      })
+      if (characteristic.name?.trim().toLocaleLowerCase() !== 'keywords') continue
+      for (const keyword of weaponKeywordsOf(characteristic.$text)) weaponKeywords.add(keyword)
     }
   }
   const addRule = (link: InfoLink, searchable = true) => {

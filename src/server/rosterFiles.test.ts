@@ -172,6 +172,7 @@ const faction: CatalogueFile = {
 const loaded: LoadedCatalogue = {
   index: buildIndex([system, faction], 'test-revision'),
   characteristicNames: new Map(),
+  datacards: { factions: new Map(), detachmentRules: new Map(), enhancements: new Map(), stratagems: new Map(), armyRules: new Map() },
   factions: [{ id: 'necrons', name: 'Xenos - Necrons', references: [] }],
   detachments: new Map([
     [

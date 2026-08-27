@@ -154,7 +154,14 @@ export function loadFactions(core: string, iconDirectory: string, datacards: Loa
       const rawDetachments = readJson<RawDetachment[]>(referenceFile)
       const enhancements = fs.existsSync(enhancementFile) ? readJson<RawEnhancement[]>(enhancementFile) : []
       const stratagemsOf = new Map(rawDetachments.map((detachment) => [detachment.id, detachmentStratagems(detachment, rawStratagems)]))
-      for (const [id, found] of stratagemsOf) detachments.set(id, found.map(toStratagem))
+      const cardOf = (detachment: RawDetachment, stratagem: RawStratagem) =>
+        datacards.stratagems.get(descriptionKey(detachment.name, stratagem.name))
+      for (const detachment of rawDetachments) {
+        detachments.set(
+          detachment.id,
+          (stratagemsOf.get(detachment.id) ?? []).map((raw) => toStratagem(raw, cardOf(detachment, raw)?.name)),
+        )
+      }
 
       const references = new Map(
         rawDetachments.map((detachment) => [
@@ -198,12 +205,12 @@ export function loadFactions(core: string, iconDirectory: string, datacards: Loa
             stratagems: (stratagemsOf.get(detachment.id) ?? [])
               .map((stratagem) => ({
                 id: stratagem.id,
-                name: titleCase(stratagem.name),
+                name: cardOf(detachment, stratagem)?.name ?? titleCase(stratagem.name),
                 cp: stratagem.cp_cost ?? 0,
                 type: stratagem.type ? titleCase(stratagem.type.replaceAll('-', ' ')) : null,
                 phases: stratagem.phases ?? [],
                 turn: stratagem.player_turn ?? null,
-                description: datacards.stratagems.get(descriptionKey(detachment.name, stratagem.name)) ?? null,
+                description: cardOf(detachment, stratagem)?.description ?? null,
               }))
               .toSorted(byName),
           },

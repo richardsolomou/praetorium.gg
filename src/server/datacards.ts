@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { routeSlug } from '../core/slug'
 import { catalogueFactionName } from './factionNames'
+import { titleCase } from './rulesSource'
 
 /**
  * What Game Datacards says: the shape of each datasheet, and every piece of rules
@@ -46,7 +47,8 @@ export type LoadedDatacards = {
   detachmentRules: ReadonlyMap<string, readonly RuleCard[]>
   /** By `descriptionKey`. */
   enhancements: ReadonlyMap<string, string>
-  stratagems: ReadonlyMap<string, string>
+  /** By `descriptionKey`, carrying the name as the card prints it: the rules dataset shouts. */
+  stratagems: ReadonlyMap<string, RuleCard>
   /** Every army rule by its slug, where the files agree on what it says. */
   armyRules: ReadonlyMap<string, string>
 }
@@ -67,15 +69,18 @@ type DatacardsFaction = {
   stratagems?: unknown
 }
 
-/** A card names its detachment and itself; `(Aura)` and `(Upgrade)` are printed by some sources and not others. */
-export const descriptionKey = (detachment: string, name: string) =>
-  `${routeSlug(detachment)}|${routeSlug(name).replaceAll(/-(?:aura|upgrade)(?=-|$)/g, '')}`
+/** A card's name as every source spells it: `(Aura)` and `(Upgrade)` are printed by some and not others. */
+export const cardName = (name: string) => routeSlug(name).replaceAll(/-(?:aura|upgrade)(?=-|$)/g, '')
+
+/** A card names its detachment and itself. */
+export const descriptionKey = (detachment: string, name: string) => `${routeSlug(detachment)}|${cardName(name)}`
 
 export function loadDatacards(directory: string): LoadedDatacards {
   const factions = new Map<string, FactionContent>()
   const detachmentRules = new Map<string, Map<string, Set<string>>>()
   const enhancements = new Map<string, Set<string>>()
   const stratagems = new Map<string, Set<string>>()
+  const stratagemNames = new Map<string, string>()
   const armyRules = new Map<string, Set<string>>()
   const remember = (into: Map<string, Set<string>>, key: string, text: string) => {
     const found = into.get(key) ?? new Set<string>()
@@ -110,7 +115,11 @@ export function loadDatacards(directory: string): LoadedDatacards {
       const name = localizedField(stratagem, 'name')
       const detachment = stringField(stratagem, 'detachment')
       const description = stratagemText(stratagem)
-      if (name && detachment && description) remember(stratagems, descriptionKey(detachment, name), description)
+      if (name && detachment && description) {
+        remember(stratagems, descriptionKey(detachment, name), description)
+        // A card printed entirely in lower case is a slip in the file, not how the name reads.
+        stratagemNames.set(descriptionKey(detachment, name), name === name.toLocaleLowerCase() ? titleCase(name) : name)
+      }
     }
   }
   return {
@@ -122,12 +131,10 @@ export function loadDatacards(directory: string): LoadedDatacards {
       ]),
     ),
     enhancements: unique(enhancements),
-    stratagems: unique(stratagems),
+    stratagems: new Map([...unique(stratagems)].map(([key, description]) => [key, { name: stratagemNames.get(key)!, description }])),
     armyRules: unique(armyRules),
   }
 }
-
-export const loadFactionContents = (directory: string) => loadDatacards(directory).factions
 
 const unique = (candidates: ReadonlyMap<string, Set<string>>) =>
   new Map([...candidates].flatMap(([key, texts]) => (texts.size === 1 ? [[key, texts.values().next().value!] as const] : [])))
@@ -157,9 +164,9 @@ function factionContent(name: string, parsed: DatacardsFaction): FactionContent 
       ),
     ),
     armyRules: records(parsed.rules, 'army').flatMap((card) => {
-      const cardName = localizedField(card, 'name')
+      const title = localizedField(card, 'name')
       const description = ruleText(card)
-      return cardName && description ? [{ name: cardName, description }] : []
+      return title && description ? [{ name: title, description }] : []
     }),
   }
 }

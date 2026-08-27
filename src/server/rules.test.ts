@@ -306,7 +306,8 @@ describe('stratagems', () => {
   })
 
   it('include the ones every army has', () => {
-    expect(load().core.map((stratagem) => stratagem.name)).toEqual(['Command Re-Roll', 'Insane Bravery'])
+    // Named as the card prints it where there is one; titled from the dataset's capitals where there is not.
+    expect(load().core.map((stratagem) => stratagem.name)).toEqual(['Command Re-roll', 'Insane Bravery'])
   })
 
   it('read core descriptions from the verified Game Datacards path without filling upstream gaps', () => {

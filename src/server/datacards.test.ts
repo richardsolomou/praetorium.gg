@@ -2,15 +2,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import {
-  descriptionKey,
-  factionRestrictionCoverageIssues,
-  factionRestrictions,
-  loadDatacards,
-  loadFactionContents,
-  prose,
-  restrictedBy,
-} from './datacards'
+import { descriptionKey, factionRestrictionCoverageIssues, factionRestrictions, loadDatacards, prose, restrictedBy } from './datacards'
 
 let directory: string | null = null
 
@@ -43,7 +35,7 @@ it('indexes the faction-owned datasheets and detachments', () => {
     }),
   )
 
-  expect(loadFactionContents(directory).get('dark-angels')).toEqual({
+  expect(loadDatacards(directory).factions.get('dark-angels')).toEqual({
     name: 'Dark Angels',
     datasheets: new Set(['Asmodai', 'Azrael']),
     datasheetDetails: new Map([
@@ -105,7 +97,7 @@ it('reads every structured army rule', () => {
     }),
   )
 
-  expect(loadFactionContents(directory).get('adeptus-custodes')?.armyRules).toEqual([
+  expect(loadDatacards(directory).factions.get('adeptus-custodes')?.armyRules).toEqual([
     { name: 'Martial Ka’tah', description: 'Select a stance.\n\n### Rendax Stance\n\nWeapons gain **[LETHAL HITS]**.' },
   ])
 })
@@ -125,7 +117,7 @@ it('adds dimensions to named flying bases', () => {
     }),
   )
 
-  const details = loadFactionContents(directory).get('aeldari')?.datasheetDetails
+  const details = loadDatacards(directory).factions.get('aeldari')?.datasheetDetails
   expect([details?.get('Falcon')?.baseSize, details?.get('Farseer Skyrunner')?.baseSize, details?.get('Crimson Hunter')?.baseSize]).toEqual(
     ['Large Flying Base (Ø60mm)', 'Small Flying Base (Ø32mm)', 'Aircraft Flying Base (120 × 92 mm oval)'],
   )
@@ -185,7 +177,7 @@ it('answers for a faction under the name the catalogues give it', () => {
     armyRule: 'Re-roll the Hit roll.',
     detachmentRule: [{ name: 'Combat Doctrines', description: 'Pick a doctrine.' }],
     enhancement: 'The bearer has a 2+ Save.',
-    stratagem: '**When:** Your opponent’s Shooting phase.\n\n**Effect:** Worsen the AP by 1.',
+    stratagem: { name: 'Armour of Contempt', description: '**When:** Your opponent’s Shooting phase.\n\n**Effect:** Worsen the AP by 1.' },
   })
 })
 

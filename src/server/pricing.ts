@@ -18,7 +18,7 @@ import { withUnitSpread } from '../core/unitSpread'
 import { wargearKey, wargearOf } from '../core/wargear'
 import { app } from './app'
 import { abilityNamesIn, datasheetIn, rulesReferencedIn, toughnessOf } from './catalogue'
-import { detachmentCatalogueDetail } from './catalogueDescriptions'
+import { describedEnhancements } from './catalogueDescriptions'
 import { descriptionKey, type FactionRestrictions, restrictedBy } from './datacards'
 import { groupOfEntry } from './cataloguePicker'
 import { rosterDetachments } from './rosterDetachments'
@@ -172,28 +172,9 @@ export function calculateRosterPrice(data: PriceInput, loaded = app().catalogue(
   }))
   const detachmentSpecials = chosen.map((option) => {
     const detail = rules?.detachmentDetails.get(rulesFaction(rules, factionSlug))?.get(routeSlug(option.name))
-    const named = [...(detail?.enhancements ?? []), ...(detail?.upgrades ?? [])]
-    const catalogue = detachmentCatalogueDetail(
-      loaded,
-      data.catalogueId,
-      option.id,
-      named.map((enhancement) => enhancement.name),
-    )
-    return { option, detail, named, catalogue }
+    return { option, detail, ...describedEnhancements(loaded, data.catalogueId, option, detail) }
   })
-  const enhancementDescriptions = new Map(
-    detachmentSpecials.flatMap(({ option, named, catalogue }) => [
-      ...named.flatMap((enhancement) => {
-        const description =
-          catalogue?.enhancements.find((candidate) => candidate.name.toLocaleLowerCase() === enhancement.name.toLocaleLowerCase())
-            ?.description ?? enhancement.description
-        return description ? [[descriptionKey(option.name, enhancement.name), description] as const] : []
-      }),
-      ...(catalogue?.forcedEnhancements.flatMap((enhancement) =>
-        enhancement.description ? [[descriptionKey(option.name, enhancement.name), enhancement.description] as const] : [],
-      ) ?? []),
-    ]),
-  )
+  const enhancementDescriptions = new Map(detachmentSpecials.flatMap(({ described }) => [...described]))
   const budget = detachmentPointBudget(data.limit)
   const spent = purchased.reduce((total, option) => total + (option.points ?? 0), 0)
   const upgradeNames = new Set(detachmentSpecials.flatMap(({ detail }) => detail?.upgrades.map((upgrade) => routeSlug(upgrade.name)) ?? []))
