@@ -15,6 +15,7 @@ import { authClient } from '../authClient'
 import { hasNativeAuthBridge, requestNativeAuth } from '../nativeAuth'
 import { accountMethodsQuery, meQuery } from '../queries'
 import { AuthMethodIcon, SOCIAL_AUTH_PROVIDER_NAMES, type SocialAuthProvider } from './AuthMethodIcon'
+import { PageState } from './PageState'
 
 type AccountIdentity = {
   email: string
@@ -24,7 +25,8 @@ type AccountIdentity = {
 type DialogKind = 'create-password' | 'change-password' | 'delete-account' | 'two-factor-setup' | 'two-factor-disable'
 
 export function AccountSecurity({ me }: { me: AccountIdentity }) {
-  const { data: methods, isPending: methodsPending } = useQuery(accountMethodsQuery())
+  const methodsResult = useQuery(accountMethodsQuery())
+  const { data: methods, isPending: methodsPending } = methodsResult
   const queryClient = useQueryClient()
   const [dialog, setDialog] = useState<DialogKind>()
   const [removing, setRemoving] = useState<'credential' | SocialAuthProvider>()
@@ -41,6 +43,24 @@ export function AccountSecurity({ me }: { me: AccountIdentity }) {
       queryClient.invalidateQueries({ queryKey: accountMethodsQuery().queryKey }),
       queryClient.invalidateQueries({ queryKey: meQuery().queryKey }),
     ])
+  }
+
+  if (methodsResult.isError) {
+    return (
+      <div className="mx-auto mt-6 max-w-5xl px-3 sm:px-0">
+        <PageState
+          headingLevel={2}
+          eyebrow="Account security"
+          title="Could not load sign-in methods"
+          explanation="Your security settings could not be loaded. Try again."
+          action={
+            <Button variant="outline" onClick={() => void methodsResult.refetch()} disabled={methodsResult.isFetching}>
+              Try again
+            </Button>
+          }
+        />
+      </div>
+    )
   }
 
   return (

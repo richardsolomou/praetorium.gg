@@ -57,6 +57,18 @@ test('the guest roster page shows its account gate without library loaders', asy
   await expect(page.getByLabel(/^Loading roster/)).toHaveCount(0)
 })
 
+test('a failed roster library read is not shown as an empty library', async ({ page }) => {
+  await signUp(page, 'Library failure')
+  await page.goto('/')
+  await page.route('**/_serverFn/**', (route) => route.abort('failed'))
+
+  await page.getByRole('link', { name: 'Rosters', exact: true }).click()
+
+  await expect(page.getByRole('heading', { name: 'Could not load rosters' })).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByRole('heading', { name: 'No rosters yet' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Try again' })).toBeVisible()
+})
+
 /**
  * A list kept between battles. What is stored is the picks, so loading it re-prices
  * against the catalogue the instance currently holds — which is what a player

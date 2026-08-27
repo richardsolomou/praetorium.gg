@@ -57,7 +57,7 @@ export function BattleRosterSnapshot({ roster }: { roster: Roster }) {
         <RosterHeader
           name={roster.name}
           faction={faction}
-          factionLoading={factionResult.isPending}
+          factionLoading={Boolean(built) && factionResult.isPending}
           points={frozenPoints}
           limit={built?.limit}
           detachments={displayedDetachments}

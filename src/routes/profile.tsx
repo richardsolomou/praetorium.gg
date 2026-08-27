@@ -39,9 +39,7 @@ export const Route = createFileRoute('/profile')({
     if (search.verified === true || search.verified === 'true') result.verified = true
     return result
   },
-  loader: async ({ context }) => {
-    return context.queryClient.ensureQueryData(meQuery())
-  },
+  loader: ({ context }) => context.queryClient.ensureQueryData(meQuery()),
   component: Profile,
 })
 

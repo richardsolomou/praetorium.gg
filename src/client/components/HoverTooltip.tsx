@@ -1,7 +1,6 @@
 import { type ReactNode, useRef, useState } from 'react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
-/** Product-shaped rule help, with placement and interaction owned by Base UI. */
 export function HoverTooltip({
   children,
   title,
@@ -35,8 +34,8 @@ export function HoverTooltip({
           <button
             type="button"
             aria-label={label}
-            onClick={() => {
-              openedByPress.current = true
+            onClick={(event) => {
+              openedByPress.current = event.detail > 0
               setOpen(true)
             }}
             className={`${className} inline-flex cursor-help items-center justify-center underline decoration-dotted underline-offset-2`}

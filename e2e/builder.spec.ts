@@ -98,10 +98,18 @@ test('the roster workspace reserves the desktop picker while its book loads', as
   await page.screenshot({ path: 'test-results/stable-roster-workspace.png', fullPage: true })
 
   await page.setViewportSize({ width: 390, height: 844 })
+  clientUnitRequests.length = 0
   await page.reload()
+  await expect(page.getByRole('button', { name: 'Add units', exact: true })).toBeVisible()
+  expect(clientUnitRequests).toHaveLength(0)
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
   expect(await page.locator('[data-slot="roster-units"]').evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
   await page.screenshot({ path: 'test-results/stable-roster-workspace-phone.png', fullPage: true })
+
+  await page.getByRole('button', { name: 'Add units', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Add Lychguard', exact: true }).first()).toBeVisible()
+  expect(clientUnitRequests.length).toBeGreaterThan(0)
+  await page.getByRole('dialog', { name: 'Add units' }).getByRole('button', { name: 'Close' }).click()
 
   await page.locator('[data-unit="Immortals"]').getByRole('button', { name: 'Immortals', exact: true }).click()
   const loadout = page.locator('aside[aria-label="Loadout"]')

@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 import { ScrollText } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   AlertDialog,
@@ -88,6 +89,7 @@ function RosterLibrary() {
     search.sort ?? 'created-desc',
   )
   const libraryPending = savedResult.isPending || (Boolean(search.faction) && availableResult.isPending)
+  const libraryError = savedResult.isError || (Boolean(search.faction) && availableResult.isError)
 
   const points = new Map((prices ?? []).map((entry) => [entry.id, entry.points]))
 
@@ -146,12 +148,30 @@ function RosterLibrary() {
           <span>Rosters</span>
           {libraryPending ? (
             <Skeleton className="h-4 w-5" aria-label="Loading roster count" />
+          ) : libraryError ? (
+            <span className="readout">—</span>
           ) : (
             <span className="readout">{shown.length}</span>
           )}
         </div>
         <div className="mt-2 space-y-2">
-          {libraryPending ? (
+          {libraryError ? (
+            <PageState
+              headingLevel={2}
+              eyebrow="Roster library"
+              title="Could not load rosters"
+              explanation="The roster library could not be loaded. Try again."
+              action={
+                <Button
+                  variant="outline"
+                  onClick={() => void Promise.all([savedResult.refetch(), availableResult.refetch()])}
+                  disabled={savedResult.isFetching || availableResult.isFetching}
+                >
+                  Try again
+                </Button>
+              }
+            />
+          ) : libraryPending ? (
             <RosterLibrarySkeleton />
           ) : shown.length ? (
             shown.map((roster) => (

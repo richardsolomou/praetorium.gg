@@ -71,6 +71,14 @@ test('rule tooltips open on touch and hover', async ({ browser, page }) => {
   await page.getByRole('button', { name: '[RAPID FIRE 1]' }).hover()
   await expect(page.getByRole('tooltip')).toContainText('Rapid Fire')
   await page.screenshot({ path: 'test-results/rule-tooltip-hover.png', fullPage: true })
+  await page.getByRole('heading', { name: 'Hand of the Dynasty', exact: true }).hover()
+  await expect(page.getByRole('tooltip')).toHaveCount(0)
+
+  await page.getByRole('button', { name: '[RAPID FIRE 1]' }).focus()
+  await page.keyboard.press('Enter')
+  await expect(page.getByRole('tooltip')).toContainText('Rapid Fire')
+  await page.keyboard.press('Tab')
+  await expect(page.getByRole('tooltip')).toHaveCount(0)
 })
 
 test('server-rendered reference pages keep route-shaped payloads', async ({ request }) => {

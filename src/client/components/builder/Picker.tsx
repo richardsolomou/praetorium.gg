@@ -17,6 +17,7 @@ import { GROUPS } from './groups'
 import { Section } from './Section'
 
 type Props = {
+  enabled: boolean
   catalogueId: string
   onAdd: (entryId: string) => void
   onPreview: (entryId: string, name: string) => void
@@ -47,6 +48,7 @@ const FILTERS: { id: PickerFilter; label: string; hint: string }[] = [
  * fit, you may not take another, or you do not own it.
  */
 export const Picker = memo(function Picker({
+  enabled,
   catalogueId,
   onAdd,
   onPreview,
@@ -59,8 +61,12 @@ export const Picker = memo(function Picker({
   onFilterToggle,
 }: Props) {
   const settledQuery = useSettled(query.trim())
-  const unitsResult = useQuery({ ...unitsQuery(catalogueId, settledQuery, battleSize), placeholderData: keepPreviousData })
-  const collectionResult = useQuery(collectionQuery())
+  const unitsResult = useQuery({
+    ...unitsQuery(catalogueId, settledQuery, battleSize),
+    enabled: enabled && Boolean(catalogueId),
+    placeholderData: keepPreviousData,
+  })
+  const collectionResult = useQuery({ ...collectionQuery(), enabled })
   const found = unitsResult.data
   const owned = collectionResult.data
   const own = useCollectionMutation()
