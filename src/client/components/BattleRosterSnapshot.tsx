@@ -15,7 +15,8 @@ export function BattleRosterSnapshot({ roster }: { roster: Roster }) {
   const built = roster.built
   const frozen = !roster.id
   const [selected, setSelected] = useState<number | null>(null)
-  const { data: faction } = useQuery({ ...factionQuery(built?.catalogueId ?? ''), enabled: Boolean(built) })
+  const factionResult = useQuery({ ...factionQuery(built?.catalogueId ?? ''), enabled: Boolean(built) })
+  const faction = factionResult.data
   const { data: priced } = useQuery({
     ...priceQuery(built?.catalogueId ?? '', built?.detachmentIds ?? [], built?.disposition ?? null, built?.limit ?? 0, built?.picks ?? []),
     enabled: Boolean(built?.picks && built.detachmentIds && (!frozen || selected !== null)),
@@ -56,6 +57,7 @@ export function BattleRosterSnapshot({ roster }: { roster: Roster }) {
         <RosterHeader
           name={roster.name}
           faction={faction}
+          factionLoading={factionResult.isPending}
           points={frozenPoints}
           limit={built?.limit}
           detachments={displayedDetachments}

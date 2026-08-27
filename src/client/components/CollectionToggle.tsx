@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Link, useRouterState } from '@tanstack/react-router'
 import { Heart } from 'lucide-react'
 import { Toggle } from '@/components/ui/toggle'
+import { Skeleton } from '@/components/ui/skeleton'
 import { collectionQuery, meQuery } from '../queries'
 import { useCollectionMutation } from '../useCollection'
 
@@ -15,7 +16,7 @@ type Props = {
 export function CollectionToggle({ entryId, name, className = 'size-7' }: Props) {
   const path = useRouterState({ select: (state) => state.location.href })
   const { data: me } = useQuery(meQuery())
-  const { data: collection } = useQuery({ ...collectionQuery(), enabled: Boolean(me) })
+  const { data: collection, isPending } = useQuery({ ...collectionQuery(), enabled: Boolean(me) })
   const mutation = useCollectionMutation()
   const entries: readonly string[] = collection ?? []
   const owned = entries.includes(entryId)
@@ -33,6 +34,8 @@ export function CollectionToggle({ entryId, name, className = 'size-7' }: Props)
       </Link>
     )
   }
+
+  if (isPending) return <Skeleton className={`shrink-0 ${className}`} aria-label={`Loading collection status for ${name}`} />
 
   return (
     <Toggle

@@ -15,6 +15,7 @@ import {
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
+import { Skeleton } from '@/components/ui/skeleton'
 import { PlayerAvatar } from '../PlayerAvatar'
 import { SearchableSelect } from '../SearchableSelect'
 import { errorMessage } from '../../queryClient'
@@ -451,7 +452,7 @@ export function LeaguePage({ token, eventToken, startBattle }: { token: string; 
                   ) : null}
                 </>
               ) : battleHistory.isPending ? (
-                <div className="border border-dashed border-edge bg-panel px-5 py-7 text-center text-sm text-dim">Loading battles…</div>
+                <LeagueBattleSkeleton />
               ) : (
                 <div className="border border-dashed border-edge bg-panel px-5 py-7 text-center">
                   <Swords className="mx-auto size-7 text-faint" />
@@ -846,9 +847,7 @@ function RosterChooser({
           </p>
         ) : null}
         {rosterQuery.isPending ? (
-          <div className="border border-dashed border-edge p-5 text-center">
-            <p className="text-sm text-dim">Loading rosters…</p>
-          </div>
+          <RosterChooserSkeleton />
         ) : rosters.length ? (
           <div className="space-y-2">
             {rosters.map((roster) => (
@@ -887,6 +886,41 @@ function RosterChooser({
         )}
       </DialogContent>
     </Dialog>
+  )
+}
+
+function LeagueBattleSkeleton() {
+  return (
+    <div className="space-y-2" aria-label="Loading battles">
+      <Skeleton className="h-4 w-20" />
+      {Array.from({ length: 2 }, (_, index) => (
+        <div key={index} className="flex min-h-20 items-center gap-3 border border-edge bg-panel p-3" aria-hidden>
+          <Skeleton className="size-10 shrink-0" />
+          <div className="flex-1 space-y-2">
+            <Skeleton className="h-4 w-1/2" />
+            <Skeleton className="h-3 w-2/3" />
+          </div>
+          <Skeleton className="h-8 w-20 rounded-none" />
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function RosterChooserSkeleton() {
+  return (
+    <div className="space-y-2" aria-label="Loading rosters">
+      {Array.from({ length: 3 }, (_, index) => (
+        <div key={index} className="flex min-h-20 items-center gap-3 border border-edge bg-panel p-3" aria-hidden>
+          <div className="flex-1 space-y-2">
+            <Skeleton className="h-4 w-1/3" />
+            <Skeleton className="h-5 w-24" />
+            <Skeleton className="h-3 w-2/3" />
+          </div>
+          <Skeleton className="h-5 w-20" />
+        </div>
+      ))}
+    </div>
   )
 }
 

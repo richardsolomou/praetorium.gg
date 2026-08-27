@@ -3,7 +3,7 @@ import { Link, Outlet, useParams, useRouterState } from '@tanstack/react-router'
 import { ChevronLeft, ChevronRight, FileSearch } from 'lucide-react'
 import { memo, useState } from 'react'
 import type { UnitSummary } from '../../server/cataloguePicker'
-import { collectionQuery, factionDatasheetsQuery, factionQuery, meQuery } from '../queries'
+import { factionDatasheetsQuery, factionQuery } from '../queries'
 import { useSettled } from '../useSettled'
 import { FactionMark, factionColour } from './FactionMark'
 import { CollectionToggle } from './CollectionToggle'
@@ -22,9 +22,6 @@ export function FactionDatasheets() {
     ...factionDatasheetsQuery(faction?.id ?? '', settledQuery),
     placeholderData: keepPreviousData,
   })
-  const { data: me } = useQuery(meQuery())
-  const { data: collection = [] } = useQuery({ ...collectionQuery(), enabled: Boolean(me) })
-  const favourites = new Set(collection)
   if (path !== `/factions/${catalogueId}/datasheets`) return <Outlet />
   if (!faction) return null
 
@@ -66,9 +63,7 @@ export function FactionDatasheets() {
         <div className="mt-2">
           {units.length ? (
             GROUPS.map((group) => {
-              const rows = units
-                .filter((unit) => unit.group === group.id)
-                .toSorted((left, right) => Number(favourites.has(right.id)) - Number(favourites.has(left.id)))
+              const rows = units.filter((unit) => unit.group === group.id)
               return rows.length ? (
                 <Section key={group.id} title={group.plural} count={rows.length}>
                   <div className="grid gap-2 sm:grid-cols-2">

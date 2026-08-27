@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import { Skeleton } from '@/components/ui/skeleton'
 import type { ReportEntry } from '../../core/battleReport'
 import { formatTime } from '../dates'
 import { reportQuery } from '../queries'
@@ -40,7 +41,8 @@ export function Report({
   players?: readonly ReportPlayer[]
   entries?: readonly ReportEntry[]
 }) {
-  const { data: fetchedEntries } = useQuery(reportQuery(token, open && suppliedEntries === undefined))
+  const reportResult = useQuery(reportQuery(token, open && suppliedEntries === undefined))
+  const fetchedEntries = reportResult.data
   const entries = suppliedEntries ?? fetchedEntries
   const [filter, setFilter] = useState<'all' | 'cp'>('all')
   const [shownCount, setShownCount] = useState(WINDOW)
@@ -48,6 +50,7 @@ export function Report({
   const visible = filtered.slice(0, shownCount)
   const hidden = filtered.length - visible.length
 
+  if (open && suppliedEntries === undefined && reportResult.isPending) return <ReportSkeleton />
   if (!entries?.length) return <p className="mt-3 text-xs text-dim">Nothing has happened yet.</p>
 
   return (
@@ -99,6 +102,22 @@ export function Report({
         )}
       </div>
     </>
+  )
+}
+
+function ReportSkeleton() {
+  return (
+    <div className="mt-3" aria-label="Loading battle events">
+      <Skeleton className="h-8 w-28 rounded-none" />
+      <div className="mt-3 space-y-2">
+        {Array.from({ length: 8 }, (_, index) => (
+          <div key={index} className="grid grid-cols-[3.5rem_minmax(0,1fr)] gap-2 sm:grid-cols-[5rem_minmax(0,1fr)] sm:gap-3" aria-hidden>
+            <Skeleton className="ml-auto h-7 w-10" />
+            <Skeleton className={`h-4 ${index % 3 === 0 ? 'w-3/4' : 'w-full'}`} />
+          </div>
+        ))}
+      </div>
+    </div>
   )
 }
 

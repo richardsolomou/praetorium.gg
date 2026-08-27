@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Skeleton } from '@/components/ui/skeleton'
 import { PASSWORD_MIN_LENGTH, SOCIAL_PROVIDERS } from '../../authConfig'
 import { setOwnPassword, unlinkOwnAccount } from '../../server/functions'
 import { authClient } from '../authClient'
@@ -22,7 +23,7 @@ type AccountIdentity = {
 type DialogKind = 'create-password' | 'change-password' | 'two-factor-setup' | 'two-factor-disable'
 
 export function AccountSecurity({ me }: { me: AccountIdentity }) {
-  const { data: methods } = useQuery(accountMethodsQuery())
+  const { data: methods, isPending: methodsPending } = useQuery(accountMethodsQuery())
   const queryClient = useQueryClient()
   const [dialog, setDialog] = useState<DialogKind>()
   const [removing, setRemoving] = useState<'credential' | SocialAuthProvider>()
@@ -51,33 +52,48 @@ export function AccountSecurity({ me }: { me: AccountIdentity }) {
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <h2 className="text-base">Authenticator app</h2>
-              <span className={`chip ${me.twoFactorEnabled ? 'text-achieved' : 'text-dim'}`}>
-                {me.twoFactorEnabled ? 'Enabled' : hasPassword ? 'Not set up' : 'Needs a password'}
-              </span>
+              {methodsPending ? (
+                <Skeleton className="h-5 w-24" />
+              ) : (
+                <span className={`chip ${me.twoFactorEnabled ? 'text-achieved' : 'text-dim'}`}>
+                  {me.twoFactorEnabled ? 'Enabled' : hasPassword ? 'Not set up' : 'Needs a password'}
+                </span>
+              )}
             </div>
-            <p className="mt-1 text-sm text-dim">
-              {me.twoFactorEnabled
-                ? 'Password sign-in requires a current authenticator code or one-time recovery code.'
-                : hasPassword
-                  ? 'Protect password sign-in with a time-based code from your authenticator app.'
-                  : 'Create a password sign-in method before setting up an authenticator.'}
-            </p>
+            {methodsPending ? (
+              <div className="mt-2 space-y-2">
+                <Skeleton className="h-3 w-full" />
+                <Skeleton className="h-3 w-4/5" />
+              </div>
+            ) : (
+              <p className="mt-1 text-sm text-dim">
+                {me.twoFactorEnabled
+                  ? 'Password sign-in requires a current authenticator code or one-time recovery code.'
+                  : hasPassword
+                    ? 'Protect password sign-in with a time-based code from your authenticator app.'
+                    : 'Create a password sign-in method before setting up an authenticator.'}
+              </p>
+            )}
           </div>
         </div>
-        <Button
-          type="button"
-          variant="outline"
-          className="mt-4"
-          disabled={!hasPassword}
-          onClick={() => setDialog(me.twoFactorEnabled ? 'two-factor-disable' : 'two-factor-setup')}
-        >
-          {me.twoFactorEnabled ? 'Turn off' : 'Set up authenticator'}
-        </Button>
+        {methodsPending ? (
+          <Skeleton className="mt-4 h-9 w-40 rounded-none" />
+        ) : (
+          <Button
+            type="button"
+            variant="outline"
+            className="mt-4"
+            disabled={!hasPassword}
+            onClick={() => setDialog(me.twoFactorEnabled ? 'two-factor-disable' : 'two-factor-setup')}
+          >
+            {me.twoFactorEnabled ? 'Turn off' : 'Set up authenticator'}
+          </Button>
+        )}
       </section>
 
       <section className="border border-edge bg-panel p-5 md:p-7">
         <p className="rubric border-b border-edge pb-2">Sign-in methods</p>
-        {!methods ? <p className="mt-4 text-sm text-dim">Loading sign-in methods…</p> : null}
+        {methodsPending ? <AccountMethodsSkeleton /> : null}
         {methods ? (
           <div className="mt-4 space-y-3">
             {methods.emailDelivery && !methods.emailVerified ? (
@@ -225,6 +241,23 @@ export function AccountSecurity({ me }: { me: AccountIdentity }) {
           }}
         />
       ) : null}
+    </div>
+  )
+}
+
+function AccountMethodsSkeleton() {
+  return (
+    <div className="mt-4 space-y-3" aria-label="Loading sign-in methods">
+      {Array.from({ length: 3 }, (_, index) => (
+        <div key={index} className="flex items-center gap-3 border border-edge bg-sunken p-3" aria-hidden>
+          <Skeleton className="size-8 shrink-0" />
+          <div className="min-w-0 flex-1 space-y-2">
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-3 w-16" />
+          </div>
+          <Skeleton className="h-8 w-20 rounded-none" />
+        </div>
+      ))}
     </div>
   )
 }

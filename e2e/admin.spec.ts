@@ -41,9 +41,9 @@ test('an administrator can secure an account and impersonate a player', async ({
   const serverContext = await browser.newContext({ javaScriptEnabled: false, storageState: await page.context().storageState() })
   const serverPage = await serverContext.newPage()
   await serverPage.goto('/admin')
-  await expect(serverPage.getByText(ADMIN_EMAIL, { exact: true })).toBeVisible()
-  await expect(serverPage.getByText('Loading users…')).toHaveCount(0)
-  await serverPage.screenshot({ path: 'test-results/admin-server-rendered.png', fullPage: true })
+  await expect(serverPage.locator('[data-slot="skeleton"]').first()).toBeVisible()
+  await expect(serverPage.getByText(ADMIN_EMAIL, { exact: true })).toHaveCount(0)
+  await serverPage.screenshot({ path: 'test-results/admin-loading-state.png', fullPage: true })
   await serverContext.close()
 
   await page.goto('/profile')

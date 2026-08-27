@@ -1,22 +1,29 @@
 import { expect, test } from '@playwright/test'
 import { createRoster, signUp, uniqueName, waitForRosterSave } from './account'
 
-test('the roster library is ready before its first navigation', async ({ page }) => {
-  await signUp(page, 'Preload')
-  const rosterName = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Prefetched roster' })
-  let rosterPreloaded = false
+test('the roster library reserves its rows while the first page loads', async ({ page }) => {
+  await signUp(page, 'Loading')
+  const rosterName = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Loading roster' })
+  await page.goto('/')
+  let release: () => void = () => {}
+  const held = new Promise<void>((resolve) => {
+    release = resolve
+  })
   await page.route('**/_serverFn/**', async (route) => {
-    const response = await route.fetch()
-    const body = await response.body()
-    if (body.toString().includes(rosterName)) rosterPreloaded = true
-    await route.fulfill({ response, body })
+    await held
+    await route.continue()
   })
 
-  await page.goto('/')
-  await expect.poll(() => rosterPreloaded, { timeout: 2_000 }).toBe(true)
   await page.getByRole('link', { name: 'Rosters', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'My rosters' })).toBeVisible()
+  await expect(page.getByLabel('Loading roster count')).toBeVisible()
+  await page.screenshot({ path: 'test-results/loading-roster-library.png', fullPage: true })
+  await page.setViewportSize({ width: 390, height: 844 })
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  await page.screenshot({ path: 'test-results/loading-roster-library-phone.png', fullPage: true })
+  release()
   await expect(page.locator(`[data-roster="${rosterName}"]`)).toBeVisible()
-  await page.screenshot({ path: 'test-results/first-roster-library-navigation.png', fullPage: true })
+  await page.unroute('**/_serverFn/**')
 })
 
 /**
@@ -55,15 +62,8 @@ test('a list is saved and loaded into another battle', async ({ browser }) => {
   await waitForRosterSave(page, () => page.getByLabel('List name').fill('Nurgle 2k'), 'Nurgle 2k')
 
   await page.getByRole('link', { name: 'Rosters' }).click()
-  // The library prices every list in one answer that comes down with the page, so
-  // the total is on the row rather than arriving after it.
+  // The library prices every list in one answer, so each row asks for nothing of its own.
   await expect(page.locator('[data-roster="Nurgle 2k"]')).toContainText('230/2000')
-  const serverContext = await browser.newContext({ javaScriptEnabled: false, storageState: await context.storageState() })
-  const serverPage = await serverContext.newPage()
-  await serverPage.goto('/rosters')
-  await expect(serverPage.locator('[data-roster="Nurgle 2k"]')).toContainText('230/2000')
-  await serverPage.screenshot({ path: 'test-results/rosters-server-rendered.png', fullPage: true })
-  await serverContext.close()
   await page.getByRole('link', { name: /Nurgle 2k/ }).click()
   await expect(page).toHaveURL(/\/rosters\/[^/]+$/)
   const editor = page.getByLabel('Add units').locator('xpath=ancestor::div[contains(@class,"bg-sunken")][1]')

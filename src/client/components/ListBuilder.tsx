@@ -401,6 +401,7 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
         maxLength={ROSTER_NAME_MAX_LENGTH}
         placeholder={suggested || 'Named from your picks'}
         faction={faction}
+        factionLoading={Boolean(catalogueId) && !faction}
         limit={limit}
         detachments={detachmentIds.flatMap((id) => {
           const detachment = faction.detachments.find((candidate) => candidate.id === id)
@@ -571,11 +572,7 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
               const rows = units
                 .map((unit, index) => ({ unit, index }))
                 .filter(({ unit }) => unit.group === id)
-                .toSorted(
-                  (left, right) =>
-                    Number(collection.has(right.unit.entryId)) - Number(collection.has(left.unit.entryId)) ||
-                    left.unit.name.localeCompare(right.unit.name),
-                )
+                .toSorted((left, right) => left.unit.name.localeCompare(right.unit.name))
               return rows.length ? (
                 <Section key={id} title={plural} count={rows.length}>
                   {rows.map(({ unit, index }) => (

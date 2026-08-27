@@ -2,4 +2,4 @@
 'praetorium.gg': patch
 ---
 
-Render page data before showing each navigation destination.
+Show stable skeletons while page data loads.

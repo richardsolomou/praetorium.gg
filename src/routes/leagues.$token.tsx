@@ -1,6 +1,6 @@
 import { createFileRoute, notFound } from '@tanstack/react-router'
 import { LeaguePage } from '../client/components/leagues/LeaguePage'
-import { leagueBattlesQuery, leagueQuery } from '../client/queries'
+import { leagueQuery } from '../client/queries'
 
 export const Route = createFileRoute('/leagues/$token')({
   validateSearch: (search: Record<string, unknown>): { event?: string; start?: boolean } => ({
@@ -11,9 +11,6 @@ export const Route = createFileRoute('/leagues/$token')({
   loader: async ({ context, params, deps }) => {
     const league = await context.queryClient.ensureQueryData(leagueQuery(params.token, deps.event))
     if (!league) throw notFound()
-    if (league.revealedAt && league.eventToken) {
-      await context.queryClient.ensureInfiniteQueryData(leagueBattlesQuery(params.token, league.eventToken)).catch(() => undefined)
-    }
   },
   component: LeagueRoute,
 })

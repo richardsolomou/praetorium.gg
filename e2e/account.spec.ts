@@ -80,7 +80,7 @@ test('email verification callbacks explain their result without an active sessio
   await expect(page.getByText('This email verification link is invalid or has expired. Sign in to try again.')).toBeVisible()
 })
 
-test('profile security settings render without client JavaScript', async ({ browser, page }) => {
+test('profile security settings reserve their content before hydration', async ({ browser, page }) => {
   await signUp(page, uniqueName('Server Profile'))
   const context = await browser.newContext({ javaScriptEnabled: false, storageState: await page.context().storageState() })
   const serverPage = await context.newPage()
@@ -88,10 +88,9 @@ test('profile security settings render without client JavaScript', async ({ brow
   await serverPage.goto('/profile')
 
   const methods = serverPage.locator('section').filter({ hasText: 'Sign-in methods' })
-  await expect(methods.getByText('Password', { exact: true })).toBeVisible()
-  await expect(methods.getByText('Linked', { exact: true })).toBeVisible()
-  await expect(serverPage.getByText('Loading sign-in methods…')).toHaveCount(0)
-  await serverPage.screenshot({ path: 'test-results/profile-server-rendered.png', fullPage: true })
+  await expect(methods.getByLabel('Loading sign-in methods')).toBeVisible()
+  await expect(methods.getByText('Password', { exact: true })).toHaveCount(0)
+  await serverPage.screenshot({ path: 'test-results/profile-loading-state.png', fullPage: true })
   await context.close()
 })
 

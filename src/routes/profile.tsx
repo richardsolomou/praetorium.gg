@@ -40,9 +40,7 @@ export const Route = createFileRoute('/profile')({
     return result
   },
   loader: async ({ context }) => {
-    const me = await context.queryClient.ensureQueryData(meQuery())
-    if (me) await context.queryClient.ensureQueryData(accountMethodsQuery()).catch(() => undefined)
-    return me
+    return context.queryClient.ensureQueryData(meQuery())
   },
   component: Profile,
 })
