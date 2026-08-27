@@ -9,7 +9,7 @@ export type DetachmentCatalogueDetail = {
   forcedEnhancements: { name: string; points: number | null; description: string | null }[]
 }
 
-type EnhancementIndex = { upgrades: SelectionEntry[]; forced: Map<string, SelectionEntry[]> }
+type EnhancementIndex = { byCardName: Map<string, SelectionEntry[]>; forced: Map<string, SelectionEntry[]> }
 
 const enhancementIndexes = new WeakMap<LoadedCatalogue, EnhancementIndex>()
 
@@ -29,10 +29,9 @@ export function detachmentCatalogueDetail(
   const rule = linkedRule ?? inlineRule
 
   const indexed = enhancementIndex(loaded)
-  const upgrades = indexed.upgrades
   const enhancements = enhancementNames
     .map((name) => {
-      const candidates = upgrades.filter((entry) => entry.name && cardName(entry.name) === cardName(name))
+      const candidates = indexed.byCardName.get(cardName(name)) ?? []
       const entry =
         unambiguous(candidates.filter((candidate) => candidate.comment === option.name)) ??
         unambiguous(candidates.filter((candidate) => loaded.index.catalogueOf.get(candidate.id) === catalogueId)) ??
@@ -64,6 +63,15 @@ function enhancementIndex(loaded: LoadedCatalogue): EnhancementIndex {
   if (existing) return existing
 
   const upgrades = [...loaded.index.definitions.values()].filter((entry): entry is SelectionEntry => entry.type === 'upgrade')
+  // Keyed once: a price asks for every enhancement of every chosen detachment, and
+  // slugging every upgrade in the index each time made the answer slow enough for the
+  // builder's next press to race it.
+  const byCardName = new Map<string, SelectionEntry[]>()
+  for (const entry of upgrades) {
+    if (!entry.name) continue
+    const key = cardName(entry.name)
+    byCardName.set(key, [...(byCardName.get(key) ?? []), entry])
+  }
   const forced = new Map<string, SelectionEntry[]>()
   for (const entry of upgrades) {
     const catalogueId = loaded.index.catalogueOf.get(entry.id)
@@ -73,7 +81,7 @@ function enhancementIndex(loaded: LoadedCatalogue): EnhancementIndex {
       forced.set(key, [...(forced.get(key) ?? []), entry])
     }
   }
-  const indexed = { upgrades, forced }
+  const indexed = { byCardName, forced }
   enhancementIndexes.set(loaded, indexed)
   return indexed
 }
