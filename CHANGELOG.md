@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.39.6
+
+### Patch Changes
+
+- 8a39608: Name stratagems as their cards print them instead of title-casing the rules dataset's capitals.
+
 ## 0.39.5
 
 ### Patch Changes
