@@ -486,6 +486,7 @@ export type BattleState = {
   sideDispositions: Record<number, string>
   resumePlayerId: PlayerId | null
   pendingSettlement: { playerId: PlayerId; round: number } | null
+  completionPending: boolean
   advanceRequested: boolean
   scoringAcknowledged: boolean
   drawAcknowledged: boolean
@@ -581,7 +582,8 @@ function recordProgress(state: BattleState, entry: LoggedCommand, before: Battle
   else if (entry.command.kind === 'advance' && (state.activePlayerId !== before.active || state.round !== before.round)) {
     closeTurn(entry.at)
     openTurn(entry.at)
-  } else if (entry.command.kind === 'end-battle') closeTurn(entry.at)
+  } else if (entry.command.kind === 'advance' && state.completionPending) closeTurn(entry.at)
+  else if (entry.command.kind === 'end-battle') closeTurn(entry.at)
   else if (entry.command.kind === 'reopen-battle') openTurn(entry.at)
 
   if (entry.command.kind === 'begin-battle' || entry.command.kind === 'lock-league-rosters') state.undoable = null
@@ -605,6 +607,7 @@ export function emptyBattle(playerIds: readonly PlayerId[], playerSides?: readon
     sideDispositions: {},
     resumePlayerId: null,
     pendingSettlement: null,
+    completionPending: false,
     advanceRequested: false,
     scoringAcknowledged: false,
     drawAcknowledged: false,
@@ -822,6 +825,13 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
     case 'request-advance': {
       if (state.status !== 'playing') return 'the battle is not running'
       if (!sameSide(state, state.activePlayerId, player.id)) return 'it is not your turn'
+      if (state.completionPending) return 'settle the final turn before completing the battle'
+      const owed = sideOwes(state, player)
+      if (owed === 'settlement') return 'settle the previous turn before ending the command phase'
+      if (owed === 'cards') return 'draw every card owed before ending the command phase'
+      if (state.phase === 'command' && player.secondariesDrawnThisTurn.length && !state.drawAcknowledged) {
+        return 'review the new secondary missions before ending the command phase'
+      }
       if (state.advanceRequested) return 'the phase is already waiting to advance'
       return null
     }
@@ -932,25 +942,7 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
     }
     case 'set-prep': {
       if (state.status === 'finished') return 'the battle is over'
-      if (state.status === 'playing') {
-        const sameKeys = (left: readonly { key: string }[], right: readonly { key: string }[]) =>
-          left.length === right.length && left.every((entry, index) => entry.key === right[index]?.key)
-        const canRestoreTacticalPrep =
-          !player.secondaryDeck?.length &&
-          player.secondaryMode === 'tactical' &&
-          player.secondaries.length === 0 &&
-          command.secondaryMode === 'tactical' &&
-          command.secondaries.length === 0
-        const canRestoreFixedDeck =
-          !player.secondaryDeck?.length &&
-          Boolean(command.secondaryDeck?.length) &&
-          player.secondaryMode === 'fixed' &&
-          command.secondaryMode === 'fixed' &&
-          sameKeys(command.stratagems, player.stratagems) &&
-          sameKeys(command.secondaries, player.secondaries) &&
-          command.primary?.key === player.primaryCard?.key
-        if (!canRestoreTacticalPrep && !canRestoreFixedDeck) return 'cards are settled before the battle begins'
-      }
+      if (state.status === 'playing' && !canRepairPlayingPrep(player, command)) return 'cards are settled before the battle begins'
       if (isKotcLimit(state.settings.limit) && command.secondaryMode !== 'tactical')
         return 'King of the Colosseum requires tactical secondaries'
       return validatePrep(command)
@@ -1247,7 +1239,8 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
       return
     }
     case 'set-prep': {
-      applyPrep(player, command)
+      if (state.status === 'playing' && canRepairPlayingPrep(player, command)) repairPrep(player, command)
+      else applyPrep(player, command)
       if (state.status === 'playing' && sameSide(state, state.activePlayerId, player.id)) state.drawAcknowledged = false
       return
     }
@@ -1391,6 +1384,13 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
     }
     case 'settle-opponent-turn': {
       state.pendingSettlement = null
+      if (state.completionPending) {
+        state.completionPending = false
+        state.status = 'finished'
+        state.result = { reason: 'completed', concededBy: null }
+        state.resumePlayerId = state.activePlayerId
+        state.activePlayerId = null
+      }
       return
     }
     case 'request-advance': {
@@ -1422,10 +1422,16 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
         return
       }
       if (state.round === battleRoundLimit(state.settings.limit)) {
-        state.status = 'finished'
-        state.result = { reason: 'completed', concededBy: null }
-        state.resumePlayerId = state.activePlayerId
-        state.activePlayerId = null
+        if (endsFirstTurn && !opponent) {
+          state.status = 'finished'
+          state.result = { reason: 'completed', concededBy: null }
+          state.resumePlayerId = state.activePlayerId
+          state.activePlayerId = null
+          return
+        }
+        const firstPlayer = state.players.find((candidate) => sameSide(state, candidate.id, state.firstPlayerId ?? ''))
+        if (firstPlayer) state.pendingSettlement = { playerId: sideCaptain(state, firstPlayer.side).id, round: state.round }
+        state.completionPending = true
         return
       }
       const endedRound = state.round
@@ -1438,6 +1444,7 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
     case 'end-battle': {
       state.advanceRequested = false
       state.scoringAcknowledged = false
+      state.completionPending = false
       state.status = 'finished'
       state.result = { reason: command.reason ?? 'finished-early', concededBy: command.concededBy ?? null }
       state.resumePlayerId = state.activePlayerId
@@ -1447,6 +1454,7 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
     case 'reopen-battle': {
       state.advanceRequested = false
       state.scoringAcknowledged = false
+      state.completionPending = false
       state.status = 'playing'
       state.result = null
       state.activePlayerId = state.resumePlayerId ?? state.firstPlayerId
@@ -1545,6 +1553,29 @@ function applyPrep(player: PlayerState, prep: BattlePrep | null | undefined) {
       (player.correctionByRound.secondary[round] ?? 0) +
       (unnamedByRound[round] ?? 0),
   )
+}
+
+function repairPrep(player: PlayerState, prep: BattlePrep) {
+  const deck = prep.secondaryDeck?.map((secondary) => ({ ...secondary, name: secondary.name.trim() })) ?? null
+  player.secondaryDeck = deck
+  if (!player.primaryCard && prep.primary) player.primaryCard = { ...prep.primary, name: prep.primary.name.trim() }
+  if (player.secondaryMode === 'fixed' && deck) {
+    player.secondaries = player.secondaries.map((secondary) => {
+      const restored = deck.find((candidate) => candidate.key === secondary.key)
+      return restored ? { ...secondary, ...restored } : secondary
+    })
+  }
+}
+
+function canRepairPlayingPrep(player: PlayerState, prep: BattlePrep) {
+  const sameKeys = (left: readonly { key: string }[], right: readonly { key: string }[]) =>
+    left.length === right.length && left.every((entry, index) => entry.key === right[index]?.key)
+  if (player.secondaryDeck?.length || !prep.secondaryDeck?.length) return false
+  if (player.secondaryMode !== prep.secondaryMode || !sameKeys(prep.stratagems, player.stratagems)) return false
+  if (player.primaryCard && prep.primary?.key !== player.primaryCard.key) return false
+  if (player.secondaryMode === 'tactical') return player.secondaries.length === 0 && prep.secondaries.length === 0
+  const fixedSecondaries = player.secondaries.filter((secondary) => secondary.key !== player.secretSecondary)
+  return sameKeys(prep.secondaries, fixedSecondaries)
 }
 
 /** Whether a stratagem's allowance is spent for now. `turn` and `phase` reset as play moves on. */

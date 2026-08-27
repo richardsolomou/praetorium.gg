@@ -584,6 +584,43 @@ describe('secondaries', () => {
     expect(battleView({ token: 'abc' }, NAMES, state, ALICE).secretMissionActionPlayerId).toBe(BOB)
   })
 
+  it('reveals and scores a final-round secret before completing the battle', () => {
+    const secret = {
+      key: 'secret-a',
+      name: 'Hold the Line',
+      awards: [
+        {
+          vp: 5,
+          per: null,
+          mode: null,
+          max: null,
+          group: null,
+          cumulative: false,
+          criteria: 'Hold the objective.',
+          trigger: { timing: 'end-of-turn' as const, phase: null, playerTurn: 'opponent-turn' as const, roundMin: null, roundMax: null },
+        },
+      ],
+    }
+    const rounds = Array.from({ length: 5 }, () => [...turns(6, ALICE), ...turns(6, BOB)]).flat()
+    const waiting = reduceBattle(PLAYERS, log(...started(), [ALICE, { kind: 'select-secret', secondary: secret }], ...rounds))
+    const finished = reduceBattle(
+      PLAYERS,
+      log(
+        ...started(),
+        [ALICE, { kind: 'select-secret', secondary: secret }],
+        ...rounds,
+        [BOB, { kind: 'reveal-secret', playerId: ALICE }],
+        [ALICE, { kind: 'score-settlement', round: 5, scores: [{ category: 'secondary', key: secret.key, delta: 5 }] }],
+        [BOB, { kind: 'settle-opponent-turn' }],
+      ),
+    )
+
+    expect(waiting.status).toBe('playing')
+    expect(battleView({ token: 'abc' }, NAMES, waiting, BOB).secretMissionActionPlayerId).toBe(ALICE)
+    expect(finished).toMatchObject({ status: 'finished', result: { reason: 'completed' } })
+    expect(alice(finished)?.scored[secret.key]).toBe(5)
+  })
+
   it('keeps a hidden owner-turn mission secret during opponent-turn settlement', () => {
     const award = {
       vp: 5,

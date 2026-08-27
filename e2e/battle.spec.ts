@@ -53,6 +53,94 @@ test('a running battle restores mission prompts when its tactical prep is missin
   await page.screenshot({ path: 'test-results/repaired-primary-scoring.png', fullPage: true })
 })
 
+test('the final opponent-turn settlement completes before the battle ends', async ({ page }) => {
+  await signUp(page, uniqueName('Final round'))
+  const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Final round roster' })
+  await createBattle(page, { practice: true })
+  await attachRoster(page, roster)
+  await attachRoster(page, roster, { forPlayer: PRACTICE_OPPONENT })
+  await startBattle(page)
+
+  const token = new URL(page.url()).pathname.split('/').at(-1)!
+  const database = postgres(`postgres://praetorium:praetorium@127.0.0.1:${postgresPort}/praetorium`, { max: 1 })
+  const [battle] = await database<{ id: string; body: string }[]>`
+    select battles.id, commands.body
+    from battles
+    join commands on commands.battle_id = battles.id
+    where battles.token = ${token}
+      and commands.body::jsonb->>'kind' = 'begin-battle'
+  `
+  if (!battle) throw new Error('Battle did not start')
+  const firstPlayerId = JSON.parse(battle.body).firstPlayerId as string
+  const [opponent] = await database<{ userId: string }[]>`
+    select user_id as "userId"
+    from battle_users
+    where battle_id = ${battle.id}
+      and user_id <> ${firstPlayerId}
+  `
+  const [latest] = await database<{ seq: number }[]>`select max(seq)::int as seq from commands where battle_id = ${battle.id}`
+  if (!opponent || !latest) throw new Error('Battle seats are incomplete')
+  let seq = latest.seq
+  const append = async (by: string, body: object) => {
+    seq += 1
+    await database`
+      insert into commands (battle_id, seq, user_id, at, body)
+      values (${battle.id}, ${seq}, ${by}, ${Date.now() + seq}, ${JSON.stringify(body)})
+    `
+  }
+  await append(firstPlayerId, {
+    kind: 'select-secret',
+    secondary: {
+      key: 'final-secret',
+      name: 'Final Vigil',
+      awards: [
+        {
+          vp: 5,
+          per: null,
+          mode: null,
+          max: null,
+          group: null,
+          cumulative: false,
+          criteria: 'Hold the objective.',
+          trigger: { timing: 'end-of-turn', phase: null, playerTurn: 'opponent-turn', roundMin: null, roundMax: null },
+        },
+      ],
+    },
+  })
+  const passPhases = async (playerId: string, count: number) => {
+    for (let phase = 0; phase < count; phase += 1) await append(playerId, { kind: 'advance' })
+  }
+  for (let round = 1; round < 5; round += 1) {
+    await passPhases(firstPlayerId, 6)
+    await passPhases(opponent.userId, 6)
+  }
+  await passPhases(firstPlayerId, 6)
+  await passPhases(opponent.userId, 5)
+  await database.end()
+  await page.reload()
+
+  await expect(page.locator('[data-scoreboard] h1')).toContainText('end phase')
+  await expect(page.locator('[data-scoreboard]')).toContainText('Round 5 of 5')
+  await page.getByRole('button', { name: 'Pass the turn' }).click()
+  const activeScoring = page.getByRole('dialog', { name: /^Scoring end of turn points/ })
+  const handoff = page.getByRole('dialog', { name: /Secret Mission action/ })
+  await expect(activeScoring.or(handoff).first()).toBeVisible()
+  if (await activeScoring.isVisible()) await activeScoring.getByRole('button', { name: 'Pass the turn' }).click()
+  const discard = page.getByRole('dialog', { name: 'Discard tactical secondaries?' })
+  await expect(discard.or(handoff).first()).toBeVisible()
+  if (await discard.isVisible()) await discard.getByRole('button', { name: 'Keep hand' }).click()
+
+  await expect(handoff).toBeVisible()
+  await expect(page.getByText(/The battle is over/)).toHaveCount(0)
+  await handoff.getByRole('button', { name: 'Reveal and continue' }).click()
+  const settlement = page.getByRole('dialog', { name: /^Scoring end of their turn points/ })
+  await expect(settlement.locator('[data-due="final-secret"]')).toContainText('Final Vigil')
+  await settlement.locator('[data-due="final-secret"]').getByRole('button', { name: 'plus 5' }).click()
+  await page.screenshot({ path: 'test-results/final-round-settlement.png', fullPage: true })
+  await settlement.getByRole('button', { name: 'Take the turn' }).click()
+  await expect(page.getByText('Played to the last round. Reopen it from the battle menu to keep playing.')).toBeVisible()
+})
+
 test('a tactical hand pays out when the card says', async ({ browser }) => {
   const alice = await (await browser.newContext(desktopContext)).newPage()
   const bob = await (await browser.newContext(desktopContext)).newPage()

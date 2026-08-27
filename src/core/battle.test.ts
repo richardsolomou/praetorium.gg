@@ -462,24 +462,35 @@ describe('setup', () => {
   })
 
   it('allows a missing tactical deck to be restored after the battle begins', () => {
+    const stratagem = { key: 'reroll', name: 'Command Re-roll', cp: 1, limit: 'phase' as const }
     const repair: Command = {
       kind: 'set-prep',
-      stratagems: [],
+      stratagems: [stratagem],
       secondaries: [],
       secondaryDeck: [{ key: 'a', name: 'Behind Enemy Lines' }],
       primary: { key: 'primary', name: 'Battlefield Dominance' },
       secondaryMode: 'tactical',
     }
-    const missing = reduceBattle(PLAYERS, log(...started()))
-    const restored = reduceBattle(PLAYERS, log(...started(), [ALICE, repair]))
+    const prep: Command = { ...repair, secondaryDeck: undefined }
+    const history: [string, Command][] = [
+      [ALICE, roster('Ultramarines')],
+      [BOB, roster('Death Guard')],
+      [ALICE, prep],
+      [ALICE, { kind: 'begin-battle', firstPlayerId: ALICE }],
+    ]
+    const missing = reduceBattle(PLAYERS, log(...history))
+    const restored = reduceBattle(PLAYERS, log(...history, [ALICE, repair]))
 
     expect(validate(missing, ALICE, repair)).toBeNull()
+    expect(validate(missing, ALICE, { ...repair, stratagems: [] })).toBe('cards are settled before the battle begins')
+    expect(restored.players[0]?.stratagems).toEqual([stratagem])
     expect(validate(restored, ALICE, repair)).toBe('cards are settled before the battle begins')
   })
 
   it('restores a legacy fixed deck without changing the selected cards', () => {
     const selected = { key: 'a', name: 'Behind Enemy Lines' }
     const secret = { key: 'b', name: 'Assassination' }
+    const primary = { key: 'primary', name: 'Battlefield Dominance' }
     const fixedPrep: Command = {
       kind: 'set-prep',
       stratagems: [],
@@ -494,13 +505,41 @@ describe('setup', () => {
       [ALICE, { kind: 'begin-battle', firstPlayerId: ALICE }],
     ]
     const missing = reduceBattle(PLAYERS, log(...history))
-    const repair: Command = { ...fixedPrep, secondaryDeck: [selected, secret] }
+    const repair: Command = { ...fixedPrep, primary, secondaryDeck: [selected, secret] }
 
     expect(validate(missing, ALICE, fixedPrep)).toBe('cards are settled before the battle begins')
     expect(validate(missing, ALICE, repair)).toBeNull()
     const restored = reduceBattle(PLAYERS, log(...history, [ALICE, repair]))
     expect(battleView({ token: 'abc' }, NAMES, restored, ALICE).players[0]?.remainingSecondaries).toEqual([secret])
+    expect(restored.players[0]?.primaryCard).toEqual(primary)
     expect(validate(missing, ALICE, { ...repair, secondaries: [secret] })).toBe('cards are settled before the battle begins')
+  })
+
+  it('restores a fixed deck without resetting a selected secret or settled score', () => {
+    const fixed = { key: 'fixed', name: 'Behind Enemy Lines' }
+    const secret = { key: 'secret', name: 'Hold the Line' }
+    const prep: Command = { kind: 'set-prep', stratagems: [], secondaries: [fixed], primary: null, secondaryMode: 'fixed' }
+    const history: [string, Command][] = [
+      [ALICE, roster('Ultramarines')],
+      [BOB, roster('Death Guard')],
+      [ALICE, prep],
+      [ALICE, { kind: 'begin-battle', firstPlayerId: ALICE }],
+      [ALICE, { kind: 'select-secret', secondary: secret }],
+      [ALICE, { kind: 'score-secondary', key: fixed.key, delta: 4 }],
+      [ALICE, { kind: 'set-secondary-status', key: fixed.key, status: 'discarded' }],
+    ]
+    const missing = reduceBattle(PLAYERS, log(...history))
+    const repair: Command = { ...prep, secondaryDeck: [fixed, secret] }
+    const restored = reduceBattle(PLAYERS, log(...history, [ALICE, repair]))
+
+    expect(validate(missing, ALICE, repair)).toBeNull()
+    expect(restored.players[0]).toMatchObject({
+      secondaries: [fixed, secret],
+      secondaryStatus: { fixed: 'discarded', secret: 'active' },
+      secretSecondary: secret.key,
+      secretRevealed: false,
+      scored: { fixed: 4 },
+    })
   })
 
   it('refuses cards carried in with a replacement list', () => {
@@ -809,10 +848,27 @@ describe('the turn sequence', () => {
     expect(state.activePlayerId).toBe(ALICE)
   })
 
-  it('finishes the battle after the last round', () => {
+  it('settles the first player’s final opponent turn before finishing the battle', () => {
     const rounds = Array.from({ length: BATTLE_ROUNDS }, () => [...turns(6, ALICE), ...turns(6, BOB)]).flat()
-    const state = reduceBattle(PLAYERS, log(...started(), ...rounds))
-    expect(state.status).toBe('finished')
+    const waiting = reduceBattle(PLAYERS, log(...started(), ...rounds))
+    const state = reduceBattle(
+      PLAYERS,
+      log(
+        ...started(),
+        ...rounds,
+        [ALICE, { kind: 'score-settlement', round: BATTLE_ROUNDS, scores: [{ category: 'primary', delta: 5 }] }],
+        [BOB, { kind: 'settle-opponent-turn' }],
+      ),
+    )
+
+    expect(waiting).toMatchObject({
+      status: 'playing',
+      completionPending: true,
+      pendingSettlement: { playerId: ALICE, round: BATTLE_ROUNDS },
+    })
+    expect(state).toMatchObject({ status: 'finished', completionPending: false, result: { reason: 'completed' } })
+    expect(state.players[0]?.primaryByRound[BATTLE_ROUNDS - 1]).toBe(5)
+    expect(state.turns.at(-1)?.endedAt).not.toBeNull()
   })
 
   it.each([500, 600])('finishes %i-point King of the Colosseum after five rounds', (limit) => {
@@ -828,7 +884,7 @@ describe('the turn sequence', () => {
       },
     ]
     const rounds = Array.from({ length: BATTLE_ROUNDS }, () => [...turns(6, ALICE), ...turns(6, BOB)]).flat()
-    const state = reduceBattle(PLAYERS, log(configured, ...started(), ...rounds))
+    const state = reduceBattle(PLAYERS, log(configured, ...started(), ...rounds, [ALICE, { kind: 'settle-opponent-turn' }]))
     const view = battleView({ token: 'abc' }, NAMES, state, ALICE)
 
     expect(state).toMatchObject({ status: 'finished', round: 5, result: { reason: 'completed' } })
@@ -1010,6 +1066,7 @@ describe('the turn sequence', () => {
     const acknowledged = reduceBattle(PLAYERS, acknowledgedHistory)
 
     expect(validate(before, BOB, { kind: 'acknowledge-draw', playerId: ALICE })).toBeNull()
+    expect(validate(before, ALICE, { kind: 'request-advance' })).toBe('review the new secondary missions before ending the command phase')
     expect(validate(before, ALICE, { kind: 'advance' })).toBe('review the new secondary missions before ending the command phase')
     expect(battleView({ token: 'abc' }, NAMES, acknowledged, ALICE).drawAcknowledged).toBe(true)
     expect(battleView({ token: 'abc' }, NAMES, acknowledged, BOB).drawAcknowledged).toBe(true)
@@ -1088,6 +1145,7 @@ describe('the turn sequence', () => {
 
     const state = reduceBattle(PLAYERS, history)
 
+    expect(validate(state, BOB, { kind: 'request-advance', playerId: ALICE })).toBe('draw every card owed before ending the command phase')
     expect(validate(state, BOB, { kind: 'advance', playerId: ALICE })).toBe('draw every card owed before ending the command phase')
     expect(battleView({ token: 'abc' }, NAMES, state, BOB).advancePrompt).toBe('The active side has secondary missions to draw.')
   })
@@ -1233,6 +1291,7 @@ describe('the turn sequence', () => {
     )
     const state = reduceBattle(PLAYERS, history)
 
+    expect(validate(state, BOB, { kind: 'request-advance', playerId: ALICE })).toBeNull()
     expect(validate(state, BOB, { kind: 'advance', playerId: ALICE })).toBe('reveal or discard the secret mission before ending the turn')
     expect(battleView({ token: 'abc' }, NAMES, state, BOB).advancePrompt).toBe('The active side has a secret mission to reveal or discard.')
     expect(battleView({ token: 'abc' }, NAMES, state, BOB).players[0]?.secondaries[0]?.name).toBe('Secret mission')
@@ -1277,6 +1336,14 @@ describe('the round a settlement belongs to', () => {
       round: 2,
       pending: { playerId: ALICE, round: 1 },
     })
+  })
+
+  it('refuses a scoring request while previous-turn settlement is outstanding', () => {
+    const state = reduceBattle(PLAYERS, boundary())
+
+    expect(validate(state, ALICE, { kind: 'request-advance', playerId: ALICE })).toBe(
+      'settle the previous turn before ending the command phase',
+    )
   })
 
   it('banks what the previous turn owed against that round, not the one now being played', () => {

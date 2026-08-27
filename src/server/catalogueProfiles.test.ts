@@ -722,6 +722,16 @@ describe('the profile modifiers on a datasheet', () => {
       'Deep Strike',
     ],
     ['Wraith of Ruin', 'Models in this unit have the Infiltrators ability.', 'Infiltrators'],
+    [
+      'Webway Pathstone',
+      'Anhrathe unit only. Models in this unit have the Deep Strike ability. Each time this unit makes a Normal move, it can move through models and terrain features.',
+      'Deep Strike',
+    ],
+    [
+      'Terminator Armor',
+      'Infantry model only. Change the bearer’s Save characteristic to 2+, add the Terminator keyword, it has a 4+ invulnerable save, it gains the Deep Strike ability, and replace its keywords.',
+      'Deep Strike',
+    ],
     ['Recon Drone', 'The bearer is equipped with 1 drone burst cannon and the bearer’s unit has the Infiltrators ability.', 'Infiltrators'],
     ['Cacophonic Accompaniment', '- This model has Deep Strike.\n- This unit’s ranged attacks have [IGNORES COVER].', 'Deep Strike'],
     ['Vanguard', 'This unit has Scouts 6″.', 'Scouts 6"'],
@@ -756,6 +766,45 @@ describe('the profile modifiers on a datasheet', () => {
 
     expect(contextualAbilityNamesIn(book, 'cat', 'unit', { selections: unselected, unitSelectionIndex: 0 })).not.toContain(ability)
     expect(contextualAbilityNamesIn(book, 'cat', 'unit', { selections: selected, unitSelectionIndex: 0 })).toContain(ability)
+  })
+
+  it('applies attachment grants only for the named bodyguard unit', () => {
+    const book = bookOf({
+      selectionEntries: [
+        {
+          id: 'priest',
+          name: 'Ministorum Priest',
+          type: 'model',
+          profiles: [
+            {
+              id: 'battlefield-blessing',
+              name: 'Battlefield Blessing',
+              typeName: 'Abilities',
+              characteristics: [
+                {
+                  name: 'Description',
+                  $text:
+                    'If this model is attached to a Dominion Squad during the Declare Battle Formations step, it gains the Scouts 6" ability. If this model is attached to a Sisters Novitiate Squad during the Declare Battle Formations step, it gains the Infiltrators ability.',
+                },
+              ],
+            },
+          ],
+        },
+        { id: 'dominion', name: 'Dominion Squad', type: 'unit' },
+        { id: 'novitiates', name: 'Sisters Novitiate Squad', type: 'unit' },
+        { id: 'battle-sisters', name: 'Battle Sisters Squad', type: 'unit' },
+      ],
+    })
+    const abilitiesWith = (bodyguard: { id: string }) => {
+      const selections = [{ id: 'priest' }, bodyguard]
+      return contextualAbilityNamesIn(book, 'cat', 'priest', { selections, unitSelectionIndex: 0, companions: [1] })
+    }
+
+    expect(abilitiesWith({ id: 'dominion' })).toContain('Scouts 6"')
+    expect(abilitiesWith({ id: 'dominion' })).not.toContain('Infiltrators')
+    expect(abilitiesWith({ id: 'novitiates' })).toContain('Infiltrators')
+    expect(abilitiesWith({ id: 'battle-sisters' })).not.toContain('Scouts 6"')
+    expect(abilitiesWith({ id: 'battle-sisters' })).not.toContain('Infiltrators')
   })
 
   it.each(['This unit has Scouts 6".', 'Models in the bearer\'s unit have the Scouts 6" ability.'])(
@@ -902,6 +951,8 @@ describe('the profile modifiers on a datasheet', () => {
     'This unit has Deep Strike until the start of your next Shooting phase.',
     '- This unit has Deep Strike until the start of your next Shooting phase.',
     'The bearer has the Deep Strike ability until the start of your next Shooting phase.',
+    'Until the start of your next Shooting phase, this model gains the Deep Strike ability.',
+    'If this model destroys an enemy unit, it gains the Deep Strike ability.',
     'At the end of your opponent’s turn, roll one D6. If you do: - This unit has Deep Strike until the start of your next Shooting phase.',
   ])('does not make a temporary deployment ability permanent: %s', (description) => {
     const book = bookOf({

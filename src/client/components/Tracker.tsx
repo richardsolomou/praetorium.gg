@@ -135,7 +135,7 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
     [view.players],
   )
   const finished = view.status === 'finished'
-  const attemptedPrepRepairs = useRef(new Set<string>())
+  const attemptedPrepRepairs = useRef(new Map<string, number>())
   const repairSide = table.find(
     (side) =>
       side.played &&
@@ -148,15 +148,16 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
   useEffect(() => {
     if (finished || pending || !references || !secondaryDeck.length || !repairSide || !repairPrimary) return
     const key = `${view.seq}:${repairSide.captain.id}`
-    if (attemptedPrepRepairs.current.has(key)) return
-    attemptedPrepRepairs.current.add(key)
+    const attempts = attemptedPrepRepairs.current.get(key) ?? 0
+    if (attempts >= 3) return
+    attemptedPrepRepairs.current.set(key, attempts + 1)
     send({
       kind: 'set-prep',
       playerId: repairSide.captain.id,
       stratagems: repairSide.stratagems,
       secondaries:
         repairSide.secondaryMode === 'fixed'
-          ? repairSide.secondaries.map(({ key: cardKey, name, awards }) => ({ key: cardKey, name, awards }))
+          ? repairSide.secondaries.filter((card) => !card.secret).map(({ key: cardKey, name, awards }) => ({ key: cardKey, name, awards }))
           : [],
       secondaryDeck: secondaryDeck.map(({ key: cardKey, name, awards }) => ({ key: cardKey, name, awards })),
       primary: repairPrimary,
@@ -183,6 +184,20 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
   const guidesFor = (side: Side) => guidesBySide.get(side.index) ?? view.guides
   /** Which panel a narrow screen is showing, in the order the columns sit on a wide one. */
   const shown = (side: Side) => (side.isViewer ? 'yours' : 'theirs')
+  const settlementRound = view.settlementRound
+  const turnKey = `${view.round}-${view.activePlayerId ?? ''}`
+  const needsDraw =
+    !finished &&
+    active?.secondaryMode === 'tactical' &&
+    view.phase === 'command' &&
+    active.secondariesDrawnThisTurn.length < HAND_SIZE &&
+    active.remainingSecondaries.length > 0
+  const needsDrawAcknowledgement =
+    !finished &&
+    active?.secondaryMode === 'tactical' &&
+    view.phase === 'command' &&
+    active.secondariesDrawnThisTurn.length > 0 &&
+    !view.drawAcknowledged
 
   // Only what the card itself says pays out at this moment, so the ask arrives with the phase that ends.
   const due = active && !finished ? dueForAdvance(view, active, awardsFor) : []
@@ -190,7 +205,16 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
     (active?.primaryCard && active.primaryCard.awards === undefined) ||
     active?.secondaries.some((card) => card.status === 'active' && card.awards === undefined),
   )
-  const blockReason = activeNeedsReferences && deckUnknown ? 'Loading the active side’s mission cards…' : null
+  const blockReason =
+    settlementRound !== null
+      ? 'Finish the previous turn’s scoring first.'
+      : needsDraw
+        ? 'Draw the active side’s secondary missions first.'
+        : needsDrawAcknowledgement
+          ? 'Review the active side’s new secondary missions first.'
+          : activeNeedsReferences && deckUnknown
+            ? 'Loading the active side’s mission cards…'
+            : null
   const advanceBlocked = Boolean(blockReason)
   const advance = () => {
     if (advanceBlocked || !active) return
@@ -202,7 +226,6 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
     }
     send({ kind: 'advance', playerId: active.captain.id })
   }
-  const settlementRound = view.settlementRound
   const settlementSide = table.find((side) => side.captain.id === view.settlementPlayerId)
   const secretMissionActionSide = table.find((side) => side.captain.id === view.secretMissionActionPlayerId)
   const activeSecretMissionAction = Boolean(
@@ -225,19 +248,6 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
     if (settlementRound === null || settlementRulesPending || settlementSecretMissionAction || owedCards.length || pending) return
     send({ kind: 'settle-opponent-turn' })
   }, [owedCards.length, pending, send, settlementRound, settlementRulesPending, settlementSecretMissionAction])
-  const turnKey = `${view.round}-${view.activePlayerId ?? ''}`
-  const needsDraw =
-    !finished &&
-    active?.secondaryMode === 'tactical' &&
-    view.phase === 'command' &&
-    active.secondariesDrawnThisTurn.length < HAND_SIZE &&
-    active.remainingSecondaries.length > 0
-  const needsDrawAcknowledgement =
-    !finished &&
-    active?.secondaryMode === 'tactical' &&
-    view.phase === 'command' &&
-    active.secondariesDrawnThisTurn.length > 0 &&
-    !view.drawAcknowledged
   const prompt = settlementRound !== null ? (owedCards.length ? 'owed' : null) : turnPrompt(0, needsDraw || needsDrawAcknowledgement)
   const discardable = active ? discardableSecondaries(active) : []
 
@@ -362,7 +372,14 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
         </div>
       </div>
 
-      {view.advanceRequested && !view.scoringAcknowledged && !activeSecretMissionAction && due.length && active ? (
+      {settlementRound === null &&
+      !needsDraw &&
+      !needsDrawAcknowledgement &&
+      view.advanceRequested &&
+      !view.scoringAcknowledged &&
+      !activeSecretMissionAction &&
+      due.length &&
+      active ? (
         <ScoringDialog
           side={active}
           due={due}
@@ -385,7 +402,8 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
         />
       ) : null}
 
-      {secretMissionActionSide && ((view.advanceRequested && activeSecretMissionAction) || settlementSecretMissionAction) ? (
+      {secretMissionActionSide &&
+      ((view.advanceRequested && activeSecretMissionAction && !needsDraw && !needsDrawAcknowledgement) || settlementSecretMissionAction) ? (
         <SecretMissionHandoff
           side={secretMissionActionSide}
           pending={pending}
@@ -410,7 +428,12 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
         />
       ) : null}
 
-      {view.advanceRequested && (view.scoringAcknowledged || !due.length) && view.phase === 'end' && discardable.length && active ? (
+      {settlementRound === null &&
+      view.advanceRequested &&
+      (view.scoringAcknowledged || !due.length) &&
+      view.phase === 'end' &&
+      discardable.length &&
+      active ? (
         <DiscardSecondaryDialog
           side={active}
           keys={discardable}
