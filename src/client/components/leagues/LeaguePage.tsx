@@ -42,6 +42,7 @@ import {
   revealLeague,
   submitLeagueRoster,
 } from '../../../server/functions'
+import { GAME_SIZES } from '../../../core/battle'
 import { alliedLeagueRosterLimit, leagueRosterSplit, leagueTableShape, LEAGUE_MEMBER_MAX } from '../../../core/league'
 import { TABLE_SHAPE_LABELS, type TableShape } from '../../../core/tableShape'
 import { seatedPlayers, seatsFor, type Seat } from '../../seats'
@@ -168,8 +169,13 @@ export function LeaguePage({ token, eventToken, startBattle }: { token: string; 
   const battleFormat = leagueTableShape(league.format)
   const accepted = league.entries.filter((entry) => entry.status === 'accepted')
   const oneOnOneEntrants =
-    league.format === null && typeof ownEntry?.sealedLimit === 'number'
-      ? accepted.filter((entry) => entry.sealedLimit === ownEntry.sealedLimit)
+    league.format === null
+      ? accepted.filter(
+          (entry) =>
+            typeof ownEntry?.sealedLimit === 'number' &&
+            GAME_SIZES.some((size) => size.limit === ownEntry.sealedLimit) &&
+            entry.sealedLimit === ownEntry.sealedLimit,
+        )
       : accepted
   const pendingCount = league.entries.filter((entry) => entry.status === 'pending').length
   const latestEvent = league.events[0]

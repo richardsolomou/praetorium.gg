@@ -283,6 +283,14 @@ it('does not advertise a legacy league battle between different roster sizes', a
   await expect(service.leagueBattleOptions('alice', { opponentId: 'dave' })).resolves.toEqual([])
 })
 
+it('does not advertise a legacy league battle with an unsupported roster size', async () => {
+  const league = await revealedLeague()
+  await database.update(leagueEvents).set({ format: null, rosterLimit: null }).where(eq(leagueEvents.token, league.eventToken))
+  await database.update(leagueEventEntries).set({ rosterSnapshot: JSON.stringify(leagueSnapshot('Legacy roster', 1_500)) })
+
+  await expect(service.leagueBattleOptions('alice', { opponentId: 'dave' })).resolves.toEqual([])
+})
+
 it('requires an explicit casual confirmation for a revealed league matchup', async () => {
   await revealedLeague()
   await befriend('alice', 'dave')
