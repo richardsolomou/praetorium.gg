@@ -812,6 +812,46 @@ describe('the profile modifiers on a datasheet', () => {
     expect(contextualAbilityNamesIn(book, 'cat', 'unit', { selections, unitSelectionIndex: 0 })).toEqual(expect.arrayContaining(expected))
   })
 
+  it('includes a deployment ability from a mixed linked ability grant', () => {
+    const book = bookOf({
+      sharedRules: [
+        { id: 'lone-operative', name: 'Lone Operative', description: 'Lone Operative rule.' },
+        { id: 'stealth', name: 'Stealth', description: 'Stealth rule.' },
+      ],
+      selectionEntries: [
+        {
+          id: 'unit',
+          name: 'Unit',
+          type: 'unit',
+          selectionEntries: [
+            {
+              id: 'enhancement',
+              name: 'Enhancement',
+              type: 'upgrade',
+              infoLinks: [
+                { id: 'lone-operative-link', targetId: 'lone-operative', name: 'Lone Operative', type: 'rule' },
+                { id: 'stealth-link', targetId: 'stealth', name: 'Stealth', type: 'rule' },
+              ],
+              profiles: [
+                {
+                  id: 'mixed-rule',
+                  name: 'Mixed rule',
+                  typeName: 'Abilities',
+                  characteristics: [{ name: 'Description', $text: 'The bearer has the Lone Operative and Stealth abilities.' }],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    })
+    const selections = [{ id: 'unit', selections: [{ id: 'enhancement' }] }]
+
+    expect(contextualAbilityNamesIn(book, 'cat', 'unit', { selections, unitSelectionIndex: 0 })).toEqual(
+      expect.arrayContaining(['Lone Operative', 'Stealth']),
+    )
+  })
+
   it('does not make a temporary deployment ability permanent', () => {
     const book = bookOf({
       sharedRules: [{ id: 'deep-strike', name: 'Deep Strike', description: 'Deep Strike rule.' }],

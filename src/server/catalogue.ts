@@ -674,9 +674,9 @@ function parsedAbilityGrants(
   const prose = description.replaceAll(/\^\^|\*/g, '')
   const grant = (written: string, recipient: 'bearer' | 'leader' | 'unit') => {
     const matched = linkedAbilities.filter((name) => ruleReferenceMatches(written, name) || ruleReferenceMatches(name, written))
-    const deployments = deploymentAbilities(written)
-    if (!deployments.length && mentionsDeploymentAbility(written)) return []
-    const names = [...new Set([...matched, ...deployments])]
+    const listed = listedAbilities(written, linkedAbilities)
+    if (!listed.length && mentionsDeploymentAbility(written)) return []
+    const names = [...new Set([...matched, ...listed])]
     if (!names.length) names.push(...(linkedAbilities.length === 1 ? linkedAbilities : [written]))
     return names.filter(mayUseUnlinked).map((name) => ({ name: titleCaseAbility(name), recipient }))
   }
@@ -724,6 +724,17 @@ const DEPLOYMENT_ABILITY_MENTION = new RegExp(DEPLOYMENT_ABILITY, 'iu')
 function deploymentAbilities(written: string): string[] {
   const normalized = written.normalize('NFKC')
   return DEPLOYMENT_ABILITY_LIST.test(normalized) ? (normalized.match(DEPLOYMENT_ABILITIES) ?? []) : []
+}
+
+function listedAbilities(written: string, linkedAbilities: readonly string[]): string[] {
+  const normalized = normalizeRuleReference(written)
+  const candidates = [
+    ...new Set([...linkedAbilities.map(normalizeRuleReference), ...(normalized.match(DEPLOYMENT_ABILITIES) ?? [])]),
+  ].toSorted((left, right) => right.length - left.length)
+  if (!candidates.length) return []
+  const ability = candidates.map(escapeRegExp).join('|')
+  const list = new RegExp(`^(?:${ability})(?:(?:\\s*,\\s*(?:and\\s+)?|\\s+and\\s+)(?:${ability}))*$`, 'iu')
+  return list.test(normalized) ? (normalized.match(new RegExp(ability, 'giu')) ?? []) : []
 }
 
 function mentionsDeploymentAbility(written: string): boolean {
