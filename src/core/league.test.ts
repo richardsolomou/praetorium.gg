@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { alliedLeagueRosterLimit, requiredLeagueRosterLimit, visibleLeagueEntries, type LeagueEntryView } from './league'
+import { alliedLeagueRosterLimit, leagueTableShape, requiredLeagueRosterLimit, visibleLeagueEntries, type LeagueEntryView } from './league'
 
 const entries: LeagueEntryView[] = [
   {
@@ -11,6 +11,7 @@ const entries: LeagueEntryView[] = [
     submitted: true,
     rosterName: 'Army',
     requiredLimit: 2_000,
+    sealedLimit: 2_000,
     teamId: null,
   },
   {
@@ -22,6 +23,7 @@ const entries: LeagueEntryView[] = [
     submitted: false,
     rosterName: null,
     requiredLimit: null,
+    sealedLimit: null,
     teamId: null,
   },
   {
@@ -33,9 +35,14 @@ const entries: LeagueEntryView[] = [
     submitted: false,
     rosterName: null,
     requiredLimit: null,
+    sealedLimit: null,
     teamId: null,
   },
 ]
+
+it('treats a missing legacy format as 1v1', () => {
+  expect(leagueTableShape(null)).toBe('1v1')
+})
 
 describe('visibleLeagueEntries', () => {
   it('shows only accepted entrants to a visitor', () => {

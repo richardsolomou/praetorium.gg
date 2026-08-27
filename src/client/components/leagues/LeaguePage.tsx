@@ -42,7 +42,8 @@ import {
   revealLeague,
   submitLeagueRoster,
 } from '../../../server/functions'
-import { alliedLeagueRosterLimit, leagueRosterSplit, LEAGUE_MEMBER_MAX } from '../../../core/league'
+import { GAME_SIZES } from '../../../core/battle'
+import { alliedLeagueRosterLimit, leagueRosterSplit, leagueTableShape, LEAGUE_MEMBER_MAX } from '../../../core/league'
 import { TABLE_SHAPE_LABELS, type TableShape } from '../../../core/tableShape'
 import { seatedPlayers, seatsFor, type Seat } from '../../seats'
 import { SeatMatchup, SeatRows, seatLabel, seatOption } from '../Seats'
@@ -165,7 +166,17 @@ export function LeaguePage({ token, eventToken, startBattle }: { token: string; 
   const eventBattles = leagueBattlesFrom(battleHistory.data)
   const isOwner = me?.id === league.ownerId
   const ownEntry = league.entries.find((entry) => entry.userId === me?.id)
+  const battleFormat = leagueTableShape(league.format)
   const accepted = league.entries.filter((entry) => entry.status === 'accepted')
+  const oneOnOneEntrants =
+    league.format === null
+      ? accepted.filter(
+          (entry) =>
+            typeof ownEntry?.sealedLimit === 'number' &&
+            GAME_SIZES.some((size) => size.limit === ownEntry.sealedLimit) &&
+            entry.sealedLimit === ownEntry.sealedLimit,
+        )
+      : accepted
   const pendingCount = league.entries.filter((entry) => entry.status === 'pending').length
   const latestEvent = league.events[0]
   const archivedEvents = league.events.slice(1)
@@ -454,6 +465,103 @@ export function LeaguePage({ token, eventToken, startBattle }: { token: string; 
 
         <aside className="space-y-3">
           <section className="border border-edge bg-panel p-4">
+            <div className="flex items-center gap-2">
+              <FileLock2 className="size-5 text-parchment" />
+              <h2 className="font-bold uppercase">Sealed rosters</h2>
+            </div>
+            <p className="mt-2 text-sm text-dim">
+              A submitted roster is copied into this league. Editing or deleting the saved roster cannot change the sealed copy.
+            </p>
+            <p className="mt-3 text-sm text-dim">
+              Praetorium checks the event format, assigned size, points, and every roster construction rule it can verify before sealing it.
+            </p>
+            {league.format === '2v2' ? (
+              <p className="mt-3 text-sm text-parchment">
+                Each team must select exactly one eligible CHARACTER or EPIC HERO as its Warlord. Praetorium checks both rosters when the
+                team seals them and rechecks at reveal; your team and organizer must manually check the remaining official cross-army
+                uniqueness restrictions.
+              </p>
+            ) : null}
+            {ownEntry?.status === 'pending' ? (
+              <p className="mt-3 text-sm text-parchment">Your request is waiting for organizer approval.</p>
+            ) : null}
+            {ownEntry?.status === 'rejected' ? <p className="mt-3 text-sm text-destructive">Your entry was not accepted.</p> : null}
+            {ownEntry?.status === 'accepted' && !league.revealedAt ? (
+              <Button
+                className="mt-4 w-full"
+                variant={ownEntry.submitted ? 'outline' : 'default'}
+                disabled={(league.format === '2v1' || league.format === '2v2') && ownEntry.requiredLimit === null}
+                onClick={openRosterChooser}
+              >
+                {ownEntry.submitted ? 'Change roster' : 'Choose roster'}
+              </Button>
+            ) : null}
+            {league.format === '2v1' && ownEntry?.status === 'accepted' && ownEntry.requiredLimit === null && !league.revealedAt ? (
+              <p className="mt-3 text-sm text-parchment">Wait for the organizer to assign your solo or allied roster size.</p>
+            ) : null}
+            {league.format === '2v2' && ownEntry?.status === 'accepted' && ownEntry.requiredLimit === null && !league.revealedAt ? (
+              <p className="mt-3 text-sm text-parchment">Wait for the organizer to pair you with a teammate before sealing a roster.</p>
+            ) : null}
+            {ownEntry?.submitted && !league.revealedAt ? (
+              <p className="mt-3 flex items-center gap-2 text-sm text-achieved">
+                <ShieldCheck className="size-4" /> {ownEntry.rosterName ?? 'Roster'} submitted. You can replace it until reveal.
+              </p>
+            ) : null}
+            {league.revealedAt ? (
+              <p className="mt-3 text-sm text-achieved">Every accepted roster is now visible to anyone with this link.</p>
+            ) : null}
+            {league.revealedAt && ownEntry?.status === 'accepted' ? (
+              <Button className="mt-4 w-full" disabled={battle.isPending} onClick={openBattleChooser}>
+                <Swords /> {startBattleLabel(battleFormat)}
+              </Button>
+            ) : null}
+          </section>
+          {isOwner && !league.revealedAt ? (
+            <section className="border border-edge bg-panel p-4">
+              <h2 className="font-bold uppercase">Organizer</h2>
+              <p className="mt-2 text-sm text-dim">
+                Reveal closes registration and makes every accepted roster visible at once. It cannot be undone.
+              </p>
+              <Button
+                className="mt-4 w-full"
+                disabled={!readyToReveal}
+                onClick={() => {
+                  reveal.reset()
+                  setRevealing(true)
+                }}
+              >
+                Reveal all rosters
+              </Button>
+              {!readyToReveal ? (
+                <p className="mt-2 text-xs text-dim">
+                  {accepted.length === 0
+                    ? 'Accept at least one entrant first.'
+                    : league.format === '2v1' && accepted.some((entry) => entry.requiredLimit === null)
+                      ? 'Assign every accepted entrant a solo or allied roster size.'
+                      : league.format === '2v1' && !accepted.some((entry) => entry.requiredLimit === league.rosterLimit)
+                        ? 'Assign at least one solo entrant.'
+                        : league.format === '2v1' &&
+                            accepted.filter((entry) => entry.requiredLimit === alliedLeagueRosterLimit(league.rosterLimit ?? 0)).length < 2
+                          ? 'Assign at least two allied entrants.'
+                          : league.format === '2v2' && pendingCount > 0
+                            ? 'Resolve every pending request before reveal.'
+                            : league.format === '2v2' && accepted.length < 4
+                              ? 'Accept at least four entrants for doubles.'
+                              : league.format === '2v2' && accepted.length % 2 !== 0
+                                ? 'Doubles needs an even number of accepted entrants.'
+                                : league.format === '2v2' && !doublesReady
+                                  ? 'Pair every accepted entrant into a team of exactly two.'
+                                  : accepted.some((entry) => !entry.submitted)
+                                    ? missingRosterMessage(accepted.filter((entry) => !entry.submitted).length)
+                                    : league.playerLimit !== null && accepted.length < league.playerLimit
+                                      ? `${league.playerLimit - accepted.length} accepted place${league.playerLimit - accepted.length === 1 ? '' : 's'} still open.`
+                                      : 'The league is not ready to reveal.'}
+                </p>
+              ) : null}
+            </section>
+          ) : null}
+          {problem ? <p className="text-sm text-destructive">{errorMessage(problem)}</p> : null}
+          <section className="border border-edge bg-panel p-4">
             <div className="flex items-center justify-between gap-3">
               <h2 className="font-bold uppercase">League events</h2>
               <span className="readout">{league.eventCount}</span>
@@ -503,99 +611,6 @@ export function LeaguePage({ token, eventToken, startBattle }: { token: string; 
               </div>
             ) : null}
           </section>
-          <section className="border border-edge bg-panel p-4">
-            <div className="flex items-center gap-2">
-              <FileLock2 className="size-5 text-parchment" />
-              <h2 className="font-bold uppercase">Sealed rosters</h2>
-            </div>
-            <p className="mt-2 text-sm text-dim">
-              A submitted roster is copied into this league. Editing or deleting the saved roster cannot change the sealed copy.
-            </p>
-            {league.format === '2v2' ? (
-              <p className="mt-3 text-sm text-parchment">
-                Each team must select exactly one eligible CHARACTER as its Warlord. Praetorium checks the selected Warlord markers at
-                reveal; your team and organizer must manually check the remaining official cross-army uniqueness restrictions.
-              </p>
-            ) : null}
-            {ownEntry?.status === 'pending' ? (
-              <p className="mt-3 text-sm text-parchment">Your request is waiting for organizer approval.</p>
-            ) : null}
-            {ownEntry?.status === 'rejected' ? <p className="mt-3 text-sm text-destructive">Your entry was not accepted.</p> : null}
-            {ownEntry?.status === 'accepted' && !league.revealedAt ? (
-              <Button
-                className="mt-4 w-full"
-                variant={ownEntry.submitted ? 'outline' : 'default'}
-                disabled={(league.format === '2v1' || league.format === '2v2') && ownEntry.requiredLimit === null}
-                onClick={openRosterChooser}
-              >
-                {ownEntry.submitted ? 'Change roster' : 'Choose roster'}
-              </Button>
-            ) : null}
-            {league.format === '2v1' && ownEntry?.status === 'accepted' && ownEntry.requiredLimit === null && !league.revealedAt ? (
-              <p className="mt-3 text-sm text-parchment">Wait for the organizer to assign your solo or allied roster size.</p>
-            ) : null}
-            {league.format === '2v2' && ownEntry?.status === 'accepted' && ownEntry.requiredLimit === null && !league.revealedAt ? (
-              <p className="mt-3 text-sm text-parchment">Wait for the organizer to pair you with a teammate before sealing a roster.</p>
-            ) : null}
-            {ownEntry?.submitted && !league.revealedAt ? (
-              <p className="mt-3 flex items-center gap-2 text-sm text-achieved">
-                <ShieldCheck className="size-4" /> {ownEntry.rosterName ?? 'Roster'} submitted. You can replace it until reveal.
-              </p>
-            ) : null}
-            {league.revealedAt ? (
-              <p className="mt-3 text-sm text-achieved">Every accepted roster is now visible to anyone with this link.</p>
-            ) : null}
-            {league.revealedAt && league.format && ownEntry?.status === 'accepted' ? (
-              <Button className="mt-4 w-full" disabled={battle.isPending} onClick={openBattleChooser}>
-                <Swords /> {startBattleLabel(league.format)}
-              </Button>
-            ) : null}
-          </section>
-          {isOwner && !league.revealedAt ? (
-            <section className="border border-edge bg-panel p-4">
-              <h2 className="font-bold uppercase">Organizer</h2>
-              <p className="mt-2 text-sm text-dim">
-                Reveal closes registration and makes every accepted roster visible at once. It cannot be undone.
-              </p>
-              <Button
-                className="mt-4 w-full"
-                disabled={!readyToReveal}
-                onClick={() => {
-                  reveal.reset()
-                  setRevealing(true)
-                }}
-              >
-                Reveal all rosters
-              </Button>
-              {!readyToReveal ? (
-                <p className="mt-2 text-xs text-dim">
-                  {accepted.length === 0
-                    ? 'Accept at least one entrant first.'
-                    : league.format === '2v1' && accepted.some((entry) => entry.requiredLimit === null)
-                      ? 'Assign every accepted entrant a solo or allied roster size.'
-                      : league.format === '2v1' && !accepted.some((entry) => entry.requiredLimit === league.rosterLimit)
-                        ? 'Assign at least one solo entrant.'
-                        : league.format === '2v1' &&
-                            accepted.filter((entry) => entry.requiredLimit === alliedLeagueRosterLimit(league.rosterLimit ?? 0)).length < 2
-                          ? 'Assign at least two allied entrants.'
-                          : league.format === '2v2' && pendingCount > 0
-                            ? 'Resolve every pending request before reveal.'
-                            : league.format === '2v2' && accepted.length < 4
-                              ? 'Accept at least four entrants for doubles.'
-                              : league.format === '2v2' && accepted.length % 2 !== 0
-                                ? 'Doubles needs an even number of accepted entrants.'
-                                : league.format === '2v2' && !doublesReady
-                                  ? 'Pair every accepted entrant into a team of exactly two.'
-                                  : accepted.some((entry) => !entry.submitted)
-                                    ? missingRosterMessage(accepted.filter((entry) => !entry.submitted).length)
-                                    : league.playerLimit !== null && accepted.length < league.playerLimit
-                                      ? `${league.playerLimit - accepted.length} accepted place${league.playerLimit - accepted.length === 1 ? '' : 's'} still open.`
-                                      : 'The league is not ready to reveal.'}
-                </p>
-              ) : null}
-            </section>
-          ) : null}
-          {problem ? <p className="text-sm text-destructive">{errorMessage(problem)}</p> : null}
         </aside>
       </div>
 
@@ -733,12 +748,12 @@ export function LeaguePage({ token, eventToken, startBattle }: { token: string; 
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      {league.format === '1v1' && ownEntry?.status === 'accepted' ? (
+      {battleFormat === '1v1' && ownEntry?.status === 'accepted' ? (
         <OneOnOneBattleChooser
           key={league.eventToken}
           open={choosingBattle}
           ownUserId={ownEntry.userId}
-          entries={accepted}
+          entries={oneOnOneEntrants}
           pending={battle.isPending}
           error={battle.error}
           onIntentChange={() => battle.reset()}
@@ -825,7 +840,11 @@ function RosterChooser({
               : `Choose a roster configured for ${requiredLimit.toLocaleString()} points. You can replace it until the organizer reveals every list.`}
           </DialogDescription>
         </DialogHeader>
-        {error || rosterQuery.error ? <p className="text-sm text-destructive">{errorMessage(error ?? rosterQuery.error)}</p> : null}
+        {error || rosterQuery.error ? (
+          <p role="alert" className="text-sm text-destructive">
+            {errorMessage(error ?? rosterQuery.error)}
+          </p>
+        ) : null}
         {rosterQuery.isPending ? (
           <div className="border border-dashed border-edge p-5 text-center">
             <p className="text-sm text-dim">Loading rosters…</p>
