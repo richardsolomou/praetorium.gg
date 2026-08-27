@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.41.2
+
+### Patch Changes
+
+- cafae13: Show squad champion wargear correctly, keep loadout edits responsive while pricing, and link same-named datasheets to their own factions.
+
 ## 0.41.1
 
 ### Patch Changes
