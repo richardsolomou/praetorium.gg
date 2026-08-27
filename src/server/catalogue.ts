@@ -114,134 +114,102 @@ type DatasheetContext = {
 const abilityDescription = (profile: Profile) =>
   profile.characteristics?.find((characteristic) => characteristic.name === 'Description')?.$text ?? null
 
-type SearchableProfiles = Pick<DatasheetSearchFields, 'abilities' | 'weapons' | 'weaponKeywords'> & { pricingAbilities: string[] }
+type Walked = NonNullable<ReturnType<typeof walk>>
 
-const searchableProfileCache = new WeakMap<LoadedCatalogue, Map<string, SearchableProfiles>>()
+const walkCache = new WeakMap<LoadedCatalogue, Map<string, Walked | null>>()
+const sheetCache = new WeakMap<LoadedCatalogue, Map<string, Datasheet | null>>()
+
+function cachedIn<T>(store: WeakMap<LoadedCatalogue, Map<string, T>>, loaded: LoadedCatalogue, key: string, compute: () => T): T {
+  const cache = store.get(loaded) ?? new Map<string, T>()
+  if (!store.has(loaded)) store.set(loaded, cache)
+  if (cache.has(key)) return cache.get(key)!
+  const value = compute()
+  cache.set(key, value)
+  return value
+}
 
 /**
- * Ability names without projecting a complete display datasheet.
+ * What a datasheet is on its own, read once per snapshot.
  *
- * Roster pricing only needs to recognize deployment abilities. Building profiles,
- * choices, attachment relationships and description text for every unit made that
- * small question pay nearly the whole datasheet-page cost.
+ * The reference page, the picker, the search index and the pricing of a roster all
+ * ask about the datasheet before any list has touched it, and they used to walk the
+ * catalogue separately to answer. The walk is made once against the default selection
+ * and kept for as long as the snapshot is; a roster's own view is walked on demand by
+ * the same code with the list as context. The full sheet — price, card, relationships
+ * — is dearer than the walk and is kept only once something has asked for it.
  */
-export function abilityNamesIn(loaded: LoadedCatalogue, catalogueId: string, entryId: string): string[] {
-  return searchableProfilesIn(loaded, catalogueId, entryId).pricingAbilities
-}
+const walkRecord = (loaded: LoadedCatalogue, catalogueId: string, entryId: string) =>
+  cachedIn(walkCache, loaded, `${catalogueId}:${entryId}`, () => walk(loaded, catalogueId, entryId))
 
-function searchableProfilesIn(loaded: LoadedCatalogue, catalogueId: string, entryId: string): SearchableProfiles {
-  const key = `${catalogueId}:${entryId}`
-  const cache = searchableProfileCache.get(loaded)
-  const cached = cache?.get(key)
-  if (cached) return cached
-  const empty = { abilities: [], weapons: [], weaponKeywords: [], pricingAbilities: [] }
-  if (!datasheetsOf(loaded.index, catalogueId).has(entryId)) return empty
-  const root = loaded.index.definitions.get(entryId)
-  if (!root) return empty
+/** Ability names alone: roster pricing only needs to recognise deployment abilities. */
+export const abilityNamesIn = (loaded: LoadedCatalogue, catalogueId: string, entryId: string): string[] => [
+  ...new Set(walkRecord(loaded, catalogueId, entryId)?.abilities.map((ability) => ability.name) ?? []),
+]
 
-  const abilities = new Set<string>()
-  const pricingAbilities = new Set<string>()
-  const weapons = new Set<string>()
-  const weaponKeywords = new Set<string>()
-  const visited = new Set<string>()
-  const options = { primaryCatalogueId: catalogueId }
-  const addProfile = (profile: Profile, searchable = true) => {
-    if (!profile.name || profile.hidden) return
-    if (profile.typeName === 'Abilities') {
-      pricingAbilities.add(profile.name)
-      if (searchable) abilities.add(profile.name)
-    }
-    if (!searchable) return
-    if (profile.typeName !== 'Ranged Weapons' && profile.typeName !== 'Melee Weapons') return
-    weapons.add(profile.name)
-    for (const characteristic of profile.characteristics ?? []) {
-      if (characteristic.name?.trim().toLocaleLowerCase() !== 'keywords') continue
-      for (const keyword of weaponKeywordsOf(characteristic.$text)) weaponKeywords.add(keyword)
-    }
-  }
-  const addRule = (link: InfoLink, searchable = true) => {
-    if (link.type !== 'rule' || infoLinkHiddenByRules(link, loaded.index, options)) return
-    const rule = loaded.index.rules.get(link.targetId)
-    const name = displayRuleName(link, link.name ?? rule?.name)
-    if (!name || rule?.hidden) return
-    pricingAbilities.add(name)
-    if (searchable) abilities.add(name)
-  }
-  const addGroup = (group: InfoGroup, searchable = true) => {
-    if (group.hidden) return
-    group.profiles?.forEach((profile) => addProfile(profile, searchable))
-    group.infoLinks?.forEach((link) => addRule(link, searchable))
-  }
-  const addProfiles = (definition: Definition, ownRules: boolean) => {
-    definition.profiles?.forEach((profile) => addProfile(profile))
-    definition.infoGroups?.forEach((group) => addGroup(group))
-    for (const link of definition.infoLinks ?? []) {
-      if (ownRules) addRule(link)
-      const shared = loaded.index.shared.get(link.targetId)
-      if (!shared) continue
-      if ('profiles' in shared) addGroup({ ...shared, name: link.name ?? shared.name }, false)
-      else addProfile({ ...shared, name: link.name ?? shared.name })
-    }
-  }
-  const visit = (definition: Definition, isRoot = false, enhancement = false) => {
-    if (visited.has(definition.id)) return
-    visited.add(definition.id)
-    const enhancementEntry = enhancement || definition.name === 'Enhancements'
-    if (!enhancementEntry) addProfiles(definition, isRoot)
-    definition.selectionEntries?.forEach((entry) => visit(entry, false, enhancementEntry))
-    definition.selectionEntryGroups?.forEach((group) => visit(group, false, enhancementEntry))
-    for (const link of definition.entryLinks ?? []) {
-      visit(link)
-      const target = loaded.index.definitions.get(link.targetId)
-      if (target) addProfiles(target, false)
-    }
-  }
-
-  const sheet = targetOf(root, loaded.index.definitions)
-  visit(root, true)
-  if (sheet !== root) visit(sheet, true)
-  const found = {
-    abilities: [...abilities],
-    weapons: [...weapons],
-    weaponKeywords: [...weaponKeywords],
-    pricingAbilities: [...pricingAbilities],
-  }
-  const entries = cache ?? new Map<string, SearchableProfiles>()
-  entries.set(key, found)
-  if (!cache) searchableProfileCache.set(loaded, entries)
-  return found
-}
-
-const datasheetSearchFieldCache = new WeakMap<LoadedCatalogue, Map<string, DatasheetSearchFields>>()
-
+/** Rules prose stays out of the search index so common phrases do not overwhelm useful results. */
 export function datasheetSearchFieldsIn(loaded: LoadedCatalogue, catalogueId: string, entryId: string): DatasheetSearchFields | null {
-  const key = `${catalogueId}:${entryId}`
-  const cache = datasheetSearchFieldCache.get(loaded)
-  const cached = cache?.get(key)
-  if (cached) return cached
-  const root = loaded.index.definitions.get(entryId)
-  if (!root || !datasheetsOf(loaded.index, catalogueId).has(entryId)) return null
-
-  const name = nameOf(root, loaded.index.definitions)
-  const profiles = searchableProfilesIn(loaded, catalogueId, entryId)
-  const selection = defaultSelection(entryId, loaded.index, { primaryCatalogueId: catalogueId })
-  const choices = selection ? unitChoices(entryId, selection, loaded.index, { primaryCatalogueId: catalogueId }) : []
-  const fields = {
-    name,
-    keywords: keywordsIn(loaded, catalogueId, entryId),
-    abilities: profiles.abilities,
-    weapons: profiles.weapons,
-    weaponKeywords: profiles.weaponKeywords,
-    wargear: [...new Set(choices.flatMap((choice) => [choice.name, ...choice.options.map((option) => option.name)]))],
+  const walked = walkRecord(loaded, catalogueId, entryId)
+  if (!walked) return null
+  const weapons = walked.profiles.filter((profile) => profile.type === 'Ranged Weapons' || profile.type === 'Melee Weapons')
+  return {
+    name: walked.name,
+    keywords: walked.keywords,
+    abilities: [...new Set(walked.abilities.filter((ability) => ability.kind !== 'rule').map((ability) => ability.name))],
+    weapons: [...new Set(weapons.map((weapon) => weapon.name))],
+    weaponKeywords: [
+      ...new Set(
+        weapons.flatMap((weapon) => weapon.values.flatMap((value) => (value.name === 'Keywords' ? weaponKeywordsOf(value.value) : []))),
+      ),
+    ],
+    wargear: [...new Set(walked.choices.flatMap((choice) => [choice.name, ...choice.options.map((option) => option.name)]))],
   }
-  const entries = cache ?? new Map<string, DatasheetSearchFields>()
-  entries.set(key, fields)
-  if (!cache) datasheetSearchFieldCache.set(loaded, entries)
-  return fields
 }
 
-/** Structured display data for one top-level datasheet, including linked shared profiles. */
+/**
+ * Structured display data for one top-level datasheet, including linked shared
+ * profiles: the kept sheet on its own, or a projection with the list as context.
+ */
 export function datasheetIn(loaded: LoadedCatalogue, catalogueId: string, entryId: string, context?: DatasheetContext): Datasheet | null {
+  if (context) return assemble(loaded, catalogueId, entryId, walk(loaded, catalogueId, entryId, context))
+  return cachedIn(sheetCache, loaded, `${catalogueId}:${entryId}`, () =>
+    assemble(loaded, catalogueId, entryId, walkRecord(loaded, catalogueId, entryId)),
+  )
+}
+
+function assemble(loaded: LoadedCatalogue, catalogueId: string, entryId: string, walked: Walked | null): Datasheet | null {
+  if (!walked) return null
+  const { root, name, catalogueOptions } = walked
+  const details = datacardOf(loaded, catalogueId, entryId)?.details ?? null
+  const attachment = attachmentOf(root, loaded.index)
+  const relationships = relationshipsFor(loaded, catalogueId, root.id, name)
+  return {
+    id: root.id,
+    slug: datasheetSlug(loaded, catalogueId, root.id),
+    referenceRoute: referenceDatasheetRoute(loaded, name),
+    name,
+    points: priceOf(loaded, catalogueId, entryId),
+    keywords: walked.keywords,
+    profiles: walked.profiles,
+    abilities: walked.abilities,
+    composition: details?.composition ?? [],
+    loadout: details?.loadout ?? null,
+    wargearOptions: details?.wargear.length
+      ? details.wargear
+      : catalogueOptions.map(({ name: optionName, options }) => `**${optionName}:** ${options}.`),
+    baseSize: details?.baseSize ?? null,
+    transport: details?.transport ?? null,
+    costs: details?.points ?? [],
+    attachments: attachment?.targets.map((target) => relationshipFor(loaded, catalogueId, target, attachment.kind)) ?? [],
+    leaders: relationships.leaders.map((leader) => relationshipFor(loaded, catalogueId, leader.name, undefined, leader.entryId)),
+    supporters: relationships.supporters.map((supporter) =>
+      relationshipFor(loaded, catalogueId, supporter.name, undefined, supporter.entryId),
+    ),
+    keywordRules: walked.keywordRules,
+  }
+}
+
+/** The catalogue's own answer for a datasheet: what it prints and offers, as a list would see it. */
+function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, context?: DatasheetContext) {
   if (!datasheetsOf(loaded.index, catalogueId).has(entryId)) return null
   const root = loaded.index.definitions.get(entryId)
   if (!root) return null
@@ -405,9 +373,6 @@ export function datasheetIn(loaded: LoadedCatalogue, catalogueId: string, entryI
   }
 
   const name = nameOf(root, loaded.index.definitions)
-  const details = datacardOf(loaded, catalogueId, entryId)?.details ?? null
-  const attachment = attachmentOf(root, loaded.index)
-  const relationships = relationshipsFor(loaded, catalogueId, root.id, name)
   const characteristicNames = loaded.characteristicNames
   const keywords = selection
     ? keywordsIn(loaded, catalogueId, entryId, { selection, roster: selectedUnit ? context?.selections : undefined })
@@ -464,27 +429,14 @@ export function datasheetIn(loaded: LoadedCatalogue, catalogueId: string, entryI
     ]
   })
   return {
-    id: root.id,
-    slug: datasheetSlug(loaded, catalogueId, root.id),
-    referenceRoute: referenceDatasheetRoute(loaded, name),
+    root,
     name,
-    points: priceOf(loaded, catalogueId, entryId),
+    selection,
+    choices,
     keywords,
+    catalogueOptions,
     profiles: uniqueProfiles(displayProfiles),
     abilities: uniqueAbilities([...abilities.values(), ...grantedAbilities]),
-    composition: details?.composition ?? [],
-    loadout: details?.loadout ?? null,
-    wargearOptions: details?.wargear.length
-      ? details.wargear
-      : catalogueOptions.map(({ name: optionName, options }) => `**${optionName}:** ${options}.`),
-    baseSize: details?.baseSize ?? null,
-    transport: details?.transport ?? null,
-    costs: details?.points ?? [],
-    attachments: attachment?.targets.map((target) => relationshipFor(loaded, catalogueId, target, attachment.kind)) ?? [],
-    leaders: relationships.leaders.map((leader) => relationshipFor(loaded, catalogueId, leader.name, undefined, leader.entryId)),
-    supporters: relationships.supporters.map((supporter) =>
-      relationshipFor(loaded, catalogueId, supporter.name, undefined, supporter.entryId),
-    ),
     keywordRules: [...keywordRules.values()],
   }
 }
