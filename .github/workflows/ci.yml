@@ -207,8 +207,9 @@ jobs:
     # Pricing a unit boots the app, which keeps its auth secret on disk. The deployed
     # default is /data, which the runner cannot write to. Set here rather than only in
     # the script, because the base snapshot runs the base revision of that script.
+    # The runner context is not available to a job-level env, only to a step.
     env:
-      DATA_DIR: ${{ runner.temp }}/coverage
+      DATA_DIR: ${{ github.workspace }}/.coverage-data
     steps:
       - uses: actions/checkout@v7
         with:
