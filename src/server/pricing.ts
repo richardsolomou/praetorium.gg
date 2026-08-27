@@ -13,7 +13,7 @@ import { evaluate, evaluateForces, keywordIdsBySelection, type Selection } from 
 import { type ModelKind, modelKindsOf, modelRowCount, modelRowSources, optionWargear } from '../core/modelKinds'
 import { buildUnit } from '../core/roster'
 import { allAt } from '../core/selection'
-import { type ChoiceOptions, isUnitCompositionChoice, unitChoices } from '../core/unitChoices'
+import { type ChoiceOptions, isUnitCompositionChoice, type UnitChoice, unitChoices } from '../core/unitChoices'
 import { withUnitSpread } from '../core/unitSpread'
 import { wargearKey, wargearOf } from '../core/wargear'
 import { app } from './app'
@@ -65,6 +65,9 @@ type ReplacementChoice = {
 type ReplacementSource = { choiceKey: string; optionId: string }
 
 const replacementKey = ({ choiceKey, optionId }: ReplacementSource) => `${choiceKey}\0${optionId}`
+
+/** A malformed catalogue choice must not make the whole roster impossible to price. */
+export const choiceOptionsForPricing = (choice: { options?: UnitChoice['options'] }) => choice.options ?? []
 
 function legalReplacementPairs(
   entryId: string,
@@ -322,7 +325,7 @@ export function calculateRosterPrice(data: PriceInput, loaded = app().catalogue(
         }),
       )
       const describedChoices: ((typeof unit.choices)[number] & { kind?: 'enhancement' | 'upgrade' })[] = unit.choices.map((choice) => {
-        const choiceOptions = (choice.options ?? []).map((option) => {
+        const choiceOptions = choiceOptionsForPricing(choice).map((option) => {
           const path = choice.key.split('/')
           const nested = allAt(unit.selection, [...path, option.id])
           const direct = allAt(unit.selection, path).filter((selection) => selection.id === option.id)
