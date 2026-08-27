@@ -1,5 +1,16 @@
 # praetorium
 
+## 0.40.0
+
+### Minor Changes
+
+- 519669f: Duplicate another player's shared roster into your private rosters.
+- 0efb506: Import Praetorium Games Workshop roster text and preserve repeated unit attachments.
+
+### Patch Changes
+
+- 05350f6: Fix pre-battle rules, command-point feedback, reliable mission scoring prompts, round progression, mission details, casualty controls, and weapon readability.
+
 ## 0.39.7
 
 ### Patch Changes
