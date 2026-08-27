@@ -183,6 +183,109 @@ describe('mixed model composition', () => {
   })
 })
 
+describe('a required model replaced by an optional specialist', () => {
+  const index = indexOf({
+    sharedSelectionEntries: [
+      {
+        id: 'squad',
+        name: 'Squad',
+        type: 'unit',
+        selectionEntryGroups: [
+          {
+            id: 'models',
+            name: 'Models',
+            defaultSelectionEntryId: 'trooper',
+            constraints: [
+              { id: 'models-min', type: 'min', value: 5, field: 'selections', scope: 'parent' },
+              { id: 'models-max', type: 'max', value: 10, field: 'selections', scope: 'parent' },
+            ],
+            selectionEntries: [
+              {
+                id: 'sergeant',
+                name: 'Sergeant',
+                type: 'model',
+                constraints: [
+                  ...mandatory('sergeant-min'),
+                  { id: 'sergeant-max', type: 'max', value: 1, field: 'selections', scope: 'parent' },
+                ],
+              },
+              {
+                id: 'trooper',
+                name: 'Trooper',
+                type: 'model',
+                constraints: [
+                  { id: 'trooper-min', type: 'min', value: 4, field: 'selections', scope: 'parent' },
+                  { id: 'trooper-max', type: 'max', value: 9, field: 'selections', scope: 'parent' },
+                ],
+                modifierGroups: [
+                  {
+                    modifiers: [
+                      { type: 'decrement', value: 1, field: 'trooper-min' },
+                      { type: 'decrement', value: 1, field: 'trooper-max' },
+                    ],
+                    repeats: [{ value: 1, field: 'selections', scope: 'parent', childId: 'specialist' }],
+                  },
+                ],
+              },
+              {
+                id: 'specialist',
+                name: 'Specialist',
+                type: 'model',
+                constraints: [{ id: 'specialist-max', type: 'max', value: 2, field: 'selections', scope: 'parent' }],
+                modifiers: [
+                  {
+                    type: 'add',
+                    value: 'Max 1 specialist per 5 models',
+                    field: 'error',
+                    conditionGroups: [
+                      {
+                        type: 'and',
+                        conditions: [
+                          {
+                            type: 'lessThan',
+                            value: 10,
+                            field: 'selections',
+                            scope: 'squad',
+                            childId: 'model',
+                            includeChildSelections: true,
+                          },
+                          {
+                            type: 'greaterThan',
+                            value: 1,
+                            field: 'selections',
+                            scope: 'squad',
+                            childId: 'specialist',
+                            includeChildSelections: true,
+                          },
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  })
+
+  it('offers one specialist in a five-model squad', () => {
+    const choice = buildUnit('squad', index, 5)?.choices.find((candidate) => candidate.name === 'Models')
+    expect(choice?.options.find((option) => option.id === 'specialist')?.max).toBe(1)
+  })
+
+  it('keeps the required models available in a five-model squad', () => {
+    const choice = buildUnit('squad', index, 5)?.choices.find((candidate) => candidate.name === 'Models')
+    expect(choice?.options.find((option) => option.id === 'trooper')?.max).toBe(4)
+  })
+
+  it('offers two specialists in a ten-model squad', () => {
+    const choice = buildUnit('squad', index, 10)?.choices.find((candidate) => candidate.name === 'Models')
+    expect(choice?.options.find((option) => option.id === 'specialist')?.max).toBe(2)
+  })
+})
+
 describe('repeated specialist models', () => {
   const index = indexOf({
     sharedSelectionEntries: [

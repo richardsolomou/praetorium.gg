@@ -398,7 +398,9 @@ function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, con
     if (visited.has(definition.id)) return
     visited.add(definition.id)
     const lineage = [...ancestors, ...definitionTokens(definition)]
-    const enhancementEntry = enhancement || definition.name === 'Enhancements'
+    const resolved = targetOf(definition, loaded.index.definitions)
+    const enhancementEntry =
+      enhancement || (resolved.type === undefined && (definition.name ?? resolved.name)?.toLocaleLowerCase().includes('enhancement'))
     if (!enhancementEntry || selected.has(definition.id)) addProfiles(definition, lineage, 'datasheet', isRoot)
     definition.selectionEntries?.forEach((entry) => visit(entry, false, lineage, enhancementEntry))
     definition.selectionEntryGroups?.forEach((group) => visit(group, false, lineage, enhancementEntry))
