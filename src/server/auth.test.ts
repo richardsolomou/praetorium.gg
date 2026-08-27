@@ -2,7 +2,7 @@ import { and, eq } from 'drizzle-orm'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { EmailDelivery, EmailMessage } from 'ras-stack/email'
 import type { PraetoriumConnection } from '../db/connection'
-import { account, user } from '../db/schema'
+import { account, battles, battleUsers, commands, user, verification } from '../db/schema'
 import { openTestDatabase } from '../db/testDatabase'
 import { createAuth } from './auth'
 
@@ -153,6 +153,56 @@ describe('account administration', () => {
       encryptOAuthTokens: true,
       accountLinking: { enabled: true, trustedProviders: ['google', 'discord'] },
     })
+  })
+
+  it('exchanges a hashed one-time token into a WebView session once', async () => {
+    connection = await openTestDatabase()
+    const auth = createAuth(connection.database, SECRET)
+    const signedUp = await auth.api.signUpEmail({
+      body: { email: 'native@example.com', password: 'password1234', name: 'Native' },
+      returnHeaders: true,
+    })
+    const generated = await auth.api.generateOneTimeToken({ headers: cookieHeaders(signedUp.headers) })
+
+    const [stored] = await connection.database.select().from(verification)
+    expect(stored?.identifier).toMatch(/^one-time-token:/)
+    expect(stored?.identifier).not.toContain(generated.token)
+
+    const exchanged = await auth.api.verifyOneTimeToken({ body: { token: generated.token }, returnHeaders: true })
+    expect(await auth.api.getSession({ headers: cookieHeaders(exchanged.headers) })).toMatchObject({
+      user: { id: signedUp.response.user.id },
+    })
+    await expect(auth.api.verifyOneTimeToken({ body: { token: generated.token } })).rejects.toMatchObject({ status: 'BAD_REQUEST' })
+  })
+
+  it('deletes the account and every battle whose log names it', async () => {
+    connection = await openTestDatabase()
+    const auth = createAuth(connection.database, SECRET)
+    const deleting = await auth.api.signUpEmail({
+      body: { email: 'deleting@example.com', password: 'password1234', name: 'Deleting' },
+      returnHeaders: true,
+    })
+    const remaining = await auth.api.signUpEmail({
+      body: { email: 'remaining@example.com', password: 'password1234', name: 'Remaining' },
+    })
+    await connection.database.insert(battles).values({ id: 'shared-battle', token: 'shared-token', createdAt: 1 })
+    await connection.database.insert(battleUsers).values([
+      { battleId: 'shared-battle', userId: deleting.response.user.id, side: 0, joinedAt: 1 },
+      { battleId: 'shared-battle', userId: remaining.user.id, side: 1, joinedAt: 1 },
+    ])
+    await connection.database.insert(commands).values({
+      battleId: 'shared-battle',
+      seq: 1,
+      userId: deleting.response.user.id,
+      at: 1,
+      body: '{}',
+    })
+
+    await auth.api.deleteUser({ body: { password: 'password1234' }, headers: cookieHeaders(deleting.headers) })
+
+    expect(await connection.database.select().from(battles)).toEqual([])
+    expect(await connection.database.select({ id: user.id }).from(user).where(eq(user.id, deleting.response.user.id))).toEqual([])
+    expect(await connection.database.select({ id: user.id }).from(user).where(eq(user.id, remaining.user.id))).toHaveLength(1)
   })
 
   it.each(['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET'])('rejects partial Google credentials missing %s', async (missing) => {

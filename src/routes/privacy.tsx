@@ -13,7 +13,7 @@ export const Route = createFileRoute('/privacy')({
 
 function PrivacyPolicy() {
   return (
-    <LegalPage title="Privacy policy" updated="25 August 2026">
+    <LegalPage title="Privacy policy" updated="27 August 2026">
       <LegalSection title="Scope">
         <p>
           Praetorium builds Warhammer 40,000 army lists and tracks battles between the players seated at them. This policy covers the hosted
@@ -79,13 +79,10 @@ function PrivacyPolicy() {
 
       <LegalSection title="Retention and deletion">
         <p>
-          Your content is kept while your account exists. Deleting a saved roster or battle removes it. To delete your account and
-          everything attached to it — rosters, battles, friendships — email{' '}
-          <a href="mailto:privacy@praetorium.gg" className="text-info hover:text-parchment">
-            privacy@praetorium.gg
-          </a>{' '}
-          from your account's address. Session records expire on their own; usage data is kept by our analytics provider under its retention
-          settings.
+          Your content is kept while your account exists. Deleting a saved roster or battle removes it. You can permanently delete your
+          account from your profile. This removes your profile, rosters, friendships, league participation and every battle you participated
+          in; a shared battle is removed in full because its append-only command log cannot remain valid without every participant. Session
+          records expire on their own; usage data is kept by our analytics provider under its retention settings.
         </p>
       </LegalSection>
 

@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { authClient } from '../client/authClient'
 import { AuthMethodIcon, SOCIAL_AUTH_PROVIDER_NAMES } from '../client/components/AuthMethodIcon'
+import { requestNativeAuth } from '../client/nativeAuth'
 import { TwoFactorSignIn } from '../client/components/TwoFactorSignIn'
 import { signInOptionsQuery } from '../client/queries'
 import { PASSWORD_MIN_LENGTH } from '../authConfig'
@@ -215,6 +216,15 @@ function SignIn() {
                       className="h-11 w-full text-base"
                       onClick={() => {
                         posthog.capture('account_authentication_started', { method: provider, redirected: Boolean(next) })
+                        if (
+                          requestNativeAuth({
+                            action: 'sign-in',
+                            provider,
+                            next: next ?? '/rosters',
+                            requestSignUp: joining,
+                          })
+                        )
+                          return
                         const errorCallbackURL = next ? `/sign-in?${new URLSearchParams({ next })}` : '/sign-in'
                         void authClient.signIn.social({
                           provider,
