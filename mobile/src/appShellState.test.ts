@@ -193,14 +193,23 @@ describe('application shell delivery', () => {
   it('keeps a displayed sign-in interruption active across another renderer termination', () => {
     const loaded = successfulLoad(initialUrlReceived(initialAppShellState(), null), 'https://praetorium.gg')
     const deliveringAuth = drainAppShell(authReceived(loaded, auth)).state
-    const recovered = successfulLoad(rendererTerminated(deliveringAuth), 'https://praetorium.gg')
+    const withWarmLink = warmUrlReceived(deliveringAuth, 'https://praetorium.gg/battles/42')
+    const recovered = successfulLoad(rendererTerminated(withWarmLink), 'https://praetorium.gg')
     const interruption = drainAppShell(recovered).state
+    const reloaded = successfulLoad(rendererTerminated(interruption), 'https://praetorium.gg')
+    const blocked = drainAppShell(reloaded)
+    const continued = drainAppShell(authInterruptionAcknowledged(reloaded))
 
-    expect(rendererTerminated(interruption)).toMatchObject({
-      pendingAuthInterruption: false,
-      delivering: { kind: 'auth-interruption' },
-      ready: false,
-      renderKey: 2,
+    expect({ reloaded, blocked: blocked.command, continued: continued.command }).toEqual({
+      reloaded: expect.objectContaining({
+        pendingAuthInterruption: false,
+        pendingNavigation: 'https://praetorium.gg/battles/42',
+        delivering: { kind: 'auth-interruption' },
+        ready: true,
+        renderKey: 2,
+      }),
+      blocked: null,
+      continued: { kind: 'navigation', url: 'https://praetorium.gg/battles/42' },
     })
   })
 })

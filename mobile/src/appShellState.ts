@@ -103,7 +103,13 @@ export function webLoadFinished(state: AppShellState, url: string): AppShellStat
 }
 
 export function confirmWebLoadSucceeded(state: AppShellState): AppShellState {
-  return !state.loadStarted || state.loadFailed ? state : { ...state, ready: true, loadStarted: false, delivering: null }
+  if (!state.loadStarted || state.loadFailed) return state
+  return {
+    ...state,
+    ready: true,
+    loadStarted: false,
+    delivering: state.delivering?.kind === 'auth-interruption' ? state.delivering : null,
+  }
 }
 
 export function drainAppShell(state: AppShellState): { state: AppShellState; command: AppShellCommand | null } {
