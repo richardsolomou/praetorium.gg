@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.41.3
+
+### Patch Changes
+
+- a91e28a: Keep mandatory wargear and unit size intact when equipping independent model upgrades.
+
 ## 0.41.2
 
 ### Patch Changes
