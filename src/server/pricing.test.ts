@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  choiceOptionsForPricing,
   deploymentRules,
   heldWargear,
   isCatalogueSelfContradiction,
@@ -26,6 +27,10 @@ describe('force disposition', () => {
 })
 
 describe('enhancement descriptions', () => {
+  it('treats a malformed choice without options as empty', () => {
+    expect(choiceOptionsForPricing({})).toEqual([])
+  })
+
   it('lists an enhancement once when the choice and built wargear both contain it', () => {
     expect(uniqueNames(['Demanding Leader', 'Demanding Leader'])).toEqual(['Demanding Leader'])
   })
