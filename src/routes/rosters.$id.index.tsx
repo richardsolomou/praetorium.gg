@@ -7,12 +7,14 @@ import { BattleRosterSnapshot } from '../client/components/BattleRosterSnapshot'
 import { RosterEditor } from '../client/components/RosterEditor'
 import {
   battleQuery,
+  collectionQuery,
   factionIndexQuery,
   factionQuery,
   leagueRosterQuery,
   priceQuery,
   rosterAccessQuery,
   savedRosterPriceQuery,
+  unitsQuery,
 } from '../client/queries'
 import { normalisePicks } from '../client/rosterPicks'
 import { rosterBootstrap } from '../server/functions'
@@ -47,6 +49,12 @@ export const Route = createFileRoute('/rosters/$id/')({
     ])
     if (!bootstrap) throw notFound()
     const { roster, editable, faction, price } = bootstrap
+    if (editable) {
+      await Promise.all([
+        context.queryClient.ensureQueryData(unitsQuery(roster.catalogueId, '', roster.limit)),
+        context.queryClient.ensureQueryData(collectionQuery()),
+      ])
+    }
     const access = { roster, editable, faction }
     context.queryClient.setQueryData(rosterAccessQuery(params.id, deps.battle).queryKey, access)
     const priced = savedRosterPriceQuery(

@@ -46,11 +46,21 @@ test('the unit picker stays within the roster faction', async ({ page }) => {
   await expect(page.getByRole('combobox', { name: 'Force' })).toHaveCount(0)
 })
 
-test('the roster workspace stays in place while the desktop picker hydrates', async ({ page }) => {
+test('the roster workspace arrives with the desktop picker ready', async ({ page }) => {
   await openBuilder(page)
   await page.getByLabel('Add a unit').fill('Immortals')
   await waitForRosterSave(page, () => page.getByRole('button', { name: 'Add Immortals', exact: true }).first().click())
   await expect(page.locator('[data-unit="Immortals"]')).toBeVisible()
+  await page.getByLabel('Add a unit').fill('')
+  await expect(page.getByRole('button', { name: 'Add Lychguard', exact: true }).first()).toBeVisible()
+
+  const clientUnitRequests: string[] = []
+  page.on('request', (request) => {
+    const url = decodeURIComponent(request.url())
+    if (url.includes('/_serverFn/') && url.includes('"catalogueId"') && url.includes('"query"') && url.includes('"battleSize"')) {
+      clientUnitRequests.push(url)
+    }
+  })
 
   await page.addInitScript(() => {
     const values: number[] = []
@@ -63,6 +73,14 @@ test('the roster workspace stays in place while the desktop picker hydrates', as
     }).observe({ type: 'layout-shift', buffered: true })
   })
   await page.reload()
+  await expect(page.getByRole('button', { name: 'Add Lychguard', exact: true }).first()).toBeVisible()
+  await expect(page.getByText('Loading the book…')).toHaveCount(0)
+  expect(clientUnitRequests).toHaveLength(0)
+  const response = await page.request.get(page.url())
+  const body = await response.body()
+  expect(body.byteLength).toBeLessThan(500_000)
+  expect(body.toString()).toContain('["units"')
+  expect(body.toString()).toContain('["collection"]')
   await page.waitForTimeout(1_500)
   const values = await page.evaluate(() => (window as typeof window & { __rosterLayoutShiftValues: number[] }).__rosterLayoutShiftValues)
   expect(values.reduce((total, value) => total + value, 0)).toBeLessThan(0.05)
