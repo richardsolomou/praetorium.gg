@@ -887,6 +887,8 @@ describe('the profile modifiers on a datasheet', () => {
   it.each([
     'This unit has Deep Strike until the start of your next Shooting phase.',
     '- This unit has Deep Strike until the start of your next Shooting phase.',
+    'The bearer has the Deep Strike ability until the start of your next Shooting phase.',
+    'At the end of your opponent’s turn, roll one D6. If you do: - This unit has Deep Strike until the start of your next Shooting phase.',
   ])('does not make a temporary deployment ability permanent: %s', (description) => {
     const book = bookOf({
       sharedRules: [{ id: 'deep-strike', name: 'Deep Strike', description: 'Deep Strike rule.' }],
@@ -960,7 +962,18 @@ describe('the profile modifiers on a datasheet', () => {
     expect(contextualAbilityNamesIn(book, 'cat', 'bodyguard', { selections, unitSelectionIndex: 1, companions: [0] })).toContain(ability)
   })
 
-  it('includes an attached-only deployment profile only on its attached unit', () => {
+  it.each([
+    [
+      'Scouts 6"',
+      'Adeptus Astartes Infantry model only. While the bearer is leading a unit, models in that unit have the Scouts 6" ability',
+      'Scouts 6"',
+    ],
+    [
+      'Super Runts',
+      'While this model is leading a unit:\n- Models in that unit have the Scouts 9" ability.\n- Add 1 to the Hit roll.',
+      'Scouts 9"',
+    ],
+  ])('includes an attached-only deployment profile only on its attached unit: %s', (profileName, description, ability) => {
     const book = bookOf({
       selectionEntries: [
         {
@@ -975,11 +988,9 @@ describe('the profile modifiers on a datasheet', () => {
               profiles: [
                 {
                   id: 'scouts-rule',
-                  name: 'Scouts 6"',
+                  name: profileName,
                   typeName: 'Abilities',
-                  characteristics: [
-                    { name: 'Description', $text: 'While the bearer is leading a unit, models in that unit have the Scouts 6" ability.' },
-                  ],
+                  characteristics: [{ name: 'Description', $text: description }],
                 },
               ],
             },
@@ -990,10 +1001,8 @@ describe('the profile modifiers on a datasheet', () => {
     })
     const selections = [{ id: 'leader', selections: [{ id: 'enhancement' }] }, { id: 'bodyguard' }]
 
-    expect(contextualAbilityNamesIn(book, 'cat', 'leader', { selections, unitSelectionIndex: 0 })).not.toContain('Scouts 6"')
-    expect(contextualAbilityNamesIn(book, 'cat', 'bodyguard', { selections, unitSelectionIndex: 1, companions: [0] })).toContain(
-      'Scouts 6"',
-    )
+    expect(contextualAbilityNamesIn(book, 'cat', 'leader', { selections, unitSelectionIndex: 0 })).not.toContain(ability)
+    expect(contextualAbilityNamesIn(book, 'cat', 'bodyguard', { selections, unitSelectionIndex: 1, companions: [0] })).toContain(ability)
   })
 
   it('shows an invulnerable save set by selected wargear on a blank characteristic', () => {

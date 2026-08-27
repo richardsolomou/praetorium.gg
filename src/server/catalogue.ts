@@ -768,14 +768,22 @@ function parseAbilityGrants(
       matched: true,
       grants: allowUnlinkedDeployment || linked(thisUnitGrant[1]!) ? grant(thisUnitGrant[1]!, 'unit') : [],
     }
+  const leadingBulletGrant = prose.match(
+    /^(?:[^.\n]{1,160} model only\.\s*)?While (?:this model|the bearer) is leading a unit:\s*(?:[-▪]\s*)?Models in that unit have the \[?([\p{L}\p{N} +"'’\p{Pd}]+?)\]? abilit(?:y|ies)(?:\.\s*|$)/iu,
+  )
+  if (leadingBulletGrant) return { matched: true, grants: attached ? grant(leadingBulletGrant[1]!, 'unit') : [] }
   const leadingGrant = prose.match(
-    /^While (?:this model|the bearer) is leading a unit, models in that unit have the \[?([\p{L}\p{N} +"'’\p{Pd}]+?)\]? abilit(?:y|ies)\.$/iu,
+    /^(?:[^.\n]{1,160} model only\.\s*)?While (?:this model|the bearer) is leading a unit, models in that unit have the \[?([\p{L}\p{N} +"'’\p{Pd}]+?)\]? abilit(?:y|ies)(?:\.\s*|$)/iu,
   )
   if (leadingGrant) return { matched: true, grants: attached ? grant(leadingGrant[1]!, 'unit') : [] }
   const ownUnitGrant = prose.match(
     /^(?:[^.\n]{1,160} model only\.\s*)?(?:[-▪]\s*)?Models in (?:this model's|the bearer's|the bearer’s) unit\s+have the \[?([\p{L}\p{N} +"'’\p{Pd}]+?)\]? abilit(?:y|ies)(?:[.,]|$)/iu,
   )
-  return ownUnitGrant ? { matched: true, grants: grant(ownUnitGrant[1]!, 'unit') } : { matched: false, grants: [] }
+  if (ownUnitGrant) return { matched: true, grants: grant(ownUnitGrant[1]!, 'unit') }
+  return {
+    matched: mentionsDeploymentAbility(prose) && /\b(?:has|have|gains?)\b/iu.test(prose),
+    grants: [],
+  }
 }
 
 function parsedAbilityGrants(
