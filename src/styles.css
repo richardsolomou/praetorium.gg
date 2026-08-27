@@ -172,6 +172,7 @@
     color: var(--color-bone);
     font-family: var(--font-sans);
     font-size: 18px;
+    scrollbar-gutter: stable;
     -webkit-text-size-adjust: 100%;
   }
 

@@ -59,6 +59,8 @@ test('rule tooltips open on touch and hover', async ({ browser, page }) => {
   const tooltip = touchPage.getByRole('tooltip')
   await touchPage.getByRole('button', { name: '[RAPID FIRE 1]' }).tap()
   await expect(tooltip).toContainText('Rapid Fire')
+  await touchPage.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))))
+  await expect(tooltip).toContainText('Rapid Fire')
   await touchPage.screenshot({ path: 'test-results/rule-tooltip-touch.png', fullPage: true })
   await touchPage.getByRole('heading', { name: 'Hand of the Dynasty', exact: true }).tap()
   await expect(touchPage.getByRole('tooltip')).toHaveCount(0)
@@ -192,6 +194,7 @@ test('account libraries share their page width and fit a phone', async ({ page }
   const heroRail = await page.locator('main > section').first().locator('div.relative').last().boundingBox()
   const contentRail = await page.getByLabel('Roster filters').boundingBox()
   expect(Math.abs((heroRail?.width ?? 0) - (contentRail?.width ?? 0))).toBeLessThan(4)
+  await page.screenshot({ path: 'test-results/account-library-desktop.png', fullPage: true })
   const footer = await page.locator('footer').boundingBox()
   expect(footer ? Math.round(footer.y + footer.height) : 0).toBe(800)
 

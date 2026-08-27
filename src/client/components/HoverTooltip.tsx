@@ -1,4 +1,4 @@
-import { type ReactNode, useState } from 'react'
+import { type ReactNode, useRef, useState } from 'react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 /** Product-shaped rule help, with placement and interaction owned by Base UI. */
@@ -18,16 +18,27 @@ export function HoverTooltip({
   label?: string
 }) {
   const [open, setOpen] = useState(false)
+  const openedByPress = useRef(false)
 
   return (
-    <Tooltip open={open} onOpenChange={setOpen}>
+    <Tooltip
+      open={open}
+      onOpenChange={(nextOpen, eventDetails) => {
+        if (!nextOpen && openedByPress.current && eventDetails.reason !== 'outside-press' && eventDetails.reason !== 'escape-key') return
+        if (!nextOpen) openedByPress.current = false
+        setOpen(nextOpen)
+      }}
+    >
       <TooltipTrigger
         closeOnClick={false}
         render={
           <button
             type="button"
             aria-label={label}
-            onClick={() => setOpen(true)}
+            onClick={() => {
+              openedByPress.current = true
+              setOpen(true)
+            }}
             className={`${className} inline-flex cursor-help items-center justify-center underline decoration-dotted underline-offset-2`}
           />
         }
