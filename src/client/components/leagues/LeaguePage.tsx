@@ -42,7 +42,7 @@ import {
   revealLeague,
   submitLeagueRoster,
 } from '../../../server/functions'
-import { alliedLeagueRosterLimit, leagueRosterSplit, LEAGUE_MEMBER_MAX } from '../../../core/league'
+import { alliedLeagueRosterLimit, leagueRosterSplit, leagueTableShape, LEAGUE_MEMBER_MAX } from '../../../core/league'
 import { TABLE_SHAPE_LABELS, type TableShape } from '../../../core/tableShape'
 import { seatedPlayers, seatsFor, type Seat } from '../../seats'
 import { SeatMatchup, SeatRows, seatLabel, seatOption } from '../Seats'
@@ -165,8 +165,12 @@ export function LeaguePage({ token, eventToken, startBattle }: { token: string; 
   const eventBattles = leagueBattlesFrom(battleHistory.data)
   const isOwner = me?.id === league.ownerId
   const ownEntry = league.entries.find((entry) => entry.userId === me?.id)
-  const battleFormat = league.format ?? '1v1'
+  const battleFormat = leagueTableShape(league.format)
   const accepted = league.entries.filter((entry) => entry.status === 'accepted')
+  const oneOnOneEntrants =
+    league.format === null && typeof ownEntry?.sealedLimit === 'number'
+      ? accepted.filter((entry) => entry.sealedLimit === ownEntry.sealedLimit)
+      : accepted
   const pendingCount = league.entries.filter((entry) => entry.status === 'pending').length
   const latestEvent = league.events[0]
   const archivedEvents = league.events.slice(1)
@@ -743,7 +747,7 @@ export function LeaguePage({ token, eventToken, startBattle }: { token: string; 
           key={league.eventToken}
           open={choosingBattle}
           ownUserId={ownEntry.userId}
-          entries={accepted}
+          entries={oneOnOneEntrants}
           pending={battle.isPending}
           error={battle.error}
           onIntentChange={() => battle.reset()}
@@ -830,7 +834,11 @@ function RosterChooser({
               : `Choose a roster configured for ${requiredLimit.toLocaleString()} points. You can replace it until the organizer reveals every list.`}
           </DialogDescription>
         </DialogHeader>
-        {error || rosterQuery.error ? <p className="text-sm text-destructive">{errorMessage(error ?? rosterQuery.error)}</p> : null}
+        {error || rosterQuery.error ? (
+          <p role="alert" className="text-sm text-destructive">
+            {errorMessage(error ?? rosterQuery.error)}
+          </p>
+        ) : null}
         {rosterQuery.isPending ? (
           <div className="border border-dashed border-edge p-5 text-center">
             <p className="text-sm text-dim">Loading rosters…</p>

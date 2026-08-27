@@ -73,7 +73,7 @@ export type LeagueBattleCandidate = {
   eventNumber: number
   format: TableShape | null
   rosterLimit: number | null
-  entries: { userId: string; requiredLimit: number | null; teamId: string | null }[]
+  entries: { userId: string; requiredLimit: number | null; sealedLimit: number | null; teamId: string | null }[]
 }
 
 const ADMIN_USERS_PAGE_SIZE = 50
@@ -86,6 +86,15 @@ function warlordSelection(snapshots: readonly Roster[], trustLegacySelection = f
     eligible: selected.every(
       (unit) => unit.warlordEligible ?? (trustLegacySelection || unit.group === 'character' || unit.group === 'epic-hero'),
     ),
+  }
+}
+
+function frozenRosterLimit(snapshot: string | null) {
+  if (snapshot === null) return null
+  try {
+    return parseRosterSnapshot(snapshot).built?.limit ?? null
+  } catch {
+    return null
   }
 }
 
@@ -981,6 +990,7 @@ export class Repository {
           eventId: leagueEventEntries.eventId,
           userId: leagueEventEntries.userId,
           requiredLimit: leagueEventEntries.requiredLimit,
+          snapshot: leagueEventEntries.rosterSnapshot,
           teamId: leagueEventEntries.teamId,
         })
         .from(leagueEventEntries)
@@ -1005,7 +1015,15 @@ export class Repository {
         const eventEntries = entriesByEvent.get(event.id) ?? []
         if (eventEntries.length !== participantIds.length) return []
         const { id: _eventId, ...candidate } = event
-        return [{ ...candidate, entries: eventEntries.map(({ eventId: _entryEventId, ...entry }) => entry) }]
+        return [
+          {
+            ...candidate,
+            entries: eventEntries.map(({ eventId: _entryEventId, snapshot, ...entry }) => ({
+              ...entry,
+              sealedLimit: event.format === null ? frozenRosterLimit(snapshot) : null,
+            })),
+          },
+        ]
       })
     })
   }
@@ -1082,6 +1100,7 @@ export class Repository {
             joinedAt: leagueEventEntries.joinedAt,
             submitted: sql<boolean>`${leagueEventEntries.rosterSnapshot} is not null`,
             assignedLimit: leagueEventEntries.requiredLimit,
+            snapshot: leagueEventEntries.rosterSnapshot,
             teamId: leagueEventEntries.teamId,
             rosterName: viewerId
               ? sql<string | null>`case when ${leagueEventEntries.userId} = ${viewerId} then ${leagueEventEntries.rosterName} else null end`
@@ -1118,9 +1137,10 @@ export class Repository {
         currentAcceptedCount: currentCounts?.accepted ?? 0,
         events: visibleEvents.map(({ id: _id, ...event }) => event),
         occupiedCount: entries.filter((entry) => entry.status !== 'rejected').length,
-        entries: entries.map(({ assignedLimit, ...entry }) => ({
+        entries: entries.map(({ assignedLimit, snapshot, ...entry }) => ({
           ...entry,
           requiredLimit: requiredLeagueRosterLimit(selected.format, selected.rosterLimit, assignedLimit, entry.teamId),
+          sealedLimit: selected.format === null && selected.revealedAt !== null ? frozenRosterLimit(snapshot) : null,
         })),
       }
     })

@@ -31,7 +31,17 @@ async function sealEventRosters(leagueToken: string) {
             limit: 2_000,
             detachment: null,
             disposition: null,
-            units: [{ key: 'test-unit', name: 'Test unit', points: 80, models: 5 }],
+            units: [
+              {
+                key: 'test-unit',
+                name: 'Test unit',
+                points: 80,
+                models: 5,
+                group: 'character',
+                warlord: true,
+                warlordEligible: true,
+              },
+            ],
           },
         }),
         submittedAt: Date.now(),
@@ -144,7 +154,17 @@ async function sealTeamEventRosters(leagueToken: string) {
               limit,
               detachment: null,
               disposition: null,
-              units: [{ key: `${entry.userId}-unit`, name: 'Test unit', points: 80, models: 5 }],
+              units: [
+                {
+                  key: `${entry.userId}-unit`,
+                  name: 'Test unit',
+                  points: 80,
+                  models: 5,
+                  group: 'character',
+                  warlord: true,
+                  warlordEligible: true,
+                },
+              ],
             },
           }),
           submittedAt: Date.now(),
@@ -189,7 +209,17 @@ async function sealDoublesEventRosters(leagueToken: string, invalidWarlords = fa
               limit: 1_000,
               detachment: null,
               disposition: null,
-              units: [{ key: `${entry.userId}-unit`, name: 'Test character', points: 80, models: 1, group: 'character', warlord }],
+              units: [
+                {
+                  key: `${entry.userId}-unit`,
+                  name: 'Test character',
+                  points: 80,
+                  models: 1,
+                  group: 'character',
+                  warlord,
+                  warlordEligible: true,
+                },
+              ],
             },
           }),
           submittedAt: Date.now(),
@@ -284,9 +314,7 @@ test('a new league starts with its first event and can seal a roster', async ({ 
   await expect(roster.getByText('Companions of Vehemence', { exact: true })).toBeVisible()
   await page.screenshot({ path: 'test-results/league-roster-dialog.png', fullPage: true })
   await roster.click()
-  await expect(page.getByRole('dialog', { name: 'Seal a roster' })).toContainText(
-    'a league roster must seal exactly one Character or Epic Hero Warlord',
-  )
+  await expect(page.getByRole('alert')).toHaveText('a league roster must seal exactly one Character or Epic Hero Warlord')
   await page.screenshot({ path: 'test-results/league-roster-warlord-error.png', fullPage: true })
   await page.setViewportSize({ width: 390, height: 844 })
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)

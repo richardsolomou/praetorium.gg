@@ -23,6 +23,7 @@ import type { RosterPick } from '../core/roster'
 import type { RosterSource } from '../core/savedRoster'
 import {
   alliedLeagueRosterLimit,
+  leagueTableShape,
   LEAGUE_DEFAULT_ROSTER_LIMIT,
   LEAGUE_MEMBER_MAX,
   LEAGUE_TEAM_ROSTER_LIMITS,
@@ -109,7 +110,7 @@ export class PraetoriumService {
     const token = randomToken()
     const eventId = randomId()
     const eventToken = randomToken()
-    const format = input.format ?? '1v1'
+    const format = leagueTableShape(input.format)
     const rosterLimit = input.rosterLimit ?? LEAGUE_DEFAULT_ROSTER_LIMIT
     if (format !== '1v1' && !LEAGUE_TEAM_ROSTER_LIMITS.some((limit) => limit === rosterLimit)) {
       throw new Response(`choose a supported ${format} roster size`, { status: 400 })
@@ -137,7 +138,7 @@ export class PraetoriumService {
 
   async createLeagueEvent(token: string, ownerId: string, rule: { format?: TableShape; rosterLimit?: number } = {}) {
     const eventToken = randomToken()
-    const format = rule.format ?? '1v1'
+    const format = leagueTableShape(rule.format)
     const rosterLimit = rule.rosterLimit ?? LEAGUE_DEFAULT_ROSTER_LIMIT
     if (format !== '1v1' && !LEAGUE_TEAM_ROSTER_LIMITS.some((limit) => limit === rosterLimit)) {
       throw new Response(`choose a supported ${format} roster size`, { status: 400 })
@@ -764,7 +765,18 @@ export class PraetoriumService {
     return candidates
       .filter((candidate) => {
         const entries = new Map(candidate.entries.map((entry) => [entry.userId, entry]))
-        if ((candidate.format ?? '1v1') === '1v1') return participantIds.length === 2 && allyIds.length === 0
+        const format = leagueTableShape(candidate.format)
+        if (format === '1v1') {
+          if (participantIds.length !== 2 || allyIds.length !== 0) return false
+          if (candidate.format !== null) return true
+          const limit = entries.get(userId)?.sealedLimit
+          return (
+            limit !== null &&
+            limit !== undefined &&
+            GAME_SIZES.some((size) => size.limit === limit) &&
+            participantIds.every((id) => entries.get(id)?.sealedLimit === limit)
+          )
+        }
         if (candidate.format === '2v1' && candidate.rosterLimit !== null && participantIds.length === 3) {
           const alliedLimit = alliedLeagueRosterLimit(candidate.rosterLimit)
           const roles = sideIds.map((side) =>
@@ -792,7 +804,7 @@ export class PraetoriumService {
         name,
         eventToken,
         eventNumber,
-        format: format ?? '1v1',
+        format: leagueTableShape(format),
       }))
   }
 
