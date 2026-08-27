@@ -640,7 +640,15 @@ function grantedAbilitiesInAttachedUnit(
       const name = index.categories.get(id)?.name
       return name ? [name.replace(/^Faction:\s*/iu, '')] : []
     })
-    return [...new Set([...names, ...categories])]
+    const abilities = selection
+      ? definitionsInSelections([selection], [0], index).flatMap((selected) =>
+          [selected, targetOf(selected, index.definitions)].flatMap((source) => [
+            ...linkedAbilityNames(source, index, catalogueId, selections),
+            ...abilityProfileNames(source, index),
+          ]),
+        )
+      : []
+    return [...new Set([...names, ...categories, ...abilities])]
   }
   const selectedReferences = referencesAt(unitSelectionIndex, selectedKeywordIds ?? keywordsBySelection[unitSelectionIndex] ?? [])
   const companionReferences = companionIndexes.flatMap((at) => referencesAt(at, keywordsBySelection[at] ?? []))
@@ -787,6 +795,21 @@ function parseAbilityGrants(
     /^(?:[\p{L} ]+ model only\. )?The bearer has a Save characteristic of \d+\+ and the \[?([\p{L}\p{N} +'’\p{Pd}]+)\]? ability\.$/iu,
   )
   if (saveAndAbilityGrant) return { matched: true, grants: grant(saveAndAbilityGrant[1]!, 'bearer') }
+  const bearerAndLedUnitGrant = prose.match(
+    /\bThe bearer has (?:the )?\[?([\p{L}\p{N} +,"'’\p{Pd}]+?)\]? abilit(?:y|ies)\.\s*While the bearer is leading a unit, models in that unit have (?:the )?\[?([\p{L}\p{N} +,"'’\p{Pd}]+?)\]? abilit(?:y|ies)(?=[.,]|\s+and\b|$)/iu,
+  )
+  if (bearerAndLedUnitGrant) {
+    return {
+      matched: true,
+      grants: [...grant(bearerAndLedUnitGrant[1]!, 'bearer', true), ...(attached ? grant(bearerAndLedUnitGrant[2]!, 'unit', true) : [])],
+    }
+  }
+  const declareAttachedUnitGrant = prose.match(
+    /\bDuring the Declare Battle Formations step, if this model is attached (?:to )?(?:an? )?unit, until the end of the battle, that unit has (?:the )?\[?([\p{L}\p{N} +,"'’\p{Pd}]+?)\]? abilit(?:y|ies)(?=[.,]|$)/iu,
+  )
+  if (declareAttachedUnitGrant) {
+    return { matched: true, grants: attached ? grant(declareAttachedUnitGrant[1]!, 'unit', true) : [] }
+  }
   const bearerAndUnitGrant = prose.match(
     /^(?:[^.\n]{1,160} model only\.\s*)?The bearer, and models in any unit they are leading, have the \[?([\p{L}\p{N} +"'’\p{Pd}]+?)\]? abilities\.$/iu,
   )
@@ -833,6 +856,28 @@ function parseAbilityGrants(
   ]
   if (namedModelLeadingGrants.length) {
     const grants = namedModelLeadingGrants.flatMap((match) =>
+      attachmentTargetMatches(match[1]!, counterpartReferences) ? grant(match[2]!, 'unit', true) : [],
+    )
+    return { matched: true, grants: attached ? grants : [] }
+  }
+  const namedLedUnitGrants = [
+    ...prose.matchAll(
+      /\bWhile (?:this model|the bearer) is leading an? ([^,.\n]{1,160}?) unit, that unit has (?:the )?\[?([\p{L}\p{N} +,"'’\p{Pd}]+?)\]? abilit(?:y|ies)(?=[.,]|$)/giu,
+    ),
+  ]
+  if (namedLedUnitGrants.length) {
+    const grants = namedLedUnitGrants.flatMap((match) =>
+      attachmentTargetMatches(match[1]!, counterpartReferences) ? grant(match[2]!, 'unit', true) : [],
+    )
+    return { matched: true, grants: attached ? grants : [] }
+  }
+  const counterpartAbilityGrants = [
+    ...prose.matchAll(
+      /\bWhile (?:this model|the bearer) is leading a unit with (?:the )?\[?([\p{L}\p{N} +,"'’\p{Pd}]+?)\]? abilit(?:y|ies), every model in (?:this model's|the bearer's|the bearer’s) unit has (?:the )?\[?([\p{L}\p{N} +,"'’\p{Pd}]+?)\]? abilit(?:y|ies)(?=[.,]|$)/giu,
+    ),
+  ]
+  if (counterpartAbilityGrants.length) {
+    const grants = counterpartAbilityGrants.flatMap((match) =>
       attachmentTargetMatches(match[1]!, counterpartReferences) ? grant(match[2]!, 'unit', true) : [],
     )
     return { matched: true, grants: attached ? grants : [] }
@@ -901,7 +946,7 @@ function attachmentTargetMatches(written: string, references: readonly string[])
         const pattern = new RegExp(`(?:^|\\s)${escapeRegExp(reference)}(?=\\s|$)`, 'u')
         remaining = remaining.replace(pattern, ' ')
       }
-      return !remaining.replaceAll(/\b(?:a|an|the|unit|units|model|models)\b/gu, '').trim()
+      return !remaining.replaceAll(/\b(?:a|an|the|unit|units|model|models|with|ability|abilities)\b/gu, '').trim()
     })
 }
 
