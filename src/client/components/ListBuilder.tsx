@@ -220,7 +220,11 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
     },
   })
 
-  const { data: priced, isPlaceholderData: pricePending } = useQuery({
+  const {
+    data: priced,
+    dataUpdatedAt: pricedAt,
+    isPlaceholderData: pricePending,
+  } = useQuery({
     ...priceQuery(catalogueId, detachmentIds, disposition, limit, positioned),
     /**
      * The last answer, with whatever the list has since let go of taken out of it.
@@ -243,10 +247,13 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
       return { ...previous, units }
     },
   })
-  const evaluatedPicks = useRef(positioned)
+  const evaluatedPicks = useRef(new Map(picks.map((pick) => [pick.key, pick])))
+  const evaluatedAt = useRef(0)
   useLayoutEffect(() => {
-    if (priced && !pricePending) evaluatedPicks.current = positioned
-  }, [positioned, pricePending, priced])
+    if (!priced || pricePending || pricedAt <= evaluatedAt.current) return
+    evaluatedAt.current = pricedAt
+    evaluatedPicks.current = new Map(picks.map((pick) => [pick.key, pick]))
+  }, [picks, pricePending, priced, pricedAt])
 
   const units = priced?.units ?? NO_UNITS
   const edit = useMemo(() => pickEditor(setPicks, { catalogueId, units }), [catalogueId, setPicks, units])
@@ -302,7 +309,10 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
   const over = Boolean(priced && priced.points > limit)
   const selectedUnit = selected === null ? null : (units[selected] ?? null)
   const selectedPick = selected === null ? null : (picks[selected] ?? null)
-  const evaluatedPick = selected === null ? null : (evaluatedPicks.current[selected] ?? null)
+  const evaluatedPick = selectedPick ? (evaluatedPicks.current.get(selectedPick.key) ?? null) : null
+  const loadoutConstraintsPending = Boolean(
+    selectedUnit && selectedPick?.models !== undefined && selectedPick.models !== selectedUnit.size.models,
+  )
   const optimisticUnit =
     selectedUnit && selectedPick
       ? {
@@ -361,6 +371,7 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
       onChoose={(key, optionId) => selected !== null && edit.choose(selected, key, optionId)}
       onSpread={(key, counts) => selected !== null && edit.spread(selected, key, counts)}
       editable={editable && inspectorView === 'edit'}
+      controlsDisabled={loadoutConstraintsPending}
       showOptions={inspectorView !== 'readonly'}
       persistedRoster={editable || !resolvePersistedRoster ? undefined : { id: savedId, ...(battle ? { battle } : {}) }}
       reference={

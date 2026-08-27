@@ -32,6 +32,7 @@ export type LoadoutChoice = {
     count: number
     min: number
     max: number
+    mutableMin?: boolean
     replacements?: { choiceKey: string; optionId: string }[]
     description?: string | null
     keywordRules?: Datasheet['keywordRules']
@@ -291,7 +292,7 @@ export function spreadHandlers(choice: LoadoutChoice) {
 
   const donor = (exclude: string) =>
     choice.options
-      .filter((option) => option.id !== exclude && option.count > option.min)
+      .filter((option) => option.id !== exclude && (option.count > option.min || option.mutableMin))
       .toSorted((left, right) => right.count - left.count)[0]
 
   const more = (option: LoadoutOption): SpreadCounts | null => {

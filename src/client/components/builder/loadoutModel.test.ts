@@ -333,6 +333,13 @@ describe('dividing a group between its options', () => {
     expect(spreadHandlers(group).more(group.options[1]!)).toEqual({ carbine: 3, blaster: 7 })
   })
 
+  it('takes from a minimum that the catalogue changes for its sibling', () => {
+    const regular = { ...option('regular', 4, 9), min: 4, mutableMin: true }
+    const group = choice([regular, option('specialist', 0, 2)], 4)
+
+    expect(spreadHandlers(group).more(group.options[1]!)).toEqual({ specialist: 1, regular: 3 })
+  })
+
   it("refuses to exceed an option's own cap", () => {
     const group = choice([option('blaster', 9, 10), option('special', 1, 1)], 10)
     expect(spreadHandlers(group).more(group.options[1]!)).toBeNull()

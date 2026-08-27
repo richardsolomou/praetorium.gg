@@ -39,6 +39,7 @@ export function ModelCard({
   onChoose,
   onSpread,
   editable,
+  controlsDisabled = false,
   showOptions = true,
 }: {
   model: LoadoutModel
@@ -51,6 +52,7 @@ export function ModelCard({
   onChoose: (key: string, optionId: string) => void
   onSpread: (key: string, counts: SpreadCounts) => void
   editable: boolean
+  controlsDisabled?: boolean
   showOptions?: boolean
 }) {
   const optionOf = (choiceKey: string, optionId: string) => {
@@ -160,7 +162,7 @@ export function ModelCard({
       <p className="eyebrow flex items-center justify-between gap-2 border-b border-edge px-2.5 py-2 text-bone">
         <span className="min-w-0">{model.name}</span>
         {stands && counted ? (
-          <PoolStepper name={model.name} count={stands.option.count} editable={editable} {...counted} />
+          <PoolStepper name={model.name} count={stands.option.count} editable={editable} disabled={controlsDisabled} {...counted} />
         ) : (
           <span className="readout normal-case text-dim" aria-label={`${model.name} models`}>
             {count}
@@ -236,6 +238,7 @@ export function ModelCard({
                     name={row.name}
                     count={displayed}
                     editable={editable}
+                    disabled={controlsDisabled}
                     onPick={
                       option.count > 0
                         ? choice.optional
@@ -245,7 +248,14 @@ export function ModelCard({
                     }
                   />
                 ) : (
-                  <PoolStepper name={row.name} count={displayed} editable={editable} onAdd={add} onRemove={remove} />
+                  <PoolStepper
+                    name={row.name}
+                    count={displayed}
+                    editable={editable}
+                    disabled={controlsDisabled}
+                    onAdd={add}
+                    onRemove={remove}
+                  />
                 )
               }
             />

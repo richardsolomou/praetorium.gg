@@ -70,7 +70,17 @@ export type UnitChoice = {
    * `profile` is set when the option is a model rather than a piece of wargear, and
    * names the kind of model it is one loadout of.
    */
-  options: { id: string; name: string; points: number; count: number; min: number; max: number; profile?: string | null }[]
+  options: {
+    id: string
+    name: string
+    points: number
+    count: number
+    min: number
+    max: number
+    /** A sibling selection can lower this minimum as part of the same edit. */
+    mutableMin?: boolean
+    profile?: string | null
+  }[]
   /**
    * The specific model this choice belongs to, when it is not every model in the unit.
    *
@@ -130,7 +140,11 @@ export function unitChoices(entryId: string, selection: Selection, index: Catalo
       const repeatingEntry = inner.type === 'upgrade' ? repeatedModelOn(trail, index) : null
       const lower = minimum(child.definition)
       const single = inner.type === 'upgrade' && lower === 0 && maximumCount(child.definition, index) === 1
-      const upper = single ? 1 : maximumCount(child.definition, index, { primaryCatalogueId: options.primaryCatalogueId, roster })
+      let upper: number | null = null
+      if (single) upper = 1
+      else if (inner.type === 'upgrade' && lower > 0) {
+        upper = maximumCount(child.definition, index, { primaryCatalogueId: options.primaryCatalogueId, roster })
+      }
       const boundedUpgrade = single || (inner.type === 'upgrade' && lower > 0 && upper !== null && upper > lower)
       const onRepeatedModel = Boolean(repeatingEntry && repeatingEntry.path.length === trail.length)
       if (repeatingEntry && onRepeatedModel && single) {
@@ -199,9 +213,8 @@ export function unitChoices(entryId: string, selection: Selection, index: Catalo
         const room = capacity === null ? occupantRoom(choosable, index) : capacity * scale
         const fixed = choosable.some((option) => minimum(option.definition) > 0)
         const dynamic = choosable.some((option) => minimum(option.definition) === 0 && hasDynamicSelectionLimit(option.definition, index))
-        const adjustable = fixed
-          ? choosable.filter((option) => minimum(option.definition) === 0 || (dynamic && hasMutableMinimum(option.definition, index)))
-          : choosable
+        const mutableMinimum = (option: Option) => dynamic && hasMutableMinimum(option.definition, index)
+        const adjustable = fixed ? choosable.filter((option) => minimum(option.definition) === 0 || mutableMinimum(option)) : choosable
         const held = repeating
           ? repeatedOptions(selection, repeating.path, here.slice(repeating.path.length))
           : allAt(selection, here).flatMap((group) => group.selections ?? [])
@@ -248,6 +261,7 @@ export function unitChoices(entryId: string, selection: Selection, index: Catalo
               count: countOf(option.id),
               min: minimum(option.definition) * scale,
               max: maximumFor(option),
+              ...(mutableMinimum(option) ? { mutableMin: true } : {}),
               ...(resolve(option.definition, index).type === 'model' ? { profile: modelProfileOf(option.definition, index) } : {}),
             })),
             uniform,

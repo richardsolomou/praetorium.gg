@@ -40,12 +40,14 @@ export function PoolStepper({
   name,
   count,
   editable,
+  disabled = false,
   onAdd,
   onRemove,
 }: {
   name: string
   count: number
   editable: boolean
+  disabled?: boolean
   onAdd?: () => void
   onRemove?: () => void
 }) {
@@ -56,7 +58,15 @@ export function PoolStepper({
       </span>
     )
   }
-  return <Stepper label={name} count={count} onAdd={onAdd} onRemove={onRemove} countLabel={`${name} count`} />
+  return (
+    <Stepper
+      label={name}
+      count={count}
+      onAdd={disabled ? undefined : onAdd}
+      onRemove={disabled ? undefined : onRemove}
+      countLabel={`${name} count`}
+    />
+  )
 }
 
 /**
@@ -66,7 +76,19 @@ export function PoolStepper({
  * control on a row like this invites a split the datasheet does not allow, and only
  * says so once the player has made one.
  */
-export function PickControl({ name, count, editable, onPick }: { name: string; count: number; editable: boolean; onPick?: () => void }) {
+export function PickControl({
+  name,
+  count,
+  editable,
+  disabled = false,
+  onPick,
+}: {
+  name: string
+  count: number
+  editable: boolean
+  disabled?: boolean
+  onPick?: () => void
+}) {
   const taken = count > 0
   if (!editable) {
     return (
@@ -85,7 +107,7 @@ export function PickControl({ name, count, editable, onPick }: { name: string; c
         size="sm"
         aria-label={`${taken ? 'Remove' : 'Select'} ${name}`}
         pressed={taken}
-        disabled={!editable || !onPick}
+        disabled={disabled || !onPick}
         onPressedChange={() => onPick?.()}
         className={`size-6 p-0 ${taken ? 'border-parchment bg-parchment/15 text-parchment' : 'border-edge-strong text-dim'}`}
       >
@@ -198,26 +220,29 @@ function ChoiceOption({
   option,
   selected,
   highlightSelection = true,
+  disabled = false,
   onSelect,
   children,
 }: {
   option: LoadoutOption
   selected: boolean
   highlightSelection?: boolean
+  disabled?: boolean
   onSelect?: () => void
   children: ReactNode
 }) {
   return (
     <article
-      className={`relative border ${selected && highlightSelection ? 'border-parchment bg-parchment/10' : `border-edge bg-card ${onSelect ? 'hover:border-dim' : ''}`}`}
+      className={`relative border ${selected && highlightSelection ? 'border-parchment bg-parchment/10' : `border-edge bg-card ${onSelect && !disabled ? 'hover:border-dim' : ''}`}`}
     >
       {onSelect ? (
         <button
           type="button"
           aria-pressed={selected}
           aria-label={`Select ${option.name}`}
+          disabled={disabled}
           onClick={onSelect}
-          className="absolute inset-0 z-0 w-full cursor-pointer hover:bg-raised"
+          className={`absolute inset-0 z-0 w-full ${disabled ? 'cursor-wait' : 'cursor-pointer hover:bg-raised'}`}
         />
       ) : null}
       <div className="pointer-events-none relative z-10 [&_button]:pointer-events-auto">
@@ -239,21 +264,25 @@ function DeclineButton({
   label,
   chosen,
   editable,
+  disabled = false,
   onDecline,
 }: {
   label: string
   chosen: boolean
   editable: boolean
+  disabled?: boolean
   onDecline: () => void
 }) {
+  const cursor = disabled ? 'cursor-wait' : editable ? '' : 'cursor-not-allowed'
+  const hover = editable && !disabled ? 'hover:border-dim hover:text-bone' : ''
   return (
     <button
       type="button"
       aria-pressed={!chosen}
-      disabled={!editable}
+      disabled={!editable || disabled}
       onClick={onDecline}
-      className={`flex w-full items-center justify-between border px-2.5 py-2 text-left text-xs font-semibold uppercase ${
-        chosen ? 'border-edge bg-card text-dim hover:border-dim hover:text-bone' : 'border-parchment bg-parchment/10 text-parchment'
+      className={`flex w-full items-center justify-between border px-2.5 py-2 text-left text-xs font-semibold uppercase ${cursor} ${
+        chosen ? `border-edge bg-card text-dim ${hover}` : 'border-parchment bg-parchment/10 text-parchment'
       }`}
     >
       {label}
@@ -267,6 +296,7 @@ export function SpecialChoice({
   choice,
   unitName,
   editable,
+  controlsDisabled = false,
   onChoose,
   showOptions = true,
   highlightSelection = true,
@@ -274,6 +304,7 @@ export function SpecialChoice({
   choice: LoadoutChoice
   unitName: string
   editable: boolean
+  controlsDisabled?: boolean
   onChoose: (key: string, optionId: string) => void
   showOptions?: boolean
   highlightSelection?: boolean
@@ -290,6 +321,7 @@ export function SpecialChoice({
             label={`No ${choice.kind === 'upgrade' ? 'upgrade' : 'enhancement'}`}
             chosen={Boolean(choice.chosen)}
             editable={editable}
+            disabled={controlsDisabled}
             onDecline={() => onChoose(choice.key, '')}
           />
         ) : null}
@@ -299,6 +331,7 @@ export function SpecialChoice({
             option={option}
             selected={choice.chosen === option.id}
             highlightSelection={highlightSelection}
+            disabled={controlsDisabled}
             onSelect={editable ? () => onChoose(choice.key, option.id) : undefined}
           >
             {option.description ? (
@@ -318,6 +351,7 @@ export function EitherChoice({
   choice,
   unitName,
   editable,
+  controlsDisabled = false,
   onChoose,
   weapons,
   abilities,
@@ -328,6 +362,7 @@ export function EitherChoice({
   choice: LoadoutChoice
   unitName: string
   editable: boolean
+  controlsDisabled?: boolean
   onChoose: (key: string, optionId: string) => void
   showOptions?: boolean
   highlightSelection?: boolean
@@ -338,7 +373,13 @@ export function EitherChoice({
       <legend className="eyebrow p-0">{choice.name}</legend>
       <div className="mt-1.5 space-y-1.5">
         {choice.optional && showOptions ? (
-          <DeclineButton label="None" chosen={Boolean(choice.chosen)} editable={editable} onDecline={() => onChoose(choice.key, '')} />
+          <DeclineButton
+            label="None"
+            chosen={Boolean(choice.chosen)}
+            editable={editable}
+            disabled={controlsDisabled}
+            onDecline={() => onChoose(choice.key, '')}
+          />
         ) : null}
         {options.map((option) => (
           <ChoiceOption
@@ -346,6 +387,7 @@ export function EitherChoice({
             option={option}
             selected={choice.chosen === option.id}
             highlightSelection={highlightSelection}
+            disabled={controlsDisabled}
             onSelect={editable ? () => onChoose(choice.key, option.id) : undefined}
           >
             <OptionProfiles option={option} weapons={weapons} rules={rules} />
@@ -366,6 +408,7 @@ export function EitherChoice({
 export function SpreadChoice({
   choice,
   editable,
+  controlsDisabled = false,
   onSpread,
   weapons,
   abilities,
@@ -375,6 +418,7 @@ export function SpreadChoice({
 }: Described & {
   choice: LoadoutChoice
   editable: boolean
+  controlsDisabled?: boolean
   onSpread: (key: string, counts: SpreadCounts) => void
   showOptions?: boolean
   highlightSelection?: boolean
@@ -405,6 +449,7 @@ export function SpreadChoice({
                 name={option.name}
                 count={option.count}
                 editable={editable}
+                disabled={controlsDisabled}
                 onAdd={press(more(option))}
                 onRemove={press(less(option))}
               />

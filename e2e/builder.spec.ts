@@ -922,6 +922,43 @@ test('a squad grows from its unit editor', async ({ page }) => {
   await page.screenshot({ path: 'test-results/unit-editor-model-count.png', fullPage: true })
 })
 
+test('loadout controls keep their shape while resized constraints load', async ({ page }) => {
+  await openBuilder(page)
+  await add(page, 'Immortals')
+  await page.locator('[data-unit="Immortals"]').getByRole('button', { name: 'Immortals', exact: true }).click()
+  await expect(page.locator('[data-roster-builder]')).toHaveAttribute('data-saving', 'false')
+
+  const loadout = page.locator('aside[aria-label="Loadout"]')
+  const tesla = loadout.getByRole('button', { name: 'Select Tesla carbine' })
+  await expect(tesla).toBeEnabled()
+
+  let releasePricing: () => void = () => undefined
+  const pricingHeld = new Promise<void>((resolve) => {
+    releasePricing = resolve
+  })
+  let pricingStarted: () => void = () => undefined
+  const started = new Promise<void>((resolve) => {
+    pricingStarted = resolve
+  })
+  await page.route('**/_serverFn/**', async (route) => {
+    if (route.request().method() === 'POST') {
+      pricingStarted()
+      await pricingHeld
+    }
+    await route.continue()
+  })
+
+  await loadout.getByRole('button', { name: 'More models in Immortals' }).click()
+  await started
+  await expect(loadout.getByLabel('Immortals models')).toHaveText('6')
+  await expect(tesla).toBeDisabled()
+  await expect(tesla).toHaveCount(1)
+  await shot(loadout, 'test-results/loadout-controls-pending-resize.png')
+
+  releasePricing()
+  await expect(tesla).toBeEnabled()
+})
+
 test('a unit duplicates with its configured model count', async ({ page }) => {
   await openBuilder(page)
   await add(page, 'Immortals')
