@@ -21,7 +21,7 @@ import {
   referenceDatasheetRoute,
   type LoadedCatalogue,
 } from './catalogueIndex'
-import type { DatasheetSearchFields } from './datasheetSearch'
+import { type DatasheetSearchFields, dedupeWeapons } from './datasheetSearch'
 import { isMatchedPlayDatasheet, priceOf } from './cataloguePicker'
 import type { DatasheetDetails } from './datacards'
 import { datacardOf } from './datasheetJoin'
@@ -225,7 +225,7 @@ export function datasheetSearchFieldsIn(loaded: LoadedCatalogue, catalogueId: st
     name: walked.name,
     keywords: walked.keywords,
     abilities: [...new Set(walked.abilities.filter((ability) => ability.kind !== 'rule').map((ability) => ability.name))],
-    weapons: [...new Set(weapons.map((weapon) => weapon.name))],
+    weapons: dedupeWeapons(weapons.map((weapon) => weapon.name)),
     weaponKeywords: [
       ...new Set(
         weapons.flatMap((weapon) => weapon.values.flatMap((value) => (value.name === 'Keywords' ? weaponKeywordsOf(value.value) : []))),
