@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import type { Stratagem } from '../core/battle'
-import { DATACARDS_ATTRIBUTION, type FactionRestrictions, factionRestrictions, loadDatacards } from './datacards'
+import { DATACARDS_ATTRIBUTION, type FactionRestrictions, factionRestrictions, type LoadedDatacards, loadDatacards } from './datacards'
 import { type LoadedCards, loadCards, loadDispositions, loadMissions, type Mission, missionForIn, type MissionCard } from './rulesCards'
 import { type DetachmentReference, type DetachmentRulesDetail, loadFactions } from './rulesFactions'
 import { fixedSecondaryCapsIn, type MissionTwist, twistsIn } from './missionTwists'
@@ -76,10 +76,12 @@ export function loadRules(
   battlemasterDirectory = path.join(path.dirname(directory), 'battlemaster'),
   iconDirectory = path.join(path.dirname(directory), 'faction-icons'),
   datacardsDirectory = path.join(path.dirname(directory), 'datacards', '11th', 'gdc'),
+  /** The cards the catalogue already read, so one snapshot is parsed once. */
+  loadedDatacards?: LoadedDatacards,
 ): LoadedRules | null {
   const core = path.join(directory, 'data', 'core')
   if (!fs.existsSync(core)) return null
-  const datacards = loadDatacards(datacardsDirectory)
+  const datacards = loadedDatacards ?? loadDatacards(datacardsDirectory)
   const factions = loadFactions(core, iconDirectory, datacards)
   // Parsed once and read three ways: what each payout asks for, the twists a pack
   // offers, and the ceiling it puts on a single fixed card.

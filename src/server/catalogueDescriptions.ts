@@ -1,5 +1,7 @@
 import type { Condition, ModifierGroup, SelectionEntry } from '../core/catalogue'
 import type { LoadedCatalogue } from './catalogueIndex'
+import { cardName, descriptionKey } from './datacards'
+import type { DetachmentRulesDetail } from './rulesFactions'
 
 export type DetachmentCatalogueDetail = {
   rule: { name: string; description: string | null } | null
@@ -30,7 +32,7 @@ export function detachmentCatalogueDetail(
   const upgrades = indexed.upgrades
   const enhancements = enhancementNames
     .map((name) => {
-      const candidates = upgrades.filter((entry) => comparableName(entry.name) === comparableName(name))
+      const candidates = upgrades.filter((entry) => entry.name && cardName(entry.name) === cardName(name))
       const entry =
         unambiguous(candidates.filter((candidate) => candidate.comment === option.name)) ??
         unambiguous(candidates.filter((candidate) => loaded.index.catalogueOf.get(candidate.id) === catalogueId)) ??
@@ -104,12 +106,6 @@ function forcedFor(entry: SelectionEntry): Set<string> {
   return found
 }
 
-const comparableName = (name: string | undefined) =>
-  name
-    ?.replace(/\s*\((?:aura|upgrade)\)\s*$/i, '')
-    .trim()
-    .toLocaleLowerCase()
-
 const descriptionOf = (entry: SelectionEntry) =>
   entry.profiles?.flatMap((profile) => profile.characteristics ?? []).find((characteristic) => characteristic.name === 'Description')
     ?.$text ?? null
@@ -117,4 +113,35 @@ const descriptionOf = (entry: SelectionEntry) =>
 function unambiguous(entries: readonly SelectionEntry[]): SelectionEntry | null {
   const described = entries.filter((entry) => descriptionOf(entry))
   return new Set(described.map(descriptionOf)).size === 1 ? (described[0] ?? null) : null
+}
+
+/**
+ * What each enhancement a detachment offers says, keyed by `descriptionKey`: the
+ * catalogue's own text first, then the card's. The roster and the reference page
+ * read the same answer.
+ */
+export function describedEnhancements(
+  loaded: LoadedCatalogue,
+  catalogueId: string,
+  option: { id: string; name: string },
+  detail: Pick<DetachmentRulesDetail, 'enhancements' | 'upgrades'> | undefined,
+) {
+  const named = [...(detail?.enhancements ?? []), ...(detail?.upgrades ?? [])]
+  const catalogue = detachmentCatalogueDetail(
+    loaded,
+    catalogueId,
+    option.id,
+    named.map((enhancement) => enhancement.name),
+  )
+  const described = new Map<string, string>()
+  for (const enhancement of named) {
+    const description =
+      catalogue?.enhancements.find((candidate) => candidate.name.toLocaleLowerCase() === enhancement.name.toLocaleLowerCase())
+        ?.description ?? enhancement.description
+    if (description) described.set(descriptionKey(option.name, enhancement.name), description)
+  }
+  for (const forced of catalogue?.forcedEnhancements ?? []) {
+    if (forced.description) described.set(descriptionKey(option.name, forced.name), forced.description)
+  }
+  return { catalogue, described }
 }

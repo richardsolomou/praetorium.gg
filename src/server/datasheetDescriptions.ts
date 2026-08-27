@@ -1,5 +1,5 @@
 import { routeSlug } from '../core/slug'
-import { datasheetIn, rulesNamed, rulesReferencedIn } from './catalogue'
+import { datasheetIn, rulesNamed, rulesReferencedIn, weaponKeywordsOf } from './catalogue'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { type LoadedRules, rulesFaction } from './rules'
 import { DATACARDS_ATTRIBUTION } from './datacards'
@@ -76,17 +76,11 @@ export function describeDatasheetAbilities(
 }
 
 /**
- * Every keyword the weapons on this sheet carry, printed or added.
- *
- * The profile states them as one comma-separated characteristic, and a modifier
- * appends to that string rather than announcing what it added — so the whole line is
- * read and each name looked up.
+ * Every keyword the weapons on this sheet carry, printed or added: a modifier appends
+ * to the characteristic rather than announcing what it added, so the whole line is read.
  */
-function weaponKeywords(profiles: NonNullable<ReturnType<typeof datasheetIn>>['profiles']) {
-  return profiles.flatMap((profile) =>
-    profile.values.flatMap((value) => (value.name === 'Keywords' ? value.value.split(',').map((keyword) => keyword.trim()) : [])),
-  )
-}
+const weaponKeywords = (profiles: NonNullable<ReturnType<typeof datasheetIn>>['profiles']) =>
+  profiles.flatMap((profile) => profile.values.flatMap((value) => (value.name === 'Keywords' ? weaponKeywordsOf(value.value) : [])))
 
 function mergeKeywordRules<T extends { name: string }>(preferred: readonly T[], fallback: readonly T[]) {
   return [...new Map([...fallback, ...preferred].map((rule) => [rule.name.toLocaleLowerCase(), rule])).values()]

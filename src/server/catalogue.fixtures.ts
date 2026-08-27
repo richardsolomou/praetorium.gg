@@ -9,7 +9,7 @@
 import { buildIndex, type Catalogue, type CatalogueFile, type Modifier } from '../core/catalogue'
 import { characteristicNamesOf, detachmentsOf, factionsIn, type LoadedCatalogue } from './catalogueIndex'
 import { unitsIn } from './cataloguePicker'
-import type { DatasheetDetails, FactionContent } from './datacards'
+import type { DatasheetDetails, FactionContent, LoadedDatacards } from './datacards'
 
 export const PTS = 'cost-pts'
 
@@ -23,12 +23,20 @@ export function shelfOf(...catalogues: Partial<Catalogue>[]): LoadedCatalogue {
     catalogue: { id: at ? `cat-${at}` : 'cat', name: at ? `Book ${at}` : 'Test catalogue', ...catalogue },
   }))
   const index = buildIndex([system, ...files], 'test-revision')
+  const datacards: LoadedDatacards = {
+    factions: new Map(),
+    detachmentRules: new Map(),
+    enhancements: new Map(),
+    stratagems: new Map(),
+    armyRules: new Map(),
+  }
   return {
     index,
     characteristicNames: characteristicNamesOf([system, ...files]),
     factions: factionsIn(index, detachmentsOf(files, index)),
     detachments: detachmentsOf(files, index),
-    factionContents: new Map(),
+    factionContents: datacards.factions,
+    datacards,
   }
 }
 
