@@ -356,9 +356,10 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
       pickIndex={selected}
       onChoose={(key, optionId) => selected !== null && edit.choose(selected, key, optionId)}
       onSpread={(key, counts) => selected !== null && edit.spread(selected, key, counts)}
+      editable={editable && inspectorView === 'edit'}
       // Counts are written as absolutes worked out from the answer on screen, so a press
       // before the next answer lands would divide a squad the list no longer holds.
-      editable={editable && inspectorView === 'edit' && !pricing}
+      disabled={pricing}
       showOptions={inspectorView !== 'readonly'}
       persistedRoster={editable || !resolvePersistedRoster ? undefined : { id: savedId, ...(battle ? { battle } : {}) }}
       reference={

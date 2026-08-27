@@ -1757,6 +1757,29 @@ test('Death Guard champions expose their legal wargear', async ({ page }) => {
   await expect(loadout.getByRole('button', { name: /Icon of Despair/ })).toHaveCount(1)
   await page.screenshot({ path: 'test-results/deathshroud-wargear-once.png', fullPage: true })
 
+  let releasePricing: () => void = () => undefined
+  const pricingHeld = new Promise<void>((resolve) => {
+    releasePricing = resolve
+  })
+  let holdPricing = true
+  await page.route('**/_serverFn/**', async (route) => {
+    if (holdPricing && route.request().method() === 'POST') await pricingHeld
+    await route.continue()
+  })
+  const removeIcon = loadout.getByRole('button', { name: 'Remove Icon of Despair' })
+  const removeGauntlet = loadout.getByRole('button', { name: 'Fewer Plaguespurt gauntlet' })
+  await removeIcon.click()
+  await expect(removeIcon).toBeDisabled({ timeout: 250 })
+  await expect(removeGauntlet).toBeDisabled({ timeout: 250 })
+  await shot(
+    loadout.locator('section').filter({ hasText: 'Deathshroud Terminator Champion' }),
+    'test-results/deathshroud-wargear-pending.png',
+  )
+  holdPricing = false
+  releasePricing()
+  await expect(loadout.getByRole('button', { name: 'Select Icon of Despair' })).toBeEnabled()
+  await expect(removeGauntlet).toBeEnabled()
+
   await loadout.getByRole('button', { name: 'Close' }).click()
   await page.getByRole('button', { name: 'Add units' }).click()
   await add(page, 'Plague Marines')
