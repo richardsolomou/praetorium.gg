@@ -115,7 +115,9 @@ Legends reference entries are compared only with catalogue entries explicitly ma
 
 Inspect the generated selection before changing evaluator logic. A mismatch can come from the evaluator, the catalogue, or the check harness.
 
-`pnpm catalogue:coverage out.json` writes everything the app can say about the synced data — every datasheet's profiles, abilities, model cards, wargear and choices, every detachment's rules, enhancements and stratagems — and `--compare before.json` lists what an earlier snapshot had that this one does not. Run it from a checkout of `main` first when changing how a source is read: a field that goes missing shows up as a name, not a feeling. Note that `app()` refreshes the catalogue snapshot from the shared store when it starts, so take both snapshots against the same `revision.json`.
+`just coverage out.json` (or `pnpm catalogue:coverage out.json`) writes everything the app can say about the synced data — every datasheet's profiles, abilities, model cards, wargear and choices, every detachment's rules, enhancements and stratagems — and `--compare before.json` lists what an earlier snapshot had that this one does not. Run it from a checkout of `main` first when changing how a source is read: a field that goes missing shows up as a name, not a feeling. Note that `app()` refreshes the catalogue snapshot from the shared store when it starts, so take both snapshots against the same `revision.json`.
+
+The `coverage` CI job runs this on every pull request. It syncs the catalogue once, snapshots the base and the head against that one `revision.json`, and fails when the head lost any of what the base could say. A dropped field still renders, so this gate is the only signal that catches it.
 
 ## Picker and attachments
 

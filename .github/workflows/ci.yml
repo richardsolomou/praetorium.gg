@@ -197,3 +197,39 @@ jobs:
           # docs/development/catalogue-data.md; full agreement is what gates.
           test "$checked" -ge 1500
           test "$matched" -eq "$checked"
+
+  coverage:
+    # A dropped field still renders, so it throws no exception and moves no event
+    # count. This job snapshots what the app can say about the data before and
+    # after the change and fails when the change drops any of it.
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: richardsolomou/ras-stack/actions/setup-js@v0.47.0
+      - run: pnpm catalogue:sync
+      # Both snapshots must read one revision.json, or an upstream change between
+      # the runs reads back as a phantom loss. app() refetches the catalogue when
+      # it starts, so keep a pristine copy and restore it before each snapshot.
+      - name: Pin the catalogue snapshot
+        run: cp -a catalogue-data catalogue-data.pinned
+      - name: Snapshot the base
+        run: |
+          set -euo pipefail
+          git checkout --quiet --force ${{ github.event.pull_request.base.sha }}
+          rm -rf catalogue-data && cp -a catalogue-data.pinned catalogue-data
+          pnpm catalogue:coverage base.json
+      - name: Snapshot the head and compare
+        run: |
+          set -euo pipefail
+          git checkout --quiet --force ${{ github.sha }}
+          rm -rf catalogue-data && cp -a catalogue-data.pinned catalogue-data
+          pnpm catalogue:coverage head.json --compare base.json | tee coverage.txt
+      - name: Require no lost coverage
+        run: |
+          set -euo pipefail
+          lost=$(sed -n 's/^## lost (\([0-9]*\)).*/\1/p' coverage.txt)
+          echo "lost: ${lost:-unknown}"
+          test "${lost:-1}" -eq 0
