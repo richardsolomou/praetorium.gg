@@ -9,7 +9,8 @@ import { appliesInMode, type MissionAward } from '../core/scoring'
 
 export type { MissionAward } from '../core/scoring'
 
-export const missionFlavourText = (text: string | null, type: string) => (type === 'Secondary mission' ? null : text)
+export const missionFlavourText = (text: string | null, type: string, awards: readonly MissionAward[] = []) =>
+  type === 'Secondary mission' && !awards.some((award) => award.criteria === null) ? null : text
 
 /**
  * What to call a payout the source described only in the card's own words.

@@ -13,6 +13,7 @@ import {
   type Roster,
   SECONDARY_GUIDE,
   sameSide,
+  scoringDue,
   type Secondary,
   type SecondaryMode,
   type SecondaryStatus,
@@ -145,6 +146,7 @@ export type BattleView = {
   leagueEventToken: string | null
   turns: { playerId: PlayerId; playerName: string; round: number; minutes: number | null }[]
   advancePrompt: string | null
+  secretMissionActionRequired: boolean
   /** The latest active command any seated player may take back. */
   undoable: number | null
   /** Whether taking back that command returns missions from this turn to the deck. */
@@ -293,6 +295,7 @@ export function battleView(
       minutes: turn.endedAt === null ? null : Math.max(0, Math.round((turn.endedAt - turn.startedAt) / 60_000)),
     })),
     advancePrompt: advancePrompt(state, viewerId),
+    secretMissionActionRequired: secretMissionActionRequired(state),
     undoable: state.undoable?.seq ?? null,
     undoableDraw: state.undoable?.kind === 'draw-secondary' || state.undoable?.kind === 'draw-secondaries',
   }
@@ -312,6 +315,13 @@ function viewRoster(roster: Roster | null): RosterView | null {
   if (!roster?.built) return roster
   const { units: _frozen, ...built } = roster.built
   return { ...roster, built }
+}
+
+function secretMissionActionRequired(state: BattleState): boolean {
+  const active = state.activePlayerId ? state.players.find((player) => player.id === state.activePlayerId) : undefined
+  const player = active ? sideCaptain(state, active.side) : undefined
+  if (!player?.secretSecondary || player.secretRevealed) return false
+  return sideOwes(state, player) === 'secret' || scoringDue(state, player).some((card) => card.key === player.secretSecondary)
 }
 
 function advancePrompt(state: BattleState, viewerId: PlayerId): string | null {

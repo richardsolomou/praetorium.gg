@@ -712,38 +712,41 @@ describe('the profile modifiers on a datasheet', () => {
     expect(contextualAbilityNamesIn(book, 'cat', 'warriors', { selections, unitSelectionIndex: 0 })).toContain('Scouts 5"')
   })
 
-  it('does not infer an ability from a conditional structured grant', () => {
-    const book = bookOf({
-      sharedRules: [{ id: 'scouts-6', name: 'Scouts 6"', description: 'Make a Scout move of up to 6".' }],
-      selectionEntries: [
-        {
-          id: 'unit',
-          name: 'Unit',
-          type: 'unit',
-          profiles: [
-            {
-              id: 'conditional-rule',
-              name: 'Conditional rule',
-              typeName: 'Abilities',
-              characteristics: [{ name: 'Description', $text: 'This unit has Scouts 6".' }],
-            },
-          ],
-          modifiers: [
-            {
-              type: 'add',
-              field: 'add-info',
-              value: 'scouts-6',
-              conditions: [{ type: 'atLeast', value: 1, field: 'selections', scope: 'roster', childId: 'condition' }],
-            },
-          ],
-        },
-      ],
-    })
+  it.each(['This unit has Scouts 6".', 'Models in the bearer\'s unit have the Scouts 6" ability.'])(
+    'does not infer an ability from a conditional structured grant: %s',
+    (description) => {
+      const book = bookOf({
+        sharedRules: [{ id: 'scouts-6', name: 'Scouts 6"', description: 'Make a Scout move of up to 6".' }],
+        selectionEntries: [
+          {
+            id: 'unit',
+            name: 'Unit',
+            type: 'unit',
+            profiles: [
+              {
+                id: 'conditional-rule',
+                name: 'Conditional rule',
+                typeName: 'Abilities',
+                characteristics: [{ name: 'Description', $text: description }],
+              },
+            ],
+            modifiers: [
+              {
+                type: 'add',
+                field: 'add-info',
+                value: 'scouts-6',
+                conditions: [{ type: 'atLeast', value: 1, field: 'selections', scope: 'roster', childId: 'condition' }],
+              },
+            ],
+          },
+        ],
+      })
 
-    expect(datasheetIn(book, 'cat', 'unit', { selections: [{ id: 'unit' }], unitSelectionIndex: 0 })?.abilities).not.toContainEqual(
-      expect.objectContaining({ name: 'Scouts 6"', kind: 'core' }),
-    )
-  })
+      expect(datasheetIn(book, 'cat', 'unit', { selections: [{ id: 'unit' }], unitSelectionIndex: 0 })?.abilities).not.toContainEqual(
+        expect.objectContaining({ name: 'Scouts 6"', kind: 'core' }),
+      )
+    },
+  )
 
   it.each([
     ["CRYPTEK model only. Models in the bearer's unit have the Infiltrators ability.", 'Infiltrators'],

@@ -1498,6 +1498,7 @@ describe('battle setup references', () => {
       criteria: 'Control an objective marker.',
       trigger: { timing: 'end-of-phase', phase: 'command', playerTurn: 'your-turn', roundMin: 1, roundMax: null },
     }
+    const fixedAward = { ...commandAward, mode: 'fixed', trigger: { ...commandAward.trigger, phase: 'movement' } }
     const card = { name: 'Card', text: null, whenDrawn: null }
     const loaded = {
       ...rules(),
@@ -1506,8 +1507,8 @@ describe('battle setup references', () => {
         { ...card, key: 'mission-b', awards: [commandAward] },
       ],
       secondaries: [
-        { ...card, key: 'secondary-a', awards: [] },
-        { ...card, key: 'secondary-b', awards: [] },
+        { ...card, key: 'secondary-a', awards: [fixedAward] },
+        { ...card, key: 'secondary-b', awards: [fixedAward] },
       ],
     }
     const battle = await configured(loaded)
@@ -1581,6 +1582,56 @@ describe('battle setup references', () => {
     })
   })
 
+  it('refuses to begin with tactical-only cards selected as fixed missions', async () => {
+    const card = { name: 'Card', text: null, whenDrawn: null }
+    const tacticalAward = {
+      vp: 5,
+      per: null,
+      mode: 'tactical',
+      max: null,
+      group: null,
+      cumulative: false,
+      criteria: 'Complete the objective.',
+      trigger: { timing: 'end-of-phase', phase: 'end', playerTurn: 'your-turn', roundMin: null, roundMax: null },
+    }
+    const loaded = {
+      ...rules(),
+      primaries: [
+        { ...card, key: 'mission-a', awards: [] },
+        { ...card, key: 'mission-b', awards: [] },
+      ],
+      secondaries: [
+        { ...card, key: 'secondary-a', awards: [tacticalAward] },
+        { ...card, key: 'secondary-b', awards: [tacticalAward] },
+      ],
+    }
+    const battle = await configured(loaded)
+    for (const [playerId, primary] of [
+      ['alice', 'mission-a'],
+      ['bob', 'mission-b'],
+    ] as const) {
+      const result = await battle.send('alice', {
+        kind: 'set-prep',
+        playerId,
+        stratagems: [],
+        secondaries: [
+          { key: 'secondary-a', name: 'Secondary A' },
+          { key: 'secondary-b', name: 'Secondary B' },
+        ],
+        primary: { key: primary, name: primary },
+        secondaryMode: 'fixed',
+      })
+      if (result.outcome === 'appended') battle.setSeq(result.seq)
+    }
+    const deployment = await battle.send('alice', { kind: 'set-deployment', patternId: 'valid-deployment' })
+    if (deployment.outcome === 'appended') battle.setSeq(deployment.seq)
+
+    expect(await battle.send('alice', { kind: 'begin-battle', firstPlayerId: 'alice' })).toEqual({
+      outcome: 'refused',
+      reason: 'every side must prepare its mission cards',
+    })
+  })
+
   it('gives each side its directional primary mission', async () => {
     const battle = await configured()
     const alice = await service.screen(battle.token, 'alice', rules())
@@ -1590,17 +1641,49 @@ describe('battle setup references', () => {
     expect(bob.kind === 'battle' ? bob.mission?.name : null).toBe('Mission B')
   })
 
-  it('corrects primaries recorded before directional ownership was enforced', async () => {
+  it('corrects the identity and timing of primaries recorded before directional ownership was enforced', async () => {
+    const commandAward = {
+      vp: 5,
+      per: null,
+      mode: null,
+      max: null,
+      group: null,
+      cumulative: false,
+      criteria: 'Control an objective marker.',
+      trigger: { timing: 'end-of-phase', phase: 'command', playerTurn: 'your-turn', roundMin: 1, roundMax: null },
+    }
+    const movementAward = { ...commandAward, trigger: { ...commandAward.trigger, phase: 'movement' } }
+    const loaded = {
+      ...rules(),
+      primaries: [
+        { key: 'mission-a', name: 'Mission A', text: null, whenDrawn: null, awards: [commandAward] },
+        { key: 'mission-b', name: 'Mission B', text: null, whenDrawn: null, awards: [movementAward] },
+      ],
+    }
     const battle = await configured()
-    let result = await battle.send('alice', { kind: 'set-deployment', patternId: 'valid-deployment' })
+    let result = await battle.send('alice', {
+      kind: 'set-prep',
+      stratagems: [],
+      secondaries: [],
+      primary: { key: 'mission-b', name: 'Mission B' },
+      secondaryMode: 'fixed',
+    })
+    if (result.outcome === 'appended') battle.setSeq(result.seq)
+    result = await battle.send('alice', { kind: 'set-deployment', patternId: 'valid-deployment' })
     if (result.outcome === 'appended') battle.setSeq(result.seq)
     result = await battle.send('alice', { kind: 'begin-battle', firstPlayerId: 'alice' })
     if (result.outcome === 'appended') battle.setSeq(result.seq)
 
-    const alice = await service.screen(battle.token, 'alice', rules())
-    const bob = await service.screen(battle.token, 'bob', rules())
-    expect(alice.kind === 'battle' ? alice.view.players.find((player) => player.id === 'alice')?.primaryCard?.name : null).toBe('Mission A')
-    expect(bob.kind === 'battle' ? bob.view.players.find((player) => player.id === 'bob')?.primaryCard?.name : null).toBe('Mission B')
+    const alice = await service.screen(battle.token, 'alice', loaded)
+    expect(alice.kind === 'battle' ? alice.view.players.find((player) => player.id === 'alice')?.primaryCard : null).toMatchObject({
+      key: 'mission-a',
+      name: 'Mission A',
+      awards: [commandAward],
+    })
+    expect((await service.submit(battle.token, 'alice', battle.seq(), { kind: 'advance' }, loaded)).result).toEqual({
+      outcome: 'refused',
+      reason: 'review mission scoring before ending the phase',
+    })
   })
 
   it('only restores the resolved mission cards to a running battle', async () => {

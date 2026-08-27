@@ -17,6 +17,21 @@ describe('mission flavour text', () => {
     expect(missionFlavourText('Atmospheric flavour.', 'Secondary mission')).toBeNull()
   })
 
+  it('stays when an unmatched secondary payout depends on the card text', () => {
+    const award: MissionAward = {
+      vp: 5,
+      per: null,
+      mode: null,
+      max: null,
+      group: null,
+      cumulative: false,
+      criteria: null,
+      trigger: { timing: null, phase: null, playerTurn: null, roundMin: null, roundMax: null },
+    }
+
+    expect(missionFlavourText('Score by controlling the centre.', 'Secondary mission', [award])).toBe('Score by controlling the centre.')
+  })
+
   it('stays on primary mission references', () => {
     expect(missionFlavourText('Mission briefing.', 'Primary mission')).toBe('Mission briefing.')
   })

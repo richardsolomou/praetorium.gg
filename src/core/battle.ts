@@ -852,6 +852,7 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
       const owed = sideOwes(state, player)
       if (owed === 'settlement') return 'settle the previous turn before ending the command phase'
       if (owed === 'cards') return 'draw every card owed before ending the command phase'
+      if (owed === 'secret') return 'reveal or discard the secret mission before ending the turn'
       if (state.phase === 'command' && player.secondariesDrawnThisTurn.length && !state.drawAcknowledged) {
         return 'review the new secondary missions before ending the command phase'
       }
@@ -1715,7 +1716,7 @@ export function sideOwes(state: BattleState, player: PlayerState): 'settlement' 
   return null
 }
 
-function scoringDue(state: BattleState, player: PlayerState) {
+export function scoringDue(state: BattleState, player: PlayerState) {
   const primary = player.primaryCard?.awards
     ? [{ ...player.primaryCard, category: 'primary' as const, awards: player.primaryCard.awards }]
     : []
@@ -1754,6 +1755,9 @@ function validatePrep(prep: BattlePrep): string | null {
   }
   if (prep.secondaries.length > FIXED_SECONDARIES) return `that is more than ${FIXED_SECONDARIES} secondaries`
   if (prep.secondaries.some((secondary) => !secondary.name.trim())) return 'name every secondary'
+  if (new Set(prep.secondaries.map((secondary) => secondary.key)).size !== prep.secondaries.length) {
+    return 'the selected secondaries contain duplicates'
+  }
   if ((prep.secondaryDeck?.length ?? 0) > 60) return 'that secondary deck is too large'
   if (prep.secondaryDeck?.some((secondary) => !secondary.name.trim())) return 'name every secondary in the deck'
   if (prep.secondaryDeck && new Set(prep.secondaryDeck.map((secondary) => secondary.key)).size !== prep.secondaryDeck.length) {

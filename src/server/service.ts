@@ -920,21 +920,7 @@ export class PraetoriumService {
     )
     if (rules) hydrateAuthoritativeAwards(state, rules)
     const view = battleView(history.battle, history.players, state, userId, this.clock())
-    const missionForSide = (side: number) => {
-      const ownDisposition = sideDisposition(state, side)
-      const opposingSide = state.players.find((player) => player.side !== side)?.side
-      const opposingDisposition = opposingSide === undefined ? null : sideDisposition(state, opposingSide)
-      return rules ? missionFor(rules, ownDisposition, opposingDisposition, state.settings.missionPackId) : null
-    }
-    if (state.status !== 'setup') {
-      for (const player of view.players) {
-        const primary = missionForSide(player.side)
-        // Only when the rules answer. A matchup this instance cannot resolve — a log
-        // from before both dispositions were required, or a pack no longer synced —
-        // keeps the primary its own `set-prep` recorded rather than losing it.
-        if (primary) player.primaryCard = { ...player.primaryCard, key: primary.id, name: primary.name }
-      }
-    }
+    const missionForSide = (side: number) => (rules ? resolvedMissionForSide(state, rules, side) : null)
     const viewerSide = view.players.find((player) => player.id === userId)?.side
     return {
       kind: 'battle',
@@ -992,10 +978,27 @@ function hydrateAuthoritativeAwards(state: BattleState, rules: NonNullable<Param
   const hydrate = (card: Secondary, available: Map<string, AvailableCard>) =>
     card.awards === undefined ? authoritativeCard(card, available) : card
   for (const player of state.players) {
-    if (player.primaryCard) player.primaryCard = hydrate(player.primaryCard, primaryByKey)
+    if (player.primaryCard) {
+      const mission = state.status === 'setup' ? null : resolvedMissionForSide(state, rules, player.side)
+      const primary = mission ? primaryByKey.get(mission.id) : null
+      player.primaryCard = mission
+        ? {
+            key: mission.id,
+            name: mission.name,
+            awards: player.primaryCard.awards ?? primary?.awards,
+          }
+        : hydrate(player.primaryCard, primaryByKey)
+    }
     player.secondaries = player.secondaries.map((secondary) => hydrate(secondary, secondaryByKey))
     player.secondaryDeck = player.secondaryDeck?.map((secondary) => hydrate(secondary, secondaryByKey)) ?? null
   }
+}
+
+function resolvedMissionForSide(state: BattleState, rules: NonNullable<Parameters<typeof missionFor>[0]>, side: number) {
+  const ownDisposition = sideDisposition(state, side)
+  const opposingSide = state.players.find((player) => player.side !== side)?.side
+  const opposingDisposition = opposingSide === undefined ? null : sideDisposition(state, opposingSide)
+  return missionFor(rules, ownDisposition, opposingDisposition, state.settings.missionPackId)
 }
 
 /**
@@ -1048,13 +1051,20 @@ function setupReferenceError(state: ReturnType<typeof reduceBattle>, rules: NonN
   const sides = [...new Set(state.players.map((player) => player.side))].toSorted((left, right) => left - right)
   const primaries = rules.primaries ?? []
   const expectedSecondaries = new Set((rules.secondaries ?? []).map((card) => card.key))
+  const fixedSecondaries = new Set(
+    (rules.secondaries ?? []).filter((card) => card.awards.some((award) => award.mode === 'fixed')).map((card) => card.key),
+  )
   const prepared = missions.every((mission, index) => {
     if (!mission) return true
     if (!primaries.some((card) => card.key === mission.id) || expectedSecondaries.size === 0) return true
     const player = sideCaptain(state, sides[index]!)
     if (player.primaryCard?.key !== mission.id) return false
     if (player.secondaryMode === 'fixed') {
-      return player.secondaries.length === FIXED_SECONDARIES && player.secondaries.every((card) => expectedSecondaries.has(card.key))
+      return (
+        player.secondaries.length === FIXED_SECONDARIES &&
+        new Set(player.secondaries.map((card) => card.key)).size === FIXED_SECONDARIES &&
+        player.secondaries.every((card) => fixedSecondaries.has(card.key))
+      )
     }
     return completeDeck(player.secondaryDeck, expectedSecondaries)
   })

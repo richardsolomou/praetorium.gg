@@ -447,6 +447,20 @@ describe('setup', () => {
     expect(validate(state, ALICE, prep)).toBe('cards are settled before the battle begins')
   })
 
+  it('refuses duplicate selected secondaries', () => {
+    const state = reduceBattle(PLAYERS, log())
+    const secondary = { key: 'secondary', name: 'Behind Enemy Lines' }
+    const prep: Command = {
+      kind: 'set-prep',
+      stratagems: [],
+      secondaries: [secondary, secondary],
+      primary: null,
+      secondaryMode: 'fixed',
+    }
+
+    expect(validate(state, ALICE, prep)).toBe('the selected secondaries contain duplicates')
+  })
+
   it('allows a missing tactical deck to be restored after the battle begins', () => {
     const repair: Command = {
       kind: 'set-prep',
@@ -970,6 +984,7 @@ describe('the turn sequence', () => {
     const acknowledged = reduceBattle(PLAYERS, acknowledgedHistory)
 
     expect(validate(before, BOB, { kind: 'acknowledge-draw', playerId: ALICE })).toBeNull()
+    expect(validate(before, ALICE, { kind: 'advance' })).toBe('review the new secondary missions before ending the command phase')
     expect(battleView({ token: 'abc' }, NAMES, acknowledged, ALICE).drawAcknowledged).toBe(true)
     expect(battleView({ token: 'abc' }, NAMES, acknowledged, BOB).drawAcknowledged).toBe(true)
     expect(acknowledged.undoable?.kind).toBe('draw-secondaries')
@@ -1160,7 +1175,7 @@ describe('the turn sequence', () => {
     ])
   })
 
-  it('asks the active side to settle its hidden mission without refusing the turn', () => {
+  it('refuses to pass the turn until the active side settles its hidden mission', () => {
     const history = log(
       ...started(),
       [ALICE, { kind: 'select-secret', secondary: { key: 'secret-a', name: 'Hold the Line' } }],
@@ -1168,9 +1183,7 @@ describe('the turn sequence', () => {
     )
     const state = reduceBattle(PLAYERS, history)
 
-    expect(validate(state, BOB, { kind: 'advance', playerId: ALICE })).toBeNull()
-    // Still the one thing an opponent's screen cannot answer, so the reminder says a
-    // card is outstanding without saying which.
+    expect(validate(state, BOB, { kind: 'advance', playerId: ALICE })).toBe('reveal or discard the secret mission before ending the turn')
     expect(battleView({ token: 'abc' }, NAMES, state, BOB).advancePrompt).toBe('The active side has a secret mission to reveal or discard.')
     expect(battleView({ token: 'abc' }, NAMES, state, BOB).players[0]?.secondaries[0]?.name).toBe('Secret mission')
   })

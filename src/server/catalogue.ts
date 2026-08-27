@@ -99,6 +99,7 @@ type DatasheetContext = {
   everyWeapon?: boolean
   /** The units that count as this one, by position: a character and what it leads. */
   companions?: readonly number[]
+  keywordIds?: readonly string[]
   /** Shared by paired projections of the same roster and unit. */
   modifiers?: readonly ProfileModifier[]
 }
@@ -125,7 +126,7 @@ export function contextualAbilityNamesIn(
   loaded: LoadedCatalogue,
   catalogueId: string,
   entryId: string,
-  context: Pick<DatasheetContext, 'selections' | 'unitSelectionIndex' | 'companions'>,
+  context: Pick<DatasheetContext, 'selections' | 'unitSelectionIndex' | 'companions' | 'keywordIds'>,
 ): string[] {
   return [
     ...new Set([
@@ -136,6 +137,7 @@ export function contextualAbilityNamesIn(
         context.companions ?? [],
         loaded.index,
         catalogueId,
+        context.keywordIds,
       ).map((ability) => ability.name),
     ]),
   ]
@@ -280,7 +282,14 @@ export function datasheetIn(loaded: LoadedCatalogue, catalogueId: string, entryI
     ? invulnerableSavesInSelectedUnit(context.selections, context.unitSelectionIndex, loaded.index)
     : []
   const grantedAbilities = context
-    ? grantedAbilitiesInAttachedUnit(context.selections, context.unitSelectionIndex, context.companions ?? [], loaded.index, catalogueId)
+    ? grantedAbilitiesInAttachedUnit(
+        context.selections,
+        context.unitSelectionIndex,
+        context.companions ?? [],
+        loaded.index,
+        catalogueId,
+        context.keywordIds,
+      )
     : []
   const selected = new Set<string>()
   const selectedCounts = new Map<string, number>()
@@ -570,10 +579,11 @@ function grantedAbilitiesInAttachedUnit(
   companionIndexes: readonly number[],
   index: LoadedCatalogue['index'],
   catalogueId: string,
+  selectedKeywordIds?: readonly string[],
 ): Datasheet['abilities'] {
   if (unitSelectionIndex === undefined) return []
   const found = new Map<string, { name: string; sources: Set<string>; ids: Set<string> }>()
-  const character = keywordIds(selections, unitSelectionIndex, index, { primaryCatalogueId: catalogueId }).some(
+  const character = (selectedKeywordIds ?? keywordIds(selections, unitSelectionIndex, index, { primaryCatalogueId: catalogueId })).some(
     (id) => index.categories.get(id)?.name?.trim().toLocaleLowerCase() === 'character',
   )
   const collect = (definitions: readonly Definition[], origin: 'self' | 'companion') => {
@@ -659,18 +669,23 @@ function grantedAbility(
     const name = matched.length === 1 ? matched[0]! : linkedAbilities.length === 1 ? linkedAbilities[0]! : written
     return { name: titleCaseAbility(name), recipient }
   }
+  const linked = (written: string) =>
+    linkedAbilities.some((name) => ruleReferenceMatches(written, name) || ruleReferenceMatches(name, written))
+  const deployment = (written: string) =>
+    ['stealth', 'infiltrators', 'deep strike'].includes(written.toLocaleLowerCase()) || /^scouts \d+["″]$/iu.test(written)
+  const mayUseUnlinked = (written: string) => !deployment(written) || allowUnlinkedDeployment || linked(written)
   const saveAndAbilityGrant = prose.match(
     /^(?:[\p{L} ]+ model only\. )?The bearer has a Save characteristic of \d+\+ and the \[?([\p{L}\p{N} +'’\p{Pd}]+)\]? ability\.$/iu,
   )
-  if (saveAndAbilityGrant) return grant(saveAndAbilityGrant[1]!, 'bearer')
+  if (saveAndAbilityGrant && mayUseUnlinked(saveAndAbilityGrant[1]!)) return grant(saveAndAbilityGrant[1]!, 'bearer')
   const bearerGrant = prose.match(
     /^(?:[^.\n]{1,160} model only\.\s*)?The bearer has the \[?([\p{L}\p{N} +'’\p{Pd}]+)\]? ability(?:[.,]|$)/iu,
   )
-  if (bearerGrant) return grant(bearerGrant[1]!, 'bearer')
+  if (bearerGrant && mayUseUnlinked(bearerGrant[1]!)) return grant(bearerGrant[1]!, 'bearer')
   const bodyguardGrant = prose.match(
     /^While a Character model is leading this unit, that Character model has the \[?([\p{L}\p{N} +'’\p{Pd}]+)\]? ability\.$/iu,
   )
-  if (bodyguardGrant && attached) return grant(bodyguardGrant[1]!, 'leader')
+  if (bodyguardGrant && attached && mayUseUnlinked(bodyguardGrant[1]!)) return grant(bodyguardGrant[1]!, 'leader')
   const thisUnitGrant = prose.match(
     /^(?:[^.\n]{1,160} (?:model|unit) only\.\s*)?(?:[-▪]\s*)?This unit has (?:the )?\[?([\p{L}\p{N} +"'’\p{Pd}]+?)\]?(?: ability)?\.(?:\s|$)/iu,
   )
@@ -679,17 +694,17 @@ function grantedAbility(
     ((allowUnlinkedDeployment &&
       (['stealth', 'infiltrators', 'deep strike'].includes(thisUnitGrant[1]?.toLocaleLowerCase() ?? '') ||
         /^scouts \d+["″]$/iu.test(thisUnitGrant[1] ?? ''))) ||
-      linkedAbilities.some((name) => ruleReferenceMatches(thisUnitGrant[1]!, name) || ruleReferenceMatches(name, thisUnitGrant[1]!)))
+      linked(thisUnitGrant[1]!))
   )
     return grant(thisUnitGrant[1]!, 'unit')
   const leadingGrant = prose.match(
     /^While (?:this model|the bearer) is leading a unit, models in that unit have the \[?([\p{L}\p{N} +'’\p{Pd}]+)\]? ability\.$/iu,
   )
-  if (leadingGrant) return attached ? grant(leadingGrant[1]!, 'unit') : undefined
+  if (leadingGrant) return attached && mayUseUnlinked(leadingGrant[1]!) ? grant(leadingGrant[1]!, 'unit') : undefined
   const ownUnitGrant = prose.match(
     /^(?:[^.\n]{1,160} model only\.\s*)?(?:[-▪]\s*)?Models in (?:this model's|the bearer's|the bearer’s) unit have the \[?([\p{L}\p{N} +'’\p{Pd}]+)\]? ability(?:[.,]|$)/iu,
   )
-  return ownUnitGrant ? grant(ownUnitGrant[1]!, 'unit') : undefined
+  return ownUnitGrant && mayUseUnlinked(ownUnitGrant[1]!) ? grant(ownUnitGrant[1]!, 'unit') : undefined
 }
 
 const titleCaseAbility = (name: string) =>

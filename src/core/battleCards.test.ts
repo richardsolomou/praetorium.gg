@@ -249,6 +249,10 @@ describe('secondaries', () => {
     expect(alice(after)?.secondaryStatus).toMatchObject({ a: 'active' })
   })
 
+  it('refuses to end the turn before the tactical hand is reviewed', () => {
+    expect(validate(tacticalEnd(), ALICE, { kind: 'advance' })).toBe('review the tactical hand before ending the turn')
+  })
+
   it('refuses to grant a command point when nothing is discarded', () => {
     expect(validate(tacticalEnd(), ALICE, { kind: 'resolve-tactical-hand', keys: [], gainCp: true })).toBe(
       'discard a secondary to gain a command point',
@@ -532,10 +536,29 @@ describe('secondaries', () => {
     )
 
     for (const viewer of [ALICE, BOB]) {
-      expect(battleView({ token: 'abc' }, NAMES, state, viewer).advancePrompt).toBe(
-        'The active side has a secret mission to reveal or discard.',
-      )
+      const view = battleView({ token: 'abc' }, NAMES, state, viewer)
+      expect(view.advancePrompt).toBe('The active side has a secret mission to reveal or discard.')
+      expect(view.secretMissionActionRequired).toBe(true)
     }
+  })
+
+  it('offers a handoff when a hidden mission is due to score', () => {
+    const award = {
+      vp: 5,
+      per: null,
+      mode: null,
+      max: null,
+      group: null,
+      cumulative: false,
+      criteria: 'Hold the objective.',
+      trigger: { timing: 'end-of-phase', phase: 'command', playerTurn: 'your-turn', roundMin: null, roundMax: null },
+    }
+    const state = reduceBattle(
+      PLAYERS,
+      log(...started(), [ALICE, { kind: 'select-secret', secondary: { key: 'secret-a', name: 'Hold the Line', awards: [award] } }]),
+    )
+
+    expect(battleView({ token: 'abc' }, NAMES, state, BOB).secretMissionActionRequired).toBe(true)
   })
 
   it('lets one side choose a secret mission for the side across the table', () => {

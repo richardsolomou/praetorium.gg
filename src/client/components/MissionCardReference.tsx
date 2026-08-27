@@ -43,7 +43,7 @@ export function MissionCardReference({
     ].join('|')
     groups.set(key, [...(groups.get(key) ?? []), award])
   }
-  const flavourText = missionFlavourText(card.text, type)
+  const flavourText = missionFlavourText(card.text, type, shown)
 
   return (
     <article>
