@@ -77,7 +77,8 @@ export function RosterImport() {
           <DialogHeader>
             <DialogTitle className="text-xl uppercase">Import roster</DialogTitle>
             <DialogDescription className="text-dim">
-              Paste a BattleBase or New Recruit export, or add a BattleScribe or New Recruit roster file.
+              Paste Games Workshop roster text from Praetorium, BattleBase, or New Recruit, or add a BattleScribe or New Recruit roster
+              file.
             </DialogDescription>
           </DialogHeader>
 
@@ -89,7 +90,7 @@ export function RosterImport() {
               id="roster-text"
               value={text}
               onChange={(event) => setText(event.target.value)}
-              placeholder={'Paste the full BattleBase or New Recruit export…'}
+              placeholder="Paste Games Workshop roster text…"
               className="h-52 min-h-52 field-sizing-fixed resize-none overflow-y-auto rounded-none border-edge bg-sunken font-mono text-xs"
               disabled={bring.isPending}
             />

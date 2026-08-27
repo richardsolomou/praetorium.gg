@@ -25,7 +25,10 @@ const allSelections = (selection: Selection): Selection[] => [selection, ...(sel
 
 export function importRosterFile(data: ImportRosterInput, loaded: LoadedCatalogue) {
   const battleBase = fromBattleBaseText(data.file)
-  if (battleBase) return { ...importTextRoster(battleBase, loaded), source: 'battlebase' as const }
+  if (battleBase) {
+    const source = /Exported with Praetorium\.gg/i.test(data.file) ? ('praetorium' as const) : ('battlebase' as const)
+    return { ...importTextRoster(battleBase, loaded), source }
+  }
   const newRecruit = fromNewRecruitText(data.file)
   if (newRecruit) return { ...importTextRoster(newRecruit, loaded), source: 'newrecruit' as const }
   const parsed = fromRosterXml(rosterXml(data.file), loaded.index, parseXml)
@@ -126,19 +129,7 @@ function importTextRoster(parsed: TextRoster, loaded: LoadedCatalogue) {
     return [textRosterPick(unit, entryId, faction.id, detachmentSelections, loaded)]
   })
 
-  parsed.units.forEach((unit, sourceIndex) => {
-    const importedAt = sourceToImported.get(sourceIndex)
-    if (unit.leading && importedAt !== undefined && units[importedAt]) {
-      const targetSource = parsed.units.findIndex((candidate) => normalized(candidate.name) === normalized(unit.leading ?? ''))
-      const target = sourceToImported.get(targetSource)
-      if (target !== undefined && units[target]) units[importedAt] = { ...units[importedAt], attachedTo: target }
-    }
-    if (unit.leader && importedAt !== undefined && units[importedAt]) {
-      const leaderSource = parsed.units.findIndex((candidate) => normalized(candidate.name) === normalized(unit.leader ?? ''))
-      const leader = sourceToImported.get(leaderSource)
-      if (leader !== undefined && units[leader]) units[leader] = { ...units[leader], attachedTo: importedAt }
-    }
-  })
+  attachTextUnits(parsed.units, units, sourceToImported)
 
   return {
     name: parsed.name,
@@ -149,6 +140,42 @@ function importTextRoster(parsed: TextRoster, loaded: LoadedCatalogue) {
     limit: parsed.limit,
     units,
     unknown,
+  }
+}
+
+function attachTextUnits(units: readonly TextRosterUnit[], picks: { attachedTo?: number }[], imported: ReadonlyMap<number, number>) {
+  const importedSources = units.flatMap((_, source) => (imported.has(source) ? [source] : []))
+  const sourceOccurrences = new Map<string, number>()
+  for (const source of importedSources) {
+    const unit = units[source]!
+    if (!unit.leading) continue
+    const sourceName = normalized(unit.name)
+    const targetName = normalized(unit.leading)
+    const key = `${sourceName}\0${targetName}`
+    const occurrence = sourceOccurrences.get(key) ?? 0
+    sourceOccurrences.set(key, occurrence + 1)
+    const named = importedSources.filter((candidate) => normalized(units[candidate]!.name) === targetName)
+    const confirmed = named.filter((candidate) => normalized(units[candidate]!.leader ?? '') === sourceName)
+    const target = imported.get(confirmed[occurrence] ?? named[occurrence] ?? -1)
+    const pick = picks[imported.get(source) ?? -1]
+    if (pick && target !== undefined) pick.attachedTo = target
+  }
+
+  const targetOccurrences = new Map<string, number>()
+  for (const target of importedSources) {
+    const unit = units[target]!
+    if (!unit.leader) continue
+    const targetName = normalized(unit.name)
+    const sourceName = normalized(unit.leader)
+    const key = `${targetName}\0${sourceName}`
+    const occurrence = targetOccurrences.get(key) ?? 0
+    targetOccurrences.set(key, occurrence + 1)
+    const named = importedSources.filter((candidate) => normalized(units[candidate]!.name) === sourceName)
+    const confirmed = named.filter((candidate) => normalized(units[candidate]!.leading ?? '') === targetName)
+    const source = imported.get(confirmed[occurrence] ?? named[occurrence] ?? -1)
+    const pick = picks[source ?? -1]
+    const host = imported.get(target)
+    if (pick && pick.attachedTo === undefined && host !== undefined) pick.attachedTo = host
   }
 }
 

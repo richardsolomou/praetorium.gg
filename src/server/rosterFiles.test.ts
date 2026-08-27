@@ -365,6 +365,97 @@ Exported with BattleBase, Data Version: v20260812`,
 
     expect(imported.units[0]?.choices?.enhancements).toBe('relic')
   })
+
+  it('pairs repeated attachments by occurrence', () => {
+    const imported = importRosterFile(
+      {
+        file: `Repeated leaders (600 Points)
+
+Necrons
+Pantheon of Woe (2 Detachment Points)
+Strike Force (2,000 Points)
+
+CHARACTERS
+
+Lokhust Lord (100 Points)
+    • Leading: Immortals
+
+Lokhust Lord (100 Points)
+    • Leading: Immortals
+
+Lokhust Lord (100 Points)
+    • Leading: Immortals
+
+OTHER DATASHEETS
+
+Immortals (100 Points)
+    • Leader: Lokhust Lord
+
+Immortals (100 Points)
+    • Leader: Lokhust Lord
+
+Immortals (100 Points)
+    • Leader: Lokhust Lord
+
+Exported with BattleBase, Data Version: v20260826`,
+      },
+      loaded,
+    )
+
+    expect(imported.units.map((unit) => unit.attachedTo)).toEqual([3, 4, 5, undefined, undefined, undefined])
+  })
+})
+
+describe('Praetorium roster import', () => {
+  it('round-trips exported attachments', () => {
+    const exported = exportRosterFile(
+      {
+        catalogueId: 'necrons',
+        detachmentIds: [],
+        disposition: null,
+        limit: 2000,
+        name: 'Shared force',
+        units: [{ entryId: 'lord', choices: { enhancements: 'relic' }, attachedTo: 1 }, { entryId: 'immortals' }],
+      },
+      loaded,
+      {
+        points: 300,
+        disposition: null,
+        detachments: [],
+        units: [
+          {
+            key: 0,
+            name: 'Lokhust Lord',
+            points: 100,
+            group: 'character',
+            attachment: { kind: 'leader', targets: ['Immortals'] },
+            enhancements: ['Demanding Leader'],
+            upgrades: [],
+            wargear: [],
+          },
+          {
+            key: 1,
+            name: 'Immortals',
+            points: 200,
+            group: 'other',
+            attachment: null,
+            enhancements: [],
+            upgrades: [],
+            wargear: [],
+          },
+        ],
+      },
+      [],
+    )
+
+    expect(importRosterFile({ file: exported.text }, loaded)).toMatchObject({
+      source: 'praetorium',
+      name: 'Shared force',
+      catalogueId: 'necrons',
+      units: [{ entryId: 'lord', choices: { enhancements: 'relic' }, attachedTo: 1 }, { entryId: 'immortals' }],
+      unknown: [],
+    })
+  })
 })
 
 describe('NewRecruit roster import', () => {
