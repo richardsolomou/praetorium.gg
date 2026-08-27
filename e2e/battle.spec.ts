@@ -185,7 +185,7 @@ test('a tactical hand pays out when the card says', async ({ browser }) => {
     await expect(bobDiscard).toBeVisible()
     await discard.locator('button[aria-pressed]').first().click()
     await discard.getByRole('button', { name: 'Discard 1 and gain 1 CP' }).click()
-    await expect(alice.getByRole('heading', { name: 'command phase' })).toBeVisible()
+    await expect(alice.getByRole('dialog', { name: `${bobName}’s secondary missions` })).toBeVisible()
     await expect(alice.getByText(/discards .+ and gains 1 CP/)).toBeVisible()
   } finally {
     releaseBob()
