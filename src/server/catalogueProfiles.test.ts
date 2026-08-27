@@ -960,6 +960,42 @@ describe('the profile modifiers on a datasheet', () => {
     expect(contextualAbilityNamesIn(book, 'cat', 'bodyguard', { selections, unitSelectionIndex: 1, companions: [0] })).toContain(ability)
   })
 
+  it('includes an attached-only deployment profile only on its attached unit', () => {
+    const book = bookOf({
+      selectionEntries: [
+        {
+          id: 'leader',
+          name: 'Leader',
+          type: 'model',
+          selectionEntries: [
+            {
+              id: 'enhancement',
+              name: 'Enhancement',
+              type: 'upgrade',
+              profiles: [
+                {
+                  id: 'scouts-rule',
+                  name: 'Scouts 6"',
+                  typeName: 'Abilities',
+                  characteristics: [
+                    { name: 'Description', $text: 'While the bearer is leading a unit, models in that unit have the Scouts 6" ability.' },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+        { id: 'bodyguard', name: 'Bodyguard', type: 'unit' },
+      ],
+    })
+    const selections = [{ id: 'leader', selections: [{ id: 'enhancement' }] }, { id: 'bodyguard' }]
+
+    expect(contextualAbilityNamesIn(book, 'cat', 'leader', { selections, unitSelectionIndex: 0 })).not.toContain('Scouts 6"')
+    expect(contextualAbilityNamesIn(book, 'cat', 'bodyguard', { selections, unitSelectionIndex: 1, companions: [0] })).toContain(
+      'Scouts 6"',
+    )
+  })
+
   it('shows an invulnerable save set by selected wargear on a blank characteristic', () => {
     const book = bookOf({
       selectionEntries: [

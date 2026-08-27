@@ -167,13 +167,10 @@ function abilityProfileNames(definition: Definition, index: LoadedCatalogue['ind
     const name = profile.name
     if (profile.typeName !== 'Abilities' || !name || profile.hidden) return
     const description = normalizedAbilityDescription(profile)
-    if (
-      deploymentAbilities(name).length &&
-      description &&
-      hasAbilityGrantStatement(description) &&
-      !parsedAbilityGrants(description, false, [name], true).some((grant) => ruleReferenceMatches(grant.name, name))
-    )
-      return
+    if (deploymentAbilities(name).length && description) {
+      const parsed = parseAbilityGrants(description, false, [name], true)
+      if (parsed.matched && !parsed.grants.some((grant) => ruleReferenceMatches(grant.name, name))) return
+    }
     names.add(name)
   }
   definition.profiles?.forEach(addProfile)
@@ -190,11 +187,6 @@ function abilityProfileNames(definition: Definition, index: LoadedCatalogue['ind
   }
   return [...names]
 }
-
-const hasAbilityGrantStatement = (description: string) =>
-  /(?:^|[.!?]\s)(?:[-▪]\s*)?(?:(?:While|If|When|During)\b[^.]{0,160},\s*)?(?:This unit|This model|The bearer|Models in (?:this model's|the bearer's|the bearer’s) unit)\s+(?:has|have|gains?)\b/iu.test(
-    description,
-  )
 
 function searchableProfilesIn(loaded: LoadedCatalogue, catalogueId: string, entryId: string): SearchableProfiles {
   const key = `${catalogueId}:${entryId}`
@@ -730,14 +722,16 @@ function contextualInfoLinkHidden(
   return hidden
 }
 
+type AbilityGrant = { name: string; recipient: 'bearer' | 'leader' | 'unit' }
+
 /** Exact catalogue phrases that grant a named ability to a bearer or every model in its unit. */
-function parsedAbilityGrants(
+function parseAbilityGrants(
   description: string | null | undefined,
   attached: boolean,
   linkedAbilities: readonly string[],
   allowUnlinkedDeployment: boolean,
-): { name: string; recipient: 'bearer' | 'leader' | 'unit' }[] {
-  if (!description) return []
+): { matched: boolean; grants: AbilityGrant[] } {
+  if (!description) return { matched: false, grants: [] }
   const prose = description.replaceAll(/\^\^|\*/g, '')
   const grant = (written: string, recipient: 'bearer' | 'leader' | 'unit') => {
     const matched = linkedAbilities.filter((name) => ruleReferenceMatches(written, name) || ruleReferenceMatches(name, written))
@@ -753,31 +747,44 @@ function parsedAbilityGrants(
   const saveAndAbilityGrant = prose.match(
     /^(?:[\p{L} ]+ model only\. )?The bearer has a Save characteristic of \d+\+ and the \[?([\p{L}\p{N} +'’\p{Pd}]+)\]? ability\.$/iu,
   )
-  if (saveAndAbilityGrant) return grant(saveAndAbilityGrant[1]!, 'bearer')
+  if (saveAndAbilityGrant) return { matched: true, grants: grant(saveAndAbilityGrant[1]!, 'bearer') }
   const bearerAndUnitGrant = prose.match(
     /^(?:[^.\n]{1,160} model only\.\s*)?The bearer, and models in any unit they are leading, have the \[?([\p{L}\p{N} +"'’\p{Pd}]+?)\]? abilities\.$/iu,
   )
-  if (bearerAndUnitGrant) return grant(bearerAndUnitGrant[1]!, 'unit')
+  if (bearerAndUnitGrant) return { matched: true, grants: grant(bearerAndUnitGrant[1]!, 'unit') }
   const bearerGrant = prose.match(
     /^(?:[^.\n]{1,160} model only\.\s*)?The bearer has the \[?([\p{L}\p{N} +"'’\p{Pd}]+?)\]? abilit(?:y|ies)(?:[.,]|$)/iu,
   )
-  if (bearerGrant) return grant(bearerGrant[1]!, 'bearer')
+  if (bearerGrant) return { matched: true, grants: grant(bearerGrant[1]!, 'bearer') }
   const bodyguardGrant = prose.match(
     /^While a Character model is leading this unit, that Character model has the \[?([\p{L}\p{N} +'’\p{Pd}]+)\]? ability\.$/iu,
   )
-  if (bodyguardGrant && attached) return grant(bodyguardGrant[1]!, 'leader')
+  if (bodyguardGrant) return { matched: true, grants: attached ? grant(bodyguardGrant[1]!, 'leader') : [] }
   const thisUnitGrant = prose.match(
     /^(?:[^.\n]{1,160} (?:model|unit) only\.\s*)?(?:[-▪]\s*)?This unit has (?:the )?\[?([\p{L}\p{N} +"'’\p{Pd}]+?)\]?(?: abilit(?:y|ies))?\.(?:\s|$)/iu,
   )
-  if (thisUnitGrant && (allowUnlinkedDeployment || linked(thisUnitGrant[1]!))) return grant(thisUnitGrant[1]!, 'unit')
+  if (thisUnitGrant)
+    return {
+      matched: true,
+      grants: allowUnlinkedDeployment || linked(thisUnitGrant[1]!) ? grant(thisUnitGrant[1]!, 'unit') : [],
+    }
   const leadingGrant = prose.match(
     /^While (?:this model|the bearer) is leading a unit, models in that unit have the \[?([\p{L}\p{N} +"'’\p{Pd}]+?)\]? abilit(?:y|ies)\.$/iu,
   )
-  if (leadingGrant) return attached ? grant(leadingGrant[1]!, 'unit') : []
+  if (leadingGrant) return { matched: true, grants: attached ? grant(leadingGrant[1]!, 'unit') : [] }
   const ownUnitGrant = prose.match(
     /^(?:[^.\n]{1,160} model only\.\s*)?(?:[-▪]\s*)?Models in (?:this model's|the bearer's|the bearer’s) unit\s+have the \[?([\p{L}\p{N} +"'’\p{Pd}]+?)\]? abilit(?:y|ies)(?:[.,]|$)/iu,
   )
-  return ownUnitGrant ? grant(ownUnitGrant[1]!, 'unit') : []
+  return ownUnitGrant ? { matched: true, grants: grant(ownUnitGrant[1]!, 'unit') } : { matched: false, grants: [] }
+}
+
+function parsedAbilityGrants(
+  description: string | null | undefined,
+  attached: boolean,
+  linkedAbilities: readonly string[],
+  allowUnlinkedDeployment: boolean,
+): AbilityGrant[] {
+  return parseAbilityGrants(description, attached, linkedAbilities, allowUnlinkedDeployment).grants
 }
 
 const DEPLOYMENT_ABILITY = String.raw`(?:Stealth|Infiltrators|Deep Strike|Scouts \d+["″])`
