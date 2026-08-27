@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.41.0
+
+### Minor Changes
+
+- ea4c473: Complete native social sign-in and let players delete their accounts.
+
 ## 0.40.4
 
 ### Patch Changes
