@@ -980,6 +980,129 @@ describe('the profile modifiers on a datasheet', () => {
     )
   })
 
+  it('applies a bodyguard grant only to the named attached leader', () => {
+    const book = bookOf({
+      categoryEntries: [{ id: 'character', name: 'Character' }],
+      selectionEntries: [
+        {
+          id: 'priest',
+          name: 'Ministorum Priest',
+          type: 'model',
+          categoryLinks: [{ id: 'priest-character', targetId: 'character', name: 'Character' }],
+        },
+        {
+          id: 'canoness',
+          name: 'Canoness',
+          type: 'model',
+          categoryLinks: [{ id: 'canoness-character', targetId: 'character', name: 'Character' }],
+        },
+        {
+          id: 'sanctifiers',
+          name: 'Sanctifiers',
+          type: 'unit',
+          profiles: [
+            {
+              id: 'holy-vanguard',
+              name: 'Holy Vanguard',
+              typeName: 'Abilities',
+              characteristics: [
+                {
+                  name: 'Description',
+                  $text:
+                    'If a Ministorum Priest model from your army is attached to this unit during the Declare Battle Formations step, that model gains the Scouts 6" ability.',
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    })
+    const abilitiesFor = (leaderId: string) => {
+      const selections = [{ id: leaderId }, { id: 'sanctifiers' }]
+      return contextualAbilityNamesIn(book, 'cat', leaderId, { selections, unitSelectionIndex: 0, companions: [1] })
+    }
+
+    expect(abilitiesFor('priest')).toContain('Scouts 6"')
+    expect(abilitiesFor('canoness')).not.toContain('Scouts 6"')
+  })
+
+  it('applies a named leader grant to every model in its attached unit', () => {
+    const book = bookOf({
+      categoryEntries: [{ id: 'character', name: 'Character' }],
+      selectionEntries: [
+        {
+          id: 'techmarine',
+          name: 'Brotherhood Techmarine',
+          type: 'model',
+          categoryLinks: [{ id: 'techmarine-character', targetId: 'character', name: 'Character' }],
+        },
+        {
+          id: 'servitors',
+          name: 'Servitors',
+          type: 'unit',
+          profiles: [
+            {
+              id: 'teleport-adepts',
+              name: 'Teleport Adepts',
+              typeName: 'Abilities',
+              characteristics: [
+                {
+                  name: 'Description',
+                  $text:
+                    'While a Brotherhood Techmarine model is leading this unit, models in this unit have the Deep Strike and Teleport Assault abilities.',
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    })
+    const selections = [{ id: 'techmarine' }, { id: 'servitors' }]
+
+    expect(contextualAbilityNamesIn(book, 'cat', 'techmarine', { selections, unitSelectionIndex: 0, companions: [1] })).toContain(
+      'Deep Strike',
+    )
+    expect(contextualAbilityNamesIn(book, 'cat', 'servitors', { selections, unitSelectionIndex: 1, companions: [0] })).toContain(
+      'Deep Strike',
+    )
+  })
+
+  it('applies the grant for the bodyguard unit this model is leading', () => {
+    const book = bookOf({
+      selectionEntries: [
+        {
+          id: 'leader',
+          name: 'Karandras',
+          type: 'model',
+          profiles: [
+            {
+              id: 'shadowmaster',
+              name: 'Shadowmaster',
+              typeName: 'Abilities',
+              characteristics: [
+                {
+                  name: 'Description',
+                  $text:
+                    'While this model is leading a Howling Banshees unit, it has the Fights First ability. While this model is leading a Striking Scorpions unit, it has the Infiltrators, Scouts 7" and Stealth abilities.',
+                },
+              ],
+            },
+          ],
+        },
+        { id: 'banshees', name: 'Howling Banshees', type: 'unit' },
+        { id: 'scorpions', name: 'Striking Scorpions', type: 'unit' },
+      ],
+    })
+    const abilitiesWith = (bodyguardId: string) => {
+      const selections = [{ id: 'leader' }, { id: bodyguardId }]
+      return contextualAbilityNamesIn(book, 'cat', 'leader', { selections, unitSelectionIndex: 0, companions: [1] })
+    }
+
+    expect(abilitiesWith('scorpions')).toEqual(expect.arrayContaining(['Infiltrators', 'Scouts 7"', 'Stealth']))
+    expect(abilitiesWith('scorpions')).not.toContain('Fights First')
+    expect(abilitiesWith('banshees')).toContain('Fights First')
+  })
+
   it('includes each static linked ability only while its enhancement is selected', () => {
     const book = bookOf({
       sharedRules: [

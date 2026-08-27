@@ -192,14 +192,15 @@ export function calculateRosterPrice(data: PriceInput, loaded = app().catalogue(
   const selections = forces.flat()
   const selectionIndex = new Map(selections.map((selection, at) => [selection, at]))
   const keywordIdsByCatalogue = new Map<string, string[][]>()
-  const keywordsFor = (catalogueId: string, at: number) => {
+  const keywordMatrixFor = (catalogueId: string) => {
     let keywords = keywordIdsByCatalogue.get(catalogueId)
     if (!keywords) {
       keywords = keywordIdsBySelection(selections, loaded.index, { primaryCatalogueId: catalogueId })
       keywordIdsByCatalogue.set(catalogueId, keywords)
     }
-    return keywords[at] ?? []
+    return keywords
   }
+  const keywordsFor = (catalogueId: string, at: number) => keywordMatrixFor(catalogueId)[at] ?? []
   const whole = evaluateForces(forces, loaded.index, options)
   const selectionPoints = new Map<Selection, number>()
   forces.forEach((force, forceAt) =>
@@ -317,6 +318,7 @@ export function calculateRosterPrice(data: PriceInput, loaded = app().catalogue(
           unitSelectionIndex,
           companions,
           keywordIds: unitSelectionIndex === undefined ? [] : keywordsFor(catalogueId, unitSelectionIndex),
+          rosterKeywordIds: keywordMatrixFor(catalogueId),
         }),
       )
       const describedChoices: ((typeof unit.choices)[number] & { kind?: 'enhancement' | 'upgrade' })[] = unit.choices.map((choice) => {
