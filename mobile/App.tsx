@@ -1,11 +1,12 @@
 import { StatusBar } from 'expo-status-bar'
 import * as WebBrowser from 'expo-web-browser'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ActivityIndicator, Alert, BackHandler, Linking, Pressable, StyleSheet, Text, View } from 'react-native'
+import { ActivityIndicator, Alert, AppState, BackHandler, Linking, Pressable, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context'
 import { WebView } from 'react-native-webview'
 import type { WebViewNavigation } from 'react-native-webview'
-import { APP_URL, classifyNavigation } from './src/navigation'
+import { appStateChanged, initialAppLifecycle, WEB_RESUME_SCRIPT } from './src/lifecycle'
+import { APP_URL, applicationNavigationScript, classifyNavigation, initialApplicationUrl } from './src/navigation'
 import {
   NATIVE_AUTH_CALLBACK_URL,
   nativeAuthExchangeScript,
@@ -47,8 +48,16 @@ function AppShell() {
   const authOpen = useRef(false)
   const handledAuthTokens = useRef(new Set<string>())
   const pendingAuth = useRef<Extract<NativeAuthCallback, { kind: 'success' }> | null>(null)
+  const pendingNavigation = useRef<string | null>(null)
   const webReady = useRef(false)
-  const [sourceUrl, setSourceUrl] = useState(APP_URL)
+  const hasSource = useRef(false)
+  const lifecycle = useRef(initialAppLifecycle(AppState.currentState))
+  const [sourceUrl, setSourceUrl] = useState<string | null>(null)
+
+  const loadSource = useCallback((url: string) => {
+    hasSource.current = true
+    setSourceUrl(url)
+  }, [])
 
   const exchangeAuth = useCallback((callback: Extract<NativeAuthCallback, { kind: 'success' }>) => {
     if (!webReady.current) {
@@ -107,6 +116,27 @@ function AppShell() {
     [openExternal],
   )
 
+  const navigateApplication = useCallback(
+    (url: string) => {
+      const script = applicationNavigationScript(url)
+      if (!script) return
+      if (webReady.current) webView.current?.injectJavaScript(script)
+      else if (!hasSource.current) loadSource(initialApplicationUrl(url))
+      else pendingNavigation.current = script
+    },
+    [loadSource],
+  )
+
+  const handleIncomingUrl = useCallback(
+    (url: string) => {
+      if (url.startsWith(NATIVE_AUTH_CALLBACK_URL)) {
+        if (!hasSource.current) loadSource(APP_URL)
+        handleAuthCallback(url)
+      } else navigateApplication(url)
+    },
+    [handleAuthCallback, loadSource, navigateApplication],
+  )
+
   useEffect(() => {
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
       if (!canGoBack.current) return false
@@ -117,14 +147,41 @@ function AppShell() {
   }, [])
 
   useEffect(() => {
-    void Linking.getInitialURL().then((url) => {
-      if (url?.startsWith(NATIVE_AUTH_CALLBACK_URL)) handleAuthCallback(url)
-    })
+    let active = true
+    let initialPending = true
+    void Linking.getInitialURL().then(
+      (url) => {
+        if (!active || !initialPending) return
+        initialPending = false
+        if (url?.startsWith(NATIVE_AUTH_CALLBACK_URL)) {
+          loadSource(APP_URL)
+          handleAuthCallback(url)
+        } else loadSource(initialApplicationUrl(url))
+      },
+      () => {
+        if (!active || !initialPending) return
+        initialPending = false
+        loadSource(APP_URL)
+      },
+    )
     const subscription = Linking.addEventListener('url', ({ url }) => {
-      if (url.startsWith(NATIVE_AUTH_CALLBACK_URL)) handleAuthCallback(url)
+      initialPending = false
+      handleIncomingUrl(url)
+    })
+    return () => {
+      active = false
+      subscription.remove()
+    }
+  }, [handleAuthCallback, handleIncomingUrl, loadSource])
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (status) => {
+      const changed = appStateChanged(lifecycle.current, status)
+      lifecycle.current = changed.lifecycle
+      if (changed.shouldResumeWebApp && webReady.current) webView.current?.injectJavaScript(WEB_RESUME_SCRIPT)
     })
     return () => subscription.remove()
-  }, [handleAuthCallback])
+  }, [])
 
   const updateNavigation = useCallback((navigation: WebViewNavigation) => {
     canGoBack.current = navigation.canGoBack
@@ -134,52 +191,65 @@ function AppShell() {
     <SafeAreaView edges={['top', 'right', 'bottom', 'left']} style={styles.safeArea}>
       {/* oxlint-disable-next-line react/style-prop-object -- Expo's style prop selects a color scheme. */}
       <StatusBar style="light" />
-      <WebView
-        ref={webView}
-        source={{ uri: sourceUrl }}
-        style={styles.webView}
-        containerStyle={styles.webView}
-        originWhitelist={['*']}
-        applicationNameForUserAgent="PraetoriumNative/0.2.0"
-        injectedJavaScriptBeforeContentLoaded="window.PraetoriumNative = Object.freeze({ bridgeVersion: 1 }); true;"
-        sharedCookiesEnabled
-        thirdPartyCookiesEnabled={false}
-        allowsBackForwardNavigationGestures
-        allowsLinkPreview={false}
-        setSupportMultipleWindows
-        startInLoadingState
-        renderLoading={() => <StateView />}
-        renderError={() => <StateView error retry={() => webView.current?.reload()} />}
-        onLoadEnd={() => {
-          webReady.current = true
-          if (pendingAuth.current) {
-            const callback = pendingAuth.current
-            pendingAuth.current = null
-            exchangeAuth(callback)
-          }
-        }}
-        onMessage={({ nativeEvent }) => {
-          const result = (() => {
-            try {
-              return JSON.parse(nativeEvent.data) as { type?: unknown; ok?: unknown }
-            } catch {
-              return null
+      {sourceUrl ? (
+        <WebView
+          ref={webView}
+          source={{ uri: sourceUrl }}
+          style={styles.webView}
+          containerStyle={styles.webView}
+          originWhitelist={['*']}
+          applicationNameForUserAgent="PraetoriumNative/0.3.0"
+          injectedJavaScriptBeforeContentLoaded="window.PraetoriumNative = Object.freeze({ bridgeVersion: 1 }); true;"
+          sharedCookiesEnabled
+          thirdPartyCookiesEnabled={false}
+          allowsBackForwardNavigationGestures
+          allowsLinkPreview={false}
+          setSupportMultipleWindows
+          startInLoadingState
+          renderLoading={() => <StateView />}
+          renderError={() => <StateView error retry={() => webView.current?.reload()} />}
+          onLoadStart={() => {
+            webReady.current = false
+          }}
+          onLoadEnd={() => {
+            webReady.current = true
+            if (pendingAuth.current) {
+              const callback = pendingAuth.current
+              pendingAuth.current = null
+              exchangeAuth(callback)
+              return
             }
-          })()
-          if (result?.type === 'native-auth-result') {
-            if (result.ok !== true) Alert.alert('Sign-in did not finish', 'The secure sign-in code expired. Try again.')
-            return
-          }
-          void openNativeAuth(nativeEvent.data)
-        }}
-        onNavigationStateChange={updateNavigation}
-        onShouldStartLoadWithRequest={({ url }) => handleUrl(url)}
-        onOpenWindow={({ nativeEvent }) => {
-          const decision = classifyNavigation(nativeEvent.targetUrl)
-          if (decision.kind === 'internal') setSourceUrl(decision.url)
-          if (decision.kind === 'external') void openExternal(decision.url)
-        }}
-      />
+            if (pendingNavigation.current) {
+              const script = pendingNavigation.current
+              pendingNavigation.current = null
+              webView.current?.injectJavaScript(script)
+            }
+          }}
+          onMessage={({ nativeEvent }) => {
+            const result = (() => {
+              try {
+                return JSON.parse(nativeEvent.data) as { type?: unknown; ok?: unknown }
+              } catch {
+                return null
+              }
+            })()
+            if (result?.type === 'native-auth-result') {
+              if (result.ok !== true) Alert.alert('Sign-in did not finish', 'The secure sign-in code expired. Try again.')
+              return
+            }
+            void openNativeAuth(nativeEvent.data)
+          }}
+          onNavigationStateChange={updateNavigation}
+          onShouldStartLoadWithRequest={({ url }) => handleUrl(url)}
+          onOpenWindow={({ nativeEvent }) => {
+            const decision = classifyNavigation(nativeEvent.targetUrl)
+            if (decision.kind === 'internal') navigateApplication(decision.url)
+            if (decision.kind === 'external') void openExternal(decision.url)
+          }}
+        />
+      ) : (
+        <StateView />
+      )}
     </SafeAreaView>
   )
 }

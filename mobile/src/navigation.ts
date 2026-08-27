@@ -15,3 +15,15 @@ export function classifyNavigation(url: string): NavigationDecision {
   }
   return { kind: 'blocked' }
 }
+
+export function initialApplicationUrl(url: string | null) {
+  if (!url) return APP_URL
+  const decision = classifyNavigation(url)
+  return decision.kind === 'internal' ? decision.url : APP_URL
+}
+
+export function applicationNavigationScript(url: string) {
+  const decision = classifyNavigation(url)
+  if (decision.kind !== 'internal') return null
+  return `window.location.assign(${JSON.stringify(decision.url)}); true;`
+}
