@@ -163,8 +163,8 @@ export function calculateRosterPrice(data: PriceInput, loaded = app().catalogue(
   const allowedDispositions = [
     ...new Set(
       chosen.flatMap((option) => {
-        const fromRules = references?.get(routeSlug(option.name))?.dispositions ?? []
-        return fromRules.length ? fromRules : option.disposition ? [option.disposition] : []
+        const reference = references?.get(routeSlug(option.name))
+        return reference ? reference.dispositions : option.disposition ? [option.disposition] : []
       }),
     ),
   ]

@@ -33,9 +33,10 @@ export type RuleCard = { name: string; description: string }
 export type ConstructionDetachment = {
   name: string
   faction: string
-  points: number
-  pointOverrides: ReadonlyMap<string, number>
-  disposition: string
+  points: number | null
+  pointOverrides: ReadonlyMap<string, number | null>
+  disposition: string | null
+  globallyValid: boolean
 }
 
 export type FactionContent = {
@@ -95,7 +96,7 @@ export function loadDatacards(directory: string): LoadedDatacards {
   const stratagemNames = new Map<string, string>()
   const armyRules = new Map<string, Set<string>>()
   const constructionDetachments = new Map<string, ConstructionDetachment[]>()
-  const enhancementPointCandidates = new Map<string, Set<number>>()
+  const enhancementPointCandidates = new Map<string, Set<number | null>>()
   const remember = (into: Map<string, Set<string>>, key: string, text: string) => {
     const found = into.get(key) ?? new Set<string>()
     found.add(text)
@@ -121,23 +122,34 @@ export function loadDatacards(directory: string): LoadedDatacards {
       const name = localizedField(detachment, 'name')
       const points = integerField(detachment, 'detachmentPoints')
       const disposition = localizedField(detachment.forceDisposition, 'name')
-      if (!name || points === null || !disposition) continue
-      const overrideCandidates = new Map<string, Set<number>>()
-      for (const override of records(detachment, 'detachmentPointsOverrides')) {
+      if (!name) continue
+      const overrideCandidates = new Map<string, Set<number | null>>()
+      const overrides = detachment.detachmentPointsOverrides
+      let globallyValid = points !== null && Boolean(disposition) && (overrides === undefined || Array.isArray(overrides))
+      for (const rawOverride of Array.isArray(overrides) ? overrides : []) {
+        if (!rawOverride || typeof rawOverride !== 'object') {
+          globallyValid = false
+          continue
+        }
+        const override = rawOverride as Record<string, unknown>
         const faction = stringField(override, 'faction')
         const overridden = integerField(override, 'detachmentPoints')
-        if (!faction || overridden === null) continue
-        const key = routeSlug(faction)
+        const key = faction ? routeSlug(faction) : ''
+        if (!key) {
+          globallyValid = false
+          continue
+        }
         overrideCandidates.set(key, new Set([...(overrideCandidates.get(key) ?? []), overridden]))
       }
-      if ([...overrideCandidates.values()].some((overrides) => overrides.size !== 1)) continue
       const pointOverrides = new Map(
-        [...overrideCandidates].map(([faction, overrides]) => [faction, overrides.values().next().value!] as const),
+        [...overrideCandidates].map(
+          ([faction, candidates]) => [faction, candidates.size === 1 ? candidates.values().next().value! : null] as const,
+        ),
       )
       const key = routeSlug(name)
       constructionDetachments.set(key, [
         ...(constructionDetachments.get(key) ?? []),
-        { name, faction: parsed.name, points, pointOverrides, disposition: routeSlug(disposition) },
+        { name, faction: parsed.name, points, pointOverrides, disposition: disposition ? routeSlug(disposition) : null, globallyValid },
       ])
     }
 
@@ -155,11 +167,10 @@ export function loadDatacards(directory: string): LoadedDatacards {
       const detachment = stringField(enhancement, 'detachment')
       const description = localizedField(enhancement, 'description')
       if (name && detachment && description) remember(enhancements, descriptionKey(detachment, name), prose(description))
-      const points = integerField(enhancement, 'cost')
-      if (name && detachment && points !== null) {
+      if (name && detachment) {
         const key = descriptionKey(detachment, name)
-        const candidates = enhancementPointCandidates.get(key) ?? new Set<number>()
-        candidates.add(points)
+        const candidates = enhancementPointCandidates.get(key) ?? new Set<number | null>()
+        candidates.add(integerField(enhancement, 'cost'))
         enhancementPointCandidates.set(key, candidates)
       }
     }
@@ -187,9 +198,10 @@ export function loadDatacards(directory: string): LoadedDatacards {
     armyRules: unique(armyRules),
     constructionDetachments,
     enhancementPoints: new Map(
-      [...enhancementPointCandidates].flatMap(([key, candidates]) =>
-        candidates.size === 1 ? [[key, candidates.values().next().value!] as const] : [],
-      ),
+      [...enhancementPointCandidates].flatMap(([key, candidates]) => {
+        const points = candidates.size === 1 ? candidates.values().next().value! : null
+        return points === null ? [] : [[key, points] as const]
+      }),
     ),
   }
 }
@@ -200,14 +212,19 @@ export function constructionDetachment(datacards: LoadedDatacards, faction: stri
   const relevant = exact.length ? exact : candidates
   const answers = new Map(
     relevant.map((candidate) => {
-      const answer = {
-        points: candidate.pointOverrides.get(routeSlug(faction)) ?? candidate.points,
-        disposition: candidate.disposition,
-      }
+      const factionKey = routeSlug(faction)
+      const answer = candidate.globallyValid
+        ? {
+            points: candidate.pointOverrides.has(factionKey) ? candidate.pointOverrides.get(factionKey)! : candidate.points,
+            disposition: candidate.disposition,
+          }
+        : { points: null, disposition: null }
       return [JSON.stringify(answer), answer]
     }),
   )
-  return answers.size === 1 ? answers.values().next().value! : null
+  if (answers.size !== 1) return null
+  const answer = answers.values().next().value!
+  return answer.points === null || answer.disposition === null ? null : { points: answer.points, disposition: answer.disposition }
 }
 
 export const enhancementPoints = (datacards: LoadedDatacards, detachment: string, enhancement: string) =>

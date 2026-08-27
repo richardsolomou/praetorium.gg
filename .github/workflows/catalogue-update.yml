@@ -34,6 +34,7 @@ jobs:
         run: |
           pnpm catalogue:update
           pnpm catalogue:descriptions
+          pnpm catalogue:points
       - name: Build and publish the immutable snapshot
         run: |
           test -n "$SNAPSHOT_BUCKET"

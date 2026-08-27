@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  calculateRosterPrice,
   choiceOptionsForPricing,
   deploymentRules,
   heldWargear,
@@ -11,6 +12,8 @@ import {
   uniqueNames,
 } from './pricing'
 import { descriptionKey } from './datacards'
+import { bookOf } from './catalogue.fixtures'
+import type { LoadedRules } from './rules'
 
 describe('force disposition', () => {
   it('uses the only available disposition', () => {
@@ -23,6 +26,50 @@ describe('force disposition', () => {
 
   it('keeps a valid choice', () => {
     expect(resolveDisposition(['reconnaissance', 'disruption'], 'disruption')).toEqual({ disposition: 'disruption', error: null })
+  })
+
+  it('does not restore a catalogue disposition when the rules reference is unknown', () => {
+    const loaded = bookOf({
+      name: 'Death Guard',
+      selectionEntries: [{ id: 'plague-marine', name: 'Plague Marine', type: 'unit' }],
+      sharedSelectionEntries: [
+        {
+          id: 'wrapper',
+          name: 'Detachment',
+          type: 'upgrade',
+          selectionEntryGroups: [
+            {
+              id: 'choices',
+              name: 'Detachment',
+              selectionEntries: [
+                {
+                  id: 'flyblown-host',
+                  name: 'Flyblown Host',
+                  type: 'upgrade',
+                  categoryLinks: [{ id: 'disruption', name: 'Disruption', targetId: 'disruption' }],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    })
+    const rules = {
+      factionKeys: new Map([['death-guard', 'death-guard']]),
+      detachmentReferences: new Map([
+        ['death-guard', new Map([['flyblown-host', { enhancements: 0, upgrades: 0, stratagems: 0, points: null, dispositions: [] }]])],
+      ]),
+      detachmentDetails: new Map(),
+      factionRestrictions: new Map(),
+    } as Partial<LoadedRules> as LoadedRules
+
+    expect(
+      calculateRosterPrice(
+        { catalogueId: 'cat', detachmentIds: ['flyblown-host'], disposition: null, limit: 2_000, units: [] },
+        loaded,
+        rules,
+      ),
+    ).toMatchObject({ disposition: null, dispositions: [] })
   })
 })
 
