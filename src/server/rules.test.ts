@@ -39,7 +39,7 @@ beforeEach(() => {
     { id: 'plague-cohort', name: 'Plague Cohort', stratagem_ids: ['grim-reapers-flyblown-host'], detachment_points: 1 },
   ])
   write(path.join(core, 'enhancements.json'), [
-    { id: 'living-plague', name: 'Living Plague', detachment_id: 'flyblown-host', cost: 20 },
+    { id: 'living-plague', name: 'Living Plague', detachment_id: 'flyblown-host', cost: 20, keyword_restrictions: ['Character'] },
     { id: 'rejuvenating-swarm', name: 'Rejuvenating Swarm', detachment_id: 'flyblown-host', cost: 10 },
     { id: 'virulent-carapace', name: 'Virulent Carapace (Upgrade)', detachment_id: 'flyblown-host', cost: 15 },
   ])
@@ -65,7 +65,14 @@ beforeEach(() => {
   write(path.join(datacards, 'deathguard.json'), {
     name: 'Death Guard',
     datasheets: [],
-    detachments: [{ name: { en: 'Flyblown Host' } }],
+    detachments: [
+      {
+        name: { en: 'Flyblown Host' },
+        detachmentPoints: 3,
+        detachmentPointsOverrides: [{ faction: 'Death Guard', detachmentPoints: 1 }],
+        forceDisposition: { name: { en: 'Take and Hold' } },
+      },
+    ],
     rules: {
       army: [{ name: { en: 'Oath of Moment' }, rules: [{ order: 1, type: 'text', text: { en: 'Re-roll Hit rolls.' } }] }],
       detachment: [
@@ -76,10 +83,10 @@ beforeEach(() => {
       ],
     },
     enhancements: [
-      { name: { en: 'Living Plague' }, detachment: 'Flyblown Host', description: { en: 'Spread the plague.' } },
-      { name: { en: 'Rejuvenating Swarm' }, detachment: 'Flyblown Host', description: { en: 'Return models.' } },
+      { name: { en: 'Living Plague' }, detachment: 'Flyblown Host', cost: '25', description: { en: 'Spread the plague.' } },
+      { name: { en: 'Rejuvenating Swarm' }, detachment: 'Flyblown Host', cost: '5', description: { en: 'Return models.' } },
       // The rules dataset spells the upgrade with its suffix; the cards may not.
-      { name: { en: 'Virulent Carapace' }, detachment: 'Flyblown Host', description: { en: 'Improve the unit.' } },
+      { name: { en: 'Virulent Carapace' }, detachment: 'Flyblown Host', cost: '30', description: { en: 'Improve the unit.' } },
     ],
     stratagems: [{ name: { en: 'Grim Reapers' }, detachment: 'Flyblown Host', effect: { en: 'Cut them down.' } }],
   })
@@ -215,8 +222,8 @@ describe('stratagems', () => {
       enhancements: 2,
       upgrades: 1,
       stratagems: 2,
-      points: 2,
-      dispositions: ['disruption'],
+      points: 1,
+      dispositions: ['take-and-hold'],
     })
   })
 
@@ -224,10 +231,10 @@ describe('stratagems', () => {
     expect(load().detachmentDetails.get('death-guard')?.get('flyblown-host')).toMatchObject({
       rules: [{ name: 'Virulent Vectorium', description: 'Spread disease.' }],
       enhancements: [
-        { name: 'Living Plague', points: 20, description: 'Spread the plague.' },
-        { name: 'Rejuvenating Swarm', points: 10, description: 'Return models.' },
+        { name: 'Living Plague', points: 25, description: 'Spread the plague.', keywordRestrictions: ['Character'] },
+        { name: 'Rejuvenating Swarm', points: 5, description: 'Return models.' },
       ],
-      upgrades: [{ name: 'Virulent Carapace', points: 15, description: 'Improve the unit.' }],
+      upgrades: [{ name: 'Virulent Carapace', points: 30, description: 'Improve the unit.' }],
       stratagems: expect.arrayContaining([
         expect.objectContaining({ name: 'Grim Reapers', cp: 1, description: '**Effect:** Cut them down.' }),
       ]),
@@ -269,7 +276,7 @@ describe('stratagems', () => {
     const rules = load()
     const key = rulesFaction(rules, 'plague-marines')
     expect(key).toBe('death-guard')
-    expect(rules.detachmentReferences.get(key)?.get('flyblown-host')?.points).toBe(2)
+    expect(rules.detachmentReferences.get(key)?.get('flyblown-host')?.points).toBe(1)
     expect(rules.detachmentDetails.get(key)?.get('flyblown-host')?.name).toBe('Flyblown Host')
     expect(rules.byDetachment.get(key)?.get('flyblown-host')).toHaveLength(2)
   })
@@ -280,6 +287,10 @@ describe('stratagems', () => {
     const rules = load()
     expect([...rules.detachmentDetails.keys()]).toEqual(['death-guard'])
     expect(rulesFaction(rules, 'a-faction-nobody-has-heard-of')).toBe('a-faction-nobody-has-heard-of')
+  })
+
+  it('reports each missing construction join by its own kind', () => {
+    expect(load().constructionJoinIssues).toEqual([{ kind: 'detachment', faction: 'Death Guard', detachment: 'Plague Cohort' }])
   })
 
   it('name the slug back when a stale rules object lacks the map', () => {

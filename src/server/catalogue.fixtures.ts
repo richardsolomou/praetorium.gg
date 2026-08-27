@@ -29,6 +29,8 @@ export function shelfOf(...catalogues: Partial<Catalogue>[]): LoadedCatalogue {
     enhancements: new Map(),
     stratagems: new Map(),
     armyRules: new Map(),
+    constructionDetachments: new Map(),
+    enhancementPoints: new Map(),
   }
   return {
     index,

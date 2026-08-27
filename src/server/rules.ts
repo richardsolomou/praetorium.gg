@@ -3,7 +3,7 @@ import path from 'node:path'
 import type { Stratagem } from '../core/battle'
 import { DATACARDS_ATTRIBUTION, type FactionRestrictions, factionRestrictions, type LoadedDatacards, loadDatacards } from './datacards'
 import { type LoadedCards, loadCards, loadDispositions, loadMissions, type Mission, missionForIn, type MissionCard } from './rulesCards'
-import { type DetachmentReference, type DetachmentRulesDetail, loadFactions } from './rulesFactions'
+import { type ConstructionJoinIssue, type DetachmentReference, type DetachmentRulesDetail, loadFactions } from './rulesFactions'
 import { fixedSecondaryCapsIn, type MissionTwist, twistsIn } from './missionTwists'
 import { readMissionPacks } from './missionPacks'
 import { rulesDirectory } from './rulesSource'
@@ -43,7 +43,7 @@ export type LoadedRules = {
   factionKeys: Map<string, string>
   /** Faction slug then detachment slug, so a chosen detachment maps straight to its six. */
   byDetachment: Map<string, Map<string, Stratagem[]>>
-  /** Display metadata for each detachment, from the same licensed source as its stratagems. */
+  /** Display metadata for each detachment, with construction numbers from Game Datacards. */
   detachmentReferences: Map<string, Map<string, DetachmentReference>>
   detachmentDetails: Map<string, Map<string, DetachmentRulesDetail>>
   /** Player-facing faction names, separate from BSData's technical catalogue labels. */
@@ -69,6 +69,8 @@ export type LoadedRules = {
   terrainTemplates: TerrainTemplate[]
   /** Whatever the dataset says about how settled these numbers are. */
   dataslate: string | null
+  /** Exact-name construction joins that had no unambiguous Game Datacards answer. */
+  constructionJoinIssues: ConstructionJoinIssue[]
 }
 
 export function loadRules(
@@ -119,6 +121,7 @@ export function loadRules(
     terrainLayouts,
     terrainTemplates: loadTerrainTemplates(core),
     dataslate: factions.dataslate,
+    constructionJoinIssues: factions.constructionJoinIssues,
   }
 }
 
