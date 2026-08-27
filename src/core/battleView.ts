@@ -146,7 +146,7 @@ export type BattleView = {
   leagueEventToken: string | null
   turns: { playerId: PlayerId; playerName: string; round: number; minutes: number | null }[]
   advancePrompt: string | null
-  secretMissionActionRequired: boolean
+  secretMissionActionPlayerId: PlayerId | null
   /** The latest active command any seated player may take back. */
   undoable: number | null
   /** Whether taking back that command returns missions from this turn to the deck. */
@@ -295,7 +295,7 @@ export function battleView(
       minutes: turn.endedAt === null ? null : Math.max(0, Math.round((turn.endedAt - turn.startedAt) / 60_000)),
     })),
     advancePrompt: advancePrompt(state, viewerId),
-    secretMissionActionRequired: secretMissionActionRequired(state),
+    secretMissionActionPlayerId: secretMissionActionPlayerId(state),
     undoable: state.undoable?.seq ?? null,
     undoableDraw: state.undoable?.kind === 'draw-secondary' || state.undoable?.kind === 'draw-secondaries',
   }
@@ -317,11 +317,17 @@ function viewRoster(roster: Roster | null): RosterView | null {
   return { ...roster, built }
 }
 
-function secretMissionActionRequired(state: BattleState): boolean {
+function secretMissionActionPlayerId(state: BattleState): PlayerId | null {
+  const settlement = state.pendingSettlement ? state.players.find((player) => player.id === state.pendingSettlement?.playerId) : undefined
+  if (settlement?.secretSecondary && !settlement.secretRevealed && settlement.secondaryStatus[settlement.secretSecondary] === 'active') {
+    return settlement.id
+  }
   const active = state.activePlayerId ? state.players.find((player) => player.id === state.activePlayerId) : undefined
   const player = active ? sideCaptain(state, active.side) : undefined
-  if (!player?.secretSecondary || player.secretRevealed) return false
+  if (!player?.secretSecondary || player.secretRevealed) return null
   return sideOwes(state, player) === 'secret' || scoringDue(state, player).some((card) => card.key === player.secretSecondary)
+    ? player.id
+    : null
 }
 
 function advancePrompt(state: BattleState, viewerId: PlayerId): string | null {

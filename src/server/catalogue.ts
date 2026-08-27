@@ -1,6 +1,13 @@
 import { type Definition, type InfoGroup, type InfoLink, nameOf, type Profile, targetOf } from '../core/catalogue'
 import { attachmentOf } from '../core/attach'
-import { infoLinkHiddenByRules, keywordIds, profileModifiers, type ProfileModifier, type Selection } from '../core/evaluate'
+import {
+  flattenedModifiers,
+  infoLinkHiddenByRules,
+  keywordIds,
+  profileModifiers,
+  type ProfileModifier,
+  type Selection,
+} from '../core/evaluate'
 import { defaultSelection } from '../core/expand'
 import { unitChoices } from '../core/unitChoices'
 import { wargearOf } from '../core/wargear'
@@ -592,26 +599,27 @@ function grantedAbilitiesInAttachedUnit(
         const linkedAbilities = linkedAbilityNames(source, index, catalogueId, selections)
         for (const profile of source.profiles ?? []) {
           if (profile.typeName !== 'Abilities' || !profile.name) continue
-          const hasConditionalAbilityLink = (source.modifiers ?? []).some(
+          const hasConditionalAbilityLink = flattenedModifiers([source]).some(
             (modifier) =>
               modifier.type === 'add' &&
               modifier.field === 'add-info' &&
               Boolean(modifier.conditions?.length || modifier.conditionGroups?.length || modifier.repeats?.length),
           )
-          const grant = grantedAbility(
+          const grants = parsedAbilityGrants(
             normalizedAbilityDescription(profile),
             companionIndexes.length > 0,
             linkedAbilities,
             !hasConditionalAbilityLink,
           )
-          if (!grant) continue
-          if (grant.recipient === 'bearer' && origin !== 'self') continue
-          if (grant.recipient === 'leader' && (origin !== 'companion' || !character)) continue
-          const key = grant.name.toLocaleLowerCase()
-          const granted = found.get(key) ?? { name: grant.name, sources: new Set(), ids: new Set() }
-          granted.sources.add(profile.name)
-          granted.ids.add(profile.id)
-          found.set(key, granted)
+          for (const grant of grants) {
+            if (grant.recipient === 'bearer' && origin !== 'self') continue
+            if (grant.recipient === 'leader' && (origin !== 'companion' || !character)) continue
+            const key = grant.name.toLocaleLowerCase()
+            const granted = found.get(key) ?? { name: grant.name, sources: new Set(), ids: new Set() }
+            granted.sources.add(profile.name)
+            granted.ids.add(profile.id)
+            found.set(key, granted)
+          }
         }
       }
     }
@@ -639,7 +647,7 @@ function linkedAbilityNames(
     const name = displayRuleName(link, link.name ?? rule?.name)
     return name && !rule?.hidden ? [name] : []
   })
-  const added = (definition.modifiers ?? []).flatMap((modifier) => {
+  const added = flattenedModifiers([definition]).flatMap((modifier) => {
     if (
       modifier.type !== 'add' ||
       modifier.field !== 'add-info' ||
@@ -656,55 +664,63 @@ function linkedAbilityNames(
 }
 
 /** Exact catalogue phrases that grant a named ability to a bearer or every model in its unit. */
-function grantedAbility(
+function parsedAbilityGrants(
   description: string | null | undefined,
   attached: boolean,
   linkedAbilities: readonly string[],
   allowUnlinkedDeployment: boolean,
-) {
-  if (!description) return
+): { name: string; recipient: 'bearer' | 'leader' | 'unit' }[] {
+  if (!description) return []
   const prose = description.replaceAll(/\^\^|\*/g, '')
   const grant = (written: string, recipient: 'bearer' | 'leader' | 'unit') => {
     const matched = linkedAbilities.filter((name) => ruleReferenceMatches(written, name) || ruleReferenceMatches(name, written))
-    const name = matched.length === 1 ? matched[0]! : linkedAbilities.length === 1 ? linkedAbilities[0]! : written
-    return { name: titleCaseAbility(name), recipient }
+    const deployments = deploymentAbilities(written)
+    const names = [...new Set([...matched, ...deployments])]
+    if (!names.length) names.push(...(linkedAbilities.length === 1 ? linkedAbilities : [written]))
+    return names.filter(mayUseUnlinked).map((name) => ({ name: titleCaseAbility(name), recipient }))
   }
   const linked = (written: string) =>
     linkedAbilities.some((name) => ruleReferenceMatches(written, name) || ruleReferenceMatches(name, written))
-  const deployment = (written: string) =>
-    ['stealth', 'infiltrators', 'deep strike'].includes(written.toLocaleLowerCase()) || /^scouts \d+["″]$/iu.test(written)
-  const mayUseUnlinked = (written: string) => !deployment(written) || allowUnlinkedDeployment || linked(written)
+  const mayUseUnlinked = (written: string) => !deploymentAbilities(written).length || allowUnlinkedDeployment || linked(written)
   const saveAndAbilityGrant = prose.match(
     /^(?:[\p{L} ]+ model only\. )?The bearer has a Save characteristic of \d+\+ and the \[?([\p{L}\p{N} +'’\p{Pd}]+)\]? ability\.$/iu,
   )
-  if (saveAndAbilityGrant && mayUseUnlinked(saveAndAbilityGrant[1]!)) return grant(saveAndAbilityGrant[1]!, 'bearer')
-  const bearerGrant = prose.match(
-    /^(?:[^.\n]{1,160} model only\.\s*)?The bearer has the \[?([\p{L}\p{N} +'’\p{Pd}]+)\]? ability(?:[.,]|$)/iu,
+  if (saveAndAbilityGrant) return grant(saveAndAbilityGrant[1]!, 'bearer')
+  const bearerAndUnitGrant = prose.match(
+    /^(?:[^.\n]{1,160} model only\.\s*)?The bearer, and models in any unit they are leading, have the \[?([\p{L}\p{N} +"'’\p{Pd}]+?)\]? abilities\.$/iu,
   )
-  if (bearerGrant && mayUseUnlinked(bearerGrant[1]!)) return grant(bearerGrant[1]!, 'bearer')
+  if (bearerAndUnitGrant) return grant(bearerAndUnitGrant[1]!, 'unit')
+  const bearerGrant = prose.match(
+    /^(?:[^.\n]{1,160} model only\.\s*)?The bearer has the \[?([\p{L}\p{N} +"'’\p{Pd}]+?)\]? abilit(?:y|ies)(?:[.,]|$)/iu,
+  )
+  if (bearerGrant) return grant(bearerGrant[1]!, 'bearer')
   const bodyguardGrant = prose.match(
     /^While a Character model is leading this unit, that Character model has the \[?([\p{L}\p{N} +'’\p{Pd}]+)\]? ability\.$/iu,
   )
-  if (bodyguardGrant && attached && mayUseUnlinked(bodyguardGrant[1]!)) return grant(bodyguardGrant[1]!, 'leader')
+  if (bodyguardGrant && attached) return grant(bodyguardGrant[1]!, 'leader')
   const thisUnitGrant = prose.match(
-    /^(?:[^.\n]{1,160} (?:model|unit) only\.\s*)?(?:[-▪]\s*)?This unit has (?:the )?\[?([\p{L}\p{N} +"'’\p{Pd}]+?)\]?(?: ability)?\.(?:\s|$)/iu,
+    /^(?:[^.\n]{1,160} (?:model|unit) only\.\s*)?(?:[-▪]\s*)?This unit has (?:the )?\[?([\p{L}\p{N} +"'’\p{Pd}]+?)\]?(?: abilit(?:y|ies))?\.(?:\s|$)/iu,
   )
-  if (
-    thisUnitGrant &&
-    ((allowUnlinkedDeployment &&
-      (['stealth', 'infiltrators', 'deep strike'].includes(thisUnitGrant[1]?.toLocaleLowerCase() ?? '') ||
-        /^scouts \d+["″]$/iu.test(thisUnitGrant[1] ?? ''))) ||
-      linked(thisUnitGrant[1]!))
-  )
-    return grant(thisUnitGrant[1]!, 'unit')
+  if (thisUnitGrant && (allowUnlinkedDeployment || linked(thisUnitGrant[1]!))) return grant(thisUnitGrant[1]!, 'unit')
   const leadingGrant = prose.match(
-    /^While (?:this model|the bearer) is leading a unit, models in that unit have the \[?([\p{L}\p{N} +'’\p{Pd}]+)\]? ability\.$/iu,
+    /^While (?:this model|the bearer) is leading a unit, models in that unit have the \[?([\p{L}\p{N} +"'’\p{Pd}]+?)\]? abilit(?:y|ies)\.$/iu,
   )
-  if (leadingGrant) return attached && mayUseUnlinked(leadingGrant[1]!) ? grant(leadingGrant[1]!, 'unit') : undefined
+  if (leadingGrant) return attached ? grant(leadingGrant[1]!, 'unit') : []
   const ownUnitGrant = prose.match(
-    /^(?:[^.\n]{1,160} model only\.\s*)?(?:[-▪]\s*)?Models in (?:this model's|the bearer's|the bearer’s) unit have the \[?([\p{L}\p{N} +'’\p{Pd}]+)\]? ability(?:[.,]|$)/iu,
+    /^(?:[^.\n]{1,160} model only\.\s*)?(?:[-▪]\s*)?Models in (?:this model's|the bearer's|the bearer’s) unit\s+have the \[?([\p{L}\p{N} +"'’\p{Pd}]+?)\]? abilit(?:y|ies)(?:[.,]|$)/iu,
   )
-  return ownUnitGrant && mayUseUnlinked(ownUnitGrant[1]!) ? grant(ownUnitGrant[1]!, 'unit') : undefined
+  return ownUnitGrant ? grant(ownUnitGrant[1]!, 'unit') : []
+}
+
+function deploymentAbilities(written: string): string[] {
+  const normalized = written.normalize('NFKC')
+  const scouts = normalized.match(/Scouts \d+["″]/iu)?.[0]
+  return [
+    ...(['Stealth', 'Infiltrators', 'Deep Strike'] as const).filter((name) =>
+      new RegExp(`(?:^|\\s|\\b)${name}(?:$|\\s|\\b)`, 'iu').test(normalized),
+    ),
+    ...(scouts ? [scouts] : []),
+  ]
 }
 
 const titleCaseAbility = (name: string) =>

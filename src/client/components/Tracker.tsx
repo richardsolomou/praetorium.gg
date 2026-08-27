@@ -191,7 +191,8 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
   const advance = () => {
     if (advanceBlocked || !active) return
     const discardable = discardableSecondaries(active)
-    if (due.length || view.secretMissionActionRequired || (view.phase === 'end' && discardable.length)) {
+    const activeSecretMissionAction = view.settlementRound === null && view.secretMissionActionPlayerId === active.captain.id
+    if (due.length || activeSecretMissionAction || (view.phase === 'end' && discardable.length)) {
       send({ kind: 'request-advance', playerId: active.captain.id })
       return
     }
@@ -199,6 +200,13 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
   }
   const settlementRound = view.settlementRound
   const settlementSide = table.find((side) => side.captain.id === view.settlementPlayerId)
+  const secretMissionActionSide = table.find((side) => side.captain.id === view.secretMissionActionPlayerId)
+  const activeSecretMissionAction = Boolean(
+    view.settlementRound === null && active && secretMissionActionSide?.captain.id === active.captain.id,
+  )
+  const settlementSecretMissionAction = Boolean(
+    view.settlementRound !== null && settlementSide && secretMissionActionSide?.captain.id === settlementSide.captain.id,
+  )
   // Concluding that nothing private remains is the side's own call. A practice
   // opponent cannot make it, so the table playing that side makes it instead.
   const settlementOwner = settlementSide?.writer.id === view.viewerId || Boolean(settlementSide?.automated)
@@ -355,7 +363,7 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
         </div>
       </div>
 
-      {view.advanceRequested && !view.scoringAcknowledged && !view.secretMissionActionRequired && due.length && active ? (
+      {view.advanceRequested && !view.scoringAcknowledged && !activeSecretMissionAction && due.length && active ? (
         <ScoringDialog
           side={active}
           due={due}
@@ -378,16 +386,18 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
         />
       ) : null}
 
-      {view.advanceRequested && view.secretMissionActionRequired && active ? (
+      {secretMissionActionSide && ((view.advanceRequested && activeSecretMissionAction) || settlementSecretMissionAction) ? (
         <SecretMissionHandoff
-          side={active}
+          side={secretMissionActionSide}
           pending={pending}
-          onCancel={() => send({ kind: 'cancel-advance', playerId: active.captain.id })}
-          onReveal={() => send({ kind: 'reveal-secret', playerId: active.captain.id })}
+          onCancel={
+            activeSecretMissionAction ? () => send({ kind: 'cancel-advance', playerId: secretMissionActionSide.captain.id }) : undefined
+          }
+          onReveal={() => send({ kind: 'reveal-secret', playerId: secretMissionActionSide.captain.id })}
         />
       ) : null}
 
-      {prompt === 'owed' && settlementSide ? (
+      {prompt === 'owed' && settlementSide && !settlementSecretMissionAction ? (
         <ScoringDialog
           side={settlementSide}
           due={owedCards}

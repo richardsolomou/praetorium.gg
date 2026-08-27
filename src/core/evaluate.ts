@@ -248,7 +248,7 @@ export function profileModifiers(
   return [...found.values()]
 }
 
-function flattenedModifiers(sources: readonly { modifiers?: Modifier[]; modifierGroups?: ModifierGroup[] }[]) {
+export function flattenedModifiers(sources: readonly { modifiers?: Modifier[]; modifierGroups?: ModifierGroup[] }[]) {
   const collected: Modifier[] = []
   const flatten = (group: ModifierGroup, inherited: ModifierGroup[]) => {
     const chain = [...inherited, group]

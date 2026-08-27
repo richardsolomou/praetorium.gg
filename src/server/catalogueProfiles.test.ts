@@ -748,6 +748,70 @@ describe('the profile modifiers on a datasheet', () => {
     },
   )
 
+  it('does not infer an ability from a conditional grant nested in a modifier group', () => {
+    const book = bookOf({
+      sharedRules: [{ id: 'scouts-6', name: 'Scouts 6"', description: 'Make a Scout move of up to 6".' }],
+      selectionEntries: [
+        {
+          id: 'unit',
+          name: 'Unit',
+          type: 'unit',
+          profiles: [
+            {
+              id: 'conditional-rule',
+              name: 'Conditional rule',
+              typeName: 'Abilities',
+              characteristics: [{ name: 'Description', $text: 'This unit has Scouts 6".' }],
+            },
+          ],
+          modifierGroups: [
+            {
+              conditions: [{ type: 'atLeast', value: 1, field: 'selections', scope: 'roster', childId: 'condition' }],
+              modifiers: [{ type: 'add', field: 'add-info', value: 'scouts-6' }],
+            },
+          ],
+        },
+      ],
+    })
+
+    expect(datasheetIn(book, 'cat', 'unit', { selections: [{ id: 'unit' }], unitSelectionIndex: 0 })?.abilities).not.toContainEqual(
+      expect.objectContaining({ name: 'Scouts 6"', kind: 'core' }),
+    )
+  })
+
+  it.each([
+    ['The bearer, and models in any unit they are leading, have the Infiltrators and Scouts 6" abilities.', ['Infiltrators', 'Scouts 6"']],
+    ['Models in the bearer’s unit have the Stealth and Infiltrators abilities.', ['Stealth', 'Infiltrators']],
+  ])('includes every deployment grant in selected enhancement wording: %s', (description, expected) => {
+    const book = bookOf({
+      selectionEntries: [
+        {
+          id: 'unit',
+          name: 'Unit',
+          type: 'unit',
+          selectionEntries: [
+            {
+              id: 'enhancement',
+              name: 'Enhancement',
+              type: 'upgrade',
+              profiles: [
+                {
+                  id: 'enhancement-rule',
+                  name: 'Enhancement',
+                  typeName: 'Abilities',
+                  characteristics: [{ name: 'Description', $text: description }],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    })
+    const selections = [{ id: 'unit', selections: [{ id: 'enhancement' }] }]
+
+    expect(contextualAbilityNamesIn(book, 'cat', 'unit', { selections, unitSelectionIndex: 0 })).toEqual(expect.arrayContaining(expected))
+  })
+
   it.each([
     ["CRYPTEK model only. Models in the bearer's unit have the Infiltrators ability.", 'Infiltrators'],
     [

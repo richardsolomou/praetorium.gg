@@ -6,13 +6,13 @@ type Props = {
   side: Side
   pending: boolean
   onReveal: () => void
-  onCancel: () => void
+  onCancel?: () => void
 }
 
 export function SecretMissionHandoff({ side, pending, onReveal, onCancel }: Props) {
   return (
-    <Dialog open onOpenChange={(open) => !open && onCancel()}>
-      <DialogContent className="rounded-none border border-edge bg-panel text-bone sm:max-w-md">
+    <Dialog open onOpenChange={(open) => !open && onCancel?.()}>
+      <DialogContent showCloseButton={Boolean(onCancel)} className="rounded-none border border-edge bg-panel text-bone sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="uppercase">Secret Mission action · {sideName(side)}</DialogTitle>
           <DialogDescription className="text-dim">
@@ -22,9 +22,11 @@ export function SecretMissionHandoff({ side, pending, onReveal, onCancel }: Prop
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
-          <Button variant="outline" disabled={pending} onClick={onCancel}>
-            Back
-          </Button>
+          {onCancel ? (
+            <Button variant="outline" disabled={pending} onClick={onCancel}>
+              Back
+            </Button>
+          ) : null}
           <Button disabled={pending} onClick={onReveal}>
             Reveal and continue
           </Button>

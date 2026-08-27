@@ -538,7 +538,7 @@ describe('secondaries', () => {
     for (const viewer of [ALICE, BOB]) {
       const view = battleView({ token: 'abc' }, NAMES, state, viewer)
       expect(view.advancePrompt).toBe('The active side has a secret mission to reveal or discard.')
-      expect(view.secretMissionActionRequired).toBe(true)
+      expect(view.secretMissionActionPlayerId).toBe(ALICE)
     }
   })
 
@@ -558,7 +558,16 @@ describe('secondaries', () => {
       log(...started(), [ALICE, { kind: 'select-secret', secondary: { key: 'secret-a', name: 'Hold the Line', awards: [award] } }]),
     )
 
-    expect(battleView({ token: 'abc' }, NAMES, state, BOB).secretMissionActionRequired).toBe(true)
+    expect(battleView({ token: 'abc' }, NAMES, state, BOB).secretMissionActionPlayerId).toBe(ALICE)
+  })
+
+  it('offers a handoff when the upcoming side has a hidden opponent-turn settlement', () => {
+    const state = reduceBattle(
+      PLAYERS,
+      log(...started(), [BOB, { kind: 'select-secret', secondary: { key: 'secret-a', name: 'Hold the Line' } }], ...turns(6, ALICE)),
+    )
+
+    expect(battleView({ token: 'abc' }, NAMES, state, ALICE).secretMissionActionPlayerId).toBe(BOB)
   })
 
   it('lets one side choose a secret mission for the side across the table', () => {
