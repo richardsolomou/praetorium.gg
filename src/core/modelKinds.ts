@@ -107,11 +107,16 @@ export function modelKindsOf(entryId: string, selection: Selection, index: Catal
   for (const standing of standingModels(entryId, selection, index, options)) remember(standing.profile, standing.member)
 
   // What each loadout carries on its own, read from its own defaults so that a
-  // loadout nobody has taken yet still knows its weapon.
+  // loadout nobody has taken yet still knows its weapon. A choice the model owns is
+  // left out of that: its default answer is one of the rows below, not something the
+  // model carries whatever is chosen, and a sergeant's default laspistol was drawn as
+  // fixed beside the combination that had replaced it.
   const carriedBy = new Map(
     found.map(({ member }) => {
       const base = defaultSelection(member.id, index, options)
-      return [member.id, base ? wargearOf(base, index).map((piece) => piece.name) : []] as const
+      const owned = new Set(choices.filter((choice) => choice.owner?.id === member.id).map((choice) => choice.key.split('/').at(-1)))
+      const outside = base ? { ...base, selections: base.selections?.filter((child) => !owned.has(child.id)) } : null
+      return [member.id, outside ? wargearOf(outside, index).map((piece) => piece.name) : []] as const
     }),
   )
   const carriedOf = (id: string) => carriedBy.get(id) ?? []

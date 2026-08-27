@@ -55,8 +55,11 @@ test('rule tooltips open on touch and hover', async ({ browser, page }) => {
   const touchPage = await context.newPage()
 
   await touchPage.goto('/factions/necrons/detachments/hand-of-the-dynasty')
-  await touchPage.getByRole('button', { name: '[RAPID FIRE 1]' }).tap()
-  await expect(touchPage.getByRole('tooltip')).toContainText('Rapid Fire')
+  // A tap that lands before the page has hydrated opens nothing, so tap until it does.
+  await expect(async () => {
+    await touchPage.getByRole('button', { name: '[RAPID FIRE 1]' }).tap()
+    await expect(touchPage.getByRole('tooltip')).toContainText('Rapid Fire', { timeout: 2_000 })
+  }).toPass()
   await touchPage.screenshot({ path: 'test-results/rule-tooltip-touch.png', fullPage: true })
   await touchPage.getByRole('heading', { name: 'Hand of the Dynasty', exact: true }).tap()
   await expect(touchPage.getByRole('tooltip')).toHaveCount(0)
