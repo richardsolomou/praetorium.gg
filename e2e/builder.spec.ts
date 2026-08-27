@@ -1743,19 +1743,10 @@ test('Death Guard champions expose their legal wargear', async ({ page }) => {
   await expect(loadout.getByLabel('Plaguespurt gauntlet count').first()).toHaveText('1')
   await expect(loadout.getByLabel('Plaguespurt gauntlet count').last()).toHaveText('2')
   await expect(loadout.getByRole('button', { name: 'Fewer Plaguespurt gauntlet' })).toBeDisabled()
-  await waitForRosterSave(page, () => loadout.getByRole('button', { name: 'More Plaguespurt gauntlet' }).click())
-  await expect(loadout.getByLabel('Plaguespurt gauntlet count').first()).toHaveText('2')
-  await expect(loadout.getByRole('button', { name: 'More Plaguespurt gauntlet' })).toBeDisabled()
-  await expect(deathshroud).toContainText('4x Plaguespurt gauntlet')
-  await expect(deathshroud).toContainText('3x Manreaper')
   const icon = loadout.getByRole('button', { name: 'Select Icon of Despair' })
   await expect(icon).toBeEnabled()
   await expect(icon).toHaveAttribute('aria-pressed', 'false')
   await expect(loadout.getByRole('button', { name: /More Icon of Despair/ })).toHaveCount(0)
-  await waitForRosterSave(page, () => icon.click())
-  await expect(loadout.getByRole('button', { name: 'Remove Icon of Despair' })).toHaveAttribute('aria-pressed', 'true')
-  await expect(loadout.getByRole('button', { name: /Icon of Despair/ })).toHaveCount(1)
-  await page.screenshot({ path: 'test-results/deathshroud-wargear-once.png', fullPage: true })
 
   let releasePricing: () => void = () => undefined
   const pricingHeld = new Promise<void>((resolve) => {
@@ -1766,19 +1757,32 @@ test('Death Guard champions expose their legal wargear', async ({ page }) => {
     if (holdPricing && route.request().method() === 'POST') await pricingHeld
     await route.continue()
   })
-  const removeIcon = loadout.getByRole('button', { name: 'Remove Icon of Despair' })
+  const gauntletCount = loadout.getByLabel('Plaguespurt gauntlet count').first()
+  const addGauntlet = loadout.getByRole('button', { name: 'More Plaguespurt gauntlet' })
   const removeGauntlet = loadout.getByRole('button', { name: 'Fewer Plaguespurt gauntlet' })
-  await removeIcon.click()
-  await expect(removeIcon).toBeDisabled({ timeout: 250 })
-  await expect(removeGauntlet).toBeDisabled({ timeout: 250 })
+  await addGauntlet.click()
+  await expect(gauntletCount).toHaveText('2', { timeout: 250 })
+  await expect(removeGauntlet).toBeEnabled()
+  await removeGauntlet.click()
+  await expect(gauntletCount).toHaveText('1', { timeout: 250 })
+  await expect(addGauntlet).toBeEnabled()
+  await addGauntlet.click()
+  await expect(gauntletCount).toHaveText('2', { timeout: 250 })
+  await icon.click()
+  await expect(loadout.getByRole('button', { name: 'Remove Icon of Despair' })).toBeEnabled()
   await shot(
     loadout.locator('section').filter({ hasText: 'Deathshroud Terminator Champion' }),
     'test-results/deathshroud-wargear-pending.png',
   )
   holdPricing = false
   releasePricing()
-  await expect(loadout.getByRole('button', { name: 'Select Icon of Despair' })).toBeEnabled()
-  await expect(removeGauntlet).toBeEnabled()
+  await expect(loadout.getByRole('button', { name: 'Remove Icon of Despair' })).toHaveAttribute('aria-pressed', 'true')
+  await expect(loadout.getByRole('button', { name: /Icon of Despair/ })).toHaveCount(1)
+  await expect(gauntletCount).toHaveText('2')
+  await expect(addGauntlet).toBeDisabled()
+  await expect(deathshroud).toContainText('4x Plaguespurt gauntlet')
+  await expect(deathshroud).toContainText('3x Manreaper')
+  await page.screenshot({ path: 'test-results/deathshroud-wargear-once.png', fullPage: true })
 
   await loadout.getByRole('button', { name: 'Close' }).click()
   await page.getByRole('button', { name: 'Add units' }).click()

@@ -111,6 +111,35 @@ export type SpreadCounts = Record<string, number>
 
 export type ChoiceEdit = { key: string; optionId: string } | { key: string; counts: SpreadCounts }
 
+export function changedDraftSpreadCounts(
+  current: Readonly<Record<string, Readonly<Record<string, number>>>> | undefined,
+  evaluated: Readonly<Record<string, Readonly<Record<string, number>>>> | undefined,
+) {
+  const changed = Object.entries(current ?? {}).filter(([key, counts]) => {
+    const previous = evaluated?.[key]
+    return (
+      !previous ||
+      Object.keys(counts).length !== Object.keys(previous).length ||
+      Object.entries(counts).some(([id, count]) => previous[id] !== count)
+    )
+  })
+  return changed.length ? Object.fromEntries(changed) : undefined
+}
+
+export function withDraftSpreadCounts(
+  choices: readonly LoadoutChoice[],
+  spreads: Readonly<Record<string, Readonly<Record<string, number>>>> | undefined,
+): LoadoutChoice[] {
+  return choices.map((choice) => {
+    const counts = spreads?.[choice.key]
+    if (!counts) return choice
+    return {
+      ...choice,
+      options: choice.options.map((option) => (Object.hasOwn(counts, option.id) ? { ...option, count: counts[option.id] ?? 0 } : option)),
+    }
+  })
+}
+
 /** Editing shows every available option; a finished roster shows only what is held. */
 export function showLoadoutEntry(count: number, showOptions: boolean) {
   return showOptions || count > 0

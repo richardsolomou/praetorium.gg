@@ -27,7 +27,6 @@ type Props = {
   onChoose: (key: string, optionId: string) => void
   onSpread: (key: string, counts: SpreadCounts) => void
   editable?: boolean
-  disabled?: boolean
   showOptions?: boolean
   reference?: ReactElement<{ providedSheet?: Datasheet | null }>
   /** A persisted read-only roster can be resolved without sending its picks. */
@@ -51,7 +50,6 @@ export function Loadout({
   onChoose,
   onSpread,
   editable = true,
-  disabled = false,
   showOptions = true,
   reference,
   persistedRoster,
@@ -128,7 +126,7 @@ export function Loadout({
   const described = { weapons, abilities, rules }
 
   return (
-    <fieldset disabled={disabled} className="m-0 flex h-full min-w-0 flex-col border-0 p-0">
+    <div className="flex h-full min-w-0 flex-col">
       <ScrollArea className="min-h-0 flex-1 [&_[data-slot=scroll-area-viewport]]:p-2.5">
         <div className="w-full min-w-0 space-y-4">
           {profile ? <UnitProfile profile={profile} /> : null}
@@ -208,7 +206,7 @@ export function Loadout({
           {sheet && reference ? cloneElement(reference, { providedSheet: sheet }) : null}
         </div>
       </ScrollArea>
-    </fieldset>
+    </div>
   )
 }
 
