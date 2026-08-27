@@ -446,7 +446,7 @@ test('a player can enter through the roster library and browse the product', asy
       .locator('article > div:last-child'),
   ).toHaveCount(6)
   await expect(page.getByText(/Tabletop Developer Consortium/)).toBeVisible()
-  await expect(page.getByText(/Descriptions provided by Wahapedia/)).toBeVisible()
+  await expect(page.getByText(/Data provided by game-datacards/)).toBeVisible()
   await page.reload()
   await expect(page.getByRole('heading', { name: 'Cryptek Conclave', exact: true })).toBeVisible()
   const detachmentResponse = await page.request.get('/factions/necrons/detachments/cryptek-conclave')

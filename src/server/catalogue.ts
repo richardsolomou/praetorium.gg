@@ -377,8 +377,9 @@ export function datasheetIn(loaded: LoadedCatalogue, catalogueId: string, entryI
   // What the datasheet offers sits on the options themselves, which a tank's sponsons
   // reach through a shared group of shared weapons the walk above does not enter.
   // `unitChoices` alone decides what is offered, so its options are the ones drawn:
-  // every option's weapons, and the abilities only of the options the unit holds.
-  const visitOption = (node: Selection, ancestors: string[]) => {
+  // every option's weapons, and the abilities only of the wargear the unit holds. An
+  // enhancement's prose is shown with the choice itself, so it is not an ability too.
+  const visitOption = (node: Selection, ancestors: string[], withAbilities: boolean) => {
     const definition = loaded.index.definitions.get(node.id)
     if (!definition) return
     const target = targetOf(definition, loaded.index.definitions)
@@ -387,14 +388,15 @@ export function datasheetIn(loaded: LoadedCatalogue, catalogueId: string, entryI
     for (const source of new Set([definition, target])) {
       if (visited.has(source.id)) continue
       visited.add(source.id)
-      addProfiles(source, lineage, 'wargear', false, !chosen)
+      addProfiles(source, lineage, 'wargear', false, !chosen || !withAbilities)
     }
-    node.selections?.forEach((child) => visitOption(child, lineage))
+    node.selections?.forEach((child) => visitOption(child, lineage, withAbilities))
   }
   for (const choice of choices) {
+    const withAbilities = !choice.name.toLowerCase().includes('enhancement')
     for (const option of choice.options) {
       const built = defaultSelection(option.id, loaded.index, { primaryCatalogueId: catalogueId })
-      if (built) visitOption(built, [root.id, ...choice.key.split('/').slice(0, -1)])
+      if (built) visitOption(built, [root.id, ...choice.key.split('/').slice(0, -1)], withAbilities)
     }
   }
 
