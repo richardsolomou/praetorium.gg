@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.40.3
+
+### Patch Changes
+
+- add6272: Speed up roster pricing so the list builder responds faster on each edit.
+
 ## 0.40.2
 
 ### Patch Changes
