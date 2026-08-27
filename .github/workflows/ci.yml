@@ -204,6 +204,11 @@ jobs:
     # after the change and fails when the change drops any of it.
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    # Pricing a unit boots the app, which keeps its auth secret on disk. The deployed
+    # default is /data, which the runner cannot write to. Set here rather than only in
+    # the script, because the base snapshot runs the base revision of that script.
+    env:
+      DATA_DIR: ${{ runner.temp }}/coverage
     steps:
       - uses: actions/checkout@v7
         with:
@@ -215,16 +220,21 @@ jobs:
       # it starts, so keep a pristine copy and restore it before each snapshot.
       - name: Pin the catalogue snapshot
         run: cp -a catalogue-data catalogue-data.pinned
+      # Each snapshot installs the dependencies of the revision it measures, so a
+      # dependency bump is compared honestly instead of running both sides on the
+      # head's node_modules, which is where a parser bump would drop fields unseen.
       - name: Snapshot the base
         run: |
           set -euo pipefail
           git checkout --quiet --force ${{ github.event.pull_request.base.sha }}
+          pnpm install --frozen-lockfile
           rm -rf catalogue-data && cp -a catalogue-data.pinned catalogue-data
           pnpm catalogue:coverage base.json
       - name: Snapshot the head and compare
         run: |
           set -euo pipefail
           git checkout --quiet --force ${{ github.sha }}
+          pnpm install --frozen-lockfile
           rm -rf catalogue-data && cp -a catalogue-data.pinned catalogue-data
           pnpm catalogue:coverage head.json --compare base.json | tee coverage.txt
       - name: Require no lost coverage
