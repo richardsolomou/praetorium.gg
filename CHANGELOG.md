@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.40.4
+
+### Patch Changes
+
+- 392b01a: Collapse a weapon's firing modes and casing variants to one search result, so a match chip names the weapon you searched.
+
 ## 0.40.3
 
 ### Patch Changes
