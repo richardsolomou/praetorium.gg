@@ -88,6 +88,10 @@ descriptions:
 points:
     pnpm catalogue:points
 
+# Write everything the app can say about the synced data. Add --compare before.json to list what a snapshot lost
+coverage *args:
+    pnpm catalogue:coverage {{ args }}
+
 db-generate:
     pnpm db:generate
 

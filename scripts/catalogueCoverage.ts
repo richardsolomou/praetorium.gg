@@ -7,6 +7,7 @@
  * the earlier snapshot had that this one does not.
  */
 import fs from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import { app } from '../src/server/app'
 import { abilityNamesIn, datasheetIn, datasheetSearchFieldsIn } from '../src/server/catalogue'
@@ -20,6 +21,10 @@ import { routeSlug } from '../src/core/slug'
 process.env.CATALOGUE_DIR ??= path.join(import.meta.dirname, '..', 'catalogue-data')
 process.env.RULES_DIR ??= path.join(process.env.CATALOGUE_DIR, 'rules')
 process.env.DATABASE_URL ??= 'postgres://coverage:coverage@localhost/coverage'
+// Pricing a unit boots the app, which wants somewhere to keep its auth secret. The
+// deployed default is /data, which no CI runner or developer machine can write to.
+// Only the secret lands here: CATALOGUE_DIR and RULES_DIR already say where the data is.
+process.env.DATA_DIR ??= path.join(os.tmpdir(), 'praetorium-coverage')
 
 const [output, flag, previous] = process.argv.slice(2)
 if (!output) throw new Error('usage: catalogueCoverage.ts <out.json> [--compare <before.json>]')
@@ -174,8 +179,14 @@ if (flag === '--compare' && previous) {
       earlier.map((entry) => entry.name),
       later.map((entry) => entry.name),
     )
+    // One datasheet can carry a name twice, a described copy and a bare one, so the nth
+    // is matched to the nth. Taking the first match compares the bare copy against the
+    // described one and reports a loss the change did not cause.
+    const nth = new Map<string, number>()
     for (const entry of earlier) {
-      const now = later.find((candidate) => candidate.name === entry.name)
+      const position = nth.get(entry.name) ?? 0
+      nth.set(entry.name, position + 1)
+      const now = later.filter((candidate) => candidate.name === entry.name)[position]
       if (now && entry.described && !now.described) lost.push(`${where}: description of ${entry.name}`)
       if (now && !entry.described && now.described) gained.push(`${where}: description of ${entry.name}`)
     }
