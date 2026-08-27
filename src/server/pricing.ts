@@ -201,6 +201,18 @@ export function calculateRosterPrice(data: PriceInput, loaded = app().catalogue(
     return keywords
   }
   const keywordsFor = (catalogueId: string, at: number) => keywordMatrixFor(catalogueId)[at] ?? []
+  // Model kinds are the dear part of a unit's projection, and the price reads them
+  // twice: once to find units the catalogue composes itself, and once to draw each
+  // unit's card. Project each unit once and keep the result for the request.
+  const modelKindsByUnit = new Map<(typeof picked)[number], ModelKind[]>()
+  const modelKindsFor = (unit: (typeof picked)[number]) => {
+    let kinds = modelKindsByUnit.get(unit)
+    if (!kinds) {
+      kinds = modelKindsOf(unit.entryId, unit.selection, loaded.index, options)
+      modelKindsByUnit.set(unit, kinds)
+    }
+    return kinds
+  }
   const whole = evaluateForces(forces, loaded.index, options)
   const selectionPoints = new Map<Selection, number>()
   forces.forEach((force, forceAt) =>
@@ -243,7 +255,7 @@ export function calculateRosterPrice(data: PriceInput, loaded = app().catalogue(
    */
   const composedByCatalogue = new Map<string, string>()
   for (const unit of picked) {
-    if (modelKindsOf(unit.entryId, unit.selection, loaded.index, options).length) continue
+    if (modelKindsFor(unit).length) continue
     const composed = buildUnit(unit.entryId, loaded.index, unit.size.models, undefined, {
       primaryCatalogueId: data.catalogueId,
       roster: detachmentSelection,
@@ -345,7 +357,7 @@ export function calculateRosterPrice(data: PriceInput, loaded = app().catalogue(
       })
       const catalogued = wargearOf(unit.selection, loaded.index)
       const automaticEnhancements = catalogued.filter((piece) => enhancementNames.has(routeSlug(piece.name))).map((piece) => piece.name)
-      const models = modelKindsOf(unit.entryId, unit.selection, loaded.index, options)
+      const models = modelKindsFor(unit)
       const replacementPairs = legalReplacementPairs(unit.entryId, unit.selection, describedChoices, models, loaded.index, {
         ...options,
         roster: detachmentSelection,
