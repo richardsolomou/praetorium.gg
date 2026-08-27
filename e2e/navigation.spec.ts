@@ -109,6 +109,24 @@ test('the faction page shows its army rule in full', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Reanimation Protocols', exact: true })).toBeVisible()
 })
 
+test('opening faction datasheets does not render the route error boundary', async ({ page }) => {
+  await page.goto('/factions/dark-angels')
+  await page.evaluate(() => {
+    document.documentElement.dataset.routeErrorSeen = 'false'
+    new MutationObserver((mutations) => {
+      const changed = mutations.flatMap((mutation) => [mutation.target, ...mutation.addedNodes])
+      if (changed.some((node) => node.textContent?.includes('Something went wrong'))) {
+        document.documentElement.dataset.routeErrorSeen = 'true'
+      }
+    }).observe(document.body, { characterData: true, childList: true, subtree: true })
+  })
+
+  await page.getByRole('link', { name: /Datasheets/ }).click()
+  await expect(page.getByLabel('Find a datasheet')).toBeVisible()
+  await expect(page.locator('html')).toHaveAttribute('data-route-error-seen', 'false')
+  await page.screenshot({ path: 'test-results/faction-datasheets-first-load.png', fullPage: true })
+})
+
 test('signed-out faction browsing does not load account collection data', async ({ page }) => {
   const serverReads: string[] = []
   page.on('request', (request) => {
