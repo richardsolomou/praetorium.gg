@@ -135,9 +135,20 @@ export function contextualAbilityNamesIn(
   entryId: string,
   context: Pick<DatasheetContext, 'selections' | 'unitSelectionIndex' | 'companions' | 'keywordIds'>,
 ): string[] {
+  const root = loaded.index.definitions.get(entryId)
+  if (!root) return []
+  const selected =
+    context.unitSelectionIndex === undefined
+      ? defaultSelection(entryId, loaded.index, { primaryCatalogueId: catalogueId })
+      : context.selections[context.unitSelectionIndex]
+  const definitions = selected ? definitionsInSelections([selected], [0], loaded.index) : []
+  const intrinsic = [root, targetOf(root, loaded.index.definitions)]
   return [
     ...new Set([
-      ...abilityNamesIn(loaded, catalogueId, entryId),
+      ...intrinsic.flatMap((definition) => linkedAbilityNames(definition, loaded.index, catalogueId, context.selections)),
+      ...definitions.flatMap((definition) =>
+        [definition, targetOf(definition, loaded.index.definitions)].flatMap((source) => abilityProfileNames(source, loaded.index)),
+      ),
       ...grantedAbilitiesInAttachedUnit(
         context.selections,
         context.unitSelectionIndex,
@@ -148,6 +159,26 @@ export function contextualAbilityNamesIn(
       ).map((ability) => ability.name),
     ]),
   ]
+}
+
+function abilityProfileNames(definition: Definition, index: LoadedCatalogue['index']): string[] {
+  const names = new Set<string>()
+  const addProfile = (profile: Profile) => {
+    if (profile.typeName === 'Abilities' && profile.name && !profile.hidden) names.add(profile.name)
+  }
+  definition.profiles?.forEach(addProfile)
+  for (const group of definition.infoGroups ?? []) {
+    if (!group.hidden) group.profiles?.forEach(addProfile)
+  }
+  for (const link of definition.infoLinks ?? []) {
+    if (link.hidden || link.type === 'rule') continue
+    const shared = index.shared.get(link.targetId)
+    if (!shared) continue
+    if ('profiles' in shared) {
+      if (!shared.hidden) shared.profiles?.forEach(addProfile)
+    } else addProfile({ ...shared, name: link.name ?? shared.name })
+  }
+  return [...names]
 }
 
 function searchableProfilesIn(loaded: LoadedCatalogue, catalogueId: string, entryId: string): SearchableProfiles {

@@ -712,6 +712,38 @@ describe('the profile modifiers on a datasheet', () => {
     expect(contextualAbilityNamesIn(book, 'cat', 'warriors', { selections, unitSelectionIndex: 0 })).toContain('Scouts 5"')
   })
 
+  it('includes an optional deployment ability only when its upgrade is selected', () => {
+    const book = bookOf({
+      selectionEntries: [
+        {
+          id: 'unit',
+          name: 'Unit',
+          type: 'unit',
+          selectionEntries: [
+            {
+              id: 'teleporter',
+              name: 'Teleporter',
+              type: 'upgrade',
+              profiles: [
+                {
+                  id: 'deep-strike',
+                  name: 'Deep Strike',
+                  typeName: 'Abilities',
+                  characteristics: [{ name: 'Description', $text: 'This unit can be set up in Reserves.' }],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    })
+    const unselected = [{ id: 'unit' }]
+    const selected = [{ id: 'unit', selections: [{ id: 'teleporter' }] }]
+
+    expect(contextualAbilityNamesIn(book, 'cat', 'unit', { selections: unselected, unitSelectionIndex: 0 })).not.toContain('Deep Strike')
+    expect(contextualAbilityNamesIn(book, 'cat', 'unit', { selections: selected, unitSelectionIndex: 0 })).toContain('Deep Strike')
+  })
+
   it.each(['This unit has Scouts 6".', 'Models in the bearer\'s unit have the Scouts 6" ability.'])(
     'does not infer an ability from a conditional structured grant: %s',
     (description) => {
