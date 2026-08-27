@@ -12,6 +12,12 @@ beforeEach(() => {
   const core = path.join(directory, 'data', 'core', 'death-guard')
   fs.mkdirSync(core, { recursive: true })
   const root = path.join(directory, 'data', 'core')
+  const imperialFists = path.join(root, 'imperial-fists')
+  fs.mkdirSync(imperialFists)
+  write(path.join(imperialFists, 'factions.json'), [
+    { id: 'imperial-fists', name: 'Imperial Fists', parent_faction_id: 'adeptus-astartes' },
+  ])
+  write(path.join(imperialFists, 'detachments.json'), [{ id: 'stormlance-task-force', name: 'Stormlance Task Force' }])
 
   write(path.join(core, 'stratagems.json'), [
     {
@@ -109,6 +115,18 @@ beforeEach(() => {
       ],
     },
   })
+  write(path.join(datacards, 'spacemarines.json'), {
+    name: 'Adeptus Astartes',
+    datasheets: [],
+    detachments: [
+      {
+        name: { en: 'Stormlance Task Force' },
+        detachmentPoints: 3,
+        detachmentPointsOverrides: [{ faction: 'Imperial Fists', detachmentPoints: 2 }],
+        forceDisposition: { name: { en: 'Priority Assets' } },
+      },
+    ],
+  })
   write(path.join(datacards, 'core.json'), {
     stratagems: [
       {
@@ -183,8 +201,12 @@ const box = (width: number, height: number) => [
 const load = () => loadRules(directory, undefined, path.join(directory, 'faction-icons'), path.join(directory, 'datacards', '11th', 'gdc'))!
 
 describe('stratagems', () => {
-  it('finds detachment semantics without assuming which faction file owns them', () => {
-    expect(hasDetachmentSemantics(load(), { faction: 'Adeptus Astartes', name: 'Flyblown Host' })).toBe(true)
+  it('finds parent-faction detachment semantics in a declared child faction', () => {
+    expect(hasDetachmentSemantics(load(), { faction: 'Adeptus Astartes', name: 'Stormlance Task Force' })).toBe(true)
+  })
+
+  it('does not find same-named detachment semantics in an unrelated faction', () => {
+    expect(hasDetachmentSemantics(load(), { faction: 'Adeptus Astartes', name: 'Flyblown Host' })).toBe(false)
   })
 
   it('keeps descriptions that supplement datasheet abilities', () => {
@@ -228,6 +250,13 @@ describe('stratagems', () => {
       stratagems: 2,
       points: 1,
       dispositions: ['take-and-hold'],
+    })
+  })
+
+  it('reads shared construction values from a declared parent faction', () => {
+    expect(load().detachmentReferences.get('imperial-fists')?.get('stormlance-task-force')).toMatchObject({
+      points: 2,
+      dispositions: ['priority-assets'],
     })
   })
 
@@ -289,7 +318,7 @@ describe('stratagems', () => {
     // Filing a faction under each of its names would have every reader that walks the
     // whole map see it twice, which is what the description ratchet caught.
     const rules = load()
-    expect([...rules.detachmentDetails.keys()]).toEqual(['death-guard'])
+    expect([...rules.detachmentDetails.keys()]).toEqual(['death-guard', 'imperial-fists'])
     expect(rulesFaction(rules, 'a-faction-nobody-has-heard-of')).toBe('a-faction-nobody-has-heard-of')
   })
 

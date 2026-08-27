@@ -88,6 +88,9 @@ export const cardName = (name: string) => routeSlug(name).replaceAll(/-(?:aura|u
 /** A card names its detachment and itself. */
 export const descriptionKey = (detachment: string, name: string) => `${routeSlug(detachment)}|${cardName(name)}`
 
+/** The source's own faction name and the catalogue name already declared for it. */
+export const datacardsFactionKeys = (name: string) => new Set([routeSlug(name), routeSlug(catalogueFactionName(name))])
+
 export function loadDatacards(directory: string): LoadedDatacards {
   const factions = new Map<string, FactionContent>()
   const detachmentRules = new Map<string, Map<string, Set<string>>>()
@@ -116,7 +119,7 @@ export function loadDatacards(directory: string): LoadedDatacards {
     const parsed = JSON.parse(fs.readFileSync(path.join(directory, fileName), 'utf8')) as DatacardsFaction
     if (typeof parsed.name !== 'string' || !Array.isArray(parsed.datasheets) || !Array.isArray(parsed.detachments)) continue
     const content = factionContent(parsed.name, parsed)
-    for (const name of new Set([parsed.name, catalogueFactionName(parsed.name)])) factions.set(routeSlug(name), content)
+    for (const key of datacardsFactionKeys(parsed.name)) factions.set(key, content)
     for (const rule of content.armyRules) remember(armyRules, routeSlug(rule.name), rule.description)
     for (const detachment of records(parsed, 'detachments')) {
       const name = localizedField(detachment, 'name')
@@ -206,10 +209,17 @@ export function loadDatacards(directory: string): LoadedDatacards {
   }
 }
 
-export function constructionDetachment(datacards: LoadedDatacards, faction: string, detachment: string) {
+export function constructionDetachment(
+  datacards: LoadedDatacards,
+  faction: string,
+  detachment: string,
+  parentFaction: string | null = null,
+) {
   const candidates = datacards.constructionDetachments.get(routeSlug(detachment)) ?? []
-  const exact = candidates.filter((candidate) => routeSlug(candidate.faction) === routeSlug(faction))
-  const relevant = exact.length ? exact : candidates
+  const matches = (candidate: ConstructionDetachment, wanted: string) => datacardsFactionKeys(candidate.faction).has(routeSlug(wanted))
+  const exact = candidates.filter((candidate) => matches(candidate, faction))
+  const parent = parentFaction ? candidates.filter((candidate) => matches(candidate, parentFaction)) : []
+  const relevant = exact.length ? exact : parent
   const answers = new Map(
     relevant.map((candidate) => {
       const factionKey = routeSlug(faction)

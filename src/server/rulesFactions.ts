@@ -16,7 +16,14 @@ import { SUPPLEMENTAL_FACTION_ICONS } from './factionIconSources'
  * routes reference pages by.
  */
 
-type RawFaction = { id: string; name: string; aliases?: string[]; faction_rule_id?: string; logo_url?: string }
+type RawFaction = {
+  id: string
+  name: string
+  parent_faction_id?: string | null
+  aliases?: string[]
+  faction_rule_id?: string
+  logo_url?: string
+}
 
 type RawDetachment = {
   id: string
@@ -92,6 +99,8 @@ export type LoadedFactions = {
    * below are read one key at a time and also counted whole.
    */
   factionKeys: Map<string, string>
+  /** Each child faction against the parent whose shared construction cards it may use. */
+  factionParents: Map<string, string>
   /** Display metadata for each detachment, with construction numbers from Game Datacards. */
   detachmentReferences: Map<string, Map<string, DetachmentReference>>
   detachmentDetails: Map<string, Map<string, DetachmentRulesDetail>>
@@ -117,6 +126,7 @@ export function loadFactions(core: string, iconDirectory: string, datacards: Loa
   const factionIcons = new Map<string, string>()
   const factionRules = new Map<string, { name: string; description: string }>()
   const factionKeys = new Map<string, string>()
+  const factionParents = new Map<string, string>()
   const constructionJoinIssues: ConstructionJoinIssue[] = []
   let dataslate: string | null = null
 
@@ -127,6 +137,7 @@ export function loadFactions(core: string, iconDirectory: string, datacards: Loa
     if (fs.existsSync(factionFile)) {
       for (const found of readJson<RawFaction[]>(factionFile)) {
         for (const alias of found.aliases ?? []) factionKeys.set(routeSlug(alias), faction)
+        if (found.parent_faction_id) factionParents.set(found.id, found.parent_faction_id)
         factionNames.set(found.id, found.name)
         const icon = path.join(iconDirectory, `${found.id}.svg`)
         if (found.logo_url) {
@@ -173,7 +184,10 @@ export function loadFactions(core: string, iconDirectory: string, datacards: Loa
       const factionName = factionNames.get(faction) ?? faction
       const rawDetachmentById = new Map(rawDetachments.map((detachment) => [detachment.id, detachment]))
       const constructionByDetachment = new Map(
-        rawDetachments.map((detachment) => [detachment.id, constructionDetachment(datacards, factionName, detachment.name)]),
+        rawDetachments.map((detachment) => [
+          detachment.id,
+          constructionDetachment(datacards, factionName, detachment.name, factionParents.get(faction)),
+        ]),
       )
       const constructionFields = (detachment: RawDetachment) => {
         const construction = constructionByDetachment.get(detachment.id)
@@ -264,6 +278,7 @@ export function loadFactions(core: string, iconDirectory: string, datacards: Loa
     factionIcons,
     factionRules,
     factionKeys,
+    factionParents,
     detachmentReferences,
     detachmentDetails,
     byDetachment,

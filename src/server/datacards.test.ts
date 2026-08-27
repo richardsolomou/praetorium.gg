@@ -185,8 +185,9 @@ it('reads army-construction numbers without trusting malformed alternatives', ()
   const datacards = loadDatacards(directory)
   expect({
     base: constructionDetachment(datacards, 'Adeptus Astartes', 'Stormlance Task Force'),
-    validOverride: constructionDetachment(datacards, 'White Scars', 'Stormlance Task Force'),
-    malformedOverride: constructionDetachment(datacards, 'Black Templars', 'Stormlance Task Force'),
+    validOverride: constructionDetachment(datacards, 'White Scars', 'Stormlance Task Force', 'adeptus-astartes'),
+    malformedOverride: constructionDetachment(datacards, 'Black Templars', 'Stormlance Task Force', 'adeptus-astartes'),
+    unrelatedDetachment: constructionDetachment(datacards, 'Orks', 'Stormlance Task Force'),
     malformedDetachment: constructionDetachment(datacards, 'Adeptus Astartes', 'Broken Task Force'),
     poisonedDetachment: constructionDetachment(datacards, 'Adeptus Astartes', 'Poisoned Task Force'),
     unscopedOverride: constructionDetachment(datacards, 'Adeptus Astartes', 'Unscoped Override'),
@@ -201,6 +202,7 @@ it('reads army-construction numbers without trusting malformed alternatives', ()
     base: { points: 3, disposition: 'disruption' },
     validOverride: { points: 2, disposition: 'disruption' },
     malformedOverride: null,
+    unrelatedDetachment: null,
     malformedDetachment: null,
     poisonedDetachment: null,
     unscopedOverride: null,
