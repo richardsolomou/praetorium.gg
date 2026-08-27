@@ -128,7 +128,7 @@ export type BattleView = {
     }[]
     primaryCard: Secondary | null
     secondaryMode: SecondaryMode
-    /** Whether this side has a tactical deck, without exposing the cards in it. */
+    /** Whether this side has a secondary deck, without exposing the cards in it. */
     secondaryDeckReady: boolean
     remainingSecondaries: Secondary[]
     /**

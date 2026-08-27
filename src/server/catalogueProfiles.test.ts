@@ -712,7 +712,21 @@ describe('the profile modifiers on a datasheet', () => {
     expect(contextualAbilityNamesIn(book, 'cat', 'warriors', { selections, unitSelectionIndex: 0 })).toContain('Scouts 5"')
   })
 
-  it('includes an optional deployment ability only when its upgrade is selected', () => {
+  it.each([
+    ['Deep Strike', 'This unit can be set up in Reserves.', 'Deep Strike'],
+    ['Deep Strike', 'Models in this unit have the Deep Strike ability.', 'Deep Strike'],
+    ['Deep Strike', 'If every model in this unit has the Deep Strike ability, it can be set up in Reserves.', 'Deep Strike'],
+    [
+      'Fated Emergence',
+      'Models in this unit have the Deep Strike. If this unit has the Terminator keyword, you can target this unit with the Rapid Ingress Stratagem for 0CP.',
+      'Deep Strike',
+    ],
+    ['Wraith of Ruin', 'Models in this unit have the Infiltrators ability.', 'Infiltrators'],
+    ['Recon Drone', 'The bearer is equipped with 1 drone burst cannon and the bearer’s unit has the Infiltrators ability.', 'Infiltrators'],
+    ['Cacophonic Accompaniment', '- This model has Deep Strike.\n- This unit’s ranged attacks have [IGNORES COVER].', 'Deep Strike'],
+    ['Vanguard', 'This unit has Scouts 6″.', 'Scouts 6"'],
+    ['Vanguard', 'This unit has Scouts 6”.', 'Scouts 6"'],
+  ])('includes an optional deployment ability only when its upgrade is selected: %s', (profileName, description, ability) => {
     const book = bookOf({
       selectionEntries: [
         {
@@ -727,9 +741,9 @@ describe('the profile modifiers on a datasheet', () => {
               profiles: [
                 {
                   id: 'deep-strike',
-                  name: 'Deep Strike',
+                  name: profileName,
                   typeName: 'Abilities',
-                  characteristics: [{ name: 'Description', $text: 'This unit can be set up in Reserves.' }],
+                  characteristics: [{ name: 'Description', $text: description }],
                 },
               ],
             },
@@ -740,8 +754,8 @@ describe('the profile modifiers on a datasheet', () => {
     const unselected = [{ id: 'unit' }]
     const selected = [{ id: 'unit', selections: [{ id: 'teleporter' }] }]
 
-    expect(contextualAbilityNamesIn(book, 'cat', 'unit', { selections: unselected, unitSelectionIndex: 0 })).not.toContain('Deep Strike')
-    expect(contextualAbilityNamesIn(book, 'cat', 'unit', { selections: selected, unitSelectionIndex: 0 })).toContain('Deep Strike')
+    expect(contextualAbilityNamesIn(book, 'cat', 'unit', { selections: unselected, unitSelectionIndex: 0 })).not.toContain(ability)
+    expect(contextualAbilityNamesIn(book, 'cat', 'unit', { selections: selected, unitSelectionIndex: 0 })).toContain(ability)
   })
 
   it.each(['This unit has Scouts 6".', 'Models in the bearer\'s unit have the Scouts 6" ability.'])(
@@ -972,6 +986,26 @@ describe('the profile modifiers on a datasheet', () => {
       'Super Runts',
       'While this model is leading a unit:\n- Models in that unit have the Scouts 9" ability.\n- Add 1 to the Hit roll.',
       'Scouts 9"',
+    ],
+    [
+      'Forlorn Hero',
+      'While this model is leading a unit, unless that unit starts the battle embarked within a Transport, models in that unit have the Scouts 6" ability.',
+      'Scouts 6"',
+    ],
+    [
+      'Shrouding (Psychic)',
+      'While this model is leading a unit, models in that unit have the Stealth ability and that unit cannot be targeted by ranged attacks unless the attacking model is within 12".',
+      'Stealth',
+    ],
+    [
+      'Fire Riders',
+      'While this model is leading a unit, models in that unit have the Deep Strike ability and each time a model in that unit makes a Normal, Advance, Fall Back or Charge move, it can move horizontally through models and terrain features.',
+      'Deep Strike',
+    ],
+    [
+      'Clandestine Investigator',
+      "While this model is leading a unit, models in this unit have the Stealth ability. At the end of the battle, if this model's unit is wholly within your opponent's deployment zone, roll one D6: on a 4+, you gain 1 Investigation point.",
+      'Stealth',
     ],
   ])('includes an attached-only deployment profile only on its attached unit: %s', (profileName, description, ability) => {
     const book = bookOf({

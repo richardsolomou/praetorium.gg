@@ -477,6 +477,32 @@ describe('setup', () => {
     expect(validate(restored, ALICE, repair)).toBe('cards are settled before the battle begins')
   })
 
+  it('restores a legacy fixed deck without changing the selected cards', () => {
+    const selected = { key: 'a', name: 'Behind Enemy Lines' }
+    const secret = { key: 'b', name: 'Assassination' }
+    const fixedPrep: Command = {
+      kind: 'set-prep',
+      stratagems: [],
+      secondaries: [selected],
+      primary: null,
+      secondaryMode: 'fixed',
+    }
+    const history: [string, Command][] = [
+      [ALICE, roster('Ultramarines')],
+      [BOB, roster('Death Guard')],
+      [ALICE, fixedPrep],
+      [ALICE, { kind: 'begin-battle', firstPlayerId: ALICE }],
+    ]
+    const missing = reduceBattle(PLAYERS, log(...history))
+    const repair: Command = { ...fixedPrep, secondaryDeck: [selected, secret] }
+
+    expect(validate(missing, ALICE, fixedPrep)).toBe('cards are settled before the battle begins')
+    expect(validate(missing, ALICE, repair)).toBeNull()
+    const restored = reduceBattle(PLAYERS, log(...history, [ALICE, repair]))
+    expect(battleView({ token: 'abc' }, NAMES, restored, ALICE).players[0]?.remainingSecondaries).toEqual([secret])
+    expect(validate(missing, ALICE, { ...repair, secondaries: [secret] })).toBe('cards are settled before the battle begins')
+  })
+
   it('refuses cards carried in with a replacement list', () => {
     const state = reduceBattle(PLAYERS, log(...started()))
     const command: Command = {

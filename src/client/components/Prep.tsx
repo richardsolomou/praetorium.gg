@@ -65,7 +65,7 @@ export function Prep({ view, side, missionId, send, pending }: Props) {
   const storedMode: SecondaryMode = captain.secondaryMode
   const mode: SecondaryMode = tacticalOnly ? 'tactical' : storedMode
   const chosen = captain.secondaries.map(({ key, name, awards }) => ({ key, name, awards }))
-  const deckReady = mode !== 'tactical' || captain.secondaryDeckReady
+  const deckReady = captain.secondaryDeckReady
 
   const save = (next: { mode?: SecondaryMode; secondaries?: Secondary[] }) => {
     if (!rules) return
@@ -86,7 +86,7 @@ export function Prep({ view, side, missionId, send, pending }: Props) {
               .slice(-FIXED_SECONDARIES)
               .map((secondary) => deck.find((card) => card.key === secondary.key) ?? secondary)
               .map(({ key, name, awards }) => ({ key, name, awards })),
-      secondaryDeck: nextMode === 'tactical' ? deck.map(({ key, name, awards }) => ({ key, name, awards })) : undefined,
+      secondaryDeck: deck.map(({ key, name, awards }) => ({ key, name, awards })),
       primary,
       secondaryMode: nextMode,
     })
@@ -107,7 +107,7 @@ export function Prep({ view, side, missionId, send, pending }: Props) {
     // and a pool an arriving ally changes is rewritten exactly once.
     const wrongStratagems = pooled && wanted.length > 0 && wanted !== recorded
     const wrongPrimary = primary?.key !== captain.primaryCard?.key
-    const missingDeck = mode === 'tactical' && deck.length > 0 && !captain.secondaryDeckReady
+    const missingDeck = deck.length > 0 && !captain.secondaryDeckReady
     const invalidMode = tacticalOnly && storedMode !== 'tactical'
     if (!wrongStratagems && !wrongPrimary && !missingDeck && !invalidMode) return
     save({})
@@ -167,6 +167,7 @@ export function Prep({ view, side, missionId, send, pending }: Props) {
               key={entry}
               variant="outline"
               aria-pressed={mode === entry}
+              disabled={pending}
               className={`h-auto flex-col items-start gap-0.5 px-3 py-2 text-left ${mode === entry ? CHOSEN : CHOOSABLE}`}
               onClick={() => entry !== mode && save({ mode: entry })}
             >
@@ -186,6 +187,7 @@ export function Prep({ view, side, missionId, send, pending }: Props) {
         <SecondaryPicker
           cards={fixedCards}
           chosen={chosen}
+          pending={pending}
           onToggle={(card) => {
             const held = chosen.some((entry) => entry.key === card.key)
             const secondaries = held
@@ -218,10 +220,12 @@ export function Prep({ view, side, missionId, send, pending }: Props) {
 function SecondaryPicker({
   cards,
   chosen,
+  pending,
   onToggle,
 }: {
   cards: readonly (ReferenceCard & { key: string })[]
   chosen: readonly Secondary[]
+  pending: boolean
   onToggle: (card: { key: string; name: string }) => void
 }) {
   return (
@@ -241,6 +245,7 @@ function SecondaryPicker({
               size="xs"
               aria-pressed={held}
               aria-label={`${held ? 'Remove' : 'Select'} ${card.name}`}
+              disabled={pending}
               className={`shrink-0 ${held ? 'border-parchment text-parchment' : ''}`}
               onClick={() => onToggle(card)}
             >

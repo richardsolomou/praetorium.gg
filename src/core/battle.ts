@@ -932,9 +932,23 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
     case 'set-prep': {
       if (state.status === 'finished') return 'the battle is over'
       if (state.status === 'playing') {
-        const missingTacticalDeck = player.secondaryMode === 'tactical' && !player.secondaryDeck?.length && player.secondaries.length === 0
-        if (!missingTacticalDeck) return 'cards are settled before the battle begins'
-        if (command.secondaryMode !== 'tactical' || command.secondaries.length) return 'cards are settled before the battle begins'
+        const sameKeys = (left: readonly { key: string }[], right: readonly { key: string }[]) =>
+          left.length === right.length && left.every((entry, index) => entry.key === right[index]?.key)
+        const canRestoreTacticalPrep =
+          !player.secondaryDeck?.length &&
+          player.secondaryMode === 'tactical' &&
+          player.secondaries.length === 0 &&
+          command.secondaryMode === 'tactical' &&
+          command.secondaries.length === 0
+        const canRestoreFixedDeck =
+          !player.secondaryDeck?.length &&
+          Boolean(command.secondaryDeck?.length) &&
+          player.secondaryMode === 'fixed' &&
+          command.secondaryMode === 'fixed' &&
+          sameKeys(command.stratagems, player.stratagems) &&
+          sameKeys(command.secondaries, player.secondaries) &&
+          command.primary?.key === player.primaryCard?.key
+        if (!canRestoreTacticalPrep && !canRestoreFixedDeck) return 'cards are settled before the battle begins'
       }
       if (isKotcLimit(state.settings.limit) && command.secondaryMode !== 'tactical')
         return 'King of the Colosseum requires tactical secondaries'

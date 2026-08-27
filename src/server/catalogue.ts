@@ -732,7 +732,7 @@ function parseAbilityGrants(
   allowUnlinkedDeployment: boolean,
 ): { matched: boolean; grants: AbilityGrant[] } {
   if (!description) return { matched: false, grants: [] }
-  const prose = description.replaceAll(/\^\^|\*/g, '')
+  const prose = normalizeAbilityText(description.replaceAll(/\^\^|\*/g, ''))
   const grant = (written: string, recipient: 'bearer' | 'leader' | 'unit') => {
     const matched = linkedAbilities.filter((name) => ruleReferenceMatches(written, name) || ruleReferenceMatches(name, written))
     const listed = listedAbilities(written, linkedAbilities)
@@ -756,6 +756,10 @@ function parseAbilityGrants(
     /^(?:[^.\n]{1,160} model only\.\s*)?The bearer has the \[?([\p{L}\p{N} +"'’\p{Pd}]+?)\]? abilit(?:y|ies)(?:[.,]|$)/iu,
   )
   if (bearerGrant) return { matched: true, grants: grant(bearerGrant[1]!, 'bearer') }
+  const thisModelGrant = prose.match(
+    /^(?:[-▪]\s*)?This model has (?:the )?\[?([\p{L}\p{N} +"'’\p{Pd}]+?)\]?(?: abilit(?:y|ies))?\.(?:\s|$)/iu,
+  )
+  if (thisModelGrant) return { matched: true, grants: grant(thisModelGrant[1]!, 'bearer') }
   const bodyguardGrant = prose.match(
     /^While a Character model is leading this unit, that Character model has the \[?([\p{L}\p{N} +'’\p{Pd}]+)\]? ability\.$/iu,
   )
@@ -773,15 +777,26 @@ function parseAbilityGrants(
   )
   if (leadingBulletGrant) return { matched: true, grants: attached ? grant(leadingBulletGrant[1]!, 'unit') : [] }
   const leadingGrant = prose.match(
-    /^(?:[^.\n]{1,160} model only\.\s*)?While (?:this model|the bearer) is leading a unit, models in that unit have the \[?([\p{L}\p{N} +"'’\p{Pd}]+?)\]? abilit(?:y|ies)(?:\.\s*|$)/iu,
+    /^(?:[^.\n]{1,160} model only\.\s*)?While (?:this model|the bearer) is leading a unit,\s*(?:unless [^,\n]{1,240},\s*)?models in (?:that|this) unit have the \[?([\p{L}\p{N} +"'’\p{Pd}]+?)\]? abilit(?:y|ies)(?=[.,]|\s+and\b|$)/iu,
   )
   if (leadingGrant) return { matched: true, grants: attached ? grant(leadingGrant[1]!, 'unit') : [] }
   const ownUnitGrant = prose.match(
     /^(?:[^.\n]{1,160} model only\.\s*)?(?:[-▪]\s*)?Models in (?:this model's|the bearer's|the bearer’s) unit\s+have the \[?([\p{L}\p{N} +"'’\p{Pd}]+?)\]? abilit(?:y|ies)(?:[.,]|$)/iu,
   )
   if (ownUnitGrant) return { matched: true, grants: grant(ownUnitGrant[1]!, 'unit') }
+  const modelsInThisUnitGrant = prose.match(
+    /^(?:[-▪]\s*)?Models in this unit have (?:the )?\[?([\p{L}\p{N} +"'’\p{Pd}]+?)\]?(?: abilit(?:y|ies))?(?:[.,]|$)/iu,
+  )
+  if (modelsInThisUnitGrant) return { matched: true, grants: grant(modelsInThisUnitGrant[1]!, 'unit') }
+  const bearerUnitGrant = prose.match(
+    /(?:^|\band\s+)the bearer(?:'|’)s unit has (?:the )?\[?([\p{L}\p{N} +"'’\p{Pd}]+?)\]?(?: abilit(?:y|ies))?(?:[.,]|$)/iu,
+  )
+  if (bearerUnitGrant) return { matched: true, grants: grant(bearerUnitGrant[1]!, 'unit') }
   return {
-    matched: mentionsDeploymentAbility(prose) && /\b(?:has|have|gains?)\b/iu.test(prose),
+    matched:
+      mentionsDeploymentAbility(prose) &&
+      /\b(?:has|have|gains?)\b/iu.test(prose) &&
+      /\b(?:until|for the (?:remainder|rest) of)\b/iu.test(prose),
     grants: [],
   }
 }
@@ -804,12 +819,12 @@ const DEPLOYMENT_ABILITIES = new RegExp(DEPLOYMENT_ABILITY, 'giu')
 const DEPLOYMENT_ABILITY_MENTION = new RegExp(DEPLOYMENT_ABILITY, 'iu')
 
 function deploymentAbilities(written: string): string[] {
-  const normalized = written.normalize('NFKC')
+  const normalized = normalizeAbilityText(written)
   return DEPLOYMENT_ABILITY_LIST.test(normalized) ? (normalized.match(DEPLOYMENT_ABILITIES) ?? []) : []
 }
 
 function listedAbilities(written: string, linkedAbilities: readonly string[]): string[] {
-  const normalized = normalizeRuleReference(written)
+  const normalized = normalizeRuleReference(normalizeAbilityText(written))
   const candidates = [
     ...new Set([...linkedAbilities.map(normalizeRuleReference), ...(normalized.match(DEPLOYMENT_ABILITIES) ?? [])]),
   ].toSorted((left, right) => right.length - left.length)
@@ -820,7 +835,14 @@ function listedAbilities(written: string, linkedAbilities: readonly string[]): s
 }
 
 function mentionsDeploymentAbility(written: string): boolean {
-  return DEPLOYMENT_ABILITY_MENTION.test(written.normalize('NFKC'))
+  return DEPLOYMENT_ABILITY_MENTION.test(normalizeAbilityText(written))
+}
+
+function normalizeAbilityText(written: string): string {
+  return written
+    .replaceAll(/[″“”]/g, '"')
+    .normalize('NFKC')
+    .replaceAll('′′', '"')
 }
 
 const titleCaseAbility = (name: string) =>

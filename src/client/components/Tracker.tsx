@@ -93,8 +93,9 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
     [ruleResults, ruleRequests],
   )
   // The cards are the instance's, not a side's: one deck, read the same way for both.
+  const primaryDeck = useMemo(() => primaryCards(references), [references])
   const secondaryDeck = useMemo(() => secondaryCards(references), [references])
-  const deck = useMemo(() => [...primaryCards(references), ...secondaryDeck], [references, secondaryDeck])
+  const deck = useMemo(() => [...primaryDeck, ...secondaryDeck], [primaryDeck, secondaryDeck])
   // The first card claiming a key answers for it, the way `find` over the deck did.
   const cardsByKey = useMemo(() => {
     const cards = new Map<string, ReferenceCard>()
@@ -139,13 +140,13 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
     (side) =>
       side.played &&
       side.mission &&
-      side.primaryCard &&
-      side.secondaryMode === 'tactical' &&
-      side.secondaries.length === 0 &&
-      side.remainingSecondaries.length === 0,
+      !side.secondaryDeckReady &&
+      side.remainingSecondaries.length === 0 &&
+      (side.secondaryMode === 'fixed' || side.secondaries.length === 0),
   )
+  const repairPrimary = repairSide?.primaryCard ?? primaryDeck.find((card) => card.key === repairSide?.mission?.id) ?? null
   useEffect(() => {
-    if (finished || pending || !references || !secondaryDeck.length || !repairSide?.primaryCard) return
+    if (finished || pending || !references || !secondaryDeck.length || !repairSide || !repairPrimary) return
     const key = `${view.seq}:${repairSide.captain.id}`
     if (attemptedPrepRepairs.current.has(key)) return
     attemptedPrepRepairs.current.add(key)
@@ -153,12 +154,15 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
       kind: 'set-prep',
       playerId: repairSide.captain.id,
       stratagems: repairSide.stratagems,
-      secondaries: [],
+      secondaries:
+        repairSide.secondaryMode === 'fixed'
+          ? repairSide.secondaries.map(({ key: cardKey, name, awards }) => ({ key: cardKey, name, awards }))
+          : [],
       secondaryDeck: secondaryDeck.map(({ key: cardKey, name, awards }) => ({ key: cardKey, name, awards })),
-      primary: repairSide.primaryCard,
-      secondaryMode: 'tactical',
+      primary: repairPrimary,
+      secondaryMode: repairSide.secondaryMode,
     })
-  }, [finished, pending, references, repairSide, secondaryDeck, send, view.seq])
+  }, [finished, pending, references, repairPrimary, repairSide, secondaryDeck, send, view.seq])
   // A battle whose second seat is still empty draws one side, not a gap where the other goes.
   const oneSided = table.length < 2
   // A side's own mission can state a lower ceiling than the conventional one, and the

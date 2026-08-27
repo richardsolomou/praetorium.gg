@@ -1365,6 +1365,17 @@ describe('battle setup references', () => {
       ],
     }) as unknown as LoadedRules
 
+  const fixedAward = {
+    vp: 1,
+    per: null,
+    mode: 'fixed',
+    max: null,
+    group: null,
+    cumulative: false,
+    criteria: 'Complete the objective.',
+    trigger: { timing: 'end-of-phase', phase: 'end', playerTurn: 'your-turn', roundMin: null, roundMax: null },
+  } as const
+
   const configured = async (loadedRules = rules()) => {
     const { token } = await service.createBattle('alice', {
       opponentId: 'bob',
@@ -1420,7 +1431,7 @@ describe('battle setup references', () => {
     })
   })
 
-  it('refuses to begin before both sides have prepared their mission cards', async () => {
+  it('refuses to begin when fixed cards are selected without the full secondary deck', async () => {
     const card = {
       name: 'Card',
       text: null,
@@ -1433,8 +1444,28 @@ describe('battle setup references', () => {
         { ...card, key: 'mission-a' },
         { ...card, key: 'mission-b' },
       ],
-      secondaries: [{ ...card, key: 'secondary-a' }],
+      secondaries: [
+        { ...card, key: 'secondary-a', awards: [fixedAward] },
+        { ...card, key: 'secondary-b', awards: [fixedAward] },
+      ],
     })
+    for (const [playerId, primary] of [
+      ['alice', 'mission-a'],
+      ['bob', 'mission-b'],
+    ] as const) {
+      const result = await battle.send('alice', {
+        kind: 'set-prep',
+        playerId,
+        stratagems: [],
+        secondaries: [
+          { key: 'secondary-a', name: 'Secondary A' },
+          { key: 'secondary-b', name: 'Secondary B' },
+        ],
+        primary: { key: primary, name: primary },
+        secondaryMode: 'fixed',
+      })
+      if (result.outcome === 'appended') battle.setSeq(result.seq)
+    }
     const deployment = await battle.send('alice', { kind: 'set-deployment', patternId: 'valid-deployment' })
     if (deployment.outcome === 'appended') battle.setSeq(deployment.seq)
 
@@ -1498,7 +1529,7 @@ describe('battle setup references', () => {
       criteria: 'Control an objective marker.',
       trigger: { timing: 'end-of-phase', phase: 'command', playerTurn: 'your-turn', roundMin: 1, roundMax: null },
     }
-    const fixedAward = { ...commandAward, mode: 'fixed', trigger: { ...commandAward.trigger, phase: 'movement' } }
+    const timingFixedAward = { ...commandAward, mode: 'fixed', trigger: { ...commandAward.trigger, phase: 'movement' } }
     const card = { name: 'Card', text: null, whenDrawn: null }
     const loaded = {
       ...rules(),
@@ -1507,8 +1538,8 @@ describe('battle setup references', () => {
         { ...card, key: 'mission-b', awards: [commandAward] },
       ],
       secondaries: [
-        { ...card, key: 'secondary-a', awards: [fixedAward] },
-        { ...card, key: 'secondary-b', awards: [fixedAward] },
+        { ...card, key: 'secondary-a', awards: [timingFixedAward] },
+        { ...card, key: 'secondary-b', awards: [timingFixedAward] },
       ],
     }
     const battle = await configured(loaded)
@@ -1521,6 +1552,10 @@ describe('battle setup references', () => {
         playerId,
         stratagems: [],
         secondaries: [
+          { key: 'secondary-a', name: 'Secondary A' },
+          { key: 'secondary-b', name: 'Secondary B' },
+        ],
+        secondaryDeck: [
           { key: 'secondary-a', name: 'Secondary A' },
           { key: 'secondary-b', name: 'Secondary B' },
         ],
@@ -1546,7 +1581,7 @@ describe('battle setup references', () => {
   })
 
   it('refuses to begin with a fixed mission outside the server deck', async () => {
-    const card = { name: 'Card', text: null, awards: [], whenDrawn: null }
+    const card = { name: 'Card', text: null, awards: [fixedAward], whenDrawn: null }
     const loaded = {
       ...rules(),
       primaries: [
@@ -1568,6 +1603,7 @@ describe('battle setup references', () => {
         playerId,
         stratagems: [],
         secondaries: secondaries.map((key) => ({ key, name: key })),
+        secondaryDeck: [...new Set(['secondary-a', 'secondary-b', ...secondaries])].map((key) => ({ key, name: key })),
         primary: { key: primary, name: primary },
         secondaryMode: 'fixed',
       })
@@ -1615,6 +1651,10 @@ describe('battle setup references', () => {
         playerId,
         stratagems: [],
         secondaries: [
+          { key: 'secondary-a', name: 'Secondary A' },
+          { key: 'secondary-b', name: 'Secondary B' },
+        ],
+        secondaryDeck: [
           { key: 'secondary-a', name: 'Secondary A' },
           { key: 'secondary-b', name: 'Secondary B' },
         ],

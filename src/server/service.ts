@@ -1063,7 +1063,8 @@ function setupReferenceError(state: ReturnType<typeof reduceBattle>, rules: NonN
       return (
         player.secondaries.length === FIXED_SECONDARIES &&
         new Set(player.secondaries.map((card) => card.key)).size === FIXED_SECONDARIES &&
-        player.secondaries.every((card) => fixedSecondaries.has(card.key))
+        player.secondaries.every((card) => fixedSecondaries.has(card.key)) &&
+        completeDeck(player.secondaryDeck, expectedSecondaries)
       )
     }
     return completeDeck(player.secondaryDeck, expectedSecondaries)
