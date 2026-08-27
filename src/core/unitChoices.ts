@@ -70,7 +70,17 @@ export type UnitChoice = {
    * `profile` is set when the option is a model rather than a piece of wargear, and
    * names the kind of model it is one loadout of.
    */
-  options: { id: string; name: string; points: number; count: number; max: number; profile?: string | null }[]
+  options: {
+    id: string
+    name: string
+    points: number
+    count: number
+    min: number
+    max: number
+    /** A sibling selection can lower this minimum as part of the same edit. */
+    mutableMin?: boolean
+    profile?: string | null
+  }[]
   /**
    * The specific model this choice belongs to, when it is not every model in the unit.
    *
@@ -128,7 +138,14 @@ export function unitChoices(entryId: string, selection: Selection, index: Catalo
       const here = [...trail, child.id]
 
       const repeatingEntry = inner.type === 'upgrade' ? repeatedModelOn(trail, index) : null
-      const single = inner.type === 'upgrade' && minimum(child.definition) === 0 && maximumCount(child.definition, index) === 1
+      const lower = minimum(child.definition)
+      const single = inner.type === 'upgrade' && lower === 0 && maximumCount(child.definition, index) === 1
+      let upper: number | null = null
+      if (single) upper = 1
+      else if (inner.type === 'upgrade' && lower > 0) {
+        upper = maximumCount(child.definition, index, { primaryCatalogueId: options.primaryCatalogueId, roster })
+      }
+      const boundedUpgrade = single || (inner.type === 'upgrade' && lower > 0 && upper !== null && upper > lower)
       const onRepeatedModel = Boolean(repeatingEntry && repeatingEntry.path.length === trail.length)
       if (repeatingEntry && onRepeatedModel && single) {
         const room = effectiveCount(selection, repeatingEntry.path, repeatingEntry.definition, index, options)
@@ -142,7 +159,7 @@ export function unitChoices(entryId: string, selection: Selection, index: Catalo
           chosen: count ? child.id : '',
           optional: true,
           room,
-          options: [{ id: child.id, name: inner.name ?? child.id, points: pointsOf(child, index), count, max: room }],
+          options: [{ id: child.id, name: inner.name ?? child.id, points: pointsOf(child, index), count, min: 0, max: room }],
           uniform: false,
           carried: true,
           owner: modelOwnerOf(trail, index),
@@ -163,15 +180,21 @@ export function unitChoices(entryId: string, selection: Selection, index: Catalo
        * already reported together, and reporting them again would draw one control
        * for the group and a second for every option in it.
        */
-      if (single && !onRepeatedModel && target.type !== undefined && !isRosterToggle(inner.name ?? child.definition.name)) {
+      if (
+        boundedUpgrade &&
+        upper !== null &&
+        !onRepeatedModel &&
+        target.type !== undefined &&
+        !isRosterToggle(inner.name ?? child.definition.name)
+      ) {
         const count = countAt(selection, here)
         choices.push({
           key: here.join('/'),
           name: inner.name ?? child.id,
           chosen: count ? child.id : '',
-          optional: true,
-          room: 1,
-          options: [{ id: child.id, name: inner.name ?? child.id, points: pointsOf(child, index), count, max: 1 }],
+          optional: lower === 0,
+          room: upper,
+          options: [{ id: child.id, name: inner.name ?? child.id, points: pointsOf(child, index), count, min: lower, max: upper }],
           uniform: false,
           carried: false,
           owner: modelOwnerOf(trail, index),
@@ -190,9 +213,8 @@ export function unitChoices(entryId: string, selection: Selection, index: Catalo
         const room = capacity === null ? occupantRoom(choosable, index) : capacity * scale
         const fixed = choosable.some((option) => minimum(option.definition) > 0)
         const dynamic = choosable.some((option) => minimum(option.definition) === 0 && hasDynamicSelectionLimit(option.definition, index))
-        const adjustable = fixed
-          ? choosable.filter((option) => minimum(option.definition) === 0 || (dynamic && hasMutableMinimum(option.definition, index)))
-          : choosable
+        const mutableMinimum = (option: Option) => dynamic && hasMutableMinimum(option.definition, index)
+        const adjustable = fixed ? choosable.filter((option) => minimum(option.definition) === 0 || mutableMinimum(option)) : choosable
         const held = repeating
           ? repeatedOptions(selection, repeating.path, here.slice(repeating.path.length))
           : allAt(selection, here).flatMap((group) => group.selections ?? [])
@@ -237,7 +259,9 @@ export function unitChoices(entryId: string, selection: Selection, index: Catalo
               name: resolve(option.definition, index).name ?? option.id,
               points: pointsOf(option, index),
               count: countOf(option.id),
+              min: minimum(option.definition) * scale,
               max: maximumFor(option),
+              ...(mutableMinimum(option) ? { mutableMin: true } : {}),
               ...(resolve(option.definition, index).type === 'model' ? { profile: modelProfileOf(option.definition, index) } : {}),
             })),
             uniform,
@@ -255,10 +279,13 @@ export function unitChoices(entryId: string, selection: Selection, index: Catalo
   }
 
   walk(entry, [], depth, new Set(), 1)
-  // An owner only means something next to a sibling it differs from. A unit built
-  // from one model throughout has nothing to contrast it with, so naming that model
-  // on every choice would repeat the unit's own name rather than distinguish anything.
-  if (new Set(choices.map((choice) => choice.owner?.id ?? '')).size <= 1) return choices.map((choice) => ({ ...choice, owner: null }))
+  // Keep a lone owner only when its mandatory range distinguishes that model from the squad.
+  const distinguishesOwner = choices.some(
+    (choice) => choice.owner && choice.options.some((option) => option.min > 0 && option.max > option.min),
+  )
+  if (new Set(choices.map((choice) => choice.owner?.id ?? '')).size <= 1 && !distinguishesOwner) {
+    return choices.map((choice) => ({ ...choice, owner: null }))
+  }
   return choices
 }
 

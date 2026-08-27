@@ -27,6 +27,7 @@ type Props = {
   onChoose: (key: string, optionId: string) => void
   onSpread: (key: string, counts: SpreadCounts) => void
   editable?: boolean
+  controlsDisabled?: boolean
   showOptions?: boolean
   reference?: ReactElement<{ providedSheet?: Datasheet | null }>
   /** A persisted read-only roster can be resolved without sending its picks. */
@@ -50,6 +51,7 @@ export function Loadout({
   onChoose,
   onSpread,
   editable = true,
+  controlsDisabled = false,
   showOptions = true,
   reference,
   persistedRoster,
@@ -126,7 +128,7 @@ export function Loadout({
   const described = { weapons, abilities, rules }
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full min-w-0 flex-col">
       <ScrollArea className="min-h-0 flex-1 [&_[data-slot=scroll-area-viewport]]:p-2.5">
         <div className="w-full min-w-0 space-y-4">
           {profile ? <UnitProfile profile={profile} /> : null}
@@ -143,6 +145,7 @@ export function Loadout({
                   onChoose={onChoose}
                   onSpread={onSpread}
                   editable={editable}
+                  controlsDisabled={controlsDisabled}
                   showOptions={showOptions}
                   {...described}
                 />
@@ -168,6 +171,7 @@ export function Loadout({
                       choice={choice}
                       unitName={unit.name}
                       editable={editable}
+                      controlsDisabled={controlsDisabled}
                       onChoose={onChoose}
                       showOptions={showOptions}
                       highlightSelection={showOptions}
@@ -177,6 +181,7 @@ export function Loadout({
                       key={choice.key}
                       choice={choice}
                       editable={editable}
+                      controlsDisabled={controlsDisabled}
                       onSpread={onSpread}
                       weapons={weapons}
                       abilities={availableSheet.abilities}
@@ -190,6 +195,7 @@ export function Loadout({
                       choice={choice}
                       unitName={unit.name}
                       editable={editable}
+                      controlsDisabled={controlsDisabled}
                       // A squad that must match answers once, and every model follows.
                       onChoose={choice.uniform ? (key, optionId) => onSpread(key, wholeSquadTakes(choice, optionId)) : onChoose}
                       weapons={weapons}

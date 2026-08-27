@@ -35,6 +35,7 @@ import { shortName } from './builder/factions'
 import { GROUPS } from './builder/groups'
 import { Loadout } from './builder/Loadout'
 import { Stepper } from './builder/LoadoutControls'
+import { changedDraftSpreadCounts, withDraftSpreadCounts } from './builder/loadoutModel'
 import { Picker, type PickerFilter } from './builder/Picker'
 import { Section } from './builder/Section'
 import { Pane } from './builder/Pane'
@@ -224,10 +225,11 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
     },
   })
 
-  // Priced on the live picks, not the settled ones: spread steppers write absolute
-  // counts computed from the answer on screen, so a delayed answer is a press that
-  // divides a squad the roster no longer holds.
-  const { data: priced, isFetching: pricing } = useQuery({
+  const {
+    data: priced,
+    dataUpdatedAt: pricedAt,
+    isPlaceholderData: pricePending,
+  } = useQuery({
     ...priceQuery(catalogueId, detachmentIds, disposition, limit, positioned),
     /**
      * The last answer, with whatever the list has since let go of taken out of it.
@@ -250,6 +252,13 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
       return { ...previous, units }
     },
   })
+  const evaluatedPicks = useRef(new Map(picks.map((pick) => [pick.key, pick])))
+  const evaluatedAt = useRef(0)
+  useLayoutEffect(() => {
+    if (!priced || pricePending || pricedAt <= evaluatedAt.current) return
+    evaluatedAt.current = pricedAt
+    evaluatedPicks.current = new Map(picks.map((pick) => [pick.key, pick]))
+  }, [picks, pricePending, priced, pricedAt])
 
   const units = priced?.units ?? NO_UNITS
   const edit = useMemo(() => pickEditor(setPicks, { catalogueId, units }), [catalogueId, setPicks, units])
@@ -305,19 +314,24 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
   const over = Boolean(priced && priced.points > limit)
   const selectedUnit = selected === null ? null : (units[selected] ?? null)
   const selectedPick = selected === null ? null : (picks[selected] ?? null)
+  const evaluatedPick = selectedPick ? (evaluatedPicks.current.get(selectedPick.key) ?? null) : null
+  const loadoutConstraintsPending = Boolean(
+    selectedUnit && selectedPick?.models !== undefined && selectedPick.models !== selectedUnit.size.models,
+  )
   const optimisticUnit =
     selectedUnit && selectedPick
       ? {
           ...selectedUnit,
           size: { ...selectedUnit.size, models: selectedPick.models ?? selectedUnit.size.models },
-          // Counts are the evaluated result, never the pick that asked for them.
-          // Taking a heavy weapon spends one of the squad's bodies, so a spread the
-          // player set in one group can be answered by a different number in another;
-          // showing what was asked for would keep insisting on the number that lost.
-          choices: selectedUnit.choices.map((choice) => ({
-            ...choice,
-            chosen: Object.hasOwn(selectedPick.choices ?? {}, choice.key) ? (selectedPick.choices?.[choice.key] ?? '') : choice.chosen,
-          })),
+          // Pending counts build on the draft; the evaluated allocation wins once
+          // it arrives because changing one group can rebalance another.
+          choices: withDraftSpreadCounts(
+            selectedUnit.choices.map((choice) => ({
+              ...choice,
+              chosen: Object.hasOwn(selectedPick.choices ?? {}, choice.key) ? (selectedPick.choices?.[choice.key] ?? '') : choice.chosen,
+            })),
+            pricePending ? changedDraftSpreadCounts(selectedPick.spreads, evaluatedPick?.spreads) : undefined,
+          ),
           toggles: selectedUnit.toggles.map((toggle) => ({
             ...toggle,
             selected: Object.hasOwn(selectedPick.toggles ?? {}, toggle.key) ? Boolean(selectedPick.toggles?.[toggle.key]) : toggle.selected,
@@ -362,9 +376,8 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
       pickIndex={selected}
       onChoose={(key, optionId) => selected !== null && edit.choose(selected, key, optionId)}
       onSpread={(key, counts) => selected !== null && edit.spread(selected, key, counts)}
-      // Counts are written as absolutes worked out from the answer on screen, so a press
-      // before the next answer lands would divide a squad the list no longer holds.
-      editable={editable && inspectorView === 'edit' && !pricing}
+      editable={editable && inspectorView === 'edit'}
+      controlsDisabled={loadoutConstraintsPending}
       showOptions={inspectorView !== 'readonly'}
       persistedRoster={editable || !resolvePersistedRoster ? undefined : { id: savedId, ...(battle ? { battle } : {}) }}
       reference={
@@ -659,7 +672,7 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
                       countLabel={`${optimisticUnit.name} models`}
                       count={optimisticUnit.size.models}
                       onRemove={
-                        optimisticUnit.size.models > optimisticUnit.size.min && !pricing
+                        optimisticUnit.size.models > optimisticUnit.size.min
                           ? () =>
                               selected !== null &&
                               edit.resize(
@@ -670,7 +683,7 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
                           : undefined
                       }
                       onAdd={
-                        optimisticUnit.size.models < optimisticUnit.size.max && !pricing
+                        optimisticUnit.size.models < optimisticUnit.size.max
                           ? () =>
                               selected !== null &&
                               edit.resize(

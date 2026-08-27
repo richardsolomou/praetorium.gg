@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   canAddPooledOption,
+  changedDraftSpreadCounts,
   choiceRemoval,
   controlledProfileCount,
   type LoadoutChoice,
@@ -17,9 +18,10 @@ import {
   weaponProfilesFor,
   wargearMatches,
   wholeSquadTakes,
+  withDraftSpreadCounts,
 } from './loadoutModel'
 
-const option = (id: string, count: number, max: number) => ({ id, name: id, points: 0, count, max })
+const option = (id: string, count: number, max: number) => ({ id, name: id, points: 0, count, min: 0, max })
 
 const choice = (options: LoadoutChoice['options'], room: number, optional = false): LoadoutChoice => ({
   key: 'group',
@@ -44,6 +46,27 @@ describe('showing loadout entries', () => {
   it('keeps empty wargear available while editing', () => {
     expect(showLoadoutEntry(0, true)).toBe(true)
   })
+})
+
+it('does not remove a mandatory copy while allowing an additional copy', () => {
+  const gauntlet = { ...option('gauntlet', 1, 2), min: 1 }
+  const handlers = spreadHandlers(choice([gauntlet], 2))
+
+  expect(handlers.less(gauntlet)).toBeNull()
+  expect(handlers.more(gauntlet)).toEqual({ gauntlet: 2 })
+})
+
+it('applies pending draft counts without replacing untouched evaluated counts', () => {
+  const group = choice([option('blaster', 8, 10), option('carbine', 2, 10), option('special', 0, 1)], 10)
+
+  expect(withDraftSpreadCounts([group], { group: { blaster: 7, carbine: 3 } })[0]?.options.map(({ count }) => count)).toEqual([7, 3, 0])
+})
+
+it('keeps only spread groups changed since the evaluated result', () => {
+  const evaluated = { weapons: { blaster: 8, carbine: 2 }, settled: { invalid: 3 } }
+  const current = { weapons: { blaster: 7, carbine: 3 }, settled: { invalid: 3 } }
+
+  expect(changedDraftSpreadCounts(current, evaluated)).toEqual({ weapons: current.weapons })
 })
 
 describe('matching a wargear name to what describes it', () => {
@@ -308,6 +331,13 @@ describe('dividing a group between its options', () => {
   it('takes from whichever sibling has the most once the group is full', () => {
     const group = choice([option('blaster', 8, 10), option('carbine', 2, 10)], 10)
     expect(spreadHandlers(group).more(group.options[1]!)).toEqual({ carbine: 3, blaster: 7 })
+  })
+
+  it('takes from a minimum that the catalogue changes for its sibling', () => {
+    const regular = { ...option('regular', 4, 9), min: 4, mutableMin: true }
+    const group = choice([regular, option('specialist', 0, 2)], 4)
+
+    expect(spreadHandlers(group).more(group.options[1]!)).toEqual({ specialist: 1, regular: 3 })
   })
 
   it("refuses to exceed an option's own cap", () => {

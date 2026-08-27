@@ -17,7 +17,7 @@
 
 import type { CatalogueIndex, Definition } from './catalogue'
 import { childrenOf, isCollective, MAX_DEPTH, maximumCount, type Option, pointsOf, requiredCount, resolve } from './definitions'
-import { evaluate, type Selection } from './evaluate'
+import { evaluate, type EvaluateOptions, type Selection } from './evaluate'
 import { defaultSelection, expand, withChoice } from './expand'
 import { countAt, updateSelection, withCounts } from './selection'
 import { type ChoiceOptions, isUnitCompositionChoice, type UnitChoice, unitChoices, type UnitToggle, unitToggles } from './unitChoices'
@@ -140,14 +140,14 @@ function assemble(
   const size = modelCountOf(toggled, index) === modelCountOf(composed, index) ? composedSize : sizeOf(toggled, index)
 
   if (requestedModels === undefined || !size.path.length || requestedModels === size.models) {
-    const fitted = refit(toggled, index, 1)
+    const fitted = refit(toggled, index, 1, context)
     return finishUnit(entryId, fitted, size, index, context)
   }
 
   const wanted = Math.min(Math.max(requestedModels, size.min), size.max)
   const current = countAt(toggled, size.path)
   const resized = withCounts(toggled, [{ path: size.path, count: Math.max(0, current + (wanted - size.models)) }])
-  const selection = refit(resized, index, 1)
+  const selection = refit(resized, index, 1, context)
   return finishUnit(entryId, selection, { ...size, models: wanted }, index, context)
 }
 
@@ -330,7 +330,7 @@ function optionalModelSlots(selection: Selection, index: CatalogueIndex): ModelS
  * insists on. Anything a player has deliberately put in the group stays; only the
  * shortfall moves, and it goes to the option the data names as the default.
  */
-function refit(selection: Selection, index: CatalogueIndex, carriers: number): Selection {
+function refit(selection: Selection, index: CatalogueIndex, carriers: number, options: EvaluateOptions = {}): Selection {
   const definition = index.definitions.get(selection.id)
   const target = definition ? resolve(definition, index) : undefined
   const held = target?.type === undefined ? carriers : Math.max(1, selection.count ?? 1)
@@ -342,8 +342,8 @@ function refit(selection: Selection, index: CatalogueIndex, carriers: number): S
     // Only wargear — a group of models is what the squad's own size means, and
     // filling that would overrule the number of models asked for.
     if (inner?.type === undefined && (child.selections ?? []).length) {
-      const options = childDefinition ? childrenOf(inner ?? { id: child.id }, index) : []
-      const wargear = options.filter(
+      const groupOptions = childDefinition ? childrenOf(inner ?? { id: child.id }, index) : []
+      const wargear = groupOptions.filter(
         (option) => isCollective(option.definition, index) && resolve(option.definition, index).type === 'upgrade',
       )
       // Only what the data insists every model carries. An optional group is a
@@ -351,17 +351,23 @@ function refit(selection: Selection, index: CatalogueIndex, carriers: number): S
       // for — the same reason `defaultSelection` leaves optional upgrades out.
       const need = childDefinition && wargear.length ? requiredCount(childDefinition, index) * held : 0
       const named = inner && 'defaultSelectionEntryId' in inner ? inner.defaultSelectionEntryId : undefined
-      const filled = need > 0 ? fill(child, need, named, options, index) : child
-      return refit(filled, index, held)
+      const filled = need > 0 ? fill(child, need, named, groupOptions, index) : child
+      return refit(filled, index, held, options)
     }
     // A mandatory collective upgrade: one per model, as the data asks. Models are
     // excluded for the same reason groups of them are — how many bodies a squad
     // fields is the squad's size, and refitting it would overrule the size asked for.
     if (childDefinition && isCollective(childDefinition, index) && inner?.type === 'upgrade') {
       const need = requiredCount(childDefinition, index) * held
-      return refit(need > 0 ? { ...child, count: need } : child, index, held)
+      const maximum = maximumCount(childDefinition, index, options)
+      const ceiling = maximum === null ? Number.POSITIVE_INFINITY : maximum * held
+      const count =
+        target?.type === 'model' && held === 1 && maximum !== null && maximum > requiredCount(childDefinition, index)
+          ? Math.min(ceiling, child.count ?? 1)
+          : need
+      return refit(need > 0 ? { ...child, count: Math.max(need, count) } : child, index, held, options)
     }
-    return refit(child, index, held)
+    return refit(child, index, held, options)
   })
 
   return children.length ? { ...selection, selections: children } : selection

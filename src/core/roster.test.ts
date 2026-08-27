@@ -750,7 +750,7 @@ describe('optional wargear on repeated models', () => {
       carried: true,
       room: 3,
       uniform: false,
-      options: [{ id: 'shield', name: 'Shieldvanes', points: 0, count: 0, max: 3 }],
+      options: [{ id: 'shield', name: 'Shieldvanes', points: 0, count: 0, min: 0, max: 3 }],
       owner: null,
     })
   })
@@ -1409,7 +1409,7 @@ describe('an upgrade the data hangs on the unit rather than in a group', () => {
     const [choice, ...rest] = buildUnit('squad', index)!.choices
     expect(rest).toEqual([])
     expect(choice).toMatchObject({ key: 'charge', name: 'Demolition charge', optional: true, room: 1, chosen: '', carried: false })
-    expect(choice?.options).toEqual([{ id: 'charge', name: 'Demolition charge', points: 15, count: 0, max: 1 }])
+    expect(choice?.options).toEqual([{ id: 'charge', name: 'Demolition charge', points: 15, count: 0, min: 0, max: 1 }])
   })
 
   it('charges for it once when it is taken, and stops when it is put down', () => {

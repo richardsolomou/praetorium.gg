@@ -958,6 +958,43 @@ test('a squad grows from its unit editor', async ({ page }) => {
   await page.screenshot({ path: 'test-results/unit-editor-model-count.png', fullPage: true })
 })
 
+test('loadout controls keep their shape while resized constraints load', async ({ page }) => {
+  await openBuilder(page)
+  await add(page, 'Immortals')
+  await page.locator('[data-unit="Immortals"]').getByRole('button', { name: 'Immortals', exact: true }).click()
+  await expect(page.locator('[data-roster-builder]')).toHaveAttribute('data-saving', 'false')
+
+  const loadout = page.locator('aside[aria-label="Loadout"]')
+  const tesla = loadout.getByRole('button', { name: 'Select Tesla carbine' })
+  await expect(tesla).toBeEnabled()
+
+  let releasePricing: () => void = () => undefined
+  const pricingHeld = new Promise<void>((resolve) => {
+    releasePricing = resolve
+  })
+  let pricingStarted: () => void = () => undefined
+  const started = new Promise<void>((resolve) => {
+    pricingStarted = resolve
+  })
+  await page.route('**/_serverFn/**', async (route) => {
+    if (route.request().method() === 'POST') {
+      pricingStarted()
+      await pricingHeld
+    }
+    await route.continue()
+  })
+
+  await loadout.getByRole('button', { name: 'More models in Immortals' }).click()
+  await started
+  await expect(loadout.getByLabel('Immortals models')).toHaveText('6')
+  await expect(tesla).toBeDisabled()
+  await expect(tesla).toHaveCount(1)
+  await shot(loadout, 'test-results/loadout-controls-pending-resize.png')
+
+  releasePricing()
+  await expect(tesla).toBeEnabled()
+})
+
 test('a unit duplicates with its configured model count', async ({ page }) => {
   await openBuilder(page)
   await add(page, 'Immortals')
@@ -1779,15 +1816,51 @@ test('Death Guard champions expose their legal wargear', async ({ page }) => {
   const loadout = page.locator('aside[aria-label="Loadout"]')
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(720)
   expect(await loadout.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
-  // The catalogue asks one question of the squad, and it is asked once: no second
-  // control for the icon under any model card.
+  const deathshroud = page.locator('[data-unit="Deathshroud Terminators"]')
+  await expect(loadout.getByLabel('Deathshroud Terminator Champion models')).toHaveText('1')
+  await expect(loadout.getByLabel('Deathshroud Terminator models')).toHaveText('2')
+  await expect(loadout.getByLabel('Plaguespurt gauntlet count').first()).toHaveText('1')
+  await expect(loadout.getByLabel('Plaguespurt gauntlet count').last()).toHaveText('2')
+  await expect(loadout.getByRole('button', { name: 'Fewer Plaguespurt gauntlet' })).toBeDisabled()
   const icon = loadout.getByRole('button', { name: 'Select Icon of Despair' })
   await expect(icon).toBeEnabled()
   await expect(icon).toHaveAttribute('aria-pressed', 'false')
   await expect(loadout.getByRole('button', { name: /More Icon of Despair/ })).toHaveCount(0)
-  await waitForRosterSave(page, () => icon.click())
-  await expect(icon).toHaveAttribute('aria-pressed', 'true')
+
+  let releasePricing: () => void = () => undefined
+  const pricingHeld = new Promise<void>((resolve) => {
+    releasePricing = resolve
+  })
+  let holdPricing = true
+  await page.route('**/_serverFn/**', async (route) => {
+    if (holdPricing && route.request().method() === 'POST') await pricingHeld
+    await route.continue()
+  })
+  const gauntletCount = loadout.getByLabel('Plaguespurt gauntlet count').first()
+  const addGauntlet = loadout.getByRole('button', { name: 'More Plaguespurt gauntlet' })
+  const removeGauntlet = loadout.getByRole('button', { name: 'Fewer Plaguespurt gauntlet' })
+  await addGauntlet.click()
+  await expect(gauntletCount).toHaveText('2', { timeout: 250 })
+  await expect(removeGauntlet).toBeEnabled()
+  await removeGauntlet.click()
+  await expect(gauntletCount).toHaveText('1', { timeout: 250 })
+  await expect(addGauntlet).toBeEnabled()
+  await addGauntlet.click()
+  await expect(gauntletCount).toHaveText('2', { timeout: 250 })
+  await icon.click()
+  await expect(loadout.getByRole('button', { name: 'Remove Icon of Despair' })).toBeEnabled()
+  await shot(
+    loadout.locator('section').filter({ hasText: 'Deathshroud Terminator Champion' }),
+    'test-results/deathshroud-wargear-pending.png',
+  )
+  holdPricing = false
+  releasePricing()
+  await expect(loadout.getByRole('button', { name: 'Remove Icon of Despair' })).toHaveAttribute('aria-pressed', 'true')
   await expect(loadout.getByRole('button', { name: /Icon of Despair/ })).toHaveCount(1)
+  await expect(gauntletCount).toHaveText('2')
+  await expect(addGauntlet).toBeDisabled()
+  await expect(deathshroud).toContainText('4x Plaguespurt gauntlet')
+  await expect(deathshroud).toContainText('3x Manreaper')
   await page.screenshot({ path: 'test-results/deathshroud-wargear-once.png', fullPage: true })
 
   await loadout.getByRole('button', { name: 'Close' }).click()
@@ -1802,6 +1875,12 @@ test('Death Guard champions expose their legal wargear', async ({ page }) => {
 
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(720)
   expect(await loadout.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
+  const plagueMarinesDatasheet = loadout.getByRole('link', { name: 'Open full datasheet in a new tab' })
+  await expect(plagueMarinesDatasheet).toHaveAttribute('href', '/factions/death-guard/datasheets/plague-marines')
+  await page.screenshot({ path: 'test-results/plague-marines-datasheet-link.png', fullPage: true })
+  const [openedPlagueMarines] = await Promise.all([page.waitForEvent('popup'), plagueMarinesDatasheet.click()])
+  await expect(openedPlagueMarines).toHaveURL(/\/factions\/death-guard\/datasheets\/plague-marines/)
+  await openedPlagueMarines.close()
   const plagueChampion = loadout.locator('section').filter({ hasText: 'Plague Champion' })
   await expect(plagueChampion.getByRole('button', { name: 'More Power fist' })).toBeEnabled()
   await waitForRosterSave(page, () => plagueChampion.getByRole('button', { name: 'More Power fist' }).click())
