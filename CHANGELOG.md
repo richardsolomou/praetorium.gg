@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.39.4
+
+### Patch Changes
+
+- 251038b: Show battle actions for revealed leagues created before event formats were stored.
+- 247c2e1: Validate Warlords when entrants seal league rosters and place roster actions before event history.
+
 ## 0.39.3
 
 ### Patch Changes
