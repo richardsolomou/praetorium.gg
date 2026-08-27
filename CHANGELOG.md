@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.40.1
+
+### Patch Changes
+
+- b4f5a0d: Allow size-limited specialist weapons and hide unselected detachment upgrades.
+
 ## 0.40.0
 
 ### Minor Changes
