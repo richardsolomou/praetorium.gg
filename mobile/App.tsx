@@ -5,15 +5,33 @@ import { ActivityIndicator, Alert, AppState, BackHandler, Linking, Pressable, St
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context'
 import { WebView } from 'react-native-webview'
 import type { WebViewNavigation } from 'react-native-webview'
+import {
+  appShellRenderChanged,
+  appShellRenderState,
+  authDeliveryFailed,
+  authDeliverySucceeded,
+  authReceived,
+  drainAppShell,
+  initialAppShellState,
+  initialAuthReceived,
+  initialUrlReceived,
+  rendererTerminated,
+  warmUrlReceived,
+  webLoadFailed,
+  webLoadStarted,
+  webLoadSucceeded,
+  webNavigationChanged,
+  type AppShellCommand,
+  type AppShellState,
+} from './src/appShellState'
 import { appStateChanged, initialAppLifecycle, WEB_RESUME_SCRIPT } from './src/lifecycle'
-import { APP_URL, applicationNavigationScript, classifyNavigation, initialApplicationUrl } from './src/navigation'
+import { applicationNavigationScript, classifyNavigation } from './src/navigation'
 import {
   NATIVE_AUTH_CALLBACK_URL,
   nativeAuthExchangeScript,
   nativeAuthStartUrl,
   parseNativeAuthCallback,
   parseNativeAuthRequest,
-  type NativeAuthCallback,
 } from './src/nativeAuth'
 
 const BACKGROUND = '#0b0c0e'
@@ -47,25 +65,29 @@ function AppShell() {
   const canGoBack = useRef(false)
   const authOpen = useRef(false)
   const handledAuthTokens = useRef(new Set<string>())
-  const pendingAuth = useRef<Extract<NativeAuthCallback, { kind: 'success' }> | null>(null)
-  const pendingNavigation = useRef<string | null>(null)
-  const webReady = useRef(false)
-  const hasSource = useRef(false)
   const lifecycle = useRef(initialAppLifecycle(AppState.currentState))
-  const [sourceUrl, setSourceUrl] = useState<string | null>(null)
+  const shellRef = useRef(initialAppShellState())
+  const [renderedShell, setRenderedShell] = useState(() => appShellRenderState(shellRef.current))
 
-  const loadSource = useCallback((url: string) => {
-    hasSource.current = true
-    setSourceUrl(url)
+  const commitShell = useCallback((state: AppShellState) => {
+    const shouldRender = appShellRenderChanged(shellRef.current, state)
+    shellRef.current = state
+    if (shouldRender) setRenderedShell(appShellRenderState(state))
   }, [])
 
-  const exchangeAuth = useCallback((callback: Extract<NativeAuthCallback, { kind: 'success' }>) => {
-    if (!webReady.current) {
-      pendingAuth.current = callback
-      return
-    }
-    webView.current?.injectJavaScript(nativeAuthExchangeScript(callback))
+  const deliver = useCallback((command: AppShellCommand) => {
+    const script = command.kind === 'auth' ? nativeAuthExchangeScript(command.callback) : applicationNavigationScript(command.url)
+    if (script) webView.current?.injectJavaScript(script)
   }, [])
+
+  const commitAndDrain = useCallback(
+    (state: AppShellState) => {
+      const drained = drainAppShell(state)
+      commitShell(drained.state)
+      if (drained.command) deliver(drained.command)
+    },
+    [commitShell, deliver],
+  )
 
   const handleAuthCallback = useCallback(
     (url: string) => {
@@ -73,10 +95,13 @@ function AppShell() {
       if (callback.kind === 'success') {
         if (handledAuthTokens.current.has(callback.token)) return
         handledAuthTokens.current.add(callback.token)
-        exchangeAuth(callback)
-      } else Alert.alert('Sign-in did not finish', 'Return to Praetorium and try the provider again.')
+        commitAndDrain(authReceived(shellRef.current, callback))
+      } else {
+        commitShell(warmUrlReceived(shellRef.current, url))
+        Alert.alert('Sign-in did not finish', 'Return to Praetorium and try the provider again.')
+      }
     },
-    [exchangeAuth],
+    [commitAndDrain, commitShell],
   )
 
   const openNativeAuth = useCallback(
@@ -118,23 +143,18 @@ function AppShell() {
 
   const navigateApplication = useCallback(
     (url: string) => {
-      const script = applicationNavigationScript(url)
-      if (!script) return
-      if (webReady.current) webView.current?.injectJavaScript(script)
-      else if (!hasSource.current) loadSource(initialApplicationUrl(url))
-      else pendingNavigation.current = script
+      commitAndDrain(warmUrlReceived(shellRef.current, url))
     },
-    [loadSource],
+    [commitAndDrain],
   )
 
   const handleIncomingUrl = useCallback(
     (url: string) => {
       if (url.startsWith(NATIVE_AUTH_CALLBACK_URL)) {
-        if (!hasSource.current) loadSource(APP_URL)
         handleAuthCallback(url)
       } else navigateApplication(url)
     },
-    [handleAuthCallback, loadSource, navigateApplication],
+    [handleAuthCallback, navigateApplication],
   )
 
   useEffect(() => {
@@ -148,53 +168,63 @@ function AppShell() {
 
   useEffect(() => {
     let active = true
-    let initialPending = true
     void Linking.getInitialURL().then(
       (url) => {
-        if (!active || !initialPending) return
-        initialPending = false
+        if (!active || !shellRef.current.initialUrlPending) return
         if (url?.startsWith(NATIVE_AUTH_CALLBACK_URL)) {
-          loadSource(APP_URL)
-          handleAuthCallback(url)
-        } else loadSource(initialApplicationUrl(url))
+          const callback = parseNativeAuthCallback(url)
+          if (callback.kind === 'success' && !handledAuthTokens.current.has(callback.token)) {
+            handledAuthTokens.current.add(callback.token)
+            commitAndDrain(initialAuthReceived(shellRef.current, callback))
+          } else if (callback.kind === 'error') {
+            commitShell(initialUrlReceived(shellRef.current, null))
+            Alert.alert('Sign-in did not finish', 'Return to Praetorium and try the provider again.')
+          }
+        } else commitShell(initialUrlReceived(shellRef.current, url))
       },
       () => {
-        if (!active || !initialPending) return
-        initialPending = false
-        loadSource(APP_URL)
+        if (active) commitShell(initialUrlReceived(shellRef.current, null))
       },
     )
     const subscription = Linking.addEventListener('url', ({ url }) => {
-      initialPending = false
       handleIncomingUrl(url)
     })
     return () => {
       active = false
       subscription.remove()
     }
-  }, [handleAuthCallback, handleIncomingUrl, loadSource])
+  }, [commitAndDrain, commitShell, handleIncomingUrl])
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (status) => {
       const changed = appStateChanged(lifecycle.current, status)
       lifecycle.current = changed.lifecycle
-      if (changed.shouldResumeWebApp && webReady.current) webView.current?.injectJavaScript(WEB_RESUME_SCRIPT)
+      if (changed.shouldResumeWebApp && shellRef.current.ready) webView.current?.injectJavaScript(WEB_RESUME_SCRIPT)
     })
     return () => subscription.remove()
   }, [])
 
-  const updateNavigation = useCallback((navigation: WebViewNavigation) => {
-    canGoBack.current = navigation.canGoBack
-  }, [])
+  const updateNavigation = useCallback(
+    (navigation: WebViewNavigation) => {
+      canGoBack.current = navigation.canGoBack
+      commitShell(webNavigationChanged(shellRef.current, navigation.url))
+    },
+    [commitShell],
+  )
+
+  const recoverRenderer = useCallback(() => {
+    commitShell(rendererTerminated(shellRef.current))
+  }, [commitShell])
 
   return (
     <SafeAreaView edges={['top', 'right', 'bottom', 'left']} style={styles.safeArea}>
       {/* oxlint-disable-next-line react/style-prop-object -- Expo's style prop selects a color scheme. */}
       <StatusBar style="light" />
-      {sourceUrl ? (
+      {renderedShell.sourceUrl ? (
         <WebView
+          key={renderedShell.renderKey}
           ref={webView}
-          source={{ uri: sourceUrl }}
+          source={{ uri: renderedShell.sourceUrl }}
           style={styles.webView}
           containerStyle={styles.webView}
           originWhitelist={['*']}
@@ -209,22 +239,15 @@ function AppShell() {
           renderLoading={() => <StateView />}
           renderError={() => <StateView error retry={() => webView.current?.reload()} />}
           onLoadStart={() => {
-            webReady.current = false
+            commitShell(webLoadStarted(shellRef.current))
           }}
-          onLoadEnd={() => {
-            webReady.current = true
-            if (pendingAuth.current) {
-              const callback = pendingAuth.current
-              pendingAuth.current = null
-              exchangeAuth(callback)
-              return
-            }
-            if (pendingNavigation.current) {
-              const script = pendingNavigation.current
-              pendingNavigation.current = null
-              webView.current?.injectJavaScript(script)
-            }
+          onLoad={({ nativeEvent }) => {
+            commitAndDrain(webLoadSucceeded(shellRef.current, nativeEvent.url))
           }}
+          onError={() => commitShell(webLoadFailed(shellRef.current))}
+          onHttpError={() => commitShell(webLoadFailed(shellRef.current))}
+          onContentProcessDidTerminate={recoverRenderer}
+          onRenderProcessGone={recoverRenderer}
           onMessage={({ nativeEvent }) => {
             const result = (() => {
               try {
@@ -234,7 +257,11 @@ function AppShell() {
               }
             })()
             if (result?.type === 'native-auth-result') {
-              if (result.ok !== true) Alert.alert('Sign-in did not finish', 'The secure sign-in code expired. Try again.')
+              if (result.ok === true) commitShell(authDeliverySucceeded(shellRef.current))
+              else {
+                commitAndDrain(authDeliveryFailed(shellRef.current))
+                Alert.alert('Sign-in did not finish', 'The secure sign-in code expired. Try again.')
+              }
               return
             }
             void openNativeAuth(nativeEvent.data)
