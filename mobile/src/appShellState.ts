@@ -3,10 +3,7 @@ import type { NativeAuthCallback } from './nativeAuth'
 
 type AuthCallback = Extract<NativeAuthCallback, { kind: 'success' }>
 
-export type AppShellCommand =
-  | { kind: 'auth'; callback: AuthCallback }
-  | { kind: 'auth-navigation'; url: string }
-  | { kind: 'navigation'; url: string }
+export type AppShellCommand = { kind: 'auth'; callback: AuthCallback } | { kind: 'auth-interruption' } | { kind: 'navigation'; url: string }
 
 export type AppShellState = {
   sourceUrl: string | null
@@ -16,7 +13,7 @@ export type AppShellState = {
   loadStarted: boolean
   loadFailed: boolean
   pendingAuth: AuthCallback | null
-  pendingAuthNavigation: string | null
+  pendingAuthInterruption: boolean
   pendingNavigation: string | null
   delivering: AppShellCommand | null
   renderKey: number
@@ -41,7 +38,7 @@ export function initialAppShellState(): AppShellState {
     loadStarted: false,
     loadFailed: false,
     pendingAuth: null,
-    pendingAuthNavigation: null,
+    pendingAuthInterruption: false,
     pendingNavigation: null,
     delivering: null,
     renderKey: 0,
@@ -91,9 +88,6 @@ function restoreDelivery(state: AppShellState): AppShellState {
   if (state.delivering?.kind === 'auth') {
     return { ...state, pendingAuth: state.pendingAuth ?? state.delivering.callback, delivering: null }
   }
-  if (state.delivering?.kind === 'auth-navigation') {
-    return { ...state, pendingAuthNavigation: state.delivering.url, delivering: null }
-  }
   if (state.delivering?.kind === 'navigation') {
     return { ...state, pendingNavigation: state.pendingNavigation ?? state.delivering.url, delivering: null }
   }
@@ -114,13 +108,13 @@ export function confirmWebLoadSucceeded(state: AppShellState): AppShellState {
 
 export function drainAppShell(state: AppShellState): { state: AppShellState; command: AppShellCommand | null } {
   if (!state.ready || state.delivering) return { state, command: null }
+  if (state.pendingAuthInterruption) {
+    const command: AppShellCommand = { kind: 'auth-interruption' }
+    return { state: { ...state, pendingAuthInterruption: false, delivering: command }, command }
+  }
   if (state.pendingAuth) {
     const command: AppShellCommand = { kind: 'auth', callback: state.pendingAuth }
     return { state: { ...state, pendingAuth: null, delivering: command }, command }
-  }
-  if (state.pendingAuthNavigation) {
-    const command: AppShellCommand = { kind: 'auth-navigation', url: state.pendingAuthNavigation }
-    return { state: { ...state, pendingAuthNavigation: null, delivering: command }, command }
   }
   if (state.pendingNavigation) {
     const command: AppShellCommand = { kind: 'navigation', url: state.pendingNavigation }
@@ -134,11 +128,11 @@ export function authDeliveryFailed(state: AppShellState): AppShellState {
 }
 
 export function authDeliverySucceeded(state: AppShellState): AppShellState {
-  if (state.delivering?.kind !== 'auth') return state
-  return {
-    ...state,
-    delivering: { kind: 'auth-navigation', url: new URL(state.delivering.callback.next, APP_URL).href },
-  }
+  return state.delivering?.kind === 'auth' ? { ...state, delivering: null } : state
+}
+
+export function authInterruptionAcknowledged(state: AppShellState): AppShellState {
+  return state.delivering?.kind === 'auth-interruption' ? { ...state, delivering: null } : state
 }
 
 export function rendererTerminated(state: AppShellState): AppShellState {
@@ -146,12 +140,9 @@ export function rendererTerminated(state: AppShellState): AppShellState {
     if (state.delivering?.kind === 'auth') {
       return {
         ...state,
-        pendingAuthNavigation: new URL(state.delivering.callback.next, APP_URL).href,
+        pendingAuthInterruption: true,
         delivering: null,
       }
-    }
-    if (state.delivering?.kind === 'auth-navigation') {
-      return { ...state, pendingAuthNavigation: state.delivering.url, delivering: null }
     }
     return restoreDelivery(state)
   })()

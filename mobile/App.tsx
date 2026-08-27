@@ -10,6 +10,7 @@ import {
   appShellRenderState,
   authDeliveryFailed,
   authDeliverySucceeded,
+  authInterruptionAcknowledged,
   authReceived,
   confirmWebLoadSucceeded,
   drainAppShell,
@@ -78,7 +79,7 @@ function AppShell() {
     if (shouldRender) setRenderedShell(appShellRenderState(state))
   }, [])
 
-  const deliver = useCallback((command: AppShellCommand) => {
+  const deliver = useCallback((command: Exclude<AppShellCommand, { kind: 'auth-interruption' }>) => {
     const script = command.kind === 'auth' ? nativeAuthExchangeScript(command.callback) : applicationNavigationScript(command.url)
     if (script) webView.current?.injectJavaScript(script)
   }, [])
@@ -87,7 +88,23 @@ function AppShell() {
     (state: AppShellState) => {
       const drained = drainAppShell(state)
       commitShell(drained.state)
-      if (drained.command) deliver(drained.command)
+      if (drained.command?.kind === 'auth-interruption') {
+        Alert.alert(
+          'Sign-in interrupted',
+          'Praetorium restarted before sign-in finished. Try sign-in again.',
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                const resumed = drainAppShell(authInterruptionAcknowledged(shellRef.current))
+                commitShell(resumed.state)
+                if (resumed.command && resumed.command.kind !== 'auth-interruption') deliver(resumed.command)
+              },
+            },
+          ],
+          { cancelable: false },
+        )
+      } else if (drained.command) deliver(drained.command)
     },
     [commitShell, deliver],
   )

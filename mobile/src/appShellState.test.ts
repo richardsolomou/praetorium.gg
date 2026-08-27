@@ -4,6 +4,7 @@ import {
   appShellRenderState,
   authDeliveryFailed,
   authDeliverySucceeded,
+  authInterruptionAcknowledged,
   authReceived,
   confirmWebLoadSucceeded,
   drainAppShell,
@@ -93,16 +94,11 @@ describe('application shell delivery', () => {
     expect(confirmWebLoadSucceeded(webLoadFinished(terminated, 'https://praetorium.gg')).ready).toBe(false)
   })
 
-  it('recovers authenticated navigation without replaying a consumed token', () => {
+  it('clears authenticated delivery after native acknowledgement', () => {
     const loaded = successfulLoad(initialUrlReceived(initialAppShellState(), null), 'https://praetorium.gg')
     const deliveringAuth = drainAppShell(authReceived(loaded, auth)).state
-    const exchanged = authDeliverySucceeded(deliveringAuth)
 
-    expect(rendererTerminated(exchanged)).toMatchObject({
-      pendingAuth: null,
-      pendingAuthNavigation: 'https://praetorium.gg/lists',
-      delivering: null,
-    })
+    expect(authDeliverySucceeded(deliveringAuth).delivering).toBeNull()
   })
 
   it('does not change the controlled source after ordinary internal navigation', () => {
@@ -152,26 +148,59 @@ describe('application shell delivery', () => {
   it('preserves auth that renderer termination interrupts before delivery', () => {
     const pending = authReceived(initialUrlReceived(initialAppShellState(), null), auth)
 
-    expect(rendererTerminated(pending)).toMatchObject({ pendingAuth: auth, pendingAuthNavigation: null })
+    expect(rendererTerminated(pending)).toMatchObject({ pendingAuth: auth, pendingAuthInterruption: false })
   })
 
-  it('recovers injected auth as its next page before a queued warm navigation', () => {
+  it('reports injected auth as interrupted without replaying its token or destination', () => {
     const loaded = successfulLoad(initialUrlReceived(initialAppShellState(), null), 'https://praetorium.gg')
     const deliveringAuth = drainAppShell(authReceived(loaded, auth)).state
-    const withWarmLink = warmUrlReceived(deliveringAuth, 'https://praetorium.gg/battles/42')
-    const recovered = rendererTerminated(withWarmLink)
-    const remounted = successfulLoad(recovered, 'https://praetorium.gg')
-    const authNavigation = drainAppShell(remounted)
-    const authPageLoaded = successfulLoad(authNavigation.state, 'https://praetorium.gg/lists')
+    const recovered = rendererTerminated(deliveringAuth)
 
-    expect({ recovered, first: authNavigation.command, second: drainAppShell(authPageLoaded).command }).toEqual({
+    expect({
+      recovered,
+      containsToken: JSON.stringify(recovered).includes(auth.token),
+      containsDestination: JSON.stringify(recovered).includes(auth.next),
+    }).toEqual({
       recovered: expect.objectContaining({
         pendingAuth: null,
-        pendingAuthNavigation: 'https://praetorium.gg/lists',
+        pendingAuthInterruption: true,
+        delivering: null,
+      }),
+      containsToken: false,
+      containsDestination: false,
+    })
+  })
+
+  it('continues a queued warm navigation after interrupted sign-in acknowledgement', () => {
+    const loaded = successfulLoad(initialUrlReceived(initialAppShellState(), null), 'https://praetorium.gg')
+    const deliveringAuth = drainAppShell(authReceived(loaded, auth)).state
+    const recovered = rendererTerminated(warmUrlReceived(deliveringAuth, 'https://praetorium.gg/battles/42'))
+    const remounted = successfulLoad(recovered, 'https://praetorium.gg')
+    const interruption = drainAppShell(remounted)
+    const continued = drainAppShell(authInterruptionAcknowledged(interruption.state))
+
+    expect({ recovered, first: interruption.command, second: continued.command }).toEqual({
+      recovered: expect.objectContaining({
+        pendingAuth: null,
+        pendingAuthInterruption: true,
         pendingNavigation: 'https://praetorium.gg/battles/42',
       }),
-      first: { kind: 'auth-navigation', url: 'https://praetorium.gg/lists' },
+      first: { kind: 'auth-interruption' },
       second: { kind: 'navigation', url: 'https://praetorium.gg/battles/42' },
+    })
+  })
+
+  it('keeps a displayed sign-in interruption active across another renderer termination', () => {
+    const loaded = successfulLoad(initialUrlReceived(initialAppShellState(), null), 'https://praetorium.gg')
+    const deliveringAuth = drainAppShell(authReceived(loaded, auth)).state
+    const recovered = successfulLoad(rendererTerminated(deliveringAuth), 'https://praetorium.gg')
+    const interruption = drainAppShell(recovered).state
+
+    expect(rendererTerminated(interruption)).toMatchObject({
+      pendingAuthInterruption: false,
+      delivering: { kind: 'auth-interruption' },
+      ready: false,
+      renderKey: 2,
     })
   })
 })
