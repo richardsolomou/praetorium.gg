@@ -63,15 +63,15 @@ export const Route = createFileRoute('/rosters/')({
 
 function RosterLibrary() {
   const { data: me } = useQuery(meQuery())
-  const savedResult = useQuery(savedRosterSummariesQuery())
-  const pricesResult = useQuery(savedRosterPointsQuery())
-  const availableResult = useQuery(factionIndexQuery())
+  const savedResult = useQuery({ ...savedRosterSummariesQuery(), enabled: Boolean(me) })
+  const pricesResult = useQuery({ ...savedRosterPointsQuery(), enabled: Boolean(me) })
+  const availableResult = useQuery({ ...factionIndexQuery(), enabled: Boolean(me) })
   const saved = savedResult.data ?? []
   const prices = pricesResult.data
   const available = availableResult.data
   const search = Route.useSearch()
   const navigate = useNavigate()
-  const { favourites } = useFavouriteFactions()
+  const { favourites } = useFavouriteFactions(Boolean(me))
   const factionSlugById = new Map((available?.factions ?? []).map((faction) => [faction.id, faction.slug]))
   const selectedFactionId = available?.factions.find((faction) => faction.slug === search.faction)?.id
   const factionGroups = factionSelectGroups(available?.factions ?? [], favourites).map((group) => ({
@@ -125,11 +125,7 @@ function RosterLibrary() {
           </div>
           <div className="flex flex-wrap gap-2">
             <RosterImport />
-            {available ? (
-              <CreateRoster factionOptions={available.factions} />
-            ) : (
-              <Skeleton className="h-9 w-32 rounded-none" aria-label="Loading roster creation options" />
-            )}
+            <CreateRoster factionOptions={available?.factions ?? []} />
           </div>
         </div>
       </section>
@@ -146,14 +142,14 @@ function RosterLibrary() {
       ) : null}
 
       <section className="mx-auto mt-4 max-w-5xl px-3 sm:px-4">
-        <p className="rubric flex items-baseline justify-between border-b border-edge pb-2">
+        <div className="rubric flex items-baseline justify-between border-b border-edge pb-2">
           <span>Rosters</span>
           {libraryPending ? (
             <Skeleton className="h-4 w-5" aria-label="Loading roster count" />
           ) : (
             <span className="readout">{shown.length}</span>
           )}
-        </p>
+        </div>
         <div className="mt-2 space-y-2">
           {libraryPending ? (
             <RosterLibrarySkeleton />

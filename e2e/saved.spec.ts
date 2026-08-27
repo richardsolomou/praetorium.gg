@@ -1,9 +1,24 @@
 import { expect, test } from '@playwright/test'
 import { createRoster, signUp, uniqueName, waitForRosterSave } from './account'
 
-test('the roster library reserves its rows while the first page loads', async ({ page }) => {
+test('the roster library reserves its rows while the first page loads', async ({ browser, page }) => {
   await signUp(page, 'Loading')
   const rosterName = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Loading roster' })
+
+  const firstFrameContext = await browser.newContext({ javaScriptEnabled: false, storageState: await page.context().storageState() })
+  const firstFrame = await firstFrameContext.newPage()
+  await firstFrame.goto('/rosters')
+  const firstFrameRubric = firstFrame.locator('main section').last().locator('.rubric')
+  await expect(firstFrameRubric.getByText('Rosters', { exact: true })).toBeVisible()
+  await expect(firstFrameRubric.getByLabel('Loading roster count')).toBeVisible()
+  await expect(firstFrame.getByRole('button', { name: 'Create editable roster' })).toBeVisible()
+  await expect(firstFrame.getByLabel('Loading roster creation options')).toHaveCount(0)
+  await firstFrame.screenshot({ path: 'test-results/loading-roster-library-no-js.png', fullPage: true })
+  await firstFrame.setViewportSize({ width: 390, height: 844 })
+  expect(await firstFrame.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  await firstFrame.screenshot({ path: 'test-results/loading-roster-library-no-js-phone.png', fullPage: true })
+  await firstFrameContext.close()
+
   await page.goto('/')
   let release: () => void = () => {}
   const held = new Promise<void>((resolve) => {
@@ -16,7 +31,15 @@ test('the roster library reserves its rows while the first page loads', async ({
 
   await page.getByRole('link', { name: 'Rosters', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'My rosters' })).toBeVisible()
-  await expect(page.getByLabel('Loading roster count')).toBeVisible()
+  const libraryRubric = page.locator('main section').last().locator('.rubric')
+  await expect(libraryRubric.getByText('Rosters', { exact: true })).toBeVisible()
+  await expect(libraryRubric.getByLabel('Loading roster count')).toBeVisible()
+  const createRosterButton = page.getByRole('button', { name: 'Create editable roster' })
+  await expect(createRosterButton).toBeVisible()
+  await expect(page.getByLabel('Loading roster creation options')).toHaveCount(0)
+  await createRosterButton.click()
+  await expect(page.getByRole('heading', { name: 'Create roster' })).toBeVisible()
+  await page.keyboard.press('Escape')
   await page.screenshot({ path: 'test-results/loading-roster-library.png', fullPage: true })
   await page.setViewportSize({ width: 390, height: 844 })
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
@@ -24,6 +47,14 @@ test('the roster library reserves its rows while the first page loads', async ({
   release()
   await expect(page.locator(`[data-roster="${rosterName}"]`)).toBeVisible()
   await page.unroute('**/_serverFn/**')
+})
+
+test('the guest roster page shows its account gate without library loaders', async ({ page }) => {
+  await page.goto('/rosters')
+
+  await expect(page.getByRole('heading', { name: 'Your rosters' })).toBeVisible()
+  await expect(page.getByRole('main').getByRole('link', { name: 'Sign in' })).toBeVisible()
+  await expect(page.getByLabel(/^Loading roster/)).toHaveCount(0)
 })
 
 /**
