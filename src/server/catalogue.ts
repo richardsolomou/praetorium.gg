@@ -675,6 +675,7 @@ function parsedAbilityGrants(
   const grant = (written: string, recipient: 'bearer' | 'leader' | 'unit') => {
     const matched = linkedAbilities.filter((name) => ruleReferenceMatches(written, name) || ruleReferenceMatches(name, written))
     const deployments = deploymentAbilities(written)
+    if (!deployments.length && mentionsDeploymentAbility(written)) return []
     const names = [...new Set([...matched, ...deployments])]
     if (!names.length) names.push(...(linkedAbilities.length === 1 ? linkedAbilities : [written]))
     return names.filter(mayUseUnlinked).map((name) => ({ name: titleCaseAbility(name), recipient }))
@@ -718,10 +719,15 @@ const DEPLOYMENT_ABILITY_LIST = new RegExp(
   'iu',
 )
 const DEPLOYMENT_ABILITIES = new RegExp(DEPLOYMENT_ABILITY, 'giu')
+const DEPLOYMENT_ABILITY_MENTION = new RegExp(DEPLOYMENT_ABILITY, 'iu')
 
 function deploymentAbilities(written: string): string[] {
   const normalized = written.normalize('NFKC')
   return DEPLOYMENT_ABILITY_LIST.test(normalized) ? (normalized.match(DEPLOYMENT_ABILITIES) ?? []) : []
+}
+
+function mentionsDeploymentAbility(written: string): boolean {
+  return DEPLOYMENT_ABILITY_MENTION.test(written.normalize('NFKC'))
 }
 
 const titleCaseAbility = (name: string) =>

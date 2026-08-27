@@ -814,26 +814,37 @@ describe('the profile modifiers on a datasheet', () => {
 
   it('does not make a temporary deployment ability permanent', () => {
     const book = bookOf({
+      sharedRules: [{ id: 'deep-strike', name: 'Deep Strike', description: 'Deep Strike rule.' }],
       selectionEntries: [
         {
           id: 'unit',
           name: 'Unit',
           type: 'unit',
-          profiles: [
+          selectionEntries: [
             {
-              id: 'temporary-rule',
-              name: 'Temporary rule',
-              typeName: 'Abilities',
-              characteristics: [{ name: 'Description', $text: 'This unit has Deep Strike until the start of your next Shooting phase.' }],
+              id: 'enhancement',
+              name: 'Enhancement',
+              type: 'upgrade',
+              infoLinks: [{ id: 'deep-strike-link', targetId: 'deep-strike', name: 'Deep Strike', type: 'rule' }],
+              profiles: [
+                {
+                  id: 'temporary-rule',
+                  name: 'Temporary rule',
+                  typeName: 'Abilities',
+                  characteristics: [
+                    { name: 'Description', $text: 'This unit has Deep Strike until the start of your next Shooting phase.' },
+                  ],
+                },
+              ],
             },
           ],
         },
       ],
     })
 
-    expect(contextualAbilityNamesIn(book, 'cat', 'unit', { selections: [{ id: 'unit' }], unitSelectionIndex: 0 })).not.toContain(
-      'Deep Strike',
-    )
+    const selections = [{ id: 'unit', selections: [{ id: 'enhancement' }] }]
+
+    expect(contextualAbilityNamesIn(book, 'cat', 'unit', { selections, unitSelectionIndex: 0 })).not.toContain('Deep Strike')
   })
 
   it.each([
