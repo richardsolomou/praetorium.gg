@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.41.1
+
+### Patch Changes
+
+- db56725: Show stable skeletons while page data loads and keep touched rule tooltips open.
+
 ## 0.41.0
 
 ### Minor Changes
