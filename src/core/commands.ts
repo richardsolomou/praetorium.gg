@@ -28,7 +28,27 @@ export const rosterPickSchema = z.object({
   attachedTo: z.number().int().min(0).max(99).optional(),
 })
 const phase = z.enum(['command', 'movement', 'shooting', 'charge', 'fight', 'end'])
-const secondary = z.object({ key: id, name: z.string().min(1).max(ROSTER_NAME_MAX_LENGTH) })
+const award = z.object({
+  vp: z.number().int().min(0).max(100),
+  per: z.string().max(200).nullable(),
+  mode: z.string().max(40).nullable(),
+  max: z.number().int().min(0).max(100).nullable(),
+  group: z.string().max(100).nullable(),
+  cumulative: z.boolean(),
+  criteria: z.string().max(2_000).nullable(),
+  trigger: z.object({
+    timing: z.string().max(80).nullable(),
+    phase: z.string().max(80).nullable(),
+    playerTurn: z.string().max(80).nullable(),
+    roundMin: z.number().int().min(1).max(BATTLE_ROUNDS).nullable(),
+    roundMax: z.number().int().min(1).max(BATTLE_ROUNDS).nullable(),
+  }),
+})
+const secondary = z.object({
+  key: id,
+  name: z.string().min(1).max(ROSTER_NAME_MAX_LENGTH),
+  awards: z.array(award).max(20).optional(),
+})
 const stratagem = z.object({
   key: id,
   name: z.string().min(1).max(ROSTER_NAME_MAX_LENGTH),

@@ -258,7 +258,7 @@ describe('the mission a side is held to', () => {
     expect(sides(view(table)).every((side) => side.mission === null)).toBe(true)
   })
 
-  it('does not call mission cards ready until the primary and tactical deck are present', () => {
+  it('does not call mission cards ready until the primary and secondary deck are present', () => {
     const [missing] = sides(view([player({ id: 'alice', side: 0 })]), [{ side: 0, mission: mission('mission-a', 15) }])
     const [ready] = sides(
       view([
@@ -273,6 +273,12 @@ describe('the mission a side is held to', () => {
     )
 
     expect(missionCardsReady(missing!)).toBe(false)
+    expect(missionCardsReady(ready!)).toBe(true)
+
+    ready!.secondaryMode = 'fixed'
+    ready!.secondaries = [{ key: 'a', name: 'A', points: 0, rounds: [], status: 'active', secret: false, revealed: true }]
+    expect(missionCardsReady(ready!)).toBe(false)
+    ready!.secondaries.push({ key: 'b', name: 'B', points: 0, rounds: [], status: 'active', secret: false, revealed: true })
     expect(missionCardsReady(ready!)).toBe(true)
   })
 })

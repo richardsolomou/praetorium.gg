@@ -447,20 +447,99 @@ describe('setup', () => {
     expect(validate(state, ALICE, prep)).toBe('cards are settled before the battle begins')
   })
 
-  it('allows a missing tactical deck to be restored after the battle begins', () => {
-    const repair: Command = {
+  it('refuses duplicate selected secondaries', () => {
+    const state = reduceBattle(PLAYERS, log())
+    const secondary = { key: 'secondary', name: 'Behind Enemy Lines' }
+    const prep: Command = {
       kind: 'set-prep',
       stratagems: [],
+      secondaries: [secondary, secondary],
+      primary: null,
+      secondaryMode: 'fixed',
+    }
+
+    expect(validate(state, ALICE, prep)).toBe('the selected secondaries contain duplicates')
+  })
+
+  it('allows a missing tactical deck to be restored after the battle begins', () => {
+    const stratagem = { key: 'reroll', name: 'Command Re-roll', cp: 1, limit: 'phase' as const }
+    const repair: Command = {
+      kind: 'set-prep',
+      stratagems: [stratagem],
       secondaries: [],
       secondaryDeck: [{ key: 'a', name: 'Behind Enemy Lines' }],
       primary: { key: 'primary', name: 'Battlefield Dominance' },
       secondaryMode: 'tactical',
     }
-    const missing = reduceBattle(PLAYERS, log(...started()))
-    const restored = reduceBattle(PLAYERS, log(...started(), [ALICE, repair]))
+    const prep: Command = { ...repair, secondaryDeck: undefined }
+    const history: [string, Command][] = [
+      [ALICE, roster('Ultramarines')],
+      [BOB, roster('Death Guard')],
+      [ALICE, prep],
+      [ALICE, { kind: 'begin-battle', firstPlayerId: ALICE }],
+    ]
+    const missing = reduceBattle(PLAYERS, log(...history))
+    const restored = reduceBattle(PLAYERS, log(...history, [ALICE, repair]))
 
     expect(validate(missing, ALICE, repair)).toBeNull()
+    expect(validate(missing, ALICE, { ...repair, stratagems: [] })).toBe('cards are settled before the battle begins')
+    expect(restored.players[0]?.stratagems).toEqual([stratagem])
     expect(validate(restored, ALICE, repair)).toBe('cards are settled before the battle begins')
+  })
+
+  it('restores a legacy fixed deck without changing the selected cards', () => {
+    const selected = { key: 'a', name: 'Behind Enemy Lines' }
+    const secret = { key: 'b', name: 'Assassination' }
+    const primary = { key: 'primary', name: 'Battlefield Dominance' }
+    const fixedPrep: Command = {
+      kind: 'set-prep',
+      stratagems: [],
+      secondaries: [selected],
+      primary: null,
+      secondaryMode: 'fixed',
+    }
+    const history: [string, Command][] = [
+      [ALICE, roster('Ultramarines')],
+      [BOB, roster('Death Guard')],
+      [ALICE, fixedPrep],
+      [ALICE, { kind: 'begin-battle', firstPlayerId: ALICE }],
+    ]
+    const missing = reduceBattle(PLAYERS, log(...history))
+    const repair: Command = { ...fixedPrep, primary, secondaryDeck: [selected, secret] }
+
+    expect(validate(missing, ALICE, fixedPrep)).toBe('cards are settled before the battle begins')
+    expect(validate(missing, ALICE, repair)).toBeNull()
+    const restored = reduceBattle(PLAYERS, log(...history, [ALICE, repair]))
+    expect(battleView({ token: 'abc' }, NAMES, restored, ALICE).players[0]?.remainingSecondaries).toEqual([secret])
+    expect(restored.players[0]?.primaryCard).toEqual(primary)
+    expect(validate(missing, ALICE, { ...repair, secondaries: [secret] })).toBe('cards are settled before the battle begins')
+  })
+
+  it('restores a fixed deck without resetting a selected secret or settled score', () => {
+    const fixed = { key: 'fixed', name: 'Behind Enemy Lines' }
+    const secret = { key: 'secret', name: 'Hold the Line' }
+    const prep: Command = { kind: 'set-prep', stratagems: [], secondaries: [fixed], primary: null, secondaryMode: 'fixed' }
+    const history: [string, Command][] = [
+      [ALICE, roster('Ultramarines')],
+      [BOB, roster('Death Guard')],
+      [ALICE, prep],
+      [ALICE, { kind: 'begin-battle', firstPlayerId: ALICE }],
+      [ALICE, { kind: 'select-secret', secondary: secret }],
+      [ALICE, { kind: 'score-secondary', key: fixed.key, delta: 4 }],
+      [ALICE, { kind: 'set-secondary-status', key: fixed.key, status: 'discarded' }],
+    ]
+    const missing = reduceBattle(PLAYERS, log(...history))
+    const repair: Command = { ...prep, secondaryDeck: [fixed, secret] }
+    const restored = reduceBattle(PLAYERS, log(...history, [ALICE, repair]))
+
+    expect(validate(missing, ALICE, repair)).toBeNull()
+    expect(restored.players[0]).toMatchObject({
+      secondaries: [fixed, secret],
+      secondaryStatus: { fixed: 'discarded', secret: 'active' },
+      secretSecondary: secret.key,
+      secretRevealed: false,
+      scored: { fixed: 4 },
+    })
   })
 
   it('refuses cards carried in with a replacement list', () => {
@@ -720,6 +799,14 @@ describe('the turn sequence', () => {
     expect(state.players.find((player) => player.id === ALICE)?.cp).toBe(1)
   })
 
+  it('grants each side a command point at the start of every turn', () => {
+    const firstTurns = reduceBattle(PLAYERS, log(...started(), ...turns(6, ALICE)))
+    expect(firstTurns.players.map((player) => player.cp)).toEqual([1, 1])
+
+    const nextRound = reduceBattle(PLAYERS, log(...started(), ...turns(6, ALICE), ...turns(6, BOB)))
+    expect(nextRound.players.map((player) => player.cp)).toEqual([2, 1])
+  })
+
   it('steps through the phases in order', () => {
     const state = reduceBattle(PLAYERS, log(...started(), ...turns(2, ALICE)))
     expect(state.phase).toBe('shooting')
@@ -761,13 +848,30 @@ describe('the turn sequence', () => {
     expect(state.activePlayerId).toBe(ALICE)
   })
 
-  it('finishes the battle after the last round', () => {
+  it('settles the first player’s final opponent turn before finishing the battle', () => {
     const rounds = Array.from({ length: BATTLE_ROUNDS }, () => [...turns(6, ALICE), ...turns(6, BOB)]).flat()
-    const state = reduceBattle(PLAYERS, log(...started(), ...rounds))
-    expect(state.status).toBe('finished')
+    const waiting = reduceBattle(PLAYERS, log(...started(), ...rounds))
+    const state = reduceBattle(
+      PLAYERS,
+      log(
+        ...started(),
+        ...rounds,
+        [ALICE, { kind: 'score-settlement', round: BATTLE_ROUNDS, scores: [{ category: 'primary', delta: 5 }] }],
+        [BOB, { kind: 'settle-opponent-turn' }],
+      ),
+    )
+
+    expect(waiting).toMatchObject({
+      status: 'playing',
+      completionPending: true,
+      pendingSettlement: { playerId: ALICE, round: BATTLE_ROUNDS },
+    })
+    expect(state).toMatchObject({ status: 'finished', completionPending: false, result: { reason: 'completed' } })
+    expect(state.players[0]?.primaryByRound[BATTLE_ROUNDS - 1]).toBe(5)
+    expect(state.turns.at(-1)?.endedAt).not.toBeNull()
   })
 
-  it.each([500, 600])('finishes %i-point King of the Colosseum after three rounds', (limit) => {
+  it.each([500, 600])('finishes %i-point King of the Colosseum after five rounds', (limit) => {
     const configured: [string, Command] = [
       ALICE,
       {
@@ -779,13 +883,13 @@ describe('the turn sequence', () => {
         clockLimitMinutes: null,
       },
     ]
-    const rounds = Array.from({ length: 3 }, () => [...turns(6, ALICE), ...turns(6, BOB)]).flat()
-    const state = reduceBattle(PLAYERS, log(configured, ...started(), ...rounds))
+    const rounds = Array.from({ length: BATTLE_ROUNDS }, () => [...turns(6, ALICE), ...turns(6, BOB)]).flat()
+    const state = reduceBattle(PLAYERS, log(configured, ...started(), ...rounds, [ALICE, { kind: 'settle-opponent-turn' }]))
     const view = battleView({ token: 'abc' }, NAMES, state, ALICE)
 
-    expect(state).toMatchObject({ status: 'finished', round: 3, result: { reason: 'completed' } })
-    expect(view.rounds).toBe(3)
-    expect(view.players[0]?.rounds).toHaveLength(3)
+    expect(state).toMatchObject({ status: 'finished', round: 5, result: { reason: 'completed' } })
+    expect(view.rounds).toBe(5)
+    expect(view.players[0]?.rounds).toHaveLength(5)
   })
 
   it('keeps the final battle round within the five-round ledger', () => {
@@ -893,6 +997,41 @@ describe('the turn sequence', () => {
     expect(battleReport(NAMES, history).some((entry) => entry.commandKind === 'acknowledge-scoring')).toBe(false)
   })
 
+  it('refuses to pass a scoring moment recorded with the battle until it is reviewed', () => {
+    const award = {
+      vp: 5,
+      per: null,
+      mode: null,
+      max: null,
+      group: null,
+      cumulative: false,
+      criteria: 'Control an objective marker.',
+      trigger: { timing: 'end-of-phase', phase: 'command', playerTurn: 'your-turn', roundMin: null, roundMax: null },
+    }
+    const prepared: [string, Command][] = [
+      ...started().slice(0, 2),
+      [
+        ALICE,
+        {
+          kind: 'set-prep',
+          stratagems: [],
+          secondaries: [],
+          primary: { key: 'primary', name: 'Take and Hold', awards: [award] },
+          secondaryMode: 'fixed',
+        },
+      ],
+      [ALICE, { kind: 'begin-battle', firstPlayerId: ALICE }],
+    ]
+    const before = reduceBattle(PLAYERS, log(...prepared))
+    const requested = reduceBattle(PLAYERS, log(...prepared, [ALICE, { kind: 'request-advance' }]))
+    const reviewed = reduceBattle(PLAYERS, log(...prepared, [ALICE, { kind: 'request-advance' }], [ALICE, { kind: 'acknowledge-scoring' }]))
+
+    expect(validate(before, ALICE, { kind: 'advance' })).toBe('review mission scoring before ending the phase')
+    expect(validate(requested, ALICE, { kind: 'advance' })).toBe('finish mission scoring before ending the phase')
+    expect(validate(reviewed, ALICE, { kind: 'advance' })).toBeNull()
+    expect(battleView({ token: 'abc' }, NAMES, before, ALICE).players[0]?.primaryCard?.awards).toEqual([award])
+  })
+
   it('moves a shared advance request past scoring when points are recorded', () => {
     const state = reduceBattle(
       PLAYERS,
@@ -927,6 +1066,8 @@ describe('the turn sequence', () => {
     const acknowledged = reduceBattle(PLAYERS, acknowledgedHistory)
 
     expect(validate(before, BOB, { kind: 'acknowledge-draw', playerId: ALICE })).toBeNull()
+    expect(validate(before, ALICE, { kind: 'request-advance' })).toBe('review the new secondary missions before ending the command phase')
+    expect(validate(before, ALICE, { kind: 'advance' })).toBe('review the new secondary missions before ending the command phase')
     expect(battleView({ token: 'abc' }, NAMES, acknowledged, ALICE).drawAcknowledged).toBe(true)
     expect(battleView({ token: 'abc' }, NAMES, acknowledged, BOB).drawAcknowledged).toBe(true)
     expect(acknowledged.undoable?.kind).toBe('draw-secondaries')
@@ -984,7 +1125,7 @@ describe('the turn sequence', () => {
     expect(validate(selected, ALICE, { kind: 'reveal-secret', playerId: BOB })).toBeNull()
   })
 
-  it('lets anyone at the table advance a side with cards still to draw, and says what is owed', () => {
+  it('lets anyone at the table draw for a side but refuses to skip the draw', () => {
     const history = log(
       [ALICE, roster('Ultramarines')],
       [BOB, roster('Death Guard')],
@@ -1004,15 +1145,16 @@ describe('the turn sequence', () => {
 
     const state = reduceBattle(PLAYERS, history)
 
-    expect(validate(state, BOB, { kind: 'advance', playerId: ALICE })).toBeNull()
+    expect(validate(state, BOB, { kind: 'request-advance', playerId: ALICE })).toBe('draw every card owed before ending the command phase')
+    expect(validate(state, BOB, { kind: 'advance', playerId: ALICE })).toBe('draw every card owed before ending the command phase')
     expect(battleView({ token: 'abc' }, NAMES, state, BOB).advancePrompt).toBe('The active side has secondary missions to draw.')
   })
 
-  it('says the previous turn is unsettled without holding the turn back for it', () => {
+  it('holds the command phase until the previous turn is settled', () => {
     const history = log(...started(), ...turns(6, ALICE))
     const pending = reduceBattle(PLAYERS, history)
 
-    expect(validate(pending, ALICE, { kind: 'advance', playerId: BOB })).toBeNull()
+    expect(validate(pending, ALICE, { kind: 'advance', playerId: BOB })).toBe('settle the previous turn before ending the command phase')
     expect(battleView({ token: 'abc' }, NAMES, pending, ALICE).advancePrompt).toBe('The previous turn is still to be settled.')
     expect(validate(pending, BOB, { kind: 'settle-opponent-turn' })).toBeNull()
 
@@ -1060,14 +1202,38 @@ describe('the turn sequence', () => {
     expect(validate(state, CAROL, { kind: 'settle-opponent-turn' })).toBeNull()
   })
 
-  it('does not let the opposing side dismiss an unrevealed mission', () => {
+  it('does not settle an unrevealed mission whose timing is unknown', () => {
     const state = reduceBattle(
       PLAYERS,
       log(...started(), [BOB, { kind: 'select-secret', secondary: { key: 'secret', name: 'Hidden purpose' } }], ...turns(6, ALICE)),
     )
 
-    expect(validate(state, ALICE, { kind: 'settle-opponent-turn' })).toBe('the affected side has a hidden action to settle')
-    expect(validate(state, BOB, { kind: 'settle-opponent-turn' })).toBeNull()
+    for (const player of [ALICE, BOB]) {
+      expect(validate(state, player, { kind: 'settle-opponent-turn' })).toBe('reveal the secret mission before settling the previous turn')
+    }
+  })
+
+  it('settles a hidden mission that has no opponent-turn award', () => {
+    const award = {
+      vp: 5,
+      per: null,
+      mode: null,
+      max: null,
+      group: null,
+      cumulative: false,
+      criteria: 'Hold the objective.',
+      trigger: { timing: 'end-of-turn', phase: null, playerTurn: 'your-turn', roundMin: null, roundMax: null },
+    }
+    const state = reduceBattle(
+      PLAYERS,
+      log(
+        ...started(),
+        [BOB, { kind: 'select-secret', secondary: { key: 'secret', name: 'Hidden purpose', awards: [award] } }],
+        ...turns(6, ALICE),
+      ),
+    )
+
+    expect(validate(state, ALICE, { kind: 'settle-opponent-turn' })).toBeNull()
   })
 
   it('keeps settlement bookkeeping out of the report and undo target', () => {
@@ -1078,7 +1244,7 @@ describe('the turn sequence', () => {
     expect(battleReport(NAMES, history).some((entry) => entry.commandKind === 'settle-opponent-turn')).toBe(false)
   })
 
-  it('lets an ally draw and advance for the side they share', () => {
+  it('lets an ally draw for the side they share but refuses to skip the draw', () => {
     const configure: Command = {
       kind: 'configure-battle',
       limit: 2000,
@@ -1110,14 +1276,14 @@ describe('the turn sequence', () => {
     const state = reduceBattle([ALICE, BOB, CAROL], history, [0, 1, 1])
     const named = [...NAMES, { id: CAROL, name: 'Carol' }]
 
-    expect(validate(state, CAROL, { kind: 'advance', playerId: BOB })).toBeNull()
+    expect(validate(state, CAROL, { kind: 'advance', playerId: BOB })).toBe('draw every card owed before ending the command phase')
     // The pair share one hand, so the ally can see the deck it is drawn from.
     expect(battleView({ token: 'abc' }, named, state, CAROL).players.find((player) => player.id === CAROL)?.remainingSecondaries).toEqual([
       { key: 'a', name: 'Area Denial' },
     ])
   })
 
-  it('asks the active side to settle its hidden mission without refusing the turn', () => {
+  it('refuses to pass the turn until the active side settles its hidden mission', () => {
     const history = log(
       ...started(),
       [ALICE, { kind: 'select-secret', secondary: { key: 'secret-a', name: 'Hold the Line' } }],
@@ -1125,9 +1291,8 @@ describe('the turn sequence', () => {
     )
     const state = reduceBattle(PLAYERS, history)
 
-    expect(validate(state, BOB, { kind: 'advance', playerId: ALICE })).toBeNull()
-    // Still the one thing an opponent's screen cannot answer, so the reminder says a
-    // card is outstanding without saying which.
+    expect(validate(state, BOB, { kind: 'request-advance', playerId: ALICE })).toBeNull()
+    expect(validate(state, BOB, { kind: 'advance', playerId: ALICE })).toBe('reveal or discard the secret mission before ending the turn')
     expect(battleView({ token: 'abc' }, NAMES, state, BOB).advancePrompt).toBe('The active side has a secret mission to reveal or discard.')
     expect(battleView({ token: 'abc' }, NAMES, state, BOB).players[0]?.secondaries[0]?.name).toBe('Secret mission')
   })
@@ -1171,6 +1336,14 @@ describe('the round a settlement belongs to', () => {
       round: 2,
       pending: { playerId: ALICE, round: 1 },
     })
+  })
+
+  it('refuses a scoring request while previous-turn settlement is outstanding', () => {
+    const state = reduceBattle(PLAYERS, boundary())
+
+    expect(validate(state, ALICE, { kind: 'request-advance', playerId: ALICE })).toBe(
+      'settle the previous turn before ending the command phase',
+    )
   })
 
   it('banks what the previous turn owed against that round, not the one now being played', () => {
@@ -1641,5 +1814,18 @@ describe('deployment', () => {
       [ALICE, { kind: 'set-unit', unitKey: 'u0', destroyed: true }],
     )
     expect(battleView({ token: 'abc' }, NAMES, reduceBattle(PLAYERS, history), ALICE).players[0]?.deployed).toBe(1)
+  })
+
+  it('refuses to mark an already lost unit lost again', () => {
+    const state = reduceBattle(
+      PLAYERS,
+      log(
+        ...withUnits(),
+        [ALICE, { kind: 'begin-battle', firstPlayerId: ALICE }],
+        [ALICE, { kind: 'set-unit', unitKey: 'u0', destroyed: true }],
+      ),
+    )
+
+    expect(validate(state, ALICE, { kind: 'set-unit', unitKey: 'u0', destroyed: true })).toBe('the unit is already lost')
   })
 })

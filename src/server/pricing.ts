@@ -9,7 +9,7 @@ import {
   kotcUnitExclusions,
 } from '../core/battle'
 import { type CatalogueIndex, targetOf } from '../core/catalogue'
-import { evaluate, evaluateForces, type Selection } from '../core/evaluate'
+import { evaluate, evaluateForces, keywordIdsBySelection, type Selection } from '../core/evaluate'
 import { type ModelKind, modelKindsOf, modelRowCount, modelRowSources, optionWargear } from '../core/modelKinds'
 import { buildUnit } from '../core/roster'
 import { allAt } from '../core/selection'
@@ -17,7 +17,7 @@ import { type ChoiceOptions, isUnitCompositionChoice, unitChoices } from '../cor
 import { withUnitSpread } from '../core/unitSpread'
 import { wargearKey, wargearOf } from '../core/wargear'
 import { app } from './app'
-import { abilityNamesIn, datasheetIn, rulesReferencedIn, toughnessOf } from './catalogue'
+import { contextualAbilityNamesIn, datasheetIn, rulesReferencedIn, toughnessOf } from './catalogue'
 import { describedEnhancements } from './catalogueDescriptions'
 import { descriptionKey, type FactionRestrictions, restrictedBy } from './datacards'
 import { groupOfEntry } from './cataloguePicker'
@@ -190,6 +190,17 @@ export function calculateRosterPrice(data: PriceInput, loaded = app().catalogue(
   const options = { primaryCatalogueId: data.catalogueId }
   const forces = [...forceSelections.values()]
   const selections = forces.flat()
+  const selectionIndex = new Map(selections.map((selection, at) => [selection, at]))
+  const keywordIdsByCatalogue = new Map<string, string[][]>()
+  const keywordMatrixFor = (catalogueId: string) => {
+    let keywords = keywordIdsByCatalogue.get(catalogueId)
+    if (!keywords) {
+      keywords = keywordIdsBySelection(selections, loaded.index, { primaryCatalogueId: catalogueId })
+      keywordIdsByCatalogue.set(catalogueId, keywords)
+    }
+    return keywords
+  }
+  const keywordsFor = (catalogueId: string, at: number) => keywordMatrixFor(catalogueId)[at] ?? []
   const whole = evaluateForces(forces, loaded.index, options)
   const selectionPoints = new Map<Selection, number>()
   forces.forEach((force, forceAt) =>
@@ -205,7 +216,8 @@ export function calculateRosterPrice(data: PriceInput, loaded = app().catalogue(
           const catalogueId = data.units[unit.key]?.catalogueId ?? loaded.index.catalogueOf.get(unit.entryId) ?? data.catalogueId
           const sheet = datasheetIn(loaded, catalogueId, unit.entryId, {
             selections,
-            unitSelectionIndex: selections.indexOf(unit.selection),
+            unitSelectionIndex: selectionIndex.get(unit.selection),
+            keywordIds: keywordsFor(catalogueId, selectionIndex.get(unit.selection) ?? -1),
           })
           return {
             entryId: unit.entryId,
@@ -247,6 +259,12 @@ export function calculateRosterPrice(data: PriceInput, loaded = app().catalogue(
   }
   const selfContradictory = new Set(whole.errors.filter((error) => isCatalogueSelfContradiction(error, composedByCatalogue)))
   const pickedSelections = data.units.map((_, key) => picked.find((unit) => unit.key === key)?.selection)
+  const pickedIndexByKey = new Map(picked.map((unit, at) => [unit.key, at]))
+  const attachedByHost = new Map<number, number[]>()
+  data.units.forEach((unit, key) => {
+    const host = unit.attachedTo ?? key
+    attachedByHost.set(host, [...(attachedByHost.get(host) ?? []), key])
+  })
 
   // The 10e catalogue wrapper caps detachments at one; the 11e rules source
   // replaces that constraint with the DP budget checked above.
@@ -286,7 +304,23 @@ export function calculateRosterPrice(data: PriceInput, loaded = app().catalogue(
     selections,
     units: picked.map((unit) => {
       const catalogueId = data.units[unit.key]?.catalogueId ?? loaded.index.catalogueOf.get(unit.entryId) ?? data.catalogueId
-      const deployment = deploymentRules(abilityNamesIn(loaded, catalogueId, unit.entryId))
+      const unitSelectionIndex = selectionIndex.get(unit.selection)
+      const host = data.units[unit.key]?.attachedTo ?? unit.key
+      const companions = (attachedByHost.get(host) ?? []).flatMap((key) => {
+        const index = pickedIndexByKey.get(key)
+        const companion = index === undefined ? undefined : picked[index]
+        const companionSelectionIndex = companion ? selectionIndex.get(companion.selection) : undefined
+        return companionSelectionIndex !== undefined && companion !== unit ? [companionSelectionIndex] : []
+      })
+      const deployment = deploymentRules(
+        contextualAbilityNamesIn(loaded, catalogueId, unit.entryId, {
+          selections,
+          unitSelectionIndex,
+          companions,
+          keywordIds: unitSelectionIndex === undefined ? [] : keywordsFor(catalogueId, unitSelectionIndex),
+          rosterKeywordIds: keywordMatrixFor(catalogueId),
+        }),
+      )
       const describedChoices: ((typeof unit.choices)[number] & { kind?: 'enhancement' | 'upgrade' })[] = unit.choices.map((choice) => {
         const choiceOptions = (choice.options ?? []).map((option) => {
           const path = choice.key.split('/')

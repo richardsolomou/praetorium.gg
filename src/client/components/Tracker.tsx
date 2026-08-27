@@ -6,6 +6,7 @@ import { deleteBattle } from '../../server/functions'
 import { battleQuery, battlesQuery, deploymentsQuery, detachmentRulesQuery, gameReferencesQuery } from '../queries'
 import { primaryCards, secondaryCards } from '../missionDeck'
 import { appliesInMode } from '../missionText'
+import { automaticAttemptsExhausted, claimAutomaticAttempt } from '../automaticAttempts'
 import { errorMessage } from '../queryClient'
 import { armyRulesRequest } from '../sideRules'
 import { type Side, type SideMission, sideName, sides } from '../sides'
@@ -16,6 +17,7 @@ import { DrawDialog, type WhenDrawn } from './battle/DrawDialog'
 import { DiscardSecondaryDialog } from './battle/DiscardSecondaryDialog'
 import type { Award, ReferenceCard, StratagemText } from './battle/MissionCards'
 import { Scoreboard } from './battle/Scoreboard'
+import { SecretMissionHandoff } from './battle/SecretMissionHandoff'
 import { HAND_SIZE, turnPrompt } from '../scoring'
 import { dueForAdvance, dueFromTheirTurn, ScoringDialog } from './battle/ScoringDialog'
 import { SidePanel } from './battle/SidePanel'
@@ -92,8 +94,9 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
     [ruleResults, ruleRequests],
   )
   // The cards are the instance's, not a side's: one deck, read the same way for both.
+  const primaryDeck = useMemo(() => primaryCards(references), [references])
   const secondaryDeck = useMemo(() => secondaryCards(references), [references])
-  const deck = useMemo(() => [...primaryCards(references), ...secondaryDeck], [references, secondaryDeck])
+  const deck = useMemo(() => [...primaryDeck, ...secondaryDeck], [primaryDeck, secondaryDeck])
   // The first card claiming a key answers for it, the way `find` over the deck did.
   const cardsByKey = useMemo(() => {
     const cards = new Map<string, ReferenceCard>()
@@ -133,31 +136,33 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
     [view.players],
   )
   const finished = view.status === 'finished'
-  const attemptedPrepRepairs = useRef(new Set<string>())
+  const attemptedPrepRepairs = useRef(new Map<string, number>())
   const repairSide = table.find(
     (side) =>
       side.played &&
       side.mission &&
-      side.primaryCard &&
-      side.secondaryMode === 'tactical' &&
-      side.secondaries.length === 0 &&
-      side.remainingSecondaries.length === 0,
+      !side.secondaryDeckReady &&
+      side.remainingSecondaries.length === 0 &&
+      (side.secondaryMode === 'fixed' || side.secondaries.length === 0),
   )
+  const repairPrimary = repairSide?.primaryCard ?? primaryDeck.find((card) => card.key === repairSide?.mission?.id) ?? null
   useEffect(() => {
-    if (finished || pending || !references || !secondaryDeck.length || !repairSide?.primaryCard) return
+    if (finished || pending || !references || !secondaryDeck.length || !repairSide || !repairPrimary) return
     const key = `${view.seq}:${repairSide.captain.id}`
-    if (attemptedPrepRepairs.current.has(key)) return
-    attemptedPrepRepairs.current.add(key)
+    if (!claimAutomaticAttempt(attemptedPrepRepairs.current, key)) return
     send({
       kind: 'set-prep',
       playerId: repairSide.captain.id,
       stratagems: repairSide.stratagems,
-      secondaries: [],
-      secondaryDeck: secondaryDeck.map(({ key: cardKey, name }) => ({ key: cardKey, name })),
-      primary: repairSide.primaryCard,
-      secondaryMode: 'tactical',
+      secondaries:
+        repairSide.secondaryMode === 'fixed'
+          ? repairSide.secondaries.filter((card) => !card.secret).map(({ key: cardKey, name, awards }) => ({ key: cardKey, name, awards }))
+          : [],
+      secondaryDeck: secondaryDeck.map(({ key: cardKey, name, awards }) => ({ key: cardKey, name, awards })),
+      primary: repairPrimary,
+      secondaryMode: repairSide.secondaryMode,
     })
-  }, [finished, pending, references, repairSide, secondaryDeck, send, view.seq])
+  }, [finished, pending, references, repairPrimary, repairSide, secondaryDeck, send, view.seq])
   // A battle whose second seat is still empty draws one side, not a gap where the other goes.
   const oneSided = table.length < 2
   // A side's own mission can state a lower ceiling than the conventional one, and the
@@ -178,47 +183,7 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
   const guidesFor = (side: Side) => guidesBySide.get(side.index) ?? view.guides
   /** Which panel a narrow screen is showing, in the order the columns sit on a wide one. */
   const shown = (side: Side) => (side.isViewer ? 'yours' : 'theirs')
-
-  // Only what the card itself says pays out at this moment, so the ask arrives with the phase that ends.
-  const due = active && !finished ? dueForAdvance(view, active, awardsFor) : []
-  const activeNeedsRules = Boolean(active?.primaryCard || active?.secondaries.some((card) => card.status === 'active'))
-  const activeRuleResults = ruleResults.filter((_, index) => ruleRequests[index]?.side === active?.index)
-  // The only thing that still holds the turn back is not knowing what the cards say.
-  // What the active side still owes is shown as a reminder: one person refereeing the
-  // table can do every one of those things, and refusing them the turn only stopped
-  // the game they were running.
-  const blockReason =
-    (activeNeedsRules && !activeRuleResults.some((result) => result.data) && activeRuleResults.some((result) => result.isPending)) ||
-    (activeNeedsRules && deckUnknown)
-      ? 'Loading the active side’s rules…'
-      : null
-  const advanceBlocked = Boolean(blockReason)
-  const advance = () => {
-    if (advanceBlocked || !active) return
-    const discardable = discardableSecondaries(active)
-    if (due.length || (view.phase === 'end' && discardable.length)) {
-      send({ kind: 'request-advance', playerId: active.captain.id })
-      return
-    }
-    send({ kind: 'advance', playerId: active.captain.id })
-  }
   const settlementRound = view.settlementRound
-  const settlementSide = table.find((side) => side.captain.id === view.settlementPlayerId)
-  // Concluding that nothing private remains is the side's own call. A practice
-  // opponent cannot make it, so the table playing that side makes it instead.
-  const settlementOwner = settlementSide?.writer.id === view.viewerId || Boolean(settlementSide?.automated)
-  const settlementRuleResults = ruleResults.filter((_, index) => ruleRequests[index]?.side === settlementSide?.index)
-  const settlementRulesPending = settlementRuleResults.some((result) => result.isPending) || deckUnknown
-  const owedCards =
-    settlementRound !== null && settlementSide && !finished
-      ? dueFromTheirTurn(settlementRound, settlementSide, awardsFor, heldKeys(settlementSide))
-      : []
-  useEffect(() => {
-    // A helper's view may redact a hidden mission that is still owed. Only the owner
-    // may conclude that an apparently empty settlement has no private work behind it.
-    if (!settlementOwner || settlementRound === null || settlementRulesPending || owedCards.length || pending) return
-    send({ kind: 'settle-opponent-turn' })
-  }, [owedCards.length, pending, send, settlementOwner, settlementRound, settlementRulesPending])
   const turnKey = `${view.round}-${view.activePlayerId ?? ''}`
   const needsDraw =
     !finished &&
@@ -232,6 +197,62 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
     view.phase === 'command' &&
     active.secondariesDrawnThisTurn.length > 0 &&
     !view.drawAcknowledged
+
+  // Only what the card itself says pays out at this moment, so the ask arrives with the phase that ends.
+  const due = active && !finished ? dueForAdvance(view, active, awardsFor) : []
+  const activeNeedsReferences = Boolean(
+    (active?.primaryCard && active.primaryCard.awards === undefined) ||
+    active?.secondaries.some((card) => card.status === 'active' && card.awards === undefined),
+  )
+  const blockReason =
+    settlementRound !== null
+      ? 'Finish the previous turn’s scoring first.'
+      : needsDraw
+        ? 'Draw the active side’s secondary missions first.'
+        : needsDrawAcknowledgement
+          ? 'Review the active side’s new secondary missions first.'
+          : activeNeedsReferences && deckUnknown
+            ? 'Loading the active side’s mission cards…'
+            : null
+  const advanceBlocked = Boolean(blockReason)
+  const advance = () => {
+    if (advanceBlocked || !active) return
+    const discardable = discardableSecondaries(active)
+    const activeSecretMissionAction = view.settlementRound === null && view.secretMissionActionPlayerId === active.captain.id
+    if (due.length || activeSecretMissionAction || (view.phase === 'end' && discardable.length)) {
+      send({ kind: 'request-advance', playerId: active.captain.id })
+      return
+    }
+    send({ kind: 'advance', playerId: active.captain.id })
+  }
+  const settlementSide = table.find((side) => side.captain.id === view.settlementPlayerId)
+  const secretMissionActionSide = table.find((side) => side.captain.id === view.secretMissionActionPlayerId)
+  const activeSecretMissionAction = Boolean(
+    view.settlementRound === null && active && secretMissionActionSide?.captain.id === active.captain.id,
+  )
+  const settlementSecretMissionAction = Boolean(
+    view.settlementRound !== null && settlementSide && secretMissionActionSide?.captain.id === settlementSide.captain.id,
+  )
+  const settlementRuleResults = ruleResults.filter((_, index) => ruleRequests[index]?.side === settlementSide?.index)
+  const settlementNeedsReferences = Boolean(
+    (settlementSide?.primaryCard && settlementSide.primaryCard.awards === undefined) ||
+    settlementSide?.secondaries.some((secondary) => secondary.status === 'active' && secondary.awards === undefined),
+  )
+  const settlementRulesPending = settlementNeedsReferences && (settlementRuleResults.some((result) => result.isPending) || deckUnknown)
+  const owedCards =
+    settlementRound !== null && settlementSide && !finished
+      ? dueFromTheirTurn(settlementRound, view.rounds, settlementSide, awardsFor, heldKeys(settlementSide))
+      : []
+  const attemptedEmptySettlements = useRef(new Map<string, number>())
+  const emptySettlementKey = `${view.seq}:${settlementRound ?? ''}:${view.settlementPlayerId ?? ''}`
+  const emptySettlementReady =
+    settlementRound !== null && !settlementRulesPending && !settlementSecretMissionAction && owedCards.length === 0
+  const emptySettlementRetryNeeded =
+    emptySettlementReady && automaticAttemptsExhausted(attemptedEmptySettlements.current, emptySettlementKey)
+  useEffect(() => {
+    if (!emptySettlementReady || pending || !claimAutomaticAttempt(attemptedEmptySettlements.current, emptySettlementKey)) return
+    send({ kind: 'settle-opponent-turn' })
+  }, [emptySettlementKey, emptySettlementReady, pending, send])
   const prompt = settlementRound !== null ? (owedCards.length ? 'owed' : null) : turnPrompt(0, needsDraw || needsDrawAcknowledgement)
   const discardable = active ? discardableSecondaries(active) : []
 
@@ -333,6 +354,16 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
             </div>
 
             {problem ? <p className="text-sm text-destructive">{problem}</p> : null}
+            {emptySettlementRetryNeeded ? (
+              <button
+                type="button"
+                className="text-sm font-medium text-link underline underline-offset-4"
+                disabled={pending}
+                onClick={() => send({ kind: 'settle-opponent-turn' })}
+              >
+                Retry finishing the previous turn
+              </button>
+            ) : null}
             {remove.error ? <p className="text-sm text-destructive">{errorMessage(remove.error)}</p> : null}
 
             {/*
@@ -356,7 +387,14 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
         </div>
       </div>
 
-      {view.advanceRequested && !view.scoringAcknowledged && due.length && active ? (
+      {settlementRound === null &&
+      !needsDraw &&
+      !needsDrawAcknowledgement &&
+      view.advanceRequested &&
+      !view.scoringAcknowledged &&
+      !activeSecretMissionAction &&
+      due.length &&
+      active ? (
         <ScoringDialog
           side={active}
           due={due}
@@ -370,6 +408,7 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
           onDone={(completedSecondaryKeys, scored) => {
             const unresolved = discardableSecondaries(active).filter((key) => !completedSecondaryKeys.includes(key))
             if (view.phase !== 'end' || !unresolved.length) {
+              if (!scored) send({ kind: 'acknowledge-scoring', playerId: active.captain.id })
               send({ kind: 'advance', playerId: active.captain.id })
             } else if (!scored) {
               send({ kind: 'acknowledge-scoring', playerId: active.captain.id })
@@ -378,7 +417,19 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
         />
       ) : null}
 
-      {prompt === 'owed' && settlementSide ? (
+      {secretMissionActionSide &&
+      ((view.advanceRequested && activeSecretMissionAction && !needsDraw && !needsDrawAcknowledgement) || settlementSecretMissionAction) ? (
+        <SecretMissionHandoff
+          side={secretMissionActionSide}
+          pending={pending}
+          onCancel={
+            activeSecretMissionAction ? () => send({ kind: 'cancel-advance', playerId: secretMissionActionSide.captain.id }) : undefined
+          }
+          onReveal={() => send({ kind: 'reveal-secret', playerId: secretMissionActionSide.captain.id })}
+        />
+      ) : null}
+
+      {prompt === 'owed' && settlementSide && !settlementSecretMissionAction ? (
         <ScoringDialog
           side={settlementSide}
           due={owedCards}
@@ -392,7 +443,12 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
         />
       ) : null}
 
-      {view.advanceRequested && (view.scoringAcknowledged || !due.length) && view.phase === 'end' && discardable.length && active ? (
+      {settlementRound === null &&
+      view.advanceRequested &&
+      (view.scoringAcknowledged || !due.length) &&
+      view.phase === 'end' &&
+      discardable.length &&
+      active ? (
         <DiscardSecondaryDialog
           side={active}
           keys={discardable}

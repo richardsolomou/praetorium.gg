@@ -12,7 +12,7 @@ Praetorium reads stratagem and mission data from [40kdc-data](https://github.com
 - A pasted roster has no structured faction or detachment. It cannot provide catalogue-backed stratagems or mission cards.
 - `set-prep` stores stratagems and secondaries in one command. Splitting the action would make the second command stale.
 - Tactical setup stores the configured deck with the initially drawn cards. Remaining cards are derived from that deck and its history; a replacement cannot name a card outside an authoritative deck.
-- King of the Colosseum lasts three rounds and requires tactical secondaries. Its 2.0 battlefield and twists stay unavailable until an upstream source supplies the structured data. Do not substitute another deployment.
+- King of the Colosseum lasts five rounds and requires tactical secondaries. Its 2.0 battlefield and twists stay unavailable until an upstream source supplies the structured data. Do not substitute another deployment.
 
 ## Scoring
 
@@ -20,6 +20,7 @@ Praetorium reads stratagem and mission data from [40kdc-data](https://github.com
 - Track additional command point gains separately from the command-phase grant and score corrections. Each side can gain at most one additional CP per battle round, and spending it does not reopen that allowance.
 - At the end of a turn, after scoring, offer to discard any number of active tactical secondaries — including none. It is never mandatory, and the player chooses which cards, if any, to give up. Discarding at least one grants 1 CP when that side has not already used its additional CP gain this round; discarding without that allowance gains nothing. Record the discard and CP together so undo reverses the whole choice.
 - Ask for a payout only at the moment its `trigger.timing` names: `end-of-phase` with its phase, `end-of-turn`, or `end-of-battle`. A card the source gave no timing for is never put on a schedule.
+- Freeze server-verified payout timing with the prepared cards. The domain refuses to pass a known scoring moment until the shared prompt records a score or an acknowledgement, and refuses to leave the command phase while a prior turn, tactical draw, or new hand review remains pending.
 - `exclusive_group` defines payout tiers. Selecting one tier clears the other tiers in that group. Ungrouped payouts are independent.
 - Read `vp_max` for the ceiling on a counted payout. A ceiling clamps the total; it does not stop the count one short of it.
 - A tactical secondary is played once: scoring it finishes it. An unresolved tactical card is only discarded when its owner chooses to at the end of the turn — it is never discarded automatically, and can be kept into the next turn instead. Two more are dealt at the top of every one of a side's own turns regardless of how many earlier cards are still unresolved, so a hand can hold more than two at once; nothing tops it back up to two. A fixed hand is chosen for the whole battle and is not finished by being scored.

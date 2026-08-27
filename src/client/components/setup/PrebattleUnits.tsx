@@ -2,7 +2,7 @@ import { attachedUnitList } from '../../../core/attachedUnits'
 import type { Army, Side } from '../../sides'
 import { HEADING } from '../battle/tints'
 import { GROUPS } from '../builder/groups'
-import { formationLabel, SetupNote, SetupSidePanel } from './chrome'
+import { formationLabel, SetupSidePanel } from './chrome'
 
 type Rule = 'infiltrators' | 'scouts'
 
@@ -12,10 +12,6 @@ type Rule = 'infiltrators' | 'scouts'
  * Read twice with a different rule each time: Infiltrators is about where a unit is
  * set up, so it belongs to the deployment section, and Scouts is a move made after
  * both armies are down, so it belongs to the one after the first turn is settled.
- *
- * Said plainly rather than implied, because a list that looks complete and is not is
- * worse than no list: `prebattleRules` is read off a datasheet's own abilities, and
- * nothing here reads an army rule, a detachment or an enhancement granting the same.
  *
  * An attached unit is one unit and is listed once, carrying only what every part of
  * it carries — both these abilities ask that every model in the unit has them.
@@ -32,10 +28,6 @@ export function PrebattleUnits({ sides, rule, empty }: { sides: Side[]; rule: Ru
           </SetupSidePanel>
         ))}
       </div>
-      <SetupNote>
-        Only what a datasheet itself says is listed here. An army rule, a detachment or an enhancement that grants the same ability is not
-        read.
-      </SetupNote>
     </>
   )
 }

@@ -91,7 +91,7 @@ export const SidePanel = memo(function SidePanel({
              * losses are recorded. Casualties are a live action, so setup and a finished
              * battle open the same army with nothing to press.
              */}
-            <ArmyRoster army={army} side={side} token={view.token} actionable={view.status === 'playing'} send={send} />
+            <ArmyRoster army={army} side={side} token={view.token} actionable={view.status === 'playing' && !pending} send={send} />
           </div>
         ))}
       </div>

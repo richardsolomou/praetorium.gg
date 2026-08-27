@@ -13,6 +13,8 @@ import {
   type Roster,
   SECONDARY_GUIDE,
   sameSide,
+  scoringDue,
+  secretSettlementActionPlayerId,
   type Secondary,
   type SecondaryMode,
   type SecondaryStatus,
@@ -117,6 +119,7 @@ export type BattleView = {
     secondaries: {
       key: string
       name: string
+      awards?: NonNullable<Secondary['awards']>
       points: number
       rounds: number[]
       status: SecondaryStatus
@@ -125,7 +128,7 @@ export type BattleView = {
     }[]
     primaryCard: Secondary | null
     secondaryMode: SecondaryMode
-    /** Whether this side has a tactical deck, without exposing the cards in it. */
+    /** Whether this side has a secondary deck, without exposing the cards in it. */
     secondaryDeckReady: boolean
     remainingSecondaries: Secondary[]
     /**
@@ -144,6 +147,7 @@ export type BattleView = {
   leagueEventToken: string | null
   turns: { playerId: PlayerId; playerName: string; round: number; minutes: number | null }[]
   advancePrompt: string | null
+  secretMissionActionPlayerId: PlayerId | null
   /** The latest active command any seated player may take back. */
   undoable: number | null
   /** Whether taking back that command returns missions from this turn to the deck. */
@@ -268,6 +272,7 @@ export function battleView(
           return {
             key: nameable ? secondary.key : 'secret',
             name: nameable ? secondary.name : 'Secret mission',
+            awards: nameable ? secondary.awards : undefined,
             points: resources.scored[secondary.key] ?? 0,
             rounds: (resources.scoredByRound[secondary.key] ?? Array(BATTLE_ROUNDS).fill(0)).slice(
               0,
@@ -291,6 +296,7 @@ export function battleView(
       minutes: turn.endedAt === null ? null : Math.max(0, Math.round((turn.endedAt - turn.startedAt) / 60_000)),
     })),
     advancePrompt: advancePrompt(state, viewerId),
+    secretMissionActionPlayerId: secretMissionActionPlayerId(state),
     undoable: state.undoable?.seq ?? null,
     undoableDraw: state.undoable?.kind === 'draw-secondary' || state.undoable?.kind === 'draw-secondaries',
   }
@@ -310,6 +316,16 @@ function viewRoster(roster: Roster | null): RosterView | null {
   if (!roster?.built) return roster
   const { units: _frozen, ...built } = roster.built
   return { ...roster, built }
+}
+
+function secretMissionActionPlayerId(state: BattleState): PlayerId | null {
+  if (state.pendingSettlement) return secretSettlementActionPlayerId(state)
+  const active = state.activePlayerId ? state.players.find((player) => player.id === state.activePlayerId) : undefined
+  const player = active ? sideCaptain(state, active.side) : undefined
+  if (!player?.secretSecondary || player.secretRevealed) return null
+  return sideOwes(state, player) === 'secret' || scoringDue(state, player).some((card) => card.key === player.secretSecondary)
+    ? player.id
+    : null
 }
 
 function advancePrompt(state: BattleState, viewerId: PlayerId): string | null {

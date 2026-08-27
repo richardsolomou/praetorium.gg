@@ -351,30 +351,34 @@ export async function advance(page: Page) {
     if (clicked) {
       const scoring = page.getByRole('dialog', { name: /^Scoring end of (turn|command|movement|shooting|charge|fight) / })
       const discard = page.getByRole('dialog', { name: 'Discard tactical secondaries?' })
-      await expect
-        .poll(async () =>
-          (await scoring.isVisible().catch(() => false))
-            ? 'scoring'
-            : (await discard.isVisible().catch(() => false))
-              ? 'discard'
-              : (await phase.textContent()) === before
-                ? 'waiting'
-                : 'advanced',
-        )
-        .not.toBe('waiting')
-      if (await scoring.isVisible().catch(() => false)) {
-        await scoring
-          .getByRole('button', { name: /^(Pass the turn|End the phase)$/ })
-          .click({ timeout: 3_000 })
-          .catch(() => undefined)
+      const owed = owedPrompt(page)
+      for (let promptGuard = 0; promptGuard < 8; promptGuard += 1) {
         await expect
           .poll(async () =>
-            (await discard.isVisible().catch(() => false)) ? 'discard' : (await phase.textContent()) === before ? 'waiting' : 'advanced',
+            (await scoring.isVisible().catch(() => false))
+              ? 'scoring'
+              : (await discard.isVisible().catch(() => false))
+                ? 'discard'
+                : (await owed.isVisible().catch(() => false))
+                  ? 'owed'
+                  : (await phase.textContent()) === before
+                    ? 'waiting'
+                    : 'advanced',
           )
           .not.toBe('waiting')
-      }
-      if (await discard.isVisible().catch(() => false)) {
-        await discard.getByRole('button', { name: 'Keep hand' }).click()
+        if ((await phase.textContent()) !== before) break
+        if (await scoring.isVisible().catch(() => false)) {
+          await scoring.getByRole('button', { name: /^(Pass the turn|End the phase)$/ }).click({ timeout: 3_000 })
+          await expect(scoring).toBeHidden()
+          continue
+        }
+        if (await discard.isVisible().catch(() => false)) {
+          await discard.getByRole('button', { name: 'Keep hand' }).click()
+          await expect(discard).toBeHidden()
+          continue
+        }
+        await owed.getByRole('button', { name: 'Take the turn' }).click({ timeout: 15_000 })
+        await expect(owed).toBeHidden()
       }
       await expect.poll(() => phase.textContent()).not.toBe(before)
       break

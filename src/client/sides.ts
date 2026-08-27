@@ -203,7 +203,7 @@ export function missionCardsReady(
 ): boolean {
   if (!side.mission) return true
   if (side.primaryCard?.key !== side.mission.id) return false
-  return side.secondaryMode === 'fixed' ? side.secondaries.length === FIXED_SECONDARIES : side.secondaryDeckReady
+  return side.secondaryMode === 'fixed' ? side.secondaries.length === FIXED_SECONDARIES && side.secondaryDeckReady : side.secondaryDeckReady
 }
 
 function toArmy(player: ViewPlayer): Army {

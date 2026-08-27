@@ -15,12 +15,24 @@ describe('the account of the battle', () => {
 
   it('marks the turn passing over', () => {
     const history = log(...started(), ...turns(6, ALICE))
-    expect(text(battleReport(NAMES, history))).toContain('The turn passes to Bob')
+    expect(text(battleReport(NAMES, history))).toContain('The turn passes to Bob, who gains 1 CP')
+  })
+
+  it('reports the command point granted with the first turn', () => {
+    expect(text(battleReport(NAMES, log(...started())))).toContain(
+      'The battle begins, Alice attacking and Alice taking the first turn and gaining 1 CP',
+    )
   })
 
   it('marks a new round', () => {
     const history = log(...started(), ...turns(6, ALICE), ...turns(6, BOB))
-    expect(text(battleReport(NAMES, history))).toContain('Round 2 begins')
+    expect(text(battleReport(NAMES, history))).toContain('Round 2 begins; Alice gains 1 CP')
+  })
+
+  it('marks the last round before final opponent-turn scoring is settled', () => {
+    const rounds = Array.from({ length: 5 }, () => [...turns(6, ALICE), ...turns(6, BOB)]).flat()
+
+    expect(text(battleReport(NAMES, log(...started(), ...rounds))).at(-1)).toBe('The last round ends')
   })
 
   it('reports a stratagem by name and cost', () => {

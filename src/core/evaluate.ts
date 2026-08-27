@@ -249,7 +249,7 @@ export function profileModifiers(
   return [...found.values()]
 }
 
-function flattenedModifiers(sources: readonly { modifiers?: Modifier[]; modifierGroups?: ModifierGroup[] }[]) {
+export function flattenedModifiers(sources: readonly { modifiers?: Modifier[]; modifierGroups?: ModifierGroup[] }[]) {
   const collected: Modifier[] = []
   const flatten = (group: ModifierGroup, inherited: ModifierGroup[]) => {
     const chain = [...inherited, group]
@@ -380,22 +380,25 @@ export function evaluate(selections: readonly Selection[], index: CatalogueIndex
  * the selection has to be read where it sits rather than on its own.
  */
 export function keywordIds(selections: readonly Selection[], at: number, index: CatalogueIndex, options: EvaluateOptions = {}): string[] {
-  const wanted = selections[at]
-  if (!wanted) return []
+  return keywordIdsBySelection(selections, index, options)[at] ?? []
+}
+
+export function keywordIdsBySelection(selections: readonly Selection[], index: CatalogueIndex, options: EvaluateOptions = {}): string[][] {
   const census = new Census()
   const { root, forces } = rosterContext([selections], index, census, options)
-  // A selection the catalogue cannot resolve is dropped, so the position asked for
-  // is not always the position built. The id is what the caller meant.
   const built = forces[0]?.children ?? []
-  const positioned = built[at]
-  const node = positioned?.id === wanted.id ? positioned : built.find((child) => child.id === wanted.id)
-  if (!node) return []
-  const held = linkedCategories(node)
-  for (const [categoryId, present] of grantsOf(root, index, census).get(node) ?? []) {
-    if (present) held.add(categoryId)
-    else held.delete(categoryId)
-  }
-  return [...held]
+  const grants = grantsOf(root, index, census)
+  return selections.map((wanted, at) => {
+    const positioned = built[at]
+    const node = positioned?.id === wanted.id ? positioned : built.find((child) => child.id === wanted.id)
+    if (!node) return []
+    const held = linkedCategories(node)
+    for (const [categoryId, present] of grants.get(node) ?? []) {
+      if (present) held.add(categoryId)
+      else held.delete(categoryId)
+    }
+    return [...held]
+  })
 }
 
 /** Evaluate each force independently while retaining roster-scoped conditions across all of them. */

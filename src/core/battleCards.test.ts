@@ -249,6 +249,10 @@ describe('secondaries', () => {
     expect(alice(after)?.secondaryStatus).toMatchObject({ a: 'active' })
   })
 
+  it('refuses to end the turn before the tactical hand is reviewed', () => {
+    expect(validate(tacticalEnd(), ALICE, { kind: 'advance' })).toBe('review the tactical hand before ending the turn')
+  })
+
   it('refuses to grant a command point when nothing is discarded', () => {
     expect(validate(tacticalEnd(), ALICE, { kind: 'resolve-tactical-hand', keys: [], gainCp: true })).toBe(
       'discard a secondary to gain a command point',
@@ -532,10 +536,112 @@ describe('secondaries', () => {
     )
 
     for (const viewer of [ALICE, BOB]) {
-      expect(battleView({ token: 'abc' }, NAMES, state, viewer).advancePrompt).toBe(
-        'The active side has a secret mission to reveal or discard.',
-      )
+      const view = battleView({ token: 'abc' }, NAMES, state, viewer)
+      expect(view.advancePrompt).toBe('The active side has a secret mission to reveal or discard.')
+      expect(view.secretMissionActionPlayerId).toBe(ALICE)
     }
+  })
+
+  it('offers a handoff when a hidden mission is due to score', () => {
+    const award = {
+      vp: 5,
+      per: null,
+      mode: null,
+      max: null,
+      group: null,
+      cumulative: false,
+      criteria: 'Hold the objective.',
+      trigger: { timing: 'end-of-phase', phase: 'command', playerTurn: 'your-turn', roundMin: null, roundMax: null },
+    }
+    const state = reduceBattle(
+      PLAYERS,
+      log(...started(), [ALICE, { kind: 'select-secret', secondary: { key: 'secret-a', name: 'Hold the Line', awards: [award] } }]),
+    )
+
+    expect(battleView({ token: 'abc' }, NAMES, state, BOB).secretMissionActionPlayerId).toBe(ALICE)
+  })
+
+  it('offers a handoff when the upcoming side has a hidden opponent-turn settlement', () => {
+    const award = {
+      vp: 5,
+      per: null,
+      mode: null,
+      max: null,
+      group: null,
+      cumulative: false,
+      criteria: 'Hold the objective.',
+      trigger: { timing: 'end-of-turn', phase: null, playerTurn: 'opponent-turn', roundMin: null, roundMax: null },
+    }
+    const state = reduceBattle(
+      PLAYERS,
+      log(
+        ...started(),
+        [BOB, { kind: 'select-secret', secondary: { key: 'secret-a', name: 'Hold the Line', awards: [award] } }],
+        ...turns(6, ALICE),
+      ),
+    )
+
+    expect(battleView({ token: 'abc' }, NAMES, state, ALICE).secretMissionActionPlayerId).toBe(BOB)
+  })
+
+  it('reveals and scores a final-round secret before completing the battle', () => {
+    const secret = {
+      key: 'secret-a',
+      name: 'Hold the Line',
+      awards: [
+        {
+          vp: 5,
+          per: null,
+          mode: null,
+          max: null,
+          group: null,
+          cumulative: false,
+          criteria: 'Hold the objective.',
+          trigger: { timing: 'end-of-turn' as const, phase: null, playerTurn: 'opponent-turn' as const, roundMin: null, roundMax: null },
+        },
+      ],
+    }
+    const rounds = Array.from({ length: 5 }, () => [...turns(6, ALICE), ...turns(6, BOB)]).flat()
+    const waiting = reduceBattle(PLAYERS, log(...started(), [ALICE, { kind: 'select-secret', secondary: secret }], ...rounds))
+    const finished = reduceBattle(
+      PLAYERS,
+      log(
+        ...started(),
+        [ALICE, { kind: 'select-secret', secondary: secret }],
+        ...rounds,
+        [BOB, { kind: 'reveal-secret', playerId: ALICE }],
+        [ALICE, { kind: 'score-settlement', round: 5, scores: [{ category: 'secondary', key: secret.key, delta: 5 }] }],
+        [BOB, { kind: 'settle-opponent-turn' }],
+      ),
+    )
+
+    expect(waiting.status).toBe('playing')
+    expect(battleView({ token: 'abc' }, NAMES, waiting, BOB).secretMissionActionPlayerId).toBe(ALICE)
+    expect(finished).toMatchObject({ status: 'finished', result: { reason: 'completed' } })
+    expect(alice(finished)?.scored[secret.key]).toBe(5)
+  })
+
+  it('keeps a hidden owner-turn mission secret during opponent-turn settlement', () => {
+    const award = {
+      vp: 5,
+      per: null,
+      mode: null,
+      max: null,
+      group: null,
+      cumulative: false,
+      criteria: 'Hold the objective.',
+      trigger: { timing: 'end-of-turn', phase: null, playerTurn: 'your-turn', roundMin: null, roundMax: null },
+    }
+    const state = reduceBattle(
+      PLAYERS,
+      log(
+        ...started(),
+        [BOB, { kind: 'select-secret', secondary: { key: 'secret-a', name: 'Hold the Line', awards: [award] } }],
+        ...turns(6, ALICE),
+      ),
+    )
+
+    expect(battleView({ token: 'abc' }, NAMES, state, ALICE).secretMissionActionPlayerId).toBeNull()
   })
 
   it('lets one side choose a secret mission for the side across the table', () => {
