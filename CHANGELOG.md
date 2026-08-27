@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.40.2
+
+### Patch Changes
+
+- 1adb870: Keep faction datasheet navigation from briefly showing an error.
+
 ## 0.40.1
 
 ### Patch Changes
