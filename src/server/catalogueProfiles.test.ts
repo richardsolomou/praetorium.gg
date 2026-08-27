@@ -734,6 +734,8 @@ describe('the profile modifiers on a datasheet', () => {
     ],
     ['Recon Drone', 'The bearer is equipped with 1 drone burst cannon and the bearer’s unit has the Infiltrators ability.', 'Infiltrators'],
     ['Cacophonic Accompaniment', '- This model has Deep Strike.\n- This unit’s ranged attacks have [IGNORES COVER].', 'Deep Strike'],
+    ['Fârstryder Node', "Models in the bearer's unit have the Deep Strike abilty.", 'Deep Strike'],
+    ['Wolf Scouts', "Model's in the bearer's unit have the Scouts 7\" ability.", 'Scouts 7"'],
     ['Vanguard', 'This unit has Scouts 6″.', 'Scouts 6"'],
     ['Vanguard', 'This unit has Scouts 6”.', 'Scouts 6"'],
   ])('includes an optional deployment ability only when its upgrade is selected: %s', (profileName, description, ability) => {

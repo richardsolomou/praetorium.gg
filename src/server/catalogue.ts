@@ -756,6 +756,8 @@ function parseAbilityGrants(
 ): { matched: boolean; grants: AbilityGrant[] } {
   if (!description) return { matched: false, grants: [] }
   const prose = normalizeAbilityText(description.replaceAll(/\^\^|\*/g, ''))
+    .replaceAll(/\babilty\b/giu, 'ability')
+    .replaceAll(/\bModel's in\b/gu, 'Models in')
   const grant = (written: string, recipient: 'bearer' | 'leader' | 'unit', explicitDeployment = false) => {
     const matched = linkedAbilities.filter((name) => ruleReferenceMatches(written, name) || ruleReferenceMatches(name, written))
     const listed = listedAbilities(written, linkedAbilities)
