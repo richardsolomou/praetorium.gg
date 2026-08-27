@@ -11,6 +11,7 @@ import {
   authDeliveryFailed,
   authDeliverySucceeded,
   authReceived,
+  confirmWebLoadSucceeded,
   drainAppShell,
   initialAppShellState,
   initialAuthReceived,
@@ -18,8 +19,8 @@ import {
   rendererTerminated,
   warmUrlReceived,
   webLoadFailed,
+  webLoadFinished,
   webLoadStarted,
-  webLoadSucceeded,
   webNavigationChanged,
   type AppShellCommand,
   type AppShellState,
@@ -67,6 +68,8 @@ function AppShell() {
   const handledAuthTokens = useRef(new Set<string>())
   const lifecycle = useRef(initialAppLifecycle(AppState.currentState))
   const shellRef = useRef(initialAppShellState())
+  const loadDrainTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const loadGeneration = useRef(0)
   const [renderedShell, setRenderedShell] = useState(() => appShellRenderState(shellRef.current))
 
   const commitShell = useCallback((state: AppShellState) => {
@@ -87,6 +90,26 @@ function AppShell() {
       if (drained.command) deliver(drained.command)
     },
     [commitShell, deliver],
+  )
+
+  const cancelScheduledDrain = useCallback(() => {
+    loadGeneration.current += 1
+    if (loadDrainTimer.current !== null) clearTimeout(loadDrainTimer.current)
+    loadDrainTimer.current = null
+  }, [])
+
+  const finishWebLoad = useCallback(
+    (url: string) => {
+      cancelScheduledDrain()
+      commitShell(webLoadFinished(shellRef.current, url))
+      const generation = loadGeneration.current
+      loadDrainTimer.current = setTimeout(() => {
+        if (generation !== loadGeneration.current) return
+        loadDrainTimer.current = null
+        commitAndDrain(confirmWebLoadSucceeded(shellRef.current))
+      }, 0)
+    },
+    [cancelScheduledDrain, commitAndDrain, commitShell],
   )
 
   const handleAuthCallback = useCallback(
@@ -195,6 +218,8 @@ function AppShell() {
     }
   }, [commitAndDrain, commitShell, handleIncomingUrl])
 
+  useEffect(() => cancelScheduledDrain, [cancelScheduledDrain])
+
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (status) => {
       const changed = appStateChanged(lifecycle.current, status)
@@ -213,8 +238,9 @@ function AppShell() {
   )
 
   const recoverRenderer = useCallback(() => {
+    cancelScheduledDrain()
     commitShell(rendererTerminated(shellRef.current))
-  }, [commitShell])
+  }, [cancelScheduledDrain, commitShell])
 
   return (
     <SafeAreaView edges={['top', 'right', 'bottom', 'left']} style={styles.safeArea}>
@@ -239,13 +265,20 @@ function AppShell() {
           renderLoading={() => <StateView />}
           renderError={() => <StateView error retry={() => webView.current?.reload()} />}
           onLoadStart={() => {
+            cancelScheduledDrain()
             commitShell(webLoadStarted(shellRef.current))
           }}
           onLoad={({ nativeEvent }) => {
-            commitAndDrain(webLoadSucceeded(shellRef.current, nativeEvent.url))
+            finishWebLoad(nativeEvent.url)
           }}
-          onError={() => commitShell(webLoadFailed(shellRef.current))}
-          onHttpError={() => commitShell(webLoadFailed(shellRef.current))}
+          onError={() => {
+            cancelScheduledDrain()
+            commitShell(webLoadFailed(shellRef.current))
+          }}
+          onHttpError={() => {
+            cancelScheduledDrain()
+            commitShell(webLoadFailed(shellRef.current))
+          }}
           onContentProcessDidTerminate={recoverRenderer}
           onRenderProcessGone={recoverRenderer}
           onMessage={({ nativeEvent }) => {
