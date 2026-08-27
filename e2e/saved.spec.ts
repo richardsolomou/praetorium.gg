@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { createRoster, signUp, waitForRosterSave } from './account'
+import { createRoster, signUp, uniqueName, waitForRosterSave } from './account'
 
 /**
  * A list kept between battles. What is stored is the picks, so loading it re-prices
@@ -121,7 +121,12 @@ test('a list is saved and loaded into another battle', async ({ browser }) => {
   await guest.goto(sharedUrl)
   await expect(guest.getByLabel('List name')).toHaveValue('Copy of Nurgle 2k')
   await expect(guest.getByLabel('List name')).toHaveAttribute('readonly', '')
-  await expect(guest.getByRole('button', { name: 'Roster actions' })).toHaveCount(0)
+  await guest.getByRole('button', { name: 'Roster actions' }).click()
+  await expect(guest.getByRole('menuitem', { name: 'Sign in to duplicate' })).toHaveAttribute('href', /\/sign-in\?next=/)
+  await expect(guest.getByRole('menuitem', { name: 'Export GW text' })).toBeVisible()
+  await expect(guest.getByRole('menuitem', { name: 'Print' })).toBeVisible()
+  await guest.screenshot({ path: 'test-results/shared-roster-actions.png', fullPage: true })
+  await guest.keyboard.press('Escape')
   await expect(guest.getByLabel('Add units')).toHaveCount(0)
   await expect(guest.getByRole('button', { name: 'Characters 1', exact: true })).toBeVisible()
   await expect(guest.getByRole('button', { name: 'Battleline 1', exact: true })).toBeVisible()
@@ -137,6 +142,27 @@ test('a list is saved and loaded into another battle', async ({ browser }) => {
   await guest.screenshot({ path: 'test-results/shared-roster-read-only.png', fullPage: true })
   await guest.setViewportSize({ width: 390, height: 844 })
   await expect(guestLoadout).toBeVisible()
+  expect(await guest.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
+  expect(await guestLoadout.evaluate((pane) => pane.scrollWidth <= pane.clientWidth)).toBe(true)
   await guest.screenshot({ path: 'test-results/shared-roster-read-only-phone.png', fullPage: true })
+  await guestLoadout.getByRole('button', { name: 'Close' }).click()
+  await guest.getByRole('button', { name: 'Roster actions' }).click()
+  await expect(guest.getByRole('menuitem', { name: 'Sign in to duplicate' })).toBeVisible()
+  expect(await guest.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
+  await guest.screenshot({ path: 'test-results/shared-roster-actions-phone.png', fullPage: true })
+  await guest.keyboard.press('Escape')
+
+  await signUp(guest, uniqueName('Reader'))
+  await guest.goto(sharedUrl)
+  await guest.getByRole('button', { name: 'Roster actions' }).click()
+  await guest.getByRole('menuitem', { name: 'Duplicate to my rosters' }).click()
+  await expect.poll(() => guest.url()).not.toBe(sharedUrl)
+  await expect(guest).toHaveURL(/\/rosters\/[^/]+$/)
+  await expect(guest.getByLabel('List name')).toHaveValue('Copy of Copy of Nurgle 2k')
+  await expect(guest.getByLabel('List name')).not.toHaveAttribute('readonly', '')
+  await guest.goto('/rosters')
+  const duplicated = guest.locator('[data-roster="Copy of Copy of Nurgle 2k"]')
+  await expect(duplicated).toBeVisible()
+  await expect(duplicated).toContainText('Private')
   await guestContext.close()
 })
