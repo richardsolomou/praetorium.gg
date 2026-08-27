@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
   canAddPooledOption,
-  catalogueRemovalsForFallback,
   choiceRemoval,
   controlledProfileCount,
   type LoadoutChoice,
@@ -11,7 +10,6 @@ import {
   orderedChoices,
   replacementChoice,
   sameWeapon,
-  selectedFallbackAnswers,
   showLoadoutEntry,
   spreadHandlers,
   uniqueWeaponProfiles,
@@ -45,31 +43,6 @@ describe('showing loadout entries', () => {
 
   it('keeps empty wargear available while editing', () => {
     expect(showLoadoutEntry(0, true)).toBe(true)
-  })
-})
-
-describe('fallback wargear choices', () => {
-  const icon = choice([{ ...option('icon', 0, 1), name: 'Icon of Despair' }], 1, true)
-  const model = (count: number): LoadoutModel => ({
-    name: 'Champion',
-    fixed: [],
-    members: [{ id: 'champion', choiceKey: null, baseCount: 1 }],
-    rows: [],
-    swaps: [{ key: 'icon#0', gives: [], takes: ['Icon of Despair (Aura)'], count, max: 1, free: true }],
-  })
-
-  it('lets a selected rules fallback answer the equivalent catalogue choice', () => {
-    expect(selectedFallbackAnswers(icon, [model(1)])).toBe(true)
-  })
-
-  it('keeps the catalogue choice when the rules fallback is not selected', () => {
-    expect(selectedFallbackAnswers(icon, [model(0)])).toBe(false)
-  })
-
-  it('clears a selected catalogue answer with its rules fallback', () => {
-    const selected = { ...icon, chosen: 'icon', options: [{ ...icon.options[0]!, count: 1 }] }
-
-    expect(catalogueRemovalsForFallback(['Icon of Despair (Aura)'], [selected])).toEqual([{ key: 'group', optionId: '' }])
   })
 })
 

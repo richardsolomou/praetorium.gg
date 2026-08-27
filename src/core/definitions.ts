@@ -18,7 +18,10 @@ import {
   type ModifierGroup,
   targetOf,
 } from './catalogue'
+import { isCollectiveGroup } from './collective'
 import { type EvaluateOptions, selectionCountBounds } from './evaluate'
+
+export { isCollective, isCollectiveGroup, scaleOf } from './collective'
 
 /** Crusade and campaign subtrees run deep and none of it is mandatory. */
 export const MAX_DEPTH = 4
@@ -44,37 +47,6 @@ export function pointsOf(option: Option, index: CatalogueIndex): number {
   const target = resolve(option.definition, index)
   const own = option.definition.costs?.find((cost) => cost.typeId === index.pointsTypeId)?.value
   return own ?? target.costs?.find((cost) => cost.typeId === index.pointsTypeId)?.value ?? 0
-}
-
-/**
- * Whether this entry's count is a total for the whole unit rather than one model's.
- *
- * A `collective` weapon under a squad of ten is ten weapons stored as one number,
- * and its `@parent` constraints are per model — "each model may take one" reads as
- * `max=1`, so a ten-model squad may hold ten. Everything about splitting a squad
- * between two weapons follows from that: the counts are absolute and they share
- * one capacity.
- */
-export function isCollective(definition: Definition, index: CatalogueIndex): boolean {
-  const target = resolve(definition, index)
-  return Boolean(('collective' in definition && definition.collective) || ('collective' in target && target.collective))
-}
-
-export function isCollectiveGroup(definition: Definition, index: CatalogueIndex): boolean {
-  const target = resolve(definition, index)
-  return target.type === undefined && childrenOf(target, index).some((child) => isCollective(child.definition, index))
-}
-
-/**
- * How many carriers a child's `@parent` constraint is counted against: the models
- * holding it when it is collective, one otherwise. A group takes the factor of what
- * it holds, because the constraint is written on the group and meant per model.
- */
-export function scaleOf(definition: Definition, index: CatalogueIndex, carriers: number): number {
-  if (isCollective(definition, index)) return carriers
-  const target = resolve(definition, index)
-  if (target.type !== undefined) return 1
-  return isCollectiveGroup(definition, index) ? carriers : 1
 }
 
 /** The binding cap on how many of this may be taken, or null when nothing limits it. */

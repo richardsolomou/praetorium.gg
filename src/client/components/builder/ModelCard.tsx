@@ -38,7 +38,6 @@ export function ModelCard({
   rules,
   onChoose,
   onSpread,
-  onSwap,
   editable,
   showOptions = true,
 }: {
@@ -51,7 +50,6 @@ export function ModelCard({
   rules: Datasheet['keywordRules']
   onChoose: (key: string, optionId: string) => void
   onSpread: (key: string, counts: SpreadCounts) => void
-  onSwap: (key: string, count: number) => void
   editable: boolean
   showOptions?: boolean
 }) {
@@ -170,18 +168,9 @@ export function ModelCard({
       </p>
       <ul className="divide-y divide-edge">
         {ordered(
-          [
-            ...model.fixed.map((entry) => ({ name: entry.name, fixed: entry })),
-            ...model.rows.map((row) => ({ name: row.name, row })),
-            ...(model.swaps ?? []).map((swap) => ({ name: swap.takes.join(' and '), swap })),
-          ],
+          [...model.fixed.map((entry) => ({ name: entry.name, fixed: entry })), ...model.rows.map((row) => ({ name: row.name, row }))],
           weapons,
-          (entry) =>
-            'row' in entry
-              ? `choice:${entry.row.choiceKey}`
-              : 'swap' in entry
-                ? `wargear:${entry.swap.gives[0] ?? entry.swap.key}`
-                : `wargear:${entry.name}`,
+          (entry) => ('row' in entry ? `choice:${entry.row.choiceKey}` : `wargear:${entry.name}`),
         ).map((entry) => {
           if ('fixed' in entry) {
             const fixedCount = entry.fixed.count ?? count
@@ -195,35 +184,6 @@ export function ModelCard({
                 abilities={abilities}
                 rules={rules}
                 highlightSelection={showOptions}
-              />
-            )
-          }
-          if ('swap' in entry) {
-            const swap = entry.swap
-            if (!showLoadoutEntry(swap.count, showOptions)) return null
-            return (
-              <WargearRow
-                key={swap.key}
-                name={entry.name}
-                count={swap.count}
-                weapons={weapons}
-                abilities={abilities}
-                rules={rules}
-                note={swap.gives.length ? `instead of ${swap.gives.join(' and ')}` : undefined}
-                highlightSelection={showOptions}
-                control={
-                  swap.free ? (
-                    <PoolStepper
-                      name={entry.name}
-                      count={swap.count}
-                      editable={editable}
-                      onAdd={swap.count < swap.max ? () => onSwap(swap.key, swap.count + 1) : undefined}
-                      onRemove={swap.count > 0 ? () => onSwap(swap.key, swap.count - 1) : undefined}
-                    />
-                  ) : (
-                    <span className="w-[5.5rem] text-right text-[0.6875rem] text-info">costs points</span>
-                  )
-                }
               />
             )
           }

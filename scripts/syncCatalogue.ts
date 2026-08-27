@@ -40,29 +40,9 @@ async function resolve(config: CatalogueSourceConfig): Promise<ResolvedCatalogue
   const catalog = JSON.parse(new TextDecoder().decode(await responseBytes(catalogUrl.toString()))) as { catalogKey?: unknown }
   if (typeof catalog.catalogKey !== 'string') throw new Error('Battlemaster catalog has no catalog key')
 
-  const files: Record<string, string> = {}
-  let wahapediaRevision = ''
-  for (const name of config.wahapedia.files) {
-    // Deliberately sequential: this updater runs hourly and should not burst at public sources.
-    const bytes = await responseBytes(`${config.wahapedia.baseUrl}/${name}`)
-    files[name] = hash(bytes)
-    if (name === 'Last_update.csv') wahapediaRevision = new TextDecoder().decode(bytes).split('\n')[1]?.replace('|', '').trim() ?? ''
-  }
-  const pages: Record<string, string> = {}
-  for (const name of config.wahapedia.pages) {
-    pages[name] = hash(await responseBytes(`${config.wahapedia.baseUrl}/factions/${name}/`))
-  }
-  if (!wahapediaRevision) throw new Error('Wahapedia export has no revision')
-
   return {
     ...repositories,
     battlemaster: { ...config.battlemaster, revision: hash(catalog.catalogKey) },
-    wahapedia: {
-      ...config.wahapedia,
-      revision: `${wahapediaRevision} + pinned live pages`,
-      files,
-      pages,
-    },
   }
 }
 

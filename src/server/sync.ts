@@ -2,13 +2,7 @@ import fs from 'node:fs'
 import { createHash } from 'node:crypto'
 import path from 'node:path'
 import { unzipSync } from 'fflate'
-import {
-  SOURCE_NAMES,
-  type BattlemasterSource,
-  type ResolvedCatalogueSources,
-  type SourceName,
-  type WahapediaSource,
-} from './catalogueSources'
+import { type BattlemasterSource, type ResolvedCatalogueSources, SOURCE_NAMES, type SourceName } from './catalogueSources'
 import { SUPPLEMENTAL_FACTION_ICONS } from './factionIconSources'
 import { fetchWithRetry } from './fetch'
 
@@ -34,9 +28,9 @@ function pinnedRevisions(sources: ResolvedCatalogueSources): Record<SourceName, 
 }
 
 /** What is on disk, or nothing when this instance has never synced. */
-function localRevisions(directory: string): Partial<Record<SourceName | 'battlemaster' | 'wahapedia', string>> {
+function localRevisions(directory: string): Partial<Record<SourceName | 'battlemaster', string>> {
   try {
-    const parsed: Partial<Record<SourceName | 'wahapedia', string>> = JSON.parse(
+    const parsed: Partial<Record<SourceName | 'battlemaster', string>> = JSON.parse(
       fs.readFileSync(path.join(directory, REVISION_FILE), 'utf8'),
     )
     return parsed
@@ -58,15 +52,6 @@ export const isComplete = (directory: string, sources: ResolvedCatalogueSources)
   if (local.battlemaster !== sources.battlemaster.revision) return false
   const layouts = path.join(directory, 'battlemaster', 'layouts')
   if (!fs.existsSync(layouts) || !fs.readdirSync(layouts).length) return false
-  if (local.wahapedia !== sources.wahapedia.revision) return false
-  for (const [name, expected] of Object.entries(sources.wahapedia.files)) {
-    const file = path.join(directory, 'wahapedia', name)
-    if (!fs.existsSync(file) || createHash('sha256').update(fs.readFileSync(file)).digest('hex') !== expected) return false
-  }
-  for (const [name, expected] of Object.entries(sources.wahapedia.pages)) {
-    const file = path.join(directory, 'wahapedia', 'pages', `${name}.html`)
-    if (!fs.existsSync(file) || createHash('sha256').update(fs.readFileSync(file)).digest('hex') !== expected) return false
-  }
   return true
 }
 
@@ -84,7 +69,6 @@ export async function syncSources(
   if (isCurrent(directory, sources)) {
     await syncFactionIcons(directory, report)
     await syncBattlemaster(directory, report, sources.battlemaster)
-    await syncWahapedia(directory, report, sources.wahapedia)
     report('catalogue is already at the pinned revisions')
     return
   }
@@ -107,7 +91,6 @@ export async function syncSources(
   fs.writeFileSync(path.join(directory, REVISION_FILE), `${JSON.stringify(pinned, null, 2)}\n`)
   await syncFactionIcons(directory, report)
   await syncBattlemaster(directory, report, sources.battlemaster)
-  await syncWahapedia(directory, report, sources.wahapedia)
   report('catalogue is ready')
 }
 
@@ -253,77 +236,8 @@ function battlemasterDetailMatches(entry: BattlemasterCatalog['layouts'][number]
   }
 }
 
-async function syncWahapedia(directory: string, report: (message: string) => void, source: WahapediaSource) {
-  const target = path.join(directory, 'wahapedia')
-  const complete = Object.keys(source.files).every((name) => fs.existsSync(path.join(target, name)))
-  if (localRevisions(directory).wahapedia === source.revision && complete) return
-  report(`wahapedia: fetching export from ${source.revision}`)
-  try {
-    const unavailable = await fetchWahapediaInto(source, target)
-    if (unavailable.length) {
-      report(`wahapedia: descriptions unavailable for ${unavailable.join(', ')}`)
-    }
-    const revisions = { ...localRevisions(directory), wahapedia: source.revision }
-    fs.writeFileSync(path.join(directory, REVISION_FILE), `${JSON.stringify(revisions, null, 2)}\n`)
-  } catch (error) {
-    report(`wahapedia: descriptions unavailable (${error instanceof Error ? error.message : String(error)})`)
-  }
-}
-
-const MAX_EXPORT_BYTES = 5 * 1024 * 1024
 const MAX_ARCHIVE_BYTES = 100 * 1024 * 1024
 const MAX_EXTRACTED_BYTES = 512 * 1024 * 1024
-
-async function fetchWahapediaInto(source: WahapediaSource, target: string) {
-  const staging = `${target}.incoming`
-  fs.rmSync(staging, { recursive: true, force: true })
-  fs.mkdirSync(staging, { recursive: true })
-
-  const unavailable: string[] = []
-  for (const [name, expected] of Object.entries(source.files)) {
-    try {
-      const response = await fetchWithRetry(`${source.baseUrl}/${name}`)
-      if (!response.ok) throw new Error(`answered ${response.status}`)
-      const bytes = new Uint8Array(await response.arrayBuffer())
-      if (bytes.length > MAX_EXPORT_BYTES) throw new Error(`exceeds ${MAX_EXPORT_BYTES} bytes`)
-      const actual = createHash('sha256').update(bytes).digest('hex')
-      if (actual !== expected) throw new Error('does not match the pinned export')
-      fs.writeFileSync(path.join(staging, name), bytes)
-    } catch {
-      const existing = path.join(target, name)
-      if (fs.existsSync(existing) && createHash('sha256').update(fs.readFileSync(existing)).digest('hex') === expected) {
-        fs.copyFileSync(existing, path.join(staging, name))
-      } else {
-        unavailable.push(name)
-      }
-    }
-  }
-
-  const pages = path.join(staging, 'pages')
-  fs.mkdirSync(pages)
-  for (const [name, expected] of Object.entries(source.pages)) {
-    try {
-      const response = await fetchWithRetry(`${source.baseUrl}/factions/${name}/`)
-      if (!response.ok) throw new Error(`answered ${response.status}`)
-      const bytes = new Uint8Array(await response.arrayBuffer())
-      if (bytes.length > MAX_EXPORT_BYTES) throw new Error(`exceeds ${MAX_EXPORT_BYTES} bytes`)
-      const actual = createHash('sha256').update(bytes).digest('hex')
-      if (actual !== expected) throw new Error('does not match the pinned source')
-      fs.writeFileSync(path.join(pages, `${name}.html`), bytes)
-    } catch {
-      const existing = path.join(target, 'pages', `${name}.html`)
-      if (fs.existsSync(existing) && createHash('sha256').update(fs.readFileSync(existing)).digest('hex') === expected) {
-        fs.copyFileSync(existing, path.join(pages, `${name}.html`))
-      } else {
-        unavailable.push(name)
-      }
-    }
-  }
-
-  fs.rmSync(target, { recursive: true, force: true })
-  fs.renameSync(staging, target)
-  return unavailable
-}
 
 async function fetchInto(repository: string, revision: string, target: string, sourcePath?: string) {
   const response = await fetchWithRetry(`https://codeload.github.com/${repository}/zip/${revision}`)

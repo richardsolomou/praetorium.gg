@@ -6,7 +6,9 @@ import type { UnitGroup } from '../core/unitGroups'
 import { datasheetSearchFieldsIn, datasheetIn, keywordsIn, toughnessOf } from './catalogue'
 import { datasheetSlug, datasheetsOf, type LoadedCatalogue } from './catalogueIndex'
 import { matchDatasheet, type DatasheetSearchReason } from './datasheetSearch'
-import type { FactionRestrictions } from './wahapedia'
+import { type FactionRestrictions, restrictedBy } from './datacards'
+import { datacardOf } from './datasheetJoin'
+import { factionContentOf } from './factionNames'
 
 export type UnitSummary = {
   id: string
@@ -99,18 +101,16 @@ export function unitsIn(
   loaded: LoadedCatalogue,
   catalogueId: string,
   query: string,
-  {
-    restrictions,
-    includeNames,
-    battleSize,
-  }: { restrictions?: FactionRestrictions; includeNames?: ReadonlySet<string>; battleSize?: number } = {},
+  { restrictions, factionCards, battleSize }: { restrictions?: FactionRestrictions; factionCards?: boolean; battleSize?: number } = {},
 ): UnitSummary[] {
   const wanted = query.trim().toLowerCase()
-  const included = includeNames && new Set([...includeNames].map(referenceName))
+  // A faction page lists what its cards list, where it has cards at all.
+  const book = loaded.index.catalogues.get(catalogueId)
+  const included = Boolean(factionCards && book && factionContentOf(loaded, book.name))
   // Faction reference pages use one canonical name set, and a restriction set is
   // one stable value per rules snapshot. Cache the complete, priced list so each
   // search filters in memory instead of rebuilding every datasheet in the faction.
-  const cacheKey = `${catalogueId}:${includeNames ? 'included' : 'all'}:${battleSize ?? 'all'}:${restrictionsKey(restrictions)}`
+  const cacheKey = `${catalogueId}:${included ? 'included' : 'all'}:${battleSize ?? 'all'}:${restrictionsKey(restrictions)}`
   const cached = unitSummaryCache.get(loaded)?.get(cacheKey)
   if (cached) return searchUnits(loaded, catalogueId, wanted, cached)
   const found: { id: string; name: string; group: UnitGroup; alliedFaction: string | null; alliedOrder: number }[] = []
@@ -122,10 +122,10 @@ export function unitsIn(
     if (!isMatchedPlayDatasheet(loaded.index, entry)) continue
     const target = targetOf(entry, loaded.index.definitions)
     const name = nameOf(entry, loaded.index.definitions)
-    if (included && !includedReferenceName(included, name)) continue
+    if (included && !datacardOf(loaded, catalogueId, id)?.own) continue
     // Asked only where a restriction can act on the answer: folding the keywords a
     // datasheet carries costs a default build of it, and most books exclude nothing.
-    if (restrictions && restricted(name, keywordsIn(loaded, catalogueId, id), restrictions)) continue
+    if (restrictions && restrictedBy(restrictions, name, keywordsIn(loaded, catalogueId, id))) continue
     // Unaligned Forces is the shared shelf for Legends fortifications and
     // mission-only battlefield assets. A few assets (including Sentry Gun) lack
     // the suffix even though they are not matched-play roster choices.
@@ -173,22 +173,6 @@ function searchUnits(loaded: LoadedCatalogue, catalogueId: string, query: string
     .toSorted((left, right) => left.score - right.score || left.unit.name.localeCompare(right.unit.name))
     .map(({ unit }) => unit)
 }
-
-/** Catalogue and datacard sources use different apostrophe glyphs in otherwise identical names. */
-const referenceName = (name: string) =>
-  name
-    .normalize('NFKC')
-    .replaceAll(/[‘’ʼ]/g, "'")
-    .toLocaleLowerCase()
-
-const includedReferenceName = (included: ReadonlySet<string>, name: string) => {
-  const normalized = referenceName(name)
-  return included.has(normalized) || included.has(`${normalized}s`) || (normalized.endsWith('s') && included.has(normalized.slice(0, -1)))
-}
-
-const restricted = (name: string, keywords: readonly string[], restrictions: FactionRestrictions) =>
-  restrictions.excludedNames.has(name.trim().toLowerCase()) ||
-  keywords.some((keyword) => restrictions.excludedKeywords.has(keyword.trim().toLowerCase()))
 
 /** How many of one datasheet the roster may hold, or null when nothing limits it. */
 function limitOf(loaded: LoadedCatalogue, catalogueId: string, entryId: string) {

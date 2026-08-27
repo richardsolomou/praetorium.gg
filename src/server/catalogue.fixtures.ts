@@ -9,6 +9,7 @@
 import { buildIndex, type Catalogue, type CatalogueFile, type Modifier } from '../core/catalogue'
 import { characteristicNamesOf, detachmentsOf, factionsIn, type LoadedCatalogue } from './catalogueIndex'
 import { unitsIn } from './cataloguePicker'
+import type { DatasheetDetails, FactionContent } from './datacards'
 
 export const PTS = 'cost-pts'
 
@@ -74,3 +75,29 @@ export const profileOperationCases: ProfileOperationCase[] = [
   { type: 'replace', base: 'Rapid Fire 1, Assault', expected: ', Assault', arg: 'Rapid Fire 1' },
   { type: 'append', base: 'Assault', value: 'Assault', expected: 'Assault', skipIfPresent: 'Assault' },
 ]
+
+export const card = (over: Partial<DatasheetDetails> = {}): DatasheetDetails => ({
+  composition: [],
+  loadout: null,
+  wargear: [],
+  baseSize: null,
+  transport: null,
+  points: [],
+  attachesTo: [],
+  leaders: [],
+  supporters: [],
+  ...over,
+})
+
+/** A faction's Game Datacards file, holding a card for each name. */
+export const withCards = (name: string, cards: readonly string[] | ReadonlyMap<string, DatasheetDetails>): FactionContent => {
+  const details = cards instanceof Map ? cards : new Map([...cards].map((cardName) => [cardName, card()]))
+  return {
+    name,
+    datasheets: new Set(details.keys()),
+    datasheetDetails: details,
+    detachments: new Set(),
+    factionAbilityNames: new Set(),
+    armyRules: [],
+  }
+}

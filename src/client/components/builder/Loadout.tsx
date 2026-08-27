@@ -8,13 +8,10 @@ import { loadoutDatasheetsQuery } from '../../queries'
 import { useSettled } from '../../useSettled'
 import { UnitProfile, WeaponSummary } from './DatasheetPanel'
 import {
-  catalogueRemovalsForFallback,
   controlledProfileCount,
   type LoadoutModel,
   type LoadoutUnit,
   orderedChoices,
-  sameWeapon,
-  selectedFallbackAnswers,
   type SpreadCounts,
   wholeSquadTakes,
 } from './loadoutModel'
@@ -29,8 +26,6 @@ type Props = {
   pickIndex: number | null
   onChoose: (key: string, optionId: string) => void
   onSpread: (key: string, counts: SpreadCounts) => void
-  /** How many models take a datasheet swap the catalogue does not describe. */
-  onSwap: (key: string, count: number) => void
   editable?: boolean
   showOptions?: boolean
   reference?: ReactElement<{ providedSheet?: Datasheet | null }>
@@ -54,7 +49,6 @@ export function Loadout({
   pickIndex,
   onChoose,
   onSpread,
-  onSwap,
   editable = true,
   showOptions = true,
   reference,
@@ -115,24 +109,9 @@ export function Loadout({
   }
   if (!sheet || !availableSheet) return <LoadoutLoading />
 
-  const catalogueWeapons = availableSheet.profiles.filter(
-    (profile) => profile.type === 'Ranged Weapons' || profile.type === 'Melee Weapons',
-  )
-  const weapons = [
-    ...catalogueWeapons,
-    // The rules source is only here to fill gaps. A weapon the catalogue already
-    // names belongs to the catalogue, however either of them spells its profiles:
-    // a staff of light the catalogue prints as two rows would otherwise appear
-    // twice more as "Staff of light (Ranged)" and "Staff of light (Melee)".
-    ...(unit.modelWeapons ?? []).filter((extra) => !catalogueWeapons.some((profile) => sameWeapon(profile.name, extra.name))),
-  ]
-  const rules = [...availableSheet.keywordRules, ...(unit.modelKeywordRules ?? [])]
-  const modelAbilities = unit.modelAbilities ?? []
-  const modelAbilityNames = new Set(modelAbilities.map((ability) => ability.name.trim().toLocaleLowerCase()))
-  const abilities = [
-    ...availableSheet.abilities.filter((ability) => !modelAbilityNames.has(ability.name.trim().toLocaleLowerCase())),
-    ...modelAbilities,
-  ]
+  const weapons = availableSheet.profiles.filter((profile) => profile.type === 'Ranged Weapons' || profile.type === 'Melee Weapons')
+  const rules = availableSheet.keywordRules
+  const abilities = availableSheet.abilities
 
   const equipped = (type: string) =>
     sheet.profiles.filter((profile) => profile.type === type && (profile.count ?? 1) > controlledProfileCount(unit.choices, profile.name))
@@ -141,16 +120,6 @@ export function Loadout({
   const profile = sheet.profiles.find((candidate) => candidate.type === 'Unit')
 
   const { models, loose } = divide(unit)
-  const changeSwap = (key: string, count: number) => {
-    onSwap(key, count)
-    if (count > 0) return
-    const swap = unit.models.flatMap((model) => model.swaps ?? []).find((candidate) => candidate.key === key)
-    if (!swap) return
-    for (const edit of catalogueRemovalsForFallback(swap.takes, unit.choices)) {
-      if ('counts' in edit) onSpread(edit.key, edit.counts)
-      else onChoose(edit.key, edit.optionId)
-    }
-  }
   const visibleLoose = showOptions
     ? loose
     : loose.filter((choice) => choice.options.some((option) => option.count || choice.chosen === option.id))
@@ -173,7 +142,6 @@ export function Loadout({
                   stands={models.get(model) ?? null}
                   onChoose={onChoose}
                   onSpread={onSpread}
-                  onSwap={changeSwap}
                   editable={editable}
                   showOptions={showOptions}
                   {...described}
@@ -273,12 +241,7 @@ function divide(unit: LoadoutUnit): { models: Map<LoadoutModel, Stood>; loose: L
   const stood = new Map(unit.models.flatMap((model) => (standingFor(model) ? [[model, standingFor(model)!] as const] : [])))
   const modelled = new Set(unit.models.flatMap((model) => model.rows.map((row) => row.choiceKey)))
   const carded = new Set([...stood.values()].map((found) => found.option.id))
-  const loose = unit.choices.filter(
-    (choice) =>
-      !modelled.has(choice.key) &&
-      !choice.options.every((option) => carded.has(option.id)) &&
-      !selectedFallbackAnswers(choice, unit.models),
-  )
+  const loose = unit.choices.filter((choice) => !modelled.has(choice.key) && !choice.options.every((option) => carded.has(option.id)))
 
   // A card only counts its own option where the group is not drawn below as well.
   const models = new Map([...stood].filter(([, found]) => !loose.includes(found.choice)))

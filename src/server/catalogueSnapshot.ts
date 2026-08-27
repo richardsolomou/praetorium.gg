@@ -37,14 +37,13 @@ function filesUnder(directory: string, relative = ''): string[] {
 function requireComplete(directory: string, requireDatacards = false) {
   const revisions = JSON.parse(fs.readFileSync(path.join(directory, 'revision.json'), 'utf8')) as Record<string, string>
   const repositories = requireDatacards ? ['definitions', 'points', 'rules', 'datacards'] : ['definitions', 'points', 'rules']
-  for (const name of [...repositories, 'battlemaster', 'wahapedia']) {
+  for (const name of [...repositories, 'battlemaster']) {
     if (!revisions[name]) throw new Error(`catalogue snapshot has no ${name} revision`)
   }
   for (const name of repositories) {
     if (!filesUnder(path.join(directory, name)).length) throw new Error(`catalogue snapshot has no ${name} files`)
   }
   if (!filesUnder(path.join(directory, 'battlemaster', 'layouts')).length) throw new Error('catalogue snapshot has no terrain layouts')
-  if (!filesUnder(path.join(directory, 'wahapedia')).length) throw new Error('catalogue snapshot has no description exports')
   return revisions
 }
 
