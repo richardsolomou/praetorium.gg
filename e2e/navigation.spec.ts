@@ -1,5 +1,5 @@
 import { devices, expect, test } from '@playwright/test'
-import { retryUntilVisible, signUp } from './account'
+import { signUp } from './account'
 
 test('primary navigation collapses below 815 pixels', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
@@ -55,8 +55,9 @@ test('rule tooltips open on touch and hover', async ({ browser, page }) => {
   const touchPage = await context.newPage()
 
   await touchPage.goto('/factions/necrons/detachments/hand-of-the-dynasty')
+  await touchPage.waitForLoadState('networkidle')
   const tooltip = touchPage.getByRole('tooltip')
-  await retryUntilVisible(tooltip, () => touchPage.getByRole('button', { name: '[RAPID FIRE 1]' }).tap())
+  await touchPage.getByRole('button', { name: '[RAPID FIRE 1]' }).tap()
   await expect(tooltip).toContainText('Rapid Fire')
   await touchPage.screenshot({ path: 'test-results/rule-tooltip-touch.png', fullPage: true })
   await touchPage.getByRole('heading', { name: 'Hand of the Dynasty', exact: true }).tap()
