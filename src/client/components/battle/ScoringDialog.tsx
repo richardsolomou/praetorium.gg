@@ -388,11 +388,12 @@ export function dueForAdvance(view: BattleView, side: Side, awardsFor: (key: str
  */
 export function dueFromTheirTurn(
   round: number,
+  rounds: number,
   side: Side,
   awardsFor: (key: string, mode?: string) => MissionAward[],
   hand: readonly string[],
 ): DueCard[] {
-  return cardsDueFromTheirTurn(round, playable(side, awardsFor), hand)
+  return cardsDueFromTheirTurn(round, rounds, playable(side, awardsFor), hand)
 }
 
 /** A side's primary and whatever is still live in its hand, with the payouts each carries. */

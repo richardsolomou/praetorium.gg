@@ -6,6 +6,7 @@ import { deleteBattle } from '../../server/functions'
 import { battleQuery, battlesQuery, deploymentsQuery, detachmentRulesQuery, gameReferencesQuery } from '../queries'
 import { primaryCards, secondaryCards } from '../missionDeck'
 import { appliesInMode } from '../missionText'
+import { automaticAttemptsExhausted, claimAutomaticAttempt } from '../automaticAttempts'
 import { errorMessage } from '../queryClient'
 import { armyRulesRequest } from '../sideRules'
 import { type Side, type SideMission, sideName, sides } from '../sides'
@@ -148,9 +149,7 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
   useEffect(() => {
     if (finished || pending || !references || !secondaryDeck.length || !repairSide || !repairPrimary) return
     const key = `${view.seq}:${repairSide.captain.id}`
-    const attempts = attemptedPrepRepairs.current.get(key) ?? 0
-    if (attempts >= 3) return
-    attemptedPrepRepairs.current.set(key, attempts + 1)
+    if (!claimAutomaticAttempt(attemptedPrepRepairs.current, key)) return
     send({
       kind: 'set-prep',
       playerId: repairSide.captain.id,
@@ -242,12 +241,18 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
   const settlementRulesPending = settlementNeedsReferences && (settlementRuleResults.some((result) => result.isPending) || deckUnknown)
   const owedCards =
     settlementRound !== null && settlementSide && !finished
-      ? dueFromTheirTurn(settlementRound, settlementSide, awardsFor, heldKeys(settlementSide))
+      ? dueFromTheirTurn(settlementRound, view.rounds, settlementSide, awardsFor, heldKeys(settlementSide))
       : []
+  const attemptedEmptySettlements = useRef(new Map<string, number>())
+  const emptySettlementKey = `${view.seq}:${settlementRound ?? ''}:${view.settlementPlayerId ?? ''}`
+  const emptySettlementReady =
+    settlementRound !== null && !settlementRulesPending && !settlementSecretMissionAction && owedCards.length === 0
+  const emptySettlementRetryNeeded =
+    emptySettlementReady && automaticAttemptsExhausted(attemptedEmptySettlements.current, emptySettlementKey)
   useEffect(() => {
-    if (settlementRound === null || settlementRulesPending || settlementSecretMissionAction || owedCards.length || pending) return
+    if (!emptySettlementReady || pending || !claimAutomaticAttempt(attemptedEmptySettlements.current, emptySettlementKey)) return
     send({ kind: 'settle-opponent-turn' })
-  }, [owedCards.length, pending, send, settlementRound, settlementRulesPending, settlementSecretMissionAction])
+  }, [emptySettlementKey, emptySettlementReady, pending, send])
   const prompt = settlementRound !== null ? (owedCards.length ? 'owed' : null) : turnPrompt(0, needsDraw || needsDrawAcknowledgement)
   const discardable = active ? discardableSecondaries(active) : []
 
@@ -349,6 +354,16 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
             </div>
 
             {problem ? <p className="text-sm text-destructive">{problem}</p> : null}
+            {emptySettlementRetryNeeded ? (
+              <button
+                type="button"
+                className="text-sm font-medium text-link underline underline-offset-4"
+                disabled={pending}
+                onClick={() => send({ kind: 'settle-opponent-turn' })}
+              >
+                Retry finishing the previous turn
+              </button>
+            ) : null}
             {remove.error ? <p className="text-sm text-destructive">{errorMessage(remove.error)}</p> : null}
 
             {/*

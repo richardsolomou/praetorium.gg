@@ -120,7 +120,9 @@ function describe(
       return `The battle begins, ${named.get(command.attackerId ?? command.firstPlayerId) ?? 'someone'} attacking and ${first} taking the first turn and gaining 1 CP`
     }
     case 'advance': {
-      if (after.status === 'finished') return targetId === by ? 'The last round ends' : `${who} ends the last round${forTarget}`
+      if (after.status === 'finished' || after.completionPending) {
+        return targetId === by ? 'The last round ends' : `${who} ends the last round${forTarget}`
+      }
       const next = named.get(after.activePlayerId ?? '') ?? 'the other player'
       if (after.round !== before.round) {
         return targetId === by

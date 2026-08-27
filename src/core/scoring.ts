@@ -44,7 +44,7 @@ export function dueNow(trigger: AwardTrigger, view: ScoringMoment, yourTurn: boo
   return true
 }
 
-export function cardsDueFromTheirTurn(round: number, cards: readonly ScoringCard[], hand: readonly string[]): DueCard[] {
+export function cardsDueFromTheirTurn(round: number, rounds: number, cards: readonly ScoringCard[], hand: readonly string[]): DueCard[] {
   return cards
     .filter((card) => card.category === 'primary' || hand.includes(card.key))
     .map((card) => ({
@@ -52,6 +52,7 @@ export function cardsDueFromTheirTurn(round: number, cards: readonly ScoringCard
       name: card.name,
       category: card.category,
       awards: card.awards.filter((award) => {
+        if (card.category === 'primary' && round >= rounds) return false
         const trigger = award.trigger
         if (trigger.timing !== 'end-of-turn') return false
         if (trigger.playerTurn !== 'opponent-turn' && trigger.playerTurn !== 'either') return false

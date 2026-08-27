@@ -149,14 +149,14 @@ describe('when a mission is asked about', () => {
         awards: [payout(2, { timing: 'end-of-turn', playerTurn: 'opponent-turn' })],
       },
     ]
-    expect(cardsDueFromTheirTurn(1, cards, ['guard'])).toHaveLength(1)
+    expect(cardsDueFromTheirTurn(1, 5, cards, ['guard'])).toHaveLength(1)
   })
 
   it('settles an either-turn card from their turn as well as your own', () => {
     const cards = [
       { key: 'kills', name: 'Kills', category: 'secondary' as const, awards: [payout(2, { timing: 'end-of-turn', playerTurn: 'either' })] },
     ]
-    expect(cardsDueFromTheirTurn(1, cards, ['kills'])).toHaveLength(1)
+    expect(cardsDueFromTheirTurn(1, 5, cards, ['kills'])).toHaveLength(1)
   })
 
   it('leaves your own-turn cards to your own turn', () => {
@@ -168,7 +168,7 @@ describe('when a mission is asked about', () => {
         awards: [payout(3, { timing: 'end-of-turn', playerTurn: 'your-turn' })],
       },
     ]
-    expect(cardsDueFromTheirTurn(1, cards, ['mine'])).toEqual([])
+    expect(cardsDueFromTheirTurn(1, 5, cards, ['mine'])).toEqual([])
   })
 
   it('judges their turn against the round it was played in', () => {
@@ -180,8 +180,8 @@ describe('when a mission is asked about', () => {
         awards: [payout(3, { timing: 'end-of-turn', playerTurn: 'opponent-turn', roundMin: 2 })],
       },
     ]
-    expect(cardsDueFromTheirTurn(1, cards, ['late'])).toEqual([])
-    expect(cardsDueFromTheirTurn(2, cards, ['late'])).toHaveLength(1)
+    expect(cardsDueFromTheirTurn(1, 5, cards, ['late'])).toEqual([])
+    expect(cardsDueFromTheirTurn(2, 5, cards, ['late'])).toHaveLength(1)
   })
 
   it('never asks about a card dealt after that turn had already ended', () => {
@@ -193,7 +193,21 @@ describe('when a mission is asked about', () => {
         awards: [payout(2, { timing: 'end-of-turn', playerTurn: 'either' })],
       },
     ]
-    expect(cardsDueFromTheirTurn(1, cards, [])).toEqual([])
+    expect(cardsDueFromTheirTurn(1, 5, cards, [])).toEqual([])
+  })
+
+  it('settles a final-round primary once at the end of its owner’s turn', () => {
+    const cards = [
+      {
+        key: 'primary',
+        name: 'Primary',
+        category: 'primary' as const,
+        awards: [payout(5, { timing: 'end-of-turn', playerTurn: 'opponent-turn' })],
+      },
+    ]
+
+    expect(cardsDue(at('end', 5), true, cards)).toHaveLength(1)
+    expect(cardsDueFromTheirTurn(5, 5, cards, [])).toEqual([])
   })
 })
 

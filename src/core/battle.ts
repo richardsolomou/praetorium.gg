@@ -1782,6 +1782,7 @@ export function secretSettlementActionPlayerId(state: BattleState): PlayerId | n
   if (!secondary?.awards) return player.id
   const due = cardsDueFromTheirTurn(
     pending.round,
+    battleRoundLimit(state.settings.limit),
     [
       {
         ...secondary,

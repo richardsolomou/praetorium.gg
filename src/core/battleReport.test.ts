@@ -29,6 +29,12 @@ describe('the account of the battle', () => {
     expect(text(battleReport(NAMES, history))).toContain('Round 2 begins; Alice gains 1 CP')
   })
 
+  it('marks the last round before final opponent-turn scoring is settled', () => {
+    const rounds = Array.from({ length: 5 }, () => [...turns(6, ALICE), ...turns(6, BOB)]).flat()
+
+    expect(text(battleReport(NAMES, log(...started(), ...rounds))).at(-1)).toBe('The last round ends')
+  })
+
   it('reports a stratagem by name and cost', () => {
     const history = log(
       ...started(),
