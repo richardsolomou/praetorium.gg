@@ -19,7 +19,7 @@ import {
   wholeSquadTakes,
 } from './loadoutModel'
 
-const option = (id: string, count: number, max: number) => ({ id, name: id, points: 0, count, max })
+const option = (id: string, count: number, max: number) => ({ id, name: id, points: 0, count, min: 0, max })
 
 const choice = (options: LoadoutChoice['options'], room: number, optional = false): LoadoutChoice => ({
   key: 'group',
@@ -44,6 +44,14 @@ describe('showing loadout entries', () => {
   it('keeps empty wargear available while editing', () => {
     expect(showLoadoutEntry(0, true)).toBe(true)
   })
+})
+
+it('does not remove a mandatory copy while allowing an additional copy', () => {
+  const gauntlet = { ...option('gauntlet', 1, 2), min: 1 }
+  const handlers = spreadHandlers(choice([gauntlet], 2))
+
+  expect(handlers.less(gauntlet)).toBeNull()
+  expect(handlers.more(gauntlet)).toEqual({ gauntlet: 2 })
 })
 
 describe('matching a wargear name to what describes it', () => {

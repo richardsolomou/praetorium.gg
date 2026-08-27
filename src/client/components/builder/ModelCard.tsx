@@ -117,6 +117,7 @@ export function ModelCard({
     const taker = shared
       .filter((entry) => !sameSource(entry, giver) && canAddPooledOption(entry.option, giver))
       .toSorted((one, other) => other.option.count - one.option.count)[0]
+    if (giver.option.count <= giver.option.min) return null
     return taker ? move([giver], [taker]) : move([giver], [])
   }
 
@@ -198,6 +199,7 @@ export function ModelCard({
           const addsModel = sources.some(({ choice: source, option: candidate }) =>
             model.members.some((member) => member.choiceKey === source.key && member.id === candidate.id),
           )
+          const exceedsModelCount = sources.some(({ option: candidate }) => candidate.max > count)
           const direct = sources.filter(({ choice: source }) => source.room <= 1 && !source.carried)
           const replacesAnotherRow = Boolean(
             row.pieces?.some((piece) => model.rows.some((candidate) => candidate !== row && sameWeapon(candidate.name, piece))),
@@ -209,13 +211,14 @@ export function ModelCard({
             .map((source) => ({ source, replacement: choiceRemoval(source.choice, source.option, replacesAnotherRow) }))
             .find(({ replacement: candidate }) => candidate !== null)
           const add =
-            displayed >= count && !addsModel
+            displayed >= count && !addsModel && !exceedsModelCount
               ? undefined
               : replacement
                 ? () => onChoose(replacement.key, '')
                 : (pooled(row, spend) ?? (addDirect ? () => onChoose(addDirect.choice.key, addDirect.option.id) : undefined))
           const remove =
             pooled(row, free) ?? (removeDirect ? () => onChoose(removeDirect.source.choice.key, removeDirect.replacement ?? '') : undefined)
+          const picked = choice.uniform || (choice.optional && choice.room === 1 && choice.options.length === 1)
           return (
             <WargearRow
               key={`${row.choiceKey}/${row.optionId}/${row.name}`}
@@ -228,9 +231,7 @@ export function ModelCard({
               rules={rules}
               highlightSelection={showOptions}
               control={
-                choice.uniform ? (
-                  // Every model carries the same one, so the row is answered rather
-                  // than counted: taking it hands it to the whole squad at once.
+                picked ? (
                   <PickControl
                     name={row.name}
                     count={displayed}

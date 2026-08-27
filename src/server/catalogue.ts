@@ -255,7 +255,7 @@ function assemble(loaded: LoadedCatalogue, catalogueId: string, entryId: string,
   return {
     id: root.id,
     slug: datasheetSlug(loaded, catalogueId, root.id),
-    referenceRoute: referenceDatasheetRoute(loaded, name),
+    referenceRoute: referenceDatasheetRoute(loaded, name, { catalogueId, entryId }),
     name,
     points: priceOf(loaded, catalogueId, entryId),
     keywords: walked.keywords,
@@ -1140,7 +1140,7 @@ function relationshipFor(
     ...(kind ? { kind } : {}),
     name: entry ? nameOf(entry, loaded.index.definitions) : name,
     entryId: resolved,
-    route: referenceDatasheetRoute(loaded, name),
+    route: referenceDatasheetRoute(loaded, name, resolved ? { catalogueId, entryId: resolved } : undefined),
   }
 }
 

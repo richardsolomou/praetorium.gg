@@ -70,7 +70,7 @@ export type UnitChoice = {
    * `profile` is set when the option is a model rather than a piece of wargear, and
    * names the kind of model it is one loadout of.
    */
-  options: { id: string; name: string; points: number; count: number; max: number; profile?: string | null }[]
+  options: { id: string; name: string; points: number; count: number; min: number; max: number; profile?: string | null }[]
   /**
    * The specific model this choice belongs to, when it is not every model in the unit.
    *
@@ -128,7 +128,10 @@ export function unitChoices(entryId: string, selection: Selection, index: Catalo
       const here = [...trail, child.id]
 
       const repeatingEntry = inner.type === 'upgrade' ? repeatedModelOn(trail, index) : null
-      const single = inner.type === 'upgrade' && minimum(child.definition) === 0 && maximumCount(child.definition, index) === 1
+      const lower = minimum(child.definition)
+      const upper = maximumCount(child.definition, index, { primaryCatalogueId: options.primaryCatalogueId, roster })
+      const boundedUpgrade = inner.type === 'upgrade' && upper !== null && upper > lower
+      const single = lower === 0 && upper === 1
       const onRepeatedModel = Boolean(repeatingEntry && repeatingEntry.path.length === trail.length)
       if (repeatingEntry && onRepeatedModel && single) {
         const room = effectiveCount(selection, repeatingEntry.path, repeatingEntry.definition, index, options)
@@ -142,7 +145,7 @@ export function unitChoices(entryId: string, selection: Selection, index: Catalo
           chosen: count ? child.id : '',
           optional: true,
           room,
-          options: [{ id: child.id, name: inner.name ?? child.id, points: pointsOf(child, index), count, max: room }],
+          options: [{ id: child.id, name: inner.name ?? child.id, points: pointsOf(child, index), count, min: 0, max: room }],
           uniform: false,
           carried: true,
           owner: modelOwnerOf(trail, index),
@@ -163,15 +166,15 @@ export function unitChoices(entryId: string, selection: Selection, index: Catalo
        * already reported together, and reporting them again would draw one control
        * for the group and a second for every option in it.
        */
-      if (single && !onRepeatedModel && target.type !== undefined && !isRosterToggle(inner.name ?? child.definition.name)) {
+      if (boundedUpgrade && !onRepeatedModel && target.type !== undefined && !isRosterToggle(inner.name ?? child.definition.name)) {
         const count = countAt(selection, here)
         choices.push({
           key: here.join('/'),
           name: inner.name ?? child.id,
           chosen: count ? child.id : '',
-          optional: true,
-          room: 1,
-          options: [{ id: child.id, name: inner.name ?? child.id, points: pointsOf(child, index), count, max: 1 }],
+          optional: lower === 0,
+          room: upper,
+          options: [{ id: child.id, name: inner.name ?? child.id, points: pointsOf(child, index), count, min: lower, max: upper }],
           uniform: false,
           carried: false,
           owner: modelOwnerOf(trail, index),
@@ -237,6 +240,7 @@ export function unitChoices(entryId: string, selection: Selection, index: Catalo
               name: resolve(option.definition, index).name ?? option.id,
               points: pointsOf(option, index),
               count: countOf(option.id),
+              min: minimum(option.definition) * scale,
               max: maximumFor(option),
               ...(resolve(option.definition, index).type === 'model' ? { profile: modelProfileOf(option.definition, index) } : {}),
             })),
@@ -258,7 +262,16 @@ export function unitChoices(entryId: string, selection: Selection, index: Catalo
   // An owner only means something next to a sibling it differs from. A unit built
   // from one model throughout has nothing to contrast it with, so naming that model
   // on every choice would repeat the unit's own name rather than distinguish anything.
-  if (new Set(choices.map((choice) => choice.owner?.id ?? '')).size <= 1) return choices.map((choice) => ({ ...choice, owner: null }))
+  const selectedModels = new Set<string>()
+  const collectModels = (node: Selection) => {
+    const definition = index.definitions.get(node.id)
+    if (definition && resolve(definition, index).type === 'model' && (node.count ?? 1) > 0) selectedModels.add(node.id)
+    node.selections?.forEach(collectModels)
+  }
+  collectModels(selection)
+  if (new Set(choices.map((choice) => choice.owner?.id ?? '')).size <= 1 && selectedModels.size <= 1) {
+    return choices.map((choice) => ({ ...choice, owner: null }))
+  }
   return choices
 }
 

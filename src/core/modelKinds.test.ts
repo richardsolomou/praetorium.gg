@@ -3,6 +3,7 @@ import { buildIndex, type Catalogue, type CatalogueFile, type Constraint } from 
 import { modelKindsOf, optionWargear } from './modelKinds'
 import { buildUnit } from './roster'
 import { allAt } from './selection'
+import { wargearOf } from './wargear'
 
 const PTS = 'cost-pts'
 const system: CatalogueFile = { gameSystem: { id: 'gs', name: 'Test', costTypes: [{ id: PTS, name: 'pts' }] } }
@@ -50,6 +51,100 @@ it('totals wargear across repeated selections of one option', () => {
     { name: 'Bolt pistol', count: 3 },
     { name: 'Twin bolter', count: 3 },
   ])
+})
+
+it('separates a champion whose mandatory weapon can take an additional copy', () => {
+  const index = indexOf({
+    sharedSelectionEntries: [
+      {
+        id: 'squad',
+        name: 'Terminators',
+        type: 'unit',
+        selectionEntries: [
+          {
+            id: 'champion',
+            name: 'Terminator Champion',
+            type: 'model',
+            constraints: mandatory('champion-min'),
+            entryLinks: [
+              { id: 'champion-blade', targetId: 'blade', type: 'selectionEntry' },
+              {
+                id: 'champion-gauntlet',
+                targetId: 'gauntlet',
+                type: 'selectionEntry',
+                modifiers: [{ type: 'set', field: 'gauntlet-max', value: 2 }],
+              },
+              { id: 'champion-icon', targetId: 'icon', type: 'selectionEntry' },
+            ],
+          },
+        ],
+        selectionEntryGroups: [
+          {
+            id: 'terminators',
+            name: 'Terminators',
+            constraints: [
+              { id: 'terminators-min', type: 'min', value: 2, field: 'selections', scope: 'parent' },
+              { id: 'terminators-max', type: 'max', value: 5, field: 'selections', scope: 'parent' },
+            ],
+            selectionEntries: [
+              {
+                id: 'terminator',
+                name: 'Terminator',
+                type: 'model',
+                constraints: [
+                  { id: 'terminator-min', type: 'min', value: 2, field: 'selections', scope: 'parent' },
+                  { id: 'terminator-max', type: 'max', value: 5, field: 'selections', scope: 'parent' },
+                ],
+                entryLinks: [
+                  { id: 'terminator-blade', targetId: 'blade', type: 'selectionEntry' },
+                  { id: 'terminator-gauntlet', targetId: 'gauntlet', type: 'selectionEntry' },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+      {
+        id: 'blade',
+        name: 'Blade',
+        type: 'upgrade',
+        constraints: [
+          { id: 'blade-min', type: 'min', value: 1, field: 'selections', scope: 'parent' },
+          { id: 'blade-max', type: 'max', value: 1, field: 'selections', scope: 'parent' },
+        ],
+      },
+      {
+        id: 'gauntlet',
+        name: 'Gauntlet',
+        type: 'upgrade',
+        constraints: [
+          { id: 'gauntlet-min', type: 'min', value: 1, field: 'selections', scope: 'parent' },
+          { id: 'gauntlet-max', type: 'max', value: 1, field: 'selections', scope: 'parent' },
+        ],
+      },
+      {
+        id: 'icon',
+        name: 'Icon',
+        type: 'upgrade',
+        constraints: [{ id: 'icon-max', type: 'max', value: 1, field: 'selections', scope: 'parent' }],
+      },
+    ],
+  })
+  const built = buildUnit('squad', index)!
+
+  expect(built.choices).toContainEqual(
+    expect.objectContaining({
+      key: 'champion/champion-gauntlet',
+      owner: expect.objectContaining({ name: 'Terminator Champion' }),
+      options: [expect.objectContaining({ id: 'champion-gauntlet', count: 1, min: 1, max: 2 })],
+    }),
+  )
+  expect(modelKindsOf('squad', built.selection, index).map((kind) => kind.name)).toEqual(['Terminator Champion', 'Terminator'])
+  const armed = buildUnit('squad', index, undefined, undefined, {
+    spreads: { 'champion/champion-gauntlet': { 'champion-gauntlet': 2 } },
+  })!
+  expect(armed.choices.find((choice) => choice.key === 'champion/champion-gauntlet')?.options[0]?.count).toBe(2)
+  expect(wargearOf(armed.selection, index)).toContainEqual({ name: 'Gauntlet', count: 4 })
 })
 
 describe('loadouts the catalogue files a weapon at a time', () => {

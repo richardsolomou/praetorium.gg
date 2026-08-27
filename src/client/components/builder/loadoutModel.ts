@@ -30,6 +30,7 @@ export type LoadoutChoice = {
     pieceCounts?: { name: string; count: number }[]
     points: number
     count: number
+    min: number
     max: number
     replacements?: { choiceKey: string; optionId: string }[]
     description?: string | null
@@ -260,7 +261,9 @@ export function spreadHandlers(choice: LoadoutChoice) {
   const room = choice.room - taken
 
   const donor = (exclude: string) =>
-    choice.options.filter((option) => option.id !== exclude && option.count > 0).toSorted((left, right) => right.count - left.count)[0]
+    choice.options
+      .filter((option) => option.id !== exclude && option.count > option.min)
+      .toSorted((left, right) => right.count - left.count)[0]
 
   const more = (option: LoadoutOption): SpreadCounts | null => {
     if (option.count >= option.max) return null
@@ -270,7 +273,7 @@ export function spreadHandlers(choice: LoadoutChoice) {
   }
 
   const less = (option: LoadoutOption): SpreadCounts | null => {
-    if (option.count <= 0) return null
+    if (option.count <= option.min) return null
     if (choice.optional || taken < choice.room) return { [option.id]: option.count - 1 }
     // A full group has to hand the freed slot to a sibling, and only one still
     // under its own cap can take it. Nine bolt rifles and a special weapon cannot

@@ -238,8 +238,15 @@ export function datasheetIdBySlug(loaded: LoadedCatalogue, catalogueId: string, 
   return datasheetSlugsFor(loaded, catalogueId).entryBySlug.get(slug) ?? null
 }
 
-/** The one reference-page route for a named datasheet, or null when the data is ambiguous. */
-export function referenceDatasheetRoute(loaded: LoadedCatalogue, name: string) {
+/** Prefer the datasheet's own reference page; imported entries fall back to an unambiguous named match. */
+export function referenceDatasheetRoute(loaded: LoadedCatalogue, name: string, preferred?: { catalogueId: string; entryId: string }) {
+  const preferredFaction = preferred ? loaded.factions.find((candidate) => candidate.id === preferred.catalogueId) : undefined
+  if (preferred && preferredFaction && isReferenceDatasheet(loaded, preferred.catalogueId, preferred.entryId)) {
+    return {
+      catalogueId: routeSlug(factionDisplayName(preferredFaction.name)),
+      slug: datasheetSlug(loaded, preferred.catalogueId, preferred.entryId),
+    }
+  }
   const cache = referenceDatasheetRouteCache.get(loaded)
   if (cache?.has(name)) return cache.get(name) ?? null
   const matches = loaded.factions.flatMap((faction) =>

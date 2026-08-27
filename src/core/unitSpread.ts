@@ -35,6 +35,9 @@ export function withUnitSpread(
   if (repeatedEntry && entry?.type === 'upgrade' && groupId) {
     return spreadRepeatedUpgrade(selection, path, counts[groupId] ?? 0, repeatedEntry)
   }
+  if (entry?.type === 'upgrade' && groupId) {
+    return withCounts(selection, [{ path, count: counts[groupId] ?? 0 }])
+  }
 
   const repeating = repeatedCarrierOn(path, index)
   if (!repeating)

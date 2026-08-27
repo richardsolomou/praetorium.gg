@@ -3,6 +3,22 @@ import { abilityNamesIn, datasheetIn, datasheetSearchFieldsIn, datasheetViewsIn,
 import { ability, bookOf, categories, shelfOf } from './catalogue.fixtures'
 
 describe('a datasheet', () => {
+  it('links same-named datasheets to their own faction references', () => {
+    const book = shelfOf(
+      {
+        name: 'Alpha',
+        selectionEntries: [{ id: 'alpha-unit', name: 'Shared Name', type: 'unit', categoryLinks: categories('Faction: Alpha') }],
+      },
+      {
+        name: 'Beta',
+        selectionEntries: [{ id: 'beta-unit', name: 'Shared Name', type: 'unit', categoryLinks: categories('Faction: Beta') }],
+      },
+    )
+
+    expect(datasheetIn(book, 'cat', 'alpha-unit')?.referenceRoute).toEqual({ catalogueId: 'alpha', slug: 'shared-name' })
+    expect(datasheetIn(book, 'cat-1', 'beta-unit')?.referenceRoute).toEqual({ catalogueId: 'beta', slug: 'shared-name' })
+  })
+
   it('links an imported chapter relationship to the canonical Space Marines reference', () => {
     const book = shelfOf(
       {
