@@ -117,7 +117,7 @@ export function app(): App {
       auth: createAuth(database, persistedSecret({ directory: dataDirectory }), cache ? valkeySecondaryStorage(cache) : undefined, email),
       email,
       catalogue: memoize(loadCatalogue),
-      rules: memoize(loadRules),
+      rules: memoize(() => loadRules(undefined, undefined, undefined, undefined, instance.catalogue()?.datacards)),
       sync: () => sync.state,
       telemetry,
       ready: () => ready,
@@ -126,14 +126,14 @@ export function app(): App {
     // serve battles whether or not it has the catalogues yet.
     sync.begin(catalogueDirectory(dataDirectory), () => {
       instance.catalogue = memoize(loadCatalogue)
-      instance.rules = memoize(loadRules)
+      instance.rules = memoize(() => loadRules(undefined, undefined, undefined, undefined, instance.catalogue()?.datacards))
       ready = warm(instance)
     })
     const catalogueRefresh = setInterval(
       () =>
         sync.begin(catalogueDirectory(dataDirectory), () => {
           instance.catalogue = memoize(loadCatalogue)
-          instance.rules = memoize(loadRules)
+          instance.rules = memoize(() => loadRules(undefined, undefined, undefined, undefined, instance.catalogue()?.datacards))
           ready = warm(instance)
         }),
       60 * 60 * 1000,

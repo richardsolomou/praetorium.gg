@@ -312,6 +312,81 @@ describe('models the datasheet stands in the unit itself', () => {
     ])
   })
 
+  it("leaves a model's default answer to a choice it owns out of its fixed wargear", () => {
+    // A sergeant's default laspistol and chainsword are one of the combinations below,
+    // not something he carries whatever is chosen beside them.
+    const index = indexOf({
+      sharedSelectionEntries: [
+        {
+          id: 'troops',
+          name: 'Shock Troops',
+          type: 'unit',
+          selectionEntries: [
+            {
+              id: 'trooper',
+              name: 'Shock Trooper',
+              type: 'model',
+              profiles: [{ id: 'trooper-profile', name: 'Shock Trooper', typeName: 'Unit' }],
+              constraints: bounded('trooper', 4, 9),
+              selectionEntryGroups: [
+                {
+                  id: 'trooper-weapon',
+                  name: 'Weapon',
+                  defaultSelectionEntryId: 'lasgun',
+                  constraints: bounded('trooper-weapon', 1, 1),
+                  selectionEntries: [
+                    { id: 'lasgun', name: 'Lasgun', type: 'upgrade' },
+                    { id: 'flamer', name: 'Flamer', type: 'upgrade' },
+                  ],
+                },
+              ],
+            },
+            {
+              id: 'sergeant',
+              name: 'Sergeant',
+              type: 'model',
+              profiles: [{ id: 'sergeant-profile', name: 'Sergeant', typeName: 'Unit' }],
+              constraints: mandatory('sergeant-min'),
+              selectionEntries: [{ id: 'grenades', name: 'Frag grenades', type: 'upgrade', constraints: mandatory('grenades-min') }],
+              selectionEntryGroups: [
+                {
+                  id: 'options',
+                  name: 'Wargear Options',
+                  defaultSelectionEntryId: 'laspistol-and-chainsword',
+                  constraints: bounded('options', 1, 1),
+                  selectionEntries: [
+                    {
+                      id: 'laspistol-and-chainsword',
+                      name: 'Laspistol and chainsword',
+                      type: 'upgrade',
+                      selectionEntries: [
+                        { id: 'laspistol', name: 'Laspistol', type: 'upgrade', constraints: mandatory('laspistol-min') },
+                        { id: 'chainsword', name: 'Chainsword', type: 'upgrade', constraints: mandatory('chainsword-min') },
+                      ],
+                    },
+                    {
+                      id: 'bolt-pistol-and-chainsword',
+                      name: 'Bolt pistol and chainsword',
+                      type: 'upgrade',
+                      selectionEntries: [
+                        { id: 'bolt-pistol', name: 'Bolt pistol', type: 'upgrade', constraints: mandatory('bolt-pistol-min') },
+                        { id: 'chainsword-2', name: 'Chainsword', type: 'upgrade', constraints: mandatory('chainsword-2-min') },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    })
+    const sergeant = modelKindsOf('troops', buildUnit('troops', index)!.selection, index).find((kind) => kind.name === 'Sergeant')
+
+    expect(sergeant?.fixed.map((piece) => piece.name)).toEqual(['Frag grenades'])
+    expect(sergeant?.rows.map((row) => row.name)).toEqual(['Laspistol and chainsword', 'Bolt pistol and chainsword'])
+  })
+
   /**
    * The rank and file are one kind however the catalogue files their weapons, and the
    * plain entry beside the loadouts is what they are called. The profile is no help:

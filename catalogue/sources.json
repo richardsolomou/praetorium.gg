@@ -30,44 +30,5 @@
     "missionPack": "chapter-approved-2026",
     "attribution": "Terrain geometry provided by Battlemaster",
     "description": "Exact public terrain-area, roof, and wall geometry for Chapter Approved layouts. Used with permission by the upstream 40kdc dataset."
-  },
-  "wahapedia": {
-    "baseUrl": "https://wahapedia.ru/wh40k11ed",
-    "files": [
-      "Stratagems.csv",
-      "Enhancements.csv",
-      "Detachment_abilities.csv",
-      "Abilities.csv",
-      "Datasheets_abilities.csv",
-      "Last_update.csv"
-    ],
-    "pages": [
-      "imperial-agents",
-      "astra-militarum",
-      "genestealer-cults",
-      "necrons",
-      "aeldari",
-      "orks",
-      "grey-knights",
-      "t-au-empire",
-      "leagues-of-votann",
-      "adeptus-mechanicus",
-      "thousand-sons",
-      "death-guard",
-      "emperor-s-children",
-      "world-eaters",
-      "chaos-knights",
-      "chaos-daemons",
-      "imperial-knights",
-      "space-marines",
-      "tyranids",
-      "adeptus-custodes",
-      "adeptus-titanicus",
-      "adepta-sororitas",
-      "chaos-space-marines",
-      "drukhari"
-    ],
-    "attribution": "Descriptions provided by Wahapedia",
-    "description": "Optional description text for datasheets, detachments, enhancements, and stratagems. Fetched by each instance and never committed."
   }
 }

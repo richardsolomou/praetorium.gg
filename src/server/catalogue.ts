@@ -23,6 +23,7 @@ import {
 import type { DatasheetSearchFields } from './datasheetSearch'
 import { isMatchedPlayDatasheet, priceOf } from './cataloguePicker'
 import type { DatasheetDetails } from './datacards'
+import { datacardOf } from './datasheetJoin'
 
 export type Datasheet = {
   id: string
@@ -98,6 +99,13 @@ export function unitWoundsIn(loaded: LoadedCatalogue, catalogueId: string, entry
 }
 
 type AbilityKind = 'core' | 'faction' | 'datasheet' | 'rule' | 'upgrade' | 'wargear'
+
+/** The keywords a weapon profile prints as one comma-joined characteristic, none where it prints a dash. */
+export const weaponKeywordsOf = (value: string | undefined) =>
+  (value ?? '')
+    .split(',')
+    .map((keyword) => keyword.trim())
+    .filter((keyword) => keyword && keyword !== '-' && keyword !== '—')
 
 type DatasheetContext = {
   selections: readonly Selection[]
@@ -214,11 +222,8 @@ function searchableProfilesIn(loaded: LoadedCatalogue, catalogueId: string, entr
     if (profile.typeName !== 'Ranged Weapons' && profile.typeName !== 'Melee Weapons') return
     weapons.add(profile.name)
     for (const characteristic of profile.characteristics ?? []) {
-      if (characteristic.name?.trim().toLocaleLowerCase() !== 'keywords' || !characteristic.$text) continue
-      characteristic.$text.split(',').forEach((keyword) => {
-        const name = keyword.trim()
-        if (name && name !== '-' && name !== '—') weaponKeywords.add(name)
-      })
+      if (characteristic.name?.trim().toLocaleLowerCase() !== 'keywords') continue
+      for (const keyword of weaponKeywordsOf(characteristic.$text)) weaponKeywords.add(keyword)
     }
   }
   const addRule = (link: InfoLink, searchable = true) => {
@@ -385,27 +390,35 @@ export function datasheetIn(loaded: LoadedCatalogue, catalogueId: string, entryI
     group.profiles?.forEach((profile) => addProfile(profile, 'rule', [...lineage, group.id], [group.id]))
     group.infoLinks?.forEach((link) => addRule(link, 'core'))
   }
-  const addProfiles = (definition: Definition, lineage: string[], kind: AbilityKind = 'datasheet', ownRules = false) => {
+  /** `weaponsOnly` keeps an unchosen option's weapons on the sheet without its abilities. */
+  const addProfiles = (
+    definition: Definition,
+    lineage: string[],
+    kind: AbilityKind = 'datasheet',
+    ownRules = false,
+    weaponsOnly = false,
+  ) => {
     const owner = definitionTokens(definition)
-    definition.profiles?.forEach((profile) =>
+    definition.profiles?.forEach((profile) => {
+      if (weaponsOnly && profile.typeName === 'Abilities') return
       addProfile(
         profile,
         kind,
         lineage,
         owner,
         definition.type === 'upgrade' && definition.name !== profile.name ? definition.name : undefined,
-      ),
-    )
-    definition.infoGroups?.forEach((group) => addGroup(group, lineage))
+      )
+    })
+    if (!weaponsOnly) definition.infoGroups?.forEach((group) => addGroup(group, lineage))
     for (const link of definition.infoLinks ?? []) {
       const linkedRule = link.type === 'rule' ? loaded.index.rules.get(link.targetId) : undefined
-      if (!link.hidden && !linkedRule?.hidden && link.name && linkedRule?.description) {
+      if (!weaponsOnly && !link.hidden && !linkedRule?.hidden && link.name && linkedRule?.description) {
         keywordRules.set(link.name.toLocaleLowerCase(), { name: link.name, description: linkedRule.description })
       }
       if (ownRules) addRule(link, 'faction')
       const shared = loaded.index.shared.get(link.targetId)
       if (!shared) continue
-      if ('characteristics' in shared) {
+      if ('characteristics' in shared && (!weaponsOnly || shared.typeName !== 'Abilities')) {
         addProfile({ ...shared, name: link.name ?? shared.name }, kind, [...lineage, link.id, shared.id], [link.id, shared.id])
       }
     }
@@ -421,11 +434,11 @@ export function datasheetIn(loaded: LoadedCatalogue, catalogueId: string, entryI
     for (const link of definition.entryLinks ?? []) {
       visit(link, false, lineage, enhancementEntry)
       const target = loaded.index.definitions.get(link.targetId)
+      if (!target) continue
+      const targetLineage = [...lineage, ...definitionTokens(link), ...definitionTokens(target)]
       // A linked group may be a catalogue-wide library. Its own profile belongs
       // here; recursively importing all its children does not.
-      if (target && (!enhancementEntry || selected.has(link.id) || selected.has(target.id))) {
-        addProfiles(target, [...lineage, ...definitionTokens(link), ...definitionTokens(target)], 'wargear')
-      }
+      if (!enhancementEntry || selected.has(link.id) || selected.has(target.id)) addProfiles(target, targetLineage, 'wargear')
     }
   }
   // A book reaches most of its datasheets through a link, and everything a
@@ -435,21 +448,48 @@ export function datasheetIn(loaded: LoadedCatalogue, catalogueId: string, entryI
   visit(root, true)
   if (sheet !== root) visit(sheet, true, [root.id])
 
+  const selection = selectedUnit ?? defaultSelection(root.id, loaded.index, { primaryCatalogueId: catalogueId })
+  const choices = selection
+    ? unitChoices(root.id, selection, loaded.index, { primaryCatalogueId: catalogueId, roster: context?.selections })
+    : []
+  // What the datasheet offers sits on the options themselves, which a tank's sponsons
+  // reach through a shared group of shared weapons the walk above does not enter.
+  // `unitChoices` alone decides what is offered, so its options are the ones drawn:
+  // every option's weapons, and the abilities only of the wargear the unit holds. An
+  // enhancement's prose is shown with the choice itself, so it is not an ability too.
+  const visitOption = (node: Selection, ancestors: string[], withAbilities: boolean) => {
+    const definition = loaded.index.definitions.get(node.id)
+    if (!definition) return
+    const target = targetOf(definition, loaded.index.definitions)
+    const lineage = [...ancestors, ...definitionTokens(definition), ...(target === definition ? [] : definitionTokens(target))]
+    const chosen = selected.has(definition.id) || selected.has(target.id)
+    for (const source of new Set([definition, target])) {
+      if (visited.has(source.id)) continue
+      visited.add(source.id)
+      addProfiles(source, lineage, 'wargear', false, !chosen || !withAbilities)
+    }
+    node.selections?.forEach((child) => visitOption(child, lineage, withAbilities))
+  }
+  for (const choice of choices) {
+    const withAbilities = !choice.name.toLowerCase().includes('enhancement')
+    for (const option of choice.options) {
+      const built = defaultSelection(option.id, loaded.index, { primaryCatalogueId: catalogueId })
+      if (built) visitOption(built, [root.id, ...choice.key.split('/').slice(0, -1)], withAbilities)
+    }
+  }
+
   const name = nameOf(root, loaded.index.definitions)
-  const details = datacardDetails(loaded, name)
+  const details = datacardOf(loaded, catalogueId, entryId)?.details ?? null
   const attachment = attachmentOf(root, loaded.index)
   const relationships = relationshipsFor(loaded, catalogueId, root.id, name)
   const characteristicNames = loaded.characteristicNames
-  const selection = selectedUnit ?? defaultSelection(root.id, loaded.index, { primaryCatalogueId: catalogueId })
   const keywords = selection
     ? keywordsIn(loaded, catalogueId, entryId, { selection, roster: selectedUnit ? context?.selections : undefined })
     : keywordsIn(loaded, catalogueId, entryId)
-  const catalogueOptions = selection
-    ? unitChoices(root.id, selection, loaded.index, { primaryCatalogueId: catalogueId }).map((choice) => ({
-        name: choice.name,
-        options: choice.options.map((option) => option.name).join('; '),
-      }))
-    : []
+  const catalogueOptions = choices.map((choice) => ({
+    name: choice.name,
+    options: choice.options.map((option) => option.name).join('; '),
+  }))
 
   const displayProfiles = [...profiles.values()].flatMap(({ profile, lineage, owner }) => {
     if (!profile.name || !profile.typeName) return []
@@ -1051,14 +1091,6 @@ function uniqueAbilities(abilities: Datasheet['abilities']) {
     seen.add(signature)
     return true
   })
-}
-
-function datacardDetails(loaded: LoadedCatalogue, name: string): DatasheetDetails | null {
-  for (const content of loaded.factionContents.values()) {
-    const details = content.datasheetDetails.get(name)
-    if (details) return details
-  }
-  return null
 }
 
 export function datasheetInBySlug(loaded: LoadedCatalogue, catalogueId: string, slug: string) {

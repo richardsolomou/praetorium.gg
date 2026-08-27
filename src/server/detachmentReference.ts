@@ -1,6 +1,7 @@
 import { rulesReferencedIn } from './catalogue'
 import { routeSlug } from '../core/slug'
-import { detachmentCatalogueDetail } from './catalogueDescriptions'
+import { describedEnhancements } from './catalogueDescriptions'
+import { descriptionKey } from './datacards'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { type LoadedRules, rulesFaction } from './rules'
 import { detachmentNamed, isReferenceDetachment } from './factionReferences'
@@ -11,20 +12,13 @@ export function detachmentReference(loaded: LoadedCatalogue, rules: LoadedRules,
   const detail = detachmentNamed(rules.detachmentDetails.get(rulesFaction(rules, routeSlug(faction.name))), detachmentSlug)
   const option = loaded.detachments.get(catalogueId)?.options.find((candidate) => routeSlug(candidate.name) === detachmentSlug)
   if (!detail || !option || !isReferenceDetachment(loaded, rules, faction, option)) return null
-  const catalogueDetail = detachmentCatalogueDetail(
-    loaded,
-    catalogueId,
-    option.id,
-    [...detail.enhancements, ...detail.upgrades].map((enhancement) => enhancement.name),
-  )
+  const { catalogue: catalogueDetail, described } = describedEnhancements(loaded, catalogueId, option, detail)
   const detachmentRuleCards = mergeDetachmentRules(catalogueDetail?.rule ?? null, detail.rules)
   const enhancements = [
     ...detail.enhancements.map((enhancement) => ({
       name: enhancement.name,
       points: enhancement.points,
-      description:
-        catalogueDetail?.enhancements.find((candidate) => candidate.name.toLocaleLowerCase() === enhancement.name.toLocaleLowerCase())
-          ?.description ?? enhancement.description,
+      description: described.get(descriptionKey(option.name, enhancement.name)) ?? null,
     })),
     ...(catalogueDetail?.forcedEnhancements.filter(
       (forced) => !detail.enhancements.some((enhancement) => enhancement.name.toLocaleLowerCase() === forced.name.toLocaleLowerCase()),
@@ -33,9 +27,7 @@ export function detachmentReference(loaded: LoadedCatalogue, rules: LoadedRules,
   const upgrades = detail.upgrades.map((upgrade) => ({
     name: upgrade.name,
     points: upgrade.points,
-    description:
-      catalogueDetail?.enhancements.find((candidate) => candidate.name.toLocaleLowerCase() === upgrade.name.toLocaleLowerCase())
-        ?.description ?? upgrade.description,
+    description: described.get(descriptionKey(option.name, upgrade.name)) ?? null,
   }))
   return {
     ...detail,

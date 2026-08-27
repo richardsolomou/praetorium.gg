@@ -86,10 +86,12 @@ describe('the abilities and wargear a datasheet lists', () => {
       ],
     })
     book.factionContents.set(rulesFaction, {
+      name: rulesFaction,
       datasheets: new Set(),
       datasheetDetails: new Map(),
       detachments: new Set(),
       armyRules: [{ name: expected, description: 'Army rule.' }],
+      factionAbilityNames: new Set(),
     })
     const rules = {
       abilityDescriptions: new Map(),

@@ -12,6 +12,10 @@ export type LeagueEntryStatus = (typeof LEAGUE_ENTRY_STATUSES)[number]
 export const LEAGUE_DEFAULT_ROSTER_LIMIT = 2_000
 export const LEAGUE_TEAM_ROSTER_LIMITS = [2_000] as const
 
+export function leagueTableShape(format: TableShape | null | undefined): TableShape {
+  return format ?? '1v1'
+}
+
 export function alliedLeagueRosterLimit(rosterLimit: number) {
   return rosterLimit / 2
 }
@@ -54,6 +58,7 @@ export type LeagueEntryView = {
   submitted: boolean
   rosterName: string | null
   requiredLimit: number | null
+  sealedLimit: number | null
   teamId: string | null
 }
 

@@ -1,13 +1,12 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import type { Stratagem } from '../core/battle'
-import { factionRestrictions, loadWahapediaDescriptions, WAHAPEDIA_ATTRIBUTION } from './wahapedia'
+import { DATACARDS_ATTRIBUTION, type FactionRestrictions, factionRestrictions, type LoadedDatacards, loadDatacards } from './datacards'
 import { type LoadedCards, loadCards, loadDispositions, loadMissions, type Mission, missionForIn, type MissionCard } from './rulesCards'
-import { loadCompositions, type LoadedWeapon, loadWeapons, type UnitComposition } from './rulesDatasheets'
 import { type DetachmentReference, type DetachmentRulesDetail, loadFactions } from './rulesFactions'
 import { fixedSecondaryCapsIn, type MissionTwist, twistsIn } from './missionTwists'
 import { readMissionPacks } from './missionPacks'
-import { joinKey, rulesDirectory } from './rulesSource'
+import { rulesDirectory } from './rulesSource'
 import {
   type Deployment,
   loadDeployments,
@@ -19,13 +18,13 @@ import {
 
 /**
  * Everything the app knows that the community catalogues do not carry: stratagems,
- * mission cards, force dispositions, battlefields, and what a datasheet says a unit is
- * built from.
+ * mission cards, force dispositions and battlefields.
  *
  * The bulk of it comes from the Tabletop Developer Consortium's dataset, which is
  * licensed CC BY 4.0 — the whole reason it can be used at all. Attribution is a
  * condition of that licence rather than a courtesy, so `attribution` goes on screen
- * wherever this data does.
+ * wherever this data does. The prose beside it — what a stratagem, enhancement or
+ * detachment rule says — is Game Datacards', matched to the dataset by name.
  *
  * This module only assembles. Each source is read by the `rules*` module named after
  * it, and an absent source leaves its part of `LoadedRules` empty rather than guessed.
@@ -34,13 +33,12 @@ const ATTRIBUTION = 'Stratagems and mission cards by the Tabletop Developer Cons
 const BATTLEMASTER_ATTRIBUTION = 'Terrain geometry provided by Battlemaster'
 
 export type { Mission } from './rulesCards'
-export type { LoadedWeapon, UnitComposition } from './rulesDatasheets'
 
 export type LoadedRules = {
   attribution: string
   abilityDescriptions: ReadonlyMap<string, string>
   /** Army-construction restrictions keyed by the player-facing faction slug. */
-  factionRestrictions: ReturnType<typeof factionRestrictions>
+  factionRestrictions: ReadonlyMap<string, FactionRestrictions>
   /** Every name a faction answers to, against the one its rules are filed under. */
   factionKeys: Map<string, string>
   /** Faction slug then detachment slug, so a chosen detachment maps straight to its six. */
@@ -52,8 +50,6 @@ export type LoadedRules = {
   factionNames: Map<string, string>
   factionIcons: Map<string, string>
   factionRules: Map<string, { name: string; description: string }>
-  /** Army-rule cards parsed from optional live faction pages, keyed by page slug. */
-  factionRuleCards: ReadonlyMap<string, readonly { name: string; description: string }[]>
   /** Stratagems every army has, offered alongside whatever the detachment brings. */
   core: Stratagem[]
   coreDetails: LoadedCards['coreDetails']
@@ -71,32 +67,22 @@ export type LoadedRules = {
   deployments: Deployment[]
   terrainLayouts: TerrainLayout[]
   terrainTemplates: TerrainTemplate[]
-  /**
-   * The kinds of model each datasheet is built from, keyed by the slug the product
-   * already routes datasheets by.
-   */
-  compositions: ReadonlyMap<string, UnitComposition>
-  /** Weapons by id, so a composition's ids can be shown as profiles. */
-  weapons: ReadonlyMap<string, LoadedWeapon>
   /** Whatever the dataset says about how settled these numbers are. */
   dataslate: string | null
 }
 
 export function loadRules(
   directory = rulesDirectory(),
-  wahapediaDirectory = path.join(path.dirname(directory), 'wahapedia'),
   battlemasterDirectory = path.join(path.dirname(directory), 'battlemaster'),
   iconDirectory = path.join(path.dirname(directory), 'faction-icons'),
   datacardsDirectory = path.join(path.dirname(directory), 'datacards', '11th', 'gdc'),
+  /** The cards the catalogue already read, so one snapshot is parsed once. */
+  loadedDatacards?: LoadedDatacards,
 ): LoadedRules | null {
   const core = path.join(directory, 'data', 'core')
   if (!fs.existsSync(core)) return null
-  const wahapedia = loadWahapediaDescriptions(wahapediaDirectory)
-
-  // Weapons first: a composition holds ids, and only they say what those ids are.
-  const { weapons, names } = loadWeapons(core)
-  const compositions = loadCompositions(core, names)
-  const factions = loadFactions(core, iconDirectory, wahapedia)
+  const datacards = loadedDatacards ?? loadDatacards(datacardsDirectory)
+  const factions = loadFactions(core, iconDirectory, datacards)
   // Parsed once and read three ways: what each payout asks for, the twists a pack
   // offers, and the ceiling it puts on a single fixed card.
   const packs = readMissionPacks(datacardsDirectory)
@@ -110,11 +96,9 @@ export function loadRules(
 
   const hasBattlemaster = terrainLayouts.some((layout) => layout.geometry)
   return {
-    attribution: [ATTRIBUTION, wahapedia ? WAHAPEDIA_ATTRIBUTION : null, hasBattlemaster ? BATTLEMASTER_ATTRIBUTION : null]
-      .filter(Boolean)
-      .join('. '),
-    abilityDescriptions: wahapedia?.abilities ?? new Map(),
-    factionRestrictions: factionRestrictions(wahapedia?.abilities ?? new Map()),
+    attribution: [ATTRIBUTION, DATACARDS_ATTRIBUTION, hasBattlemaster ? BATTLEMASTER_ATTRIBUTION : null].filter(Boolean).join('. '),
+    abilityDescriptions: datacards.armyRules,
+    factionRestrictions: factionRestrictions(datacards),
     factionKeys: factions.factionKeys,
     byDetachment: factions.byDetachment,
     detachmentReferences: factions.detachmentReferences,
@@ -122,7 +106,6 @@ export function loadRules(
     factionNames: factions.factionNames,
     factionIcons: factions.factionIcons,
     factionRules: factions.factionRules,
-    factionRuleCards: wahapedia?.armyRules ?? new Map(),
     core: cards.core,
     coreDetails: cards.coreDetails,
     secondaries: cards.secondaries,
@@ -135,8 +118,6 @@ export function loadRules(
     deployments: loadDeployments(core),
     terrainLayouts,
     terrainTemplates: loadTerrainTemplates(core),
-    compositions,
-    weapons,
     dataslate: factions.dataslate,
   }
 }
@@ -149,16 +130,6 @@ export function loadRules(
  */
 export const rulesFaction = (rules: LoadedRules | null | undefined, factionSlug: string) =>
   rules?.factionKeys?.get(factionSlug) ?? factionSlug
-
-/**
- * The kinds of model a datasheet is built from, or nothing when the data is silent.
- *
- * Takes the datasheet's name or its slug: either folds to the same key, which is what
- * lets an accented name find a source that spells it without one.
- */
-export function compositionOf(rules: LoadedRules | null, nameOrSlug: string): UnitComposition | null {
-  return rules?.compositions?.get(joinKey(nameOrSlug)) ?? null
-}
 
 /** The primary an army plays, derived from its disposition and the one opposing it. */
 export function missionFor(

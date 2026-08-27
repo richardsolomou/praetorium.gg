@@ -40,16 +40,6 @@ export type RosterPick = {
    * one group between two options, which a single chosen id cannot say.
    */
   spreads?: Record<string, Record<string, number>>
-  /**
-   * How many models took each datasheet swap, keyed `<swap id>#<alternative>`.
-   *
-   * A count rather than a choice, because a squad divides itself: two gravis veterans
-   * can carry one infernus heavy bolter and one frag cannon between them. Only swaps
-   * that cost nothing are offered, so this changes what a unit carries without
-   * changing what it costs — which is why it can sit beside the catalogue's own
-   * choices without the evaluator knowing about it.
-   */
-  swaps?: Record<string, number>
   /** Optional single entries such as Warlord, keyed by their catalogue path. */
   toggles?: Record<string, number>
   /** The position of the unit this one joins in the saved pick list. */

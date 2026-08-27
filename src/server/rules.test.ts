@@ -2,7 +2,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { compositionOf, loadRules, missionFor, rulesFaction } from './rules'
+import { loadRules, missionFor, rulesFaction } from './rules'
 
 let directory: string
 
@@ -56,30 +56,52 @@ beforeEach(() => {
   const icons = path.join(directory, 'faction-icons')
   fs.mkdirSync(icons)
   fs.writeFileSync(path.join(icons, 'death-guard.svg'), '<svg xmlns="http://www.w3.org/2000/svg"/>')
-  const wahapedia = path.join(directory, 'wahapedia')
-  fs.mkdirSync(wahapedia)
-  fs.writeFileSync(
-    path.join(wahapedia, 'Detachment_abilities.csv'),
-    'name|detachment|description|\nVirulent Vectorium|Flyblown Host|<b>Spread disease.</b>|\n',
-  )
-  fs.writeFileSync(
-    path.join(wahapedia, 'Abilities.csv'),
-    'name|description|\nOath of Moment|Re-roll Hit rolls.|\nDeathwatch|Your army cannot include any of the following units: Scout Squad; Tactical Squad.|\n',
-  )
-  fs.writeFileSync(
-    path.join(wahapedia, 'Stratagems.csv'),
-    'name|detachment|description|\nGRIM REAPERS|Flyblown Host|<b>Cut them down.</b>|\n',
-  )
-  fs.writeFileSync(
-    path.join(wahapedia, 'Enhancements.csv'),
-    'name|detachment|description|\nLiving Plague|Flyblown Host|<b>Spread the plague.</b>|\nRejuvinating Swarm|Flyblown Host|Return models.|\nVirulent Carapace (Upgrade)|Flyblown Host|Improve the unit.|\n',
-  )
   write(path.join(root, 'stratagems.json'), [
     { id: 'command-re-roll', name: 'COMMAND RE-ROLL', cp_cost: 1, timing: 'once-per-battle' },
     { id: 'insane-bravery', name: 'INSANE BRAVERY', cp_cost: 1, timing: 'once-per-battle' },
   ])
   const datacards = path.join(directory, 'datacards', '11th', 'gdc')
   fs.mkdirSync(datacards, { recursive: true })
+  write(path.join(datacards, 'deathguard.json'), {
+    name: 'Death Guard',
+    datasheets: [],
+    detachments: [{ name: { en: 'Flyblown Host' } }],
+    rules: {
+      army: [{ name: { en: 'Oath of Moment' }, rules: [{ order: 1, type: 'text', text: { en: 'Re-roll Hit rolls.' } }] }],
+      detachment: [
+        {
+          detachment: 'Flyblown Host',
+          rules: [{ name: { en: 'Virulent Vectorium' }, rules: [{ order: 1, type: 'text', text: { en: 'Spread disease.' } }] }],
+        },
+      ],
+    },
+    enhancements: [
+      { name: { en: 'Living Plague' }, detachment: 'Flyblown Host', description: { en: 'Spread the plague.' } },
+      { name: { en: 'Rejuvenating Swarm' }, detachment: 'Flyblown Host', description: { en: 'Return models.' } },
+      // The rules dataset spells the upgrade with its suffix; the cards may not.
+      { name: { en: 'Virulent Carapace' }, detachment: 'Flyblown Host', description: { en: 'Improve the unit.' } },
+    ],
+    stratagems: [{ name: { en: 'Grim Reapers' }, detachment: 'Flyblown Host', effect: { en: 'Cut them down.' } }],
+  })
+  write(path.join(datacards, 'deathwatch.json'), {
+    name: 'Deathwatch',
+    datasheets: [],
+    detachments: [],
+    rules: {
+      army: [
+        {
+          name: { en: 'Space Marine Chapters' },
+          rules: [
+            {
+              order: 1,
+              type: 'text',
+              text: { en: 'Your army cannot include any of the following units: **SCOUT SQUAD**; **TACTICAL SQUAD**.' },
+            },
+          ],
+        },
+      ],
+    },
+  })
   write(path.join(datacards, 'core.json'), {
     stratagems: [
       {
@@ -127,48 +149,6 @@ beforeEach(() => {
     { disposition: 'disruption', opponent_disposition: 'take-and-hold', mission_id: 'death-trap' },
     { disposition: 'take-and-hold', opponent_disposition: 'disruption', mission_id: 'vital-link' },
   ])
-  write(path.join(core, 'weapons.json'), [
-    { id: 'plague-spewer', name: 'Plague spewer' },
-    { id: 'bolt-pistol-plague-marines', name: 'Bolt pistol' },
-    {
-      id: 'plague-knife',
-      name: 'Plague knife',
-      type: 'ranged',
-      profiles: [
-        { name: 'Ranged', range: 12, stats: { A: 2, BS: 3, S: 4, AP: 0, D: 1 } },
-        { name: 'Melee', range: 'Melee', stats: { A: 3, WS: 3, S: 4, AP: -1, D: 1 } },
-      ],
-    },
-  ])
-  write(path.join(core, 'unit-compositions.json'), [
-    {
-      unit_id: 'plague-marines',
-      models: [
-        { name: 'Plague Champion', profile_name: 'Plague Marine', min: 1, max: 1, is_leader_model: true },
-        {
-          name: 'Plague Marine',
-          profile_name: 'Plague Marine',
-          min: 4,
-          max: 9,
-          default_weapon_ids: ['plague-spewer', 'bolt-pistol-plague-marines', 'weapon-nobody-has-heard-of'],
-        },
-      ],
-      tiers: [
-        {
-          models: [
-            { name: 'Plague Champion', min: 1, max: 1 },
-            { name: 'Plague Marine', min: 4, max: 4 },
-          ],
-        },
-        {
-          models: [
-            { name: 'Plague Champion', min: 2, max: 2 },
-            { name: 'Plague Marine', min: 8, max: 8 },
-          ],
-        },
-      ],
-    },
-  ])
   write(path.join(root, 'force-dispositions.json'), [{ id: 'disruption', name: 'Disruption' }])
   write(path.join(root, 'deployment-patterns.json'), [
     {
@@ -193,14 +173,7 @@ const box = (width: number, height: number) => [
   { x: 0, y: height },
 ]
 
-const load = () =>
-  loadRules(
-    directory,
-    path.join(directory, 'wahapedia'),
-    undefined,
-    path.join(directory, 'faction-icons'),
-    path.join(directory, 'datacards', '11th', 'gdc'),
-  )!
+const load = () => loadRules(directory, undefined, path.join(directory, 'faction-icons'), path.join(directory, 'datacards', '11th', 'gdc'))!
 
 describe('stratagems', () => {
   it('keeps descriptions that supplement datasheet abilities', () => {
@@ -213,7 +186,10 @@ describe('stratagems', () => {
 
   it('reads faction restrictions from army rules', () => {
     expect(load().factionRestrictions.get('deathwatch')).toEqual({
-      excludedNames: new Set(['scout squad', 'tactical squad']),
+      excludedNames: new Map([
+        ['scout squad', null],
+        ['tactical squad', null],
+      ]),
       excludedKeywords: new Set(),
     })
   })
@@ -252,7 +228,9 @@ describe('stratagems', () => {
         { name: 'Rejuvenating Swarm', points: 10, description: 'Return models.' },
       ],
       upgrades: [{ name: 'Virulent Carapace', points: 15, description: 'Improve the unit.' }],
-      stratagems: expect.arrayContaining([expect.objectContaining({ name: 'Grim Reapers', cp: 1, description: 'Cut them down.' })]),
+      stratagems: expect.arrayContaining([
+        expect.objectContaining({ name: 'Grim Reapers', cp: 1, description: '**Effect:** Cut them down.' }),
+      ]),
     })
   })
 
@@ -328,7 +306,8 @@ describe('stratagems', () => {
   })
 
   it('include the ones every army has', () => {
-    expect(load().core.map((stratagem) => stratagem.name)).toEqual(['Command Re-Roll', 'Insane Bravery'])
+    // Named as the card prints it where there is one; titled from the dataset's capitals where there is not.
+    expect(load().core.map((stratagem) => stratagem.name)).toEqual(['Command Re-roll', 'Insane Bravery'])
   })
 
   it('read core descriptions from the verified Game Datacards path without filling upstream gaps', () => {
@@ -340,62 +319,6 @@ describe('stratagems', () => {
           'Bend fate to your will.\n\n**When:** Any phase.\n\n**Target:** That unit or model.\n\n**Effect:** Re-roll that roll.\n\n**Restrictions:** One re-roll.',
       },
     ])
-  })
-})
-
-describe('the kinds of model a datasheet is built from', () => {
-  it('names each kind, how many of it, and which one leads', () => {
-    expect(compositionOf(load(), 'plague-marines')?.models).toEqual([
-      { name: 'Plague Champion', profile: 'Plague Marine', min: 1, max: 1, leader: true, weapons: [] },
-      {
-        name: 'Plague Marine',
-        profile: 'Plague Marine',
-        min: 4,
-        max: 9,
-        leader: false,
-        weapons: [
-          { id: 'plague-spewer', name: 'Plague spewer' },
-          { id: 'bolt-pistol-plague-marines', name: 'Bolt pistol' },
-        ],
-      },
-    ])
-  })
-
-  it('keeps the model counts for each fixed squad-size tier', () => {
-    expect(compositionOf(load(), 'plague-marines')?.tiers).toEqual([
-      {
-        models: [
-          { name: 'Plague Champion', min: 1, max: 1 },
-          { name: 'Plague Marine', min: 4, max: 4 },
-        ],
-      },
-      {
-        models: [
-          { name: 'Plague Champion', min: 2, max: 2 },
-          { name: 'Plague Marine', min: 8, max: 8 },
-        ],
-      },
-    ])
-  })
-
-  /** Accents survive upstream but not in the slugs our own links are built from. */
-  it('finds a unit whose name our slug spells differently', () => {
-    expect(compositionOf(load(), 'plague--marines')?.unitId).toBe('plague-marines')
-  })
-
-  it('says nothing about a datasheet the data does not cover', () => {
-    expect(compositionOf(load(), 'terminator-squad')).toBeNull()
-  })
-
-  /**
-   * Several books arm someone with a "Power weapon" and they are not the same
-   * weapon, so a name is not enough to say what one does.
-   */
-  it('keeps the weapon id, because names repeat across factions', () => {
-    const rules = load()
-    const carried = compositionOf(rules, 'plague-marines')?.models[1]?.weapons ?? []
-    expect(carried.map((weapon) => weapon.id)).toEqual(['plague-spewer', 'bolt-pistol-plague-marines'])
-    expect(rules.weapons.get('plague-spewer')?.name).toBe('Plague spewer')
   })
 })
 
@@ -524,51 +447,12 @@ describe('Battlemaster terrain geometry', () => {
       ],
     })
 
-    const rules = loadRules(directory, path.join(directory, 'wahapedia'), path.join(directory, 'battlemaster'))!
+    const rules = loadRules(directory, path.join(directory, 'battlemaster'))!
 
     expect(rules.terrainLayouts[0]?.geometry?.areas[0]).toMatchObject({
       id: 'area-1',
       markers: [{ label: 'AB', position: { x: 35, y: 17 } }],
       objectiveGroup: 'center',
     })
-  })
-})
-
-/**
- * The data types a weapon as one thing and then gives it a profile of the other: a
- * staff of light shoots at eighteen inches and strikes in melee. Read at the weapon
- * level, the fighting profile printed a ballistic skill and a range of `Melee"`.
- */
-describe('a weapon that both shoots and fights', () => {
-  it('reads each profile on its own terms', () => {
-    const profiles = loadRules(directory)?.weapons.get('plague-knife')?.profiles ?? []
-    expect(profiles).toEqual([
-      {
-        name: 'Ranged',
-        melee: false,
-        range: '12"',
-        stats: [
-          { name: 'A', value: '2' },
-          { name: 'BS', value: '3+' },
-          { name: 'S', value: '4' },
-          { name: 'AP', value: '0' },
-          { name: 'D', value: '1' },
-        ],
-        keywords: [],
-      },
-      {
-        name: 'Melee',
-        melee: true,
-        range: 'Melee',
-        stats: [
-          { name: 'A', value: '3' },
-          { name: 'WS', value: '3+' },
-          { name: 'S', value: '4' },
-          { name: 'AP', value: '-1' },
-          { name: 'D', value: '1' },
-        ],
-        keywords: [],
-      },
-    ])
   })
 })

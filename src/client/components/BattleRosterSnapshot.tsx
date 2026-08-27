@@ -126,7 +126,6 @@ export function BattleRosterSnapshot({ roster }: { roster: Roster }) {
                 pickIndex={selected}
                 onChoose={() => {}}
                 onSpread={() => {}}
-                onSwap={() => {}}
                 editable={false}
                 showOptions={false}
                 reference={

@@ -233,10 +233,12 @@ describe('global datasheet search', () => {
       attribution: '',
     } as Partial<LoadedRules> as LoadedRules
     catalogue.factionContents.set('deathwatch', {
+      name: 'Deathwatch',
       datasheets: new Set(),
       datasheetDetails: new Map(),
       detachments: new Set(['Black Spear Task Force']),
       armyRules: [],
+      factionAbilityNames: new Set(),
     })
 
     const results = await searchEverything('black spear', { catalogue, rules, own: async () => null })

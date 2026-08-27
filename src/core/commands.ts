@@ -24,7 +24,6 @@ export const rosterPickSchema = z.object({
   models: z.number().int().min(1).max(60).optional(),
   choices: z.record(z.string().max(400), id).optional(),
   spreads: z.record(z.string().max(400), z.record(z.string().max(64), z.number().int().min(0).max(60))).optional(),
-  swaps: z.record(z.string().max(140), z.number().int().min(0).max(60)).optional(),
   toggles: z.record(z.string().max(400), z.number().int().min(0).max(1)).optional(),
   attachedTo: z.number().int().min(0).max(99).optional(),
 })
@@ -125,6 +124,7 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
                 entryId: id.optional(),
                 group: z.enum(UNIT_GROUPS).optional(),
                 warlord: z.boolean().optional(),
+                warlordEligible: z.boolean().optional(),
                 wargear: z
                   .array(z.object({ name: z.string().min(1).max(ROSTER_NAME_MAX_LENGTH), count: z.number().int().min(1).max(100) }))
                   .max(200)

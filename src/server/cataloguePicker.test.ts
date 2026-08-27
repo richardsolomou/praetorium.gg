@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { datasheetInBySlug } from './catalogue'
 import { groupOfEntry, unitsIn } from './cataloguePicker'
-import { ability, bookOf, categories, offered, points, shelfOf } from './catalogue.fixtures'
+import { ability, bookOf, categories, offered, points, shelfOf, withCards } from './catalogue.fixtures'
 
 describe('the shelf a datasheet is filed under', () => {
   const shelfOfTitan = (links: { id: string; targetId: string; name: string; primary?: boolean }[]) =>
@@ -396,24 +396,23 @@ describe('the picker', () => {
     expect(filtered[0]).toBe(all[1])
   })
 
-  it('matches datacard names that use typographic apostrophes', () => {
+  it('lists what the faction cards list, with apostrophes folded and a plural forgiven', () => {
     const book = bookOf({
-      selectionEntries: [{ id: 'ctan', name: "Transcendent C'tan", type: 'model', costs: points(295) }],
+      selectionEntries: [
+        { id: 'ctan', name: "Transcendent C'tan", type: 'model', costs: points(295) },
+        { id: 'walker', name: 'Plague Walker', type: 'model', costs: points(100) },
+        { id: 'legend', name: 'Tomb Stalker [Legends]', type: 'model', costs: points(150) },
+      ],
     })
+    book.factionContents.set('test-catalogue', withCards('Test catalogue', ['Transcendent C’tan', 'Plague Walkers']))
 
-    expect(
-      unitsIn(book, 'cat', '', {
-        includeNames: new Set(['Transcendent C’tan']),
-      }).map((unit) => unit.name),
-    ).toEqual(["Transcendent C'tan"])
+    expect(unitsIn(book, 'cat', '', { factionCards: true }).map((unit) => unit.name)).toEqual(['Plague Walker', "Transcendent C'tan"])
   })
 
-  it('matches singular catalogue names to plural datacard names', () => {
-    const book = bookOf({
-      selectionEntries: [{ id: 'walker', name: 'Plague Walker', type: 'model', costs: points(100) }],
-    })
+  it('lists the whole book when the faction has no cards', () => {
+    const book = bookOf({ selectionEntries: [{ id: 'ctan', name: "Transcendent C'tan", type: 'model', costs: points(295) }] })
 
-    expect(unitsIn(book, 'cat', '', { includeNames: new Set(['Plague Walkers']) }).map((unit) => unit.name)).toEqual(['Plague Walker'])
+    expect(unitsIn(book, 'cat', '', { factionCards: true }).map((unit) => unit.name)).toEqual(["Transcendent C'tan"])
   })
 
   it('shelves every datasheet by its primary category', () => {
@@ -471,7 +470,7 @@ describe('the picker', () => {
     })
     expect(
       unitsIn(book, 'cat', '', {
-        restrictions: { excludedNames: new Set(['scout squad']), excludedKeywords: new Set() },
+        restrictions: { excludedNames: new Map([['scout squad', null]]), excludedKeywords: new Set() },
       }).map((unit) => unit.name),
     ).toEqual(['Intercessor Squad'])
   })
@@ -485,7 +484,7 @@ describe('the picker', () => {
     })
     expect(
       unitsIn(book, 'cat', '', {
-        restrictions: { excludedNames: new Set(), excludedKeywords: new Set(['psyker']) },
+        restrictions: { excludedNames: new Map(), excludedKeywords: new Set(['psyker']) },
       }).map((unit) => unit.name),
     ).toEqual(['Marshal'])
   })
@@ -509,7 +508,7 @@ describe('the picker', () => {
     })
     expect(
       unitsIn(book, 'cat', '', {
-        restrictions: { excludedNames: new Set(), excludedKeywords: new Set(['psyker']) },
+        restrictions: { excludedNames: new Map(), excludedKeywords: new Set(['psyker']) },
       }).map((unit) => unit.name),
     ).toEqual(['Marshal'])
   })

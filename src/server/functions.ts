@@ -102,12 +102,7 @@ export const factionDatasheets = createServerFn({ method: 'GET' })
     rpc(() => {
       const loaded = app().catalogue()
       if (!loaded) return []
-      const names = loaded.factionContents.get(
-        routeSlug(
-          factionDisplayName(loaded.factions.find((entry) => entry.id === data.catalogueId)?.name ?? '', app().rules()?.factionNames),
-        ),
-      )?.datasheets
-      return unitsIn(loaded, data.catalogueId, data.query, { includeNames: names }).filter((unit) =>
+      return unitsIn(loaded, data.catalogueId, data.query, { factionCards: true }).filter((unit) =>
         isReferenceDatasheet(loaded, data.catalogueId, unit.id),
       )
     }),

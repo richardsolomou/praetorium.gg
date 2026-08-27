@@ -1,5 +1,27 @@
 # praetorium
 
+## 0.39.6
+
+### Patch Changes
+
+- 8a39608: Name stratagems as their cards print them instead of title-casing the rules dataset's capitals.
+
+## 0.39.5
+
+### Patch Changes
+
+- 3047147: Draw every weapon and model card from the community catalogue alone, so a loadout no longer lists a weapon twice, under another faction's name, or with a stale spelling from a second dataset.
+- 3047147: Read every rule description from Game Datacards, matched by name to the rules dataset, and give every Codex chapter its army rules.
+- 3047147: Allow a faction's own datasheets through an army rule that bans another codex's version of them, such as a Black Templars Impulsor.
+- aeaeea7: Stop listing a model's default weapon set beside the alternative that replaced it, so a Cadian sergeant with a bolt pistol no longer also shows a laspistol.
+
+## 0.39.4
+
+### Patch Changes
+
+- 251038b: Show battle actions for revealed leagues created before event formats were stored.
+- 247c2e1: Validate Warlords when entrants seal league rosters and place roster actions before event history.
+
 ## 0.39.3
 
 ### Patch Changes

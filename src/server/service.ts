@@ -25,6 +25,7 @@ import type { RosterPick } from '../core/roster'
 import type { RosterSource } from '../core/savedRoster'
 import {
   alliedLeagueRosterLimit,
+  leagueTableShape,
   LEAGUE_DEFAULT_ROSTER_LIMIT,
   LEAGUE_MEMBER_MAX,
   LEAGUE_TEAM_ROSTER_LIMITS,
@@ -111,7 +112,7 @@ export class PraetoriumService {
     const token = randomToken()
     const eventId = randomId()
     const eventToken = randomToken()
-    const format = input.format ?? '1v1'
+    const format = leagueTableShape(input.format)
     const rosterLimit = input.rosterLimit ?? LEAGUE_DEFAULT_ROSTER_LIMIT
     if (format !== '1v1' && !LEAGUE_TEAM_ROSTER_LIMITS.some((limit) => limit === rosterLimit)) {
       throw new Response(`choose a supported ${format} roster size`, { status: 400 })
@@ -139,7 +140,7 @@ export class PraetoriumService {
 
   async createLeagueEvent(token: string, ownerId: string, rule: { format?: TableShape; rosterLimit?: number } = {}) {
     const eventToken = randomToken()
-    const format = rule.format ?? '1v1'
+    const format = leagueTableShape(rule.format)
     const rosterLimit = rule.rosterLimit ?? LEAGUE_DEFAULT_ROSTER_LIMIT
     if (format !== '1v1' && !LEAGUE_TEAM_ROSTER_LIMITS.some((limit) => limit === rosterLimit)) {
       throw new Response(`choose a supported ${format} roster size`, { status: 400 })
@@ -282,6 +283,13 @@ export class PraetoriumService {
     if (result.outcome === 'sealed') return result
     if (result.outcome === 'unassigned') throw new Response('wait for the organizer to assign your event role or team', { status: 409 })
     if (result.outcome === 'wrong-limit') throw new Response('choose a roster built for your assigned size', { status: 409 })
+    if (result.outcome === 'invalid-warlords')
+      throw new Response(
+        result.format === '2v2'
+          ? 'a doubles team must seal exactly one Character or Epic Hero Warlord between both rosters'
+          : 'a league roster must seal exactly one Character or Epic Hero Warlord',
+        { status: 409 },
+      )
     throw new Response('the roster could not be sealed; check your entry and roster, then try again', { status: 409 })
   }
 
@@ -289,7 +297,12 @@ export class PraetoriumService {
     const result = await this.repository.revealLeague(token, ownerId, this.clock(), eventToken)
     if (result.outcome === 'revealed') return
     if (result.outcome === 'invalid-warlords')
-      throw new Response('each doubles team must select exactly one Warlord before reveal', { status: 409 })
+      throw new Response(
+        result.format === '2v2'
+          ? 'each doubles team must select exactly one eligible Warlord before reveal'
+          : 'each league roster must select exactly one eligible Warlord before reveal',
+        { status: 409 },
+      )
     throw new Response('fill every configured place and wait for every accepted roster before reveal', { status: 409 })
   }
 
@@ -754,7 +767,18 @@ export class PraetoriumService {
     return candidates
       .filter((candidate) => {
         const entries = new Map(candidate.entries.map((entry) => [entry.userId, entry]))
-        if (candidate.format === '1v1') return participantIds.length === 2 && allyIds.length === 0
+        const format = leagueTableShape(candidate.format)
+        if (format === '1v1') {
+          if (participantIds.length !== 2 || allyIds.length !== 0) return false
+          if (candidate.format !== null) return true
+          const limit = entries.get(userId)?.sealedLimit
+          return (
+            limit !== null &&
+            limit !== undefined &&
+            GAME_SIZES.some((size) => size.limit === limit) &&
+            participantIds.every((id) => entries.get(id)?.sealedLimit === limit)
+          )
+        }
         if (candidate.format === '2v1' && candidate.rosterLimit !== null && participantIds.length === 3) {
           const alliedLimit = alliedLeagueRosterLimit(candidate.rosterLimit)
           const roles = sideIds.map((side) =>
@@ -777,7 +801,13 @@ export class PraetoriumService {
         }
         return false
       })
-      .map(({ token, name, eventToken, eventNumber, format }) => ({ token, name, eventToken, eventNumber, format: format! }))
+      .map(({ token, name, eventToken, eventNumber, format }) => ({
+        token,
+        name,
+        eventToken,
+        eventNumber,
+        format: leagueTableShape(format),
+      }))
   }
 
   async deleteBattle(token: string, userId: string) {

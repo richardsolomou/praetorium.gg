@@ -9,14 +9,6 @@ const repositorySourceSchema = z.object({
   description: z.string().optional(),
 })
 
-const wahapediaSourceSchema = z.object({
-  baseUrl: z.literal('https://wahapedia.ru/wh40k11ed'),
-  files: z.array(z.string().regex(/^[\w.-]+\.csv$/)),
-  pages: z.array(z.string().regex(/^[\w-]+$/)),
-  attribution: z.string().min(1),
-  description: z.string().optional(),
-})
-
 const battlemasterSourceSchema = z.object({
   baseUrl: z.literal('https://battlemaster.online'),
   owner: z.string().min(1),
@@ -31,29 +23,18 @@ export const catalogueSourcesSchema = z.object({
   rules: repositorySourceSchema,
   datacards: repositorySourceSchema,
   battlemaster: battlemasterSourceSchema,
-  wahapedia: wahapediaSourceSchema,
 })
 
 export const SOURCE_NAMES = ['definitions', 'points', 'rules', 'datacards'] as const
 export type SourceName = (typeof SOURCE_NAMES)[number]
 export type CatalogueSourceConfig = z.infer<typeof catalogueSourcesSchema>
-export type ResolvedCatalogueSources = Omit<
-  CatalogueSourceConfig,
-  'definitions' | 'points' | 'rules' | 'datacards' | 'battlemaster' | 'wahapedia'
-> & {
+export type ResolvedCatalogueSources = Omit<CatalogueSourceConfig, 'definitions' | 'points' | 'rules' | 'datacards' | 'battlemaster'> & {
   definitions: CatalogueSourceConfig['definitions'] & { revision: string }
   points: CatalogueSourceConfig['points'] & { revision: string }
   rules: CatalogueSourceConfig['rules'] & { revision: string }
   datacards: CatalogueSourceConfig['datacards'] & { revision: string }
   battlemaster: CatalogueSourceConfig['battlemaster'] & { revision: string }
-  wahapedia: Omit<CatalogueSourceConfig['wahapedia'], 'baseUrl' | 'files' | 'pages'> & {
-    baseUrl: string
-    revision: string
-    files: Record<string, string>
-    pages: Record<string, string>
-  }
 }
-export type WahapediaSource = ResolvedCatalogueSources['wahapedia']
 export type BattlemasterSource = ResolvedCatalogueSources['battlemaster']
 
 export const catalogueSources = catalogueSourcesSchema.parse(rawSources)

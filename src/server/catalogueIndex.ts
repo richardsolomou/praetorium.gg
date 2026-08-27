@@ -12,8 +12,8 @@ import {
 } from '../core/catalogue'
 import { hiddenByRules } from '../core/evaluate'
 import { routeSlug } from '../core/slug'
-import { type FactionContent, loadFactionContents } from './datacards'
-import { factionDisplayName } from './factionNames'
+import { type FactionContent, type LoadedDatacards, loadDatacards } from './datacards'
+import { catalogueFactionName, factionDisplayName } from './factionNames'
 
 type CatalogueReference = { id: string; name: string; datasheets: number; detachments: number }
 export type DetachmentOptions = { wrapperId: string; groupId: string; options: DetachmentOption[] }
@@ -25,6 +25,8 @@ export type LoadedCatalogue = {
   factions: { id: string; name: string; references: CatalogueReference[] }[]
   detachments: Map<string, DetachmentOptions>
   factionContents: Map<string, FactionContent>
+  /** Game Datacards, read once here and handed to the rules loader. */
+  datacards: LoadedDatacards
 }
 
 const DISPOSITIONS = new Set(['take-and-hold', 'disruption', 'purge-the-foe', 'priority-assets', 'reconnaissance'])
@@ -50,13 +52,14 @@ export function loadCatalogue(directory = catalogueDirectory()): LoadedCatalogue
 
   const index = buildIndex(files, revision.definitions)
   const detachments = detachmentsOf(files, index)
-  const factionContents = loadFactionContents(path.join(directory, 'datacards', '11th', 'gdc'))
+  const datacards = loadDatacards(path.join(directory, 'datacards', '11th', 'gdc'))
   return {
     index,
     characteristicNames: characteristicNamesOf(files),
     factions: factionsIn(index, detachments),
     detachments,
-    factionContents,
+    factionContents: datacards.factions,
+    datacards,
   }
 }
 
@@ -169,13 +172,6 @@ export function isReferenceDatasheet(loaded: LoadedCatalogue, catalogueId: strin
 }
 
 const FACTION_CATEGORY = /^Faction:\s*(.+)$/i
-const REFERENCE_FACTION_ALIASES = new Map([
-  ['adeptus astartes', 'Space Marines'],
-  ['heretic astartes', 'Chaos Space Marines'],
-  ['asuryani', 'Aeldari'],
-  ['harlequins', 'Aeldari'],
-  ['legiones daemonica', 'Chaos Daemons'],
-])
 
 const factionNamesCache = new WeakMap<LoadedCatalogue, ReadonlySet<string>>()
 
@@ -188,7 +184,7 @@ function referenceFactionOf(loaded: LoadedCatalogue, categories: readonly (strin
     categories.flatMap((category) => {
       const name = category?.match(FACTION_CATEGORY)?.[1]?.trim()
       if (!name) return []
-      const canonical = REFERENCE_FACTION_ALIASES.get(name.toLocaleLowerCase()) ?? name
+      const canonical = catalogueFactionName(name)
       return factionNames.has(canonical.toLocaleLowerCase()) ? [canonical] : []
     }),
   )

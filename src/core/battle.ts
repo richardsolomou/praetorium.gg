@@ -116,6 +116,7 @@ type SubmittedUnit = {
   entryId?: string
   group?: UnitGroup
   warlord?: boolean
+  warlordEligible?: boolean
   wargear?: { name: string; count: number }[]
   enhancements?: string[]
   upgrades?: string[]

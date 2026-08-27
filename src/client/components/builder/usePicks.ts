@@ -82,15 +82,6 @@ export function pickEditor(
         spreads: { ...pick.spreads, [key]: { ...pick.spreads?.[key], ...counts } },
       })),
 
-    /** A datasheet swap the catalogue cannot price, kept beside the picks it sits with. */
-    swap: (index: number, key: string, count: number) =>
-      editAt(index, (pick) => {
-        const swaps = { ...pick.swaps }
-        if (count <= 0) delete swaps[key]
-        else swaps[key] = count
-        return { ...pick, swaps }
-      }),
-
     /**
      * A toggle on one unit. The warlord is the army's one warlord, so claiming it
      * gives up every other claim rather than leaving two on the list.

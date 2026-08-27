@@ -170,13 +170,15 @@ test('Deathwatch excludes Scouts from its unit picker', async ({ page }) => {
   await expect(page.getByRole('button', { name: /Add Scout/ })).toHaveCount(0)
 })
 
-test('Black Templars exclude prohibited datasheets and Psykers from their unit picker', async ({ page }) => {
+test('Black Templars exclude Codex datasheets and Psykers from their unit picker', async ({ page }) => {
   await openBuilder(page, 'Black Templars', /Companions of Vehemence/)
-  for (const name of ['Gladiator Lancer', 'Librarian']) {
-    await page.getByLabel('Add a unit').fill(name)
-    await expect(page.getByText('No matching units.')).toBeVisible()
-    await expect(page.getByRole('button', { name: `Add ${name}`, exact: true })).toHaveCount(0)
-  }
+  await page.getByLabel('Add a unit').fill('Librarian')
+  await expect(page.getByText('No matching units.')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Add Librarian', exact: true })).toHaveCount(0)
+  // Their own Gladiator Lancer carries the Black Templars keyword and is legal; the
+  // Codex one the book imports is not, so exactly one is offered.
+  await page.getByLabel('Add a unit').fill('Gladiator Lancer')
+  await expect(page.getByRole('button', { name: 'Add Gladiator Lancer', exact: true })).toHaveCount(1)
   await page.screenshot({ path: 'test-results/black-templars-restrictions.png', fullPage: true })
 })
 
@@ -1735,18 +1737,15 @@ test('Death Guard champions expose their legal wargear', async ({ page }) => {
   const loadout = page.locator('aside[aria-label="Loadout"]')
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(720)
   expect(await loadout.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
-  const deathshroudChampion = loadout.locator('section').filter({ hasText: 'Deathshroud Champion' })
-  const additionalGauntlet = deathshroudChampion.getByRole('button', { name: 'More Plaguespurt gauntlet' }).locator('..')
-  await expect(additionalGauntlet.getByLabel('Plaguespurt gauntlet count')).toHaveText('0')
-  await expect(deathshroudChampion.getByRole('button', { name: 'More Icon of Despair (Aura)' })).toHaveCount(0)
+  // The catalogue asks one question of the squad, and it is asked once: no second
+  // control for the icon under any model card.
   const icon = loadout.getByRole('button', { name: 'Select Icon of Despair' })
   await expect(icon).toBeEnabled()
   await expect(icon).toHaveAttribute('aria-pressed', 'false')
-  await waitForRosterSave(page, () => additionalGauntlet.getByRole('button', { name: 'More Plaguespurt gauntlet' }).click())
-  await expect(additionalGauntlet.getByLabel('Plaguespurt gauntlet count')).toHaveText('1')
+  await expect(loadout.getByRole('button', { name: /More Icon of Despair/ })).toHaveCount(0)
   await waitForRosterSave(page, () => icon.click())
   await expect(icon).toHaveAttribute('aria-pressed', 'true')
-  await shot(deathshroudChampion, 'test-results/deathshroud-champion-wargear.png')
+  await expect(loadout.getByRole('button', { name: /Icon of Despair/ })).toHaveCount(1)
   await page.screenshot({ path: 'test-results/deathshroud-wargear-once.png', fullPage: true })
 
   await loadout.getByRole('button', { name: 'Close' }).click()

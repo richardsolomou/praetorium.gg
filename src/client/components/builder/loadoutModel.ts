@@ -49,12 +49,6 @@ export type LoadoutUnit = {
   toggles: { key: string; name: string; selected: boolean }[]
   choices: LoadoutChoice[]
   models: LoadoutModel[]
-  /** Profiles for weapons the catalogue does not carry, from the source that names them. */
-  modelWeapons?: Datasheet['profiles']
-  /** Keyword rules for those weapons: they live in the game system, not the datasheet. */
-  modelKeywordRules?: Datasheet['keywordRules']
-  /** Rules for wargear that has no profile of its own, such as a shield. */
-  modelAbilities?: Datasheet['abilities']
 }
 
 export type WeaponProfileData = Datasheet['profiles'][number]
@@ -119,28 +113,6 @@ export type ChoiceEdit = { key: string; optionId: string } | { key: string; coun
 /** Editing shows every available option; a finished roster shows only what is held. */
 export function showLoadoutEntry(count: number, showOptions: boolean) {
   return showOptions || count > 0
-}
-
-export function selectedFallbackAnswers(choice: LoadoutChoice, models: readonly LoadoutModel[]) {
-  const selected = models.flatMap((model) => (model.swaps ?? []).flatMap((swap) => (swap.free && swap.count > 0 ? swap.takes : [])))
-  return choice.options.every((option) => selected.some((name) => sameWargear(option.name, name)))
-}
-
-export function catalogueRemovalsForFallback(takes: readonly string[], choices: readonly LoadoutChoice[]): ChoiceEdit[] {
-  return choices.flatMap((choice): ChoiceEdit[] => {
-    const matched = choice.options.filter(
-      (option) => (option.count > 0 || choice.chosen === option.id) && takes.some((name) => sameWargear(option.name, name)),
-    )
-    if (!matched.length) return []
-    if (choice.room <= 1) return matched.some((option) => choice.chosen === option.id) ? [{ key: choice.key, optionId: '' }] : []
-    const removed = new Set(matched.map((option) => option.id))
-    return [
-      {
-        key: choice.key,
-        counts: Object.fromEntries(choice.options.map((option) => [option.id, removed.has(option.id) ? 0 : option.count])),
-      },
-    ]
-  })
 }
 
 export function weaponMatches(optionName: string, profileName: string) {

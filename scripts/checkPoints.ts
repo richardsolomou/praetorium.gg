@@ -16,6 +16,7 @@ import { parse } from 'yaml'
 import { buildIndex, type CatalogueFile, type SelectionEntry, targetOf } from '../src/core/catalogue'
 import { evaluate, type Selection } from '../src/core/evaluate'
 import { buildUnit } from '../src/core/roster'
+import { routeSlug } from '../src/core/slug'
 import { isResizable } from '../src/core/unitSize'
 
 const dataDirectory = process.env.CATALOGUE_DIR ?? path.join(import.meta.dirname, '..', 'catalogue-data')
@@ -63,18 +64,8 @@ const factions = fs
     return { slug: faction.slug ?? name.replace('.yaml', ''), units: faction.units ?? [] }
   })
 
-/** "Imperium - Blood Angels" is the same book the manual calls `blood-angels`. */
-const slugOf = (catalogueName: string) =>
-  catalogueName
-    .split(' - ')
-    .at(-1)!
-    .toLowerCase()
-    .replaceAll(/['’]/g, '')
-    .replaceAll(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '')
-
 const catalogueBySlug = new Map<string, string>()
-for (const catalogue of index.catalogues.values()) catalogueBySlug.set(slugOf(catalogue.name), catalogue.id)
+for (const catalogue of index.catalogues.values()) catalogueBySlug.set(routeSlug(catalogue.name), catalogue.id)
 const catalogueLinks = new Map(
   files.flatMap((file) => {
     const catalogue = file.catalogue ?? file.gameSystem

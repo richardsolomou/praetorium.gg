@@ -4,14 +4,14 @@ import type { Stratagem } from '../core/battle'
 import { routeSlug } from '../core/slug'
 import { byName, factionDirectories, readJson, readOptionalList, titleCase } from './rulesSource'
 import { type RawStratagem, toStratagem } from './rulesCards'
-import { findDescription, findDetachmentAbilities, type WahapediaDescriptions } from './wahapedia'
+import { descriptionKey, type LoadedDatacards } from './datacards'
 import { SUPPLEMENTAL_FACTION_ICONS } from './factionIconSources'
 
 /**
  * Who the factions are, and what each of their detachments brings.
  *
  * Names, icons and army rules from the licensed dataset; the prose that describes a
- * detachment ability, enhancement or stratagem from Wahapedia's export. Everything is
+ * detachment ability, enhancement or stratagem from Game Datacards. Everything is
  * keyed by the faction directory the dataset uses, which is also the slug the app
  * routes reference pages by.
  */
@@ -103,7 +103,7 @@ export type LoadedFactions = {
   dataslate: string | null
 }
 
-export function loadFactions(core: string, iconDirectory: string, wahapedia: WahapediaDescriptions | null): LoadedFactions {
+export function loadFactions(core: string, iconDirectory: string, datacards: LoadedDatacards): LoadedFactions {
   const byDetachment = new Map<string, Map<string, Stratagem[]>>()
   const detachmentReferences = new Map<string, Map<string, DetachmentReference>>()
   const detachmentDetails = new Map<string, Map<string, DetachmentRulesDetail>>()
@@ -127,11 +127,12 @@ export function loadFactions(core: string, iconDirectory: string, wahapedia: Wah
           factionIcons.set(found.id, source)
           for (const alias of found.aliases ?? []) factionIcons.set(routeSlug(alias), source)
         }
-        const description = found.faction_rule_id ? wahapedia?.abilities.get(found.faction_rule_id) : null
+        const own = datacards.factions.get(routeSlug(found.name))?.armyRules.find((card) => routeSlug(card.name) === found.faction_rule_id)
+        const description = own?.description ?? (found.faction_rule_id ? datacards.armyRules.get(found.faction_rule_id) : null)
         if (found.faction_rule_id && description) {
-          const name = titleCase(found.faction_rule_id.replaceAll('-', ' ')).replace(/\s(Of|The|And|For|From|In|To)\b/g, (word) =>
-            word.toLowerCase(),
-          )
+          const name =
+            own?.name ??
+            titleCase(found.faction_rule_id.replaceAll('-', ' ')).replace(/\s(Of|The|And|For|From|In|To)\b/g, (word) => word.toLowerCase())
           const rule = { name, description }
           factionRules.set(found.id, rule)
           for (const alias of found.aliases ?? []) factionRules.set(routeSlug(alias), rule)
@@ -153,7 +154,14 @@ export function loadFactions(core: string, iconDirectory: string, wahapedia: Wah
       const rawDetachments = readJson<RawDetachment[]>(referenceFile)
       const enhancements = fs.existsSync(enhancementFile) ? readJson<RawEnhancement[]>(enhancementFile) : []
       const stratagemsOf = new Map(rawDetachments.map((detachment) => [detachment.id, detachmentStratagems(detachment, rawStratagems)]))
-      for (const [id, found] of stratagemsOf) detachments.set(id, found.map(toStratagem))
+      const cardOf = (detachment: RawDetachment, stratagem: RawStratagem) =>
+        datacards.stratagems.get(descriptionKey(detachment.name, stratagem.name))
+      for (const detachment of rawDetachments) {
+        detachments.set(
+          detachment.id,
+          (stratagemsOf.get(detachment.id) ?? []).map((raw) => toStratagem(raw, cardOf(detachment, raw)?.name)),
+        )
+      }
 
       const references = new Map(
         rawDetachments.map((detachment) => [
@@ -178,13 +186,13 @@ export function loadFactions(core: string, iconDirectory: string, wahapedia: Wah
             name: detachment.name,
             points: detachment.detachment_points ?? null,
             dispositions: detachment.force_dispositions ?? [],
-            rules: wahapedia ? [...findDetachmentAbilities(wahapedia.detachmentAbilities, detachment.name)] : [],
+            rules: [...(datacards.detachmentRules.get(routeSlug(detachment.name)) ?? [])],
             enhancements: enhancements
               .filter((enhancement) => enhancement.detachment_id === detachment.id && !isUnitUpgrade(enhancement.name))
               .map((enhancement) => ({
                 name: enhancement.name,
                 points: enhancement.cost ?? null,
-                description: wahapedia ? findDescription(wahapedia.enhancements, detachment.name, enhancement.name) : null,
+                description: datacards.enhancements.get(descriptionKey(detachment.name, enhancement.name)) ?? null,
                 keywordRestrictions: enhancement.keyword_restrictions ?? [],
               })),
             upgrades: enhancements
@@ -192,17 +200,17 @@ export function loadFactions(core: string, iconDirectory: string, wahapedia: Wah
               .map((enhancement) => ({
                 name: enhancement.name.replace(/\s*\(upgrade\)\s*$/i, ''),
                 points: enhancement.cost ?? null,
-                description: wahapedia ? findDescription(wahapedia.enhancements, detachment.name, enhancement.name) : null,
+                description: datacards.enhancements.get(descriptionKey(detachment.name, enhancement.name)) ?? null,
               })),
             stratagems: (stratagemsOf.get(detachment.id) ?? [])
               .map((stratagem) => ({
                 id: stratagem.id,
-                name: titleCase(stratagem.name),
+                name: cardOf(detachment, stratagem)?.name ?? titleCase(stratagem.name),
                 cp: stratagem.cp_cost ?? 0,
                 type: stratagem.type ? titleCase(stratagem.type.replaceAll('-', ' ')) : null,
                 phases: stratagem.phases ?? [],
                 turn: stratagem.player_turn ?? null,
-                description: wahapedia ? findDescription(wahapedia.stratagems, detachment.name, stratagem.name) : null,
+                description: cardOf(detachment, stratagem)?.description ?? null,
               }))
               .toSorted(byName),
           },

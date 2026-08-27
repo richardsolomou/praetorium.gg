@@ -40,11 +40,6 @@ export type ModelKind = {
   members: { id: string; choiceKey: string | null; baseCount: number }[]
   /** Wargear taken through a choice, in the order the data holds it. */
   rows: ModelRow[]
-  /**
-   * Swaps the datasheet allows that the catalogue does not describe, one row per
-   * alternative so every one of them is always on screen whether taken or not.
-   */
-  swaps?: { key: string; gives: string[]; takes: string[]; count: number; max: number; free: boolean }[]
 }
 
 export const modelRowSources = (row: ModelRow): readonly ModelRowSource[] => [row, ...(row.alternatives ?? [])]
@@ -107,21 +102,21 @@ export function modelKindsOf(entryId: string, selection: Selection, index: Catal
       baseCount: depth < 0 ? 0 : countAt(selection, trail.slice(0, depth + 1)),
     })
   }
-  /*
-   * The models the data insists on complete a set of cards; they do not begin one.
-   * A datasheet the catalogue offers no kind of model for is one the rules source
-   * describes better — it names the weapons, the abilities and the swaps a card needs
-   * — and saying nothing here is how that reading gets asked for.
-   */
+  // The models the data insists on complete a set of cards; they do not begin one.
   if (!found.length) return []
   for (const standing of standingModels(entryId, selection, index, options)) remember(standing.profile, standing.member)
 
   // What each loadout carries on its own, read from its own defaults so that a
-  // loadout nobody has taken yet still knows its weapon.
+  // loadout nobody has taken yet still knows its weapon. A choice the model owns is
+  // left out of that: its default answer is one of the rows below, not something the
+  // model carries whatever is chosen, and a sergeant's default laspistol was drawn as
+  // fixed beside the combination that had replaced it.
   const carriedBy = new Map(
     found.map(({ member }) => {
       const base = defaultSelection(member.id, index, options)
-      return [member.id, base ? wargearOf(base, index).map((piece) => piece.name) : []] as const
+      const owned = new Set(choices.filter((choice) => choice.owner?.id === member.id).map((choice) => choice.key.split('/').at(-1)))
+      const outside = base ? { ...base, selections: base.selections?.filter((child) => !owned.has(child.id)) } : null
+      return [member.id, outside ? wargearOf(outside, index).map((piece) => piece.name) : []] as const
     }),
   )
   const carriedOf = (id: string) => carriedBy.get(id) ?? []

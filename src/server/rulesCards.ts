@@ -1,8 +1,8 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import { compile } from 'html-to-text'
 import type { Stratagem, StratagemLimit } from '../core/battle'
 import { routeSlug } from '../core/slug'
+import { localizedField, stratagemText } from './datacards'
 import { criteriaIn, criteriaKey, pairCriteria, type Payout } from './missionCriteria'
 import { type MissionPack, readMissionPacks } from './missionPacks'
 import { byName, readOptionalList, titleCase } from './rulesSource'
@@ -37,19 +37,7 @@ export type RawStratagem = {
   game_version?: { edition?: string; dataslate?: string }
 }
 
-type Localized = { en?: string }
-
-type RawCoreStratagem = {
-  name?: Localized
-  type?: string
-  fluff?: Localized
-  when?: Localized
-  target?: Localized
-  effect?: Localized
-  restrictions?: Localized
-}
-
-type RawCoreCards = { stratagems?: RawCoreStratagem[] }
+type RawCoreCards = { stratagems?: Record<string, unknown>[] }
 
 type RawCard = {
   id: string
@@ -182,9 +170,10 @@ export function loadCards(
   // What a payout asks for is the mission pack's to say; when it is due is this file's.
   const criteria = criteriaIn(packs)
   const card = (raw: RawCard) => toCard(raw, criteria.get(criteriaKey(raw.name)) ?? [])
+  const coreCards = coreCardsByName(datacardsDirectory)
   return {
-    core: coreStratagems.map(toStratagem),
-    coreDetails: coreDescriptions(datacardsDirectory, coreStratagems),
+    core: coreStratagems.map((raw) => toStratagem(raw, localizedField(coreCards.get(criteriaKey(raw.name)), 'name') ?? undefined)),
+    coreDetails: coreDescriptions(coreCards, coreStratagems),
     secondaries: cards
       .filter((entry) => entry.card_type !== 'primary')
       .map(card)
@@ -196,31 +185,21 @@ export function loadCards(
   }
 }
 
-const coreText = compile({ wordwrap: false })
-
-/** Core stratagem prose lives in Game Datacards' `11th/gdc/core.json`, keyed to the rules source by name. */
-function coreDescriptions(datacardsDirectory: string, rules: readonly RawStratagem[]): LoadedCards['coreDetails'] {
+/** Core stratagem cards live in Game Datacards' `11th/gdc/core.json`, keyed to the rules source by name. */
+function coreCardsByName(datacardsDirectory: string) {
   const file = path.join(datacardsDirectory, 'core.json')
-  if (!fs.existsSync(file)) return []
+  if (!fs.existsSync(file)) return new Map<string, Record<string, unknown>>()
   const cards = JSON.parse(fs.readFileSync(file, 'utf8')) as RawCoreCards
-  const descriptionsByName = new Map((cards.stratagems ?? []).map((card) => [criteriaKey(card.name?.en ?? ''), card]))
-  return rules.flatMap((rule) => {
-    const card = descriptionsByName.get(criteriaKey(rule.name))
-    if (!card) return []
-    const sections = [
-      card.fluff?.en ? coreText(card.fluff.en).trim() : null,
-      describedSection('When', card.when?.en),
-      describedSection('Target', card.target?.en),
-      describedSection('Effect', card.effect?.en),
-      describedSection('Restrictions', card.restrictions?.en),
-    ].filter((section): section is string => Boolean(section))
-    return sections.length ? [{ id: rule.id, type: card.type ?? null, description: sections.join('\n\n') }] : []
-  })
+  return new Map((cards.stratagems ?? []).map((card) => [criteriaKey(localizedField(card, 'name') ?? ''), card]))
 }
 
-const describedSection = (label: string, value: string | undefined) => {
-  const text = value ? coreText(value).trim() : ''
-  return text ? `**${label}:** ${text}` : null
+function coreDescriptions(cards: ReadonlyMap<string, Record<string, unknown>>, rules: readonly RawStratagem[]): LoadedCards['coreDetails'] {
+  return rules.flatMap((rule) => {
+    const card = cards.get(criteriaKey(rule.name))
+    const description = card ? stratagemText(card) : null
+    const type = card?.type
+    return description ? [{ id: rule.id, type: typeof type === 'string' ? type : null, description }] : []
+  })
 }
 
 /**
@@ -347,8 +326,8 @@ function dedupe(awards: Award[]): Award[] {
   return [...seen.values()]
 }
 
-/** Titled rather than shouted: the dataset stores names in capitals. */
-export function toStratagem(raw: RawStratagem): Stratagem {
+/** Named as its card prints it; failing a card, titled rather than shouted, since the dataset stores names in capitals. */
+export function toStratagem(raw: RawStratagem, name = titleCase(raw.name)): Stratagem {
   const phases = (raw.phases ?? []).filter((phase): phase is NonNullable<Stratagem['phases']>[number] =>
     ['command', 'movement', 'shooting', 'charge', 'fight', 'end'].includes(phase),
   )
@@ -357,7 +336,7 @@ export function toStratagem(raw: RawStratagem): Stratagem {
     : undefined
   return {
     key: raw.id,
-    name: titleCase(raw.name),
+    name,
     cp: raw.cp_cost ?? 0,
     // An unrecognised timing becomes `unlimited` rather than a guess that would
     // wrongly stop a player using something.
