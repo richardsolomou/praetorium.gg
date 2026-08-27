@@ -812,6 +812,30 @@ describe('the profile modifiers on a datasheet', () => {
     expect(contextualAbilityNamesIn(book, 'cat', 'unit', { selections, unitSelectionIndex: 0 })).toEqual(expect.arrayContaining(expected))
   })
 
+  it('does not make a temporary deployment ability permanent', () => {
+    const book = bookOf({
+      selectionEntries: [
+        {
+          id: 'unit',
+          name: 'Unit',
+          type: 'unit',
+          profiles: [
+            {
+              id: 'temporary-rule',
+              name: 'Temporary rule',
+              typeName: 'Abilities',
+              characteristics: [{ name: 'Description', $text: 'This unit has Deep Strike until the start of your next Shooting phase.' }],
+            },
+          ],
+        },
+      ],
+    })
+
+    expect(contextualAbilityNamesIn(book, 'cat', 'unit', { selections: [{ id: 'unit' }], unitSelectionIndex: 0 })).not.toContain(
+      'Deep Strike',
+    )
+  })
+
   it.each([
     ["CRYPTEK model only. Models in the bearer's unit have the Infiltrators ability.", 'Infiltrators'],
     [

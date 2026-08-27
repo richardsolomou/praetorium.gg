@@ -1118,14 +1118,38 @@ describe('the turn sequence', () => {
     expect(validate(state, CAROL, { kind: 'settle-opponent-turn' })).toBeNull()
   })
 
-  it('does not let the opposing side dismiss an unrevealed mission', () => {
+  it('does not settle an unrevealed mission whose timing is unknown', () => {
     const state = reduceBattle(
       PLAYERS,
       log(...started(), [BOB, { kind: 'select-secret', secondary: { key: 'secret', name: 'Hidden purpose' } }], ...turns(6, ALICE)),
     )
 
-    expect(validate(state, ALICE, { kind: 'settle-opponent-turn' })).toBe('the affected side has a hidden action to settle')
-    expect(validate(state, BOB, { kind: 'settle-opponent-turn' })).toBeNull()
+    for (const player of [ALICE, BOB]) {
+      expect(validate(state, player, { kind: 'settle-opponent-turn' })).toBe('reveal the secret mission before settling the previous turn')
+    }
+  })
+
+  it('settles a hidden mission that has no opponent-turn award', () => {
+    const award = {
+      vp: 5,
+      per: null,
+      mode: null,
+      max: null,
+      group: null,
+      cumulative: false,
+      criteria: 'Hold the objective.',
+      trigger: { timing: 'end-of-turn', phase: null, playerTurn: 'your-turn', roundMin: null, roundMax: null },
+    }
+    const state = reduceBattle(
+      PLAYERS,
+      log(
+        ...started(),
+        [BOB, { kind: 'select-secret', secondary: { key: 'secret', name: 'Hidden purpose', awards: [award] } }],
+        ...turns(6, ALICE),
+      ),
+    )
+
+    expect(validate(state, ALICE, { kind: 'settle-opponent-turn' })).toBeNull()
   })
 
   it('keeps settlement bookkeeping out of the report and undo target', () => {

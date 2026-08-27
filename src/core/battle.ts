@@ -10,7 +10,7 @@
  */
 
 import { attachedUnits } from './attachedUnits'
-import { appliesInMode, cardsDue, type MissionAward } from './scoring'
+import { appliesInMode, cardsDue, cardsDueFromTheirTurn, type MissionAward } from './scoring'
 import type { UnitGroup } from './unitGroups'
 import type { RosterPick } from './roster'
 
@@ -815,16 +815,7 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
     case 'settle-opponent-turn': {
       if (state.status !== 'playing') return 'the battle is not running'
       if (!state.pendingSettlement) return 'there is no previous turn to settle'
-      const target = state.players.find((candidate) => candidate.id === state.pendingSettlement?.playerId)
-      if (
-        target &&
-        !sameSide(state, by, target.id) &&
-        target.secretSecondary &&
-        !target.secretRevealed &&
-        target.secondaryStatus[target.secretSecondary] === 'active'
-      ) {
-        return 'the affected side has a hidden action to settle'
-      }
+      if (secretSettlementActionPlayerId(state)) return 'reveal the secret mission before settling the previous turn'
       return null
     }
     case 'request-advance': {
@@ -1734,6 +1725,27 @@ export function scoringDue(state: BattleState, player: PlayerState) {
     ...primary,
     ...secondaries,
   ])
+}
+
+export function secretSettlementActionPlayerId(state: BattleState): PlayerId | null {
+  const pending = state.pendingSettlement
+  const player = pending ? state.players.find((candidate) => candidate.id === pending.playerId) : undefined
+  const key = player?.secretSecondary
+  if (!pending || !player || !key || player.secretRevealed || player.secondaryStatus[key] !== 'active') return null
+  const secondary = player.secondaries.find((candidate) => candidate.key === key)
+  if (!secondary?.awards) return player.id
+  const due = cardsDueFromTheirTurn(
+    pending.round,
+    [
+      {
+        ...secondary,
+        category: 'secondary',
+        awards: secondary.awards.filter((award) => appliesInMode(award, player.secondaryMode)),
+      },
+    ],
+    [key],
+  )
+  return due.length ? player.id : null
 }
 
 /** Whether a card may be named to this viewer, or is being held face down from them. */

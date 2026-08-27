@@ -207,9 +207,6 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
   const settlementSecretMissionAction = Boolean(
     view.settlementRound !== null && settlementSide && secretMissionActionSide?.captain.id === settlementSide.captain.id,
   )
-  // Concluding that nothing private remains is the side's own call. A practice
-  // opponent cannot make it, so the table playing that side makes it instead.
-  const settlementOwner = settlementSide?.writer.id === view.viewerId || Boolean(settlementSide?.automated)
   const settlementRuleResults = ruleResults.filter((_, index) => ruleRequests[index]?.side === settlementSide?.index)
   const settlementNeedsReferences = Boolean(
     (settlementSide?.primaryCard && settlementSide.primaryCard.awards === undefined) ||
@@ -221,11 +218,9 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
       ? dueFromTheirTurn(settlementRound, settlementSide, awardsFor, heldKeys(settlementSide))
       : []
   useEffect(() => {
-    // A helper's view may redact a hidden mission that is still owed. Only the owner
-    // may conclude that an apparently empty settlement has no private work behind it.
-    if (!settlementOwner || settlementRound === null || settlementRulesPending || owedCards.length || pending) return
+    if (settlementRound === null || settlementRulesPending || settlementSecretMissionAction || owedCards.length || pending) return
     send({ kind: 'settle-opponent-turn' })
-  }, [owedCards.length, pending, send, settlementOwner, settlementRound, settlementRulesPending])
+  }, [owedCards.length, pending, send, settlementRound, settlementRulesPending, settlementSecretMissionAction])
   const turnKey = `${view.round}-${view.activePlayerId ?? ''}`
   const needsDraw =
     !finished &&

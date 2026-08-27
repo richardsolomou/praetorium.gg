@@ -14,6 +14,7 @@ import {
   SECONDARY_GUIDE,
   sameSide,
   scoringDue,
+  secretSettlementActionPlayerId,
   type Secondary,
   type SecondaryMode,
   type SecondaryStatus,
@@ -318,10 +319,7 @@ function viewRoster(roster: Roster | null): RosterView | null {
 }
 
 function secretMissionActionPlayerId(state: BattleState): PlayerId | null {
-  const settlement = state.pendingSettlement ? state.players.find((player) => player.id === state.pendingSettlement?.playerId) : undefined
-  if (settlement?.secretSecondary && !settlement.secretRevealed && settlement.secondaryStatus[settlement.secretSecondary] === 'active') {
-    return settlement.id
-  }
+  if (state.pendingSettlement) return secretSettlementActionPlayerId(state)
   const active = state.activePlayerId ? state.players.find((player) => player.id === state.activePlayerId) : undefined
   const player = active ? sideCaptain(state, active.side) : undefined
   if (!player?.secretSecondary || player.secretRevealed) return null

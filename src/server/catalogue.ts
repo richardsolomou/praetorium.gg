@@ -712,15 +712,16 @@ function parsedAbilityGrants(
   return ownUnitGrant ? grant(ownUnitGrant[1]!, 'unit') : []
 }
 
+const DEPLOYMENT_ABILITY = String.raw`(?:Stealth|Infiltrators|Deep Strike|Scouts \d+["″])`
+const DEPLOYMENT_ABILITY_LIST = new RegExp(
+  String.raw`^${DEPLOYMENT_ABILITY}(?:(?:\s*,\s*(?:and\s+)?|\s+and\s+)${DEPLOYMENT_ABILITY})*$`,
+  'iu',
+)
+const DEPLOYMENT_ABILITIES = new RegExp(DEPLOYMENT_ABILITY, 'giu')
+
 function deploymentAbilities(written: string): string[] {
   const normalized = written.normalize('NFKC')
-  const scouts = normalized.match(/Scouts \d+["″]/iu)?.[0]
-  return [
-    ...(['Stealth', 'Infiltrators', 'Deep Strike'] as const).filter((name) =>
-      new RegExp(`(?:^|\\s|\\b)${name}(?:$|\\s|\\b)`, 'iu').test(normalized),
-    ),
-    ...(scouts ? [scouts] : []),
-  ]
+  return DEPLOYMENT_ABILITY_LIST.test(normalized) ? (normalized.match(DEPLOYMENT_ABILITIES) ?? []) : []
 }
 
 const titleCaseAbility = (name: string) =>
