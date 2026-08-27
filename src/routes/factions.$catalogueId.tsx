@@ -28,10 +28,11 @@ function FactionPage() {
   const path = useRouterState({ select: (state) => state.location.pathname })
   const { catalogueId } = Route.useParams()
   const { data: faction } = useQuery(factionQuery(catalogueId))
-  if (path !== `/factions/${catalogueId}`) return <Outlet />
+  const direct = path === `/factions/${catalogueId}`
+  const { favourites } = useFavouriteDetachments(direct)
+  if (!direct) return <Outlet />
   if (!faction) return null
   const reference = faction.references[0]
-  const { favourites } = useFavouriteDetachments()
   const detachments = favouriteDetachmentsFirst(
     faction.detachments.filter((detachment) => faction.referenceDetachmentIds.includes(detachment.id)),
     faction.id,
