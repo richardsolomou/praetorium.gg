@@ -5,7 +5,7 @@ import { defaultSelection, withChoice } from './expand'
 import { buildUnit } from './roster'
 import { unitChoices } from './unitChoices'
 import { withUnitSpread } from './unitSpread'
-import { modelCountOf } from './unitSize'
+import { modelCountOf, sizeOf } from './unitSize'
 import { wargearOf } from './wargear'
 
 const PTS = 'cost-pts'
@@ -805,6 +805,131 @@ describe('optional wargear on repeated models', () => {
       { name: 'Beamer', count: 3 },
       { name: 'Shadowloom', count: 3 },
     ])
+  })
+})
+
+describe('independent wargear on repeated models', () => {
+  const index = indexOf({
+    sharedSelectionEntries: [
+      {
+        id: 'unit',
+        name: 'Unit',
+        type: 'unit',
+        selectionEntries: [
+          {
+            id: 'model',
+            name: 'Model',
+            type: 'model',
+            constraints: [
+              { id: 'model-min', type: 'min', value: 1, field: 'selections', scope: 'parent' },
+              { id: 'model-max', type: 'max', value: 2, field: 'selections', scope: 'parent' },
+            ],
+            selectionEntryGroups: [
+              {
+                id: 'systems',
+                name: 'Systems',
+                selectionEntries: [
+                  {
+                    id: 'claws',
+                    name: 'Automaton claws',
+                    type: 'upgrade',
+                    constraints: [
+                      { id: 'claws-min', type: 'min', value: 1, field: 'selections', scope: 'parent' },
+                      { id: 'claws-max', type: 'max', value: 1, field: 'selections', scope: 'parent' },
+                    ],
+                  },
+                  {
+                    id: 'array',
+                    name: 'Fabricator claw array',
+                    type: 'upgrade',
+                    constraints: [{ id: 'array-max', type: 'max', value: 1, field: 'selections', scope: 'parent' }],
+                  },
+                  {
+                    id: 'beamers',
+                    name: 'Two particle beamers',
+                    type: 'upgrade',
+                    constraints: [{ id: 'beamers-max', type: 'max', value: 1, field: 'selections', scope: 'parent' }],
+                    selectionEntries: [
+                      {
+                        id: 'beamer',
+                        name: 'Particle beamer',
+                        type: 'upgrade',
+                        constraints: [
+                          { id: 'beamer-min', type: 'min', value: 2, field: 'selections', scope: 'parent' },
+                          { id: 'beamer-max', type: 'max', value: 2, field: 'selections', scope: 'parent' },
+                        ],
+                      },
+                    ],
+                  },
+                  {
+                    id: 'prism',
+                    name: 'Gloom prism',
+                    type: 'upgrade',
+                    constraints: [{ id: 'prism-max', type: 'max', value: 1, field: 'selections', scope: 'parent' }],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  })
+  const key = 'model/systems'
+
+  it('keeps mandatory wargear when one optional system is equipped', () => {
+    const built = buildUnit('unit', index, 1, undefined, { spreads: { [key]: { array: 1 } } })!
+    expect({ models: built.size.models, wargear: wargearOf(built.selection, index) }).toEqual({
+      models: 1,
+      wargear: [
+        { name: 'Automaton claws', count: 1 },
+        { name: 'Fabricator claw array', count: 1 },
+      ],
+    })
+  })
+
+  it('equips independent systems on the same model', () => {
+    const built = buildUnit('unit', index, 1, undefined, { spreads: { [key]: { array: 1, beamers: 1 } } })!
+    expect({ size: built.size, wargear: wargearOf(built.selection, index) }).toEqual({
+      size: { min: 1, max: 2, models: 1, path: ['model'] },
+      wargear: [
+        { name: 'Automaton claws', count: 1 },
+        { name: 'Fabricator claw array', count: 1 },
+        { name: 'Particle beamer', count: 2 },
+      ],
+    })
+  })
+
+  it('removes one independent system without disturbing the others', () => {
+    const armed = buildUnit('unit', index, 1, undefined, { spreads: { [key]: { array: 1, beamers: 1 } } })!
+    const removed = withUnitSpread(armed.selection, key, { array: 1, beamers: 0, prism: 0 }, index)
+    expect({ models: modelCountOf(removed, index), wargear: wargearOf(removed, index) }).toEqual({
+      models: 1,
+      wargear: [
+        { name: 'Automaton claws', count: 1 },
+        { name: 'Fabricator claw array', count: 1 },
+      ],
+    })
+  })
+
+  it('recombines identical models after removing their independent systems', () => {
+    const armed = buildUnit('unit', index, 2, undefined, { spreads: { [key]: { array: 1, beamers: 2 } } })!
+    const removed = withUnitSpread(armed.selection, key, { array: 0, beamers: 0, prism: 0 }, index)
+    expect(sizeOf(removed, index)).toEqual({ min: 1, max: 2, models: 2, path: ['model'] })
+  })
+
+  it('keeps two fully equipped models within the declared unit size', () => {
+    const built = buildUnit('unit', index, 2, undefined, { spreads: { [key]: { array: 2, beamers: 2, prism: 2 } } })!
+    expect({ size: built.size, wargear: wargearOf(built.selection, index), errors: evaluate([built.selection], index).errors }).toEqual({
+      size: { min: 1, max: 2, models: 2, path: ['model'] },
+      wargear: [
+        { name: 'Automaton claws', count: 2 },
+        { name: 'Fabricator claw array', count: 2 },
+        { name: 'Particle beamer', count: 4 },
+        { name: 'Gloom prism', count: 2 },
+      ],
+      errors: [],
+    })
   })
 })
 
