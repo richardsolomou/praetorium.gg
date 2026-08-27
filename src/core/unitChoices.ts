@@ -10,6 +10,7 @@ import type { CatalogueIndex, Definition } from './catalogue'
 import {
   childrenOf,
   exclusiveSets,
+  hasDynamicSelectionLimit,
   hasMutableMinimum,
   isRosterToggle,
   MAX_DEPTH,
@@ -188,8 +189,9 @@ export function unitChoices(entryId: string, selection: Selection, index: Catalo
         const capacity = maximumCount(child.definition, index)
         const room = capacity === null ? occupantRoom(choosable, index) : capacity * scale
         const fixed = choosable.some((option) => minimum(option.definition) > 0)
+        const dynamic = choosable.some((option) => minimum(option.definition) === 0 && hasDynamicSelectionLimit(option.definition, index))
         const adjustable = fixed
-          ? choosable.filter((option) => minimum(option.definition) === 0 || hasMutableMinimum(option.definition, index))
+          ? choosable.filter((option) => minimum(option.definition) === 0 || (dynamic && hasMutableMinimum(option.definition, index)))
           : choosable
         const held = repeating
           ? repeatedOptions(selection, repeating.path, here.slice(repeating.path.length))
@@ -341,15 +343,15 @@ function legalMaximum(
   context: { primaryCatalogueId?: string; roster?: readonly Selection[] },
 ): number {
   const targetId = resolve(option.definition, index).id
-  for (let count = 1; count <= room; count++) {
+  for (let count = room; count >= 1; count--) {
     const other = siblings.find((candidate) => candidate.id !== option.id)
     const counts: Record<string, number> = { [option.id]: count }
     if (other) counts[other.id] = room - count
     const candidate = withSpread(selection, path.join('/'), counts)
     const result = evaluate([...(context.roster ?? []), candidate], index, { primaryCatalogueId: context.primaryCatalogueId })
-    if (result.errors.some((error) => error.entryId === targetId)) return count - 1
+    if (!result.errors.some((error) => error.entryId === targetId)) return count
   }
-  return room
+  return 0
 }
 
 const occupantRoom = (choosable: Option[], index: CatalogueIndex) =>

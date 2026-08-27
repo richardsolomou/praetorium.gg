@@ -275,6 +275,11 @@ describe('a required model replaced by an optional specialist', () => {
     expect(choice?.options.find((option) => option.id === 'specialist')?.max).toBe(1)
   })
 
+  it('keeps the required models available in a five-model squad', () => {
+    const choice = buildUnit('squad', index, 5)?.choices.find((candidate) => candidate.name === 'Models')
+    expect(choice?.options.find((option) => option.id === 'trooper')?.max).toBe(4)
+  })
+
   it('offers two specialists in a ten-model squad', () => {
     const choice = buildUnit('squad', index, 10)?.choices.find((candidate) => candidate.name === 'Models')
     expect(choice?.options.find((option) => option.id === 'specialist')?.max).toBe(2)

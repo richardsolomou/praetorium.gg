@@ -80,6 +80,18 @@ export function hasMutableMinimum(definition: Definition, index: CatalogueIndex)
   )
 }
 
+export function hasDynamicSelectionLimit(definition: Definition, index: CatalogueIndex): boolean {
+  const maximums = new Set(
+    constraintsOn(definition, index)
+      .filter((constraint) => constraint.type === 'max' && constraint.field === 'selections')
+      .map((constraint) => constraint.id),
+  )
+  const target = resolve(definition, index)
+  return flattenedModifiers([definition, ...(target === definition ? [] : [target])]).some(
+    (modifier) => modifier.field === 'error' || (maximums.has(modifier.field) && ['set', 'increment', 'decrement'].includes(modifier.type)),
+  )
+}
+
 /** What the entry says about itself, plus what the link's target says, without repeating either. */
 function constraintsOn(definition: Definition, index: CatalogueIndex): Constraint[] {
   const target = resolve(definition, index)
