@@ -4,6 +4,7 @@ import {
   flattenedModifiers,
   infoLinkHiddenByRules,
   keywordIds,
+  keywordIdsBySelection,
   profileModifiers,
   type ProfileModifier,
   type Selection,
@@ -620,15 +621,21 @@ function grantedAbilitiesInAttachedUnit(
 ): Datasheet['abilities'] {
   if (unitSelectionIndex === undefined) return []
   const found = new Map<string, { name: string; sources: Set<string>; ids: Set<string> }>()
-  const character = (selectedKeywordIds ?? keywordIds(selections, unitSelectionIndex, index, { primaryCatalogueId: catalogueId })).some(
+  const keywordsBySelection = keywordIdsBySelection(selections, index, { primaryCatalogueId: catalogueId })
+  const character = (selectedKeywordIds ?? keywordsBySelection[unitSelectionIndex] ?? []).some(
     (id) => index.categories.get(id)?.name?.trim().toLocaleLowerCase() === 'character',
   )
-  const companionNames = companionIndexes.flatMap((at) => {
+  const companionReferences = companionIndexes.flatMap((at) => {
     const selection = selections[at]
     const definition = selection ? index.definitions.get(selection.id) : undefined
-    return definition
-      ? [...new Set([nameOf(definition, index.definitions), nameOf(targetOf(definition, index.definitions), index.definitions)])]
+    const names = definition
+      ? [nameOf(definition, index.definitions), nameOf(targetOf(definition, index.definitions), index.definitions)]
       : []
+    const categories = (keywordsBySelection[at] ?? []).flatMap((id) => {
+      const name = index.categories.get(id)?.name
+      return name ? [name.replace(/^Faction:\s*/iu, '')] : []
+    })
+    return [...new Set([...names, ...categories])]
   })
   const collect = (definitions: readonly Definition[], origin: 'self' | 'companion') => {
     for (const definition of definitions) {
@@ -647,7 +654,7 @@ function grantedAbilitiesInAttachedUnit(
             companionIndexes.length > 0,
             linkedAbilities,
             !hasConditionalAbilityLink,
-            companionNames,
+            companionReferences,
           )
           for (const grant of grants) {
             if (grant.recipient === 'bearer' && origin !== 'self') continue
@@ -730,33 +737,37 @@ function parseAbilityGrants(
   attached: boolean,
   linkedAbilities: readonly string[],
   allowUnlinkedDeployment: boolean,
-  companionNames: readonly string[] = [],
+  companionReferences: readonly string[] = [],
 ): { matched: boolean; grants: AbilityGrant[] } {
   if (!description) return { matched: false, grants: [] }
   const prose = normalizeAbilityText(description.replaceAll(/\^\^|\*/g, ''))
-  const grant = (written: string, recipient: 'bearer' | 'leader' | 'unit') => {
+  const grant = (written: string, recipient: 'bearer' | 'leader' | 'unit', explicitDeployment = false) => {
     const matched = linkedAbilities.filter((name) => ruleReferenceMatches(written, name) || ruleReferenceMatches(name, written))
     const listed = listedAbilities(written, linkedAbilities)
     if (!listed.length && mentionsDeploymentAbility(written)) return []
     const names = [...new Set([...matched, ...listed])]
     if (!names.length) names.push(...(linkedAbilities.length === 1 ? linkedAbilities : [written]))
-    return names.filter(mayUseUnlinked).map((name) => ({ name: titleCaseAbility(name), recipient }))
+    return names.filter((name) => explicitDeployment || mayUseUnlinked(name)).map((name) => ({ name: titleCaseAbility(name), recipient }))
   }
   const linked = (written: string) =>
     linkedAbilities.some((name) => ruleReferenceMatches(written, name) || ruleReferenceMatches(name, written))
   const mayUseUnlinked = (written: string) => !deploymentAbilities(written).length || allowUnlinkedDeployment || linked(written)
   const conditionalBearerGrants = [
     ...prose.matchAll(
-      /\bIf this model is attached to (?:an? )?([^,.\n]{1,160}?) during the Declare Battle Formations step, it gains the \[?([\p{L}\p{N} +"'’\p{Pd}]+?)\]? ability\./giu,
+      /\bIf this model is attached to (?:an? )?([^,.\n]{1,160}?) during the Declare Battle Formations step, (?:it gains|this model has) (?:the )?\[?([\p{L}\p{N} +"'’\p{Pd}]+?)\]? abilit(?:y|ies)\./giu,
     ),
   ]
   if (conditionalBearerGrants.length) {
-    const applies = (written: string) => companionNames.some((name) => ruleReferenceMatches(written, name))
+    const applies = (written: string) => attachmentTargetMatches(written, companionReferences)
     return {
       matched: true,
-      grants: attached ? conditionalBearerGrants.flatMap((match) => (applies(match[1]!) ? grant(match[2]!, 'bearer') : [])) : [],
+      grants: attached ? conditionalBearerGrants.flatMap((match) => (applies(match[1]!) ? grant(match[2]!, 'bearer', true) : [])) : [],
     }
   }
+  const attachedLeaderGrant = prose.match(
+    /\bIf this unit has a Leader unit attached to it during the Declare Battle Formations step, that Leader unit gains (?:the )?\[?([\p{L}\p{N} +"'’\p{Pd}]+?)\]? abilit(?:y|ies)\./iu,
+  )
+  if (attachedLeaderGrant) return { matched: true, grants: attached ? grant(attachedLeaderGrant[1]!, 'leader', true) : [] }
   const saveAndAbilityGrant = prose.match(
     /^(?:[\p{L} ]+ model only\. )?The bearer has a Save characteristic of \d+\+ and the \[?([\p{L}\p{N} +'’\p{Pd}]+)\]? ability\.$/iu,
   )
@@ -773,6 +784,11 @@ function parseAbilityGrants(
     /^(?:[-▪]\s*)?This model has (?:the )?\[?([\p{L}\p{N} +"'’\p{Pd}]+?)\]?(?: abilit(?:y|ies))?\.(?:\s|$)/iu,
   )
   if (thisModelGrant) return { matched: true, grants: grant(thisModelGrant[1]!, 'bearer') }
+  const staticModelGrants = prose.match(/^(?:[^.\n]{1,160} model only\.\s*)?This model has:\s*((?:[-▪]\s*[^.\n]{1,160}\.\s*)+)$/iu)
+  if (staticModelGrants) {
+    const written = [...staticModelGrants[1]!.matchAll(/[-▪]\s*([^.\n]{1,160})\./gu)]
+    return { matched: true, grants: written.flatMap((match) => grant(match[1]!, 'bearer')) }
+  }
   const modelGainsGrant = /\b(?:This model|it) gains (?:the )?\[?([\p{L}\p{N} +"'’\p{Pd}]+?)\]? abilit(?:y|ies)(?=[.,]|$)/iu.exec(prose)
   if (modelGainsGrant) {
     const clause = prose.slice(Math.max(prose.lastIndexOf('.', modelGainsGrant.index) + 1, 0), modelGainsGrant.index)
@@ -825,9 +841,31 @@ function parsedAbilityGrants(
   attached: boolean,
   linkedAbilities: readonly string[],
   allowUnlinkedDeployment: boolean,
-  companionNames: readonly string[] = [],
+  companionReferences: readonly string[] = [],
 ): AbilityGrant[] {
-  return parseAbilityGrants(description, attached, linkedAbilities, allowUnlinkedDeployment, companionNames).grants
+  return parseAbilityGrants(description, attached, linkedAbilities, allowUnlinkedDeployment, companionReferences).grants
+}
+
+function attachmentTargetMatches(written: string, references: readonly string[]): boolean {
+  const normalize = (value: string) =>
+    normalizeRuleReference(value)
+      .replaceAll(/[’']/g, '')
+      .replaceAll(/[^\p{L}\p{N}]+/gu, ' ')
+      .trim()
+  const available = references
+    .map(normalize)
+    .filter(Boolean)
+    .toSorted((left, right) => right.length - left.length)
+  return normalize(written)
+    .split(/\s+or\s+/u)
+    .some((alternative) => {
+      let remaining = alternative
+      for (const reference of available) {
+        const pattern = new RegExp(`(?:^|\\s)${escapeRegExp(reference)}(?=\\s|$)`, 'u')
+        remaining = remaining.replace(pattern, ' ')
+      }
+      return !remaining.replaceAll(/\b(?:a|an|the|unit|units|model|models)\b/gu, '').trim()
+    })
 }
 
 const DEPLOYMENT_ABILITY = String.raw`(?:Stealth|Infiltrators|Deep Strike|Scouts \d+["″])`

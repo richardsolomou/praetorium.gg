@@ -807,6 +807,221 @@ describe('the profile modifiers on a datasheet', () => {
     expect(abilitiesWith({ id: 'battle-sisters' })).not.toContain('Infiltrators')
   })
 
+  it('applies a model-has attachment grant to the named bodyguard unit', () => {
+    const book = bookOf({
+      sharedRules: [{ id: 'scouts-8', name: 'Scouts 8"', description: 'Make a Scout move of up to 8".' }],
+      selectionEntries: [
+        {
+          id: 'leader',
+          name: 'Technomancer',
+          type: 'model',
+          profiles: [
+            {
+              id: 'vanguard-protocols',
+              name: 'Vanguard Protocols',
+              typeName: 'Abilities',
+              characteristics: [
+                {
+                  name: 'Description',
+                  $text:
+                    'If this model is attached to a Canoptek Macrocytes unit during the Declare Battle Formations step, this model has the Scouts 8" ability.',
+                },
+              ],
+            },
+          ],
+          modifiers: [
+            {
+              type: 'add',
+              field: 'add-info',
+              value: 'scouts-8',
+              conditions: [{ type: 'atLeast', value: 1, field: 'selections', scope: 'roster', childId: 'condition' }],
+            },
+          ],
+        },
+        { id: 'macrocytes', name: 'Canoptek Macrocytes', type: 'unit' },
+        { id: 'warriors', name: 'Necron Warriors', type: 'unit' },
+      ],
+    })
+    const abilitiesWith = (bodyguard: { id: string }) => {
+      const selections = [{ id: 'leader' }, bodyguard]
+      return contextualAbilityNamesIn(book, 'cat', 'leader', { selections, unitSelectionIndex: 0, companions: [1] })
+    }
+
+    expect(abilitiesWith({ id: 'macrocytes' })).toContain('Scouts 8"')
+    expect(abilitiesWith({ id: 'warriors' })).not.toContain('Scouts 8"')
+  })
+
+  it('matches an attachment grant against all bodyguard keyword classes', () => {
+    const book = bookOf({
+      categoryEntries: [
+        { id: 'battleline', name: 'Battleline' },
+        { id: 'emperors-children', name: "Faction: Emperor's Children" },
+      ],
+      selectionEntries: [
+        {
+          id: 'leader',
+          name: 'Lord Exultant',
+          type: 'model',
+          profiles: [
+            {
+              id: 'lord-of-the-host',
+              name: 'Lord of the Host',
+              typeName: 'Abilities',
+              characteristics: [
+                {
+                  name: 'Description',
+                  $text:
+                    'If this model is attached to an Emperor\'s Children Battleline unit during the Declare Battle Formations step, this model has the Infiltrators and Scouts 6" ability.',
+                },
+              ],
+            },
+          ],
+        },
+        {
+          id: 'infractors',
+          name: 'Infractors',
+          type: 'unit',
+          categoryLinks: [
+            { id: 'infractors-battleline', targetId: 'battleline', name: 'Battleline' },
+            { id: 'infractors-faction', targetId: 'emperors-children', name: "Faction: Emperor's Children" },
+          ],
+        },
+        {
+          id: 'other-battleline',
+          name: 'Other Battleline',
+          type: 'unit',
+          categoryLinks: [{ id: 'other-battleline-link', targetId: 'battleline', name: 'Battleline' }],
+        },
+      ],
+    })
+    const abilitiesWith = (bodyguard: { id: string }) => {
+      const selections = [{ id: 'leader' }, bodyguard]
+      return contextualAbilityNamesIn(book, 'cat', 'leader', { selections, unitSelectionIndex: 0, companions: [1] })
+    }
+
+    expect(abilitiesWith({ id: 'infractors' })).toEqual(expect.arrayContaining(['Infiltrators', 'Scouts 6"']))
+    expect(abilitiesWith({ id: 'other-battleline' })).not.toContain('Infiltrators')
+  })
+
+  it('applies an attached bodyguard grant to its leader', () => {
+    const book = bookOf({
+      categoryEntries: [{ id: 'character', name: 'Character' }],
+      selectionEntries: [
+        {
+          id: 'leader',
+          name: 'Watch Captain',
+          type: 'model',
+          categoryLinks: [{ id: 'leader-character', targetId: 'character', name: 'Character' }],
+        },
+        {
+          id: 'bodyguard',
+          name: 'Kill Team',
+          type: 'unit',
+          profiles: [
+            {
+              id: 'forward-deployment',
+              name: 'Forward Deployment',
+              typeName: 'Abilities',
+              characteristics: [
+                {
+                  name: 'Description',
+                  $text:
+                    'If this unit has a Leader unit attached to it during the Declare Battle Formations step, that Leader unit gains the Infiltrators and Scouts 6" abilities.',
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    })
+    const selections = [{ id: 'leader' }, { id: 'bodyguard' }]
+
+    expect(contextualAbilityNamesIn(book, 'cat', 'leader', { selections, unitSelectionIndex: 0 })).not.toContain('Infiltrators')
+    expect(contextualAbilityNamesIn(book, 'cat', 'leader', { selections, unitSelectionIndex: 0, companions: [1] })).toEqual(
+      expect.arrayContaining(['Infiltrators', 'Scouts 6"']),
+    )
+  })
+
+  it('does not infer an inverse attachment grant with another unmet condition', () => {
+    const book = bookOf({
+      categoryEntries: [{ id: 'character', name: 'Character' }],
+      selectionEntries: [
+        {
+          id: 'leader',
+          name: 'Canoness',
+          type: 'model',
+          categoryLinks: [{ id: 'leader-character', targetId: 'character', name: 'Character' }],
+        },
+        {
+          id: 'bodyguard',
+          name: 'Dominion Squad',
+          type: 'unit',
+          profiles: [
+            {
+              id: 'holy-vanguard',
+              name: 'Holy Vanguard',
+              typeName: 'Abilities',
+              characteristics: [
+                {
+                  name: 'Description',
+                  $text:
+                    'If this unit has a Leader unit attached to it during the Declare Battle Formations step and this unit starts the battle embarked within a Transport, that Leader unit gains the Scouts 6" ability.',
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    })
+    const selections = [{ id: 'leader' }, { id: 'bodyguard' }]
+
+    expect(contextualAbilityNamesIn(book, 'cat', 'leader', { selections, unitSelectionIndex: 0, companions: [1] })).not.toContain(
+      'Scouts 6"',
+    )
+  })
+
+  it('includes each static linked ability only while its enhancement is selected', () => {
+    const book = bookOf({
+      sharedRules: [
+        { id: 'lone-operative', name: 'Lone Operative', description: 'Lone Operative rule.' },
+        { id: 'stealth', name: 'Stealth', description: 'Stealth rule.' },
+      ],
+      selectionEntries: [
+        {
+          id: 'leader',
+          name: 'Phobos Captain',
+          type: 'model',
+          selectionEntries: [
+            {
+              id: 'shroud-field',
+              name: 'Shroud Field',
+              type: 'upgrade',
+              infoLinks: [
+                { id: 'lone-operative-link', targetId: 'lone-operative', name: 'Lone Operative', type: 'rule' },
+                { id: 'stealth-link', targetId: 'stealth', name: 'Stealth', type: 'rule' },
+              ],
+              profiles: [
+                {
+                  id: 'shroud-field-rule',
+                  name: 'Shroud Field',
+                  typeName: 'Abilities',
+                  characteristics: [{ name: 'Description', $text: 'PHOBOS model only. This model has:\n\n▪ Lone Operative.\n▪ Stealth.' }],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    })
+    const unselected = [{ id: 'leader' }]
+    const selected = [{ id: 'leader', selections: [{ id: 'shroud-field' }] }]
+
+    expect(contextualAbilityNamesIn(book, 'cat', 'leader', { selections: unselected, unitSelectionIndex: 0 })).not.toContain('Stealth')
+    expect(contextualAbilityNamesIn(book, 'cat', 'leader', { selections: selected, unitSelectionIndex: 0 })).toEqual(
+      expect.arrayContaining(['Lone Operative', 'Stealth']),
+    )
+  })
+
   it.each(['This unit has Scouts 6".', 'Models in the bearer\'s unit have the Scouts 6" ability.'])(
     'does not infer an ability from a conditional structured grant: %s',
     (description) => {
