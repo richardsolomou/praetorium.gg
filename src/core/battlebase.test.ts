@@ -69,6 +69,7 @@ describe('BattleBase text import', () => {
         {
           name: 'Lokhust Destroyers',
           leading: null,
+          leader: 'Lokhust Lord',
           warlord: false,
           selections: [
             { name: 'Close combat weapon', count: 6 },
@@ -85,5 +86,15 @@ describe('BattleBase text import', () => {
 
   it('does not read a named game format as a unit', () => {
     expect(fromBattleBaseText(kingOfTheColosseumExport)?.units.map((unit) => unit.name)).toEqual(['Lokhust Lord', 'Immortals'])
+  })
+
+  it('reads support attachments', () => {
+    const parsed = fromBattleBaseText(
+      exportText
+        .replace('Leading: Lokhust Destroyers', 'Supporting: Lokhust Destroyers')
+        .replace('Leader: Lokhust Lord', 'Support: Lokhust Lord'),
+    )
+
+    expect(parsed?.units).toMatchObject([{ leading: 'Lokhust Destroyers' }, { leader: 'Lokhust Lord' }])
   })
 })

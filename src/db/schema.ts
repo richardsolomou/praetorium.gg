@@ -227,7 +227,7 @@ export const rosters = pgTable(
       .notNull()
       .default('unlisted'),
     /** How the list first entered Praetorium, retained through later edits. */
-    source: text('source', { enum: ['legacy', 'editable', 'battlebase', 'newrecruit', 'roster-file'] })
+    source: text('source', { enum: ['legacy', 'editable', 'praetorium', 'battlebase', 'newrecruit', 'roster-file'] })
       .notNull()
       .default('legacy'),
     createdAt: bigint('created_at', { mode: 'number' }).notNull(),

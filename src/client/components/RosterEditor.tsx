@@ -28,6 +28,7 @@ export function RosterEditor({ roster, faction, editable, battle, resolvePersist
   return (
     <main className="flex h-full w-full flex-col">
       <ListBuilder
+        key={roster.id}
         prep={roster.prep ?? NO_PREP}
         initial={roster}
         initialFaction={faction}

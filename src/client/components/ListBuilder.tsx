@@ -1,6 +1,18 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Link } from '@tanstack/react-router'
-import { Check, Crown, Download, EllipsisVertical, ExternalLink, Pencil, Plus, SlidersHorizontal, TriangleAlert } from 'lucide-react'
+import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
+import {
+  Check,
+  Copy,
+  Crown,
+  Download,
+  EllipsisVertical,
+  ExternalLink,
+  Pencil,
+  Plus,
+  Printer,
+  SlidersHorizontal,
+  TriangleAlert,
+} from 'lucide-react'
 import posthog from 'posthog-js'
 import { type ComponentProps, memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Button, buttonVariants } from '@/components/ui/button'
@@ -14,7 +26,7 @@ import type { RosterPick } from '../../core/roster'
 import type { RosterSource, RosterVisibility } from '../../core/savedRoster'
 import type { Datasheet } from '../../server/catalogue'
 import { exportRoster, saveRoster } from '../../server/functions'
-import { collectionQuery, factionIndexQuery, factionQuery, invalidateSavedRosters, priceQuery } from '../queries'
+import { collectionQuery, factionIndexQuery, factionQuery, invalidateSavedRosters, meQuery, priceQuery } from '../queries'
 import { type KeyedPick, picksAfterDetachmentChange } from '../rosterPicks'
 import { useCollectionMutation } from '../useCollection'
 import { useSettled } from '../useSettled'
@@ -72,6 +84,9 @@ const NO_UNITS = [] as const
  * 90MB and the browser has no business holding it.
  */
 export function ListBuilder({ prep, initial, initialFaction, editable = true, battle, resolvePersistedRoster = true }: Props) {
+  const navigate = useNavigate()
+  const path = useRouterState({ select: (state) => state.location.href })
+  const { data: me } = useQuery(meQuery())
   const { data: factionIndex } = useQuery(factionIndexQuery())
   const [catalogueId, setCatalogueId] = useState(initial.catalogueId)
   const { picks, setPicks, positioned, held } = usePicks(initial.picks)
@@ -180,6 +195,28 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
         data: { catalogueId, detachmentIds, disposition, limit, name: listName || 'Roster', units: positioned },
       }),
     onSuccess: ({ text }) => setExportText(text),
+  })
+
+  const duplicateRoster = useMutation({
+    mutationFn: () =>
+      saveRoster({
+        data: {
+          name: `Copy of ${listName}`.slice(0, ROSTER_NAME_MAX_LENGTH),
+          catalogueId,
+          detachmentIds,
+          disposition,
+          limit,
+          picks: positioned,
+          prep,
+          visibility: 'private',
+          source: initial.source,
+        },
+      }),
+    onSuccess: async ({ id }) => {
+      posthog.capture('roster_duplicated', { unit_count: positioned.length, shared: true })
+      await invalidateSavedRosters(queryClient)
+      await navigate({ to: '/rosters/$id', params: { id } })
+    },
   })
 
   // Priced on the live picks, not the settled ones: spread steppers write absolute
@@ -422,9 +459,37 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
                 <TooltipContent side="bottom">Build edits your roster. View shows only what’s selected.</TooltipContent>
               </Tooltip>
             </>
-          ) : null
+          ) : (
+            <DropdownMenu>
+              <DropdownMenuTrigger aria-label="Roster actions" className="grid h-7 w-10 place-items-center hover:text-bone">
+                <EllipsisVertical className="size-4 translate-y-px" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="min-w-52">
+                {me ? (
+                  <DropdownMenuItem disabled={duplicateRoster.isPending} onClick={() => duplicateRoster.mutate()}>
+                    <Copy /> Duplicate to my rosters
+                  </DropdownMenuItem>
+                ) : (
+                  <DropdownMenuItem render={<Link to="/sign-in" search={{ next: path }} />}>
+                    <Copy /> Sign in to duplicate
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuItem disabled={take.isPending || !units.length} onClick={() => take.mutate()}>
+                  <Download /> Export GW text
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => window.print()}>
+                  <Printer /> Print
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )
         }
       >
+        {!editable && duplicateRoster.isError ? (
+          <p role="alert" className="mt-1 text-xs text-destructive">
+            That roster could not be duplicated. Try again.
+          </p>
+        ) : null}
         {editable && priced?.dispositionError ? (
           <p role="alert" className="mt-1 flex items-center gap-1.5 text-xs text-destructive">
             <TriangleAlert className="size-3 shrink-0" aria-hidden />

@@ -3,13 +3,8 @@ import type { TextRoster, TextRosterUnit } from './textRoster'
 const unitHeader = /^(.*?)\s+\(\d[\d,]* Points?\)$/i
 const selection = /^\s*•\s*(?:(\d+)x\s+)?(.+?)\s*$/
 
-/**
- * BattleBase's clipboard export is deliberately human-readable. Section names
- * may grow over time, so unit headers and indented bullets are the grammar; an
- * all-caps line merely ends the preceding unit.
- */
 export function fromBattleBaseText(input: string): TextRoster | null {
-  if (!/Exported with BattleBase/i.test(input)) return null
+  if (!/Exported with (?:BattleBase|Praetorium\.gg)/i.test(input)) return null
   const lines = input.replaceAll('\r', '').split('\n')
   const title = lines.find((line) => line.trim())?.trim() ?? 'Imported list'
   const titleMatch = title.match(/^(.*?)\s+\(\d[\d,]* Points?\)$/i)
@@ -44,8 +39,9 @@ export function fromBattleBaseText(input: string): TextRoster | null {
     if (!picked) continue
     const name = picked[2]!.trim()
     if (/^Warlord$/i.test(name)) current.warlord = true
-    else if (/^Leading:/i.test(name)) current.leading = name.replace(/^Leading:\s*/i, '').trim()
-    else if (!/^Leader:/i.test(name)) current.selections.push({ name, count: Number(picked[1] ?? 1) })
+    else if (/^(?:Leading|Supporting):/i.test(name)) current.leading = name.replace(/^(?:Leading|Supporting):\s*/i, '').trim()
+    else if (/^(?:Leader|Support):/i.test(name)) current.leader = name.replace(/^(?:Leader|Support):\s*/i, '').trim()
+    else current.selections.push({ name, count: Number(picked[1] ?? 1) })
   }
 
   return {
