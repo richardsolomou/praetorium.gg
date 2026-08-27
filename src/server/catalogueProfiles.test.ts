@@ -901,7 +901,7 @@ describe('the profile modifiers on a datasheet', () => {
               profiles: [
                 {
                   id: 'temporary-rule',
-                  name: 'Temporary rule',
+                  name: 'Deep Strike',
                   typeName: 'Abilities',
                   characteristics: [
                     { name: 'Description', $text: 'This unit has Deep Strike until the start of your next Shooting phase.' },

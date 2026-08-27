@@ -164,7 +164,17 @@ export function contextualAbilityNamesIn(
 function abilityProfileNames(definition: Definition, index: LoadedCatalogue['index']): string[] {
   const names = new Set<string>()
   const addProfile = (profile: Profile) => {
-    if (profile.typeName === 'Abilities' && profile.name && !profile.hidden) names.add(profile.name)
+    const name = profile.name
+    if (profile.typeName !== 'Abilities' || !name || profile.hidden) return
+    const description = normalizedAbilityDescription(profile)
+    if (
+      deploymentAbilities(name).length &&
+      description &&
+      hasAbilityGrantStatement(description) &&
+      !parsedAbilityGrants(description, false, [name], true).some((grant) => ruleReferenceMatches(grant.name, name))
+    )
+      return
+    names.add(name)
   }
   definition.profiles?.forEach(addProfile)
   for (const group of definition.infoGroups ?? []) {
@@ -180,6 +190,11 @@ function abilityProfileNames(definition: Definition, index: LoadedCatalogue['ind
   }
   return [...names]
 }
+
+const hasAbilityGrantStatement = (description: string) =>
+  /(?:^|[.!?]\s)(?:(?:While|If|When|During)\b[^.]{0,160},\s*)?(?:This unit|This model|The bearer|Models in (?:this model's|the bearer's|the bearer’s) unit)\s+(?:has|have|gains?)\b/iu.test(
+    description,
+  )
 
 function searchableProfilesIn(loaded: LoadedCatalogue, catalogueId: string, entryId: string): SearchableProfiles {
   const key = `${catalogueId}:${entryId}`
@@ -673,7 +688,7 @@ function linkedAbilityNames(
   selections: readonly Selection[],
 ) {
   const linked = (definition.infoLinks ?? []).flatMap((link) => {
-    if (link.type !== 'rule' || infoLinkHiddenByRules(link, index, { primaryCatalogueId: catalogueId, roster: selections })) return []
+    if (link.type !== 'rule' || contextualInfoLinkHidden(link, index, catalogueId, selections)) return []
     const rule = index.rules.get(link.targetId)
     const name = displayRuleName(link, link.name ?? rule?.name)
     return name && !rule?.hidden ? [name] : []
@@ -692,6 +707,27 @@ function linkedAbilityNames(
     return rule?.name && !rule.hidden ? [rule.name] : []
   })
   return [...new Set([...linked, ...added])]
+}
+
+const contextualInfoLinkVisibilityCache = new WeakMap<LoadedCatalogue['index'], WeakMap<readonly Selection[], Map<string, boolean>>>()
+
+function contextualInfoLinkHidden(
+  link: InfoLink,
+  index: LoadedCatalogue['index'],
+  catalogueId: string,
+  selections: readonly Selection[],
+): boolean {
+  if (!link.modifiers?.length && !link.modifierGroups?.length) return Boolean(link.hidden)
+  const byRoster = contextualInfoLinkVisibilityCache.get(index) ?? new WeakMap<readonly Selection[], Map<string, boolean>>()
+  const cached = byRoster.get(selections) ?? new Map<string, boolean>()
+  const key = `${catalogueId}:${link.id}`
+  const found = cached.get(key)
+  if (found !== undefined) return found
+  const hidden = infoLinkHiddenByRules(link, index, { primaryCatalogueId: catalogueId, roster: selections })
+  cached.set(key, hidden)
+  byRoster.set(selections, cached)
+  contextualInfoLinkVisibilityCache.set(index, byRoster)
+  return hidden
 }
 
 /** Exact catalogue phrases that grant a named ability to a bearer or every model in its unit. */
