@@ -614,6 +614,46 @@ test('wargear abilities are explained beside their choices', async ({ page }) =>
   await page.screenshot({ path: 'test-results/tomb-blades-shieldvanes.png', fullPage: true })
 })
 
+test('Canoptek Spyders keep their claws and independent wargear', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 })
+  await openBuilder(page)
+  await add(page, 'Canoptek Spyders')
+  const card = page.locator('[data-unit="Canoptek Spyders"]')
+  await card.getByRole('button', { name: 'Canoptek Spyders', exact: true }).click()
+
+  const loadout = page.locator('aside[aria-label="Loadout"]')
+  await expect(loadout.getByLabel('Canoptek Spyders models')).toHaveText('1')
+  await loadout.getByRole('button', { name: 'More Fabricator claw array' }).click()
+  await expect(loadout.getByLabel('Fabricator claw array count')).toHaveText('1')
+  await expect(page.locator('[data-roster-builder]')).toHaveAttribute('data-saving', 'false')
+  await expect(card).toContainText('1x Automaton claws')
+  await expect(card).toContainText('1x Fabricator claw array')
+
+  await loadout.getByRole('button', { name: 'More Two particle beamers' }).click()
+  await expect(loadout.getByLabel('Two particle beamers count')).toHaveText('1')
+  await expect(page.locator('[data-roster-builder]')).toHaveAttribute('data-saving', 'false')
+  await expect(loadout.getByLabel('Canoptek Spyders models')).toHaveText('1')
+  await expect(card).toContainText('2x Particle beamer')
+  await shot(loadout, 'test-results/canoptek-spyder-wargear.png')
+
+  await loadout.getByRole('button', { name: 'Fewer Two particle beamers' }).click()
+  await expect(loadout.getByLabel('Two particle beamers count')).toHaveText('0')
+  await expect(page.locator('[data-roster-builder]')).toHaveAttribute('data-saving', 'false')
+  await expect(card).toContainText('1x Automaton claws')
+  await expect(card).toContainText('1x Fabricator claw array')
+  await expect(card).not.toContainText('Particle beamer')
+
+  await loadout.getByRole('button', { name: 'More models in Canoptek Spyders' }).click()
+  await expect(loadout.getByLabel('Canoptek Spyders models')).toHaveText('2')
+  await expect(loadout.getByRole('button', { name: 'More models in Canoptek Spyders' })).toBeDisabled()
+
+  await page.setViewportSize({ width: 390, height: 844 })
+  await expect(loadout).toBeVisible()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  expect(await loadout.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
+  await shot(loadout, 'test-results/canoptek-spyder-wargear-phone.png')
+})
+
 test('destroyer plasmacytes follow the unit size', async ({ page }) => {
   await openBuilder(page)
   for (const name of ['Skorpekh Destroyers', 'Ophydian Destroyers']) {

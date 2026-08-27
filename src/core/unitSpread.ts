@@ -15,7 +15,6 @@ import { expand, withChoice } from './expand'
 import { allAt, at, replaceAt, updateSelection, withCounts, withoutSelectionAt, withPlaceFor, withSpread } from './selection'
 import { modelCountOf, sizeOf } from './unitSize'
 
-/** Repeated specialist models need one model branch per nested option. */
 export function withUnitSpread(
   selection: Selection,
   key: string,
@@ -45,6 +44,9 @@ export function withUnitSpread(
       ? keepingTheSquad(selection, spreadOptions(selection, path, counts, group, index), path, index)
       : withSpread(selection, key, counts)
 
+  if (group && maximumCount(group, index) === null) {
+    return spreadIndependentRepeatedGroup(selection, path, counts, repeating, group, index)
+  }
   return spreadRepeatedGroup(selection, path, counts, repeating, index)
 }
 
@@ -234,6 +236,76 @@ function spreadRepeatedGroup(
   // a heavy bolter down leaves the unit the size the player asked for.
   if (after < before) return keepingTheSquad(selection, refundBodies(replaced, holder, modelId, before - after, index), path, index)
   return replaced
+}
+
+function spreadIndependentRepeatedGroup(
+  selection: Selection,
+  path: readonly string[],
+  counts: Readonly<Record<string, number>>,
+  repeating: { path: string[] },
+  group: Definition,
+  index: CatalogueIndex,
+) {
+  const modelId = repeating.path.at(-1)
+  if (!modelId) return selection
+  const withinModel = path.slice(repeating.path.length)
+  const options = childrenOf(resolve(group, index), index).filter((option) => requiredCount(option.definition, index) === 0)
+  const optionIds = new Set(options.map((option) => option.id))
+  let variants = allAt(selection, repeating.path).map((model) =>
+    updateSelection(withPlaceFor(model, withinModel), withinModel, (held) => ({
+      ...held,
+      selections: held.selections?.filter((child) => !optionIds.has(child.id)),
+    })),
+  )
+  const carriers = variants.reduce((total, model) => total + (model.count ?? 1), 0)
+
+  for (const option of options) {
+    const capacity = Math.max(1, maximumCount(option.definition, index) ?? 1)
+    let remaining = Math.min(Math.max(0, counts[option.id] ?? 0), carriers * capacity)
+    const equipped: Selection[] = []
+    for (const model of variants) {
+      const modelCount = model.count ?? 1
+      const full = Math.min(modelCount, Math.floor(remaining / capacity))
+      if (full > 0) equipped.push(withIndependentOption({ ...model, count: full }, withinModel, option, capacity, index))
+      remaining -= full * capacity
+
+      const partial = remaining > 0 && full < modelCount ? remaining : 0
+      if (partial > 0) equipped.push(withIndependentOption({ ...model, count: 1 }, withinModel, option, partial, index))
+      if (partial > 0) remaining = 0
+
+      const untouched = modelCount - full - Number(partial > 0)
+      if (untouched > 0) equipped.push({ ...model, count: untouched })
+    }
+    variants = equipped
+  }
+
+  return replaceAt(selection, repeating.path.slice(0, -1), modelId, combineIdentical(variants))
+}
+
+function withIndependentOption(
+  model: Selection,
+  path: readonly string[],
+  option: { id: string; definition: Definition },
+  count: number,
+  index: CatalogueIndex,
+) {
+  return updateSelection(withPlaceFor(model, path), path, (held) => ({
+    ...held,
+    selections: [
+      ...(held.selections ?? []).filter((child) => child.id !== option.id),
+      expand(option.id, option.definition, index, MAX_DEPTH, count, new Set(), 1),
+    ],
+  }))
+}
+
+function combineIdentical(selections: readonly Selection[]) {
+  const combined = new Map<string, Selection>()
+  for (const selection of selections) {
+    const signature = JSON.stringify({ id: selection.id, selections: selection.selections })
+    const existing = combined.get(signature)
+    combined.set(signature, existing ? { ...existing, count: (existing.count ?? 1) + (selection.count ?? 1) } : selection)
+  }
+  return [...combined.values()]
 }
 
 /**
