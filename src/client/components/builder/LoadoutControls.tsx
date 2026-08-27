@@ -8,7 +8,7 @@ import { WeaponProfile } from './DatasheetPanel'
 import {
   type LoadoutChoice,
   type LoadoutOption,
-  type SpreadCounts,
+  type SpreadUpdate,
   spreadHandlers,
   weaponProfilesFor,
   wargearMatches,
@@ -375,12 +375,12 @@ export function SpreadChoice({
 }: Described & {
   choice: LoadoutChoice
   editable: boolean
-  onSpread: (key: string, counts: SpreadCounts) => void
+  onSpread: (key: string, update: SpreadUpdate) => void
   showOptions?: boolean
   highlightSelection?: boolean
 }) {
   const { taken, more, less } = spreadHandlers(choice)
-  const press = (counts: SpreadCounts | null) => (counts ? () => onSpread(choice.key, counts) : undefined)
+  const press = (update: SpreadUpdate | undefined) => (update ? () => onSpread(choice.key, update) : undefined)
 
   return (
     <div>

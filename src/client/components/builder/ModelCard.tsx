@@ -13,7 +13,7 @@ import {
   replacementChoice,
   sameWeapon,
   showLoadoutEntry,
-  type SpreadCounts,
+  type SpreadUpdate,
   spreadHandlers,
   wholeSquadTakes,
 } from './loadoutModel'
@@ -49,7 +49,7 @@ export function ModelCard({
   abilities: Datasheet['abilities']
   rules: Datasheet['keywordRules']
   onChoose: (key: string, optionId: string) => void
-  onSpread: (key: string, counts: SpreadCounts) => void
+  onSpread: (key: string, update: SpreadUpdate) => void
   editable: boolean
   showOptions?: boolean
 }) {
@@ -78,14 +78,19 @@ export function ModelCard({
   const shared = model.rows.flatMap((row) =>
     sourcesOf(row).flatMap((found) => (found.choice.room > 1 || found.choice.carried ? [{ row, ...found }] : [])),
   )
-  const move = (from: typeof shared, to: typeof shared) => {
-    const wanted = new Map<string, Record<string, number>>()
+  const move = (from: typeof shared, to: typeof shared): [string, SpreadUpdate][] => {
+    const deltas = new Map<string, Record<string, number>>()
     for (const [entry, delta] of [...from.map((one) => [one, -1] as const), ...to.map((one) => [one, 1] as const)]) {
-      const counts = wanted.get(entry.choice.key) ?? {}
-      counts[entry.option.id] = entry.option.count + delta
-      wanted.set(entry.choice.key, counts)
+      const counts = deltas.get(entry.choice.key) ?? {}
+      counts[entry.option.id] = (counts[entry.option.id] ?? 0) + delta
+      deltas.set(entry.choice.key, counts)
     }
-    return [...wanted]
+    // A press states the change; the counts it settles on are folded against whatever
+    // the group holds when the press lands, not the answer the button was drawn from.
+    return [...deltas].map(([key, changes]) => [
+      key,
+      (base) => Object.fromEntries(Object.entries(changes).map(([id, delta]) => [id, Math.max(0, (base[id] ?? 0) + delta)])),
+    ])
   }
   const sameSource = (one: (typeof shared)[number], other: (typeof shared)[number]) =>
     one.choice.key === other.choice.key && one.option.id === other.option.id
@@ -124,7 +129,7 @@ export function ModelCard({
   const pooled = (row: LoadoutModel['rows'][number], decide: (entry: (typeof shared)[number]) => ReturnType<typeof move> | null) => {
     for (const entry of shared.filter((candidate) => candidate.row === row)) {
       const changes = decide(entry)
-      if (changes) return () => changes.forEach(([key, counts]) => onSpread(key, counts))
+      if (changes) return () => changes.forEach(([key, update]) => onSpread(key, update))
     }
     return undefined
   }
@@ -238,9 +243,9 @@ export function ModelCard({
                     onPick={
                       option.count > 0
                         ? choice.optional
-                          ? () => onSpread(choice.key, wholeSquadTakes(choice, ''))
+                          ? () => onSpread(choice.key, () => wholeSquadTakes(choice, ''))
                           : undefined
-                        : () => onSpread(choice.key, wholeSquadTakes(choice, option.id))
+                        : () => onSpread(choice.key, () => wholeSquadTakes(choice, option.id))
                     }
                   />
                 ) : (

@@ -300,38 +300,54 @@ describe('a group the whole squad answers at once', () => {
 })
 
 describe('dividing a group between its options', () => {
+  // A press folds against the counts it is handed, which the builder reads off the
+  // list rather than the priced answer on screen.
+  const held = (group: LoadoutChoice) => Object.fromEntries(group.options.map((entry) => [entry.id, entry.count]))
+
   it('fills the spare room before asking a sibling for anything', () => {
     const group = choice([option('blaster', 3, 10), option('carbine', 0, 10)], 5)
-    expect(spreadHandlers(group).more(group.options[1]!)).toEqual({ carbine: 1 })
+    expect(spreadHandlers(group).more(group.options[1]!)?.(held(group))).toEqual({ carbine: 1 })
   })
 
   it('takes from whichever sibling has the most once the group is full', () => {
     const group = choice([option('blaster', 8, 10), option('carbine', 2, 10)], 10)
-    expect(spreadHandlers(group).more(group.options[1]!)).toEqual({ carbine: 3, blaster: 7 })
+    expect(spreadHandlers(group).more(group.options[1]!)?.(held(group))).toEqual({ carbine: 3, blaster: 7 })
   })
 
   it("refuses to exceed an option's own cap", () => {
     const group = choice([option('blaster', 9, 10), option('special', 1, 1)], 10)
-    expect(spreadHandlers(group).more(group.options[1]!)).toBeNull()
+    expect(spreadHandlers(group).more(group.options[1]!)).toBeUndefined()
   })
 
   it('hands a freed place to a sibling still under its cap', () => {
     const group = choice([option('blaster', 9, 10), option('special', 1, 1)], 10)
-    expect(spreadHandlers(group).less(group.options[1]!)).toEqual({ special: 0, blaster: 10 })
+    expect(spreadHandlers(group).less(group.options[1]!)?.(held(group))).toEqual({ special: 0, blaster: 10 })
   })
 
   it('refuses to empty an option when no sibling can take its place', () => {
     const group = choice([option('blaster', 9, 9), option('special', 1, 1)], 10)
-    expect(spreadHandlers(group).less(group.options[1]!)).toBeNull()
+    expect(spreadHandlers(group).less(group.options[1]!)).toBeUndefined()
   })
 
   it('simply removes one when the group may hold fewer', () => {
     const group = choice([option('blaster', 9, 10), option('special', 1, 1)], 10, true)
-    expect(spreadHandlers(group).less(group.options[1]!)).toEqual({ special: 0 })
+    expect(spreadHandlers(group).less(group.options[1]!)?.(held(group))).toEqual({ special: 0 })
   })
 
   it('has nothing to remove from an empty option', () => {
     const group = choice([option('blaster', 10, 10), option('special', 0, 1)], 10)
-    expect(spreadHandlers(group).less(group.options[1]!)).toBeNull()
+    expect(spreadHandlers(group).less(group.options[1]!)).toBeUndefined()
+  })
+
+  it('folds each press against the live counts, so a second press before a price returns does not double-apply', () => {
+    // The screen still shows a full squad of blasters; the list already holds the
+    // carbine the first press asked for. The second press has to step off the list.
+    const group = choice([option('blaster', 3, 3), option('carbine', 0, 3)], 3)
+    const priced = { blaster: 3, carbine: 0 }
+    const more = spreadHandlers(group).more(group.options[1]!)
+    const first = more?.(priced)
+    expect(first).toEqual({ carbine: 1, blaster: 2 })
+    const second = more?.({ ...priced, ...first })
+    expect(second).toEqual({ carbine: 2, blaster: 1 })
   })
 })

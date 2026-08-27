@@ -108,7 +108,14 @@ export const canAddPooledOption = (option: LoadoutOption, donor?: LoadoutRowSour
 /** What a change to one option leaves every option in its group holding. */
 export type SpreadCounts = Record<string, number>
 
-export type ChoiceEdit = { key: string; optionId: string } | { key: string; counts: SpreadCounts }
+/**
+ * A press folded against the counts the group actually holds now.
+ *
+ * The button reads the answer on screen, but that answer is a request behind the
+ * list, so a press states the counts it wants against the live counts rather than
+ * against the picture it was drawn from. Returning nothing means the press cannot act.
+ */
+export type SpreadUpdate = (counts: SpreadCounts) => SpreadCounts | null
 
 /** Editing shows every available option; a finished roster shows only what is held. */
 export function showLoadoutEntry(count: number, showOptions: boolean) {
@@ -254,37 +261,49 @@ export const wholeSquadTakes = (choice: LoadoutChoice, optionId: string): Spread
  * The group is always full — every model carries something — so adding one of an
  * option takes one off whichever option has the most to give. That is what the
  * datasheet says in words: each model may replace its blaster with a carbine.
+ *
+ * A press states a change, not a total: the donor and the room are worked out from
+ * the live counts the update is handed, so pressing again before the price returns
+ * folds against what the group holds rather than the picture the button was drawn
+ * from. The caps come from the datasheet and never move.
  */
 export function spreadHandlers(choice: LoadoutChoice) {
   const taken = choice.options.reduce((total, option) => total + option.count, 0)
-  const room = choice.room - taken
+  const max = (id: string) => choice.options.find((option) => option.id === id)?.max ?? 0
+  const total = (counts: SpreadCounts) => choice.options.reduce((sum, option) => sum + (counts[option.id] ?? 0), 0)
+  const largest = (counts: SpreadCounts, holds: (option: LoadoutOption) => boolean) =>
+    choice.options.filter(holds).toSorted((left, right) => (counts[right.id] ?? 0) - (counts[left.id] ?? 0))[0]
 
-  const donor = (exclude: string) =>
-    choice.options.filter((option) => option.id !== exclude && option.count > 0).toSorted((left, right) => right.count - left.count)[0]
+  // The button is disabled when the same fold against the answer on screen cannot act,
+  // so a press is only ever offered when it has somewhere to go.
+  const shown = Object.fromEntries(choice.options.map((option) => [option.id, option.count]))
+  const offered = (fold: SpreadUpdate): SpreadUpdate | undefined => (fold(shown) ? fold : undefined)
 
-  const more = (option: LoadoutOption): SpreadCounts | null => {
-    if (option.count >= option.max) return null
-    if (room > 0) return { [option.id]: option.count + 1 }
-    const giving = donor(option.id)
-    return giving ? { [option.id]: option.count + 1, [giving.id]: giving.count - 1 } : null
-  }
+  const more = (option: LoadoutOption) =>
+    offered((counts) => {
+      const held = counts[option.id] ?? 0
+      if (held >= max(option.id)) return null
+      if (choice.room - total(counts) > 0) return { [option.id]: held + 1 }
+      const giving = largest(counts, (candidate) => candidate.id !== option.id && (counts[candidate.id] ?? 0) > 0)
+      return giving ? { [option.id]: held + 1, [giving.id]: (counts[giving.id] ?? 0) - 1 } : null
+    })
 
-  const less = (option: LoadoutOption): SpreadCounts | null => {
-    if (option.count <= 0) return null
-    if (choice.optional || taken < choice.room) return { [option.id]: option.count - 1 }
-    // A full group has to hand the freed slot to a sibling, and only one still
-    // under its own cap can take it. Nine bolt rifles and a special weapon cannot
-    // become ten bolt rifles.
-    const receiving = choice.options
-      .filter((candidate) => candidate.id !== option.id && candidate.count < candidate.max)
-      .toSorted((left, right) => right.count - left.count)[0]
-    return receiving ? { [option.id]: option.count - 1, [receiving.id]: receiving.count + 1 } : null
-  }
+  const less = (option: LoadoutOption) =>
+    offered((counts) => {
+      const held = counts[option.id] ?? 0
+      if (held <= 0) return null
+      if (choice.optional || total(counts) < choice.room) return { [option.id]: held - 1 }
+      // A full group has to hand the freed slot to a sibling, and only one still
+      // under its own cap can take it. Nine bolt rifles and a special weapon cannot
+      // become ten bolt rifles.
+      const receiving = largest(counts, (candidate) => candidate.id !== option.id && (counts[candidate.id] ?? 0) < max(candidate.id))
+      return receiving ? { [option.id]: held - 1, [receiving.id]: (counts[receiving.id] ?? 0) + 1 } : null
+    })
 
   return { taken, more, less }
 }
 
-/** A press that hands a group the counts it would then hold, or nothing to press. */
-export function changeBy(counts: SpreadCounts | null, key: string, onSpread: (key: string, counts: SpreadCounts) => void) {
-  return counts ? () => onSpread(key, counts) : undefined
+/** A press that folds a change into a group's live counts, or nothing to press. */
+export function changeBy(update: SpreadUpdate | undefined, key: string, onSpread: (key: string, update: SpreadUpdate) => void) {
+  return update ? () => onSpread(key, update) : undefined
 }

@@ -219,10 +219,9 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
     },
   })
 
-  // Priced on the live picks, not the settled ones: spread steppers write absolute
-  // counts computed from the answer on screen, so a delayed answer is a press that
-  // divides a squad the roster no longer holds.
-  const { data: priced, isFetching: pricing } = useQuery({
+  // Priced on the live picks, not the settled ones, so the picker's remaining room
+  // and the loadout counts follow every press instead of only the settled draft.
+  const { data: priced } = useQuery({
     ...priceQuery(catalogueId, detachmentIds, disposition, limit, positioned),
     /**
      * The last answer, with whatever the list has since let go of taken out of it.
@@ -355,10 +354,8 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
       picks={positioned}
       pickIndex={selected}
       onChoose={(key, optionId) => selected !== null && edit.choose(selected, key, optionId)}
-      onSpread={(key, counts) => selected !== null && edit.spread(selected, key, counts)}
-      // Counts are written as absolutes worked out from the answer on screen, so a press
-      // before the next answer lands would divide a squad the list no longer holds.
-      editable={editable && inspectorView === 'edit' && !pricing}
+      onSpread={(key, update) => selected !== null && edit.spread(selected, key, update)}
+      editable={editable && inspectorView === 'edit'}
       showOptions={inspectorView !== 'readonly'}
       persistedRoster={editable || !resolvePersistedRoster ? undefined : { id: savedId, ...(battle ? { battle } : {}) }}
       reference={
@@ -656,25 +653,20 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
                       countLabel={`${optimisticUnit.name} models`}
                       count={optimisticUnit.size.models}
                       onRemove={
-                        optimisticUnit.size.models > optimisticUnit.size.min && !pricing
+                        optimisticUnit.size.models > optimisticUnit.size.min
                           ? () =>
                               selected !== null &&
                               edit.resize(
                                 selected,
-                                optimisticUnit.size.options?.findLast((size) => size < optimisticUnit.size.models) ??
-                                  optimisticUnit.size.models - 1,
+                                (current) => optimisticUnit.size.options?.findLast((size) => size < current) ?? current - 1,
                               )
                           : undefined
                       }
                       onAdd={
-                        optimisticUnit.size.models < optimisticUnit.size.max && !pricing
+                        optimisticUnit.size.models < optimisticUnit.size.max
                           ? () =>
                               selected !== null &&
-                              edit.resize(
-                                selected,
-                                optimisticUnit.size.options?.find((size) => size > optimisticUnit.size.models) ??
-                                  optimisticUnit.size.models + 1,
-                              )
+                              edit.resize(selected, (current) => optimisticUnit.size.options?.find((size) => size > current) ?? current + 1)
                           : undefined
                       }
                     />

@@ -557,16 +557,14 @@ test('wargear abilities are explained beside their choices', async ({ page }) =>
   await loadout.getByRole('button', { name: 'Fewer models in Tomb Blades' }).click()
   await expect(loadout.getByLabel('Tomb Blades models')).toHaveText('3')
 
-  // Each press asks the server what the squad now holds, and the next press divides
-  // whatever comes back. Pressing again before the answer arrives divides the old
-  // numbers, so the two are taken one at a time here.
+  // Each press states the change and folds it against the counts the list holds, so
+  // pressing again before the price returns steps off the list rather than the stale
+  // answer on screen. The two beamers land even without waiting between presses.
   await loadout.getByRole('button', { name: 'More Particle beamer' }).click()
-  await expect(loadout.getByLabel('Particle beamer count')).toHaveText('1')
-  await loadout.getByRole('button', { name: 'More Twin tesla carbine' }).click()
-  await expect(loadout.getByLabel('Twin tesla carbine count')).toHaveText('1')
+  await loadout.getByRole('button', { name: 'More Particle beamer' }).click()
+  await expect(loadout.getByLabel('Particle beamer count')).toHaveText('2')
   await expect(loadout.getByLabel('Twin gauss blaster count')).toHaveText('1')
-  await expect(loadout.getByLabel('Particle beamer count')).toHaveText('1')
-  await expect(loadout.getByLabel('Twin tesla carbine count')).toHaveText('1')
+  await expect(loadout.getByLabel('Twin tesla carbine count')).toHaveText('0')
 
   await expect(loadout.getByLabel('Shieldvanes count')).toHaveText('0')
   for (const count of ['1', '2', '3']) {

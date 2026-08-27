@@ -1,9 +1,14 @@
 import { type Dispatch, type SetStateAction, useMemo, useState } from 'react'
 import type { RosterPick } from '../../../core/roster'
 import { type KeyedPick, positionedPicks } from '../../rosterPicks'
+import type { SpreadUpdate } from './loadoutModel'
 
 /** Only what an edit needs to read back off the priced list. */
-type SizedUnit = { size: { models: number }; toggles: { key: string; name: string }[] }
+type SizedUnit = {
+  size: { models: number; min: number; max: number }
+  toggles: { key: string; name: string }[]
+  choices: { key: string; options: { id: string; count: number }[] }[]
+}
 
 /**
  * The list being edited, in the two shapes the builder reads it in.
@@ -64,7 +69,20 @@ export function pickEditor(
         return current.flatMap((pick, at) => (at === index ? [] : [pick.attachedTo === going ? { ...pick, attachedTo: undefined } : pick]))
       }),
 
-    resize: (index: number, models: number) => editAt(index, (pick) => ({ ...pick, models })),
+    /**
+     * How many models the unit fields, as a step against the size it holds now.
+     *
+     * A step reads the pick's own models rather than the priced answer, so pressing
+     * again before the price returns steps off the size the list already asked for
+     * instead of the one still on screen. The datasheet's own bounds cap the result.
+     */
+    resize: (index: number, step: (current: number) => number) =>
+      editAt(index, (pick) => {
+        const unit = context.units[index]
+        const current = pick.models ?? unit?.size.models ?? 0
+        const wanted = step(current)
+        return { ...pick, models: unit ? Math.min(Math.max(wanted, unit.size.min), unit.size.max) : wanted }
+      }),
 
     choose: (index: number, key: string, optionId: string) =>
       editAt(index, (pick) => {
@@ -74,13 +92,27 @@ export function pickEditor(
         return { ...pick, choices }
       }),
 
-    /** How many of each option a group holds, leaving the unit's other groups alone. */
-    spread: (index: number, key: string, counts: Record<string, number>) =>
-      editAt(index, (pick) => ({
-        ...pick,
-        models: pick.models ?? context.units[index]?.size.models,
-        spreads: { ...pick.spreads, [key]: { ...pick.spreads?.[key], ...counts } },
-      })),
+    /**
+     * How many of each option a group holds, leaving the unit's other groups alone.
+     *
+     * The press folds against the counts the group holds now — the priced answer for
+     * this group, overlaid with whatever the pick has already changed — so several
+     * presses before a price returns each step off the last rather than the stale
+     * picture on screen. The saved shape stays the absolute counts a list keeps.
+     */
+    spread: (index: number, key: string, update: SpreadUpdate) =>
+      editAt(index, (pick) => {
+        const unit = context.units[index]
+        const served = unit?.choices.find((choice) => choice.key === key)?.options ?? []
+        const base = Object.fromEntries(served.map((option) => [option.id, option.count]))
+        const next = update({ ...base, ...pick.spreads?.[key] })
+        if (!next) return pick
+        return {
+          ...pick,
+          models: pick.models ?? unit?.size.models,
+          spreads: { ...pick.spreads, [key]: { ...pick.spreads?.[key], ...next } },
+        }
+      }),
 
     /**
      * A toggle on one unit. The warlord is the army's one warlord, so claiming it
