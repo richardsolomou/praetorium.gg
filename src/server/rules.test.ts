@@ -2,7 +2,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { loadRules, missionFor, rulesFaction } from './rules'
+import { hasDetachmentSemantics, loadRules, missionFor, rulesFaction } from './rules'
 
 let directory: string
 
@@ -183,6 +183,10 @@ const box = (width: number, height: number) => [
 const load = () => loadRules(directory, undefined, path.join(directory, 'faction-icons'), path.join(directory, 'datacards', '11th', 'gdc'))!
 
 describe('stratagems', () => {
+  it('finds detachment semantics without assuming which faction file owns them', () => {
+    expect(hasDetachmentSemantics(load(), { faction: 'Adeptus Astartes', name: 'Flyblown Host' })).toBe(true)
+  })
+
   it('keeps descriptions that supplement datasheet abilities', () => {
     expect(load().abilityDescriptions.get('oath-of-moment')).toBe('Re-roll Hit rolls.')
   })

@@ -1,7 +1,15 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import type { Stratagem } from '../core/battle'
-import { DATACARDS_ATTRIBUTION, type FactionRestrictions, factionRestrictions, type LoadedDatacards, loadDatacards } from './datacards'
+import { routeSlug } from '../core/slug'
+import {
+  type ConstructionDetachment,
+  DATACARDS_ATTRIBUTION,
+  type FactionRestrictions,
+  factionRestrictions,
+  type LoadedDatacards,
+  loadDatacards,
+} from './datacards'
 import { type LoadedCards, loadCards, loadDispositions, loadMissions, type Mission, missionForIn, type MissionCard } from './rulesCards'
 import { type ConstructionJoinIssue, type DetachmentReference, type DetachmentRulesDetail, loadFactions } from './rulesFactions'
 import { fixedSecondaryCapsIn, type MissionTwist, twistsIn } from './missionTwists'
@@ -133,6 +141,14 @@ export function loadRules(
  */
 export const rulesFaction = (rules: LoadedRules | null | undefined, factionSlug: string) =>
   rules?.factionKeys?.get(factionSlug) ?? factionSlug
+
+export function hasDetachmentSemantics(
+  rules: Pick<LoadedRules, 'detachmentDetails'>,
+  candidate: Pick<ConstructionDetachment, 'faction' | 'name'>,
+) {
+  const name = routeSlug(candidate.name)
+  return [...rules.detachmentDetails.values()].some((details) => [...details.values()].some((detail) => routeSlug(detail.name) === name))
+}
 
 /** The primary an army plays, derived from its disposition and the one opposing it. */
 export function missionFor(

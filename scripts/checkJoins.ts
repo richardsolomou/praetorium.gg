@@ -1,10 +1,8 @@
 import path from 'node:path'
-import { routeSlug } from '../src/core/slug'
 import { isReferenceDatasheet, loadCatalogue } from '../src/server/catalogueIndex'
 import { isMatchedPlayDatasheet } from '../src/server/cataloguePicker'
-import { catalogueFactionName } from '../src/server/factionNames'
 import { datacardJoinReport } from '../src/server/datasheetJoin'
-import { loadRules, rulesFaction } from '../src/server/rules'
+import { hasDetachmentSemantics, loadRules } from '../src/server/rules'
 
 /** Every datasheet name the catalogue and Game Datacards do not agree on. Add `--details` to list them. */
 const directory = process.env.CATALOGUE_DIR ?? path.join(import.meta.dirname, '..', 'catalogue-data')
@@ -27,13 +25,7 @@ const rules = loadRules(
 if (!rules) throw new Error('rules data is unavailable')
 const datacardsOnlyDetachments = new Set(
   [...loaded.datacards.constructionDetachments.values()].flatMap((candidates) =>
-    candidates.flatMap((candidate) => {
-      const faction = routeSlug(catalogueFactionName(candidate.faction))
-      const details = rules.detachmentDetails.get(rulesFaction(rules, faction))
-      return [...(details?.values() ?? [])].some((detail) => routeSlug(detail.name) === routeSlug(candidate.name))
-        ? []
-        : [`${candidate.faction} | ${candidate.name}`]
-    }),
+    candidates.flatMap((candidate) => (hasDetachmentSemantics(rules, candidate) ? [] : [`${candidate.faction} | ${candidate.name}`])),
   ),
 )
 const rulesOnlyDetachments = rules.constructionJoinIssues.filter((issue) => issue.kind === 'detachment')
@@ -61,6 +53,6 @@ if (process.argv.includes('--details')) {
 if (report.catalogueOnly.length > 10 || report.datacardsOnly.length > 21) {
   throw new Error('datasheet name agreement fell below the pinned catalogue baseline')
 }
-if (rulesOnlyDetachments.length > 30 || rulesOnlyEnhancements.length > 95 || datacardsOnlyDetachments.size > 12) {
+if (rulesOnlyDetachments.length > 30 || rulesOnlyEnhancements.length > 95 || datacardsOnlyDetachments.size > 5) {
   throw new Error('army-construction name agreement fell below the pinned catalogue baseline')
 }
