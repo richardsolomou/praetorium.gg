@@ -40,6 +40,12 @@ test('a list is saved and loaded into another battle', async ({ browser }) => {
   // The library prices every list in one answer that comes down with the page, so
   // the total is on the row rather than arriving after it.
   await expect(page.locator('[data-roster="Nurgle 2k"]')).toContainText('230/2000')
+  const serverContext = await browser.newContext({ javaScriptEnabled: false, storageState: await context.storageState() })
+  const serverPage = await serverContext.newPage()
+  await serverPage.goto('/rosters')
+  await expect(serverPage.locator('[data-roster="Nurgle 2k"]')).toContainText('230/2000')
+  await serverPage.screenshot({ path: 'test-results/rosters-server-rendered.png', fullPage: true })
+  await serverContext.close()
   await page.getByRole('link', { name: /Nurgle 2k/ }).click()
   await expect(page).toHaveURL(/\/rosters\/[^/]+$/)
   const editor = page.getByLabel('Add units').locator('xpath=ancestor::div[contains(@class,"bg-sunken")][1]')

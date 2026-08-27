@@ -38,6 +38,13 @@ test('an administrator can secure an account and impersonate a player', async ({
   await expect(page.getByRole('button', { name: 'Account menu for Preview Player' })).toBeVisible()
   await page.goto('/admin')
   await expect(page.getByRole('heading', { name: 'Users' })).toBeVisible()
+  const serverContext = await browser.newContext({ javaScriptEnabled: false, storageState: await page.context().storageState() })
+  const serverPage = await serverContext.newPage()
+  await serverPage.goto('/admin')
+  await expect(serverPage.getByText(ADMIN_EMAIL, { exact: true })).toBeVisible()
+  await expect(serverPage.getByText('Loading users…')).toHaveCount(0)
+  await serverPage.screenshot({ path: 'test-results/admin-server-rendered.png', fullPage: true })
+  await serverContext.close()
 
   await page.goto('/profile')
   await expect(page.getByRole('heading', { name: 'Authenticator app' })).toBeVisible()

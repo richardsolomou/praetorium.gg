@@ -10,6 +10,8 @@ import {
   detachmentRulesQuery,
   factionQuery,
   gameReferencesQuery,
+  reportQuery,
+  savedRosterSummariesQuery,
   terrainMatchupIds,
   terrainReferencesQuery,
 } from '../client/queries'
@@ -54,6 +56,12 @@ export const Route = createFileRoute('/battles/$token')({
       ...[...new Set(screen.view.players.flatMap((player) => (player.roster?.built ? [player.roster.built.catalogueId] : [])))].map(
         (catalogueId) => context.queryClient.ensureQueryData(factionQuery(catalogueId)),
       ),
+      ...(screen.view.status === 'setup' && screen.view.setupStep === 1 && !screen.view.leagueToken
+        ? [context.queryClient.ensureQueryData(savedRosterSummariesQuery()).catch(() => undefined)]
+        : []),
+      ...(screen.kind !== 'battle' || screen.view.status === 'setup'
+        ? []
+        : [context.queryClient.ensureQueryData(reportQuery(params.token, true)).catch(() => undefined)]),
     ])
   },
   component: BattlePage,

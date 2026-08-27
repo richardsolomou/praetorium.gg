@@ -1,10 +1,19 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, type QueryClient } from '@tanstack/react-query'
 import { createFileRoute, notFound } from '@tanstack/react-router'
 import { useEffect } from 'react'
+import type { Roster } from '../core/battle'
 import { fieldedRoster } from '../client/battleRosterSnapshot'
 import { BattleRosterSnapshot } from '../client/components/BattleRosterSnapshot'
 import { RosterEditor } from '../client/components/RosterEditor'
-import { battleQuery, factionIndexQuery, leagueRosterQuery, rosterAccessQuery, savedRosterPriceQuery } from '../client/queries'
+import {
+  battleQuery,
+  factionIndexQuery,
+  factionQuery,
+  leagueRosterQuery,
+  priceQuery,
+  rosterAccessQuery,
+  savedRosterPriceQuery,
+} from '../client/queries'
 import { normalisePicks } from '../client/rosterPicks'
 import { rosterBootstrap } from '../server/functions'
 
@@ -21,11 +30,15 @@ export const Route = createFileRoute('/rosters/$id/')({
     if (deps.league) {
       const roster = await context.queryClient.ensureQueryData(leagueRosterQuery(deps.league, deps.event, params.id))
       if (!roster) throw notFound()
+      await preloadSnapshot(context.queryClient, roster)
       return { editable: false, snapshot: true, league: true }
     }
     if (deps.battle) {
       const screen = await context.queryClient.ensureQueryData(battleQuery(deps.battle))
-      if (!screen || screen.kind === 'invitation' || !fieldedRoster(screen.view, params.id)) throw notFound()
+      if (!screen || screen.kind === 'invitation') throw notFound()
+      const roster = fieldedRoster(screen.view, params.id)
+      if (!roster) throw notFound()
+      await preloadSnapshot(context.queryClient, roster)
       return { editable: false, snapshot: true }
     }
     const [, bootstrap] = await Promise.all([
@@ -50,6 +63,21 @@ export const Route = createFileRoute('/rosters/$id/')({
   },
   component: RosterPage,
 })
+
+async function preloadSnapshot(queryClient: QueryClient, roster: Roster) {
+  const built = roster.built
+  if (!built) return
+  await Promise.all([
+    queryClient.ensureQueryData(factionQuery(built.catalogueId)).catch(() => undefined),
+    ...(roster.id && built.detachmentIds && built.picks
+      ? [
+          queryClient
+            .ensureQueryData(priceQuery(built.catalogueId, built.detachmentIds, built.disposition, built.limit, built.picks))
+            .catch(() => undefined),
+        ]
+      : []),
+  ])
+}
 
 function RosterPage() {
   const { id } = Route.useParams()

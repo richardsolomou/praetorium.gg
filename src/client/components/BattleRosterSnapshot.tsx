@@ -13,15 +13,15 @@ import { UnitCard } from './builder/UnitCard'
 
 export function BattleRosterSnapshot({ roster }: { roster: Roster }) {
   const built = roster.built
+  const frozen = !roster.id
+  const [selected, setSelected] = useState<number | null>(null)
   const { data: faction } = useQuery({ ...factionQuery(built?.catalogueId ?? ''), enabled: Boolean(built) })
   const { data: priced } = useQuery({
     ...priceQuery(built?.catalogueId ?? '', built?.detachmentIds ?? [], built?.disposition ?? null, built?.limit ?? 0, built?.picks ?? []),
-    enabled: Boolean(built?.picks && built.detachmentIds),
+    enabled: Boolean(built?.picks && built.detachmentIds && (!frozen || selected !== null)),
   })
   const hasRosterCards = built?.units.some((unit) => unit.group !== undefined) ?? false
-  const frozen = !roster.id
   const frozenPoints = frozen && built ? built.units.reduce((total, unit) => total + unit.points, 0) : null
-  const [selected, setSelected] = useState<number | null>(null)
   const selectedUnit = selected === null ? null : (built?.units[selected] ?? null)
   const selectedPricedUnit = selected === null ? null : (priced?.units[selected] ?? null)
   const selectedCatalogueId = selected === null ? built?.catalogueId : (built?.picks?.[selected]?.catalogueId ?? built?.catalogueId)

@@ -26,7 +26,6 @@ import { SignInRequired } from '../client/components/SignInRequired'
 import { PageState } from '../client/components/PageState'
 import { useFavouriteFactions } from '../client/favouriteFactions'
 import { factionIndexQuery, favouriteFactionsQuery, meQuery, savedRosterPointsQuery, savedRosterSummariesQuery } from '../client/queries'
-import { useMounted } from '../client/useMounted'
 import { useOrigin } from '../client/useOrigin'
 import { GAME_SIZES } from '../core/battle'
 import { ROSTER_VISIBILITIES, type RosterVisibility } from '../core/savedRoster'
@@ -55,20 +54,23 @@ export const Route = createFileRoute('/rosters/')({
       ...(sort && sort !== 'created-desc' ? { sort } : {}),
     }
   },
-  loader: ({ context }) =>
-    Promise.all([
+  loader: async ({ context }) => {
+    const me = await context.queryClient.ensureQueryData(meQuery())
+    if (!me) return
+    await Promise.all([
       context.queryClient.ensureQueryData(savedRosterSummariesQuery()),
+      context.queryClient.ensureQueryData(savedRosterPointsQuery()).catch(() => undefined),
       context.queryClient.ensureQueryData(factionIndexQuery()),
       context.queryClient.ensureQueryData(favouriteFactionsQuery()),
-    ]),
+    ])
+  },
   component: RosterLibrary,
 })
 
 function RosterLibrary() {
   const { data: me } = useQuery(meQuery())
   const { data: saved = [] } = useQuery(savedRosterSummariesQuery())
-  const mounted = useMounted()
-  const { data: prices } = useQuery({ ...savedRosterPointsQuery(), enabled: mounted })
+  const { data: prices } = useQuery(savedRosterPointsQuery())
   const { data: available } = useQuery(factionIndexQuery())
   const search = Route.useSearch()
   const navigate = useNavigate()

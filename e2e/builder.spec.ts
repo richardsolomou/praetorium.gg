@@ -939,7 +939,7 @@ test('a unit duplicates with its configured model count', async ({ page }) => {
   await expect(page.getByLabel('Immortals models')).toHaveText('6')
 })
 
-test('the filters narrow the book to what is worth taking', async ({ page }) => {
+test('the filters narrow the book to what is worth taking', async ({ browser, page }) => {
   await openBuilder(page)
 
   // Owned: nothing is, until something is said to be.
@@ -953,6 +953,12 @@ test('the filters narrow the book to what is worth taking', async ({ page }) => 
   const ownLychguard = page.getByRole('button', { name: /Lychguard to your collection/ })
   await ownLychguard.click()
   await expect(page.getByRole('button', { name: /Lychguard from your collection/ })).toHaveAttribute('aria-pressed', 'true')
+  const serverContext = await browser.newContext({ javaScriptEnabled: false, storageState: await page.context().storageState() })
+  const serverPage = await serverContext.newPage()
+  await serverPage.goto('/factions/necrons/datasheets')
+  await expect(serverPage.getByRole('button', { name: 'Remove Lychguard from your collection' })).toBeVisible()
+  await serverPage.screenshot({ path: 'test-results/collection-server-rendered.png', fullPage: true })
+  await serverContext.close()
   await page.getByRole('button', { name: 'Owned' }).click()
   await expect(lychguard).toBeVisible()
   await page.getByRole('button', { name: 'Owned' }).click()
