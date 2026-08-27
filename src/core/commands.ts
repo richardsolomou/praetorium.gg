@@ -104,6 +104,7 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
                 entryId: id.optional(),
                 group: z.enum(UNIT_GROUPS).optional(),
                 warlord: z.boolean().optional(),
+                warlordEligible: z.boolean().optional(),
                 wargear: z
                   .array(z.object({ name: z.string().min(1).max(ROSTER_NAME_MAX_LENGTH), count: z.number().int().min(1).max(100) }))
                   .max(200)

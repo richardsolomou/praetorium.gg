@@ -31,7 +31,17 @@ async function sealEventRosters(leagueToken: string) {
             limit: 2_000,
             detachment: null,
             disposition: null,
-            units: [{ key: 'test-unit', name: 'Test unit', points: 80, models: 5 }],
+            units: [
+              {
+                key: 'test-unit',
+                name: 'Test unit',
+                points: 80,
+                models: 5,
+                group: 'character',
+                warlord: true,
+                warlordEligible: true,
+              },
+            ],
           },
         }),
         submittedAt: Date.now(),
@@ -39,6 +49,28 @@ async function sealEventRosters(leagueToken: string) {
       .where(and(eq(leagueEventEntries.eventId, event.id), eq(leagueEventEntries.status, 'accepted')))
       .returning({ userId: leagueEventEntries.userId })
     if (sealed.length !== 2) throw new Error('The league test entrants are missing.')
+  } finally {
+    await connection.close()
+  }
+}
+
+async function makeLeagueEventLegacy(leagueToken: string) {
+  const connection = openDatabase(`postgres://praetorium:praetorium@127.0.0.1:${postgresPort}/praetorium`)
+  try {
+    const [event] = await connection.database
+      .select({ id: leagueEvents.id })
+      .from(leagueEvents)
+      .innerJoin(leagues, eq(leagues.id, leagueEvents.leagueId))
+      .where(eq(leagues.token, leagueToken))
+      .orderBy(desc(leagueEvents.number))
+      .limit(1)
+    if (!event) throw new Error('The legacy league test event is missing.')
+    const updated = await connection.database
+      .update(leagueEvents)
+      .set({ format: null, rosterLimit: null })
+      .where(eq(leagueEvents.id, event.id))
+      .returning({ id: leagueEvents.id })
+    if (updated.length !== 1) throw new Error('The legacy league test event is missing.')
   } finally {
     await connection.close()
   }
@@ -122,7 +154,17 @@ async function sealTeamEventRosters(leagueToken: string) {
               limit,
               detachment: null,
               disposition: null,
-              units: [{ key: `${entry.userId}-unit`, name: 'Test unit', points: 80, models: 5 }],
+              units: [
+                {
+                  key: `${entry.userId}-unit`,
+                  name: 'Test unit',
+                  points: 80,
+                  models: 5,
+                  group: 'character',
+                  warlord: true,
+                  warlordEligible: true,
+                },
+              ],
             },
           }),
           submittedAt: Date.now(),
@@ -167,7 +209,17 @@ async function sealDoublesEventRosters(leagueToken: string, invalidWarlords = fa
               limit: 1_000,
               detachment: null,
               disposition: null,
-              units: [{ key: `${entry.userId}-unit`, name: 'Test character', points: 80, models: 1, group: 'character', warlord }],
+              units: [
+                {
+                  key: `${entry.userId}-unit`,
+                  name: 'Test character',
+                  points: 80,
+                  models: 1,
+                  group: 'character',
+                  warlord,
+                  warlordEligible: true,
+                },
+              ],
             },
           }),
           submittedAt: Date.now(),
@@ -240,6 +292,8 @@ test('a new league starts with its first event and can seal a roster', async ({ 
     detachment: /Companions of Vehemence/,
     name: 'Templar roster',
   })
+  await page.getByLabel('Add a unit').fill('Captain')
+  await waitForRosterSave(page, () => page.getByRole('button', { name: 'Add Captain', exact: true }).first().click())
   await page.goto('/leagues')
   await page.getByRole('button', { name: 'New league' }).click()
   const create = page.getByRole('dialog', { name: 'Create league' })
@@ -259,6 +313,9 @@ test('a new league starts with its first event and can seal a roster', async ({ 
   await expect(roster.getByText('Black Templars', { exact: true })).toBeVisible()
   await expect(roster.getByText('Companions of Vehemence', { exact: true })).toBeVisible()
   await page.screenshot({ path: 'test-results/league-roster-dialog.png', fullPage: true })
+  await roster.click()
+  await expect(page.getByRole('alert')).toHaveText('a league roster must seal exactly one Character or Epic Hero Warlord')
+  await page.screenshot({ path: 'test-results/league-roster-warlord-error.png', fullPage: true })
   await page.setViewportSize({ width: 390, height: 844 })
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
   await page.screenshot({ path: 'test-results/league-roster-dialog-phone.png', fullPage: true })
@@ -306,6 +363,12 @@ test('an eligible casual matchup is directed through its league event', async ({
   await owner.reload()
   await owner.getByRole('button', { name: 'Reveal all rosters' }).click()
   await owner.getByRole('alertdialog', { name: 'Reveal every roster?' }).getByRole('button', { name: 'Reveal all rosters' }).click()
+  await makeLeagueEventLegacy(leagueToken)
+  await owner.reload()
+  await expect(owner.getByRole('button', { name: 'Start 1 vs 1 battle' })).toBeVisible()
+  expect(await owner.locator('aside h2').allTextContents()).toEqual(['Sealed rosters', 'League events'])
+  await expectNoHorizontalOverflow(owner)
+  await owner.screenshot({ path: 'test-results/legacy-league-battle-button.png', fullPage: true })
 
   await owner.goto('/battles')
   await owner.getByRole('button', { name: 'New casual battle' }).click()
@@ -347,6 +410,7 @@ test('a revealed roster keeps its selected upgrades and reference metadata', asy
   await owner.getByRole('button', { name: 'Add Skorpekh Lord', exact: true }).first().click()
   await owner.locator('[data-unit="Skorpekh Lord"]').getByRole('button', { name: 'Skorpekh Lord', exact: true }).click()
   await waitForRosterSave(owner, () => owner.getByRole('button', { name: 'Select Mark of the Nekrosor' }).click())
+  await waitForRosterSave(owner, () => owner.getByRole('button', { name: 'Make Skorpekh Lord Warlord' }).click())
 
   await owner.getByRole('button', { name: 'Roster actions' }).click()
   await owner.getByRole('menuitem', { name: 'Edit roster setup' }).click()
@@ -793,7 +857,7 @@ test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle'
   await spectator.goBack()
   await expect(spectator.getByText('Battle setup', { exact: true })).toBeVisible()
   await spectator.getByRole('link', { name: '2,000-point roster', exact: true }).click()
-  await expect(spectator.locator('[data-roster-builder]').getByText('2,000 points', { exact: true })).toBeVisible()
+  await expect(spectator.locator('[data-roster-builder]').getByRole('textbox', { name: 'List name' })).toHaveValue('2,000-point roster')
   await spectator.goBack()
   await expect(spectator.getByText('Battle setup', { exact: true })).toBeVisible()
   await spectator.getByRole('button', { name: 'Open 2,000-point roster' }).click()
@@ -886,6 +950,7 @@ test('a doubles event pairs teams, filters half-size rosters, and starts a four-
   await owner.reload()
   await expect(owner.locator(`[data-person="${names[0]}"]`)).toContainText(`paired with ${names[1]}`)
   await expect(owner.locator(`[data-person="${names[2]}"]`)).toContainText(`paired with ${names[3]}`)
+  expect(await owner.locator('aside h2').allTextContents()).toEqual(['Sealed rosters', 'Organizer', 'League events'])
   await owner.setViewportSize({ width: 1440, height: 900 })
   await owner.screenshot({ path: 'test-results/doubles-team-assignments-desktop.png', fullPage: true })
   await owner.setViewportSize({ width: 390, height: 844 })
@@ -977,7 +1042,7 @@ test('a doubles event pairs teams, filters half-size rosters, and starts a four-
   await expect(reveal.getByRole('button', { name: 'Keep rosters sealed' })).toBeDisabled()
   await expect(reveal.getByRole('button', { name: 'Revealing…' })).toBeDisabled()
   releaseReveal()
-  await expect(reveal.getByRole('alert')).toHaveText('each doubles team must select exactly one Warlord before reveal')
+  await expect(reveal.getByRole('alert')).toHaveText('each doubles team must select exactly one eligible Warlord before reveal')
   await owner.unrouteAll({ behavior: 'wait' })
   await sealDoublesEventRosters(leagueToken)
   await reveal.getByRole('button', { name: 'Reveal all rosters' }).click()

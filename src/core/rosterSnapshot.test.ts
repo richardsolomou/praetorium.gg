@@ -43,7 +43,7 @@ it('freezes unit wounds into a roster snapshot', () => {
   expect(roster.built?.units[0]?.wounds).toBe(3)
 })
 
-it('freezes the selected Warlord marker into a roster snapshot', () => {
+it('freezes catalogue-derived Warlord eligibility into a roster snapshot', () => {
   const roster = rosterSnapshot(
     {
       id: 'roster',
@@ -67,7 +67,7 @@ it('freezes the selected Warlord marker into a roster snapshot', () => {
           entryId: 'captain',
           name: 'Captain',
           points: 80,
-          group: 'character',
+          group: 'vehicle',
           toggles: [{ name: 'Warlord', selected: true }],
           size: { models: 1, resizable: false },
           attachment: null,
@@ -82,7 +82,7 @@ it('freezes the selected Warlord marker into a roster snapshot', () => {
     [],
   )
 
-  expect(roster.built?.units[0]?.warlord).toBe(true)
+  expect(roster.built?.units[0]).toMatchObject({ warlord: true, warlordEligible: true })
 })
 
 it('freezes the unit a character joined into a roster snapshot', () => {
