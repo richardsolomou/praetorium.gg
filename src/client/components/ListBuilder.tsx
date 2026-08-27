@@ -103,7 +103,8 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
   const [exportText, setExportText] = useState<string | null>(null)
   const workspacePath = `/rosters/${initial.id}`
   const [setupDraft, setSetupDraftState] = useState<RosterSetup | null>(null)
-  const [wideWorkspace, setWideWorkspace] = useState(false)
+  const [wideWorkspace, setWideWorkspace] = useState(true)
+  const [workspaceMeasured, setWorkspaceMeasured] = useState(false)
   const [pickerQuery, setPickerQuery] = useState('')
   const [pickerFilters, setPickerFilters] = useState<Set<PickerFilter>>(new Set())
   const editingSetup = setupDraft !== null
@@ -113,6 +114,7 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
   })
   const faction = loadedFaction ?? (initialFaction?.id === catalogueId ? initialFaction : null)
   const pickerOpen = wideWorkspace || showing === 'picker'
+  const pickerEnabled = workspaceMeasured && pickerOpen
 
   const setSetupDraft = (draft: RosterSetup | null) => {
     setSetupDraftState(draft)
@@ -121,14 +123,17 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
 
   const savedId = initial.id
   const queryClient = useQueryClient()
-  const { data: owned } = useQuery({ ...collectionQuery(), enabled: editable && pickerOpen })
+  const { data: owned } = useQuery({ ...collectionQuery(), enabled: editable && pickerEnabled })
   const collection = useMemo(() => new Set(owned ?? []), [owned])
   const { mutate: mutateCollection } = useCollectionMutation()
 
   useEffect(() => setSetupDraftState(readWorkspaceState<RosterSetup>(workspacePath, 'roster-setup')), [workspacePath])
   useLayoutEffect(() => {
     const media = window.matchMedia('(min-width: 1300px)')
-    const sync = () => setWideWorkspace(media.matches)
+    const sync = () => {
+      setWideWorkspace(media.matches)
+      setWorkspaceMeasured(true)
+    }
     sync()
     media.addEventListener('change', sync)
     return () => media.removeEventListener('change', sync)
@@ -328,6 +333,7 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
       <div className="flex h-full flex-col">
         <div className="min-h-0 flex-1">
           <Picker
+            enabled={pickerEnabled}
             catalogueId={catalogueId}
             onAdd={add}
             onPreview={previewUnit}
@@ -401,6 +407,7 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
         maxLength={ROSTER_NAME_MAX_LENGTH}
         placeholder={suggested || 'Named from your picks'}
         faction={faction}
+        factionLoading={Boolean(catalogueId) && !faction}
         limit={limit}
         detachments={detachmentIds.flatMap((id) => {
           const detachment = faction.detachments.find((candidate) => candidate.id === id)
@@ -571,11 +578,7 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
               const rows = units
                 .map((unit, index) => ({ unit, index }))
                 .filter(({ unit }) => unit.group === id)
-                .toSorted(
-                  (left, right) =>
-                    Number(collection.has(right.unit.entryId)) - Number(collection.has(left.unit.entryId)) ||
-                    left.unit.name.localeCompare(right.unit.name),
-                )
+                .toSorted((left, right) => left.unit.name.localeCompare(right.unit.name))
               return rows.length ? (
                 <Section key={id} title={plural} count={rows.length}>
                   {rows.map(({ unit, index }) => (

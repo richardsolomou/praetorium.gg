@@ -46,7 +46,8 @@ import {
 const SSR_STALE_TIME = 30_000
 
 export const meQuery = () => queryOptions({ queryKey: ['me'], queryFn: () => me(), staleTime: SSR_STALE_TIME })
-export const accountMethodsQuery = () => queryOptions({ queryKey: ['account-methods'], queryFn: () => accountMethods() })
+export const accountMethodsQuery = () =>
+  queryOptions({ queryKey: ['account-methods'], queryFn: () => accountMethods(), staleTime: SSR_STALE_TIME })
 export const ADMIN_USERS_QUERY_KEY = ['admin-users'] as const
 export const adminUsersQuery = (query: string) =>
   infiniteQueryOptions({
@@ -54,6 +55,7 @@ export const adminUsersQuery = (query: string) =>
     queryFn: ({ pageParam }) => adminUsers({ data: { query, cursor: pageParam } }),
     initialPageParam: null as AdminUsersCursor | null,
     getNextPageParam: (page) => page.nextCursor ?? undefined,
+    staleTime: SSR_STALE_TIME,
   })
 
 export const userProfileQuery = (userId: string, battle?: string) =>
@@ -342,7 +344,7 @@ export const detachmentDetailQuery = (catalogueId: string, slug: string) =>
 export const deploymentsQuery = () => queryOptions({ queryKey: ['deployments'], queryFn: () => deployments(), staleTime: Infinity })
 
 export const reportQuery = (token: string, enabled: boolean) =>
-  queryOptions({ queryKey: ['report', token], queryFn: () => battleReport({ data: { token } }), enabled })
+  queryOptions({ queryKey: ['report', token], queryFn: () => battleReport({ data: { token } }), enabled, staleTime: SSR_STALE_TIME })
 
 /** Polled only while the data is on its way, so a settled instance asks once. */
 export const catalogueStatusQuery = () =>

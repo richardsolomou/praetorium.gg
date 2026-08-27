@@ -4,7 +4,7 @@ import { useEffect } from 'react'
 import { fieldedRoster } from '../client/battleRosterSnapshot'
 import { BattleRosterSnapshot } from '../client/components/BattleRosterSnapshot'
 import { RosterEditor } from '../client/components/RosterEditor'
-import { battleQuery, factionIndexQuery, leagueRosterQuery, rosterAccessQuery, savedRosterPriceQuery } from '../client/queries'
+import { battleQuery, leagueRosterQuery, rosterAccessQuery, savedRosterPriceQuery } from '../client/queries'
 import { normalisePicks } from '../client/rosterPicks'
 import { rosterBootstrap } from '../server/functions'
 
@@ -25,13 +25,12 @@ export const Route = createFileRoute('/rosters/$id/')({
     }
     if (deps.battle) {
       const screen = await context.queryClient.ensureQueryData(battleQuery(deps.battle))
-      if (!screen || screen.kind === 'invitation' || !fieldedRoster(screen.view, params.id)) throw notFound()
+      if (!screen || screen.kind === 'invitation') throw notFound()
+      const roster = fieldedRoster(screen.view, params.id)
+      if (!roster) throw notFound()
       return { editable: false, snapshot: true }
     }
-    const [, bootstrap] = await Promise.all([
-      context.queryClient.ensureQueryData(factionIndexQuery()),
-      rosterBootstrap({ data: { id: params.id, ...(deps.battle ? { battle: deps.battle } : {}) } }),
-    ])
+    const bootstrap = await rosterBootstrap({ data: { id: params.id, ...(deps.battle ? { battle: deps.battle } : {}) } })
     if (!bootstrap) throw notFound()
     const { roster, editable, faction, price } = bootstrap
     const access = { roster, editable, faction }

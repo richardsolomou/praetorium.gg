@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Skeleton } from '@/components/ui/skeleton'
 import type { AdminUser } from '../../admin'
 import { PASSWORD_MIN_LENGTH } from '../../authConfig'
 import { setAdminRole } from '../../server/functions'
@@ -55,14 +56,17 @@ export function AdminPanel({ currentUserId }: { currentUserId: string }) {
               className="rounded-none border-edge bg-sunken"
             />
           </div>
-          <p className="text-sm text-dim">{users.length} users shown</p>
+          {usersResult.isPending ? (
+            <Skeleton className="h-4 w-24" aria-label="Loading user count" />
+          ) : (
+            <p className="text-sm text-dim">{users.length} users shown</p>
+          )}
         </div>
-        {usersResult.isPending ? <p className="p-5 text-sm text-dim">Loading users…</p> : null}
         {usersResult.error ? <p className="p-5 text-sm text-destructive">The user list could not be loaded.</p> : null}
         {!usersResult.isPending && !usersResult.error && !users.length ? (
           <p className="p-5 text-sm text-dim">No users match this search.</p>
         ) : null}
-        {users.length ? (
+        {usersResult.isPending || users.length ? (
           <div className="overflow-x-auto">
             <table className="w-full border-collapse text-left text-sm">
               <thead className="bg-sunken text-xs tracking-wide text-dim uppercase">
@@ -78,37 +82,43 @@ export function AdminPanel({ currentUserId }: { currentUserId: string }) {
                 </tr>
               </thead>
               <tbody>
-                {users.map((user) => (
-                  <tr key={user.id} className="border-t border-edge hover:bg-raised/60">
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        <PlayerAvatar name={user.name} image={user.image} className="size-9 text-xs" />
-                        <div className="min-w-0">
-                          <p className="font-semibold text-bone">{user.name}</p>
-                          <p className="text-xs text-dim">{user.email}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="chip">{user.role === 'admin' ? 'Admin' : 'User'}</span>
-                    </td>
-                    <td className="hidden px-4 py-3 text-dim md:table-cell">
-                      <p>{user.twoFactorEnabled ? '2FA enabled' : 'No 2FA'}</p>
-                      <p className="text-xs">{methodNames(user.signInMethods)}</p>
-                    </td>
-                    <td className="hidden px-4 py-3 text-dim lg:table-cell">
-                      {user.rosterCount} rosters · {user.battleCount} battles
-                    </td>
-                    <td className="hidden px-4 py-3 text-dim xl:table-cell">
-                      <time dateTime={new Date(user.createdAt).toISOString()}>
-                        {new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(user.createdAt))}
-                      </time>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <UserActions user={user} current={user.id === currentUserId} onAction={(action) => setSelection({ action, user })} />
-                    </td>
-                  </tr>
-                ))}
+                {usersResult.isPending
+                  ? Array.from({ length: 4 }, (_, index) => <AdminUserSkeleton key={index} />)
+                  : users.map((user) => (
+                      <tr key={user.id} className="border-t border-edge hover:bg-raised/60">
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-3">
+                            <PlayerAvatar name={user.name} image={user.image} className="size-9 text-xs" />
+                            <div className="min-w-0">
+                              <p className="font-semibold text-bone">{user.name}</p>
+                              <p className="text-xs text-dim">{user.email}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="chip">{user.role === 'admin' ? 'Admin' : 'User'}</span>
+                        </td>
+                        <td className="hidden px-4 py-3 text-dim md:table-cell">
+                          <p>{user.twoFactorEnabled ? '2FA enabled' : 'No 2FA'}</p>
+                          <p className="text-xs">{methodNames(user.signInMethods)}</p>
+                        </td>
+                        <td className="hidden px-4 py-3 text-dim lg:table-cell">
+                          {user.rosterCount} rosters · {user.battleCount} battles
+                        </td>
+                        <td className="hidden px-4 py-3 text-dim xl:table-cell">
+                          <time dateTime={new Date(user.createdAt).toISOString()}>
+                            {new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(user.createdAt))}
+                          </time>
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <UserActions
+                            user={user}
+                            current={user.id === currentUserId}
+                            onAction={(action) => setSelection({ action, user })}
+                          />
+                        </td>
+                      </tr>
+                    ))}
               </tbody>
             </table>
           </div>
@@ -130,6 +140,37 @@ export function AdminPanel({ currentUserId }: { currentUserId: string }) {
       {adding ? <CreateUserDialog onClose={() => setAdding(false)} /> : null}
       {selection ? <UserActionDialog selection={selection} onClose={() => setSelection(undefined)} /> : null}
     </main>
+  )
+}
+
+function AdminUserSkeleton() {
+  return (
+    <tr className="border-t border-edge" aria-hidden>
+      <td className="px-4 py-3">
+        <div className="flex items-center gap-3">
+          <Skeleton className="size-9 shrink-0 rounded-full" />
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-28" />
+            <Skeleton className="h-3 w-40" />
+          </div>
+        </div>
+      </td>
+      <td className="px-4 py-3">
+        <Skeleton className="h-5 w-14" />
+      </td>
+      <td className="hidden px-4 py-3 md:table-cell">
+        <Skeleton className="h-4 w-24" />
+      </td>
+      <td className="hidden px-4 py-3 lg:table-cell">
+        <Skeleton className="h-4 w-28" />
+      </td>
+      <td className="hidden px-4 py-3 xl:table-cell">
+        <Skeleton className="h-4 w-20" />
+      </td>
+      <td className="px-4 py-3">
+        <Skeleton className="size-8" />
+      </td>
+    </tr>
   )
 }
 

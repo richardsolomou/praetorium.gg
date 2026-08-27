@@ -21,6 +21,8 @@ export function RosterRow({
   onEdit,
   onDelete,
   points,
+  factionLoading,
+  pointsLoading,
 }: {
   roster: SavedRoster
   faction?: RosterSummaryFaction
@@ -30,6 +32,8 @@ export function RosterRow({
   onDelete: () => void
   /** Priced with every other list in the library, so a row asks for nothing of its own. */
   points?: number | null
+  factionLoading?: boolean
+  pointsLoading?: boolean
 }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const items = { roster, actions, origin, onEdit, onDelete }
@@ -42,7 +46,7 @@ export function RosterRow({
         }
       >
         <Link to="/rosters/$id" params={{ id: roster.id }} className="flex min-w-0 flex-1 flex-wrap items-center gap-2 p-1">
-          <RosterSummary roster={roster} faction={faction} points={points} />
+          <RosterSummary roster={roster} faction={faction} points={points} factionLoading={factionLoading} pointsLoading={pointsLoading} />
         </Link>
         <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
           <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label={`Actions for ${roster.name}`} />}>

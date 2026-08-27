@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router'
 import type { ChangeEventHandler, ReactNode } from 'react'
 import { Input } from '@/components/ui/input'
+import { Skeleton } from '@/components/ui/skeleton'
 import { GAME_SIZES } from '../../core/battle'
 import { FactionLabel, type FactionPresentation } from './FactionMark'
 import { dispositionTone } from './rosterSetup'
@@ -28,6 +29,7 @@ type RosterHeaderProps = {
   maxLength?: number
   placeholder?: string
   faction?: PresentedFaction | null
+  factionLoading?: boolean
   points?: number | null
   limit?: number
   detachments?: readonly PresentedDetachment[]
@@ -43,6 +45,7 @@ export function RosterHeader({
   maxLength,
   placeholder,
   faction,
+  factionLoading = false,
   points,
   limit,
   detachments = NO_DETACHMENTS,
@@ -72,7 +75,7 @@ export function RosterHeader({
         className="h-8 border-0 bg-transparent px-0 text-lg font-bold tracking-[0.02em] uppercase focus-visible:ring-0"
       />
 
-      {faction || limit !== undefined ? (
+      {faction || factionLoading || limit !== undefined ? (
         <div className="mt-0.5 flex min-w-0 items-center gap-2 text-xs text-dim">
           <span className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto whitespace-nowrap [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {faction ? (
@@ -83,6 +86,8 @@ export function RosterHeader({
               >
                 <FactionLabel faction={faction} />
               </Link>
+            ) : factionLoading ? (
+              <Skeleton className="h-5 w-28 shrink-0" aria-label="Loading faction" />
             ) : null}
             {faction && hasSummary ? <span aria-hidden>·</span> : null}
             {hasPoints ? <span className="chip text-info">{points} pts</span> : null}

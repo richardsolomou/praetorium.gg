@@ -3,6 +3,7 @@ import { Heart, ListFilter, Plus } from 'lucide-react'
 import { Fragment, memo, useCallback, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { Skeleton } from '@/components/ui/skeleton'
 import { Toggle } from '@/components/ui/toggle'
 import { isKotcLimit } from '../../../core/battle'
 import type { UnitSummary } from '../../../server/cataloguePicker'
@@ -16,6 +17,7 @@ import { GROUPS } from './groups'
 import { Section } from './Section'
 
 type Props = {
+  enabled: boolean
   catalogueId: string
   onAdd: (entryId: string) => void
   onPreview: (entryId: string, name: string) => void
@@ -46,6 +48,7 @@ const FILTERS: { id: PickerFilter; label: string; hint: string }[] = [
  * fit, you may not take another, or you do not own it.
  */
 export const Picker = memo(function Picker({
+  enabled,
   catalogueId,
   onAdd,
   onPreview,
@@ -58,8 +61,14 @@ export const Picker = memo(function Picker({
   onFilterToggle,
 }: Props) {
   const settledQuery = useSettled(query.trim())
-  const { data: found } = useQuery({ ...unitsQuery(catalogueId, settledQuery, battleSize), placeholderData: keepPreviousData })
-  const { data: owned } = useQuery(collectionQuery())
+  const unitsResult = useQuery({
+    ...unitsQuery(catalogueId, settledQuery, battleSize),
+    enabled: enabled && Boolean(catalogueId),
+    placeholderData: keepPreviousData,
+  })
+  const collectionResult = useQuery({ ...collectionQuery(), enabled })
+  const found = unitsResult.data
+  const owned = collectionResult.data
   const own = useCollectionMutation()
   const { mutate: mutateCollection } = own
   const setOwned = useCallback((entryId: string, nextOwned: boolean) => mutateCollection({ entryId, owned: nextOwned }), [mutateCollection])
@@ -115,7 +124,11 @@ export const Picker = memo(function Picker({
         </div>
       </div>
       <ScrollArea className="min-h-0 flex-1 [&_[data-slot=scroll-area-viewport]]:px-2.5">
-        {shown.length ? (
+        {unitsResult.isPending || collectionResult.isPending ? (
+          <PickerSkeleton />
+        ) : unitsResult.isError ? (
+          <p className="py-3 text-xs text-destructive">The book could not be loaded.</p>
+        ) : shown.length ? (
           sections.map(({ id, plural, alliedFaction }) => {
             const rows = shown
               .filter((unit) => (alliedFaction ? unit.alliedFaction === alliedFaction : !unit.allied && unit.group === id))
@@ -156,6 +169,25 @@ export const Picker = memo(function Picker({
     </div>
   )
 })
+
+function PickerSkeleton() {
+  return (
+    <div className="space-y-2 py-2" aria-label="Loading units">
+      <Skeleton className="h-3 w-20" />
+      {Array.from({ length: 6 }, (_, index) => (
+        <div key={index} className="flex h-[3.25rem] items-center gap-2 border border-edge bg-card px-2.5" aria-hidden>
+          <div className="min-w-0 flex-1 space-y-2">
+            <Skeleton className="h-4 w-2/3" />
+            <Skeleton className="h-3 w-1/3" />
+          </div>
+          <Skeleton className="size-6 shrink-0" />
+          <Skeleton className="h-5 w-[4.5rem] shrink-0" />
+          <Skeleton className="h-7 w-14 shrink-0 rounded-none" />
+        </div>
+      ))}
+    </div>
+  )
+}
 
 type PickerRowProps = {
   unit: UnitSummary

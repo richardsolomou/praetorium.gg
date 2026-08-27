@@ -46,11 +46,34 @@ test('the unit picker stays within the roster faction', async ({ page }) => {
   await expect(page.getByRole('combobox', { name: 'Force' })).toHaveCount(0)
 })
 
-test('the roster workspace stays in place while the desktop picker hydrates', async ({ page }) => {
+test('the roster workspace reserves the desktop picker while its book loads', async ({ browser, page }) => {
   await openBuilder(page)
   await page.getByLabel('Add a unit').fill('Immortals')
   await waitForRosterSave(page, () => page.getByRole('button', { name: 'Add Immortals', exact: true }).first().click())
   await expect(page.locator('[data-unit="Immortals"]')).toBeVisible()
+  await page.getByLabel('Add a unit').fill('')
+  await expect(page.getByRole('button', { name: 'Add Lychguard', exact: true }).first()).toBeVisible()
+
+  const serverContext = await browser.newContext({
+    javaScriptEnabled: false,
+    storageState: await page.context().storageState(),
+    viewport: { width: 1440, height: 900 },
+  })
+  const serverPage = await serverContext.newPage()
+  await serverPage.goto(page.url())
+  await expect(serverPage.getByLabel('Add units')).toBeVisible()
+  await expect(serverPage.getByLabel('Loading units')).toBeVisible()
+  await expect(serverPage.getByRole('button', { name: 'Add Lychguard', exact: true })).toHaveCount(0)
+  await serverPage.screenshot({ path: 'test-results/loading-roster-workspace.png', fullPage: true })
+  await serverContext.close()
+
+  const clientUnitRequests: string[] = []
+  page.on('request', (request) => {
+    const url = decodeURIComponent(request.url())
+    if (url.includes('/_serverFn/') && url.includes('"catalogueId"') && url.includes('"query"') && url.includes('"battleSize"')) {
+      clientUnitRequests.push(url)
+    }
+  })
 
   await page.addInitScript(() => {
     const values: number[] = []
@@ -63,16 +86,30 @@ test('the roster workspace stays in place while the desktop picker hydrates', as
     }).observe({ type: 'layout-shift', buffered: true })
   })
   await page.reload()
+  await expect(page.getByRole('button', { name: 'Add Lychguard', exact: true }).first()).toBeVisible()
+  expect(clientUnitRequests.length).toBeGreaterThan(0)
+  const response = await page.request.get(page.url())
+  const body = await response.body()
+  expect(body.byteLength).toBeLessThan(500_000)
+  expect(body.toString()).not.toContain('["collection"]')
   await page.waitForTimeout(1_500)
   const values = await page.evaluate(() => (window as typeof window & { __rosterLayoutShiftValues: number[] }).__rosterLayoutShiftValues)
   expect(values.reduce((total, value) => total + value, 0)).toBeLessThan(0.05)
   await page.screenshot({ path: 'test-results/stable-roster-workspace.png', fullPage: true })
 
   await page.setViewportSize({ width: 390, height: 844 })
+  clientUnitRequests.length = 0
   await page.reload()
+  await expect(page.getByRole('button', { name: 'Add units', exact: true })).toBeVisible()
+  expect(clientUnitRequests).toHaveLength(0)
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
   expect(await page.locator('[data-slot="roster-units"]').evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
   await page.screenshot({ path: 'test-results/stable-roster-workspace-phone.png', fullPage: true })
+
+  await page.getByRole('button', { name: 'Add units', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Add Lychguard', exact: true }).first()).toBeVisible()
+  expect(clientUnitRequests.length).toBeGreaterThan(0)
+  await page.getByRole('dialog', { name: 'Add units' }).getByRole('button', { name: 'Close' }).click()
 
   await page.locator('[data-unit="Immortals"]').getByRole('button', { name: 'Immortals', exact: true }).click()
   const loadout = page.locator('aside[aria-label="Loadout"]')
@@ -223,22 +260,21 @@ test('deleting a unit keeps the rest of the roster visible while pricing catches
   await page.screenshot({ path: 'test-results/roster-visible-while-deleting.png', fullPage: true })
 })
 
-test('owned units rise to the top of their roster and picker groups', async ({ page }) => {
+test('collection changes do not reorder roster and reference rows', async ({ page }) => {
   await openBuilder(page)
   await add(page, 'Necron Warriors')
   await add(page, 'Immortals')
 
-  await page.locator('[data-unit="Immortals"]').getByLabel('Unit actions for Immortals').click()
+  await page.locator('[data-unit="Necron Warriors"]').getByLabel('Unit actions for Necron Warriors').click()
   const collected = page.waitForResponse((response) => response.ok() && response.request().method() === 'POST')
   await page.getByRole('menuitemcheckbox', { name: 'Add to collection' }).click()
   await collected
 
   await expect(page.locator('[data-unit]').first()).toHaveAttribute('data-unit', 'Immortals')
-  await expect(page.locator('aside[aria-label="Add units"] [data-picker-unit]').first()).toHaveAttribute('data-picker-unit', 'Immortals')
   await page.goto('/factions/necrons/datasheets')
   const datasheets = page.getByRole('link', { name: /^(Immortals|Necron Warriors)/ })
   await expect(datasheets.first()).toHaveAccessibleName(/^Immortals/)
-  await page.screenshot({ path: 'test-results/owned-units-first.png', fullPage: true })
+  await page.screenshot({ path: 'test-results/stable-collection-order.png', fullPage: true })
 })
 
 test('contained faction datasheet rows stay accessible and resize without horizontal overflow', async ({ page }) => {
@@ -939,7 +975,7 @@ test('a unit duplicates with its configured model count', async ({ page }) => {
   await expect(page.getByLabel('Immortals models')).toHaveText('6')
 })
 
-test('the filters narrow the book to what is worth taking', async ({ page }) => {
+test('the filters narrow the book to what is worth taking', async ({ browser, page }) => {
   await openBuilder(page)
 
   // Owned: nothing is, until something is said to be.
@@ -953,6 +989,12 @@ test('the filters narrow the book to what is worth taking', async ({ page }) => 
   const ownLychguard = page.getByRole('button', { name: /Lychguard to your collection/ })
   await ownLychguard.click()
   await expect(page.getByRole('button', { name: /Lychguard from your collection/ })).toHaveAttribute('aria-pressed', 'true')
+  const serverContext = await browser.newContext({ javaScriptEnabled: false, storageState: await page.context().storageState() })
+  const serverPage = await serverContext.newPage()
+  await serverPage.goto('/factions/necrons/datasheets')
+  await expect(serverPage.getByLabel('Loading collection status for Lychguard')).toBeVisible()
+  await serverPage.screenshot({ path: 'test-results/collection-loading-state.png', fullPage: true })
+  await serverContext.close()
   await page.getByRole('button', { name: 'Owned' }).click()
   await expect(lychguard).toBeVisible()
   await page.getByRole('button', { name: 'Owned' }).click()

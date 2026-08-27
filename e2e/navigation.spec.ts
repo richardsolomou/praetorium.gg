@@ -1,5 +1,5 @@
 import { devices, expect, test } from '@playwright/test'
-import { retryUntilVisible, signUp } from './account'
+import { signUp } from './account'
 
 test('primary navigation collapses below 815 pixels', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
@@ -55,8 +55,11 @@ test('rule tooltips open on touch and hover', async ({ browser, page }) => {
   const touchPage = await context.newPage()
 
   await touchPage.goto('/factions/necrons/detachments/hand-of-the-dynasty')
+  await touchPage.waitForLoadState('networkidle')
   const tooltip = touchPage.getByRole('tooltip')
-  await retryUntilVisible(tooltip, () => touchPage.getByRole('button', { name: '[RAPID FIRE 1]' }).tap())
+  await touchPage.getByRole('button', { name: '[RAPID FIRE 1]' }).tap()
+  await expect(tooltip).toContainText('Rapid Fire')
+  await touchPage.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))))
   await expect(tooltip).toContainText('Rapid Fire')
   await touchPage.screenshot({ path: 'test-results/rule-tooltip-touch.png', fullPage: true })
   await touchPage.getByRole('heading', { name: 'Hand of the Dynasty', exact: true }).tap()
@@ -68,6 +71,14 @@ test('rule tooltips open on touch and hover', async ({ browser, page }) => {
   await page.getByRole('button', { name: '[RAPID FIRE 1]' }).hover()
   await expect(page.getByRole('tooltip')).toContainText('Rapid Fire')
   await page.screenshot({ path: 'test-results/rule-tooltip-hover.png', fullPage: true })
+  await page.getByRole('heading', { name: 'Hand of the Dynasty', exact: true }).hover()
+  await expect(page.getByRole('tooltip')).toHaveCount(0)
+
+  await page.getByRole('button', { name: '[RAPID FIRE 1]' }).focus()
+  await page.keyboard.press('Enter')
+  await expect(page.getByRole('tooltip')).toContainText('Rapid Fire')
+  await page.keyboard.press('Tab')
+  await expect(page.getByRole('tooltip')).toHaveCount(0)
 })
 
 test('server-rendered reference pages keep route-shaped payloads', async ({ request }) => {
@@ -184,6 +195,7 @@ test('account libraries share their page width and fit a phone', async ({ page }
   const widths: number[] = []
   for (const path of ['/rosters', '/battles', '/friends']) {
     await page.goto(path)
+    if (path === '/rosters') await expect(page.getByLabel('Loading roster count')).toHaveCount(0)
     widths.push((await page.locator('main').boundingBox())?.width ?? 0)
   }
   expect(new Set(widths).size).toBe(1)
@@ -191,6 +203,7 @@ test('account libraries share their page width and fit a phone', async ({ page }
   const heroRail = await page.locator('main > section').first().locator('div.relative').last().boundingBox()
   const contentRail = await page.getByLabel('Roster filters').boundingBox()
   expect(Math.abs((heroRail?.width ?? 0) - (contentRail?.width ?? 0))).toBeLessThan(4)
+  await page.screenshot({ path: 'test-results/account-library-desktop.png', fullPage: true })
   const footer = await page.locator('footer').boundingBox()
   expect(footer ? Math.round(footer.y + footer.height) : 0).toBe(800)
 

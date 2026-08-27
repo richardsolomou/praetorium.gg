@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Skeleton } from '@/components/ui/skeleton'
 import { GAME_SIZES, PAINTED_ARMY_POINTS, type Command } from '../../../core/battle'
 import { type BattleView } from '../../../core/battleView'
 import { errorMessage } from '../../queryClient'
@@ -218,8 +219,16 @@ function RosterChooser({
         </p>
         <div className="space-y-2">
           {loading ? (
-            <div className="border border-edge bg-sunken p-4">
-              <p className="text-sm text-dim">Loading rosters…</p>
+            <div className="space-y-2" aria-label="Loading rosters">
+              {Array.from({ length: 3 }, (_, index) => (
+                <div key={index} className="flex min-h-20 items-center gap-3 border border-edge bg-sunken p-3" aria-hidden>
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-4 w-1/3" />
+                    <Skeleton className="h-5 w-28" />
+                  </div>
+                  <Skeleton className="h-4 w-20" />
+                </div>
+              ))}
             </div>
           ) : rosters.length ? (
             rosters.map((roster) => (
