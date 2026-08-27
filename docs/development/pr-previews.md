@@ -12,7 +12,7 @@ One pull request comment shows the current state:
 
 The `PR preview deploy` check shows the same state.
 
-Previews use a Postgres server that is separate from production. Each preview has its own database. Every deployment recreates that database, two test accounts, two rosters, and one friendship. Previews use one replica and no Valkey.
+Previews use a Postgres server that is separate from production. Each preview has its own database. Every deployment recreates that database with four test accounts, saved rosters from eight factions, a complete friendship graph, favourites, a collection, casual battles in every table shape, and league events in every table shape. Previews use one replica and no Valkey.
 
 `scripts/previewDeploy.ts` composes the environment rather than `preview-deploy.yml`, because it carries a Postgres URL and that file is public. The URL arrives in the `PREVIEW_APP_SECRETS` repository secret, a JSON object holding one key:
 
@@ -22,7 +22,7 @@ Previews use a Postgres server that is separate from production. Each preview ha
 
 Any other key is refused rather than passed through. The preview Postgres is reachable from Dokploy and not from a CI runner, which is why the database is created inside the container rather than by the workflow.
 
-The startup reset derives its only database target from that preview's `DATABASE_URL`; it does not receive a list of other previews. This keeps concurrent previews isolated even when Dokploy restarts an older deployment. The pull request comment contains both test logins. Each preview downloads the current verified snapshot.
+The startup reset derives its only database target from that preview's `DATABASE_URL`; it does not receive a list of other previews. This keeps concurrent previews isolated even when Dokploy restarts an older deployment. The pull request comment contains the two primary test logins. Supporting team seats use two more disposable accounts. Each preview derives the seeded battle and sealed league rosters from its verified snapshot, fetching one first when none is installed.
 
 Closing or merging removes the instance and its preview images. A weekly prune removes previews and images left behind by a failed cleanup.
 

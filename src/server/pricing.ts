@@ -148,13 +148,13 @@ export function calculateRosterPoints(data: PriceInput) {
   return evaluateForces([...forceSelections.values()], loaded.index, { primaryCatalogueId: data.catalogueId }).points
 }
 
-export function calculateRosterPrice(data: PriceInput, loaded = app().catalogue()) {
+export function calculateRosterPrice(data: PriceInput, loaded = app().catalogue(), loadedRules = app().rules()) {
   if (!loaded) return null
 
   const { chosen, selections: detachmentSelection } = rosterDetachments(loaded, data.catalogueId, data.detachmentIds)
   // Enhancements and unit limits can depend on the detachment already being in
   // the roster when units are expanded.
-  const rules = app().rules()
+  const rules = loadedRules
   const factionSlug = routeSlug(loaded.index.catalogues.get(data.catalogueId)?.name ?? '')
   const references = rules?.detachmentReferences.get(rulesFaction(rules, factionSlug))
   const allowedDispositions = [

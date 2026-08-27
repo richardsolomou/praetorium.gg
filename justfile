@@ -98,7 +98,7 @@ db-check:
 db-migrate:
     pnpm db:migrate
 
-# Two signed-in-able accounts, four armies and their friendship, into the development database
+# A disposable preview world with accounts, armies, battles, and leagues
 seed:
     #!/usr/bin/env bash
     set -euo pipefail
