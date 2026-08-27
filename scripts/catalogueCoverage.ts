@@ -9,7 +9,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { app } from '../src/server/app'
-import { datasheetIn } from '../src/server/catalogue'
+import { abilityNamesIn, datasheetIn, datasheetSearchFieldsIn } from '../src/server/catalogue'
 import { datasheetsOf, isReferenceDatasheet, loadCatalogue } from '../src/server/catalogueIndex'
 import { describeDatasheetAbilities } from '../src/server/datasheetDescriptions'
 import { detachmentReference } from '../src/server/detachmentReference'
@@ -79,6 +79,18 @@ const snapshot = loaded.factions.toSorted(byName).map((faction) => {
           wargearOptions: sheet.wargearOptions.length,
           baseSize: Boolean(sheet.baseSize),
           attachments: sheet.attachments.map((target) => target.name).toSorted(),
+          abilityNames: abilityNamesIn(loaded, faction.id, entryId).toSorted(),
+          search: (() => {
+            const fields = datasheetSearchFieldsIn(loaded, faction.id, entryId)
+            return fields
+              ? [
+                  ...fields.abilities.map((a) => `ability:${a}`),
+                  ...fields.weapons.map((w) => `weapon:${w}`),
+                  ...fields.weaponKeywords.map((k) => `weapon keyword:${k}`),
+                  ...fields.wargear.map((w) => `wargear:${w}`),
+                ].toSorted()
+              : []
+          })(),
           leaders: sheet.leaders.map((target) => target.name).toSorted(),
           roster: unit
             ? {
@@ -89,6 +101,7 @@ const snapshot = loaded.factions.toSorted(byName).map((faction) => {
                   .map((choice) => `${choice.name}: ${choice.options.map((option) => option.name).join('; ')}`)
                   .toSorted(),
                 errors: priced.errors.map((error) => error.message).toSorted(),
+                deployment: [...unit.formationOptions, ...unit.prebattleRules].toSorted(),
               }
             : null,
         },
@@ -206,6 +219,8 @@ if (flag === '--compare' && previous) {
       compareDescribed(`${where} abilities`, sheet.abilities, current.abilities)
       compareLists(`${where} keyword rules`, sheet.keywordRules, current.keywordRules)
       compareLists(`${where} attachments`, sheet.attachments, current.attachments)
+      compareLists(`${where} ability names`, sheet.abilityNames ?? [], current.abilityNames ?? [])
+      compareLists(`${where} search`, sheet.search ?? [], current.search ?? [])
       compareLists(`${where} leaders`, sheet.leaders, current.leaders)
       for (const field of ['composition', 'wargearOptions', 'keywords'] as const) {
         if (sheet[field] > current[field]) lost.push(`${where}: ${field} ${sheet[field]} → ${current[field]}`)
@@ -216,7 +231,7 @@ if (flag === '--compare' && previous) {
       if (sheet.roster && current.roster) {
         const roster = `${where} roster`
         if (sheet.roster.points !== current.roster.points) lost.push(`${roster}: points ${sheet.roster.points} → ${current.roster.points}`)
-        for (const field of ['models', 'wargear', 'choices', 'errors'] as const) {
+        for (const field of ['models', 'wargear', 'choices', 'errors', 'deployment'] as const) {
           compareLists(`${roster} ${field}`, sheet.roster[field] ?? [], current.roster[field] ?? [])
         }
       } else if (sheet.roster && !current.roster) {

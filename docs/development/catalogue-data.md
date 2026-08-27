@@ -21,8 +21,8 @@ Praetorium builds and validates rosters from community data. Domain code stays i
 Server catalogue code is split by responsibility:
 
 - `catalogueIndex.ts` loads files and indexes books, detachments, and datasheet membership.
-- `catalogue.ts` projects a datasheet for display and applies contextual profile modifiers.
-- `cataloguePicker.ts` groups, prices, and limits picker results. `datasheetSearch.ts` matches the same structured datasheet fields for the picker and global search.
+- `catalogue.ts` projects a datasheet for display and applies contextual profile modifiers. `datasheetRecordIn` is that projection made once per snapshot against the default selection — the reference page, the picker, the search index and roster pricing all read it — and a roster's own view is projected from the same code with the list as context.
+- `cataloguePicker.ts` groups, prices, and limits picker results. `datasheetSearch.ts` matches the datasheet record's fields for the picker and global search; an enhancement is a choice, not an ability, so it is not indexed as one.
 - `catalogueDescriptions.ts` resolves detachment and enhancement text without guessing between conflicting matches.
 - `datacards.ts` reads Game Datacards once per snapshot — the catalogue loader hands the result to the rules loader — and `datasheetJoin.ts` is the one join from a catalogue datasheet to its card: the book's own file first, then any file where every file agrees, comparing names with apostrophes folded and a trailing plural forgiven. `just points` reports every name the join cannot carry across.
 - `sync.ts` owns downloads and atomic replacement. It does not interpret game data.

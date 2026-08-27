@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { datasheetIn, datasheetViewsIn, woundsOf } from './catalogue'
-import { bookOf, categories, shelfOf } from './catalogue.fixtures'
+import { abilityNamesIn, datasheetIn, datasheetSearchFieldsIn, datasheetViewsIn, woundsOf } from './catalogue'
+import { ability, bookOf, categories, shelfOf } from './catalogue.fixtures'
 
 describe('a datasheet', () => {
   it('links an imported chapter relationship to the canonical Space Marines reference', () => {
@@ -472,5 +472,46 @@ describe('the wounds one model of a datasheet takes', () => {
 
   it('ignores a weapon profile that happens to carry the same letter', () => {
     expect(woundsOf([profile('Ranged Weapons', '2'), profile('Unit', '6')])).toBe(6)
+  })
+})
+
+describe('the datasheet record', () => {
+  const book = bookOf({
+    sharedRules: [{ id: 'deep-strike', name: 'Deep Strike', description: 'Arrive from reserves.' }],
+    selectionEntries: [
+      {
+        id: 'squad',
+        name: 'Squad',
+        type: 'unit',
+        profiles: [
+          { id: 'squad-profile', name: 'Squad', typeName: 'Unit' },
+          ability('own', 'Own Ability'),
+          {
+            id: 'rifle',
+            name: 'Bolt rifle',
+            typeName: 'Ranged Weapons',
+            characteristics: [{ name: 'Keywords', typeId: 'keywords', $text: 'Assault, Heavy' }],
+          },
+        ],
+        infoLinks: [{ id: 'deep-link', targetId: 'deep-strike', type: 'rule', name: 'Deep Strike' }],
+        infoGroups: [{ id: 'notes', name: 'Notes', profiles: [ability('prose', 'Long Prose')] }],
+      },
+    ],
+  })
+
+  it('is assembled once per snapshot', () => {
+    expect(datasheetIn(book, 'cat', 'squad')).toBe(datasheetIn(book, 'cat', 'squad'))
+  })
+
+  it('indexes abilities and weapons for search, leaving rules prose out', () => {
+    expect(datasheetSearchFieldsIn(book, 'cat', 'squad')).toMatchObject({
+      abilities: ['Own Ability', 'Deep Strike'],
+      weapons: ['Bolt rifle'],
+      weaponKeywords: ['Assault', 'Heavy'],
+    })
+  })
+
+  it('names every ability, prose included, for the rules pricing reads', () => {
+    expect(abilityNamesIn(book, 'cat', 'squad')).toEqual(expect.arrayContaining(['Own Ability', 'Deep Strike', 'Long Prose']))
   })
 })
