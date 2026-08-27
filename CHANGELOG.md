@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.39.7
+
+### Patch Changes
+
+- 2abd934: Hold the loadout's counters while a price is still being worked out, so a quick second press cannot divide a squad the roster no longer holds.
+- 2abd934: Find a datasheet by any weapon it can take, and stop listing its detachment's enhancements as if they were its abilities.
+
 ## 0.39.6
 
 ### Patch Changes
