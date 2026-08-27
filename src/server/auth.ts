@@ -3,8 +3,8 @@ import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
 import { APIError } from 'better-auth/api'
 import { decryptOAuthToken } from 'better-auth/oauth2'
-import { admin, twoFactor } from 'better-auth/plugins'
-import { and, count, eq, notExists, sql } from 'drizzle-orm'
+import { admin, oneTimeToken, twoFactor } from 'better-auth/plugins'
+import { and, count, eq, inArray, notExists, sql } from 'drizzle-orm'
 import {
   configuredProviderOptions,
   standardAccountOptions,
@@ -17,7 +17,7 @@ import { createAuthEmailHandler, type EmailDelivery } from 'ras-stack/email'
 import type { valkeySecondaryStorage } from '../adapters/valkey'
 import { PASSWORD_MIN_LENGTH, SOCIAL_PROVIDERS } from '../authConfig'
 import type { PraetoriumDatabase } from '../db/connection'
-import { schema, user } from '../db/schema'
+import { battles, battleUsers, schema, user } from '../db/schema'
 import { storeProfileImageFromUrl } from './avatarStorage'
 import { profileUpdate } from './profile'
 
@@ -111,6 +111,23 @@ export function createAuth(database: PraetoriumDatabase, secret: string, storage
     account: standardAccountOptions({
       accountLinking: { enabled: true, trustedProviders: [...SOCIAL_PROVIDERS] },
     }),
+    user: {
+      deleteUser: {
+        enabled: true,
+        beforeDelete: async (deleted) => {
+          // A battle is one append-only log. Removing only this player's seats and
+          // commands would leave a different, invalid history for everyone else.
+          await database
+            .delete(battles)
+            .where(
+              inArray(
+                battles.id,
+                database.select({ id: battleUsers.battleId }).from(battleUsers).where(eq(battleUsers.userId, deleted.id)),
+              ),
+            )
+        },
+      },
+    },
     disabledPaths: [
       '/unlink-account',
       '/admin/set-role',
@@ -171,6 +188,7 @@ export function createAuth(database: PraetoriumDatabase, secret: string, storage
         allowImpersonatingAdmins: false,
         impersonationSessionDuration: 60 * 60,
       }),
+      oneTimeToken({ expiresIn: 3, storeToken: 'hashed' }),
       twoFactor({ issuer: 'Praetorium' }),
     ],
   })

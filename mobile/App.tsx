@@ -1,12 +1,23 @@
 import { StatusBar } from 'expo-status-bar'
+import * as WebBrowser from 'expo-web-browser'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { ActivityIndicator, Alert, BackHandler, Linking, Pressable, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context'
 import { WebView } from 'react-native-webview'
 import type { WebViewNavigation } from 'react-native-webview'
 import { APP_URL, classifyNavigation } from './src/navigation'
+import {
+  NATIVE_AUTH_CALLBACK_URL,
+  nativeAuthExchangeScript,
+  nativeAuthStartUrl,
+  parseNativeAuthCallback,
+  parseNativeAuthRequest,
+  type NativeAuthCallback,
+} from './src/nativeAuth'
 
 const BACKGROUND = '#0b0c0e'
+
+WebBrowser.maybeCompleteAuthSession()
 
 function StateView({ error, retry }: { error?: boolean; retry?: () => void }) {
   return (
@@ -33,7 +44,50 @@ function StateView({ error, retry }: { error?: boolean; retry?: () => void }) {
 function AppShell() {
   const webView = useRef<WebView>(null)
   const canGoBack = useRef(false)
+  const authOpen = useRef(false)
+  const handledAuthTokens = useRef(new Set<string>())
+  const pendingAuth = useRef<Extract<NativeAuthCallback, { kind: 'success' }> | null>(null)
+  const webReady = useRef(false)
   const [sourceUrl, setSourceUrl] = useState(APP_URL)
+
+  const exchangeAuth = useCallback((callback: Extract<NativeAuthCallback, { kind: 'success' }>) => {
+    if (!webReady.current) {
+      pendingAuth.current = callback
+      return
+    }
+    webView.current?.injectJavaScript(nativeAuthExchangeScript(callback))
+  }, [])
+
+  const handleAuthCallback = useCallback(
+    (url: string) => {
+      const callback = parseNativeAuthCallback(url)
+      if (callback.kind === 'success') {
+        if (handledAuthTokens.current.has(callback.token)) return
+        handledAuthTokens.current.add(callback.token)
+        exchangeAuth(callback)
+      } else Alert.alert('Sign-in did not finish', 'Return to Praetorium and try the provider again.')
+    },
+    [exchangeAuth],
+  )
+
+  const openNativeAuth = useCallback(
+    async (message: string) => {
+      const request = parseNativeAuthRequest(message)
+      if (!request || authOpen.current) return
+      authOpen.current = true
+      try {
+        const result = await WebBrowser.openAuthSessionAsync(nativeAuthStartUrl(request), NATIVE_AUTH_CALLBACK_URL)
+        if ('url' in result) handleAuthCallback(result.url)
+        else if (result.type !== WebBrowser.WebBrowserResultType.CANCEL && result.type !== WebBrowser.WebBrowserResultType.DISMISS)
+          Alert.alert('Sign-in did not finish', 'Return to Praetorium and try the provider again.')
+      } catch {
+        Alert.alert('Could not open sign-in', 'The secure system sign-in session could not be opened.')
+      } finally {
+        authOpen.current = false
+      }
+    },
+    [handleAuthCallback],
+  )
 
   const openExternal = useCallback(async (url: string) => {
     try {
@@ -62,6 +116,16 @@ function AppShell() {
     return () => subscription.remove()
   }, [])
 
+  useEffect(() => {
+    void Linking.getInitialURL().then((url) => {
+      if (url?.startsWith(NATIVE_AUTH_CALLBACK_URL)) handleAuthCallback(url)
+    })
+    const subscription = Linking.addEventListener('url', ({ url }) => {
+      if (url.startsWith(NATIVE_AUTH_CALLBACK_URL)) handleAuthCallback(url)
+    })
+    return () => subscription.remove()
+  }, [handleAuthCallback])
+
   const updateNavigation = useCallback((navigation: WebViewNavigation) => {
     canGoBack.current = navigation.canGoBack
   }, [])
@@ -76,7 +140,8 @@ function AppShell() {
         style={styles.webView}
         containerStyle={styles.webView}
         originWhitelist={['*']}
-        applicationNameForUserAgent="PraetoriumNative/0.1.0"
+        applicationNameForUserAgent="PraetoriumNative/0.2.0"
+        injectedJavaScriptBeforeContentLoaded="window.PraetoriumNative = Object.freeze({ bridgeVersion: 1 }); true;"
         sharedCookiesEnabled
         thirdPartyCookiesEnabled={false}
         allowsBackForwardNavigationGestures
@@ -85,6 +150,28 @@ function AppShell() {
         startInLoadingState
         renderLoading={() => <StateView />}
         renderError={() => <StateView error retry={() => webView.current?.reload()} />}
+        onLoadEnd={() => {
+          webReady.current = true
+          if (pendingAuth.current) {
+            const callback = pendingAuth.current
+            pendingAuth.current = null
+            exchangeAuth(callback)
+          }
+        }}
+        onMessage={({ nativeEvent }) => {
+          const result = (() => {
+            try {
+              return JSON.parse(nativeEvent.data) as { type?: unknown; ok?: unknown }
+            } catch {
+              return null
+            }
+          })()
+          if (result?.type === 'native-auth-result') {
+            if (result.ok !== true) Alert.alert('Sign-in did not finish', 'The secure sign-in code expired. Try again.')
+            return
+          }
+          void openNativeAuth(nativeEvent.data)
+        }}
         onNavigationStateChange={updateNavigation}
         onShouldStartLoadWithRequest={({ url }) => handleUrl(url)}
         onOpenWindow={({ nativeEvent }) => {
