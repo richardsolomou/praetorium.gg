@@ -129,9 +129,9 @@ export function unitChoices(entryId: string, selection: Selection, index: Catalo
 
       const repeatingEntry = inner.type === 'upgrade' ? repeatedModelOn(trail, index) : null
       const lower = minimum(child.definition)
-      const upper = maximumCount(child.definition, index, { primaryCatalogueId: options.primaryCatalogueId, roster })
-      const boundedUpgrade = inner.type === 'upgrade' && upper !== null && upper > lower
-      const single = lower === 0 && upper === 1
+      const single = inner.type === 'upgrade' && lower === 0 && maximumCount(child.definition, index) === 1
+      const upper = single ? 1 : maximumCount(child.definition, index, { primaryCatalogueId: options.primaryCatalogueId, roster })
+      const boundedUpgrade = single || (inner.type === 'upgrade' && lower > 0 && upper !== null && upper > lower)
       const onRepeatedModel = Boolean(repeatingEntry && repeatingEntry.path.length === trail.length)
       if (repeatingEntry && onRepeatedModel && single) {
         const room = effectiveCount(selection, repeatingEntry.path, repeatingEntry.definition, index, options)
@@ -166,7 +166,13 @@ export function unitChoices(entryId: string, selection: Selection, index: Catalo
        * already reported together, and reporting them again would draw one control
        * for the group and a second for every option in it.
        */
-      if (boundedUpgrade && !onRepeatedModel && target.type !== undefined && !isRosterToggle(inner.name ?? child.definition.name)) {
+      if (
+        boundedUpgrade &&
+        upper !== null &&
+        !onRepeatedModel &&
+        target.type !== undefined &&
+        !isRosterToggle(inner.name ?? child.definition.name)
+      ) {
         const count = countAt(selection, here)
         choices.push({
           key: here.join('/'),
@@ -259,17 +265,11 @@ export function unitChoices(entryId: string, selection: Selection, index: Catalo
   }
 
   walk(entry, [], depth, new Set(), 1)
-  // An owner only means something next to a sibling it differs from. A unit built
-  // from one model throughout has nothing to contrast it with, so naming that model
-  // on every choice would repeat the unit's own name rather than distinguish anything.
-  const selectedModels = new Set<string>()
-  const collectModels = (node: Selection) => {
-    const definition = index.definitions.get(node.id)
-    if (definition && resolve(definition, index).type === 'model' && (node.count ?? 1) > 0) selectedModels.add(node.id)
-    node.selections?.forEach(collectModels)
-  }
-  collectModels(selection)
-  if (new Set(choices.map((choice) => choice.owner?.id ?? '')).size <= 1 && selectedModels.size <= 1) {
+  // Keep a lone owner only when its mandatory range distinguishes that model from the squad.
+  const distinguishesOwner = choices.some(
+    (choice) => choice.owner && choice.options.some((option) => option.min > 0 && option.max > option.min),
+  )
+  if (new Set(choices.map((choice) => choice.owner?.id ?? '')).size <= 1 && !distinguishesOwner) {
     return choices.map((choice) => ({ ...choice, owner: null }))
   }
   return choices

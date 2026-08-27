@@ -361,7 +361,10 @@ function refit(selection: Selection, index: CatalogueIndex, carriers: number, op
       const need = requiredCount(childDefinition, index) * held
       const maximum = maximumCount(childDefinition, index, options)
       const ceiling = maximum === null ? Number.POSITIVE_INFINITY : maximum * held
-      const count = maximum !== null && maximum > requiredCount(childDefinition, index) ? Math.min(ceiling, child.count ?? 1) : need
+      const count =
+        target?.type === 'model' && held === 1 && maximum !== null && maximum > requiredCount(childDefinition, index)
+          ? Math.min(ceiling, child.count ?? 1)
+          : need
       return refit(need > 0 ? { ...child, count: Math.max(need, count) } : child, index, held, options)
     }
     return refit(child, index, held, options)
