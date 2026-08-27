@@ -192,7 +192,7 @@ function abilityProfileNames(definition: Definition, index: LoadedCatalogue['ind
 }
 
 const hasAbilityGrantStatement = (description: string) =>
-  /(?:^|[.!?]\s)(?:(?:While|If|When|During)\b[^.]{0,160},\s*)?(?:This unit|This model|The bearer|Models in (?:this model's|the bearer's|the bearer’s) unit)\s+(?:has|have|gains?)\b/iu.test(
+  /(?:^|[.!?]\s)(?:[-▪]\s*)?(?:(?:While|If|When|During)\b[^.]{0,160},\s*)?(?:This unit|This model|The bearer|Models in (?:this model's|the bearer's|the bearer’s) unit)\s+(?:has|have|gains?)\b/iu.test(
     description,
   )
 
@@ -717,7 +717,7 @@ function contextualInfoLinkHidden(
   catalogueId: string,
   selections: readonly Selection[],
 ): boolean {
-  if (!link.modifiers?.length && !link.modifierGroups?.length) return Boolean(link.hidden)
+  if (!flattenedModifiers([link]).some((modifier) => modifier.field === 'hidden')) return Boolean(link.hidden)
   const byRoster = contextualInfoLinkVisibilityCache.get(index) ?? new WeakMap<readonly Selection[], Map<string, boolean>>()
   const cached = byRoster.get(selections) ?? new Map<string, boolean>()
   const key = `${catalogueId}:${link.id}`

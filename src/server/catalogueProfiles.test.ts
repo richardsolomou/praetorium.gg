@@ -884,7 +884,10 @@ describe('the profile modifiers on a datasheet', () => {
     )
   })
 
-  it('does not make a temporary deployment ability permanent', () => {
+  it.each([
+    'This unit has Deep Strike until the start of your next Shooting phase.',
+    '- This unit has Deep Strike until the start of your next Shooting phase.',
+  ])('does not make a temporary deployment ability permanent: %s', (description) => {
     const book = bookOf({
       sharedRules: [{ id: 'deep-strike', name: 'Deep Strike', description: 'Deep Strike rule.' }],
       selectionEntries: [
@@ -903,9 +906,7 @@ describe('the profile modifiers on a datasheet', () => {
                   id: 'temporary-rule',
                   name: 'Deep Strike',
                   typeName: 'Abilities',
-                  characteristics: [
-                    { name: 'Description', $text: 'This unit has Deep Strike until the start of your next Shooting phase.' },
-                  ],
+                  characteristics: [{ name: 'Description', $text: description }],
                 },
               ],
             },
