@@ -4,7 +4,6 @@ import {
   appShellRenderState,
   authDeliveryFailed,
   authDeliverySucceeded,
-  authInterruptionAcknowledged,
   authReceived,
   confirmWebLoadSucceeded,
   drainAppShell,
@@ -23,6 +22,9 @@ const auth = {
   action: 'sign-in' as const,
   provider: 'google' as const,
   next: '/lists',
+  id: 'exchange-id-123456789012345678901',
+  challenge: 'c'.repeat(43),
+  verifier: 'v'.repeat(43),
   token: '0123456789abcdef',
 }
 
@@ -63,7 +65,7 @@ describe('application shell delivery', () => {
     const queued = authReceived(warmUrlReceived(loaded, 'https://praetorium.gg/lists'), auth)
     const authDelivery = drainAppShell(successfulLoad(queued, 'https://praetorium.gg')).state
 
-    expect({ first: authDelivery.delivering, afterFailure: drainAppShell(authDeliveryFailed(authDelivery)).command }).toEqual({
+    expect({ first: authDelivery.delivering, afterFailure: drainAppShell(authDeliveryFailed(authDelivery, auth.id)).command }).toEqual({
       first: { kind: 'auth', callback: auth },
       afterFailure: { kind: 'navigation', url: 'https://praetorium.gg/lists' },
     })
@@ -98,7 +100,8 @@ describe('application shell delivery', () => {
     const loaded = successfulLoad(initialUrlReceived(initialAppShellState(), null), 'https://praetorium.gg')
     const deliveringAuth = drainAppShell(authReceived(loaded, auth)).state
 
-    expect(authDeliverySucceeded(deliveringAuth).delivering).toBeNull()
+    expect(authDeliverySucceeded(deliveringAuth, auth.id).delivering).toBeNull()
+    expect(authDeliverySucceeded(deliveringAuth, 'stale-exchange').delivering).toEqual({ kind: 'auth', callback: auth })
   })
 
   it('does not change the controlled source after ordinary internal navigation', () => {
@@ -148,67 +151,27 @@ describe('application shell delivery', () => {
   it('preserves auth that renderer termination interrupts before delivery', () => {
     const pending = authReceived(initialUrlReceived(initialAppShellState(), null), auth)
 
-    expect(rendererTerminated(pending)).toMatchObject({ pendingAuth: auth, pendingAuthInterruption: false })
+    expect(rendererTerminated(pending)).toMatchObject({ pendingAuth: auth })
   })
 
-  it('reports injected auth as interrupted without replaying its token or destination', () => {
+  it('retries the same exchange after renderer termination', () => {
     const loaded = successfulLoad(initialUrlReceived(initialAppShellState(), null), 'https://praetorium.gg')
     const deliveringAuth = drainAppShell(authReceived(loaded, auth)).state
     const recovered = rendererTerminated(deliveringAuth)
-
-    expect({
-      recovered,
-      containsToken: JSON.stringify(recovered).includes(auth.token),
-      containsDestination: JSON.stringify(recovered).includes(auth.next),
-    }).toEqual({
-      recovered: expect.objectContaining({
-        pendingAuth: null,
-        pendingAuthInterruption: true,
-        delivering: null,
-      }),
-      containsToken: false,
-      containsDestination: false,
-    })
-  })
-
-  it('continues a queued warm navigation after interrupted sign-in acknowledgement', () => {
-    const loaded = successfulLoad(initialUrlReceived(initialAppShellState(), null), 'https://praetorium.gg')
-    const deliveringAuth = drainAppShell(authReceived(loaded, auth)).state
-    const recovered = rendererTerminated(warmUrlReceived(deliveringAuth, 'https://praetorium.gg/battles/42'))
     const remounted = successfulLoad(recovered, 'https://praetorium.gg')
-    const interruption = drainAppShell(remounted)
-    const continued = drainAppShell(authInterruptionAcknowledged(interruption.state))
-
-    expect({ recovered, first: interruption.command, second: continued.command }).toEqual({
-      recovered: expect.objectContaining({
-        pendingAuth: null,
-        pendingAuthInterruption: true,
-        pendingNavigation: 'https://praetorium.gg/battles/42',
-      }),
-      first: { kind: 'auth-interruption' },
-      second: { kind: 'navigation', url: 'https://praetorium.gg/battles/42' },
-    })
+    expect(drainAppShell(remounted).command).toEqual({ kind: 'auth', callback: auth })
   })
 
-  it('keeps a displayed sign-in interruption active across another renderer termination', () => {
+  it('keeps queued navigation behind a retrying exchange', () => {
     const loaded = successfulLoad(initialUrlReceived(initialAppShellState(), null), 'https://praetorium.gg')
     const deliveringAuth = drainAppShell(authReceived(loaded, auth)).state
     const withWarmLink = warmUrlReceived(deliveringAuth, 'https://praetorium.gg/battles/42')
     const recovered = successfulLoad(rendererTerminated(withWarmLink), 'https://praetorium.gg')
-    const interruption = drainAppShell(recovered).state
-    const reloaded = successfulLoad(rendererTerminated(interruption), 'https://praetorium.gg')
-    const blocked = drainAppShell(reloaded)
-    const continued = drainAppShell(authInterruptionAcknowledged(reloaded))
+    const retry = drainAppShell(recovered).state
+    const continued = drainAppShell(authDeliverySucceeded(retry, auth.id))
 
-    expect({ reloaded, blocked: blocked.command, continued: continued.command }).toEqual({
-      reloaded: expect.objectContaining({
-        pendingAuthInterruption: false,
-        pendingNavigation: 'https://praetorium.gg/battles/42',
-        delivering: { kind: 'auth-interruption' },
-        ready: true,
-        renderKey: 2,
-      }),
-      blocked: null,
+    expect({ retry: retry.delivering, continued: continued.command }).toEqual({
+      retry: { kind: 'auth', callback: auth },
       continued: { kind: 'navigation', url: 'https://praetorium.gg/battles/42' },
     })
   })

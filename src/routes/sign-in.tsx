@@ -214,10 +214,10 @@ function SignIn() {
                       key={provider}
                       variant="outline"
                       className="h-11 w-full text-base"
-                      onClick={() => {
+                      onClick={async () => {
                         posthog.capture('account_authentication_started', { method: provider, redirected: Boolean(next) })
                         if (
-                          requestNativeAuth({
+                          await requestNativeAuth({
                             action: 'sign-in',
                             provider,
                             next: next ?? '/rosters',

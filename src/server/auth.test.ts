@@ -1,14 +1,17 @@
+import { createHash } from 'node:crypto'
 import { and, eq } from 'drizzle-orm'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { EmailDelivery, EmailMessage } from 'ras-stack/email'
 import type { PraetoriumConnection } from '../db/connection'
-import { account, battles, battleUsers, commands, user, verification } from '../db/schema'
+import { account, battles, battleUsers, commands, session, user, verification } from '../db/schema'
 import { openTestDatabase } from '../db/testDatabase'
 import { createAuth } from './auth'
 
 const SECRET = 'test-secret-0123456789abcdef0123456789abcdef'
 const S3_PUBLIC_BASE_URL = 'https://s3.praetorium.gg/praetorium'
 const GOOGLE_TOKEN_ENDPOINT = 'https://oauth2.googleapis.com/token'
+const NATIVE_VERIFIER = 'v'.repeat(43)
+const NATIVE_CHALLENGE = createHash('sha256').update(NATIVE_VERIFIER).digest('base64url')
 
 const { configuredObjectStore, putIfAbsent } = vi.hoisted(() => ({
   configuredObjectStore: vi.fn(),
@@ -173,6 +176,190 @@ describe('account administration', () => {
       user: { id: signedUp.response.user.id },
     })
     await expect(auth.api.verifyOneTimeToken({ body: { token: generated.token } })).rejects.toMatchObject({ status: 'BAD_REQUEST' })
+  })
+
+  it('retries one native exchange into the same authoritative session until acknowledgement', async () => {
+    connection = await openTestDatabase()
+    const auth = createAuth(connection.database, SECRET)
+    const signedUp = await auth.api.signUpEmail({
+      body: { email: 'native-retry@example.com', password: 'password1234', name: 'Native retry' },
+      returnHeaders: true,
+    })
+    const unrelated = await auth.api.signUpEmail({
+      body: { email: 'unrelated@example.com', password: 'password1234', name: 'Unrelated' },
+      returnHeaders: true,
+    })
+    await connection.database.insert(account).values({
+      id: 'native-google',
+      accountId: 'native-google',
+      issuer: 'google',
+      providerId: 'google',
+      userId: signedUp.response.user.id,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
+    const exchange = await auth.api.generateNativeAuthToken({
+      body: { action: 'sign-in', challenge: NATIVE_CHALLENGE, provider: 'google', next: '/rosters' },
+      headers: cookieHeaders(signedUp.headers),
+    })
+
+    const [stored] = await connection.database.select().from(verification)
+    expect(stored?.identifier).toMatch(/^native-auth:/)
+    expect(stored?.identifier).not.toContain(exchange.token)
+    expect(JSON.parse(stored!.value)).toMatchObject({
+      action: 'sign-in',
+      challenge: NATIVE_CHALLENGE,
+      next: '/rosters',
+      provider: 'google',
+      userId: signedUp.response.user.id,
+    })
+
+    await expect(auth.api.exchangeNativeAuthToken({ body: { ...exchange, verifier: 'w'.repeat(43) } })).rejects.toMatchObject({
+      status: 'BAD_REQUEST',
+    })
+
+    const first = await auth.api.exchangeNativeAuthToken({
+      body: { ...exchange, verifier: NATIVE_VERIFIER },
+      headers: cookieHeaders(unrelated.headers),
+      returnHeaders: true,
+    })
+    const retried = await auth.api.exchangeNativeAuthToken({ body: { ...exchange, verifier: NATIVE_VERIFIER }, returnHeaders: true })
+    const parallel = await Promise.all(
+      Array.from({ length: 3 }, () =>
+        auth.api.exchangeNativeAuthToken({
+          body: { ...exchange, verifier: NATIVE_VERIFIER },
+          headers: cookieHeaders(unrelated.headers),
+          returnHeaders: true,
+        }),
+      ),
+    )
+
+    expect(first.response).toEqual({ id: exchange.id, action: 'sign-in', provider: 'google', next: '/rosters' })
+    expect(await auth.api.getSession({ headers: cookieHeaders(first.headers) })).toMatchObject({ user: { id: signedUp.response.user.id } })
+    expect(await auth.api.getSession({ headers: cookieHeaders(retried.headers) })).toMatchObject({
+      user: { id: signedUp.response.user.id },
+    })
+    await Promise.all(
+      parallel.map(async (result) => {
+        expect(await auth.api.getSession({ headers: cookieHeaders(result.headers) })).toMatchObject({
+          user: { id: signedUp.response.user.id },
+        })
+      }),
+    )
+
+    const afterNativeSuccess = await auth.api.exchangeNativeAuthToken({
+      body: { ...exchange, verifier: NATIVE_VERIFIER },
+      returnHeaders: true,
+    })
+    expect(await auth.api.getSession({ headers: cookieHeaders(afterNativeSuccess.headers) })).toMatchObject({
+      user: { id: signedUp.response.user.id },
+    })
+
+    await expect(auth.api.consumeNativeAuthToken({ body: { ...exchange, verifier: 'w'.repeat(43) } })).rejects.toMatchObject({
+      status: 'BAD_REQUEST',
+    })
+    await auth.api.consumeNativeAuthToken({ body: { ...exchange, verifier: NATIVE_VERIFIER } })
+    await expect(
+      auth.api.exchangeNativeAuthToken({
+        body: { ...exchange, verifier: NATIVE_VERIFIER },
+        headers: cookieHeaders(unrelated.headers),
+      }),
+    ).rejects.toMatchObject({ status: 'BAD_REQUEST' })
+  })
+
+  it('rejects unbound metadata and a revoked authoritative identity', async () => {
+    connection = await openTestDatabase()
+    const auth = createAuth(connection.database, SECRET)
+    const signedUp = await auth.api.signUpEmail({
+      body: { email: 'native-bound@example.com', password: 'password1234', name: 'Native bound' },
+      returnHeaders: true,
+    })
+    const unrelated = await auth.api.signUpEmail({
+      body: { email: 'native-live@example.com', password: 'password1234', name: 'Native live' },
+      returnHeaders: true,
+    })
+    await connection.database.insert(account).values({
+      id: 'bound-google',
+      accountId: 'bound-google',
+      issuer: 'google',
+      providerId: 'google',
+      userId: signedUp.response.user.id,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
+
+    await expect(
+      auth.api.generateNativeAuthToken({
+        body: { action: 'sign-in', challenge: NATIVE_CHALLENGE, provider: 'discord', next: '/rosters' },
+        headers: cookieHeaders(signedUp.headers),
+      }),
+    ).rejects.toMatchObject({ status: 'BAD_REQUEST' })
+    await expect(
+      auth.api.generateNativeAuthToken({
+        body: { action: 'sign-in', challenge: NATIVE_CHALLENGE, provider: 'google', next: '/\\example.com' },
+        headers: cookieHeaders(signedUp.headers),
+      }),
+    ).rejects.toBeTruthy()
+
+    const exchange = await auth.api.generateNativeAuthToken({
+      body: { action: 'sign-in', challenge: NATIVE_CHALLENGE, provider: 'google', next: '/rosters' },
+      headers: cookieHeaders(signedUp.headers),
+    })
+    await connection.database.delete(account).where(eq(account.id, 'bound-google'))
+    await expect(
+      auth.api.exchangeNativeAuthToken({
+        body: { ...exchange, verifier: NATIVE_VERIFIER },
+        headers: cookieHeaders(unrelated.headers),
+      }),
+    ).rejects.toMatchObject({ status: 'BAD_REQUEST' })
+    await connection.database.insert(account).values({
+      id: 'restored-google',
+      accountId: 'restored-google',
+      issuer: 'google',
+      providerId: 'google',
+      userId: signedUp.response.user.id,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
+    await connection.database.delete(session).where(eq(session.userId, signedUp.response.user.id))
+
+    await expect(
+      auth.api.exchangeNativeAuthToken({
+        body: { ...exchange, verifier: NATIVE_VERIFIER },
+        headers: cookieHeaders(unrelated.headers),
+      }),
+    ).rejects.toMatchObject({ status: 'BAD_REQUEST' })
+  })
+
+  it('rejects an expired native exchange without setting a session', async () => {
+    connection = await openTestDatabase()
+    const auth = createAuth(connection.database, SECRET)
+    const signedUp = await auth.api.signUpEmail({
+      body: { email: 'native-expired@example.com', password: 'password1234', name: 'Native expired' },
+      returnHeaders: true,
+    })
+    await connection.database.insert(account).values({
+      id: 'expired-google',
+      accountId: 'expired-google',
+      issuer: 'google',
+      providerId: 'google',
+      userId: signedUp.response.user.id,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
+    const exchange = await auth.api.generateNativeAuthToken({
+      body: { action: 'sign-in', challenge: NATIVE_CHALLENGE, provider: 'google', next: '/rosters' },
+      headers: cookieHeaders(signedUp.headers),
+    })
+    const [stored] = await connection.database.select().from(verification)
+    await connection.database
+      .update(verification)
+      .set({ expiresAt: new Date(0) })
+      .where(eq(verification.id, stored!.id))
+
+    await expect(auth.api.exchangeNativeAuthToken({ body: { ...exchange, verifier: NATIVE_VERIFIER } })).rejects.toMatchObject({
+      status: 'BAD_REQUEST',
+    })
   })
 
   it('deletes the account and every battle whose log names it', async () => {

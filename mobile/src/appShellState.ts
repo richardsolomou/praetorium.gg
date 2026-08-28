@@ -3,7 +3,7 @@ import type { NativeAuthCallback } from './nativeAuth'
 
 type AuthCallback = Extract<NativeAuthCallback, { kind: 'success' }>
 
-export type AppShellCommand = { kind: 'auth'; callback: AuthCallback } | { kind: 'auth-interruption' } | { kind: 'navigation'; url: string }
+export type AppShellCommand = { kind: 'auth'; callback: AuthCallback } | { kind: 'navigation'; url: string }
 
 export type AppShellState = {
   sourceUrl: string | null
@@ -13,7 +13,6 @@ export type AppShellState = {
   loadStarted: boolean
   loadFailed: boolean
   pendingAuth: AuthCallback | null
-  pendingAuthInterruption: boolean
   pendingNavigation: string | null
   delivering: AppShellCommand | null
   renderKey: number
@@ -38,7 +37,6 @@ export function initialAppShellState(): AppShellState {
     loadStarted: false,
     loadFailed: false,
     pendingAuth: null,
-    pendingAuthInterruption: false,
     pendingNavigation: null,
     delivering: null,
     renderKey: 0,
@@ -108,16 +106,12 @@ export function confirmWebLoadSucceeded(state: AppShellState): AppShellState {
     ...state,
     ready: true,
     loadStarted: false,
-    delivering: state.delivering?.kind === 'auth-interruption' ? state.delivering : null,
+    delivering: null,
   }
 }
 
 export function drainAppShell(state: AppShellState): { state: AppShellState; command: AppShellCommand | null } {
   if (!state.ready || state.delivering) return { state, command: null }
-  if (state.pendingAuthInterruption) {
-    const command: AppShellCommand = { kind: 'auth-interruption' }
-    return { state: { ...state, pendingAuthInterruption: false, delivering: command }, command }
-  }
   if (state.pendingAuth) {
     const command: AppShellCommand = { kind: 'auth', callback: state.pendingAuth }
     return { state: { ...state, pendingAuth: null, delivering: command }, command }
@@ -129,29 +123,16 @@ export function drainAppShell(state: AppShellState): { state: AppShellState; com
   return { state, command: null }
 }
 
-export function authDeliveryFailed(state: AppShellState): AppShellState {
-  return state.delivering?.kind === 'auth' ? { ...state, delivering: null } : state
+export function authDeliveryFailed(state: AppShellState, id: string): AppShellState {
+  return state.delivering?.kind === 'auth' && state.delivering.callback.id === id ? { ...state, delivering: null } : state
 }
 
-export function authDeliverySucceeded(state: AppShellState): AppShellState {
-  return state.delivering?.kind === 'auth' ? { ...state, delivering: null } : state
-}
-
-export function authInterruptionAcknowledged(state: AppShellState): AppShellState {
-  return state.delivering?.kind === 'auth-interruption' ? { ...state, delivering: null } : state
+export function authDeliverySucceeded(state: AppShellState, id: string): AppShellState {
+  return state.delivering?.kind === 'auth' && state.delivering.callback.id === id ? { ...state, delivering: null } : state
 }
 
 export function rendererTerminated(state: AppShellState): AppShellState {
-  const restored = (() => {
-    if (state.delivering?.kind === 'auth') {
-      return {
-        ...state,
-        pendingAuthInterruption: true,
-        delivering: null,
-      }
-    }
-    return restoreDelivery(state)
-  })()
+  const restored = restoreDelivery(state)
   return {
     ...restored,
     ready: false,

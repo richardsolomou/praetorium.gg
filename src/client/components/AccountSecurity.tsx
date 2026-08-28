@@ -209,7 +209,8 @@ export function AccountSecurity({ me }: { me: AccountIdentity }) {
                             setLinkError(true)
                             return
                           }
-                          if (requestNativeAuth({ action: 'link', provider, next: '/profile', sessionToken: token.data.token })) return
+                          if (await requestNativeAuth({ action: 'link', provider, next: '/profile', sessionToken: token.data.token }))
+                            return
                         }
                         void authClient.linkSocial({ provider, callbackURL: '/profile', errorCallbackURL: '/profile' })
                       }}
