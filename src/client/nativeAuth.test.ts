@@ -4,20 +4,20 @@ import { hasNativeAuthBridge, requestNativeAuth } from './nativeAuth'
 describe('native auth web bridge', () => {
   afterEach(() => vi.unstubAllGlobals())
 
-  it('does not send messages to an older shell without a bridge version', () => {
+  it('does not send messages to an older shell without a bridge version', async () => {
     const postMessage = vi.fn()
     vi.stubGlobal('window', { ReactNativeWebView: { postMessage } })
 
     expect(hasNativeAuthBridge()).toBe(false)
-    expect(requestNativeAuth({ action: 'sign-in', provider: 'google', next: '/rosters' })).toBe(false)
+    await expect(requestNativeAuth({ action: 'sign-in', provider: 'google', next: '/rosters' })).resolves.toBe(false)
     expect(postMessage).not.toHaveBeenCalled()
   })
 
-  it('sends a versioned message to a compatible shell', () => {
+  it('sends a versioned message to a compatible shell', async () => {
     const postMessage = vi.fn()
     vi.stubGlobal('window', { PraetoriumNative: { bridgeVersion: 1 }, ReactNativeWebView: { postMessage } })
 
-    expect(requestNativeAuth({ action: 'sign-in', provider: 'discord', next: '/profile' })).toBe(true)
+    await expect(requestNativeAuth({ action: 'sign-in', provider: 'discord', next: '/profile' })).resolves.toBe(true)
     expect(JSON.parse(postMessage.mock.calls[0]![0])).toEqual({
       version: 1,
       type: 'native-auth',
@@ -25,5 +25,17 @@ describe('native auth web bridge', () => {
       provider: 'discord',
       next: '/profile',
     })
+  })
+
+  it('uses a per-flow proof with the retryable authentication protocol', async () => {
+    const postMessage = vi.fn()
+    vi.stubGlobal('window', { PraetoriumNative: { bridgeVersion: 2 }, ReactNativeWebView: { postMessage } })
+
+    await expect(requestNativeAuth({ action: 'sign-in', provider: 'google', next: '/rosters' })).resolves.toBe(true)
+    const message = JSON.parse(postMessage.mock.calls[0]![0]) as { version: number; type: string; challenge: string; verifier: string }
+    expect(message).toMatchObject({ version: 2, type: 'native-auth' })
+    expect(message.challenge).toHaveLength(43)
+    expect(message.verifier).toHaveLength(43)
+    expect(message.challenge).not.toBe(message.verifier)
   })
 })

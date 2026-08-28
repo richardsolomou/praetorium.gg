@@ -3,7 +3,7 @@
     "name": "Praetorium",
     "slug": "praetorium",
     "scheme": "praetorium",
-    "version": "0.3.0",
+    "version": "0.4.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -45,7 +45,8 @@
           "imageWidth": 160
         }
       ],
-      "expo-web-browser"
+      "expo-web-browser",
+      "expo-secure-store"
     ]
   }
 }

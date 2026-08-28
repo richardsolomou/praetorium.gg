@@ -20,6 +20,7 @@ import type { PraetoriumDatabase } from '../db/connection'
 import { battles, battleUsers, schema, user } from '../db/schema'
 import { storeProfileImageFromUrl } from './avatarStorage'
 import { profileUpdate } from './profile'
+import { nativeAuthToken } from './nativeAuthToken'
 
 type AuthStorage = ReturnType<typeof valkeySecondaryStorage>
 
@@ -189,6 +190,7 @@ export function createAuth(database: PraetoriumDatabase, secret: string, storage
         impersonationSessionDuration: 60 * 60,
       }),
       oneTimeToken({ expiresIn: 3, storeToken: 'hashed' }),
+      nativeAuthToken(),
       twoFactor({ issuer: 'Praetorium' }),
     ],
   })

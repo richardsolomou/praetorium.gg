@@ -15,6 +15,8 @@ type NativeAuthSearch = {
   next?: string
   provider?: SocialAuthProvider
   requestSignUp?: boolean
+  bridge?: 1 | 2
+  challenge?: string
 }
 
 export const Route = createFileRoute('/native-auth')({
@@ -25,26 +27,49 @@ export const Route = createFileRoute('/native-auth')({
     next: localRedirectPath(search.next),
     provider: SOCIAL_PROVIDERS.find((provider) => provider === search.provider),
     requestSignUp: search.requestSignUp === true || search.requestSignUp === 'true' || undefined,
+    bridge:
+      search.bridge === undefined
+        ? 1
+        : search.bridge === 2 || search.bridge === '2'
+          ? 2
+          : search.bridge === 1 || search.bridge === '1'
+            ? 1
+            : undefined,
+    challenge: typeof search.challenge === 'string' && /^[\w-]{43}$/.test(search.challenge) ? search.challenge : undefined,
   }),
   component: NativeAuth,
 })
 
 function nativeAuthPath(
-  search: Required<Pick<NativeAuthSearch, 'action' | 'next' | 'provider'>> & { complete?: boolean; requestSignUp?: boolean },
+  search: Required<Pick<NativeAuthSearch, 'action' | 'bridge' | 'next' | 'provider'>> & {
+    challenge?: string
+    complete?: boolean
+    requestSignUp?: boolean
+  },
 ) {
   const query = new URLSearchParams({ action: search.action, next: search.next, provider: search.provider })
+  query.set('bridge', String(search.bridge))
+  if (search.challenge) query.set('challenge', search.challenge)
   if (search.complete) query.set('complete', 'true')
   if (search.requestSignUp) query.set('requestSignUp', 'true')
   return `/native-auth?${query}`
 }
 
-function returnToApplication(search: Required<Pick<NativeAuthSearch, 'action' | 'next' | 'provider'>>, token?: string) {
+function returnToApplication(
+  search: Required<Pick<NativeAuthSearch, 'action' | 'bridge' | 'next' | 'provider'>>,
+  exchange?: { id?: string; token: string },
+  challenge?: string,
+) {
   const callback = new URL(NATIVE_AUTH_CALLBACK)
   callback.searchParams.set('action', search.action)
   callback.searchParams.set('next', search.next)
   callback.searchParams.set('provider', search.provider)
-  if (token) callback.searchParams.set('token', token)
-  else callback.searchParams.set('error', 'authentication_failed')
+  callback.searchParams.set('version', String(search.bridge))
+  if (challenge) callback.searchParams.set('challenge', challenge)
+  if (exchange) {
+    callback.searchParams.set('token', exchange.token)
+    if (exchange.id) callback.searchParams.set('id', exchange.id)
+  } else callback.searchParams.set('error', 'authentication_failed')
   window.location.replace(callback.toString())
 }
 
@@ -56,8 +81,8 @@ function NativeAuth() {
   useEffect(() => {
     if (started.current) return
     started.current = true
-    const { action, next = '/rosters', provider } = search
-    if (!action || !provider) {
+    const { action, bridge, challenge, next = '/rosters', provider } = search
+    if (!action || !bridge || !provider || (bridge === 2 && !challenge)) {
       setFailed(true)
       return
     }
@@ -65,11 +90,21 @@ function NativeAuth() {
     const finish = async () => {
       if (search.error) {
         posthog.capture('account_authentication_failed', { action, method: provider, native: true })
-        returnToApplication({ action, next, provider })
+        returnToApplication({ action, bridge, next, provider }, undefined, challenge)
         return
       }
-      const token = await authClient.oneTimeToken.generate()
-      if (token.error || !token.data?.token) {
+      const exchange =
+        bridge === 2
+          ? await fetch('/api/auth/native-auth-token/generate', {
+              method: 'POST',
+              credentials: 'same-origin',
+              headers: { 'content-type': 'application/json' },
+              body: JSON.stringify({ action, challenge, provider, next }),
+            }).then(async (response) => (response.ok ? ((await response.json()) as { id: string; token: string }) : null))
+          : await authClient.oneTimeToken
+              .generate()
+              .then((result) => (result.error || !result.data?.token ? null : { token: result.data.token }))
+      if (!exchange) {
         setFailed(true)
         return
       }
@@ -78,7 +113,7 @@ function NativeAuth() {
         native: true,
         redirected: next !== '/rosters',
       })
-      returnToApplication({ action, next, provider }, token.data.token)
+      returnToApplication({ action, bridge, next, provider }, exchange, challenge)
     }
 
     const begin = async () => {
@@ -90,16 +125,24 @@ function NativeAuth() {
         if (exchanged.error) throw exchanged.error
         const linked = await authClient.linkSocial({
           provider,
-          callbackURL: nativeAuthPath({ action, complete: true, next, provider }),
-          errorCallbackURL: nativeAuthPath({ action, complete: true, next, provider }),
+          callbackURL: nativeAuthPath({ action, bridge, challenge, complete: true, next, provider }),
+          errorCallbackURL: nativeAuthPath({ action, bridge, challenge, complete: true, next, provider }),
         })
         if (linked.error) throw linked.error
         return
       }
       const signedIn = await authClient.signIn.social({
         provider,
-        callbackURL: nativeAuthPath({ action, complete: true, next, provider, requestSignUp: search.requestSignUp }),
-        errorCallbackURL: nativeAuthPath({ action, complete: true, next, provider, requestSignUp: search.requestSignUp }),
+        callbackURL: nativeAuthPath({ action, bridge, challenge, complete: true, next, provider, requestSignUp: search.requestSignUp }),
+        errorCallbackURL: nativeAuthPath({
+          action,
+          bridge,
+          challenge,
+          complete: true,
+          next,
+          provider,
+          requestSignUp: search.requestSignUp,
+        }),
         requestSignUp: search.requestSignUp,
       })
       if (signedIn.error) throw signedIn.error
