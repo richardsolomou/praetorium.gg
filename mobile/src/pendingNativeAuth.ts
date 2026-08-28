@@ -1,6 +1,6 @@
 import type { NativeAuthProof } from './nativeAuth'
 
-const PROVIDER_AUTH_MILLISECONDS = 10 * 60 * 1000
+const PROVIDER_AUTH_MILLISECONDS = 15 * 60 * 1000
 const EXCHANGE_MILLISECONDS = 3 * 60 * 1000
 
 export type PendingNativeAuth = NativeAuthProof & { callbackUrl?: string; expiresAt: number }

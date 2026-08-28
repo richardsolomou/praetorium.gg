@@ -17,11 +17,17 @@ describe('pending native authentication', () => {
     expect(parsePendingNativeAuth('{')).toBeNull()
   })
 
-  it('keeps the proof through the provider window and resets expiry for a fresh callback', () => {
+  it('covers a delayed provider start and resets expiry for a fresh callback', () => {
     const started = pendingNativeAuth(proof, 100)
-    expect(parsePendingNativeAuth(JSON.stringify(started), 3 * 60 * 1000 + 101)).toEqual(started)
+    expect(parsePendingNativeAuth(JSON.stringify(started), 15 * 60 * 1000 + 99)).toEqual(started)
 
-    const completedAtSixMinutes = completedPendingNativeAuth(proof, 'praetorium://auth?token=secret', 6 * 60 * 1000)
-    expect(parsePendingNativeAuth(JSON.stringify(completedAtSixMinutes), 9 * 60 * 1000 - 1)).toEqual(completedAtSixMinutes)
+    const completedAfterFiveMinuteLoad = completedPendingNativeAuth(proof, 'praetorium://auth?token=secret', 15 * 60 * 1000 + 99)
+    expect(parsePendingNativeAuth(JSON.stringify(completedAfterFiveMinuteLoad), 18 * 60 * 1000 + 98)).toEqual(completedAfterFiveMinuteLoad)
+  })
+
+  it('expires the local provider envelope at fifteen minutes', () => {
+    const started = pendingNativeAuth(proof, 100)
+
+    expect(parsePendingNativeAuth(JSON.stringify(started), 15 * 60 * 1000 + 100)).toBeNull()
   })
 })
