@@ -2,7 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { routeSlug } from '../core/slug'
 import { catalogueFactionName } from './factionNames'
-import { titleCase } from './rulesSource'
+import { joinKey, titleCase } from './rulesSource'
 
 /**
  * What Game Datacards says: the shape of each datasheet, and every piece of rules
@@ -39,11 +39,21 @@ export type ConstructionDetachment = {
   globallyValid: boolean
 }
 
+export type ConstructionEnhancement = {
+  name: string
+  detachment: string
+  points: number | null
+  description: string | null
+}
+
 export type FactionContent = {
   name: string
   datasheets: Set<string>
   datasheetDetails: Map<string, DatasheetDetails>
   detachments: Set<string>
+  /** Unambiguous cards by their detachment's accent- and spacing-insensitive join key. */
+  enhancements: ReadonlyMap<string, readonly ConstructionEnhancement[]>
+  detachmentRules: ReadonlyMap<string, readonly RuleCard[]>
   armyRules: RuleCard[]
   /** The army rules its datasheets print by name, whether or not the file carries the card. */
   factionAbilityNames: Set<string>
@@ -84,6 +94,9 @@ type DatacardsFaction = {
 
 /** A card's name as every source spells it: `(Aura)` and `(Upgrade)` are printed by some and not others. */
 export const cardName = (name: string) => routeSlug(name).replaceAll(/-(?:aura|upgrade)(?=-|$)/g, '')
+
+/** The faction-scoped construction join, folding accents and optional card-kind suffixes. */
+export const constructionCardKey = (name: string) => joinKey(name.replace(/(?:\s*\((?:aura|upgrade)\))+\s*$/i, ''))
 
 /** A card names its detachment and itself. */
 export const descriptionKey = (detachment: string, name: string) => `${routeSlug(detachment)}|${cardName(name)}`
@@ -257,11 +270,59 @@ function factionContent(name: string, parsed: DatacardsFaction): FactionContent 
       if (!list.includes(sourceName)) list.push(sourceName)
     }
   }
+  const enhancementCandidates = new Map<string, ConstructionEnhancement[]>()
+  for (const entry of records(parsed, 'enhancements')) {
+    const enhancement = localizedField(entry, 'name')
+    const detachment = stringField(entry, 'detachment')
+    if (!enhancement || !detachment) continue
+    const key = `${joinKey(detachment)}|${constructionCardKey(enhancement)}`
+    enhancementCandidates.set(key, [
+      ...(enhancementCandidates.get(key) ?? []),
+      {
+        name: enhancement,
+        detachment,
+        points: integerField(entry, 'cost'),
+        description: localizedField(entry, 'description') ? prose(localizedField(entry, 'description')!) : null,
+      },
+    ])
+  }
+  const enhancements = new Map<string, ConstructionEnhancement[]>()
+  for (const candidates of enhancementCandidates.values()) {
+    const names = new Set(candidates.map((candidate) => candidate.name))
+    const detachments = new Set(candidates.map((candidate) => candidate.detachment))
+    if (names.size !== 1 || detachments.size !== 1) continue
+    const points = new Set(candidates.map((candidate) => candidate.points))
+    const descriptions = new Set(candidates.map((candidate) => candidate.description))
+    const candidate = candidates[0]!
+    const resolved = {
+      ...candidate,
+      points: points.size === 1 ? candidate.points : null,
+      description: descriptions.size === 1 ? candidate.description : null,
+    }
+    const key = joinKey(candidate.detachment)
+    enhancements.set(key, [...(enhancements.get(key) ?? []), resolved])
+  }
+  const detachmentRules = new Map<string, Map<string, Set<string>>>()
+  for (const entry of detachmentRuleCards(parsed.rules)) {
+    const key = joinKey(entry.detachment)
+    const cards = detachmentRules.get(key) ?? new Map<string, Set<string>>()
+    for (const rule of entry.rules) cards.set(rule.name, new Set([...(cards.get(rule.name) ?? []), rule.description]))
+    detachmentRules.set(key, cards)
+  }
   return {
     name,
     datasheets: new Set(datasheets.map(({ name: datasheetName }) => datasheetName)),
     datasheetDetails: datasheetDetailsByName,
     detachments: new Set(records(parsed, 'detachments').flatMap((entry) => localizedField(entry, 'name') ?? [])),
+    enhancements,
+    detachmentRules: new Map(
+      [...detachmentRules].map(([detachment, rules]) => [
+        detachment,
+        [...rules].flatMap(([rule, descriptions]) =>
+          descriptions.size === 1 ? [{ name: rule, description: descriptions.values().next().value! }] : [],
+        ),
+      ]),
+    ),
     factionAbilityNames: new Set(
       records(parsed, 'datasheets').flatMap((entry) =>
         records(entry.abilities, 'faction').flatMap((ability) => localizedField(ability, 'name') ?? []),

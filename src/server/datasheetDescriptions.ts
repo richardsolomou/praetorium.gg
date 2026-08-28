@@ -44,8 +44,10 @@ export function describeDatasheetAbilities(
         name: detachment.name,
         rules: detachment.rules,
         enhancements: character
-          ? detachment.enhancements.filter((enhancement) =>
-              enhancement.keywordRestrictions.every((keyword) => keywords.has(routeSlug(keyword))),
+          ? detachment.enhancements.filter(
+              (enhancement) =>
+                enhancement.keywordRestrictions !== null &&
+                enhancement.keywordRestrictions.every((keyword) => keywords.has(routeSlug(keyword))),
             )
           : [],
       }))

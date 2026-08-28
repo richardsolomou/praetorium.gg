@@ -15,17 +15,18 @@ export function isReferenceDetachment(
   const slugId = routeSlug(displayName)
   const content = loaded.factionContents.get(slugId)
   const rulesId = rulesFaction(rules, routeSlug(faction.name))
-  if (content) return [...content.detachments].some((name) => routeSlug(name) === routeSlug(detachment.name))
+  if (content) return [...content.detachments].some((name) => joinKey(name) === joinKey(detachment.name))
 
   if (!detachmentNamed(rules?.detachmentReferences.get(rulesId), detachment.name)) return false
 
   // Some catalogue chapters repeat the generic detachment options. When the
-  // catalogue that defines that option also names it in the rules source, it
-  // is its canonical reference home. A chapter-only detachment stays put: its
-  // physical definition can still live in an imported parent catalogue.
+  // catalogue that defines and offers that option also names it in the rules
+  // source, it is its canonical reference home. A chapter-only detachment stays
+  // put: its physical definition can still live in an imported parent catalogue.
   const ownerId = loaded.index.catalogueOf.get(detachment.id)
   const owner = loaded.factions.find((candidate) => candidate.id === ownerId)
   if (!owner || owner.id === faction.id) return true
+  if (!loaded.detachments.get(owner.id)?.options.some((candidate) => joinKey(candidate.name) === joinKey(detachment.name))) return true
   const ownerRulesId = rulesFaction(rules, routeSlug(owner.name))
   return !detachmentNamed(rules?.detachmentReferences.get(ownerRulesId), detachment.name)
 }

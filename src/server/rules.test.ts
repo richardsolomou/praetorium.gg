@@ -17,7 +17,27 @@ beforeEach(() => {
   write(path.join(imperialFists, 'factions.json'), [
     { id: 'imperial-fists', name: 'Imperial Fists', parent_faction_id: 'adeptus-astartes' },
   ])
-  write(path.join(imperialFists, 'detachments.json'), [{ id: 'stormlance-task-force', name: 'Stormlance Task Force' }])
+  const ravenGuard = path.join(root, 'raven-guard')
+  fs.mkdirSync(ravenGuard)
+  write(path.join(ravenGuard, 'factions.json'), [{ id: 'raven-guard', name: 'Raven Guard', parent_faction_id: 'adeptus-astartes' }])
+  write(path.join(ravenGuard, 'detachments.json'), [{ id: 'stormlance-task-force', name: 'Stormlance Task Force' }])
+  write(path.join(ravenGuard, 'stratagems.json'), [
+    { id: 'ride-the-winds', name: 'RIDE THE WINDS', detachment_id: 'stormlance-task-force', cp_cost: 1, timing: 'once-per-phase' },
+  ])
+  const adeptusAstartes = path.join(root, 'adeptus-astartes')
+  fs.mkdirSync(adeptusAstartes)
+  write(path.join(adeptusAstartes, 'detachments.json'), [{ id: 'stormlance-task-force', name: 'Stormlance Task Force' }])
+  write(path.join(adeptusAstartes, 'enhancements.json'), [
+    {
+      id: 'tempete-relic',
+      name: 'Tempete Relic',
+      detachment_id: 'stormlance-task-force',
+      keyword_restrictions: ['Character'],
+    },
+  ])
+  write(path.join(adeptusAstartes, 'stratagems.json'), [
+    { id: 'ride-the-winds', name: 'RIDE THE WINDS', detachment_id: 'stormlance-task-force', cp_cost: 1, timing: 'once-per-phase' },
+  ])
 
   write(path.join(core, 'stratagems.json'), [
     {
@@ -78,6 +98,11 @@ beforeEach(() => {
         detachmentPointsOverrides: [{ faction: 'Death Guard', detachmentPoints: 1 }],
         forceDisposition: { name: { en: 'Take and Hold' } },
       },
+      {
+        name: { en: 'Virulent Vectorium' },
+        detachmentPoints: 2,
+        forceDisposition: { name: { en: 'Disruption' } },
+      },
     ],
     rules: {
       army: [{ name: { en: 'Oath of Moment' }, rules: [{ order: 1, type: 'text', text: { en: 'Re-roll Hit rolls.' } }] }],
@@ -86,6 +111,10 @@ beforeEach(() => {
           detachment: 'Flyblown Host',
           rules: [{ name: { en: 'Virulent Vectorium' }, rules: [{ order: 1, type: 'text', text: { en: 'Spread disease.' } }] }],
         },
+        {
+          detachment: 'Virulent Vectorium',
+          rules: [{ name: { en: 'Lord of Virulence' }, rules: [{ order: 1, type: 'text', text: { en: 'Spread farther.' } }] }],
+        },
       ],
     },
     enhancements: [
@@ -93,6 +122,7 @@ beforeEach(() => {
       { name: { en: 'Rejuvenating Swarm' }, detachment: 'Flyblown Host', cost: '5', description: { en: 'Return models.' } },
       // The rules dataset spells the upgrade with its suffix; the cards may not.
       { name: { en: 'Virulent Carapace' }, detachment: 'Flyblown Host', cost: '30', description: { en: 'Improve the unit.' } },
+      { name: { en: 'Daemon Weapon of Nurgle' }, detachment: 'Virulent Vectorium', cost: '10', description: { en: 'Corrupt it.' } },
     ],
     stratagems: [{ name: { en: 'Grim Reapers' }, detachment: 'Flyblown Host', effect: { en: 'Cut them down.' } }],
   })
@@ -126,6 +156,21 @@ beforeEach(() => {
         forceDisposition: { name: { en: 'Priority Assets' } },
       },
     ],
+    enhancements: [
+      { name: { en: 'Tempête Relic' }, detachment: 'Stormlance Task Force', cost: '20', description: { en: 'Move swiftly.' } },
+    ],
+  })
+  write(path.join(datacards, 'newxenos.json'), {
+    name: 'New Xenos',
+    datasheets: [],
+    detachments: [
+      {
+        name: { en: 'Uncharted Host' },
+        detachmentPoints: 2,
+        forceDisposition: { name: { en: 'Disruption' } },
+      },
+    ],
+    enhancements: [{ name: { en: 'Unknown Relic' }, detachment: 'Uncharted Host', cost: '15', description: { en: 'Do something.' } }],
   })
   write(path.join(datacards, 'core.json'), {
     stratagems: [
@@ -257,7 +302,19 @@ describe('stratagems', () => {
     expect(load().detachmentReferences.get('imperial-fists')?.get('stormlance-task-force')).toMatchObject({
       points: 2,
       dispositions: ['priority-assets'],
+      enhancements: 1,
+      stratagems: 1,
     })
+    expect(load().detachmentDetails.get('imperial-fists')?.get('stormlance-task-force')).toMatchObject({
+      enhancements: [{ name: 'Tempête Relic', points: 20, keywordRestrictions: ['Character'] }],
+      stratagems: [expect.objectContaining({ name: 'Ride The Winds', cp: 1 })],
+    })
+  })
+
+  it('inherits a parent enhancement overlay when the child repeats only the detachment', () => {
+    expect(load().detachmentDetails.get('raven-guard')?.get('stormlance-task-force')?.enhancements).toEqual([
+      expect.objectContaining({ name: 'Tempête Relic', keywordRestrictions: ['Character'] }),
+    ])
   })
 
   it('keeps the detail needed by the detachment reference page', () => {
@@ -278,22 +335,34 @@ describe('stratagems', () => {
     expect(load().byDetachment.get('death-guard')?.get('flyblown-host')).toHaveLength(2)
   })
 
-  it('reach a detachment that names one the dataset filed under another', () => {
-    // The shared six are written once and referenced by id from everywhere else, so
-    // reading only the record's own detachment loses them.
-    expect(
-      load()
-        .byDetachment.get('death-guard')
-        ?.get('plague-cohort')
-        ?.map((stratagem) => stratagem.name),
-    ).toEqual(['Grim Reapers'])
-    expect(
-      load()
-        .detachmentDetails.get('death-guard')
-        ?.get('plague-cohort')
-        ?.stratagems.map((found) => found.name),
-    ).toEqual(['Grim Reapers'])
-    expect(load().detachmentReferences.get('death-guard')?.get('plague-cohort')?.stratagems).toBe(1)
+  it('does not enumerate a detachment that only the semantic source names', () => {
+    const rules = load()
+    expect(rules.byDetachment.get('death-guard')?.get('plague-cohort')).toBeUndefined()
+    expect(rules.detachmentDetails.get('death-guard')?.get('plague-cohort')).toBeUndefined()
+    expect(rules.detachmentReferences.get('death-guard')?.get('plague-cohort')).toBeUndefined()
+  })
+
+  it('enumerates a Game Datacards detachment without inventing missing semantics', () => {
+    const rules = load()
+    expect(rules.detachmentDetails.get('death-guard')?.get('virulent-vectorium')).toMatchObject({
+      name: 'Virulent Vectorium',
+      points: 2,
+      rules: [{ name: 'Lord of Virulence', description: 'Spread farther.' }],
+      enhancements: [{ name: 'Daemon Weapon of Nurgle', points: 10, description: 'Corrupt it.', keywordRestrictions: null }],
+      stratagems: [],
+    })
+    expect(rules.byDetachment.get('death-guard')?.get('virulent-vectorium')).toBeUndefined()
+  })
+
+  it('enumerates a Game Datacards faction before the semantic source adds a directory', () => {
+    const rules = load()
+    expect(rules.factionNames.get('new-xenos')).toBe('New Xenos')
+    expect(rules.detachmentDetails.get('new-xenos')?.get('uncharted-host')).toMatchObject({
+      name: 'Uncharted Host',
+      points: 2,
+      enhancements: [{ name: 'Unknown Relic', points: 15, keywordRestrictions: null }],
+    })
+    expect(rules.byDetachment.get('new-xenos')).toBeUndefined()
   })
 
   it('counts a card reached both ways once', () => {
@@ -318,7 +387,14 @@ describe('stratagems', () => {
     // Filing a faction under each of its names would have every reader that walks the
     // whole map see it twice, which is what the description ratchet caught.
     const rules = load()
-    expect([...rules.detachmentDetails.keys()]).toEqual(['death-guard', 'imperial-fists'])
+    expect([...rules.detachmentDetails.keys()]).toEqual([
+      'adeptus-astartes',
+      'death-guard',
+      'imperial-fists',
+      'raven-guard',
+      'deathwatch',
+      'new-xenos',
+    ])
     expect(rulesFaction(rules, 'a-faction-nobody-has-heard-of')).toBe('a-faction-nobody-has-heard-of')
   })
 

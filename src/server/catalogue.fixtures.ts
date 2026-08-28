@@ -107,6 +107,8 @@ export const withCards = (name: string, cards: readonly string[] | ReadonlyMap<s
     datasheets: new Set(details.keys()),
     datasheetDetails: details,
     detachments: new Set(),
+    enhancements: new Map(),
+    detachmentRules: new Map(),
     factionAbilityNames: new Set(),
     armyRules: [],
   }

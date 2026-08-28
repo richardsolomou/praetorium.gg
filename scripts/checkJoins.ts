@@ -30,9 +30,28 @@ const datacardsOnlyDetachments = new Set(
 )
 const rulesOnlyDetachments = rules.constructionJoinIssues.filter((issue) => issue.kind === 'detachment')
 const rulesOnlyEnhancements = rules.constructionJoinIssues.filter((issue) => issue.kind === 'enhancement')
-console.log(`rules detachments without exact Game Datacards construction numbers: ${rulesOnlyDetachments.length}`)
-console.log(`rules enhancements without exact Game Datacards points: ${rulesOnlyEnhancements.length}`)
-console.log(`Game Datacards detachments without rules semantics: ${datacardsOnlyDetachments.size}`)
+const constructionDetails = [...rules.detachmentDetails].flatMap(([faction, detachments]) =>
+  [...detachments.values()].map((detachment) => ({ faction, detachment })),
+)
+const invalidDetachments = constructionDetails.filter(
+  ({ detachment }) => detachment.points === null || detachment.dispositions.length !== 1,
+)
+const invalidEnhancements = constructionDetails.flatMap(({ faction, detachment }) =>
+  [...detachment.enhancements, ...detachment.upgrades]
+    .filter((enhancement) => enhancement.points === null)
+    .map((enhancement) => ({ faction, detachment: detachment.name, enhancement: enhancement.name })),
+)
+const enhancementsWithoutSemantics = constructionDetails.flatMap(({ faction, detachment }) =>
+  detachment.enhancements
+    .filter((enhancement) => enhancement.keywordRestrictions === null)
+    .map((enhancement) => ({ faction, detachment: detachment.name, enhancement: enhancement.name })),
+)
+console.log(`40kdc-only detachments ignored by Game Datacards enumeration: ${rulesOnlyDetachments.length}`)
+console.log(`40kdc-only enhancements ignored by Game Datacards enumeration: ${rulesOnlyEnhancements.length}`)
+console.log(`Game Datacards detachments without 40kdc semantics: ${datacardsOnlyDetachments.size}`)
+console.log(`Game Datacards detachments with invalid construction numbers: ${invalidDetachments.length}`)
+console.log(`Game Datacards enhancements with invalid points: ${invalidEnhancements.length}`)
+console.log(`Game Datacards enhancements without 40kdc eligibility semantics: ${enhancementsWithoutSemantics.length}`)
 if (process.argv.includes('--details')) {
   for (const entry of report.catalogueOnly) console.log(`  catalogue only | ${entry.faction} | ${entry.name}`)
   for (const entry of report.datacardsOnly) console.log(`  cards only     | ${entry.faction} | ${entry.name}`)
@@ -41,6 +60,13 @@ if (process.argv.includes('--details')) {
     console.log(`  rules only     | ${issue.faction} | ${issue.detachment} | ${issue.enhancement}`)
   }
   for (const issue of datacardsOnlyDetachments) console.log(`  cards only     | ${issue}`)
+  for (const { faction, detachment } of invalidDetachments) console.log(`  invalid card   | ${faction} | ${detachment.name}`)
+  for (const issue of invalidEnhancements) {
+    console.log(`  invalid card   | ${issue.faction} | ${issue.detachment} | ${issue.enhancement}`)
+  }
+  for (const issue of enhancementsWithoutSemantics) {
+    console.log(`  semantics gap  | ${issue.faction} | ${issue.detachment} | ${issue.enhancement}`)
+  }
 }
 
 /*
@@ -55,4 +81,7 @@ if (report.catalogueOnly.length > 10 || report.datacardsOnly.length > 21) {
 }
 if (rulesOnlyDetachments.length > 30 || rulesOnlyEnhancements.length > 95 || datacardsOnlyDetachments.size > 5) {
   throw new Error('army-construction name agreement fell below the pinned catalogue baseline')
+}
+if (invalidDetachments.length || invalidEnhancements.length || enhancementsWithoutSemantics.length > 347) {
+  throw new Error('Game Datacards construction coverage fell below the pinned catalogue baseline')
 }
