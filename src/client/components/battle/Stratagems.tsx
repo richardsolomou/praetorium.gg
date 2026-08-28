@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { EllipsisVertical } from 'lucide-react'
+import { EllipsisVertical, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
@@ -208,17 +208,24 @@ function StratagemCard({
         </span>
       )}
       <Dialog open={newOrdersCost !== null} onOpenChange={(open) => !open && setNewOrdersCost(null)}>
-        <DialogContent className="border border-edge bg-panel text-bone sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="uppercase">New Orders</DialogTitle>
-            <DialogDescription>Choose one active secondary mission to discard. A replacement will be drawn at random.</DialogDescription>
+        <DialogContent className="rounded-none border border-parchment/60 bg-panel text-bone ring-0 sm:max-w-md">
+          <DialogHeader className="pr-7">
+            <div className="flex items-center justify-between gap-3">
+              <DialogTitle className="text-parchment uppercase">New Orders</DialogTitle>
+              <span className="chip shrink-0">{newOrdersCost ?? stratagem.cp} CP</span>
+            </div>
+            <DialogDescription className="text-dim">
+              Pick an active secondary mission to discard. Its replacement will be drawn at random.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
+            <p className="eyebrow">Choose a mission to replace</p>
             {replaceable.map((secondary) => (
               <Button
                 key={secondary.key}
                 variant="outline"
-                className="w-full justify-start"
+                aria-label={`Discard ${secondary.name} and draw a replacement`}
+                className="group h-auto w-full justify-between rounded-none border-edge bg-sunken px-3 py-3 text-left hover:border-parchment hover:bg-raised"
                 disabled={pending || !replacement || newOrdersCost === null}
                 onClick={() => {
                   if (!replacement || newOrdersCost === null) return
@@ -226,7 +233,14 @@ function StratagemCard({
                   setNewOrdersCost(null)
                 }}
               >
-                Discard {secondary.name}
+                <span className="min-w-0 whitespace-normal">
+                  <span className="block text-[0.6875rem] leading-none font-bold tracking-[0.1em] text-discarded uppercase">Discard</span>
+                  <span className="mt-1 block text-sm leading-tight font-bold text-bone uppercase">{secondary.name}</span>
+                </span>
+                <span className="flex shrink-0 items-center gap-1 text-xs font-bold text-parchment uppercase">
+                  <RefreshCw aria-hidden className="size-3.5 transition-transform group-hover:rotate-45" />
+                  Replace
+                </span>
               </Button>
             ))}
           </div>
