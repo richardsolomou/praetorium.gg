@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parsePendingNativeAuth, pendingNativeAuth } from './pendingNativeAuth'
+import { completedPendingNativeAuth, parsePendingNativeAuth, pendingNativeAuth } from './pendingNativeAuth'
 
 const proof = { challenge: 'c'.repeat(43), verifier: 'v'.repeat(43) }
 
@@ -11,7 +11,17 @@ describe('pending native authentication', () => {
   })
 
   it('fails closed after the exchange window or for malformed storage', () => {
-    expect(parsePendingNativeAuth(JSON.stringify(pendingNativeAuth(proof, 100)), 3 * 60 * 1000 + 100)).toBeNull()
+    const completed = completedPendingNativeAuth(proof, 'praetorium://auth?token=secret', 100)
+
+    expect(parsePendingNativeAuth(JSON.stringify(completed), 3 * 60 * 1000 + 100)).toBeNull()
     expect(parsePendingNativeAuth('{')).toBeNull()
+  })
+
+  it('keeps the proof through the provider window and resets expiry for a fresh callback', () => {
+    const started = pendingNativeAuth(proof, 100)
+    expect(parsePendingNativeAuth(JSON.stringify(started), 3 * 60 * 1000 + 101)).toEqual(started)
+
+    const completedAtSixMinutes = completedPendingNativeAuth(proof, 'praetorium://auth?token=secret', 6 * 60 * 1000)
+    expect(parsePendingNativeAuth(JSON.stringify(completedAtSixMinutes), 9 * 60 * 1000 - 1)).toEqual(completedAtSixMinutes)
   })
 })

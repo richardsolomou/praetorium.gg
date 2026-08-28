@@ -136,13 +136,17 @@ export function nativeAuthExchangeScript(callback: Extract<NativeAuthCallback, {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ id: auth.id, token: auth.token, verifier: auth.verifier }),
       });
+      if (response.status === 400) {
+        window.ReactNativeWebView.postMessage(JSON.stringify({ version: 2, type: 'native-auth-result', id: auth.id, ok: false, retryable: false }));
+        return;
+      }
       if (!response.ok) throw new Error('native auth exchange failed');
       const exchange = await response.json();
       if (exchange.id !== auth.id || typeof exchange.next !== 'string') throw new Error('native auth exchange mismatch');
       window.ReactNativeWebView.postMessage(JSON.stringify({ version: 2, type: 'native-auth-result', id: exchange.id, ok: true }));
       window.location.replace(exchange.next);
     } catch {
-      window.ReactNativeWebView.postMessage(JSON.stringify({ version: 2, type: 'native-auth-result', id: auth.id, ok: false }));
+      window.ReactNativeWebView.postMessage(JSON.stringify({ version: 2, type: 'native-auth-result', id: auth.id, ok: false, retryable: true }));
     }
   })(); true;`
 }

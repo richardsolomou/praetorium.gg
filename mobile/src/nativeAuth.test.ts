@@ -18,6 +18,15 @@ describe('native authentication bridge', () => {
     requestSignUp: false,
     ...proof,
   }
+  const callback = {
+    kind: 'success' as const,
+    token: 'secret-token-1234',
+    id: 'exchange-id-123456789012345678901',
+    provider: 'google' as const,
+    action: 'sign-in' as const,
+    next: '/rosters',
+    ...proof,
+  }
 
   it('accepts a bounded first-party request', () => {
     expect(parseNativeAuthRequest(JSON.stringify(request))).toEqual({
@@ -86,15 +95,7 @@ describe('native authentication bridge', () => {
   })
 
   it('exchanges the token in a request body rather than a URL', () => {
-    const script = nativeAuthExchangeScript({
-      kind: 'success',
-      token: 'secret-token-1234',
-      id: 'exchange-id-123456789012345678901',
-      provider: 'google',
-      action: 'sign-in',
-      next: '/rosters',
-      ...proof,
-    })
+    const script = nativeAuthExchangeScript(callback)
     expect(script).toContain("fetch('/api/auth/native-auth-token/exchange'")
     expect(script).toContain('body: JSON.stringify({ id: auth.id, token: auth.token, verifier: auth.verifier })')
     expect(script).toContain('window.location.replace(exchange.next)')
@@ -103,15 +104,7 @@ describe('native authentication bridge', () => {
   })
 
   it('acknowledges the same exchange proof after native persistence succeeds', () => {
-    const script = nativeAuthConsumeScript({
-      kind: 'success',
-      token: 'secret-token-1234',
-      id: 'exchange-id-123456789012345678901',
-      provider: 'google',
-      action: 'sign-in',
-      next: '/rosters',
-      ...proof,
-    })
+    const script = nativeAuthConsumeScript(callback)
 
     expect(script).toContain("fetch('/api/auth/native-auth-token/consume'")
     expect(script).toContain('exchange-id-123456789012345678901')

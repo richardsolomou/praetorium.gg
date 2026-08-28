@@ -9,6 +9,7 @@ import type { WebViewNavigation } from 'react-native-webview'
 import {
   appShellRenderChanged,
   appShellRenderState,
+  authDeliveryDeferred,
   authDeliveryFailed,
   authDeliverySucceeded,
   authReceived,
@@ -36,7 +37,7 @@ import {
   parseNativeAuthCallback,
   parseNativeAuthRequest,
 } from './src/nativeAuth'
-import { parsePendingNativeAuth, pendingNativeAuth, type PendingNativeAuth } from './src/pendingNativeAuth'
+import { completedPendingNativeAuth, parsePendingNativeAuth, pendingNativeAuth, type PendingNativeAuth } from './src/pendingNativeAuth'
 
 const BACKGROUND = '#0b0c0e'
 const PENDING_AUTH_KEY = 'praetorium.native-auth.pending'
@@ -124,7 +125,7 @@ function AppShell() {
         if (handledAuthTokens.current.has(callback.token)) return
         handledAuthTokens.current.add(callback.token)
         try {
-          await SecureStore.setItemAsync(PENDING_AUTH_KEY, JSON.stringify({ ...pending!, callbackUrl: url }))
+          await SecureStore.setItemAsync(PENDING_AUTH_KEY, JSON.stringify(completedPendingNativeAuth(pending!, url)))
         } catch (error) {
           handledAuthTokens.current.delete(callback.token)
           throw error
@@ -221,7 +222,7 @@ function AppShell() {
           if (callback.kind === 'success' && pending && !handledAuthTokens.current.has(callback.token)) {
             handledAuthTokens.current.add(callback.token)
             try {
-              await SecureStore.setItemAsync(PENDING_AUTH_KEY, JSON.stringify({ ...pending, callbackUrl: url }))
+              await SecureStore.setItemAsync(PENDING_AUTH_KEY, JSON.stringify(completedPendingNativeAuth(pending, url)))
             } catch (error) {
               handledAuthTokens.current.delete(callback.token)
               throw error
@@ -317,7 +318,13 @@ function AppShell() {
           onMessage={({ nativeEvent }) => {
             const result = (() => {
               try {
-                return JSON.parse(nativeEvent.data) as { version?: unknown; type?: unknown; id?: unknown; ok?: unknown }
+                return JSON.parse(nativeEvent.data) as {
+                  version?: unknown
+                  type?: unknown
+                  id?: unknown
+                  ok?: unknown
+                  retryable?: unknown
+                }
               } catch {
                 return null
               }
@@ -330,6 +337,16 @@ function AppShell() {
                 void SecureStore.deleteItemAsync(PENDING_AUTH_KEY).then(
                   () => webView.current?.injectJavaScript(nativeAuthConsumeScript(delivering.callback)),
                   () => undefined,
+                )
+              } else if (result.retryable === true) {
+                const deferred = authDeliveryDeferred(shellRef.current, result.id)
+                if (deferred === shellRef.current) return
+                commitShell(deferred)
+                Alert.alert(
+                  'Sign-in is waiting',
+                  'Praetorium could not finish the secure sign-in exchange. Check your connection and retry.',
+                  [{ text: 'Retry', onPress: () => commitAndDrain(shellRef.current) }],
+                  { cancelable: false },
                 )
               } else {
                 const failed = authDeliveryFailed(shellRef.current, result.id)

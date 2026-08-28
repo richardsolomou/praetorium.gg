@@ -1,11 +1,16 @@
 import type { NativeAuthProof } from './nativeAuth'
 
-const PENDING_AUTH_MILLISECONDS = 3 * 60 * 1000
+const PROVIDER_AUTH_MILLISECONDS = 10 * 60 * 1000
+const EXCHANGE_MILLISECONDS = 3 * 60 * 1000
 
 export type PendingNativeAuth = NativeAuthProof & { callbackUrl?: string; expiresAt: number }
 
 export function pendingNativeAuth(proof: NativeAuthProof, now = Date.now()): PendingNativeAuth {
-  return { ...proof, expiresAt: now + PENDING_AUTH_MILLISECONDS }
+  return { ...proof, expiresAt: now + PROVIDER_AUTH_MILLISECONDS }
+}
+
+export function completedPendingNativeAuth(proof: NativeAuthProof, callbackUrl: string, now = Date.now()): PendingNativeAuth {
+  return { ...proof, callbackUrl, expiresAt: now + EXCHANGE_MILLISECONDS }
 }
 
 export function parsePendingNativeAuth(value: string | null, now = Date.now()): PendingNativeAuth | null {

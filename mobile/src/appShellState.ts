@@ -127,6 +127,12 @@ export function authDeliveryFailed(state: AppShellState, id: string): AppShellSt
   return state.delivering?.kind === 'auth' && state.delivering.callback.id === id ? { ...state, delivering: null } : state
 }
 
+export function authDeliveryDeferred(state: AppShellState, id: string): AppShellState {
+  return state.delivering?.kind === 'auth' && state.delivering.callback.id === id
+    ? { ...state, pendingAuth: state.pendingAuth ?? state.delivering.callback, delivering: null }
+    : state
+}
+
 export function authDeliverySucceeded(state: AppShellState, id: string): AppShellState {
   return state.delivering?.kind === 'auth' && state.delivering.callback.id === id ? { ...state, delivering: null } : state
 }

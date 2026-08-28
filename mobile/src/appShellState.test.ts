@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   appShellRenderChanged,
   appShellRenderState,
+  authDeliveryDeferred,
   authDeliveryFailed,
   authDeliverySucceeded,
   authReceived,
@@ -102,6 +103,14 @@ describe('application shell delivery', () => {
 
     expect(authDeliverySucceeded(deliveringAuth, auth.id).delivering).toBeNull()
     expect(authDeliverySucceeded(deliveringAuth, 'stale-exchange').delivering).toEqual({ kind: 'auth', callback: auth })
+  })
+
+  it('keeps transient authentication failure ready for an explicit retry', () => {
+    const loaded = successfulLoad(initialUrlReceived(initialAppShellState(), null), 'https://praetorium.gg')
+    const deliveringAuth = drainAppShell(authReceived(loaded, auth)).state
+
+    expect(authDeliveryDeferred(deliveringAuth, auth.id)).toMatchObject({ pendingAuth: auth, delivering: null })
+    expect(authDeliveryDeferred(deliveringAuth, 'stale-exchange')).toBe(deliveringAuth)
   })
 
   it('does not change the controlled source after ordinary internal navigation', () => {
