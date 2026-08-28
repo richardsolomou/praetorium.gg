@@ -540,6 +540,74 @@ describe('a deployment pattern', () => {
 })
 
 describe('Battlemaster terrain geometry', () => {
+  it('resolves the current REST reference through the pinned catalog', () => {
+    const id = 'terrain-01234567-89ab-cdef-0123-456789abcdef'
+    const root = path.join(directory, 'data', 'core')
+    write(path.join(root, 'terrain-layouts.json'), [
+      {
+        id: 'layout-a',
+        name: 'Take vs Disrupt 01',
+        mission_matchup_id: 'disruption-vs-take-and-hold',
+        description: 'Imported from Battlemaster REST API layout superwutz/take-vs-disrupt-01.',
+      },
+    ])
+    const battlemaster = path.join(directory, 'battlemaster')
+    fs.mkdirSync(path.join(battlemaster, 'layouts'), { recursive: true })
+    write(path.join(battlemaster, 'catalog.json'), {
+      layouts: [{ id, owner: 'owner-id', ownerUsername: 'superwutz', name: 'Take vs Disrupt 01' }],
+    })
+    write(path.join(battlemaster, 'layouts', `${id}.json`), {
+      layout: { id },
+      terrain: [
+        {
+          name: 'Area',
+          footprint: { origin: { x: 0, y: 0 }, widthIn: 10, heightIn: 10, rotationDeg: 0 },
+          outline: { points: box(10, 10) },
+          parts: [],
+        },
+      ],
+    })
+
+    expect(loadRules(directory, battlemaster)?.terrainLayouts[0]?.geometry?.areas).toHaveLength(1)
+  })
+
+  it('fails closed when a REST reference is ambiguous in the pinned catalog', () => {
+    const first = 'terrain-01234567-89ab-cdef-0123-456789abcdef'
+    const second = 'terrain-fedcba98-7654-3210-fedc-ba9876543210'
+    const root = path.join(directory, 'data', 'core')
+    write(path.join(root, 'terrain-layouts.json'), [
+      {
+        id: 'layout-a',
+        name: 'Take vs Disrupt 01',
+        mission_matchup_id: 'disruption-vs-take-and-hold',
+        description: 'Imported from Battlemaster REST API layout superwutz/take-vs-disrupt-01.',
+      },
+    ])
+    const battlemaster = path.join(directory, 'battlemaster')
+    fs.mkdirSync(path.join(battlemaster, 'layouts'), { recursive: true })
+    write(path.join(battlemaster, 'catalog.json'), {
+      layouts: [
+        { id: first, ownerUsername: 'superwutz', name: 'Take vs Disrupt 01' },
+        { id: second, ownerUsername: 'superwutz', name: 'Take vs Disrupt 01' },
+      ],
+    })
+    for (const id of [first, second]) {
+      write(path.join(battlemaster, 'layouts', `${id}.json`), {
+        layout: { id },
+        terrain: [
+          {
+            name: 'Area',
+            footprint: { origin: { x: 0, y: 0 }, widthIn: 10, heightIn: 10, rotationDeg: 0 },
+            outline: { points: box(10, 10) },
+            parts: [],
+          },
+        ],
+      })
+    }
+
+    expect(loadRules(directory, battlemaster)?.terrainLayouts[0]?.geometry).toBeNull()
+  })
+
   it('accepts the current detail identity used by the public API', () => {
     const id = 'terrain-01234567-89ab-cdef-0123-456789abcdef'
     const root = path.join(directory, 'data', 'core')

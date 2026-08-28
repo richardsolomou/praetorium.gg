@@ -123,10 +123,7 @@ jobs:
       - uses: ./.github/actions/e2e-dependencies
       - run: pnpm catalogue:sync
       - name: Require the terrain geometry
-        run: |
-          set -euo pipefail
-          test -n "$(ls -A catalogue-data/battlemaster/layouts 2>/dev/null || true)" \
-            || { echo 'catalogue-data/battlemaster/layouts is empty; re-run the catalogue sync'; exit 1; }
+        run: pnpm catalogue:terrain
       - name: Log in to the container registry
         if: needs.e2e-image.outputs.source == 'registry'
         uses: docker/login-action@v4
