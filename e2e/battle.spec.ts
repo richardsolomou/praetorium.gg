@@ -282,6 +282,9 @@ test('a tactical hand pays out when the card says', async ({ browser }) => {
   await bob.unroute('**/*')
   await expect(bob.getByRole('dialog', { name: 'Your secondary missions' })).toBeVisible()
   await expect(alice.getByRole('dialog', { name: `${bobName}’s secondary missions` })).toBeVisible()
+  await expect(
+    alice.getByRole('dialog', { name: `${bobName}’s secondary missions` }).getByRole('button', { name: 'Undo latest action' }),
+  ).toBeEnabled()
   await takeTheTurn(alice)
   await expect(alice.getByText(new RegExp(`${aliceName} draws .+ for ${bobName}`)).first()).toBeVisible()
   await expect(alice.getByText(new RegExp(`${bobName} marks `))).toHaveCount(0)

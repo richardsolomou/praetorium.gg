@@ -216,27 +216,31 @@ describe("drawing a turn's tactical cards", () => {
   const deck = [{ key: 'a' }, { key: 'b' }, { key: 'c' }]
 
   it('asks for a card when nothing has been drawn this turn', () => {
-    expect(nextDraw(0, new Set(), [], deck)?.key).toBe('a')
+    expect(nextDraw(0, 2, new Set(), [], deck)?.key).toBe('a')
   })
 
   it('does not ask twice for the one already in flight', () => {
-    expect(nextDraw(0, new Set(['a']), [], deck)?.key).toBe('b')
+    expect(nextDraw(0, 2, new Set(['a']), [], deck)?.key).toBe('b')
   })
 
   it("stops once enough are in flight to cover the turn's two", () => {
-    expect(nextDraw(0, new Set(['a', 'b']), [], deck)).toBeNull()
+    expect(nextDraw(0, 2, new Set(['a', 'b']), [], deck)).toBeNull()
   })
 
   it('stops once the turn has already drawn its two, however large the kept hand is', () => {
-    expect(nextDraw(2, new Set(), held('a', 'b'), deck)).toBeNull()
+    expect(nextDraw(2, 2, new Set(), held('a', 'b'), deck)).toBeNull()
+  })
+
+  it('asks for an owed New Orders replacement beyond the usual two', () => {
+    expect(nextDraw(2, 3, new Set(), held('a', 'b'), deck)?.key).toBe('c')
   })
 
   it('skips a card already held from an earlier turn', () => {
-    expect(nextDraw(0, new Set(), held('a'), deck)?.key).toBe('b')
+    expect(nextDraw(0, 2, new Set(), held('a'), deck)?.key).toBe('b')
   })
 
   it('asks for nothing once the deck is empty', () => {
-    expect(nextDraw(0, new Set(), [], [])).toBeNull()
+    expect(nextDraw(0, 2, new Set(), [], [])).toBeNull()
   })
 })
 

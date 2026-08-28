@@ -15,18 +15,18 @@ describe('the account of the battle', () => {
 
   it('marks the turn passing over', () => {
     const history = log(...started(), ...turns(6, ALICE))
-    expect(text(battleReport(NAMES, history))).toContain('The turn passes to Bob, who gains 1 CP')
+    expect(text(battleReport(NAMES, history))).toContain('The turn passes to Bob; both sides gain 1 CP')
   })
 
-  it('reports the command point granted with the first turn', () => {
+  it('reports the command points granted with the first turn', () => {
     expect(text(battleReport(NAMES, log(...started())))).toContain(
-      'The battle begins, Alice attacking and Alice taking the first turn and gaining 1 CP',
+      'The battle begins, Alice attacking and Alice taking the first turn; both sides gain 1 CP',
     )
   })
 
   it('marks a new round', () => {
     const history = log(...started(), ...turns(6, ALICE), ...turns(6, BOB))
-    expect(text(battleReport(NAMES, history))).toContain('Round 2 begins; Alice gains 1 CP')
+    expect(text(battleReport(NAMES, history))).toContain('Round 2 begins; both sides gain 1 CP')
   })
 
   it('marks the last round before final opponent-turn scoring is settled', () => {
@@ -52,6 +52,40 @@ describe('the account of the battle', () => {
       [ALICE, { kind: 'use-stratagem', key: 's1' }],
     )
     expect(text(battleReport(NAMES, history))).toContain('Alice uses Grenade for 1 CP')
+  })
+
+  it('reports the mission replaced with New Orders', () => {
+    const history = log(
+      ...started(),
+      [
+        ALICE,
+        {
+          kind: 'set-prep',
+          stratagems: [{ key: 'new-orders', name: 'New Orders', cp: 1, limit: 'phase', phases: ['command'], turn: 'your-turn' }],
+          secondaries: [],
+          secondaryDeck: [
+            { key: 'a', name: 'Behind Enemy Lines' },
+            { key: 'b', name: 'Area Denial' },
+          ],
+          primary: null,
+          secondaryMode: 'tactical',
+        },
+      ],
+      [ALICE, { kind: 'draw-secondary', secondary: { key: 'a', name: 'Behind Enemy Lines' } }],
+      [
+        ALICE,
+        {
+          kind: 'use-new-orders',
+          stratagemKey: 'new-orders',
+          secondaryKey: 'a',
+          secondary: { key: 'b', name: 'Area Denial' },
+        },
+      ],
+    )
+
+    expect(text(battleReport(NAMES, history))).toContain(
+      'Alice uses New Orders for 1 CP, discarding Behind Enemy Lines and drawing Area Denial',
+    )
   })
 
   it('names both players when one records an action for another', () => {

@@ -3,7 +3,7 @@ import { EllipsisVertical } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import { type Command, STRATAGEM_CP_MAX } from '../../../core/battle'
+import { type Command, isNewOrders, STRATAGEM_CP_MAX } from '../../../core/battle'
 import { type BattleView } from '../../../core/battleView'
 import type { Side } from '../../sides'
 import { hiddenThisPhase, stratagemVisibleNow } from '../../stratagemVisibility'
@@ -57,8 +57,19 @@ export function Stratagems({ side, phase, coreKeys, actionable, pending, send, w
                 actionable={actionable}
                 pending={pending}
                 available={side.cp}
+                side={side}
                 onUse={(cp) =>
                   send({ kind: 'use-stratagem', key: stratagem.key, playerId: side.captain.id, ...(cp === undefined ? {} : { cp }) })
+                }
+                onUseNewOrders={(secondaryKey, secondary, cp) =>
+                  send({
+                    kind: 'use-new-orders',
+                    stratagemKey: stratagem.key,
+                    secondaryKey,
+                    secondary,
+                    playerId: side.captain.id,
+                    ...(cp === stratagem.cp ? {} : { cp }),
+                  })
                 }
               />
             ))}
@@ -86,15 +97,37 @@ function StratagemCard({
   actionable,
   pending,
   available,
+  side,
   onUse,
+  onUseNewOrders,
 }: {
   stratagem: ViewStratagem
   written: StratagemText | undefined
   actionable: boolean
   pending: boolean
   available: number
+  side: Side
   onUse: (cp?: number) => void
+  onUseNewOrders: (secondaryKey: string, secondary: Side['remainingSecondaries'][number], cp: number) => void
 }) {
+  const [newOrdersCost, setNewOrdersCost] = useState<number | null>(null)
+  const newOrders = isNewOrders(stratagem)
+  const replaceable = newOrders ? side.secondaries.filter((secondary) => !secondary.secret && secondary.status === 'active') : []
+  const replacement = side.remainingSecondaries[0]
+  const newOrdersRefusal = newOrders
+    ? side.secondaryMode !== 'tactical'
+      ? 'New Orders requires tactical secondary missions.'
+      : !replaceable.length
+        ? 'Choose an active secondary mission first.'
+        : !replacement
+          ? 'No secondary missions remain to draw.'
+          : null
+    : null
+  const refusal = stratagem.refusal ?? newOrdersRefusal
+  const use = (cp = stratagem.cp) => {
+    if (newOrders) setNewOrdersCost(cp)
+    else onUse(cp === stratagem.cp ? undefined : cp)
+  }
   const timing = [
     written?.type,
     stratagem.phases?.length ? `${stratagem.phases.map(title).join(', ')} phase` : 'Any phase',
@@ -131,7 +164,7 @@ function StratagemCard({
           ) : (
             <p className="mt-2 text-sm text-dim">The synced rules source has no description for this stratagem.</p>
           )}
-          {stratagem.refusal ? <p className="mt-2 text-sm text-discarded">{stratagem.refusal}</p> : null}
+          {refusal ? <p className="mt-2 text-sm text-discarded">{refusal}</p> : null}
         </DialogContent>
       </Dialog>
       {actionable ? (
@@ -146,7 +179,7 @@ function StratagemCard({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               {costChoices(stratagem.cp).map((cost) => (
-                <DropdownMenuItem key={cost} disabled={pending || cost > available} onClick={() => onUse(cost)}>
+                <DropdownMenuItem key={cost} disabled={pending || cost > available || Boolean(newOrdersRefusal)} onClick={() => use(cost)}>
                   Use for {cost} CP
                 </DropdownMenuItem>
               ))}
@@ -155,12 +188,12 @@ function StratagemCard({
           <button
             type="button"
             className={`readout shrink-0 rounded-sm px-2 py-1.5 text-sm font-bold uppercase ${
-              stratagem.refusal ? 'bg-edge text-dim' : 'bg-azure text-void hover:bg-azure/80'
+              refusal ? 'bg-edge text-dim' : 'bg-azure text-void hover:bg-azure/80'
             }`}
-            disabled={pending || stratagem.refusal !== null}
-            title={stratagem.refusal ?? undefined}
+            disabled={pending || refusal !== null}
+            title={refusal ?? undefined}
             aria-label={`Use ${stratagem.name}`}
-            onClick={() => onUse()}
+            onClick={() => use()}
           >
             {stratagem.cp} CP
           </button>
@@ -168,12 +201,37 @@ function StratagemCard({
       ) : (
         <span
           className={`readout shrink-0 rounded-sm px-1.5 py-px text-[0.6875rem] font-bold uppercase ${
-            stratagem.refusal ? 'bg-edge text-dim' : 'bg-azure text-void'
+            refusal ? 'bg-edge text-dim' : 'bg-azure text-void'
           }`}
         >
           {stratagem.cp} CP
         </span>
       )}
+      <Dialog open={newOrdersCost !== null} onOpenChange={(open) => !open && setNewOrdersCost(null)}>
+        <DialogContent className="border border-edge bg-panel text-bone sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="uppercase">New Orders</DialogTitle>
+            <DialogDescription>Choose one active secondary mission to discard. A replacement will be drawn at random.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            {replaceable.map((secondary) => (
+              <Button
+                key={secondary.key}
+                variant="outline"
+                className="w-full justify-start"
+                disabled={pending || !replacement || newOrdersCost === null}
+                onClick={() => {
+                  if (!replacement || newOrdersCost === null) return
+                  onUseNewOrders(secondary.key, replacement, newOrdersCost)
+                  setNewOrdersCost(null)
+                }}
+              >
+                Discard {secondary.name}
+              </Button>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

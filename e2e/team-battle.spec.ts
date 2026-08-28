@@ -141,9 +141,9 @@ test('a 2v1 draws the allied pair as one side with one pool of everything', asyn
 
   // A command point one ally gains is the same one their partner is holding.
   await side(ally, 1).getByRole('button', { name: '+1 CP' }).click()
-  await expect(side(ally, 1).locator('[data-stat="cp"]')).toHaveText('1')
-  await expect(side(partner, 1).locator('[data-stat="cp"]')).toHaveText('1')
-  await expect(side(host, 1).locator('[data-stat="cp"]')).toHaveText('1')
+  await expect(side(ally, 1).locator('[data-stat="cp"]')).toHaveText('2')
+  await expect(side(partner, 1).locator('[data-stat="cp"]')).toHaveText('2')
+  await expect(side(host, 1).locator('[data-stat="cp"]')).toHaveText('2')
 
   // One army between the pair, so one bonus, promised now and paid when the battle ends.
   await expect(side(host, 1)).toContainText('+10 battle ready at the end')

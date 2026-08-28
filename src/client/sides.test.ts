@@ -35,6 +35,8 @@ function player(overrides: Partial<ViewPlayer> & Pick<ViewPlayer, 'id' | 'side'>
     secondaryDeckReady: false,
     remainingSecondaries: [],
     secondariesDrawnThisTurn: [],
+    secondaryDrawTarget: 2,
+    secondariesToReview: [],
     ...overrides,
   }
 }

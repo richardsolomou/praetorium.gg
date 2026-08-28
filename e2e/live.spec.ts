@@ -14,6 +14,7 @@ test('a battle stays in step across two devices', async ({ browser }) => {
   await setupBattle(alice, bob, { opponent: bobName, hostRoster: aliceRoster, guestRoster: bobRoster })
 
   await takeTheTurn(alice)
+  await expect(panel(bob, 'Death Guard').locator('[data-stat="cp"]')).toHaveText('1')
   await bob.getByRole('button', { name: 'End the command phase' }).click()
   await expect(bob.getByRole('heading', { name: 'movement phase' })).toBeVisible()
   await expect(panel(bob, 'Necrons').locator('[data-stat="cp"]')).toHaveText('1')

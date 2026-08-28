@@ -117,7 +117,7 @@ function describe(
       return command.painted ? `${who} marks ${whose} army battle ready` : `${who} removes the battle ready bonus from ${whose} army`
     case 'begin-battle': {
       const first = named.get(command.firstPlayerId) ?? 'someone'
-      return `The battle begins, ${named.get(command.attackerId ?? command.firstPlayerId) ?? 'someone'} attacking and ${first} taking the first turn and gaining 1 CP`
+      return `The battle begins, ${named.get(command.attackerId ?? command.firstPlayerId) ?? 'someone'} attacking and ${first} taking the first turn; both sides gain 1 CP`
     }
     case 'advance': {
       if (after.status === 'finished' || after.completionPending) {
@@ -126,11 +126,13 @@ function describe(
       const next = named.get(after.activePlayerId ?? '') ?? 'the other player'
       if (after.round !== before.round) {
         return targetId === by
-          ? `Round ${after.round} begins; ${next} gains 1 CP`
-          : `${who} ends the turn${forTarget}; round ${after.round} begins and ${next} gains 1 CP`
+          ? `Round ${after.round} begins; both sides gain 1 CP`
+          : `${who} ends the turn${forTarget}; round ${after.round} begins and both sides gain 1 CP`
       }
       if (after.activePlayerId !== before.active) {
-        return targetId === by ? `The turn passes to ${next}, who gains 1 CP` : `${who} passes ${whose} turn to ${next}, who gains 1 CP`
+        return targetId === by
+          ? `The turn passes to ${next}; both sides gain 1 CP`
+          : `${who} passes ${whose} turn to ${next}; both sides gain 1 CP`
       }
       return `${who} ends the ${before.phase} phase${forTarget}`
     }
@@ -148,6 +150,12 @@ function describe(
       return stratagem
         ? `${who} uses ${targetId === by ? '' : `${whose} `}${stratagem.name} for ${command.cp ?? stratagem.cp} CP`
         : `${who} uses a stratagem${forTarget}`
+    }
+    case 'use-new-orders': {
+      const discarded = player?.secondaries.find((secondary) => secondary.key === command.secondaryKey)?.name ?? 'a secondary'
+      const drawn = player?.secondaries.find((secondary) => secondary.key === command.secondary.key)?.name ?? 'a secondary'
+      const stratagem = player?.stratagems.find((candidate) => candidate.key === command.stratagemKey)
+      return `${who} uses ${targetId === by ? '' : `${whose} `}${stratagem?.name ?? 'New Orders'} for ${command.cp ?? stratagem?.cp ?? 1} CP, discarding ${discarded} and drawing ${drawn}`
     }
     case 'score':
       return `${who} scores ${command.delta} ${command.category}${forTarget}`

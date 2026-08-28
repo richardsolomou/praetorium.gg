@@ -171,9 +171,13 @@ export function loadCards(
   const criteria = criteriaIn(packs)
   const card = (raw: RawCard) => toCard(raw, criteria.get(criteriaKey(raw.name)) ?? [])
   const coreCards = coreCardsByName(datacardsDirectory)
+  const loadedCore = [
+    ...coreStratagems.map((raw) => toStratagem(raw, localizedField(coreCards.get(criteriaKey(raw.name)), 'name') ?? undefined)),
+    ...coreStratagemsFromDatacards(coreCards, coreStratagems),
+  ]
   return {
-    core: coreStratagems.map((raw) => toStratagem(raw, localizedField(coreCards.get(criteriaKey(raw.name)), 'name') ?? undefined)),
-    coreDetails: coreDescriptions(coreCards, coreStratagems),
+    core: loadedCore,
+    coreDetails: coreDescriptions(coreCards, loadedCore),
     secondaries: cards
       .filter((entry) => entry.card_type !== 'primary')
       .map(card)
@@ -193,12 +197,35 @@ function coreCardsByName(datacardsDirectory: string) {
   return new Map((cards.stratagems ?? []).map((card) => [criteriaKey(localizedField(card, 'name') ?? ''), card]))
 }
 
-function coreDescriptions(cards: ReadonlyMap<string, Record<string, unknown>>, rules: readonly RawStratagem[]): LoadedCards['coreDetails'] {
-  return rules.flatMap((rule) => {
-    const card = cards.get(criteriaKey(rule.name))
+function coreStratagemsFromDatacards(cards: ReadonlyMap<string, Record<string, unknown>>, rules: readonly RawStratagem[]): Stratagem[] {
+  const known = new Set(rules.map((rule) => criteriaKey(rule.name)))
+  return [...cards].flatMap(([key, card]) => {
+    if (known.has(key)) return []
+    const id = card.id
+    const name = localizedField(card, 'name')
+    const cost = card.cost
+    if (typeof id !== 'string' || !name || !Number.isInteger(cost)) return []
+    const phases = Array.isArray(card.phase)
+      ? card.phase.filter(
+          (phase): phase is NonNullable<Stratagem['phases']>[number] =>
+            typeof phase === 'string' && ['command', 'movement', 'shooting', 'charge', 'fight', 'end'].includes(phase),
+        )
+      : []
+    const turn =
+      card.turn === 'your' ? 'your-turn' : card.turn === 'opponents' ? 'opponent-turn' : card.turn === 'either' ? 'either' : undefined
+    return [{ key: id, name, cp: cost as number, limit: 'unlimited', ...(phases.length ? { phases } : {}), ...(turn ? { turn } : {}) }]
+  })
+}
+
+function coreDescriptions(
+  cards: ReadonlyMap<string, Record<string, unknown>>,
+  stratagems: readonly Stratagem[],
+): LoadedCards['coreDetails'] {
+  return stratagems.flatMap((stratagem) => {
+    const card = cards.get(criteriaKey(stratagem.name))
     const description = card ? stratagemText(card) : null
     const type = card?.type
-    return description ? [{ id: rule.id, type: typeof type === 'string' ? type : null, description }] : []
+    return description ? [{ id: stratagem.key, type: typeof type === 'string' ? type : null, description }] : []
   })
 }
 

@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import type { Command } from '../../../core/battle'
-import { HAND_SIZE, nextDraw } from '../../scoring'
+import { nextDraw } from '../../scoring'
 import { type Side, sideName } from '../../sides'
 import { redrawOffer, type WhenDrawn } from './drawOffer'
 import { DrawUndoAlert } from './DrawUndoAlert'
@@ -41,7 +41,7 @@ export function DrawDialog({ side, round, undoable, confirmUndo, pending, send, 
    * Listing all of them as one deal said the turn had dealt four cards when it dealt
    * two, and offered a card from two turns ago back to the deck.
    */
-  const dealtNow = new Set(side.secondariesDrawnThisTurn)
+  const dealtNow = new Set(side.secondariesToReview)
   const drawn = held.filter((card) => dealtNow.has(card.key))
   const carried = held.filter((card) => !dealtNow.has(card.key))
   const [paused, setPaused] = useState(true)
@@ -49,9 +49,10 @@ export function DrawDialog({ side, round, undoable, confirmUndo, pending, send, 
   const [selected, setSelected] = useState<string[]>([])
   const [inspected, setInspected] = useState<MissionDetails | null>(null)
   const [confirmingUndo, setConfirmingUndo] = useState<number | null>(null)
-  const owed = Math.min(HAND_SIZE - side.secondariesDrawnThisTurn.length, side.remainingSecondaries.length)
+  const owed = Math.min(side.secondaryDrawTarget - side.secondariesDrawnThisTurn.length, side.remainingSecondaries.length)
   const needsDraw = owed > 0
-  const canUndo = side.secondariesDrawnThisTurn.length > 0 && undoable !== null
+  const canUndo = undoable !== null
+  const requiredReturn = drawn.some((card) => redrawOffer(whenDrawnFor(card.key), round, held)?.required)
   /**
    * What this prompt has already asked the deck for.
    *
@@ -80,7 +81,13 @@ export function DrawDialog({ side, round, undoable, confirmUndo, pending, send, 
     const requested = new Set(asked.current)
     const secondaries = []
     while (true) {
-      const card = nextDraw(side.secondariesDrawnThisTurn.length, requested, side.secondaries, side.remainingSecondaries)
+      const card = nextDraw(
+        side.secondariesDrawnThisTurn.length,
+        side.secondaryDrawTarget,
+        requested,
+        side.secondaries,
+        side.remainingSecondaries,
+      )
       if (!card) break
       requested.add(card.key)
       secondaries.push(card)
@@ -89,7 +96,7 @@ export function DrawDialog({ side, round, undoable, confirmUndo, pending, send, 
     for (const card of secondaries) asked.current.add(card.key)
     // Named, because the table may be dealing a practice opponent's hand rather than its own.
     send({ kind: 'draw-secondaries', secondaries, playerId: side.captain.id })
-  }, [side.secondariesDrawnThisTurn, paused, side.captain.id, side.secondaries, side.remainingSecondaries, send])
+  }, [side.secondariesDrawnThisTurn, side.secondaryDrawTarget, paused, side.captain.id, side.secondaries, side.remainingSecondaries, send])
 
   useEffect(() => {
     setSelected((current) => {
@@ -129,7 +136,7 @@ export function DrawDialog({ side, round, undoable, confirmUndo, pending, send, 
                 : carried.length
                   ? `${drawn.length} drawn this turn, on top of the ${carried.length} your hand was already holding. `
                   : `${drawn.length} drawn this turn. `}
-              {side.remainingSecondaries.length} cards left. Some missions may be put back the moment they are drawn.
+              {side.remainingSecondaries.length} cards left. Some missions must be put back when their condition applies.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
@@ -272,7 +279,7 @@ export function DrawDialog({ side, round, undoable, confirmUndo, pending, send, 
                 </Button>
               </>
             ) : (
-              <Button disabled={pending || needsDraw} onClick={onDone}>
+              <Button disabled={pending || needsDraw || requiredReturn} onClick={onDone}>
                 Take the turn
               </Button>
             )}

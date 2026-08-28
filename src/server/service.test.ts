@@ -1200,6 +1200,51 @@ it('keeps explicitly selected tactical secondaries', async () => {
   expect(drawn?.map((card) => card.key)).toEqual(['second', 'third'])
 })
 
+it('chooses the New Orders replacement on the server', async () => {
+  const { token } = await service.createBattle('alice', { opponentId: 'bob', missionPackId: null })
+  let seq = 0
+  const send = async (command: Parameters<PraetoriumService['submit']>[3]) => {
+    const answer = await service.submit(token, 'alice', seq, command)
+    if (answer.result.outcome === 'appended') seq = answer.result.seq
+    return answer
+  }
+  await send({ kind: 'attach-roster', roster: { name: 'Alice army', text: 'Alice army' } })
+  await service.submit(token, 'bob', seq, { kind: 'attach-roster', roster: { name: 'Bob army', text: 'Bob army' } }).then((answer) => {
+    if (answer.result.outcome === 'appended') seq = answer.result.seq
+  })
+  const cards = [
+    { key: 'first', name: 'First card' },
+    { key: 'second', name: 'Second card' },
+    { key: 'replacement', name: 'Replacement card' },
+  ]
+  await send({
+    kind: 'set-prep',
+    stratagems: [{ key: 'new-orders', name: 'New Orders', cp: 1, limit: 'unlimited', phases: ['command'], turn: 'your-turn' }],
+    secondaries: [],
+    secondaryDeck: cards,
+    primary: null,
+    secondaryMode: 'tactical',
+  })
+  await send({ kind: 'begin-battle', firstPlayerId: 'alice' })
+  await send({ kind: 'draw-secondaries', secondaries: cards.slice(0, 2), selected: true })
+
+  const answer = await send({
+    kind: 'use-new-orders',
+    stratagemKey: 'new-orders',
+    secondaryKey: 'first',
+    secondary: { key: 'client-choice', name: 'Client choice' },
+  })
+
+  expect(answer.result.outcome).toBe('appended')
+  const player = answer.screen.kind === 'battle' ? answer.screen.view.players.find((candidate) => candidate.id === 'alice') : undefined
+  expect(player?.secondaries).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ key: 'first', status: 'discarded' }),
+      expect.objectContaining({ key: 'replacement', status: 'active' }),
+    ]),
+  )
+})
+
 describe('favourite factions', () => {
   it('keeps each player favourites separate', async () => {
     await service.setFavouriteFaction('alice', 'dark-angels', true)

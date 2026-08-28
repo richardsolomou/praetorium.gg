@@ -172,6 +172,14 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
     cp: z.number().int().min(0).max(STRATAGEM_CP_MAX).optional(),
     playerId: id.optional(),
   }),
+  z.object({
+    kind: z.literal('use-new-orders'),
+    stratagemKey: id,
+    secondaryKey: id,
+    secondary,
+    cp: z.number().int().min(0).max(STRATAGEM_CP_MAX).optional(),
+    playerId: id.optional(),
+  }),
   z.object({ kind: z.literal('score-secondary'), key: id, delta: z.number().int(), playerId: id.optional() }),
   z.object({
     kind: z.literal('score-settlement'),
