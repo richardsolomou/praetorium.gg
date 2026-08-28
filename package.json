@@ -31,6 +31,7 @@
     "db:check": "drizzle-kit check",
     "catalogue:check": "tsx scripts/syncCatalogue.ts --check",
     "catalogue:descriptions": "tsx scripts/checkDescriptions.ts",
+    "catalogue:terrain": "tsx scripts/checkTerrain.ts",
     "catalogue:sync": "tsx scripts/syncCatalogue.ts",
     "catalogue:snapshot": "tsx scripts/catalogueSnapshot.ts",
     "catalogue:update": "tsx scripts/syncCatalogue.ts --update",
