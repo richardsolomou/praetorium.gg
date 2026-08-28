@@ -118,7 +118,7 @@ function buildFactions(loaded: LoadedCatalogue, rules: LoadedRules | null | unde
             slug: routeSlug(detachment.name),
             name: detachment.name,
             disposition: detachment.disposition,
-            dispositions: reference?.dispositions.length
+            dispositions: reference
               ? reference.dispositions.map((id) => ({ id, name: rules?.dispositions?.get(id) ?? id }))
               : detachment.disposition
                 ? [{ id: detachment.disposition, name: rules?.dispositions?.get(detachment.disposition) ?? detachment.disposition }]

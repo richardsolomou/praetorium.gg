@@ -2,7 +2,16 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { descriptionKey, factionRestrictionCoverageIssues, factionRestrictions, loadDatacards, prose, restrictedBy } from './datacards'
+import {
+  constructionDetachment,
+  descriptionKey,
+  enhancementPoints,
+  factionRestrictionCoverageIssues,
+  factionRestrictions,
+  loadDatacards,
+  prose,
+  restrictedBy,
+} from './datacards'
 
 let directory: string | null = null
 
@@ -100,6 +109,111 @@ it('reads every structured army rule', () => {
   expect(loadDatacards(directory).factions.get('adeptus-custodes')?.armyRules).toEqual([
     { name: 'Martial Ka’tah', description: 'Select a stance.\n\n### Rendax Stance\n\nWeapons gain **[LETHAL HITS]**.' },
   ])
+})
+
+it('reads army-construction numbers without trusting malformed alternatives', () => {
+  directory = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-datacards-'))
+  fs.writeFileSync(
+    path.join(directory, 'space-marines.json'),
+    JSON.stringify({
+      name: 'Adeptus Astartes',
+      datasheets: [],
+      detachments: [
+        {
+          name: { en: 'Stormlance Task Force' },
+          detachmentPoints: 3,
+          detachmentPointsOverrides: [
+            { faction: 'Black Templars', detachmentPoints: 'many' },
+            { faction: 'White Scars', detachmentPoints: 2 },
+          ],
+          forceDisposition: { name: { en: 'Disruption' } },
+        },
+        {
+          name: { en: 'Broken Task Force' },
+          detachmentPoints: 'many',
+          forceDisposition: { name: { en: 'Reconnaissance' } },
+        },
+        {
+          name: { en: 'Conflicting Override' },
+          detachmentPoints: 3,
+          detachmentPointsOverrides: [
+            { faction: 'Black Templars', detachmentPoints: 2 },
+            { faction: 'Black Templars', detachmentPoints: 1 },
+          ],
+          forceDisposition: { name: { en: 'Disruption' } },
+        },
+        {
+          name: { en: 'Poisoned Task Force' },
+          detachmentPoints: 3,
+          forceDisposition: { name: { en: 'Disruption' } },
+        },
+        {
+          name: { en: 'Poisoned Task Force' },
+          detachmentPoints: 'many',
+          forceDisposition: { name: { en: 'Disruption' } },
+        },
+        {
+          name: { en: 'Unscoped Override' },
+          detachmentPoints: 3,
+          detachmentPointsOverrides: [{ detachmentPoints: 2 }],
+          forceDisposition: { name: { en: 'Disruption' } },
+        },
+      ],
+      enhancements: [
+        { name: { en: 'Fury of the Storm' }, detachment: 'Stormlance Task Force', cost: '25' },
+        { name: { en: 'Fury of the Storm' }, detachment: 'Stormlance Task Force', cost: 'cheap' },
+        { name: { en: 'Valid Relic' }, detachment: 'Stormlance Task Force', cost: '25' },
+        { name: { en: 'Broken Relic' }, detachment: 'Stormlance Task Force', cost: 'cheap' },
+      ],
+    }),
+  )
+  for (const [file, faction, points, cost] of [
+    ['one.json', 'One', 1, '10'],
+    ['two.json', 'Two', 2, '20'],
+  ] as const) {
+    fs.writeFileSync(
+      path.join(directory, file),
+      JSON.stringify({
+        name: faction,
+        datasheets: [],
+        detachments: [{ name: { en: 'Shared Detachment' }, detachmentPoints: points, forceDisposition: { name: { en: 'Disruption' } } }],
+        enhancements: [{ name: { en: 'Shared Relic' }, detachment: 'Shared Detachment', cost }],
+      }),
+    )
+  }
+
+  const datacards = loadDatacards(directory)
+  expect({
+    base: constructionDetachment(datacards, 'Adeptus Astartes', 'Stormlance Task Force'),
+    validOverride: constructionDetachment(datacards, 'White Scars', 'Stormlance Task Force', 'adeptus-astartes'),
+    malformedOverride: constructionDetachment(datacards, 'Black Templars', 'Stormlance Task Force', 'adeptus-astartes'),
+    unrelatedDetachment: constructionDetachment(datacards, 'Orks', 'Stormlance Task Force'),
+    malformedDetachment: constructionDetachment(datacards, 'Adeptus Astartes', 'Broken Task Force'),
+    poisonedDetachment: constructionDetachment(datacards, 'Adeptus Astartes', 'Poisoned Task Force'),
+    unscopedOverride: constructionDetachment(datacards, 'Adeptus Astartes', 'Unscoped Override'),
+    baseWithConflictingOverride: constructionDetachment(datacards, 'Adeptus Astartes', 'Conflicting Override'),
+    conflictingOverride: constructionDetachment(datacards, 'Black Templars', 'Conflicting Override'),
+    validEnhancement: enhancementPoints(datacards, 'Stormlance Task Force', 'Valid Relic'),
+    poisonedEnhancement: enhancementPoints(datacards, 'Stormlance Task Force', 'Fury of the Storm'),
+    malformedEnhancement: enhancementPoints(datacards, 'Stormlance Task Force', 'Broken Relic'),
+    conflictingDetachment: constructionDetachment(datacards, 'Unknown Faction', 'Shared Detachment'),
+    conflictingEnhancement: enhancementPoints(datacards, 'Shared Detachment', 'Shared Relic'),
+  }).toEqual({
+    base: { points: 3, disposition: 'disruption' },
+    validOverride: { points: 2, disposition: 'disruption' },
+    malformedOverride: null,
+    unrelatedDetachment: null,
+    malformedDetachment: null,
+    poisonedDetachment: null,
+    unscopedOverride: null,
+    baseWithConflictingOverride: { points: 3, disposition: 'disruption' },
+    conflictingOverride: null,
+    validEnhancement: 25,
+    poisonedEnhancement: null,
+    malformedEnhancement: null,
+    conflictingDetachment: null,
+    conflictingEnhancement: null,
+  })
 })
 
 it('adds dimensions to named flying bases', () => {

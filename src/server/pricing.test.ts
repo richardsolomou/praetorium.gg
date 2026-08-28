@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  calculateRosterPrice,
   choiceOptionsForPricing,
   deploymentRules,
   heldWargear,
@@ -11,6 +12,8 @@ import {
   uniqueNames,
 } from './pricing'
 import { descriptionKey } from './datacards'
+import { bookOf } from './catalogue.fixtures'
+import type { LoadedRules } from './rules'
 
 describe('force disposition', () => {
   it('uses the only available disposition', () => {
@@ -23,6 +26,130 @@ describe('force disposition', () => {
 
   it('keeps a valid choice', () => {
     expect(resolveDisposition(['reconnaissance', 'disruption'], 'disruption')).toEqual({ disposition: 'disruption', error: null })
+  })
+
+  it('does not restore a catalogue disposition when the rules reference is unknown', () => {
+    const loaded = bookOf({
+      name: 'Death Guard',
+      selectionEntries: [{ id: 'plague-marine', name: 'Plague Marine', type: 'unit' }],
+      sharedSelectionEntries: [
+        {
+          id: 'wrapper',
+          name: 'Detachment',
+          type: 'upgrade',
+          selectionEntryGroups: [
+            {
+              id: 'choices',
+              name: 'Detachment',
+              selectionEntries: [
+                {
+                  id: 'flyblown-host',
+                  name: 'Flyblown Host',
+                  type: 'upgrade',
+                  categoryLinks: [{ id: 'disruption', name: 'Disruption', targetId: 'disruption' }],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    })
+    const rules = {
+      factionKeys: new Map([['death-guard', 'death-guard']]),
+      detachmentReferences: new Map([
+        ['death-guard', new Map([['flyblown-host', { enhancements: 0, upgrades: 0, stratagems: 0, points: null, dispositions: [] }]])],
+      ]),
+      detachmentDetails: new Map(),
+      factionRestrictions: new Map(),
+    } as Partial<LoadedRules> as LoadedRules
+
+    expect(
+      calculateRosterPrice(
+        { catalogueId: 'cat', detachmentIds: ['flyblown-host'], disposition: null, limit: 2_000, units: [] },
+        loaded,
+        rules,
+      ),
+    ).toMatchObject({ disposition: null, dispositions: [] })
+  })
+
+  it('prices compact catalogue detachment names from their rules references', () => {
+    const loaded = bookOf({
+      name: 'Adeptus Mechanicus',
+      selectionEntries: [{ id: 'skitarii', name: 'Skitarii', type: 'unit' }],
+      sharedSelectionEntries: [
+        {
+          id: 'wrapper',
+          name: 'Detachment',
+          type: 'upgrade',
+          selectionEntryGroups: [
+            {
+              id: 'choices',
+              name: 'Detachment',
+              selectionEntries: [
+                {
+                  id: 'haloscreed',
+                  name: 'Haloscreed Battleclade',
+                  type: 'upgrade',
+                  categoryLinks: [{ id: 'haloscreed-disruption', name: 'Disruption', targetId: 'disruption' }],
+                },
+                {
+                  id: 'lords',
+                  name: 'Lords of the Forge',
+                  type: 'upgrade',
+                  categoryLinks: [{ id: 'lords-disruption', name: 'Disruption', targetId: 'disruption' }],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    })
+    const detail = (id: string, name: string, points: number) => ({
+      id,
+      name,
+      points,
+      dispositions: ['priority-assets'],
+      rules: [],
+      enhancements: [],
+      upgrades: [],
+      stratagems: [],
+    })
+    const references = new Map([
+      ['haloscreed-battle-clade', { enhancements: 0, upgrades: 0, stratagems: 0, points: 3, dispositions: ['priority-assets'] }],
+      ['lords-of-the-forge', { enhancements: 0, upgrades: 0, stratagems: 0, points: 1, dispositions: ['priority-assets'] }],
+    ])
+    const rules = {
+      factionKeys: new Map([['adeptus-mechanicus', 'adeptus-mechanicus']]),
+      detachmentReferences: new Map([['adeptus-mechanicus', references]]),
+      detachmentDetails: new Map([
+        [
+          'adeptus-mechanicus',
+          new Map([
+            ['haloscreed-battle-clade', detail('haloscreed-battle-clade', 'Haloscreed Battle Clade', 3)],
+            ['lords-of-the-forge', detail('lords-of-the-forge', 'Lords of the Forge', 1)],
+          ]),
+        ],
+      ]),
+      factionRestrictions: new Map(),
+    } as Partial<LoadedRules> as LoadedRules
+
+    expect(
+      calculateRosterPrice(
+        { catalogueId: 'cat', detachmentIds: ['haloscreed', 'lords'], disposition: null, limit: 2_000, units: [] },
+        loaded,
+        rules,
+      ),
+    ).toMatchObject({
+      detachments: [
+        { name: 'Haloscreed Battleclade', points: 3 },
+        { name: 'Lords of the Forge', points: 1 },
+      ],
+      detachmentPointsSpent: 4,
+      detachmentPointsOver: true,
+      detachmentError: 'This combination costs 4 DP; multiple detachments at this battle size may cost at most 3 DP.',
+      disposition: 'priority-assets',
+      dispositions: ['priority-assets'],
+    })
   })
 })
 

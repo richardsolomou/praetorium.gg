@@ -30,6 +30,15 @@ export type DatasheetDetails = {
 
 export type RuleCard = { name: string; description: string }
 
+export type ConstructionDetachment = {
+  name: string
+  faction: string
+  points: number | null
+  pointOverrides: ReadonlyMap<string, number | null>
+  disposition: string | null
+  globallyValid: boolean
+}
+
 export type FactionContent = {
   name: string
   datasheets: Set<string>
@@ -51,6 +60,10 @@ export type LoadedDatacards = {
   stratagems: ReadonlyMap<string, RuleCard>
   /** Every army rule by its slug, where the files agree on what it says. */
   armyRules: ReadonlyMap<string, string>
+  /** By detachment slug, retaining every exact-name candidate so conflicts fail closed. */
+  constructionDetachments: ReadonlyMap<string, readonly ConstructionDetachment[]>
+  /** By `descriptionKey`, where every matching card agrees on the points. */
+  enhancementPoints: ReadonlyMap<string, number>
 }
 
 export type FactionRestrictions = {
@@ -75,6 +88,9 @@ export const cardName = (name: string) => routeSlug(name).replaceAll(/-(?:aura|u
 /** A card names its detachment and itself. */
 export const descriptionKey = (detachment: string, name: string) => `${routeSlug(detachment)}|${cardName(name)}`
 
+/** The source's own faction name and the catalogue name already declared for it. */
+export const datacardsFactionKeys = (name: string) => new Set([routeSlug(name), routeSlug(catalogueFactionName(name))])
+
 export function loadDatacards(directory: string): LoadedDatacards {
   const factions = new Map<string, FactionContent>()
   const detachmentRules = new Map<string, Map<string, Set<string>>>()
@@ -82,19 +98,63 @@ export function loadDatacards(directory: string): LoadedDatacards {
   const stratagems = new Map<string, Set<string>>()
   const stratagemNames = new Map<string, string>()
   const armyRules = new Map<string, Set<string>>()
+  const constructionDetachments = new Map<string, ConstructionDetachment[]>()
+  const enhancementPointCandidates = new Map<string, Set<number | null>>()
   const remember = (into: Map<string, Set<string>>, key: string, text: string) => {
     const found = into.get(key) ?? new Set<string>()
     found.add(text)
     into.set(key, found)
   }
   if (!fs.existsSync(directory))
-    return { factions, detachmentRules: new Map(), enhancements: new Map(), stratagems: new Map(), armyRules: new Map() }
+    return {
+      factions,
+      detachmentRules: new Map(),
+      enhancements: new Map(),
+      stratagems: new Map(),
+      armyRules: new Map(),
+      constructionDetachments: new Map(),
+      enhancementPoints: new Map(),
+    }
   for (const fileName of fs.readdirSync(directory).filter((entry) => entry.endsWith('.json'))) {
     const parsed = JSON.parse(fs.readFileSync(path.join(directory, fileName), 'utf8')) as DatacardsFaction
     if (typeof parsed.name !== 'string' || !Array.isArray(parsed.datasheets) || !Array.isArray(parsed.detachments)) continue
     const content = factionContent(parsed.name, parsed)
-    for (const name of new Set([parsed.name, catalogueFactionName(parsed.name)])) factions.set(routeSlug(name), content)
+    for (const key of datacardsFactionKeys(parsed.name)) factions.set(key, content)
     for (const rule of content.armyRules) remember(armyRules, routeSlug(rule.name), rule.description)
+    for (const detachment of records(parsed, 'detachments')) {
+      const name = localizedField(detachment, 'name')
+      const points = integerField(detachment, 'detachmentPoints')
+      const disposition = localizedField(detachment.forceDisposition, 'name')
+      if (!name) continue
+      const overrideCandidates = new Map<string, Set<number | null>>()
+      const overrides = detachment.detachmentPointsOverrides
+      let globallyValid = points !== null && Boolean(disposition) && (overrides === undefined || Array.isArray(overrides))
+      for (const rawOverride of Array.isArray(overrides) ? overrides : []) {
+        if (!rawOverride || typeof rawOverride !== 'object') {
+          globallyValid = false
+          continue
+        }
+        const override = rawOverride as Record<string, unknown>
+        const faction = stringField(override, 'faction')
+        const overridden = integerField(override, 'detachmentPoints')
+        const key = faction ? routeSlug(faction) : ''
+        if (!key) {
+          globallyValid = false
+          continue
+        }
+        overrideCandidates.set(key, new Set([...(overrideCandidates.get(key) ?? []), overridden]))
+      }
+      const pointOverrides = new Map(
+        [...overrideCandidates].map(
+          ([faction, candidates]) => [faction, candidates.size === 1 ? candidates.values().next().value! : null] as const,
+        ),
+      )
+      const key = routeSlug(name)
+      constructionDetachments.set(key, [
+        ...(constructionDetachments.get(key) ?? []),
+        { name, faction: parsed.name, points, pointOverrides, disposition: disposition ? routeSlug(disposition) : null, globallyValid },
+      ])
+    }
 
     for (const entry of detachmentRuleCards(parsed.rules)) {
       const rules = detachmentRules.get(routeSlug(entry.detachment)) ?? new Map<string, Set<string>>()
@@ -110,6 +170,12 @@ export function loadDatacards(directory: string): LoadedDatacards {
       const detachment = stringField(enhancement, 'detachment')
       const description = localizedField(enhancement, 'description')
       if (name && detachment && description) remember(enhancements, descriptionKey(detachment, name), prose(description))
+      if (name && detachment) {
+        const key = descriptionKey(detachment, name)
+        const candidates = enhancementPointCandidates.get(key) ?? new Set<number | null>()
+        candidates.add(integerField(enhancement, 'cost'))
+        enhancementPointCandidates.set(key, candidates)
+      }
     }
     for (const stratagem of records(parsed, 'stratagems')) {
       const name = localizedField(stratagem, 'name')
@@ -133,8 +199,46 @@ export function loadDatacards(directory: string): LoadedDatacards {
     enhancements: unique(enhancements),
     stratagems: new Map([...unique(stratagems)].map(([key, description]) => [key, { name: stratagemNames.get(key)!, description }])),
     armyRules: unique(armyRules),
+    constructionDetachments,
+    enhancementPoints: new Map(
+      [...enhancementPointCandidates].flatMap(([key, candidates]) => {
+        const points = candidates.size === 1 ? candidates.values().next().value! : null
+        return points === null ? [] : [[key, points] as const]
+      }),
+    ),
   }
 }
+
+export function constructionDetachment(
+  datacards: LoadedDatacards,
+  faction: string,
+  detachment: string,
+  parentFaction: string | null = null,
+) {
+  const candidates = datacards.constructionDetachments.get(routeSlug(detachment)) ?? []
+  const matches = (candidate: ConstructionDetachment, wanted: string) => datacardsFactionKeys(candidate.faction).has(routeSlug(wanted))
+  const exact = candidates.filter((candidate) => matches(candidate, faction))
+  const parent = parentFaction ? candidates.filter((candidate) => matches(candidate, parentFaction)) : []
+  const relevant = exact.length ? exact : parent
+  const answers = new Map(
+    relevant.map((candidate) => {
+      const factionKey = routeSlug(faction)
+      const answer = candidate.globallyValid
+        ? {
+            points: candidate.pointOverrides.has(factionKey) ? candidate.pointOverrides.get(factionKey)! : candidate.points,
+            disposition: candidate.disposition,
+          }
+        : { points: null, disposition: null }
+      return [JSON.stringify(answer), answer]
+    }),
+  )
+  if (answers.size !== 1) return null
+  const answer = answers.values().next().value!
+  return answer.points === null || answer.disposition === null ? null : { points: answer.points, disposition: answer.disposition }
+}
+
+export const enhancementPoints = (datacards: LoadedDatacards, detachment: string, enhancement: string) =>
+  datacards.enhancementPoints.get(descriptionKey(detachment, enhancement)) ?? null
 
 const unique = (candidates: ReadonlyMap<string, Set<string>>) =>
   new Map([...candidates].flatMap(([key, texts]) => (texts.size === 1 ? [[key, texts.values().next().value!] as const] : [])))
@@ -429,6 +533,12 @@ function records(value: unknown, field: string): Record<string, unknown>[] {
 function stringField(value: Record<string, unknown>, field: string): string | null {
   const found = value[field]
   return typeof found === 'string' ? found : typeof found === 'number' ? String(found) : null
+}
+
+function integerField(value: Record<string, unknown>, field: string): number | null {
+  const found = value[field]
+  const parsed = typeof found === 'number' ? found : typeof found === 'string' && /^\d+$/.test(found) ? Number(found) : Number.NaN
+  return Number.isSafeInteger(parsed) && parsed >= 0 ? parsed : null
 }
 
 function nullableStringField(value: Record<string, unknown>, field: string): string | null {

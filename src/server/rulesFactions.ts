@@ -4,7 +4,7 @@ import type { Stratagem } from '../core/battle'
 import { routeSlug } from '../core/slug'
 import { byName, factionDirectories, readJson, readOptionalList, titleCase } from './rulesSource'
 import { type RawStratagem, toStratagem } from './rulesCards'
-import { descriptionKey, type LoadedDatacards } from './datacards'
+import { constructionDetachment, descriptionKey, enhancementPoints, type LoadedDatacards } from './datacards'
 import { SUPPLEMENTAL_FACTION_ICONS } from './factionIconSources'
 
 /**
@@ -16,18 +16,23 @@ import { SUPPLEMENTAL_FACTION_ICONS } from './factionIconSources'
  * routes reference pages by.
  */
 
-type RawFaction = { id: string; name: string; aliases?: string[]; faction_rule_id?: string; logo_url?: string }
+type RawFaction = {
+  id: string
+  name: string
+  parent_faction_id?: string | null
+  aliases?: string[]
+  faction_rule_id?: string
+  logo_url?: string
+}
 
 type RawDetachment = {
   id: string
   name: string
   enhancement_ids?: string[]
   stratagem_ids?: string[]
-  detachment_points?: number
-  force_dispositions?: string[]
 }
 
-type RawEnhancement = { id: string; name: string; detachment_id?: string; cost?: number; keyword_restrictions?: string[] }
+type RawEnhancement = { id: string; name: string; detachment_id?: string; keyword_restrictions?: string[] }
 const isUnitUpgrade = (name: string) => /\s*\(upgrade\)\s*$/i.test(name)
 
 /**
@@ -94,13 +99,23 @@ export type LoadedFactions = {
    * below are read one key at a time and also counted whole.
    */
   factionKeys: Map<string, string>
-  /** Display metadata for each detachment, from the same licensed source as its stratagems. */
+  /** Each child faction against the parent whose shared construction cards it may use. */
+  factionParents: Map<string, string>
+  /** Display metadata for each detachment, with construction numbers from Game Datacards. */
   detachmentReferences: Map<string, Map<string, DetachmentReference>>
   detachmentDetails: Map<string, Map<string, DetachmentRulesDetail>>
   /** Faction slug then detachment slug, so a chosen detachment maps straight to its six. */
   byDetachment: Map<string, Map<string, Stratagem[]>>
   /** Whatever the dataset says about how settled these numbers are. */
   dataslate: string | null
+  constructionJoinIssues: ConstructionJoinIssue[]
+}
+
+export type ConstructionJoinIssue = {
+  kind: 'detachment' | 'enhancement'
+  faction: string
+  detachment: string
+  enhancement?: string
 }
 
 export function loadFactions(core: string, iconDirectory: string, datacards: LoadedDatacards): LoadedFactions {
@@ -111,6 +126,8 @@ export function loadFactions(core: string, iconDirectory: string, datacards: Loa
   const factionIcons = new Map<string, string>()
   const factionRules = new Map<string, { name: string; description: string }>()
   const factionKeys = new Map<string, string>()
+  const factionParents = new Map<string, string>()
+  const constructionJoinIssues: ConstructionJoinIssue[] = []
   let dataslate: string | null = null
 
   for (const faction of factionDirectories(core)) {
@@ -120,6 +137,7 @@ export function loadFactions(core: string, iconDirectory: string, datacards: Loa
     if (fs.existsSync(factionFile)) {
       for (const found of readJson<RawFaction[]>(factionFile)) {
         for (const alias of found.aliases ?? []) factionKeys.set(routeSlug(alias), faction)
+        if (found.parent_faction_id) factionParents.set(found.id, found.parent_faction_id)
         factionNames.set(found.id, found.name)
         const icon = path.join(iconDirectory, `${found.id}.svg`)
         if (found.logo_url) {
@@ -163,6 +181,35 @@ export function loadFactions(core: string, iconDirectory: string, datacards: Loa
         )
       }
 
+      const factionName = factionNames.get(faction) ?? faction
+      const rawDetachmentById = new Map(rawDetachments.map((detachment) => [detachment.id, detachment]))
+      const constructionByDetachment = new Map(
+        rawDetachments.map((detachment) => [
+          detachment.id,
+          constructionDetachment(datacards, factionName, detachment.name, factionParents.get(faction)),
+        ]),
+      )
+      const constructionFields = (detachment: RawDetachment) => {
+        const construction = constructionByDetachment.get(detachment.id)
+        return { points: construction?.points ?? null, dispositions: construction ? [construction.disposition] : [] }
+      }
+      for (const detachment of rawDetachments) {
+        if (!constructionByDetachment.get(detachment.id)) {
+          constructionJoinIssues.push({ kind: 'detachment', faction: factionName, detachment: detachment.name })
+        }
+      }
+      for (const enhancement of enhancements) {
+        const detachment = enhancement.detachment_id ? rawDetachmentById.get(enhancement.detachment_id) : undefined
+        if (detachment && enhancementPoints(datacards, detachment.name, enhancement.name) === null) {
+          constructionJoinIssues.push({
+            kind: 'enhancement',
+            faction: factionName,
+            detachment: detachment.name,
+            enhancement: enhancement.name,
+          })
+        }
+      }
+
       const references = new Map(
         rawDetachments.map((detachment) => [
           detachment.id,
@@ -173,8 +220,7 @@ export function loadFactions(core: string, iconDirectory: string, datacards: Loa
             upgrades: enhancements.filter((enhancement) => enhancement.detachment_id === detachment.id && isUnitUpgrade(enhancement.name))
               .length,
             stratagems: stratagemsOf.get(detachment.id)?.length ?? 0,
-            points: detachment.detachment_points ?? null,
-            dispositions: detachment.force_dispositions ?? [],
+            ...constructionFields(detachment),
           },
         ]),
       )
@@ -184,14 +230,13 @@ export function loadFactions(core: string, iconDirectory: string, datacards: Loa
           {
             id: detachment.id,
             name: detachment.name,
-            points: detachment.detachment_points ?? null,
-            dispositions: detachment.force_dispositions ?? [],
+            ...constructionFields(detachment),
             rules: [...(datacards.detachmentRules.get(routeSlug(detachment.name)) ?? [])],
             enhancements: enhancements
               .filter((enhancement) => enhancement.detachment_id === detachment.id && !isUnitUpgrade(enhancement.name))
               .map((enhancement) => ({
                 name: enhancement.name,
-                points: enhancement.cost ?? null,
+                points: enhancementPoints(datacards, detachment.name, enhancement.name),
                 description: datacards.enhancements.get(descriptionKey(detachment.name, enhancement.name)) ?? null,
                 keywordRestrictions: enhancement.keyword_restrictions ?? [],
               })),
@@ -199,7 +244,7 @@ export function loadFactions(core: string, iconDirectory: string, datacards: Loa
               .filter((enhancement) => enhancement.detachment_id === detachment.id && isUnitUpgrade(enhancement.name))
               .map((enhancement) => ({
                 name: enhancement.name.replace(/\s*\(upgrade\)\s*$/i, ''),
-                points: enhancement.cost ?? null,
+                points: enhancementPoints(datacards, detachment.name, enhancement.name),
                 description: datacards.enhancements.get(descriptionKey(detachment.name, enhancement.name)) ?? null,
               })),
             stratagems: (stratagemsOf.get(detachment.id) ?? [])
@@ -228,5 +273,16 @@ export function loadFactions(core: string, iconDirectory: string, datacards: Loa
     factionIcons.set(id, fs.existsSync(icon) ? `data:image/svg+xml;base64,${fs.readFileSync(icon).toString('base64')}` : logoUrl)
   }
 
-  return { factionNames, factionIcons, factionRules, factionKeys, detachmentReferences, detachmentDetails, byDetachment, dataslate }
+  return {
+    factionNames,
+    factionIcons,
+    factionRules,
+    factionKeys,
+    factionParents,
+    detachmentReferences,
+    detachmentDetails,
+    byDetachment,
+    dataslate,
+    constructionJoinIssues,
+  }
 }

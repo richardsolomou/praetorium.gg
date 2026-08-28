@@ -20,6 +20,7 @@ import { app } from './app'
 import { contextualAbilityNamesIn, datasheetIn, rulesReferencedIn, toughnessOf } from './catalogue'
 import { describedEnhancements } from './catalogueDescriptions'
 import { descriptionKey, type FactionRestrictions, restrictedBy } from './datacards'
+import { detachmentNamed } from './factionReferences'
 import { groupOfEntry } from './cataloguePicker'
 import { rosterDetachments } from './rosterDetachments'
 import { type LoadedCatalogue } from './catalogueIndex'
@@ -159,22 +160,24 @@ export function calculateRosterPrice(data: PriceInput, loaded = app().catalogue(
   // the roster when units are expanded.
   const rules = loadedRules
   const factionSlug = routeSlug(loaded.index.catalogues.get(data.catalogueId)?.name ?? '')
-  const references = rules?.detachmentReferences.get(rulesFaction(rules, factionSlug))
+  const rulesId = rulesFaction(rules, factionSlug)
+  const references = rules?.detachmentReferences.get(rulesId)
+  const details = rules?.detachmentDetails.get(rulesId)
   const allowedDispositions = [
     ...new Set(
       chosen.flatMap((option) => {
-        const fromRules = references?.get(routeSlug(option.name))?.dispositions ?? []
-        return fromRules.length ? fromRules : option.disposition ? [option.disposition] : []
+        const reference = detachmentNamed(references, option.name)
+        return reference ? reference.dispositions : option.disposition ? [option.disposition] : []
       }),
     ),
   ]
   const { disposition, error: dispositionError } = resolveDisposition(allowedDispositions, data.disposition)
   const purchased = chosen.map((option) => ({
     name: option.name,
-    points: references?.get(routeSlug(option.name))?.points ?? null,
+    points: detachmentNamed(references, option.name)?.points ?? null,
   }))
   const detachmentSpecials = chosen.map((option) => {
-    const detail = rules?.detachmentDetails.get(rulesFaction(rules, factionSlug))?.get(routeSlug(option.name))
+    const detail = detachmentNamed(details, option.name)
     return { option, detail, ...describedEnhancements(loaded, data.catalogueId, option, detail) }
   })
   const enhancementDescriptions = new Map(detachmentSpecials.flatMap(({ described }) => [...described]))
