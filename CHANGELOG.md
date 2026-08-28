@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.42.2
+
+### Patch Changes
+
+- ac307bd: Recover native social sign-in safely after the web renderer or application restarts.
+
 ## 0.42.1
 
 ### Patch Changes
