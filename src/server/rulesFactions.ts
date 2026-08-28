@@ -2,9 +2,17 @@ import fs from 'node:fs'
 import path from 'node:path'
 import type { Stratagem } from '../core/battle'
 import { routeSlug } from '../core/slug'
-import { byName, factionDirectories, readJson, readOptionalList, titleCase } from './rulesSource'
+import { byName, factionDirectories, joinKey, readJson, readOptionalList, titleCase } from './rulesSource'
 import { type RawStratagem, toStratagem } from './rulesCards'
-import { constructionDetachment, descriptionKey, enhancementPoints, type LoadedDatacards } from './datacards'
+import {
+  type ConstructionEnhancement,
+  constructionCardKey,
+  constructionDetachment,
+  datacardsFactionKeys,
+  descriptionKey,
+  type FactionContent,
+  type LoadedDatacards,
+} from './datacards'
 import { SUPPLEMENTAL_FACTION_ICONS } from './factionIconSources'
 
 /**
@@ -57,6 +65,53 @@ function detachmentStratagems(detachment: RawDetachment, stratagems: readonly Ra
   return [...found.values()]
 }
 
+function constructionSources(datacards: LoadedDatacards, faction: string, parent: string | null) {
+  const own = datacards.factions.get(routeSlug(faction))
+  const inherited = parent ? datacards.factions.get(routeSlug(parent)) : undefined
+  return { own, inherited: inherited === own ? undefined : inherited }
+}
+
+function authoritativeDetachments({ own, inherited }: ReturnType<typeof constructionSources>) {
+  const found = new Map<string, { name: string; source: FactionContent }>()
+  for (const source of [inherited, own]) {
+    if (!source) continue
+    for (const name of source.detachments) found.set(joinKey(name), { name, source })
+  }
+  return found
+}
+
+function enhancementsNamed(source: FactionContent, detachment: string): readonly ConstructionEnhancement[] {
+  return source.enhancements.get(joinKey(detachment)) ?? []
+}
+
+type SemanticSource = {
+  detachments: readonly RawDetachment[]
+  enhancements: readonly RawEnhancement[]
+  stratagems: readonly RawStratagem[]
+}
+
+function semanticSourceNamed(sources: readonly SemanticSource[], name: string) {
+  for (const source of sources) {
+    const matches = source.detachments.filter((candidate) => joinKey(candidate.name) === joinKey(name))
+    if (matches.length) return matches.length === 1 ? { source, detachment: matches[0]! } : null
+  }
+  return null
+}
+
+function semanticEnhancementNamed(sources: readonly SemanticSource[], detachment: string, enhancement: string): RawEnhancement | null {
+  for (const source of sources) {
+    const detachments = source.detachments.filter((candidate) => joinKey(candidate.name) === joinKey(detachment))
+    if (detachments.length > 1) return null
+    const owner = detachments[0]
+    if (!owner) continue
+    const matches = source.enhancements.filter(
+      (candidate) => candidate.detachment_id === owner.id && constructionCardKey(candidate.name) === constructionCardKey(enhancement),
+    )
+    if (matches.length) return matches.length === 1 ? matches[0]! : null
+  }
+  return null
+}
+
 export type DetachmentReference = {
   enhancements: number
   upgrades: number
@@ -71,7 +126,7 @@ export type DetachmentRulesDetail = {
   points: number | null
   dispositions: string[]
   rules: { name: string; description: string }[]
-  enhancements: { name: string; points: number | null; description: string | null; keywordRestrictions: string[] }[]
+  enhancements: { name: string; points: number | null; description: string | null; keywordRestrictions: string[] | null }[]
   upgrades: { name: string; points: number | null; description: string | null }[]
   stratagems: {
     id: string
@@ -130,10 +185,10 @@ export function loadFactions(core: string, iconDirectory: string, datacards: Loa
   const constructionJoinIssues: ConstructionJoinIssue[] = []
   let dataslate: string | null = null
 
-  for (const faction of factionDirectories(core)) {
-    const file = path.join(core, faction, 'stratagems.json')
+  const factions = factionDirectories(core)
+  for (const faction of factions) factionKeys.set(faction, faction)
+  for (const faction of factions) {
     const factionFile = path.join(core, faction, 'factions.json')
-    factionKeys.set(faction, faction)
     if (fs.existsSync(factionFile)) {
       for (const found of readJson<RawFaction[]>(factionFile)) {
         for (const alias of found.aliases ?? []) factionKeys.set(routeSlug(alias), faction)
@@ -157,113 +212,137 @@ export function loadFactions(core: string, iconDirectory: string, datacards: Loa
         }
       }
     }
+  }
+  const seenContents = new Set<FactionContent>()
+  for (const content of datacards.factions.values()) {
+    if (seenContents.has(content)) continue
+    seenContents.add(content)
+    const keys = datacardsFactionKeys(content.name)
+    const existing = [...keys].map((key) => factionKeys.get(key)).find(Boolean)
+    if (existing) continue
+    const faction = routeSlug(content.name)
+    factions.push(faction)
+    factionNames.set(faction, content.name)
+    factionKeys.set(faction, faction)
+    for (const key of keys) factionKeys.set(key, faction)
+  }
+
+  for (const faction of factions) {
+    const file = path.join(core, faction, 'stratagems.json')
     const referenceFile = path.join(core, faction, 'detachments.json')
     const enhancementFile = path.join(core, faction, 'enhancements.json')
     const rawStratagems = readOptionalList<RawStratagem>(file)
+    for (const raw of rawStratagems) dataslate ??= raw.game_version?.dataslate ?? null
 
     const detachments = new Map<string, Stratagem[]>()
-    for (const raw of rawStratagems) {
-      dataslate ??= raw.game_version?.dataslate ?? null
-      if (!raw.detachment_id) continue
-      detachments.set(raw.detachment_id, [...(detachments.get(raw.detachment_id) ?? []), toStratagem(raw)])
+
+    const rawDetachments = readOptionalList<RawDetachment>(referenceFile)
+    const semanticEnhancements = readOptionalList<RawEnhancement>(enhancementFile)
+    const cardOf = (detachment: RawDetachment, stratagem: RawStratagem) =>
+      datacards.stratagems.get(descriptionKey(detachment.name, stratagem.name))
+
+    const factionName = factionNames.get(faction) ?? faction
+    const parentId = factionParents.get(faction) ?? null
+    const ownSemantics = { detachments: rawDetachments, enhancements: semanticEnhancements, stratagems: rawStratagems }
+    const parentSemantics = parentId
+      ? {
+          detachments: readOptionalList<RawDetachment>(path.join(core, parentId, 'detachments.json')),
+          enhancements: readOptionalList<RawEnhancement>(path.join(core, parentId, 'enhancements.json')),
+          stratagems: readOptionalList<RawStratagem>(path.join(core, parentId, 'stratagems.json')),
+        }
+      : null
+    const semanticSources = parentSemantics ? [ownSemantics, parentSemantics] : [ownSemantics]
+    const sources = constructionSources(datacards, factionName, parentId)
+    const authoritative = authoritativeDetachments(sources)
+    const rawDetachmentById = new Map(rawDetachments.map((detachment) => [detachment.id, detachment]))
+    const cardsFor = ({ name, source }: { name: string; source: FactionContent }) => enhancementsNamed(source, name)
+    const semanticEnhancementFor = (detachment: string, enhancement: ConstructionEnhancement) =>
+      semanticEnhancementNamed(semanticSources, detachment, enhancement.name)
+    const constructionFields = (name: string) => {
+      const construction = constructionDetachment(datacards, factionName, name, parentId)
+      return { points: construction?.points ?? null, dispositions: construction ? [construction.disposition] : [] }
+    }
+    for (const detachment of rawDetachments) {
+      if (!authoritative.has(joinKey(detachment.name))) {
+        constructionJoinIssues.push({ kind: 'detachment', faction: factionName, detachment: detachment.name })
+      }
+    }
+    for (const enhancement of semanticEnhancements) {
+      const detachment = enhancement.detachment_id ? rawDetachmentById.get(enhancement.detachment_id) : undefined
+      const authoritativeDetachment = detachment ? authoritative.get(joinKey(detachment.name)) : undefined
+      const constructionEnhancement = authoritativeDetachment
+        ? cardsFor(authoritativeDetachment).find(
+            (candidate) => constructionCardKey(candidate.name) === constructionCardKey(enhancement.name),
+          )
+        : null
+      if (detachment && !constructionEnhancement) {
+        constructionJoinIssues.push({
+          kind: 'enhancement',
+          faction: factionName,
+          detachment: detachment.name,
+          enhancement: enhancement.name,
+        })
+      }
     }
 
-    if (fs.existsSync(referenceFile)) {
-      const rawDetachments = readJson<RawDetachment[]>(referenceFile)
-      const enhancements = fs.existsSync(enhancementFile) ? readJson<RawEnhancement[]>(enhancementFile) : []
-      const stratagemsOf = new Map(rawDetachments.map((detachment) => [detachment.id, detachmentStratagems(detachment, rawStratagems)]))
-      const cardOf = (detachment: RawDetachment, stratagem: RawStratagem) =>
-        datacards.stratagems.get(descriptionKey(detachment.name, stratagem.name))
-      for (const detachment of rawDetachments) {
+    const references = new Map<string, DetachmentReference>()
+    const details = new Map<string, DetachmentRulesDetail>()
+    for (const authoritativeDetachment of authoritative.values()) {
+      const { name } = authoritativeDetachment
+      const semantic = semanticSourceNamed(semanticSources, name)
+      const id = semantic?.detachment.id ?? routeSlug(name)
+      const cards = cardsFor(authoritativeDetachment).map((enhancement) => ({
+        enhancement,
+        semantics: semanticEnhancementFor(name, enhancement),
+      }))
+      const enhancements = cards.filter(
+        ({ enhancement, semantics }) => !isUnitUpgrade(enhancement.name) && !isUnitUpgrade(semantics?.name ?? ''),
+      )
+      const upgrades = cards.filter(({ enhancement, semantics }) => isUnitUpgrade(enhancement.name) || isUnitUpgrade(semantics?.name ?? ''))
+      const stratagems = semantic ? detachmentStratagems(semantic.detachment, semantic.source.stratagems) : []
+      if (semantic) {
         detachments.set(
-          detachment.id,
-          (stratagemsOf.get(detachment.id) ?? []).map((raw) => toStratagem(raw, cardOf(detachment, raw)?.name)),
+          id,
+          stratagems.map((raw) => toStratagem(raw, cardOf(semantic.detachment, raw)?.name)),
         )
       }
-
-      const factionName = factionNames.get(faction) ?? faction
-      const rawDetachmentById = new Map(rawDetachments.map((detachment) => [detachment.id, detachment]))
-      const constructionByDetachment = new Map(
-        rawDetachments.map((detachment) => [
-          detachment.id,
-          constructionDetachment(datacards, factionName, detachment.name, factionParents.get(faction)),
-        ]),
-      )
-      const constructionFields = (detachment: RawDetachment) => {
-        const construction = constructionByDetachment.get(detachment.id)
-        return { points: construction?.points ?? null, dispositions: construction ? [construction.disposition] : [] }
-      }
-      for (const detachment of rawDetachments) {
-        if (!constructionByDetachment.get(detachment.id)) {
-          constructionJoinIssues.push({ kind: 'detachment', faction: factionName, detachment: detachment.name })
-        }
-      }
-      for (const enhancement of enhancements) {
-        const detachment = enhancement.detachment_id ? rawDetachmentById.get(enhancement.detachment_id) : undefined
-        if (detachment && enhancementPoints(datacards, detachment.name, enhancement.name) === null) {
-          constructionJoinIssues.push({
-            kind: 'enhancement',
-            faction: factionName,
-            detachment: detachment.name,
-            enhancement: enhancement.name,
-          })
-        }
-      }
-
-      const references = new Map(
-        rawDetachments.map((detachment) => [
-          detachment.id,
-          {
-            enhancements: enhancements.filter(
-              (enhancement) => enhancement.detachment_id === detachment.id && !isUnitUpgrade(enhancement.name),
-            ).length,
-            upgrades: enhancements.filter((enhancement) => enhancement.detachment_id === detachment.id && isUnitUpgrade(enhancement.name))
-              .length,
-            stratagems: stratagemsOf.get(detachment.id)?.length ?? 0,
-            ...constructionFields(detachment),
-          },
-        ]),
-      )
-      const details = new Map(
-        rawDetachments.map((detachment) => [
-          detachment.id,
-          {
-            id: detachment.id,
-            name: detachment.name,
-            ...constructionFields(detachment),
-            rules: [...(datacards.detachmentRules.get(routeSlug(detachment.name)) ?? [])],
-            enhancements: enhancements
-              .filter((enhancement) => enhancement.detachment_id === detachment.id && !isUnitUpgrade(enhancement.name))
-              .map((enhancement) => ({
-                name: enhancement.name,
-                points: enhancementPoints(datacards, detachment.name, enhancement.name),
-                description: datacards.enhancements.get(descriptionKey(detachment.name, enhancement.name)) ?? null,
-                keywordRestrictions: enhancement.keyword_restrictions ?? [],
-              })),
-            upgrades: enhancements
-              .filter((enhancement) => enhancement.detachment_id === detachment.id && isUnitUpgrade(enhancement.name))
-              .map((enhancement) => ({
-                name: enhancement.name.replace(/\s*\(upgrade\)\s*$/i, ''),
-                points: enhancementPoints(datacards, detachment.name, enhancement.name),
-                description: datacards.enhancements.get(descriptionKey(detachment.name, enhancement.name)) ?? null,
-              })),
-            stratagems: (stratagemsOf.get(detachment.id) ?? [])
-              .map((stratagem) => ({
-                id: stratagem.id,
-                name: cardOf(detachment, stratagem)?.name ?? titleCase(stratagem.name),
-                cp: stratagem.cp_cost ?? 0,
-                type: stratagem.type ? titleCase(stratagem.type.replaceAll('-', ' ')) : null,
-                phases: stratagem.phases ?? [],
-                turn: stratagem.player_turn ?? null,
-                description: cardOf(detachment, stratagem)?.description ?? null,
-              }))
-              .toSorted(byName),
-          },
-        ]),
-      )
-      detachmentReferences.set(faction, references)
-      detachmentDetails.set(faction, details)
+      references.set(id, {
+        enhancements: enhancements.length,
+        upgrades: upgrades.length,
+        stratagems: stratagems.length,
+        ...constructionFields(name),
+      })
+      details.set(id, {
+        id,
+        name,
+        ...constructionFields(name),
+        rules: [...(authoritativeDetachment.source.detachmentRules.get(joinKey(name)) ?? [])],
+        enhancements: enhancements.map(({ enhancement, semantics }) => ({
+          name: enhancement.name,
+          points: enhancement.points,
+          description: enhancement.description,
+          keywordRestrictions: semantics ? (semantics.keyword_restrictions ?? []) : null,
+        })),
+        upgrades: upgrades.map(({ enhancement }) => ({
+          name: enhancement.name.replace(/\s*\(upgrade\)\s*$/i, ''),
+          points: enhancement.points,
+          description: enhancement.description,
+        })),
+        stratagems: stratagems
+          .map((stratagem) => ({
+            id: stratagem.id,
+            name: semantic ? (cardOf(semantic.detachment, stratagem)?.name ?? titleCase(stratagem.name)) : titleCase(stratagem.name),
+            cp: stratagem.cp_cost ?? 0,
+            type: stratagem.type ? titleCase(stratagem.type.replaceAll('-', ' ')) : null,
+            phases: stratagem.phases ?? [],
+            turn: stratagem.player_turn ?? null,
+            description: semantic ? (cardOf(semantic.detachment, stratagem)?.description ?? null) : null,
+          }))
+          .toSorted(byName),
+      })
     }
+    detachmentReferences.set(faction, references)
+    detachmentDetails.set(faction, details)
     if (detachments.size) byDetachment.set(faction, detachments)
   }
 

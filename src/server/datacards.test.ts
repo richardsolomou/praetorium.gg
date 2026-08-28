@@ -3,6 +3,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
+  constructionCardKey,
   constructionDetachment,
   descriptionKey,
   enhancementPoints,
@@ -12,6 +13,10 @@ import {
   prose,
   restrictedBy,
 } from './datacards'
+
+it('folds accents and repeated construction suffixes into one join key', () => {
+  expect(constructionCardKey('Tempête Shroud (Aura) (Upgrade)')).toBe(constructionCardKey('Tempete Shroud'))
+})
 
 let directory: string | null = null
 
@@ -78,6 +83,8 @@ it('indexes the faction-owned datasheets and detachments', () => {
       ],
     ]),
     detachments: new Set(['Inner Circle Task Force', 'Unforgiven Task Force']),
+    enhancements: new Map(),
+    detachmentRules: new Map(),
     factionAbilityNames: new Set(),
     armyRules: [],
   })
@@ -177,7 +184,15 @@ it('reads army-construction numbers without trusting malformed alternatives', ()
         name: faction,
         datasheets: [],
         detachments: [{ name: { en: 'Shared Detachment' }, detachmentPoints: points, forceDisposition: { name: { en: 'Disruption' } } }],
-        enhancements: [{ name: { en: 'Shared Relic' }, detachment: 'Shared Detachment', cost }],
+        enhancements: [{ name: { en: 'Shared Relic' }, detachment: 'Shared Detachment', cost, description: { en: `${faction} relic.` } }],
+        rules: {
+          detachment: [
+            {
+              detachment: 'Shared Detachment',
+              rules: [{ name: { en: 'Shared Rule' }, rules: [{ order: 1, type: 'text', text: { en: `${faction} rule.` } }] }],
+            },
+          ],
+        },
       }),
     )
   }
@@ -198,6 +213,9 @@ it('reads army-construction numbers without trusting malformed alternatives', ()
     malformedEnhancement: enhancementPoints(datacards, 'Stormlance Task Force', 'Broken Relic'),
     conflictingDetachment: constructionDetachment(datacards, 'Unknown Faction', 'Shared Detachment'),
     conflictingEnhancement: enhancementPoints(datacards, 'Shared Detachment', 'Shared Relic'),
+    factionEnhancements: datacards.factions.get('adeptus-astartes')?.enhancements.get('stormlancetaskforce'),
+    factionScopedEnhancement: datacards.factions.get('one')?.enhancements.get('shareddetachment'),
+    factionScopedRule: datacards.factions.get('one')?.detachmentRules.get('shareddetachment'),
   }).toEqual({
     base: { points: 3, disposition: 'disruption' },
     validOverride: { points: 2, disposition: 'disruption' },
@@ -213,6 +231,13 @@ it('reads army-construction numbers without trusting malformed alternatives', ()
     malformedEnhancement: null,
     conflictingDetachment: null,
     conflictingEnhancement: null,
+    factionEnhancements: [
+      { name: 'Fury of the Storm', detachment: 'Stormlance Task Force', points: null, description: null },
+      { name: 'Valid Relic', detachment: 'Stormlance Task Force', points: 25, description: null },
+      { name: 'Broken Relic', detachment: 'Stormlance Task Force', points: null, description: null },
+    ],
+    factionScopedEnhancement: [{ name: 'Shared Relic', detachment: 'Shared Detachment', points: 10, description: 'One relic.' }],
+    factionScopedRule: [{ name: 'Shared Rule', description: 'One rule.' }],
   })
 })
 

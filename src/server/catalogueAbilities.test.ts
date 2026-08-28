@@ -90,6 +90,8 @@ describe('the abilities and wargear a datasheet lists', () => {
       datasheets: new Set(),
       datasheetDetails: new Map(),
       detachments: new Set(),
+      enhancements: new Map(),
+      detachmentRules: new Map(),
       armyRules: [{ name: expected, description: 'Army rule.' }],
       factionAbilityNames: new Set(),
     })
@@ -191,6 +193,48 @@ describe('the abilities and wargear a datasheet lists', () => {
     expect(describeDatasheetAbilities(book, 'cat', sheet, rules)?.abilities).toContainEqual(
       expect.objectContaining({ name: 'Death in the Dark', kind: 'upgrade' }),
     )
+  })
+
+  it('does not offer an enhancement when its eligibility semantics are unavailable', () => {
+    const book = bookOf({
+      categoryEntries: [{ id: 'character', name: 'Character' }],
+      selectionEntries: [
+        { id: 'captain', name: 'Captain', type: 'unit', categoryLinks: [{ id: 'character-link', targetId: 'character', primary: true }] },
+      ],
+    })
+    const rules = {
+      abilityDescriptions: new Map(),
+      factionKeys: new Map(),
+      detachmentDetails: new Map([
+        [
+          'test-catalogue',
+          new Map([
+            [
+              'detachment',
+              {
+                id: 'detachment',
+                name: 'Detachment',
+                points: 1,
+                dispositions: ['disruption'],
+                rules: [],
+                enhancements: [
+                  { name: 'Known', points: 10, description: 'Known.', keywordRestrictions: [] },
+                  { name: 'Unknown', points: 10, description: 'Unknown.', keywordRestrictions: null },
+                ],
+                upgrades: [],
+                stratagems: [],
+              },
+            ],
+          ]),
+        ],
+      ]),
+    } as Partial<LoadedRules> as LoadedRules
+
+    expect(
+      describeDatasheetAbilities(book, 'cat', datasheetIn(book, 'cat', 'captain'), rules)?.detachments[0]?.enhancements.map(
+        ({ name }) => name,
+      ),
+    ).toEqual(['Known'])
   })
 
   it('classifies game-system rules linked by a datasheet as core abilities', () => {

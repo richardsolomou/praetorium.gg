@@ -17,6 +17,8 @@ import { detachmentReference } from '../src/server/detachmentReference'
 import { factionsFor } from '../src/server/factionReferences'
 import { calculateRosterPrice } from '../src/server/pricing'
 import { routeSlug } from '../src/core/slug'
+import { constructionCardKey, datacardsFactionKeys } from '../src/server/datacards'
+import { joinKey } from '../src/server/rulesSource'
 
 process.env.CATALOGUE_DIR ??= path.join(import.meta.dirname, '..', 'catalogue-data')
 process.env.RULES_DIR ??= path.join(process.env.CATALOGUE_DIR, 'rules')
@@ -33,6 +35,62 @@ const loaded = loadCatalogue(process.env.CATALOGUE_DIR)
 if (!loaded) throw new Error('catalogue unavailable')
 const rules = app().rules()
 if (!rules) throw new Error('rules unavailable')
+
+type RawConstruction = { name: string; enhancements: Set<string> }
+const localizedName = (value: unknown) => {
+  if (typeof value === 'string') return value
+  if (!value || typeof value !== 'object') return null
+  const english = (value as Record<string, unknown>).en
+  return typeof english === 'string' ? english : null
+}
+const rawConstructionByFaction = new Map<string, Map<string, RawConstruction>>()
+const datacardsDirectory = path.join(process.env.CATALOGUE_DIR, 'datacards', '11th', 'gdc')
+for (const file of fs.readdirSync(datacardsDirectory).filter((entry) => entry.endsWith('.json'))) {
+  const parsed = JSON.parse(fs.readFileSync(path.join(datacardsDirectory, file), 'utf8')) as Record<string, unknown>
+  if (typeof parsed.name !== 'string' || !Array.isArray(parsed.detachments)) continue
+  const detachments = new Map<string, RawConstruction>()
+  for (const entry of parsed.detachments) {
+    if (!entry || typeof entry !== 'object') continue
+    const name = localizedName((entry as Record<string, unknown>).name)
+    if (name) detachments.set(joinKey(name), { name, enhancements: new Set() })
+  }
+  if (Array.isArray(parsed.enhancements)) {
+    for (const entry of parsed.enhancements) {
+      if (!entry || typeof entry !== 'object') continue
+      const record = entry as Record<string, unknown>
+      const name = localizedName(record.name)
+      const detachment = typeof record.detachment === 'string' ? record.detachment : null
+      if (name && detachment) detachments.get(joinKey(detachment))?.enhancements.add(constructionCardKey(name))
+    }
+  }
+  for (const key of datacardsFactionKeys(parsed.name)) rawConstructionByFaction.set(key, detachments)
+}
+const rawRulesFactionKeys = new Map<string, string>()
+const rawFactionParents = new Map<string, string>()
+const rawRulesCore = path.join(process.env.RULES_DIR, 'data', 'core')
+for (const entry of fs.readdirSync(rawRulesCore, { withFileTypes: true }).filter((candidate) => candidate.isDirectory())) {
+  rawRulesFactionKeys.set(entry.name, entry.name)
+  const file = path.join(rawRulesCore, entry.name, 'factions.json')
+  if (!fs.existsSync(file)) continue
+  const factions = JSON.parse(fs.readFileSync(file, 'utf8')) as Record<string, unknown>[]
+  for (const faction of factions) {
+    if (typeof faction.name === 'string') rawRulesFactionKeys.set(routeSlug(faction.name), entry.name)
+    if (Array.isArray(faction.aliases)) {
+      for (const alias of faction.aliases) if (typeof alias === 'string') rawRulesFactionKeys.set(routeSlug(alias), entry.name)
+    }
+    if (typeof faction.id === 'string' && typeof faction.parent_faction_id === 'string') {
+      rawFactionParents.set(faction.id, faction.parent_faction_id)
+    }
+  }
+}
+const rawConstructionFor = (factionName: string) => {
+  const faction = rawRulesFactionKeys.get(routeSlug(factionName)) ?? routeSlug(factionName)
+  const own = rawConstructionByFaction.get(routeSlug(factionName)) ?? rawConstructionByFaction.get(faction)
+  const inherited = rawConstructionByFaction.get(rawFactionParents.get(faction) ?? '')
+  const found = new Map<string, RawConstruction>()
+  for (const source of [inherited, own]) for (const [key, detachment] of source ?? []) found.set(key, detachment)
+  return found
+}
 
 type Described = { name: string; described: boolean }
 const described = (entries: readonly { name: string; description: string | null }[]): Described[] =>
@@ -191,25 +249,53 @@ if (flag === '--compare' && previous) {
       if (now && !entry.described && now.described) gained.push(`${where}: description of ${entry.name}`)
     }
   }
+  const compareConstruction = (where: string, earlier: readonly Described[], later: readonly Described[]) => {
+    const unique = (entries: readonly Described[]) => {
+      const found = new Map<string, Described>()
+      for (const entry of entries) {
+        const key = constructionCardKey(entry.name)
+        const existing = found.get(key)
+        found.set(key, { name: existing?.name ?? entry.name, described: existing?.described || entry.described })
+      }
+      return found
+    }
+    const earlierByKey = unique(earlier)
+    const laterByKey = unique(later)
+    for (const [key, entry] of earlierByKey) {
+      const now = laterByKey.get(key)
+      if (!now) lost.push(`${where}: ${entry.name}`)
+      else if (entry.described && !now.described) lost.push(`${where}: description of ${entry.name}`)
+    }
+    for (const [key, entry] of laterByKey) {
+      const prior = earlierByKey.get(key)
+      if (!prior) gained.push(`${where}: ${entry.name}`)
+      else if (!prior.described && entry.described) gained.push(`${where}: description of ${entry.name}`)
+    }
+  }
   for (const faction of before) {
     const now = snapshot.find((candidate) => candidate.name === faction.name)
     if (!now) {
       lost.push(`faction ${faction.name}`)
       continue
     }
+    const authoritative = rawConstructionFor(faction.name)
     compareLists(`${faction.slug} army rules`, faction.armyRules, now.armyRules)
     compareLists(
       `${faction.slug} detachments`,
-      faction.detachments.map((detachment) => detachment.name),
+      faction.detachments.filter((detachment) => authoritative.has(joinKey(detachment.name))).map((detachment) => detachment.name),
       now.detachments.map((detachment) => detachment.name),
     )
     for (const detachment of faction.detachments) {
       const current = now.detachments.find((candidate) => candidate.name === detachment.name)
       if (!current) continue
       const where = `${faction.slug} / ${detachment.name}`
+      const constructionNames = authoritative.get(joinKey(detachment.name))?.enhancements ?? new Set()
       compareLists(`${where} rules`, detachment.rules, current.rules)
-      compareDescribed(`${where} enhancements`, detachment.enhancements, current.enhancements)
-      compareDescribed(`${where} upgrades`, detachment.upgrades, current.upgrades)
+      compareConstruction(
+        `${where} construction cards`,
+        [...detachment.enhancements, ...detachment.upgrades].filter((entry) => constructionNames.has(constructionCardKey(entry.name))),
+        [...current.enhancements, ...current.upgrades],
+      )
       compareDescribed(`${where} stratagems`, detachment.stratagems, current.stratagems)
     }
     compareLists(

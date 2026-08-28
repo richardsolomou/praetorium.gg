@@ -1,7 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import type { Stratagem } from '../core/battle'
-import { routeSlug } from '../core/slug'
 import {
   type ConstructionDetachment,
   datacardsFactionKeys,
@@ -15,7 +14,7 @@ import { type LoadedCards, loadCards, loadDispositions, loadMissions, type Missi
 import { type ConstructionJoinIssue, type DetachmentReference, type DetachmentRulesDetail, loadFactions } from './rulesFactions'
 import { fixedSecondaryCapsIn, type MissionTwist, twistsIn } from './missionTwists'
 import { readMissionPacks } from './missionPacks'
-import { rulesDirectory } from './rulesSource'
+import { joinKey, rulesDirectory } from './rulesSource'
 import {
   type Deployment,
   loadDeployments,
@@ -147,10 +146,10 @@ export const rulesFaction = (rules: LoadedRules | null | undefined, factionSlug:
   rules?.factionKeys?.get(factionSlug) ?? factionSlug
 
 export function hasDetachmentSemantics(
-  rules: Pick<LoadedRules, 'detachmentDetails' | 'factionKeys' | 'factionParents'>,
+  rules: Pick<LoadedRules, 'byDetachment' | 'factionKeys' | 'factionParents'>,
   candidate: Pick<ConstructionDetachment, 'faction' | 'name'>,
 ) {
-  const name = routeSlug(candidate.name)
+  const name = joinKey(candidate.name)
   const candidateFactions = new Set(
     [...datacardsFactionKeys(candidate.faction)].map((faction) => rules.factionKeys.get(faction) ?? faction),
   )
@@ -158,9 +157,7 @@ export function hasDetachmentSemantics(
     ...candidateFactions,
     ...[...rules.factionParents].flatMap(([child, parent]) => (candidateFactions.has(parent) ? [child] : [])),
   ])
-  return [...owners].some((owner) =>
-    [...(rules.detachmentDetails.get(owner)?.values() ?? [])].some((detail) => routeSlug(detail.name) === name),
-  )
+  return [...owners].some((owner) => [...(rules.byDetachment.get(owner)?.keys() ?? [])].some((id) => joinKey(id) === name))
 }
 
 /** The primary an army plays, derived from its disposition and the one opposing it. */

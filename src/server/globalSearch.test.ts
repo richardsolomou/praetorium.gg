@@ -237,6 +237,8 @@ describe('global datasheet search', () => {
       datasheets: new Set(),
       datasheetDetails: new Map(),
       detachments: new Set(['Black Spear Task Force']),
+      enhancements: new Map(),
+      detachmentRules: new Map(),
       armyRules: [],
       factionAbilityNames: new Set(),
     })

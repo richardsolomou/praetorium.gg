@@ -18,6 +18,7 @@ import { mutationRpc, rpc } from './rpc'
 import { rosterDetachments } from './pricing'
 import { currentUserId } from './playerSession'
 import { cacheUntilSnapshotChanges } from './snapshotCache'
+import { selectedDetachmentRules } from './selectedDetachmentRules'
 import {
   datasheetSchema,
   datasheetSlugSchema,
@@ -301,11 +302,12 @@ export const detachmentRules = createServerFn({ method: 'GET' })
       const detachments = factionSlug ? rules.byDetachment.get(rulesFaction(rules, factionSlug)) : undefined
       const details = factionSlug ? rules.detachmentDetails.get(rulesFaction(rules, factionSlug)) : undefined
       // Detachment cards use the same text as their reference page; core cards join them from Game Datacards.
-      const written = [...data.detachmentNames.flatMap((name) => details?.get(routeSlug(name))?.stratagems ?? []), ...rules.coreDetails]
+      const selected = selectedDetachmentRules(data.detachmentNames, detachments, details)
+      const written = [...selected.written, ...rules.coreDetails]
       return {
         attribution: rules.attribution,
         dataslate: rules.dataslate,
-        stratagems: data.detachmentNames.flatMap((name) => detachments?.get(routeSlug(name)) ?? []),
+        stratagems: selected.live,
         core: rules.core,
         written: written.map(({ id, type, description }) => ({ key: id, type, description })),
         keywordRules: rulesReferencedIn(
