@@ -1,5 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import { routeSlug } from '../core/slug'
 import { readOptionalList } from './rulesSource'
 
 /**
@@ -86,6 +87,10 @@ type RawBattlemasterLayout = {
 }
 type RawBattlemasterTerrain = NonNullable<RawBattlemasterLayout['terrain']>[number]
 
+type RawBattlemasterCatalog = {
+  layouts?: { id?: string; owner?: string; ownerUsername?: string; name?: string }[]
+}
+
 export type TerrainGeometry = {
   areas: {
     id: string
@@ -158,6 +163,7 @@ export type TerrainLayout = {
 
 /** Layouts without a matchup are skipped: nothing in the app can reach one. */
 export function loadTerrainLayouts(core: string, battlemasterDirectory: string): TerrainLayout[] {
+  const battlemasterIds = battlemasterLayoutIds(battlemasterDirectory)
   return readOptionalList<RawTerrainLayout>(path.join(core, 'terrain-layouts.json'))
     .filter((layout) => layout.mission_matchup_id)
     .map((layout) => ({
@@ -167,7 +173,7 @@ export function loadTerrainLayouts(core: string, battlemasterDirectory: string):
       matchupId: layout.mission_matchup_id!,
       variant: layout.variant ?? null,
       deploymentId: layout.deployment_pattern_id ?? null,
-      geometry: battlemasterGeometry(battlemasterDirectory, layout.description, layout.pieces ?? []),
+      geometry: battlemasterGeometry(battlemasterDirectory, battlemasterIds, layout.description, layout.pieces ?? []),
       pieces: (layout.pieces ?? [])
         .filter((piece) => piece.position)
         .map((piece) => ({
@@ -209,10 +215,13 @@ export function loadTerrainTemplates(core: string): TerrainTemplate[] {
 
 function battlemasterGeometry(
   directory: string,
+  ids: ReadonlyMap<string, string | null>,
   description: string | undefined,
   pieces: NonNullable<RawTerrainLayout['pieces']>,
 ): TerrainGeometry | null {
-  const id = description?.match(/Battlemaster layout (terrain-[0-9a-f-]+)/)?.[1]
+  const directId = description?.match(/Battlemaster layout (terrain-[0-9a-f-]+)/)?.[1]
+  const reference = description?.match(/Battlemaster REST API layout ([\w-]+)\/([\w-]+)\.?$/)
+  const id = directId ?? (reference ? ids.get(battlemasterReference(reference[1]!, reference[2]!)) : null)
   if (!id) return null
   const file = path.join(directory, 'layouts', `${id}.json`)
   if (!fs.existsSync(file)) return null
@@ -244,6 +253,28 @@ function battlemasterGeometry(
       }
     }),
   }
+}
+
+function battlemasterLayoutIds(directory: string) {
+  const file = path.join(directory, 'catalog.json')
+  const found = new Map<string, string | null>()
+  if (!fs.existsSync(file)) return found
+  const catalog = JSON.parse(fs.readFileSync(file, 'utf8')) as RawBattlemasterCatalog
+  for (const layout of catalog.layouts ?? []) {
+    if (!layout.id?.match(/^terrain-[0-9a-f-]+$/) || !layout.name) continue
+    for (const owner of [layout.owner, layout.ownerUsername]) {
+      if (!owner) continue
+      const key = battlemasterReference(owner, layout.name)
+      const existing = found.get(key)
+      if (!found.has(key)) found.set(key, layout.id)
+      else if (existing !== layout.id) found.set(key, null)
+    }
+  }
+  return found
+}
+
+function battlemasterReference(owner: string, name: string) {
+  return `${routeSlug(owner)}/${routeSlug(name)}`
 }
 
 function battlemasterLayoutMatches(layout: RawBattlemasterLayout['layout'], id: string) {
