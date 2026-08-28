@@ -311,7 +311,7 @@ async function clearDrawPrompt(prompt: Locator) {
           (await random.isVisible().catch(() => false)) ||
           (await mustReturn
             .first()
-            .isVisible()
+            .isEnabled()
             .catch(() => false)) ||
           (await done.isEnabled().catch(() => false)),
         { timeout: 15_000 },
@@ -326,7 +326,14 @@ async function clearDrawPrompt(prompt: Locator) {
       await expect(prompt).toBeHidden()
       return
     }
-    await mustReturn.first().click({ timeout: 15_000 })
+    if (
+      await mustReturn
+        .first()
+        .isEnabled()
+        .catch(() => false)
+    ) {
+      await mustReturn.first().click({ timeout: 15_000 })
+    }
   }
   throw new Error('secondary redraws did not settle')
 }
