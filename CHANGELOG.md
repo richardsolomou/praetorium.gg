@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.42.3
+
+### Patch Changes
+
+- 4e3ba47: List current detachments and enhancements from Game Datacards.
+
 ## 0.42.2
 
 ### Patch Changes
