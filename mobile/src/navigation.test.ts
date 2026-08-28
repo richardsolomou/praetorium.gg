@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { classifyNavigation } from './navigation'
+import { APP_URL, applicationNavigationScript, classifyNavigation, initialApplicationUrl } from './navigation'
 
 describe('classifyNavigation', () => {
   it('keeps Praetorium routes in the application', () => {
@@ -34,5 +34,27 @@ describe('classifyNavigation', () => {
 
   it('blocks malformed URLs', () => {
     expect(classifyNavigation('not a url')).toEqual({ kind: 'blocked' })
+  })
+})
+
+describe('incoming application links', () => {
+  it('preserves the route, query, and fragment on a cold start', () => {
+    expect(initialApplicationUrl('https://praetorium.gg/invitations/opaque?seat=player%2Bone#accept')).toBe(
+      'https://praetorium.gg/invitations/opaque?seat=player%2Bone#accept',
+    )
+  })
+
+  it('falls back to the home page for an untrusted initial URL', () => {
+    expect(initialApplicationUrl('https://example.com/battles/abc')).toBe(APP_URL)
+  })
+
+  it('builds a warm navigation script from the normalized internal URL', () => {
+    expect(applicationNavigationScript('https://praetorium.gg/rosters/abc?token=opaque#units')).toBe(
+      'window.location.assign("https://praetorium.gg/rosters/abc?token=opaque#units"); true;',
+    )
+  })
+
+  it('does not build a warm navigation script for another origin', () => {
+    expect(applicationNavigationScript('https://example.com/rosters/abc')).toBeNull()
   })
 })

@@ -1,18 +1,39 @@
 import { StatusBar } from 'expo-status-bar'
 import * as WebBrowser from 'expo-web-browser'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ActivityIndicator, Alert, BackHandler, Linking, Pressable, StyleSheet, Text, View } from 'react-native'
+import { ActivityIndicator, Alert, AppState, BackHandler, Linking, Pressable, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context'
 import { WebView } from 'react-native-webview'
 import type { WebViewNavigation } from 'react-native-webview'
-import { APP_URL, classifyNavigation } from './src/navigation'
+import {
+  appShellRenderChanged,
+  appShellRenderState,
+  authDeliveryFailed,
+  authDeliverySucceeded,
+  authInterruptionAcknowledged,
+  authReceived,
+  confirmWebLoadSucceeded,
+  drainAppShell,
+  initialAppShellState,
+  initialAuthReceived,
+  initialUrlReceived,
+  rendererTerminated,
+  warmUrlReceived,
+  webLoadFailed,
+  webLoadFinished,
+  webLoadStarted,
+  webNavigationChanged,
+  type AppShellCommand,
+  type AppShellState,
+} from './src/appShellState'
+import { appStateChanged, initialAppLifecycle, WEB_RESUME_SCRIPT } from './src/lifecycle'
+import { applicationNavigationScript, classifyNavigation } from './src/navigation'
 import {
   NATIVE_AUTH_CALLBACK_URL,
   nativeAuthExchangeScript,
   nativeAuthStartUrl,
   parseNativeAuthCallback,
   parseNativeAuthRequest,
-  type NativeAuthCallback,
 } from './src/nativeAuth'
 
 const BACKGROUND = '#0b0c0e'
@@ -46,17 +67,67 @@ function AppShell() {
   const canGoBack = useRef(false)
   const authOpen = useRef(false)
   const handledAuthTokens = useRef(new Set<string>())
-  const pendingAuth = useRef<Extract<NativeAuthCallback, { kind: 'success' }> | null>(null)
-  const webReady = useRef(false)
-  const [sourceUrl, setSourceUrl] = useState(APP_URL)
+  const lifecycle = useRef(initialAppLifecycle(AppState.currentState))
+  const shellRef = useRef(initialAppShellState())
+  const loadDrainTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const loadGeneration = useRef(0)
+  const [renderedShell, setRenderedShell] = useState(() => appShellRenderState(shellRef.current))
 
-  const exchangeAuth = useCallback((callback: Extract<NativeAuthCallback, { kind: 'success' }>) => {
-    if (!webReady.current) {
-      pendingAuth.current = callback
-      return
-    }
-    webView.current?.injectJavaScript(nativeAuthExchangeScript(callback))
+  const commitShell = useCallback((state: AppShellState) => {
+    const shouldRender = appShellRenderChanged(shellRef.current, state)
+    shellRef.current = state
+    if (shouldRender) setRenderedShell(appShellRenderState(state))
   }, [])
+
+  const deliver = useCallback((command: Exclude<AppShellCommand, { kind: 'auth-interruption' }>) => {
+    const script = command.kind === 'auth' ? nativeAuthExchangeScript(command.callback) : applicationNavigationScript(command.url)
+    if (script) webView.current?.injectJavaScript(script)
+  }, [])
+
+  const commitAndDrain = useCallback(
+    (state: AppShellState) => {
+      const drained = drainAppShell(state)
+      commitShell(drained.state)
+      if (drained.command?.kind === 'auth-interruption') {
+        Alert.alert(
+          'Sign-in interrupted',
+          'Praetorium restarted before sign-in finished. Try sign-in again.',
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                const resumed = drainAppShell(authInterruptionAcknowledged(shellRef.current))
+                commitShell(resumed.state)
+                if (resumed.command && resumed.command.kind !== 'auth-interruption') deliver(resumed.command)
+              },
+            },
+          ],
+          { cancelable: false },
+        )
+      } else if (drained.command) deliver(drained.command)
+    },
+    [commitShell, deliver],
+  )
+
+  const cancelScheduledDrain = useCallback(() => {
+    loadGeneration.current += 1
+    if (loadDrainTimer.current !== null) clearTimeout(loadDrainTimer.current)
+    loadDrainTimer.current = null
+  }, [])
+
+  const finishWebLoad = useCallback(
+    (url: string) => {
+      cancelScheduledDrain()
+      commitShell(webLoadFinished(shellRef.current, url))
+      const generation = loadGeneration.current
+      loadDrainTimer.current = setTimeout(() => {
+        if (generation !== loadGeneration.current) return
+        loadDrainTimer.current = null
+        commitAndDrain(confirmWebLoadSucceeded(shellRef.current))
+      }, 0)
+    },
+    [cancelScheduledDrain, commitAndDrain, commitShell],
+  )
 
   const handleAuthCallback = useCallback(
     (url: string) => {
@@ -64,10 +135,13 @@ function AppShell() {
       if (callback.kind === 'success') {
         if (handledAuthTokens.current.has(callback.token)) return
         handledAuthTokens.current.add(callback.token)
-        exchangeAuth(callback)
-      } else Alert.alert('Sign-in did not finish', 'Return to Praetorium and try the provider again.')
+        commitAndDrain(authReceived(shellRef.current, callback))
+      } else {
+        commitShell(warmUrlReceived(shellRef.current, url))
+        Alert.alert('Sign-in did not finish', 'Return to Praetorium and try the provider again.')
+      }
     },
-    [exchangeAuth],
+    [commitAndDrain, commitShell],
   )
 
   const openNativeAuth = useCallback(
@@ -107,6 +181,22 @@ function AppShell() {
     [openExternal],
   )
 
+  const navigateApplication = useCallback(
+    (url: string) => {
+      commitAndDrain(warmUrlReceived(shellRef.current, url))
+    },
+    [commitAndDrain],
+  )
+
+  const handleIncomingUrl = useCallback(
+    (url: string) => {
+      if (url.startsWith(NATIVE_AUTH_CALLBACK_URL)) {
+        handleAuthCallback(url)
+      } else navigateApplication(url)
+    },
+    [handleAuthCallback, navigateApplication],
+  )
+
   useEffect(() => {
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
       if (!canGoBack.current) return false
@@ -117,69 +207,126 @@ function AppShell() {
   }, [])
 
   useEffect(() => {
-    void Linking.getInitialURL().then((url) => {
-      if (url?.startsWith(NATIVE_AUTH_CALLBACK_URL)) handleAuthCallback(url)
-    })
+    let active = true
+    void Linking.getInitialURL().then(
+      (url) => {
+        if (!active || !shellRef.current.initialUrlPending) return
+        if (url?.startsWith(NATIVE_AUTH_CALLBACK_URL)) {
+          const callback = parseNativeAuthCallback(url)
+          if (callback.kind === 'success' && !handledAuthTokens.current.has(callback.token)) {
+            handledAuthTokens.current.add(callback.token)
+            commitAndDrain(initialAuthReceived(shellRef.current, callback))
+          } else if (callback.kind === 'error') {
+            commitShell(initialUrlReceived(shellRef.current, null))
+            Alert.alert('Sign-in did not finish', 'Return to Praetorium and try the provider again.')
+          }
+        } else commitShell(initialUrlReceived(shellRef.current, url))
+      },
+      () => {
+        if (active) commitShell(initialUrlReceived(shellRef.current, null))
+      },
+    )
     const subscription = Linking.addEventListener('url', ({ url }) => {
-      if (url.startsWith(NATIVE_AUTH_CALLBACK_URL)) handleAuthCallback(url)
+      handleIncomingUrl(url)
+    })
+    return () => {
+      active = false
+      subscription.remove()
+    }
+  }, [commitAndDrain, commitShell, handleIncomingUrl])
+
+  useEffect(() => cancelScheduledDrain, [cancelScheduledDrain])
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (status) => {
+      const changed = appStateChanged(lifecycle.current, status)
+      lifecycle.current = changed.lifecycle
+      if (changed.shouldResumeWebApp && shellRef.current.ready) webView.current?.injectJavaScript(WEB_RESUME_SCRIPT)
     })
     return () => subscription.remove()
-  }, [handleAuthCallback])
-
-  const updateNavigation = useCallback((navigation: WebViewNavigation) => {
-    canGoBack.current = navigation.canGoBack
   }, [])
+
+  const updateNavigation = useCallback(
+    (navigation: WebViewNavigation) => {
+      canGoBack.current = navigation.canGoBack
+      commitShell(webNavigationChanged(shellRef.current, navigation.url))
+    },
+    [commitShell],
+  )
+
+  const recoverRenderer = useCallback(() => {
+    cancelScheduledDrain()
+    commitShell(rendererTerminated(shellRef.current))
+  }, [cancelScheduledDrain, commitShell])
 
   return (
     <SafeAreaView edges={['top', 'right', 'bottom', 'left']} style={styles.safeArea}>
       {/* oxlint-disable-next-line react/style-prop-object -- Expo's style prop selects a color scheme. */}
       <StatusBar style="light" />
-      <WebView
-        ref={webView}
-        source={{ uri: sourceUrl }}
-        style={styles.webView}
-        containerStyle={styles.webView}
-        originWhitelist={['*']}
-        applicationNameForUserAgent="PraetoriumNative/0.2.0"
-        injectedJavaScriptBeforeContentLoaded="window.PraetoriumNative = Object.freeze({ bridgeVersion: 1 }); true;"
-        sharedCookiesEnabled
-        thirdPartyCookiesEnabled={false}
-        allowsBackForwardNavigationGestures
-        allowsLinkPreview={false}
-        setSupportMultipleWindows
-        startInLoadingState
-        renderLoading={() => <StateView />}
-        renderError={() => <StateView error retry={() => webView.current?.reload()} />}
-        onLoadEnd={() => {
-          webReady.current = true
-          if (pendingAuth.current) {
-            const callback = pendingAuth.current
-            pendingAuth.current = null
-            exchangeAuth(callback)
-          }
-        }}
-        onMessage={({ nativeEvent }) => {
-          const result = (() => {
-            try {
-              return JSON.parse(nativeEvent.data) as { type?: unknown; ok?: unknown }
-            } catch {
-              return null
+      {renderedShell.sourceUrl ? (
+        <WebView
+          key={renderedShell.renderKey}
+          ref={webView}
+          source={{ uri: renderedShell.sourceUrl }}
+          style={styles.webView}
+          containerStyle={styles.webView}
+          originWhitelist={['*']}
+          applicationNameForUserAgent="PraetoriumNative/0.3.0"
+          injectedJavaScriptBeforeContentLoaded="window.PraetoriumNative = Object.freeze({ bridgeVersion: 1 }); true;"
+          sharedCookiesEnabled
+          thirdPartyCookiesEnabled={false}
+          allowsBackForwardNavigationGestures
+          allowsLinkPreview={false}
+          setSupportMultipleWindows
+          startInLoadingState
+          renderLoading={() => <StateView />}
+          renderError={() => <StateView error retry={() => webView.current?.reload()} />}
+          onLoadStart={() => {
+            cancelScheduledDrain()
+            commitShell(webLoadStarted(shellRef.current))
+          }}
+          onLoad={({ nativeEvent }) => {
+            finishWebLoad(nativeEvent.url)
+          }}
+          onError={() => {
+            cancelScheduledDrain()
+            commitShell(webLoadFailed(shellRef.current))
+          }}
+          onHttpError={() => {
+            cancelScheduledDrain()
+            commitShell(webLoadFailed(shellRef.current))
+          }}
+          onContentProcessDidTerminate={recoverRenderer}
+          onRenderProcessGone={recoverRenderer}
+          onMessage={({ nativeEvent }) => {
+            const result = (() => {
+              try {
+                return JSON.parse(nativeEvent.data) as { type?: unknown; ok?: unknown }
+              } catch {
+                return null
+              }
+            })()
+            if (result?.type === 'native-auth-result') {
+              if (result.ok === true) commitShell(authDeliverySucceeded(shellRef.current))
+              else {
+                commitAndDrain(authDeliveryFailed(shellRef.current))
+                Alert.alert('Sign-in did not finish', 'The secure sign-in code expired. Try again.')
+              }
+              return
             }
-          })()
-          if (result?.type === 'native-auth-result') {
-            if (result.ok !== true) Alert.alert('Sign-in did not finish', 'The secure sign-in code expired. Try again.')
-            return
-          }
-          void openNativeAuth(nativeEvent.data)
-        }}
-        onNavigationStateChange={updateNavigation}
-        onShouldStartLoadWithRequest={({ url }) => handleUrl(url)}
-        onOpenWindow={({ nativeEvent }) => {
-          const decision = classifyNavigation(nativeEvent.targetUrl)
-          if (decision.kind === 'internal') setSourceUrl(decision.url)
-          if (decision.kind === 'external') void openExternal(decision.url)
-        }}
-      />
+            void openNativeAuth(nativeEvent.data)
+          }}
+          onNavigationStateChange={updateNavigation}
+          onShouldStartLoadWithRequest={({ url }) => handleUrl(url)}
+          onOpenWindow={({ nativeEvent }) => {
+            const decision = classifyNavigation(nativeEvent.targetUrl)
+            if (decision.kind === 'internal') navigateApplication(decision.url)
+            if (decision.kind === 'external') void openExternal(decision.url)
+          }}
+        />
+      ) : (
+        <StateView />
+      )}
     </SafeAreaView>
   )
 }
