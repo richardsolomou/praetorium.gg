@@ -1,5 +1,15 @@
 # praetorium
 
+## 0.42.0
+
+### Minor Changes
+
+- deeec32: Open shared Praetorium links in the mobile app and refresh battles after returning to it.
+
+### Patch Changes
+
+- e002f8e: Use Game Datacards points and force dispositions for army construction.
+
 ## 0.41.3
 
 ### Patch Changes
