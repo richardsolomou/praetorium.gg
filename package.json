@@ -1,6 +1,6 @@
 {
   "name": "praetorium.gg",
-  "version": "0.42.0",
+  "version": "0.42.1",
   "private": true,
   "description": "Live Warhammer 40,000 battle tracking: two players, one authoritative command log, no conflicts.",
   "license": "AGPL-3.0-only",
@@ -31,6 +31,7 @@
     "db:check": "drizzle-kit check",
     "catalogue:check": "tsx scripts/syncCatalogue.ts --check",
     "catalogue:descriptions": "tsx scripts/checkDescriptions.ts",
+    "catalogue:terrain": "tsx scripts/checkTerrain.ts",
     "catalogue:sync": "tsx scripts/syncCatalogue.ts",
     "catalogue:snapshot": "tsx scripts/catalogueSnapshot.ts",
     "catalogue:update": "tsx scripts/syncCatalogue.ts --update",

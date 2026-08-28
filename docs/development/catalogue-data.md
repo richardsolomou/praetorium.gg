@@ -14,7 +14,7 @@ Praetorium builds and validates rosters from community data. Domain code stays i
 - `src/server/sync.ts` fetches upstream data only for the snapshot publisher. `src/server/catalogueSnapshot.ts` owns packing, verification, and instance downloads.
 - Repository sources extract only their configured path. The sync checks archive size, output size, paths, and required contents before replacement.
 - Each download uses a staging directory. It replaces the current source only after the download finishes and its revision or hashes match.
-- Battlemaster supplies the exact terrain footprints, labels, and setup measurements. A layout without its pinned geometry remains visible as unavailable, cannot be selected, and cannot start a battle.
+- Battlemaster supplies the exact terrain footprints, labels, and setup measurements. Rules-source owner and layout slugs resolve only through the pinned Battlemaster catalog; a missing or ambiguous match remains visible as unavailable, cannot be selected, and cannot start a battle.
 - `just catalogue-sync` calls the same sync code as the server.
 - The server loads the catalogue on first use. An instance without catalogue data can still serve battles and pasted rosters.
 

@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.42.1
+
+### Patch Changes
+
+- 0736263: Restore exact battlefield terrain from the current Battlemaster references.
+
 ## 0.42.0
 
 ### Minor Changes
