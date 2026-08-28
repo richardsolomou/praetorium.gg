@@ -309,11 +309,15 @@ async function clearDrawPrompt(prompt: Locator) {
       .poll(
         async () =>
           (await random.isVisible().catch(() => false)) ||
-          (await mustReturn
+          (await done.isEnabled().catch(() => false)) ||
+          ((await mustReturn
             .first()
-            .isEnabled()
-            .catch(() => false)) ||
-          (await done.isEnabled().catch(() => false)),
+            .isVisible()
+            .catch(() => false)) &&
+            (await mustReturn
+              .first()
+              .isEnabled({ timeout: 100 })
+              .catch(() => false))),
         { timeout: 15_000 },
       )
       .toBe(true)
@@ -329,7 +333,7 @@ async function clearDrawPrompt(prompt: Locator) {
     if (
       await mustReturn
         .first()
-        .isEnabled()
+        .isEnabled({ timeout: 100 })
         .catch(() => false)
     ) {
       await mustReturn.first().click({ timeout: 15_000 })
