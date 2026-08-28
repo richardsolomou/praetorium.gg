@@ -21,6 +21,8 @@ services:
       # Public origin of the deployment. Only needed when proxy headers cannot
       # represent it; mutations are rejected from any other origin.
       APP_URL: ${APP_URL:-}
+      APPLE_TEAM_ID: ${APPLE_TEAM_ID:-}
+      ANDROID_APP_CERTIFICATE_SHA256_FINGERPRINTS: ${ANDROID_APP_CERTIFICATE_SHA256_FINGERPRINTS:-}
       # Where profile pictures are uploaded to, and (unset) the community catalogue
       # is mirrored from. Compose's own MinIO by default; point at any
       # S3-compatible store instead, with S3_PUBLIC_BASE_URL set to wherever it is

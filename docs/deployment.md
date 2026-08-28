@@ -70,6 +70,12 @@ To enable Google or Discord, create an OAuth application with the provider and s
 
 The provider appears only when both its client ID and client secret are set. Set `APP_URL` to the same public origin when proxy headers do not describe it correctly.
 
+## Mobile application links
+
+Set `APPLE_TEAM_ID` to the release application's 10-character Apple team identifier and `ANDROID_APP_CERTIFICATE_SHA256_FINGERPRINTS` to the release signing certificate's SHA-256 fingerprint. Separate multiple Android fingerprints with commas during a signing-key transition. The deployment then serves the matching association documents from `/.well-known/apple-app-site-association` and `/.well-known/assetlinks.json`. Both endpoints return 404 while their release identity is unset, so an instance never publishes guessed signing credentials.
+
+The identifiers must match signed builds using the `gg.praetorium` iOS bundle ID and Android package. Verify both HTTPS endpoints without redirects, then test links on signed physical-device builds. Simulator builds and unsigned packages do not prove production association.
+
 If an email and password account already uses the provider's email address, sign in with the password and verify the address from Profile. A provider that reports the same verified email can then sign in to that account. Linking a provider from Profile still requires the provider to report the account's email address.
 
 Upgrades from 0.25.0 or earlier must stop every replica before starting the new image. The upgrade begins encrypting OAuth access and refresh tokens, and an older replica cannot read tokens written by the new release. Stop every replica before a rollback too; users whose tokens were created or refreshed after the upgrade may need to reconnect their provider.
