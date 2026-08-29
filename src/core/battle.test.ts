@@ -404,7 +404,7 @@ describe('setup', () => {
     const view = battleView({ token: 'team' }, [...NAMES, { id: CAROL, name: 'Carol' }], state, CAROL)
 
     expect(view.players.map((player) => ({ name: player.roster?.name, cp: player.cp }))).toEqual([
-      { name: 'Knights', cp: 0 },
+      { name: 'Knights', cp: 1 },
       { name: 'Marines', cp: 2 },
       { name: 'Guard', cp: 2 },
     ])
@@ -794,17 +794,17 @@ describe('setup', () => {
 })
 
 describe('the turn sequence', () => {
-  it('grants the first player a command point as the battle opens', () => {
+  it('grants both sides a command point as the battle opens', () => {
     const state = reduceBattle(PLAYERS, log(...started()))
-    expect(state.players.find((player) => player.id === ALICE)?.cp).toBe(1)
+    expect(state.players.map((player) => player.cp)).toEqual([1, 1])
   })
 
-  it('grants each side a command point at the start of every turn', () => {
+  it('grants both sides a command point at the start of every turn', () => {
     const firstTurns = reduceBattle(PLAYERS, log(...started(), ...turns(6, ALICE)))
-    expect(firstTurns.players.map((player) => player.cp)).toEqual([1, 1])
+    expect(firstTurns.players.map((player) => player.cp)).toEqual([2, 2])
 
     const nextRound = reduceBattle(PLAYERS, log(...started(), ...turns(6, ALICE), ...turns(6, BOB)))
-    expect(nextRound.players.map((player) => player.cp)).toEqual([2, 1])
+    expect(nextRound.players.map((player) => player.cp)).toEqual([3, 3])
   })
 
   it('steps through the phases in order', () => {
@@ -1454,7 +1454,7 @@ describe('command points', () => {
 
     expect(validate(reduceBattle(PLAYERS, log(...started())), BOB, command)).toBeNull()
     expect(state.players.find((player) => player.id === ALICE)?.cp).toBe(2)
-    expect(state.players.find((player) => player.id === BOB)?.cp).toBe(0)
+    expect(state.players.find((player) => player.id === BOB)?.cp).toBe(1)
   })
 
   it('caps additional gains without counting the command-phase point', () => {

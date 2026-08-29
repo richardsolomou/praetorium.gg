@@ -1,9 +1,9 @@
 import { useState } from 'react'
-import { EllipsisVertical } from 'lucide-react'
+import { EllipsisVertical, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import { type Command, STRATAGEM_CP_MAX } from '../../../core/battle'
+import { type Command, isNewOrders, STRATAGEM_CP_MAX } from '../../../core/battle'
 import { type BattleView } from '../../../core/battleView'
 import type { Side } from '../../sides'
 import { hiddenThisPhase, stratagemVisibleNow } from '../../stratagemVisibility'
@@ -57,8 +57,19 @@ export function Stratagems({ side, phase, coreKeys, actionable, pending, send, w
                 actionable={actionable}
                 pending={pending}
                 available={side.cp}
+                side={side}
                 onUse={(cp) =>
                   send({ kind: 'use-stratagem', key: stratagem.key, playerId: side.captain.id, ...(cp === undefined ? {} : { cp }) })
+                }
+                onUseNewOrders={(secondaryKey, secondary, cp) =>
+                  send({
+                    kind: 'use-new-orders',
+                    stratagemKey: stratagem.key,
+                    secondaryKey,
+                    secondary,
+                    playerId: side.captain.id,
+                    ...(cp === stratagem.cp ? {} : { cp }),
+                  })
                 }
               />
             ))}
@@ -86,15 +97,37 @@ function StratagemCard({
   actionable,
   pending,
   available,
+  side,
   onUse,
+  onUseNewOrders,
 }: {
   stratagem: ViewStratagem
   written: StratagemText | undefined
   actionable: boolean
   pending: boolean
   available: number
+  side: Side
   onUse: (cp?: number) => void
+  onUseNewOrders: (secondaryKey: string, secondary: Side['remainingSecondaries'][number], cp: number) => void
 }) {
+  const [newOrdersCost, setNewOrdersCost] = useState<number | null>(null)
+  const newOrders = isNewOrders(stratagem)
+  const replaceable = newOrders ? side.secondaries.filter((secondary) => !secondary.secret && secondary.status === 'active') : []
+  const replacement = side.remainingSecondaries[0]
+  const newOrdersRefusal = newOrders
+    ? side.secondaryMode !== 'tactical'
+      ? 'New Orders requires tactical secondary missions.'
+      : !replaceable.length
+        ? 'Choose an active secondary mission first.'
+        : !replacement
+          ? 'No secondary missions remain to draw.'
+          : null
+    : null
+  const refusal = stratagem.refusal ?? newOrdersRefusal
+  const use = (cp = stratagem.cp) => {
+    if (newOrders) setNewOrdersCost(cp)
+    else onUse(cp === stratagem.cp ? undefined : cp)
+  }
   const timing = [
     written?.type,
     stratagem.phases?.length ? `${stratagem.phases.map(title).join(', ')} phase` : 'Any phase',
@@ -131,7 +164,7 @@ function StratagemCard({
           ) : (
             <p className="mt-2 text-sm text-dim">The synced rules source has no description for this stratagem.</p>
           )}
-          {stratagem.refusal ? <p className="mt-2 text-sm text-discarded">{stratagem.refusal}</p> : null}
+          {refusal ? <p className="mt-2 text-sm text-discarded">{refusal}</p> : null}
         </DialogContent>
       </Dialog>
       {actionable ? (
@@ -146,7 +179,7 @@ function StratagemCard({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               {costChoices(stratagem.cp).map((cost) => (
-                <DropdownMenuItem key={cost} disabled={pending || cost > available} onClick={() => onUse(cost)}>
+                <DropdownMenuItem key={cost} disabled={pending || cost > available || Boolean(newOrdersRefusal)} onClick={() => use(cost)}>
                   Use for {cost} CP
                 </DropdownMenuItem>
               ))}
@@ -155,12 +188,12 @@ function StratagemCard({
           <button
             type="button"
             className={`readout shrink-0 rounded-sm px-2 py-1.5 text-sm font-bold uppercase ${
-              stratagem.refusal ? 'bg-edge text-dim' : 'bg-azure text-void hover:bg-azure/80'
+              refusal ? 'bg-edge text-dim' : 'bg-azure text-void hover:bg-azure/80'
             }`}
-            disabled={pending || stratagem.refusal !== null}
-            title={stratagem.refusal ?? undefined}
+            disabled={pending || refusal !== null}
+            title={refusal ?? undefined}
             aria-label={`Use ${stratagem.name}`}
-            onClick={() => onUse()}
+            onClick={() => use()}
           >
             {stratagem.cp} CP
           </button>
@@ -168,12 +201,51 @@ function StratagemCard({
       ) : (
         <span
           className={`readout shrink-0 rounded-sm px-1.5 py-px text-[0.6875rem] font-bold uppercase ${
-            stratagem.refusal ? 'bg-edge text-dim' : 'bg-azure text-void'
+            refusal ? 'bg-edge text-dim' : 'bg-azure text-void'
           }`}
         >
           {stratagem.cp} CP
         </span>
       )}
+      <Dialog open={newOrdersCost !== null} onOpenChange={(open) => !open && setNewOrdersCost(null)}>
+        <DialogContent className="rounded-none border border-parchment/60 bg-panel text-bone ring-0 sm:max-w-md">
+          <DialogHeader className="pr-7">
+            <div className="flex items-center justify-between gap-3">
+              <DialogTitle className="text-parchment uppercase">New Orders</DialogTitle>
+              <span className="chip shrink-0">{newOrdersCost ?? stratagem.cp} CP</span>
+            </div>
+            <DialogDescription className="text-dim">
+              Pick an active secondary mission to discard. Its replacement will be drawn at random.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <p className="eyebrow">Choose a mission to replace</p>
+            {replaceable.map((secondary) => (
+              <Button
+                key={secondary.key}
+                variant="outline"
+                aria-label={`Discard ${secondary.name} and draw a replacement`}
+                className="group h-auto w-full justify-between rounded-none border-edge bg-sunken px-3 py-3 text-left hover:border-parchment hover:bg-raised"
+                disabled={pending || !replacement || newOrdersCost === null}
+                onClick={() => {
+                  if (!replacement || newOrdersCost === null) return
+                  onUseNewOrders(secondary.key, replacement, newOrdersCost)
+                  setNewOrdersCost(null)
+                }}
+              >
+                <span className="min-w-0 whitespace-normal">
+                  <span className="block text-[0.6875rem] leading-none font-bold tracking-[0.1em] text-discarded uppercase">Discard</span>
+                  <span className="mt-1 block text-sm leading-tight font-bold text-bone uppercase">{secondary.name}</span>
+                </span>
+                <span className="flex shrink-0 items-center gap-1 text-xs font-bold text-parchment uppercase">
+                  <RefreshCw aria-hidden className="size-3.5 transition-transform group-hover:rotate-45" />
+                  Replace
+                </span>
+              </Button>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

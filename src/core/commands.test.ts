@@ -130,6 +130,17 @@ describe('command schema', () => {
     expect(commandSchema.parse({ kind: 'acknowledge-draw', playerId: 'alice' })).toEqual({ kind: 'acknowledge-draw', playerId: 'alice' })
   })
 
+  it('records New Orders as one replacement action', () => {
+    const command = {
+      kind: 'use-new-orders' as const,
+      stratagemKey: 'new-orders',
+      secondaryKey: 'beacon',
+      secondary: { key: 'area-denial', name: 'Area Denial' },
+      playerId: 'alice',
+    }
+    expect(commandSchema.parse(command)).toEqual(command)
+  })
+
   it('only lets scoring settlements complete a secondary', () => {
     expect(
       commandSchema.safeParse({

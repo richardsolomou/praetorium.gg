@@ -16,12 +16,13 @@ export { TACTICAL_HAND_SIZE as HAND_SIZE }
  */
 export function nextDraw<T extends { key: string }>(
   drawnThisTurn: number,
+  drawTarget: number,
   asked: ReadonlySet<string>,
   held: readonly { key: string }[],
   deck: readonly T[],
 ): T | null {
   const outstanding = [...asked].filter((key) => !held.some((card) => card.key === key)).length
-  if (drawnThisTurn + outstanding >= TACTICAL_HAND_SIZE) return null
+  if (drawnThisTurn + outstanding >= drawTarget) return null
   return deck.find((card) => !asked.has(card.key) && !held.some((entry) => entry.key === card.key)) ?? null
 }
 

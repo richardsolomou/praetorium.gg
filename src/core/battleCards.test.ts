@@ -6,6 +6,14 @@ import { ALICE, BOB, CAROL, NAMES, PLAYERS, log, roster, started, turns, text } 
 
 describe('stratagems', () => {
   const STRAT = { key: 's1', name: 'Grenade', cp: 1, limit: 'turn' as const }
+  const NEW_ORDERS = {
+    key: 'new-orders',
+    name: 'New Orders',
+    cp: 1,
+    limit: 'phase' as const,
+    phases: ['command' as const],
+    turn: 'your-turn' as const,
+  }
 
   const armed = (): [string, Command][] => [
     ...started(),
@@ -75,6 +83,144 @@ describe('stratagems', () => {
       ]),
     )
     expect(validate(state, ALICE, { kind: 'use-stratagem', key: 's1' })).toBe('not enough command points')
+  })
+
+  it('uses New Orders to discard and replace one active tactical mission atomically', () => {
+    const cards = [
+      { key: 'a', name: 'Behind Enemy Lines' },
+      { key: 'b', name: 'Bring It Down' },
+      { key: 'c', name: 'Area Denial' },
+    ]
+    const before = reduceBattle(
+      PLAYERS,
+      log(
+        ...started(),
+        [
+          ALICE,
+          {
+            kind: 'set-prep',
+            stratagems: [NEW_ORDERS],
+            primary: null,
+            secondaryMode: 'tactical',
+            secondaries: [],
+            secondaryDeck: cards,
+          },
+        ],
+        [ALICE, { kind: 'draw-secondaries', secondaries: cards.slice(0, 2) }],
+        [ALICE, { kind: 'acknowledge-draw' }],
+      ),
+    )
+    const command: Command = {
+      kind: 'use-new-orders',
+      stratagemKey: NEW_ORDERS.key,
+      secondaryKey: cards[0]!.key,
+      secondary: cards[2]!,
+    }
+
+    expect(validate(before, ALICE, command)).toBeNull()
+    const after = reduceBattle(
+      PLAYERS,
+      log(
+        ...started(),
+        [
+          ALICE,
+          {
+            kind: 'set-prep',
+            stratagems: [NEW_ORDERS],
+            primary: null,
+            secondaryMode: 'tactical',
+            secondaries: [],
+            secondaryDeck: cards,
+          },
+        ],
+        [ALICE, { kind: 'draw-secondaries', secondaries: cards.slice(0, 2) }],
+        [ALICE, { kind: 'acknowledge-draw' }],
+        [ALICE, command],
+      ),
+    )
+
+    expect(alice(after)).toMatchObject({
+      cp: 0,
+      cpSpent: 1,
+      secondaryStatus: { a: 'discarded', b: 'active', c: 'active' },
+      secondariesDrawnThisTurn: ['b', 'c'],
+      secondariesToReview: ['c'],
+    })
+    expect(after.drawAcknowledged).toBe(false)
+  })
+
+  it('redraws a returned New Orders replacement when the discarded mission was carried into the turn', () => {
+    const cards = [
+      { key: 'a', name: 'Behind Enemy Lines' },
+      { key: 'b', name: 'Bring It Down' },
+      { key: 'c', name: 'Area Denial' },
+      { key: 'd', name: 'Storm Hostile Objective' },
+      { key: 'e', name: 'Defend Stronghold' },
+      { key: 'f', name: 'Cull the Horde' },
+    ]
+    const history = log(
+      ...started(),
+      [
+        ALICE,
+        {
+          kind: 'set-prep',
+          stratagems: [NEW_ORDERS],
+          primary: null,
+          secondaryMode: 'tactical',
+          secondaries: [],
+          secondaryDeck: cards,
+        },
+      ],
+      [ALICE, { kind: 'draw-secondaries', secondaries: cards.slice(0, 2) }],
+      [ALICE, { kind: 'acknowledge-draw' }],
+      ...turns(6, ALICE),
+      ...turns(6, BOB),
+      [ALICE, { kind: 'draw-secondaries', secondaries: cards.slice(2, 4) }],
+      [ALICE, { kind: 'acknowledge-draw' }],
+      [
+        ALICE,
+        {
+          kind: 'use-new-orders',
+          stratagemKey: NEW_ORDERS.key,
+          secondaryKey: cards[0]!.key,
+          secondary: cards[4]!,
+        },
+      ],
+      [ALICE, { kind: 'set-secondary-status', key: cards[4]!.key, status: 'returned' }],
+    )
+    const state = reduceBattle(PLAYERS, history)
+
+    expect(alice(state)).toMatchObject({
+      additionalSecondaryDrawsThisTurn: 1,
+      secondariesDrawnThisTurn: ['c', 'd'],
+    })
+    expect(validate(state, ALICE, { kind: 'draw-secondary', secondary: cards[5]! })).toBeNull()
+  })
+
+  it('refuses New Orders without an active tactical mission', () => {
+    const card = { key: 'a', name: 'Behind Enemy Lines' }
+    const state = reduceBattle(
+      PLAYERS,
+      log(...started(), [
+        ALICE,
+        {
+          kind: 'set-prep',
+          stratagems: [NEW_ORDERS],
+          primary: null,
+          secondaryMode: 'tactical',
+          secondaries: [],
+          secondaryDeck: [card],
+        },
+      ]),
+    )
+    const command: Command = {
+      kind: 'use-new-orders',
+      stratagemKey: NEW_ORDERS.key,
+      secondaryKey: card.key,
+      secondary: card,
+    }
+
+    expect(validate(state, ALICE, command)).toBe('choose an active secondary mission')
   })
 
   it('belong to the player who wrote them down', () => {
@@ -286,7 +432,7 @@ describe('secondaries', () => {
     )
     const nextTurn = reduceBattle(PLAYERS, history)
 
-    expect(alice(nextTurn)).toMatchObject({ cp: 3, secondaryStatus: { a: 'discarded', b: 'discarded' } })
+    expect(alice(nextTurn)).toMatchObject({ cp: 4, secondaryStatus: { a: 'discarded', b: 'discarded' } })
     expect(validate(nextTurn, ALICE, { kind: 'draw-secondary', secondary: { key: 'c', name: 'Area Denial' } })).toBeNull()
     const oneDrawn = reduceBattle(
       PLAYERS,

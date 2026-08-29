@@ -295,6 +295,53 @@ const drawPrompt = (page: Page) => page.getByRole('dialog', { name: /secondary m
 /** What the turn the other side just finished owed this one, asked as the turn arrives. */
 const owedPrompt = (page: Page) => page.getByRole('dialog', { name: /^Scoring end of their turn/ })
 
+async function clearDrawPrompt(prompt: Locator) {
+  const done = prompt.getByRole('button', { name: 'Take the turn' })
+  const mustReturn = prompt
+    .locator('[data-drawn]')
+    .filter({ hasText: /You must put this back/ })
+    .getByRole('button', {
+      name: 'Put back and draw another',
+    })
+  for (let guard = 0; guard < 20; guard += 1) {
+    const random = prompt.getByRole('button', { name: 'Draw at random' })
+    await expect
+      .poll(
+        async () =>
+          (await random.isVisible().catch(() => false)) ||
+          (await done.isEnabled().catch(() => false)) ||
+          ((await mustReturn
+            .first()
+            .isVisible()
+            .catch(() => false)) &&
+            (await mustReturn
+              .first()
+              .isEnabled({ timeout: 100 })
+              .catch(() => false))),
+        { timeout: 15_000 },
+      )
+      .toBe(true)
+    if (await random.isVisible().catch(() => false)) {
+      await random.click({ timeout: 15_000 })
+      continue
+    }
+    if (await done.isEnabled()) {
+      await done.click({ timeout: 15_000 })
+      await expect(prompt).toBeHidden()
+      return
+    }
+    if (
+      await mustReturn
+        .first()
+        .isEnabled({ timeout: 100 })
+        .catch(() => false)
+    ) {
+      await mustReturn.first().click({ timeout: 15_000 })
+    }
+  }
+  throw new Error('secondary redraws did not settle')
+}
+
 /**
  * Clears whatever a turn opens with: what their turn owed, and the hand this one deals.
  *
@@ -317,12 +364,11 @@ export async function takeTheTurn(page: Page) {
     ]).catch(() => 'board')
     if (seen === 'board') return
     const prompt = seen === 'owed' ? owedPrompt(page) : drawPrompt(page)
-    const random = prompt.getByRole('button', { name: 'Draw at random' })
-    if (await random.isVisible().catch(() => false)) await random.click({ timeout: 15_000 })
-    // Bounded: the prompt waits on the deck, and a hung wait should fail here rather
-    // than hold the whole test open on one click.
-    await prompt.getByRole('button', { name: 'Take the turn' }).click({ timeout: 15_000 })
-    await expect(prompt).toBeHidden()
+    if (seen === 'drawn') await clearDrawPrompt(prompt)
+    else {
+      await prompt.getByRole('button', { name: 'Take the turn' }).click({ timeout: 15_000 })
+      await expect(prompt).toBeHidden()
+    }
   }
 }
 
@@ -335,12 +381,16 @@ export async function takeTheTurn(page: Page) {
  */
 export async function advance(page: Page) {
   for (let guard = 0; guard < 3; guard += 1) {
-    for (const prompt of [owedPrompt(page), drawPrompt(page)]) {
+    for (const [kind, prompt] of [
+      ['owed', owedPrompt(page)],
+      ['draw', drawPrompt(page)],
+    ] as const) {
       if (!(await prompt.isVisible().catch(() => false))) continue
-      const random = prompt.getByRole('button', { name: 'Draw at random' })
-      if (await random.isVisible().catch(() => false)) await random.click({ timeout: 15_000 })
-      await prompt.getByRole('button', { name: 'Take the turn' }).click({ timeout: 15_000 })
-      await expect(prompt).toBeHidden()
+      if (kind === 'draw') await clearDrawPrompt(prompt)
+      else {
+        await prompt.getByRole('button', { name: 'Take the turn' }).click({ timeout: 15_000 })
+        await expect(prompt).toBeHidden()
+      }
     }
     const phase = page.locator('[data-scoreboard] h1')
     const before = await phase.textContent()

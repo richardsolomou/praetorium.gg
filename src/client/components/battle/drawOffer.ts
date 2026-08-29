@@ -13,30 +13,43 @@ export type WhenDrawn = {
  * what is on the table it cannot, so that one is stated for the player to judge —
  * the same reason objective control is never inferred anywhere else.
  */
-export type DrawOffer = { message: string; status: 'returned' | 'discarded'; label: string }
+export type DrawOffer = { message: string; status: 'returned' | 'discarded'; label: string; required: boolean }
 
 export function redrawOffer(rule: WhenDrawn | undefined, round: number, held: readonly { key: string }[]): DrawOffer | null {
   if (!rule) return null
   if (rule.operation === 'replace') {
-    return rule.condition ? { message: `Discard this if ${rule.condition}.`, status: 'discarded', label: 'Discard and draw another' } : null
+    return rule.condition
+      ? { message: `Discard this if ${rule.condition}.`, status: 'discarded', label: 'Discard and draw another', required: false }
+      : null
   }
   if (rule.roundMax !== null) {
     if (round > rule.roundMax) return null
     return {
       message:
         rule.roundMax === 1
-          ? 'You may put this back in battle round 1.'
-          : `You may put this back in battle round ${rule.roundMax} or earlier.`,
+          ? 'You must put this back in battle round 1.'
+          : `You must put this back in battle round ${rule.roundMax} or earlier.`,
       status: 'returned',
       label: 'Put back and draw another',
+      required: true,
     }
   }
   if (rule.heldCards.length) {
     return held.some((card) => rule.heldCards.includes(card.key))
-      ? { message: 'You may put this back while you hold the card it pairs with.', status: 'returned', label: 'Put back and draw another' }
+      ? {
+          message: 'You must put this back while you hold the card it pairs with.',
+          status: 'returned',
+          label: 'Put back and draw another',
+          required: true,
+        }
       : null
   }
   return rule.condition
-    ? { message: `You may put this back if ${rule.condition}.`, status: 'returned', label: 'Put back and draw another' }
+    ? {
+        message: `Put this back if ${rule.condition}.`,
+        status: 'returned',
+        label: 'Put back and draw another',
+        required: false,
+      }
     : null
 }

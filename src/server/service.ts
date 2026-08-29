@@ -908,6 +908,13 @@ export class PraetoriumService {
         if (rules && submitted.kind === 'attach-roster' && submitted.prep) {
           return { ...submitted, prep: withAuthoritativeAwards(submitted.prep, rules) }
         }
+        if (submitted.kind === 'use-new-orders') {
+          const player = commandArmy(state, userId, submitted)
+          const remaining = (player?.secondaryDeck ?? []).filter(
+            (candidate) => !player?.secondaries.some((secondary) => secondary.key === candidate.key),
+          )
+          return remaining.length ? { ...submitted, secondary: remaining[this.randomIndex(remaining.length)]! } : submitted
+        }
         if (submitted.kind !== 'draw-secondary' && submitted.kind !== 'draw-secondaries') return submitted
         if (submitted.kind === 'draw-secondaries' && submitted.selected) return submitted
         // Whose deck this is comes from the domain, so the cards cannot be taken off

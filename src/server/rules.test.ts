@@ -183,6 +183,17 @@ beforeEach(() => {
         effect: { en: 'Re-roll that roll.' },
         restrictions: { en: 'One re-roll.' },
       },
+      {
+        id: 'new-orders',
+        name: { en: 'New Orders' },
+        cost: 1,
+        turn: 'your',
+        phase: ['command'],
+        type: 'Strategic Ploy',
+        when: { en: 'End of your Command phase.' },
+        target: { en: 'One of your active Secondary Mission cards.' },
+        effect: { en: 'Discard it and draw one new Secondary Mission card.' },
+      },
     ],
   })
   write(path.join(root, 'secondary-cards.json'), [
@@ -427,16 +438,22 @@ describe('stratagems', () => {
 
   it('include the ones every army has', () => {
     // Named as the card prints it where there is one; titled from the dataset's capitals where there is not.
-    expect(load().core.map((stratagem) => stratagem.name)).toEqual(['Command Re-roll', 'Insane Bravery'])
+    expect(load().core.map((stratagem) => stratagem.name)).toEqual(['Command Re-roll', 'Insane Bravery', 'New Orders'])
   })
 
-  it('read core descriptions from the verified Game Datacards path without filling upstream gaps', () => {
+  it('reads core cards and descriptions from the verified Game Datacards path when the semantic source has a gap', () => {
     expect(load().coreDetails).toEqual([
       {
         id: 'command-re-roll',
         type: 'Core Stratagem',
         description:
           'Bend fate to your will.\n\n**When:** Any phase.\n\n**Target:** That unit or model.\n\n**Effect:** Re-roll that roll.\n\n**Restrictions:** One re-roll.',
+      },
+      {
+        id: 'new-orders',
+        type: 'Strategic Ploy',
+        description:
+          '**When:** End of your Command phase.\n\n**Target:** One of your active Secondary Mission cards.\n\n**Effect:** Discard it and draw one new Secondary Mission card.',
       },
     ])
   })

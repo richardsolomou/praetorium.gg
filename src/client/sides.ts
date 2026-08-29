@@ -112,6 +112,8 @@ export type Side = {
   secondaryDeckReady: ViewPlayer['secondaryDeckReady']
   remainingSecondaries: ViewPlayer['remainingSecondaries']
   secondariesDrawnThisTurn: ViewPlayer['secondariesDrawnThisTurn']
+  secondaryDrawTarget: ViewPlayer['secondaryDrawTarget']
+  secondariesToReview: ViewPlayer['secondariesToReview']
   stratagems: ViewPlayer['stratagems']
   /** The mission this side plays, which is not always the one the viewer plays. */
   mission: SideMission | null
@@ -163,6 +165,8 @@ export function sides(view: BattleView, missions: readonly { side: number; missi
         secondaryDeckReady: captain.secondaryDeckReady,
         remainingSecondaries: captain.remainingSecondaries,
         secondariesDrawnThisTurn: captain.secondariesDrawnThisTurn,
+        secondaryDrawTarget: captain.secondaryDrawTarget,
+        secondariesToReview: captain.secondariesToReview,
         stratagems: captain.stratagems,
         mission: missions.find((entry) => entry.side === index)?.mission ?? null,
       },

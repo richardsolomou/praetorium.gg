@@ -12,6 +12,7 @@ import {
   PRIMARY_GUIDE,
   type Roster,
   SECONDARY_GUIDE,
+  TACTICAL_HAND_SIZE,
   sameSide,
   scoringDue,
   secretSettlementActionPlayerId,
@@ -139,6 +140,8 @@ export type BattleView = {
      * so a side reading across the table counts the draws without learning the cards.
      */
     secondariesDrawnThisTurn: string[]
+    secondaryDrawTarget: number
+    secondariesToReview: string[]
   }[]
   /** The conventional ceilings, for display beside a total. */
   guides: { primary: number; secondary: number }
@@ -257,6 +260,10 @@ export function battleView(
         secondariesDrawnThisTurn: resources.secondariesDrawnThisTurn.map((key) =>
           mayNameCard(state, viewerId, resources, key) ? key : 'secret',
         ),
+        secondaryDrawTarget: TACTICAL_HAND_SIZE + (resources.additionalSecondaryDrawsThisTurn ?? 0),
+        secondariesToReview: (resources.secondariesToReview ?? (state.drawAcknowledged ? [] : resources.secondariesDrawnThisTurn)).map(
+          (key) => (mayNameCard(state, viewerId, resources, key) ? key : 'secret'),
+        ),
         /**
          * A face-down card is identifiable from what disappeared from its public deck.
          */
@@ -298,7 +305,8 @@ export function battleView(
     advancePrompt: advancePrompt(state, viewerId),
     secretMissionActionPlayerId: secretMissionActionPlayerId(state),
     undoable: state.undoable?.seq ?? null,
-    undoableDraw: state.undoable?.kind === 'draw-secondary' || state.undoable?.kind === 'draw-secondaries',
+    undoableDraw:
+      state.undoable?.kind === 'draw-secondary' || state.undoable?.kind === 'draw-secondaries' || state.undoable?.kind === 'use-new-orders',
   }
 }
 

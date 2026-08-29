@@ -21,7 +21,6 @@ export type Phase = (typeof PHASES)[number]
 
 export const BATTLE_ROUNDS = 5
 
-/** Granted once, to the player entering their own command phase. */
 const COMMAND_PHASE_CP = 1
 
 const PLAYERS_PER_BATTLE = 2
@@ -379,6 +378,7 @@ export type Command =
     } & OnBehalfOf)
   /** `cp` overrides the printed cost, for the stratagems whose price depends on the board. */
   | ({ kind: 'use-stratagem'; key: string; cp?: number } & OnBehalfOf)
+  | ({ kind: 'use-new-orders'; stratagemKey: string; secondaryKey: string; secondary: Secondary; cp?: number } & OnBehalfOf)
   | ({ kind: 'score-secondary'; key: string; delta: number } & OnBehalfOf)
   | ({
       kind: 'score-settlement'
@@ -446,6 +446,8 @@ export type PlayerState = {
    * putting one back frees the slot it took rather than any slot at all.
    */
   secondariesDrawnThisTurn: string[]
+  additionalSecondaryDrawsThisTurn: number
+  secondariesToReview: string[]
   /** This side's primary mission for its ordered disposition matchup. */
   primaryCard: Secondary | null
   secondaryMode: SecondaryMode
@@ -632,6 +634,8 @@ export function emptyBattle(playerIds: readonly PlayerId[], playerSides?: readon
       uses: [],
       secondaries: [],
       secondariesDrawnThisTurn: [],
+      additionalSecondaryDrawsThisTurn: 0,
+      secondariesToReview: [],
       primaryCard: null,
       secondaryMode: 'tactical',
       secondaryDeck: null,
@@ -829,7 +833,7 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
       const owed = sideOwes(state, player)
       if (owed === 'settlement') return 'settle the previous turn before ending the command phase'
       if (owed === 'cards') return 'draw every card owed before ending the command phase'
-      if (state.phase === 'command' && player.secondariesDrawnThisTurn.length && !state.drawAcknowledged) {
+      if (state.phase === 'command' && player.secondariesToReview.length && !state.drawAcknowledged) {
         return 'review the new secondary missions before ending the command phase'
       }
       if (state.advanceRequested) return 'the phase is already waiting to advance'
@@ -855,7 +859,7 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
       if (owed === 'settlement') return 'settle the previous turn before ending the command phase'
       if (owed === 'cards') return 'draw every card owed before ending the command phase'
       if (owed === 'secret') return 'reveal or discard the secret mission before ending the turn'
-      if (state.phase === 'command' && player.secondariesDrawnThisTurn.length && !state.drawAcknowledged) {
+      if (state.phase === 'command' && player.secondariesToReview.length && !state.drawAcknowledged) {
         return 'review the new secondary missions before ending the command phase'
       }
       const due = scoringDue(state, player)
@@ -951,15 +955,26 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
       if (state.status !== 'playing') return 'the battle is not running'
       const stratagem = player.stratagems.find((candidate) => candidate.key === command.key)
       if (!stratagem) return 'that is not one of your stratagems'
-      if (stratagem.phases?.length && !stratagem.phases.includes(state.phase)) return `${stratagem.name} cannot be used in this phase`
-      if (stratagem.turn === 'your-turn' && !sameSide(state, state.activePlayerId, player.id))
-        return `${stratagem.name} is used on your turn`
-      if (stratagem.turn === 'opponent-turn' && sameSide(state, state.activePlayerId, player.id))
-        return `${stratagem.name} is used on your opponent’s turn`
-      const cost = command.cp ?? stratagem.cp
-      if (!Number.isInteger(cost) || cost < 0 || cost > STRATAGEM_CP_MAX) return 'that is not a possible cost'
-      if (player.cp < cost) return 'not enough command points'
-      if (limitReached(player, stratagem, state)) return `${stratagem.name} has been used this ${stratagem.limit}`
+      return stratagemRefusal(state, player, stratagem, command.cp)
+    }
+    case 'use-new-orders': {
+      if (state.status !== 'playing') return 'the battle is not running'
+      const stratagem = player.stratagems.find((candidate) => candidate.key === command.stratagemKey)
+      if (!stratagem || !isNewOrders(stratagem)) return 'New Orders is not in your stratagems'
+      const refusal = stratagemRefusal(state, player, stratagem, command.cp)
+      if (refusal) return refusal
+      if (player.secondaryMode !== 'tactical') return 'New Orders requires tactical secondary missions'
+      if (
+        !player.secondaries.some(
+          (secondary) => secondary.key === command.secondaryKey && player.secondaryStatus[secondary.key] === 'active',
+        )
+      ) {
+        return 'choose an active secondary mission'
+      }
+      if (!command.secondary.name.trim()) return 'name the replacement secondary'
+      if (!player.secondaryDeck?.some((secondary) => secondary.key === command.secondary.key)) return 'that secondary is not in your deck'
+      if (player.secondaries.some((secondary) => secondary.key === command.secondary.key)) return 'that secondary has already been drawn'
+      if (player.secondaries.length >= SECONDARY_HISTORY_MAX) return 'the secondary history is full'
       return null
     }
     case 'score-secondary': {
@@ -1002,7 +1017,7 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
     case 'draw-secondary': {
       if (state.status !== 'playing') return 'the battle is not running'
       if (player.secondaryMode !== 'tactical') return 'only tactical missions are drawn'
-      if (player.secondariesDrawnThisTurn.length >= TACTICAL_HAND_SIZE) {
+      if (player.secondariesDrawnThisTurn.length >= secondaryDrawTarget(player)) {
         return 'you have already drawn your secondaries this turn'
       }
       if (!command.secondary.name.trim()) return 'name the secondary'
@@ -1020,7 +1035,7 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
         (candidate) => !player.secondaries.some((secondary) => secondary.key === candidate.key),
       ).length
       const refill = Math.min(
-        TACTICAL_HAND_SIZE - player.secondariesDrawnThisTurn.length,
+        secondaryDrawTarget(player) - player.secondariesDrawnThisTurn.length,
         remaining,
         SECONDARY_HISTORY_MAX - player.secondaries.length,
       )
@@ -1042,7 +1057,7 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
       if (state.status !== 'playing') return 'the battle is not running'
       if (!sameSide(state, state.activePlayerId, player.id)) return 'it is not your turn'
       if (sideOwes(state, player) === 'cards') return 'draw every card owed before taking the turn'
-      if (!player.secondariesDrawnThisTurn.length) return 'there is no new hand to acknowledge'
+      if (!player.secondariesToReview.length) return 'there is no new hand to acknowledge'
       if (state.drawAcknowledged) return 'the hand has already been acknowledged'
       return null
     }
@@ -1247,11 +1262,23 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
     case 'use-stratagem': {
       const stratagem = player.stratagems.find((candidate) => candidate.key === command.key)
       if (!stratagem) return
-      const spent = command.cp ?? stratagem.cp
-      player.cp -= spent
-      player.cpSpent += spent
-      player.cpByRound[state.round - 1] = player.cp
-      player.uses.push({ key: stratagem.key, round: state.round, phase: state.phase, turn: state.activePlayerId })
+      applyStratagemUse(state, player, stratagem, command.cp)
+      return
+    }
+    case 'use-new-orders': {
+      const stratagem = player.stratagems.find((candidate) => candidate.key === command.stratagemKey)
+      if (!stratagem) return
+      applyStratagemUse(state, player, stratagem, command.cp)
+      if (!player.secondariesDrawnThisTurn.includes(command.secondaryKey)) player.additionalSecondaryDrawsThisTurn += 1
+      player.secondaryStatus = { ...player.secondaryStatus, [command.secondaryKey]: 'discarded' }
+      player.secondariesDrawnThisTurn = player.secondariesDrawnThisTurn.filter((key) => key !== command.secondaryKey)
+      player.secondariesToReview = player.secondariesToReview.filter((key) => key !== command.secondaryKey)
+      const secondary = { ...(player.secondaryDeck?.find((candidate) => candidate.key === command.secondary.key) ?? command.secondary) }
+      player.secondaries.push(secondary)
+      player.secondaryStatus = { ...player.secondaryStatus, [secondary.key]: 'active' }
+      player.secondariesDrawnThisTurn.push(secondary.key)
+      player.secondariesToReview.push(secondary.key)
+      state.drawAcknowledged = false
       return
     }
     case 'score-secondary': {
@@ -1286,6 +1313,7 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
       if (command.key === player.secretSecondary && command.status !== 'active') player.secretRevealed = true
       if (wasActive && command.status !== 'active') {
         player.secondariesDrawnThisTurn = player.secondariesDrawnThisTurn.filter((key) => key !== command.key)
+        player.secondariesToReview = player.secondariesToReview.filter((key) => key !== command.key)
       }
       return
     }
@@ -1294,6 +1322,7 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
       player.secondaries.push(secondary)
       player.secondaryStatus = { ...player.secondaryStatus, [secondary.key]: 'active' }
       player.secondariesDrawnThisTurn = [...player.secondariesDrawnThisTurn, secondary.key]
+      player.secondariesToReview = [...player.secondariesToReview, secondary.key]
       state.drawAcknowledged = false
       return
     }
@@ -1304,11 +1333,13 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
         player.secondaryStatus = { ...player.secondaryStatus, [secondary.key]: 'active' }
       }
       player.secondariesDrawnThisTurn = [...player.secondariesDrawnThisTurn, ...command.secondaries.map((drawn) => drawn.key)]
+      player.secondariesToReview = [...player.secondariesToReview, ...command.secondaries.map((drawn) => drawn.key)]
       state.drawAcknowledged = false
       return
     }
     case 'acknowledge-draw': {
       state.drawAcknowledged = true
+      player.secondariesToReview = []
       return
     }
     case 'acknowledge-scoring': {
@@ -1500,6 +1531,8 @@ function resetPlayer(player: PlayerState) {
   player.uses = []
   player.secondaries = []
   player.secondariesDrawnThisTurn = []
+  player.additionalSecondaryDrawsThisTurn = 0
+  player.secondariesToReview = []
   player.secondaryDeck = null
   player.primaryCard = null
   player.secondaryMode = 'tactical'
@@ -1587,6 +1620,29 @@ function limitReached(player: PlayerState, stratagem: Stratagem, state: BattleSt
   return stratagem.limit === 'turn' ? thisTurn.length > 0 : thisTurn.some((use) => use.phase === state.phase)
 }
 
+export const isNewOrders = (stratagem: Pick<Stratagem, 'name'>) => stratagem.name.trim().toLocaleLowerCase() === 'new orders'
+
+function stratagemRefusal(state: BattleState, player: PlayerState, stratagem: Stratagem, overriddenCost?: number): string | null {
+  if (stratagem.phases?.length && !stratagem.phases.includes(state.phase)) return `${stratagem.name} cannot be used in this phase`
+  if (stratagem.turn === 'your-turn' && !sameSide(state, state.activePlayerId, player.id)) return `${stratagem.name} is used on your turn`
+  if (stratagem.turn === 'opponent-turn' && sameSide(state, state.activePlayerId, player.id)) {
+    return `${stratagem.name} is used on your opponent’s turn`
+  }
+  const cost = overriddenCost ?? stratagem.cp
+  if (!Number.isInteger(cost) || cost < 0 || cost > STRATAGEM_CP_MAX) return 'that is not a possible cost'
+  if (player.cp < cost) return 'not enough command points'
+  if (limitReached(player, stratagem, state)) return `${stratagem.name} has been used this ${stratagem.limit}`
+  return null
+}
+
+function applyStratagemUse(state: BattleState, player: PlayerState, stratagem: Stratagem, overriddenCost?: number) {
+  const spent = overriddenCost ?? stratagem.cp
+  player.cp -= spent
+  player.cpSpent += spent
+  player.cpByRound[state.round - 1] = player.cp
+  player.uses.push({ key: stratagem.key, round: state.round, phase: state.phase, turn: state.activePlayerId })
+}
+
 function enterTurn(state: BattleState, playerId: PlayerId, settlementRound: number | null) {
   state.activePlayerId = playerId
   state.phase = 'command'
@@ -1595,10 +1651,15 @@ function enterTurn(state: BattleState, playerId: PlayerId, settlementRound: numb
   if (player) {
     state.pendingSettlement = settlementRound === null ? null : { playerId: player.id, round: settlementRound }
     state.drawAcknowledged = false
-    player.cp += COMMAND_PHASE_CP
-    player.cpGained += COMMAND_PHASE_CP
-    player.cpByRound[state.round - 1] = player.cp
+    for (const side of new Set(state.players.map((candidate) => candidate.side))) {
+      const resources = sideCaptain(state, side)
+      resources.cp += COMMAND_PHASE_CP
+      resources.cpGained += COMMAND_PHASE_CP
+      resources.cpByRound[state.round - 1] = resources.cp
+    }
     player.secondariesDrawnThisTurn = []
+    player.additionalSecondaryDrawsThisTurn = 0
+    player.secondariesToReview = []
   }
 }
 
@@ -1744,13 +1805,17 @@ export function sideOwes(state: BattleState, player: PlayerState): 'settlement' 
   if (
     state.phase === 'command' &&
     player.secondaryMode === 'tactical' &&
-    player.secondariesDrawnThisTurn.length < TACTICAL_HAND_SIZE &&
+    player.secondariesDrawnThisTurn.length < secondaryDrawTarget(player) &&
     hasUndrawnCard
   ) {
     return 'cards'
   }
   if (state.phase === 'end' && player.secretSecondary && !player.secretRevealed) return 'secret'
   return null
+}
+
+function secondaryDrawTarget(player: PlayerState): number {
+  return TACTICAL_HAND_SIZE + (player.additionalSecondaryDrawsThisTurn ?? 0)
 }
 
 export function scoringDue(state: BattleState, player: PlayerState) {

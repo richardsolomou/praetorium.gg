@@ -18,7 +18,7 @@ import { DiscardSecondaryDialog } from './battle/DiscardSecondaryDialog'
 import type { Award, ReferenceCard, StratagemText } from './battle/MissionCards'
 import { Scoreboard } from './battle/Scoreboard'
 import { SecretMissionHandoff } from './battle/SecretMissionHandoff'
-import { HAND_SIZE, turnPrompt } from '../scoring'
+import { turnPrompt } from '../scoring'
 import { dueForAdvance, dueFromTheirTurn, ScoringDialog } from './battle/ScoringDialog'
 import { SidePanel } from './battle/SidePanel'
 import { HEADING } from './battle/tints'
@@ -189,13 +189,13 @@ export function Tracker({ view, missions, send, pending, problem }: Props) {
     !finished &&
     active?.secondaryMode === 'tactical' &&
     view.phase === 'command' &&
-    active.secondariesDrawnThisTurn.length < HAND_SIZE &&
+    active.secondariesDrawnThisTurn.length < active.secondaryDrawTarget &&
     active.remainingSecondaries.length > 0
   const needsDrawAcknowledgement =
     !finished &&
     active?.secondaryMode === 'tactical' &&
     view.phase === 'command' &&
-    active.secondariesDrawnThisTurn.length > 0 &&
+    active.secondariesToReview.length > 0 &&
     !view.drawAcknowledged
 
   // Only what the card itself says pays out at this moment, so the ask arrives with the phase that ends.

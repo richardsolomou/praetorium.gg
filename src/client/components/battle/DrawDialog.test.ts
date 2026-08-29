@@ -5,11 +5,14 @@ const roundRule = (roundMax: number): WhenDrawn => ({ operation: 'redraw', round
 
 describe('redrawOffer', () => {
   it('names round one without claiming there is an earlier round', () => {
-    expect(redrawOffer(roundRule(1), 1, [])?.message).toBe('You may put this back in battle round 1.')
+    expect(redrawOffer(roundRule(1), 1, [])).toMatchObject({
+      message: 'You must put this back in battle round 1.',
+      required: true,
+    })
   })
 
   it('keeps the inclusive wording for later thresholds', () => {
-    expect(redrawOffer(roundRule(3), 2, [])?.message).toBe('You may put this back in battle round 3 or earlier.')
+    expect(redrawOffer(roundRule(3), 2, [])?.message).toBe('You must put this back in battle round 3 or earlier.')
   })
 
   it('does not offer a redraw after the threshold', () => {
@@ -27,6 +30,7 @@ describe('redrawOffer', () => {
       message: 'Discard this if there are no enemy units with a Starting Strength of 5 or more on the battlefield.',
       status: 'discarded',
       label: 'Discard and draw another',
+      required: false,
     })
   })
 

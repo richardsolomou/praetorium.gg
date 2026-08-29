@@ -44,7 +44,7 @@ test('a running battle restores mission prompts when its tactical prep is missin
   await draw.getByRole('button', { name: 'Draw at random' }).click()
   await expect(draw.locator('[data-drawn]')).toHaveCount(2)
   await page.screenshot({ path: 'test-results/repaired-secondary-draw.png', fullPage: true })
-  await draw.getByRole('button', { name: 'Take the turn' }).click()
+  await takeTheTurn(page)
   for (const phase of ['command', 'movement', 'shooting', 'charge', 'fight']) {
     await page.getByRole('button', { name: `End the ${phase} phase` }).click()
   }
@@ -282,11 +282,14 @@ test('a tactical hand pays out when the card says', async ({ browser }) => {
   await bob.unroute('**/*')
   await expect(bob.getByRole('dialog', { name: 'Your secondary missions' })).toBeVisible()
   await expect(alice.getByRole('dialog', { name: `${bobName}’s secondary missions` })).toBeVisible()
+  await expect(
+    alice.getByRole('dialog', { name: `${bobName}’s secondary missions` }).getByRole('button', { name: 'Undo latest action' }),
+  ).toBeEnabled()
   await takeTheTurn(alice)
   await expect(alice.getByText(new RegExp(`${aliceName} draws .+ for ${bobName}`)).first()).toBeVisible()
   await expect(alice.getByText(new RegExp(`${bobName} marks `))).toHaveCount(0)
   await expect(panel.locator('[data-stat="vp"]')).toHaveText(String(scored))
-  await expect(panel.locator('[data-stat="cp"]')).toHaveText('1')
+  await expect(panel.locator('[data-stat="cp"]')).toHaveText('2')
   // Nothing is ticked to finish a card: no control for it exists.
   await expect(alice.getByText('take it out of the hand')).toHaveCount(0)
   await expect(bob.locator('[data-panel="player"]').filter({ hasText: 'Death Guard' }).locator('[data-stat="vp"]')).toHaveText(
