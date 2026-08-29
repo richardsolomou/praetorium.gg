@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.42.4
+
+### Patch Changes
+
+- ce0deae: Fix secondary mission redraws, New Orders, turn undo, and command-point grants.
+
 ## 0.42.3
 
 ### Patch Changes
