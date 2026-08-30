@@ -474,7 +474,15 @@ function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, con
     const annotation = modifiedProfileField('', 'annotation', profileType, profileLineage, owner, modifiers).value
     const values = (profile.characteristics ?? []).flatMap((value) => {
       if (!value.name) return []
-      const changed = modifiedProfileField(value.$text ?? '', value.typeId, profileType, profileLineage, owner, modifiers)
+      const changed = modifiedProfileField(
+        value.$text ?? '',
+        value.typeId,
+        profileType,
+        profileLineage,
+        owner,
+        modifiers,
+        value.name === 'Keywords' ? ', ' : undefined,
+      )
       return changed.value ? [{ name: value.name, ...changed }] : []
     })
     const present = new Set((profile.characteristics ?? []).map((value) => value.typeId).filter((id): id is string => Boolean(id)))
@@ -486,7 +494,15 @@ function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, con
       ),
     ].flatMap((field) => {
       const characteristicName = characteristicNames.get(field)
-      const changed = modifiedProfileField('', field, profileType, profileLineage, owner, modifiers)
+      const changed = modifiedProfileField(
+        '',
+        field,
+        profileType,
+        profileLineage,
+        owner,
+        modifiers,
+        characteristicName === 'Keywords' ? ', ' : undefined,
+      )
       return characteristicName && changed.value ? [{ name: characteristicName, ...changed }] : []
     })
     const baseValues = [...values, ...added]
@@ -1218,6 +1234,7 @@ function modifiedProfileField(
   lineage: readonly string[],
   owner: readonly string[],
   modifiers: readonly ProfileModifier[],
+  defaultJoin?: string,
 ) {
   if (!field) return { value: baseValue }
   const applied = modifiers.filter(
@@ -1230,7 +1247,7 @@ function modifiedProfileField(
   let value = baseValue
   const sources: string[] = []
   for (const modifier of applied.toSorted((left, right) => modifierOrder(left.type) - modifierOrder(right.type))) {
-    const changed = applyDisplayModifier(value, modifier)
+    const changed = applyDisplayModifier(value, modifier, defaultJoin)
     if (changed === value) continue
     value = changed
     sources.push(modifier.source)
@@ -1282,7 +1299,7 @@ function displayRuleName(link: InfoLink, base: string | undefined) {
   return modifiers.reduce((name, modifier) => applyDisplayModifier(name, modifier), base)
 }
 
-function applyDisplayModifier(current: string, modifier: DisplayModifier) {
+function applyDisplayModifier(current: string, modifier: DisplayModifier, defaultJoin = ' ') {
   const value = modifier.value
   const text = modifierText(value)
   switch (modifier.type) {
@@ -1291,11 +1308,11 @@ function applyDisplayModifier(current: string, modifier: DisplayModifier) {
     case 'append':
       if (text === null) return current
       if (modifier.skipIfPresent && current.includes(modifier.skipIfPresent)) return current
-      return current ? `${current}${modifier.join ?? ' '}${text}` : text
+      return current ? `${current}${modifier.join ?? defaultJoin}${text}` : text
     case 'prepend':
       if (text === null) return current
       if (modifier.skipIfPresent && current.includes(modifier.skipIfPresent)) return current
-      return current ? `${text}${modifier.join ?? ' '}${current}` : text
+      return current ? `${text}${modifier.join ?? defaultJoin}${current}` : text
     case 'increment':
       return modifyNumbers(current, modifier, (number) => number + Number(value) * modifier.times)
     case 'decrement':
