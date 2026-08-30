@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.42.7
+
+### Patch Changes
+
+- 02c441c: Allow Plague Surgeons to lead Plague Marines and cap specialist loadouts by the selected squad size.
+
 ## 0.42.6
 
 ### Patch Changes
