@@ -32,6 +32,7 @@ export type LoadoutChoice = {
     count: number
     min: number
     max: number
+    default?: boolean
     mutableMin?: boolean
     replacements?: { choiceKey: string; optionId: string }[]
     description?: string | null
@@ -111,6 +112,10 @@ export const canAddPooledOption = (option: LoadoutOption, donor?: LoadoutRowSour
 export type SpreadCounts = Record<string, number>
 
 export type ChoiceEdit = { key: string; optionId: string } | { key: string; counts: SpreadCounts }
+
+/** Prefer the catalogue's ordinary allocation before taking a specialist's place. */
+export const donorPriority = (left: LoadoutOption, right: LoadoutOption) =>
+  Number(Boolean(right.default)) - Number(Boolean(left.default)) || right.count - left.count
 
 export function changedDraftSpreadCounts(
   current: Readonly<Record<string, Readonly<Record<string, number>>>> | undefined,
@@ -291,9 +296,7 @@ export function spreadHandlers(choice: LoadoutChoice) {
   const room = choice.room - taken
 
   const donor = (exclude: string) =>
-    choice.options
-      .filter((option) => option.id !== exclude && (option.count > option.min || option.mutableMin))
-      .toSorted((left, right) => right.count - left.count)[0]
+    choice.options.filter((option) => option.id !== exclude && (option.count > option.min || option.mutableMin)).toSorted(donorPriority)[0]
 
   const more = (option: LoadoutOption): SpreadCounts | null => {
     if (option.count >= option.max) return null
@@ -310,7 +313,7 @@ export function spreadHandlers(choice: LoadoutChoice) {
     // become ten bolt rifles.
     const receiving = choice.options
       .filter((candidate) => candidate.id !== option.id && candidate.count < candidate.max)
-      .toSorted((left, right) => right.count - left.count)[0]
+      .toSorted(donorPriority)[0]
     return receiving ? { [option.id]: option.count - 1, [receiving.id]: receiving.count + 1 } : null
   }
 

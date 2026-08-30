@@ -1,4 +1,3 @@
-import { Plus } from 'lucide-react'
 import {
   appliesInMode,
   conditionLabel,
@@ -79,13 +78,9 @@ function ScoringBlock({ awards }: { awards: Award[] }) {
               {join ? <AwardJoin join={join} /> : null}
               <div className="flex items-center justify-between gap-4 py-2">
                 <div className="text-base text-bone">
-                  {award.cumulative ? <Plus className="mr-2 inline size-4" /> : null}
                   <RuleText text={conditionLabel(award) ?? payoutLabel(award, awards)} className="mt-0 inline text-base text-bone" />
                 </div>
-                <span className="chip shrink-0 text-lg text-bone">
-                  {award.cumulative ? '+' : ''}
-                  {award.vp} VP
-                </span>
+                <span className="chip shrink-0 text-lg text-bone">{award.vp} VP</span>
               </div>
             </div>
           )
