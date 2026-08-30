@@ -1,41 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import {
-  alternatives,
-  awardLimit,
-  awardTotal,
-  conditionLabel,
-  counted,
-  missionFlavourText,
-  type MissionAward,
-  payoutLabel,
-} from './missionText'
+import { alternatives, awardLimit, awardTotal, conditionLabel, counted, type MissionAward, payoutJoin, payoutLabel } from './missionText'
 
 const per = (vp: number, max: number | null) => ({ vp, max, per: 'enemy-unit-destroyed-this-turn' })
-
-describe('mission flavour text', () => {
-  it('is omitted from secondary mission references', () => {
-    expect(missionFlavourText('Atmospheric flavour.', 'Secondary mission')).toBeNull()
-  })
-
-  it('stays when an unmatched secondary payout depends on the card text', () => {
-    const award: MissionAward = {
-      vp: 5,
-      per: null,
-      mode: null,
-      max: null,
-      group: null,
-      cumulative: false,
-      criteria: null,
-      trigger: { timing: null, phase: null, playerTurn: null, roundMin: null, roundMax: null },
-    }
-
-    expect(missionFlavourText('Score by controlling the centre.', 'Secondary mission', [award])).toBe('Score by controlling the centre.')
-  })
-
-  it('stays on primary mission references', () => {
-    expect(missionFlavourText('Mission briefing.', 'Primary mission')).toBe('Mission briefing.')
-  })
-})
 
 describe('what a payout is worth', () => {
   it('counts on past the last whole multiple of a ceiling', () => {
@@ -109,6 +75,14 @@ describe('how a card pays', () => {
 
   it('asks which tier rather than how many when the card grouped them', () => {
     expect(counted(tier('beacon-position', 'beacon-unit-on-battlefield-not-in-own-territory'))).toBe(false)
+  })
+
+  it('labels grouped payouts as alternatives', () => {
+    expect(payoutJoin(tier('centre-hold'), tier('centre-hold'))).toBe('or')
+  })
+
+  it('labels an independent payout as additional', () => {
+    expect(payoutJoin(tier(null), tier('centre-hold'))).toBe('plus')
   })
 })
 

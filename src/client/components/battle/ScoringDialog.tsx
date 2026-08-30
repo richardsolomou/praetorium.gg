@@ -12,6 +12,7 @@ import {
   conditionLabel,
   counted,
   type MissionAward,
+  payoutJoin,
   payoutLabel,
 } from '../../missionText'
 import { capRoom, cardsDue, cardsDueFromTheirTurn, type DueCard, finishesOnScore, scoredThisRound, settleAgainstCaps } from '../../scoring'
@@ -217,7 +218,7 @@ export function ScoringDialog({ side, due, moment, confirmLabel, pending, send, 
                       key={`${award.vp}-${award.criteria ?? at}`}
                       card={card}
                       award={award}
-                      tier={at > 0 && alternatives(award, card.awards[at - 1] ?? award)}
+                      join={payoutJoin(award, card.awards[at - 1])}
                       times={taken[at] ?? 0}
                       pending={pending}
                       tone={colours}
@@ -272,7 +273,7 @@ export function ScoringDialog({ side, due, moment, confirmLabel, pending, send, 
 function AwardRow({
   card,
   award,
-  tier,
+  join,
   times,
   pending,
   tone,
@@ -280,8 +281,8 @@ function AwardRow({
 }: {
   card: DueCard
   award: MissionAward
-  /** Another way the same thing pays, so it reads as an alternative to the row above. */
-  tier: boolean
+  /** Whether this replaces the payout above or can score alongside it. */
+  join: 'or' | 'plus' | null
   times: number
   pending: boolean
   /** The side these points go to, so every mark in the prompt names the same one. */
@@ -293,7 +294,14 @@ function AwardRow({
 
   return (
     <div className="flex items-center gap-3 px-3 py-2">
-      {tier ? <span className="chip shrink-0 border-edge-strong px-1 text-faint">or</span> : null}
+      {join ? (
+        <span
+          className="chip shrink-0 border-edge-strong px-1 text-faint"
+          aria-label={join === 'or' ? 'Alternative objective' : 'Additional objective'}
+        >
+          {join}
+        </span>
+      ) : null}
       <span className="min-w-0 flex-1 text-sm">
         {/* The pack's own sentence, so the keywords it marks up read as keywords here too. */}
         <RuleText text={label} className="mt-0 space-y-1 text-sm text-bone" />
