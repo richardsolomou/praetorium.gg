@@ -413,6 +413,52 @@ describe('the profile modifiers on a datasheet', () => {
     expect(profiles?.[1]?.values).toEqual([{ name: 'S', value: '3' }])
   })
 
+  it('comma-separates a weapon keyword appended without an explicit join', () => {
+    const book = bookOf({
+      selectionEntries: [
+        {
+          id: 'company',
+          name: 'Company of Hunters',
+          type: 'upgrade',
+          modifiers: [
+            {
+              type: 'append',
+              field: 'keywords',
+              value: 'Assault',
+              scope: 'force',
+              affects: 'self.entries.recursive.profiles.Ranged Weapons',
+            },
+          ],
+        },
+        {
+          id: 'speeder',
+          name: 'Land Speeder Vengeance',
+          type: 'unit',
+          profiles: [
+            {
+              id: 'battery',
+              name: 'Plasma storm battery',
+              typeName: 'Ranged Weapons',
+              characteristics: [{ name: 'Keywords', typeId: 'keywords', $text: 'Blast, Twin-Linked' }],
+            },
+          ],
+        },
+      ],
+    })
+
+    const keywords = datasheetIn(book, 'cat', 'speeder', {
+      selections: [{ id: 'company' }, { id: 'speeder' }],
+      unitSelectionIndex: 1,
+    })?.profiles[0]?.values[0]
+
+    expect(keywords).toEqual({
+      name: 'Keywords',
+      value: 'Blast, Twin-Linked, Assault',
+      baseValue: 'Blast, Twin-Linked',
+      modifiers: ['Company of Hunters'],
+    })
+  })
+
   it('adds a leader ability keyword to the melee weapons in its attached unit', () => {
     const profiles = (id: string) => [
       {
