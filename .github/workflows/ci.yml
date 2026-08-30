@@ -178,22 +178,51 @@ jobs:
 
   points:
     runs-on: ubuntu-latest
+    env:
+      BASE_SHA: ${{ github.event.pull_request.base.sha || github.sha }}
+      HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
       - uses: richardsolomou/ras-stack/actions/setup-js@v0.47.0
       - run: pnpm catalogue:sync
-      - run: pnpm catalogue:descriptions
-      - run: pnpm catalogue:points | tee points.txt
-      - name: Require complete agreement
+      # Definitions and the points reference can publish at different times. Run
+      # both revisions against one snapshot so upstream drift cannot make an
+      # unrelated pull request fail or hide a pricing regression.
+      - name: Pin the catalogue snapshot
+        run: cp -a catalogue-data catalogue-data.pinned
+      - name: Measure the base
         run: |
           set -euo pipefail
-          matched=$(sed -n 's/^matched: *\([0-9]*\).*/\1/p' points.txt)
-          checked=$(sed -n 's/^evaluated: *\([0-9]*\).*/\1/p' points.txt)
-          echo "$matched of $checked"
-          # The floor is deliberately looser than the baseline described in
-          # docs/development/catalogue-data.md; full agreement is what gates.
-          test "$checked" -ge 1500
-          test "$matched" -eq "$checked"
+          git checkout --quiet --force "$BASE_SHA"
+          pnpm install --frozen-lockfile
+          rm -rf catalogue-data && cp -a catalogue-data.pinned catalogue-data
+          pnpm catalogue:descriptions
+          pnpm catalogue:points | tee base-points.txt
+      - name: Measure the head
+        run: |
+          set -euo pipefail
+          git checkout --quiet --force "$HEAD_SHA"
+          pnpm install --frozen-lockfile
+          rm -rf catalogue-data && cp -a catalogue-data.pinned catalogue-data
+          pnpm catalogue:descriptions
+          pnpm catalogue:points | tee head-points.txt
+      - name: Require no points regression
+        run: |
+          set -euo pipefail
+          base_matched=$(sed -n 's/^matched: *\([0-9]*\).*/\1/p' base-points.txt)
+          base_checked=$(sed -n 's/^evaluated: *\([0-9]*\).*/\1/p' base-points.txt)
+          head_matched=$(sed -n 's/^matched: *\([0-9]*\).*/\1/p' head-points.txt)
+          head_checked=$(sed -n 's/^evaluated: *\([0-9]*\).*/\1/p' head-points.txt)
+          : "${base_matched:?missing base matched count}"
+          : "${base_checked:?missing base evaluated count}"
+          : "${head_matched:?missing head matched count}"
+          : "${head_checked:?missing head evaluated count}"
+          echo "base: $base_matched of $base_checked"
+          echo "head: $head_matched of $head_checked"
+          test "$head_checked" -ge 1500
+          test "$((head_matched * base_checked))" -ge "$((base_matched * head_checked))"
 
   coverage:
     # A dropped field still renders, so it throws no exception and moves no event

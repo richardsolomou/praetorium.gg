@@ -140,14 +140,21 @@ function withModelOccupants(
       capacity === null || capacity === UNBOUNDED
         ? Number.POSITIVE_INFINITY
         : Math.max(0, capacity - untouched.reduce((total, child) => total + (child.count ?? 1), 0))
+    const defaultId = 'defaultSelectionEntryId' in group ? group.defaultSelectionEntryId : undefined
+    const allocated = new Map<string, number>()
+    for (const option of occupants
+      .filter((candidate) => Object.hasOwn(counts, candidate.id))
+      .toSorted((one, other) => Number(one.id === defaultId) - Number(other.id === defaultId))) {
+      const count = Math.min(counts[option.id] ?? 0, left)
+      allocated.set(option.id, count)
+      left -= count
+    }
     return {
       ...held,
       selections: [
         ...untouched,
         ...occupants.flatMap((option) => {
-          if (!Object.hasOwn(counts, option.id)) return []
-          const count = Math.min(counts[option.id] ?? 0, left)
-          left -= count
+          const count = allocated.get(option.id) ?? 0
           return count > 0 ? [expand(option.id, option.definition, index, MAX_DEPTH, count, new Set(), 1)] : []
         }),
       ],
@@ -338,17 +345,23 @@ function keepingTheSquad(before: Selection, after: Selection, path: readonly str
 
 /**
  * The squadmates a body can be taken from or handed back to: models in the same group
- * that the data does not insist on, largest first, so the sergeant is never the one
- * squeezed out.
+ * that the data does not insist on. Spend the group's named default first, then the
+ * largest remainder, so a new specialist replaces an ordinary trooper rather than
+ * another specialist and the sergeant is never squeezed out.
  */
 function squadmates(group: Selection, carrierId: string, index: CatalogueIndex): Selection[] {
+  const groupDefinition = index.definitions.get(group.id)
+  const defaultId = groupDefinition && 'defaultSelectionEntryId' in groupDefinition ? groupDefinition.defaultSelectionEntryId : undefined
   return (group.selections ?? [])
     .filter((child) => {
       if (child.id === carrierId) return false
       const definition = index.definitions.get(child.id)
       return Boolean(definition) && resolve(definition!, index).type === 'model' && requiredCount(definition!, index) === 0
     })
-    .toSorted((one, other) => (other.count ?? 1) - (one.count ?? 1))
+    .toSorted((one, other) => {
+      const preferred = Number(other.id === defaultId) - Number(one.id === defaultId)
+      return preferred || (other.count ?? 1) - (one.count ?? 1)
+    })
 }
 
 /** Bodies handed back to the squad, the inverse of one being spent to arm a carrier. */

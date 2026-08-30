@@ -3,6 +3,7 @@ import {
   canAddPooledOption,
   changeBy,
   choiceRemoval,
+  donorPriority,
   type LoadoutChoice,
   type LoadoutModel,
   type LoadoutOption,
@@ -104,7 +105,7 @@ export function ModelCard({
     const occupied = model.rows.filter((row) => bandOf(row) === band).reduce((total, row) => total + rowCount(row), 0)
     const giver = pool
       .filter((entry) => !sameSource(entry, taker) && entry.option.count > 0 && canAddPooledOption(taker.option, entry))
-      .toSorted((one, other) => other.option.count - one.option.count)[0]
+      .toSorted((one, other) => donorPriority(one.option, other.option))[0]
     if (!full && occupied < count) return canAddPooledOption(taker.option) ? move([], [taker]) : null
     if (giver) return move([giver], [taker])
     // A kind with nobody to ask can still be armed while its group has room: the
@@ -118,7 +119,7 @@ export function ModelCard({
     if (giver.option.count <= 0) return null
     const taker = shared
       .filter((entry) => !sameSource(entry, giver) && canAddPooledOption(entry.option, giver))
-      .toSorted((one, other) => other.option.count - one.option.count)[0]
+      .toSorted((one, other) => donorPriority(one.option, other.option))[0]
     if (giver.option.count <= giver.option.min) return null
     return taker ? move([giver], [taker]) : move([giver], [])
   }
