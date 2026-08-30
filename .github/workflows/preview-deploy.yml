@@ -19,7 +19,7 @@ jobs:
       checks: write
       issues: write
       pull-requests: write
-    uses: richardsolomou/ras-stack/.github/workflows/report-preview-status.yml@v0.47.0
+    uses: richardsolomou/ras-stack/.github/workflows/report-preview-status.yml@v0.47.2
     with:
       state: failed
       pr-number: ${{ github.event.workflow_run.pull_requests[0].number }}
