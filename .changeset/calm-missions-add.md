@@ -2,4 +2,4 @@
 'praetorium.gg': patch
 ---
 
-Use one consistent addition marker on cumulative mission objectives.
+Use consistent mission addition markers and preserve chosen specialist loadouts when another specialist is added.

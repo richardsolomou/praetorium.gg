@@ -335,6 +335,17 @@ describe('a squad that both divides itself and arms a specialist', () => {
     })
   })
 
+  it('takes an unallocated specialist body from the default model', () => {
+    expect(held({ models: { rifleman: 4, combi: 6 }, [weapon]: { pyrecannon: 1 } })).toEqual({
+      models: 10,
+      wargear: [
+        { name: 'Pyrecannon', count: 1 },
+        { name: 'Rifle', count: 3 },
+        { name: 'Combi-weapon', count: 6 },
+      ],
+    })
+  })
+
   it('leaves the squad the same whichever request the list names first', () => {
     const spreads = { models: { rifleman: 2, combi: 5 }, [weapon]: { pyrecannon: 2 } }
     expect(held(spreads)).toEqual(held(Object.fromEntries(Object.entries(spreads).toReversed())))

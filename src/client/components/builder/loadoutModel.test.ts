@@ -4,6 +4,7 @@ import {
   changedDraftSpreadCounts,
   choiceRemoval,
   controlledProfileCount,
+  donorPriority,
   type LoadoutChoice,
   type LoadoutModel,
   loadoutRowCount,
@@ -331,6 +332,16 @@ describe('dividing a group between its options', () => {
   it('takes from whichever sibling has the most once the group is full', () => {
     const group = choice([option('blaster', 8, 10), option('carbine', 2, 10)], 10)
     expect(spreadHandlers(group).more(group.options[1]!)).toEqual({ carbine: 3, blaster: 7 })
+  })
+
+  it("takes from the group's default before replacing another specialist", () => {
+    const boltgun = { ...option('boltgun', 1, 4), default: true }
+    const heavy = option('heavy', 2, 2)
+    const spewer = option('spewer', 0, 1)
+    const group = choice([heavy, boltgun, spewer], 3)
+
+    expect(spreadHandlers(group).more(spewer)).toEqual({ spewer: 1, boltgun: 0 })
+    expect([heavy, boltgun].toSorted(donorPriority)[0]).toBe(boltgun)
   })
 
   it('takes from a minimum that the catalogue changes for its sibling', () => {
