@@ -9,16 +9,12 @@ import { appliesInMode, type MissionAward } from '../core/scoring'
 
 export type { MissionAward } from '../core/scoring'
 
-export const missionFlavourText = (text: string | null, type: string, awards: readonly MissionAward[] = []) =>
-  type === 'Secondary mission' && !awards.some((award) => award.criteria === null) ? null : text
-
 /**
  * What to call a payout the source described only in the card's own words.
  *
  * Nothing is invented for it. Payouts in one group are tiers of the same thing, so
  * the one that pays less is the lower tier, and that much follows from the numbers.
- * What each tier asks for is in the card's text, which is the only place the source
- * says it, so the text is shown alongside.
+ * What each tier asks for is left unknown rather than reconstructed.
  */
 export function payoutLabel(award: MissionAward, siblings: readonly MissionAward[]): string {
   const tiers = siblings.filter((other) => alternatives(award, other) && conditionLabel(other) === null)
@@ -38,6 +34,12 @@ export function payoutLabel(award: MissionAward, siblings: readonly MissionAward
  */
 export function alternatives(chosen: Pick<MissionAward, 'group'>, other: Pick<MissionAward, 'group'>) {
   return chosen.group !== null && chosen.group === other.group
+}
+
+/** How a payout relates to the one printed immediately before it. */
+export function payoutJoin(award: Pick<MissionAward, 'group'>, previous: Pick<MissionAward, 'group'> | undefined): 'or' | 'plus' | null {
+  if (!previous) return null
+  return alternatives(award, previous) ? 'or' : 'plus'
 }
 
 /**

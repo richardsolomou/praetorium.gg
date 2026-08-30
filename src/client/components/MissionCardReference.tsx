@@ -4,11 +4,11 @@ import {
   conditionLabel,
   groupKey,
   type MissionAward as Award,
+  payoutJoin,
   payoutLabel,
   roundLabel,
   timingLabel,
   title,
-  missionFlavourText,
 } from '../missionText'
 import { RuleText } from './RuleText'
 
@@ -43,16 +43,9 @@ export function MissionCardReference({
     ].join('|')
     groups.set(key, [...(groups.get(key) ?? []), award])
   }
-  const flavourText = missionFlavourText(card.text, type, shown)
-
   return (
     <article>
       <span className="chip">{type}</span>
-      {flavourText ? (
-        <div className="italic">
-          <RuleText text={flavourText} />
-        </div>
-      ) : null}
       <div className="mt-4 space-y-3">
         {[...groups.values()].map((awards) => (
           <ScoringBlock key={groupKey(awards[0]!)} awards={awards} />
@@ -78,20 +71,37 @@ function ScoringBlock({ awards }: { awards: Award[] }) {
           <span className="font-bold uppercase">When:</span> {timing}
         </p>
       ) : null}
-      <div className="mt-3 divide-y divide-edge">
-        {awards.map((award, at) => (
-          <div key={`${award.vp}-${award.criteria ?? at}`} className="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0">
-            <div className="text-base text-bone">
-              {award.cumulative ? <Plus className="mr-2 inline size-4" /> : null}
-              <RuleText text={conditionLabel(award) ?? payoutLabel(award, awards)} className="mt-0 inline text-base text-bone" />
+      <div className="mt-3">
+        {awards.map((award, at) => {
+          const join = payoutJoin(award, awards[at - 1])
+          return (
+            <div key={`${award.vp}-${award.criteria ?? at}`}>
+              {join ? <AwardJoin join={join} /> : null}
+              <div className="flex items-center justify-between gap-4 py-2">
+                <div className="text-base text-bone">
+                  {award.cumulative ? <Plus className="mr-2 inline size-4" /> : null}
+                  <RuleText text={conditionLabel(award) ?? payoutLabel(award, awards)} className="mt-0 inline text-base text-bone" />
+                </div>
+                <span className="chip shrink-0 text-lg text-bone">
+                  {award.cumulative ? '+' : ''}
+                  {award.vp} VP
+                </span>
+              </div>
             </div>
-            <span className="chip shrink-0 text-lg text-bone">
-              {award.cumulative ? '+' : ''}
-              {award.vp} VP
-            </span>
-          </div>
-        ))}
+          )
+        })}
       </div>
+    </div>
+  )
+}
+
+/** Whether the next condition replaces the one above or can score alongside it. */
+function AwardJoin({ join }: { join: 'or' | 'plus' }) {
+  return (
+    <div className="flex items-center gap-2 py-1" aria-label={join === 'or' ? 'Alternative objective' : 'Additional objective'}>
+      <span className="h-px flex-1 bg-edge" />
+      <span className="chip shrink-0 border-edge-strong px-1 text-faint">{join}</span>
+      <span className="h-px flex-1 bg-edge" />
     </div>
   )
 }
