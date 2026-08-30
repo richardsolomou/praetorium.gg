@@ -46,4 +46,23 @@ describe('mission card reference', () => {
     expect(markup).toContain('>plus</span>')
     expect(markup).not.toContain('Atmospheric mission flavour.')
   })
+
+  it('uses the relationship label instead of legacy plus marks on a cumulative payout', () => {
+    const cumulative = { ...award(2, 'For each of those objectives.', null), cumulative: true }
+    const markup = renderToStaticMarkup(
+      createElement(MissionCardReference, {
+        card: {
+          name: 'Take and Hold',
+          text: null,
+          awards: [award(3, 'For each objective you control.', null), cumulative],
+        },
+        type: 'Take and Hold',
+      }),
+    )
+
+    expect(markup).toContain('aria-label="Additional objective"')
+    expect(markup).toContain('>plus</span>')
+    expect(markup).not.toContain('+2 VP')
+    expect(markup).toContain('>2 VP</span>')
+  })
 })
