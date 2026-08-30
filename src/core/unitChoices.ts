@@ -77,6 +77,8 @@ export type UnitChoice = {
     count: number
     min: number
     max: number
+    /** The option its group names as the ordinary allocation to replace first. */
+    default?: boolean
     /** A sibling selection can lower this minimum as part of the same edit. */
     mutableMin?: boolean
     profile?: string | null
@@ -247,6 +249,7 @@ export function unitChoices(entryId: string, selection: Selection, index: Catalo
           adjustable.length > 1 &&
           forbidden.some((set) => ids.every((option) => set.some((named) => option.has(named))) && set.length >= adjustable.length)
         const optionalSingle = !fixed && adjustable.length === 1 && minimum(child.definition) === 0
+        const defaultId = 'defaultSelectionEntryId' in inner ? inner.defaultSelectionEntryId : undefined
         if (
           (adjustable.length > 1 || optionalSingle || (separate && adjustable.length > 0)) &&
           adjustableRoom >= 1 &&
@@ -266,6 +269,7 @@ export function unitChoices(entryId: string, selection: Selection, index: Catalo
               count: countOf(option.id),
               min: minimum(option.definition) * scale,
               max: maximumFor(option),
+              ...(option.id === defaultId ? { default: true } : {}),
               ...(mutableMinimum(option) ? { mutableMin: true } : {}),
               ...(resolve(option.definition, index).type === 'model' ? { profile: modelProfileOf(option.definition, index) } : {}),
             })),

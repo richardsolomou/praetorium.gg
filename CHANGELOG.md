@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.42.8
+
+### Patch Changes
+
+- 36370bd: Use consistent mission addition markers and preserve chosen specialist loadouts when another specialist is added.
+
 ## 0.42.7
 
 ### Patch Changes
