@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.42.5
+
+### Patch Changes
+
+- fc89e76: Clarify alternative and additional mission objectives and omit mission flavor text.
+
 ## 0.42.4
 
 ### Patch Changes
