@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.42.6
+
+### Patch Changes
+
+- e0b7c9f: Highlight only the weapon keyword added by a roster rule.
+
 ## 0.42.5
 
 ### Patch Changes
