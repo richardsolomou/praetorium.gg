@@ -52,7 +52,7 @@ const PREVIEW_PLAYER_ROSTERS: readonly PreviewRoster[] = [
       { entryId: '2b97-4d0b-44dd-ad6b' },
       { entryId: '2b97-4d0b-44dd-ad6b' },
       { entryId: '77cf-f4ac-7e36-6464', models: 6 },
-      { entryId: '77cf-f4ac-7e36-6464', models: 6 },
+      { entryId: '77cf-f4ac-7e36-6464', models: 3 },
       { entryId: 'd8f0-1727-fcdd-7ee9', models: 6 },
       { entryId: 'd8f0-1727-fcdd-7ee9', models: 6 },
       { entryId: '821d-665-499f-e895', models: 10 },
