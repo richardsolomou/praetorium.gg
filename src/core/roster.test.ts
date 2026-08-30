@@ -286,6 +286,96 @@ describe('a required model replaced by an optional specialist', () => {
   })
 })
 
+describe('specialists in a separately led squad', () => {
+  const index = indexOf({
+    sharedSelectionEntries: [
+      {
+        id: 'squad',
+        name: 'Squad',
+        type: 'unit',
+        selectionEntries: [
+          {
+            id: 'sergeant',
+            name: 'Sergeant',
+            type: 'model',
+            constraints: [
+              ...mandatory('sergeant-min'),
+              { id: 'sergeant-max', type: 'max', value: 1, field: 'selections', scope: 'parent' },
+            ],
+          },
+        ],
+        selectionEntryGroups: [
+          {
+            id: 'models',
+            name: 'Models',
+            defaultSelectionEntryId: 'trooper',
+            constraints: [
+              { id: 'models-min', type: 'min', value: 4, field: 'selections', scope: 'parent' },
+              { id: 'models-max', type: 'max', value: 9, field: 'selections', scope: 'parent' },
+            ],
+            selectionEntries: [
+              {
+                id: 'trooper',
+                name: 'Trooper',
+                type: 'model',
+                constraints: [{ id: 'trooper-max', type: 'max', value: 9, field: 'selections', scope: 'parent' }],
+              },
+              {
+                id: 'specialist',
+                name: 'Specialist',
+                type: 'model',
+                constraints: [{ id: 'specialist-max', type: 'max', value: 4, field: 'selections', scope: 'parent' }],
+                modifiers: [
+                  {
+                    type: 'add',
+                    value: 'Max 2 specialists per 5 models',
+                    field: 'error',
+                    conditionGroups: [
+                      {
+                        type: 'and',
+                        conditions: [
+                          {
+                            type: 'lessThan',
+                            value: 10,
+                            field: 'selections',
+                            scope: 'squad',
+                            childId: 'model',
+                            includeChildSelections: true,
+                          },
+                          {
+                            type: 'greaterThan',
+                            value: 2,
+                            field: 'selections',
+                            scope: 'squad',
+                            childId: 'specialist',
+                            includeChildSelections: true,
+                          },
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  })
+
+  it('divides only the models present rather than the largest possible squad', () => {
+    expect(buildUnit('squad', index, 5)?.choices.find((choice) => choice.name === 'Models')?.room).toBe(4)
+    expect(buildUnit('squad', index, 10)?.choices.find((choice) => choice.name === 'Models')?.room).toBe(9)
+  })
+
+  it('applies the specialist cap at the selected squad size', () => {
+    const atFive = buildUnit('squad', index, 5)?.choices.find((choice) => choice.name === 'Models')
+    const atTen = buildUnit('squad', index, 10)?.choices.find((choice) => choice.name === 'Models')
+    expect(atFive?.options.find((option) => option.id === 'specialist')?.max).toBe(2)
+    expect(atTen?.options.find((option) => option.id === 'specialist')?.max).toBe(4)
+  })
+})
+
 describe('repeated specialist models', () => {
   const index = indexOf({
     sharedSelectionEntries: [

@@ -27,8 +27,8 @@ const CLAIM = /can be attached to the following units?/i
 
 const BULLETED = /(?:^|\n)\s*(?:■|-)\s*([^\n]+)/g
 
-/** `^^**Immortals, Lychguard**^^` inline, which is the other. */
-const EMPHASISED = /\^\^\*\*(.+?)\*\*\^\^/s
+/** `^^**Immortals, Lychguard**^^` inline, including the source's inverted `^^**` closer. */
+const EMPHASISED = /\^\^\*\*(.+?)(?:\*\*\^\^|\^\^\*\*)/s
 
 const GENERIC_SUBSTITUTION =
   /if a character unit from your army with the leader ability can be attached to (?:an?|the) (.+?), it can be attached to this unit instead/gi
