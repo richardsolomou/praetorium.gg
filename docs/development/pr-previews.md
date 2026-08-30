@@ -30,4 +30,6 @@ Previews and their shared login are public. Do not store sensitive data in them.
 
 Fork builds do not receive deployment secrets. They upload an image artifact. The trusted `preview-deploy.yml` workflow publishes it after maintainer approval. Internal pull requests publish directly to the container registry, and CI runners pull that exact image instead of transferring a second copy.
 
+Dependabot image builds run automatically, but deployment waits for a required reviewer on the `dependabot-preview` GitHub environment. Closing a Dependabot pull request removes its preview without another approval.
+
 Push again or rerun the workflow to redeploy.
