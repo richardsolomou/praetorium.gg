@@ -106,6 +106,7 @@ export function unitChoices(entryId: string, selection: Selection, index: Catalo
   const minimum = (definition: Definition) => requiredCount(definition, index, { primaryCatalogueId: options.primaryCatalogueId, roster })
   const entry = index.definitions.get(entryId)
   if (!entry) return []
+  const resizingGroup = sizeOf(selection, index).path.slice(0, -1)
 
   /**
    * What the datasheet refuses to see held together, wherever it says so.
@@ -230,7 +231,11 @@ export function unitChoices(entryId: string, selection: Selection, index: Catalo
         // the group, and a tank may carry all three.
         const separate = fixed && capacity === null
         const roomFor = (option: Option) => scaled(maximumCount(option.definition, index), scale)
-        const adjustableRoom = separate ? sum(adjustable.map(roomFor)) : fixed ? heldRoom(adjustable, countOf) : room
+        // Replacing one model kind with another must keep the selected squad size.
+        // A group's catalogue cap names its largest squad, which is not the room a
+        // five-model squad currently has to divide between its loadouts.
+        const resizesUnit = resizingGroup.length === here.length && resizingGroup.every((step, position) => step === here[position])
+        const adjustableRoom = separate ? sum(adjustable.map(roomFor)) : fixed || resizesUnit ? heldRoom(adjustable, countOf) : room
         const maximumFor = (option: Option) => {
           if (!repeating) return legalMaximum(selection, here, option, adjustable, adjustableRoom, index, options)
           return separate ? roomFor(option) : adjustableRoom
