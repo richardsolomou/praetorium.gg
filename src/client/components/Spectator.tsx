@@ -144,7 +144,7 @@ function SpectatorSide({ view, side, className }: { view: BattleView; side: Side
         {side.armies.map((army) => (
           <div key={army.playerId} className="min-w-0">
             <h2 className={`text-lg leading-tight font-bold uppercase ${colours.text}`}>
-              <PlayerName army={army} battle={view.token} />
+              <PlayerName army={army} />
             </h2>
             <ArmyIdentity army={army} token={view.token} className="mt-0.5" />
             <ArmyRoster army={army} side={side} token={view.token} actionable={false} send={ignoreCommand} />

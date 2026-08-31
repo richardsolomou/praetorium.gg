@@ -3,6 +3,7 @@ import { EllipsisVertical, Eye, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { battleStage } from '../../battleStage'
 import { summarySides } from '../../battleSummary'
 import { formatDate } from '../../dates'
 import type { Battle } from './battle'
@@ -65,10 +66,9 @@ export function BattleShelf({
                     side="a"
                   />
                   <span className="col-span-2 row-start-1 border-b border-edge pb-2 text-center sm:col-span-1 sm:col-start-2 sm:row-start-auto sm:border-0 sm:pb-0">
-                    <span className="eyebrow block">{battle.status === 'playing' ? `Round ${battle.round}` : battle.status}</span>
-                    <span className="block text-xs text-dim">
-                      {battle.status === 'playing' ? `${battle.phase} phase · ` : ''}
-                      {formatDate(battle.lastActivity)}
+                    <span className={`chip ${battleStage(battle.status).tint}`}>{battleStage(battle.status).name}</span>
+                    <span className="mt-1 block text-xs text-dim">
+                      {battle.status === 'playing' ? `Round ${battle.round} · ${battle.phase} phase` : formatDate(battle.lastActivity)}
                     </span>
                     <span className="mt-1 block text-[0.625rem] text-faint">
                       {battle.settings.limit ? `${battle.settings.limit} pts` : 'Legacy format'}

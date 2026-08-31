@@ -82,7 +82,7 @@ function SignIn() {
       // `next` is a pathname rather than a route, so this is a navigation by href
       // rather than by route id.
       if (next) window.location.assign(next)
-      else await navigate({ to: '/rosters' })
+      else await navigate({ to: '/' })
     } else {
       posthog.capture('account_authentication_failed', { method: 'email', action: joining ? 'create' : 'sign_in' })
     }
@@ -125,7 +125,7 @@ function SignIn() {
               onSuccess={() => {
                 posthog.capture('account_signed_in', { method: 'two_factor', redirected: Boolean(next) })
                 if (next) window.location.assign(next)
-                else void navigate({ to: '/rosters' })
+                else void navigate({ to: '/' })
               }}
             />
           ) : (
@@ -220,7 +220,7 @@ function SignIn() {
                           await requestNativeAuth({
                             action: 'sign-in',
                             provider,
-                            next: next ?? '/rosters',
+                            next: next ?? '/',
                             requestSignUp: joining,
                           })
                         )
@@ -228,7 +228,7 @@ function SignIn() {
                         const errorCallbackURL = next ? `/sign-in?${new URLSearchParams({ next })}` : '/sign-in'
                         void authClient.signIn.social({
                           provider,
-                          callbackURL: next ?? '/rosters',
+                          callbackURL: next ?? '/',
                           errorCallbackURL,
                           requestSignUp: joining,
                         })

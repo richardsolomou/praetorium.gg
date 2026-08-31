@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router'
 import { Eye } from 'lucide-react'
 import { buttonVariants } from '@/components/ui/button'
+import { battleStage } from '../../battleStage'
 import { summarySides } from '../../battleSummary'
 import type { Battle } from '../battles/battle'
 
@@ -49,7 +50,7 @@ export function HomeHero({ live }: { live?: Battle }) {
 /** The scoreboard of one battle, narrow enough to stand beside the pitch. */
 function HeroBattle({ battle }: { battle: Battle }) {
   const [ours, theirs] = summarySides(battle)
-  const status = battle.status === 'playing' ? 'Watching live' : battle.status === 'finished' ? 'Just finished' : 'Setting up'
+  const stage = battleStage(battle.status)
   return (
     <Link
       to="/battles/$token"
@@ -57,8 +58,8 @@ function HeroBattle({ battle }: { battle: Battle }) {
       className="block border border-edge bg-sunken p-4 hover:border-edge-strong"
       aria-label={`Watch ${battle.players.join(' versus ')}`}
     >
-      <span className="chip inline-flex items-center gap-1.5 text-info">
-        <Eye className="size-3.5" aria-hidden /> {status}
+      <span className={`chip inline-flex items-center gap-1.5 ${stage.tint}`}>
+        <Eye className="size-3.5" aria-hidden /> {stage.name}
       </span>
       <HeroSide players={ours?.players} army={ours?.armies[0]} score={ours?.score ?? 0} side="a" />
       <span className="my-2 block border-t border-edge" />

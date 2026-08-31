@@ -63,10 +63,10 @@ export const adminUsersQuery = (query: string) =>
     staleTime: SSR_STALE_TIME,
   })
 
-export const userProfileQuery = (userId: string, battle?: string) =>
+export const userProfileQuery = (userId: string) =>
   queryOptions({
-    queryKey: ['user-profile', userId, battle],
-    queryFn: () => userProfile({ data: { userId, battle } }),
+    queryKey: ['user-profile', userId],
+    queryFn: () => userProfile({ data: { userId } }),
     staleTime: SSR_STALE_TIME,
   })
 

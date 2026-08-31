@@ -3,13 +3,7 @@ import type { Standing } from '../../core/standings'
 import { winRate } from '../../core/standings'
 import { PlayerAvatar } from './PlayerAvatar'
 
-/**
- * A table of players, best first.
- *
- * Names are not linked. A profile is readable to a friend, or to someone who
- * shares or is watching a battle, and this table is read by people who are
- * neither, so a link from every row would be a page most readers cannot open.
- */
+/** A table of players, best first. Every name opens the player it belongs to. */
 export function Standings({ standings, heading, limit }: { standings: readonly Standing[]; heading: string; limit?: number }) {
   const shown = limit === undefined ? standings : standings.slice(0, limit)
   return (
@@ -54,10 +48,10 @@ export function Standings({ standings, heading, limit }: { standings: readonly S
                 <tr key={row.id} data-standing={row.id} className="border-b border-edge last:border-0">
                   <td className="readout p-2 text-faint">{place + 1}</td>
                   <td className="overflow-hidden p-2">
-                    <span className="flex min-w-0 items-center gap-2">
+                    <Link to="/users/$userId" params={{ userId: row.id }} className="flex min-w-0 items-center gap-2 hover:text-info">
                       <PlayerAvatar name={row.name} className="size-6 text-[0.625rem]" />
                       <span className="truncate font-bold uppercase">{row.name}</span>
-                    </span>
+                    </Link>
                   </td>
                   <td className="readout p-2 text-right text-side-a">{row.won}</td>
                   <td className="hidden p-2 text-right text-xs text-dim sm:table-cell">

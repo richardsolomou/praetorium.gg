@@ -1327,39 +1327,28 @@ describe('friends', () => {
 })
 
 describe('player profiles', () => {
-  it('shows a confirmed friend before their first shared battle', async () => {
-    expect(await service.userProfile('alice', 'carol')).toEqual({ id: 'carol', name: 'Carol', image: null })
+  it('shows anybody a player, signed in or not', async () => {
+    expect(await service.userProfile('bob')).toEqual({ id: 'bob', name: 'Bob', image: 'https://example.test/bob.png' })
   })
 
-  it('keeps showing a friend after the viewer shares a battle with them', async () => {
-    expect(await service.userProfile('alice', 'bob')).toEqual({ id: 'bob', name: 'Bob', image: 'https://example.test/bob.png' })
-    await service.createBattle('alice', { opponentId: 'bob', limit: 2000, missionPackId: null })
+  it('shows a player who shares nothing with the reader', async () => {
+    await enrol('dave', 'Dave')
 
-    expect(await service.userProfile('alice', 'bob')).toEqual({ id: 'bob', name: 'Bob', image: 'https://example.test/bob.png' })
+    // Dave is nobody's friend and sits in no battle with anyone.
+    expect(await service.userProfile('dave')).toEqual({ id: 'dave', name: 'Dave', image: null })
   })
 
-  it('shows a player their own profile before their first battle', async () => {
-    expect(await service.userProfile('alice', 'alice')).toEqual({ id: 'alice', name: 'Alice', image: null })
+  it('has nothing to show for an account that does not exist', async () => {
+    expect(await service.userProfile('nobody')).toBeNull()
   })
 
-  it('shows players named by a revealed league battle to its spectators', async () => {
-    const league = await revealedLeague()
-    const battle = await service.createLeagueBattle('alice', league.token, 'dave', null)
-
-    expect(await service.userProfile(null, 'dave', battle.token)).toEqual({ id: 'dave', name: 'Dave', image: null })
-  })
-
-  it('names the players of a battle anyone may watch to whoever opens its link', async () => {
-    const battle = await service.createBattle('alice', { opponentId: 'bob', limit: 2000, missionPackId: null })
-
-    expect(await service.userProfile(null, 'bob', battle.token)).toEqual({ id: 'bob', name: 'Bob', image: 'https://example.test/bob.png' })
-  })
-
-  it('does not let the token of a withheld battle reveal a player profile', async () => {
+  it('names a player whose battles are private, because a name is not a battle', async () => {
     await service.setBattleAudience('bob', 'private')
     const battle = await service.createBattle('alice', { opponentId: 'bob', limit: 2000, missionPackId: null })
 
-    expect(await service.userProfile(null, 'bob', battle.token)).toBeNull()
+    expect(await service.userProfile('bob')).toEqual({ id: 'bob', name: 'Bob', image: 'https://example.test/bob.png' })
+    // The battle itself stays shut, which is the thing they actually withheld.
+    expect(await service.screen(battle.token, 'carol')).toEqual({ kind: 'unavailable' })
   })
 
   it('includes profile pictures in the battle view', async () => {

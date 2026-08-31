@@ -651,19 +651,18 @@ export class PraetoriumService {
     })
   }
 
-  /** Someone's name and picture, to a viewer allowed to see it. */
-  async userProfile(viewerId: string | null, userId: string, battleToken?: string) {
-    const profile = await this.repository.profileByUserId(userId)
-    if (!profile) return null
-    if (viewerId) {
-      if (viewerId === userId) return profile
-      const friends = sortedFriends(await this.repository.relationships(viewerId), viewerId).friends
-      if (friends.some((friend) => friend.id === userId)) return profile
-      if (await this.repository.shareBattle(viewerId, userId)) return profile
-    }
-    if (!battleToken) return null
-    const screen = await this.screen(battleToken, viewerId)
-    return screen.kind === 'spectator' && screen.view.players.some((player) => player.id === userId) ? profile : null
+  /**
+   * Someone's name and picture.
+   *
+   * Open to anybody, including a reader with no account. A name is already on
+   * every battle a player allows to be watched and on every row of the
+   * leaderboard, so gating the page that shows the same name behind a friendship
+   * only produced links that led nowhere. What a player keeps to themselves is
+   * their battles, which `battleAudience` governs; who they are is not a secret
+   * the product was ever keeping.
+   */
+  async userProfile(userId: string) {
+    return (await this.repository.profileByUserId(userId)) ?? null
   }
 
   async saveRoster(

@@ -151,7 +151,6 @@ export const battlesPageSchema = z.object({
 })
 export const battleAudienceSchema = z.object({ audience: z.enum(BATTLE_AUDIENCES) })
 export const userSchema = z.object({ userId: id })
-export const userProfileSchema = userSchema.extend({ battle: token.optional() })
 export const friendSchema = z.object({ userId: id })
 export const setOwnPasswordSchema = z.object({ password: z.string().min(PASSWORD_MIN_LENGTH).max(128) })
 export const unlinkOwnAccountSchema = z.object({ provider: z.enum(['credential', ...SOCIAL_PROVIDERS]) })

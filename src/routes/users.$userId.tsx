@@ -1,21 +1,18 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { UserX } from 'lucide-react'
-import { SignInRequired } from '../client/components/SignInRequired'
+import { battleStage } from '../client/battleStage'
 import { formatDate } from '../client/dates'
 import { PlayerAvatar } from '../client/components/PlayerAvatar'
 import { PageState } from '../client/components/PageState'
 import { meQuery, sharedBattlesQuery, userProfileQuery } from '../client/queries'
 
 export const Route = createFileRoute('/users/$userId')({
-  validateSearch: (search: Record<string, unknown>): { battle?: string } =>
-    typeof search.battle === 'string' ? { battle: search.battle } : {},
-  loaderDeps: ({ search }) => ({ battle: search.battle }),
-  loader: ({ context, params, deps }) =>
+  loader: ({ context, params }) =>
     Promise.all([
       context.queryClient.ensureQueryData(meQuery()),
       context.queryClient.ensureQueryData(sharedBattlesQuery(params.userId)),
-      context.queryClient.ensureQueryData(userProfileQuery(params.userId, deps.battle)),
+      context.queryClient.ensureQueryData(userProfileQuery(params.userId)),
     ]),
   component: PlayerProfile,
 })
@@ -25,19 +22,17 @@ type Battle = Awaited<ReturnType<NonNullable<ReturnType<typeof sharedBattlesQuer
 /** Battle records below come only from battles the signed-in viewer sits in. */
 function PlayerProfile() {
   const { userId } = Route.useParams()
-  const { battle: battleToken } = Route.useSearch()
   const { data: me } = useQuery(meQuery())
   const { data: shared = [] } = useQuery(sharedBattlesQuery(userId))
-  const { data: profile } = useQuery(userProfileQuery(userId, battleToken))
+  const { data: profile } = useQuery(userProfileQuery(userId))
   if (!profile) {
-    if (!me) return <SignInRequired title="User" explanation="Sign in to see the users you have shared a battle with." />
     return (
       <main className="flex w-full">
         <PageState
           className="flex-1 border-x-0 border-t-0"
           eyebrow="Player profile"
-          title="Profile unavailable"
-          explanation="You are not friends and have not shared a battle with this player."
+          title="No such player"
+          explanation="This account does not exist, or it has been deleted."
           icon={UserX}
         />
       </main>
@@ -65,7 +60,7 @@ function PlayerProfile() {
             <h1 className="truncate text-2xl">{profile.name}</h1>
             <p className="mt-2 text-sm text-dim">
               {!me
-                ? 'Playing in the league battle you are watching.'
+                ? 'Sign in to see the battles you have played with them.'
                 : yourself
                   ? `${shared.length} ${shared.length === 1 ? 'battle' : 'battles'} played.`
                   : `${shared.length} ${shared.length === 1 ? 'battle' : 'battles'} with you${
@@ -94,6 +89,11 @@ function PlayerProfile() {
               <span>Battles</span>
               <span className="readout">{shared.length}</span>
             </p>
+            {shared.length ? null : (
+              <p className="mt-2 border border-edge bg-panel p-5 text-sm text-dim">
+                Only the battles you are both in are listed here. You have not shared one yet.
+              </p>
+            )}
             <div className="mt-2 space-y-2">
               {shared.map((battle) => (
                 <Link
@@ -109,7 +109,7 @@ function PlayerProfile() {
                     </span>
                   </span>
                   <span className="shrink-0 text-right">
-                    <span className="eyebrow block">{battle.status === 'playing' ? `Round ${battle.round}` : battle.status}</span>
+                    <span className={`chip ${battleStage(battle.status).tint}`}>{battleStage(battle.status).name}</span>
                     <span className="readout block text-xs text-dim">{sideScores(battle).join('–')}</span>
                     <span className="block text-[0.625rem] text-faint">{formatDate(battle.lastActivity)}</span>
                   </span>

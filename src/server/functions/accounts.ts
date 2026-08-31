@@ -12,9 +12,9 @@ import {
   adminUsersSchema,
   ownedSchema,
   setAdminRoleSchema,
+  userSchema,
   setOwnPasswordSchema,
   unlinkOwnAccountSchema,
-  userProfileSchema,
 } from '../schemas'
 
 export const me = createServerFn({ method: 'GET' }).handler(() => rpc(() => currentUser()))
@@ -111,13 +111,8 @@ export const setAdminRole = createServerFn({ method: 'POST' })
   )
 
 export const userProfile = createServerFn({ method: 'GET' })
-  .validator(userProfileSchema)
-  .handler(({ data }) =>
-    rpc(async () => {
-      const viewerId = await currentUserId()
-      return app().service.userProfile(viewerId, data.userId, data.battle)
-    }),
-  )
+  .validator(userSchema)
+  .handler(({ data }) => rpc(() => app().service.userProfile(data.userId)))
 
 export const opponents = createServerFn({ method: 'GET' }).handler(() =>
   rpc(async () => {

@@ -127,6 +127,8 @@ A battle locked to a revealed league event returns a read-only spectator screen 
 
 ## Accounts
 
+A player's name and picture are open to anybody, signed in or not. A name is already on every battle its players allow to be watched and on every row of the leaderboard, so gating the page showing that same name produced links that led nowhere. What a player withholds is their battles, which `battleAudience` governs. The profile page still lists only the battles the reader shares with them.
+
 Battle seats, commands, saved lists, collections, and friendships reference `user.id` directly. Names and profile pictures remain account data, so profile edits appear everywhere without synchronizing a second identity.
 
 Shared battles can only be created with mutually confirmed friends. Friend requests are directional until the recipient accepts; either player can later remove the connection. A practice opponent needs no friendship.
