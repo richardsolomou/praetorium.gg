@@ -77,14 +77,6 @@ Use the full description from `mobile/store.config.json` on Google Play too. Kee
 
 Capture real application screens from the signed release build. Use a representative roster library, roster detail, live battle tracker, mission selection, and league registration. Do not include private email addresses, invitation tokens, unrevealed rosters, or test-provider consent screens. Upload current phone screenshots to both stores and a 13-inch iPad screenshot to App Store Connect.
 
-Before you add the first App Store version for review, confirm that App Store Connect contains:
-
-- The selected release build.
-- Current iPhone and 13-inch iPad screenshots.
-- A working review account and complete review contact information.
-- Review notes that identify the seeded data and each native integration.
-- A completed Content Rights declaration with evidence for every loaded source.
-
 ## Apple privacy answers
 
 The app does not track people for advertising. Mark these as linked to the user and not used for tracking:
@@ -112,9 +104,7 @@ The form must say that the app creates accounts. Provide `https://praetorium.gg/
 
 Set the target audience to 13 and over. The product has no chat, ads, purchases, gambling, matchmaking, or public player discovery. Answer the store questionnaires for the battle terminology and Warhammer 40,000 fantasy-combat references visible in the submitted screenshots. Do not choose a lower violence frequency than the review build shows.
 
-Review `catalogue/README.md` before you answer a store Content Rights question. Record the licence, written permission, or other applicable legal basis for every source that the release loads. Public repository access is not permission. Do not make the declaration while a source has no recorded legal basis.
-
-Keep the source record and the in-product attribution available during review. The application is a list builder and live game tracker. It is not a rules encyclopedia or an official Games Workshop product.
+The catalogue and rules sources, licences, and attribution are recorded in `catalogue/README.md`. Keep that file and the in-product attribution available during review. The application is a list builder and live game tracker, not a rules encyclopedia or an official Games Workshop product.
 
 ## Review access
 
@@ -124,11 +114,11 @@ Use these review notes after replacing the bracketed values:
 
 > I provided a review account with saved rosters, a running practice battle, a finished battle, and a league registration. Sign in with the email and password in the review credentials, then open Battles → [active battle name] to test live tracking without a second person.
 >
-> The application loads the production service at `https://praetorium.gg`. The native shell adds verified links, secure system-browser authentication, native sharing and printing, battle-action haptics, and a screen wake lock during active battles. It keeps `praetorium.gg` navigation inside the application and opens other supported links in the system browser.
+> The application loads the production service at `https://praetorium.gg`. The native shell adds verified links, secure system-browser authentication, native sharing and printing, battle-action haptics, and a screen wake lock during active battles. It does not download executable code or expose an open browser.
 >
 > Apple, Google, and Discord sign-in use the system authentication session. Email/password sign-in is available in the application. Account deletion is under Profile → Account security → Permanently delete account. The application has no purchases, subscriptions, ads, chat, or user-posted public content.
 >
-> Praetorium uses the community-maintained sources documented at `https://github.com/richardsolomou/praetorium.gg/blob/main/catalogue/README.md`. The release record contains the legal basis for each source. Praetorium is unofficial and is not affiliated with or endorsed by Games Workshop.
+> Praetorium uses community-maintained catalogue and rules data under the licences recorded at `https://github.com/richardsolomou/praetorium.gg/blob/main/catalogue/README.md`. It is unofficial and is not affiliated with or endorsed by Games Workshop.
 
 Provide the same review account under Play Console's App access section. Test the credentials immediately before submission and keep them active until both reviews and any appeal are complete.
 
