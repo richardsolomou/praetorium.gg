@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.43.8
+
+### Patch Changes
+
+- 0950173: Accept proof-bound native sign-in requests when the app WebView omits the Origin header.
+
 ## 0.43.7
 
 ### Patch Changes
