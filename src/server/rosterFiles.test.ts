@@ -519,7 +519,7 @@ Created with newrecruit.eu v35.51`,
       catalogueId: 'necrons',
       detachmentIds: ['pantheon', 'skyshroud'],
       disposition: 'purge-the-foe',
-      limit: 500,
+      limit: 600,
       units: [{ models: 3, spreads: { 'model/weapon': { blaster: 1, beamer: 2 } } }],
       unknown: [],
     })

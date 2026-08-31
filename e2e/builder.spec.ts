@@ -334,9 +334,9 @@ test('King of the Colosseum creation keeps exactly one detachment selected', asy
   await page.getByPlaceholder('Search factions…').fill('Necrons')
   await page.getByRole('option', { name: 'Necrons', exact: true }).click()
   await dialog.getByRole('combobox', { name: 'Battle size' }).click()
-  await expect(page.getByRole('option', { name: /King of the Colosseum/ })).toHaveCount(2)
+  await expect(page.getByRole('option', { name: /King of the Colosseum/ })).toHaveCount(1)
   await page.screenshot({ path: 'test-results/kotc-size-options.png', fullPage: true })
-  await page.getByRole('option', { name: /King of the Colosseum \(600\)/ }).click()
+  await page.getByRole('option', { name: /King of the Colosseum/ }).click()
 
   const awakened = dialog.getByRole('button', { name: 'Select Awakened Dynasty' })
   const cryptek = dialog.getByRole('button', { name: 'Select Cryptek Conclave' })
@@ -348,8 +348,8 @@ test('King of the Colosseum creation keeps exactly one detachment selected', asy
 
   await dialog.getByRole('button', { name: 'Create roster' }).click()
   await page.waitForURL(/\/rosters\/[^/]+$/)
-  await expect(page.getByText('King of the Colosseum (600)', { exact: true })).toBeVisible()
-  await expect(page.getByRole('link', { name: 'King of the Colosseum (600)' })).toHaveCount(0)
+  await expect(page.getByText('King of the Colosseum', { exact: true })).toBeVisible()
+  await expect(page.getByRole('link', { name: 'King of the Colosseum' })).toHaveCount(0)
   for (const excluded of ['Imotekh the Stormlord', 'Monolith']) {
     await page.getByLabel('Add a unit').fill(excluded)
     await expect(page.getByRole('button', { name: `Add ${excluded}`, exact: true })).toHaveCount(0)

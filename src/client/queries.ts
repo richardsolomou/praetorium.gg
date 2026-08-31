@@ -1,6 +1,6 @@
 import { infiniteQueryOptions, type QueryClient, queryOptions, replaceEqualDeep } from '@tanstack/react-query'
 import type { AdminUsersCursor } from '../admin'
-import type { FormatRuleId } from '../core/battle'
+import type { FormatRuleId, OptionalRuleId } from '../core/battle'
 import type { RosterPick } from '../core/roster'
 import {
   battleReport,
@@ -267,14 +267,25 @@ export const priceQuery = (
   limit: number,
   picked: readonly RosterPick[],
   waivedRules: readonly FormatRuleId[] = [],
+  borrowedDetachmentId: string | null = null,
+  optionalRules: readonly OptionalRuleId[] = [],
 ) =>
   queryOptions({
     // The picks stay last: the placeholder that survives a removed unit reads them
     // off the end of the key.
-    queryKey: ['price', catalogueId, detachmentIds, disposition, limit, waivedRules, picked],
+    queryKey: ['price', catalogueId, detachmentIds, disposition, limit, waivedRules, borrowedDetachmentId, optionalRules, picked],
     queryFn: () =>
       priceRoster({
-        data: { catalogueId, detachmentIds: [...detachmentIds], disposition, limit, units: [...picked], waivedRules: [...waivedRules] },
+        data: {
+          catalogueId,
+          detachmentIds: [...detachmentIds],
+          disposition,
+          borrowedDetachmentId,
+          limit,
+          units: [...picked],
+          waivedRules: [...waivedRules],
+          optionalRules: [...optionalRules],
+        },
       }),
     enabled: Boolean(catalogueId),
     staleTime: SSR_STALE_TIME,
@@ -290,9 +301,11 @@ export const savedRosterPriceQuery = (
   picked: readonly RosterPick[],
   battle?: string,
   waivedRules: readonly FormatRuleId[] = [],
+  borrowedDetachmentId: string | null = null,
+  optionalRules: readonly OptionalRuleId[] = [],
 ) =>
   queryOptions({
-    ...priceQuery(catalogueId, detachmentIds, disposition, limit, picked, waivedRules),
+    ...priceQuery(catalogueId, detachmentIds, disposition, limit, picked, waivedRules, borrowedDetachmentId, optionalRules),
     queryFn: () => savedRosterPrice({ data: { id, ...(battle ? { battle } : {}) } }),
   })
 

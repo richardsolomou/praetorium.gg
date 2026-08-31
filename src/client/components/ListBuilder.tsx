@@ -21,7 +21,7 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import type { FormatRuleId, Secondary, Stratagem } from '../../core/battle'
-import { ROSTER_NAME_MAX_LENGTH, waivedFormatRules } from '../../core/battle'
+import { type OptionalRuleId, ROSTER_NAME_MAX_LENGTH, waivedFormatRules } from '../../core/battle'
 import type { RosterPick } from '../../core/roster'
 import type { RosterSource, RosterVisibility } from '../../core/savedRoster'
 import type { Datasheet } from '../../server/catalogue'
@@ -61,6 +61,8 @@ type Props = {
     limit: number
     picks: RosterPick[]
     waivedRules: FormatRuleId[]
+    optionalRules?: OptionalRuleId[]
+    borrowedDetachmentId?: string | null
     visibility: RosterVisibility
     source: RosterSource
   }
@@ -99,6 +101,8 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
   const [detachmentIds, setDetachmentIds] = useState<string[]>(initial.detachmentIds)
   const [disposition, setDisposition] = useState<string | null>(initial.disposition)
   const [waivedRules, setWaivedRules] = useState<FormatRuleId[]>(initial.waivedRules)
+  const [optionalRules, setOptionalRules] = useState<OptionalRuleId[]>(initial.optionalRules ?? [])
+  const [borrowedDetachmentId, setBorrowedDetachmentId] = useState<string | null>(initial.borrowedDetachmentId ?? null)
   const [name, setName] = useState(initial.name)
   const [visibility, setVisibility] = useState<RosterVisibility>(initial.visibility)
   const [selected, setSelected] = useState<number | null>(null)
@@ -193,6 +197,8 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
           picks: positioned,
           prep,
           waivedRules,
+          optionalRules,
+          borrowedDetachmentId,
           visibility,
           source: initial.source,
         },
@@ -210,7 +216,20 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
     // The mutation reads the complete rendered draft. A later render queues behind
     // this one, so the final request always contains the newest state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [catalogueId, detachmentIds, disposition, editable, limit, settledListName, settledPicks, prep, visibility, waivedRules])
+  }, [
+    borrowedDetachmentId,
+    optionalRules,
+    catalogueId,
+    detachmentIds,
+    disposition,
+    editable,
+    limit,
+    settledListName,
+    settledPicks,
+    prep,
+    visibility,
+    waivedRules,
+  ])
 
   /** Hands the list to another tool, in the format every one of them reads. */
   const take = useMutation({
@@ -233,6 +252,8 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
           picks: positioned,
           prep,
           waivedRules,
+          optionalRules,
+          borrowedDetachmentId,
           visibility: 'private',
           source: initial.source,
         },
@@ -249,7 +270,7 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
     dataUpdatedAt: pricedAt,
     isPlaceholderData: pricePending,
   } = useQuery({
-    ...priceQuery(catalogueId, detachmentIds, disposition, limit, positioned, waivedRules),
+    ...priceQuery(catalogueId, detachmentIds, disposition, limit, positioned, waivedRules, borrowedDetachmentId, optionalRules),
     /**
      * The last answer, with whatever the list has since let go of taken out of it.
      *
@@ -466,7 +487,17 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
                 <DropdownMenuContent align="end" className="min-w-48">
                   <DropdownMenuItem
                     onClick={() =>
-                      setSetupDraft({ name: listName, catalogueId, detachmentIds, disposition, limit, waivedRules, visibility })
+                      setSetupDraft({
+                        name: listName,
+                        catalogueId,
+                        detachmentIds,
+                        disposition,
+                        limit,
+                        waivedRules,
+                        optionalRules,
+                        borrowedDetachmentId,
+                        visibility,
+                      })
                     }
                   >
                     <Pencil /> Edit roster setup
@@ -549,7 +580,19 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
               variant="ghost"
               size="xs"
               className="h-auto p-0 text-destructive underline hover:text-destructive"
-              onClick={() => setSetupDraft({ name: listName, catalogueId, detachmentIds, disposition, limit, waivedRules, visibility })}
+              onClick={() =>
+                setSetupDraft({
+                  name: listName,
+                  catalogueId,
+                  detachmentIds,
+                  disposition,
+                  limit,
+                  waivedRules,
+                  optionalRules,
+                  borrowedDetachmentId,
+                  visibility,
+                })
+              }
             >
               Choose one
             </Button>
@@ -576,6 +619,8 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
               setDisposition(setup.disposition)
               setLimit(setup.limit)
               setWaivedRules(setup.waivedRules)
+              setOptionalRules(setup.optionalRules)
+              setBorrowedDetachmentId(setup.borrowedDetachmentId)
               setVisibility(setup.visibility)
               if (changedFaction) {
                 edit.clear()

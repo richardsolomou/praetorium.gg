@@ -111,6 +111,8 @@ function RosterLibrary() {
     disposition: roster.disposition,
     limit: roster.limit,
     waivedRules: roster.waivedRules,
+    optionalRules: roster.optionalRules ?? [],
+    borrowedDetachmentId: roster.borrowedDetachmentId ?? null,
     visibility: roster.visibility,
   })
 

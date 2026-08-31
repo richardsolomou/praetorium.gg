@@ -17,6 +17,8 @@ const roster = {
   visibility: 'private',
   source: 'editable',
   waivedRules: [],
+  optionalRules: [],
+  borrowedDetachmentId: null,
 } satisfies SavedRoster
 
 describe('roster summary', () => {

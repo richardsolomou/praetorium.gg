@@ -301,18 +301,28 @@ export function sidePaintedPoints(state: BattleState, side: number): number {
 }
 
 /** The matched-play game sizes, smallest first. */
-const KOTC_LIMITS = [500, 600] as const
+const KOTC_LIMITS = [600] as const
+/**
+ * Sizes King of the Colosseum was offered at before and is no longer built at.
+ *
+ * A size that stops being offered does not stop being played: rosters saved at it and
+ * battles already running on it keep their construction rules, their datasheet caps and
+ * their tactical-only secondaries, because dropping them would quietly rewrite a list
+ * its owner cannot rebuild.
+ */
+const RETIRED_KOTC_LIMITS = [500] as const
 export const DEFAULT_GAME_LIMIT = 2000
 
 export const GAME_SIZES = [
-  ...KOTC_LIMITS.map((limit) => ({ name: `King of the Colosseum (${limit})`, limit, detachmentPoints: null })),
+  ...KOTC_LIMITS.map((limit) => ({ name: 'King of the Colosseum', limit, detachmentPoints: null })),
   { name: 'Incursion', limit: 1000, detachmentPoints: 2 },
   { name: 'Strike Force', limit: 2000, detachmentPoints: 3 },
   { name: 'Onslaught', limit: 3000, detachmentPoints: null },
 ] as const
 
 export const detachmentPointBudget = (limit: number) => GAME_SIZES.find((size) => size.limit === limit)?.detachmentPoints ?? null
-export const isKotcLimit = (limit: number | null): boolean => limit !== null && KOTC_LIMITS.some((candidate) => candidate === limit)
+export const isKotcLimit = (limit: number | null): boolean =>
+  limit !== null && [...KOTC_LIMITS, ...RETIRED_KOTC_LIMITS].some((candidate) => candidate === limit)
 export const battleRoundLimit = (_limit: number | null) => BATTLE_ROUNDS
 
 /**
@@ -404,6 +414,78 @@ export function kotcUnitExclusions(
       ? [`does not allow Toughness ${unit.toughness}`]
       : []),
   ]
+}
+
+/**
+ * The detachment points the borrowed-disposition optional rule gives a roster to spend.
+ *
+ * Homebrew, and deliberately not the format's own economy. King of the Colosseum sets no
+ * detachment point limit at all — a roster takes any one detachment at any cost — and
+ * spends detachment points instead as the bid that decides who picks the twist. This
+ * budget exists only inside the optional rule, so a roster whose detachment already costs
+ * this much has nothing to borrow with and is told so rather than shown an empty choice.
+ */
+export const BORROWED_DISPOSITION_BUDGET = 3
+
+/**
+ * The homebrew a battle size can be played with, and the mirror of `FORMAT_RULE_IDS`.
+ *
+ * A format rule is played until a roster waives it; a optional rule is not played until a
+ * roster picks it. Neither is ever inferred from the list in front of it, so nobody is
+ * handed a rule their group did not agree to play, and a size that offers no homebrew
+ * offers nothing to switch on.
+ */
+export const OPTIONAL_RULE_IDS = ['kotc-borrowed-disposition'] as const
+
+export type OptionalRuleId = (typeof OPTIONAL_RULE_IDS)[number]
+export type OptionalRule = { id: OptionalRuleId; label: string; hint: string }
+
+/** Whether a roster picked a optional rule, which is the only way one is played. */
+export const plays = (picked: readonly string[] | undefined, rule: OptionalRuleId) => Boolean(picked?.includes(rule))
+
+/** What homebrew this battle size offers, in the order a player reads it. */
+export function optionalRules(limit: number | null): OptionalRule[] {
+  if (!isKotcLimit(limit)) return []
+  return [
+    {
+      id: 'kotc-borrowed-disposition',
+      label: 'Borrowed disposition',
+      hint: `Spend what your detachment leaves unspent, out of a house allowance of ${BORROWED_DISPOSITION_BUDGET} DP, to play another detachment's Force Disposition`,
+    },
+  ]
+}
+
+/** The homebrew a roster is playing that its own battle size offers. */
+export const pickedOptionalRules = (limit: number | null, picked: readonly string[] | undefined): OptionalRule[] =>
+  optionalRules(limit).filter((rule) => plays(picked, rule.id))
+
+/**
+ * Whether a roster may play a Force Disposition belonging to a detachment it did not take.
+ *
+ * A optional rule, so no battle size turns it on and nothing offers it unasked: a roster opts
+ * in by naming the detachment it borrows from, and carries that name wherever it is read.
+ * It buys the disposition and nothing else — the borrowed detachment's rules, enhancements
+ * and stratagems stay with the detachment that owns them, and a disposition only ever
+ * decides which primary mission the matchup plays.
+ *
+ * An unpriced detachment refuses the borrow rather than costing it nothing, because a
+ * catalogue that cannot say what something costs has not said that it is free.
+ */
+export function borrowedDispositionError(
+  limit: number | null,
+  picked: readonly string[] | undefined,
+  own: { points: number | null } | null,
+  borrowed: { points: number | null } | null,
+): string | null {
+  if (!borrowed) return null
+  if (!isKotcLimit(limit)) return 'Only a King of the Colosseum roster may borrow another detachment’s Force Disposition.'
+  if (!plays(picked, 'kotc-borrowed-disposition')) return 'This roster is not playing the borrowed disposition optional rule.'
+  if (!own || own.points === null || borrowed.points === null)
+    return 'This catalogue does not price one of these detachments, so the borrowed disposition cannot be paid for.'
+  const spent = own.points + borrowed.points
+  return spent > BORROWED_DISPOSITION_BUDGET
+    ? `This combination costs ${spent} DP; the borrowed disposition rule allows ${BORROWED_DISPOSITION_BUDGET} DP.`
+    : null
 }
 
 export function detachmentPointsError(

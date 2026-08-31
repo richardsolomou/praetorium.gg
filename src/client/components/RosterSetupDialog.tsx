@@ -7,13 +7,19 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import {
+  borrowedDispositionError,
   detachmentLimit,
   detachmentPointsError,
   detachmentPointBudget,
   enforces,
   type FormatRuleId,
   GAME_SIZES,
+  optionalRules,
+  pickedOptionalRules,
   isKotcLimit,
+  type OptionalRuleId,
+  BORROWED_DISPOSITION_BUDGET,
+  plays,
   ROSTER_NAME_MAX_LENGTH,
 } from '../../core/battle'
 import type { RosterVisibility } from '../../core/savedRoster'
@@ -21,6 +27,7 @@ import { factionQuery } from '../queries'
 import { DetachmentReference } from './DetachmentReference'
 import { SearchableSelect, type SearchableGroup } from './SearchableSelect'
 import { factionSelectGroups } from './builder/factions'
+import { OptionalRulesDialog } from './OptionalRulesDialog'
 import { dispositionsFor, dispositionTone } from './rosterSetup'
 import { useFavouriteFactions } from '../favouriteFactions'
 import { favouriteDetachmentsFirst, useFavouriteDetachments } from '../favouriteDetachments'
@@ -53,6 +60,10 @@ export type RosterSetup = {
   limit: number
   /** The battle size's restrictions this roster is playing without. */
   waivedRules: FormatRuleId[]
+  /** The homebrew this roster picked, none of it played unless it is named here. */
+  optionalRules: OptionalRuleId[]
+  /** The detachment whose Force Disposition this roster borrows under the KOTC optional rule. */
+  borrowedDetachmentId: string | null
   visibility: RosterVisibility
 }
 
@@ -90,6 +101,7 @@ export function RosterSetupDialog({
 }: Props) {
   const [draft, setDraft] = useState(value)
   const [reference, setReference] = useState<{ catalogueId: string; detachmentId: string; slug: string; name: string } | null>(null)
+  const [editingOptionalRules, setEditingOptionalRules] = useState(false)
   const { favourites } = useFavouriteFactions(open)
   const { favourites: favouriteDetachments } = useFavouriteDetachments(open)
   const { data: loadedFaction } = useQuery({
@@ -117,7 +129,32 @@ export function RosterSetupDialog({
   const singleDetachment = isKotcLimit(draft.limit) && enforces(draft.waivedRules, 'detachments')
   const budgeted = enforces(draft.waivedRules, 'detachment-points')
   const selected = faction?.detachments.filter((detachment) => draft.detachmentIds.includes(detachment.id)) ?? []
-  const dispositions = dispositionsFor(faction?.detachments ?? [], draft.detachmentIds)
+  // The King of the Colosseum optional rule. Nothing offers it unasked: a roster only sees it
+  // at a size that plays it, and it borrows a disposition alone — never the detachment's
+  // rules, enhancements or stratagems.
+  const ownPoints = selected.some((detachment) => detachment.reference?.points == null)
+    ? null
+    : selected.reduce((sum, detachment) => sum + (detachment.reference?.points ?? 0), 0)
+  const offeredOptionalRules = optionalRules(draft.limit)
+  const pickedRules = pickedOptionalRules(draft.limit, draft.optionalRules)
+  const borrowing = plays(draft.optionalRules, 'kotc-borrowed-disposition')
+  const borrowable = borrowing
+    ? (faction?.detachments ?? []).filter(
+        (detachment) =>
+          !draft.detachmentIds.includes(detachment.id) &&
+          detachment.reference?.points != null &&
+          ownPoints !== null &&
+          ownPoints + detachment.reference.points <= BORROWED_DISPOSITION_BUDGET,
+      )
+    : []
+  const borrowed = borrowable.find((detachment) => detachment.id === draft.borrowedDetachmentId) ?? null
+  const borrowedError = borrowedDispositionError(
+    draft.limit,
+    draft.optionalRules,
+    { points: ownPoints },
+    draft.borrowedDetachmentId ? { points: borrowed?.reference?.points ?? null } : null,
+  )
+  const dispositions = dispositionsFor(faction?.detachments ?? [], borrowed ? [...draft.detachmentIds, borrowed.id] : draft.detachmentIds)
   const selectedDisposition = dispositions.length === 1 ? (dispositions[0]?.id ?? null) : draft.disposition
   const spent = selected.reduce((sum, detachment) => sum + (detachment.reference?.points ?? 0), 0)
   const allowance = detachmentPointBudget(draft.limit)
@@ -167,6 +204,26 @@ export function RosterSetupDialog({
 
   return (
     <>
+      <OptionalRulesDialog
+        open={editingOptionalRules}
+        onOpenChange={setEditingOptionalRules}
+        offered={offeredOptionalRules}
+        picked={draft.optionalRules}
+        onTogglePicked={(rule) => {
+          const on = plays(draft.optionalRules, rule.id)
+          changeDraft({
+            ...draft,
+            optionalRules: on ? draft.optionalRules.filter((id) => id !== rule.id) : [...draft.optionalRules, rule.id],
+            // Dropping a rule drops what it bought, so a list cannot keep playing a
+            // disposition it is no longer paying for.
+            ...(on && rule.id === 'kotc-borrowed-disposition' ? { borrowedDetachmentId: null, disposition: null } : {}),
+          })
+        }}
+        borrowable={borrowable}
+        borrowedDetachmentId={draft.borrowedDetachmentId}
+        borrowedError={borrowedError}
+        onChooseBorrowed={(detachmentId) => changeDraft({ ...draft, borrowedDetachmentId: detachmentId, disposition: null })}
+      />
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="rounded-none border border-edge bg-panel p-0 text-bone ring-0 sm:max-w-2xl">
           <DialogHeader className="border-b border-edge px-5 py-4">
@@ -312,6 +369,30 @@ export function RosterSetupDialog({
                 </p>
               ) : null}
             </fieldset>
+
+            {offeredOptionalRules.length ? (
+              <div>
+                <Label className="rubric block">Optional rules</Label>
+                <button
+                  type="button"
+                  onClick={() => setEditingOptionalRules(true)}
+                  className="mt-2 flex min-h-12 w-full items-center justify-between gap-3 border border-edge px-3 py-2 text-left hover:border-azure"
+                >
+                  <span className="min-w-0">
+                    <span className="block font-bold uppercase">
+                      {pickedRules.length ? pickedRules.map((rule) => rule.label).join(', ') : 'None'}
+                    </span>
+                    <span className="mt-0.5 block text-xs text-dim">{offeredOptionalRules.length} available at this battle size</span>
+                  </span>
+                  <span className="chip shrink-0">Choose</span>
+                </button>
+                {borrowedError ? (
+                  <p role="alert" className="mt-2 text-sm text-destructive">
+                    {borrowedError}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
 
             {dispositions.length ? (
               <fieldset>

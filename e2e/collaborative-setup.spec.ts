@@ -97,7 +97,7 @@ test('one device settles mandatory tactical cards for both sides', async ({ brow
     faction: 'Death Guard',
     detachment: /Shamblerot Vectorium/,
     name: 'Bob KOTC army',
-    size: /King of the Colosseum \(500\)/,
+    size: /King of the Colosseum/,
   })
   for (const unit of ['Plague Marines', 'Lord of Virulence']) {
     await bob.getByLabel('Add a unit').fill(unit)
@@ -115,7 +115,7 @@ test('one device settles mandatory tactical cards for both sides', async ({ brow
     faction: 'Necrons',
     detachment: /Awakened Dynasty/,
     name: 'Alice KOTC army',
-    size: /King of the Colosseum \(500\)/,
+    size: /King of the Colosseum/,
   })
   for (const unit of ['Immortals', 'Overlord']) {
     await alice.getByLabel('Add a unit').fill(unit)
@@ -134,8 +134,8 @@ test('one device settles mandatory tactical cards for both sides', async ({ brow
 
   const size = alice.getByRole('combobox', { name: 'Battle size' })
   await size.click()
-  await alice.getByRole('option', { name: /King of the Colosseum \(500\)/ }).click()
-  await expect(size).toContainText('King of the Colosseum (500)')
+  await alice.getByRole('option', { name: /King of the Colosseum/ }).click()
+  await expect(size).toContainText('King of the Colosseum')
   await attachRoster(alice, aliceRoster)
   await attachRoster(bob, bobRoster)
   await expect(alice.getByText(bobRoster, { exact: true }).first()).toBeVisible()
