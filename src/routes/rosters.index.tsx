@@ -110,6 +110,7 @@ function RosterLibrary() {
     detachmentIds: roster.detachmentIds,
     disposition: roster.disposition,
     limit: roster.limit,
+    waivedRules: roster.waivedRules,
     visibility: roster.visibility,
   })
 

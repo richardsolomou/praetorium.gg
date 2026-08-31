@@ -3,6 +3,7 @@ import { routeSlug } from '../core/slug'
 import {
   detachmentPointBudget,
   detachmentPointsError,
+  enforces,
   formatDatasheetLimit,
   isKotcLimit,
   kotcDatasheetRepeatable,
@@ -190,7 +191,7 @@ export function calculateRosterPrice(data: PriceInput, loaded = app().catalogue(
       ...(catalogue?.forcedEnhancements.map((enhancement) => routeSlug(enhancement.name)) ?? []),
     ]),
   )
-  const detachmentError = detachmentPointsError(purchased, budget)
+  const detachmentError = detachmentPointsError(purchased, budget, data.waivedRules)
 
   const { picked, forceSelections } = rosterForces(loaded, data, detachmentSelection)
   const options = { primaryCatalogueId: data.catalogueId }
@@ -294,7 +295,7 @@ export function calculateRosterPrice(data: PriceInput, loaded = app().catalogue(
     ),
     ...attachmentErrors(data.units, loaded.index, pickedSelections),
     ...factionRestrictionViolations(restrictions, constructionUnits),
-    ...(isKotcLimit(data.limit) ? kotcViolations(chosen.length, constructionUnits, data.limit) : []),
+    ...(isKotcLimit(data.limit) ? kotcViolations(chosen.length, constructionUnits, data.limit, data.waivedRules) : []),
   ]
   // One fact, said once. A limit on a shared entry is broken by each selection of it,
   // and every one of them reports the same sentence about the same count.
@@ -442,28 +443,39 @@ export function factionRestrictionViolations(restrictions: FactionRestrictions |
   })
 }
 
-/** Prototype KOTC 2.0 army-construction changes layered over normal Incursion legality. */
-export function kotcViolations(detachments: number, units: readonly KotcUnit[], limit = 600) {
+/**
+ * Prototype KOTC 2.0 army-construction changes layered over normal Incursion legality.
+ *
+ * Every rule here is named in `formatRules`, and a roster that has waived one is not
+ * told about it: the restriction the player switched off is the restriction they
+ * agreed with their table not to play.
+ */
+export function kotcViolations(detachments: number, units: readonly KotcUnit[], limit = 600, waived: readonly string[] = []) {
   const errors: { entryId: string; entryName: string; message: string }[] = []
   const add = (message: string, unit?: KotcUnit) =>
     errors.push({ entryId: unit?.entryId ?? 'kotc', entryName: unit?.name ?? 'King of the Colosseum', message })
-  if (detachments !== 1) add(`needs exactly 1 detachment, has ${detachments}`)
-  if (units.filter((unit) => hasKeyword(unit, 'infantry')).length < 2) add('needs at least 2 Infantry units')
-  if (!units.some((unit) => unit.warlord)) add('needs a Warlord')
+  if (enforces(waived, 'detachments') && detachments !== 1) add(`needs exactly 1 detachment, has ${detachments}`)
+  if (enforces(waived, 'kotc-infantry') && units.filter((unit) => hasKeyword(unit, 'infantry')).length < 2)
+    add('needs at least 2 Infantry units')
+  if (enforces(waived, 'kotc-warlord') && !units.some((unit) => unit.warlord)) add('needs a Warlord')
   for (const unit of units) {
-    for (const message of kotcUnitExclusions(unit)) add(message, unit)
-    if (unit.toughness === null) add('cannot verify its Toughness from the synced catalogue', unit)
+    for (const message of kotcUnitExclusions(unit, waived)) add(message, unit)
+    // Only worth saying while a Toughness rule is being enforced: with the cap
+    // waived, a Toughness this catalogue cannot state changes no answer.
+    if (enforces(waived, 'kotc-toughness') && unit.toughness === null) add('cannot verify its Toughness from the synced catalogue', unit)
   }
   const toughnessNine = units.filter((unit) => unit.toughness === 9)
-  if (toughnessNine.length > 1) add(`allows at most 1 Toughness 9 unit, has ${toughnessNine.length}`)
+  if (enforces(waived, 'kotc-toughness') && toughnessNine.length > 1) add(`allows at most 1 Toughness 9 unit, has ${toughnessNine.length}`)
   const byDatasheet = new Map<string, KotcUnit[]>()
   for (const unit of units) byDatasheet.set(unit.entryId, [...(byDatasheet.get(unit.entryId) ?? []), unit])
   for (const copies of byDatasheet.values()) {
     const allowance = formatDatasheetLimit(
       limit,
       copies.some((unit) => kotcDatasheetRepeatable(unit.keywords)),
-    )!
-    if (copies.length > allowance) add(`allows at most ${allowance} of this datasheet, has ${copies.length}`, copies[0])
+      waived,
+    )
+    if (allowance !== null && copies.length > allowance)
+      add(`allows at most ${allowance} of this datasheet, has ${copies.length}`, copies[0])
   }
   return errors
 }

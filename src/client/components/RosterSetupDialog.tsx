@@ -10,6 +10,8 @@ import {
   detachmentLimit,
   detachmentPointsError,
   detachmentPointBudget,
+  enforces,
+  type FormatRuleId,
   GAME_SIZES,
   isKotcLimit,
   ROSTER_NAME_MAX_LENGTH,
@@ -49,6 +51,8 @@ export type RosterSetup = {
   detachmentIds: string[]
   disposition: string | null
   limit: number
+  /** The battle size's restrictions this roster is playing without. */
+  waivedRules: FormatRuleId[]
   visibility: RosterVisibility
 }
 
@@ -107,6 +111,11 @@ export function RosterSetupDialog({
   }
 
   const loadingFaction = Boolean(draft.catalogueId && !faction)
+  // The restrictions themselves are switched off from the picker, over the book they
+  // act on. What is waived still shapes this dialog, because a size that no longer
+  // caps detachments or their points is offering the player a different set.
+  const singleDetachment = isKotcLimit(draft.limit) && enforces(draft.waivedRules, 'detachments')
+  const budgeted = enforces(draft.waivedRules, 'detachment-points')
   const selected = faction?.detachments.filter((detachment) => draft.detachmentIds.includes(detachment.id)) ?? []
   const dispositions = dispositionsFor(faction?.detachments ?? [], draft.detachmentIds)
   const selectedDisposition = dispositions.length === 1 ? (dispositions[0]?.id ?? null) : draft.disposition
@@ -115,12 +124,13 @@ export function RosterSetupDialog({
   const pointsError = detachmentPointsError(
     selected.map((detachment) => ({ points: detachment.reference?.points ?? null })),
     allowance,
+    draft.waivedRules,
   )
   const availableDetachments = favouriteDetachmentsFirst(
     faction?.detachments.filter((detachment) => {
       if (draft.detachmentIds.includes(detachment.id)) return true
-      if (draft.detachmentIds.length >= detachmentLimit(draft.limit) && !isKotcLimit(draft.limit)) return false
-      if (!selected.length || allowance === null || detachment.reference?.points == null) return true
+      if (draft.detachmentIds.length >= detachmentLimit(draft.limit, draft.waivedRules) && !singleDetachment) return false
+      if (!budgeted || !selected.length || allowance === null || detachment.reference?.points == null) return true
       return spent + detachment.reference.points <= allowance
     }) ?? [],
     faction?.id ?? '',
@@ -133,9 +143,9 @@ export function RosterSetupDialog({
   const toggleDetachment = (id: string) => {
     const ids = draft.detachmentIds.includes(id)
       ? draft.detachmentIds.filter((candidate) => candidate !== id)
-      : isKotcLimit(draft.limit)
+      : singleDetachment
         ? [id]
-        : [...draft.detachmentIds, id].slice(0, detachmentLimit(draft.limit))
+        : [...draft.detachmentIds, id].slice(0, detachmentLimit(draft.limit, draft.waivedRules))
     const offered = dispositionsFor(faction?.detachments ?? [], ids)
     changeDraft({
       ...draft,
@@ -207,7 +217,7 @@ export function RosterSetupDialog({
                     changeDraft({
                       ...draft,
                       limit,
-                      detachmentIds: draft.detachmentIds.slice(0, detachmentLimit(limit)),
+                      detachmentIds: draft.detachmentIds.slice(0, detachmentLimit(limit, draft.waivedRules)),
                       disposition: null,
                     })
                   }}

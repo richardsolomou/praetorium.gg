@@ -1,6 +1,6 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
-import { CalendarPlus, Check, Eye, FileLock2, LockKeyhole, ShieldCheck, Swords, UserPlus, X } from 'lucide-react'
+import { CalendarPlus, Check, Eye, FileLock2, LockKeyhole, Pencil, ShieldCheck, Swords, TriangleAlert, UserPlus, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import {
   AlertDialog,
@@ -48,7 +48,9 @@ import { alliedLeagueRosterLimit, leagueRosterSplit, leagueTableShape, LEAGUE_ME
 import { TABLE_SHAPE_LABELS, type TableShape } from '../../../core/tableShape'
 import { seatedPlayers, seatsFor, type Seat } from '../../seats'
 import { SeatMatchup, SeatRows, seatLabel, seatOption } from '../Seats'
+import { rosterWaivers, WaiverList } from '../FormatWaivers'
 import { RosterSummary } from '../rosters/RosterSummary'
+import type { SavedRoster } from '../rosters/rosterLibrary'
 import { BattleShelf } from '../battles/BattleShelf'
 import { LeaguePageActions } from './LeagueActions'
 import { LeagueEventRuleFields, type LeagueEventRuleValue } from './LeagueEventRuleFields'
@@ -66,6 +68,7 @@ export function LeaguePage({ token, eventToken, startBattle }: { token: string; 
     if (league === null) void navigate({ to: '/leagues' })
   }, [league, navigate])
   const [choosing, setChoosing] = useState(false)
+  const [sealing, setSealing] = useState<SavedRoster | null>(null)
   const [revealing, setRevealing] = useState(false)
   const [starting, setStarting] = useState(false)
   const [eventRule, setEventRule] = useState<LeagueEventRuleValue>({ format: '1v1', rosterLimit: 2_000 })
@@ -163,6 +166,8 @@ export function LeaguePage({ token, eventToken, startBattle }: { token: string; 
     submit.reset()
     setChoosing(false)
   }
+  /** A roster that is not playing all of its format, held back until its owner says so on purpose. */
+  const sealWaivers = sealing ? rosterWaivers(sealing) : []
   if (!league) return null
   const eventBattles = leagueBattlesFrom(battleHistory.data)
   const isOwner = me?.id === league.ownerId
@@ -621,11 +626,61 @@ export function LeaguePage({ token, eventToken, startBattle }: { token: string; 
         error={submit.error}
         requiredLimit={ownEntry?.requiredLimit ?? null}
         onClose={closeRosterChooser}
-        onChoose={(id) => {
+        onChoose={(roster) => {
           submit.reset()
-          submit.mutate(id)
+          if (rosterWaivers(roster).length) setSealing(roster)
+          else submit.mutate(roster.id)
         }}
       />
+      <AlertDialog
+        open={sealing !== null}
+        onOpenChange={(open) => {
+          if (submit.isPending) return
+          if (!open) setSealing(null)
+        }}
+      >
+        <AlertDialogContent
+          aria-busy={submit.isPending}
+          className="rounded-none border border-discarded/50 bg-panel text-bone sm:max-w-lg [&>*]:min-w-0"
+        >
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-discarded uppercase">
+              <TriangleAlert className="size-5 shrink-0" aria-hidden />
+              {sealWaivers.length === 1 ? 'This roster waives a rule' : `This roster waives ${sealWaivers.length} rules`}
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-dim">
+              {sealing?.name} is not playing {sealWaivers.length === 1 ? 'one of' : 'some of'} the rules of its battle size:
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <WaiverList rules={sealWaivers} />
+          <p className="text-sm text-dim">
+            Praetorium has not checked {sealWaivers.length === 1 ? 'it' : 'them'}, so this roster may not be legal for the event. The
+            organizer and every opponent see what it waives once the rosters are revealed.
+          </p>
+          <AlertDialogFooter className="sm:flex-wrap">
+            {sealing ? (
+              <Button
+                variant="outline"
+                nativeButton={false}
+                className="sm:mr-auto"
+                render={<Link to="/rosters/$id" params={{ id: sealing.id }} />}
+              >
+                <Pencil /> Edit roster
+              </Button>
+            ) : null}
+            <AlertDialogCancel disabled={submit.isPending}>Choose another</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={submit.isPending}
+              onClick={() => {
+                if (sealing) submit.mutate(sealing.id)
+                setSealing(null)
+              }}
+            >
+              Seal it anyway
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <AlertDialog
         open={revealing}
         onOpenChange={(open) => {
@@ -822,7 +877,7 @@ function RosterChooser({
   error: Error | null
   requiredLimit: number | null
   onClose: () => void
-  onChoose: (id: string) => void
+  onChoose: (roster: SavedRoster) => void
 }) {
   const rosterQuery = useQuery({ ...savedRosterSummariesQuery(), enabled: open })
   const { data: available } = useQuery({ ...factionIndexQuery(), enabled: open })
@@ -857,7 +912,7 @@ function RosterChooser({
                 data-roster={roster.name}
                 className="flex w-full flex-wrap items-center gap-2 border border-edge bg-panel p-2 hover:border-azure disabled:cursor-wait disabled:opacity-70"
                 disabled={pending}
-                onClick={() => onChoose(roster.id)}
+                onClick={() => onChoose(roster)}
               >
                 <RosterSummary
                   roster={roster}

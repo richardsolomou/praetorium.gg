@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import type { Roster } from '../../core/battle'
 import { factionQuery, priceQuery } from '../queries'
+import { rosterWaivers } from './FormatWaivers'
 import { RosterEditor } from './RosterEditor'
 import { RosterBody, RosterHeader, RosterShell, RosterUnits } from './RosterPresentation'
 import { DatasheetPanel } from './builder/DatasheetPanel'
@@ -18,7 +19,14 @@ export function BattleRosterSnapshot({ roster }: { roster: Roster }) {
   const factionResult = useQuery({ ...factionQuery(built?.catalogueId ?? ''), enabled: Boolean(built) })
   const faction = factionResult.data
   const { data: priced } = useQuery({
-    ...priceQuery(built?.catalogueId ?? '', built?.detachmentIds ?? [], built?.disposition ?? null, built?.limit ?? 0, built?.picks ?? []),
+    ...priceQuery(
+      built?.catalogueId ?? '',
+      built?.detachmentIds ?? [],
+      built?.disposition ?? null,
+      built?.limit ?? 0,
+      built?.picks ?? [],
+      built?.waivedRules ?? [],
+    ),
     enabled: Boolean(built?.picks && built.detachmentIds && (!frozen || selected !== null)),
   })
   const hasRosterCards = built?.units.some((unit) => unit.group !== undefined) ?? false
@@ -41,6 +49,7 @@ export function BattleRosterSnapshot({ roster }: { roster: Roster }) {
           disposition: built.disposition,
           limit: built.limit,
           picks: built.picks,
+          waivedRules: built.waivedRules ?? [],
           visibility: 'private',
           source: 'editable',
         }}
@@ -62,6 +71,7 @@ export function BattleRosterSnapshot({ roster }: { roster: Roster }) {
           limit={built?.limit}
           detachments={displayedDetachments}
           disposition={built?.disposition}
+          waivers={rosterWaivers(built)}
         />
         <RosterBody>
           <RosterUnits>

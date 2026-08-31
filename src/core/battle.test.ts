@@ -3,7 +3,11 @@ import {
   BATTLE_ROUNDS,
   type Command,
   detachmentLimit,
+  detachmentPointsError,
   formatDatasheetLimit,
+  formatRules,
+  kotcUnitExclusions,
+  waivedFormatRules,
   reduceBattle,
   sideDisposition,
   sideDispositionChoices,
@@ -425,6 +429,42 @@ describe('setup', () => {
     expect(formatDatasheetLimit(600, false)).toBe(1)
     expect(formatDatasheetLimit(600, true)).toBe(2)
     expect(formatDatasheetLimit(2000, false)).toBeNull()
+  })
+
+  it('names the restrictions each battle size adds', () => {
+    expect(formatRules(600).map((rule) => rule.id)).toEqual([
+      'detachments',
+      'kotc-infantry',
+      'kotc-warlord',
+      'kotc-epic-heroes',
+      'kotc-toughness',
+      'kotc-datasheet-copies',
+    ])
+    expect(formatRules(2000).map((rule) => rule.id)).toEqual(['detachment-points'])
+    expect(formatRules(3000)).toEqual([])
+    expect(formatRules(null)).toEqual([])
+  })
+
+  it('counts only the waivers its own battle size imposes', () => {
+    expect(waivedFormatRules(600, ['kotc-epic-heroes']).map((rule) => rule.label)).toEqual(['No Epic Heroes'])
+    // The id is kept when a list moves to a size that does not impose it, so moving
+    // back restores the choice — but nothing here is being played without.
+    expect(waivedFormatRules(2000, ['kotc-epic-heroes'])).toEqual([])
+    expect(waivedFormatRules(2000, ['detachment-points']).map((rule) => rule.id)).toEqual(['detachment-points'])
+    expect(waivedFormatRules(null, ['kotc-epic-heroes'])).toEqual([])
+  })
+
+  it('stops applying a restriction the roster has waived', () => {
+    const epicHero = { keywords: ['Infantry', 'Epic Hero'], toughness: 12 }
+    expect(kotcUnitExclusions(epicHero)).toEqual(['does not allow Epic Heroes', 'does not allow Toughness 12'])
+    expect(kotcUnitExclusions(epicHero, ['kotc-epic-heroes'])).toEqual(['does not allow Toughness 12'])
+    expect(kotcUnitExclusions(epicHero, ['kotc-epic-heroes', 'kotc-toughness'])).toEqual([])
+    expect(detachmentLimit(600, ['detachments'])).toBe(3)
+    expect(formatDatasheetLimit(600, true, ['kotc-datasheet-copies'])).toBeNull()
+    expect(detachmentPointsError([{ points: 3 }, { points: 3 }], 3)).toBe(
+      'This combination costs 6 DP; multiple detachments at this battle size may cost at most 3 DP.',
+    )
+    expect(detachmentPointsError([{ points: 3 }, { points: 3 }], 3, ['detachment-points'])).toBeNull()
   })
 
   it('has no active player before the battle begins', () => {

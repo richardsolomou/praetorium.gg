@@ -62,6 +62,7 @@ function cachedRosterPoints(roster: {
   disposition: string | null
   limit: number
   picks: Parameters<typeof calculateRosterPoints>[0]['units']
+  waivedRules: Parameters<typeof calculateRosterPoints>[0]['waivedRules']
 }) {
   const key = rosterRevisionKey(roster)
   const cached = rosterPointsCache.get(key)
@@ -72,6 +73,7 @@ function cachedRosterPoints(roster: {
     disposition: roster.disposition,
     limit: roster.limit,
     units: roster.picks,
+    waivedRules: roster.waivedRules,
   })
   if (rosterPointsCache.size >= ROSTER_POINTS_CACHE_LIMIT) {
     const oldest = rosterPointsCache.keys().next().value
@@ -101,6 +103,7 @@ function cachedRosterPrice(roster: {
   disposition: string | null
   limit: number
   picks: Parameters<typeof calculateRosterPrice>[0]['units']
+  waivedRules: Parameters<typeof calculateRosterPrice>[0]['waivedRules']
 }) {
   const key = rosterRevisionKey(roster)
   const cached = rosterPriceCache.get(key)
@@ -111,6 +114,7 @@ function cachedRosterPrice(roster: {
     disposition: roster.disposition,
     limit: roster.limit,
     units: roster.picks,
+    waivedRules: roster.waivedRules,
   })
   if (rosterPriceCache.size >= ROSTER_PRICE_CACHE_LIMIT) {
     const oldest = rosterPriceCache.keys().next().value

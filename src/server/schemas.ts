@@ -1,6 +1,8 @@
 import { z } from 'zod'
 import {
+  FORMAT_RULE_IDS,
   GAME_SIZES,
+  MAX_DETACHMENTS,
   PHASES,
   ROSTER_NAME_MAX_LENGTH,
   SECONDARIES_MAX,
@@ -167,6 +169,16 @@ export const submitSchema = z.object({
   command: z.union([commandSchema, attachSavedRosterSchema]),
 })
 
+/**
+ * The format restrictions this roster has switched off, by the ids `formatRules` names.
+ *
+ * Sent with every read that a restriction can change the answer of, so the picker and
+ * the price agree about which rules are being played. Unknown ids are rejected rather
+ * than ignored: a waiver this build cannot name would silently enforce a rule the
+ * player believes they turned off.
+ */
+export const waivedRules = z.array(z.enum(FORMAT_RULE_IDS)).max(FORMAT_RULE_IDS.length).optional()
+
 export const unitsSchema = z.object({
   catalogueId,
   query: z.string().max(80).default(''),
@@ -175,6 +187,7 @@ export const unitsSchema = z.object({
     .int()
     .refine((value) => GAME_SIZES.some((size) => size.limit === value))
     .optional(),
+  waivedRules,
 })
 
 export const globalSearchSchema = z.object({ query: z.string().trim().min(2).max(80) })
@@ -220,10 +233,11 @@ export const saveRosterSchema = z.object({
   id: id.optional(),
   name: z.string().trim().min(1, 'name the list').max(ROSTER_NAME_MAX_LENGTH),
   catalogueId,
-  detachmentIds: z.array(id).max(3),
+  detachmentIds: z.array(id).max(MAX_DETACHMENTS),
   disposition: id.nullable(),
   limit: rosterLimit,
   picks: z.array(pickSchema).max(100),
+  waivedRules,
   prep: prepSchema.nullable(),
   visibility: z.enum(ROSTER_VISIBILITIES).default('private'),
   source: z.enum(ROSTER_SOURCES).default('editable'),
@@ -255,10 +269,11 @@ export const savedPrepSchema = prepSchema
 
 export const priceSchema = z.object({
   catalogueId,
-  detachmentIds: z.array(id).max(3),
+  detachmentIds: z.array(id).max(MAX_DETACHMENTS),
   disposition: id.nullable(),
   limit: rosterLimit,
   units: z.array(pickSchema).max(100),
+  waivedRules,
 })
 
 export type PriceInput = z.infer<typeof priceSchema>

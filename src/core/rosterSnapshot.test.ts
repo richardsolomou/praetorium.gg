@@ -10,6 +10,7 @@ it('freezes unit wounds into a roster snapshot', () => {
       detachmentIds: [],
       disposition: null,
       limit: 2_000,
+      waivedRules: [],
       picks: [{ entryId: 'unit' }],
     },
     {
@@ -52,6 +53,7 @@ it('freezes catalogue-derived Warlord eligibility into a roster snapshot', () =>
       detachmentIds: [],
       disposition: null,
       limit: 1_000,
+      waivedRules: [],
       picks: [{ entryId: 'captain' }],
     },
     {
@@ -105,6 +107,7 @@ it('freezes the unit a character joined into a roster snapshot', () => {
       detachmentIds: [],
       disposition: null,
       limit: 2_000,
+      waivedRules: [],
       picks: [{ entryId: 'marines' }, { entryId: 'lord', attachedTo: 0 }],
     },
     {
@@ -134,6 +137,7 @@ it('leaves a character the list joined to nothing unattached', () => {
       detachmentIds: [],
       disposition: null,
       limit: 2_000,
+      waivedRules: [],
       picks: [{ entryId: 'lord' }],
     },
     {

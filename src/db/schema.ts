@@ -222,6 +222,8 @@ export const rosters = pgTable(
     prep: text('prep'),
     /** Short player-authored labels as a JSON array. */
     tags: text('tags').notNull().default('[]'),
+    /** The battle size restrictions this roster has switched off, as a JSON array of rule ids. */
+    waivedRules: text('waived_rules').notNull().default('[]'),
     /** Private rosters are owner-only; unlisted rosters resolve through their opaque id. */
     visibility: text('visibility', { enum: ['private', 'unlisted'] })
       .notNull()

@@ -6,6 +6,8 @@ import {
   type Command,
   commandArmy,
   FIXED_SECONDARIES,
+  FORMAT_RULE_IDS,
+  type FormatRuleId,
   GAME_SIZES,
   type PlayerId,
   type Roster,
@@ -546,6 +548,7 @@ export class PraetoriumService {
       limit: number
       picks: readonly RosterPick[]
       prep: SavedPrep | null
+      waivedRules?: readonly FormatRuleId[]
       visibility: 'private' | 'unlisted'
       source: RosterSource
     },
@@ -559,6 +562,7 @@ export class PraetoriumService {
       picks: JSON.stringify(roster.picks),
       prep: roster.prep ? JSON.stringify(roster.prep) : null,
       tags: '[]',
+      waivedRules: JSON.stringify(roster.waivedRules ?? []),
       now: this.clock(),
     })
     if (!saved) throw new Response('you do not own this roster', { status: 403 })
@@ -572,9 +576,10 @@ export class PraetoriumService {
   }
 
   async savedRosterSummaries(userId: string) {
-    return (await this.repository.rosterSummariesByUser(userId)).map(({ detachmentId, ...row }) => ({
+    return (await this.repository.rosterSummariesByUser(userId)).map(({ detachmentId, waivedRules, ...row }) => ({
       ...row,
       detachmentIds: detachmentIds(detachmentId),
+      waivedRules: waivedRulesFrom(waivedRules),
     }))
   }
 
@@ -1066,6 +1071,7 @@ function rosterFromRow(row: NonNullable<Awaited<ReturnType<Repository['roster']>
     updatedAt: row.updatedAt,
     picks: picksSchema.parse(JSON.parse(row.picks)),
     prep: includePrep && row.prep ? savedPrepSchema.parse(JSON.parse(row.prep)) : null,
+    waivedRules: waivedRulesFrom(row.waivedRules),
     visibility: row.visibility,
     source: row.source,
   }
@@ -1219,6 +1225,19 @@ function scoringCapError(
 }
 
 /** The legacy column held one id; new rows hold the ordered 11e purchase list. */
+/**
+ * The format rules a saved row says it has waived.
+ *
+ * Parsed rather than trusted: a rule id this build does not know would be a
+ * restriction the roster believes is off while every check still enforces it, so an
+ * unrecognised name is dropped and the rule goes on being played.
+ */
+function waivedRulesFrom(value: string | null): FormatRuleId[] {
+  if (!value) return []
+  const parsed: unknown = JSON.parse(value)
+  return Array.isArray(parsed) ? parsed.filter((id): id is FormatRuleId => FORMAT_RULE_IDS.some((known) => known === id)) : []
+}
+
 function detachmentIds(value: string | null): string[] {
   if (!value) return []
   if (!value.startsWith('[')) return [value]

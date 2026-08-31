@@ -16,6 +16,7 @@ const roster = {
   unitCount: 0,
   visibility: 'private',
   source: 'editable',
+  waivedRules: [],
 } satisfies SavedRoster
 
 describe('roster summary', () => {
@@ -38,5 +39,26 @@ describe('roster summary', () => {
     expect(markup).toContain('Strike Force')
     expect(markup).toContain('1985/2000')
     expect(markup).toContain('Private')
+    expect(markup).not.toContain('switched off')
+  })
+
+  it('names the format restrictions a roster is not playing', () => {
+    const markup = renderToStaticMarkup(
+      createElement(RosterSummary, {
+        roster: { ...roster, limit: 600, waivedRules: ['kotc-epic-heroes', 'kotc-toughness'] },
+        points: 590,
+      }),
+    )
+
+    // The mark itself is silent; the sentence it carries is what a reader is told.
+    expect(markup).toContain('2 format restrictions switched off: No Epic Heroes, Toughness cap')
+  })
+
+  it('says nothing about a waiver its battle size does not impose', () => {
+    const markup = renderToStaticMarkup(
+      createElement(RosterSummary, { roster: { ...roster, waivedRules: ['kotc-epic-heroes'] }, points: 1_985 }),
+    )
+
+    expect(markup).not.toContain('switched off')
   })
 })
