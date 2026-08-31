@@ -98,20 +98,33 @@ describe('application shell delivery', () => {
     expect(confirmWebLoadSucceeded(webLoadFinished(terminated, 'https://praetorium.gg')).ready).toBe(false)
   })
 
-  it('remounts the authenticated destination after native acknowledgement', () => {
+  it('keeps the authenticated top-level navigation after native acknowledgement', () => {
     const loaded = successfulLoad(initialUrlReceived(initialAppShellState(), null), 'https://praetorium.gg')
     const deliveringAuth = drainAppShell(authReceived(loaded, auth)).state
-    const authenticated = authDeliverySucceeded(deliveringAuth, auth.id)
+    const authenticated = authDeliverySucceeded(webLoadStarted(deliveringAuth), auth.id)
 
     expect(authenticated).toMatchObject({
-      sourceUrl: 'https://praetorium.gg/lists',
+      sourceUrl: 'https://praetorium.gg',
       lastInternalUrl: 'https://praetorium.gg/lists',
       delivering: null,
       ready: false,
-      loadStarted: false,
-      renderKey: 1,
+      loadStarted: true,
+      renderKey: 0,
     })
     expect(authDeliverySucceeded(deliveringAuth, 'stale-exchange').delivering).toEqual({ kind: 'auth', callback: auth })
+  })
+
+  it('keeps authentication pending when its destination loads before acknowledgement', () => {
+    const loaded = successfulLoad(initialUrlReceived(initialAppShellState(), null), 'https://praetorium.gg')
+    const deliveringAuth = drainAppShell(authReceived(loaded, auth)).state
+    const destinationLoaded = successfulLoad(deliveringAuth, 'https://praetorium.gg/lists')
+
+    expect(destinationLoaded.delivering).toEqual({ kind: 'auth', callback: auth })
+    expect(authDeliverySucceeded(destinationLoaded, auth.id)).toMatchObject({
+      delivering: null,
+      lastInternalUrl: 'https://praetorium.gg/lists',
+      ready: true,
+    })
   })
 
   it('keeps transient authentication failure ready for an explicit retry', () => {
@@ -189,7 +202,7 @@ describe('application shell delivery', () => {
     const authenticated = authDeliverySucceeded(retry, auth.id)
     const continued = drainAppShell(successfulLoad(authenticated, 'https://praetorium.gg/lists'))
 
-    expect({ retry: retry.delivering, authenticated: authenticated.sourceUrl, continued: continued.command }).toEqual({
+    expect({ retry: retry.delivering, authenticated: authenticated.lastInternalUrl, continued: continued.command }).toEqual({
       retry: { kind: 'auth', callback: auth },
       authenticated: 'https://praetorium.gg/lists',
       continued: { kind: 'navigation', url: 'https://praetorium.gg/battles/42' },

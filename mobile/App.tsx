@@ -36,6 +36,7 @@ import { NATIVE_BRIDGE_SCRIPT, parseNativeActionRequest, type NativeActionReques
 import { applicationNavigationScript, classifyNavigation } from './src/navigation'
 import {
   NATIVE_AUTH_CALLBACK_URL,
+  NATIVE_AUTH_COMPLETION_SCRIPT,
   nativeAuthConsumeScript,
   nativeAuthExchangeScript,
   nativeAuthStartUrl,
@@ -347,7 +348,7 @@ function AppShell() {
           containerStyle={styles.webView}
           originWhitelist={['*']}
           applicationNameForUserAgent="PraetoriumNative/1.0.0"
-          injectedJavaScriptBeforeContentLoaded={NATIVE_BRIDGE_SCRIPT}
+          injectedJavaScriptBeforeContentLoaded={`${NATIVE_BRIDGE_SCRIPT}\n${NATIVE_AUTH_COMPLETION_SCRIPT}`}
           sharedCookiesEnabled
           thirdPartyCookiesEnabled={false}
           allowsBackForwardNavigationGestures

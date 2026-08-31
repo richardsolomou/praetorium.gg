@@ -340,6 +340,55 @@ describe('account administration', () => {
     ).rejects.toMatchObject({ status: 'BAD_REQUEST' })
   })
 
+  it('sets the native session before redirecting a top-level form exchange', async () => {
+    connection = await openTestDatabase()
+    vi.stubEnv('APP_URL', 'https://praetorium.gg')
+    const auth = createAuth(connection.database, SECRET)
+    const signedUp = await auth.api.signUpEmail({
+      body: { email: 'native-form@example.com', password: 'password1234', name: 'Native form' },
+      returnHeaders: true,
+    })
+    await connection.database.insert(account).values({
+      id: 'native-form-google',
+      accountId: 'native-form-google',
+      issuer: 'google',
+      providerId: 'google',
+      userId: signedUp.response.user.id,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
+    const exchange = await auth.api.generateNativeAuthToken({
+      body: { action: 'sign-in', challenge: NATIVE_CHALLENGE, provider: 'google', next: '/rosters' },
+      headers: cookieHeaders(signedUp.headers),
+    })
+    const invalid = await auth.handler(
+      new Request('https://praetorium.gg/api/auth/native-auth-token/exchange', {
+        method: 'POST',
+        headers: { 'content-type': 'application/x-www-form-urlencoded', origin: 'https://praetorium.gg' },
+        body: new URLSearchParams({ ...exchange, verifier: 'w'.repeat(43), navigation: '1' }),
+      }),
+    )
+    const response = await auth.handler(
+      new Request('https://praetorium.gg/api/auth/native-auth-token/exchange', {
+        method: 'POST',
+        headers: { 'content-type': 'application/x-www-form-urlencoded', origin: 'https://praetorium.gg' },
+        body: new URLSearchParams({ ...exchange, verifier: NATIVE_VERIFIER, navigation: '1' }),
+      }),
+    )
+
+    expect({ status: invalid.status, location: invalid.headers.get('location') }).toEqual({
+      status: 302,
+      location: `https://praetorium.gg/sign-in?__native_auth_error=${exchange.id}`,
+    })
+    expect({ status: response.status, location: response.headers.get('location') }).toEqual({
+      status: 302,
+      location: `https://praetorium.gg/rosters?__native_auth=${exchange.id}`,
+    })
+    expect(await auth.api.getSession({ headers: cookieHeaders(response.headers) })).toMatchObject({
+      user: { id: signedUp.response.user.id },
+    })
+  })
+
   it('rejects unbound metadata and a revoked authoritative identity', async () => {
     connection = await openTestDatabase()
     const auth = createAuth(connection.database, SECRET)
@@ -370,6 +419,12 @@ describe('account administration', () => {
     await expect(
       auth.api.generateNativeAuthToken({
         body: { action: 'sign-in', challenge: NATIVE_CHALLENGE, provider: 'google', next: '/\\example.com' },
+        headers: cookieHeaders(signedUp.headers),
+      }),
+    ).rejects.toBeTruthy()
+    await expect(
+      auth.api.generateNativeAuthToken({
+        body: { action: 'sign-in', challenge: NATIVE_CHALLENGE, provider: 'google', next: '/rosters?__native_auth=reserved' },
         headers: cookieHeaders(signedUp.headers),
       }),
     ).rejects.toBeTruthy()
