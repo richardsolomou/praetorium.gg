@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.43.11
+
+### Patch Changes
+
+- d2a94e6: Open datasheets and other new-window actions from the mobile application.
+
 ## 0.43.10
 
 ### Patch Changes
