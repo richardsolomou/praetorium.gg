@@ -26,12 +26,17 @@ export function HomeHero({ live }: { live?: Battle }) {
             {/* Only promise the feed when there is one: on a new instance the shelf below it is empty. */}
             {live ? 'Watch a game below before you play one.' : 'Build a list, sit down with a friend, and keep one record between you.'}
           </p>
+          {/*
+            Both doors, because this page is the way back in as well as the way in.
+            A returning player who has been signed out lands here, and leaving them
+            only an invitation to make a second account is how they end up with one.
+          */}
           <div className="mt-7 flex flex-wrap gap-2">
             <Link to="/sign-in" search={{ next: undefined }} className={buttonVariants({ size: 'lg' })}>
               Create an account
             </Link>
-            <Link to="/mission-packs" className={buttonVariants({ variant: 'outline', size: 'lg' })}>
-              Browse missions
+            <Link to="/sign-in" search={{ next: undefined }} className={buttonVariants({ variant: 'outline', size: 'lg' })}>
+              Sign in
             </Link>
           </div>
         </div>

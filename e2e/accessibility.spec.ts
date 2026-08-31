@@ -11,7 +11,9 @@ test('opening a battle is operable from the keyboard', async ({ page }) => {
   expect(initialDocument).not.toContain('favourite-factions')
   expect(initialDocument).not.toContain('favourite-detachments')
 
-  for (let tabs = 0; tabs < 10; tabs++) {
+  // Enough tabs to cross the header: the logo, every primary navigation link,
+  // search and the account menu all come before the page's own first control.
+  for (let tabs = 0; tabs < 20; tabs++) {
     if (await page.getByRole('button', { name: 'New casual battle' }).evaluate((element) => element === document.activeElement)) break
     await page.keyboard.press('Tab')
   }
