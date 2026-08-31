@@ -4,6 +4,7 @@ import * as KeepAwake from 'expo-keep-awake'
 import * as Print from 'expo-print'
 import * as WebBrowser from 'expo-web-browser'
 import * as SecureStore from 'expo-secure-store'
+import PostHog, { PostHogProvider, type PostHogOptions } from 'posthog-react-native'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { ActivityIndicator, Alert, AppState, BackHandler, Linking, Platform, Pressable, Share, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context'
@@ -47,6 +48,25 @@ import { completedPendingNativeAuth, parsePendingNativeAuth, pendingNativeAuth, 
 const BACKGROUND = '#0b0c0e'
 const PENDING_AUTH_KEY = 'praetorium.native-auth.pending'
 const ACTIVE_BATTLE_KEEP_AWAKE_TAG = 'praetorium-active-battle'
+const POSTHOG_OPTIONS = {
+  host: process.env.EXPO_PUBLIC_POSTHOG_HOST,
+  enableSessionReplay: true,
+  sessionReplayConfig: {
+    maskAllTextInputs: true,
+    maskAllImages: true,
+    maskAllSandboxedViews: true,
+    captureLog: false,
+    captureNetworkTelemetry: false,
+  },
+  errorTracking: {
+    autocapture: { uncaughtExceptions: true, unhandledRejections: true },
+  },
+} satisfies PostHogOptions
+const posthog = process.env.EXPO_PUBLIC_POSTHOG_API_KEY ? new PostHog(process.env.EXPO_PUBLIC_POSTHOG_API_KEY, POSTHOG_OPTIONS) : null
+
+function captureNativeException(operation: string) {
+  posthog?.captureException(new Error(`Praetorium ${operation.replaceAll('_', ' ')} failed`), { operation })
+}
 
 WebBrowser.maybeCompleteAuthSession()
 
@@ -165,6 +185,7 @@ function AppShell() {
           }
         }
       } catch {
+        captureNativeException('native_auth')
         await SecureStore.deleteItemAsync(PENDING_AUTH_KEY)
         Alert.alert('Could not open sign-in', 'The secure system sign-in session could not be opened.')
       } finally {
@@ -178,6 +199,7 @@ function AppShell() {
     try {
       await Linking.openURL(url)
     } catch {
+      captureNativeException('external_link')
       Alert.alert('Could not open link', 'No application on this device can open that link.')
     }
   }, [])
@@ -242,6 +264,7 @@ function AppShell() {
     (url: string) => {
       if (url.startsWith(NATIVE_AUTH_CALLBACK_URL)) {
         void handleAuthCallback(url).catch(() => {
+          captureNativeException('native_auth_callback')
           Alert.alert('Sign-in did not finish', 'The secure sign-in result could not be saved. Try again.')
         })
       } else navigateApplication(url)
@@ -288,6 +311,7 @@ function AppShell() {
         }
       })
       .catch(() => {
+        captureNativeException('native_initialization')
         if (active) commitShell(initialUrlReceived(shellRef.current, null))
       })
     const subscription = Linking.addEventListener('url', ({ url }) => {
@@ -329,6 +353,7 @@ function AppShell() {
   )
 
   const recoverRenderer = useCallback(() => {
+    captureNativeException('web_renderer')
     cancelScheduledDrain()
     void setBattleActive(false).catch(() => undefined)
     commitShell(rendererTerminated(shellRef.current))
@@ -364,10 +389,12 @@ function AppShell() {
             finishWebLoad(nativeEvent.url)
           }}
           onError={() => {
+            captureNativeException('web_load')
             cancelScheduledDrain()
             commitShell(webLoadFailed(shellRef.current))
           }}
           onHttpError={() => {
+            captureNativeException('web_http')
             cancelScheduledDrain()
             commitShell(webLoadFailed(shellRef.current))
           }}
@@ -377,6 +404,7 @@ function AppShell() {
             const action = parseNativeActionRequest(nativeEvent.data)
             if (action) {
               void handleNativeAction(action).catch(() => {
+                captureNativeException(`native_${action.kind.replace('-', '_')}`)
                 if (action.kind === 'print') Alert.alert('Could not print', 'The system print service could not open this roster.')
                 if (action.kind === 'share') Alert.alert('Could not share', 'The system share sheet could not open this link.')
               })
@@ -402,7 +430,7 @@ function AppShell() {
                 commitShell(authDeliverySucceeded(shellRef.current, result.id))
                 void SecureStore.deleteItemAsync(PENDING_AUTH_KEY).then(
                   () => webView.current?.injectJavaScript(nativeAuthConsumeScript(delivering.callback)),
-                  () => undefined,
+                  () => captureNativeException('native_auth_cleanup'),
                 )
               } else if (result.retryable === true) {
                 const deferred = authDeliveryDeferred(shellRef.current, result.id)
@@ -441,10 +469,17 @@ function AppShell() {
 }
 
 export default function App() {
-  return (
+  const application = (
     <SafeAreaProvider>
       <AppShell />
     </SafeAreaProvider>
+  )
+  if (!posthog) return application
+
+  return (
+    <PostHogProvider client={posthog} autocapture={{ captureScreens: false }}>
+      {application}
+    </PostHogProvider>
   )
 }
 

@@ -139,7 +139,9 @@
         {
           "faceIDPermission": false
         }
-      ]
+      ],
+      "expo-localization",
+      "posthog-react-native/expo"
     ],
     "extra": {
       "eas": {

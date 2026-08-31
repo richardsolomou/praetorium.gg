@@ -2,6 +2,8 @@
 
 Praetorium uses PostHog for analytics, replay, flags, errors, performance, and server logs. The integration is optional. Every product path works without PostHog variables.
 
+The browser integration inside the mobile WebView owns identified product events and web replay. The Expo shell uses a separate native client for application lifecycle events, masked native replay, and native-shell exceptions when `EXPO_PUBLIC_POSTHOG_API_KEY` is set. Native replay does not capture logs or network telemetry. EAS Build uploads the native JavaScript source maps through the PostHog Expo and Metro plugins.
+
 ## Event contract
 
 Custom events describe completed user or domain actions. Page navigation and
