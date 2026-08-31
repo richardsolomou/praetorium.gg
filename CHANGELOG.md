@@ -1,5 +1,16 @@
 # praetorium
 
+## 0.45.0
+
+### Minor Changes
+
+- 18344cd: Add optional rules, chosen from their own dialog: homebrew a battle size can be played with, off unless a roster picks it. King of the Colosseum offers a borrowed disposition, which spends the detachment points its own detachment leaves unspent to play another detachment's Force Disposition — the disposition alone, never that detachment's rules, enhancements or stratagems.
+- 18344cd: Offer King of the Colosseum at one 600-point size, named without a size suffix. Lists already saved at 500 points keep their King of the Colosseum construction rules and play as before.
+
+### Patch Changes
+
+- 18344cd: Report a King of the Colosseum unit at the Toughness cap as unverifiable when an enhancement or attached leader could raise it, instead of accepting a list the format forbids.
+
 ## 0.44.0
 
 ### Minor Changes
