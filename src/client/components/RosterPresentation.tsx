@@ -126,12 +126,7 @@ export function RosterHeader({
                 <span className={`chip shrink-0 ${dispositionTone(shownDisposition.id)}`}>{shownDisposition.name}</span>
               </span>
             ) : null}
-            {waivers.length ? (
-              <span className="contents">
-                <span aria-hidden>·</span>
-                <WaiverChip rules={waivers} />
-              </span>
-            ) : null}
+            <WaiverChip rules={waivers} />
           </span>
           {actions ? (
             <span className="flex shrink-0 items-center gap-1" data-print-hide>

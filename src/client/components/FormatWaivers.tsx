@@ -1,5 +1,6 @@
 import { TriangleAlert, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { type FormatRule, waivedFormatRules } from '../../core/battle'
 
 /**
@@ -19,14 +20,32 @@ export function rosterWaivers(roster: { limit: number; waivedRules?: readonly st
 /** The waived restrictions as one readable list, for a sentence that names them. */
 export const waiverLabels = (rules: readonly FormatRule[]) => rules.map((rule) => rule.label).join(', ')
 
-/** A chip beside a list's identity, naming what it is being built without. */
+/**
+ * A mark beside a list's identity, which says what it is on hover.
+ *
+ * The identity line is what a list is, and every other thing on it is a fact about
+ * the army rather than a caveat; spelling the waivers out there made the caveat the
+ * loudest thing on the line. The mark holds the place, and the reader asks for the
+ * rest. Wherever a list is being decided about — chosen for a seat, sealed into a
+ * league, read under its own roster — the full sentence is still written out.
+ */
 export function WaiverChip({ rules, className = '' }: { rules: readonly FormatRule[]; className?: string }) {
   if (!rules.length) return null
+  const summary = `${rules.length} format ${rules.length === 1 ? 'restriction' : 'restrictions'} switched off: ${waiverLabels(rules)}`
   return (
-    <span className={`chip shrink-0 text-discarded ${className}`}>
-      <TriangleAlert className="size-3" aria-hidden />
-      Waived: {waiverLabels(rules)}
-    </span>
+    <Tooltip>
+      <TooltipTrigger render={<span className={`inline-flex shrink-0 items-center text-discarded ${className}`} />}>
+        <TriangleAlert className="size-4" aria-hidden />
+        {/* The mark shows on hover and the tooltip is not read aloud, so the sentence travels with it. */}
+        <span className="sr-only">{summary}</span>
+      </TooltipTrigger>
+      <TooltipContent className="block">
+        <span className="block font-semibold">
+          {rules.length} format {rules.length === 1 ? 'restriction is' : 'restrictions are'} switched off
+        </span>
+        <span className="mt-0.5 block">{waiverLabels(rules)}</span>
+      </TooltipContent>
+    </Tooltip>
   )
 }
 
