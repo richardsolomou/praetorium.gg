@@ -114,6 +114,7 @@ function cachedRosterPrice(roster: {
     disposition: roster.disposition,
     limit: roster.limit,
     units: roster.picks,
+    waivedRules: roster.waivedRules,
   })
   if (rosterPriceCache.size >= ROSTER_PRICE_CACHE_LIMIT) {
     const oldest = rosterPriceCache.keys().next().value
