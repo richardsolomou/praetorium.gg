@@ -1,4 +1,17 @@
-export const APP_URL = 'https://praetorium.gg'
+const PRODUCTION_APP_URL = 'https://praetorium.gg'
+
+export function resolveApplicationUrl(configured = process.env.EXPO_PUBLIC_NATIVE_AUTH_TEST_APP_URL) {
+  if (!configured) return PRODUCTION_APP_URL
+  try {
+    const parsed = new URL(configured)
+    if (!['http:', 'https:'].includes(parsed.protocol) || parsed.username || parsed.password) throw new Error()
+    return parsed.origin
+  } catch {
+    throw new Error('EXPO_PUBLIC_NATIVE_AUTH_TEST_APP_URL must be a valid HTTP origin.')
+  }
+}
+
+export const APP_URL = resolveApplicationUrl()
 
 type NavigationDecision = { kind: 'internal'; url: string } | { kind: 'external'; url: string } | { kind: 'blocked' }
 

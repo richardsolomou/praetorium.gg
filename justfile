@@ -128,6 +128,9 @@ e2e *args: e2e-build e2e-down
 e2e-run *args: e2e-down
     pnpm exec playwright test {{ args }}
 
+e2e-native-auth-ios: e2e-build
+    pnpm test:e2e:native-auth:ios
+
 e2e-trace *args: e2e-build e2e-down
     PLAYWRIGHT_TRACE=1 pnpm exec playwright test {{ args }}
 

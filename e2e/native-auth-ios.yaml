@@ -1,0 +1,14 @@
+appId: gg.praetorium
+---
+- extendedWaitUntil:
+    visible: Welcome back
+    timeout: 30000
+- tapOn: Continue with Google
+- tapOn:
+    text: Continue
+    optional: true
+- extendedWaitUntil:
+    visible: Account menu for Native Auth Simulator
+    timeout: 30000
+- assertNotVisible: Welcome back
+- takeScreenshot: native-auth-refreshed

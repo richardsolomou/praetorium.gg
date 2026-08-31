@@ -33,4 +33,16 @@ Store builds use `mobile/eas.json`. Apple metadata lives in `mobile/store.config
 
 ## Check it
 
-`just check` formats, lints, type-checks, and tests the mobile source with the web application. Before a mobile change is ready, also inspect it on physical iOS and Android devices and exercise sign-in, WebSocket reconnection, external links, file selection, printing, backgrounding, and platform back navigation.
+`just check` formats, lints, type-checks, and tests the mobile source with the web application.
+
+Boot an iOS Simulator before you test native authentication. Install Java 21 and Maestro, then run:
+
+```sh
+just e2e-native-auth-ios
+```
+
+The test builds the Release application and launches it one time. It completes the native Google handoff against an isolated local stack. It checks the proof exchange, authenticated redirect, proof consumption, and authenticated reload. It also checks that the account appears without another application launch.
+
+The Simulator build does not have the production keychain entitlement. The test build keeps only its pending callback in memory. Production builds continue to use SecureStore. Test SecureStore and the real Apple and Google providers on a signed physical-device build.
+
+Before a mobile change is ready, inspect it on physical iOS and Android devices. Exercise sign-in, WebSocket reconnection, external links, file selection, printing, backgrounding, and platform back navigation.

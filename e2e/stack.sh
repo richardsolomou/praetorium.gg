@@ -16,6 +16,7 @@ port=${1:?port required}
 image=${PLAYWRIGHT_IMAGE:-praetorium-e2e}
 root=${PLAYWRIGHT_DATA_ROOT:?data root required}
 catalogue=${CATALOGUE_HOST_DIR:?catalogue directory required}
+app_url=${PLAYWRIGHT_APP_URL:-http://127.0.0.1:${port}}
 
 here=$(dirname "$0")
 network="praetorium-e2e-net-${port}"
@@ -86,7 +87,9 @@ exec docker run --rm --name "$app" --network "$network" \
     --env CATALOGUE_DIR=/catalogue \
     --env RULES_DIR=/catalogue/rules \
     --env AUTH_RATE_LIMIT=off \
-    --env APP_URL="http://127.0.0.1:${port}" \
+    --env APP_URL="${app_url}" \
+    --env GOOGLE_CLIENT_ID="${GOOGLE_CLIENT_ID:-}" \
+    --env GOOGLE_CLIENT_SECRET="${GOOGLE_CLIENT_SECRET:-}" \
     --env PRAETORIUM_SEED_PREVIEW=true \
     --env S3_ENDPOINT="http://${minio}:9000" \
     --env S3_BUCKET=praetorium \
