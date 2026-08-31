@@ -30,6 +30,7 @@ export async function rosterForUse(userId: string, rosterId: string) {
       disposition: saved.disposition,
       limit: saved.limit,
       units: saved.picks,
+      waivedRules: saved.waivedRules,
     },
     catalogue,
   )

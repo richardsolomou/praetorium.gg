@@ -101,7 +101,12 @@ export function unitsIn(
   loaded: LoadedCatalogue,
   catalogueId: string,
   query: string,
-  { restrictions, factionCards, battleSize }: { restrictions?: FactionRestrictions; factionCards?: boolean; battleSize?: number } = {},
+  {
+    restrictions,
+    factionCards,
+    battleSize,
+    waivedRules = [],
+  }: { restrictions?: FactionRestrictions; factionCards?: boolean; battleSize?: number; waivedRules?: readonly string[] } = {},
 ): UnitSummary[] {
   const wanted = query.trim().toLowerCase()
   // A faction page lists what its cards list, where it has cards at all.
@@ -110,7 +115,10 @@ export function unitsIn(
   // Faction reference pages use one canonical name set, and a restriction set is
   // one stable value per rules snapshot. Cache the complete, priced list so each
   // search filters in memory instead of rebuilding every datasheet in the faction.
-  const cacheKey = `${catalogueId}:${included ? 'included' : 'all'}:${battleSize ?? 'all'}:${restrictionsKey(restrictions)}`
+  // A waived rule changes which datasheets the book offers and how many of each, so
+  // it belongs in the key: sharing one entry across waiver sets served a filtered book
+  // to a roster that had turned the filter off.
+  const cacheKey = `${catalogueId}:${included ? 'included' : 'all'}:${battleSize ?? 'all'}:${[...waivedRules].toSorted().join(',')}:${restrictionsKey(restrictions)}`
   const cached = unitSummaryCache.get(loaded)?.get(cacheKey)
   if (cached) return searchUnits(loaded, catalogueId, wanted, cached)
   const found: { id: string; name: string; group: UnitGroup; alliedFaction: string | null; alliedOrder: number }[] = []
@@ -141,8 +149,8 @@ export function unitsIn(
   const summaries = [...primary, ...allies].flatMap((unit) => {
     const sheet = battleSize !== undefined && isKotcLimit(battleSize) ? datasheetIn(loaded, catalogueId, unit.id) : null
     const facts = sheet ? { keywords: sheet.keywords, toughness: toughnessOf(sheet.profiles) } : null
-    if (facts && kotcUnitExclusions(facts).length) return []
-    const formatLimit = facts ? formatDatasheetLimit(battleSize!, kotcDatasheetRepeatable(facts.keywords)) : null
+    if (facts && kotcUnitExclusions(facts, waivedRules).length) return []
+    const formatLimit = facts ? formatDatasheetLimit(battleSize!, kotcDatasheetRepeatable(facts.keywords), waivedRules) : null
     return [
       {
         id: unit.id,

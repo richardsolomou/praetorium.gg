@@ -3,6 +3,16 @@ import { Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { Button } from '@/components/ui/button'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import { GAME_SIZES, PAINTED_ARMY_POINTS, type Command } from '../../../core/battle'
@@ -11,6 +21,7 @@ import { errorMessage } from '../../queryClient'
 import { savedRosterSummariesQuery } from '../../queries'
 import type { Army, Side } from '../../sides'
 import { ArmyIdentity, RosterIdentity } from '../ArmyIdentity'
+import { rosterWaivers, waiverCount, waiverLabels, WaiverNote } from '../FormatWaivers'
 import { CHOOSABLE, CHOSEN, DispositionChip, SetupNote, SetupSidePanel, useDispositionNames } from './chrome'
 
 type SavedRoster = Awaited<ReturnType<NonNullable<ReturnType<typeof savedRosterSummariesQuery>['queryFn']>>>[number]
@@ -32,6 +43,13 @@ type Props = {
 export function ArmiesStep({ view, sides, send, attachSavedRoster, pending, problem }: Props) {
   /** The army the chooser is picking for: your own, or a practice opponent's. */
   const [choosing, setChoosing] = useState<Army | null>(null)
+  /**
+   * A chosen list that is not playing all of its format, held back for a confirmation.
+   *
+   * Attaching one is the moment it stops being the owner's own business: from here the
+   * opponent is facing it, so the player who brings it says so on purpose.
+   */
+  const [confirming, setConfirming] = useState<SavedRoster | null>(null)
   const rosterQuery = useQuery(savedRosterSummariesQuery())
   const saved = rosterQuery.data ?? []
   const nameDisposition = useDispositionNames()
@@ -44,6 +62,18 @@ export function ArmiesStep({ view, sides, send, attachSavedRoster, pending, prob
   // The chooser prices against the side it was opened for, which an allied pair splits.
   const chooserLimit = choosing ? limitFor(sideOf(choosing)) : perArmy
   const eligible = chooserLimit === null ? saved : saved.filter((roster) => roster.limit === chooserLimit)
+  const attach = async (savedRoster: SavedRoster) => {
+    if (choosing && (await attachSavedRoster(savedRoster.id, choosing.playerId))) setChoosing(null)
+  }
+  // The confirmation closes as it is answered, so a refused attach reports itself in
+  // the chooser behind it rather than under a dialog that has nowhere to say it.
+  const confirm = () => {
+    const chosen = confirming
+    setConfirming(null)
+    if (chosen) void attach(chosen)
+  }
+  const confirmingWaivers = rosterWaivers(confirming)
+  const oneWaiver = confirmingWaivers.length === 1
   return (
     <div className="space-y-4">
       {perArmy !== null && perArmy !== view.settings.limit ? (
@@ -79,6 +109,9 @@ export function ArmiesStep({ view, sides, send, attachSavedRoster, pending, prob
                      * rather than being read back off the battlefield step later.
                      */}
                     <DispositionChip disposition={nameDisposition(army.roster?.built?.disposition)} className="mt-1" />
+                    {/* Said under every army rather than only under your own: an opponent
+                        deciding whether to play this game needs the same fact its owner has. */}
+                    <WaiverNote rules={rosterWaivers(army.roster?.built)} className="mt-1" />
                   </div>
                   {view.leagueToken ? (
                     <span className="chip shrink-0 text-achieved">League roster</span>
@@ -164,11 +197,30 @@ export function ArmiesStep({ view, sides, send, attachSavedRoster, pending, prob
         selectedName={choosing?.roster?.name}
         loading={rosterQuery.isPending}
         pending={pending}
-        onChoose={async (savedRoster) => {
-          if (choosing && (await attachSavedRoster(savedRoster.id, choosing.playerId))) setChoosing(null)
+        onChoose={(savedRoster) => {
+          if (rosterWaivers(savedRoster).length) setConfirming(savedRoster)
+          else void attach(savedRoster)
         }}
         error={rosterQuery.error ? errorMessage(rosterQuery.error) : problem}
       />
+      <AlertDialog open={confirming !== null} onOpenChange={(open) => !open && setConfirming(null)}>
+        <AlertDialogContent className="rounded-none border border-edge bg-panel text-bone">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="uppercase">Bring a list built past its format?</AlertDialogTitle>
+            <AlertDialogDescription className="text-dim">
+              {confirming?.name} is built with {waiverCount(confirmingWaivers)} switched off: {waiverLabels(confirmingWaivers)}. Praetorium
+              has not checked {oneWaiver ? 'that restriction' : 'those restrictions'}, and everyone at this table will see that the list
+              waives {oneWaiver ? 'it' : 'them'}.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={pending}>Choose another list</AlertDialogCancel>
+            <AlertDialogAction disabled={pending} onClick={confirm}>
+              Bring this list
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
@@ -251,6 +303,7 @@ function RosterChooser({
                     11th edition · {GAME_SIZES.find((size) => size.limit === roster.limit)?.name ?? `${roster.limit} points`} ·{' '}
                     {roster.unitCount} units
                   </span>
+                  <WaiverNote rules={rosterWaivers(roster)} className="mt-1" />
                 </span>
                 <span className="shrink-0 text-right">
                   <span className="chip block">{roster.limit} pts</span>

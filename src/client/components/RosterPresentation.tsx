@@ -2,8 +2,9 @@ import { Link } from '@tanstack/react-router'
 import type { ChangeEventHandler, ReactNode } from 'react'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
-import { GAME_SIZES } from '../../core/battle'
+import { GAME_SIZES, type FormatRule } from '../../core/battle'
 import { FactionLabel, type FactionPresentation } from './FactionMark'
+import { WaiverChip } from './FormatWaivers'
 import { dispositionTone } from './rosterSetup'
 
 type PresentedFaction = FactionPresentation & {
@@ -21,6 +22,7 @@ export type PresentedDetachment = {
 }
 
 const NO_DETACHMENTS: readonly PresentedDetachment[] = []
+const NO_WAIVERS: readonly FormatRule[] = []
 
 type RosterHeaderProps = {
   name: string
@@ -34,6 +36,8 @@ type RosterHeaderProps = {
   limit?: number
   detachments?: readonly PresentedDetachment[]
   disposition?: string | null
+  /** The format restrictions this list is not playing, named beside it wherever it is read. */
+  waivers?: readonly FormatRule[]
   actions?: ReactNode
   children?: ReactNode
 }
@@ -50,6 +54,7 @@ export function RosterHeader({
   limit,
   detachments = NO_DETACHMENTS,
   disposition,
+  waivers = NO_WAIVERS,
   actions,
   children,
 }: RosterHeaderProps) {
@@ -119,6 +124,12 @@ export function RosterHeader({
               <span className="contents">
                 <span aria-hidden>·</span>
                 <span className={`chip shrink-0 ${dispositionTone(shownDisposition.id)}`}>{shownDisposition.name}</span>
+              </span>
+            ) : null}
+            {waivers.length ? (
+              <span className="contents">
+                <span aria-hidden>·</span>
+                <WaiverChip rules={waivers} />
               </span>
             ) : null}
           </span>

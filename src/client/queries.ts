@@ -1,5 +1,6 @@
 import { infiniteQueryOptions, type QueryClient, queryOptions, replaceEqualDeep } from '@tanstack/react-query'
 import type { AdminUsersCursor } from '../admin'
+import type { FormatRuleId } from '../core/battle'
 import type { RosterPick } from '../core/roster'
 import {
   battleReport,
@@ -183,10 +184,11 @@ export const terrainReferencesQuery = (matchupIds: readonly string[]) =>
 /** The datasheets the player owns models for, so the picker can filter on it. */
 export const collectionQuery = () => queryOptions({ queryKey: ['collection'], queryFn: () => collection(), staleTime: SSR_STALE_TIME })
 
-export const unitsQuery = (catalogueId: string, query: string, battleSize?: number) =>
+export const unitsQuery = (catalogueId: string, query: string, battleSize?: number, waivedRules: readonly FormatRuleId[] = []) =>
   queryOptions({
-    queryKey: ['units', catalogueId, query, battleSize ?? null],
-    queryFn: () => units({ data: { catalogueId, query, ...(battleSize === undefined ? {} : { battleSize }) } }),
+    queryKey: ['units', catalogueId, query, battleSize ?? null, waivedRules],
+    queryFn: () =>
+      units({ data: { catalogueId, query, ...(battleSize === undefined ? {} : { battleSize }), waivedRules: [...waivedRules] } }),
     enabled: Boolean(catalogueId),
     staleTime: SSR_STALE_TIME,
   })
@@ -264,10 +266,16 @@ export const priceQuery = (
   disposition: string | null,
   limit: number,
   picked: readonly RosterPick[],
+  waivedRules: readonly FormatRuleId[] = [],
 ) =>
   queryOptions({
-    queryKey: ['price', catalogueId, detachmentIds, disposition, limit, picked],
-    queryFn: () => priceRoster({ data: { catalogueId, detachmentIds: [...detachmentIds], disposition, limit, units: [...picked] } }),
+    // The picks stay last: the placeholder that survives a removed unit reads them
+    // off the end of the key.
+    queryKey: ['price', catalogueId, detachmentIds, disposition, limit, waivedRules, picked],
+    queryFn: () =>
+      priceRoster({
+        data: { catalogueId, detachmentIds: [...detachmentIds], disposition, limit, units: [...picked], waivedRules: [...waivedRules] },
+      }),
     enabled: Boolean(catalogueId),
     staleTime: SSR_STALE_TIME,
   })
@@ -281,9 +289,10 @@ export const savedRosterPriceQuery = (
   limit: number,
   picked: readonly RosterPick[],
   battle?: string,
+  waivedRules: readonly FormatRuleId[] = [],
 ) =>
   queryOptions({
-    ...priceQuery(catalogueId, detachmentIds, disposition, limit, picked),
+    ...priceQuery(catalogueId, detachmentIds, disposition, limit, picked, waivedRules),
     queryFn: () => savedRosterPrice({ data: { id, ...(battle ? { battle } : {}) } }),
   })
 

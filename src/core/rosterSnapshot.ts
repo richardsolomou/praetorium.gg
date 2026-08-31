@@ -1,6 +1,6 @@
 import type { Attachment } from './attach'
 import { attachmentRows } from './attachmentRows'
-import type { Roster } from './battle'
+import type { FormatRuleId, Roster } from './battle'
 import type { RosterPick } from './roster'
 import type { UnitGroup } from './unitGroups'
 
@@ -12,6 +12,7 @@ type SavedRoster = {
   disposition: string | null
   limit: number
   picks: readonly RosterPick[]
+  waivedRules: readonly FormatRuleId[]
 }
 
 type PricedRoster = {
@@ -73,6 +74,10 @@ export function rosterSnapshot(saved: SavedRoster, priced: PricedRoster, wounds:
       detachmentPointBudget: priced.detachmentPointBudget,
       disposition: priced.disposition ?? null,
       detachmentIds: [...saved.detachmentIds],
+      // Carried into the battle so the snapshot is priced under the rules it was
+      // built under: a waiver left behind would report the roster as illegal on the
+      // one screen where nothing can be done about it.
+      waivedRules: [...saved.waivedRules],
       picks: saved.picks.map((pick) => ({ ...pick })),
       units: priced.units.map((unit, index) => ({
         key: `${index}-${unit.entryId}`,

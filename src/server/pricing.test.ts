@@ -239,6 +239,42 @@ describe('King of the Colosseum army construction', () => {
       'allows at most 1 of this datasheet, has 2',
     ])
   })
+
+  it('stops enforcing a restriction the roster has waived', () => {
+    const army = [unit('hero', ['Infantry', 'Epic Hero'], 4, true), unit('troops', ['Infantry', 'Battleline'], 4)]
+    expect(kotcViolations(1, army).map((error) => error.message)).toEqual(['does not allow Epic Heroes'])
+    expect(kotcViolations(1, army, 600, ['kotc-epic-heroes'])).toEqual([])
+  })
+
+  it('waives only the rule named, leaving the rest of the format intact', () => {
+    const errors = kotcViolations(2, [unit('hero', ['Infantry', 'Epic Hero'], 10)], 600, ['kotc-toughness'])
+    expect(errors.map((error) => error.message)).toEqual([
+      'needs exactly 1 detachment, has 2',
+      'needs at least 2 Infantry units',
+      'needs a Warlord',
+      'does not allow Epic Heroes',
+    ])
+  })
+
+  it('says nothing about a Toughness the catalogue cannot state once the cap is waived', () => {
+    const army = [
+      { entryId: 'mystery', name: 'mystery', keywords: ['Infantry'], toughness: null, warlord: true },
+      unit('troops', ['Infantry', 'Battleline'], 4),
+    ]
+    expect(kotcViolations(1, army).map((error) => error.message)).toEqual(['cannot verify its Toughness from the synced catalogue'])
+    expect(kotcViolations(1, army, 600, ['kotc-toughness'])).toEqual([])
+  })
+
+  it('lets a waived datasheet cap take as many copies as the catalogue allows', () => {
+    const army = [
+      unit('leader', ['Infantry', 'Character'], 4, true),
+      unit('troops', ['Infantry'], 4),
+      unit('troops', ['Infantry'], 4),
+      unit('troops', ['Infantry'], 4),
+    ]
+    expect(kotcViolations(1, army).map((error) => error.message)).toEqual(['allows at most 1 of this datasheet, has 3'])
+    expect(kotcViolations(1, army, 600, ['kotc-datasheet-copies'])).toEqual([])
+  })
 })
 
 /**

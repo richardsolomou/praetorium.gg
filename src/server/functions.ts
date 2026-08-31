@@ -90,7 +90,11 @@ export const units = createServerFn({ method: 'GET' })
       const book = loaded.factions.find((entry) => entry.id === data.catalogueId)
       const displayName = book ? factionDisplayName(book.name, names) : ''
       const restrictions = rules?.factionRestrictions.get(routeSlug(displayName))
-      return unitsIn(loaded, data.catalogueId, data.query, { restrictions, battleSize: data.battleSize }).map((unit) => ({
+      return unitsIn(loaded, data.catalogueId, data.query, {
+        restrictions,
+        battleSize: data.battleSize,
+        waivedRules: data.waivedRules,
+      }).map((unit) => ({
         ...unit,
         alliedFaction: unit.alliedFaction ? factionDisplayName(unit.alliedFaction, names) : null,
       }))

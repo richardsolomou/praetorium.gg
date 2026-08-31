@@ -48,7 +48,9 @@ import { alliedLeagueRosterLimit, leagueRosterSplit, leagueTableShape, LEAGUE_ME
 import { TABLE_SHAPE_LABELS, type TableShape } from '../../../core/tableShape'
 import { seatedPlayers, seatsFor, type Seat } from '../../seats'
 import { SeatMatchup, SeatRows, seatLabel, seatOption } from '../Seats'
+import { rosterWaivers, waiverCount, waiverLabels } from '../FormatWaivers'
 import { RosterSummary } from '../rosters/RosterSummary'
+import type { SavedRoster } from '../rosters/rosterLibrary'
 import { BattleShelf } from '../battles/BattleShelf'
 import { LeaguePageActions } from './LeagueActions'
 import { LeagueEventRuleFields, type LeagueEventRuleValue } from './LeagueEventRuleFields'
@@ -66,6 +68,7 @@ export function LeaguePage({ token, eventToken, startBattle }: { token: string; 
     if (league === null) void navigate({ to: '/leagues' })
   }, [league, navigate])
   const [choosing, setChoosing] = useState(false)
+  const [sealing, setSealing] = useState<SavedRoster | null>(null)
   const [revealing, setRevealing] = useState(false)
   const [starting, setStarting] = useState(false)
   const [eventRule, setEventRule] = useState<LeagueEventRuleValue>({ format: '1v1', rosterLimit: 2_000 })
@@ -163,6 +166,8 @@ export function LeaguePage({ token, eventToken, startBattle }: { token: string; 
     submit.reset()
     setChoosing(false)
   }
+  /** A roster that is not playing all of its format, held back until its owner says so on purpose. */
+  const sealWaivers = sealing ? rosterWaivers(sealing) : []
   if (!league) return null
   const eventBattles = leagueBattlesFrom(battleHistory.data)
   const isOwner = me?.id === league.ownerId
@@ -621,11 +626,42 @@ export function LeaguePage({ token, eventToken, startBattle }: { token: string; 
         error={submit.error}
         requiredLimit={ownEntry?.requiredLimit ?? null}
         onClose={closeRosterChooser}
-        onChoose={(id) => {
+        onChoose={(roster) => {
           submit.reset()
-          submit.mutate(id)
+          if (rosterWaivers(roster).length) setSealing(roster)
+          else submit.mutate(roster.id)
         }}
       />
+      <AlertDialog
+        open={sealing !== null}
+        onOpenChange={(open) => {
+          if (submit.isPending) return
+          if (!open) setSealing(null)
+        }}
+      >
+        <AlertDialogContent aria-busy={submit.isPending} className="rounded-none border border-edge bg-panel text-bone">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="uppercase">Seal a roster built past its format?</AlertDialogTitle>
+            <AlertDialogDescription className="text-dim">
+              {sealing?.name} is built with {waiverCount(sealWaivers)} switched off: {waiverLabels(sealWaivers)}. Praetorium has not checked{' '}
+              {sealWaivers.length === 1 ? 'that restriction' : 'those restrictions'}, so this roster may not be legal for the event. Once
+              the organizer reveals the rosters, they and every opponent will see what it waives.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={submit.isPending}>Choose another roster</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={submit.isPending}
+              onClick={() => {
+                if (sealing) submit.mutate(sealing.id)
+                setSealing(null)
+              }}
+            >
+              Seal this roster
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <AlertDialog
         open={revealing}
         onOpenChange={(open) => {
@@ -822,7 +858,7 @@ function RosterChooser({
   error: Error | null
   requiredLimit: number | null
   onClose: () => void
-  onChoose: (id: string) => void
+  onChoose: (roster: SavedRoster) => void
 }) {
   const rosterQuery = useQuery({ ...savedRosterSummariesQuery(), enabled: open })
   const { data: available } = useQuery({ ...factionIndexQuery(), enabled: open })
@@ -857,7 +893,7 @@ function RosterChooser({
                 data-roster={roster.name}
                 className="flex w-full flex-wrap items-center gap-2 border border-edge bg-panel p-2 hover:border-azure disabled:cursor-wait disabled:opacity-70"
                 disabled={pending}
-                onClick={() => onChoose(roster.id)}
+                onClick={() => onChoose(roster)}
               >
                 <RosterSummary
                   roster={roster}

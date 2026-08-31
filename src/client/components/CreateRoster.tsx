@@ -14,6 +14,7 @@ const EMPTY_SETUP: RosterSetup = {
   detachmentIds: [],
   disposition: null,
   limit: DEFAULT_GAME_LIMIT,
+  waivedRules: [],
   visibility: 'private',
 }
 

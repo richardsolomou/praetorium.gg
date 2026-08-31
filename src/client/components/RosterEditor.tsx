@@ -9,6 +9,7 @@ type Roster = {
   disposition: string | null
   limit: number
   picks: Parameters<typeof ListBuilder>[0]['initial']['picks']
+  waivedRules: Parameters<typeof ListBuilder>[0]['initial']['waivedRules']
   prep?: { stratagems: Stratagem[]; secondaries: Secondary[] } | null
   visibility: Parameters<typeof ListBuilder>[0]['initial']['visibility']
   source: Parameters<typeof ListBuilder>[0]['initial']['source']

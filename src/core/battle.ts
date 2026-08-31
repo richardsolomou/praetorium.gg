@@ -83,6 +83,8 @@ type BuiltRoster = {
   disposition: string | null
   /** Frozen selections let a battle roster open the same applied datasheets as a shared roster. */
   detachmentIds?: string[]
+  /** The format restrictions the list was built without, so it prices in the battle as it did in the builder. */
+  waivedRules?: FormatRuleId[]
   picks?: RosterPick[]
   /**
    * The units as submitted, fixed at the moment the list was attached.
@@ -311,11 +313,46 @@ export const GAME_SIZES = [
 
 export const detachmentPointBudget = (limit: number) => GAME_SIZES.find((size) => size.limit === limit)?.detachmentPoints ?? null
 export const isKotcLimit = (limit: number | null): boolean => limit !== null && KOTC_LIMITS.some((candidate) => candidate === limit)
-export const detachmentLimit = (limit: number) => (isKotcLimit(limit) ? 1 : 3)
 export const battleRoundLimit = (_limit: number | null) => BATTLE_ROUNDS
 
+/**
+ * The army-construction rules a battle size adds, each one a roster may switch off.
+ *
+ * A format's restrictions describe the event most people are building for, not the
+ * game in front of this player: a group agreeing to play King of the Colosseum with
+ * Epic Heroes allowed is playing the game they agreed on, and a builder that refuses
+ * to draw their list is wrong about a table it cannot see. So every restriction the
+ * price enforces is named here, and a roster carries the ids it has waived.
+ *
+ * The names are read in both directions: `kotcViolations` asks before it reports and
+ * the picker asks before it hides, so a waived rule cannot go on quietly filtering
+ * datasheets out of the book while the roster says it is allowed.
+ */
+export const FORMAT_RULE_IDS = [
+  'detachments',
+  'detachment-points',
+  'kotc-infantry',
+  'kotc-warlord',
+  'kotc-epic-heroes',
+  'kotc-toughness',
+  'kotc-datasheet-copies',
+] as const
+
+export type FormatRuleId = (typeof FORMAT_RULE_IDS)[number]
+export type FormatRule = { id: FormatRuleId; label: string; hint: string }
+
+/** The maximum detachments a roster may hold, whatever its size says. */
+export const MAX_DETACHMENTS = 3
+
+/** Whether a rule still applies, given what the roster has waived. */
+export const enforces = (waived: readonly string[] | undefined, rule: FormatRuleId) => !waived?.includes(rule)
+
+export const detachmentLimit = (limit: number, waived: readonly string[] = []) =>
+  isKotcLimit(limit) && enforces(waived, 'detachments') ? 1 : MAX_DETACHMENTS
+
 /** The format-specific cap for copies of one datasheet, before catalogue limits are applied. */
-export const formatDatasheetLimit = (limit: number, repeatable: boolean) => (isKotcLimit(limit) ? (repeatable ? 2 : 1) : null)
+export const formatDatasheetLimit = (limit: number, repeatable: boolean, waived: readonly string[] = []) =>
+  isKotcLimit(limit) && enforces(waived, 'kotc-datasheet-copies') ? (repeatable ? 2 : 1) : null
 
 const hasUnitKeyword = (keywords: readonly string[], wanted: string) =>
   keywords.some((keyword) => keyword.trim().toLocaleLowerCase() === wanted)
@@ -323,15 +360,58 @@ const hasUnitKeyword = (keywords: readonly string[], wanted: string) =>
 export const kotcDatasheetRepeatable = (keywords: readonly string[]) =>
   hasUnitKeyword(keywords, 'battleline') || hasUnitKeyword(keywords, 'dedicated transport')
 
-export function kotcUnitExclusions(unit: { keywords: readonly string[]; toughness: number | null }): string[] {
+/** What this battle size restricts, in the order a player reads it. */
+export function formatRules(limit: number | null): FormatRule[] {
+  if (limit === null) return []
+  if (isKotcLimit(limit)) {
+    return [
+      { id: 'detachments', label: 'One detachment', hint: 'The roster is built from exactly one detachment' },
+      { id: 'kotc-infantry', label: 'Two Infantry units', hint: 'The roster holds at least two Infantry units' },
+      { id: 'kotc-warlord', label: 'A Warlord', hint: 'One unit is named as the Warlord' },
+      { id: 'kotc-epic-heroes', label: 'No Epic Heroes', hint: 'Datasheets with the Epic Hero keyword may not be taken' },
+      { id: 'kotc-toughness', label: 'Toughness cap', hint: 'Nothing above Toughness 9, and at most one Toughness 9 unit' },
+      {
+        id: 'kotc-datasheet-copies',
+        label: 'Datasheet copies',
+        hint: `At most ${formatDatasheetLimit(limit, false)} of each datasheet, or ${formatDatasheetLimit(limit, true)} for Battleline and Dedicated Transports`,
+      },
+    ]
+  }
+  const budget = detachmentPointBudget(limit)
+  return budget === null
+    ? []
+    : [{ id: 'detachment-points', label: 'Detachment points', hint: `Detachments cost at most ${budget} DP together` }]
+}
+
+/**
+ * The restrictions a roster's own battle size imposes that it is not playing.
+ *
+ * The one answer to "is this list built to its format?", so the builder, the roster
+ * chooser, a league's sealing dialog and the opponent's view of an attached army all
+ * say the same thing about the same list. Waivers a size does not impose are not
+ * counted: an id kept from another size restricts nothing here.
+ */
+export const waivedFormatRules = (limit: number | null, waived: readonly string[] | undefined): FormatRule[] =>
+  formatRules(limit).filter((rule) => !enforces(waived, rule.id))
+
+export function kotcUnitExclusions(
+  unit: { keywords: readonly string[]; toughness: number | null },
+  waived: readonly string[] = [],
+): string[] {
   return [
-    ...(hasUnitKeyword(unit.keywords, 'epic hero') ? ['does not allow Epic Heroes'] : []),
-    ...(unit.toughness !== null && unit.toughness > 9 ? [`does not allow Toughness ${unit.toughness}`] : []),
+    ...(enforces(waived, 'kotc-epic-heroes') && hasUnitKeyword(unit.keywords, 'epic hero') ? ['does not allow Epic Heroes'] : []),
+    ...(enforces(waived, 'kotc-toughness') && unit.toughness !== null && unit.toughness > 9
+      ? [`does not allow Toughness ${unit.toughness}`]
+      : []),
   ]
 }
 
-export function detachmentPointsError(detachments: readonly { points: number | null }[], allowance: number | null): string | null {
-  if (detachments.length <= 1 || allowance === null) return null
+export function detachmentPointsError(
+  detachments: readonly { points: number | null }[],
+  allowance: number | null,
+  waived: readonly string[] = [],
+): string | null {
+  if (detachments.length <= 1 || allowance === null || !enforces(waived, 'detachment-points')) return null
   const spent = detachments.reduce((total, detachment) => total + (detachment.points ?? 0), 0)
   return spent > allowance
     ? `This combination costs ${spent} DP; multiple detachments at this battle size may cost at most ${allowance} DP.`

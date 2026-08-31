@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Toggle } from '@/components/ui/toggle'
-import { isKotcLimit } from '../../../core/battle'
+import type { FormatRuleId } from '../../../core/battle'
+import { enforces, isKotcLimit } from '../../../core/battle'
 import type { UnitSummary } from '../../../server/cataloguePicker'
 import { SearchField } from '../SearchField'
 import { DatasheetMatchReasons } from '../DatasheetMatchReasons'
@@ -24,19 +25,20 @@ type Props = {
   inRoster: Record<string, number>
   room: number | null
   battleSize: number
+  /** Which of the battle size's restrictions the roster has switched off. */
+  waivedRules: readonly FormatRuleId[]
   query: string
   onQueryChange: (query: string) => void
   active: ReadonlySet<PickerFilter>
   onFilterToggle: (filter: PickerFilter) => void
 }
 
-export type PickerFilter = 'fit' | 'limit' | 'owned' | 'allies'
+export type PickerFilter = 'fit' | 'limit' | 'owned'
 
 const FILTERS: { id: PickerFilter; label: string; hint: string }[] = [
   { id: 'fit', label: 'Points fit', hint: 'Hide anything that would not fit in the points left' },
   { id: 'limit', label: 'Unit limit', hint: 'Hide anything the roster already holds as many of as it may' },
   { id: 'owned', label: 'Owned', hint: 'Show only datasheets you own models for' },
-  { id: 'allies', label: 'Hide allies', hint: 'Hide allied datasheets contributed by secondary forces' },
 ]
 
 /**
@@ -55,6 +57,7 @@ export const Picker = memo(function Picker({
   inRoster,
   room,
   battleSize,
+  waivedRules,
   query,
   onQueryChange,
   active,
@@ -62,7 +65,7 @@ export const Picker = memo(function Picker({
 }: Props) {
   const settledQuery = useSettled(query.trim())
   const unitsResult = useQuery({
-    ...unitsQuery(catalogueId, settledQuery, battleSize),
+    ...unitsQuery(catalogueId, settledQuery, battleSize, waivedRules),
     enabled: enabled && Boolean(catalogueId),
     placeholderData: keepPreviousData,
   })
@@ -80,7 +83,6 @@ export const Picker = memo(function Picker({
         if (active.has('fit') && room !== null && unit.points !== null && unit.points > room) return false
         if (active.has('limit') && unit.limit !== null && (inRoster[unit.id] ?? 0) >= unit.limit) return false
         if (active.has('owned') && !collection.has(unit.id)) return false
-        if (active.has('allies') && unit.allied) return false
         return true
       }),
     [found, active, room, inRoster, collection],
@@ -149,6 +151,7 @@ export const Picker = memo(function Picker({
                         inCollection={collection.has(unit.id)}
                         collectionPending={own.isPending && own.variables?.entryId === unit.id}
                         battleSize={battleSize}
+                        waivedRules={waivedRules}
                         query={settledQuery}
                         onPreview={onPreview}
                         onOwned={setOwned}
@@ -196,6 +199,7 @@ type PickerRowProps = {
   inCollection: boolean
   collectionPending: boolean
   battleSize: number
+  waivedRules: readonly FormatRuleId[]
   query: string
   onPreview: (entryId: string, name: string) => void
   onOwned: (entryId: string, owned: boolean) => void
@@ -209,6 +213,7 @@ const PickerRow = memo(function PickerRow({
   inCollection,
   collectionPending,
   battleSize,
+  waivedRules,
   query,
   onPreview,
   onOwned,
@@ -253,7 +258,7 @@ const PickerRow = memo(function PickerRow({
           size="sm"
           className="h-7 shrink-0 px-2 text-[0.6875rem]"
           aria-label={`Add ${unit.name}`}
-          disabled={isKotcLimit(battleSize) && full}
+          disabled={isKotcLimit(battleSize) && enforces(waivedRules, 'kotc-datasheet-copies') && full}
           onClick={() => onAdd(unit.id)}
         >
           <Plus className="size-3" />

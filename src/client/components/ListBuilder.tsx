@@ -20,8 +20,8 @@ import { Toggle } from '@/components/ui/toggle'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import type { Secondary, Stratagem } from '../../core/battle'
-import { ROSTER_NAME_MAX_LENGTH } from '../../core/battle'
+import type { FormatRuleId, Secondary, Stratagem } from '../../core/battle'
+import { ROSTER_NAME_MAX_LENGTH, waivedFormatRules } from '../../core/battle'
 import type { RosterPick } from '../../core/roster'
 import type { RosterSource, RosterVisibility } from '../../core/savedRoster'
 import type { Datasheet } from '../../server/catalogue'
@@ -59,6 +59,7 @@ type Props = {
     disposition: string | null
     limit: number
     picks: RosterPick[]
+    waivedRules: FormatRuleId[]
     visibility: RosterVisibility
     source: RosterSource
   }
@@ -94,6 +95,7 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
   const [limit, setLimit] = useState(initial.limit)
   const [detachmentIds, setDetachmentIds] = useState<string[]>(initial.detachmentIds)
   const [disposition, setDisposition] = useState<string | null>(initial.disposition)
+  const [waivedRules, setWaivedRules] = useState<FormatRuleId[]>(initial.waivedRules)
   const [name, setName] = useState(initial.name)
   const [visibility, setVisibility] = useState<RosterVisibility>(initial.visibility)
   const [selected, setSelected] = useState<number | null>(null)
@@ -175,6 +177,7 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
           limit,
           picks: positioned,
           prep,
+          waivedRules,
           visibility,
           source: initial.source,
         },
@@ -192,13 +195,13 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
     // The mutation reads the complete rendered draft. A later render queues behind
     // this one, so the final request always contains the newest state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [catalogueId, detachmentIds, disposition, editable, limit, settledListName, settledPicks, prep, visibility])
+  }, [catalogueId, detachmentIds, disposition, editable, limit, settledListName, settledPicks, prep, visibility, waivedRules])
 
   /** Hands the list to another tool, in the format every one of them reads. */
   const take = useMutation({
     mutationFn: () =>
       exportRoster({
-        data: { catalogueId, detachmentIds, disposition, limit, name: listName || 'Roster', units: positioned },
+        data: { catalogueId, detachmentIds, disposition, limit, name: listName || 'Roster', units: positioned, waivedRules },
       }),
     onSuccess: ({ text }) => setExportText(text),
   })
@@ -214,6 +217,7 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
           limit,
           picks: positioned,
           prep,
+          waivedRules,
           visibility: 'private',
           source: initial.source,
         },
@@ -230,7 +234,7 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
     dataUpdatedAt: pricedAt,
     isPlaceholderData: pricePending,
   } = useQuery({
-    ...priceQuery(catalogueId, detachmentIds, disposition, limit, positioned),
+    ...priceQuery(catalogueId, detachmentIds, disposition, limit, positioned, waivedRules),
     /**
      * The last answer, with whatever the list has since let go of taken out of it.
      *
@@ -338,6 +342,7 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
           })),
         }
       : selectedUnit
+  const waivers = waivedFormatRules(limit, waivedRules)
   const inspectorView = editable && !readOnly ? 'edit' : 'readonly'
   const warlord = optimisticUnit?.toggles.find((toggle) => toggle.name === 'Warlord')
   const inspectedEntryId = preview?.entryId ?? optimisticUnit?.entryId ?? null
@@ -354,6 +359,7 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
             inRoster={held}
             room={priced ? limit - priced.points : null}
             battleSize={limit}
+            waivedRules={waivedRules}
             query={pickerQuery}
             onQueryChange={setPickerQuery}
             active={pickerFilters}
@@ -427,6 +433,7 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
           return detachment ? [{ id, name: detachment.name }] : []
         })}
         disposition={priced?.disposition}
+        waivers={waivers}
         actions={
           editable ? (
             <>
@@ -436,7 +443,9 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="min-w-48">
                   <DropdownMenuItem
-                    onClick={() => setSetupDraft({ name: listName, catalogueId, detachmentIds, disposition, limit, visibility })}
+                    onClick={() =>
+                      setSetupDraft({ name: listName, catalogueId, detachmentIds, disposition, limit, waivedRules, visibility })
+                    }
                   >
                     <Pencil /> Edit roster setup
                   </DropdownMenuItem>
@@ -518,7 +527,7 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
               variant="ghost"
               size="xs"
               className="h-auto p-0 text-destructive underline hover:text-destructive"
-              onClick={() => setSetupDraft({ name: listName, catalogueId, detachmentIds, disposition, limit, visibility })}
+              onClick={() => setSetupDraft({ name: listName, catalogueId, detachmentIds, disposition, limit, waivedRules, visibility })}
             >
               Choose one
             </Button>
@@ -544,6 +553,7 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
               setDetachmentIds(setup.detachmentIds)
               setDisposition(setup.disposition)
               setLimit(setup.limit)
+              setWaivedRules(setup.waivedRules)
               setVisibility(setup.visibility)
               if (changedFaction) {
                 edit.clear()

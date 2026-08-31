@@ -622,6 +622,7 @@ export class Repository {
     picks: string
     prep: string | null
     tags: string
+    waivedRules: string
     visibility: 'private' | 'unlisted'
     source: RosterSource
     now: number
@@ -637,6 +638,7 @@ export class Repository {
       picks: input.picks,
       prep: input.prep,
       tags: input.tags,
+      waivedRules: input.waivedRules,
       visibility: input.visibility,
       source: input.source,
       updatedAt: input.now,
@@ -668,6 +670,7 @@ export class Repository {
         detachmentId: rosters.detachmentId,
         disposition: rosters.disposition,
         limit: rosters.limit,
+        waivedRules: rosters.waivedRules,
         unitCount: sql<number>`jsonb_array_length(${rosters.picks}::jsonb)`,
         visibility: rosters.visibility,
         source: rosters.source,

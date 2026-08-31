@@ -324,7 +324,7 @@ async function verifiedSnapshots(): Promise<PreviewSnapshots> {
           : (priced.detachmentError ?? priced.dispositionError ?? priced.errors[0]?.message)
       if (!priced || error) throw new Error(`${saved.name} ${error}`)
       const snapshot = rosterSnapshot(
-        { ...saved, detachmentIds: [...saved.detachmentIds], picks: saved.picks.map((pick) => ({ ...pick })) },
+        { ...saved, detachmentIds: [...saved.detachmentIds], waivedRules: [], picks: saved.picks.map((pick) => ({ ...pick })) },
         priced,
         unitWoundsIn(
           catalogue,
@@ -532,6 +532,7 @@ async function seedInto(database: PraetoriumDatabase, snapshots: PreviewSnapshot
       catalogueId: roster.catalogueId,
       disposition: roster.disposition,
       limit: roster.limit,
+      waivedRules: '[]',
       userId,
       detachmentId: JSON.stringify(roster.detachmentIds),
       picks: JSON.stringify(roster.picks),
