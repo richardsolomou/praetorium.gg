@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.43.0
+
+### Minor Changes
+
+- 6abc485: Add store-ready iOS and Android applications with native battle integrations and Sign in with Apple.
+
 ## 0.42.8
 
 ### Patch Changes
