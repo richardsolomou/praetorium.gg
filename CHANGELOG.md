@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.43.1
+
+### Patch Changes
+
+- 8d31b7d: Allow Apple and Google sign-in to finish when returning from the native system authentication session.
+
 ## 0.43.0
 
 ### Minor Changes
