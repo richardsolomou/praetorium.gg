@@ -310,6 +310,9 @@ function RootComponent() {
                 <footer className="flex flex-col items-center gap-1.5 border-t border-edge px-4 py-4 text-center text-xs text-faint min-[900px]:flex-row min-[900px]:justify-between">
                   <p>Praetorium is an unofficial product, and is not in any way affiliated with or endorsed by Games Workshop.</p>
                   <p className="space-x-3">
+                    <Link to="/support" className="transition-colors hover:text-bone">
+                      Support
+                    </Link>
                     <Link to="/privacy" className="transition-colors hover:text-bone">
                       Privacy policy
                     </Link>

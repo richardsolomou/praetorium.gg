@@ -2,12 +2,12 @@ import { APP_URL } from './navigation'
 
 export const NATIVE_AUTH_CALLBACK_URL = 'praetorium://auth'
 
-const PROVIDERS = new Set(['discord', 'google'])
+const PROVIDERS = new Set(['apple', 'discord', 'google'])
 const ACTIONS = new Set(['link', 'sign-in'])
 
 export type NativeAuthRequest = {
   action: 'link' | 'sign-in'
-  provider: 'discord' | 'google'
+  provider: 'apple' | 'discord' | 'google'
   next: string
   requestSignUp: boolean
   sessionToken?: string
@@ -46,7 +46,7 @@ export function parseNativeAuthRequest(message: string): NativeAuthRequest | nul
     const value = JSON.parse(message) as Record<string, unknown>
     const next = localPath(value.next)
     if (
-      value.version !== 2 ||
+      (value.version !== 2 && value.version !== 3) ||
       value.type !== 'native-auth' ||
       !ACTIONS.has(String(value.action)) ||
       !PROVIDERS.has(String(value.provider)) ||
@@ -77,7 +77,7 @@ export function nativeAuthStartUrl(request: NativeAuthRequest) {
   url.searchParams.set('provider', request.provider)
   url.searchParams.set('action', request.action)
   url.searchParams.set('next', request.next)
-  url.searchParams.set('bridge', '2')
+  url.searchParams.set('bridge', '3')
   url.searchParams.set('challenge', request.challenge)
   if (request.requestSignUp) url.searchParams.set('requestSignUp', 'true')
   if (request.sessionToken) url.hash = new URLSearchParams({ session: request.sessionToken }).toString()
@@ -96,7 +96,7 @@ export function parseNativeAuthCallback(value: string, proof?: NativeAuthProof):
     if (
       url.protocol !== 'praetorium:' ||
       url.hostname !== 'auth' ||
-      url.searchParams.get('version') !== '2' ||
+      (url.searchParams.get('version') !== '2' && url.searchParams.get('version') !== '3') ||
       url.searchParams.has('error') ||
       !next ||
       !ACTIONS.has(String(action)) ||

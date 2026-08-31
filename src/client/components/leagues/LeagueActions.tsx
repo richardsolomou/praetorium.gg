@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { Check, Clipboard, EllipsisVertical, Eye, Pencil, Trash2 } from 'lucide-react'
+import { Check, Clipboard, EllipsisVertical, Eye, Pencil, Share2, Trash2 } from 'lucide-react'
 import { type ReactNode, useEffect, useState } from 'react'
 import {
   AlertDialog,
@@ -21,6 +21,7 @@ import type { TableShape } from '../../../core/tableShape'
 import { deleteLeague, updateLeague } from '../../../server/functions'
 import { leaguesQuery } from '../../queries'
 import { errorMessage } from '../../queryClient'
+import { shareLink } from '../../nativeBridge'
 import { LeagueFormFields, type LeagueFormValue } from './LeagueForm'
 
 export type ManageableLeague = {
@@ -100,8 +101,8 @@ function LeagueActionItems({
         </Item>
       ) : null}
       <Item onClick={actions.copyInvite}>
-        {actions.copyFeedback === 'success' ? <Check /> : <Clipboard />}{' '}
-        {actions.copyFeedback === 'success' ? 'Invite link copied' : 'Copy invite link'}
+        {actions.copyFeedback === 'shared' ? <Share2 /> : actions.copyFeedback === 'copied' ? <Check /> : <Clipboard />}{' '}
+        {actions.copyFeedback === 'shared' ? 'Invite shared' : actions.copyFeedback === 'copied' ? 'Invite link copied' : 'Share invite'}
       </Item>
       <Item onClick={actions.openEdit}>
         <Pencil /> Edit league
@@ -197,14 +198,14 @@ function LeagueActionDialogs({ actions }: { actions: Controller }) {
   )
 }
 
-function LeagueActionFeedback({ feedback }: { feedback: 'success' | 'error' | null }) {
+function LeagueActionFeedback({ feedback }: { feedback: 'copied' | 'error' | 'shared' | null }) {
   if (!feedback) return null
   return (
     <p
       aria-live="polite"
       className="fixed bottom-4 left-1/2 z-60 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 border border-edge bg-panel px-4 py-3 text-sm shadow-lg"
     >
-      {feedback === 'success' ? 'Invite link copied.' : 'Could not copy the invite link. Try again.'}
+      {feedback === 'shared' ? 'Invite shared.' : feedback === 'copied' ? 'Invite link copied.' : 'Could not share the invite. Try again.'}
     </p>
   )
 }
@@ -213,7 +214,7 @@ function useLeagueActions(league: ManageableLeague, onDeleted?: () => void | Pro
   const queryClient = useQueryClient()
   const [editing, setEditing] = useState(false)
   const [deleting, setDeleting] = useState(false)
-  const [copyFeedback, setCopyFeedback] = useState<'success' | 'error' | null>(null)
+  const [copyFeedback, setCopyFeedback] = useState<'copied' | 'error' | 'shared' | null>(null)
   const [value, setValue] = useState<LeagueFormValue>(formValue(league))
   useEffect(() => {
     if (!copyFeedback) return
@@ -277,8 +278,7 @@ function useLeagueActions(league: ManageableLeague, onDeleted?: () => void | Pro
     copyInvite: async () => {
       setCopyFeedback(null)
       try {
-        await navigator.clipboard.writeText(`${window.location.origin}/leagues/${league.token}`)
-        setCopyFeedback('success')
+        setCopyFeedback(await shareLink(`${window.location.origin}/leagues/${league.token}`, league.name))
       } catch {
         setCopyFeedback('error')
       }

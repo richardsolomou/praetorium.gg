@@ -38,6 +38,13 @@ describe('native authentication bridge', () => {
     })
   })
 
+  it('accepts Apple through the current shell bridge', () => {
+    expect(parseNativeAuthRequest(JSON.stringify({ ...request, version: 3, provider: 'apple' }))).toMatchObject({
+      action: 'sign-in',
+      provider: 'apple',
+    })
+  })
+
   it('requires a one-time session token when linking', () => {
     expect(parseNativeAuthRequest(JSON.stringify({ ...request, action: 'link' }))).toBeNull()
     expect(parseNativeAuthRequest(JSON.stringify({ ...request, action: 'link', sessionToken: 'a'.repeat(32) }))).toMatchObject({
@@ -63,7 +70,7 @@ describe('native authentication bridge', () => {
       }),
     )
     expect(url.searchParams.has('session')).toBe(false)
-    expect(url.searchParams.get('bridge')).toBe('2')
+    expect(url.searchParams.get('bridge')).toBe('3')
     expect(url.searchParams.get('challenge')).toBe(proof.challenge)
     expect(new URLSearchParams(url.hash.slice(1)).get('session')).toBe('secret-token')
   })

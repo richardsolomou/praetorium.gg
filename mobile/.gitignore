@@ -8,6 +8,7 @@ expo-env.d.ts
 *.p12
 *.key
 *.mobileprovision
+credentials.json
 .metro-health-check*
 *.tsbuildinfo
 /android

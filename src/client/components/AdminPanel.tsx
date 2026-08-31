@@ -177,7 +177,17 @@ function AdminUserSkeleton() {
 function methodNames(methods: string[]) {
   return (
     methods
-      .map((method) => (method === 'credential' ? 'Password' : method === 'google' ? 'Google' : method === 'discord' ? 'Discord' : method))
+      .map((method) =>
+        method === 'credential'
+          ? 'Password'
+          : method === 'apple'
+            ? 'Apple'
+            : method === 'google'
+              ? 'Google'
+              : method === 'discord'
+                ? 'Discord'
+                : method,
+      )
       .join(', ') || 'No sign-in method'
   )
 }
@@ -215,7 +225,9 @@ function CreateUserDialog({ onClose }: { onClose: () => void }) {
       <DialogContent className="ph-no-capture rounded-none border border-edge bg-panel sm:max-w-md" showCloseButton={!busy}>
         <DialogHeader>
           <DialogTitle>Add user</DialogTitle>
-          <DialogDescription>Create a password account. The player can link Google or Discord from their profile later.</DialogDescription>
+          <DialogDescription>
+            Create a password account. The player can link Apple, Google or Discord from their profile later.
+          </DialogDescription>
         </DialogHeader>
         <form
           className="space-y-4"

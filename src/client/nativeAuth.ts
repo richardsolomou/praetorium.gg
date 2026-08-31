@@ -1,9 +1,10 @@
 import type { SocialAuthProvider } from '../authConfig'
+import { nativeBridgeVersion } from './nativeBridge'
 
 export type NativeAuthAction = 'link' | 'sign-in'
 
 type NativeAuthRequest = {
-  version: 1 | 2
+  version: 1 | 2 | 3
   type: 'native-auth'
   action: NativeAuthAction
   provider: SocialAuthProvider
@@ -14,19 +15,9 @@ type NativeAuthRequest = {
   verifier?: string
 }
 
-declare global {
-  interface Window {
-    PraetoriumNative?: { bridgeVersion: number }
-    ReactNativeWebView?: { postMessage(message: string): void }
-  }
-}
-
 export function hasNativeAuthBridge() {
-  return (
-    typeof window !== 'undefined' &&
-    (window.PraetoriumNative?.bridgeVersion === 1 || window.PraetoriumNative?.bridgeVersion === 2) &&
-    Boolean(window.ReactNativeWebView)
-  )
+  const version = nativeBridgeVersion()
+  return typeof window !== 'undefined' && (version === 1 || version === 2 || version === 3) && Boolean(window.ReactNativeWebView)
 }
 
 function base64url(bytes: Uint8Array) {
@@ -45,7 +36,7 @@ async function nativeAuthProof() {
 export async function requestNativeAuth(request: Omit<NativeAuthRequest, 'challenge' | 'type' | 'verifier' | 'version'>) {
   if (!hasNativeAuthBridge() || !window.ReactNativeWebView) return false
   const version = window.PraetoriumNative!.bridgeVersion as NativeAuthRequest['version']
-  const proof = version === 2 ? await nativeAuthProof() : {}
+  const proof = version >= 2 ? await nativeAuthProof() : {}
   window.ReactNativeWebView.postMessage(JSON.stringify({ version, type: 'native-auth', ...request, ...proof } satisfies NativeAuthRequest))
   return true
 }

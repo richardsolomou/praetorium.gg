@@ -127,7 +127,7 @@ export function AccountSecurity({ me }: { me: AccountIdentity }) {
                   <div className="min-w-0 flex-1">
                     <p className="font-semibold text-bone">Verify your email</p>
                     <p className="mt-1 text-xs text-dim">
-                      Verify {me.email} so a matching Google or Discord account can sign you in safely.
+                      Verify {me.email} so a matching Apple, Google or Discord account can sign you in safely.
                     </p>
                   </div>
                 </div>
@@ -364,7 +364,7 @@ function DeleteAccountForm({ hasPassword }: { hasPassword: boolean }) {
           />
         </div>
       ) : (
-        <p className="text-sm text-dim">Your recent Google or Discord sign-in confirms this request.</p>
+        <p className="text-sm text-dim">Your recent Apple, Google or Discord sign-in confirms this request.</p>
       )}
       <label className="flex items-start gap-3 text-sm text-dim">
         <input

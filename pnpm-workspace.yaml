@@ -10,4 +10,5 @@ allowBuilds:
   protobufjs: false
 minimumReleaseAgeExclude:
   - ras-stack@0.47.0
+  - expo-haptics@57.0.2
 minimumReleaseAge: 10080

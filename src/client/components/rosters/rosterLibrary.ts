@@ -5,6 +5,7 @@ import { ROSTER_NAME_MAX_LENGTH } from '../../../core/battle'
 import { deleteRoster, exportRoster, saveRoster, setRosterVisibility, sharedRoster } from '../../../server/functions'
 import { invalidateSavedRosters, savedRosterSummariesQuery } from '../../queries'
 import { errorMessage } from '../../queryClient'
+import { shareLink } from '../../nativeBridge'
 import type { RosterSetup } from '../RosterSetupDialog'
 
 /** One saved list, as the library reads it back. */
@@ -21,7 +22,7 @@ export function useRosterActions(origin: string) {
   const queryClient = useQueryClient()
   const refresh = () => invalidateSavedRosters(queryClient)
 
-  const [copiedFor, setCopiedFor] = useState<string | null>(null)
+  const [shareFeedback, setShareFeedback] = useState<{ id: string; result: 'copied' | 'shared' } | null>(null)
   const [shareProblem, setShareProblem] = useState<string | null>(null)
   const [exportText, setExportText] = useState<string | null>(null)
   const load = async (roster: SavedRoster) => {
@@ -107,9 +108,9 @@ export function useRosterActions(origin: string) {
     setShareProblem(null)
     try {
       if (promoted) await access.mutateAsync({ id: roster.id, visibility: 'unlisted' })
-      await navigator.clipboard.writeText(`${origin}/rosters/${roster.id}`)
+      const result = await shareLink(`${origin}/rosters/${roster.id}`, roster.name)
       posthog.capture('roster_shared', { visibility_changed: promoted })
-      setCopiedFor(roster.id)
+      setShareFeedback({ id: roster.id, result })
     } catch (error) {
       posthog.captureException(error, { operation: 'roster_share' })
       let problem = errorMessage(error)
@@ -133,7 +134,7 @@ export function useRosterActions(origin: string) {
     update,
     share,
     print: (id: string) => window.open(`/rosters/${id}?print=true`, '_blank'),
-    copiedFor,
+    shareFeedback,
     shareProblem,
     exportText,
     clearExport: () => setExportText(null),

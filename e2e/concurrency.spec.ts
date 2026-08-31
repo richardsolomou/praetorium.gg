@@ -86,6 +86,11 @@ test('concurrent unlinks on independent connections preserve one sign-in method'
       .from(account)
       .where(eq(account.userId, signedUp.user.id))
 
-    expect({ remaining: remaining.length, results: results.toSorted() }).toEqual({ remaining: 1, results: ['last-method', 'removed'] })
+    expect({ remaining: remaining.length, results: results.map((result) => result.status).toSorted((a, b) => a.localeCompare(b)) }).toEqual(
+      {
+        remaining: 1,
+        results: ['last-method', 'removed'],
+      },
+    )
   })
 })
