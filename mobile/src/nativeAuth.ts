@@ -153,7 +153,9 @@ export function nativeAuthExchangeScript(callback: Extract<NativeAuthCallback, {
   })(); true;`
 }
 
-export const NATIVE_AUTH_COMPLETION_SCRIPT = `(() => {
+export function nativeAuthCompletionScript(appUrl = APP_URL) {
+  const origin = JSON.stringify(new URL(appUrl).origin)
+  return `(() => {
   try {
     const pending = JSON.parse(sessionStorage.getItem('${NATIVE_AUTH_EXCHANGE_KEY}') || 'null');
     if (!pending || typeof pending.id !== 'string' || typeof pending.next !== 'string') return;
@@ -164,8 +166,8 @@ export const NATIVE_AUTH_COMPLETION_SCRIPT = `(() => {
     current.searchParams.delete('${NATIVE_AUTH_SUCCESS_QUERY}');
     current.searchParams.delete('${NATIVE_AUTH_ERROR_QUERY}');
     if (success) {
-      const expected = new URL(pending.next, '${APP_URL}');
-      if (expected.origin !== '${APP_URL}' || expected.href !== current.href) return;
+      const expected = new URL(pending.next, ${origin});
+      if (expected.origin !== ${origin} || expected.href !== current.href) return;
     }
     history.replaceState(history.state, '', current.href);
     const report = () => window.ReactNativeWebView.postMessage(JSON.stringify({ version: 2, type: 'native-auth-result', id: pending.id, ok: success, retryable: false }));
@@ -173,6 +175,7 @@ export const NATIVE_AUTH_COMPLETION_SCRIPT = `(() => {
     else addEventListener('load', report, { once: true });
   } catch {}
 })(); true;`
+}
 
 export function nativeAuthConsumeScript(callback: Extract<NativeAuthCallback, { kind: 'success' }>) {
   const payload = JSON.stringify({ id: callback.id, token: callback.token, verifier: callback.verifier })

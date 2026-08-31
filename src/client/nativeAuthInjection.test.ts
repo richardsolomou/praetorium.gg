@@ -1,6 +1,6 @@
 import { runInNewContext } from 'node:vm'
 import { describe, expect, it, vi } from 'vitest'
-import { NATIVE_AUTH_COMPLETION_SCRIPT, nativeAuthConsumeScript, nativeAuthExchangeScript } from '../../mobile/src/nativeAuth'
+import { nativeAuthCompletionScript, nativeAuthConsumeScript, nativeAuthExchangeScript } from '../../mobile/src/nativeAuth'
 
 const callback = {
   kind: 'success' as const,
@@ -60,7 +60,7 @@ describe('injected native authentication exchange', () => {
     const replaceState = vi.fn()
     let loaded: (() => void) | undefined
 
-    runInNewContext(NATIVE_AUTH_COMPLETION_SCRIPT, {
+    runInNewContext(nativeAuthCompletionScript(), {
       addEventListener: (event: string, listener: () => void) => {
         if (event === 'load') loaded = listener
       },
@@ -89,7 +89,7 @@ describe('injected native authentication exchange', () => {
     sessionStorage.setItem('praetorium.native-auth.exchange', JSON.stringify({ id: callback.id, next: callback.next }))
     const postMessage = vi.fn()
 
-    runInNewContext(NATIVE_AUTH_COMPLETION_SCRIPT, {
+    runInNewContext(nativeAuthCompletionScript(), {
       addEventListener: (_event: string, listener: () => void) => listener(),
       document: { readyState: 'complete' },
       history: { state: null, replaceState: vi.fn() },
@@ -113,7 +113,7 @@ describe('injected native authentication exchange', () => {
     sessionStorage.setItem('praetorium.native-auth.exchange', JSON.stringify({ id: callback.id, next: callback.next }))
     const postMessage = vi.fn()
 
-    runInNewContext(NATIVE_AUTH_COMPLETION_SCRIPT, {
+    runInNewContext(nativeAuthCompletionScript(), {
       addEventListener: vi.fn(),
       document: { readyState: 'loading' },
       history: { state: null, replaceState: vi.fn() },
