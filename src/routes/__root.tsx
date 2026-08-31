@@ -246,14 +246,6 @@ function PrimaryNavigation({ path }: { path: string }) {
           Leagues
         </Link>
         <Link
-          to="/leaderboard"
-          search={{ faction: undefined }}
-          className={linkClass}
-          activeProps={{ className: 'border-parchment bg-raised text-parchment min-[815px]:bg-transparent' }}
-        >
-          Leaderboard
-        </Link>
-        <Link
           to="/factions"
           className={linkClass}
           activeProps={{ className: 'border-parchment bg-raised text-parchment min-[815px]:bg-transparent' }}

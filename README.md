@@ -22,7 +22,7 @@ Players can:
 - Run public or private league events with approved entry, sealed roster submission, organizer-controlled reveal, and reusable event history.
 - Follow live or finished battles with their frozen rosters and battle history, without taking a seat.
 - Choose who can watch their battles: anyone, their friends, or only the players at the table.
-- See who is winning overall or with a given faction, and a home page of the battles being played now.
+- Watch the battles being played now from the home page, or read back through finished ones.
 - Use faction, detachment, unit, loadout, enhancement, and points data from community catalogues.
 - Configure missions, deployment, terrain, formations, stratagems, and mission cards.
 - Track rounds, phases, command points, victory points, and each unit's models, wounds and losses.
@@ -32,7 +32,7 @@ The app stores one append-only command log for each battle. It derives the curre
 
 ## Scope
 
-Praetorium does not provide matchmaking, chat, tournament pairings, or a rules encyclopedia. An account is required to play, though not to watch a public battle or read the leaderboard.
+Praetorium does not provide matchmaking, chat, rankings, standings, or tournament pairings, nor a rules encyclopedia. An account is required to play, though not to watch a public battle.
 
 This repository contains no game data. Each instance downloads verified snapshots from the configured community sources.
 

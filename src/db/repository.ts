@@ -649,29 +649,6 @@ export class Repository {
     return this.hydrateBattles(rows, page.limit)
   }
 
-  /**
-   * Every battle anyone may watch that has moved since `since`, for the standings.
-   *
-   * Bounded by both a window and a count, because this reads whole logs: a
-   * leaderboard is folded from the same histories the battle list folds, and an
-   * unbounded one would read every command an instance has ever stored to print
-   * ten rows. Which of them are finished is `standings`' to decide, since being
-   * finished is a fold rather than a column.
-   */
-  async watchableBattlesSince(since: number, limit: number) {
-    const activity = this.activityTime
-    const rows = await this.database
-      .select({ id: battles.id, token: battles.token, createdAt: battles.createdAt, at: activity })
-      .from(battles)
-      .leftJoin(commands, eq(commands.battleId, battles.id))
-      .where(not(this.withheldFrom('public')))
-      .groupBy(battles.id)
-      .having(sql`coalesce(max(${commands.at}), ${battles.createdAt}) >= ${since}`)
-      .orderBy(desc(activity), desc(battles.id))
-      .limit(limit)
-    return (await this.hydrateBattles(rows)).battles
-  }
-
   /** How widely these players allow their battles to be seen. Absent means the default. */
   async battleAudiences(userIds: readonly string[]) {
     const ids = [...new Set(userIds)]

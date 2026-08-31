@@ -23,7 +23,7 @@ export type HomeData = {
  *
  * One column width and one vertical rhythm the whole way down, and every block
  * below the top band is a rubric heading over its content — the shelves, the
- * standings and the two visitor sections included. The page had three widths and
+ * and the two visitor sections included. The page had three widths and
  * five kinds of box before, which is what made a stack of individually correct
  * sections read as a pile.
  *

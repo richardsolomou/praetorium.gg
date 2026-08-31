@@ -9,7 +9,6 @@ import {
   battleAudience,
   friendBattles,
   publicBattles,
-  standings,
   catalogueStatus,
   collection,
   deployments,
@@ -117,9 +116,6 @@ export const friendBattlesQuery = () =>
     staleTime: SSR_STALE_TIME,
     refetchInterval: FEED_POLL_MS,
   })
-
-/** The standings. The server holds them for a minute, so asking oftener answers the same. */
-export const standingsQuery = () => queryOptions({ queryKey: ['standings'], queryFn: () => standings(), staleTime: 60_000 })
 
 export const battleAudienceQuery = () =>
   queryOptions({ queryKey: ['battle-audience'], queryFn: () => battleAudience(), staleTime: SSR_STALE_TIME })

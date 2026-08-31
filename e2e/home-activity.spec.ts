@@ -63,15 +63,3 @@ test('the home page fits a phone at both signed-out and signed-in widths', async
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
 })
-
-test('the leaderboard fits a phone', async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 })
-  await page.goto('/leaderboard')
-
-  expect(
-    await page.evaluate(() => ({
-      heading: document.querySelector('h1')?.textContent,
-      hasHorizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
-    })),
-  ).toEqual({ heading: 'Who is winning', hasHorizontalOverflow: false })
-})
