@@ -1,7 +1,8 @@
 import type { Account, GenericEndpointContext } from 'better-auth'
 import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
-import { APIError } from 'better-auth/api'
+import { APIError, createAuthMiddleware } from 'better-auth/api'
+import { applySetCookies } from 'better-auth/cookies'
 import { decryptOAuthToken } from 'better-auth/oauth2'
 import { admin, oneTimeToken, twoFactor } from 'better-auth/plugins'
 import { and, count, eq, inArray, notExists, sql } from 'drizzle-orm'
@@ -24,6 +25,28 @@ import { profileUpdate } from './profile'
 import { nativeAuthToken } from './nativeAuthToken'
 
 type AuthStorage = ReturnType<typeof valkeySecondaryStorage>
+
+function isNativeOAuthState(value: string, state: string, provider: string, baseURL: string) {
+  try {
+    const stored = JSON.parse(value) as Record<string, unknown>
+    if (stored.oauthState !== state || typeof stored.expiresAt !== 'number' || stored.expiresAt < Date.now()) return false
+    if (typeof stored.callbackURL !== 'string' || stored.callbackURL !== stored.errorURL) return false
+    const callback = new URL(stored.callbackURL, baseURL)
+    const base = new URL(baseURL)
+    const search = callback.searchParams
+    const allowed = new Set(['action', 'bridge', 'challenge', 'complete', 'next', 'provider', 'requestSignUp'])
+    if (callback.origin !== base.origin || callback.pathname !== '/native-auth') return false
+    if ([...search.keys()].some((key) => !allowed.has(key))) return false
+    if (search.get('action') !== 'sign-in' && search.get('action') !== 'link') return false
+    if (search.get('provider') !== provider || !SOCIAL_PROVIDERS.includes(provider as (typeof SOCIAL_PROVIDERS)[number])) return false
+    if (search.get('bridge') !== '2' && search.get('bridge') !== '3') return false
+    if (!/^[-\w]{43}$/.test(search.get('challenge') ?? '') || search.get('complete') !== 'true') return false
+    const next = search.get('next')
+    return Boolean(next?.startsWith('/') && !next.startsWith('//'))
+  } catch {
+    return false
+  }
+}
 
 export function createAuth(database: PraetoriumDatabase, secret: string, storage?: AuthStorage, email?: EmailDelivery) {
   const configuredApple = appleCredentials()
@@ -184,6 +207,21 @@ export function createAuth(database: PraetoriumDatabase, secret: string, storage
           },
         },
       },
+    },
+    hooks: {
+      before: createAuthMiddleware(async (context) => {
+        if (!context.path.startsWith('/callback/')) return
+        const provider = context.params?.id ?? context.path.split('/').pop()
+        const state = context.query?.state
+        if (typeof provider !== 'string' || typeof state !== 'string') return
+        const stored = await context.context.internalAdapter.findVerificationValue(state)
+        if (!stored || !isNativeOAuthState(stored.value, state, provider, context.context.baseURL)) return
+        const stateCookie = context.context.createAuthCookie('state')
+        const signedCookie = await context.setSignedCookie(stateCookie.name, state, context.context.secret, stateCookie.attributes)
+        const headers = new Headers(context.request?.headers ?? context.headers)
+        applySetCookies(headers, [signedCookie])
+        return { context: { headers } }
+      }),
     },
     /*
      * Limits are per IP, and two people at the same table share one: a pair signing
