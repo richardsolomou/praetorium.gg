@@ -71,7 +71,7 @@ export const userProfileQuery = (userId: string, battle?: string) =>
   })
 
 /** Where the previous battles page ended; matches the server's cursor schema. */
-type BattlesCursor = { activity: number; id: string }
+type BattlesCursor = { at: number; id: string }
 
 export const battlesQuery = () =>
   infiniteQueryOptions({

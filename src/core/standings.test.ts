@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { standings, type StandingBattle } from './standings'
+import { factionsPlayed, standings, type StandingBattle } from './standings'
 
 /** A finished 1v1, scored the way the battle list reports one. */
 const duel = (over: Partial<StandingBattle> = {}): StandingBattle => ({
@@ -8,8 +8,7 @@ const duel = (over: Partial<StandingBattle> = {}): StandingBattle => ({
   players: ['Alice', 'Bob'],
   sides: [0, 1],
   scores: [55, 41],
-  factions: ['ultramarines', 'death-guard'],
-  detachments: [['Gladius Task Force'], ['Plague Company']],
+  factions: ['necrons', 'death-guard'],
   result: { concededBy: null },
   lastActivity: 10,
   ...over,
@@ -28,7 +27,7 @@ describe('standings', () => {
   })
 
   it('records equal scores as a draw for both', () => {
-    expect(standings([duel({ scores: [50, 50] })].slice()).map((row) => row.drawn)).toEqual([1, 1])
+    expect(standings([duel({ scores: [50, 50] })]).map((row) => row.drawn)).toEqual([1, 1])
   })
 
   it('gives the battle to the side that did not concede, whatever the points said', () => {
@@ -45,6 +44,7 @@ describe('standings', () => {
       sides: [0, 0, 1],
       // A side's points fold onto its first seat, so the ally's own seat holds none.
       scores: [60, 0, 45],
+      factions: ['necrons', 'necrons', 'death-guard'],
     })
 
     expect(standings([teamed])).toEqual([
@@ -70,7 +70,6 @@ describe('standings', () => {
 
   it('orders by wins, then the rate they came at, then the points behind them', () => {
     const rows = standings([
-      // Alice beats Bob twice; Carol beats Dave once and loses nothing.
       duel(),
       duel({ scores: [60, 20] }),
       duel({ playerIds: ['carol', 'dave'], players: ['Carol', 'Dave'], scores: [70, 10] }),
@@ -79,47 +78,45 @@ describe('standings', () => {
     // Bob and Dave both won nothing, so the points they did score separate them.
     expect(rows.map((row) => row.id)).toEqual(['alice', 'carol', 'bob', 'dave'])
   })
+})
 
-  it('counts the same battle for the factions that fielded it', () => {
-    const rows = standings([duel()], { subject: 'faction' })
-
-    expect(rows).toEqual([
-      expect.objectContaining({ id: 'ultramarines', won: 1, lost: 0, points: 55 }),
-      expect.objectContaining({ id: 'death-guard', won: 0, lost: 1, points: 41 }),
+describe('a faction table', () => {
+  it('ranks the players who fielded it, not the faction itself', () => {
+    expect(standings([duel()], { faction: 'necrons' })).toEqual([
+      expect.objectContaining({ id: 'alice', name: 'Alice', battles: 1, won: 1 }),
     ])
   })
 
-  it('leaves a pasted list out of the faction table, rather than inventing a faction for it', () => {
-    const rows = standings([duel({ factions: [null, 'death-guard'] })], { subject: 'faction' })
+  it('counts only the battles that player brought it to', () => {
+    const battles = [duel(), duel({ factions: ['orks', 'death-guard'], scores: [80, 10] })]
 
-    expect(rows.map((row) => row.id)).toEqual(['death-guard'])
+    expect(standings(battles, { faction: 'necrons' })).toEqual([expect.objectContaining({ id: 'alice', battles: 1, points: 55 })])
+    expect(standings(battles, { faction: 'orks' })).toEqual([expect.objectContaining({ id: 'alice', battles: 1, points: 80 })])
   })
 
-  it('gives one faction both results when it is on both sides', () => {
-    const rows = standings([duel({ factions: ['ultramarines', 'ultramarines'] })], { subject: 'faction' })
-
-    expect(rows).toEqual([expect.objectContaining({ id: 'ultramarines', battles: 2, won: 1, lost: 1 })])
+  it('puts both players in the table when they both brought it', () => {
+    expect(standings([duel({ factions: ['necrons', 'necrons'] })], { faction: 'necrons' }).map((row) => row.id)).toEqual(['alice', 'bob'])
   })
 
-  it('counts the same battle for the detachments it was built around', () => {
-    const rows = standings([duel()], { subject: 'detachment' })
+  it('has no table for an army nobody built from the catalogue', () => {
+    expect(standings([duel({ factions: [null, null] })], { faction: 'necrons' })).toEqual([])
+  })
+})
 
-    expect(rows.map((row) => ({ id: row.id, won: row.won }))).toEqual([
-      { id: 'Gladius Task Force', won: 1 },
-      { id: 'Plague Company', won: 0 },
-    ])
+describe('factionsPlayed', () => {
+  it('names every faction a finished battle was fought with, most played first', () => {
+    const battles = [duel(), duel({ factions: ['death-guard', 'orks'] })]
+
+    expect(factionsPlayed(battles)).toEqual(['death-guard', 'necrons', 'orks'])
   })
 
-  it('counts a battle once for a detachment a seat named twice', () => {
-    const rows = standings([duel({ detachments: [['Gladius Task Force', 'Gladius Task Force'], []] })], { subject: 'detachment' })
+  it('leaves out a pasted list, an unfinished battle and a practice game', () => {
+    const battles = [
+      duel({ factions: [null, 'death-guard'] }),
+      duel({ status: 'playing', factions: ['orks', 'orks'] }),
+      duel({ playerIds: ['alice', 'practice'], factions: ['necrons', 'necrons'] }),
+    ]
 
-    expect(rows).toEqual([expect.objectContaining({ id: 'Gladius Task Force', battles: 1, won: 1 })])
-  })
-
-  it('keeps a practice battle out of every subject, not just the players', () => {
-    const practice = duel({ playerIds: ['alice', 'practice'], players: ['Alice', 'Practice opponent'] })
-
-    expect(standings([practice], { exclude: ['practice'], subject: 'faction' })).toEqual([])
-    expect(standings([practice], { exclude: ['practice'], subject: 'detachment' })).toEqual([])
+    expect(factionsPlayed(battles, ['practice'])).toEqual(['death-guard'])
   })
 })

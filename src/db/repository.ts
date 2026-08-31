@@ -53,7 +53,8 @@ import {
 
 type BattleRecord = { id: string; token: string; createdAt: number }
 /** One row of a list of battles: the battle, plus the time of its newest command. */
-type BattleRow = BattleRecord & { activity: number }
+/** One row of a list of battles, with whatever value that list is ordered by. */
+type BattleRow = BattleRecord & { at: number }
 type DatabaseTransaction = Parameters<Parameters<PraetoriumDatabase['transaction']>[0]>[0]
 type CreateBattleInput = {
   id: string
@@ -71,7 +72,8 @@ export type BattleSeats = { battle: BattleRecord; players: BattlePlayer[] }
 /** Seats and history together, so a list of battles costs no query per battle. */
 export type BattleHistory = BattleSeats & { log: LoggedCommand[] }
 /** Where the previous page of battles ended: its last row's newest-command time and battle id. */
-export type BattlesCursor = { activity: number; id: string }
+/** Where the previous page ended: its last row's ordering value and battle id. */
+export type BattlesCursor = { at: number; id: string }
 
 export type UnlinkAccountResult =
   | { status: 'removed'; account: { accessToken: string | null; refreshToken: string | null } }
@@ -467,9 +469,20 @@ export class Repository {
    * belongs to `having` rather than `where` because the activity it compares is
    * an aggregate over the battle's commands.
    */
-  private resumeAfter(activity: SQL<number>, cursor?: BattlesCursor) {
+  private resumeAfter(order: SQL<number>, cursor?: BattlesCursor) {
     if (!cursor) return undefined
-    return or(sql`${activity} < ${cursor.activity}`, and(sql`${activity} = ${cursor.activity}`, lt(battles.id, cursor.id)))
+    return or(sql`${order} < ${cursor.at}`, and(sql`${order} = ${cursor.at}`, lt(battles.id, cursor.id)))
+  }
+
+  /**
+   * The same resumption for a list ordered by when a battle was started.
+   *
+   * Creation is a plain column rather than an aggregate over the commands, so it
+   * narrows before the grouping instead of after it.
+   */
+  private startedBefore(cursor?: BattlesCursor) {
+    if (!cursor) return undefined
+    return or(lt(battles.createdAt, cursor.at), and(eq(battles.createdAt, cursor.at), lt(battles.id, cursor.id)))
   }
 
   /**
@@ -485,7 +498,7 @@ export class Repository {
   private async hydrateBattles(
     rows: readonly BattleRow[],
     limit?: number,
-  ): Promise<{ battles: (BattleHistory & { activity: number })[]; nextCursor: BattlesCursor | null }> {
+  ): Promise<{ battles: (BattleHistory & { at: number })[]; nextCursor: BattlesCursor | null }> {
     const shown = limit === undefined ? rows : rows.slice(0, limit)
     const ids = shown.map((row) => row.id)
     const [players, logs] = await Promise.all([this.playersByBattles(ids), this.logsByBattles(ids)])
@@ -493,11 +506,11 @@ export class Repository {
     return {
       battles: shown.map((battle) => ({
         battle,
-        activity: battle.activity,
+        at: battle.at,
         players: players.get(battle.id) ?? [],
         log: logs.get(battle.id) ?? [],
       })),
-      nextCursor: limit !== undefined && rows.length > limit && last ? { activity: last.activity, id: last.id } : null,
+      nextCursor: limit !== undefined && rows.length > limit && last ? { at: last.at, id: last.id } : null,
     }
   }
 
@@ -546,7 +559,7 @@ export class Repository {
     const activity = this.activityTime
     const theirs = alias(battleUsers, 'theirs')
     let query = this.database
-      .select({ id: battles.id, token: battles.token, createdAt: battles.createdAt, activity })
+      .select({ id: battles.id, token: battles.token, createdAt: battles.createdAt, at: activity })
       .from(battles)
       .innerJoin(battleUsers, eq(battleUsers.battleId, battles.id))
       .leftJoin(commands, eq(commands.battleId, battles.id))
@@ -564,7 +577,7 @@ export class Repository {
   async battlesByLeagueEvent(leagueToken: string, eventToken: string, page: { limit: number; before?: BattlesCursor }) {
     const activity = this.activityTime
     const rows = await this.database
-      .select({ id: battles.id, token: battles.token, createdAt: battles.createdAt, activity })
+      .select({ id: battles.id, token: battles.token, createdAt: battles.createdAt, at: activity })
       .from(leagueEventBattles)
       .innerJoin(leagueEvents, eq(leagueEvents.id, leagueEventBattles.eventId))
       .innerJoin(leagues, eq(leagues.id, leagueEvents.leagueId))
@@ -579,22 +592,26 @@ export class Repository {
   }
 
   /**
-   * Battles anyone may watch, most recently active first.
+   * Battles anyone may watch, most recently started first.
+   *
+   * Started rather than last touched, and finished games alongside running ones,
+   * because this list is read to find a game to watch or to read back through.
+   * Ordering by activity made the page reshuffle itself under a reader every time
+   * anybody anywhere took a turn, and buried a battle that finished an hour ago
+   * beneath one nobody has moved in since.
    *
    * `viewerId` drops the battles that viewer already sits in, because the page
    * asking for this has shown them their own games above and a reader counting
    * the same battle twice learns nothing the second time.
    */
   async publicBattles(page: { limit: number; before?: BattlesCursor; viewerId?: string | null }) {
-    const activity = this.activityTime
     const rows = await this.database
-      .select({ id: battles.id, token: battles.token, createdAt: battles.createdAt, activity })
+      .select({ id: battles.id, token: battles.token, createdAt: battles.createdAt, at: battles.createdAt })
       .from(battles)
-      .leftJoin(commands, eq(commands.battleId, battles.id))
-      .where(and(not(this.withheldFrom('public')), page.viewerId ? not(this.seatOf(page.viewerId)) : undefined))
-      .groupBy(battles.id)
-      .having(this.resumeAfter(activity, page.before))
-      .orderBy(desc(activity), desc(battles.id))
+      .where(
+        and(not(this.withheldFrom('public')), page.viewerId ? not(this.seatOf(page.viewerId)) : undefined, this.startedBefore(page.before)),
+      )
+      .orderBy(desc(battles.createdAt), desc(battles.id))
       .limit(page.limit + 1)
     return this.hydrateBattles(rows, page.limit)
   }
@@ -607,7 +624,6 @@ export class Repository {
    * here through the friend in it rather than needing a case of its own.
    */
   async battlesByFriends(userId: string, page: { limit: number; before?: BattlesCursor }) {
-    const activity = this.activityTime
     const friend = alias(battleUsers, 'friend_seat')
     const friendship = exists(
       this.database
@@ -624,14 +640,11 @@ export class Repository {
         ),
     )
     const rows = await this.database
-      .select({ id: battles.id, token: battles.token, createdAt: battles.createdAt, activity })
+      .selectDistinct({ id: battles.id, token: battles.token, createdAt: battles.createdAt, at: battles.createdAt })
       .from(battles)
       .innerJoin(friend, eq(friend.battleId, battles.id))
-      .leftJoin(commands, eq(commands.battleId, battles.id))
-      .where(and(friendship, not(this.seatOf(userId)), not(this.withheldFrom('friends'))))
-      .groupBy(battles.id)
-      .having(this.resumeAfter(activity, page.before))
-      .orderBy(desc(activity), desc(battles.id))
+      .where(and(friendship, not(this.seatOf(userId)), not(this.withheldFrom('friends')), this.startedBefore(page.before)))
+      .orderBy(desc(battles.createdAt), desc(battles.id))
       .limit(page.limit + 1)
     return this.hydrateBattles(rows, page.limit)
   }
@@ -648,7 +661,7 @@ export class Repository {
   async watchableBattlesSince(since: number, limit: number) {
     const activity = this.activityTime
     const rows = await this.database
-      .select({ id: battles.id, token: battles.token, createdAt: battles.createdAt, activity })
+      .select({ id: battles.id, token: battles.token, createdAt: battles.createdAt, at: activity })
       .from(battles)
       .leftJoin(commands, eq(commands.battleId, battles.id))
       .where(not(this.withheldFrom('public')))

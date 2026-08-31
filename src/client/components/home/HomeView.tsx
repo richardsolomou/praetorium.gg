@@ -2,10 +2,8 @@ import { Link } from '@tanstack/react-router'
 import { ChevronRight, Swords } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
-import type { Standing, StandingSubject } from '../../../core/standings'
 import type { Battle } from '../battles/battle'
 import { BattleShelf } from '../battles/BattleShelf'
-import { StandingsGlimpse } from '../Standings'
 import { HomeHero } from './HomeHero'
 import { HomeIntro } from './HomeIntro'
 
@@ -15,7 +13,6 @@ export type HomeData = {
   mine: readonly Battle[]
   friends: readonly Battle[]
   open: readonly Battle[]
-  standings: Record<StandingSubject, readonly Standing[]> | null
   /** The control that opens a battle, supplied rather than imported: see `Home`. */
   newBattle?: ReactNode
   more?: { pending: boolean; onShow: () => void } | null
@@ -37,7 +34,7 @@ export type HomeData = {
  *
  * Nothing here fetches or mutates, so the whole page can be drawn from fixtures.
  */
-export function HomeView({ me, mine, friends, open, standings, newBattle, more }: HomeData) {
+export function HomeView({ me, mine, friends, open, newBattle, more }: HomeData) {
   const going = mine.filter((battle) => battle.status !== 'finished').slice(0, 4)
   // A visitor's hero is the liveliest public battle, so the shelf below must not
   // print it again two inches further down.
@@ -62,7 +59,6 @@ export function HomeView({ me, mine, friends, open, standings, newBattle, more }
         {me ? <MyTable battles={going} viewerId={me.id} /> : null}
         <BattleShelf title="Friends' tables" battles={[...shownFriends]} />
         <PublicTables battles={rest} signedIn={Boolean(me)} more={more} />
-        {standings ? <StandingsGlimpse tables={standings} /> : null}
         {introduce ? <HomeIntro /> : null}
       </div>
     </main>

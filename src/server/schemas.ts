@@ -32,7 +32,7 @@ const token = id
 const catalogueId = id
 const slug = z.string().min(1).max(160)
 const rosterLimit = z.number().int().min(0).max(10_000)
-const battlesCursor = z.object({ activity: z.number().int().min(0), id })
+const battlesCursor = z.object({ at: z.number().int().min(0), id })
 
 export const tokenSchema = z.object({ token })
 const leagueFields = {

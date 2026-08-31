@@ -28,7 +28,7 @@ import { battleReport } from '../core/battleReport'
 import type { MissionAward } from '../core/scoring'
 import type { RosterPick } from '../core/roster'
 import type { RosterSource } from '../core/savedRoster'
-import { type Standing, STANDING_SUBJECTS, type StandingSubject, standings } from '../core/standings'
+import { factionsPlayed, type Standing, standings } from '../core/standings'
 import {
   alliedLeagueRosterLimit,
   leagueTableShape,
@@ -70,8 +70,11 @@ type SpectatorScreen = {
  */
 type BattleScreen = SeatedScreen | SpectatorScreen | { kind: 'unavailable' }
 
-/** Every standings table, and the window they were folded over. */
-type StandingsAnswer = Record<StandingSubject, Standing[]> & { since: number }
+/** One faction's table of players, named for a reader. */
+type FactionStandings = { id: string; name: string; standings: Standing[] }
+
+/** The overall table, a table per faction played, and the window they cover. */
+type StandingsAnswer = { since: number; overall: Standing[]; factions: FactionStandings[] }
 
 const SPECTATOR_ID = ''
 
@@ -524,13 +527,18 @@ export class PraetoriumService {
   }
 
   /**
-   * The standings, folded from the finished battles anyone may watch.
+   * The standings, counted from the finished battles anyone may watch.
    *
-   * One read of the battles answers every subject: the logs are the expensive
-   * part, and players, factions and detachments are three groupings of the same
-   * finished games rather than three questions to go and ask.
+   * A row is always a player. Beside the overall table there is one per faction
+   * anybody has actually played, answering who is best with that army rather than
+   * how the army itself does — a faction has no record, the people fielding it do.
+   * Only factions with a finished battle behind them get a table, because an empty
+   * one answers nothing.
    *
-   * Held for a minute rather than folded again for every visitor. A standing is
+   * One read of the battles answers all of them: the logs are the expensive part,
+   * and each table is the same finished games counted through a different filter.
+   *
+   * Held for a minute rather than counted again for every visitor. A standing is
    * derived, so a copy of it that goes stale costs a reader a minute of accuracy
    * and nothing else — which is exactly the trade a battle screen may not make,
    * because a stale battle is a player acting on a board that has moved. It is
@@ -539,7 +547,7 @@ export class PraetoriumService {
    *
    * `factionNames` turns a catalogue id into the name a player would recognise.
    * It is passed in rather than reached for, the same as `rules`, because the
-   * fold itself has no business knowing what a catalogue is.
+   * count itself has no business knowing what a catalogue is.
    */
   async standings(factionNames?: ReadonlyMap<string, string>): Promise<StandingsAnswer> {
     const now = this.clock()
@@ -551,15 +559,15 @@ export class PraetoriumService {
     ])
     const summaries = this.battleSummaries(histories, null, null)
     const exclude = practice.map((opponent) => opponent.id)
-    const tables = Object.fromEntries(
-      STANDING_SUBJECTS.map((subject) => [
-        subject,
-        standings(summaries, { exclude, subject }).map((row) =>
-          subject === 'faction' ? { ...row, name: factionNames?.get(row.id) ?? row.name } : row,
-        ),
-      ]),
-    ) as Record<StandingSubject, Standing[]>
-    const answer = { ...tables, since }
+    const answer = {
+      since,
+      overall: standings(summaries, { exclude }),
+      factions: factionsPlayed(summaries, exclude).map((faction) => ({
+        id: faction,
+        name: factionNames?.get(faction) ?? faction,
+        standings: standings(summaries, { exclude, faction }),
+      })),
+    }
     this.standingsHeld = { until: now + STANDINGS_HOLD_MS, answer }
     return answer
   }

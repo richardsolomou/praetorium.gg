@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { Home } from '../client/components/home/Home'
-import { battlesQuery, friendBattlesQuery, meQuery, publicBattlesQuery, standingsQuery } from '../client/queries'
+import { battlesQuery, friendBattlesQuery, meQuery, publicBattlesQuery } from '../client/queries'
 
 /**
  * Everything the home page shows is on it at first paint.
@@ -16,7 +16,6 @@ export const Route = createFileRoute('/')({
     const me = await context.queryClient.ensureQueryData(meQuery())
     await Promise.all([
       context.queryClient.ensureInfiniteQueryData(publicBattlesQuery()),
-      context.queryClient.ensureQueryData(standingsQuery()),
       ...(me
         ? [context.queryClient.ensureInfiniteQueryData(battlesQuery()), context.queryClient.ensureInfiniteQueryData(friendBattlesQuery())]
         : []),

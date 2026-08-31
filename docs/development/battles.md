@@ -92,13 +92,17 @@ The home-page feeds and the screen a link resolves to must both read that fold. 
 
 ## Home-page activity
 
-The home page shows three lists of battles and the standings. A player sees their own unfinished games, their friends' games, and the public ones; a visitor with no account sees the public ones. The server removes the viewer's own battles from the public list rather than the client filtering them, so a page of ten is ten rows the reader has not already seen above.
+The home page shows three lists of battles. A player sees their own unfinished games, their friends' games, and the public ones; a visitor with no account sees the public ones. The server removes the viewer's own battles from the public list rather than the client filtering them, so a page of ten is ten rows the reader has not already seen above.
+
+The friends' and public lists are ordered by when a battle was started, newest first, and carry finished games alongside running ones — they are read to find a game to watch or to read back through. Ordering them by activity made the page reshuffle under a reader whenever anybody anywhere took a turn, and buried a battle that finished an hour ago beneath one nobody had moved in since. A player's own list still orders by activity, because that one is for getting back to a game rather than browsing.
 
 The feeds poll rather than subscribe. A player's own battles are announced over realtime because their device holds a seat, but nothing names a reader of somebody else's table, and a channel every visitor subscribed to would broadcast the whole instance for a list that reads fine a few seconds late.
 
 ## Standings
 
-`src/core/standings.ts` folds finished battles into a table. Nothing is stored: a win is not a fact anybody records, it is what the two sides' points say once the battle is over, so a column holding it would be free to disagree with the log. A concession loses whatever the score said. A side is one score, so an ally is credited with their side's total rather than the part sitting on their seat. A battle with a practice opponent in it counts for nobody — beating a seat nobody sits in is not a result.
+`src/core/standings.ts` counts finished battles into a table. Nothing is stored: a win is not a fact anybody records, it is what the two sides' points say once the battle is over, so a column holding it would be free to disagree with the log. A concession loses whatever the score said. A side is one score, so an ally is credited with their side's total rather than the part sitting on their seat. A battle with a practice opponent in it counts for nobody — beating a seat nobody sits in is not a result.
+
+A row is always a player. `faction` narrows which of their battles count, so "who wins most" and "who is the best Necrons player" are one function with a filter rather than two tables free to disagree. A faction has no record of its own; the people fielding it do. `factionsPlayed` names the factions worth a table, which is the ones a finished battle was actually fought with — a list of everything the catalogue knows would be mostly empty tables, and an empty table answers nothing.
 
 The fold reads whole logs, so it is bounded by a window and a count, and the service holds the answer for a minute. That is allowed here and nowhere near a battle screen: a stale standing costs a reader a minute of accuracy, while a stale battle is a player acting on a board that has moved.
 

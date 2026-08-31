@@ -73,5 +73,5 @@ test('the leaderboard fits a phone', async ({ page }) => {
       heading: document.querySelector('h1')?.textContent,
       hasHorizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
     })),
-  ).toEqual({ heading: 'Leaderboard', hasHorizontalOverflow: false })
+  ).toEqual({ heading: 'Who is winning', hasHorizontalOverflow: false })
 })

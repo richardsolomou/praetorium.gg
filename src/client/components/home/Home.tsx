@@ -1,5 +1,5 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
-import { battlesFrom, battlesQuery, friendBattlesQuery, meQuery, publicBattlesQuery, standingsQuery } from '../../queries'
+import { battlesFrom, battlesQuery, friendBattlesQuery, meQuery, publicBattlesQuery } from '../../queries'
 import { useLiveBattles } from '../../useLiveBattle'
 import { CreateBattle } from '../battles/CreateBattle'
 import { HomeView } from './HomeView'
@@ -17,7 +17,6 @@ export function Home() {
   const { data: mine } = useInfiniteQuery({ ...battlesQuery(), enabled: signedIn })
   const { data: friends } = useInfiniteQuery({ ...friendBattlesQuery(), enabled: signedIn })
   const { data: open, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery(publicBattlesQuery())
-  const { data: standings } = useQuery(standingsQuery())
   // Being added to a battle happens on someone else's device, so this page is told.
   useLiveBattles(signedIn)
   return (
@@ -26,7 +25,6 @@ export function Home() {
       mine={signedIn ? battlesFrom(mine) : []}
       friends={signedIn ? battlesFrom(friends) : []}
       open={battlesFrom(open)}
-      standings={standings ?? null}
       newBattle={<CreateBattle />}
       more={hasNextPage ? { pending: isFetchingNextPage, onShow: () => void fetchNextPage() } : null}
     />

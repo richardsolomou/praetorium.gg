@@ -247,6 +247,7 @@ function PrimaryNavigation({ path }: { path: string }) {
         </Link>
         <Link
           to="/leaderboard"
+          search={{ faction: undefined }}
           className={linkClass}
           activeProps={{ className: 'border-parchment bg-raised text-parchment min-[815px]:bg-transparent' }}
         >

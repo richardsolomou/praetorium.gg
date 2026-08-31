@@ -2,4 +2,4 @@
 'praetorium.gg': minor
 ---
 
-Add a leaderboard that counts finished battles three ways: for the players, for the factions they fielded, and for the detachments they were built around.
+Add a leaderboard of players, with a table per faction ranking the players who field it.

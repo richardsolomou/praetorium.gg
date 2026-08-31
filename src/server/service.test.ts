@@ -2656,6 +2656,20 @@ describe('who may watch a battle', () => {
     expect((await service.friendBattles('carol')).battles).toEqual([])
   })
 
+  it('lists watchable battles newest-started first, finished ones among them', async () => {
+    await enrol('dave', 'Dave')
+    await befriend('alice', 'dave')
+    // Older, but finished last, so an activity ordering would put it on top.
+    const older = await started()
+    const newer = await service.createBattle('alice', 'dave')
+    await older.send('alice', { kind: 'end-battle' })
+
+    const page = await service.publicBattles(null)
+
+    expect(page.battles.map((battle) => battle.token)).toEqual([newer.token, older.token])
+    expect(page.battles.map((battle) => battle.status)).toEqual(['setup', 'finished'])
+  })
+
   it('remembers the audience a player chose', async () => {
     expect(await service.battleAudience('alice')).toBe('public')
 
@@ -2674,7 +2688,7 @@ describe('standings', () => {
     const table = await service.standings()
 
     expect(running.token).not.toBe(finished.token)
-    expect(table.player.map((row) => ({ name: row.name, battles: row.battles }))).toEqual([
+    expect(table.overall.map((row) => ({ name: row.name, battles: row.battles }))).toEqual([
       { name: 'Alice', battles: 1 },
       { name: 'Bob', battles: 1 },
     ])
@@ -2685,10 +2699,10 @@ describe('standings', () => {
     await battle.send('alice', { kind: 'end-battle' })
     await service.setBattleAudience('bob', 'private')
 
-    expect((await service.standings()).player).toEqual([])
+    expect((await service.standings()).overall).toEqual([])
   })
 
-  it('counts the same battle for its factions and detachments, naming the faction from the catalogue', async () => {
+  it('ranks the players of each faction played, naming the faction from the catalogue', async () => {
     const { token } = await service.createBattle('alice', 'bob')
     let seq = 0
     const send = async (by: string, command: Parameters<PraetoriumService['submit']>[3]) => {
@@ -2707,11 +2721,14 @@ describe('standings', () => {
 
     const table = await service.standings(new Map([['catalogue', 'Ultramarines']]))
 
-    expect(table.faction).toEqual([expect.objectContaining({ id: 'catalogue', name: 'Ultramarines', battles: 2, won: 1, lost: 1 })])
-    expect(table.detachment.map((row) => ({ id: row.id, won: row.won }))).toEqual([
-      { id: 'Gladius Task Force', won: 1 },
-      { id: 'Plague Company', won: 0 },
+    // One table per faction played, ranking the players who fielded it.
+    expect(table.factions).toEqual([
+      {
+        id: 'catalogue',
+        name: 'Ultramarines',
+        standings: [expect.objectContaining({ name: 'Alice', won: 1 }), expect.objectContaining({ name: 'Bob', lost: 1 })],
+      },
     ])
-    expect(table.player.map((row) => row.name)).toEqual(['Alice', 'Bob'])
+    expect(table.overall.map((row) => row.name)).toEqual(['Alice', 'Bob'])
   })
 })

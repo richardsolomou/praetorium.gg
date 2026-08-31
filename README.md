@@ -22,7 +22,7 @@ Players can:
 - Run public or private league events with approved entry, sealed roster submission, organizer-controlled reveal, and reusable event history.
 - Follow live or finished battles with their frozen rosters and battle history, without taking a seat.
 - Choose who can watch their battles: anyone, their friends, or only the players at the table.
-- See a leaderboard folded from finished battles, and a home page of current activity.
+- See who is winning overall or with a given faction, and a home page of the battles being played now.
 - Use faction, detachment, unit, loadout, enhancement, and points data from community catalogues.
 - Configure missions, deployment, terrain, formations, stratagems, and mission cards.
 - Track rounds, phases, command points, victory points, and each unit's models, wounds and losses.
