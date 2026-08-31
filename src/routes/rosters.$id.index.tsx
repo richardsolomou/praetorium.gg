@@ -44,6 +44,8 @@ export const Route = createFileRoute('/rosters/$id/')({
       normalisePicks(roster.picks),
       deps.battle,
       roster.waivedRules,
+      roster.borrowedDetachmentId,
+      roster.optionalRules,
     )
     context.queryClient.setQueryData(priced.queryKey, price)
     return { editable, snapshot: false }

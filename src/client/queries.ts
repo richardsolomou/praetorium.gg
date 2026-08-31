@@ -301,9 +301,11 @@ export const savedRosterPriceQuery = (
   picked: readonly RosterPick[],
   battle?: string,
   waivedRules: readonly FormatRuleId[] = [],
+  borrowedDetachmentId: string | null = null,
+  optionalRules: readonly OptionalRuleId[] = [],
 ) =>
   queryOptions({
-    ...priceQuery(catalogueId, detachmentIds, disposition, limit, picked, waivedRules),
+    ...priceQuery(catalogueId, detachmentIds, disposition, limit, picked, waivedRules, borrowedDetachmentId, optionalRules),
     queryFn: () => savedRosterPrice({ data: { id, ...(battle ? { battle } : {}) } }),
   })
 

@@ -8,6 +8,7 @@ import {
   factionRestrictionViolations,
   findEnhancementDescription,
   kotcViolations,
+  savedRosterPriceInput,
   resolveDisposition,
   uniqueNames,
 } from './pricing'
@@ -475,5 +476,31 @@ describe('what a unit is carrying', () => {
 
   it('falls back to the catalogue for a unit with no kinds at all', () => {
     expect(heldWargear([], [], [{ name: 'Relic blade', count: 1 }])).toEqual([{ name: 'Relic blade', count: 1 }])
+  })
+})
+
+describe('saved roster price input', () => {
+  const saved = {
+    catalogueId: 'necrons',
+    detachmentIds: ['skyshroud-spearhead'],
+    disposition: 'priority-assets',
+    limit: 600,
+    picks: [],
+    waivedRules: [] as never[],
+    optionalRules: ['kotc-borrowed-disposition'] as const,
+    borrowedDetachmentId: 'the-phaerons-armoury',
+  }
+
+  it('carries the borrow so the borrowed disposition stays allowed', () => {
+    expect(savedRosterPriceInput(saved)).toMatchObject({
+      disposition: 'priority-assets',
+      borrowedDetachmentId: 'the-phaerons-armoury',
+      optionalRules: ['kotc-borrowed-disposition'],
+    })
+  })
+
+  it('defaults a list that borrows nothing to no borrow', () => {
+    const { optionalRules: _rules, borrowedDetachmentId: _borrowed, ...plain } = saved
+    expect(savedRosterPriceInput(plain)).toMatchObject({ borrowedDetachmentId: null, optionalRules: undefined })
   })
 })

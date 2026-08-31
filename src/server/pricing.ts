@@ -154,6 +154,37 @@ export function calculateRosterPoints(data: PriceInput) {
   return evaluateForces([...forceSelections.values()], loaded.index, { primaryCatalogueId: data.catalogueId }).points
 }
 
+/**
+ * What a saved list is priced as, built in one place.
+ *
+ * Every field here changes what the price is allowed to answer, so a caller that
+ * assembles its own literal can silently drop one: a missing borrow leaves the
+ * borrowed disposition out of the allowed set, and `resolveDisposition` then
+ * substitutes the roster's own without reporting anything. Callers pass the saved
+ * list, not a shape they built themselves.
+ */
+export function savedRosterPriceInput(saved: {
+  catalogueId: string
+  detachmentIds: readonly string[]
+  disposition: string | null
+  limit: number
+  picks: PriceInput['units']
+  waivedRules?: PriceInput['waivedRules']
+  optionalRules?: PriceInput['optionalRules']
+  borrowedDetachmentId?: string | null
+}): PriceInput {
+  return {
+    catalogueId: saved.catalogueId,
+    detachmentIds: [...saved.detachmentIds],
+    disposition: saved.disposition,
+    borrowedDetachmentId: saved.borrowedDetachmentId ?? null,
+    limit: saved.limit,
+    units: saved.picks,
+    waivedRules: saved.waivedRules,
+    optionalRules: saved.optionalRules,
+  }
+}
+
 export function calculateRosterPrice(data: PriceInput, loaded = app().catalogue(), loadedRules = app().rules()) {
   if (!loaded) return null
 
