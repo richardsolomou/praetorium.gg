@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.43.3
+
+### Patch Changes
+
+- ee2dd54: Complete native social sign-in when provider callbacks omit browser state cookies.
+
 ## 0.43.2
 
 ### Patch Changes
