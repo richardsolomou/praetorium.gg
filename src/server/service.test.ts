@@ -45,8 +45,7 @@ afterEach(() => connection.close())
 
 /** Two players, both lists in, Alice going first. Returns the link and the live seq. */
 async function started() {
-  const { token } = await service.createBattle('alice')
-  await service.join(token, 'bob')
+  const { token } = await service.createBattle('alice', 'bob')
   let seq = 0
   const send = async (by: string, command: Parameters<PraetoriumService['submit']>[3]) => {
     const { result } = await service.submit(token, by, seq, command)
@@ -1117,8 +1116,7 @@ it('rejects a league snapshot that cannot be read back', async () => {
 })
 
 it('chooses tactical draws on the server instead of trusting the submitted card', async () => {
-  const { token } = await service.createBattle('alice')
-  await service.join(token, 'bob')
+  const { token } = await service.createBattle('alice', 'bob')
   let seq = 0
   const send = async (by: string, command: Parameters<PraetoriumService['submit']>[3]) => {
     const answer = await service.submit(token, by, seq, command)
@@ -1351,7 +1349,14 @@ describe('player profiles', () => {
     expect(await service.userProfile(null, 'dave', battle.token)).toEqual({ id: 'dave', name: 'Dave', image: null })
   })
 
-  it('does not let an invitation token reveal a player profile', async () => {
+  it('names the players of a battle anyone may watch to whoever opens its link', async () => {
+    const battle = await service.createBattle('alice', { opponentId: 'bob', limit: 2000, missionPackId: null })
+
+    expect(await service.userProfile(null, 'bob', battle.token)).toEqual({ id: 'bob', name: 'Bob', image: 'https://example.test/bob.png' })
+  })
+
+  it('does not let the token of a withheld battle reveal a player profile', async () => {
+    await service.setBattleAudience('bob', 'private')
     const battle = await service.createBattle('alice', { opponentId: 'bob', limit: 2000, missionPackId: null })
 
     expect(await service.userProfile(null, 'bob', battle.token)).toBeNull()
@@ -1568,35 +1573,26 @@ describe('seats', () => {
     expect(seen.players[0]?.secondaries).toEqual([])
   })
 
-  it('seats whoever opened the battle', async () => {
-    const { token } = await service.createBattle('alice')
-    expect((await view(token, 'alice')).players).toHaveLength(1)
+  it('seats the whole table when the battle is created', async () => {
+    const { token } = await service.createBattle('alice', 'bob')
+
+    expect((await view(token, 'alice')).players.map((player) => player.id)).toEqual(['alice', 'bob'])
   })
 
-  it('seats the second player who follows the link', async () => {
-    const { token } = await service.createBattle('alice')
-    expect(await service.join(token, 'bob')).toBe('joined')
+  it('refuses to open a battle with nobody to play', async () => {
+    expect(await refusalStatus(() => service.createBattle('alice'))).toBe(400)
   })
 
-  it('turns a third player away', async () => {
-    const { token } = await service.createBattle('alice')
-    await service.join(token, 'bob')
-    expect(await service.join(token, 'carol')).toBe('full')
-  })
+  it('does not seat someone for reading the link', async () => {
+    const { token } = await service.createBattle('alice', 'bob')
 
-  it('shows a link holder the invitation rather than the battle', async () => {
-    const { token } = await service.createBattle('alice')
-    expect((await service.screen(token, 'carol')).kind).toBe('invitation')
-  })
-
-  it('does not seat someone merely for reading the link', async () => {
-    const { token } = await service.createBattle('alice')
     await service.screen(token, 'carol')
-    expect(await service.join(token, 'bob')).toBe('joined')
+
+    expect((await view(token, 'alice')).players.map((player) => player.id)).toEqual(['alice', 'bob'])
   })
 
   it('refuses a command from someone without a seat', async () => {
-    const { token } = await service.createBattle('alice')
+    const { token } = await service.createBattle('alice', 'bob')
     expect(await refusalStatus(() => service.submit(token, 'carol', 0, { kind: 'advance' }))).toBe(403)
   })
 })
@@ -2389,8 +2385,7 @@ describe('saved rosters', () => {
 
   it('shows a private roster to another player seated in the battle where it is fielded', async () => {
     const { id } = await save()
-    const { token } = await service.createBattle('alice')
-    await service.join(token, 'bob')
+    const { token } = await service.createBattle('alice', 'bob')
     await service.submit(token, 'alice', 0, {
       kind: 'attach-roster',
       roster: { id, name: 'Recon force', text: 'Recon force' },
@@ -2447,7 +2442,9 @@ describe('saved rosters', () => {
 
 describe('battle history', () => {
   it('lists only battles the player is seated in', async () => {
-    await service.createBattle('bob')
+    // A battle between two other people, which Alice has no seat in.
+    await befriend('bob', 'carol')
+    await service.createBattle('bob', 'carol')
     await started()
     expect((await service.battles('alice')).battles).toHaveLength(1)
   })
@@ -2467,7 +2464,7 @@ describe('battle history', () => {
 
 describe('the command log', () => {
   it('numbers commands from one', async () => {
-    const { token } = await service.createBattle('alice')
+    const { token } = await service.createBattle('alice', 'bob')
     const answer = await service.submit(token, 'alice', 0, {
       kind: 'attach-roster',
       roster: { name: 'Ultramarines', text: '10 Intercessors' },
@@ -2585,5 +2582,136 @@ describe('refusals', () => {
     const before = seq()
     await service.submit(token, 'bob', before, { kind: 'advance' })
     expect((await view(token, 'bob')).seq).toBe(before)
+  })
+})
+
+describe('who may watch a battle', () => {
+  it('lists a battle publicly and gives a stranger a read-only spectator screen', async () => {
+    const { token } = await started()
+
+    const page = await service.publicBattles(null)
+    const screen = await service.screen(token, 'carol')
+
+    expect(page.battles.map((battle) => battle.token)).toEqual([token])
+    expect(screen).toEqual(expect.objectContaining({ kind: 'spectator' }))
+  })
+
+  it('shows a signed-out visitor the public list', async () => {
+    const { token } = await started()
+
+    expect((await service.publicBattles(null)).battles.map((battle) => battle.token)).toEqual([token])
+    expect(await service.screen(token, null)).toEqual(expect.objectContaining({ kind: 'spectator' }))
+  })
+
+  it('leaves the viewer’s own battles out of the public list, since their own page shows them', async () => {
+    const { token } = await started()
+
+    expect((await service.publicBattles('alice')).battles).toEqual([])
+    expect((await service.battles('alice')).battles.map((battle) => battle.token)).toEqual([token])
+  })
+
+  it('withholds a battle from everyone once one of its players says so', async () => {
+    const { token } = await started()
+    await service.setBattleAudience('bob', 'private')
+
+    expect((await service.publicBattles(null)).battles).toEqual([])
+    expect(await service.screen(token, 'carol')).toEqual({ kind: 'unavailable' })
+  })
+
+  it('shows a battle kept to friends to a friend and to nobody else', async () => {
+    await enrol('dave', 'Dave')
+    const { token } = await started()
+    await service.setBattleAudience('alice', 'friends')
+
+    // Carol is Alice's friend; Dave is nobody's.
+    expect(await service.screen(token, 'carol')).toEqual(expect.objectContaining({ kind: 'spectator' }))
+    expect(await service.screen(token, 'dave')).toEqual({ kind: 'unavailable' })
+    expect(await service.screen(token, null)).toEqual({ kind: 'unavailable' })
+    expect((await service.publicBattles(null)).battles).toEqual([])
+  })
+
+  it('shows a stranger the battle to watch, never a way into it', async () => {
+    await enrol('dave', 'Dave')
+    const { token } = await service.createBattle('alice', 'bob')
+
+    const screen = await service.screen(token, 'dave')
+
+    expect(screen).toEqual(expect.objectContaining({ kind: 'spectator' }))
+    // Watching is the whole of it: a stranger has no command to send either.
+    expect(await refusalStatus(() => service.submit(token, 'dave', 0, { kind: 'advance' }))).toBe(403)
+  })
+
+  it('lists a friend’s battle to a player who is not in it', async () => {
+    const { token } = await started()
+
+    // Carol is Alice's friend and sits in nothing.
+    expect((await service.friendBattles('carol')).battles.map((battle) => battle.token)).toEqual([token])
+    expect((await service.friendBattles('alice')).battles).toEqual([])
+  })
+
+  it('keeps a friend’s battle out of the friends list once they make it private', async () => {
+    await started()
+    await service.setBattleAudience('bob', 'private')
+
+    expect((await service.friendBattles('carol')).battles).toEqual([])
+  })
+
+  it('remembers the audience a player chose', async () => {
+    expect(await service.battleAudience('alice')).toBe('public')
+
+    await service.setBattleAudience('alice', 'friends')
+
+    expect(await service.battleAudience('alice')).toBe('friends')
+  })
+})
+
+describe('standings', () => {
+  it('counts a finished battle and leaves a running one out', async () => {
+    const running = await started()
+    const finished = await started()
+    await finished.send('alice', { kind: 'end-battle' })
+
+    const table = await service.standings()
+
+    expect(running.token).not.toBe(finished.token)
+    expect(table.player.map((row) => ({ name: row.name, battles: row.battles }))).toEqual([
+      { name: 'Alice', battles: 1 },
+      { name: 'Bob', battles: 1 },
+    ])
+  })
+
+  it('leaves out a battle its players withheld', async () => {
+    const battle = await started()
+    await battle.send('alice', { kind: 'end-battle' })
+    await service.setBattleAudience('bob', 'private')
+
+    expect((await service.standings()).player).toEqual([])
+  })
+
+  it('counts the same battle for its factions and detachments, naming the faction from the catalogue', async () => {
+    const { token } = await service.createBattle('alice', 'bob')
+    let seq = 0
+    const send = async (by: string, command: Parameters<PraetoriumService['submit']>[3]) => {
+      const { result } = await service.submit(token, by, seq, command)
+      if (result.outcome === 'appended') seq = result.seq
+    }
+    const withDetachment = (name: string, detachment: string): Roster => {
+      const roster = leagueSnapshot(name)
+      return { ...roster, built: { ...roster.built!, detachments: [{ name: detachment, points: null }] } }
+    }
+    await send('alice', { kind: 'attach-roster', roster: withDetachment('Alice army', 'Gladius Task Force') })
+    await send('bob', { kind: 'attach-roster', roster: withDetachment('Bob army', 'Plague Company') })
+    await send('alice', { kind: 'begin-battle', firstPlayerId: 'alice' })
+    await send('alice', { kind: 'score', category: 'primary', delta: 10 })
+    await send('alice', { kind: 'end-battle' })
+
+    const table = await service.standings(new Map([['catalogue', 'Ultramarines']]))
+
+    expect(table.faction).toEqual([expect.objectContaining({ id: 'catalogue', name: 'Ultramarines', battles: 2, won: 1, lost: 1 })])
+    expect(table.detachment.map((row) => ({ id: row.id, won: row.won }))).toEqual([
+      { id: 'Gladius Task Force', won: 1 },
+      { id: 'Plague Company', won: 0 },
+    ])
+    expect(table.player.map((row) => row.name)).toEqual(['Alice', 'Bob'])
   })
 })

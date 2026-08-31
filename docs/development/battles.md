@@ -78,16 +78,39 @@ Undoing a logged draw returns hidden random state to the deck, so both the draw 
 
 One thing in the game is genuinely hidden: the identity of a fixed Secret Mission played face down, until it is revealed. Everything else about the cards is public, including both tactical decks, because every draw, put-back and discard is named to both sides in the report. After a Secret Mission is selected, its side's remaining deck is withheld from the opposing side because the public pack minus that deck would identify the hidden card.
 
-A read never claims a battle seat. For a manual battle, `PraetoriumService.screen` returns an invitation until the player sends the join mutation. This prevents link-preview crawlers from taking a seat.
+A read never claims a battle seat, and nothing else does either. A battle names its whole table when it is created: `createBattle` refuses without an opponent, and `insertBattle` seats every named player in the same transaction as the battle row. There is no invitation, no open seat and no join mutation — a link is a way to read a battle, never a way into one. That also settles the link-preview crawler, which now has nothing it could take.
 
-A battle locked to a revealed league event returns a read-only spectator screen instead of an invitation to anyone outside its seats. It uses `battleView` with no player side, so hidden fixed missions stay masked for both sides. Spectators poll the same folded log while the battle is active; they cannot obtain a command or realtime subscription.
+Because the seats are filled at creation, the number of them always equals `battleCapacity`. Setup never changes the table shape: the Format step carries `teamBattle` and `playerCount` forward untouched, and who is playing is decided in the create dialog.
+
+## Who may watch
+
+`src/core/battleAudience.ts` is the only place that decides who may read a battle they hold no seat in. A player stores one answer in `battle_sharing` — anyone, friends, or nobody — and a battle takes the narrowest answer of its seats, so one player choosing private makes the battle private for everyone at that table. A player with no row is public; the default lives in the domain rather than as a column default, so there is one copy of it.
+
+The home-page feeds and the screen a link resolves to must both read that fold. `Repository.publicBattles` and `battlesByFriends` express it as the absence of a seat that refused, because a player who has never answered has no row to agree with. `PraetoriumService.mayWatch` folds the same answers for one battle, and only reads friendships when the fold actually turns on one.
+
+`screen` answers one of three ways. A seated player gets the battle. Anyone the fold allows gets the read-only spectator screen, including a signed-out visitor, since a public battle found on the home page has to open. Everyone else gets `unavailable`, which offers sign-in rather than a flat refusal — a seated player whose session lapsed reaches it too, and telling them their own battle does not exist would be a lie.
+
+## Home-page activity
+
+The home page shows three lists of battles and the standings. A player sees their own unfinished games, their friends' games, and the public ones; a visitor with no account sees the public ones. The server removes the viewer's own battles from the public list rather than the client filtering them, so a page of ten is ten rows the reader has not already seen above.
+
+The feeds poll rather than subscribe. A player's own battles are announced over realtime because their device holds a seat, but nothing names a reader of somebody else's table, and a channel every visitor subscribed to would broadcast the whole instance for a list that reads fine a few seconds late.
+
+## Standings
+
+`src/core/standings.ts` folds finished battles into a table. Nothing is stored: a win is not a fact anybody records, it is what the two sides' points say once the battle is over, so a column holding it would be free to disagree with the log. A concession loses whatever the score said. A side is one score, so an ally is credited with their side's total rather than the part sitting on their seat. A battle with a practice opponent in it counts for nobody — beating a seat nobody sits in is not a result.
+
+The fold reads whole logs, so it is bounded by a window and a count, and the service holds the answer for a minute. That is allowed here and nowhere near a battle screen: a stale standing costs a reader a minute of accuracy, while a stale battle is a player acting on a board that has moved.
+
+A battle locked to a revealed league event returns a read-only spectator screen to anyone outside its seats, whatever its players' own audience says. It uses `battleView` with no player side, so hidden fixed missions stay masked for both sides. Spectators poll the same folded log while the battle is active; they cannot obtain a command or realtime subscription.
 
 ## Realtime updates
 
 - Realtime messages contain only the battle ID, plus the log's new sequence number when one command caused them. The client refetches the battle through the normal read path — never state from the message — and a client whose cached screen already carries the announced sequence skips the refetch it would only repeat, which is how the submitter avoids fetching the screen `submit` just returned. A subscription token carries its subject and its channel and nothing else — nothing on a screen is drawn from a connection, so nothing needs to be.
 - `/api/realtime/token` requires an account and a seat in the requested battle.
-- Realtime channels use the internal battle ID, not the invitation token.
-- A second channel is named after a player, so the list of battles hears about a battle the player has not opened yet.
+- Realtime channels use the internal battle ID, not the shared token.
+- A second channel is named after a player, so the list of battles hears about a battle the player has not opened yet. The home page listens on it for the same reason.
+- Spectators poll. Nothing on a public feed names the person reading it, so there is no channel to give them.
 - Every channel prefix needs a namespace in `realtime.json`. Centrifugo rejects a subscription to a prefix it was not configured with.
 - Caddy and the Vite development proxy serve Centrifugo on the app origin. Keep `connect-src 'self'`.
 
@@ -116,4 +139,4 @@ Starting the battle is not undoable: `begin-battle` leaves nothing for `undo` to
 
 Battle coverage is split the way the domain is. `src/core/battle.test.ts` covers setup, turn order, ownership, undo, resets, concessions, reopening, deployment and battle settings. `src/core/battleCards.test.ts` covers stratagem costs including the ones the board makes dearer, and tactical decks. `src/core/battleView.test.ts` covers visibility, units and the models inside them, and `src/core/battleReport.test.ts` covers the account of the battle. All four build their games from `src/core/battle.fixtures.ts`.
 
-`src/server/service.test.ts` covers persistence, deletion permissions, seating either side of a 2v1, and concurrent submissions against an in-process Postgres. `src/client/sides.test.ts` covers the fold from seats to sides, `src/client/sideRules.test.ts` covers the stratagem pool a side plays with, and `e2e/team-battle.spec.ts` drives a 2v1 from each side of it to prove the allied pair shares one pool.
+`src/core/battleAudience.test.ts` covers the fold from seats to an audience, and `src/core/standings.test.ts` covers the table folded from finished battles. `src/server/service.test.ts` covers persistence, deletion permissions, seating either side of a 2v1, concurrent submissions, and who each feed and each link answers, against an in-process Postgres. `e2e/home-activity.spec.ts` drives the home page from a signed-in player and a signed-out visitor at once and proves the link stops answering when the player withholds it. `src/client/sides.test.ts` covers the fold from seats to sides, `src/client/sideRules.test.ts` covers the stratagem pool a side plays with, and `e2e/team-battle.spec.ts` drives a 2v1 from each side of it to prove the allied pair shares one pool.

@@ -42,15 +42,16 @@ export function Spectator({ view, missions, report }: Props) {
   useEffect(() => {
     if (captured.current) return
     captured.current = true
-    posthog.capture('league_battle_spectated', {
+    posthog.capture('battle_spectated', {
       status: view.status,
       format: table
         .map((side) => side.armies.length)
         .toSorted((left, right) => right - left)
         .join('v'),
       player_count: view.players.length,
+      league: Boolean(view.leagueToken),
     })
-  }, [table, view.players.length, view.status, view.token])
+  }, [table, view.leagueToken, view.players.length, view.status, view.token])
 
   return (
     <main className="w-full space-y-3 px-3 pb-8">

@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { BATTLE_AUDIENCES } from '../core/battleAudience'
 import {
   FORMAT_RULE_IDS,
   GAME_SIZES,
@@ -148,6 +149,7 @@ export const deleteBattleSchema = z.object({ token })
 export const battlesPageSchema = z.object({
   before: battlesCursor.nullable().default(null),
 })
+export const battleAudienceSchema = z.object({ audience: z.enum(BATTLE_AUDIENCES) })
 export const userSchema = z.object({ userId: id })
 export const userProfileSchema = userSchema.extend({ battle: token.optional() })
 export const friendSchema = z.object({ userId: id })

@@ -1,7 +1,26 @@
-import { and, asc, count, desc, eq, exists, ilike, inArray, isNotNull, isNull, lt, ne, notExists, or, sql } from 'drizzle-orm'
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  exists,
+  ilike,
+  inArray,
+  isNotNull,
+  isNull,
+  lt,
+  ne,
+  not,
+  notExists,
+  or,
+  type SQL,
+  sql,
+} from 'drizzle-orm'
 import type { AdminUserPage, AdminUsersCursor } from '../admin'
-import { battleCapacity, type Command, type LoggedCommand, reduceBattle, type Roster, type SubmitResult, validate } from '../core/battle'
+import { type Command, type LoggedCommand, reduceBattle, type Roster, type SubmitResult, validate } from '../core/battle'
 import { commandSchema, parseRosterSnapshot } from '../core/commands'
+import { type BattleAudience, DEFAULT_BATTLE_AUDIENCE } from '../core/battleAudience'
 import type { RosterSource } from '../core/savedRoster'
 import {
   alliedLeagueRosterLimit,
@@ -14,6 +33,7 @@ import type { TableShape } from '../core/tableShape'
 import { alias } from 'drizzle-orm/pg-core'
 import type { PraetoriumDatabase } from './connection'
 import {
+  battleSharing,
   battleUsers,
   battles,
   account,
@@ -32,6 +52,8 @@ import {
 } from './schema'
 
 type BattleRecord = { id: string; token: string; createdAt: number }
+/** One row of a list of battles: the battle, plus the time of its newest command. */
+type BattleRow = BattleRecord & { activity: number }
 type DatabaseTransaction = Parameters<Parameters<PraetoriumDatabase['transaction']>[0]>[0]
 type CreateBattleInput = {
   id: string
@@ -51,7 +73,6 @@ export type BattleHistory = BattleSeats & { log: LoggedCommand[] }
 /** Where the previous page of battles ended: its last row's newest-command time and battle id. */
 export type BattlesCursor = { activity: number; id: string }
 
-export type JoinResult = 'joined' | 'already-in' | 'full'
 export type UnlinkAccountResult =
   | { status: 'removed'; account: { accessToken: string | null; refreshToken: string | null } }
   | { status: 'missing' | 'two-factor' | 'last-method' }
@@ -431,44 +452,41 @@ export class Repository {
   }
 
   /**
-   * A page of battles this player has a seat in, most recently active first,
-   * with every log on the page.
-   *
-   * Ordered by the newest command rather than creation, so a battle being played
-   * is always on the first page whatever its age, and only history pages behind
-   * it grow with an account's lifetime. The cursor is the previous page's last
-   * (activity, id) pair; ties on activity fall back to the id so a page boundary
-   * cannot skip or repeat a battle.
-   *
-   * Three queries whatever the count: the battles, then the page's seats, then
-   * the page's commands. Reading a seat or a log per battle would put a round
-   * trip on the page for every game it shows.
+   * The time of a battle's newest command, which is what every list of battles is
+   * ordered by. Creation stands in for a battle nothing has happened in yet.
    */
-  async battlesByUser(
-    userId: string,
-    page?: { limit: number; before?: BattlesCursor; withUserId?: string },
+  private get activityTime() {
+    return sql<number>`coalesce(max(${commands.at}), ${battles.createdAt})`.mapWith(Number)
+  }
+
+  /**
+   * Where a page of battles resumes.
+   *
+   * The cursor is the previous page's last (activity, id) pair; ties on activity
+   * fall back to the id so a page boundary cannot skip or repeat a battle. It
+   * belongs to `having` rather than `where` because the activity it compares is
+   * an aggregate over the battle's commands.
+   */
+  private resumeAfter(activity: SQL<number>, cursor?: BattlesCursor) {
+    if (!cursor) return undefined
+    return or(sql`${activity} < ${cursor.activity}`, and(sql`${activity} = ${cursor.activity}`, lt(battles.id, cursor.id)))
+  }
+
+  /**
+   * Attaches the seats and the logs to a page of battle rows.
+   *
+   * Every list of battles — a player's own, a league event's, a friend's, and the
+   * public one — differs only in which battles it selects. What it does with them
+   * afterwards is this: two further reads for the whole page, rather than a seat
+   * and a log per battle, which would put a round trip on the page for every game
+   * it shows. `limit` is the page size the rows were asked for plus one, so the
+   * row past the end says whether another page exists without a count query.
+   */
+  private async hydrateBattles(
+    rows: readonly BattleRow[],
+    limit?: number,
   ): Promise<{ battles: (BattleHistory & { activity: number })[]; nextCursor: BattlesCursor | null }> {
-    const activity = sql<number>`coalesce(max(${commands.at}), ${battles.createdAt})`.mapWith(Number)
-    const theirs = alias(battleUsers, 'theirs')
-    const cursor = page?.before
-    let query = this.database
-      .select({ id: battles.id, token: battles.token, createdAt: battles.createdAt, activity })
-      .from(battles)
-      .innerJoin(battleUsers, eq(battleUsers.battleId, battles.id))
-      .leftJoin(commands, eq(commands.battleId, battles.id))
-      .where(eq(battleUsers.userId, userId))
-      .groupBy(battles.id)
-      .orderBy(desc(activity), desc(battles.id))
-      .$dynamic()
-    if (page?.withUserId) {
-      query = query.innerJoin(theirs, and(eq(theirs.battleId, battles.id), eq(theirs.userId, page.withUserId)))
-    }
-    if (cursor) {
-      query = query.having(or(sql`${activity} < ${cursor.activity}`, and(sql`${activity} = ${cursor.activity}`, lt(battles.id, cursor.id))))
-    }
-    // One row past the page says whether another page exists without a count query.
-    const rows = await (page ? query.limit(page.limit + 1) : query)
-    const shown = page ? rows.slice(0, page.limit) : rows
+    const shown = limit === undefined ? rows : rows.slice(0, limit)
     const ids = shown.map((row) => row.id)
     const [players, logs] = await Promise.all([this.playersByBattles(ids), this.logsByBattles(ids)])
     const last = shown.at(-1)
@@ -479,18 +497,73 @@ export class Repository {
         players: players.get(battle.id) ?? [],
         log: logs.get(battle.id) ?? [],
       })),
-      nextCursor: page && rows.length > page.limit && last ? { activity: last.activity, id: last.id } : null,
+      nextCursor: limit !== undefined && rows.length > limit && last ? { activity: last.activity, id: last.id } : null,
     }
   }
 
-  async battlesByLeagueEvent(
-    leagueToken: string,
-    eventToken: string,
-    page: { limit: number; before?: BattlesCursor },
-  ): Promise<{ battles: (BattleHistory & { activity: number })[]; nextCursor: BattlesCursor | null }> {
-    const activity = sql<number>`coalesce(max(${commands.at}), ${battles.createdAt})`.mapWith(Number)
-    const cursor = page.before
+  /**
+   * Battles no seated player has withheld from the audience asked for.
+   *
+   * The narrowing is the database's, and it is expressed as the presence of a seat
+   * that said no rather than the agreement of every seat: a player who has never
+   * answered has no row at all, so asking every seat to agree would hide every
+   * battle on an instance where nobody has opened the setting.
+   * `src/core/battleAudience.ts` decides what those answers mean; this only names
+   * the ones that rule a battle out.
+   */
+  private withheldFrom(audience: 'public' | 'friends') {
+    const refused = audience === 'public' ? ne(battleSharing.audience, 'public') : eq(battleSharing.audience, 'private')
+    const seat = alias(battleUsers, 'withholding_seat')
+    return exists(
+      this.database
+        .select({ one: sql`1` })
+        .from(battleSharing)
+        .innerJoin(seat, eq(seat.userId, battleSharing.userId))
+        .where(and(eq(seat.battleId, battles.id), refused)),
+    )
+  }
+
+  /** Whether a given account holds a seat in the battle the outer query is on. */
+  private seatOf(userId: string) {
+    const seat = alias(battleUsers, 'viewer_seat')
+    return exists(
+      this.database
+        .select({ one: sql`1` })
+        .from(seat)
+        .where(and(eq(seat.battleId, battles.id), eq(seat.userId, userId))),
+    )
+  }
+
+  /**
+   * A page of battles this player has a seat in, most recently active first,
+   * with every log on the page.
+   *
+   * Ordered by the newest command rather than creation, so a battle being played
+   * is always on the first page whatever its age, and only history pages behind
+   * it grow with an account's lifetime.
+   */
+  async battlesByUser(userId: string, page?: { limit: number; before?: BattlesCursor; withUserId?: string }) {
+    const activity = this.activityTime
+    const theirs = alias(battleUsers, 'theirs')
     let query = this.database
+      .select({ id: battles.id, token: battles.token, createdAt: battles.createdAt, activity })
+      .from(battles)
+      .innerJoin(battleUsers, eq(battleUsers.battleId, battles.id))
+      .leftJoin(commands, eq(commands.battleId, battles.id))
+      .where(eq(battleUsers.userId, userId))
+      .groupBy(battles.id)
+      .having(this.resumeAfter(activity, page?.before))
+      .orderBy(desc(activity), desc(battles.id))
+      .$dynamic()
+    if (page?.withUserId) {
+      query = query.innerJoin(theirs, and(eq(theirs.battleId, battles.id), eq(theirs.userId, page.withUserId)))
+    }
+    return this.hydrateBattles(await (page ? query.limit(page.limit + 1) : query), page?.limit)
+  }
+
+  async battlesByLeagueEvent(leagueToken: string, eventToken: string, page: { limit: number; before?: BattlesCursor }) {
+    const activity = this.activityTime
+    const rows = await this.database
       .select({ id: battles.id, token: battles.token, createdAt: battles.createdAt, activity })
       .from(leagueEventBattles)
       .innerJoin(leagueEvents, eq(leagueEvents.id, leagueEventBattles.eventId))
@@ -499,25 +572,115 @@ export class Repository {
       .leftJoin(commands, eq(commands.battleId, battles.id))
       .where(and(eq(leagues.token, leagueToken), eq(leagueEvents.token, eventToken), isNotNull(leagueEvents.revealedAt)))
       .groupBy(battles.id)
+      .having(this.resumeAfter(activity, page.before))
       .orderBy(desc(activity), desc(battles.id))
-      .$dynamic()
-    if (cursor) {
-      query = query.having(or(sql`${activity} < ${cursor.activity}`, and(sql`${activity} = ${cursor.activity}`, lt(battles.id, cursor.id))))
-    }
-    const rows = await query.limit(page.limit + 1)
-    const shown = rows.slice(0, page.limit)
-    const ids = shown.map((row) => row.id)
-    const [players, logs] = await Promise.all([this.playersByBattles(ids), this.logsByBattles(ids)])
-    const last = shown.at(-1)
-    return {
-      battles: shown.map((battle) => ({
-        battle,
-        activity: battle.activity,
-        players: players.get(battle.id) ?? [],
-        log: logs.get(battle.id) ?? [],
-      })),
-      nextCursor: rows.length > page.limit && last ? { activity: last.activity, id: last.id } : null,
-    }
+      .limit(page.limit + 1)
+    return this.hydrateBattles(rows, page.limit)
+  }
+
+  /**
+   * Battles anyone may watch, most recently active first.
+   *
+   * `viewerId` drops the battles that viewer already sits in, because the page
+   * asking for this has shown them their own games above and a reader counting
+   * the same battle twice learns nothing the second time.
+   */
+  async publicBattles(page: { limit: number; before?: BattlesCursor; viewerId?: string | null }) {
+    const activity = this.activityTime
+    const rows = await this.database
+      .select({ id: battles.id, token: battles.token, createdAt: battles.createdAt, activity })
+      .from(battles)
+      .leftJoin(commands, eq(commands.battleId, battles.id))
+      .where(and(not(this.withheldFrom('public')), page.viewerId ? not(this.seatOf(page.viewerId)) : undefined))
+      .groupBy(battles.id)
+      .having(this.resumeAfter(activity, page.before))
+      .orderBy(desc(activity), desc(battles.id))
+      .limit(page.limit + 1)
+    return this.hydrateBattles(rows, page.limit)
+  }
+
+  /**
+   * Battles this player's confirmed friends are in and they are not.
+   *
+   * A friendship is mutual and settled, so either direction of the row counts.
+   * Practice opponents are nobody's friend, so a friend's practice game arrives
+   * here through the friend in it rather than needing a case of its own.
+   */
+  async battlesByFriends(userId: string, page: { limit: number; before?: BattlesCursor }) {
+    const activity = this.activityTime
+    const friend = alias(battleUsers, 'friend_seat')
+    const friendship = exists(
+      this.database
+        .select({ one: sql`1` })
+        .from(friendships)
+        .where(
+          and(
+            isNotNull(friendships.acceptedAt),
+            or(
+              and(eq(friendships.requesterId, userId), eq(friendships.addresseeId, friend.userId)),
+              and(eq(friendships.addresseeId, userId), eq(friendships.requesterId, friend.userId)),
+            ),
+          ),
+        ),
+    )
+    const rows = await this.database
+      .select({ id: battles.id, token: battles.token, createdAt: battles.createdAt, activity })
+      .from(battles)
+      .innerJoin(friend, eq(friend.battleId, battles.id))
+      .leftJoin(commands, eq(commands.battleId, battles.id))
+      .where(and(friendship, not(this.seatOf(userId)), not(this.withheldFrom('friends'))))
+      .groupBy(battles.id)
+      .having(this.resumeAfter(activity, page.before))
+      .orderBy(desc(activity), desc(battles.id))
+      .limit(page.limit + 1)
+    return this.hydrateBattles(rows, page.limit)
+  }
+
+  /**
+   * Every battle anyone may watch that has moved since `since`, for the standings.
+   *
+   * Bounded by both a window and a count, because this reads whole logs: a
+   * leaderboard is folded from the same histories the battle list folds, and an
+   * unbounded one would read every command an instance has ever stored to print
+   * ten rows. Which of them are finished is `standings`' to decide, since being
+   * finished is a fold rather than a column.
+   */
+  async watchableBattlesSince(since: number, limit: number) {
+    const activity = this.activityTime
+    const rows = await this.database
+      .select({ id: battles.id, token: battles.token, createdAt: battles.createdAt, activity })
+      .from(battles)
+      .leftJoin(commands, eq(commands.battleId, battles.id))
+      .where(not(this.withheldFrom('public')))
+      .groupBy(battles.id)
+      .having(sql`coalesce(max(${commands.at}), ${battles.createdAt}) >= ${since}`)
+      .orderBy(desc(activity), desc(battles.id))
+      .limit(limit)
+    return (await this.hydrateBattles(rows)).battles
+  }
+
+  /** How widely these players allow their battles to be seen. Absent means the default. */
+  async battleAudiences(userIds: readonly string[]) {
+    const ids = [...new Set(userIds)]
+    if (!ids.length) return new Map<string, BattleAudience>()
+    const rows = await this.database
+      .select({ userId: battleSharing.userId, audience: battleSharing.audience })
+      .from(battleSharing)
+      .where(inArray(battleSharing.userId, ids))
+    return new Map(rows.map((row) => [row.userId, row.audience]))
+  }
+
+  /** One player's own answer, or the default they have never changed. */
+  async battleAudience(userId: string): Promise<BattleAudience> {
+    return (await this.battleAudiences([userId])).get(userId) ?? DEFAULT_BATTLE_AUDIENCE
+  }
+
+  async setBattleAudience(userId: string, audience: BattleAudience, now: number) {
+    await this.database
+      .insert(battleSharing)
+      .values({ userId, audience, at: now })
+      .onConflictDoUpdate({ target: battleSharing.userId, set: { audience, at: now } })
+    return audience
   }
 
   /**
@@ -535,32 +698,6 @@ export class Repository {
       .where(and(eq(battleUsers.userId, userId), eq(theirs.userId, otherId)))
       .limit(1)
     return Boolean(row)
-  }
-
-  /**
-   * Takes an opposing seat, if one is still free.
-   *
-   * The battle row is locked first: two players following the same link at once
-   * would otherwise both read one free chair and both take it. How many chairs
-   * there are is settled here and nowhere else — a practice battle has one, so a
-   * second player is refused as full rather than by a separate rule that could
-   * come to disagree with this one.
-   */
-  async join(input: { battleId: string; userId: string; now: number }): Promise<JoinResult> {
-    return this.database.transaction(async (tx) => {
-      await lockBattle(tx, input.battleId)
-      const seated = await this.playersByBattle(input.battleId, tx)
-      if (seated.some((player) => player.id === input.userId)) return 'already-in'
-      const log = await this.logQuery(input.battleId, tx)
-      const state = reduceBattle(
-        seated.map((player) => player.id),
-        log,
-        seated.map((player) => player.side),
-      )
-      if (seated.length >= battleCapacity(state.settings)) return 'full'
-      await tx.insert(battleUsers).values({ battleId: input.battleId, userId: input.userId, side: 1, joinedAt: input.now })
-      return 'joined'
-    })
   }
 
   async log(battleId: string): Promise<LoggedCommand[]> {
