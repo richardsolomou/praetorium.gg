@@ -141,7 +141,18 @@ export function authDeliveryDeferred(state: AppShellState, id: string): AppShell
 }
 
 export function authDeliverySucceeded(state: AppShellState, id: string): AppShellState {
-  return state.delivering?.kind === 'auth' && state.delivering.callback.id === id ? { ...state, delivering: null } : state
+  if (state.delivering?.kind !== 'auth' || state.delivering.callback.id !== id) return state
+  const destination = new URL(state.delivering.callback.next, APP_URL).toString()
+  return {
+    ...state,
+    sourceUrl: destination,
+    lastInternalUrl: destination,
+    ready: false,
+    loadStarted: false,
+    loadFailed: false,
+    delivering: null,
+    renderKey: state.renderKey + 1,
+  }
 }
 
 export function rendererTerminated(state: AppShellState): AppShellState {

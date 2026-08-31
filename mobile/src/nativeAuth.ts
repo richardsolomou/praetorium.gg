@@ -142,9 +142,8 @@ export function nativeAuthExchangeScript(callback: Extract<NativeAuthCallback, {
       }
       if (!response.ok) throw new Error('native auth exchange failed');
       const exchange = await response.json();
-      if (exchange.id !== auth.id || typeof exchange.next !== 'string') throw new Error('native auth exchange mismatch');
+      if (exchange.id !== auth.id || exchange.next !== auth.next) throw new Error('native auth exchange mismatch');
       window.ReactNativeWebView.postMessage(JSON.stringify({ version: 2, type: 'native-auth-result', id: exchange.id, ok: true }));
-      window.location.replace(exchange.next);
     } catch {
       window.ReactNativeWebView.postMessage(JSON.stringify({ version: 2, type: 'native-auth-result', id: auth.id, ok: false, retryable: true }));
     }

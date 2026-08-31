@@ -26,6 +26,13 @@ function exchangeResult(fetch: () => Promise<Response>) {
 }
 
 describe('injected native authentication exchange', () => {
+  it('leaves authenticated navigation to the native shell', async () => {
+    const script = nativeAuthExchangeScript(callback)
+
+    expect(script).toContain('exchange.next !== auth.next')
+    expect(script).not.toContain('window.location.replace')
+  })
+
   it.each([
     ['a network rejection', async () => Promise.reject(new Error('offline'))],
     ['a server error', async () => new Response(null, { status: 503 })],
