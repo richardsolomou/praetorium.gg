@@ -115,12 +115,11 @@ export function StandingsGlimpse({ tables }: { tables: Record<StandingSubject, r
   const leaders = (Object.keys(SUBJECTS) as StandingSubject[]).map((subject) => ({ subject, leader: tables[subject][0] }))
   if (!leaders.some(({ leader }) => leader)) {
     return (
-      <section data-standings-empty className="border border-edge bg-sunken p-5">
-        <p className="eyebrow flex items-center gap-2 text-parchment">
-          <Trophy className="size-4" aria-hidden /> Leaderboard
-        </p>
-        <p className="mt-2 text-sm text-dim">
-          No battles have finished yet. Every battle counts once it ends, and battles against a practice opponent are left out.
+      <section data-standings-empty>
+        <p className="rubric border-b border-edge pb-2">Leading</p>
+        <p className="mt-2 flex items-start gap-3 border border-edge bg-panel p-5 text-sm text-dim">
+          <Trophy className="mt-0.5 size-5 shrink-0 text-parchment" aria-hidden />
+          <span>No battles have finished yet. Every battle counts once it ends, and battles against a practice opponent are left out.</span>
         </p>
       </section>
     )
