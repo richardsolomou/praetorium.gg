@@ -1,10 +1,12 @@
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto'
+import type { AuthContext } from 'better-auth'
 import { createAuthEndpoint, getAuthoritativeSessionFromCtx, sessionMiddleware } from 'better-auth/api'
 import { setSessionCookie } from 'better-auth/cookies'
 import { z } from 'zod'
 import { SOCIAL_PROVIDERS } from '../authConfig'
 
 const EXCHANGE_MINUTES = 3
+const NULL_ORIGIN_ENDPOINTS = new Set(['/native-auth-token/exchange', '/native-auth-token/consume'])
 const exchangeBody = z.object({
   id: z.string().min(32).max(128),
   token: z.string().min(32).max(128),
@@ -58,9 +60,27 @@ function exchangeRecord(value: string) {
   }
 }
 
+export function nativeAuthProofRequest(request: Request, baseURL: string) {
+  if (request.method !== 'POST') return request
+  const origin = request.headers.get('origin')
+  if (origin && origin !== 'null') return request
+  const base = new URL(baseURL)
+  const basePath = base.pathname.replace(/\/+$/, '')
+  const pathname = new URL(request.url).pathname.replace(/\/+$/, '')
+  const endpoint = pathname.startsWith(`${basePath}/`) ? pathname.slice(basePath.length) : pathname
+  if (!NULL_ORIGIN_ENDPOINTS.has(endpoint)) return request
+  const headers = new Headers(request.headers)
+  headers.set('origin', base.origin)
+  return new Request(request, { headers })
+}
+
 export function nativeAuthToken() {
   return {
     id: 'praetorium-native-auth-token',
+    onRequest: async (request: Request, context: AuthContext) => {
+      const normalized = nativeAuthProofRequest(request, context.baseURL)
+      if (normalized !== request) return { request: normalized }
+    },
     endpoints: {
       generateNativeAuthToken: createAuthEndpoint(
         '/native-auth-token/generate',

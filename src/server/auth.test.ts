@@ -342,6 +342,7 @@ describe('account administration', () => {
 
   it('sets the native session before redirecting a top-level form exchange', async () => {
     connection = await openTestDatabase()
+    vi.stubEnv('NODE_ENV', 'production')
     vi.stubEnv('APP_URL', 'https://praetorium.gg')
     const auth = createAuth(connection.database, SECRET)
     const signedUp = await auth.api.signUpEmail({
@@ -364,14 +365,29 @@ describe('account administration', () => {
     const invalid = await auth.handler(
       new Request('https://praetorium.gg/api/auth/native-auth-token/exchange', {
         method: 'POST',
-        headers: { 'content-type': 'application/x-www-form-urlencoded', origin: 'https://praetorium.gg' },
+        headers: {
+          'content-type': 'application/x-www-form-urlencoded',
+          cookie: 'better-auth.session_token=stale-webview-cookie',
+          origin: 'null',
+        },
         body: new URLSearchParams({ ...exchange, verifier: 'w'.repeat(43), navigation: '1' }),
+      }),
+    )
+    const foreign = await auth.handler(
+      new Request('https://praetorium.gg/api/auth/native-auth-token/exchange', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/x-www-form-urlencoded',
+          cookie: 'better-auth.session_token=stale-webview-cookie',
+          origin: 'https://example.com',
+        },
+        body: new URLSearchParams({ ...exchange, verifier: NATIVE_VERIFIER, navigation: '1' }),
       }),
     )
     const response = await auth.handler(
       new Request('https://praetorium.gg/api/auth/native-auth-token/exchange', {
         method: 'POST',
-        headers: { 'content-type': 'application/x-www-form-urlencoded', origin: 'https://praetorium.gg' },
+        headers: { 'content-type': 'application/x-www-form-urlencoded', cookie: 'better-auth.session_token=stale-webview-cookie' },
         body: new URLSearchParams({ ...exchange, verifier: NATIVE_VERIFIER, navigation: '1' }),
       }),
     )
@@ -380,6 +396,7 @@ describe('account administration', () => {
       status: 302,
       location: `https://praetorium.gg/sign-in?__native_auth_error=${exchange.id}`,
     })
+    expect(foreign.status).toBe(403)
     expect({ status: response.status, location: response.headers.get('location') }).toEqual({
       status: 302,
       location: `https://praetorium.gg/rosters?__native_auth=${exchange.id}`,
@@ -387,6 +404,26 @@ describe('account administration', () => {
     expect(await auth.api.getSession({ headers: cookieHeaders(response.headers) })).toMatchObject({
       user: { id: signedUp.response.user.id },
     })
+  })
+
+  it('keeps origin checks on ordinary cookie-authenticated endpoints', async () => {
+    connection = await openTestDatabase()
+    vi.stubEnv('APP_URL', 'https://praetorium.gg')
+    const auth = createAuth(connection.database, SECRET)
+    const signedUp = await auth.api.signUpEmail({
+      body: { email: 'origin-check@example.com', password: 'password1234', name: 'Origin check' },
+      returnHeaders: true,
+    })
+
+    const response = await auth.handler(
+      new Request('https://praetorium.gg/api/auth/sign-out', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', cookie: cookieHeaders(signedUp.headers).get('cookie')! },
+        body: '{}',
+      }),
+    )
+
+    expect(response.status).toBe(403)
   })
 
   it('rejects unbound metadata and a revoked authoritative identity', async () => {
