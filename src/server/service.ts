@@ -22,6 +22,7 @@ import {
   type Stratagem,
   type SubmitResult,
 } from '../core/battle'
+import { type BattleAudience, battleAudience, maySpectate } from '../core/battleAudience'
 import { type BattleView, battleView } from '../core/battleView'
 import { battleReport } from '../core/battleReport'
 import type { MissionAward } from '../core/scoring'
@@ -40,7 +41,7 @@ import {
 } from '../core/league'
 import type { TableShape } from '../core/tableShape'
 import { commandSchema, parseRosterSnapshot } from '../core/commands'
-import type { BattleHistory, BattleSeats, BattlesCursor, JoinResult, Repository } from '../db/repository'
+import type { BattleHistory, BattleSeats, BattlesCursor, Repository } from '../db/repository'
 import { type Mission, missionFor } from './rules'
 import { picksSchema, savedPrepSchema } from './schemas'
 
@@ -60,10 +61,18 @@ type SpectatorScreen = {
   report: ReturnType<typeof battleReport>
 }
 
-/** A link resolves to a seated screen, a revealed league spectator, or an invitation; reads never claim seats. */
-type BattleScreen = SeatedScreen | SpectatorScreen | { kind: 'invitation'; free: boolean }
+/**
+ * A link resolves to a seated screen, a spectator screen, or nothing.
+ *
+ * There is no fourth answer offering a seat. A battle names everyone in it at the
+ * moment it is created, so no chair is ever standing empty for a link to fill.
+ */
+type BattleScreen = SeatedScreen | SpectatorScreen | { kind: 'unavailable' }
 
 const SPECTATOR_ID = ''
+
+/** A page of a home-page feed. Small: every row on it costs a folded log. */
+const PUBLIC_BATTLES_PAGE = 10
 
 /**
  * What a command answers: what happened to it, and what the battle now is.
@@ -473,6 +482,60 @@ export class PraetoriumService {
     return { battles: this.battleSummaries(histories, userId, rules), nextCursor }
   }
 
+  /**
+   * The battles anyone may watch, for the home page.
+   *
+   * Folded with no viewer, the same as a league event's list: a reader with no
+   * seat is told what a spectator of any one of these would be told, and nothing
+   * in a summary is hidden from a spectator anyway.
+   */
+  async publicBattles(
+    viewerId: string | null,
+    rules?: Parameters<typeof missionFor>[0] | null,
+    page?: { limit: number; before?: BattlesCursor },
+  ) {
+    const { battles: histories, nextCursor } = await this.repository.publicBattles({
+      limit: page?.limit ?? PUBLIC_BATTLES_PAGE,
+      before: page?.before,
+      viewerId,
+    })
+    return { battles: this.battleSummaries(histories, viewerId, rules), nextCursor }
+  }
+
+  /** The battles this player's friends are in and they are not. */
+  async friendBattles(userId: string, rules?: Parameters<typeof missionFor>[0] | null, page?: { limit: number; before?: BattlesCursor }) {
+    const { battles: histories, nextCursor } = await this.repository.battlesByFriends(userId, {
+      limit: page?.limit ?? PUBLIC_BATTLES_PAGE,
+      before: page?.before,
+    })
+    return { battles: this.battleSummaries(histories, userId, rules), nextCursor }
+  }
+
+  /** How widely this player's battles may be seen, and their own answer to it. */
+  battleAudience(userId: string) {
+    return this.repository.battleAudience(userId)
+  }
+
+  setBattleAudience(userId: string, audience: BattleAudience) {
+    return this.repository.setBattleAudience(userId, audience, this.clock())
+  }
+
+  /**
+   * Whether a viewer holding no seat may read this battle.
+   *
+   * `battleAudience` folds the seats' answers; a friend is only asked about when
+   * the fold says the answer turns on one, so an ordinary public battle costs the
+   * audience read alone.
+   */
+  private async mayWatch(history: BattleHistory, viewerId: string | null) {
+    const audiences = await this.repository.battleAudiences(history.players.map((player) => player.id))
+    const audience = battleAudience(history.players.map((player) => audiences.get(player.id)))
+    if (!viewerId || audience !== 'friends') return maySpectate(audience, { signedIn: Boolean(viewerId), friend: false })
+    const friends = sortedFriends(await this.repository.relationships(viewerId), viewerId).friends
+    const friend = history.players.some((player) => friends.some((known) => known.id === player.id))
+    return maySpectate(audience, { signedIn: true, friend })
+  }
+
   async leagueBattles(
     leagueToken: string,
     eventToken: string,
@@ -524,19 +587,18 @@ export class PraetoriumService {
     })
   }
 
-  /** Someone's name and picture, to a viewer allowed to see it. */
-  async userProfile(viewerId: string | null, userId: string, battleToken?: string) {
-    const profile = await this.repository.profileByUserId(userId)
-    if (!profile) return null
-    if (viewerId) {
-      if (viewerId === userId) return profile
-      const friends = sortedFriends(await this.repository.relationships(viewerId), viewerId).friends
-      if (friends.some((friend) => friend.id === userId)) return profile
-      if (await this.repository.shareBattle(viewerId, userId)) return profile
-    }
-    if (!battleToken) return null
-    const screen = await this.screen(battleToken, viewerId)
-    return screen.kind === 'spectator' && screen.view.players.some((player) => player.id === userId) ? profile : null
+  /**
+   * Someone's name and picture.
+   *
+   * Open to anybody, including a reader with no account. A name is already on
+   * every battle a player allows to be watched and on every row of the
+   * leaderboard, so gating the page that shows the same name behind a friendship
+   * only produced links that led nowhere. What a player keeps to themselves is
+   * their battles, which `battleAudience` governs; who they are is not a secret
+   * the product was ever keeping.
+   */
+  async userProfile(userId: string) {
+    return (await this.repository.profileByUserId(userId)) ?? null
   }
 
   async saveRoster(
@@ -708,12 +770,13 @@ export class PraetoriumService {
   }
 
   /**
-   * Opens a battle and invites the rest of the table.
+   * Opens a battle with its whole table already seated.
    *
-   * The creator says which side each invitation is for: `allyId` joins them and
-   * `opponentIds` face them. Everyone invited is checked once, together — who may be in a battle
-   * is one question, and asking it of the ally and the opponents separately would
-   * be two rules about it.
+   * The creator says which side each player is on: `allyId` sits beside them and
+   * `opponentIds` face them. Everyone named is checked once, together — who may be
+   * in a battle is one question, and asking it of the ally and the opponents
+   * separately would be two rules about it. Every named player takes their seat in
+   * the same transaction, so a battle is never a room with a chair free in it.
    */
   async createBattle(userId: string, input?: string | CreateBattleInput) {
     const settings = typeof input === 'object' && input.limit !== undefined ? { ...input, limit: input.limit } : null
@@ -733,8 +796,9 @@ export class PraetoriumService {
     // How many chairs a battle has is `battleCapacity`'s to say, here as everywhere.
     if (invited.length >= battleCapacity({ teamBattle: true, playerCount: 4 }))
       throw new Response('a battle seats four players at most', { status: 400 })
-    if (allyIds.length && !opponentIds.length) throw new Response('choose an opponent', { status: 400 })
-    if (settings && !opponentIds.length) throw new Response('choose an opponent', { status: 400 })
+    // Every battle names its table. There is no opening a game and waiting to see
+    // who turns up, so a battle without an opponent is not a battle yet.
+    if (!opponentIds.length) throw new Response('choose an opponent', { status: 400 })
     if (invited.length && (typeof input !== 'object' || !input.casual)) {
       const leagueMatches = await this.leagueBattleOptions(userId, input)
       if (leagueMatches.length) {
@@ -833,26 +897,6 @@ export class PraetoriumService {
   }
 
   /**
-   * Takes a seat behind a shared link.
-   *
-   * Only the seats are read here: whether there is a chair free is settled inside
-   * the append, under the lock that stops two people taking the same one, so
-   * reading the history out here as well would fold the same log twice to reach
-   * the same answer.
-   */
-  async join(token: string, userId: string): Promise<JoinResult> {
-    const seats = await this.repository.battleByToken(token)
-    if (!seats) throw new Response('no such battle', { status: 404 })
-    const opener = seats.players.find((player) => player.side === 0)
-    if (!opener || !(await this.opponents(opener.id)).some((friend) => friend.id === userId)) {
-      throw new Response('battle opponents must be friends', { status: 403 })
-    }
-    const result = await this.repository.join({ battleId: seats.battle.id, userId, now: this.clock() })
-    if (result === 'joined') this.events.publish(seats.battle.id, [...seats.players.map((player) => player.id), userId])
-    return result
-  }
-
-  /**
    * `rules` is passed in rather than reached for, so the service stays testable
    * without a synced dataset.
    */
@@ -861,21 +905,22 @@ export class PraetoriumService {
     const viewerId = userId && this.seated(history, userId) ? userId : SPECTATOR_ID
     const screen = this.battleScreen(history, viewerId, rules)
     if (viewerId !== SPECTATOR_ID) return screen
-    if (screen.view.leagueToken) {
-      return {
-        kind: 'spectator',
-        view: screen.view,
-        missions: screen.missions,
-        report: battleReport(
-          history.players,
-          history.log,
-          history.players.map((player) => player.id),
-          SPECTATOR_ID,
-          history.players.map((player) => player.side),
-        ),
-      }
-    }
-    return { kind: 'invitation', free: history.players.length < battleCapacity(screen.view.settings) }
+    const spectator = (): SpectatorScreen => ({
+      kind: 'spectator',
+      view: screen.view,
+      missions: screen.missions,
+      report: battleReport(
+        history.players,
+        history.log,
+        history.players.map((player) => player.id),
+        SPECTATOR_ID,
+        history.players.map((player) => player.side),
+      ),
+    })
+    if (screen.view.leagueToken) return spectator()
+    // Everyone else either watches or is told no. Nobody arrives here to sit down:
+    // the seats were filled when the battle was created.
+    return (await this.mayWatch(history, userId)) ? spectator() : { kind: 'unavailable' }
   }
 
   /** A readable account of the battle. Derived from the log, so nothing is stored for it. */

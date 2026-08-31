@@ -121,7 +121,7 @@ test('password reset refreshes revoked auth state and preserves the destination'
   await expect(page.getByText('Sign in with your new password.')).toBeVisible()
   await expect(page.getByRole('button', { name: 'Account menu', exact: true })).toBeVisible()
   await page.goBack()
-  await expect(page).toHaveURL('/rosters')
+  await expect(page).toHaveURL('/')
 })
 
 test('password reset failures are announced', async ({ page }) => {
@@ -246,7 +246,7 @@ test('a list saved under an account is there on another device', async ({ browse
   await elsewhere.getByLabel('Email').fill(email)
   await elsewhere.getByLabel('Password').fill('a-long-enough-password')
   await elsewhere.getByRole('button', { name: 'Sign in', exact: true }).click()
-  await elsewhere.waitForURL('/rosters')
+  await elsewhere.waitForURL('/')
   await expect(elsewhere.getByRole('button', { name: 'Account menu for Alice' })).toBeVisible()
 
   await elsewhere.goto('/rosters')

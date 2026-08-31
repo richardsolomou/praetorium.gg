@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { BATTLE_AUDIENCES } from '../core/battleAudience'
 import {
   FORMAT_RULE_IDS,
   GAME_SIZES,
@@ -31,7 +32,7 @@ const token = id
 const catalogueId = id
 const slug = z.string().min(1).max(160)
 const rosterLimit = z.number().int().min(0).max(10_000)
-const battlesCursor = z.object({ activity: z.number().int().min(0), id })
+const battlesCursor = z.object({ at: z.number().int().min(0), id })
 
 export const tokenSchema = z.object({ token })
 const leagueFields = {
@@ -148,8 +149,8 @@ export const deleteBattleSchema = z.object({ token })
 export const battlesPageSchema = z.object({
   before: battlesCursor.nullable().default(null),
 })
+export const battleAudienceSchema = z.object({ audience: z.enum(BATTLE_AUDIENCES) })
 export const userSchema = z.object({ userId: id })
-export const userProfileSchema = userSchema.extend({ battle: token.optional() })
 export const friendSchema = z.object({ userId: id })
 export const setOwnPasswordSchema = z.object({ password: z.string().min(PASSWORD_MIN_LENGTH).max(128) })
 export const unlinkOwnAccountSchema = z.object({ provider: z.enum(['credential', ...SOCIAL_PROVIDERS]) })

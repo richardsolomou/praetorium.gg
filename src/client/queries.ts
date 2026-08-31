@@ -6,6 +6,9 @@ import {
   battleReport,
   accountMethods,
   adminUsers,
+  battleAudience,
+  friendBattles,
+  publicBattles,
   catalogueStatus,
   collection,
   deployments,
@@ -59,15 +62,15 @@ export const adminUsersQuery = (query: string) =>
     staleTime: SSR_STALE_TIME,
   })
 
-export const userProfileQuery = (userId: string, battle?: string) =>
+export const userProfileQuery = (userId: string) =>
   queryOptions({
-    queryKey: ['user-profile', userId, battle],
-    queryFn: () => userProfile({ data: { userId, battle } }),
+    queryKey: ['user-profile', userId],
+    queryFn: () => userProfile({ data: { userId } }),
     staleTime: SSR_STALE_TIME,
   })
 
 /** Where the previous battles page ended; matches the server's cursor schema. */
-type BattlesCursor = { activity: number; id: string }
+type BattlesCursor = { at: number; id: string }
 
 export const battlesQuery = () =>
   infiniteQueryOptions({
@@ -81,6 +84,41 @@ export const battlesQuery = () =>
 /** The loaded battle pages as one list, however many the reader has asked for. */
 export const battlesFrom = (data: { pages: { battles: unknown[] }[] } | undefined) =>
   (data?.pages.flatMap((page) => page.battles) ?? []) as Awaited<ReturnType<typeof myBattles>>['battles']
+
+/**
+ * The battles anyone may watch, and the ones a player's friends are in.
+ *
+ * Both poll rather than subscribe. A player's own battles are told about over
+ * realtime because their device is a seat at that table; these are somebody
+ * else's tables, so no channel exists that names this reader — and a channel
+ * every visitor to the home page subscribes to would be a broadcast to the whole
+ * instance for a list that reads perfectly well a few seconds late. React Query
+ * pauses the interval while the tab is in the background.
+ */
+const FEED_POLL_MS = 20_000
+
+export const publicBattlesQuery = () =>
+  infiniteQueryOptions({
+    queryKey: ['public-battles'],
+    queryFn: ({ pageParam }) => publicBattles({ data: { before: pageParam } }),
+    initialPageParam: null as BattlesCursor | null,
+    getNextPageParam: (page) => page.nextCursor ?? undefined,
+    staleTime: SSR_STALE_TIME,
+    refetchInterval: FEED_POLL_MS,
+  })
+
+export const friendBattlesQuery = () =>
+  infiniteQueryOptions({
+    queryKey: ['friend-battles'],
+    queryFn: ({ pageParam }) => friendBattles({ data: { before: pageParam } }),
+    initialPageParam: null as BattlesCursor | null,
+    getNextPageParam: (page) => page.nextCursor ?? undefined,
+    staleTime: SSR_STALE_TIME,
+    refetchInterval: FEED_POLL_MS,
+  })
+
+export const battleAudienceQuery = () =>
+  queryOptions({ queryKey: ['battle-audience'], queryFn: () => battleAudience(), staleTime: SSR_STALE_TIME })
 
 export const sharedBattlesQuery = (userId: string) =>
   queryOptions({

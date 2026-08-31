@@ -5,18 +5,35 @@ import { configuredAuthProviders } from '../authProviders'
 import { currentUser, currentUserId, requireAdmin, requireUser, requireUserId } from '../playerSession'
 import { mutationRpc, rpc } from '../rpc'
 import {
+  battleAudienceSchema,
   favouriteDetachmentSchema,
   favouriteFactionSchema,
   friendSchema,
   adminUsersSchema,
   ownedSchema,
   setAdminRoleSchema,
+  userSchema,
   setOwnPasswordSchema,
   unlinkOwnAccountSchema,
-  userProfileSchema,
 } from '../schemas'
 
 export const me = createServerFn({ method: 'GET' }).handler(() => rpc(() => currentUser()))
+
+/** How widely this player's battles may be seen. */
+export const battleAudience = createServerFn({ method: 'GET' }).handler(() =>
+  rpc(async () => app().service.battleAudience(await requireUserId())),
+)
+
+export const setBattleAudience = createServerFn({ method: 'POST' })
+  .validator(battleAudienceSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const player = await requireUser()
+      const audience = await app().service.setBattleAudience(player.id, data.audience)
+      await app().telemetry.capture(player.id, 'battle_audience_set', { audience })
+      return audience
+    }),
+  )
 
 export const adminUsers = createServerFn({ method: 'GET' })
   .validator(adminUsersSchema)
@@ -94,13 +111,8 @@ export const setAdminRole = createServerFn({ method: 'POST' })
   )
 
 export const userProfile = createServerFn({ method: 'GET' })
-  .validator(userProfileSchema)
-  .handler(({ data }) =>
-    rpc(async () => {
-      const viewerId = await currentUserId()
-      return app().service.userProfile(viewerId, data.userId, data.battle)
-    }),
-  )
+  .validator(userSchema)
+  .handler(({ data }) => rpc(() => app().service.userProfile(data.userId)))
 
 export const opponents = createServerFn({ method: 'GET' }).handler(() =>
   rpc(async () => {

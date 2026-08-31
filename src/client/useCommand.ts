@@ -80,7 +80,7 @@ export function useCommand(token: string, seq: number) {
             /*
              * A session that lapsed mid-battle is an answer like any other. Asking
              * again who is playing and what this battle looks like turns the page
-             * into the invitation, which offers sign-in with this battle as the
+             * into the unavailable screen, which offers sign-in with this battle as the
              * destination — so the player gets a way back into the game they were
              * in the middle of, rather than a sentence they cannot act on.
              */

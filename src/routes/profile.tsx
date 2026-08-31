@@ -11,9 +11,10 @@ import { Label } from '@/components/ui/label'
 import { PROFILE_NAME_MAX_LENGTH } from '../authConfig'
 import { authClient } from '../client/authClient'
 import { AccountSecurity } from '../client/components/AccountSecurity'
+import { BattleSharing } from '../client/components/BattleSharing'
 import { PlayerAvatar } from '../client/components/PlayerAvatar'
 import { SignInRequired } from '../client/components/SignInRequired'
-import { accountMethodsQuery, battlesQuery, friendshipsQuery, meQuery, opponentsQuery } from '../client/queries'
+import { accountMethodsQuery, battleAudienceQuery, battlesQuery, friendshipsQuery, meQuery, opponentsQuery } from '../client/queries'
 import { errorMessage } from '../client/queryClient'
 import { prepareProfileImage } from '../client/profileImage'
 
@@ -39,7 +40,10 @@ export const Route = createFileRoute('/profile')({
     if (search.verified === true || search.verified === 'true') result.verified = true
     return result
   },
-  loader: ({ context }) => context.queryClient.ensureQueryData(meQuery()),
+  loader: async ({ context }) => {
+    const me = await context.queryClient.ensureQueryData(meQuery())
+    if (me) await context.queryClient.ensureQueryData(battleAudienceQuery())
+  },
   component: Profile,
 })
 
@@ -217,6 +221,7 @@ function ProfileForm({
           {saved ? <output className="text-sm text-achieved">Profile saved.</output> : null}
         </div>
       </form>
+      <BattleSharing />
       <AccountSecurity me={me} />
     </main>
   )
