@@ -6,6 +6,7 @@ type AuthCallback = Extract<NativeAuthCallback, { kind: 'success' }>
 export type AppShellCommand = { kind: 'auth'; callback: AuthCallback } | { kind: 'navigation'; url: string }
 
 export type AppShellState = {
+  active: boolean
   sourceUrl: string | null
   lastInternalUrl: string
   initialUrlPending: boolean
@@ -28,8 +29,9 @@ export function appShellRenderChanged(previous: AppShellState, next: AppShellSta
   return previous.sourceUrl !== next.sourceUrl || previous.renderKey !== next.renderKey
 }
 
-export function initialAppShellState(): AppShellState {
+export function initialAppShellState(active = true): AppShellState {
   return {
+    active,
     sourceUrl: null,
     lastInternalUrl: APP_URL,
     initialUrlPending: true,
@@ -41,6 +43,11 @@ export function initialAppShellState(): AppShellState {
     delivering: null,
     renderKey: 0,
   }
+}
+
+export function appShellActivityChanged(state: AppShellState, active: boolean): AppShellState {
+  if (state.active === active) return state
+  return active ? { ...state, active } : { ...restoreDelivery(state), active }
 }
 
 export function initialUrlReceived(state: AppShellState, url: string | null): AppShellState {
@@ -111,7 +118,7 @@ export function confirmWebLoadSucceeded(state: AppShellState): AppShellState {
 }
 
 export function drainAppShell(state: AppShellState): { state: AppShellState; command: AppShellCommand | null } {
-  if (!state.ready || state.delivering) return { state, command: null }
+  if (!state.active || !state.ready || state.delivering) return { state, command: null }
   if (state.pendingAuth) {
     const command: AppShellCommand = { kind: 'auth', callback: state.pendingAuth }
     return { state: { ...state, pendingAuth: null, delivering: command }, command }
