@@ -319,6 +319,9 @@ function RootComponent() {
                     <Link to="/terms" className="transition-colors hover:text-bone">
                       Terms of service
                     </Link>
+                    <Link to="/sources" className="transition-colors hover:text-bone">
+                      Data sources
+                    </Link>
                   </p>
                 </footer>
               )}

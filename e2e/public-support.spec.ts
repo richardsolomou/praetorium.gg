@@ -3,6 +3,7 @@ import { expect, test } from '@playwright/test'
 for (const pageDetails of [
   { path: '/support', heading: 'Support' },
   { path: '/delete-account', heading: 'Delete account' },
+  { path: '/sources', heading: 'Data sources' },
 ]) {
   test(`${pageDetails.path} fits a phone viewport`, async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 })
