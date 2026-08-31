@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { NATIVE_BRIDGE_SCRIPT, parseNativeActionRequest } from './nativeActions'
 
 describe('parseNativeActionRequest', () => {
@@ -28,6 +28,19 @@ describe('parseNativeActionRequest', () => {
     })
   })
 
+  it('accepts supported new-window links and rejects unsafe ones', () => {
+    expect(
+      parseNativeActionRequest(
+        JSON.stringify({ version: 3, type: 'native-open-window', url: 'https://praetorium.gg/factions/necrons/datasheets/warriors' }),
+      ),
+    ).toEqual({ kind: 'open-window', url: 'https://praetorium.gg/factions/necrons/datasheets/warriors' })
+    expect(parseNativeActionRequest(JSON.stringify({ version: 3, type: 'native-open-window', url: 'https://example.com/rules' }))).toEqual({
+      kind: 'open-window',
+      url: 'https://example.com/rules',
+    })
+    expect(parseNativeActionRequest(JSON.stringify({ version: 3, type: 'native-open-window', url: 'javascript:alert(1)' }))).toBeNull()
+  })
+
   it('rejects unknown bridge versions and oversized print documents', () => {
     expect(parseNativeActionRequest(JSON.stringify({ version: 2, type: 'native-haptic' }))).toBeNull()
     expect(parseNativeActionRequest(JSON.stringify({ version: 3, type: 'native-print', html: 'x'.repeat(2_000_001) }))).toBeNull()
@@ -36,8 +49,52 @@ describe('parseNativeActionRequest', () => {
 
 describe('NATIVE_BRIDGE_SCRIPT', () => {
   it('publishes only the version 3 capabilities the shell handles', () => {
-    expect(NATIVE_BRIDGE_SCRIPT).toContain("const capabilities = ['battle-active', 'haptic', 'print', 'share']")
+    expect(NATIVE_BRIDGE_SCRIPT).toContain("const capabilities = ['battle-active', 'haptic', 'open-window', 'print', 'share']")
     expect(NATIVE_BRIDGE_SCRIPT).toContain('bridgeVersion: 3')
+  })
+
+  it('routes blank-target links and window.open through the native shell', () => {
+    const messages: string[] = []
+    const listeners = new Map<string, (event: Record<string, unknown>) => void>()
+    const browserOpen = vi.fn()
+    const anchor = { href: 'https://praetorium.gg/factions/necrons/datasheets/warriors', target: '_blank' }
+    class TestElement {
+      closest(selector: string) {
+        return selector === 'a[target]' ? anchor : null
+      }
+    }
+    const window = {
+      open: browserOpen,
+      ReactNativeWebView: { postMessage: (message: string) => messages.push(message) },
+    }
+    const document = {
+      baseURI: 'https://praetorium.gg/rosters/abc',
+      addEventListener: (type: string, listener: (event: Record<string, unknown>) => void) => listeners.set(type, listener),
+    }
+    // oxlint-disable-next-line typescript/no-implied-eval -- Execute the fixed injected script against a small WebView-shaped test harness.
+    const executeBridge = new Function('window', 'document', 'Element', 'URL', NATIVE_BRIDGE_SCRIPT)
+    executeBridge(window, document, TestElement, URL)
+
+    const nativeOpen = window.open as unknown as (url: string, target?: string) => null
+    expect(nativeOpen('/rosters/abc?print=true', '_blank')).toBeNull()
+    expect(JSON.parse(messages[0]!)).toEqual({
+      version: 3,
+      type: 'native-open-window',
+      url: 'https://praetorium.gg/rosters/abc?print=true',
+    })
+    expect(browserOpen).not.toHaveBeenCalled()
+
+    const click = {
+      defaultPrevented: false,
+      button: 0,
+      target: new TestElement(),
+      preventDefault: vi.fn(),
+      stopImmediatePropagation: vi.fn(),
+    }
+    listeners.get('click')!(click)
+    expect(JSON.parse(messages[1]!)).toEqual({ version: 3, type: 'native-open-window', url: anchor.href })
+    expect(click.preventDefault).toHaveBeenCalledOnce()
+    expect(click.stopImmediatePropagation).toHaveBeenCalledOnce()
   })
 
   it('removes executable embedded content before printing', () => {
