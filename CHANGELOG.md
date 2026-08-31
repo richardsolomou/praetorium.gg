@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.43.10
+
+### Patch Changes
+
+- d968a60: Finish native sign-in immediately after returning from the provider.
+
 ## 0.43.9
 
 ### Patch Changes
