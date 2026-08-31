@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.43.7
+
+### Patch Changes
+
+- 3d14898: Refresh the signed-in mobile interface after authentication finishes.
+
 ## 0.43.6
 
 ### Patch Changes
