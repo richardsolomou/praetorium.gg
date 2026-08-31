@@ -1,6 +1,6 @@
 import { runInNewContext } from 'node:vm'
 import { describe, expect, it, vi } from 'vitest'
-import { NATIVE_AUTH_COMPLETION_SCRIPT, nativeAuthExchangeScript } from '../../mobile/src/nativeAuth'
+import { NATIVE_AUTH_COMPLETION_SCRIPT, nativeAuthConsumeScript, nativeAuthExchangeScript } from '../../mobile/src/nativeAuth'
 
 const callback = {
   kind: 'success' as const,
@@ -53,13 +53,18 @@ describe('injected native authentication exchange', () => {
     expect(JSON.parse(sessionStorage.getItem('praetorium.native-auth.exchange')!)).toEqual({ id: callback.id, next: callback.next })
   })
 
-  it('acknowledges the redirect only after it reaches the bound destination', () => {
+  it('acknowledges the redirect only after the bound destination finishes loading', () => {
     const sessionStorage = storage()
     sessionStorage.setItem('praetorium.native-auth.exchange', JSON.stringify({ id: callback.id, next: callback.next }))
     const postMessage = vi.fn()
     const replaceState = vi.fn()
+    let loaded: (() => void) | undefined
 
     runInNewContext(NATIVE_AUTH_COMPLETION_SCRIPT, {
+      addEventListener: (event: string, listener: () => void) => {
+        if (event === 'load') loaded = listener
+      },
+      document: { readyState: 'loading' },
       history: { state: null, replaceState },
       location: { href: `https://praetorium.gg/rosters?__native_auth=${callback.id}` },
       sessionStorage,
@@ -67,6 +72,8 @@ describe('injected native authentication exchange', () => {
       window: { ReactNativeWebView: { postMessage } },
     })
 
+    expect(postMessage).not.toHaveBeenCalled()
+    loaded?.()
     expect(JSON.parse(postMessage.mock.calls[0]![0])).toEqual({
       version: 2,
       type: 'native-auth-result',
@@ -83,6 +90,8 @@ describe('injected native authentication exchange', () => {
     const postMessage = vi.fn()
 
     runInNewContext(NATIVE_AUTH_COMPLETION_SCRIPT, {
+      addEventListener: (_event: string, listener: () => void) => listener(),
+      document: { readyState: 'complete' },
       history: { state: null, replaceState: vi.fn() },
       location: { href: `https://praetorium.gg/sign-in?__native_auth_error=${callback.id}` },
       sessionStorage,
@@ -105,6 +114,8 @@ describe('injected native authentication exchange', () => {
     const postMessage = vi.fn()
 
     runInNewContext(NATIVE_AUTH_COMPLETION_SCRIPT, {
+      addEventListener: vi.fn(),
+      document: { readyState: 'loading' },
       history: { state: null, replaceState: vi.fn() },
       location: { href: `https://praetorium.gg/profile?__native_auth=${callback.id}` },
       sessionStorage,
@@ -113,5 +124,23 @@ describe('injected native authentication exchange', () => {
     })
 
     expect(postMessage).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['succeeds', () => Promise.resolve(new Response(null, { status: 200 }))],
+    ['fails', () => Promise.reject(new Error('offline'))],
+  ])('reloads after receipt consumption %s', async (_name, responseFactory) => {
+    const reload = vi.fn()
+    const response = responseFactory()
+
+    runInNewContext(nativeAuthConsumeScript(callback), {
+      fetch: vi.fn(() => response),
+      location: { reload },
+      sessionStorage: storage(),
+    })
+    await response.catch(() => undefined)
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    expect(reload).toHaveBeenCalledOnce()
   })
 })
