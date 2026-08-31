@@ -55,7 +55,7 @@ Praetorium uses a compact, dark interface. See [Product design](../product-desig
 ## Components and styles
 
 - Use muted green for primary actions, rule references, success, and selected state; amber for attention; and muted steel blue for navigation and inspectable information such as points. Player-side tints remain separate ownership signals.
-- Name and tint a battle's stage from `src/client/battleStage.ts`, never per surface. Amber for a table still being set, the primary green for one being played on, and receded grey for one that is over, so a reader picks the live games out of a list without reading it.
+- Tint a battle's stage from `src/client/battleStage.ts`, never per surface: amber for a table still being set, the primary green for one being played on, and receded grey for one that is over, so a reader picks the live games out of a list without reading it. Every list of battles takes the stage's name from there too. The spectator screen keeps its own words, because they say what the reader is doing rather than what the battle is.
 - Use `HoverTooltip` for rule help. It accepts a title, body, and source note. The generated Base UI tooltip controls position, focus, collision handling, and scrolling.
 - Do not disable controls while a command is in flight. `useCommand` sends them in order, so a player's own taps cannot race each other and nothing has to go dead to prevent it.
 - Wait for a run of edits to settle before asking the server about them. `src/client/useSettled.ts` is the one delay: holding a stepper down is one intent, not fifteen requests.

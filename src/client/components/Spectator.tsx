@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef } from 'react'
 import type { Command } from '../../core/battle'
 import type { ReportEntry } from '../../core/battleReport'
 import type { BattleView } from '../../core/battleView'
+import { battleStage } from '../battleStage'
 import { deploymentsQuery, gameReferencesQuery, meQuery } from '../queries'
 import { sideName, sides, type Side, type SideMission } from '../sides'
 import { ArmyIdentity } from './ArmyIdentity'
@@ -82,7 +83,7 @@ export function Spectator({ view, missions, report }: Props) {
               </Link>
             </span>
           )}
-          <span className="chip inline-flex items-center gap-1.5 text-info">
+          <span className={`chip inline-flex items-center gap-1.5 ${battleStage(view.status).tint}`}>
             <Eye className="size-3.5" />{' '}
             {view.status === 'finished' ? 'Battle replay' : view.status === 'playing' ? 'Watching live' : 'Battle setup'}
           </span>
