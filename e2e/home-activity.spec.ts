@@ -24,13 +24,17 @@ test('shows a battle publicly until its player withholds it', async ({ page, bro
 
   const visitor = await browser.newContext()
   const guest = await visitor.newPage()
+  const battlePath = new URL(battleUrl).pathname
   try {
     await guest.goto('/')
-    const publicShelf = guest.locator('[data-battle-shelf="Public tables"]')
-    await expect(publicShelf).toContainText(name)
+    // The hero carries the liveliest public battle and the shelf below deliberately
+    // does not repeat it, so which block this battle lands in depends on what else
+    // has moved recently. Find it by where it points rather than by where it sits.
+    const link = guest.getByRole('main').locator(`a[href="${battlePath}"]`)
+    await expect(link.first()).toBeVisible()
 
-    // A stranger following the row watches; they are never offered the seat.
-    await publicShelf.getByRole('link').filter({ hasText: name }).first().click()
+    // A stranger following it watches; they are never offered the seat.
+    await link.first().click()
     await guest.waitForURL(/\/battles\/[^/]+$/)
     await expect(guest.getByText('Spectators can follow the score')).toBeVisible()
     await expect(guest.getByRole('button', { name: /join/i })).toHaveCount(0)
@@ -43,7 +47,7 @@ test('shows a battle publicly until its player withholds it', async ({ page, bro
     await guest.goto(battleUrl)
     await expect(guest.getByText('Spectators can follow the score')).toHaveCount(0)
     await guest.goto('/')
-    await expect(guest.locator('[data-battle-shelf="Public tables"]')).not.toContainText(name)
+    await expect(guest.getByRole('main').locator(`a[href="${battlePath}"]`)).toHaveCount(0)
   } finally {
     await visitor.close()
   }
