@@ -113,7 +113,7 @@ export function confirmWebLoadSucceeded(state: AppShellState): AppShellState {
     ...state,
     ready: true,
     loadStarted: false,
-    delivering: null,
+    delivering: state.delivering?.kind === 'auth' ? state.delivering : null,
   }
 }
 
@@ -145,13 +145,8 @@ export function authDeliverySucceeded(state: AppShellState, id: string): AppShel
   const destination = new URL(state.delivering.callback.next, APP_URL).toString()
   return {
     ...state,
-    sourceUrl: destination,
     lastInternalUrl: destination,
-    ready: false,
-    loadStarted: false,
-    loadFailed: false,
     delivering: null,
-    renderKey: state.renderKey + 1,
   }
 }
 

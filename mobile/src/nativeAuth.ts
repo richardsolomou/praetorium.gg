@@ -1,6 +1,9 @@
 import { APP_URL } from './navigation'
 
 export const NATIVE_AUTH_CALLBACK_URL = 'praetorium://auth'
+const NATIVE_AUTH_EXCHANGE_KEY = 'praetorium.native-auth.exchange'
+const NATIVE_AUTH_SUCCESS_QUERY = '__native_auth'
+const NATIVE_AUTH_ERROR_QUERY = '__native_auth_error'
 
 const PROVIDERS = new Set(['apple', 'discord', 'google'])
 const ACTIONS = new Set(['link', 'sign-in'])
@@ -35,6 +38,7 @@ function localPath(value: unknown) {
   try {
     const parsed = new URL(value, APP_URL)
     if (parsed.origin !== APP_URL) return null
+    if (parsed.searchParams.has(NATIVE_AUTH_SUCCESS_QUERY) || parsed.searchParams.has(NATIVE_AUTH_ERROR_QUERY)) return null
     return `${parsed.pathname}${parsed.search}${parsed.hash}`
   } catch {
     return null
@@ -127,32 +131,51 @@ export function parseNativeAuthCallback(value: string, proof?: NativeAuthProof):
 
 export function nativeAuthExchangeScript(callback: Extract<NativeAuthCallback, { kind: 'success' }>) {
   const payload = JSON.stringify(callback)
-  return `void (async () => {
+  return `(() => {
     const auth = ${payload};
     try {
-      const response = await fetch('/api/auth/native-auth-token/exchange', {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ id: auth.id, token: auth.token, verifier: auth.verifier }),
-      });
-      if (response.status === 400) {
-        window.ReactNativeWebView.postMessage(JSON.stringify({ version: 2, type: 'native-auth-result', id: auth.id, ok: false, retryable: false }));
-        return;
+      sessionStorage.setItem('${NATIVE_AUTH_EXCHANGE_KEY}', JSON.stringify({ id: auth.id, next: auth.next }));
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = '/api/auth/native-auth-token/exchange';
+      for (const [name, value] of Object.entries({ id: auth.id, token: auth.token, verifier: auth.verifier, navigation: '1' })) {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = name;
+        input.value = value;
+        form.append(input);
       }
-      if (!response.ok) throw new Error('native auth exchange failed');
-      const exchange = await response.json();
-      if (exchange.id !== auth.id || exchange.next !== auth.next) throw new Error('native auth exchange mismatch');
-      window.ReactNativeWebView.postMessage(JSON.stringify({ version: 2, type: 'native-auth-result', id: exchange.id, ok: true }));
+      document.documentElement.append(form);
+      form.submit();
     } catch {
       window.ReactNativeWebView.postMessage(JSON.stringify({ version: 2, type: 'native-auth-result', id: auth.id, ok: false, retryable: true }));
     }
   })(); true;`
 }
 
+export const NATIVE_AUTH_COMPLETION_SCRIPT = `(() => {
+  try {
+    const pending = JSON.parse(sessionStorage.getItem('${NATIVE_AUTH_EXCHANGE_KEY}') || 'null');
+    if (!pending || typeof pending.id !== 'string' || typeof pending.next !== 'string') return;
+    const current = new URL(location.href);
+    const success = current.searchParams.get('${NATIVE_AUTH_SUCCESS_QUERY}') === pending.id;
+    const failed = current.searchParams.get('${NATIVE_AUTH_ERROR_QUERY}') === pending.id;
+    if (!success && !failed) return;
+    current.searchParams.delete('${NATIVE_AUTH_SUCCESS_QUERY}');
+    current.searchParams.delete('${NATIVE_AUTH_ERROR_QUERY}');
+    if (success) {
+      const expected = new URL(pending.next, '${APP_URL}');
+      if (expected.origin !== '${APP_URL}' || expected.href !== current.href) return;
+    }
+    history.replaceState(history.state, '', current.href);
+    window.ReactNativeWebView.postMessage(JSON.stringify({ version: 2, type: 'native-auth-result', id: pending.id, ok: success, retryable: false }));
+  } catch {}
+})(); true;`
+
 export function nativeAuthConsumeScript(callback: Extract<NativeAuthCallback, { kind: 'success' }>) {
   const payload = JSON.stringify({ id: callback.id, token: callback.token, verifier: callback.verifier })
-  return `void fetch('/api/auth/native-auth-token/consume', {
+  return `sessionStorage.removeItem('${NATIVE_AUTH_EXCHANGE_KEY}');
+  void fetch('/api/auth/native-auth-token/consume', {
     method: 'POST',
     credentials: 'same-origin',
     headers: { 'content-type': 'application/json' },

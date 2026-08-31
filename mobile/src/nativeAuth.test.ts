@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  NATIVE_AUTH_COMPLETION_SCRIPT,
   nativeAuthConsumeScript,
   nativeAuthExchangeScript,
   nativeAuthStartUrl,
@@ -56,6 +57,7 @@ describe('native authentication bridge', () => {
   it('rejects unsupported providers and external redirects', () => {
     expect(parseNativeAuthRequest(JSON.stringify({ ...request, provider: 'other' }))).toBeNull()
     expect(parseNativeAuthRequest(JSON.stringify({ ...request, next: '//example.com' }))).toBeNull()
+    expect(parseNativeAuthRequest(JSON.stringify({ ...request, next: '/rosters?__native_auth=reserved' }))).toBeNull()
   })
 
   it('keeps a linking session token out of the HTTP request', () => {
@@ -101,19 +103,29 @@ describe('native authentication bridge', () => {
     ).toEqual({ kind: 'error' })
   })
 
-  it('exchanges the token in a request body rather than a URL', () => {
+  it('submits the exchange as a top-level form rather than a background request', () => {
     const script = nativeAuthExchangeScript(callback)
-    expect(script).toContain("fetch('/api/auth/native-auth-token/exchange'")
-    expect(script).toContain('body: JSON.stringify({ id: auth.id, token: auth.token, verifier: auth.verifier })')
-    expect(script).toContain('exchange.next !== auth.next')
-    expect(script).not.toContain('window.location.replace')
+    expect(script).toContain("form.action = '/api/auth/native-auth-token/exchange'")
+    expect(script).toContain("sessionStorage.setItem('praetorium.native-auth.exchange'")
+    expect(script).toContain("navigation: '1'")
+    expect(script).toContain('form.submit()')
+    expect(script).not.toContain('fetch(')
     expect(script).not.toContain('?token=')
+  })
+
+  it('acknowledges only the bound destination after the redirect removes its cache marker', () => {
+    expect(NATIVE_AUTH_COMPLETION_SCRIPT).toContain("searchParams.get('__native_auth')")
+    expect(NATIVE_AUTH_COMPLETION_SCRIPT).toContain("searchParams.get('__native_auth_error')")
+    expect(NATIVE_AUTH_COMPLETION_SCRIPT).toContain('expected.href !== current.href')
+    expect(NATIVE_AUTH_COMPLETION_SCRIPT).toContain('history.replaceState')
+    expect(NATIVE_AUTH_COMPLETION_SCRIPT).toContain("type: 'native-auth-result'")
   })
 
   it('acknowledges the same exchange proof after native persistence succeeds', () => {
     const script = nativeAuthConsumeScript(callback)
 
     expect(script).toContain("fetch('/api/auth/native-auth-token/consume'")
+    expect(script).toContain("sessionStorage.removeItem('praetorium.native-auth.exchange')")
     expect(script).toContain('exchange-id-123456789012345678901')
     expect(script).toContain(proof.verifier)
   })
