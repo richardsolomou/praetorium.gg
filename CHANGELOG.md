@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.43.12
+
+### Patch Changes
+
+- ade1c36: Add a public data source and licence notice.
+
 ## 0.43.11
 
 ### Patch Changes
