@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.43.9
+
+### Patch Changes
+
+- e9c37b3: Complete native sign-in when the server and authentication library use different request implementations.
+
 ## 0.43.8
 
 ### Patch Changes
