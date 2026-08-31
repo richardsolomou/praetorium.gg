@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.43.4
+
+### Patch Changes
+
+- 383c42c: Refresh the mobile interface immediately after social sign-in.
+
 ## 0.43.3
 
 ### Patch Changes
