@@ -1,5 +1,13 @@
 # praetorium
 
+## 0.46.0
+
+### Minor Changes
+
+- 0ed0f4e: Show live activity on the home page: your own table, your friends' battles, and every battle anyone may watch, newest first and including finished ones so you can watch a game or read back through it. Choose who can watch your battles from your profile.
+- 0ed0f4e: Every battle now names its whole table when it is created. Battle links no longer offer an open seat to join, so a link only ever opens a battle to read or watch.
+- e256c5c: Colour every battle by the stage it is at, open player profiles to anybody, and land on the home page after signing in.
+
 ## 0.45.0
 
 ### Minor Changes
