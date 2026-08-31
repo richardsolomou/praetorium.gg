@@ -1,5 +1,6 @@
 node_modules/
 .expo/
+.simulator-derived/
 dist/
 expo-env.d.ts
 .kotlin/

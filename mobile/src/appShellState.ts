@@ -68,11 +68,17 @@ export function warmUrlReceived(state: AppShellState, url: string): AppShellStat
 }
 
 export function authReceived(state: AppShellState, callback: AuthCallback): AppShellState {
+  const restored = restoreDelivery(state)
   return {
-    ...state,
-    sourceUrl: state.sourceUrl ?? APP_URL,
+    ...restored,
+    sourceUrl: restored.lastInternalUrl,
     initialUrlPending: false,
+    ready: false,
+    loadStarted: false,
+    loadFailed: false,
     pendingAuth: callback,
+    delivering: null,
+    renderKey: restored.renderKey + 1,
   }
 }
 

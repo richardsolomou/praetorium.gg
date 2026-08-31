@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  NATIVE_AUTH_COMPLETION_SCRIPT,
+  nativeAuthCompletionScript,
   nativeAuthConsumeScript,
   nativeAuthExchangeScript,
   nativeAuthStartUrl,
@@ -114,12 +114,13 @@ describe('native authentication bridge', () => {
   })
 
   it('acknowledges only the bound destination after the redirect removes its cache marker', () => {
-    expect(NATIVE_AUTH_COMPLETION_SCRIPT).toContain("searchParams.get('__native_auth')")
-    expect(NATIVE_AUTH_COMPLETION_SCRIPT).toContain("searchParams.get('__native_auth_error')")
-    expect(NATIVE_AUTH_COMPLETION_SCRIPT).toContain('expected.href !== current.href')
-    expect(NATIVE_AUTH_COMPLETION_SCRIPT).toContain('history.replaceState')
-    expect(NATIVE_AUTH_COMPLETION_SCRIPT).toContain("addEventListener('load'")
-    expect(NATIVE_AUTH_COMPLETION_SCRIPT).toContain("type: 'native-auth-result'")
+    const script = nativeAuthCompletionScript()
+    expect(script).toContain("searchParams.get('__native_auth')")
+    expect(script).toContain("searchParams.get('__native_auth_error')")
+    expect(script).toContain('expected.href !== current.href')
+    expect(script).toContain('history.replaceState')
+    expect(script).toContain("addEventListener('load'")
+    expect(script).toContain("type: 'native-auth-result'")
   })
 
   it('acknowledges the same exchange proof after native persistence succeeds', () => {

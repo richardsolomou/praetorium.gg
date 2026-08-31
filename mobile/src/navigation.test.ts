@@ -1,5 +1,19 @@
 import { describe, expect, it } from 'vitest'
-import { APP_URL, applicationNavigationScript, classifyNavigation, initialApplicationUrl } from './navigation'
+import { APP_URL, applicationNavigationScript, classifyNavigation, initialApplicationUrl, resolveApplicationUrl } from './navigation'
+
+describe('application URL', () => {
+  it('uses production unless a simulator test origin is configured', () => {
+    expect([resolveApplicationUrl(), resolveApplicationUrl('http://127.0.0.1:4173/sign-in')]).toEqual([
+      'https://praetorium.gg',
+      'http://127.0.0.1:4173',
+    ])
+  })
+
+  it('rejects a simulator test URL with credentials or an unsupported protocol', () => {
+    expect(() => resolveApplicationUrl('http://player:secret@127.0.0.1:4173')).toThrow('valid HTTP origin')
+    expect(() => resolveApplicationUrl('file:///tmp/praetorium')).toThrow('valid HTTP origin')
+  })
+})
 
 describe('classifyNavigation', () => {
   it('keeps Praetorium routes in the application', () => {

@@ -37,7 +37,7 @@ import { NATIVE_BRIDGE_SCRIPT, parseNativeActionRequest, type NativeActionReques
 import { applicationNavigationScript, classifyNavigation } from './src/navigation'
 import {
   NATIVE_AUTH_CALLBACK_URL,
-  NATIVE_AUTH_COMPLETION_SCRIPT,
+  nativeAuthCompletionScript,
   nativeAuthConsumeScript,
   nativeAuthExchangeScript,
   nativeAuthStartUrl,
@@ -48,6 +48,18 @@ import { completedPendingNativeAuth, parsePendingNativeAuth, pendingNativeAuth, 
 
 const BACKGROUND = '#0b0c0e'
 const PENDING_AUTH_KEY = 'praetorium.native-auth.pending'
+let pendingAuthTestValue: string | null = null
+const pendingAuthStorage = process.env.EXPO_PUBLIC_NATIVE_AUTH_TEST_APP_URL
+  ? {
+      getItemAsync: async () => pendingAuthTestValue,
+      setItemAsync: async (_key: string, value: string) => {
+        pendingAuthTestValue = value
+      },
+      deleteItemAsync: async () => {
+        pendingAuthTestValue = null
+      },
+    }
+  : SecureStore
 const ACTIVE_BATTLE_KEEP_AWAKE_TAG = 'praetorium-active-battle'
 const POSTHOG_OPTIONS = {
   host: process.env.EXPO_PUBLIC_POSTHOG_HOST,
@@ -148,20 +160,20 @@ function AppShell() {
 
   const handleAuthCallback = useCallback(
     async (url: string, knownPending?: PendingNativeAuth) => {
-      const pending = knownPending ?? parsePendingNativeAuth(await SecureStore.getItemAsync(PENDING_AUTH_KEY))
+      const pending = knownPending ?? parsePendingNativeAuth(await pendingAuthStorage.getItemAsync(PENDING_AUTH_KEY))
       const callback = parseNativeAuthCallback(url, pending ?? undefined)
       if (callback.kind === 'success') {
         if (handledAuthTokens.current.has(callback.token)) return
         handledAuthTokens.current.add(callback.token)
         try {
-          await SecureStore.setItemAsync(PENDING_AUTH_KEY, JSON.stringify(completedPendingNativeAuth(pending!, url)))
+          await pendingAuthStorage.setItemAsync(PENDING_AUTH_KEY, JSON.stringify(completedPendingNativeAuth(pending!, url)))
         } catch (error) {
           handledAuthTokens.current.delete(callback.token)
           throw error
         }
         commitAndDrain(authReceived(shellRef.current, callback))
       } else {
-        await SecureStore.deleteItemAsync(PENDING_AUTH_KEY)
+        await pendingAuthStorage.deleteItemAsync(PENDING_AUTH_KEY)
         commitShell(warmUrlReceived(shellRef.current, url))
         Alert.alert('Sign-in did not finish', 'Return to Praetorium and try the provider again.')
       }
@@ -176,18 +188,18 @@ function AppShell() {
       authOpen.current = true
       const pending = pendingNativeAuth(request)
       try {
-        await SecureStore.setItemAsync(PENDING_AUTH_KEY, JSON.stringify(pending))
+        await pendingAuthStorage.setItemAsync(PENDING_AUTH_KEY, JSON.stringify(pending))
         const result = await WebBrowser.openAuthSessionAsync(nativeAuthStartUrl(request), NATIVE_AUTH_CALLBACK_URL)
         if ('url' in result) await handleAuthCallback(result.url, pending)
         else {
-          await SecureStore.deleteItemAsync(PENDING_AUTH_KEY)
+          await pendingAuthStorage.deleteItemAsync(PENDING_AUTH_KEY)
           if (result.type !== WebBrowser.WebBrowserResultType.CANCEL && result.type !== WebBrowser.WebBrowserResultType.DISMISS) {
             Alert.alert('Sign-in did not finish', 'Return to Praetorium and try the provider again.')
           }
         }
       } catch {
         captureNativeException('native_auth')
-        await SecureStore.deleteItemAsync(PENDING_AUTH_KEY)
+        await pendingAuthStorage.deleteItemAsync(PENDING_AUTH_KEY)
         Alert.alert('Could not open sign-in', 'The secure system sign-in session could not be opened.')
       } finally {
         authOpen.current = false
@@ -284,7 +296,7 @@ function AppShell() {
 
   useEffect(() => {
     let active = true
-    void Promise.all([Linking.getInitialURL(), SecureStore.getItemAsync(PENDING_AUTH_KEY)])
+    void Promise.all([Linking.getInitialURL(), pendingAuthStorage.getItemAsync(PENDING_AUTH_KEY)])
       .then(async ([url, stored]) => {
         if (!active || !shellRef.current.initialUrlPending) return
         if (url?.startsWith(NATIVE_AUTH_CALLBACK_URL)) {
@@ -293,7 +305,7 @@ function AppShell() {
           if (callback.kind === 'success' && pending && !handledAuthTokens.current.has(callback.token)) {
             handledAuthTokens.current.add(callback.token)
             try {
-              await SecureStore.setItemAsync(PENDING_AUTH_KEY, JSON.stringify(completedPendingNativeAuth(pending, url)))
+              await pendingAuthStorage.setItemAsync(PENDING_AUTH_KEY, JSON.stringify(completedPendingNativeAuth(pending, url)))
             } catch (error) {
               handledAuthTokens.current.delete(callback.token)
               throw error
@@ -301,7 +313,7 @@ function AppShell() {
             if (!active) return
             commitAndDrain(initialAuthReceived(shellRef.current, callback))
           } else {
-            void SecureStore.deleteItemAsync(PENDING_AUTH_KEY)
+            void pendingAuthStorage.deleteItemAsync(PENDING_AUTH_KEY)
             commitShell(initialUrlReceived(shellRef.current, null))
             Alert.alert('Sign-in did not finish', 'Return to Praetorium and try the provider again.')
           }
@@ -373,7 +385,7 @@ function AppShell() {
           containerStyle={styles.webView}
           originWhitelist={['*']}
           applicationNameForUserAgent="PraetoriumNative/1.0.0"
-          injectedJavaScriptBeforeContentLoaded={`${NATIVE_BRIDGE_SCRIPT}\n${NATIVE_AUTH_COMPLETION_SCRIPT}`}
+          injectedJavaScriptBeforeContentLoaded={`${NATIVE_BRIDGE_SCRIPT}\n${nativeAuthCompletionScript()}`}
           sharedCookiesEnabled
           thirdPartyCookiesEnabled={false}
           allowsBackForwardNavigationGestures
@@ -429,7 +441,7 @@ function AppShell() {
                 const delivering = shellRef.current.delivering
                 if (delivering?.kind !== 'auth' || delivering.callback.id !== result.id) return
                 commitShell(authDeliverySucceeded(shellRef.current, result.id))
-                void SecureStore.deleteItemAsync(PENDING_AUTH_KEY).then(
+                void pendingAuthStorage.deleteItemAsync(PENDING_AUTH_KEY).then(
                   () => webView.current?.injectJavaScript(nativeAuthConsumeScript(delivering.callback)),
                   () => captureNativeException('native_auth_cleanup'),
                 )
@@ -447,7 +459,7 @@ function AppShell() {
                 const failed = authDeliveryFailed(shellRef.current, result.id)
                 if (failed === shellRef.current) return
                 commitAndDrain(failed)
-                void SecureStore.deleteItemAsync(PENDING_AUTH_KEY)
+                void pendingAuthStorage.deleteItemAsync(PENDING_AUTH_KEY)
                 Alert.alert('Sign-in did not finish', 'The secure sign-in code expired. Try again.')
               }
               return

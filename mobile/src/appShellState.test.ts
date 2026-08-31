@@ -34,6 +34,11 @@ function successfulLoad(state: ReturnType<typeof initialAppShellState>, url: str
   return confirmWebLoadSucceeded(webLoadFinished(webLoadStarted(state), url))
 }
 
+function beginAuthDelivery(state: ReturnType<typeof initialAppShellState>) {
+  const queued = authReceived(state, auth)
+  return drainAppShell(successfulLoad(queued, queued.sourceUrl!)).state
+}
+
 describe('application shell delivery', () => {
   it('lets a warm link win while the initial URL lookup is pending', () => {
     const warm = warmUrlReceived(initialAppShellState(), 'https://praetorium.gg/battles/42?tab=log#latest')
@@ -73,6 +78,24 @@ describe('application shell delivery', () => {
     })
   })
 
+  it('remounts the WebView before delivering authentication', () => {
+    const loaded = successfulLoad(initialUrlReceived(initialAppShellState(), null), 'https://praetorium.gg')
+    const navigated = webNavigationChanged(loaded, 'https://praetorium.gg/rosters')
+    const queued = authReceived(navigated, auth)
+
+    expect({ queued, beforeLoad: drainAppShell(queued).command }).toMatchObject({
+      queued: {
+        sourceUrl: 'https://praetorium.gg/rosters',
+        ready: false,
+        loadStarted: false,
+        pendingAuth: auth,
+        renderKey: 1,
+      },
+      beforeLoad: null,
+    })
+    expect(drainAppShell(successfulLoad(queued, 'https://praetorium.gg/rosters')).command).toEqual({ kind: 'auth', callback: auth })
+  })
+
   it('remounts the last trusted URL and restores interrupted delivery after renderer termination', () => {
     const loaded = successfulLoad(
       initialUrlReceived(initialAppShellState(), 'https://praetorium.gg/battles/42'),
@@ -100,23 +123,23 @@ describe('application shell delivery', () => {
 
   it('keeps the authenticated top-level navigation after native acknowledgement', () => {
     const loaded = successfulLoad(initialUrlReceived(initialAppShellState(), null), 'https://praetorium.gg')
-    const deliveringAuth = drainAppShell(authReceived(loaded, auth)).state
+    const deliveringAuth = beginAuthDelivery(loaded)
     const authenticated = authDeliverySucceeded(webLoadStarted(deliveringAuth), auth.id)
 
     expect(authenticated).toMatchObject({
-      sourceUrl: 'https://praetorium.gg',
+      sourceUrl: 'https://praetorium.gg/',
       lastInternalUrl: 'https://praetorium.gg/lists',
       delivering: null,
       ready: false,
       loadStarted: true,
-      renderKey: 0,
+      renderKey: 1,
     })
     expect(authDeliverySucceeded(deliveringAuth, 'stale-exchange').delivering).toEqual({ kind: 'auth', callback: auth })
   })
 
   it('keeps authentication pending when its destination loads before acknowledgement', () => {
     const loaded = successfulLoad(initialUrlReceived(initialAppShellState(), null), 'https://praetorium.gg')
-    const deliveringAuth = drainAppShell(authReceived(loaded, auth)).state
+    const deliveringAuth = beginAuthDelivery(loaded)
     const destinationLoaded = successfulLoad(deliveringAuth, 'https://praetorium.gg/lists')
 
     expect(destinationLoaded.delivering).toEqual({ kind: 'auth', callback: auth })
@@ -129,7 +152,7 @@ describe('application shell delivery', () => {
 
   it('keeps transient authentication failure ready for an explicit retry', () => {
     const loaded = successfulLoad(initialUrlReceived(initialAppShellState(), null), 'https://praetorium.gg')
-    const deliveringAuth = drainAppShell(authReceived(loaded, auth)).state
+    const deliveringAuth = beginAuthDelivery(loaded)
 
     expect(authDeliveryDeferred(deliveringAuth, auth.id)).toMatchObject({ pendingAuth: auth, delivering: null })
     expect(authDeliveryDeferred(deliveringAuth, 'stale-exchange')).toBe(deliveringAuth)
@@ -187,7 +210,7 @@ describe('application shell delivery', () => {
 
   it('retries the same exchange after renderer termination', () => {
     const loaded = successfulLoad(initialUrlReceived(initialAppShellState(), null), 'https://praetorium.gg')
-    const deliveringAuth = drainAppShell(authReceived(loaded, auth)).state
+    const deliveringAuth = beginAuthDelivery(loaded)
     const recovered = rendererTerminated(deliveringAuth)
     const remounted = successfulLoad(recovered, 'https://praetorium.gg')
     expect(drainAppShell(remounted).command).toEqual({ kind: 'auth', callback: auth })
@@ -195,7 +218,7 @@ describe('application shell delivery', () => {
 
   it('keeps queued navigation behind a retrying exchange', () => {
     const loaded = successfulLoad(initialUrlReceived(initialAppShellState(), null), 'https://praetorium.gg')
-    const deliveringAuth = drainAppShell(authReceived(loaded, auth)).state
+    const deliveringAuth = beginAuthDelivery(loaded)
     const withWarmLink = warmUrlReceived(deliveringAuth, 'https://praetorium.gg/battles/42')
     const recovered = successfulLoad(rendererTerminated(withWarmLink), 'https://praetorium.gg')
     const retry = drainAppShell(recovered).state
@@ -215,14 +238,16 @@ describe('application shell delivery', () => {
       false,
     )
     const queued = authReceived(inactive, auth)
+    const active = appShellActivityChanged(queued, true)
 
     expect(drainAppShell(queued).command).toBeNull()
-    expect(drainAppShell(appShellActivityChanged(queued, true)).command).toEqual({ kind: 'auth', callback: auth })
+    expect(drainAppShell(active).command).toBeNull()
+    expect(drainAppShell(successfulLoad(active, active.sourceUrl!)).command).toEqual({ kind: 'auth', callback: auth })
   })
 
   it('retries authentication interrupted while the application becomes inactive', () => {
     const loaded = successfulLoad(initialUrlReceived(initialAppShellState(), null), 'https://praetorium.gg')
-    const delivering = drainAppShell(authReceived(loaded, auth)).state
+    const delivering = beginAuthDelivery(loaded)
     const inactive = appShellActivityChanged(delivering, false)
 
     expect(inactive).toMatchObject({ active: false, pendingAuth: auth, delivering: null })
