@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import { and, eq } from 'drizzle-orm'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { setTokenUtil } from 'better-auth/oauth2'
 import type { EmailDelivery, EmailMessage } from 'ras-stack/email'
 import type { PraetoriumConnection } from '../db/connection'
 import { account, battles, battleUsers, commands, session, user, verification } from '../db/schema'
@@ -154,7 +155,7 @@ describe('account administration', () => {
 
     expect((await auth.$context).options.account).toEqual({
       encryptOAuthTokens: true,
-      accountLinking: { enabled: true, trustedProviders: ['google', 'discord'] },
+      accountLinking: { enabled: true, trustedProviders: ['apple', 'google', 'discord'] },
     })
   })
 
@@ -390,6 +391,68 @@ describe('account administration', () => {
     expect(await connection.database.select().from(battles)).toEqual([])
     expect(await connection.database.select({ id: user.id }).from(user).where(eq(user.id, deleting.response.user.id))).toEqual([])
     expect(await connection.database.select({ id: user.id }).from(user).where(eq(user.id, remaining.user.id))).toHaveLength(1)
+  })
+
+  it('revokes Apple access before deleting an account', async () => {
+    connection = await openTestDatabase()
+    vi.stubEnv('APPLE_CLIENT_ID', 'gg.praetorium.web')
+    vi.stubEnv('APPLE_CLIENT_SECRET', 'apple-client-secret')
+    const fetcher = vi.fn<typeof fetch>(async () => new Response(null, { status: 200 }))
+    vi.stubGlobal('fetch', fetcher)
+    const auth = createAuth(connection.database, SECRET)
+    const signedUp = await auth.api.signUpEmail({
+      body: { email: 'apple-delete@example.com', password: 'password1234', name: 'Apple delete' },
+      returnHeaders: true,
+    })
+    const context = await auth.$context
+    await connection.database.insert(account).values({
+      id: 'apple-delete',
+      accountId: 'apple-subject',
+      issuer: 'https://appleid.apple.com',
+      providerId: 'apple',
+      userId: signedUp.response.user.id,
+      refreshToken: await setTokenUtil('apple-refresh-token', context as never),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
+
+    await auth.api.deleteUser({ body: { password: 'password1234' }, headers: cookieHeaders(signedUp.headers) })
+
+    expect(fetcher).toHaveBeenCalledOnce()
+    const request = fetcher.mock.calls[0]!
+    expect(request[0]).toBe('https://appleid.apple.com/auth/revoke')
+    expect(request[1]?.body).toEqual(
+      new URLSearchParams({
+        client_id: 'gg.praetorium.web',
+        client_secret: 'apple-client-secret',
+        token: 'apple-refresh-token',
+        token_type_hint: 'refresh_token',
+      }),
+    )
+  })
+
+  it('deletes account data after an Apple account-ended notification', async () => {
+    connection = await openTestDatabase()
+    const auth = createAuth(connection.database, SECRET)
+    const signedUp = await auth.api.signUpEmail({
+      body: { email: 'apple-ended@example.com', password: 'password1234', name: 'Apple ended' },
+    })
+    await connection.database.insert(account).values({
+      id: 'apple-ended',
+      accountId: 'ended-subject',
+      issuer: 'https://appleid.apple.com',
+      providerId: 'apple',
+      userId: signedUp.user.id,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
+    await connection.database.insert(battles).values({ id: 'ended-battle', token: 'ended-token', createdAt: 1 })
+    await connection.database.insert(battleUsers).values({ battleId: 'ended-battle', userId: signedUp.user.id, side: 0, joinedAt: 1 })
+
+    await auth.deleteAppleAccount('ended-subject')
+
+    expect(await connection.database.select().from(battles)).toEqual([])
+    expect(await connection.database.select().from(user).where(eq(user.id, signedUp.user.id))).toEqual([])
   })
 
   it.each(['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET'])('rejects partial Google credentials missing %s', async (missing) => {
@@ -671,6 +734,31 @@ describe('account administration', () => {
       .from(account)
       .where(and(eq(account.userId, signedUp.user.id), eq(account.providerId, 'google')))
     expect(linkedAccount).toBeDefined()
+  })
+
+  it('does not link a verified social identity to an unverified password account', async () => {
+    connection = await openTestDatabase()
+    vi.stubEnv('GOOGLE_CLIENT_ID', 'test-client-id')
+    vi.stubEnv('GOOGLE_CLIENT_SECRET', 'test-client-secret')
+    const auth = createAuth(connection.database, SECRET)
+    const signedUp = await auth.api.signUpEmail({
+      body: { email: 'unverified@example.com', password: 'password1234', name: 'Unverified' },
+    })
+    mockGoogleCallback(
+      googleIdToken({ sub: 'google-unverified', email: 'unverified@example.com', email_verified: true, name: 'Victim' }),
+      'https://accounts.google.example/unused.png',
+      Buffer.from('unused'),
+    )
+
+    const callback = await signInWithGoogleCallback(auth)
+
+    expect(new URL(callback.headers.get('location')!, 'http://localhost').searchParams.get('error')).toBe('account_not_linked')
+    expect(
+      await connection.database
+        .select()
+        .from(account)
+        .where(and(eq(account.userId, signedUp.user.id), eq(account.providerId, 'google'))),
+    ).toEqual([])
   })
 
   it('leaves an existing picture untouched when linking a social account', async () => {

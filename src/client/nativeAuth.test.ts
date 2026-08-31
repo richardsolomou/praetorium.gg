@@ -38,4 +38,15 @@ describe('native auth web bridge', () => {
     expect(message.verifier).toHaveLength(43)
     expect(message.challenge).not.toBe(message.verifier)
   })
+
+  it('keeps the retryable authentication protocol in the version 3 shell', async () => {
+    const postMessage = vi.fn()
+    vi.stubGlobal('window', { PraetoriumNative: { bridgeVersion: 3 }, ReactNativeWebView: { postMessage } })
+
+    await expect(requestNativeAuth({ action: 'sign-in', provider: 'apple', next: '/rosters' })).resolves.toBe(true)
+    const message = JSON.parse(postMessage.mock.calls[0]![0]) as { version: number; provider: string; challenge: string; verifier: string }
+    expect(message).toMatchObject({ version: 3, provider: 'apple' })
+    expect(message.challenge).toHaveLength(43)
+    expect(message.verifier).toHaveLength(43)
+  })
 })

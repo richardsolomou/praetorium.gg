@@ -6,8 +6,20 @@ export { SOCIAL_AUTH_PROVIDER_NAMES, type SocialAuthProvider } from '../../authC
 
 export function AuthMethodIcon({ method, className }: { method: SocialAuthProvider | 'password'; className?: string }) {
   if (method === 'password') return <KeyRound className={cn('size-4', className)} aria-hidden />
+  if (method === 'apple') return <AppleIcon className={className} />
   if (method === 'google') return <GoogleIcon className={className} />
   return <DiscordIcon className={className} />
+}
+
+function AppleIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={cn('size-4', className)} aria-hidden>
+      <path
+        fill="currentColor"
+        d="M17.05 12.54c.02-2.05 1.68-3.04 1.75-3.08a3.76 3.76 0 0 0-2.96-1.6c-1.24-.13-2.44.74-3.07.74-.65 0-1.62-.73-2.67-.71a3.93 3.93 0 0 0-3.31 2.02c-1.43 2.48-.36 6.12 1.01 8.13.69.99 1.49 2.09 2.54 2.05 1.03-.04 1.42-.66 2.67-.66 1.24 0 1.61.66 2.69.64 1.1-.02 1.8-.99 2.46-1.98a8.1 8.1 0 0 0 1.13-2.3 3.55 3.55 0 0 1-2.24-3.25ZM15.03 6.55a3.61 3.61 0 0 0 .83-2.61 3.67 3.67 0 0 0-2.38 1.24 3.47 3.47 0 0 0-.85 2.52 3.03 3.03 0 0 0 2.4-1.15Z"
+      />
+    </svg>
+  )
 }
 
 function GoogleIcon({ className }: { className?: string }) {

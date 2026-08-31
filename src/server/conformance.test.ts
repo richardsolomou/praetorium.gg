@@ -45,6 +45,11 @@ describe('shared infrastructure conformance', () => {
     expect(POSTHOG_BROWSER_OPTIONS).toMatchObject({
       mask_personal_data_properties: true,
       custom_personal_data_properties: expect.arrayContaining(['token']),
+      session_recording: {
+        blockSelector: 'img',
+        maskAllInputs: true,
+        maskTextSelector: '*',
+      },
     })
   })
 })

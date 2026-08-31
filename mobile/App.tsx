@@ -1,8 +1,11 @@
 import { StatusBar } from 'expo-status-bar'
+import * as Haptics from 'expo-haptics'
+import * as KeepAwake from 'expo-keep-awake'
+import * as Print from 'expo-print'
 import * as WebBrowser from 'expo-web-browser'
 import * as SecureStore from 'expo-secure-store'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ActivityIndicator, Alert, AppState, BackHandler, Linking, Pressable, StyleSheet, Text, View } from 'react-native'
+import { ActivityIndicator, Alert, AppState, BackHandler, Linking, Platform, Pressable, Share, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context'
 import { WebView } from 'react-native-webview'
 import type { WebViewNavigation } from 'react-native-webview'
@@ -28,6 +31,7 @@ import {
   type AppShellState,
 } from './src/appShellState'
 import { appStateChanged, initialAppLifecycle, WEB_RESUME_SCRIPT } from './src/lifecycle'
+import { NATIVE_BRIDGE_SCRIPT, parseNativeActionRequest, type NativeActionRequest } from './src/nativeActions'
 import { applicationNavigationScript, classifyNavigation } from './src/navigation'
 import {
   NATIVE_AUTH_CALLBACK_URL,
@@ -41,6 +45,7 @@ import { completedPendingNativeAuth, parsePendingNativeAuth, pendingNativeAuth, 
 
 const BACKGROUND = '#0b0c0e'
 const PENDING_AUTH_KEY = 'praetorium.native-auth.pending'
+const ACTIVE_BATTLE_KEEP_AWAKE_TAG = 'praetorium-active-battle'
 
 WebBrowser.maybeCompleteAuthSession()
 
@@ -70,6 +75,8 @@ function AppShell() {
   const webView = useRef<WebView>(null)
   const canGoBack = useRef(false)
   const authOpen = useRef(false)
+  const battleAwake = useRef(false)
+  const battleAwakeOperation = useRef<Promise<void>>(Promise.resolve())
   const handledAuthTokens = useRef(new Set<string>())
   const lifecycle = useRef(initialAppLifecycle(AppState.currentState))
   const shellRef = useRef(initialAppShellState())
@@ -174,6 +181,45 @@ function AppShell() {
     }
   }, [])
 
+  const setBattleActive = useCallback((active: boolean) => {
+    if (active === battleAwake.current) return battleAwakeOperation.current
+    battleAwake.current = active
+    const operation = battleAwakeOperation.current
+      .catch(() => undefined)
+      .then(() =>
+        active
+          ? KeepAwake.activateKeepAwakeAsync(ACTIVE_BATTLE_KEEP_AWAKE_TAG)
+          : KeepAwake.deactivateKeepAwake(ACTIVE_BATTLE_KEEP_AWAKE_TAG),
+      )
+      .catch((error: unknown) => {
+        if (battleAwake.current === active) battleAwake.current = !active
+        throw error
+      })
+    battleAwakeOperation.current = operation
+    return operation
+  }, [])
+
+  const handleNativeAction = useCallback(
+    async (action: NativeActionRequest) => {
+      switch (action.kind) {
+        case 'battle-active':
+          await setBattleActive(action.active)
+          break
+        case 'haptic':
+          if (Platform.OS === 'android') await Haptics.performAndroidHapticsAsync(Haptics.AndroidHaptics.Confirm)
+          else await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+          break
+        case 'print':
+          await Print.printAsync({ html: action.html })
+          break
+        case 'share':
+          await Share.share({ message: action.url, url: action.url, title: action.title })
+          break
+      }
+    },
+    [setBattleActive],
+  )
+
   const handleUrl = useCallback(
     (url: string) => {
       const decision = classifyNavigation(url)
@@ -254,6 +300,13 @@ function AppShell() {
 
   useEffect(() => cancelScheduledDrain, [cancelScheduledDrain])
 
+  useEffect(
+    () => () => {
+      void setBattleActive(false).catch(() => undefined)
+    },
+    [setBattleActive],
+  )
+
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (status) => {
       const changed = appStateChanged(lifecycle.current, status)
@@ -273,8 +326,9 @@ function AppShell() {
 
   const recoverRenderer = useCallback(() => {
     cancelScheduledDrain()
+    void setBattleActive(false).catch(() => undefined)
     commitShell(rendererTerminated(shellRef.current))
-  }, [cancelScheduledDrain, commitShell])
+  }, [cancelScheduledDrain, commitShell, setBattleActive])
 
   return (
     <SafeAreaView edges={['top', 'right', 'bottom', 'left']} style={styles.safeArea}>
@@ -288,8 +342,8 @@ function AppShell() {
           style={styles.webView}
           containerStyle={styles.webView}
           originWhitelist={['*']}
-          applicationNameForUserAgent="PraetoriumNative/0.4.0"
-          injectedJavaScriptBeforeContentLoaded="window.PraetoriumNative = Object.freeze({ bridgeVersion: 2 }); true;"
+          applicationNameForUserAgent="PraetoriumNative/1.0.0"
+          injectedJavaScriptBeforeContentLoaded={NATIVE_BRIDGE_SCRIPT}
           sharedCookiesEnabled
           thirdPartyCookiesEnabled={false}
           allowsBackForwardNavigationGestures
@@ -316,6 +370,14 @@ function AppShell() {
           onContentProcessDidTerminate={recoverRenderer}
           onRenderProcessGone={recoverRenderer}
           onMessage={({ nativeEvent }) => {
+            const action = parseNativeActionRequest(nativeEvent.data)
+            if (action) {
+              void handleNativeAction(action).catch(() => {
+                if (action.kind === 'print') Alert.alert('Could not print', 'The system print service could not open this roster.')
+                if (action.kind === 'share') Alert.alert('Could not share', 'The system share sheet could not open this link.')
+              })
+              return
+            }
             const result = (() => {
               try {
                 return JSON.parse(nativeEvent.data) as {

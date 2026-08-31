@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Navigate, notFound } from '@tanstack/react-router'
+import { useEffect } from 'react'
 import { Invitation } from '../client/components/Invitation'
 import { Setup } from '../client/components/Setup'
 import { Spectator } from '../client/components/Spectator'
@@ -16,6 +17,7 @@ import {
 import { armyRulesRequest } from '../client/sideRules'
 import { useCommand } from '../client/useCommand'
 import { useLiveBattle } from '../client/useLiveBattle'
+import { setNativeBattleActive } from '../client/nativeBridge'
 import type { openBattle } from '../server/functions'
 
 export const Route = createFileRoute('/battles/$token')({
@@ -75,6 +77,12 @@ function BattleSession({ token }: { token: string }) {
 
 function SeatedBattle({ token, screen }: { token: string; screen: Extract<Awaited<ReturnType<typeof openBattle>>, { kind: 'battle' }> }) {
   useLiveBattle(token, true)
+  useEffect(() => {
+    setNativeBattleActive(true)
+    return () => {
+      setNativeBattleActive(false)
+    }
+  }, [])
   const { send, attachSavedRoster, problem, pending } = useCommand(token, screen.view.seq)
   if (screen.view.status === 'setup')
     return (

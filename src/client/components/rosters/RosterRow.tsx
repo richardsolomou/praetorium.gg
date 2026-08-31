@@ -86,14 +86,14 @@ function RosterActionItems({
   /** Only the overflow menu offers making a list private again; the row menu is shorter. */
   showPrivacy?: boolean
 }) {
-  const copied = actions.copiedFor === roster.id
+  const feedback = actions.shareFeedback?.id === roster.id ? actions.shareFeedback.result : null
   return (
     <>
       <Item onClick={() => actions.print(roster.id)}>
         <Printer /> Print
       </Item>
       <Item disabled={!origin || actions.access.isPending} onClick={() => void actions.share(roster)}>
-        <Link2 /> {copied ? 'Link copied' : roster.visibility === 'private' ? 'Share unlisted link' : 'Copy link'}
+        <Link2 /> {feedback === 'shared' ? 'Link shared' : feedback === 'copied' ? 'Link copied' : 'Share link'}
       </Item>
       {showPrivacy && roster.visibility === 'unlisted' ? (
         <Item disabled={actions.access.isPending} onClick={() => actions.access.mutate({ id: roster.id, visibility: 'private' })}>

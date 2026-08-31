@@ -1,0 +1,16 @@
+{
+  "configVersion": 0,
+  "apple": {
+    "info": {
+      "en-GB": {
+        "title": "Praetorium.gg",
+        "subtitle": "Army lists and battle tracker",
+        "description": "Build and manage tabletop army lists, then run a complete battle from the phones around the table.\n\nPraetorium keeps live scores, phases, missions, command points, unit damage, and an undoable battle history synchronized between players. Build from current community catalogues, save and share rosters, register for private or public league events, and review finished games.\n\nUseful device integrations include verified battle and roster links, secure system-browser sign-in, native link sharing, native roster printing, battle-action haptics, and keeping the display awake during an active game.\n\nPraetorium is an unofficial product and is not affiliated with or endorsed by Games Workshop. Warhammer 40,000 and related marks belong to Games Workshop.",
+        "keywords": ["army", "list", "battle", "tracker", "tabletop", "roster", "miniatures", "strategy", "companion"],
+        "marketingUrl": "https://praetorium.gg",
+        "supportUrl": "https://praetorium.gg/support",
+        "privacyPolicyUrl": "https://praetorium.gg/privacy"
+      }
+    }
+  }
+}

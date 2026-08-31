@@ -63,12 +63,15 @@ The first account with a sign-in method becomes the administrator. During an upg
 
 Email and password sign-in needs no additional configuration. To add email verification and password recovery, set `SMTP_HOST`, `EMAIL_FROM`, and the other SMTP variables from `.env.example`. `SMTP_PORT` defaults to `587`; set `SMTP_SECURE=true` only when the SMTP service expects an implicit TLS connection. For Plunk, use the SMTP values shown for the sending domain in its dashboard.
 
-To enable Google or Discord, create an OAuth application with the provider and set both matching variables from `.env.example`. Use these callback URLs, replacing the origin with the deployment's public origin:
+To enable Google or Discord, create an OAuth application with the provider and set both matching variables from `.env.example`. For Apple, set `APPLE_CLIENT_ID` to the Services ID and set `APPLE_TEAM_ID`, `APPLE_KEY_ID` and `APPLE_PRIVATE_KEY`; the server generates a fresh signed client-secret JWT with a 180-day lifetime. A manually generated `APPLE_CLIENT_SECRET` remains supported instead of the key variables, but it must be replaced before it expires. Use these callback URLs, replacing the origin with the deployment's public origin:
 
+- Apple: `https://example.com/api/auth/callback/apple`
 - Google: `https://example.com/api/auth/callback/google`
 - Discord: `https://example.com/api/auth/callback/discord`
 
-The provider appears only when both its client ID and client secret are set. Set `APP_URL` to the same public origin when proxy headers do not describe it correctly.
+The provider appears only when its complete credentials are set. Set `APP_URL` to the same public origin when proxy headers do not describe it correctly.
+
+Register `https://example.com/api/apple-notifications` as the Sign in with Apple server-to-server notification endpoint on the primary App ID. The endpoint verifies Apple's signed payload and deletes the matching account after `consent-revoked` or `account-deleted` events. Account deletion and Apple unlinking also revoke the stored Apple refresh or access token before discarding it.
 
 ## Mobile application links
 

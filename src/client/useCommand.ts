@@ -6,6 +6,7 @@ import { isSignedOut } from '../core/session'
 import { submit } from '../server/functions'
 import { battleQuery, meQuery } from './queries'
 import { errorMessage } from './queryClient'
+import { requestNativeHaptic } from './nativeBridge'
 
 type SubmittedCommand = Command | { kind: 'attach-saved-roster'; rosterId: string; playerId?: string }
 type QueuedCommand = { command: SubmittedCommand; basedOn: number; complete?: (appended: boolean) => void }
@@ -60,6 +61,7 @@ export function useCommand(token: string, seq: number) {
           if (screen?.kind === 'battle') seen.current = Math.max(seen.current, screen.view.seq)
           void queryClient.invalidateQueries({ queryKey: ['report', token] })
           item.complete?.(result.outcome === 'appended')
+          if (result.outcome === 'appended') requestNativeHaptic()
           if (result.outcome !== 'appended') {
             const authoritativeSeq = screen?.kind === 'battle' ? screen.view.seq : item.basedOn
             const kept: QueuedCommand[] = []

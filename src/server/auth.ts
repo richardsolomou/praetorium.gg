@@ -6,7 +6,6 @@ import { decryptOAuthToken } from 'better-auth/oauth2'
 import { admin, oneTimeToken, twoFactor } from 'better-auth/plugins'
 import { and, count, eq, inArray, notExists, sql } from 'drizzle-orm'
 import {
-  configuredProviderOptions,
   standardAccountOptions,
   standardEmailAndPasswordOptions,
   standardRateLimitOptions,
@@ -17,14 +16,17 @@ import { createAuthEmailHandler, type EmailDelivery } from 'ras-stack/email'
 import type { valkeySecondaryStorage } from '../adapters/valkey'
 import { PASSWORD_MIN_LENGTH, SOCIAL_PROVIDERS } from '../authConfig'
 import type { PraetoriumDatabase } from '../db/connection'
-import { battles, battleUsers, schema, user } from '../db/schema'
+import { account, battles, battleUsers, schema, user } from '../db/schema'
+import { APPLE_AUTH_ORIGIN, appleCredentials, revokeAppleToken } from './appleAuth'
 import { storeProfileImageFromUrl } from './avatarStorage'
+import { configuredAuthProviderOptions, configuredAuthProviders } from './authProviders'
 import { profileUpdate } from './profile'
 import { nativeAuthToken } from './nativeAuthToken'
 
 type AuthStorage = ReturnType<typeof valkeySecondaryStorage>
 
 export function createAuth(database: PraetoriumDatabase, secret: string, storage?: AuthStorage, email?: EmailDelivery) {
+  const configuredApple = appleCredentials()
   const sendResetPassword = email
     ? createAuthEmailHandler(email, ({ user: resetting, url }) => ({
         to: resetting.email,
@@ -52,6 +54,39 @@ export function createAuth(database: PraetoriumDatabase, secret: string, storage
       return claimed
     })
     if (promoted) await (await auth.$context).internalAdapter.refreshUserSessions(promoted)
+  }
+
+  const deleteUserData = async (userId: string) => {
+    await database
+      .delete(battles)
+      .where(inArray(battles.id, database.select({ id: battleUsers.battleId }).from(battleUsers).where(eq(battleUsers.userId, userId))))
+  }
+
+  const revokeAppleTokens = async (linked: { accessToken: string | null; refreshToken: string | null }) => {
+    if (!configuredApple) return
+    try {
+      const context = (await auth.$context) as unknown as GenericEndpointContext['context']
+      const refreshToken = linked.refreshToken ? await decryptOAuthToken(linked.refreshToken, context) : undefined
+      const accessToken = linked.accessToken ? await decryptOAuthToken(linked.accessToken, context) : undefined
+      const token = refreshToken
+        ? { token: refreshToken, type: 'refresh_token' as const }
+        : accessToken
+          ? { token: accessToken, type: 'access_token' as const }
+          : undefined
+      if (token) await revokeAppleToken(configuredApple, token)
+    } catch {
+      const context = await auth.$context
+      context.logger.error('Apple token revocation failed before account removal')
+    }
+  }
+
+  const revokeAppleUser = async (userId: string) => {
+    const [linked] = await database
+      .select({ accessToken: account.accessToken, refreshToken: account.refreshToken })
+      .from(account)
+      .where(and(eq(account.userId, userId), eq(account.providerId, 'apple')))
+      .limit(1)
+    if (linked) await revokeAppleTokens(linked)
   }
 
   // A brand-new social sign-up already carries the provider's avatar on `data.image`
@@ -108,7 +143,7 @@ export function createAuth(database: PraetoriumDatabase, secret: string, storage
           sendVerificationEmail,
         }
       : undefined,
-    socialProviders: configuredProviderOptions(SOCIAL_PROVIDERS, process.env, { rejectPartial: true }),
+    socialProviders: configuredAuthProviderOptions(),
     account: standardAccountOptions({
       accountLinking: { enabled: true, trustedProviders: [...SOCIAL_PROVIDERS] },
     }),
@@ -116,16 +151,8 @@ export function createAuth(database: PraetoriumDatabase, secret: string, storage
       deleteUser: {
         enabled: true,
         beforeDelete: async (deleted) => {
-          // A battle is one append-only log. Removing only this player's seats and
-          // commands would leave a different, invalid history for everyone else.
-          await database
-            .delete(battles)
-            .where(
-              inArray(
-                battles.id,
-                database.select({ id: battleUsers.battleId }).from(battleUsers).where(eq(battleUsers.userId, deleted.id)),
-              ),
-            )
+          await revokeAppleUser(deleted.id)
+          await deleteUserData(deleted.id)
         },
       },
     },
@@ -181,7 +208,10 @@ export function createAuth(database: PraetoriumDatabase, secret: string, storage
       // one rate-limit bucket.
       ipAddress: { ipAddressHeaders: ['cf-connecting-ip', 'x-forwarded-for'] },
     },
-    trustedOrigins: trustedOrigins({ trustForwardedHeaders: true }),
+    trustedOrigins: trustedOrigins({
+      trustForwardedHeaders: true,
+      configured: configuredAuthProviders().includes('apple') ? [APPLE_AUTH_ORIGIN] : [],
+    }),
     plugins: [
       admin({
         adminRoles: ['admin'],
@@ -220,5 +250,18 @@ export function createAuth(database: PraetoriumDatabase, secret: string, storage
     return result.status
   }
 
-  return Object.assign(auth, { changeUserRole })
+  const deleteAppleAccount = async (subject: string) => {
+    const [linked] = await database
+      .select({ userId: account.userId })
+      .from(account)
+      .where(and(eq(account.providerId, 'apple'), eq(account.accountId, subject)))
+      .limit(1)
+    if (!linked) return
+    await deleteUserData(linked.userId)
+    const context = await auth.$context
+    await context.internalAdapter.deleteUser(linked.userId)
+    await context.internalAdapter.deleteUserSessions(linked.userId)
+  }
+
+  return Object.assign(auth, { changeUserRole, deleteAppleAccount, revokeAppleTokens, revokeAppleUser })
 }

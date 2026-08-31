@@ -555,9 +555,9 @@ test('an organizer edits and deletes a league from its card actions', async ({ b
       value: { writeText: () => Promise.reject(new Error('clipboard unavailable')) },
     })
   })
-  await dropdown.getByRole('menuitem', { name: 'Copy invite link' }).click()
+  await dropdown.getByRole('menuitem', { name: 'Share invite' }).click()
   await expect(dropdown).toBeHidden()
-  const copyError = owner.getByText('Could not copy the invite link. Try again.', { exact: true })
+  const copyError = owner.getByText('Could not share the invite. Try again.', { exact: true })
   await expect(copyError).toBeVisible()
   await expect(copyError).toHaveAttribute('aria-live', 'polite')
   await owner.screenshot({ path: 'test-results/league-invite-copy-error-phone.png', fullPage: true })

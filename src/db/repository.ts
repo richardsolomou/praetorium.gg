@@ -52,7 +52,9 @@ export type BattleHistory = BattleSeats & { log: LoggedCommand[] }
 export type BattlesCursor = { activity: number; id: string }
 
 export type JoinResult = 'joined' | 'already-in' | 'full'
-export type UnlinkAccountResult = 'removed' | 'missing' | 'two-factor' | 'last-method'
+export type UnlinkAccountResult =
+  | { status: 'removed'; account: { accessToken: string | null; refreshToken: string | null } }
+  | { status: 'missing' | 'two-factor' | 'last-method' }
 export type JoinLeagueResult = LeagueEntryStatus | 'missing' | 'closed' | 'full'
 export type ModerateLeagueResult = 'updated' | 'missing' | 'forbidden' | 'closed' | 'full'
 export type CreateLeagueEventResult = 'created' | 'missing' | 'forbidden' | 'open' | 'too-small'
@@ -276,12 +278,15 @@ export class Repository {
     return this.database.transaction(async (tx) => {
       const [owner] = await tx.select({ twoFactorEnabled: user.twoFactorEnabled }).from(user).where(eq(user.id, userId)).for('update')
       const methods = await tx.select({ providerId: account.providerId }).from(account).where(eq(account.userId, userId))
-      if (!methods.some((method) => method.providerId === providerId)) return 'missing'
-      if (providerId === 'credential' && owner?.twoFactorEnabled) return 'two-factor'
+      if (!methods.some((method) => method.providerId === providerId)) return { status: 'missing' }
+      if (providerId === 'credential' && owner?.twoFactorEnabled) return { status: 'two-factor' }
       const available = new Set(availableProviders)
-      if (!methods.some((method) => method.providerId !== providerId && available.has(method.providerId))) return 'last-method'
-      await tx.delete(account).where(and(eq(account.userId, userId), eq(account.providerId, providerId)))
-      return 'removed'
+      if (!methods.some((method) => method.providerId !== providerId && available.has(method.providerId))) return { status: 'last-method' }
+      const [removed] = await tx
+        .delete(account)
+        .where(and(eq(account.userId, userId), eq(account.providerId, providerId)))
+        .returning({ accessToken: account.accessToken, refreshToken: account.refreshToken })
+      return removed ? { status: 'removed', account: removed } : { status: 'missing' }
     })
   }
 

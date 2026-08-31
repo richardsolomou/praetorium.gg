@@ -2,6 +2,7 @@ import { createHash, randomBytes, timingSafeEqual } from 'node:crypto'
 import { createAuthEndpoint, getAuthoritativeSessionFromCtx, sessionMiddleware } from 'better-auth/api'
 import { setSessionCookie } from 'better-auth/cookies'
 import { z } from 'zod'
+import { SOCIAL_PROVIDERS } from '../authConfig'
 
 const EXCHANGE_MINUTES = 3
 const exchangeBody = z.object({
@@ -12,7 +13,7 @@ const exchangeBody = z.object({
 const generateBody = z.object({
   action: z.enum(['link', 'sign-in']),
   challenge: z.string().regex(/^[\w-]{43}$/),
-  provider: z.enum(['discord', 'google']),
+  provider: z.enum(SOCIAL_PROVIDERS),
   next: z
     .string()
     .min(1)

@@ -25,9 +25,9 @@ function PrivacyPolicy() {
       <LegalSection title="What we collect">
         <h3 className="text-[0.8125rem] tracking-[0.04em] text-bone">Account data</h3>
         <p>
-          Your display name, email address, optional profile image, and sign-in credentials. You can sign in with a password or with Google
-          or Discord; when you do, those providers share your name, email address and profile image with us. Passwords are stored only as
-          hashes. If you enable two-factor sign-in we store its secret and recovery codes.
+          Your display name, email address, optional profile image, and sign-in credentials. You can sign in with a password or with Apple,
+          Google or Discord; when you do, those providers share your name, email address and available profile image with us. Passwords are
+          stored only as hashes. If you enable two-factor sign-in we store its secret and recovery codes.
         </p>
         <h3 className="text-[0.8125rem] tracking-[0.04em] text-bone">Your content</h3>
         <p>
@@ -69,7 +69,7 @@ function PrivacyPolicy() {
           <li>Our hosting provider, to run the service.</li>
           <li>PostHog, for the usage measurement described above.</li>
           <li>An email delivery provider, to send account email.</li>
-          <li>Google or Discord, when you use one of them to sign in.</li>
+          <li>Apple, Google or Discord, when you use one of them to sign in.</li>
         </LegalLinks>
       </LegalSection>
 
@@ -82,7 +82,11 @@ function PrivacyPolicy() {
           Your content is kept while your account exists. Deleting a saved roster or battle removes it. You can permanently delete your
           account from your profile. This removes your profile, rosters, friendships, league participation and every battle you participated
           in; a shared battle is removed in full because its append-only command log cannot remain valid without every participant. Session
-          records expire on their own; usage data is kept by our analytics provider under its retention settings.
+          records expire on their own; usage data is kept by our analytics provider under its retention settings. The{' '}
+          <a href="/delete-account" className="text-info hover:text-parchment">
+            account deletion page
+          </a>{' '}
+          gives the same path outside the installed application.
         </p>
       </LegalSection>
 

@@ -15,7 +15,7 @@ type NativeAuthSearch = {
   next?: string
   provider?: SocialAuthProvider
   requestSignUp?: boolean
-  bridge?: 1 | 2
+  bridge?: 1 | 2 | 3
   challenge?: string
 }
 
@@ -30,11 +30,13 @@ export const Route = createFileRoute('/native-auth')({
     bridge:
       search.bridge === undefined
         ? 1
-        : search.bridge === 2 || search.bridge === '2'
-          ? 2
-          : search.bridge === 1 || search.bridge === '1'
-            ? 1
-            : undefined,
+        : search.bridge === 3 || search.bridge === '3'
+          ? 3
+          : search.bridge === 2 || search.bridge === '2'
+            ? 2
+            : search.bridge === 1 || search.bridge === '1'
+              ? 1
+              : undefined,
     challenge: typeof search.challenge === 'string' && /^[\w-]{43}$/.test(search.challenge) ? search.challenge : undefined,
   }),
   component: NativeAuth,
@@ -82,7 +84,7 @@ function NativeAuth() {
     if (started.current) return
     started.current = true
     const { action, bridge, challenge, next = '/rosters', provider } = search
-    if (!action || !bridge || !provider || (bridge === 2 && !challenge)) {
+    if (!action || !bridge || !provider || (bridge >= 2 && !challenge)) {
       setFailed(true)
       return
     }
@@ -94,7 +96,7 @@ function NativeAuth() {
         return
       }
       const exchange =
-        bridge === 2
+        bridge >= 2
           ? await fetch('/api/auth/native-auth-token/generate', {
               method: 'POST',
               credentials: 'same-origin',

@@ -1,8 +1,7 @@
 import { createServerFn } from '@tanstack/react-start'
 import { getRequestHeaders } from '@tanstack/react-start/server'
-import { configuredProviders } from 'ras-stack/auth'
-import { SOCIAL_PROVIDERS } from '../../authConfig'
 import { app } from '../app'
+import { configuredAuthProviders } from '../authProviders'
 import { currentUser, currentUserId, requireAdmin, requireUser, requireUserId } from '../playerSession'
 import { mutationRpc, rpc } from '../rpc'
 import {
@@ -37,7 +36,7 @@ export const accountMethods = createServerFn({ method: 'GET' }).handler(() =>
     ])
     return {
       linked: linked.map((entry) => entry.providerId),
-      availableProviders: configuredProviders(SOCIAL_PROVIDERS),
+      availableProviders: configuredAuthProviders(),
       emailDelivery: Boolean(app().email),
       emailVerified: Boolean(authoritative?.emailVerified),
     }
@@ -63,10 +62,17 @@ export const unlinkOwnAccount = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     mutationRpc(async () => {
       const current = await requireUser()
-      const result = await app().service.unlinkAccount(current.id, data.provider, ['credential', ...configuredProviders(SOCIAL_PROVIDERS)])
-      if (result === 'missing') throw new Response('this sign-in method is not linked', { status: 404 })
-      if (result === 'two-factor') throw new Response('disable two-factor authentication before removing your password', { status: 409 })
-      if (result === 'last-method') throw new Response('another available sign-in method must stay linked', { status: 409 })
+      const instance = app()
+      const result = await instance.service.unlinkAccount(current.id, data.provider, ['credential', ...configuredAuthProviders()])
+      if (result.status === 'removed') {
+        if (data.provider === 'apple') await instance.auth.revokeAppleTokens(result.account)
+      } else if (result.status === 'missing') {
+        throw new Response('this sign-in method is not linked', { status: 404 })
+      } else if (result.status === 'two-factor') {
+        throw new Response('disable two-factor authentication before removing your password', { status: 409 })
+      } else {
+        throw new Response('another available sign-in method must stay linked', { status: 409 })
+      }
       await app().telemetry.capture(current.id, 'sign_in_method_removed', { provider: data.provider })
       return null
     }),
@@ -198,5 +204,5 @@ export const setFavouriteDetachment = createServerFn({ method: 'POST' })
   )
 
 export const signInOptions = createServerFn({ method: 'GET' }).handler(() =>
-  rpc(() => ({ providers: configuredProviders(SOCIAL_PROVIDERS), passwordReset: Boolean(app().email) })),
+  rpc(() => ({ providers: configuredAuthProviders(), passwordReset: Boolean(app().email) })),
 )
