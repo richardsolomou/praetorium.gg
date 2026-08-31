@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { Trash2 } from 'lucide-react'
+import { Pencil, Trash2, TriangleAlert } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { Button } from '@/components/ui/button'
@@ -21,7 +21,7 @@ import { errorMessage } from '../../queryClient'
 import { savedRosterSummariesQuery } from '../../queries'
 import type { Army, Side } from '../../sides'
 import { ArmyIdentity, RosterIdentity } from '../ArmyIdentity'
-import { rosterWaivers, waiverCount, waiverLabels, WaiverNote } from '../FormatWaivers'
+import { rosterWaivers, WaiverList, WaiverNote } from '../FormatWaivers'
 import { CHOOSABLE, CHOSEN, DispositionChip, SetupNote, SetupSidePanel, useDispositionNames } from './chrome'
 
 type SavedRoster = Awaited<ReturnType<NonNullable<ReturnType<typeof savedRosterSummariesQuery>['queryFn']>>>[number]
@@ -204,19 +204,34 @@ export function ArmiesStep({ view, sides, send, attachSavedRoster, pending, prob
         error={rosterQuery.error ? errorMessage(rosterQuery.error) : problem}
       />
       <AlertDialog open={confirming !== null} onOpenChange={(open) => !open && setConfirming(null)}>
-        <AlertDialogContent className="rounded-none border border-edge bg-panel text-bone">
+        <AlertDialogContent className="rounded-none border border-discarded/50 bg-panel text-bone sm:max-w-lg [&>*]:min-w-0">
           <AlertDialogHeader>
-            <AlertDialogTitle className="uppercase">Bring a list built past its format?</AlertDialogTitle>
+            <AlertDialogTitle className="flex items-center gap-2 text-discarded uppercase">
+              <TriangleAlert className="size-5 shrink-0" aria-hidden />
+              {confirmingWaivers.length === 1 ? 'This list waives a rule' : `This list waives ${confirmingWaivers.length} rules`}
+            </AlertDialogTitle>
             <AlertDialogDescription className="text-dim">
-              {confirming?.name} is built with {waiverCount(confirmingWaivers)} switched off: {waiverLabels(confirmingWaivers)}. Praetorium
-              has not checked {oneWaiver ? 'that restriction' : 'those restrictions'}, and everyone at this table will see that the list
-              waives {oneWaiver ? 'it' : 'them'}.
+              {confirming?.name} is not playing {oneWaiver ? 'one of' : 'some of'} the rules of its battle size:
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={pending}>Choose another list</AlertDialogCancel>
+          <WaiverList rules={confirmingWaivers} />
+          <p className="text-sm text-dim">
+            Praetorium has not checked {oneWaiver ? 'it' : 'them'}, so this army may be illegal. Everyone at this table sees what it waives.
+          </p>
+          <AlertDialogFooter className="sm:flex-wrap">
+            {confirming ? (
+              <Button
+                variant="outline"
+                nativeButton={false}
+                className="sm:mr-auto"
+                render={<Link to="/rosters/$id" params={{ id: confirming.id }} />}
+              >
+                <Pencil /> Edit roster
+              </Button>
+            ) : null}
+            <AlertDialogCancel disabled={pending}>Choose another</AlertDialogCancel>
             <AlertDialogAction disabled={pending} onClick={confirm}>
-              Bring this list
+              Bring it anyway
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

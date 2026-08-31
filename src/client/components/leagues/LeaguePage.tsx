@@ -1,6 +1,6 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
-import { CalendarPlus, Check, Eye, FileLock2, LockKeyhole, ShieldCheck, Swords, UserPlus, X } from 'lucide-react'
+import { CalendarPlus, Check, Eye, FileLock2, LockKeyhole, Pencil, ShieldCheck, Swords, TriangleAlert, UserPlus, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import {
   AlertDialog,
@@ -48,7 +48,7 @@ import { alliedLeagueRosterLimit, leagueRosterSplit, leagueTableShape, LEAGUE_ME
 import { TABLE_SHAPE_LABELS, type TableShape } from '../../../core/tableShape'
 import { seatedPlayers, seatsFor, type Seat } from '../../seats'
 import { SeatMatchup, SeatRows, seatLabel, seatOption } from '../Seats'
-import { rosterWaivers, waiverCount, waiverLabels } from '../FormatWaivers'
+import { rosterWaivers, WaiverList } from '../FormatWaivers'
 import { RosterSummary } from '../rosters/RosterSummary'
 import type { SavedRoster } from '../rosters/rosterLibrary'
 import { BattleShelf } from '../battles/BattleShelf'
@@ -639,17 +639,36 @@ export function LeaguePage({ token, eventToken, startBattle }: { token: string; 
           if (!open) setSealing(null)
         }}
       >
-        <AlertDialogContent aria-busy={submit.isPending} className="rounded-none border border-edge bg-panel text-bone">
+        <AlertDialogContent
+          aria-busy={submit.isPending}
+          className="rounded-none border border-discarded/50 bg-panel text-bone sm:max-w-lg [&>*]:min-w-0"
+        >
           <AlertDialogHeader>
-            <AlertDialogTitle className="uppercase">Seal a roster built past its format?</AlertDialogTitle>
+            <AlertDialogTitle className="flex items-center gap-2 text-discarded uppercase">
+              <TriangleAlert className="size-5 shrink-0" aria-hidden />
+              {sealWaivers.length === 1 ? 'This roster waives a rule' : `This roster waives ${sealWaivers.length} rules`}
+            </AlertDialogTitle>
             <AlertDialogDescription className="text-dim">
-              {sealing?.name} is built with {waiverCount(sealWaivers)} switched off: {waiverLabels(sealWaivers)}. Praetorium has not checked{' '}
-              {sealWaivers.length === 1 ? 'that restriction' : 'those restrictions'}, so this roster may not be legal for the event. Once
-              the organizer reveals the rosters, they and every opponent will see what it waives.
+              {sealing?.name} is not playing {sealWaivers.length === 1 ? 'one of' : 'some of'} the rules of its battle size:
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={submit.isPending}>Choose another roster</AlertDialogCancel>
+          <WaiverList rules={sealWaivers} />
+          <p className="text-sm text-dim">
+            Praetorium has not checked {sealWaivers.length === 1 ? 'it' : 'them'}, so this roster may not be legal for the event. The
+            organizer and every opponent see what it waives once the rosters are revealed.
+          </p>
+          <AlertDialogFooter className="sm:flex-wrap">
+            {sealing ? (
+              <Button
+                variant="outline"
+                nativeButton={false}
+                className="sm:mr-auto"
+                render={<Link to="/rosters/$id" params={{ id: sealing.id }} />}
+              >
+                <Pencil /> Edit roster
+              </Button>
+            ) : null}
+            <AlertDialogCancel disabled={submit.isPending}>Choose another</AlertDialogCancel>
             <AlertDialogAction
               disabled={submit.isPending}
               onClick={() => {
@@ -657,7 +676,7 @@ export function LeaguePage({ token, eventToken, startBattle }: { token: string; 
                 setSealing(null)
               }}
             >
-              Seal this roster
+              Seal it anyway
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

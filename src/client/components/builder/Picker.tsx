@@ -137,9 +137,10 @@ export const Picker = memo(function Picker({
             </Toggle>
           ))}
           {/*
-           * The restrictions the battle size imposes, switched off from the book they
-           * act on. They belong here rather than in roster setup because unchecking one
-           * is what puts the datasheets it was hiding back on this list.
+           * The restrictions the battle size imposes, switched off over the book they
+           * act on: unchecking one is what puts the datasheets it was hiding back in
+           * this list. What a list has switched off is said again under the roster,
+           * where the errors it is no longer being told about would have been.
            */}
           <DropdownMenu>
             <DropdownMenuTrigger

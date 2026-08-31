@@ -43,6 +43,7 @@ import { UnitCard } from './builder/UnitCard'
 import { survivingUnits } from './builder/pricePlaceholder'
 import { attachmentRows, joinableUnits } from './builder/attachments'
 import { pickEditor, usePicks } from './builder/usePicks'
+import { WaiverWarning } from './FormatWaivers'
 import { RosterSetupDialog, type RosterSetup, type RosterSetupFaction } from './RosterSetupDialog'
 import { RosterExportDialog } from './RosterExportDialog'
 import { RosterBody, RosterHeader, RosterShell, RosterUnits } from './RosterPresentation'
@@ -72,6 +73,8 @@ type Props = {
 }
 
 const READ_ONLY_PREFERENCE = 'praetorium.roster-read-only'
+/** Which set of waived restrictions this workspace has already been told about. */
+const WAIVERS_DISMISSED = 'waivers-dismissed'
 const NO_UNITS = [] as const
 
 /**
@@ -106,6 +109,7 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
   const [exportText, setExportText] = useState<string | null>(null)
   const workspacePath = `/rosters/${initial.id}`
   const [setupDraft, setSetupDraftState] = useState<RosterSetup | null>(null)
+  const [dismissedWaivers, setDismissedWaivers] = useState<string | null>(null)
   const [wideWorkspace, setWideWorkspace] = useState(true)
   const [workspaceMeasured, setWorkspaceMeasured] = useState(false)
   const [pickerQuery, setPickerQuery] = useState('')
@@ -124,6 +128,11 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
     writeWorkspaceState(workspacePath, 'roster-setup', draft)
   }
 
+  const dismissWaivers = (key: string) => {
+    setDismissedWaivers(key)
+    writeWorkspaceState(workspacePath, WAIVERS_DISMISSED, key)
+  }
+
   const savedId = initial.id
   const queryClient = useQueryClient()
   const { data: owned } = useQuery({ ...collectionQuery(), enabled: editable && pickerEnabled })
@@ -131,6 +140,7 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
   const { mutate: mutateCollection } = useCollectionMutation()
 
   useEffect(() => setSetupDraftState(readWorkspaceState<RosterSetup>(workspacePath, 'roster-setup')), [workspacePath])
+  useEffect(() => setDismissedWaivers(readWorkspaceState<string>(workspacePath, WAIVERS_DISMISSED)), [workspacePath])
   useLayoutEffect(() => {
     const media = window.matchMedia('(min-width: 1300px)')
     const sync = () => {
@@ -348,6 +358,12 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
         }
       : selectedUnit
   const waivers = waivedFormatRules(limit, waivedRules)
+  /*
+   * Dismissing says "I know", not "never tell me": the key is the set of waived
+   * restrictions, so switching another one off says something the player has not
+   * acknowledged yet and the warning comes back.
+   */
+  const waiverKey = waivers.map((rule) => rule.id).join(',')
   const inspectorView = editable && !readOnly ? 'edit' : 'readonly'
   const warlord = optimisticUnit?.toggles.find((toggle) => toggle.name === 'Warlord')
   const inspectedEntryId = preview?.entryId ?? optimisticUnit?.entryId ?? null
@@ -785,6 +801,10 @@ export function ListBuilder({ prep, initial, initialFaction, editable = true, ba
             </ul>
           </div>
         ) : null}
+        {/* Under the errors, because a restriction switched off is why one of them is not there. */}
+        {dismissedWaivers === waiverKey ? null : (
+          <WaiverWarning rules={waivers} onDismiss={() => dismissWaivers(waiverKey)} editable={editable} />
+        )}
       </footer>
       <RosterExportDialog text={exportText} onClose={() => setExportText(null)} />
     </RosterShell>
